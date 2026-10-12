@@ -1,0 +1,16 @@
+[project]
+name = "intarsiaml"
+version = "0.0.1"
+description = "Intarsia: a modular, pluggable inference engine (name reservation, under development)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
