@@ -28,6 +28,7 @@ pub const BUILD_STAMP: Option<&str> = option_env!("INTARSIA_BUILD_STAMP");
 pub const HARNESS_OVERLAY_PATHS: &[&str] = &[
     "crates/intarsia-cli/src/cmd/accuracy.rs",
     "crates/intarsia-cli/src/cmd/accuracy/baseline.rs",
+    "crates/intarsia-cli/src/cmd/accuracy/envelope.rs",
     "crates/intarsia-cli/src/cmd/accuracy/provenance.rs",
     "crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs",
 ];
@@ -93,6 +94,11 @@ pub struct ExecInfo {
     pub cmdline: Vec<String>,
     /// `INTARSIA_CUDA_DISABLE` / `INTARSIA_HIP_DISABLE`, "" when unset.
     pub disable_list: String,
+    /// `INTARSIA_CPU_FAULT` / `INTARSIA_CPU_MUTATE` (gate-sensitivity hooks of the cpu backend), "" when unset.
+    /// Printed in the diff, never used to refuse a comparison; the noise envelope uses it to see that a perturbation
+    /// set this way really differs from the unperturbed run. Absent in files written before it existed.
+    #[serde(default)]
+    pub fault: String,
     /// Resolved kernel per op (`engine.plan()["ops"]`): op -> "kernel_a+kernel_b".
     pub kernels: BTreeMap<String, String>,
 }
@@ -100,6 +106,11 @@ pub struct ExecInfo {
 impl ExecInfo {
     pub fn capture(plan: &serde_json::Value) -> ExecInfo {
         let disable_list = ["INTARSIA_CUDA_DISABLE", "INTARSIA_HIP_DISABLE"]
+            .iter()
+            .filter_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()).map(|v| format!("{k}={v}")))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let fault = ["INTARSIA_CPU_FAULT", "INTARSIA_CPU_MUTATE"]
             .iter()
             .filter_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()).map(|v| format!("{k}={v}")))
             .collect::<Vec<_>>()
@@ -116,6 +127,7 @@ impl ExecInfo {
         ExecInfo {
             cmdline: std::env::args().collect(),
             disable_list,
+            fault,
             kernels: kernels.into_iter().map(|(k, mut v)| (k, { v.sort(); v.join("+") })).collect(),
         }
     }
@@ -129,6 +141,9 @@ impl ExecInfo {
         }
         if self.disable_list != other.disable_list {
             d.push(format!("kernel disable list: baseline '{}', this run '{}'", self.disable_list, other.disable_list));
+        }
+        if self.fault != other.fault {
+            d.push(format!("fault injection: baseline '{}', this run '{}'", self.fault, other.fault));
         }
         for (op, k) in &self.kernels {
             match other.kernels.get(op) {

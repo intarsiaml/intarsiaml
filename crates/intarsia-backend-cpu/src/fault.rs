@@ -6,6 +6,12 @@
 //! sums in another order produces exactly this kind of output change: some elements end one bf16 ulp away
 //! (rel. error 2^-8 .. 2^-9) and the rest are identical. `p` = 4.7e-3 gives rel_l2 of about 3.5e-4 on gaussian bf16 data (rel_l2 ~ 5.1e-3 * sqrt(p)), the
 //! size measured between the old and the grouped MoE kernel (docs/quant-moe.md).
+//!
+//! `INTARSIA_CPU_MUTATE=<op>[,<op>...]:scale=<f>` is the opposite kind of hook, a deliberate BUG: every bf16 output
+//! element of those ops is multiplied by `f` (`attn_prefill,attn_decode:scale=1.05` is an attention output 5 % too
+//! large, `matmul:scale=1.05` a projection with a wrong global scale, the kind of error a mis-scaled NVFP4 tensor
+//! makes). The noise-envelope gate must FAIL a run with this set while it passes a legitimate reordering
+//! (docs/accuracy.md, "Noise envelope"). Same rules: off by default, gate-sensitivity checks only.
 
 use intarsia_core::backend::Backend;
 use intarsia_core::rng::SplitMix64;
@@ -29,10 +35,36 @@ fn config() -> &'static Option<Fault> {
     })
 }
 
+struct Mutation {
+    ops: Vec<String>,
+    scale: f32,
+}
+
+fn mutation() -> &'static Option<Mutation> {
+    static CFG: OnceLock<Option<Mutation>> = OnceLock::new();
+    CFG.get_or_init(|| {
+        let v = std::env::var("INTARSIA_CPU_MUTATE").ok()?;
+        let (ops, f) = v.rsplit_once(':')?;
+        let scale: f32 = f.trim().strip_prefix("scale=")?.parse().ok().filter(|s: &f32| s.is_finite())?;
+        eprintln!("WARNING: INTARSIA_CPU_MUTATE={v}: bf16 outputs of [{ops}] are scaled x{scale} on purpose (a deliberate bug, gate sensitivity check)");
+        Some(Mutation { ops: ops.split(',').map(|s| s.trim().to_string()).collect(), scale })
+    })
+}
+
 static LAUNCHES: AtomicU64 = AtomicU64::new(0);
 
 /// Perturb the bf16 outputs of `call` in place when the fault is configured for its op.
 pub fn apply(be: &dyn Backend, call: &OpCall) -> Result<()> {
+    if let Some(m) = mutation() {
+        if m.ops.iter().any(|o| o == call.op.as_str()) {
+            for o in call.outputs.iter().filter(|o| o.dtype == DType::Bf16) {
+                let mut bytes = vec![0u8; o.numel() * 2];
+                be.download(&o.buf, o.offset, &mut bytes, 0)?;
+                scale_bf16(&mut bytes, m.scale);
+                be.upload(&o.buf, o.offset, &bytes, 0)?;
+            }
+        }
+    }
     let Some(f) = config() else { return Ok(()) };
     if !f.ops.iter().any(|o| o == call.op.as_str()) {
         return Ok(());
@@ -45,6 +77,14 @@ pub fn apply(be: &dyn Backend, call: &OpCall) -> Result<()> {
         be.upload(&o.buf, o.offset, &bytes, 0)?;
     }
     Ok(())
+}
+
+/// Multiply each bf16 element (little-endian pairs in `bytes`) by `scale`, rounded back to bf16.
+fn scale_bf16(bytes: &mut [u8], scale: f32) {
+    for c in bytes.chunks_exact_mut(2) {
+        let v = half::bf16::from_bits(u16::from_le_bytes([c[0], c[1]]));
+        c.copy_from_slice(&half::bf16::from_f32(v.to_f32() * scale).to_bits().to_le_bytes());
+    }
 }
 
 /// Move each bf16 element (little-endian pairs in `bytes`) one ulp up or down in magnitude with probability `p`. Zeros,
@@ -84,6 +124,15 @@ mod tests {
             den += v.to_f64().powi(2);
         }
         (num / den).sqrt()
+    }
+
+    #[test]
+    fn mutation_scales_every_element() {
+        let x: Vec<half::bf16> = [1.0f32, -2.0, 0.5, 0.0].iter().map(|v| half::bf16::from_f32(*v)).collect();
+        let mut bytes: Vec<u8> = x.iter().flat_map(|v| v.to_bits().to_le_bytes()).collect();
+        scale_bf16(&mut bytes, 1.5);
+        let y: Vec<f32> = bytes.chunks_exact(2).map(|c| half::bf16::from_bits(u16::from_le_bytes([c[0], c[1]])).to_f32()).collect();
+        assert_eq!(y, [1.5, -3.0, 0.75, 0.0]);
     }
 
     /// The documented mapping from flip rate to relative L2 error (docs/accuracy.md uses it to size the injected faults).

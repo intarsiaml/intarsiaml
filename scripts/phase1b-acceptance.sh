@@ -7,8 +7,10 @@
 #   build      spark1, small shared fleetq slot, vLLM stays up. Sync both trees, build both, compile the CUDA tests.
 #   lease      spark1, ONE exclusive slot that takes `guidance` down. Stops the vLLM container, waits for its memory.
 #   kernels    `intarsia kernels test --backend cuda` must say ADMITTED; the CUDA kernel tests.
-#   accuracy   per model/golden: the OLD build records baseline + self-golden, the NEW build is gated against both
-#              (floor, baseline, per-prompt, same-weights self-golden with budgets from a measured noise floor).
+#   accuracy   per model/golden: the OLD build records baseline (+ self-golden) and, on MoE / hybrid models, a NOISE
+#              ENVELOPE (the same old build run again with SIMT attention / another prefill chunk); the NEW build is
+#              gated (floor, baseline, per prompt with the envelope, same-weights self-golden with budgets from a
+#              measured noise floor). Dense models (8B) are gated against the HF fp32 golden, bf16 floor class.
 #   graphs     256-step greedy decode on the real 35B, graph replay vs --no-graphs (must be identical), replays > 0.
 #   ab         ROUNDS interleaved rounds. Each round: vLLM down, ours-new and ours-old (alternating order), then
 #              vLLM up and vLLM. The container is stopped and started between arms; ours never runs beside it.
@@ -36,6 +38,18 @@
 #     reordering on the real weights). DEFAULT: mean KL(21-way) 1e-4, max position KL 5e-3, top-1 flips 0.5%, mean
 #     |tail diff| 5e-4, prompt KL x5 (docs/accuracy.md, "Choosing the self-golden budgets").
 #
+#   * NOISE ENVELOPE (per-prompt part of the baseline gate; written before the re-evaluation of 2026-10-13, k fixed in
+#     advance): per prompt, limit = baseline value -/+ max(fixed margin, K x that prompt's envelope delta), K = 2
+#     (--envelope-k default). The envelope delta is |difference| between two runs of the OLD build (baseline vs
+#     perturbed) of the numbers the per-prompt gate looks at. Perturbations: 35b-short attn-simt + chunk=64, 35b-long
+#     chunk=1024, then SIMT attention on the old build as a held-out check of 35b-long. The aggregate (all-prompt)
+#     checks keep their fixed margins and stay hard. The 35B verdict is the gate's PASS/FAIL at K = 2; the "k needed"
+#     column and the failures-by-k line are reported next to it and do not change it. Prediction written down before
+#     the run: 35b-short decode fails an aggregate check (mean / tail-bucket KL, max KL) on the 0e77696 numbers, so the
+#     gate stays FAIL whatever the envelope does to the per-prompt part (docs/results/2026-10-13-phase1b.md, 10.1).
+#   * WINDOW_MIN (35 for the re-evaluation): a step that would not end 5 min before the vLLM-down window does is
+#     skipped and reported. Order of cases: 35b-short, 8b-short, 8b-long, 35b-long.
+#
 # Required environment (no defaults on purpose):
 #   VLLM_CONTAINER   docker container of spark1's guidance vLLM (find it with `ssh spark1 docker ps`; it is not recorded
 #                    in this repo, and the script restarts it with `docker start`, so no launch flags are guessed)
@@ -43,7 +57,9 @@
 # Optional: S1_8B, PRE_CHANGE (4963b43), ROUNDS (3), REPS (5), GEN (128), SIZES (128,1024,4096), HOST (spark1),
 #   VLLM_HOST (127.0.0.1: address the vLLM container is bound to; spark1 binds its tailnet IP, see `docker inspect`),
 #   MACHINE (spark-4e77), MEM_LEASE_GB (100), MODEL_GB_35B (38), MODEL_GB_8B (17), STAGES (comma list, default all),
-#   ACC_ONLY (comma list of accuracy case names to run, default all), AB_SHIPPED (0), ALLOW_DIRTY (0: development only, the tree under test is then not stamped clean),
+#   ACC_ONLY (comma list of accuracy case names to run, default all), ACC_SELF (1; 0 skips self-golden, noise-floor and
+#   determinism steps), ACC_DENSE_BASELINE (1; 0: dense cases get the floor gate only), WINDOW_MIN (0 = no limit),
+#   ENVELOPE_PERTURB (space-separated --noise-perturb values for every moe case), HELDOUT_35B_LONG (1), AB_SHIPPED (0), ALLOW_DIRTY (0: development only, the tree under test is then not stamped clean),
 #   DRY_RUN (1: stub ssh/rsync/fleetq/docker, log what would run), FAIL_AT=<stage> (DRY_RUN: force that stage to fail
 #   and show that the trap restores vLLM), WORK (artefact directory on the Mac).
 
@@ -258,6 +274,15 @@ push_goldens() {                               # the small vLLM top-k goldens; t
     [[ -f "$f" || $DRY_RUN == 1 ]] || continue
     if [[ $DRY_RUN == 1 ]]; then dry "rsync $f -> $HOST:$GD/"; else rsync -a --ignore-existing "$f" "$HOST:$GD/"; fi
   done
+  # the 8B HF fp32 goldens (docs/accuracy.md: the default for gating dense models); sha256 prefixes from the build log
+  for f in qwen3-8b-fp32:7b8b0cdccaa46093 qwen3-8b-long-fp32:ab22f2047c566c25; do
+    local g=${f%%:*} want=${f##*:} got
+    [[ -f "$REPO/golden/$g.safetensors" || $DRY_RUN == 1 ]] || { log "WARNING: golden/$g.safetensors is not on the Mac, the 8B cases will be skipped"; continue; }
+    if [[ $DRY_RUN == 1 ]]; then dry "rsync golden/$g.safetensors -> $HOST:$GD/ (sha256 $want)"; continue; fi
+    rsync -a --ignore-existing "$REPO/golden/$g.safetensors" "$HOST:$GD/"
+    got=$(rsh_out "sha256sum $GD/$g.safetensors | cut -c1-16")
+    [[ "$got" == "$want" ]] || die "$g.safetensors on $HOST has sha256 $got, expected $want"
+  done
 }
 
 stage_build() {
@@ -289,6 +314,7 @@ stage_lease() {
   export FLEETQ_JOB=$LEASE_JOB
   log "stopping the vLLM container $VLLM_CONTAINER"
   VLLM_STOPPED=1                               # set first: if docker stop half-fails the trap still tries docker start
+  WINDOW_START=$(date +%s)                      # the vLLM-down window starts here (WINDOW_MIN counts from it)
   docker_remote stop "$VLLM_CONTAINER" >/dev/null
   wait_mem_freed
   rsh_stdin "cat > $R/poll.sh && chmod +x $R/poll.sh" <<'POLL'
@@ -322,40 +348,94 @@ stage_kernels() {
 # ---------------------------------------------------------------------------------------------------------------------
 # accuracy
 # ---------------------------------------------------------------------------------------------------------------------
-# name | model | golden | model GB | extra flags
+# name | model | golden | model GB | kind | extra flags
+#   kind moe    MoE / hybrid model: the per-prompt limits need a noise envelope, recorded here from the OLD build
+#        dense  the per-prompt fixed margins were set on dense models; the golden is HF fp32 (docs/accuracy.md,
+#               "Reading numbers: the reference's own noise"), gate class bf16
+# Order = priority when WINDOW_MIN cuts the run short: 35b-short, the 8B fp32 re-gates, 35b-long.
 ACC_CASES() {
   cat <<EOF
-35b-short|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors|$MODEL_GB_35B|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 60
-35b-long|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors|$MODEL_GB_35B|--mode all --decode-positions 64 --max-seq 16384 --mem-budget 70
-8b-full|$S1_8B|$GD/qwen3-8b-full.safetensors|$MODEL_GB_8B|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 40
-8b-4k|$S1_8B|$GD/qwen3-8b-4k-top20.safetensors|$MODEL_GB_8B|--mode both --decode-positions 64 --max-seq 8192 --mem-budget 40
+35b-short|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors|$MODEL_GB_35B|moe|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 60
+8b-short|$S1_8B|$GD/qwen3-8b-fp32.safetensors|$MODEL_GB_8B|dense|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 40 --gate-class bf16
+8b-long|$S1_8B|$GD/qwen3-8b-long-fp32.safetensors|$MODEL_GB_8B|dense|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 40 --gate-class bf16
+35b-long|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors|$MODEL_GB_35B|moe|--mode all --decode-positions 64 --max-seq 16384 --mem-budget 70
+8b-4k|$S1_8B|$GD/qwen3-8b-4k-top20.safetensors|$MODEL_GB_8B|dense|--mode both --decode-positions 64 --max-seq 8192 --mem-budget 40
 EOF
 }
 PROV="--pre-change $PRE_CHANGE --revlist $R/revlist"
+SIMT_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash
+
+# Perturbations of the noise envelope per case (--noise-perturb values: chunk, chunk=N, attn-simt). Several = the
+# per-prompt maximum is used. 35b-short: its prompts are 18-90 tokens, so a chunk of 64 reaches only the ones above 64
+# and SIMT attention reaches all. 35b-long: chunk 1024 (same kernels, other GEMM / MoE row tiling, the 0.13 KL
+# on chat_reuse_4k of docs/results/2026-10-13-phase1b.md 9.2); SIMT attention is then the held-out check below.
+env_perturbations() {
+  [[ -n "${ENVELOPE_PERTURB:-}" ]] && { echo "$ENVELOPE_PERTURB"; return; }
+  case $1 in
+    35b-short) echo "attn-simt chunk=64" ;;
+    35b-long)  echo "chunk=1024" ;;
+    *)         echo "chunk" ;;
+  esac
+}
+est_min() { case $1 in 35b-long) echo 6 ;; 35b-short) echo 2 ;; *) echo 3 ;; esac; }   # minutes per pass, from the 2026-10-13 runs
+WINDOW_MIN=${WINDOW_MIN:-0}                    # minutes vLLM may stay down, restart included; 0 = no limit
+WINDOW_START=0
+have_time() {                                  # have_time <minutes needed> <what>: skip a step that would not end 5 min (vLLM restart) before the window does
+  (( WINDOW_MIN > 0 )) || return 0
+  local used=$(( ($(date +%s) - WINDOW_START) / 60 ))
+  if (( used + $1 + 5 > WINDOW_MIN )); then log "SKIPPED $2: ${used} of ${WINDOW_MIN} min used, it needs ~$1 min plus 5 min to bring vLLM back"; return 1; fi
+  return 0
+}
+ACC_SELF=${ACC_SELF:-1}                        # 0: skip the same-weights self-golden, noise-floor and determinism steps
+ACC_DENSE_BASELINE=${ACC_DENSE_BASELINE:-1}    # 0: dense cases are gated by the floor against the fp32 golden only
 
 stage_accuracy() {
-  log "== accuracy: old build records, new build is gated"
+  log "== accuracy: old build records baseline + noise envelope, new build is gated"
   local dflag=""; [[ $ALLOW_DIRTY == 1 ]] && dflag="--allow-dirty"
-  local failures=() skipped=()
-  while IFS='|' read -r name model golden gb flags; do
+  local failures=() skipped=() heldout=()
+  while IFS='|' read -r name model golden gb kind flags; do
     [[ -z "${ACC_ONLY:-}" || ",$ACC_ONLY," == *",$name,"* ]] || continue   # ACC_ONLY=35b-short,35b-long: just those cases
     if ! rsh_out "test -s $golden && echo yes" | grep -q yes && [[ $DRY_RUN != 1 ]]; then
       log "SKIPPED $name: golden $golden does not exist on $HOST (build it in its own lease, never beside vLLM; docs/accuracy.md)"
       skipped+=("$name"); continue
     fi
+    local passes=1 p
+    if [[ $kind == moe || $ACC_DENSE_BASELINE == 1 ]]; then passes=$(( 2 + $(wc -w <<<"$(env_perturbations "$name")") )); fi
+    have_time $(( passes * $(est_min "$name") )) "accuracy $name ($passes passes)" || { skipped+=("$name (window)"); continue; }
     memcheck "$gb" "accuracy $name"
     local A="$R/art/$name" L="$R/logs/$name"
-    # 1. BEFORE: the pre-change build (declared harness overlay) records baseline + self-golden in one run. Its floor may
-    #    FAIL (8B prefill top-1 is 99.44% against 99.5%); that is recorded in the baseline and is not this run's verdict.
-    log "-- $name: record from the pre-change build ($PRE_CHANGE + harness)"
-    rsh "$OLDBIN accuracy --model $model --backend cuda --golden $golden $flags --write-baseline $A.baseline.json --write-self-golden $A.self.safetensors > $L.old.log 2>&1 || true; test -s $A.baseline.json && test -s $A.self.safetensors" \
-      || die "$name: the pre-change build wrote no baseline / self-golden (see $L.old.log)"
-    # 2. NOISE FLOOR: the same old build, SIMT attention instead of flash/split-KV, against its own dump
-    log "-- $name: noise floor (old build, equivalent attention kernels, vs its own dump)"
-    rsh "INTARSIA_CUDA_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash $OLDBIN accuracy --model $model --backend cuda --self-golden $A.self.safetensors ${flags/--mode all/--mode both} $PROV --allow-same-code --allow-dirty --self-max-kl 1 --self-max-pos-kl 10 --self-max-flip-pct 100 --self-max-tail 1 > $L.noise.log 2>&1 || true"
-    local noise budget
-    noise=$(rsh_out "grep SELF-STATS $L.noise.log")
-    budget=$(NOISE="$noise" python3 - <<'PY'
+    local oflags="${flags/--mode all/--mode both}"      # the old build's runs need no reuse mode (a baseline has none)
+    local newgate="" calib="" selfflag=""
+    [[ $ACC_SELF == 1 ]] && selfflag="--write-self-golden $A.self.safetensors"
+    if [[ $kind == moe || $ACC_DENSE_BASELINE == 1 ]]; then
+      # 1. BEFORE: the pre-change build (declared harness overlay) records the baseline (+ self-golden). Its floor may
+      #    FAIL (a recorded fact, not this run's verdict).
+      log "-- $name: record from the pre-change build ($PRE_CHANGE + harness)"
+      rsh "$OLDBIN accuracy --model $model --backend cuda --golden $golden $oflags --write-baseline $A.baseline.json $selfflag > $L.old.log 2>&1 || true; test -s $A.baseline.json" \
+        || die "$name: the pre-change build wrote no baseline (see $L.old.log)"
+      [[ $ACC_SELF == 1 ]] && { rsh "test -s $A.self.safetensors" || die "$name: the pre-change build wrote no self-golden (see $L.old.log)"; }
+      if [[ $kind == moe ]]; then
+        # 1b. NOISE ENVELOPE: the SAME old build run again with a declared equally correct perturbation, against the
+        #     baseline it just recorded (docs/accuracy.md, "Noise envelope"). One run per perturbation, one file.
+        for p in $(env_perturbations "$name"); do
+          log "-- $name: noise envelope, perturbation $p (old build, vs its own baseline)"
+          rsh "$OLDBIN accuracy --model $model --backend cuda --golden $golden $oflags --noise-ref $A.baseline.json --noise-perturb $p --write-noise-envelope $A.envelope.json > $L.envelope-${p//[^a-z0-9=]/_}.log 2>&1 || true; test -s $A.envelope.json" \
+            || die "$name: no noise envelope written for $p (see $L.envelope-${p//[^a-z0-9=]/_}.log)"
+        done
+        calib="--noise-envelope $A.envelope.json"
+        heldout+=("$name")
+      fi
+      newgate="--baseline $A.baseline.json $calib"
+    fi
+    # 2. NOISE FLOOR for the same-weights budgets: the same old build, SIMT attention instead of flash/split-KV,
+    #    against its own dump
+    local budget=""
+    if [[ $ACC_SELF == 1 && ( $kind == moe || $ACC_DENSE_BASELINE == 1 ) ]]; then
+      log "-- $name: noise floor (old build, equivalent attention kernels, vs its own dump)"
+      rsh "INTARSIA_CUDA_DISABLE=$SIMT_DISABLE $OLDBIN accuracy --model $model --backend cuda --self-golden $A.self.safetensors ${flags/--mode all/--mode both} $PROV --allow-same-code --allow-dirty --self-max-kl 1 --self-max-pos-kl 10 --self-max-flip-pct 100 --self-max-tail 1 > $L.noise.log 2>&1 || true"
+      local noise
+      noise=$(rsh_out "grep SELF-STATS $L.noise.log")
+      budget=$(NOISE="$noise" python3 - <<'PY'
 import os,re
 d=dict(kl=1e-4,pos=5e-3,flip=0.5,tail=5e-4)          # defaults = selfgolden::DEFAULT_BUDGET
 m=dict(kl=0,pos=0,flip=0,tail=0)
@@ -368,36 +448,62 @@ b={k:max(d[k],3*m[k]) for k in d}
 print(f"--self-max-kl {b['kl']:.4g} --self-max-pos-kl {b['pos']:.4g} --self-max-flip-pct {b['flip']:.4g} --self-max-tail {b['tail']:.4g}")
 PY
 )
-    log "-- $name: budgets (max of default and 3x noise): $budget"
-    # 3. AFTER: floor + baseline + per-prompt gates, and the new build's own dump for the determinism check
-    log "-- $name: gate the new build against the baseline (floor, baseline, per prompt)"
-    rsh "$NEWBIN accuracy --model $model --backend cuda --golden $golden $flags --baseline $A.baseline.json $PROV $dflag --write-self-golden $A.new.safetensors > $L.new.log 2>&1; rc=\$?; echo exit \$rc; grep -E '(floor|baseline) verdict|golden gate' $L.new.log | tail -3" \
+      log "-- $name: budgets (max of default and 3x noise): $budget"
+    fi
+    # 3. AFTER: floor (+ baseline + per-prompt gates with the envelope), and the new build's own dump for determinism
+    local newself=""; [[ $ACC_SELF == 1 ]] && newself="--write-self-golden $A.new.safetensors"
+    log "-- $name: gate the new build (floor${newgate:+, baseline, per prompt${calib:+ with the noise envelope}})"
+    rsh "$NEWBIN accuracy --model $model --backend cuda --golden $golden $flags $newgate $PROV $dflag $newself > $L.new.log 2>&1; rc=\$?; echo exit \$rc; grep -E '(floor|baseline) verdict|golden gate' $L.new.log | tail -3" \
       | tee "$WORK/acc-$name.new.txt" || true
     # accepted when the baseline verdict is PASS and the floor did not get worse than the old build's floor
     local newl oldl
-    newl=$(rsh_out "grep -E 'floor verdict' $L.new.log | tail -1"); oldl=$(rsh_out "grep -E 'floor verdict' $L.old.log | tail -1")
-    if ! grep -q 'baseline verdict[^:]*: PASS' <<<"$newl"; then failures+=("$name: baseline gate"); fi
-    if grep -q 'floor verdict[^:]*: FAIL' <<<"$newl" && ! grep -q 'floor verdict[^:]*: FAIL' <<<"$oldl"; then failures+=("$name: floor passed before and fails now"); fi
+    newl=$(rsh_out "grep -E 'floor verdict' $L.new.log | tail -1"); oldl=$(rsh_out "grep -E 'floor verdict' $L.old.log 2>/dev/null | tail -1")
+    if [[ -n $newgate ]] && ! grep -q 'baseline verdict[^:]*: PASS' <<<"$newl"; then failures+=("$name: baseline gate"); fi
+    if [[ -z $newgate ]] && ! grep -q 'floor verdict[^:]*: PASS' <<<"$newl" && [[ $DRY_RUN != 1 ]]; then failures+=("$name: floor"); fi
+    if [[ -n $newgate ]] && grep -q 'floor verdict[^:]*: FAIL' <<<"$newl" && ! grep -q 'floor verdict[^:]*: FAIL' <<<"$oldl"; then failures+=("$name: floor passed before and fails now"); fi
     # reuse gate ran inside --mode all; it is part of the verdict line (prefix-reuse verdict)
     grep -q 'prefix-reuse verdict: FAIL' <<<"$newl" && failures+=("$name: prefix reuse")
-    # 4. SAME-WEIGHTS: the new build against the old build's logits
-    log "-- $name: self-golden (new vs old logits)"
-    rsh "$NEWBIN accuracy --model $model --backend cuda --self-golden $A.self.safetensors ${flags/--mode all/--mode both} $PROV $dflag $budget > $L.self.log 2>&1; echo exit \$?; grep -E 'SELF-STATS|self-golden =>|self-golden verdict' $L.self.log" | tee "$WORK/acc-$name.self.txt" || true
-    rsh_out "grep -q 'self-golden verdict[^:]*: PASS' $L.self.log && echo ok" | grep -q ok || [[ $DRY_RUN == 1 ]] || failures+=("$name: self-golden")
-    # 5. DETERMINISM (short sets only): the new build against its own dump in a second process must be bit-identical
-    if [[ $name == 35b-short || $name == 8b-full ]]; then
-      log "-- $name: determinism (new build vs its own dump, second process)"
-      rsh "$NEWBIN accuracy --model $model --backend cuda --self-golden $A.new.safetensors ${flags/--mode all/--mode both} $PROV $dflag --allow-same-code --self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 1e-7 > $L.det.log 2>&1; echo exit \$?; grep -E 'SELF-STATS|self-golden =>' $L.det.log" | tee "$WORK/acc-$name.det.txt" || true
-      rsh_out "grep -q 'self-golden verdict[^:]*: PASS' $L.det.log && echo ok" | grep -q ok || [[ $DRY_RUN == 1 ]] || failures+=("$name: run-to-run determinism of the new build (GPU noise: read $L.det.log before deciding anything)")
+    if [[ $ACC_SELF == 1 && ( $kind == moe || $ACC_DENSE_BASELINE == 1 ) ]]; then
+      # 4. SAME-WEIGHTS: the new build against the old build's logits
+      log "-- $name: self-golden (new vs old logits)"
+      rsh "$NEWBIN accuracy --model $model --backend cuda --self-golden $A.self.safetensors ${flags/--mode all/--mode both} $PROV $dflag $budget > $L.self.log 2>&1; echo exit \$?; grep -E 'SELF-STATS|self-golden =>|self-golden verdict' $L.self.log" | tee "$WORK/acc-$name.self.txt" || true
+      rsh_out "grep -q 'self-golden verdict[^:]*: PASS' $L.self.log && echo ok" | grep -q ok || [[ $DRY_RUN == 1 ]] || failures+=("$name: self-golden")
+      # 5. DETERMINISM (short sets only): the new build against its own dump in a second process must be bit-identical
+      if [[ $name == 35b-short || $name == 8b-short ]]; then
+        log "-- $name: determinism (new build vs its own dump, second process)"
+        rsh "$NEWBIN accuracy --model $model --backend cuda --self-golden $A.new.safetensors ${flags/--mode all/--mode both} $PROV $dflag --allow-same-code --self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 1e-7 > $L.det.log 2>&1; echo exit \$?; grep -E 'SELF-STATS|self-golden =>' $L.det.log" | tee "$WORK/acc-$name.det.txt" || true
+        rsh_out "grep -q 'self-golden verdict[^:]*: PASS' $L.det.log && echo ok" | grep -q ok || [[ $DRY_RUN == 1 ]] || failures+=("$name: run-to-run determinism of the new build (GPU noise: read $L.det.log before deciding anything)")
+      fi
     fi
   done < <(ACC_CASES)
+  # 6. HELD-OUT: the OLD build with SIMT attention, judged by the gate with the envelope recorded WITHOUT that
+  #    perturbation (35b-long: chunk only). An equally correct build the envelope has not seen must pass. Last, optional.
+  #    The kernel disable list differs from the baseline's on purpose (--allow-config-mismatch downgrades it to a warning).
+  local h
+  for h in ${heldout[@]+"${heldout[@]}"}; do
+    [[ $h == 35b-long && ${HELDOUT_35B_LONG:-1} == 1 ]] || continue
+    have_time $(( 2 * $(est_min "$h") )) "held-out SIMT check of $h" || continue
+    local row model golden flags
+    row=$(ACC_CASES | grep "^$h|")
+    IFS='|' read -r _ model golden _ _ flags <<<"$row"
+    memcheck "$MODEL_GB_35B" "held-out $h"
+    log "-- $h: held-out check (old build with SIMT attention, gated with the envelope of $(env_perturbations "$h"))"
+    rsh "INTARSIA_CUDA_DISABLE=$SIMT_DISABLE $OLDBIN accuracy --model $model --backend cuda --golden $golden ${flags/--mode all/--mode both} --baseline $R/art/$h.baseline.json --noise-envelope $R/art/$h.envelope.json $PROV --allow-same-code --allow-dirty --allow-config-mismatch > $R/logs/$h.heldout.log 2>&1; echo exit \$?; grep -E '(floor|baseline) verdict|golden gate|failing per-prompt' $R/logs/$h.heldout.log" | tee "$WORK/acc-$h.heldout.txt" || true
+  done
+  fetch_acc
   printf '%s\n' "${failures[@]:-}" > "$WORK/accuracy.failures"
-  (( ${#skipped[@]} )) && log "SKIPPED goldens: ${skipped[*]}"
+  (( ${#skipped[@]} )) && log "SKIPPED: ${skipped[*]}"
   if (( ${#failures[@]} )) && [[ -n "${failures[0]}" ]]; then
     log "accuracy FAILED: ${failures[*]}"
     log "bisect before touching code: rerun the failing case with --no-graphs, then with INTARSIA_CUDA_DISABLE=<new kernel names> (a typo is now refused)"
     ACC_FAILED=1
   fi
+}
+fetch_acc() {                                  # logs and the small JSON artefacts (baselines, envelopes) to the Mac
+  [[ $DRY_RUN == 1 ]] && { dry "scp $R/logs/*.log $R/art/*.json -> $WORK/acc/"; return 0; }
+  mkdir -p "$WORK/acc/logs" "$WORK/acc/art"
+  scp -q "$HOST:${R/#\~/.}/logs/*.log" "$WORK/acc/logs/" 2>/dev/null || log "WARNING: could not fetch logs"
+  scp -q "$HOST:${R/#\~/.}/art/*.json" "$WORK/acc/art/" 2>/dev/null || log "WARNING: could not fetch baselines / envelopes"
 }
 ACC_FAILED=0
 

@@ -208,31 +208,148 @@ pub fn judge(base: &ModeStats, cur: &ModeStats, m: &Margins) -> Vec<Check> {
     v
 }
 
-/// Per-prompt checks of one mode: the mean over a mode hides one prompt that got much worse.
-/// Returns (prompt name, failed checks) for every prompt that fails; a prompt missing from either side is an error.
-pub fn judge_prompts(base: &[PromptStats], cur: &[PromptStats], m: &Margins) -> Result<Vec<(String, Vec<Check>)>> {
-    let mut failed = Vec::new();
+/// Where a per-prompt limit came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Source {
+    /// The fixed margin (`--margin-prompt-kl` ...), no envelope or the envelope allows no more.
+    Fixed,
+    /// `k` x the prompt's measured noise (`envelope.rs`) was wider than the fixed margin.
+    Envelope,
+}
+
+impl Source {
+    pub fn name(self) -> &'static str {
+        match self {
+            Source::Fixed => "fixed",
+            Source::Envelope => "envelope",
+        }
+    }
+}
+
+/// The measured noise of one prompt in one mode: |difference| of its per-prompt numbers between two runs of the
+/// same build (`envelope.rs`), in the units of the checks (top-1 in percentage points, KL and tail in nats / mass).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PromptDelta {
+    pub top1_pts: f64,
+    pub kl21: f64,
+    pub tail_abs: f64,
+}
+
+/// Per-prompt limits from a noise envelope: limit = baseline value -/+ max(fixed margin, `k` x the prompt's delta).
+pub struct Calibration<'a> {
+    pub k: f64,
+    pub delta: &'a dyn Fn(&str) -> Option<PromptDelta>,
+}
+
+/// One per-prompt check and how its limit was made.
+#[derive(Clone, Debug)]
+pub struct PromptCheck {
+    pub check: Check,
+    /// The prompt's measured noise in this metric (None: no envelope).
+    pub delta: Option<f64>,
+    pub source: Source,
+}
+
+impl PromptCheck {
+    /// The smallest `k` with which this check would pass (0: it passes on its own, None: no envelope delta, or it
+    /// is zero and the check fails on the fixed margin).
+    pub fn k_needed(&self) -> Option<f64> {
+        let c = &self.check;
+        let worse = if c.higher_is_better { c.base - c.cur } else { c.cur - c.base };
+        if !worse.is_finite() {
+            return None;
+        }
+        if worse <= 0.0 {
+            return Some(0.0);
+        }
+        match self.delta {
+            Some(d) if d > 0.0 => Some(worse / d),
+            _ => None,
+        }
+    }
+}
+
+/// All per-prompt checks of one prompt.
+#[derive(Clone, Debug)]
+pub struct PromptVerdict {
+    pub name: String,
+    pub checks: Vec<PromptCheck>,
+}
+
+impl PromptVerdict {
+    pub fn ok(&self) -> bool {
+        self.checks.iter().all(|c| c.check.ok)
+    }
+}
+
+fn upper_limit(fixed: f64, base: f64, delta: Option<f64>, k: f64) -> (f64, Source) {
+    match delta {
+        Some(d) if base + k * d > fixed => (base + k * d, Source::Envelope),
+        _ => (fixed, Source::Fixed),
+    }
+}
+
+fn lower_limit(fixed: f64, base: f64, delta: Option<f64>, k: f64) -> (f64, Source) {
+    match delta {
+        Some(d) if base - k * d < fixed => (base - k * d, Source::Envelope),
+        _ => (fixed, Source::Fixed),
+    }
+}
+
+/// Per-prompt checks of one mode, every prompt (not only the failing ones): the mean over a mode hides one prompt
+/// that got much worse. Without `cal` the limits are the fixed margins; with it each limit is the baseline value
+/// -/+ max(fixed margin, k x the prompt's measured noise). A prompt missing from either side is an error.
+pub fn judge_prompts_calibrated(base: &[PromptStats], cur: &[PromptStats], m: &Margins, cal: Option<&Calibration>) -> Result<Vec<PromptVerdict>> {
+    let mut out = Vec::new();
     for c in cur {
         let b = base
             .iter()
             .find(|b| b.name == c.name)
             .ok_or_else(|| anyhow!("prompt '{}' is not in the baseline (it has: {})", c.name, base.iter().map(|b| b.name.as_str()).collect::<Vec<_>>().join(", ")))?;
+        let d = match cal {
+            Some(cal) => Some((cal.k, (cal.delta)(&c.name).ok_or_else(|| anyhow!("prompt '{}' is not in the noise envelope", c.name))?)),
+            None => None,
+        };
+        let (k, d) = d.map_or((0.0, None), |(k, d)| (k, Some(d)));
         let one_position = 100.0 / c.positions.max(1) as f64;
         let mut v = Vec::new();
-        let lim = b.mean_kl21 * m.prompt_kl_ratio + m.prompt_kl_eps;
-        v.push(Check { name: "prompt KL(21-way)", base: b.mean_kl21, cur: c.mean_kl21, limit: lim, higher_is_better: false, ok: c.mean_kl21 <= lim });
-        let lim = b.top1_pct - m.prompt_top1_pts.max(one_position);
-        v.push(Check { name: "prompt top-1 %", base: b.top1_pct, cur: c.top1_pct, limit: lim, higher_is_better: true, ok: c.top1_pct >= lim - 1e-9 });
-        let lim = b.tail_abs + m.tail_abs;
-        v.push(Check { name: "prompt |tail diff|", base: b.tail_abs, cur: c.tail_abs, limit: lim, higher_is_better: false, ok: c.tail_abs <= lim });
-        if v.iter().any(|x| !x.ok) {
-            failed.push((c.name.clone(), v));
-        }
+        let fixed = b.mean_kl21 * m.prompt_kl_ratio + m.prompt_kl_eps;
+        let (lim, source) = upper_limit(fixed, b.mean_kl21, d.map(|d| d.kl21), k);
+        v.push(PromptCheck {
+            check: Check { name: "prompt KL(21-way)", base: b.mean_kl21, cur: c.mean_kl21, limit: lim, higher_is_better: false, ok: c.mean_kl21 <= lim },
+            delta: d.map(|d| d.kl21),
+            source,
+        });
+        let fixed = b.top1_pct - m.prompt_top1_pts.max(one_position);
+        let (lim, source) = lower_limit(fixed, b.top1_pct, d.map(|d| d.top1_pts), k);
+        v.push(PromptCheck {
+            check: Check { name: "prompt top-1 %", base: b.top1_pct, cur: c.top1_pct, limit: lim, higher_is_better: true, ok: c.top1_pct >= lim - 1e-9 },
+            delta: d.map(|d| d.top1_pts),
+            source,
+        });
+        let fixed = b.tail_abs + m.tail_abs;
+        let (lim, source) = upper_limit(fixed, b.tail_abs, d.map(|d| d.tail_abs), k);
+        v.push(PromptCheck {
+            check: Check { name: "prompt |tail diff|", base: b.tail_abs, cur: c.tail_abs, limit: lim, higher_is_better: false, ok: c.tail_abs <= lim },
+            delta: d.map(|d| d.tail_abs),
+            source,
+        });
+        out.push(PromptVerdict { name: c.name.clone(), checks: v });
     }
     if base.len() != cur.len() {
         bail!("the baseline has {} prompts, this run {}", base.len(), cur.len());
     }
-    Ok(failed)
+    Ok(out)
+}
+
+/// Per-prompt checks of one mode against the fixed margins: (prompt name, its checks) for every prompt that fails.
+#[cfg(test)]
+pub fn judge_prompts(base: &[PromptStats], cur: &[PromptStats], m: &Margins) -> Result<Vec<(String, Vec<Check>)>> {
+    Ok(judge_prompts_calibrated(base, cur, m, None)?
+        .into_iter()
+        .filter(|p| !p.ok())
+        .map(|p| (p.name, p.checks.into_iter().map(|c| c.check).collect()))
+        .collect())
 }
 
 /// Compare identities. The golden must be the same (hash, size, shape); a configuration difference is an error

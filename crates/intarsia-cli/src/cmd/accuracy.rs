@@ -31,6 +31,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 mod baseline;
+mod envelope;
 mod provenance;
 mod selfgolden;
 use baseline::{Baseline, Margins, ModeStats, PromptStats};
@@ -96,6 +97,29 @@ pub struct AccuracyArgs {
     /// Baseline gate: allowed ratio of each prompt's mean 21-way KL to the baseline's (plus 1e-5 absolute).
     #[arg(long, default_value_t = 1.75)]
     pub margin_prompt_kl: f64,
+    /// Per-prompt limits from a measured noise envelope (`--write-noise-envelope`) instead of the fixed margins alone:
+    /// limit = baseline value -/+ max(fixed margin, `--envelope-k` x the prompt's envelope delta). Needs `--baseline`;
+    /// the envelope must come from the build that recorded that baseline. The aggregate (all-prompt) checks do not
+    /// use it. Without it the per-prompt checks use the fixed margins and warn on non-dense models (docs/accuracy.md,
+    /// "Noise envelope").
+    #[arg(long)]
+    pub noise_envelope: Option<PathBuf>,
+    /// Noise envelope: multiple of a prompt's measured delta that the per-prompt limit allows.
+    #[arg(long, default_value_t = envelope::DEFAULT_K)]
+    pub envelope_k: f64,
+    /// Measure a noise envelope: this run is the same build as the baseline given with `--noise-ref`, run a second
+    /// time with the perturbation of `--noise-perturb`; writes (or extends, taking the per-prompt maximum) the envelope
+    /// JSON. Needs `--golden`; the exit status does not depend on this run's own gates.
+    #[arg(long)]
+    pub write_noise_envelope: Option<PathBuf>,
+    /// Noise envelope: the baseline of the unperturbed run of this same build (recorded with `--write-baseline`).
+    #[arg(long)]
+    pub noise_ref: Option<PathBuf>,
+    /// Noise envelope: the equally correct change this run makes. `chunk` (prefill chunk = the baseline's / 4),
+    /// `chunk=N`, `attn-simt` (cuda / hip: SIMT attention instead of flash / split-KV), or `external:TEXT` (you set
+    /// other flags or environment, e.g. INTARSIA_CPU_FAULT, and say what in TEXT).
+    #[arg(long, default_value = "chunk")]
+    pub noise_perturb: String,
     /// Compare against a baseline even when the run configuration (KV dtype, fp8 mode, chunk, ...) differs; the
     /// golden file must still be the same.
     #[arg(long)]
@@ -1073,7 +1097,7 @@ fn run_mode(
 }
 
 /// Print the baseline comparison of one mode; returns whether every check passed.
-fn print_baseline_checks(mode: Mode, base: &baseline::ModeBaseline, cur: &ModeResult, m: &Margins) -> bool {
+fn print_baseline_checks(mode: Mode, base: &baseline::ModeBaseline, cur: &ModeResult, m: &Margins, env: Option<(&envelope::Envelope, f64)>) -> bool {
     let checks = baseline::judge(&base.overall, &cur.stats, m);
     println!("\nbaseline gate, {} ({} positions):", mode.name(), cur.stats.positions);
     println!("  {:<16} {:>12} {:>12} {:>12}  {}", "metric", "baseline", "this run", "limit", "");
@@ -1089,30 +1113,91 @@ fn print_baseline_checks(mode: Mode, base: &baseline::ModeBaseline, cur: &ModeRe
         );
     }
     let mut ok = checks.iter().all(|c| c.ok);
-    // every prompt on its own: the mode aggregate hides one prompt that got much worse
-    let bad = match baseline::judge_prompts(&base.prompts, &cur.prompts, m) {
-        Ok(b) => b,
+    // every prompt on its own: the mode aggregate hides one prompt that got much worse. The aggregate checks above
+    // never use the envelope.
+    let delta = |name: &str| env.and_then(|(e, _)| e.delta(mode.key(), name));
+    let cal = env.map(|(_, k)| baseline::Calibration { k, delta: &delta });
+    if let Some((e, _)) = env {
+        if !e.has_mode(mode.key()) {
+            println!("  per-prompt gate: FAIL (the noise envelope has no '{}' mode: record it with --write-noise-envelope)", mode.key());
+            return false;
+        }
+    }
+    let verdicts = match baseline::judge_prompts_calibrated(&base.prompts, &cur.prompts, m, cal.as_ref()) {
+        Ok(v) => v,
         Err(e) => {
             println!("  per-prompt gate: FAIL ({e})");
             return false;
         }
     };
-    if bad.is_empty() {
-        println!("  per-prompt gate ({} prompts: KL x{} +{:.0e}, top-1 -{} pt or one position, |tail diff| +{}): ok", cur.prompts.len(), m.prompt_kl_ratio, m.prompt_kl_eps, m.prompt_top1_pts, m.tail_abs);
-    }
-    for (name, cs) in &bad {
-        ok = false;
-        for c in cs.iter().filter(|c| !c.ok) {
+    let rule = match env {
+        Some((_, k)) => format!("limit = baseline -/+ max(fixed margin, {k} x envelope delta of the prompt)"),
+        None => "fixed margins only, no noise envelope".to_string(),
+    };
+    println!(
+        "  per-prompt gate, {} prompts ({rule}; fixed: KL x{} +{:.0e}, top-1 -{} pt or one position, |tail diff| +{}):",
+        verdicts.len(),
+        m.prompt_kl_ratio,
+        m.prompt_kl_eps,
+        m.prompt_top1_pts,
+        m.tail_abs
+    );
+    println!(
+        "    {:<18} {:<19} {:>11} {:>11} {:>11}  {:<8} {:>10} {:>7}",
+        "prompt", "check", "baseline", "this run", "limit", "source", "env delta", "k needed"
+    );
+    for v in &verdicts {
+        for c in &v.checks {
+            let k = match (c.delta, c.k_needed()) {
+                (_, Some(k)) if k == 0.0 => "-".to_string(),
+                (Some(_), Some(k)) => format!("{k:.2}"),
+                _ => if c.check.ok { "-".to_string() } else { "n/a".to_string() },
+            };
             println!(
-                "  prompt {:<18} {:<19} baseline {:>11.4e}  this run {:>11.4e}  limit {} {:>11.4e}  FAIL",
-                name,
-                c.name,
-                c.base,
-                c.cur,
-                if c.higher_is_better { ">=" } else { "<=" },
-                c.limit
+                "    {:<18} {:<19} {:>11.4e} {:>11.4e} {} {:>9.3e}  {:<8} {:>10} {:>7}  {}",
+                v.name,
+                c.check.name,
+                c.check.base,
+                c.check.cur,
+                if c.check.higher_is_better { ">=" } else { "<=" },
+                c.check.limit,
+                c.source.name(),
+                c.delta.map_or("-".to_string(), |d| format!("{d:.2e}")),
+                k,
+                if c.check.ok { "ok" } else { "FAIL" }
             );
         }
+    }
+    if let Some((e, _)) = env {
+        let zero = e.untouched(mode.key());
+        if !zero.is_empty() {
+            println!("  note: no perturbation of the envelope moved {} ({}): their delta is 0 and the fixed margin applies", zero.len(), zero.join(", "));
+        }
+    }
+    let bad: Vec<&baseline::PromptVerdict> = verdicts.iter().filter(|v| !v.ok()).collect();
+    if bad.is_empty() {
+        println!("  per-prompt gate: ok");
+    } else {
+        ok = false;
+        println!(
+            "  per-prompt gate: FAIL ({} of {} prompts: {})",
+            bad.len(),
+            verdicts.len(),
+            bad.iter().map(|v| v.name.as_str()).collect::<Vec<_>>().join(", ")
+        );
+    }
+    if let Some((_, k0)) = env {
+        // how the per-prompt verdict depends on k (information; the verdict above uses k = {k0})
+        let mut line = Vec::new();
+        for k in [0.0, 1.0, 2.0, 3.0, 5.0, 10.0] {
+            let cal = baseline::Calibration { k, delta: &delta };
+            if let Ok(v) = baseline::judge_prompts_calibrated(&base.prompts, &cur.prompts, m, Some(&cal)) {
+                let n = v.iter().filter(|p| !p.ok()).count();
+                let nc: usize = v.iter().map(|p| p.checks.iter().filter(|c| !c.check.ok).count()).sum();
+                line.push(format!("k={k}: {n} prompt(s) / {nc} check(s){}", if k == k0 { " <- used" } else { "" }));
+            }
+        }
+        println!("  failing per-prompt checks by k (information): {}", line.join(", "));
     }
     ok
 }
@@ -1332,7 +1417,7 @@ fn self_compat(sm: &selfgolden::SelfMeta, run: &baseline::RunConfig, allow_misma
     Ok(diffs.into_iter().map(|d| d.0).collect())
 }
 
-fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
+fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelope::Declared>) -> Result<bool> {
     if args.golden.is_some() && args.self_golden.is_some() {
         bail!("--golden and --self-golden are separate runs (the self-golden carries its own prompts); run them one after the other");
     }
@@ -1342,6 +1427,22 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     }
     if args.write_self_golden.is_some() && args.golden.is_none() {
         bail!("--write-self-golden needs --golden: the dump uses that golden's prompts (and teacher-forced ids)");
+    }
+    let noise_run = args.write_noise_envelope.is_some();
+    if noise_run && (self_mode || args.baseline.is_some() || args.write_baseline.is_some() || args.write_self_golden.is_some() || args.noise_envelope.is_some()) {
+        bail!("--write-noise-envelope is a run of its own: it cannot be combined with --baseline, --write-baseline, --noise-envelope, --self-golden or --write-self-golden");
+    }
+    if noise_run && (args.noise_ref.is_none() || perturb.is_none()) {
+        bail!("--write-noise-envelope needs --noise-ref BASELINE.json: the baseline of the unperturbed run of this same build");
+    }
+    if !noise_run && args.noise_ref.is_some() {
+        bail!("--noise-ref belongs to --write-noise-envelope");
+    }
+    if args.noise_envelope.is_some() && args.baseline.is_none() {
+        bail!("--noise-envelope calibrates the per-prompt limits of a --baseline gate; give --baseline as well");
+    }
+    if !(args.envelope_k > 0.0 && args.envelope_k.is_finite()) {
+        bail!("--envelope-k must be a positive number");
     }
     let path = match (&args.self_golden, &args.golden) {
         (Some(p), _) | (None, Some(p)) => p.clone(),
@@ -1365,6 +1466,9 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
         "all" => (true, true, true),
         o => bail!("unknown --mode '{o}' (prefill, decode, both, reuse, all)"),
     };
+    if noise_run && want_reuse {
+        bail!("--write-noise-envelope measures the prefill and decode modes (--mode prefill|decode|both); the reuse mode is not in a baseline");
+    }
     let mut modes: Vec<Mode> = Vec::new();
     if want_prefill {
         modes.push(Mode::Prefill);
@@ -1503,6 +1607,43 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
         }
         None => None,
     };
+    let env_file = match (&args.noise_envelope, &base_file) {
+        (Some(ep), Some((_, base))) => {
+            let e = envelope::read(ep)?;
+            envelope::check_for_baseline(&e, base, args.allow_unstamped)?;
+            eprintln!(
+                "noise envelope {}: {} perturbation(s) [{}], measured on {}; per-prompt limit = baseline -/+ max(fixed margin, {} x the prompt's envelope delta)",
+                ep.display(),
+                e.perturbations.len(),
+                e.describe(),
+                e.base_code.describe(),
+                args.envelope_k
+            );
+            Some(e)
+        }
+        _ => None,
+    };
+    if base_file.is_some() && env_file.is_none() {
+        match envelope::is_dense_model(&args.model.model) {
+            Some(true) => {}
+            Some(false) => eprintln!(
+                "WARNING: no --noise-envelope, and this model is not dense (experts or linear-attention layers in config.json): the per-prompt checks use fixed margins that sit inside the run-to-run noise of such models (a prompt can move by 0.1 KL with an equally correct build); record an envelope with --write-noise-envelope (docs/accuracy.md, \"Noise envelope\"). The aggregate checks are not affected."
+            ),
+            None => eprintln!("WARNING: no --noise-envelope, and config.json of the model could not be read to tell whether it is dense: the per-prompt fixed margins are uncalibrated on MoE / hybrid models (docs/accuracy.md, \"Noise envelope\")"),
+        }
+    }
+    let noise_ref = match (&args.noise_ref, perturb) {
+        (Some(rp), Some(d)) => {
+            let rbase = baseline::read(rp)?;
+            for w in envelope::check_run(&rbase, &golden_id, &run_cfg, &exec, &cur_code, d, args.allow_unstamped)? {
+                eprintln!("WARNING: this run differs from the reference baseline: {w}");
+            }
+            eprintln!("noise envelope run: perturbation '{}'; reference baseline {} recorded from {}", d.text, rp.display(), rbase.code.describe());
+            show_exec_diff("reference baseline's run", &rbase.exec);
+            Some((rp, rbase))
+        }
+        _ => None,
+    };
     let self_budget = selfgolden::SelfBudget {
         max_mean_kl: args.self_max_kl,
         max_pos_kl: args.self_max_pos_kl,
@@ -1554,17 +1695,17 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
 
     // baseline-relative gate
     let mut baseline_ok: Option<bool> = None;
+    let margins = Margins {
+        top1_pts: args.margin_top1,
+        kl_ratio: args.margin_kl,
+        kl_eps: 1e-6,
+        top5_pts: args.margin_top5,
+        tail_abs: args.margin_tail,
+        max_kl_ratio: args.margin_max_kl,
+        prompt_kl_ratio: args.margin_prompt_kl,
+        ..Margins::default()
+    };
     if let Some((bp, base)) = &base_file {
-        let margins = Margins {
-            top1_pts: args.margin_top1,
-            kl_ratio: args.margin_kl,
-            kl_eps: 1e-6,
-            top5_pts: args.margin_top5,
-            tail_abs: args.margin_tail,
-            max_kl_ratio: args.margin_max_kl,
-            prompt_kl_ratio: args.margin_prompt_kl,
-            ..Margins::default()
-        };
         println!(
             "\nbaseline: {} (recorded {}, golden {} hash {}); margins: top-1 -{} pt (>= 1 position), KL x{} (+1e-6), top-5 -{} pt, tail +{}",
             bp.display(),
@@ -1581,9 +1722,47 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
             let Some(bm) = base.modes.iter().find(|b| b.overall.mode == m.key()) else {
                 bail!("{}: the baseline has no '{}' mode (it has: {}); record one with --write-baseline", bp.display(), m.key(), base.modes.iter().map(|b| b.overall.mode.as_str()).collect::<Vec<_>>().join(", "));
             };
-            ok &= print_baseline_checks(*m, bm, r, &margins);
+            ok &= print_baseline_checks(*m, bm, r, &margins, env_file.as_ref().map(|e| (e, args.envelope_k)));
         }
         baseline_ok = Some(ok);
+    }
+    if let (Some(wp), Some((rp, rbase)), Some(d)) = (&args.write_noise_envelope, &noise_ref, perturb) {
+        println!("\nthe perturbed run judged like a new build against the unperturbed baseline, FIXED margins only (information, not a verdict):");
+        for (m, r) in &results {
+            if let Some(bm) = rbase.modes.iter().find(|b| b.overall.mode == m.key()) {
+                print_baseline_checks(*m, bm, r, &margins, None);
+            }
+        }
+        let paired: Vec<(String, ModeStats, Vec<PromptStats>)> = results.iter().map(|(m, r)| (m.key().to_string(), r.stats.clone(), r.prompts.clone())).collect();
+        let pert = envelope::Perturbation {
+            declared: d.text.clone(),
+            created_unix: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
+            tool_version: env!("CARGO_PKG_VERSION").into(),
+            code: cur_code.clone(),
+            exec: exec.clone(),
+            run: run_cfg.clone(),
+            reference: envelope::Reference {
+                file: rp.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default(),
+                fnv1a64: format!("{:016x}", baseline::fnv1a64(&std::fs::read(rp).with_context(|| format!("reading {}", rp.display()))?)),
+                created_unix: rbase.created_unix,
+            },
+            modes: envelope::pair(rbase, &paired)?,
+        };
+        println!();
+        for l in envelope::report(&pert) {
+            println!("{l}");
+        }
+        let header = envelope::Envelope {
+            format: envelope::FORMAT.into(),
+            golden: golden_id.clone(),
+            base_run: rbase.run.clone(),
+            base_code: rbase.code.clone(),
+            perturbations: vec![pert],
+        };
+        let existing = if wp.exists() { Some(envelope::read(wp)?) } else { None };
+        let merged = envelope::merge_into(existing, header, wp)?;
+        envelope::write(wp, &merged)?;
+        println!("\nwrote noise envelope {} ({} perturbation(s): {})", wp.display(), merged.perturbations.len(), merged.describe());
     }
     if let Some(wp) = &args.write_baseline {
         let b = Baseline {
@@ -1641,7 +1820,10 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     if want_reuse {
         reuse_ok = reuse_gate(engine, &g, &prompts, args)?;
     }
-    let all_ok = floor_ok && baseline_ok.unwrap_or(true) && reuse_ok;
+    if noise_run {
+        println!("\nnoise envelope run: the verdicts below are information about the perturbed build; the exit status does not depend on them");
+    }
+    let all_ok = noise_run || (floor_ok && baseline_ok.unwrap_or(true) && reuse_ok);
     if !results.is_empty() {
         println!(
             "\n{} verdict ({}): {}{}{}",
@@ -1649,7 +1831,11 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
             if self_mode { "same weights, tight budgets, against the other build's logits" } else { "class thresholds, absolute" },
             if floor_ok { "PASS" } else { "FAIL" },
             match baseline_ok {
-                Some(b) => format!("   baseline verdict (no worse than the recorded run + margins): {}", if b { "PASS" } else { "FAIL" }),
+                Some(b) => format!(
+                    "   baseline verdict (no worse than the recorded run + margins; per-prompt limits {}): {}",
+                    if env_file.is_some() { format!("from the noise envelope, k = {}", args.envelope_k) } else { "fixed margins only".to_string() },
+                    if b { "PASS" } else { "FAIL" }
+                ),
                 None if self_mode => String::new(),
                 None => "   baseline verdict: not requested".to_string(),
             },
@@ -1756,7 +1942,29 @@ fn quick_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     Ok(all_ok)
 }
 
-pub fn run(args: AccuracyArgs) -> Result<()> {
+/// `--write-noise-envelope`: read the reference baseline, apply the declared perturbation (prefill chunk, environment)
+/// before the model is loaded. None for every other run.
+fn prepare_noise_run(args: &mut AccuracyArgs) -> Result<Option<envelope::Declared>> {
+    if args.write_noise_envelope.is_none() {
+        return Ok(None);
+    }
+    let Some(rp) = &args.noise_ref else {
+        bail!("--write-noise-envelope needs --noise-ref BASELINE.json: the baseline of the unperturbed run of this same build");
+    };
+    let rbase = baseline::read(rp)?;
+    let d = envelope::declare(&args.noise_perturb, &args.model.backend, rbase.run.prefill_chunk)?;
+    if let Some(c) = d.chunk {
+        args.model.prefill_chunk = c;
+    }
+    for (k, v) in &d.env {
+        std::env::set_var(k, v);
+    }
+    eprintln!("noise envelope: perturbation '{}'", d.text);
+    Ok(Some(d))
+}
+
+pub fn run(mut args: AccuracyArgs) -> Result<()> {
+    let perturb = prepare_noise_run(&mut args)?;
     let loaded = args.model.load()?;
     let engine: &dyn Engine = &*loaded.engine;
     let info = engine.info();
@@ -1772,7 +1980,7 @@ pub fn run(args: AccuracyArgs) -> Result<()> {
         ok &= quick_gate(engine, &args)?;
     }
     if !args.quick || args.golden.is_some() || args.self_golden.is_some() {
-        ok &= golden_gate(engine, &args)?;
+        ok &= golden_gate(engine, &args, perturb.as_ref())?;
     }
     if !ok {
         bail!("accuracy gate FAILED");
