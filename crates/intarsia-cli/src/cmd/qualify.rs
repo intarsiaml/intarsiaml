@@ -128,7 +128,7 @@ pub struct QualifyArgs {
     /// Pass --no-unim to localeval (no unanimis record for the A/B runs).
     #[arg(long)]
     pub no_unim: bool,
-    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, bench, acc-all, acc-long,
+    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, bench, acc-long,
     /// envelope, bench-long, ab, tp.
     #[arg(long)]
     pub skip: Vec<String>,
@@ -250,15 +250,8 @@ const STAGES: &[StageDef] = &[
         run: st_bench,
     },
     StageDef {
-        id: "acc-all",
-        title: "accuracy --mode all on the short golden, 16-token prefill chunks (multi-chunk prefill, decode, prefix reuse)",
-        section: "full",
-        needs: &["plan"],
-        run: st_acc_all,
-    },
-    StageDef {
         id: "acc-long",
-        title: "accuracy --mode all on the long golden",
+        title: "accuracy --mode all on the long golden (prefill, decode, prefix reuse)",
         section: "full",
         needs: &["plan"],
         run: st_acc_long,
@@ -1652,17 +1645,6 @@ fn st_bench(c: &mut Ctx) -> Result<Out> {
 // =====================================================================================================================
 // IN-DEPTH stages
 // =====================================================================================================================
-
-fn st_acc_all(c: &mut Ctx) -> Result<Out> {
-    let (g, how) = match c.golden(false)? {
-        Golden::Have(g, h) => (g, h),
-        Golden::None(why) => return Ok(Out::skip(why)),
-    };
-    // the short prompts are shorter than one default prefill chunk, so neither multi-chunk prefill nor the prefix-reuse
-    // gate (which needs a split of at least one chunk) would run with the default 256: shrink the chunk
-    let a = c.accuracy("acc-all", &g, "all", false, 1, &["--prefill-chunk".to_string(), "16".to_string()])?;
-    Ok(c.acc_out(a, &g, &how, "all"))
-}
 
 fn st_acc_long(c: &mut Ctx) -> Result<Out> {
     let (g, how) = match c.golden(true)? {

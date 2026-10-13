@@ -93,7 +93,7 @@ pub fn summary_json(state: &State, meta: &Meta, full: bool) -> Value {
         .collect();
     let decode: Vec<Value> = speed_rows(state, "bench").iter().map(|r| json!({"size": r["size"], "decode_tok_s": r["decode_tok_s"], "prefill_tok_s": r["prefill_tok_s"], "pct_of_floor": r["pct_of_floor"], "ttft_s": r["ttft_s"]})).collect();
     let mut accuracy = vec![];
-    for id in ["acc-short", "acc-all", "acc-long", "tp"] {
+    for id in ["acc-short", "acc-long", "tp"] {
         if let Some(s) = stage(state, id) {
             if s.verdict == Verdict::Skip {
                 continue;
@@ -190,7 +190,7 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
         let _ = writeln!(o, "| Decode | {} |", dec.join("; "));
         let _ = writeln!(o, "| Prefill | {} |", pre.join("; "));
     }
-    for id in ["acc-short", "acc-all", "acc-long"] {
+    for id in ["acc-short", "acc-long"] {
         if let Some(s) = stage(state, id) {
             let txt = match s.verdict {
                 Verdict::Skip => format!("skipped: {}", s.reason),
@@ -215,7 +215,6 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
             };
             let label = match id {
                 "acc-short" => "Accuracy (short golden)",
-                "acc-all" => "Accuracy (all modes, short golden)",
                 _ => "Accuracy (long golden)",
             };
             let _ = writeln!(o, "| {label} | {txt} |");
@@ -347,7 +346,7 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     // ---- accuracy ----
     let _ = writeln!(o, "## Accuracy\n");
     let mut any = false;
-    for id in ["acc-short", "acc-all", "acc-long", "tp"] {
+    for id in ["acc-short", "acc-long", "tp"] {
         let Some(s) = stage(state, id).filter(|s| stages.iter().any(|x| x.id == s.id)) else { continue };
         let modes = accuracy_modes(s);
         if modes.is_empty() {

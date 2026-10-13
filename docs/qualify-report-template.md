@@ -21,8 +21,7 @@ _The first thing a reader sees: one verdict, then the numbers people quote._
 | Decode | 128 tok: **<tok/s>** tok/s (<n>% of floor); 1024 tok: ...; 4096 tok: ... |
 | Prefill | 128 tok: **<tok/s>** tok/s; ... |
 | Accuracy (short golden) | **PASS** (prefill top-1 <99.6>% KL <3e-4>; decode top-1 <>% KL <>) |
-| Accuracy (all modes, short golden) | in-depth only: adds prefix reuse |
-| Accuracy (long golden) | in-depth only |
+| Accuracy (long golden) | in-depth only: **PASS** (prefill, decode and prefix reuse) |
 | Quick gate | **PASS**: perplexity <7.1>, <5/5> sanity prompts ok, no non-finite rows |
 | Wall time | quick <9m12s>, in-depth <31m05s>, total <40m17s> |
 | Reference | <url or directory, only with --reference> |
@@ -52,7 +51,7 @@ _One row per stage in run order: quick stages first, then in-depth. Wall is the 
 | 5 | `gate` quick gate | quick | PASS | 90s | <perplexity, sanity> |
 | 6 | `acc-short` short accuracy against a golden | quick | PASS | 2m | <modes, top-1, KL> |
 | 7 | `bench` bench speed 128 / 1024 / 4096 | quick | PASS | 3m | <decode tok/s, % of floor> |
-| 8 | `acc-all`, `acc-long`, `envelope`, `bench-long`, `ab`, `tp` | full | ... | ... | in-depth stages |
+| 8 | `acc-long`, `envelope`, `bench-long`, `ab`, `tp` | full | ... | ... | in-depth stages |
 
 ### Notes
 
