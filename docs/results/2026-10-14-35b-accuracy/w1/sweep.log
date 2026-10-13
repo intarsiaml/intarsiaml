@@ -1,0 +1,74 @@
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-cuda/tests/quantmoe.rs:92:49
+   |
+92 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+   |                                                 ^           ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+92 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+92 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:127:49
+    |
+127 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+127 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+127 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:196:45
+    |
+196 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+196 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+196 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 5 tests
+test moe_experts_mma_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 new 0.0014; rel_l2 old 8.005e-5 new 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 new 0.0025; rel_l2 old 1.123e-4 new 1.751e-4
+ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... SWEEP seed=5 T=  32: off-reference old 0.1495 % mma 0.1373 %; rel_l2 old 1.315e-4 mma 1.085e-4
+SWEEP seed=5 T=  33: off-reference old 0.0281 % mma 0.0459 %; rel_l2 old 3.713e-5 mma 6.455e-5
+SWEEP seed=5 T=  40: off-reference old 0.0549 % mma 0.0916 %; rel_l2 old 9.252e-5 mma 1.237e-4
+SWEEP seed=5 T=  42: off-reference old 0.0256 % mma 0.0756 %; rel_l2 old 4.257e-5 mma 9.404e-5
+SWEEP seed=5 T=  48: off-reference old 0.1200 % mma 0.0966 %; rel_l2 old 1.284e-4 mma 1.218e-4
+SWEEP seed=5 T=  58: off-reference old 0.0640 % mma 0.1987 %; rel_l2 old 1.104e-4 mma 1.760e-4
+SWEEP seed=5 T=  63: off-reference old 0.0620 % mma 0.0597 %; rel_l2 old 7.452e-5 mma 7.323e-5
+SWEEP seed=5 T=  64: off-reference old 0.0687 % mma 0.0877 %; rel_l2 old 8.771e-5 mma 9.136e-5
+SWEEP seed=5 T=  96: off-reference old 0.0575 % mma 0.1516 %; rel_l2 old 7.276e-5 mma 1.375e-4
+SWEEP seed=5 T= 128: off-reference old 0.0561 % mma 0.1900 %; rel_l2 old 8.975e-5 mma 1.507e-4
+SWEEP seed=5 T= 512: off-reference old 0.1189 % mma 0.1903 %; rel_l2 old 1.257e-4 mma 1.616e-4
+SWEEP seed=11 T=  32: off-reference old 0.0122 % mma 0.0488 %; rel_l2 old 4.455e-5 mma 6.459e-5
+SWEEP seed=11 T=  33: off-reference old 0.0281 % mma 0.8464 %; rel_l2 old 9.668e-5 mma 3.800e-4
+SWEEP seed=11 T=  40: off-reference old 0.0757 % mma 0.2478 %; rel_l2 old 1.002e-4 mma 2.012e-4
+SWEEP seed=11 T=  42: off-reference old 0.0035 % mma 0.0453 %; rel_l2 old 1.409e-5 mma 6.194e-5
+SWEEP seed=11 T=  48: off-reference old 0.3662 % mma 0.3499 %; rel_l2 old 2.283e-4 mma 2.034e-4
+SWEEP seed=11 T=  58: off-reference old 0.1035 % mma 0.1566 %; rel_l2 old 1.042e-4 mma 1.431e-4
+SWEEP seed=11 T=  63: off-reference old 0.0798 % mma 0.1876 %; rel_l2 old 9.797e-5 mma 1.643e-4
+SWEEP seed=11 T=  64: off-reference old 0.1495 % mma 0.3571 %; rel_l2 old 1.437e-4 mma 2.210e-4
+SWEEP seed=11 T=  96: off-reference old 0.0320 % mma 0.0458 %; rel_l2 old 6.150e-5 mma 6.598e-5
+SWEEP seed=11 T= 128: off-reference old 0.0847 % mma 0.1835 %; rel_l2 old 1.072e-4 mma 1.571e-4
+SWEEP seed=11 T= 512: off-reference old 0.1008 % mma 0.2518 %; rel_l2 old 1.182e-4 mma 1.857e-4
+ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 12.50s
+

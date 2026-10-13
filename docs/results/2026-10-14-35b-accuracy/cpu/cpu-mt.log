@@ -1,0 +1,21 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+chat_multiturn        58    58    98.28   1.625e-2   1.636e-2   8.191e-1   0.0262   0.0255    94.14      2/58      0
+OVERALL                     58    98.28   1.625e-2   1.636e-2   8.191e-1   0.0262   0.0255    94.14      3.4%      0
+prefill floor [4bit]: top-1 98.28% (not gated for this class) ok | 21-way KL 1.636e-2 (need <= 3.0e-2) ok | tail mass ours 0.0255 vs ref 0.0262, excess -0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+chat_multiturn        58    16   100.00   2.693e-2   2.705e-2   3.984e-1   0.0014   0.0008    95.00     16/16      0
+OVERALL                     16   100.00   2.693e-2   2.705e-2   3.984e-1   0.0014   0.0008    95.00    100.0%      0
+decode (teacher-forced) floor [4bit]: top-1 100.00% (not gated for this class) ok | 21-way KL 2.705e-2 (need <= 3.0e-2) ok | tail mass ours 0.0008 vs ref 0.0014, excess -0.0005 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 3.4% of positions before the first argmax divergence, worst prompt 3.4% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+wrote baseline cpu-mt.baseline.json (2 mode(s); absolute floor passed)
+
+wrote self-golden cpu-mt.dump.safetensors (top-64 rows of modes prefill,decode for 1 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
