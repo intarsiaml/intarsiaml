@@ -1,0 +1,20 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+
+running 2 tests
+test gdn_lanes_is_as_accurate_as_the_rows_kernel ... dk=128 dv=128 T=1 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 4.217e-1
+
+thread 'gdn_lanes_is_as_accurate_as_the_rows_kernel' panicked at crates/intarsia-backend-cuda/tests/gdn_lanes.rs:78:17:
+dk=128 dv=128 T=1 o: lanes rel_l2 4.217e-1, rows kernel 0.000e0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test gdn_lanes_state_carries_across_calls ... ok
+
+failures:
+
+failures:
+    gdn_lanes_is_as_accurate_as_the_rows_kernel
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+error: test failed, to rerun pass `-p intarsia-backend-cuda --test gdn_lanes`
