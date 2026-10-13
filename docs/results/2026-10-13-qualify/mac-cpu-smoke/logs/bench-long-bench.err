@@ -1,0 +1,6 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3-Reranker-0.6B
+server context window: 2048 tokens
+calibration: 43 base tokens, 19.94 tokens per filler sentence
+  size    256 rep: prompt=256 gen=16 ttft=0.74s prefill=348 tok/s decode=20.7 tok/s
+  size   1024 rep: prompt=1033 gen=16 ttft=3.46s prefill=298 tok/s decode=20.0 tok/s
+wrote docs/results/2026-10-13-qualify/mac-cpu-smoke/bench/qualify-Qwen3-Reranker-0.6B-cpu-bench-long.json

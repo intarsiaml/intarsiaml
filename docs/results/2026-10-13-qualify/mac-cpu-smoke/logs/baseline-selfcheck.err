@@ -1,0 +1,14 @@
+accuracy: Qwen/Qwen3-Reranker-0.6B on cpu-ref (Apple M5 Max) (vocab 151669, weights/act/kv bf16/bf16)
+golden: golden/qwen3-reranker-0.6b-fp32.safetensors (8 prompts, 434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+  reference: engine hf (older golden) 5.19.0 | model /Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3-Reranker-0.6B/snapshots/e61197ed45024b0ed8a2d74b80b4d909f1255473/ | revision - | dtype float32 | KV dtype - | template chatml
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+WARNING: the golden does not record the reference's KV cache dtype (it predates the metadata, or the server did not say); we run a bf16 KV cache, and a KV precision difference (e.g. an fp8 reference cache) would be indistinguishable from model error
+gates: class bf16 (weights: bf16 (no quantization metadata), kv cache: bf16); top-1 >= 99.5%, KL <= 1.0e-3, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+this build: head 3d06ce8 code-tree f83e8dda827f clean
+WARNING: the baseline is from the same code tree as this build (--allow-same-code): this checks reproducibility only
+baseline recorded from: head 3d06ce8 code-tree f83e8dda827f clean
+WARNING: this run resolved exactly the same kernels and flags as the baseline's run: a kernel or graph change cannot show up in this comparison
+noise envelope docs/results/2026-10-13-qualify/mac-cpu-smoke/baselines/envelope.json: 1 perturbation(s) [prefill chunk 256 -> 64], measured on head 3d06ce8 code-tree f83e8dda827f clean; per-prompt limit = baseline -/+ max(fixed margin, 2 x the prompt's envelope delta)
+Error: accuracy gate FAILED

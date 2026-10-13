@@ -1,0 +1,3 @@
+admission on plan shapes: 12 kernel(s) checked, 6 case(s) run, 289 cached
+loaded Qwen/Qwen3-Reranker-0.6B on cpu (cpu-ref (Apple M5 Max)) in 4.7s, context 2048 tokens
+intarsia server listening on http://127.0.0.1:8090

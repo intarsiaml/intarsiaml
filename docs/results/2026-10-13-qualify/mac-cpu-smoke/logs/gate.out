@@ -1,0 +1,12 @@
+perplexity: 28.775 over 1169 tokens (need <= 40), non-finite rows 0 ok
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10," -> " 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,"
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "Once upon a time, in a small village at the edge of a great forest, there lived an old clockmaker who" -> " had a collection of clocks, each with a different number of hands. The first clock had 12 hour hands, the second had 6 hour hands, and the third had 3 hour hands. Each of the clocks was set to"
+sanity ok  : 48 tokens, max 4-gram repeat 2: non-empty
+    "The three primary colors are red, yellow, and" -> " blue. The number of ways to choose a single color is 10, and the number of ways to choose two colors is 10 * 10. What is the probability of choosing a red color, and the probability of"
+sanity FAIL: 48 tokens, max 4-gram repeat 43: non-empty, answers the fact ("paris"): NO
+    "The capital of France is" -> " 10000000000000000000000000000000000000000000000"
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty, answers the fact ("oxygen"): yes
+    "Water is a molecule made of two hydrogen atoms and one" -> " oxygen atom. The number of moles of water is 0.001 mol. What is the mass of the water molecule?\n\nTo solve this, we need to find the mass of one molecule of water. The formula for mass"
+quick gate: FAIL

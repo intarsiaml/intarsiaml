@@ -1,0 +1,15 @@
+intarsia doctor  (endor.kuepker.haus aarch64, backend cpu)
+  os      macOS 27.0
+  cpu     Apple M5 Max (18 threads)
+  ram     137.4 GB total, 13.3 GB available
+  device  cpu-ref (Apple M5 Max) [cpu any] free 13.3 GB
+
+[info] sm_121_target: no NVIDIA GPU visible (nvidia-smi missing or failing)
+[info] transparent_hugepages: THP setting not readable on this OS
+[ ok ] disk_free:.: 2050.2 GB free of 3996 GB (51% free)
+[ ok ] disk_free:/Users/josef: 2050.2 GB free of 3996 GB (51% free)
+[info] hip_gpu_max_hw_queues: GPU_MAX_HW_QUEUES=unset (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)
+[ ok ] serve_port: port 8090 is free
+[info] bandwidth: host->device 71.1 GB/s, device->host 70.7 GB/s, device copy 63.0 GB/s (read+write)
+
+fingerprint written to docs/results/2026-10-13-qualify/mac-cpu-smoke/doctor.json
