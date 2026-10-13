@@ -409,7 +409,7 @@ stage_graphs() {
            "Explain how a B-tree keeps its leaves at the same depth, with an example inserting the keys 1 to 20."; do
     i=$((i+1))
     local common="$NEWBIN generate --model $S1_35B --backend cuda --max-seq 2048 --profile-every 0 -p $(printf %q "$p") --max-tokens 256 --ignore-eos --show-ids"
-    rsh "$common > $R/logs/g$i.out 2> $R/logs/g$i.err; $common --no-graphs > $R/logs/e$i.out 2> $R/logs/e$i.err; grep '^ids:' $R/logs/g$i.out > $R/logs/g$i.ids; grep '^ids:' $R/logs/e$i.out > $R/logs/e$i.ids; test -s $R/logs/g$i.ids && cmp $R/logs/g$i.ids $R/logs/e$i.ids" \
+    rsh "$common > $R/logs/g$i.out 2> $R/logs/g$i.err; $common --no-graphs > $R/logs/e$i.out 2> $R/logs/e$i.err; grep '^ids:' $R/logs/g$i.err > $R/logs/g$i.ids; grep '^ids:' $R/logs/e$i.err > $R/logs/e$i.ids; test -s $R/logs/g$i.ids && cmp $R/logs/g$i.ids $R/logs/e$i.ids" \
       || die "graph replay and eager decode differ (or produced nothing) for prompt $i: diff $R/logs/g$i.ids $R/logs/e$i.ids"
     [[ $DRY_RUN == 1 ]] && continue
     replays=$(rsh_out "sed -n 's/.*graph replays=\([0-9]*\).*/\1/p' $R/logs/g$i.err | tail -1")
