@@ -352,13 +352,15 @@ stage_kernels() {
 #   kind moe    MoE / hybrid model: the per-prompt limits need a noise envelope, recorded here from the OLD build
 #        dense  the per-prompt fixed margins were set on dense models; the golden is HF fp32 (docs/accuracy.md,
 #               "Reading numbers: the reference's own noise"), gate class bf16
+# The MoE rows pin --prefill-chunk 256: the baselines were recorded at 256, and the 35B recipe now defaults to 2048 on
+# CUDA (recipes/qwen3_5_moe.toml), which a baseline refuses.
 # Order = priority when WINDOW_MIN cuts the run short: 35b-short, the 8B fp32 re-gates, 35b-long.
 ACC_CASES() {
   cat <<EOF
-35b-short|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors|$MODEL_GB_35B|moe|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 60
+35b-short|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors|$MODEL_GB_35B|moe|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 60 --prefill-chunk 256
 8b-short|$S1_8B|$GD/qwen3-8b-fp32.safetensors|$MODEL_GB_8B|dense|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 40 --gate-class bf16
 8b-long|$S1_8B|$GD/qwen3-8b-long-fp32.safetensors|$MODEL_GB_8B|dense|--mode both --decode-positions 16 --max-seq 4096 --mem-budget 40 --gate-class bf16
-35b-long|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors|$MODEL_GB_35B|moe|--mode all --decode-positions 64 --max-seq 16384 --mem-budget 70
+35b-long|$S1_35B|$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors|$MODEL_GB_35B|moe|--mode all --decode-positions 64 --max-seq 16384 --mem-budget 70 --prefill-chunk 256
 8b-4k|$S1_8B|$GD/qwen3-8b-4k-top20.safetensors|$MODEL_GB_8B|dense|--mode both --decode-positions 64 --max-seq 8192 --mem-budget 40
 EOF
 }

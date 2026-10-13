@@ -117,4 +117,59 @@ lm_head = { tensor = "h" }
 "#;
         assert!(parse_recipe(text).is_err());
     }
+
+    const TUNED: &str = r#"
+[model]
+match.architectures = ["X"]
+family = "x"
+[layer]
+pattern = ["ffn"]
+[layer.ffn]
+kind = "dense"
+act = "silu_glu"
+gate = "g"
+up = "u"
+down = "d"
+[top]
+embed = "e"
+final_norm = "n"
+lm_head = { tensor = "h" }
+"#;
+
+    #[test]
+    fn prefill_chunk_resolution_order() {
+        let none = parse_recipe(TUNED).unwrap();
+        let base = parse_recipe(&format!("{TUNED}[tuning]\nprefill_chunk = 512\n")).unwrap();
+        let both = parse_recipe(&format!("{TUNED}[tuning]\nprefill_chunk = 512\n[tuning.cuda]\nprefill_chunk = 2048\n")).unwrap();
+        let only_backend = parse_recipe(&format!("{TUNED}[tuning.cuda]\nprefill_chunk = 2048\n")).unwrap();
+        let got = |r: &Recipe, flag, be| {
+            let c = r.resolve_prefill_chunk(flag, be);
+            (c.value, c.source)
+        };
+        // flag > recipe backend > recipe base > default
+        assert_eq!(got(&both, Some(64), "cuda"), (64, "--prefill-chunk".into()));
+        assert_eq!(got(&both, None, "cuda"), (2048, "recipe x, cuda".into()));
+        assert_eq!(got(&both, None, "hip"), (512, "recipe x, base".into()), "an unlisted backend falls back to the base value");
+        assert_eq!(got(&base, None, "cuda"), (512, "recipe x, base".into()));
+        assert_eq!(got(&only_backend, None, "hip"), (256, "default".into()));
+        assert_eq!(got(&none, None, "cuda"), (256, "default".into()));
+        assert_eq!(both.resolve_prefill_chunk(None, "cuda").describe(), "2048 (recipe x, cuda)");
+        assert!(parse_recipe(&format!("{TUNED}[tuning.cuda]\nprefill_chunk = 0\n")).is_err());
+    }
+
+    #[test]
+    fn qwen3_5_moe_chunk_is_2048_on_cuda_only() {
+        let cfg = serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]});
+        let (_, r) = select_recipe(&cfg, &[]).unwrap();
+        assert_eq!(r.resolve_prefill_chunk(None, "cuda").value, 2048);
+        let hip = r.resolve_prefill_chunk(None, "hip");
+        assert_eq!((hip.value, hip.source.as_str()), (256, "default"));
+        assert_eq!(r.resolve_prefill_chunk(None, "cpu").value, 256);
+        assert_eq!(r.resolve_prefill_chunk(Some(256), "cuda").value, 256);
+        // the other built-ins stay at 256 everywhere
+        for arch in ["Qwen3ForCausalLM", "Qwen3_5ForCausalLM"] {
+            let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
+            assert_eq!(r.resolve_prefill_chunk(None, "cuda").value, 256, "{arch}");
+        }
+    }
 }

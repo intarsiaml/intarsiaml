@@ -76,6 +76,11 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }   # tied when t
 
 [defaults]
 kv_dtype = "bf16"                             # bf16 | f16 | f32 | fp8_e4m3 (fp8 only on cpu-ref for now)
+
+[tuning]                                      # optional: per-backend performance defaults
+prefill_chunk = 256                           # base value, every backend (omit: 256)
+[tuning.cuda]                                 # override for one backend (cpu | cuda | hip)
+prefill_chunk = 2048
 ```
 
 Dimensions are read from `config.json` with the Hugging Face key names (`hidden_size`,
@@ -85,6 +90,16 @@ Dimensions are read from `config.json` with the Hugging Face key names (`hidden_
 only falls back to `hidden / heads`. A `[config]` table can rename keys for families that differ.
 Hybrid models (GatedDeltaNet, MoE) add `pattern_by_layer` / `[layer.by_type]`, `[layer.gdn]`, `[layer.moe]`
 and `norm_offset`; see `recipes/qwen3_5.toml` and `recipes/qwen3_5_moe.toml`.
+
+`[tuning]` sets the prefill chunk (tokens per forward pass) a model loads with. Resolution order: the explicit
+`--prefill-chunk` flag, then `[tuning.<backend>] prefill_chunk` for the running backend, then `[tuning] prefill_chunk`,
+then 256; a backend without a table falls back to the base value. Load prints the result and its source (`prefill chunk
+2048 (recipe qwen3_5_moe, cuda)`), `intarsia plan show --json` carries `prefill_chunk` and `prefill_chunk_source`, and
+`accuracy` records both in baselines and self-goldens. Only tune a chunk with measurements behind it and cite them in a
+comment: `recipes/qwen3_5_moe.toml` sets 2048 on CUDA only (`docs/results/2026-10-13-prefill-cuda.md`), because the
+chunk changes rounding (prefix-reuse and baseline results are chunk-sensitive) and the 35B at 2048 has not been shown
+to fit a 32 GB R9700. A baseline recorded at another chunk is refused with a message naming the recipe default;
+pass `--prefill-chunk N` to run at the baseline's.
 
 Recipes are matched by architecture from `--recipe-dir` directories first and then the built-ins
 (`crates/intarsia-models/src/recipe.rs`, `BUILTIN_RECIPES`: add the new file there so the binary ships it).

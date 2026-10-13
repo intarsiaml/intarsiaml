@@ -7,7 +7,7 @@ use crate::tokenizer::HfCodec;
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::plan::PlanOptions;
 use intarsia_core::quant::scheme::QuantScheme;
-use intarsia_core::recipe::{ModelDims, Recipe};
+use intarsia_core::recipe::{ModelDims, PrefillChunk, Recipe};
 use intarsia_core::backend::HostMemory;
 use intarsia_core::weights::{WeightInfo, WeightSource};
 use intarsia_core::{Backend, Comm, EngineMeta, Error, LocalEngine, Result, Telemetry};
@@ -18,6 +18,9 @@ use std::sync::Arc;
 #[derive(Clone, Debug, Default)]
 pub struct EngineOptions {
     pub load: LoadOptions,
+    /// Explicit prefill chunk (`--prefill-chunk`). `None`: the recipe's value for the backend, then its base value,
+    /// then 256; `load.prefill_chunk` is overwritten with the result.
+    pub prefill_chunk: Option<usize>,
     /// Explicit recipe file (otherwise matched by architecture).
     pub recipe: Option<PathBuf>,
     /// Extra directories searched for recipes before the built-ins.
@@ -110,6 +113,8 @@ impl WeightSource for SchemedSource {
 pub struct Loaded {
     pub engine: Arc<LocalEngine>,
     pub recipe_source: String,
+    /// The prefill chunk the model was loaded with and where it came from.
+    pub prefill_chunk: PrefillChunk,
     pub chat_template_source: Option<String>,
 }
 
@@ -128,10 +133,13 @@ pub fn load_engine_tp(
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     let weights = SchemedSource::open(dir)?;
     let telemetry = Arc::new(Telemetry::new());
+    let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
+    eprintln!("prefill chunk {}", prefill_chunk.describe());
+    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
     let mut model = if backends.len() == 1 {
-        Model::load(backends.into_iter().next().unwrap(), &recipe, &dims, &weights, &opts.load, telemetry.clone())?
+        Model::load(backends.into_iter().next().unwrap(), &recipe, &dims, &weights, &load_opts, telemetry.clone())?
     } else {
-        Model::load_tp(backends, comms, &recipe, &dims, &weights, &opts.load, telemetry.clone())?
+        Model::load_tp(backends, comms, &recipe, &dims, &weights, &load_opts, telemetry.clone())?
     };
     // deviations from the declared scheme that are not errors: logged once, at load
     if let Some(note) = weights.scheme().and_then(|s| s.kv_note(model.kv)) {
@@ -169,5 +177,5 @@ pub fn load_engine_tp(
         tool_parser: recipe.model.tool_parser.clone(),
     };
     let engine = Arc::new(LocalEngine::new(model, Arc::new(codec), meta, telemetry)?);
-    Ok(Loaded { engine, recipe_source, chat_template_source })
+    Ok(Loaded { engine, recipe_source, prefill_chunk, chat_template_source })
 }

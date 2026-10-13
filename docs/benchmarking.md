@@ -58,6 +58,12 @@ holds the config, the calibration, one row per size, one row per concurrency lev
 for things the tool cannot know (`engine=vllm-0.12`, `quant=nvfp4`, `git=<sha>`). Always do so for a
 number you will quote: GPU clocks, driver, THP and free memory change results.
 
+Prefill tok/s depends on the server's prefill chunk, which a recipe may set per backend (the 35B recipe uses 2048 on CUDA,
+256 elsewhere; `serve` prints `prefill chunk N (source)` at load). The client cannot see it, so pass
+`--prefill-chunk N` (the value `serve` printed) to store it as `fingerprint.prefill_chunk`, and compare only runs
+whose chunk matches. `accuracy` baselines refuse a chunk mismatch and name the recipe default; pin
+`--prefill-chunk 256` to compare against baselines recorded before the recipe default existed.
+
 Other flags: `--thinking off` sends `chat_template_kwargs.enable_thinking=false`;
 `--key-env VAR` reads a bearer token from an environment variable; `--timeout-s`; `--warmup N`.
 Plain `http://` only (the client is built without TLS); tunnel for https.
@@ -190,7 +196,7 @@ Quality (golden logits and benchmarks) is a separate gate: `docs/accuracy.md`.
 
 ## Comparing runs
 
-* Same prompt sizes, `--gen`, and thinking mode on both sides, same day, same GPU state.
+* Same prompt sizes, `--gen`, thinking mode and prefill chunk (`fingerprint.prefill_chunk`) on both sides, same day, same GPU state.
 * Compare decode tok/s at 128 and 1K prompts (weight streaming) and prefill tok/s at 4K and 16K
   (compute bound). TTFT at 128 tokens mostly shows scheduling and launch overhead.
 * Check `% of floor`: a healthy bf16 dense decode on a GB10 should land at 70-90%. Far below means

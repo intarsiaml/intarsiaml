@@ -1598,7 +1598,7 @@ struct ReuseRow {
 /// moves the logits by far more than rounding and fails at once.
 fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs) -> Result<bool> {
     let info = engine.info();
-    let (chunk, ctx, vocab, m) = (args.model.prefill_chunk, info.context_len, info.vocab, args.reuse_gen.max(1));
+    let (chunk, ctx, vocab, m) = (args.model.chunk(), info.context_len, info.vocab, args.reuse_gen.max(1));
     let reply = 16usize;
     println!("\n== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==");
     println!(
@@ -1801,7 +1801,10 @@ fn self_compat(sm: &selfgolden::SelfMeta, run: &baseline::RunConfig, allow_misma
     d("kv dtype", &sm.kv_dtype, &run.kv_dtype, true);
     d("activation dtype", &sm.act_dtype, &run.act_dtype, true);
     d("fp8 activation mode", &sm.fp8_act, &run.fp8_act, true);
-    d("prefill chunk", &sm.prefill_chunk, &run.prefill_chunk, true);
+    if sm.prefill_chunk != run.prefill_chunk {
+        let (a, b) = baseline::chunk_texts(sm.prefill_chunk, &sm.prefill_chunk_source, run.prefill_chunk, &run.prefill_chunk_source);
+        d("prefill chunk", &a, &b, true);
+    }
     d("decode positions", &sm.decode_positions, &run.decode_positions, true);
     let strict: Vec<&String> = diffs.iter().filter(|d| d.1).map(|d| &d.0).collect();
     if !strict.is_empty() && !allow_mismatch {
@@ -1903,7 +1906,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
     }
     let longest = prompts.iter().map(|p| p.1.ids.len()).max().unwrap_or(0);
     let positions: usize = prompts.iter().map(|p| p.1.ids.len()).sum();
-    let chunk = args.model.prefill_chunk;
+    let chunk = args.model.chunk();
     let multi = prompts.iter().filter(|p| p.1.ids.len() > chunk).count();
     let topk_k = match &prompts[0].1.rows {
         RefRows::TopK { k, .. } => Some(*k),
@@ -1969,6 +1972,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         act_dtype: norm_dtype(&info.act_dtype),
         fp8_act: args.model.fp8_act.clone().unwrap_or_else(|| "recipe default".into()),
         prefill_chunk: chunk,
+        prefill_chunk_source: args.model.chunk_source(),
         decode_positions: args.decode_positions,
         gate_class: gates.class.name().to_string(),
     };
@@ -2195,6 +2199,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             act_dtype: run_cfg.act_dtype.clone(),
             fp8_act: run_cfg.fp8_act.clone(),
             prefill_chunk: chunk,
+            prefill_chunk_source: run_cfg.prefill_chunk_source.clone(),
             decode_positions: args.decode_positions,
             topk: cap.k,
             modes: results.iter().map(|(m, _)| m.key()).collect::<Vec<_>>().join(","),
@@ -2350,7 +2355,7 @@ fn prepare_noise_run(args: &mut AccuracyArgs) -> Result<Option<envelope::Declare
     let rbase = baseline::read(rp)?;
     let d = envelope::declare(&args.noise_perturb, &args.model.backend, rbase.run.prefill_chunk)?;
     if let Some(c) = d.chunk {
-        args.model.prefill_chunk = c;
+        args.model.prefill_chunk = Some(c);
     }
     for (k, v) in &d.env {
         std::env::set_var(k, v);
@@ -2362,6 +2367,7 @@ fn prepare_noise_run(args: &mut AccuracyArgs) -> Result<Option<envelope::Declare
 pub fn run(mut args: AccuracyArgs) -> Result<()> {
     let perturb = prepare_noise_run(&mut args)?;
     let loaded = args.model.load()?;
+    args.model.pin_prefill_chunk(&loaded.prefill_chunk);
     let engine: &dyn Engine = &*loaded.engine;
     let info = engine.info();
     eprintln!(

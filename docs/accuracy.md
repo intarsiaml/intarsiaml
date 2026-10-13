@@ -148,7 +148,7 @@ when the dir is an HF cache snapshot, else the dir name).
 
 * **prefill**: `Engine::forward_logits_each` over the stored ids (state reset per prompt, all-position
   logits): the prefill kernels (`AttnPrefill`, GEMM / chunked matmul), across chunk boundaries when the prompt
-  is longer than `--prefill-chunk` (default 256; the tool prints how many prompts cross a boundary and warns
+  is longer than `--prefill-chunk` (default: the recipe's value for the backend, else 256; the tool prints how many prompts cross a boundary and warns
   when none does, then try `--prefill-chunk 64`).
 * **decode (teacher-forced)**: `Engine::forward_logits_decode`: prefill `n - k` tokens, then feed the golden
   ids one at a time (`T = 1`) and compare the logits row of each step (`k = --decode-positions`, default 16,

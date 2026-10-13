@@ -53,10 +53,11 @@ pub fn render(p: &Value) -> String {
     );
     let _ = writeln!(
         o,
-        "act {}  kv {}  prefill chunk {}  scratch {} B  require_admitted {}  reference_only {}",
+        "act {}  kv {}  prefill chunk {} ({})  scratch {} B  require_admitted {}  reference_only {}",
         s(p, "act_dtype"),
         s(p, "kv_dtype"),
         p["prefill_chunk"],
+        s(p, "prefill_chunk_source"),
         p["scratch_bytes"],
         p["require_admitted"],
         p["reference_only"]
@@ -130,7 +131,10 @@ pub fn render(p: &Value) -> String {
 
 fn show(a: ShowArgs) -> Result<()> {
     let loaded = a.model.load()?;
-    let plan = loaded.engine.plan();
+    let mut plan = loaded.engine.plan();
+    if let Some(o) = plan.as_object_mut() {
+        o.insert("prefill_chunk_source".into(), loaded.prefill_chunk.source.clone().into());
+    }
     if a.json {
         println!("{}", serde_json::to_string_pretty(&plan)?);
     } else {

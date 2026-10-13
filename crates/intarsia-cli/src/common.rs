@@ -44,9 +44,9 @@ pub struct ModelArgs {
     /// FP8 projections: `static` (W8A8, checkpoint input_scale) or `none` (W8A16); default: the recipe's.
     #[arg(long)]
     pub fp8_act: Option<String>,
-    /// Tokens per forward pass (prefill chunk).
-    #[arg(long, default_value_t = 256)]
-    pub prefill_chunk: usize,
+    /// Tokens per forward pass (prefill chunk); default: the recipe's value for the backend, then its base value, then 256.
+    #[arg(long)]
+    pub prefill_chunk: Option<usize>,
     /// KV cache dtype override (bf16, f16, f32, fp8_e4m3); default from the recipe.
     #[arg(long)]
     pub kv_dtype: Option<String>,
@@ -85,6 +85,9 @@ pub struct ModelArgs {
     /// Only admitted kernels are selectable (set by `serve`).
     #[arg(skip)]
     pub require_admitted: bool,
+    /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
+    #[arg(skip)]
+    pub prefill_chunk_source: Option<String>,
 }
 
 pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
@@ -172,7 +175,7 @@ impl ModelArgs {
             load: LoadOptions {
                 max_seq: self.max_seq,
                 kv_fraction: self.kv_fraction,
-                prefill_chunk: self.prefill_chunk,
+                prefill_chunk: self.prefill_chunk.unwrap_or(intarsia_core::recipe::DEFAULT_PREFILL_CHUNK),
                 act_dtype: None,
                 kv_dtype,
                 profile_every: self.profile_every.unwrap_or(if self.backend == "cpu" { 1 } else { 16 }),
@@ -180,6 +183,7 @@ impl ModelArgs {
                 fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
             },
+            prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
             recipe_dirs: self.recipe_dir.clone(),
             chat_template,
@@ -192,6 +196,27 @@ impl ModelArgs {
                 no_cache: self.no_admission_cache,
             },
         })
+    }
+
+    /// Fix the prefill chunk to what the load resolved (flag, recipe backend value, recipe base value, 256), so the
+    /// commands that record it ([`ModelArgs::chunk`], [`ModelArgs::chunk_source`]) record the value that ran.
+    pub fn pin_prefill_chunk(&mut self, c: &intarsia_core::recipe::PrefillChunk) {
+        self.prefill_chunk = Some(c.value);
+        self.prefill_chunk_source = Some(c.source.clone());
+    }
+
+    /// The prefill chunk in effect (the resolved one once pinned, else the flag, else the 256 default).
+    pub fn chunk(&self) -> usize {
+        self.prefill_chunk.unwrap_or(intarsia_core::recipe::DEFAULT_PREFILL_CHUNK)
+    }
+
+    /// Where [`ModelArgs::chunk`] came from.
+    pub fn chunk_source(&self) -> String {
+        match (&self.prefill_chunk_source, self.prefill_chunk) {
+            (Some(s), _) => s.clone(),
+            (None, Some(_)) => "--prefill-chunk".into(),
+            (None, None) => "default".into(),
+        }
     }
 
     /// Production serving: admit the plan's kernels at load and select nothing else.

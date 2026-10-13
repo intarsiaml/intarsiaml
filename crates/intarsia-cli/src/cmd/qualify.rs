@@ -1030,7 +1030,7 @@ fn st_plan(c: &mut Ctx) -> Result<Out> {
     }
     let m = json!({
         "model": j["model"], "device": j["device"]["name"], "exactness": j["exactness"], "act_dtype": j["act_dtype"], "kv_dtype": j["kv_dtype"],
-        "prefill_chunk": j["prefill_chunk"], "scratch_bytes": j["scratch_bytes"], "reference_only": j["reference_only"],
+        "prefill_chunk": j["prefill_chunk"], "prefill_chunk_source": j["prefill_chunk_source"], "scratch_bytes": j["scratch_bytes"], "reference_only": j["reference_only"],
         "layers": layers.len(), "layer_blocks": kinds, "ops": ops.iter().map(|o| json!({"op": o["op"], "kernel": o["kernel"], "exactness": o["exactness"], "admitted": o["admitted"], "calls_per_decode_step": o["calls_per_decode_step"]})).collect::<Vec<_>>(),
         "load_s": r.wall_s,
     });

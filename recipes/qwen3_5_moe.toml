@@ -61,3 +61,10 @@ lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
 [defaults]
 kv_dtype = "bf16"
 max_batch = 32
+
+# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256). 2048 on CUDA: 35B prefill at
+# 4k goes from 2397 to 4654 tok/s, the 35b-short accuracy gate passes (prefill KL 5.43e-3 vs 6.27e-3) and 35b-long
+# fails only on chat_reuse_4k, which is chunk-sensitive (docs/results/2026-10-13-prefill-cuda.md, phase1b.md section 9).
+# Not on HIP: a 2048 chunk may not fit the 35B in one 32 GB R9700 and has not been measured there.
+[tuning.cuda]
+prefill_chunk = 2048

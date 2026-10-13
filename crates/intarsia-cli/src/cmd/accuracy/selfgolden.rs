@@ -81,6 +81,9 @@ pub struct SelfMeta {
     pub act_dtype: String,
     pub fp8_act: String,
     pub prefill_chunk: usize,
+    /// Where the chunk came from; absent in older files.
+    #[serde(default)]
+    pub prefill_chunk_source: String,
     pub decode_positions: usize,
     pub topk: usize,
     /// "prefill", "decode" or "prefill,decode".

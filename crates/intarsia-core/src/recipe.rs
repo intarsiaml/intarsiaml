@@ -15,6 +15,9 @@ pub struct Recipe {
     pub top: TopSpec,
     #[serde(default)]
     pub defaults: Defaults,
+    /// Per-backend performance defaults (`[tuning]`, `[tuning.<backend>]`).
+    #[serde(default)]
+    pub tuning: Tuning,
     /// Optional overrides of the `config.json` key names (defaults are the HF names).
     #[serde(default)]
     pub config: ConfigKeys,
@@ -166,6 +169,56 @@ impl Default for Defaults {
     }
 }
 
+/// Prefill chunk used when neither the flag nor the recipe says otherwise.
+pub const DEFAULT_PREFILL_CHUNK: usize = 256;
+
+/// Performance defaults a recipe may carry: `[tuning] prefill_chunk = N` for every backend, `[tuning.<backend>]`
+/// (`cpu`, `cuda`, `hip`) to override it for one. A backend without a table falls back to the base value.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct Tuning {
+    pub prefill_chunk: Option<usize>,
+    #[serde(flatten)]
+    pub backends: BTreeMap<String, BackendTuning>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct BackendTuning {
+    pub prefill_chunk: Option<usize>,
+}
+
+/// A resolved prefill chunk and where it came from.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct PrefillChunk {
+    pub value: usize,
+    /// `--prefill-chunk`, `recipe <family>, <backend>`, `recipe <family>, base` or `default`.
+    pub source: String,
+}
+
+impl PrefillChunk {
+    /// `2048 (recipe qwen3_5_moe, cuda)`.
+    pub fn describe(&self) -> String {
+        format!("{} ({})", self.value, self.source)
+    }
+}
+
+impl Recipe {
+    /// Prefill chunk for `backend`: the explicit flag, then the recipe's value for that backend, then the recipe's
+    /// base value, then [`DEFAULT_PREFILL_CHUNK`].
+    pub fn resolve_prefill_chunk(&self, flag: Option<usize>, backend: &str) -> PrefillChunk {
+        let family = &self.model.family;
+        if let Some(value) = flag {
+            return PrefillChunk { value, source: "--prefill-chunk".into() };
+        }
+        if let Some(value) = self.tuning.backends.get(backend).and_then(|b| b.prefill_chunk) {
+            return PrefillChunk { value, source: format!("recipe {family}, {backend}") };
+        }
+        if let Some(value) = self.tuning.prefill_chunk {
+            return PrefillChunk { value, source: format!("recipe {family}, base") };
+        }
+        PrefillChunk { value: DEFAULT_PREFILL_CHUNK, source: "default".into() }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct ConfigKeys {
@@ -245,6 +298,10 @@ impl Recipe {
 
     /// Light structural validation (the builder re-checks what it needs).
     pub fn validate(&self) -> Result<()> {
+        let chunks = self.tuning.prefill_chunk.iter().chain(self.tuning.backends.values().filter_map(|b| b.prefill_chunk.as_ref()));
+        if chunks.into_iter().any(|&c| c == 0) {
+            return Err(Error::model("recipe [tuning] prefill_chunk must be at least 1"));
+        }
         if self.layer.pattern.is_empty() {
             return Err(Error::model("recipe layer.pattern is empty"));
         }

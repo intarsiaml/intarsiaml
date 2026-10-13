@@ -112,6 +112,9 @@ pub struct RunConfig {
     pub act_dtype: String,
     pub fp8_act: String,
     pub prefill_chunk: usize,
+    /// Where the chunk came from (`--prefill-chunk`, `recipe <family>, <backend>`, `default`); absent in older files.
+    #[serde(default)]
+    pub prefill_chunk_source: String,
     pub decode_positions: usize,
     pub gate_class: String,
 }
@@ -352,6 +355,17 @@ pub fn judge_prompts(base: &[PromptStats], cur: &[PromptStats], m: &Margins) -> 
         .collect())
 }
 
+/// Baseline and run sides of a prefill chunk difference, naming where each value came from; when this run's value is a
+/// recipe default the hint says how to run at the baseline's chunk instead.
+pub fn chunk_texts(base: usize, base_source: &str, run: usize, run_source: &str) -> (String, String) {
+    let with = |v: usize, src: &str| if src.is_empty() { v.to_string() } else { format!("{v} ({src})") };
+    let mut b = with(run, run_source);
+    if run_source.starts_with("recipe ") {
+        b.push_str(&format!(" -- the recipe's default chunk; pass --prefill-chunk {base} to run at the baseline's"));
+    }
+    (with(base, base_source), b)
+}
+
 /// Compare identities. The golden must be the same (hash, size, shape); a configuration difference is an error
 /// unless `allow_config_mismatch`, in which case the differences come back as warnings.
 pub fn compatible(base: &Baseline, golden: &GoldenId, run: &RunConfig, exec: &ExecInfo, allow_config_mismatch: bool) -> Result<Vec<String>> {
@@ -379,7 +393,10 @@ pub fn compatible(base: &Baseline, golden: &GoldenId, run: &RunConfig, exec: &Ex
     d("kv dtype", &r.kv_dtype, &run.kv_dtype, true);
     d("activation dtype", &r.act_dtype, &run.act_dtype, true);
     d("fp8 activation mode", &r.fp8_act, &run.fp8_act, true);
-    d("prefill chunk", &r.prefill_chunk, &run.prefill_chunk, true);
+    if r.prefill_chunk != run.prefill_chunk {
+        let (a, b) = chunk_texts(r.prefill_chunk, &r.prefill_chunk_source, run.prefill_chunk, &run.prefill_chunk_source);
+        d("prefill chunk", &a, &b, true);
+    }
     d("decode positions", &r.decode_positions, &run.decode_positions, true);
     // a baseline recorded with kernels switched off is not the pre-change code (review finding 1)
     d("kernel disable list", &base.exec.disable_list, &exec.disable_list, true);
@@ -550,7 +567,7 @@ mod tests {
             },
             RunConfig {
                 model: "qwen".into(), backend: "cuda".into(), device: "GB10".into(), kv_dtype: "bf16".into(),
-                act_dtype: "bf16".into(), fp8_act: "static".into(), prefill_chunk: 256, decode_positions: 16,
+                act_dtype: "bf16".into(), fp8_act: "static".into(), prefill_chunk: 256, prefill_chunk_source: "default".into(), decode_positions: 16,
                 gate_class: "4bit".into(),
             },
         )
@@ -604,5 +621,21 @@ mod tests {
         write(&p, &b).unwrap();
         assert_eq!(read(&p).unwrap(), b);
         let _ = std::fs::remove_file(p);
+    }
+
+    #[test]
+    fn chunk_mismatch_names_the_recipe_default() {
+        let (a, b) = chunk_texts(256, "default", 2048, "recipe qwen3_5_moe, cuda");
+        assert_eq!(a, "256 (default)");
+        assert!(b.starts_with("2048 (recipe qwen3_5_moe, cuda)") && b.contains("recipe's default chunk") && b.contains("--prefill-chunk 256"), "{b}");
+        let (_, b) = chunk_texts(256, "", 2048, "--prefill-chunk");
+        assert_eq!(b, "2048 (--prefill-chunk)");
+        // a baseline recorded at 256 is refused against a run on the recipe's 2048, naming the recipe default
+        let (g, mut r) = ids();
+        r.prefill_chunk = 2048;
+        r.prefill_chunk_source = "recipe qwen3_5_moe, cuda".into();
+        let e = compatible(&baseline(), &g, &r, &ExecInfo::default(), false).unwrap_err().to_string();
+        assert!(e.contains("baseline 256 (default), this run 2048 (recipe qwen3_5_moe, cuda)") && e.contains("pass --prefill-chunk 256"), "{e}");
+        assert_eq!(compatible(&baseline(), &g, &r, &ExecInfo::default(), true).unwrap().len(), 1);
     }
 }

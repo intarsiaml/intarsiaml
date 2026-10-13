@@ -432,7 +432,7 @@ mod tests {
     fn run(chunk: usize) -> RunConfig {
         RunConfig {
             model: "qwen".into(), backend: "cuda".into(), device: "GB10".into(), kv_dtype: "bf16".into(), act_dtype: "bf16".into(),
-            fp8_act: "static".into(), prefill_chunk: chunk, decode_positions: 16, gate_class: "4bit".into(),
+            fp8_act: "static".into(), prefill_chunk: chunk, prefill_chunk_source: String::new(), decode_positions: 16, gate_class: "4bit".into(),
         }
     }
     fn base_with(prompts: Vec<PromptStats>) -> Baseline {

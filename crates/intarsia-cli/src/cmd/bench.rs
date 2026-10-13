@@ -82,6 +82,11 @@ pub struct SpeedArgs {
     /// busiest rank reads per token (rank 0: its half of the layers plus the whole lm_head), not the model size.
     #[arg(long, default_value_t = 1)]
     pub tp: usize,
+    /// Prefill chunk of the server under test (`serve` prints the resolved value and its source at load, e.g.
+    /// "prefill chunk 2048 (recipe qwen3_5_moe, cuda)"). The server is what chunks; this only records the value
+    /// in the result (`fingerprint.prefill_chunk`) so runs at different chunks are never compared by accident.
+    #[arg(long)]
+    pub prefill_chunk: Option<usize>,
     /// Extra host fingerprint field, KEY=VALUE (repeatable), stored in the JSON.
     #[arg(long = "fingerprint", value_name = "KEY=VALUE")]
     pub fingerprint: Vec<String>,
@@ -118,6 +123,9 @@ fn speed(a: SpeedArgs) -> Result<()> {
     }
     if a.tp > 1 {
         fp.insert("tp".into(), Value::from(a.tp as u64));
+    }
+    if let Some(c) = a.prefill_chunk {
+        fp.insert("prefill_chunk".into(), Value::from(c as u64));
     }
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let label = sanitize_label(&a.label.clone().unwrap_or_else(|| format!("{}-{now}", a.model)));
