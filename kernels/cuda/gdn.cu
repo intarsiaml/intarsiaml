@@ -235,14 +235,19 @@ __global__ void __launch_bounds__(32) gdn_delta_rows_kernel(
     }
 }
 
-// ---- delta rule, LPR lanes per state row ---------------------------------------------------
+// ---- delta rule, LPR lanes per state row, software-pipelined ---------------------------------
 // The one-thread-per-row kernel above occupies 4096 threads for the 35B (32 value heads x 128 rows), about 5 % of the
-// GPU, and each token walks two dependent chains of dk FMAs: it is latency bound (~1.2 us per token and layer on GB10,
-// docs/results/2026-10-13-prefill-cuda.md). Here LPR lanes share a row: lane l owns the float4 groups l, l + LPR, ...
-// of S_j[dk] (so a warp's loads of one row are contiguous and the shared-memory reads of q/k are conflict-free
-// broadcasts), keeps four independent partial sums per dot product, and the LPR partial sums are combined with
-// shuffles. LPR = 4 gives 4x the threads and ~3x shorter chains. The sum order differs from gdn_delta_rows_kernel
-// (fp32 rounding only); the order is fixed, so results are run-to-run identical.
+// GPU, and is latency bound (~1.4 us per token and layer on GB10, docs/results/2026-10-13-prefill-cuda.md): per token
+// the q/k norms (two warp reductions), the decay/beta transcendentals and the shared-memory round trip all sit in front
+// of the state update, which is two dependent dot products. Here
+//  * LPR lanes share a row: lane l owns the float4 groups l, l + LPR, ... of S_j[dk] (a warp's loads of one row are
+//    contiguous and the shared-memory reads of q/k are conflict-free broadcasts), keeps four independent partial sums per
+//    dot product, and the LPR partial sums are combined with shuffles;
+//  * the state-independent work of token t+1 (norms, decay, beta, the q/k write into the other half of a double buffer)
+//    is issued in the same loop iteration as the state update of token t, and the raw inputs of token t+2 are loaded in
+//    flight, so the two instruction streams overlap instead of queueing.
+// Every token still performs the same arithmetic in the same order, so results are run-to-run identical; the sum order
+// differs from gdn_delta_rows_kernel (fp32 rounding only).
 template <int DK, int LPR>
 __global__ void __launch_bounds__(32) gdn_delta_lanes_kernel(
     const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
@@ -251,8 +256,8 @@ __global__ void __launch_bounds__(32) gdn_delta_lanes_kernel(
     constexpr int PL = DK / 32;          // raw q/k elements per lane for the cooperative load + l2 norm
     constexpr int NG = DK / (4 * LPR);   // float4 groups of the state row per lane
     constexpr int RPW = 32 / LPR;        // state rows per warp
-    __shared__ __align__(16) float sq[DK];
-    __shared__ __align__(16) float sk[DK];
+    __shared__ __align__(16) float sq[2][DK];
+    __shared__ __align__(16) float sk[2][DK];
     const int lane = threadIdx.x;
     const int l = lane % LPR, r = lane / LPR;
     const int j = blockIdx.x * RPW + r;
@@ -274,51 +279,72 @@ __global__ void __launch_bounds__(32) gdn_delta_lanes_kernel(
         for (int i = 0; i < NG; ++i) s[i] = make_float4(0.f, 0.f, 0.f, 0.f);
     }
 
-    float qr_[PL], kr_[PL], vraw = 0.f, araw = 0.f, braw = 0.f;
-    auto load_raw = [&](int64_t t) {
+    struct Raw {
+        float q[PL], k[PL], v, a, b;
+    };
+    auto load_raw = [&](int64_t t, Raw& x) {
         const ik_bf16* row = qkv + t * C;
 #pragma unroll
         for (int i = 0; i < PL; ++i) {
-            qr_[i] = ik_b2f(row[kh * DK + lane + 32 * i]);
-            kr_[i] = ik_b2f(row[Hk * DK + kh * DK + lane + 32 * i]);
+            x.q[i] = ik_b2f(row[kh * DK + lane + 32 * i]);
+            x.k[i] = ik_b2f(row[Hk * DK + kh * DK + lane + 32 * i]);
         }
-        vraw = valid ? ik_b2f(row[2 * Hk * DK + h * dv + j]) : 0.f;
-        araw = ik_b2f(a[t * Hv + h]);
-        braw = ik_b2f(b[t * Hv + h]);
+        x.v = valid ? ik_b2f(row[2 * Hk * DK + h * dv + j]) : 0.f;
+        x.a = ik_b2f(a[t * Hv + h]);
+        x.b = ik_b2f(b[t * Hv + h]);
     };
-    load_raw(0);
-    const float4* sk4 = reinterpret_cast<const float4*>(sk);
-    const float4* sq4 = reinterpret_cast<const float4*>(sq);
-    for (int64_t t = 0; t < T; ++t) {
+    // normalise q/k of one token into buffer `buf` of shared memory; returns the per-row scalars
+    struct Tok {
+        float v, beta, decay;
+    };
+    auto prepare = [&](const Raw& x, int buf) {
         float qq = 0.f, kk = 0.f;
 #pragma unroll
         for (int i = 0; i < PL; ++i) {
-            qq += qr_[i] * qr_[i];
-            kk += kr_[i] * kr_[i];
+            qq += x.q[i] * x.q[i];
+            kk += x.k[i] * x.k[i];
         }
         qq = ik_warp_sum(qq);
         kk = ik_warp_sum(kk);
         const float qn = rsqrtf(qq + eps) * scale, kn = rsqrtf(kk + eps);
-        __syncwarp();  // the previous token's reads of sq/sk are done
 #pragma unroll
         for (int i = 0; i < PL; ++i) {
-            sq[lane + 32 * i] = qr_[i] * qn;
-            sk[lane + 32 * i] = kr_[i] * kn;
+            sq[buf][lane + 32 * i] = x.q[i] * qn;
+            sk[buf][lane + 32 * i] = x.k[i] * kn;
         }
-        __syncwarp();
-        const float v = vraw, beta = sigmoidf(braw), decay = expf(neg_a * softplus(araw + dtb));
-        if (t + 1 < T) load_raw(t + 1);  // in flight during the update below
+        Tok tk;
+        tk.v = x.v;
+        tk.beta = sigmoidf(x.b);
+        tk.decay = expf(neg_a * softplus(x.a + dtb));
+        return tk;
+    };
+
+    Raw rn, rl;
+    load_raw(0, rn);
+    if (T > 1) load_raw(1, rl);
+    Tok tk = prepare(rn, 0);  // token 0
+    if (T > 1) rn = rl;       // raw of token 1
+    if (T > 2) load_raw(2, rl);
+    __syncwarp();
+    for (int64_t t = 0; t < T; ++t) {
+        const int cb = (int)(t & 1);
+        const float4* sk4 = reinterpret_cast<const float4*>(sk[cb]);
+        const float4* sq4 = reinterpret_cast<const float4*>(sq[cb]);
+        // ---- state update of token t (two dependent dot products) ----
         float p0 = 0.f, p1 = 0.f, p2 = 0.f, p3 = 0.f;
 #pragma unroll
         for (int i = 0; i < NG; ++i) {
             const float4 k4 = sk4[i * LPR + l];
-            s[i].x *= decay; s[i].y *= decay; s[i].z *= decay; s[i].w *= decay;
+            s[i].x *= tk.decay; s[i].y *= tk.decay; s[i].z *= tk.decay; s[i].w *= tk.decay;
             p0 += s[i].x * k4.x; p1 += s[i].y * k4.y; p2 += s[i].z * k4.z; p3 += s[i].w * k4.w;
         }
+        // ---- independent of the state: token t+1's norms, decay and beta, into the other buffer ----
+        Tok tn = tk;
+        if (t + 1 < T) tn = prepare(rn, cb ^ 1);
         float kv = (p0 + p1) + (p2 + p3);
 #pragma unroll
         for (int off = 1; off < LPR; off <<= 1) kv += __shfl_xor_sync(0xffffffffu, kv, off);
-        const float delta = (v - kv) * beta;
+        const float delta = (tk.v - kv) * tk.beta;
         float o0 = 0.f, o1 = 0.f, o2 = 0.f, o3 = 0.f;
 #pragma unroll
         for (int i = 0; i < NG; ++i) {
@@ -330,6 +356,11 @@ __global__ void __launch_bounds__(32) gdn_delta_lanes_kernel(
 #pragma unroll
         for (int off = 1; off < LPR; off <<= 1) out += __shfl_xor_sync(0xffffffffu, out, off);
         if (valid && l == 0) o[(t * Hv + h) * dv + j] = ik_f2b(out);
+        // ---- rotate: raw of t+2 (loaded one iteration ago) becomes next iteration's raw; start loading t+3 ----
+        rn = rl;
+        if (t + 3 < T) load_raw(t + 3, rl);
+        tk = tn;
+        __syncwarp();  // buffer cb is free again and buffer cb ^ 1 is complete
     }
     if (valid) {
         float4* dst = reinterpret_cast<float4*>(state + ((int64_t)h * dv + j) * DK);

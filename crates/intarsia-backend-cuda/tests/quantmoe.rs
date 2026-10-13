@@ -290,6 +290,7 @@ fn bench_real_shapes() {
         ("moe_experts T=128", 128),
         ("moe_experts T=256", 256),
         ("moe_experts T=1024", 1024),
+        ("moe_experts T=2048", 2048),
         ("moe_experts T=4096", 4096),
     ] {
         let mut hc = big.clone();

@@ -14,6 +14,7 @@
 // Tile: BM x 128 weight rows x 64 k bytes per stage, 4 stages of cp.async. Block = 4 x WM warps (4 along N, 32 columns
 // each; WM along M, MT m16 tiles each). Needs K % 128 == 0 (as the other fp8 gemm kernels) and MT even.
 #include "wq_gemm.cuh"
+#include "ik_internal.h"
 #include <stdlib.h>
 
 namespace {
@@ -191,11 +192,8 @@ int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* 
     if (bm == 128) launch_f8<4, 2, OutT>(xq, wp, scp, (OutT*)out->data, (int)M, (int)N, (int)K, s);
     else launch_f8<2, 2, OutT>(xq, wp, scp, (OutT*)out->data, (int)M, (int)N, (int)K, s);
     IK_TRY(ik_launch_status());
-    // weight-only activations (input_scale <= 0): the bf16 kernel; it exits when the scale is positive
-    const int vec = (sizeof(OutT) == 2 && N % 8 == 0 && ik_aligned16(out->data)) ? 1 : 0;
-    wq::gemm_by_m<wq::FMT_FP8, OutT>((const ik_bf16*)x->data, nullptr, wp, nullptr, scp, (OutT*)out->data, (int)M, (int)N,
-                                     (int)K, vec, s, /*only_weight_only=*/1);
-    return ik_launch_status();
+    // weight-only activations (input_scale <= 0): the bf16 kernel, which exits when the scale is positive
+    return ik_fp8_gemm_weight_only_internal(x->data, w->data, sc->data, out->data, sizeof(OutT) == 4, M, N, K, stream);
 }
 
 }  // namespace
