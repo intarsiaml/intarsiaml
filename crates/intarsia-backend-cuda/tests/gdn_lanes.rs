@@ -75,7 +75,9 @@ fn gdn_lanes_is_as_accurate_as_the_rows_kernel() {
                 let (w, o, n) = (want[i].to_f32(), old[i].to_f32(), new[i].to_f32());
                 let (ro, rn) = (rel_l2(&o, &w), rel_l2(&n, &w));
                 eprintln!("dk={dk} dv={dv} T={t} {what}: rel_l2 vs f64 reference: rows kernel {ro:.3e}, lanes kernel {rn:.3e}");
-                assert!(rn <= 1e-3 && rn <= 2.0 * ro.max(1e-6), "dk={dk} dv={dv} T={t} {what}: lanes rel_l2 {rn:.3e}, rows kernel {ro:.3e}");
+                // the floor on `ro`: with a handful of outputs near a bf16 rounding boundary either kernel is a few ulps
+                // "luckier" than the other (rel_l2 ~1e-5), which says nothing about the recurrence
+                assert!(rn <= 1e-3 && rn <= 2.0 * ro.max(5e-5), "dk={dk} dv={dv} T={t} {what}: lanes rel_l2 {rn:.3e}, rows kernel {ro:.3e}");
             }
             // repeatable
             let again = run_host(&*cuda, "gdn_delta_rule_bf16_lanes", &hc).unwrap();

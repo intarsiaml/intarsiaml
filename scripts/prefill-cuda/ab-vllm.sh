@@ -3,7 +3,7 @@
 # ours arms). ab-vllm.sh <round>
 set -u
 P=$HOME/intarsia-perf; AB=${AB_DIR:-$P/ab}; RND=$1
-BIN=${BENCH_BIN:-$P/dev/target/acc/release/intarsia}
+BIN=${BENCH_BIN:-$P/dev2/target/acc/release/intarsia}
 SIZES=${SIZES:-128,1024,4096,16384}; GEN=${GEN:-128}; REPS=${REPS:-5}
 HOST=${VLLM_HOST:-100.120.88.104}
 out=$AB/vllm-r$RND; rm -rf $out; mkdir -p $out; echo '0 0' > $out/inflight; touch $out/inflight.run
