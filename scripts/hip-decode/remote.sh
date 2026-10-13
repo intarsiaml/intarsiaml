@@ -52,6 +52,7 @@ serve_bench() { # serve_bench <name> <model dir> <gb-per-token> <tag> [extra ser
   local up=0 i
   for i in $(seq 1 200); do
     if curl -sf -m 2 http://127.0.0.1:$port/health >/dev/null 2>&1; then up=1; break; fi
+    docker ps -q -f name=intarsia-serve | grep -q . || break  # the server exited (e.g. a binary without the hip feature): stop waiting
     sleep 3
   done
   if [ "$up" != 1 ]; then echo "serve did not come up"; docker logs intarsia-serve 2>&1 | tail -30; docker rm -f intarsia-serve >/dev/null; return 1; fi
