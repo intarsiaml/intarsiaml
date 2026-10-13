@@ -249,7 +249,7 @@ the mean by about 10% and passes the x1.15 gate (unit test `one_prompt_doubling_
 The x2.5 / x1.75 factors are the smallest that let a legitimate bf16 reordering through on the one model that could be
 measured here and still fail a 2x larger change; see "Choosing the self-golden budgets" for the data and its limits.
 **On MoE and hybrid models these fixed per-prompt margins are inside the noise** (the 35B moves one prompt by KL 0.13-0.17
-between two equally correct builds); the aggregate checks are not. The per-prompt part is calibrated with a noise envelope
+between two equally correct builds); the aggregate checks were kept hard by design, but the same experiment measured them inside the noise on `35b-long` too (docs/results/2026-10-13-phase1b.md 10.0). The per-prompt part is calibrated with a noise envelope
 ("Noise envelope" below). Without one the gate keeps the fixed margins and warns when `config.json` shows experts or
 linear-attention layers.
 
