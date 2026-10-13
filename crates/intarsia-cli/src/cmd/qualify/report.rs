@@ -281,6 +281,18 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
         );
     }
     let _ = writeln!(o);
+    let _ = writeln!(o, "### Notes\n");
+    let mut any_note = false;
+    for s in &stages {
+        for n in &s.notes {
+            any_note = true;
+            let _ = writeln!(o, "- `{}`: {}", s.id, md_cell(n));
+        }
+    }
+    if !any_note {
+        let _ = writeln!(o, "None.");
+    }
+    let _ = writeln!(o);
 
     // ---- speed ----
     let _ = writeln!(o, "## Speed\n");
@@ -439,7 +451,19 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
             md_cell(cmd)
         );
     }
-    let _ = writeln!(o, "\nModel fingerprint: `{}`. Build stamp `unstamped` means a plain `cargo build`: baselines written here are fine for gating this binary, but `--pre-change` provenance checks refuse them as a \"before\".\n", stage(state, "doctor").or(stages.first().copied()).map(|s| s.provenance["model_fingerprint"].as_str().unwrap_or("-")).unwrap_or("-"));
+    let unstamped = stages.iter().any(|s| s.provenance["build_stamp"].as_str() == Some("unstamped"));
+    let _ = writeln!(
+        o,
+        "\nModel fingerprint: `{}`.",
+        stage(state, "doctor")
+            .or(stages.first().copied())
+            .map(|s| s.provenance["model_fingerprint"].as_str().unwrap_or("-"))
+            .unwrap_or("-")
+    );
+    if unstamped {
+        let _ = writeln!(o, "\nBuild stamp `unstamped` means a plain `cargo build`: baselines written here gate this binary, but `--pre-change` provenance checks refuse them as a \"before\".");
+    }
+    let _ = writeln!(o);
     for h in &state.hooks {
         let _ = writeln!(o, "- hook `{}`: {}", h["hook"].as_str().unwrap_or("?"), h);
     }

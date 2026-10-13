@@ -251,7 +251,7 @@ const STAGES: &[StageDef] = &[
     },
     StageDef {
         id: "acc-all",
-        title: "accuracy --mode all on the short golden (prefill, decode, prefix reuse)",
+        title: "accuracy --mode all on the short golden, 16-token prefill chunks (multi-chunk prefill, decode, prefix reuse)",
         section: "full",
         needs: &["plan"],
         run: st_acc_all,
@@ -1500,7 +1500,7 @@ impl Ctx {
         tp: usize,
         per_rank_gb: Option<f64>,
     ) -> Result<BenchRun> {
-        let max_seq = ((sizes.iter().max().copied().unwrap_or(1024) + gen + 128).div_ceil(256) * 256).max(2048); // the bench calibrates prompt sizes with probes that need room
+        let max_seq = server_max_seq(sizes, gen);
         let port = proc::free_port(self.a.port);
         let url = format!("http://127.0.0.1:{port}");
         let served = format!("qualify-{}", self.name);
@@ -1658,7 +1658,9 @@ fn st_acc_all(c: &mut Ctx) -> Result<Out> {
         Golden::Have(g, h) => (g, h),
         Golden::None(why) => return Ok(Out::skip(why)),
     };
-    let a = c.accuracy("acc-all", &g, "all", false, 1, &[])?;
+    // the short prompts are shorter than one default prefill chunk, so neither multi-chunk prefill nor the prefix-reuse
+    // gate (which needs a split of at least one chunk) would run with the default 256: shrink the chunk
+    let a = c.accuracy("acc-all", &g, "all", false, 1, &["--prefill-chunk".to_string(), "16".to_string()])?;
     Ok(c.acc_out(a, &g, &how, "all"))
 }
 
@@ -1777,6 +1779,13 @@ fn st_bench_long(c: &mut Ctx) -> Result<Out> {
     Ok(c.bench_out(&b, 1, None))
 }
 
+/// Context window of the bench server: the largest prompt plus the generation, with the bench's own margin (it skips a
+/// size whose estimate plus 2% and 16 tokens does not fit) and at least 2048 (its calibration probes need room).
+fn server_max_seq(sizes: &[usize], gen: usize) -> usize {
+    let biggest = sizes.iter().max().copied().unwrap_or(1024);
+    (((biggest as f64 * 1.03) as usize + gen + 96).div_ceil(256) * 256).max(2048)
+}
+
 fn localeval_dir(c: &Ctx) -> PathBuf {
     c.a.localeval_dir.clone().unwrap_or_else(|| PathBuf::from("/opt/code/deepeval"))
 }
@@ -1812,7 +1821,8 @@ fn st_ab(c: &mut Ctx) -> Result<Out> {
     let ref_model = c.reference_model(&base)?;
     let sizes = c.quick_sizes();
     let (gen, reps) = (c.gen_tokens(false), c.reps(false));
-    let max_seq = ((sizes.iter().max().copied().unwrap_or(1024) + gen + 128).div_ceil(256) * 256).max(2048); // the bench calibrates prompt sizes with probes that need room
+    // localeval calibrates with a probe of about 4.5k tokens whatever the sizes are, so the context must hold it
+    let max_seq = server_max_seq(&sizes, gen).max(8192);
     let port = proc::free_port(c.a.port);
     let url = format!("http://127.0.0.1:{port}");
     let served = format!("qualify-{}", c.name);
@@ -1967,6 +1977,16 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn server_context_covers_the_benchs_margin() {
+        // bench speed skips a size when ~size + gen, plus 2% and 16 tokens, exceeds the context
+        for (size, gen) in [(16384usize, 64usize), (4096, 128), (128, 128), (256, 16)] {
+            let need = ((size + gen) as f64 * 1.02) as usize + 16;
+            assert!(server_max_seq(&[size], gen) >= need, "{size}+{gen}");
+        }
+        assert!(server_max_seq(&[64], 16) >= 2048);
+    }
 
     #[test]
     fn stage_table_is_consistent() {

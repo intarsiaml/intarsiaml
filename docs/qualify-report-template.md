@@ -54,6 +54,12 @@ _One row per stage in run order: quick stages first, then in-depth. Wall is the 
 | 7 | `bench` bench speed 128 / 1024 / 4096 | quick | PASS | 3m | <decode tok/s, % of floor> |
 | 8 | `acc-all`, `acc-long`, `envelope`, `bench-long`, `ab`, `tp` | full | ... | ... | in-depth stages |
 
+### Notes
+
+_Per-stage observations that are not failures: bench warnings (for example "decode ran eagerly" where the backend has no graphs yet), sizes skipped because they do not fit, warnings from `doctor`._
+
+- `<stage>`: <note>
+
 ## Speed
 
 _Bench tables (the median of the repetitions per cell; prefill includes queueing and HTTP, see docs/benchmarking.md). The floor is memory bandwidth divided by the bytes one decoded token reads; the line above each table says where both inputs came from. More than 100% of floor means a wrong input, not a fast engine._
