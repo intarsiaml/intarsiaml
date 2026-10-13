@@ -37,6 +37,9 @@ pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// 256 experts, top-8: 1.43 ms vs 1.53 ms at 32 tokens, 0.98 ms vs 0.88 ms at 16).
 const MMA_MIN_TOKENS: usize = 32;
 
+/// Fewest tokens for which the e4m3 tensor-core GEMM serves (the gemv serves 1..=4).
+const F8_MIN_TOKENS: usize = 5;
+
 /// Fewest tokens for which the dense dequantise-once GEMMs are preferred over `*_mma`.
 const GEMM_MIN_TOKENS: usize = 33;
 
@@ -76,11 +79,13 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(10),
-                // the same on e4m3 tensor cores (no weight dequantisation); W8A16 batches fall back inside the launcher
+                // the same on e4m3 tensor cores (no weight dequantisation); W8A16 batches fall back inside the launcher.
+                // Serves every M the gemv does not (>= 5), the shapes `*_mma` and `*_gemm` shared: one rounding for every
+                // chunk length (a tail chunk of 5..32 tokens must give the bits a full chunk gives its rows).
                 "matmul_fp8_gemm_f8" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m >= GEMM_MIN_TOKENS && s.k % 128 == 0)
+                    .when(|s| s.m >= F8_MIN_TOKENS && s.k % 128 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)

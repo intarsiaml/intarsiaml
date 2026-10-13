@@ -381,7 +381,8 @@ fn matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm() {
     let mut rng = SplitMix64::new(73);
     for act_quant in [true, false] {
         for (m, n, k, out) in [
-            (33usize, 192usize, 256usize, DType::Bf16),
+            (5usize, 192usize, 256usize, DType::Bf16),
+            (33, 192, 256, DType::Bf16),
             (100, 512, 2048, DType::Bf16),
             (256, 384, 1024, DType::F32),
             (1100, 256, 512, DType::Bf16),
@@ -406,5 +407,29 @@ fn matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm() {
             let again = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
             assert_eq!(got[0].data, again[0].data, "{label}: not repeatable");
         }
+    }
+}
+
+/// A row's result must not depend on how many rows share the call or where the row sits in its tile: `matmul_fp8_gemm_f8`
+/// serves every M >= 5, so a prompt chunked differently (tail chunks, prefix reuse) must give each token the same bits.
+/// Compares row slices of one 1100-row call (128-row tiles) with calls of 5, 17, 64 and 100 rows at other offsets (64-row
+/// tiles, tail rows, shifted tile origins), bitwise.
+#[test]
+fn matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(74);
+    let (m, n, k) = (1100usize, 384usize, 1024usize);
+    let whole = matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
+    let all = run_host(&*cuda, "matmul_fp8_gemm_f8", &whole).unwrap();
+    let (xk, on) = (k * 2, n * 2);
+    for (r0, rows) in [(0usize, 5usize), (3, 17), (130, 64), (1000, 100), (1099, 1)] {
+        if rows < 5 {
+            continue; // the registry serves M < 5 with the gemv
+        }
+        let mut hc = whole.clone();
+        hc.inputs[0] = HostTensor { shape: vec![rows, k], data: whole.inputs[0].data[r0 * xk..(r0 + rows) * xk].to_vec(), ..whole.inputs[0].clone() };
+        hc.outputs = vec![OutSpec::new(DType::Bf16, &[rows, n])];
+        let got = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
+        assert!(got[0].data == all[0].data[r0 * on..(r0 + rows) * on], "rows {r0}..{} differ when run as a {rows}-row call", r0 + rows);
     }
 }

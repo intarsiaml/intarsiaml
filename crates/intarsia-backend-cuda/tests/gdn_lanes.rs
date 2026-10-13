@@ -66,7 +66,7 @@ fn gdn_lanes_is_as_accurate_as_the_rows_kernel() {
     let cpu = CpuBackend::new();
     let mut rng = SplitMix64::new(61);
     for (hk, hv, dk, dv) in SHAPES {
-        for t in [16usize, 17, 130, 513] {
+        for t in [1usize, 7, 16, 17, 130, 513] {
             let hc = delta_case(&mut rng, t, hk, hv, dk, dv);
             let want = run_host(&cpu, "ref_gdn_delta_rule", &hc).unwrap();
             let old = run_host(&*cuda, "gdn_delta_rule_bf16", &hc).unwrap();
@@ -86,14 +86,20 @@ fn gdn_lanes_is_as_accurate_as_the_rows_kernel() {
 }
 
 /// The recurrence is token-sequential, so splitting a sequence into two calls that carry the state must give the same
-/// bits as one call (outputs and final state). A wrong state load/store, a dropped token or a decay applied at the
-/// wrong place breaks this.
+/// bits as one call (outputs and final state), for any split including tails of 1..15 tokens (the kernel serves every T:
+/// a prompt must give the same bits however it is chunked). A wrong state load/store, a dropped token, a decay applied
+/// at the wrong place or a T-dependent code path breaks this.
 #[test]
 fn gdn_lanes_state_carries_across_calls() {
+    for (t1, t2) in [(70usize, 59usize), (120, 10), (3, 1), (16, 1)] {
+        gdn_lanes_split_case(t1, t2);
+    }
+}
+
+fn gdn_lanes_split_case(t1: usize, t2: usize) {
     let Some(cuda) = device() else { return };
-    let mut rng = SplitMix64::new(62);
+    let mut rng = SplitMix64::new(62 + (t1 * 31 + t2) as u64);
     let (hk, hv, dk, dv) = SHAPES[0];
-    let (t1, t2) = (70usize, 59usize);
     let whole = delta_case(&mut rng, t1 + t2, hk, hv, dk, dv);
     let out_whole = run_host(&*cuda, "gdn_delta_rule_bf16_lanes", &whole).unwrap();
     let c = 2 * hk * dk + hv * dv;
@@ -121,6 +127,6 @@ fn gdn_lanes_state_carries_across_calls() {
     let b = run_host(&*cuda, "gdn_delta_rule_bf16_lanes", &part(t1, t1 + t2, &a[1])).unwrap();
     let mut joined = a[0].data.clone();
     joined.extend_from_slice(&b[0].data);
-    assert!(joined == out_whole[0].data, "outputs of the split run differ from the single call");
-    assert!(b[1].data == out_whole[1].data, "final state of the split run differs from the single call");
+    assert!(joined == out_whole[0].data, "split {t1}+{t2}: outputs differ from the single call");
+    assert!(b[1].data == out_whole[1].data, "split {t1}+{t2}: final state differs from the single call");
 }
