@@ -10,6 +10,7 @@
 //    [Hv,dv,dk] (dk contiguous) is read once and written once per launch, so decode (T=1) streams
 //    2 * Hv*dv*dk*4 bytes per layer.
 #include "ik_launch.h"
+#include <stdlib.h>
 
 namespace {
 
@@ -234,6 +235,109 @@ __global__ void __launch_bounds__(32) gdn_delta_rows_kernel(
     }
 }
 
+// ---- delta rule, LPR lanes per state row ---------------------------------------------------
+// The one-thread-per-row kernel above occupies 4096 threads for the 35B (32 value heads x 128 rows), about 5 % of the
+// GPU, and each token walks two dependent chains of dk FMAs: it is latency bound (~1.2 us per token and layer on GB10,
+// docs/results/2026-10-13-prefill-cuda.md). Here LPR lanes share a row: lane l owns the float4 groups l, l + LPR, ...
+// of S_j[dk] (so a warp's loads of one row are contiguous and the shared-memory reads of q/k are conflict-free
+// broadcasts), keeps four independent partial sums per dot product, and the LPR partial sums are combined with
+// shuffles. LPR = 4 gives 4x the threads and ~3x shorter chains. The sum order differs from gdn_delta_rows_kernel
+// (fp32 rounding only); the order is fixed, so results are run-to-run identical.
+template <int DK, int LPR>
+__global__ void __launch_bounds__(32) gdn_delta_lanes_kernel(
+    const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
+    const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
+    float* __restrict__ state, int64_t T, int Hk, int Hv, int dv) {
+    constexpr int PL = DK / 32;          // raw q/k elements per lane for the cooperative load + l2 norm
+    constexpr int NG = DK / (4 * LPR);   // float4 groups of the state row per lane
+    constexpr int RPW = 32 / LPR;        // state rows per warp
+    __shared__ __align__(16) float sq[DK];
+    __shared__ __align__(16) float sk[DK];
+    const int lane = threadIdx.x;
+    const int l = lane % LPR, r = lane / LPR;
+    const int j = blockIdx.x * RPW + r;
+    const bool valid = j < dv;
+    const int h = blockIdx.y;
+    const int kh = h / (Hv / Hk);
+    const int C = 2 * Hk * DK + Hv * dv;
+    const float scale = rsqrtf((float)DK);
+    const float neg_a = -expf(ik_b2f(a_log[h]));
+    const float dtb = ik_b2f(dt_bias[h]);
+
+    float4 s[NG];
+    if (valid) {
+        const float4* src = reinterpret_cast<const float4*>(state + ((int64_t)h * dv + j) * DK);
+#pragma unroll
+        for (int i = 0; i < NG; ++i) s[i] = src[i * LPR + l];
+    } else {
+#pragma unroll
+        for (int i = 0; i < NG; ++i) s[i] = make_float4(0.f, 0.f, 0.f, 0.f);
+    }
+
+    float qr_[PL], kr_[PL], vraw = 0.f, araw = 0.f, braw = 0.f;
+    auto load_raw = [&](int64_t t) {
+        const ik_bf16* row = qkv + t * C;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qr_[i] = ik_b2f(row[kh * DK + lane + 32 * i]);
+            kr_[i] = ik_b2f(row[Hk * DK + kh * DK + lane + 32 * i]);
+        }
+        vraw = valid ? ik_b2f(row[2 * Hk * DK + h * dv + j]) : 0.f;
+        araw = ik_b2f(a[t * Hv + h]);
+        braw = ik_b2f(b[t * Hv + h]);
+    };
+    load_raw(0);
+    const float4* sk4 = reinterpret_cast<const float4*>(sk);
+    const float4* sq4 = reinterpret_cast<const float4*>(sq);
+    for (int64_t t = 0; t < T; ++t) {
+        float qq = 0.f, kk = 0.f;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qq += qr_[i] * qr_[i];
+            kk += kr_[i] * kr_[i];
+        }
+        qq = ik_warp_sum(qq);
+        kk = ik_warp_sum(kk);
+        const float qn = rsqrtf(qq + eps) * scale, kn = rsqrtf(kk + eps);
+        __syncwarp();  // the previous token's reads of sq/sk are done
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            sq[lane + 32 * i] = qr_[i] * qn;
+            sk[lane + 32 * i] = kr_[i] * kn;
+        }
+        __syncwarp();
+        const float v = vraw, beta = sigmoidf(braw), decay = expf(neg_a * softplus(araw + dtb));
+        if (t + 1 < T) load_raw(t + 1);  // in flight during the update below
+        float p0 = 0.f, p1 = 0.f, p2 = 0.f, p3 = 0.f;
+#pragma unroll
+        for (int i = 0; i < NG; ++i) {
+            const float4 k4 = sk4[i * LPR + l];
+            s[i].x *= decay; s[i].y *= decay; s[i].z *= decay; s[i].w *= decay;
+            p0 += s[i].x * k4.x; p1 += s[i].y * k4.y; p2 += s[i].z * k4.z; p3 += s[i].w * k4.w;
+        }
+        float kv = (p0 + p1) + (p2 + p3);
+#pragma unroll
+        for (int off = 1; off < LPR; off <<= 1) kv += __shfl_xor_sync(0xffffffffu, kv, off);
+        const float delta = (v - kv) * beta;
+        float o0 = 0.f, o1 = 0.f, o2 = 0.f, o3 = 0.f;
+#pragma unroll
+        for (int i = 0; i < NG; ++i) {
+            const float4 k4 = sk4[i * LPR + l], q4 = sq4[i * LPR + l];
+            s[i].x += k4.x * delta; s[i].y += k4.y * delta; s[i].z += k4.z * delta; s[i].w += k4.w * delta;
+            o0 += s[i].x * q4.x; o1 += s[i].y * q4.y; o2 += s[i].z * q4.z; o3 += s[i].w * q4.w;
+        }
+        float out = (o0 + o1) + (o2 + o3);
+#pragma unroll
+        for (int off = 1; off < LPR; off <<= 1) out += __shfl_xor_sync(0xffffffffu, out, off);
+        if (valid && l == 0) o[(t * Hv + h) * dv + j] = ik_f2b(out);
+    }
+    if (valid) {
+        float4* dst = reinterpret_cast<float4*>(state + ((int64_t)h * dv + j) * DK);
+#pragma unroll
+        for (int i = 0; i < NG; ++i) dst[i * LPR + l] = s[i];
+    }
+}
+
 }  // namespace
 
 extern "C" {
@@ -301,6 +405,50 @@ int ik_gdn_delta_rule_bf16(const ik_tensor* qkv, const ik_tensor* a, const ik_te
     gdn_delta_kernel<8><<<grid, block, 0, s>>>(
         (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,
         (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, T, (int)Hk, (int)Hv, (int)dv);
+    return ik_launch_status();
+}
+
+// Same contract as ik_gdn_delta_rule_bf16; dk in {64, 128}. INTARSIA_GDN_LPR=2|4|8 picks the lanes per row (A/B).
+int ik_gdn_delta_rule_bf16_lanes(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                                 const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream) {
+    IK_TRY(ik_check(qkv, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(b, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a_log, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(dt_bias, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(o, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(state, IK_DTYPE_F32, 3));
+    const int64_t T = qkv->shape[0], C = qkv->shape[1];
+    const int64_t Hv = o->shape[1], dv = o->shape[2], dk = state->shape[2];
+    if (dk == 0 || dv == 0 || Hv == 0 || C <= Hv * dv || (C - Hv * dv) % (2 * dk) != 0) return IK_ERR_SHAPE;
+    const int64_t Hk = (C - Hv * dv) / (2 * dk);
+    if (Hv % Hk != 0 || o->shape[0] != T || state->shape[0] != Hv || state->shape[1] != dv ||
+        a->shape[0] != T || a->shape[1] != Hv || b->shape[0] != T || b->shape[1] != Hv || a_log->shape[0] != Hv ||
+        dt_bias->shape[0] != Hv)
+        return IK_ERR_SHAPE;
+    if (dk != 64 && dk != 128) return IK_ERR_UNSUPPORTED;
+    if (!ik_aligned16(state->data)) return IK_ERR_INVALID_ARG;
+    if (T == 0) return IK_OK;
+    static const int lpr_env = [] {
+        const char* v = getenv("INTARSIA_GDN_LPR");
+        const int n = v ? atoi(v) : 0;
+        return (n == 2 || n == 4 || n == 8) ? n : 4;
+    }();
+    cudaStream_t s = IK_STREAM(stream);
+#define IK_GDN_LANES(DK, LPR)                                                                                        \
+    gdn_delta_lanes_kernel<DK, LPR><<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv), 32, 0, s>>>( \
+        (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,    \
+        (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, T, (int)Hk, (int)Hv, (int)dv)
+    if (dk == 128) {
+        if (lpr_env == 2) IK_GDN_LANES(128, 2);
+        else if (lpr_env == 8) IK_GDN_LANES(128, 8);
+        else IK_GDN_LANES(128, 4);
+    } else {
+        if (lpr_env == 2) IK_GDN_LANES(64, 2);
+        else if (lpr_env == 8) IK_GDN_LANES(64, 8);
+        else IK_GDN_LANES(64, 4);
+    }
+#undef IK_GDN_LANES
     return ik_launch_status();
 }
 

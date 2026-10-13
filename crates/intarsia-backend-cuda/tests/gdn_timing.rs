@@ -43,7 +43,7 @@ fn gdn_kernels_timing_at_35b_shapes() {
             vec![o, state.clone()],
             OpAttrs { eps: 1e-6, ..Default::default() },
         );
-        for (name, call) in [("gdn_conv_bf16", &conv), ("gdn_delta_rule_bf16", &delta)] {
+        for (name, call) in [("gdn_conv_bf16", &conv), ("gdn_delta_rule_bf16", &delta), ("gdn_delta_rule_bf16_lanes", &delta)] {
             b.launch(name, call, 0).unwrap();
             b.synchronize(0).unwrap();
             let iters = if tokens >= 512 { 5 } else { 50 };

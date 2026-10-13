@@ -75,6 +75,7 @@ extern "C" {
     pub fn ik_sigmoid_mul_bf16(a: T, g: T, out: TM, s: S) -> c_int;
     pub fn ik_gdn_conv_bf16(x: T, taps: T, y: TM, state: TM, s: S) -> c_int;
     pub fn ik_gdn_delta_rule_bf16(qkv: T, a: T, b: T, a_log: T, dt_bias: T, eps: f32, o: TM, state: TM, s: S) -> c_int;
+    pub fn ik_gdn_delta_rule_bf16_lanes(qkv: T, a: T, b: T, a_log: T, dt_bias: T, eps: f32, o: TM, state: TM, s: S) -> c_int;
     pub fn ik_matmul_bf16(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16(x: T, w: T, out: TM, s: S) -> c_int;

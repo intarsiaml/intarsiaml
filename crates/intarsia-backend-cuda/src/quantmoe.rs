@@ -13,6 +13,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_gemm", Op::MatmulFp8),
+    ("matmul_fp8_gemm_f8", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemm", Op::MatmulNvfp4),
@@ -75,6 +76,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(10),
+                // the same on e4m3 tensor cores (no weight dequantisation); W8A16 batches fall back inside the launcher
+                "matmul_fp8_gemm_f8" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m >= GEMM_MIN_TOKENS && s.k % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2)
+                    .priority(20),
                 "matmul_nvfp4_gemm" => k
                     .acts(bf)
                     .weights([DType::U8])

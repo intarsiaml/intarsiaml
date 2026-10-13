@@ -31,6 +31,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
+    ("gdn_delta_rule_bf16_lanes", Op::GdnDeltaRule),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
@@ -46,6 +47,8 @@ fn base(name: &str, op: Op) -> KernelImpl {
 
 /// Most query rows the split-KV kernels take per launch (above this the flash prefill kernel wins).
 const SPLITKV_MAX_ROWS: usize = 16;
+/// Fewest tokens for which the multi-lane GatedDeltaNet kernel is preferred over the one-thread-per-row one.
+const GDN_LANES_MIN_TOKENS: usize = 16;
 
 /// Split-KV partitioning policy, mirroring `splitkv_count` in kernels/cuda/attention_splitkv.cu (the launcher
 /// derives its split count from the key count only, so results are run-to-run identical; this copy must be an
@@ -143,6 +146,20 @@ pub fn all() -> Vec<KernelImpl> {
                 .when(|s| matches!(s.head_dim, 32 | 64 | 128 | 256) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL),
+            // prefill-shaped batches: several lanes per state row (kernels/cuda/gdn.cu), ~4x the threads of the
+            // one-thread-per-row kernel it replaces for T >= 16; decode (T = 1) keeps the latter, which is graph-captured
+            "gdn_delta_rule_bf16_lanes" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| {
+                    s.m >= GDN_LANES_MIN_TOKENS
+                        && matches!(s.head_dim, 64 | 128)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(10),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
