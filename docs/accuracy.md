@@ -161,20 +161,22 @@ when the dir is an HF cache snapshot, else the dir name).
   turn 1 + reply + the rest of the prompt (the engine must reuse what it holds, `cached >= s`); *restore*: turn 1 =
   `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated (attention) or a recurrent snapshot taken
   at a prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`; *aligned*: *restore* with `s` rounded
-  down to a multiple of the prefill chunk (attention-only models). A cold run is forced by serving an unrelated
+  down to a multiple of the prefill chunk. A cold run is forced by serving an unrelated
   prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are compared.
   `s` is the golden's `reuse_split`, else half of the prompt. A reuse run that has nothing to run on prints SKIPPED
   and fails. `--reuse-prompt a,b` runs only those prompts.
   * Identical streams pass. In *aligned* the warm run prefills exactly the chunks of the cold run, so on a backend
     whose cold run repeats itself bit for bit (checked from the recorded logits when the streams differ) the streams
     must be identical (`--reuse-exact`, default on).
-  * A diverging pair is judged on the logits (`judge_streams`). Both runs are repeated with the logits row of every
+  * A diverging pair passes if it is a rounding tie, judged on the logits (`judge_streams`), or if it agrees on
+    `--reuse-min-match` leading tokens as before: the logit criterion can only rescue, never fail what passed. Both runs are repeated with the logits row of every
     step recorded; rows `0..d` share one context (`d` the first divergence), so any difference between them is
     numerical. The divergence is a *rounding tie* when every shared row agrees within `--reuse-logit-tol` (0.25 nats of
     log-probability over the top-5 tokens, raised to twice what re-chunking the cold run alone moves them) and
     `--reuse-kl-tol` (KL(cold || warm) <= 1e-2): the two top candidates were that close and the last bit of the KV
-    rows decided. A broken restore (wrong position, stale row, off-by-one chunk) moves the logits by far more, with
-    KL of order 1, and fails; the unit tests `prefix_reuse_*` in `crates/intarsia-models/tests/engine.rs` pin the
+    rows decided. The tolerances are absolute and calibrated on bf16 Qwen3-8B (not scaled by the model class: a 4-bit or hybrid
+    model may need larger ones, which is why the leading-token rule stays as the other way through). A broken restore
+    (wrong position, stale row, off-by-one chunk) moves the logits by far more (measured in the report) and fails; the unit tests `prefix_reuse_*` in `crates/intarsia-models/tests/engine.rs` pin the
     engine's bookkeeping bitwise. A divergence that does not reproduce when the logits are recorded is accepted with
     that note (the run is not repeatable).
   * Why not "N identical leading tokens" (`--reuse-min-match`, still the fallback for an engine that cannot record

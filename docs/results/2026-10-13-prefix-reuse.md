@@ -75,11 +75,13 @@ Only a *restore* at a chunk-aligned split has a cold twin that prefilled the sam
 ## 4. The new check (`crates/intarsia-cli/src/cmd/accuracy.rs`)
 
 * Identical warm and cold streams pass, as before.
-* New case `aligned`: `restore` with the split rounded down to a multiple of the prefill chunk (attention-only models).
+* New case `aligned`: `restore` with the split rounded down to a multiple of the prefill chunk.
   Warm and cold then run identical prefill chunks. On a backend whose cold run repeats bit for bit (checked from the
   recorded logits only when the streams differ) the streams must be identical (`--reuse-exact`, default on).
-* A diverging pair is judged on the logits (`judge_streams`, `judge_divergence`): both runs are repeated with logits
-  recorded; the divergence passes when every shared row up to and including the divergent one agrees within
+* A diverging pair passes if it is a rounding tie or, as before, if it agrees on `--reuse-min-match` leading tokens: the
+  logit criterion can only rescue a pair, never fail one the old rule passed (its tolerances are absolute and fitted
+  on one bf16 model; a 4-bit or hybrid model's rows legitimately move more). The tie is judged on the logits
+  (`judge_streams`, `judge_divergence`): both runs are repeated with logits recorded; the divergence is a tie when every shared row up to and including the divergent one agrees within
   `--reuse-logit-tol` (default 0.25 nats of log-probability over the top-5 tokens, raised to twice what re-chunking a cold run
   moves them) and within `--reuse-kl-tol` (KL(cold || warm) <= 1e-2). The note prints the tokens, both margins, the
   row distances and the legacy verdict. An engine that cannot record logits falls back to `--reuse-min-match`.
@@ -89,6 +91,27 @@ Only a *restore* at a chunk-aligned split has a cold twin that prefilled the sam
   reuse bug moves rows by orders of magnitude more, but the margin is judged, not measured on a bug. A divergence that
   does not reproduce when logits are recorded is accepted with a note ("the run is not repeatable"); on a deterministic
   backend that case cannot arise (section 1).
+
+### Does the relaxed gate still catch a broken engine?
+
+Measured, on the Mac cpu backend with the engine deliberately broken (`generate_one`: `let mut pos = p;` replaced by
+`p.saturating_sub(1)`, i.e. the prefill restarts one token early and writes every later row one position off), chunk
+16, `science` and `story` (`cpu-after/mutation-prefill-restarts-one-token-early.txt`):
+
+| case | result | what it saw |
+|---|---|---|
+| story continue | FAIL @11 | shared rows moved by 0.40 nats, KL up to 3.4e-2 |
+| story restore | FAIL @5 | 1.01 nats before the divergence, KL up to 3.5e-2 |
+| story aligned | FAIL @7 | not bit-identical although the cold run repeats bit for bit |
+| science continue | ok 32/32 | the mutation does not change this case's stream |
+| science restore | FAIL @8 | 0.45 nats, KL up to 8.4e-3 (below the KL tolerance; the nats tolerance catches it) |
+| science aligned | FAIL @8 | not bit-identical |
+
+Five of six cases fail; real rounding ties on HIP moved the shared rows by at most 0.14 nats (KL 3.3e-3), the broken
+engine by 0.40-1.01 nats. The separation on the nats tolerance is about a factor of 3 (0.14 against 0.40), not orders of
+magnitude, and one KL value of the broken engine (8.4e-3) lies under the 1e-2 tolerance. A subtler bug (one stale row,
+say) could sit in between; the engine tests and the `aligned` bit-identity are the exact checks for those. The
+tolerances were fitted after the first setting (0.05 nats) rejected the two HIP ties, so they are calibrated, not derived.
 
 ## 5. Tests
 

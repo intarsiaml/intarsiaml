@@ -1505,7 +1505,7 @@ struct StreamVerdict {
 /// Compare a warm and a cold greedy stream of `m` tokens. Identical streams pass. A divergence is judged on the
 /// logits: both runs are repeated recording the logits row of every step (`rerun(warm?, trace)`), the divergent row
 /// is compared with the rounding scale of the same prompt run cold at other chunkings, and the divergence passes
-/// only if it is within that scale (a near-tie that rounding flipped). An engine that cannot trace logits falls back to
+/// if it is within that scale (a near-tie that rounding flipped) or, as before, past `--reuse-min-match` tokens. An engine that cannot trace logits falls back to
 /// "at least `--reuse-min-match` identical leading tokens".
 fn judge_streams(
     engine: &dyn Engine,
@@ -1553,12 +1553,19 @@ fn judge_streams(
         "token {d}: warm took {} cold took {}; shared rows differ by {:.3} (before) / {:.3} (here) nats of log-probability, KL up to {:.1e}; rounding scale {:.3} nats, KL {:.0e} (re-chunked cold run: {:.3}); warm margin {:.3}, cold margin {:.3}",
         wt[d], ct[d], dv.nu_pre, dv.nu_div, dv.kl_max, dv.tol, dv.kl_tol, ctrl, dv.gap_warm, dv.gap_cold
     );
-    let (ok, note) = if dv.is_tie() {
-        (true, format!("rounding tie at {desc}"))
+    // The logit criterion can only rescue a pair the leading-token criterion fails: its tolerances are calibrated on one
+    // bf16 model, so it must never be stricter than the criterion that gated before (a quantised or hybrid model's rows
+    // legitimately move more).
+    let tie = dv.is_tie();
+    let ok = tie || legacy_ok;
+    let note = if tie {
+        format!("rounding tie at {desc}")
+    } else if legacy_ok {
+        format!("beyond the rounding tolerance but past the first {legacy_min} tokens at {desc}")
     } else {
-        (false, format!("streams diverge beyond rounding at {desc}"))
+        format!("streams diverge beyond rounding at {desc}")
     };
-    let legacy_note = if legacy_ok != ok { format!("; legacy criterion (>= {legacy_min} leading tokens): {}", if legacy_ok { "ok" } else { "FAIL" }) } else { String::new() };
+    let legacy_note = if legacy_ok != tie { format!("; legacy criterion (>= {legacy_min} leading tokens): {}", if legacy_ok { "ok" } else { "FAIL" }) } else { String::new() };
     Ok(StreamVerdict { agree, ok, note: format!("{note}{legacy_note}") })
 }
 
@@ -1582,7 +1589,7 @@ struct ReuseRow {
 /// * `restore`: turn 1 = `ids[..s]` + a different tail; turn 2 = `ids`. The common prefix is `s`, shorter than what
 ///   is held, so the cache is truncated (attention) or a recurrent snapshot is restored (GatedDeltaNet / Mamba,
 ///   taken at prefill chunk boundaries): the engine reuses `cached > 0` tokens and again must agree with a cold run.
-/// * `aligned`: `restore` with `s` rounded down to a multiple of the prefill chunk (attention-only models). The warm
+/// * `aligned`: `restore` with `s` rounded down to a multiple of the prefill chunk. The warm
 ///   run then prefills exactly the chunks a cold run does, so the two must be bit-identical: all tokens agree.
 ///
 /// The cold run is forced by serving an unrelated prompt in between (`cached == 0` is checked). A reuse run chunks the

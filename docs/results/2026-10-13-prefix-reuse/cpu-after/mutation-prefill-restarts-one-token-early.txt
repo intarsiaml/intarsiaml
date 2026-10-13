@@ -1,0 +1,9 @@
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+story              continue      19     55      34      0     11/32  FAIL (streams diverge beyond rounding at token 11: warm took 1372 cold took 16009; shared rows differ by 0.395 (before) / 0.399 (here) nats of log-probability, KL up to 3.4e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.559, cold margin 0.019)
+story              restore       19     39      19      0      5/32  FAIL (streams diverge beyond rounding at token 5: warm took 11 cold took 304; shared rows differ by 1.013 (before) / 0.159 (here) nats of log-probability, KL up to 3.5e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.064, cold margin 0.202)
+story              aligned       16     39      16      0      7/32  FAIL (the warm run prefilled the chunks of the cold run, and the cold run repeats bit for bit, yet the warm run differs from it)
+science            continue      39     95      54      0     32/32  ok
+science            restore       39     79      39      0      8/32  FAIL (streams diverge beyond rounding at token 8: warm took 3555 cold took 15920; shared rows differ by 0.448 (before) / 0.157 (here) nats of log-probability, KL up to 8.4e-3; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.009, cold margin 0.093)
+science            aligned       32     79      32      0      8/32  FAIL (the warm run prefilled the chunks of the cold run, and the cold run repeats bit for bit, yet the warm run differs from it)
+prefix-reuse gate: FAIL
