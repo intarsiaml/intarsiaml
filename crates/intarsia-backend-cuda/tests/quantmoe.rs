@@ -349,6 +349,33 @@ fn moe_experts_mma_is_as_accurate_as_old_kernel() {
     }
 }
 
+/// Diagnostic for docs/results/2026-10-14-35b-accuracy.md: the fraction of bf16 outputs off the cpu reference for the
+/// grouped (mma) kernel and the warp-per-row kernel over small token counts (the kernel serves T >= 32; a 58-token
+/// prompt's decode-mode prefill is T = 42). Prints only; run with `--include-ignored --nocapture`.
+#[test]
+#[ignore]
+fn moe_experts_mma_small_t_sweep() {
+    let Some(cuda) = device() else { return };
+    let cpu = CpuBackend::new();
+    for seed in [5u64, 11] {
+        let mut rng = SplitMix64::new(seed);
+        for t in [32usize, 33, 40, 42, 48, 58, 63, 64, 96, 128, 512] {
+            let hc = experts_case(&mut rng, t, 64, 8, 2048, 512, DType::Bf16);
+            let want = run_host(&cpu, "ref_moe_experts", &hc).unwrap()[0].to_f32();
+            let old = run_host(&*cuda, "moe_experts_bf16", &hc).unwrap()[0].to_f32();
+            let new = run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].to_f32();
+            let frac = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count() as f64 / want.len() as f64;
+            eprintln!(
+                "SWEEP seed={seed} T={t:4}: off-reference old {:.4} % mma {:.4} %; rel_l2 old {:.3e} mma {:.3e}",
+                frac(&old) * 100.0,
+                frac(&new) * 100.0,
+                rel_l2(&old, &want),
+                rel_l2(&new, &want)
+            );
+        }
+    }
+}
+
 /// The tile height (16, 32 or 64 pairs, normally chosen from the mean pairs per expert; `INTARSIA_MOE_BM` forces it)
 /// only changes how rows are batched into mma tiles, never a row's own arithmetic, so the outputs are bit-identical for
 /// every height. Includes experts that own fewer pairs than a tile and ones that own several tiles. Runs only in the
