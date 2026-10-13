@@ -89,7 +89,7 @@ end-to-end spark1 numbers are not in yet (spark1 was offline for the whole sessi
 
 | kernel | selected for | what it does |
 |---|---|---|
-| `moe_experts_mma_bf16` (`moe_grouped.cu`) | T >= 32, H % 128, I % 128 | counting-sort (token, slot) pairs by expert and cut them into tiles of BM = 16/32/64 pairs of one expert; gate_up block = tile x 64 intermediate columns (64 gate + 64 up rows): weights are copied with cp.async, dequantised once per tile and 64-wide k step into bf16 shared memory, `mma.sync` m16n8k16 bf16 with f32 accumulate, SiLU-GLU in the epilogue; down block = tile x 128 output rows; fixed-order reduce over k. Only active experts get blocks. |
+| `moe_experts_mma_bf16` (`moe_grouped.cu`) | T >= 32, H % 128, I % 128 | counting-sort (token, slot) pairs by expert and cut them into tiles of BM = 16/32/64 pairs of one expert; gate_up block = tile x 64 intermediate columns (64 gate + 64 up rows): weights are copied with cp.async, dequantised once per tile and 64-wide k step into bf16 shared memory, `mma.sync` m16n8k16 bf16, each k16 partial sum formed from zero and added to the f32 accumulator with an fp32 add (accumulating inside the mma truncates and put about 1 % of the bf16 outputs one step off), SiLU-GLU in the epilogue; down block = tile x 128 output rows; fixed-order reduce over k. Only active experts get blocks. |
 | `moe_experts_decode_bf16` (`moe_decode.cu`) | T = 1 | gate_up+silu in one launch, down + per-token reduce in the second (4 launches -> 2). Bit-identical to `moe_experts_bf16`. |
 | `matmul_nvfp4_gemm`, `matmul_fp8_gemm` (`nvfp4_gemm.cu`, `fp8_gemm.cu`, `wq_gemm.cuh`) | M >= 33, K % 128 | same schedule as the grouped MoE kernel for dense weights. W8A8 pre-quantises the activations once into scratch. |
 

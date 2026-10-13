@@ -305,3 +305,51 @@ fn bench_real_shapes() {
     }
     let _ = (moe_experts_scratch, Op::MoeTopk, OutSpec::new(DType::F32, &[1]));
 }
+
+/// The grouped kernel must be about as close to the exact result as the warp-per-row kernel it replaces. The two
+/// round differently inside (the old one sums fp32 products in order, this one runs bf16 mma), but the old kernel's
+/// outputs differ from the exact (cpu reference) bf16 outputs in roughly 0.1 % of the elements. Accumulating the
+/// whole K = 2048 dot product inside the tensor core's accumulator loses low bits at every step (the mma aligns and
+/// truncates against the running sum), which put 0.6 to 1 % of the elements one bf16 step off: 3x worse, and on the
+/// 35B that moved prompts' KL against the vLLM golden (docs/results/2026-10-13-phase1b.md, section 8). The kernel now
+/// adds each k16 mma result into the fp32 accumulator itself. Real layer shape (H=2048, I=512); the bound is relative
+/// to the old kernel's own error on the same inputs, so it does not depend on the random data's scale.
+/// Runs only in the spark1 acceptance run (needs a GPU).
+#[test]
+fn moe_experts_mma_is_as_accurate_as_old_kernel() {
+    let Some(cuda) = device() else { return };
+    let cpu = CpuBackend::new();
+    let mut rng = SplitMix64::new(5);
+    for (t, e) in [(128usize, 64usize), (512, 64)] {
+        let hc = experts_case(&mut rng, t, e, 8, 2048, 512, DType::Bf16);
+        let want = run_host(&cpu, "ref_moe_experts", &hc).unwrap()[0].to_f32();
+        let old = run_host(&*cuda, "moe_experts_bf16", &hc).unwrap()[0].to_f32();
+        let new = run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].to_f32();
+        let frac = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count() as f64 / want.len() as f64;
+        let (fo, fn_) = (frac(&old), frac(&new));
+        let (ro, rn) = (rel_l2(&old, &want), rel_l2(&new, &want));
+        eprintln!("T={t} E={e}: elements off the reference: old {fo:.4} new {fn_:.4}; rel_l2 old {ro:.3e} new {rn:.3e}");
+        assert!(fn_ <= 3.0 * fo.max(1e-3), "T={t} E={e}: {:.2} % of the mma outputs differ from the reference, the old kernel {:.2} %", fn_ * 100.0, fo * 100.0);
+        assert!(rn <= 2.5 * ro, "T={t} E={e}: mma rel_l2 {rn:.3e} against the reference, old kernel {ro:.3e}");
+    }
+}
+
+/// The tile height (16, 32 or 64 pairs, normally chosen from the mean pairs per expert; `INTARSIA_MOE_BM` forces it)
+/// only changes how rows are batched into mma tiles, never a row's own arithmetic, so the outputs are bit-identical for
+/// every height. Includes experts that own fewer pairs than a tile and ones that own several tiles. Runs only in the
+/// spark1 acceptance run (needs a GPU).
+#[test]
+fn moe_experts_mma_is_independent_of_tile_height() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(9);
+    let hc = experts_case(&mut rng, 200, 16, 8, 2048, 512, DType::Bf16);
+    let mut outs: Vec<(&str, Vec<u8>)> = Vec::new();
+    for bm in ["16", "32", "64"] {
+        std::env::set_var("INTARSIA_MOE_BM", bm);
+        outs.push((bm, run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].data.clone()));
+    }
+    std::env::remove_var("INTARSIA_MOE_BM");
+    for (bm, o) in &outs[1..] {
+        assert!(o == &outs[0].1, "BM={bm} differs from BM=16");
+    }
+}

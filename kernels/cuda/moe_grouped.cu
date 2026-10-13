@@ -6,8 +6,9 @@
 //   gate_up  block = one tile x 64 intermediate columns: 64 gate rows + the matching 64 up rows of the expert,
 //            streamed over H in steps of 64. Each NVFP4 weight tile is loaded once and dequantised to bf16 in
 //            shared memory (exact: e2m1 * e4m3 has <= 4 significant bits), then all `BM` pairs of the tile run
-//            on tensor cores (mma.sync m16n8k16, bf16 in, f32 accumulate). The epilogue applies the global
-//            scales and SiLU-GLU with the reference rounding points and writes h in SORTED pair order.
+//            on tensor cores (mma.sync m16n8k16, bf16 in; every k16 partial sum is formed from zero and added to the
+//            f32 accumulator with a normal fp32 add). The epilogue applies the global scales and SiLU-GLU with the
+//            reference rounding points and writes h in SORTED pair order.
 //   down     block = one tile x 128 output rows, K = I. A is the contiguous sorted h rows; the epilogue scales
 //            and scatters y[pair] back to the original (token, slot) index.
 //   reduce   out[t] = sum_k round(y[t,k] * w[t,k]) in fixed k order (same as moe.cu: no atomics on `out`).
@@ -268,7 +269,17 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
                 const int r = wm * 16 * MT + i * 16 + (lane & 7) + ((lane >> 3) & 1) * 8;
                 ik_ldmatrix_x4(a0, a1, a2, a3, x + r * LDS + kk + (lane >> 4) * 8);
 #pragma unroll
-                for (int j = 0; j < 4; ++j) ik_mma_bf16_16816(acc[i][j], a0, a1, a2, a3, b[j][0], b[j][1]);
+                for (int j = 0; j < 4; ++j) {
+                    // Each k16 product sum is formed from zero and then added to the running sum with a normal fp32
+                    // add. Accumulating the whole K inside the mma (acc as the C operand) aligns every step's
+                    // result to the larger running value and truncates, which left 0.6 to 1 % of the bf16 outputs one
+                    // step off the exact result (the warp-per-row kernel: about 0.1 %); see tests/quantmoe.rs
+                    // `moe_experts_mma_is_as_accurate_as_old_kernel`.
+                    float t[4] = {0.f, 0.f, 0.f, 0.f};
+                    ik_mma_bf16_16816(t, a0, a1, a2, a3, b[j][0], b[j][1]);
+#pragma unroll
+                    for (int v = 0; v < 4; ++v) acc[i][j][v] += t[v];
+                }
             }
         }
     }

@@ -13,6 +13,7 @@
 #   ab         ROUNDS interleaved rounds. Each round: vLLM down, ours-new and ours-old (alternating order), then
 #              vLLM up and vLLM. The container is stopped and started between arms; ours never runs beside it.
 #   verdict    the decision rule below, applied to the saved JSON. Exit 0 only on PASS.
+#   speedquick (not in `all`) ours-new decode bench only, no vLLM arm, no verdict: a speed check after a kernel change.
 #   (always)   trap: stop our server (wait, then kill -9), start the vLLM container, wait until healthy, release the slots.
 #
 # Why vLLM is stopped: the 01:50 hang of spark1 happened with an 8B HF golden job next to the 64 GB vLLM reservation
@@ -42,7 +43,7 @@
 # Optional: S1_8B, PRE_CHANGE (4963b43), ROUNDS (3), REPS (5), GEN (128), SIZES (128,1024,4096), HOST (spark1),
 #   VLLM_HOST (127.0.0.1: address the vLLM container is bound to; spark1 binds its tailnet IP, see `docker inspect`),
 #   MACHINE (spark-4e77), MEM_LEASE_GB (100), MODEL_GB_35B (38), MODEL_GB_8B (17), STAGES (comma list, default all),
-#   AB_SHIPPED (0), ALLOW_DIRTY (0: development only, the tree under test is then not stamped clean),
+#   ACC_ONLY (comma list of accuracy case names to run, default all), AB_SHIPPED (0), ALLOW_DIRTY (0: development only, the tree under test is then not stamped clean),
 #   DRY_RUN (1: stub ssh/rsync/fleetq/docker, log what would run), FAIL_AT=<stage> (DRY_RUN: force that stage to fail
 #   and show that the trap restores vLLM), WORK (artefact directory on the Mac).
 
@@ -82,6 +83,7 @@ mkdir -p "$WORK"
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { log "ABORT: $*"; exit 1; }
 have_stage() { [[ "$STAGES" == all || ",$STAGES," == *",$1,"* ]]; }
+explicit_stage() { [[ ",$STAGES," == *",$1,"* ]]; }   # stages that `all` does not include
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Everything that touches the fleet goes through these four wrappers, so DRY_RUN can stub it and the trap test is real.
@@ -336,6 +338,7 @@ stage_accuracy() {
   local dflag=""; [[ $ALLOW_DIRTY == 1 ]] && dflag="--allow-dirty"
   local failures=() skipped=()
   while IFS='|' read -r name model golden gb flags; do
+    [[ -z "${ACC_ONLY:-}" || ",$ACC_ONLY," == *",$name,"* ]] || continue   # ACC_ONLY=35b-short,35b-long: just those cases
     if ! rsh_out "test -s $golden && echo yes" | grep -q yes && [[ $DRY_RUN != 1 ]]; then
       log "SKIPPED $name: golden $golden does not exist on $HOST (build it in its own lease, never beside vLLM; docs/accuracy.md)"
       skipped+=("$name"); continue
@@ -418,6 +421,20 @@ stage_graphs() {
     (( ${eager:-1} == 0 )) || die "prompt $i: $eager eager decode steps with graphs on and --profile-every 0"
     log "prompt $i: graph == eager for 256 steps; replays=$replays eager=$eager"
   done
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# speedquick: one decode bench of the new build against our own server (no vLLM arm, no verdict), for checking that a
+# kernel change did not cost speed. Use with REPS=3 SIZES=128,1024,4096; JSON lands in $WORK/ab/ours-new-quick-r1.
+# ---------------------------------------------------------------------------------------------------------------------
+stage_speedquick() {
+  log "== speedquick: ours-new only, graphs required, sizes $SIZES, gen $GEN, reps $REPS"
+  memcheck "$MODEL_GB_35B" "speedquick"
+  rsh "mkdir -p $R/ab"
+  start_server "$NEWBIN"
+  run_arm ours-new-quick 1 "$SERVE_PORT" intarsia-35b --require-graphs
+  stop_server
+  fetch_ab
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -595,13 +612,14 @@ main() {
   load_stamps
   [[ -n "$VLLM_CONTAINER" && -n "$S1_35B" ]] || die "VLLM_CONTAINER and S1_35B must be set"
   have_stage build   && { maybe_fail build;   stage_build; }
-  if have_stage lease || have_stage kernels || have_stage accuracy || have_stage graphs || have_stage ab; then
+  if have_stage lease || have_stage kernels || have_stage accuracy || have_stage graphs || have_stage ab || explicit_stage speedquick; then
     maybe_fail lease; stage_lease
   fi
   have_stage kernels  && { maybe_fail kernels;  stage_kernels; }
   have_stage accuracy && { maybe_fail accuracy; stage_accuracy; }
   have_stage graphs   && { maybe_fail graphs;   stage_graphs; }
   have_stage ab       && { maybe_fail ab;       stage_ab; }
+  explicit_stage speedquick && { maybe_fail speedquick; stage_speedquick; }
   have_stage verdict  && { stage_verdict; }
   return 0
 }
