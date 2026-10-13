@@ -1,0 +1,72 @@
+accuracy: Qwen/Qwen3-8B on NVIDIA GB10 (vocab 151936, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsiaml-golden/qwen3-8b-full.safetensors (10 prompts, 1434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+  reference: engine hf-transformers transformers 5.15.1, torch 2.13.0+cu129 | model /hf/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 | revision b968826d9c46dd6066d109eabc6255188de91218 | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class bf16 (weights: bf16 (no quantization metadata), kv cache: bf16); top-1 >= 99.5%, KL <= 1.0e-3, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+this build: head 9427039 code-tree 62aa8d924eaa clean
+baseline recorded from: head 4963b43 code-tree 59c9b247fd19 dirty + harness overlay [crates/intarsia-cli/src/cmd/accuracy.rs, crates/intarsia-cli/src/cmd/accuracy/baseline.rs, crates/intarsia-cli/src/cmd/accuracy/provenance.rs, crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs]
+WARNING: this run resolved exactly the same kernels and flags as the baseline's run: a kernel or graph change cannot show up in this comparison
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   2.847e-4   2.003e-4   5.137e-3   0.0311   0.0317    98.95     38/38      0
+story                 39    39   100.00   8.036e-4   7.324e-4   4.403e-3   0.0395   0.0395    96.92     39/39      0
+code                  80    80   100.00   1.565e-4   1.457e-4   2.817e-3   0.0139   0.0140    98.75     80/80      0
+science               79    79   100.00   3.395e-4   3.212e-4   3.053e-3   0.0164   0.0162    97.97     79/79      0
+chat_short            18    18   100.00   1.385e-3   1.287e-3   1.144e-2   0.1118   0.1113    97.78     18/18      0
+chat_system           32    32   100.00   1.463e-3   1.228e-3   1.200e-2   0.0847   0.0847    96.88     32/32      0
+chat_multiturn        58    58   100.00   8.103e-4   7.738e-4   1.173e-2   0.0337   0.0340    97.93     58/58      0
+chat_reasoning        90    90   100.00   8.502e-4   8.271e-4   1.973e-2   0.0243   0.0243    98.22     90/90      0
+long_prose_300       300   300    99.33   9.998e-4   9.569e-4   4.701e-2   0.0125   0.0126    97.07     0/300      0
+long_prose_700       700   700    99.43   9.323e-4   9.000e-4   1.112e-1   0.0129   0.0129    97.49    28/700      0
+OVERALL                   1434    99.58   8.573e-4   8.173e-4   1.112e-1   0.0187   0.0187    97.57     32.2%      0
+prefill floor [bf16]: top-1 99.58% strict (99.72% if the 2 fp16 reference ties counted as agreement) (need >= 99.5) ok | full-vocab KL 8.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0187, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   5.047e-5   4.787e-5   3.723e-4   0.0028   0.0029    97.50     16/16      0
+story                 39    16   100.00   1.221e-3   1.186e-3   7.419e-3   0.0241   0.0238    97.50     16/16      0
+code                  80    16   100.00   8.198e-5   8.197e-5   7.835e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   5.138e-4   5.003e-4   4.218e-3   0.0102   0.0104    97.50     16/16      0
+chat_short            18    16   100.00   2.163e-3   2.019e-3   1.510e-2   0.0630   0.0626    96.25     16/16      0
+chat_system           32    16   100.00   2.167e-3   1.626e-3   1.467e-2   0.0757   0.0735    93.75     16/16      0
+chat_multiturn        58    16   100.00   1.076e-3   1.054e-3   8.665e-3   0.0073   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   1.646e-3   1.602e-3   1.306e-2   0.0096   0.0099   100.00     16/16      0
+long_prose_300       300    16   100.00   2.537e-6   2.536e-6   2.070e-5   0.0000   0.0000    96.25     16/16      0
+long_prose_700       700    16   100.00   8.827e-4   7.376e-4   5.780e-3   0.0247   0.0254    95.00     16/16      0
+OVERALL                    160   100.00   9.805e-4   8.856e-4   1.510e-2   0.0218   0.0216    97.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.805e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0218, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 80.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+baseline: /home/nvidia/intarsia-acc/art/8b-full.baseline.json (recorded 1791895284, golden qwen3-8b-full.safetensors hash 928be6dff03c8202); margins: top-1 -0.3 pt (>= 1 position), KL x1.15 (+1e-6), top-5 -0.5 pt, tail +0.002
+
+baseline gate, prefill (1434 positions):
+  metric               baseline     this run        limit  
+  top-1 %             9.95816e1    9.95816e1    9.92816e1  >= ok
+  mean KL            8.57289e-4   8.57289e-4   9.85883e-4  <= ok
+  tail-bucket KL     8.17332e-4   8.17332e-4   9.39931e-4  <= ok
+  top-5 %             9.75732e1    9.75732e1    9.70732e1  >= ok
+  |tail excess|      5.06156e-5   5.06156e-5   2.05062e-3  <= ok
+  mean |tail diff|   3.51844e-4   3.51844e-4   2.35184e-3  <= ok
+  max KL(21-way)     1.11222e-1   1.11222e-1   2.79055e-1  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate (10 prompts: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002): ok
+
+baseline gate, decode (teacher-forced) (160 positions):
+  metric               baseline     this run        limit  
+  top-1 %             1.00000e2    1.00000e2    9.93750e1  >= ok
+  mean KL            9.80476e-4   9.80476e-4   1.12755e-3  <= ok
+  tail-bucket KL     8.85628e-4   8.85628e-4   1.01847e-3  <= ok
+  top-5 %             9.72500e1    9.72500e1    9.66250e1  >= ok
+  |tail excess|      1.56268e-4   1.56268e-4   2.15627e-3  <= ok
+  mean |tail diff|   5.76536e-4   5.76536e-4   2.57654e-3  <= ok
+  max KL(21-way)     1.45822e-2   1.45822e-2   3.74555e-2  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate (10 prompts: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002): ok
+
+wrote self-golden /home/nvidia/intarsia-acc/art/8b-full.new.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by head 9427039 code-tree 62aa8d924eaa clean)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins): PASS
+golden gate: PASS

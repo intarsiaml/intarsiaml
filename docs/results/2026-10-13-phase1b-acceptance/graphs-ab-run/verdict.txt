@@ -1,0 +1,14 @@
+valid rounds: [1, 2, 3] of [1, 2, 3]
+size   128: FAIL         d min/median/max -4.48/-4.04/-3.61; ours-old rounds ['65.8', '65.0', '65.5']
+    r1: ours 73.00 vllm 77.48 d -4.48
+    r2: ours 72.06 vllm 76.10 d -4.04
+    r3: ours 72.32 vllm 75.93 d -3.61
+size  1024: FAIL         d min/median/max -6.10/-5.77/-5.05; ours-old rounds ['65.3', '64.8', '65.1']
+    r1: ours 72.43 vllm 77.48 d -5.05
+    r2: ours 71.59 vllm 77.69 d -6.10
+    r3: ours 71.81 vllm 77.58 d -5.77
+size  4096: FAIL         d min/median/max -7.05/-6.76/-6.02; ours-old rounds ['63.3', '62.7', '63.1']
+    r1: ours 70.24 vllm 76.26 d -6.02
+    r2: ours 69.49 vllm 76.54 d -7.05
+    r3: ours 69.62 vllm 76.38 d -6.76
+PHASE 1 SPEED GATE: FAIL

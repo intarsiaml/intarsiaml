@@ -1,0 +1,5 @@
+exit 0
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.212466e-12 max_kl21=1.176621e-9 flips=0 flip_pct=0.0000 tail_abs=3.625206e-9 worst_prompt_kl21=3.834316e-11
+prefill self-golden => PASS
+SELF-STATS mode=decode positions=160 mean_kl21=3.726456e-11 max_kl21=5.919182e-9 flips=0 flip_pct=0.0000 tail_abs=5.782527e-9 worst_prompt_kl21=3.716788e-10
+decode (teacher-forced) self-golden => PASS

@@ -1,0 +1,6 @@
+exit 0
+SELF-STATS mode=prefill positions=36887 mean_kl21=3.425581e-2 max_kl21=2.479512e1 flips=1681 flip_pct=4.5572 tail_abs=3.655594e-3 worst_prompt_kl21=2.121318e-1
+prefill self-golden => PASS
+SELF-STATS mode=decode positions=320 mean_kl21=5.982975e-3 max_kl21=1.075662e-1 flips=13 flip_pct=4.0625 tail_abs=1.095266e-3 worst_prompt_kl21=9.655312e-3
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS

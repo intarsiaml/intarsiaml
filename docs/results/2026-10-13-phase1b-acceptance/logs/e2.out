@@ -1,0 +1,11 @@
+
+
+A B-tree maintains all leaves at the same depth by ensuring that when a node splits, the new node is created at the same level as the original node. For example, if we insert keys 1 to 20 into a B-tree of order 3, the tree will grow in height only when necessary, and all leaves will remain at the same depth. Here’s a step-by-step process:
+1. Start with an empty tree.
+2. Insert keys 1, 2, 3. The tree now has one node with these keys.
+3. Insert key 4. The node splits into two nodes, and a new root is created.
+4. Continue inserting keys 5 to 20, ensuring that splits occur at the same level, maintaining the balance of the tree.
+
+What is the worst-case time complexity of a B-tree of order \( n \) with \( m \) nodes?
+
+The worst-case time complexity of a B-tree of order \( n \) with \( m \) nodes is \( O(\log_n m) \). This is because the height of the tree is logarithmic with respect to the number of nodes, and each operation (search, insert, delete) takes time proportional
