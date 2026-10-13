@@ -3,13 +3,14 @@
 
 namespace {
 
-// One block per row. out = bf16( x * rsqrt(mean(x^2) + eps) * w ). With ADD the row is first
+// One block per row. out = bf16( x * rsqrt(mean(x^2) + eps) * (w + woff) ), woff = 1 for zero-centred
+// norms (Qwen3.5), added in f32 so the weight keeps its full precision. With ADD the row is first
 // summed with `res`, rounded to bf16 (that rounded sum is what the next layer carries) and written
 // to `sum`; the normalisation then reads the rounded sum, exactly like the reference.
 template <bool ADD, bool VEC>
 __global__ void rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res,
                                const ik_bf16* __restrict__ w, ik_bf16* __restrict__ out, ik_bf16* __restrict__ sum,
-                               int64_t H, float eps) {
+                               int64_t H, float eps, float woff) {
     __shared__ float red[32];
     const int64_t row = blockIdx.x;
     const ik_bf16* xr = x + row * H;
@@ -58,16 +59,16 @@ __global__ void rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __r
             ik_unpack8(reinterpret_cast<const uint4*>(src)[i], f);
             ik_unpack8(reinterpret_cast<const uint4*>(w)[i], g);
 #pragma unroll
-            for (int k = 0; k < 8; ++k) f[k] = f[k] * r * g[k];
+            for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
             reinterpret_cast<uint4*>(orow)[i] = ik_pack8(f);
         }
     } else {
-        for (int64_t i = threadIdx.x; i < H; i += blockDim.x) orow[i] = ik_f2b(ik_b2f(src[i]) * r * ik_b2f(w[i]));
+        for (int64_t i = threadIdx.x; i < H; i += blockDim.x) orow[i] = ik_f2b(ik_b2f(src[i]) * r * (ik_b2f(w[i]) + woff));
     }
 }
 
 int launch_rows(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik_bf16* out, ik_bf16* sum, int64_t rows,
-                int64_t H, float eps, cudaStream_t s) {
+                int64_t H, float eps, float woff, cudaStream_t s) {
     if (rows == 0 || H == 0) return IK_OK;
     const bool add = res != nullptr;
     bool vec = H % 8 == 0 && ik_aligned16(x) && ik_aligned16(w) && ik_aligned16(out);
@@ -77,11 +78,11 @@ int launch_rows(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik_bf16*
     if (rows > 0x7fffffffLL) return IK_ERR_SHAPE;
     const unsigned g = (unsigned)rows;
     if (add) {
-        if (vec) rmsnorm_kernel<true, true><<<g, bd, 0, s>>>(x, res, w, out, sum, H, eps);
-        else rmsnorm_kernel<true, false><<<g, bd, 0, s>>>(x, res, w, out, sum, H, eps);
+        if (vec) rmsnorm_kernel<true, true><<<g, bd, 0, s>>>(x, res, w, out, sum, H, eps, woff);
+        else rmsnorm_kernel<true, false><<<g, bd, 0, s>>>(x, res, w, out, sum, H, eps, woff);
     } else {
-        if (vec) rmsnorm_kernel<false, true><<<g, bd, 0, s>>>(x, nullptr, w, out, nullptr, H, eps);
-        else rmsnorm_kernel<false, false><<<g, bd, 0, s>>>(x, nullptr, w, out, nullptr, H, eps);
+        if (vec) rmsnorm_kernel<false, true><<<g, bd, 0, s>>>(x, nullptr, w, out, nullptr, H, eps, woff);
+        else rmsnorm_kernel<false, false><<<g, bd, 0, s>>>(x, nullptr, w, out, nullptr, H, eps, woff);
     }
     return ik_launch_status();
 }
@@ -90,18 +91,18 @@ int launch_rows(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik_bf16*
 
 extern "C" {
 
-int ik_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, ik_tensor* out, void* stream) {
+int ik_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, float w_offset, ik_tensor* out, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(w, IK_DTYPE_BF16, 1));
     IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
     if (w->shape[0] != x->shape[1] || out->shape[0] != x->shape[0] || out->shape[1] != x->shape[1])
         return IK_ERR_SHAPE;
     return launch_rows((const ik_bf16*)x->data, nullptr, (const ik_bf16*)w->data, (ik_bf16*)out->data, nullptr,
-                       x->shape[0], x->shape[1], eps, IK_STREAM(stream));
+                       x->shape[0], x->shape[1], eps, w_offset, IK_STREAM(stream));
 }
 
-int ik_rmsnorm_add_bf16(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, ik_tensor* out,
-                        ik_tensor* sum_out, void* stream) {
+int ik_rmsnorm_add_bf16(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
+                        ik_tensor* out, ik_tensor* sum_out, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(res, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(w, IK_DTYPE_BF16, 1));
@@ -112,10 +113,10 @@ int ik_rmsnorm_add_bf16(const ik_tensor* x, const ik_tensor* res, const ik_tenso
         sum_out->shape[0] != R || sum_out->shape[1] != H)
         return IK_ERR_SHAPE;
     return launch_rows((const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)w->data,
-                       (ik_bf16*)out->data, (ik_bf16*)sum_out->data, R, H, eps, IK_STREAM(stream));
+                       (ik_bf16*)out->data, (ik_bf16*)sum_out->data, R, H, eps, w_offset, IK_STREAM(stream));
 }
 
-int ik_qk_norm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, ik_tensor* out, void* stream) {
+int ik_qk_norm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, float w_offset, ik_tensor* out, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 3));
     IK_TRY(ik_check(w, IK_DTYPE_BF16, 1));
     IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
@@ -123,7 +124,7 @@ int ik_qk_norm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, ik_tensor
     if (w->shape[0] != D || out->shape[0] != x->shape[0] || out->shape[1] != x->shape[1] || out->shape[2] != D)
         return IK_ERR_SHAPE;
     return launch_rows((const ik_bf16*)x->data, nullptr, (const ik_bf16*)w->data, (ik_bf16*)out->data, nullptr,
-                       x->shape[0] * x->shape[1], D, eps, IK_STREAM(stream));
+                       x->shape[0] * x->shape[1], D, eps, w_offset, IK_STREAM(stream));
 }
 
 }  // extern "C"

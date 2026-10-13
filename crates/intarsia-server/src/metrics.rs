@@ -5,7 +5,9 @@
 use intarsia_core::engine::ModelInfo;
 use intarsia_core::telemetry::TelemetrySnapshot;
 use std::fmt::Write;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::time::Duration;
 
 const TTFT_BUCKETS: &[f64] = &[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0];
 const ITL_BUCKETS: &[f64] = &[0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0];
@@ -59,11 +61,27 @@ impl Histogram {
 pub struct Metrics {
     pub ttft: Histogram,
     pub itl: Histogram,
+    /// Requests refused with 429 because the queue was full.
+    pub rejected: AtomicU64,
+    failed: AtomicBool,
+    stall_ms: AtomicU64,
 }
 
 impl Metrics {
     pub fn new() -> Metrics {
-        Metrics { ttft: Histogram::new(TTFT_BUCKETS), itl: Histogram::new(ITL_BUCKETS) }
+        Metrics {
+            ttft: Histogram::new(TTFT_BUCKETS),
+            itl: Histogram::new(ITL_BUCKETS),
+            rejected: AtomicU64::new(0),
+            failed: AtomicBool::new(false),
+            stall_ms: AtomicU64::new(0),
+        }
+    }
+
+    /// Liveness as last judged by `/health` or the watchdog.
+    pub fn set_health(&self, failed: bool, no_progress: Duration) {
+        self.failed.store(failed, Ordering::Relaxed);
+        self.stall_ms.store(no_progress.as_millis() as u64, Ordering::Relaxed);
     }
 
     /// Called once per finished request with the engine's timing report.
@@ -105,6 +123,30 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
     metric(&mut o, "intarsia_requests_running", "gauge", "Requests currently executing.", snap.running);
     metric(&mut o, "intarsia_requests_waiting", "gauge", "Requests queued behind the running one.", snap.waiting);
     metric(&mut o, "intarsia_requests_total", "counter", "Requests accepted by the engine.", snap.requests_total);
+    // The names vLLM and llama.cpp publish; localeval's idle check and fleet tooling read these.
+    metric(&mut o, "vllm:num_requests_running", "gauge", "Requests currently executing (vLLM name).", snap.running);
+    metric(&mut o, "vllm:num_requests_waiting", "gauge", "Requests queued (vLLM name).", snap.waiting);
+    metric(
+        &mut o,
+        "intarsia_requests_rejected_total",
+        "counter",
+        "Requests refused with 429 because the queue was full.",
+        m.rejected.load(Ordering::Relaxed),
+    );
+    metric(
+        &mut o,
+        "intarsia_engine_failed",
+        "gauge",
+        "1 when the engine worker has failed and the server answers 503.",
+        m.failed.load(Ordering::Relaxed) as u8,
+    );
+    metric(
+        &mut o,
+        "intarsia_engine_no_progress_seconds",
+        "gauge",
+        "Seconds the engine has had work without completing a step (watchdog input).",
+        m.stall_ms.load(Ordering::Relaxed) as f64 / 1e3,
+    );
     let _ = writeln!(o, "# HELP intarsia_requests_finished_total Finished requests by reason.\n# TYPE intarsia_requests_finished_total counter");
     for (reason, n) in &snap.finished {
         let _ = writeln!(o, "intarsia_requests_finished_total{{reason=\"{}\"}} {n}", esc(reason));

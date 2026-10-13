@@ -140,7 +140,7 @@ async fn chat_inner(
         e.tokenize(&text, false)
     })
     .await?;
-    let gen = sampling.into_request(prompt, F, info.context_len)?;
+    let gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("chatcmpl");
@@ -271,7 +271,7 @@ async fn completions_inner(
             (ids, if req.echo { t } else { String::new() })
         }
     };
-    let gen = sampling.into_request(prompt, F, info.context_len)?;
+    let gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("cmpl");

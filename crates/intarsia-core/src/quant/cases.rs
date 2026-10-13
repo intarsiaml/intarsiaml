@@ -1,0 +1,339 @@
+//! Admission cases for the quantised-weight and MoE ops: the `intarsia kernels test` sweep and the exact-shape
+//! builders used by plan-time admission (`admission::case_from_call`). Data is generated through the format
+//! encoders so every case is valid (no e4m3 NaN encodings, finite scales, distinct experts per token).
+//!
+//! Non-quick sweeps include the real Qwen3.6-35B-A3B shapes: FP8 projections (8192x2048, 4096x2048, 2048x4096,
+//! 512x2048), NVFP4 shared experts (512x2048, 2048x512), the full-vocab NVFP4 head (248320 rows, K=2048 and a
+//! small-K case that catches grid limits on the N axis) and routed experts at H=2048, I=512, top-8.
+
+use crate::admission::{Case, ShapeCaps, SweepConfig};
+use crate::dtype::DType;
+use crate::exec::{HostCall, OutSpec};
+use crate::ops::{Op, OpAttrs, OpCall};
+use crate::quant::{fp8, nvfp4, FP8_E4M3, NVFP4};
+use crate::rng::SplitMix64;
+use crate::tensor::HostTensor;
+
+fn rand_t(rng: &mut SplitMix64, dt: DType, shape: &[usize], scale: f32) -> HostTensor {
+    let n: usize = shape.iter().product();
+    HostTensor::from_f32_as(dt, shape, &rng.normal_vec(n, scale))
+}
+
+pub fn matmul_fp8_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, act_quant: bool, xdt: DType, odt: DType) -> HostCall {
+    let q = fp8::random_rows(rng, n, k, act_quant);
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let mut parts = q.parts.into_iter();
+    HostCall {
+        op: Op::MatmulFp8,
+        inputs: vec![x, parts.next().unwrap(), parts.next().unwrap()],
+        outputs: vec![OutSpec::new(odt, &[m, n])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+pub fn matmul_nvfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt: DType, odt: DType) -> HostCall {
+    let q = nvfp4::random_rows(rng, n, k);
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let mut parts = q.parts.into_iter();
+    HostCall {
+        op: Op::MatmulNvfp4,
+        inputs: vec![x, parts.next().unwrap(), parts.next().unwrap(), parts.next().unwrap()],
+        outputs: vec![OutSpec::new(odt, &[m, n])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+/// Router logits for `t` tokens over `e` experts. `ties`: draw from a handful of values so exact ties (and the
+/// lowest-index rule) are exercised; ties are also rounded through the logits dtype like a real router output.
+pub fn topk_case(rng: &mut SplitMix64, t: usize, e: usize, k: usize, ties: bool, dt: DType, norm: bool) -> HostCall {
+    let vals: Vec<f32> = if ties {
+        (0..t * e).map(|_| (rng.next_u64() % 6) as f32 * 0.5 - 1.0).collect()
+    } else {
+        rng.normal_vec(t * e, 2.0)
+    };
+    HostCall {
+        op: Op::MoeTopk,
+        inputs: vec![HostTensor::from_f32_as(dt, &[t, e], &vals)],
+        outputs: vec![OutSpec::new(DType::F32, &[t, k]), OutSpec::new(DType::I32, &[t, k])],
+        attrs: OpAttrs { top_k: k, norm_topk: norm, ..OpAttrs::default() },
+    }
+}
+
+/// Random stacked NVFP4 experts in the `MoeExperts` layout.
+pub struct HostExperts {
+    pub gate_up_w: HostTensor,
+    pub gate_up_s: HostTensor,
+    pub down_w: HostTensor,
+    pub down_s: HostTensor,
+    pub gscales: HostTensor,
+}
+
+pub fn random_experts(rng: &mut SplitMix64, e: usize, h: usize, i: usize) -> HostExperts {
+    let (mut guw, mut gus, mut dw, mut ds, mut gs) = (vec![], vec![], vec![], vec![], vec![]);
+    for _ in 0..e {
+        for _ in 0..2 {
+            let q = nvfp4::random_rows(rng, i, h);
+            guw.extend_from_slice(&q.parts[0].data);
+            gus.extend_from_slice(&q.parts[1].data);
+            gs.push(q.parts[2].to_f32()[0]);
+        }
+        let q = nvfp4::random_rows(rng, h, i);
+        dw.extend_from_slice(&q.parts[0].data);
+        ds.extend_from_slice(&q.parts[1].data);
+        gs.push(q.parts[2].to_f32()[0]);
+        // the gate/up/down order of the loader: [gate, up, down]
+    }
+    HostExperts {
+        gate_up_w: HostTensor { dtype: DType::U8, shape: vec![e, 2 * i, h / 2], data: guw },
+        gate_up_s: HostTensor { dtype: DType::Fp8E4m3, shape: vec![e, 2 * i, h / 16], data: gus },
+        down_w: HostTensor { dtype: DType::U8, shape: vec![e, h, i / 2], data: dw },
+        down_s: HostTensor { dtype: DType::Fp8E4m3, shape: vec![e, h, i / 16], data: ds },
+        gscales: HostTensor::from_f32(&[e, 3], &gs),
+    }
+}
+
+/// `k` distinct expert ids per token and positive weights summing to one.
+pub fn random_routing(rng: &mut SplitMix64, t: usize, e: usize, k: usize) -> (HostTensor, HostTensor) {
+    let mut ids = Vec::with_capacity(t * k);
+    let mut ws = Vec::with_capacity(t * k);
+    for _ in 0..t {
+        let mut pool: Vec<i32> = (0..e as i32).collect();
+        for j in 0..k {
+            let r = j + (rng.next_u64() % (e - j) as u64) as usize;
+            pool.swap(j, r);
+            ids.push(pool[j]);
+        }
+        let raw: Vec<f32> = (0..k).map(|_| 0.2 + rng.next_f32()).collect();
+        let s: f32 = raw.iter().sum();
+        ws.extend(raw.iter().map(|v| v / s));
+    }
+    (HostTensor::from_i32(&[t, k], &ids), HostTensor::from_f32(&[t, k], &ws))
+}
+
+pub fn experts_case(rng: &mut SplitMix64, t: usize, e: usize, k: usize, h: usize, i: usize, dt: DType) -> HostCall {
+    let ex = random_experts(rng, e, h, i);
+    let (ids, ws) = random_routing(rng, t, e, k);
+    HostCall {
+        op: Op::MoeExperts,
+        inputs: vec![
+            rand_t(rng, dt, &[t, h], 1.0),
+            ids,
+            ws,
+            ex.gate_up_w,
+            ex.gate_up_s,
+            ex.down_w,
+            ex.down_s,
+            ex.gscales,
+        ],
+        outputs: vec![OutSpec::new(dt, &[t, h])],
+        attrs: OpAttrs { top_k: k, ..OpAttrs::default() },
+    }
+}
+
+pub fn combine_case(rng: &mut SplitMix64, t: usize, h: usize, dt: DType) -> HostCall {
+    HostCall {
+        op: Op::MoeCombine,
+        inputs: vec![rand_t(rng, dt, &[t, h], 1.0), rand_t(rng, dt, &[t, h], 1.0), rand_t(rng, dt, &[t, 1], 2.0)],
+        outputs: vec![OutSpec::new(dt, &[t, h])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+const ACT: [DType; 2] = [DType::Bf16, DType::F32];
+
+/// The sweep for one of the new ops, or `None` for any other op.
+pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
+    let mut rng = SplitMix64::new(cfg.seed ^ (op as u64).wrapping_mul(0x9E37) ^ 0x51ED);
+    let quick = cfg.quick;
+    let mut cases = Vec::new();
+    let mut push = |label: String, call: HostCall| cases.push(Case { label, call });
+    match op {
+        Op::MatmulFp8 => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 8, 9, 40] };
+            let mut nk = vec![(64usize, 64usize), (40, 96)];
+            if !quick {
+                // Qwen3.6-35B-A3B: qkv/q_proj, z, out_proj/o_proj, k/v_proj
+                nk.extend([(8192, 2048), (4096, 2048), (2048, 4096), (512, 2048)]);
+            }
+            for &m in ms {
+                for &(n, k) in &nk {
+                    for (xdt, odt, aq) in [(DType::Bf16, DType::Bf16, true), (DType::Bf16, DType::Bf16, false), (DType::F32, DType::F32, true)] {
+                        push(
+                            format!("M={m} N={n} K={k} x={xdt} out={odt} act_quant={aq}"),
+                            matmul_fp8_case(&mut rng, m, n, k, aq, xdt, odt),
+                        );
+                    }
+                }
+            }
+        }
+        Op::MatmulNvfp4 => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 8, 9, 40] };
+            let mut nk = vec![(64usize, 64usize), (40, 96)];
+            if !quick {
+                nk.extend([(512, 2048), (2048, 512), (8192, 2048)]);
+            }
+            for &m in ms {
+                for &(n, k) in &nk {
+                    for (xdt, odt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32)] {
+                        push(format!("M={m} N={n} K={k} x={xdt} out={odt}"), matmul_nvfp4_case(&mut rng, m, n, k, xdt, odt));
+                    }
+                }
+            }
+            // lm_head: f32 logits; full-vocab N (grid limits on the N axis) with a small K, and the real K
+            let vocab = 248_320usize;
+            let head: Vec<(usize, usize)> = if quick { vec![(2048, 256)] } else { vec![(vocab, 128), (vocab, 2048), (8192, 2048)] };
+            for &m in if quick { &[1usize][..] } else { &[1usize, 4][..] } {
+                for &(n, k) in &head {
+                    push(format!("M={m} N={n} K={k} x=bf16 out=f32 (head)"), matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::F32));
+                }
+            }
+        }
+        Op::MoeTopk => {
+            let ts: &[usize] = if quick { &[1, 5] } else { &[1, 5, 33, 256] };
+            let ek: &[(usize, usize)] = if quick { &[(8, 2), (64, 8)] } else { &[(8, 2), (64, 8), (256, 8), (256, 1)] };
+            for &t in ts {
+                for &(e, k) in ek {
+                    for dt in ACT {
+                        for (ties, norm) in [(false, true), (true, true), (false, false)] {
+                            push(
+                                format!("T={t} E={e} K={k} {dt} ties={ties} norm={norm}"),
+                                topk_case(&mut rng, t, e, k, ties, dt, norm),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Op::MoeExperts => {
+            // (T, E, K, H, I)
+            let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 8, 2, 64, 32), (5, 16, 4, 128, 48)];
+            if !quick {
+                shapes.extend([(1, 64, 8, 2048, 512), (4, 32, 8, 2048, 512), (40, 32, 8, 2048, 512), (130, 16, 8, 256, 64)]);
+            }
+            for (t, e, k, h, i) in shapes {
+                for dt in ACT {
+                    push(format!("T={t} E={e} K={k} H={h} I={i} {dt}"), experts_case(&mut rng, t, e, k, h, i, dt));
+                }
+            }
+        }
+        Op::MoeCombine => {
+            for &t in if quick { &[1usize, 5][..] } else { &[1usize, 5, 33][..] } {
+                for &h in if quick { &[64usize][..] } else { &[64usize, 2048][..] } {
+                    for dt in ACT {
+                        push(format!("T={t} H={h} {dt}"), combine_case(&mut rng, t, h, dt));
+                    }
+                }
+            }
+        }
+        _ => return None,
+    }
+    Some(cases)
+}
+
+/// Clamped-case label of a planned call (also the admission cache key part), or `None` for other ops.
+/// Rows and `N` are clamped per `caps`, experts to 32; `K`, `H`, `I`, top-k and dtypes stay exact.
+pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
+    let (i, o) = (&call.inputs, &call.outputs);
+    let s = match call.op {
+        Op::MatmulFp8 => format!(
+            "M={} N={} K={} x={} out={} act_quant={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[1].shape[1],
+            i[0].dtype,
+            o[0].dtype,
+            // scale values are not visible at plan time; the case grades the W8A8 mode (the sweep covers both)
+            "static"
+        ),
+        Op::MatmulNvfp4 => format!(
+            "M={} N={} K={} x={} out={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype
+        ),
+        Op::MoeTopk => format!(
+            "T={} E={} K={} {} norm={}",
+            i[0].shape[0].min(caps.rows),
+            i[0].shape[1],
+            call.attrs.top_k,
+            i[0].dtype,
+            call.attrs.norm_topk
+        ),
+        Op::MoeExperts => format!(
+            "T={} E={} K={} H={} I={} {}",
+            i[0].shape[0].min(caps.rows),
+            i[3].shape[0].min(32).max(i[1].shape[1]),
+            i[1].shape[1],
+            i[0].shape[1],
+            i[3].shape[1] / 2,
+            i[0].dtype
+        ),
+        Op::MoeCombine => format!("T={} H={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        _ => return None,
+    };
+    Some(format!("{} {}", call.op, s))
+}
+
+/// Host case that exercises the same kernel path as `call` (see [`label`]). The FP8 case alternates the
+/// activation mode with the row count's parity so a plan that uses either mode gets it tested.
+pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> Option<(HostCall, String)> {
+    let label = label(call, caps)?;
+    let (i, o) = (&call.inputs, &call.outputs);
+    let hc = match call.op {
+        Op::MatmulFp8 => {
+            let (m, n, k) = (i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[1].shape[1]);
+            // plan time sees shapes, not values: grade the W8A8 mode, the one the checkpoint declares
+            matmul_fp8_case(rng, m, n, k, true, i[0].dtype, o[0].dtype)
+        }
+        Op::MatmulNvfp4 => {
+            matmul_nvfp4_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
+        }
+        Op::MoeTopk => topk_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], call.attrs.top_k, true, i[0].dtype, call.attrs.norm_topk),
+        Op::MoeExperts => {
+            let k = i[1].shape[1];
+            let e = i[3].shape[0].min(32).max(k);
+            experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype)
+        }
+        Op::MoeCombine => combine_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        _ => return None,
+    };
+    Some((hc, label))
+}
+
+/// Format ids this module generates cases for (documentation / tests).
+pub const FORMATS: [&str; 2] = [FP8_E4M3, NVFP4];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_case_validates() {
+        for op in [Op::MatmulFp8, Op::MatmulNvfp4, Op::MoeTopk, Op::MoeExperts, Op::MoeCombine] {
+            let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
+            assert!(!cases.is_empty());
+            for c in cases {
+                let mk = |t: &HostTensor| crate::backend::TensorRef::new(crate::backend::Buffer::new(P(t.nbytes())), t.dtype, &t.shape);
+                let call = OpCall::new(
+                    op,
+                    c.call.inputs.iter().map(mk).collect(),
+                    c.call.outputs.iter().map(|o| mk(&HostTensor::zeros(o.dtype, &o.shape))).collect(),
+                    c.call.attrs.clone(),
+                );
+                call.check().unwrap_or_else(|e| panic!("{}: {e}", c.label));
+            }
+        }
+    }
+
+    struct P(usize);
+    impl crate::backend::BufferImpl for P {
+        fn bytes(&self) -> usize {
+            self.0
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+}

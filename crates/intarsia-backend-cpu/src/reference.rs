@@ -30,7 +30,7 @@ fn quantise(dtype: DType, v: &[f64]) -> Vec<f64> {
     back.into_iter().map(|x| x as f64).collect()
 }
 
-fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64) -> Vec<f64> {
+fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64, w_offset: f64) -> Vec<f64> {
     let d = w.len();
     let mut out = vec![0f64; x.len()];
     for (xr, or) in x.chunks(d).zip(out.chunks_mut(d)) {
@@ -40,7 +40,7 @@ fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64) -> Vec<f64> {
         }
         let r = 1.0 / (ss / d as f64 + eps).sqrt();
         for i in 0..d {
-            or[i] = xr[i] * r * w[i];
+            or[i] = xr[i] * r * (w[i] + w_offset);
         }
     }
     out
@@ -51,6 +51,8 @@ pub fn run(call: &OpCall) -> Result<()> {
     let o = &call.outputs;
     let a = &call.attrs;
     match call.op {
+        Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn_ref::run(call),
+        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::Embedding => {
             let ids = {
                 let b = crate::mem::bytes(&i[0])?;
@@ -70,7 +72,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::RmsNorm | Op::QkNorm => {
             let x = rd(&i[0])?;
             let w = rd(&i[1])?;
-            wr(&o[0], &rmsnorm_rows(&x, &w, a.eps as f64))
+            wr(&o[0], &rmsnorm_rows(&x, &w, a.eps as f64, a.w_offset as f64))
         }
         Op::RmsNormAdd => {
             let x = rd(&i[0])?;
@@ -78,7 +80,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             let w = rd(&i[2])?;
             let sum: Vec<f64> = x.iter().zip(&r).map(|(p, q)| p + q).collect();
             let sum = quantise(o[1].dtype, &sum);
-            wr(&o[0], &rmsnorm_rows(&sum, &w, a.eps as f64))?;
+            wr(&o[0], &rmsnorm_rows(&sum, &w, a.eps as f64, a.w_offset as f64))?;
             wr(&o[1], &sum)
         }
         Op::Add => {
@@ -89,14 +91,16 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::Rope => {
             let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
             let x = rd(&i[0])?;
-            let half = d / 2;
-            let mut out = vec![0f64; x.len()];
+            // partial rotary: only the first `rd_` values of each head rotate, the rest pass through
+            let rd_ = if a.rotary_dim == 0 { d } else { a.rotary_dim };
+            let half = rd_ / 2;
+            let mut out = x.clone();
             for ti in 0..t {
                 let pos = (a.pos0 + ti) as f64;
                 for h in 0..n {
                     let base = (ti * n + h) * d;
                     for k in 0..half {
-                        let ang = pos * (a.theta as f64).powf(-2.0 * k as f64 / d as f64);
+                        let ang = pos * (a.theta as f64).powf(-2.0 * k as f64 / rd_ as f64);
                         let (s, c) = ang.sin_cos();
                         // narrowing cos/sin to f32 like every real kernel does with its tables
                         let (s, c) = (s as f32 as f64, c as f32 as f64);

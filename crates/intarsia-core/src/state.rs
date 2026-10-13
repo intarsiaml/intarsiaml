@@ -1,11 +1,17 @@
 //! Sequence state (ARCHITECTURE section 4): per-layer state slots.
 //!
-//! Phase 0 implements `AttnKv` (contiguous, single sequence). `Recurrent`
-//! (GDN / Mamba state) is defined and allocated but unused by Qwen3.
+//! `AttnKv` is contiguous, single sequence. `Recurrent` (GatedDeltaNet / Mamba state: conv state
+//! and the delta-rule matrix, f32) is a fixed-size slot that cannot be rolled back by truncation,
+//! so prefix reuse for hybrid models goes through snapshots: [`SequenceState::snapshot`] copies
+//! every recurrent slot at the current token count, [`SequenceState::restorable_len`] says which
+//! prefix lengths [`SequenceState::truncate`] can return to.
 
 use crate::backend::{Backend, Buffer, MemKind};
 use crate::dtype::DType;
 use crate::error::{Error, Result};
+
+/// Recurrent-state snapshots a sequence keeps for prefix reuse (see [`SequenceState::snapshot`]).
+pub const RECURRENT_SNAPSHOTS: usize = 4;
 
 #[derive(Clone, Debug)]
 pub enum SlotSpec {
@@ -44,6 +50,12 @@ impl StateSlot {
     }
 }
 
+/// Copy of every recurrent slot (concatenated, slot order) at token count `len`.
+pub struct RecurrentSnapshot {
+    pub len: usize,
+    buf: Buffer,
+}
+
 /// All state of one sequence.
 pub struct SequenceState {
     pub slots: Vec<StateSlot>,
@@ -53,6 +65,9 @@ pub struct SequenceState {
     pub cap: usize,
     /// Token ids whose state is held (prefix-reuse key); `tokens.len() == len`.
     pub tokens: Vec<u32>,
+    /// Recurrent-state snapshots, oldest first; each is valid for `tokens[..len]` as long as that
+    /// prefix is unchanged (dropped when the state is truncated below `len`).
+    pub snapshots: Vec<RecurrentSnapshot>,
 }
 
 impl SequenceState {
@@ -81,7 +96,7 @@ impl SequenceState {
                 }
             });
         }
-        Ok(SequenceState { slots, len: 0, cap, tokens: Vec::new() })
+        Ok(SequenceState { slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new() })
     }
 
     pub fn total_bytes(&self) -> usize {
@@ -103,22 +118,87 @@ impl SequenceState {
         self.slots.iter().any(|s| matches!(s, StateSlot::Recurrent(_)))
     }
 
-    /// Roll back to the first `len` tokens (prefix reuse). Recurrent state cannot
-    /// be rolled back; truncating to anything but the current length or 0 fails.
+    /// Bytes of all recurrent slots (what one snapshot holds).
+    pub fn recurrent_bytes(&self) -> usize {
+        self.slots
+            .iter()
+            .map(|s| match s {
+                StateSlot::Recurrent(r) => r.bytes,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Copy the recurrent state as of the current token count. At most `keep` snapshots are held
+    /// (the oldest is dropped, its buffer reused); a snapshot at the same length is replaced.
+    /// No-op without recurrent slots or at length 0 (the zero state needs no copy).
+    pub fn snapshot(&mut self, backend: &dyn Backend, keep: usize) -> Result<()> {
+        let total = self.recurrent_bytes();
+        if total == 0 || self.len == 0 || keep == 0 {
+            return Ok(());
+        }
+        if let Some(i) = self.snapshots.iter().position(|s| s.len == self.len) {
+            self.snapshots.remove(i);
+        }
+        let reuse = if self.snapshots.len() >= keep { Some(self.snapshots.remove(0).buf) } else { None };
+        let buf = match reuse {
+            Some(b) if b.bytes() >= total => b,
+            _ => backend.alloc(total, MemKind::Device)?,
+        };
+        let mut off = 0;
+        for s in &self.slots {
+            if let StateSlot::Recurrent(r) = s {
+                backend.copy(&buf, off, &r.buf, 0, r.bytes, 0)?;
+                off += r.bytes;
+            }
+        }
+        self.snapshots.push(RecurrentSnapshot { len: self.len, buf });
+        Ok(())
+    }
+
+    /// Largest prefix length `<= want` that [`SequenceState::truncate`] can return to: the current
+    /// length, a snapshot, or 0 (the zero state). Without recurrent slots every length qualifies.
+    pub fn restorable_len(&self, want: usize) -> usize {
+        let want = want.min(self.len);
+        if !self.has_recurrent() || want == self.len {
+            return want;
+        }
+        self.snapshots.iter().map(|s| s.len).filter(|&l| l <= want).max().unwrap_or(0)
+    }
+
+    /// Roll back to the first `len` tokens (prefix reuse). Attention caches just shorten;
+    /// recurrent state is restored from the snapshot taken at exactly `len`, zeroed for 0, and
+    /// otherwise cannot be rolled back (`Unsupported`). Truncating to 0 always zeroes recurrent
+    /// state, even when the state is already empty: a forward that failed halfway through the first
+    /// chunk leaves written-but-uncommitted state behind.
     pub fn truncate(&mut self, len: usize, backend: &dyn Backend) -> Result<()> {
         if len > self.len {
             return Err(Error::invalid("truncate beyond current length"));
         }
-        if self.has_recurrent() && len != self.len {
-            if len != 0 {
-                return Err(Error::Unsupported("cannot roll back recurrent state to a non-zero prefix".into()));
-            }
-            for s in &self.slots {
-                if let StateSlot::Recurrent(r) = s {
-                    backend.zero(&r.buf, 0)?;
+        if self.has_recurrent() {
+            if len == 0 {
+                for s in &self.slots {
+                    if let StateSlot::Recurrent(r) = s {
+                        backend.zero(&r.buf, 0)?;
+                    }
+                }
+            } else if len != self.len {
+                let Some(snap) = self.snapshots.iter().find(|s| s.len == len) else {
+                    return Err(Error::Unsupported(format!(
+                        "cannot roll recurrent state back to {len} tokens (no snapshot there; length {})",
+                        self.len
+                    )));
+                };
+                let mut off = 0;
+                for s in &self.slots {
+                    if let StateSlot::Recurrent(r) = s {
+                        backend.copy(&r.buf, 0, &snap.buf, off, r.bytes, 0)?;
+                        off += r.bytes;
+                    }
                 }
             }
         }
+        self.snapshots.retain(|s| s.len <= len);
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
                 a.len = len;

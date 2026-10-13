@@ -59,18 +59,46 @@ Plain `http://` only (the client is built without TLS); tunnel for https.
 
 ### Fleet rules
 
-Anything that loads or runs GPU work on spark1 takes a fleetq slot first (`fleetq status`).
-The benchmark client itself only issues HTTP, but it loads the server, so for a shared server use
-`--uses <role>` for vLLM or hold the slot that owns our engine:
+Anything that loads or runs GPU work on spark1 takes a fleetq slot first (`fleetq status`). The slot
+must cover the **whole life of our server**, and the benchmark must run inside that same slot:
+`localeval` takes its own exclusive slot on the box behind its `--url`, so it must be started with
+`FLEETQ_JOB` set (it then sees it is already inside a covering slot and carries on) and pointed at
+`http://spark-4e77:8090`, the server's real host (not a loopback tunnel such as `127.0.0.1:18090`,
+which fleetq reads as "this machine" and locks the wrong box). Never start the server outside the
+lease and leave it running after `fleetq release`.
+
+`--mem-budget GIB` ties the KV cache to the lease: weights + workspace + KV stay within it, whatever
+the box has free (the default sizes KV from measured free memory, so a large `--max-seq` could
+otherwise take memory another lease owns). Use the same number as the lease's `--mem`.
+
+One command: `deploy/localeval/serve-and-bench.sh` starts the server on spark1, waits for `/health`,
+runs the benchmark, and stops the server on exit, all inside one `fleetq run` lease:
 
 ```sh
-fleetq acquire --host spark1 --mem 24 --label "intarsiaml serve 8b" --wait   # note the job id; JOB=<id>
-FLEETQ_JOB=$JOB ssh spark1 '~/intarsiaml/target/release/intarsia serve --backend cuda \
+fleetq run --host spark1 --exclusive --mem 24 --label "intarsiaml: qwen3-8b speed" -- \
+    deploy/localeval/serve-and-bench.sh --mem-budget 24 -- \
+    uv run --project /opt/code/deepeval localeval speed spark-intarsia --sizes 128,1024,4096 --gen 128 --reps 3
+```
+
+By hand with a lease (every command carries `FLEETQ_JOB`, the server is stopped before the release):
+
+```sh
+fleetq acquire --host spark1 --exclusive --mem 24 --label "intarsiaml: qwen3-8b speed" --wait   # prints the job id
+export JOB=<id>
+FLEETQ_JOB=$JOB ssh spark1 'cd ~/intarsiaml && nohup target/release/intarsia serve --backend cuda \
     --model /home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 \
-    --port 8090 --host 0.0.0.0'      # in another shell, or nohup
-intarsia bench speed --url http://spark-4e77:8090 --model Qwen3-8B ...
+    --port 8090 --host 0.0.0.0 --mem-budget 24 > /tmp/intarsia-serve.log 2>&1 & echo $! > /tmp/intarsia-serve.pid'
+until curl -sf http://spark-4e77:8090/health >/dev/null; do sleep 2; done
+FLEETQ_JOB=$JOB intarsia bench speed --url http://spark-4e77:8090 --model Qwen3-8B ...
+FLEETQ_JOB=$JOB sh -c 'cd /opt/code/deepeval && uv run localeval speed spark-intarsia ...'   # same slot, no second queue
+FLEETQ_JOB=$JOB ssh spark1 'kill $(cat /tmp/intarsia-serve.pid)'   # SIGTERM reaches the supervisor and its child
 fleetq release $JOB
 ```
+
+`localeval` refuses a busy server by reading `vllm:num_requests_running` and
+`vllm:num_requests_waiting` from `/metrics`; `intarsia serve` exports both. If a run dies and leaves
+the server busy, `curl spark-4e77:8090/metrics | grep vllm:` shows what is in flight (a disconnected
+client cancels its request, so this clears within a prefill chunk).
 
 Never use port 8000 for our server (production vLLM).
 
@@ -96,7 +124,8 @@ Flags (from `uv run localeval speed --help`): `--url`, `--model`, `--key-env`, `
 `--no-unim`, `--sizes`, `--gen`, `--reps`, `--concurrency`. localeval takes its own fleetq slot
 (`--no-queue` is for non-fleet servers only; do not use it on spark1 without sign-off), waits for the
 server to be idle, and logs the run to unanimis. If it complains the box is busy, the engine or
-another chat holds a slot: `fleetq status`.
+another chat holds a slot: `fleetq status`. Inside a lease you hold (see Fleet rules) run it with
+`FLEETQ_JOB` set so it does not queue behind your own server.
 
 Quality (golden logits and benchmarks) is a separate gate: `docs/accuracy.md`.
 

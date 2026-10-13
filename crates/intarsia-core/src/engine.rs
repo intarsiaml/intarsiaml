@@ -10,6 +10,7 @@ use crate::state::SequenceState;
 use crate::telemetry::{Telemetry, TelemetrySnapshot};
 use serde::Serialize;
 use serde_json::Value;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -37,6 +38,9 @@ pub struct GenRequest {
     pub stop_ids: Vec<u32>,
     /// Stop strings; generation ends before the first match, which is not emitted.
     pub stop: Vec<String>,
+    /// Set by the caller to cancel the request: checked while queued, between
+    /// prefill chunks and between decode steps.
+    pub cancel: Option<Arc<AtomicBool>>,
 }
 
 impl Default for GenRequest {
@@ -52,6 +56,7 @@ impl Default for GenRequest {
             seed: None,
             stop_ids: Vec::new(),
             stop: Vec::new(),
+            cancel: None,
         }
     }
 }
@@ -91,6 +96,8 @@ pub enum GenEvent {
         completion_tokens: usize,
         /// Prompt tokens served from the reused KV prefix.
         cached_tokens: usize,
+        /// The stop string that ended the generation (`finish_reason` is `Stop`), if one did.
+        stop_sequence: Option<String>,
         /// Time to first token (prompt processing + first sample).
         prefill_ms: f64,
         /// Time spent producing tokens after the first.
@@ -184,7 +191,31 @@ pub trait Engine: Send + Sync {
     /// Streaming variant: `(position, logits row)` in order; the row is only valid during the call.
     fn forward_logits_each(&self, ids: &[u32], cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>) -> Result<()>;
 
+    /// Teacher-forced decode (accuracy tooling): prefill `ids[..n - n_decode]`, then feed the
+    /// remaining ids one at a time through the single-token decode path (`T = 1`: the decode
+    /// attention and GEMV kernels that serving uses) and report the logits row of each. `cb` gets
+    /// `(absolute position, logits row)` for the last `n_decode` positions only.
+    fn forward_logits_decode(
+        &self,
+        _ids: &[u32],
+        _n_decode: usize,
+        _cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>,
+    ) -> Result<()> {
+        Err(Error::Unsupported("this engine has no teacher-forced decode path".into()))
+    }
+
     fn telemetry(&self) -> TelemetrySnapshot;
+
+    /// `Some(reason)` once the engine can no longer serve requests (the worker
+    /// panicked); `/health` then answers 503 and the supervisor restarts the process.
+    fn failed(&self) -> Option<String> {
+        None
+    }
+
+    /// The execution plan (served at `GET /v1/intarsia/plan`); `Null` when the engine has none.
+    fn plan(&self) -> Value {
+        Value::Null
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -239,11 +270,17 @@ impl IncrementalDecoder {
 pub struct StopMatcher {
     stops: Vec<String>,
     pending: String,
+    matched: Option<String>,
 }
 
 impl StopMatcher {
     pub fn new(stops: &[String]) -> Self {
-        StopMatcher { stops: stops.iter().filter(|s| !s.is_empty()).cloned().collect(), pending: String::new() }
+        StopMatcher { stops: stops.iter().filter(|s| !s.is_empty()).cloned().collect(), pending: String::new(), matched: None }
+    }
+
+    /// The stop string that triggered the last `push` (if it stopped).
+    pub fn matched(&self) -> Option<&str> {
+        self.matched.as_deref()
     }
 
     /// Returns (text safe to release, stopped).
@@ -252,8 +289,9 @@ impl StopMatcher {
             return (text.to_string(), false);
         }
         self.pending.push_str(text);
-        let hit = self.stops.iter().filter_map(|s| self.pending.find(s.as_str())).min();
-        if let Some(i) = hit {
+        let hit = self.stops.iter().filter_map(|s| self.pending.find(s.as_str()).map(|i| (i, s))).min_by_key(|h| h.0);
+        if let Some((i, s)) = hit {
+            self.matched = Some(s.clone());
             let out = self.pending[..i].to_string();
             self.pending.clear();
             return (out, true);
@@ -302,6 +340,33 @@ struct Shared {
     telemetry: Arc<Telemetry>,
     codec: Arc<dyn TextCodec>,
     eos: Vec<u32>,
+    /// Set when the worker panicked: the engine accepts no more work.
+    failed: Mutex<Option<String>>,
+}
+
+impl Shared {
+    fn failure(&self) -> Option<String> {
+        self.failed.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+}
+
+/// Debug aid: `INTARSIA_DEBUG_STALL_S=n` makes the worker sleep n seconds at the start of every
+/// job (a wedged-GPU stand-in for testing the watchdog and supervisor);
+/// `INTARSIA_DEBUG_PANIC=1` makes it panic instead.
+fn debug_hooks() {
+    if let Some(s) = std::env::var("INTARSIA_DEBUG_STALL_S").ok().and_then(|v| v.parse::<f64>().ok()) {
+        std::thread::sleep(Duration::from_secs_f64(s.max(0.0)));
+    }
+    if std::env::var("INTARSIA_DEBUG_PANIC").map(|v| v == "1").unwrap_or(false) {
+        panic!("INTARSIA_DEBUG_PANIC set");
+    }
+}
+
+fn panic_message(p: &(dyn std::any::Any + Send)) -> String {
+    p.downcast_ref::<&str>()
+        .map(|s| s.to_string())
+        .or_else(|| p.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "unknown panic".into())
 }
 
 struct Job {
@@ -314,6 +379,7 @@ pub struct LocalEngine {
     shared: Arc<Shared>,
     tx: Mutex<Option<Sender<Job>>>,
     info: ModelInfo,
+    plan: Value,
     worker: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
@@ -349,24 +415,44 @@ impl LocalEngine {
             tool_parser: meta.tool_parser.clone(),
             memory_plan: model.plan.clone(),
         };
+        let plan = crate::plan::plan_json(&model, &meta.id);
         telemetry.set_model(&meta.id, dinfo, model.weights_bytes);
         let backend = model.backend.clone();
         telemetry.set_device_probe(Box::new(move || backend.info()));
         telemetry.set_kv(0, state.total_bytes() as u64, 0, state.cap as u64);
 
-        let shared =
-            Arc::new(Shared { inner: Mutex::new(Inner { model, state }), telemetry, codec, eos: meta.eos_ids });
+        let shared = Arc::new(Shared {
+            inner: Mutex::new(Inner { model, state }),
+            telemetry,
+            codec,
+            eos: meta.eos_ids,
+            failed: Mutex::new(None),
+        });
         let (tx, rx) = channel::<Job>();
         let sh = shared.clone();
         let worker = std::thread::Builder::new()
             .name("intarsia-engine".into())
             .spawn(move || {
                 for job in rx.iter() {
-                    run_job(&sh, job);
+                    if let Some(why) = sh.failure() {
+                        sh.telemetry.request_rejected();
+                        let _ = job.tx.send(GenEvent::Error { message: format!("engine failed: {why}") });
+                        continue;
+                    }
+                    let (tx, plen) = (job.tx.clone(), job.req.prompt.len());
+                    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_job(&sh, job)));
+                    if let Err(p) = r {
+                        // A panic can leave the device or the KV state inconsistent: fail the
+                        // engine for good (the supervisor restarts the process).
+                        let why = format!("worker panicked: {}", panic_message(&*p));
+                        *sh.failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(why.clone());
+                        sh.telemetry.request_finished("error", plen, 0, 0, Duration::ZERO, Duration::ZERO, Duration::ZERO);
+                        let _ = tx.send(GenEvent::Error { message: why });
+                    }
                 }
             })
             .map_err(|e| Error::Other(format!("spawn engine worker: {e}")))?;
-        Ok(LocalEngine { shared, tx: Mutex::new(Some(tx)), info, worker: Mutex::new(Some(worker)) })
+        Ok(LocalEngine { shared, tx: Mutex::new(Some(tx)), info, plan, worker: Mutex::new(Some(worker)) })
     }
 }
 
@@ -398,6 +484,9 @@ impl Engine for LocalEngine {
     }
 
     fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
+        if let Some(why) = self.shared.failure() {
+            return Err(Error::Other(format!("engine failed: {why}")));
+        }
         let (etx, erx) = channel();
         self.shared.telemetry.request_enqueued();
         let guard = self.tx.lock().unwrap();
@@ -412,7 +501,14 @@ impl Engine for LocalEngine {
         Ok(erx)
     }
 
+    fn failed(&self) -> Option<String> {
+        self.shared.failure()
+    }
+
     fn forward_logits_each(&self, ids: &[u32], cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>) -> Result<()> {
+        if let Some(why) = self.shared.failure() {
+            return Err(Error::Other(format!("engine failed: {why}")));
+        }
         let mut g = self.shared.inner.lock().unwrap();
         let Inner { model, state } = &mut *g;
         state.reset(&*model.backend)?;
@@ -426,6 +522,33 @@ impl Engine for LocalEngine {
         Ok(())
     }
 
+    fn forward_logits_decode(
+        &self,
+        ids: &[u32],
+        n_decode: usize,
+        cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>,
+    ) -> Result<()> {
+        if n_decode == 0 || n_decode >= ids.len() {
+            return Err(Error::invalid(format!("n_decode {n_decode} must be in 1..{}", ids.len())));
+        }
+        let mut g = self.shared.inner.lock().unwrap();
+        let Inner { model, state } = &mut *g;
+        state.reset(&*model.backend)?;
+        let split = ids.len() - n_decode;
+        model.forward(state, &ids[..split], HeadMode::None, None)?;
+        for (j, id) in ids[split..].iter().enumerate() {
+            match model.forward(state, std::slice::from_ref(id), HeadMode::LastLogits, None)? {
+                StepOut::Logits(row) => cb(split + j, &row)?,
+                _ => return Err(Error::Other("backend returned no logits".into())),
+            }
+        }
+        Ok(())
+    }
+
+    fn plan(&self) -> Value {
+        self.plan.clone()
+    }
+
     fn telemetry(&self) -> TelemetrySnapshot {
         self.shared.telemetry.snapshot()
     }
@@ -433,6 +556,7 @@ impl Engine for LocalEngine {
 
 struct Outcome {
     reason: FinishReason,
+    stop_sequence: Option<String>,
     prompt_tokens: usize,
     completion_tokens: usize,
     cached_tokens: usize,
@@ -443,6 +567,7 @@ struct Outcome {
 fn run_job(sh: &Shared, job: Job) {
     sh.telemetry.request_started();
     let t_total = Instant::now();
+    debug_hooks();
     let mut g = sh.inner.lock().unwrap();
     let res = generate_one(sh, &mut g, &job.req, &job.tx);
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
@@ -464,6 +589,7 @@ fn run_job(sh: &Shared, job: Job) {
                 prompt_tokens: o.prompt_tokens,
                 completion_tokens: o.completion_tokens,
                 cached_tokens: o.cached_tokens,
+                stop_sequence: o.stop_sequence,
                 prefill_ms: o.prefill.as_secs_f64() * 1e3,
                 decode_ms: o.decode.as_secs_f64() * 1e3,
             });
@@ -504,7 +630,9 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
     // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
     let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
     if st.has_recurrent() {
-        p = 0;
+        // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
+        // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
+        p = st.restorable_len(p);
     }
     st.truncate(p, &*model.backend)?;
     let cached = p;
@@ -519,7 +647,11 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
 
     // choose how to get the next token: argmax on device when nothing needs the logits
     let pick = |model: &Model, st: &mut SequenceState, ids: &[u32], k: usize, sampler: &mut Sampler| -> Result<u32> {
-        let need_logits = !greedy || k <= req.min_tokens;
+        // The logits only travel to the host when something uses them: sampling, or the min_tokens
+        // mask on stop ids. With `ignore_eos` (no stop ids) a forced-length greedy run keeps the
+        // on-device argmax, so forced-length speed benchmarks measure the real decode path.
+        let masks_stop_ids = k <= req.min_tokens && !stop_ids.is_empty();
+        let need_logits = !greedy || masks_stop_ids;
         if !need_logits {
             return match model.forward(st, ids, HeadMode::LastArgmax, None)? {
                 StepOut::Token(t) => Ok(t),
@@ -541,10 +673,21 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
         }
     };
 
+    let cancelled = || req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed));
     let t0 = Instant::now();
+    let cancel_outcome = |p: usize| Outcome {
+        reason: FinishReason::Cancelled,
+        stop_sequence: None,
+        prompt_tokens: plen,
+        completion_tokens: 0,
+        cached_tokens: p,
+        prefill: t0.elapsed(),
+        decode: Duration::ZERO,
+    };
     if max_new == 0 {
         return Ok(Outcome {
             reason: FinishReason::Length,
+            stop_sequence: None,
             prompt_tokens: plen,
             completion_tokens: 0,
             cached_tokens: cached,
@@ -552,13 +695,38 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
             decode: Duration::ZERO,
         });
     }
-    let mut tok = pick(model, st, &req.prompt[p..], 1, &mut sampler)?;
+    // Prefill all but the last chunk here so a cancel is noticed between chunks.
+    let chunk = model.prefill_chunk().max(1);
+    let mut pos = p;
+    while plen - pos > chunk {
+        if cancelled() {
+            return Ok(cancel_outcome(cached));
+        }
+        match model.forward(st, &req.prompt[pos..pos + chunk], HeadMode::None, None)? {
+            StepOut::None => {}
+            _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
+        }
+        pos += chunk;
+        st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+    }
+    if cancelled() {
+        return Ok(cancel_outcome(cached));
+    }
+    if st.has_recurrent() && plen - pos > 1 {
+        // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
+        // but its last token, as with an attention-only cache
+        model.forward(st, &req.prompt[pos..plen - 1], HeadMode::None, None)?;
+        pos = plen - 1;
+        st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+    }
+    let mut tok = pick(model, st, &req.prompt[pos..], 1, &mut sampler)?;
     let prefill = t0.elapsed();
     let t_dec = Instant::now();
 
     let codec = &*sh.codec;
     let mut dec = IncrementalDecoder::new();
-    let mut stops = StopMatcher::new(&req.stop);
+    // Like vLLM, stop strings are not checked until `min_tokens` tokens exist.
+    let mut stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
     let mut generated = 0usize;
     let mut reason;
     let mut string_stop = false;
@@ -571,6 +739,9 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
         }
         last_id = tok;
         let delta = dec.push(codec, tok)?;
+        if req.min_tokens > 0 && generated == req.min_tokens + 1 {
+            stops = StopMatcher::new(&req.stop);
+        }
         let (text, stopped) = stops.push(&delta);
         if tx.send(GenEvent::Token { id: tok, text }).is_err() {
             reason = FinishReason::Cancelled;
@@ -583,6 +754,10 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
         }
         if generated >= max_new {
             reason = FinishReason::Length;
+            break;
+        }
+        if cancelled() {
+            reason = FinishReason::Cancelled;
             break;
         }
         tok = pick(model, st, &[tok], generated + 1, &mut sampler)?;
@@ -607,6 +782,7 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
     }
     Ok(Outcome {
         reason,
+        stop_sequence: if string_stop { stops.matched().map(String::from) } else { None },
         prompt_tokens: plen,
         completion_tokens: generated,
         cached_tokens: cached,

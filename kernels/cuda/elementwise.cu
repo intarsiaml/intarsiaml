@@ -95,18 +95,21 @@ __global__ void kv_append_kernel(const ik_bf16* __restrict__ src, CacheT* __rest
     }
 }
 
-// ---- rope (neox / rotate-half over the full head_dim) -------------------------------------
+// ---- rope (neox / rotate-half over the first RD values of each head) ------------------------
 // One thread per (token, frequency, group of kHeads heads); the angle is computed in double
 // precision (positions reach tens of thousands, float sincos would drift) and narrowed like
-// the reference's tables. x and out may alias (in-place), so no __restrict__ here.
+// the reference's tables. x and out may alias (in-place), so no __restrict__ here. With a partial
+// rotary dim RD < D the values RD..D-1 pass through unchanged (`rope_pass_kernel` copies them when
+// x and out are different buffers).
 constexpr int kRopeHeads = 4;
-__global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int64_t pos0, float theta) {
-    const int half = D / 2;
+__global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int RD, int64_t pos0,
+                            float theta) {
+    const int half = RD / 2;
     const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= T * half) return;
     const int k = (int)(i % half);
     const int64_t t = i / half;
-    const double inv = pow((double)theta, -2.0 * (double)k / (double)D);
+    const double inv = pow((double)theta, -2.0 * (double)k / (double)RD);
     double sd, cd;
     sincos((double)(pos0 + t) * inv, &sd, &cd);
     const float fs = (float)sd, fc = (float)cd;
@@ -128,6 +131,37 @@ __global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, in
             out[base + k + half] = ik_f2b(b[j] * fc + a[j] * fs);
         }
     }
+}
+
+// the un-rotated tail of each head (values RD..D-1), for partial rotary
+__global__ void rope_pass_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restrict__ out, int64_t rows, int D,
+                                 int RD) {
+    const int tail = D - RD;
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= rows * tail) return;
+    const int64_t r = i / tail;
+    const int j = RD + (int)(i % tail);
+    out[r * D + j] = x[r * D + j];
+}
+
+// gate_split: x[T,N,2D] -> q[T,N,D], gate[T,N,D]  (per head: D query values then D gate values)
+__global__ void gate_split_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restrict__ q, ik_bf16* __restrict__ gate,
+                                  int64_t rows, int D) {
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= rows * D) return;
+    const int64_t r = i / D;
+    const int j = (int)(i % D);
+    q[i] = x[r * 2 * D + j];
+    gate[i] = x[r * 2 * D + D + j];
+}
+
+// sigmoid_mul: out = a * sigmoid(g)
+__global__ void sigmoid_mul_kernel(const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ g,
+                                   ik_bf16* __restrict__ out, int64_t n) {
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    const float gv = ik_b2f(g[i]);
+    out[i] = ik_f2b(ik_b2f(a[i]) * (1.f / (1.f + expf(-gv))));
 }
 
 inline unsigned blocks(int64_t n) { return (unsigned)((n + kThreads - 1) / kThreads); }
@@ -213,15 +247,48 @@ int ik_kv_append_bf16(const ik_tensor* new_kv, int64_t pos0, ik_tensor* cache, v
     return ik_launch_status();
 }
 
-int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, ik_tensor* out, void* stream) {
+int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_dim, ik_tensor* out, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 3));
     IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
     const int64_t T = x->shape[0], N = x->shape[1], D = x->shape[2];
+    const int64_t RD = rotary_dim == 0 ? D : rotary_dim;
     if (out->shape[0] != T || out->shape[1] != N || out->shape[2] != D || D % 2 != 0 || pos0 < 0) return IK_ERR_SHAPE;
+    if (RD < 0 || RD > D || RD % 2 != 0) return IK_ERR_INVALID_ARG;
     if (T == 0 || N == 0 || D == 0) return IK_OK;
-    dim3 grid(blocks(T * (D / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
-    rope_kernel<<<grid, kThreads, 0, IK_STREAM(stream)>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N,
-                                                           (int)D, pos0, theta);
+    cudaStream_t s = IK_STREAM(stream);
+    if (RD < D && x->data != out->data)
+        rope_pass_kernel<<<blocks(T * N * (D - RD)), kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data,
+                                                                     T * N, (int)D, (int)RD);
+    if (RD == 0) return ik_launch_status();
+    dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
+    rope_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
+                                          pos0, theta);
+    return ik_launch_status();
+}
+
+int ik_gate_split_bf16(const ik_tensor* x, ik_tensor* q, ik_tensor* gate, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(gate, IK_DTYPE_BF16, 3));
+    const int64_t T = x->shape[0], N = x->shape[1], D = x->shape[2] / 2;
+    if (x->shape[2] % 2 != 0 || q->shape[0] != T || q->shape[1] != N || q->shape[2] != D || gate->shape[0] != T ||
+        gate->shape[1] != N || gate->shape[2] != D)
+        return IK_ERR_SHAPE;
+    if (T * N * D == 0) return IK_OK;
+    gate_split_kernel<<<blocks(T * N * D), kThreads, 0, IK_STREAM(stream)>>>(
+        (const ik_bf16*)x->data, (ik_bf16*)q->data, (ik_bf16*)gate->data, T * N, (int)D);
+    return ik_launch_status();
+}
+
+int ik_sigmoid_mul_bf16(const ik_tensor* a, const ik_tensor* g, ik_tensor* out, void* stream) {
+    IK_TRY(ik_check(a, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(g, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
+    const int64_t n = ik_numel(a);
+    if (ik_numel(g) != n || ik_numel(out) != n) return IK_ERR_SHAPE;
+    if (n == 0) return IK_OK;
+    sigmoid_mul_kernel<<<blocks(n), kThreads, 0, IK_STREAM(stream)>>>((const ik_bf16*)a->data, (const ik_bf16*)g->data,
+                                                                      (ik_bf16*)out->data, n);
     return ik_launch_status();
 }
 

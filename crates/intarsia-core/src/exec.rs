@@ -3,7 +3,7 @@
 use crate::backend::{Backend, MemKind, TensorRef};
 use crate::dtype::DType;
 use crate::error::Result;
-use crate::ops::{Op, OpAttrs, OpCall};
+use crate::ops::{Op, OpAttrs, OpCall, ShapeInfo};
 use crate::tensor::HostTensor;
 
 #[derive(Clone, Debug)]
@@ -50,8 +50,16 @@ pub fn run_host(backend: &dyn Backend, kernel: &str, hc: &HostCall) -> Result<Ve
         };
         outputs.push(put(backend, &t)?);
     }
-    let call = OpCall::new(hc.op, inputs, outputs.clone(), hc.attrs.clone());
+    let mut call = OpCall::new(hc.op, inputs, outputs.clone(), hc.attrs.clone());
     call.check()?;
+    // kernels that declare a scratch requirement get a fresh workspace of exactly that size
+    if let Some(k) = backend.kernels().iter().find(|k| k.name == kernel && k.op == hc.op) {
+        let need = k.scratch_bytes(&ShapeInfo::from_call(&call));
+        if need > 0 {
+            let buf = backend.alloc(need.max(16), MemKind::Device)?;
+            call.scratch = Some(TensorRef::new(buf, DType::U8, &[need]));
+        }
+    }
     backend.launch(kernel, &call, 0)?;
     backend.synchronize(0)?;
     let mut res = Vec::new();

@@ -96,11 +96,19 @@ fn chat_opts(thinking: &Option<Value>, kwargs: &Option<serde_json::Map<String, V
     opts
 }
 
-fn stop_reason(f: FinishReason) -> &'static str {
-    match f {
-        FinishReason::Length => "max_tokens",
-        _ => "end_turn",
+/// `(stop_reason, stop_sequence)`: a stop string reports `stop_sequence` and the matched value.
+fn stop_reason(f: FinishReason, stop_sequence: Option<&str>) -> (&'static str, Option<String>) {
+    match (f, stop_sequence) {
+        (FinishReason::Length, _) => ("max_tokens", None),
+        (FinishReason::Stop, Some(s)) => ("stop_sequence", Some(s.to_string())),
+        _ => ("end_turn", None),
     }
+}
+
+/// Anthropic's `input_tokens` counts only the prompt tokens that were not read from the cache.
+fn usage(prompt_tokens: usize, cached_tokens: usize, output_tokens: usize) -> Value {
+    json!({"input_tokens": prompt_tokens.saturating_sub(cached_tokens), "output_tokens": output_tokens,
+           "cache_read_input_tokens": cached_tokens, "cache_creation_input_tokens": 0})
 }
 
 fn err_event(message: &str) -> Event {
@@ -146,19 +154,19 @@ async fn messages_inner(
     })
     .await?;
     let input_tokens = prompt.len();
-    let gen = sampling.into_request(prompt, F, info.context_len)?;
+    let gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
     let rx = start(&st, F, gen)?;
     let id = st.new_id("msg").replacen("msg-", "msg_", 1);
     let model = st.model_name.clone();
 
     if !req.stream {
         let c = collect(rx, F).await?;
+        let (reason, seq) = stop_reason(c.finish, c.stop_sequence.as_deref());
         return Ok(Json(json!({
             "id": id, "type": "message", "role": "assistant", "model": model,
             "content": [{"type": "text", "text": c.text}],
-            "stop_reason": stop_reason(c.finish), "stop_sequence": null,
-            "usage": {"input_tokens": c.prompt_tokens, "output_tokens": c.completion_tokens,
-                      "cache_read_input_tokens": c.cached_tokens, "cache_creation_input_tokens": 0},
+            "stop_reason": reason, "stop_sequence": seq,
+            "usage": usage(c.prompt_tokens, c.cached_tokens, c.completion_tokens),
         }))
         .into_response());
     }
@@ -188,16 +196,16 @@ async fn messages_inner(
                 )]
             }
         }
-        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, .. }) => {
+        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. }) => {
             done = true;
+            let (reason, seq) = stop_reason(finish_reason, stop_sequence.as_deref());
             vec![
                 sse_json(Some("content_block_stop"), &json!({"type": "content_block_stop", "index": 0})),
                 sse_json(
                     Some("message_delta"),
                     &json!({"type": "message_delta",
-                            "delta": {"stop_reason": stop_reason(finish_reason), "stop_sequence": null},
-                            "usage": {"input_tokens": prompt_tokens, "output_tokens": completion_tokens,
-                                      "cache_read_input_tokens": cached_tokens}}),
+                            "delta": {"stop_reason": reason, "stop_sequence": seq},
+                            "usage": usage(prompt_tokens, cached_tokens, completion_tokens)}),
                 ),
                 sse_json(Some("message_stop"), &json!({"type": "message_stop"})),
             ]

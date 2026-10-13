@@ -9,7 +9,9 @@
 //! `Backend::wrap_host`.
 
 mod fast;
+mod gdn_ref;
 mod mem;
+mod quant_ref;
 mod reference;
 
 use intarsia_core::backend::{Backend, Buffer, DeviceInfo, HostMemory, MemKind, StreamId};

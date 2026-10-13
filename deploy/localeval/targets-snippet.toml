@@ -2,9 +2,12 @@
 # engine with `localeval`. Conventions follow the existing spark-* entries.
 #
 # The engine runs on spark1 (host name spark-4e77), port 8090. Port 8000 is the production vLLM
-# (guidance/capcom roles): never point this entry at it. Start the engine inside a fleetq slot, e.g.
-#   fleetq run --host spark1 --mem 24 --label "intarsiaml serve" -- \
-#       ssh spark1 '~/intarsiaml/target/release/intarsia serve --backend cuda --model <dir> --port 8090 --host 0.0.0.0'
+# (guidance/capcom roles): never point this entry at it. The server must live inside the same fleetq
+# lease as the benchmark (localeval then runs with FLEETQ_JOB set and does not queue behind it):
+#   fleetq run --host spark1 --exclusive --mem 24 --label "intarsiaml bench" -- \
+#       deploy/localeval/serve-and-bench.sh --mem-budget 24 -- \
+#       uv run --project /opt/code/deepeval localeval speed spark-intarsia
+# See docs/benchmarking.md.
 
 [targets.spark-intarsia]
 url = "http://spark-4e77:8090/v1"

@@ -995,6 +995,7 @@ name = "intarsia-models"
 version = "0.0.1"
 dependencies = [
  "intarsia-backend-cpu",
+ "intarsia-backend-cuda",
  "intarsia-core",
  "memmap2",
  "minijinja",
@@ -1013,12 +1014,24 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "intarsia-core",
+ "intarsia-ui",
+ "libc",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "intarsia-ui"
+version = "0.0.1"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "tokio",
+ "tower",
 ]
 
 [[package]]

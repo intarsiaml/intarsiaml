@@ -104,12 +104,12 @@ impl CudaBackend {
         Ok(be)
     }
 
-    fn bind(&self) -> Result<()> {
+    pub(crate) fn bind(&self) -> Result<()> {
         // SAFETY: plain FFI call.
         check("cudaSetDevice", unsafe { ffi::ik_rt_set_device(self.ordinal) })
     }
 
-    fn stream(&self, id: StreamId) -> Result<*mut c_void> {
+    pub(crate) fn stream(&self, id: StreamId) -> Result<*mut c_void> {
         let mut s = self.streams.lock().unwrap();
         while s.len() <= id as usize {
             let mut h: *mut c_void = std::ptr::null_mut();
@@ -129,7 +129,7 @@ impl CudaBackend {
         Ok((b.ptr as *mut u8).wrapping_add(offset))
     }
 
-    fn tensor(t: &TensorRef) -> Result<IkTensor> {
+    pub(crate) fn tensor(t: &TensorRef) -> Result<IkTensor> {
         if t.shape.len() > IK_MAX_DIMS {
             return Err(Error::invalid(format!("rank {} exceeds IK_MAX_DIMS", t.shape.len())));
         }
@@ -240,11 +240,22 @@ impl Backend for CudaBackend {
     }
 
     fn kernels(&self) -> Vec<KernelImpl> {
-        kernels::all()
+        let mut v = kernels::all();
+        // A/B and debugging aid: INTARSIA_CUDA_DISABLE=name1,name2 hides kernels from the registry, so the
+        // plan falls back to the next candidate (e.g. the SIMT attention kernels instead of flash / split-KV)
+        if let Ok(list) = std::env::var("INTARSIA_CUDA_DISABLE") {
+            let off: Vec<&str> = list.split(',').map(str::trim).filter(|x| !x.is_empty()).collect();
+            v.retain(|k| !off.contains(&k.name.as_str()));
+        }
+        v
     }
 
     fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
         call.check()?;
+        // quantised-weight and MoE launchers (device_quantmoe.rs)
+        if let Some(r) = self.launch_quantmoe(kernel, call, stream) {
+            return r;
+        }
         match kernels::TABLE.iter().find(|(n, _)| *n == kernel) {
             None => return Err(Error::NoKernel(format!("cuda kernel '{kernel}'"))),
             Some((_, op)) if *op != call.op => {
@@ -259,17 +270,29 @@ impl Backend for CudaBackend {
         let a = &call.attrs;
         let i = |n: usize| &inp[n] as *const IkTensor;
         let o = out.as_mut_ptr();
+        // pre-allocated workspace (plan-reserved; kernels that declared a scratch size read it)
+        let scr: Option<ffi::IkScratch> = match &call.scratch {
+            Some(t) => Some(ffi::IkScratch { data: Self::ptr(&t.buf, t.offset, t.nbytes())? as *mut c_void, bytes: t.nbytes() as i64 }),
+            None => None,
+        };
+        let sc = scr.as_ref().map_or(std::ptr::null(), |x| x as *const ffi::IkScratch);
         // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the
         // launchers validate dtype/rank/stride and return an error status instead of faulting, and
         // never synchronise or allocate.
         let rc = unsafe {
             match kernel {
                 "embedding_bf16" => ffi::ik_embedding_bf16(i(0), i(1), o, s),
-                "rmsnorm_bf16" => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, o, s),
-                "rmsnorm_add_bf16" => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, o, o.add(1), s),
+                "rmsnorm_bf16" => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
+                "rmsnorm_add_bf16" => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
                 "add_bf16" => ffi::ik_add_bf16(i(0), i(1), o, s),
-                "qk_norm_bf16" => ffi::ik_qk_norm_bf16(i(0), i(1), a.eps, o, s),
-                "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, o, s),
+                "qk_norm_bf16" => ffi::ik_qk_norm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
+                "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, s),
+                "gate_split_bf16" => ffi::ik_gate_split_bf16(i(0), o, o.add(1), s),
+                "sigmoid_mul_bf16" => ffi::ik_sigmoid_mul_bf16(i(0), i(1), o, s),
+                "gdn_conv_bf16" => ffi::ik_gdn_conv_bf16(i(0), i(1), o, o.add(1), s),
+                "gdn_delta_rule_bf16" => {
+                    ffi::ik_gdn_delta_rule_bf16(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
+                }
                 "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
                 "logits_bf16" => ffi::ik_logits_bf16(i(0), i(1), o, s),
@@ -277,6 +300,13 @@ impl Backend for CudaBackend {
                 "kv_append_bf16" => ffi::ik_kv_append_bf16(i(0), a.pos0 as i64, o, s),
                 "attn_prefill_bf16" => ffi::ik_attn_prefill_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
                 "attn_decode_bf16" => ffi::ik_attn_decode_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
+                "attn_decode_bf16_splitkv" => {
+                    ffi::ik_attn_decode_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
+                }
+                "attn_prefill_bf16_splitkv" => {
+                    ffi::ik_attn_prefill_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
+                }
+                "attn_prefill_bf16_flash" => ffi::ik_attn_prefill_bf16_flash(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
                 "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
                 "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),

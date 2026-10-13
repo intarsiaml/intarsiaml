@@ -28,8 +28,12 @@ pub fn dims() -> ModelDims {
         vocab: V,
         rms_eps: 1e-6,
         rope_theta: 10000.0,
+        partial_rotary_factor: 1.0,
         tie_embeddings: true,
         max_positions: 512,
+        layer_types: Vec::new(),
+        linear: None,
+        moe: None,
     }
 }
 

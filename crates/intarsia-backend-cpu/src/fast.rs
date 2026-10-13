@@ -10,6 +10,10 @@ use rayon::prelude::*;
 
 pub fn run(call: &OpCall) -> Result<()> {
     match call.op {
+        // the gated-delta-net ops reuse the f64 reference math (no separate fast path yet)
+        Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn_ref::run(call),
+        // quantised matmuls and MoE reuse the f64 reference math (parallel over rows / tokens)
+        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::Embedding => embedding(call),
         Op::RmsNorm | Op::QkNorm => rmsnorm(call),
         Op::RmsNormAdd => rmsnorm_add(call),
@@ -72,11 +76,11 @@ fn embedding(call: &OpCall) -> Result<()> {
     })
 }
 
-fn norm_row(x: &[f32], w: &[f32], eps: f32, out: &mut [f32]) {
+fn norm_row(x: &[f32], w: &[f32], eps: f32, w_offset: f32, out: &mut [f32]) {
     let ss = dot(x, x);
     let r = 1.0 / (ss / x.len() as f32 + eps).sqrt();
     for ((o, xv), wv) in out.iter_mut().zip(x).zip(w) {
-        *o = xv * r * wv;
+        *o = xv * r * (wv + w_offset);
     }
 }
 
@@ -86,7 +90,7 @@ fn rmsnorm(call: &OpCall) -> Result<()> {
     let w = read_f32(&call.inputs[1])?;
     let d = w.len();
     let mut o = vec![0f32; x.len()];
-    o.par_chunks_mut(d).zip(x.par_chunks(d)).for_each(|(orow, xrow)| norm_row(xrow, &w, call.attrs.eps, orow));
+    o.par_chunks_mut(d).zip(x.par_chunks(d)).for_each(|(orow, xrow)| norm_row(xrow, &w, call.attrs.eps, call.attrs.w_offset, orow));
     write_f32(&call.outputs[0], &o)
 }
 
@@ -106,7 +110,7 @@ fn rmsnorm_add(call: &OpCall) -> Result<()> {
     // the residual stream is stored in the output dtype; normalise what is stored
     round_to(call.outputs[1].dtype, &mut sum);
     let mut o = vec![0f32; x.len()];
-    o.par_chunks_mut(d).zip(sum.par_chunks(d)).for_each(|(orow, srow)| norm_row(srow, &w, call.attrs.eps, orow));
+    o.par_chunks_mut(d).zip(sum.par_chunks(d)).for_each(|(orow, srow)| norm_row(srow, &w, call.attrs.eps, call.attrs.w_offset, orow));
     write_f32(&call.outputs[0], &o)?;
     write_f32(&call.outputs[1], &sum)
 }
@@ -122,10 +126,12 @@ fn rope(call: &OpCall) -> Result<()> {
     let xt = &call.inputs[0];
     let (n, d) = (xt.shape[1], xt.shape[2]);
     let x = read_f32(xt)?;
-    let half = d / 2;
+    // partial rotary: only the first `rd` values of each head rotate, the rest pass through
+    let rd = if call.attrs.rotary_dim == 0 { d } else { call.attrs.rotary_dim };
+    let half = rd / 2;
     let theta = call.attrs.theta as f64;
-    let inv: Vec<f64> = (0..half).map(|i| theta.powf(-2.0 * i as f64 / d as f64)).collect();
-    let mut o = vec![0f32; x.len()];
+    let inv: Vec<f64> = (0..half).map(|i| theta.powf(-2.0 * i as f64 / rd as f64)).collect();
+    let mut o = x.clone();
     o.par_chunks_mut(n * d).enumerate().for_each(|(ti, trow)| {
         let pos = (call.attrs.pos0 + ti) as f64;
         let cs: Vec<(f32, f32)> = inv

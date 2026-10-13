@@ -7,6 +7,7 @@ members = [
     "crates/intarsia-backend-cuda",
     "crates/intarsia-models",
     "crates/intarsia-server",
+    "crates/intarsia-ui",
     "crates/intarsia-cli",
     "crates/intarsia-bench",
 ]
@@ -26,6 +27,7 @@ intarsia-backend-cpu = { path = "crates/intarsia-backend-cpu" }
 intarsia-backend-cuda = { path = "crates/intarsia-backend-cuda" }
 intarsia-models = { path = "crates/intarsia-models" }
 intarsia-server = { path = "crates/intarsia-server" }
+intarsia-ui = { path = "crates/intarsia-ui" }
 
 anyhow = "1"
 thiserror = "2"
@@ -53,6 +55,7 @@ tokio-stream = "0.1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+libc = "0.2"
 
 # Debug builds of dependencies are optimised so `cargo test` (which runs real
 # kernels and model loads) is not painfully slow.

@@ -5,11 +5,11 @@
 //! | Op | inputs | outputs | attrs |
 //! |---|---|---|---|
 //! | `Embedding` | ids `[T]` i32, table `[V,H]` | `[T,H]` | |
-//! | `RmsNorm` | x `[R,H]`, w `[H]` | `[R,H]` | eps |
-//! | `RmsNormAdd` | x `[R,H]`, res `[R,H]`, w `[H]` | normed `[R,H]`, sum `[R,H]` (= x + res) | eps |
+//! | `RmsNorm` | x `[R,H]`, w `[H]` | `[R,H]` | eps, w_offset (scale = `w + w_offset`; 1.0 for zero-centred norms) |
+//! | `RmsNormAdd` | x `[R,H]`, res `[R,H]`, w `[H]` | normed `[R,H]`, sum `[R,H]` (= x + res) | eps, w_offset |
 //! | `Add` | a `[R,H]`, b `[R,H]` | `[R,H]` | |
-//! | `QkNorm` | x `[T,N,D]`, w `[D]` | `[T,N,D]` | eps |
-//! | `Rope` | x `[T,N,D]` | `[T,N,D]` | pos0, theta (neox / rotate-half over the full D) |
+//! | `QkNorm` | x `[T,N,D]`, w `[D]` | `[T,N,D]` | eps, w_offset |
+//! | `Rope` | x `[T,N,D]` | `[T,N,D]` | pos0, theta, rotary_dim (neox / rotate-half over the first `rotary_dim` values, 0 = all `D`; the rest is copied) |
 //! | `Matmul` | x `[M,K]`, w `[N,K]` | `[M,N]` (= x @ w^T) | |
 //! | `Logits` | x `[M,K]`, w `[V,K]` | `[M,V]` f32 | same math as `Matmul`, f32 output |
 //! | `KvAppend` | new `[T,Nkv,D]` | cache `[Nkv,cap,D]` (written in place) | pos0 |
@@ -18,6 +18,17 @@
 //! | `SiluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` | |
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
+//! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
+//! | `MatmulNvfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), block scales `[N,K/16]` fp8_e4m3, global `[1]` f32 | `[M,N]` (bf16/f16/f32) | see `quant::nvfp4` |
+//! | `MoeTopk` | router logits `[T,E]` | weights `[T,K]` f32, expert ids `[T,K]` i32 | top_k, norm_topk |
+//! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe` |
+//! | `MoeCombine` | routed `[T,H]`, shared `[T,H]`, shared-gate logit `[T,1]` | `[T,H]` | |
+//! | `GateSplit` | x `[T,N,2D]` (per head: `D` values then `D` gate values) | q `[T,N,D]`, gate `[T,N,D]` | |
+//! | `SigmoidMul` | a `[R,X]`, gate `[R,X]` | `[R,X]` (= a * sigmoid(gate)) | |
+//! | `GdnConv` | x `[T,C]`, taps `[C,K]` | y `[T,C]` (= silu(causal conv)), conv state `[C,K-1]` f32 (**in place**) | |
+//! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
+//!
+//! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`).
 //!
 //! Attention is causal GQA: query `t` sits at absolute position `pos0 + t` and
 //! attends cache rows `0..=pos0+t`; the caller must have appended K/V for
@@ -45,10 +56,19 @@ pub enum Op {
     SiluGlu,
     Argmax,
     Sample,
+    MatmulFp8,
+    MatmulNvfp4,
+    MoeTopk,
+    MoeExperts,
+    MoeCombine,
+    GateSplit,
+    SigmoidMul,
+    GdnConv,
+    GdnDeltaRule,
 }
 
 impl Op {
-    pub const ALL: [Op; 14] = [
+    pub const ALL: [Op; 23] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -63,6 +83,15 @@ impl Op {
         Op::SiluGlu,
         Op::Argmax,
         Op::Sample,
+        Op::MatmulFp8,
+        Op::MatmulNvfp4,
+        Op::MoeTopk,
+        Op::MoeExperts,
+        Op::MoeCombine,
+        Op::GateSplit,
+        Op::SigmoidMul,
+        Op::GdnConv,
+        Op::GdnDeltaRule,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -82,6 +111,15 @@ impl Op {
             Op::SiluGlu => "silu_glu",
             Op::Argmax => "argmax",
             Op::Sample => "sample",
+            Op::MatmulFp8 => "matmul_fp8",
+            Op::MatmulNvfp4 => "matmul_nvfp4",
+            Op::MoeTopk => "moe_topk",
+            Op::MoeExperts => "moe_experts",
+            Op::MoeCombine => "moe_combine",
+            Op::GateSplit => "gate_split",
+            Op::SigmoidMul => "sigmoid_mul",
+            Op::GdnConv => "gdn_conv",
+            Op::GdnDeltaRule => "gdn_delta_rule",
         }
     }
 
@@ -104,6 +142,15 @@ impl Op {
             Op::SiluGlu => (2, 1),
             Op::Argmax => (1, 1),
             Op::Sample => (2, 1),
+            Op::MatmulFp8 => (3, 1),
+            Op::MatmulNvfp4 => (4, 1),
+            Op::MoeTopk => (1, 2),
+            Op::MoeExperts => (8, 1),
+            Op::MoeCombine => (3, 1),
+            Op::GateSplit => (1, 2),
+            Op::SigmoidMul => (2, 1),
+            Op::GdnConv => (2, 2),
+            Op::GdnDeltaRule => (5, 2),
         }
     }
 }
@@ -128,6 +175,12 @@ pub struct OpAttrs {
     pub temperature: f32,
     pub top_k: usize,
     pub top_p: f32,
+    /// `MoeTopk`: renormalise the selected experts' probabilities to sum to 1 (HF `norm_topk_prob`).
+    pub norm_topk: bool,
+    /// `Rope`: number of leading values of each head that rotate (HF `partial_rotary_factor * head_dim`); 0 = the whole head.
+    pub rotary_dim: usize,
+    /// Norm ops: the scale applied is `w + w_offset` (1.0 for zero-centred norms such as Qwen3.5's), added in f32.
+    pub w_offset: f32,
 }
 
 impl Default for OpAttrs {
@@ -144,6 +197,9 @@ impl Default for OpAttrs {
             temperature: 1.0,
             top_k: 0,
             top_p: 1.0,
+            norm_topk: true,
+            rotary_dim: 0,
+            w_offset: 0.0,
         }
     }
 }
@@ -155,11 +211,15 @@ pub struct OpCall {
     pub inputs: Vec<TensorRef>,
     pub outputs: Vec<TensorRef>,
     pub attrs: OpAttrs,
+    /// Pre-allocated scratch workspace, set by the caller when the selected kernel declares
+    /// a scratch requirement (`KernelImpl::scratch`). `u8` view of at least the declared size,
+    /// 256-byte aligned, uninitialised, stream-ordered (see kernels/README.md). `None` otherwise.
+    pub scratch: Option<TensorRef>,
 }
 
 impl OpCall {
     pub fn new(op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> OpCall {
-        OpCall { op, inputs, outputs, attrs }
+        OpCall { op, inputs, outputs, attrs, scratch: None }
     }
 
     /// Validate arity, ranks, shapes, dtypes and bounds. Backends and the
@@ -237,6 +297,9 @@ impl OpCall {
                 if o[0].shape != i[0].shape || i[0].shape[2] % 2 != 0 {
                     return bad("shape mismatch / odd head_dim".into());
                 }
+                if a.rotary_dim > i[0].shape[2] || a.rotary_dim % 2 != 0 {
+                    return bad(format!("rotary_dim {} must be even and <= head_dim {}", a.rotary_dim, i[0].shape[2]));
+                }
             }
             Op::Matmul | Op::Logits => {
                 rank(&i[0], 2, "x")?;
@@ -295,6 +358,10 @@ impl OpCall {
                     return bad("out must be i32 [R]".into());
                 }
             }
+            Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => {
+                crate::quant::ops::check(self)?
+            }
+            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::check(self)?,
         }
         Ok(())
     }
@@ -316,6 +383,9 @@ pub struct ShapeInfo {
     pub kv_len: usize,
     pub act: Option<DType>,
     pub weight: Option<DType>,
+    /// MoE ops: number of routed experts / experts selected per token.
+    pub experts: usize,
+    pub top_k: usize,
 }
 
 impl ShapeInfo {
@@ -359,6 +429,10 @@ impl ShapeInfo {
                 s.m = i[0].shape[0];
                 s.n = i[0].shape[1];
             }
+            Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => {
+                crate::quant::ops::shape(call, &mut s)
+            }
+            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::shape(call, &mut s),
         }
         let _ = o;
         s

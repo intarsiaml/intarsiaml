@@ -5,6 +5,7 @@ use crate::recipe::{load_recipe_file, select_recipe};
 use crate::safetensors::SafeTensors;
 use crate::tokenizer::HfCodec;
 use intarsia_core::model::{LoadOptions, Model};
+use intarsia_core::plan::PlanOptions;
 use intarsia_core::recipe::{ModelDims, Recipe};
 use intarsia_core::{Backend, EngineMeta, Error, LocalEngine, Result, Telemetry};
 use serde_json::Value;
@@ -21,6 +22,8 @@ pub struct EngineOptions {
     pub chat_template: ChatTemplateSource,
     /// Name reported as the model id (default: directory name).
     pub model_id: Option<String>,
+    /// Plan resolution: `--reference`, admission on the plan's shapes, `require_admitted`.
+    pub plan: PlanOptions,
 }
 
 fn read_json(p: &Path) -> Result<Value> {
@@ -48,6 +51,7 @@ pub fn eos_ids(dir: &Path, cfg: &Value) -> Vec<u32> {
         _ => {}
     };
     take(cfg.get("eos_token_id"));
+    take(intarsia_core::recipe::text_config(cfg).get("eos_token_id"));
     if let Ok(g) = read_json(&dir.join("generation_config.json")) {
         take(g.get("eos_token_id"));
     }
@@ -66,7 +70,23 @@ pub fn load_engine(dir: &Path, backend: Arc<dyn Backend>, opts: &EngineOptions) 
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     let weights = SafeTensors::open_dir(dir)?;
     let telemetry = Arc::new(Telemetry::new());
-    let model = Model::load(backend, &recipe, &dims, &weights, &opts.load, telemetry.clone())?;
+    let mut model = Model::load(backend, &recipe, &dims, &weights, &opts.load, telemetry.clone())?;
+    // the admission oracle is always the cpu backend (its `ref_*` kernels)
+    let oracle = intarsia_backend_cpu::CpuBackend::arc();
+    let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
+    if opts.plan.admit {
+        eprintln!(
+            "admission on plan shapes: {} kernel(s) checked, {} case(s) run, {} cached{}",
+            summary.kernels_checked,
+            summary.cases_run,
+            summary.cases_cached,
+            if summary.rejected.is_empty() {
+                String::new()
+            } else {
+                format!(", REJECTED: {}", summary.rejected.iter().map(|(k, w)| format!("{k} ({w})")).collect::<Vec<_>>().join("; "))
+            }
+        );
+    }
     let codec = HfCodec::load(dir, &opts.chat_template)?;
     let chat_template_source = codec.template_source().map(String::from);
     let id = opts.model_id.clone().unwrap_or_else(|| {

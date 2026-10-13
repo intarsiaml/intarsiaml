@@ -50,6 +50,11 @@ impl Tol {
 
 pub type Predicate = fn(&ShapeInfo) -> bool;
 
+/// Scratch workspace a kernel needs for a shape, in bytes (0 = none). The caller allocates it once
+/// at plan time (the maximum over every shape the plan uses) and passes it as `OpCall::scratch`;
+/// launchers never allocate (kernels/README.md, "Scratch workspace").
+pub type ScratchFn = fn(&ShapeInfo) -> usize;
+
 #[derive(Clone, Debug)]
 pub struct KernelImpl {
     pub op: Op,
@@ -70,6 +75,8 @@ pub struct KernelImpl {
     pub is_reference: bool,
     /// Higher wins when several admitted impls match.
     pub priority: i32,
+    /// Scratch bytes needed for a shape; `None` = the kernel uses no scratch.
+    pub scratch: Option<ScratchFn>,
 }
 
 fn always(_: &ShapeInfo) -> bool {
@@ -90,6 +97,7 @@ impl KernelImpl {
             tol: Tol::new(1e-2, 1e-2),
             is_reference: false,
             priority: 0,
+            scratch: None,
         }
     }
 
@@ -137,6 +145,16 @@ impl KernelImpl {
     pub fn priority(mut self, p: i32) -> Self {
         self.priority = p;
         self
+    }
+    /// Declare a scratch-workspace requirement as a function of the call's shape.
+    pub fn scratch(mut self, f: ScratchFn) -> Self {
+        self.scratch = Some(f);
+        self
+    }
+
+    /// Scratch bytes this kernel needs for `s` (0 when it declares none).
+    pub fn scratch_bytes(&self, s: &ShapeInfo) -> usize {
+        self.scratch.map_or(0, |f| f(s))
     }
 
     pub fn arch_matches(&self, arch: &str) -> bool {
@@ -189,6 +207,10 @@ pub struct Registry {
     entries: Vec<(KernelImpl, Admission)>,
     /// When true only `Admitted` impls are selectable (production serve mode).
     pub require_admitted: bool,
+    /// When true only reference implementations (`is_reference`) are selectable (`--reference`).
+    /// A backend without reference kernels (cuda) then fails with `NoKernel` instead of silently
+    /// running something else.
+    pub reference_only: bool,
 }
 
 impl Registry {
@@ -198,11 +220,29 @@ impl Registry {
             arch: info.arch.clone(),
             entries: kernels.into_iter().filter(|k| k.backend == backend).map(|k| (k, Admission::Untested)).collect(),
             require_admitted: false,
+            reference_only: false,
         }
     }
 
     pub fn impls(&self) -> impl Iterator<Item = (&KernelImpl, Admission)> {
         self.entries.iter().map(|(k, a)| (k, *a))
+    }
+
+    /// Admission status of the implementation called `name`.
+    pub fn admission(&self, name: &str) -> Option<Admission> {
+        self.entries.iter().find(|(k, _)| k.name == name).map(|(_, a)| *a)
+    }
+
+    pub fn kernel(&self, name: &str) -> Option<&KernelImpl> {
+        self.entries.iter().find(|(k, _)| k.name == name).map(|(k, _)| k)
+    }
+
+    pub fn backend(&self) -> &str {
+        &self.backend
+    }
+
+    pub fn arch(&self) -> &str {
+        &self.arch
     }
 
     pub fn set_admission(&mut self, name: &str, a: Admission) {
@@ -222,6 +262,9 @@ impl Registry {
             if k.op != call.op || !k.arch_matches(&self.arch) || !k.accepts(&s) {
                 continue;
             }
+            if self.reference_only && !k.is_reference {
+                continue;
+            }
             match adm {
                 Admission::Rejected => continue,
                 Admission::Untested if self.require_admitted => continue,
@@ -233,8 +276,17 @@ impl Registry {
         }
         best.ok_or_else(|| {
             Error::NoKernel(format!(
-                "{} on {}/{} (m={} n={} k={} act={:?} w={:?})",
-                call.op, self.backend, self.arch, s.m, s.n, s.k, s.act, s.weight
+                "{} on {}/{} (m={} n={} k={} act={:?} w={:?}){}{}",
+                call.op,
+                self.backend,
+                self.arch,
+                s.m,
+                s.n,
+                s.k,
+                s.act,
+                s.weight,
+                if self.reference_only { " [reference kernels only]" } else { "" },
+                if self.require_admitted { " [admitted kernels only]" } else { "" },
             ))
         })
     }

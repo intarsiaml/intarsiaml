@@ -1,0 +1,645 @@
+//! Plan resolution (ARCHITECTURE 3.6): resolve the kernel of every `(op, shape)` the recipe needs
+//! when the model loads, run admission on those exact shapes, and describe the result.
+//!
+//! The plan is **recorded from the real forward path**: [`Model::dry_run`] executes `run_chunk` and
+//! the head with a recorder installed, so `exec` selects a kernel and logs `(op, shape, kernel)`
+//! instead of launching it. Blocks other agents add through `exec` are planned automatically.
+//!
+//! Shapes probed: decode (`T = 1`) at the first and the last context position, and prefill chunks
+//! for the sizes in [`probe_sizes`] (every size up to 16, then each power of two with its
+//! neighbours up to the chunk size), because kernel predicates switch on `m`.
+//!
+//! A missing kernel fails the load with the full list of `(op, shape)` pairs that have none.
+//!
+//! Admission (`admit`): every kernel the plan selects is checked against the reference backend on
+//! the plan's exact shapes. To bound the cost of the f32 reference, rows are clamped to
+//! [`CAPS`] (`M <= 32`), matmul/logits `N` to 16384 and attention positions to 2000; `K`, head
+//! counts, head dims, dtypes and attributes are exact. Results are cached per host fingerprint
+//! under `~/.cache/intarsia/admission/`.
+
+use crate::admission::{case_from_call, case_label, judge, ShapeCaps};
+use crate::backend::{Backend, Buffer, BufferImpl};
+use crate::error::{Error, Result};
+use crate::exec::run_host;
+use crate::model::Model;
+use crate::ops::{Op, OpCall, ShapeInfo};
+use crate::registry::{Admission, Exactness};
+use crate::rng::SplitMix64;
+use crate::state::{AttnKvState, RecurrentState, SequenceState, SlotSpec, StateSlot};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
+
+/// Cost bounds for admission on plan shapes (see module docs).
+pub const CAPS: ShapeCaps = ShapeCaps { rows: 32, n: 16384, pos0: 2000, emb_vocab: 2048 };
+
+#[derive(Clone, Debug, Default)]
+pub struct PlanOptions {
+    /// Run admission on the plan's exact shapes (needs a reference backend).
+    pub admit: bool,
+    /// After admission only `Admitted` kernels are selectable (serve). Implies nothing about
+    /// whether admission ran: with `admit = false` and `require_admitted = true` nothing is selectable.
+    pub require_admitted: bool,
+    /// Select reference kernels only (cpu `ref_*`). A backend without reference kernels fails the load.
+    pub force_reference: bool,
+    /// Admission cache directory (default `~/.cache/intarsia/admission`).
+    pub cache_dir: Option<PathBuf>,
+    /// Do not read or write the admission cache.
+    pub no_cache: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Phase {
+    Decode,
+    Prefill,
+}
+
+/// One op call of the plan with the kernel the registry selected for it.
+#[derive(Clone, Debug)]
+pub struct PlannedCall {
+    pub phase: Phase,
+    /// Tokens in the probed forward pass.
+    pub t: usize,
+    pub pos0: usize,
+    pub kernel: String,
+    pub call: OpCall,
+    /// Recorded for the all-position logits head (accuracy tooling), not part of a serving step.
+    pub extra: bool,
+}
+
+/// Recorder installed by [`Model::dry_run`]; `exec` feeds it instead of launching.
+#[derive(Debug, Default)]
+pub struct Recorder {
+    pub phase: Option<Phase>,
+    pub t: usize,
+    pub pos0: usize,
+    /// Set while the extra (accuracy) head is being recorded.
+    pub extra: bool,
+    pub calls: Vec<PlannedCall>,
+    /// `(op, description)` of every call that found no kernel.
+    pub missing: Vec<(Op, String)>,
+}
+
+/// An `(op, kernel)` row of the resolved plan.
+#[derive(Clone, Debug, Serialize)]
+pub struct PlanOp {
+    pub op: Op,
+    pub kernel: String,
+    pub backend: String,
+    pub exactness: Exactness,
+    pub admitted: bool,
+    pub calls_per_decode_step: usize,
+    pub scratch_bytes: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ResolvedPlan {
+    pub ops: Vec<PlanOp>,
+    /// Unique `(kernel, shape)` calls, one per distinct case key (the admission work list).
+    pub unique_calls: Vec<PlannedCall>,
+    pub scratch_bytes: usize,
+    pub probes: usize,
+    /// Prefill sizes probed.
+    pub sizes: Vec<usize>,
+}
+
+/// Prefill sizes to probe for a chunk size: all up to 16, then each power of two and its neighbours.
+pub fn probe_sizes(chunk: usize) -> Vec<usize> {
+    let mut s = BTreeSet::new();
+    for t in 1..=16.min(chunk) {
+        s.insert(t);
+    }
+    let mut p = 32;
+    while p / 2 < chunk {
+        for t in [p - 1, p, p + 1] {
+            if t <= chunk {
+                s.insert(t);
+            }
+        }
+        p *= 2;
+    }
+    s.insert(chunk);
+    s.insert(chunk.saturating_sub(1).max(1));
+    s.into_iter().collect()
+}
+
+#[derive(Debug)]
+struct Phantom(usize);
+impl BufferImpl for Phantom {
+    fn bytes(&self) -> usize {
+        self.0
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// A sequence state with the right shapes and no memory behind it (for recording only).
+pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceState {
+    let mut slots = Vec::new();
+    for s in specs {
+        slots.push(match s {
+            SlotSpec::AttnKv { n_kv_heads, head_dim, dtype } => {
+                let bytes = n_kv_heads * cap * head_dim * dtype.size_bytes();
+                StateSlot::AttnKv(AttnKvState {
+                    k: Buffer::new(Phantom(bytes)),
+                    v: Buffer::new(Phantom(bytes)),
+                    len,
+                    cap,
+                    n_kv_heads: *n_kv_heads,
+                    head_dim: *head_dim,
+                    dtype: *dtype,
+                })
+            }
+            SlotSpec::Recurrent { bytes } => {
+                StateSlot::Recurrent(RecurrentState { buf: Buffer::new(Phantom((*bytes).max(16))), bytes: *bytes })
+            }
+        });
+    }
+    SequenceState { slots, len, cap, tokens: vec![0; len], snapshots: Vec::new() }
+}
+
+fn shape_str(s: &ShapeInfo) -> String {
+    format!(
+        "m={} n={} k={} heads={}/{} hd={} kv_len={} act={:?} w={:?}",
+        s.m, s.n, s.k, s.n_heads, s.n_kv_heads, s.head_dim, s.kv_len, s.act, s.weight
+    )
+}
+
+/// Record the plan: probe decode and prefill shapes, collect calls and missing kernels.
+fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>)> {
+    let chunk = model.prefill_chunk();
+    let cap = model.plan.kv_cap_tokens.max(1);
+    let sizes = probe_sizes(chunk);
+    let mut probes: Vec<(Phase, usize, usize)> = vec![(Phase::Decode, 1, 0), (Phase::Decode, 1, cap - 1)];
+    for &t in &sizes {
+        if t > 1 {
+            probes.push((Phase::Prefill, t, 0));
+        }
+    }
+    // the last full chunk of a context-filling prompt
+    if cap > chunk {
+        probes.push((Phase::Prefill, chunk, cap - chunk));
+    }
+    let mut calls = Vec::new();
+    // op -> (shapes without a kernel, first description, where it is needed)
+    let mut missing: BTreeMap<Op, (BTreeSet<String>, String, BTreeSet<String>)> = BTreeMap::new();
+    for (phase, t, pos0) in probes {
+        if pos0 + t > cap {
+            continue;
+        }
+        let rec = model.dry_run(phase, t, pos0)?;
+        for (op, m) in rec.missing {
+            let e = missing.entry(op).or_insert_with(|| (BTreeSet::new(), m.clone(), BTreeSet::new()));
+            e.0.insert(m);
+            e.2.insert(format!("{phase:?} t={t}"));
+        }
+        calls.extend(rec.calls);
+    }
+    if !missing.is_empty() {
+        let b = model.backend.info();
+        let ref_only = if model.registry.reference_only {
+            " (reference kernels only: this backend registers none for it)"
+        } else {
+            ""
+        };
+        let mut msg =
+            format!("{} op(s) of this model have no kernel on {}/{}{ref_only}:", missing.len(), b.backend, b.arch);
+        for (op, (shapes, first, wh)) in &missing {
+            let wh: Vec<&String> = wh.iter().take(4).collect();
+            msg.push_str(&format!(
+                "\n  - {op}: {} shape(s) without a kernel, e.g. {first}; needed by {}{}",
+                shapes.len(),
+                wh.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
+                if missing[op].2.len() > 4 { ", ..." } else { "" }
+            ));
+        }
+        return Err(Error::NoKernel(msg));
+    }
+    Ok((calls, sizes))
+}
+
+/// Case key shared by dedupe and the admission cache: kernel + clamped host case label.
+fn case_key(model_kernel: &str, label: &str) -> String {
+    format!("{model_kernel}|{label}")
+}
+
+/// Resolve every `(op, shape)` of the model against the registry and (re)allocate the scratch
+/// workspace. Idempotent; call again after the registry changed (admission, `--reference`).
+pub fn resolve(model: &mut Model) -> Result<()> {
+    let (calls, sizes) = record(model)?;
+    let mut scratch = 0usize;
+    let mut per_op: BTreeMap<(Op, String), PlanOp> = BTreeMap::new();
+    let mut unique: BTreeMap<String, PlannedCall> = BTreeMap::new();
+    for c in &calls {
+        let k =
+            model.registry.kernel(&c.kernel).ok_or_else(|| Error::Other(format!("kernel {} vanished", c.kernel)))?;
+        let s = ShapeInfo::from_call(&c.call);
+        let sb = k.scratch_bytes(&s);
+        scratch = scratch.max(sb);
+        let e = per_op.entry((c.call.op, c.kernel.clone())).or_insert_with(|| PlanOp {
+            op: c.call.op,
+            kernel: c.kernel.clone(),
+            backend: k.backend.clone(),
+            exactness: k.exact,
+            admitted: model.registry.admission(&c.kernel) == Some(Admission::Admitted) || k.is_reference,
+            calls_per_decode_step: 0,
+            scratch_bytes: 0,
+        });
+        e.scratch_bytes = e.scratch_bytes.max(sb);
+        if c.phase == Phase::Decode && c.pos0 == 0 && !c.extra {
+            e.calls_per_decode_step += 1;
+        }
+        let label = case_label(&c.call, &CAPS).unwrap_or_else(|| format!("{} {}", c.call.op, shape_str(&s)));
+        unique.entry(case_key(&c.kernel, &label)).or_insert_with(|| c.clone());
+    }
+    model.reserve_scratch(scratch)?;
+    model.resolved = ResolvedPlan {
+        ops: per_op.into_values().collect(),
+        unique_calls: unique.into_values().collect(),
+        scratch_bytes: scratch,
+        probes: calls.len(),
+        sizes,
+    };
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// admission cache
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct CacheEntry {
+    pass: bool,
+    max_abs: f64,
+    rel_l2: f64,
+    error: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct CacheFile {
+    version: u32,
+    fingerprint: String,
+    entries: BTreeMap<String, CacheEntry>,
+}
+
+fn fnv1a(s: &str) -> u64 {
+    let mut h = 0xcbf29ce484222325u64;
+    for b in s.bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+/// Host + kernel-pack identity. The running executable's size and mtime stand in for the kernel
+/// pack hash: rebuilding (new or changed kernels) invalidates cached admission results.
+pub fn host_fingerprint(backend: &dyn Backend) -> String {
+    let exe = std::env::current_exe()
+        .ok()
+        .and_then(|p| std::fs::metadata(p).ok())
+        .map(|m| {
+            let mt =
+                m.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
+            format!("{}:{}", m.len(), mt)
+        })
+        .unwrap_or_default();
+    format!("{}|exe:{}|core:{}", backend.fingerprint(), exe, env!("CARGO_PKG_VERSION"))
+}
+
+struct Cache {
+    path: Option<PathBuf>,
+    file: CacheFile,
+    dirty: bool,
+}
+
+impl Cache {
+    fn open(opts: &PlanOptions, fp: &str, backend: &str, arch: &str) -> Cache {
+        let mut c = Cache {
+            path: None,
+            file: CacheFile { version: 1, fingerprint: fp.to_string(), ..Default::default() },
+            dirty: false,
+        };
+        if opts.no_cache {
+            return c;
+        }
+        let dir = opts.cache_dir.clone().or_else(|| {
+            std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache").join("intarsia").join("admission"))
+        });
+        if let Some(dir) = dir {
+            let path = dir.join(format!("{backend}-{arch}-{:016x}.json", fnv1a(fp)));
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                if let Ok(f) = serde_json::from_str::<CacheFile>(&text) {
+                    if f.version == 1 && f.fingerprint == fp {
+                        c.file = f;
+                    }
+                }
+            }
+            c.path = Some(path);
+        }
+        c
+    }
+
+    fn save(&mut self) {
+        if !self.dirty {
+            return;
+        }
+        if let Some(p) = &self.path {
+            let write = || -> std::io::Result<()> {
+                if let Some(d) = p.parent() {
+                    std::fs::create_dir_all(d)?;
+                }
+                let tmp = p.with_extension(format!("tmp{}", std::process::id()));
+                std::fs::write(&tmp, serde_json::to_vec_pretty(&self.file).unwrap_or_default())?;
+                std::fs::rename(&tmp, p)?;
+                // every rebuild has its own fingerprint: drop caches of binaries nobody has run for two weeks
+                let old = std::time::Duration::from_secs(14 * 24 * 3600);
+                for e in std::fs::read_dir(p.parent().unwrap_or(std::path::Path::new(".")))?.flatten() {
+                    let stale = e
+                        .metadata()
+                        .and_then(|m| m.modified())
+                        .ok()
+                        .and_then(|t| t.elapsed().ok())
+                        .is_some_and(|a| a > old);
+                    if stale && e.path().extension().is_some_and(|x| x == "json") {
+                        let _ = std::fs::remove_file(e.path());
+                    }
+                }
+                Ok(())
+            };
+            if let Err(e) = write() {
+                eprintln!("admission cache: cannot write {}: {e}", p.display());
+            }
+        }
+        self.dirty = false;
+    }
+}
+
+/// Outcome of [`admit`].
+#[derive(Debug, Default)]
+pub struct AdmitSummary {
+    pub kernels_checked: usize,
+    pub cases_run: usize,
+    pub cases_cached: usize,
+    pub rejected: Vec<(String, String)>,
+}
+
+/// Admit the kernels the plan selects on the plan's exact shapes (clamped, see module docs).
+/// Marks them `Admitted`/`Rejected` in the model's registry and re-resolves until the plan only
+/// uses admitted kernels; a kernel that fails is replaced by the next candidate, and the load fails
+/// with the reasons when none is left.
+pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> Result<AdmitSummary> {
+    let cand = model.backend.clone();
+    let info = cand.info();
+    let fp = host_fingerprint(&*cand);
+    let mut cache = Cache::open(opts, &fp, &info.backend, &info.arch);
+    let ref_kernels = reference.kernels();
+    let cand_kernels = cand.kernels();
+    let mut sum = AdmitSummary::default();
+    let same_backend = reference.name() == cand.name();
+    let mut rng = SplitMix64::new(0x1a7a);
+
+    for _round in 0..8 {
+        resolve(model)?;
+        let pending: BTreeSet<String> = model
+            .resolved
+            .ops
+            .iter()
+            .filter(|o| model.registry.admission(&o.kernel) == Some(Admission::Untested))
+            .map(|o| o.kernel.clone())
+            .collect();
+        if pending.is_empty() {
+            break;
+        }
+        for kname in pending {
+            let kern = cand_kernels
+                .iter()
+                .find(|k| k.name == kname)
+                .ok_or_else(|| Error::Other(format!("kernel {kname} not in backend list")))?;
+            if kern.is_reference && same_backend {
+                model.registry.set_admission(&kname, Admission::Admitted); // the oracle itself
+                continue;
+            }
+            let refimpl = ref_kernels
+                .iter()
+                .find(|k| k.op == kern.op && k.is_reference)
+                .ok_or_else(|| Error::NoKernel(format!("reference implementation of {}", kern.op)))?;
+            sum.kernels_checked += 1;
+            let mut bad: Option<String> = None;
+            let work: Vec<PlannedCall> =
+                model.resolved.unique_calls.iter().filter(|c| c.kernel == kname).cloned().collect();
+            let mut handled_sweep = false;
+            for c in work {
+                let (host, label) = match case_from_call(&c.call, &CAPS, &mut rng) {
+                    Some(x) => x,
+                    None => {
+                        // an op without an exact-shape case builder: its own sweep decides, once per kernel
+                        if handled_sweep {
+                            continue;
+                        }
+                        handled_sweep = true;
+                        let key = case_key(&kname, "sweep");
+                        let e = match cache.file.entries.get(&key) {
+                            Some(e) => {
+                                sum.cases_cached += 1;
+                                e.clone()
+                            }
+                            None => {
+                                sum.cases_run += 1;
+                                let e = sweep_entry(model, reference, &*cand, &kname)?;
+                                cache.file.entries.insert(key, e.clone());
+                                cache.dirty = true;
+                                e
+                            }
+                        };
+                        if !e.pass {
+                            bad = Some(format!(
+                                "sweep: {}",
+                                e.error.unwrap_or_else(|| format!("rel_l2 {:.3e}", e.rel_l2))
+                            ));
+                        }
+                        continue;
+                    }
+                };
+                let key = case_key(&kname, &label);
+                let e = match cache.file.entries.get(&key) {
+                    Some(e) => {
+                        sum.cases_cached += 1;
+                        e.clone()
+                    }
+                    None => {
+                        sum.cases_run += 1;
+                        let (pass, max_abs, rel_l2, error) = match (|| -> Result<_> {
+                            let want = run_host(reference, &refimpl.name, &host)?;
+                            let got = run_host(&*cand, &kname, &host)?;
+                            Ok(judge(kern, &got, &want))
+                        })() {
+                            Ok((p, a, r)) => (p, a, r, None),
+                            Err(e) => (false, 0.0, 0.0, Some(e.to_string())),
+                        };
+                        let e = CacheEntry { pass, max_abs, rel_l2, error };
+                        cache.file.entries.insert(key, e.clone());
+                        cache.dirty = true;
+                        e
+                    }
+                };
+                if !e.pass {
+                    bad = Some(format!(
+                        "{label}: {}",
+                        e.error.clone().unwrap_or_else(|| format!(
+                            "max_abs {:.3e} rel_l2 {:.3e} (tol {:.1e}/{:.1e})",
+                            e.max_abs, e.rel_l2, kern.tol.max_abs, kern.tol.rel_l2
+                        ))
+                    ));
+                }
+                if bad.is_some() {
+                    break;
+                }
+            }
+            match bad {
+                None => model.registry.set_admission(&kname, Admission::Admitted),
+                Some(why) => {
+                    model.registry.set_admission(&kname, Admission::Rejected);
+                    sum.rejected.push((kname.clone(), why));
+                }
+            }
+        }
+        cache.save();
+    }
+    cache.save();
+    // everything the final plan selects must be admitted
+    resolve(model).map_err(|e| match e {
+        Error::NoKernel(m) if !sum.rejected.is_empty() => {
+            let why: Vec<String> = sum.rejected.iter().map(|(k, w)| format!("{k}: {w}")).collect();
+            Error::NoKernel(format!(
+                "{m}\nkernels rejected by admission on this model's shapes:\n  {}",
+                why.join("\n  ")
+            ))
+        }
+        e => e,
+    })?;
+    Ok(sum)
+}
+
+fn sweep_entry(model: &Model, reference: &dyn Backend, cand: &dyn Backend, kernel: &str) -> Result<CacheEntry> {
+    use crate::admission::{run_admission, AdmissionOpts, SweepConfig};
+    let d = &model.dims;
+    let sweep = SweepConfig {
+        hidden: d.hidden,
+        n_heads: d.n_heads,
+        n_kv_heads: d.n_kv_heads,
+        head_dim: d.head_dim,
+        intermediate: d.intermediate.max(d.hidden),
+        vocab: d.vocab,
+        rope_theta: d.rope_theta,
+        quick: false,
+        seed: 1234,
+    };
+    let rep = run_admission(
+        reference,
+        cand,
+        &AdmissionOpts { sweep: Some(sweep), only_ops: None, only_kernel: Some(kernel.to_string()) },
+    )?;
+    let s = rep.kernels.iter().find(|k| k.kernel == kernel);
+    Ok(match s {
+        Some(s) => CacheEntry {
+            pass: s.admitted,
+            max_abs: s.worst_max_abs,
+            rel_l2: s.worst_rel_l2,
+            error: (!s.admitted).then(|| {
+                rep.rows
+                    .iter()
+                    .find(|r| !r.pass)
+                    .map(|r| format!("{} {}", r.case, r.error.clone().unwrap_or_default()))
+                    .unwrap_or_else(|| {
+                        "no admission case covers this kernel: add sweep cases for its op in admission::sweep".into()
+                    })
+            }),
+        },
+        None => CacheEntry { pass: false, max_abs: 0.0, rel_l2: 0.0, error: Some("kernel not tested".into()) },
+    })
+}
+
+// ---------------------------------------------------------------------------
+// plan description (GET /v1/intarsia/plan, `intarsia plan show`)
+// ---------------------------------------------------------------------------
+
+/// The plan as JSON. Contract (consumed by the server and the UI):
+///
+/// ```text
+/// {"model": str, "backend": str, "device": {"name": str, "mem_total": int},
+///  "exactness": "fast"|"deterministic"|"exact",
+///  "layers": [{"index": int, "kind": "attention"|"linear_attention"|..., "blocks": [str]}],
+///  "ops": [{"op": str, "kernel": str, "backend": str, "exactness": str, "admitted": bool,
+///           "calls_per_decode_step": int}]}
+/// ```
+/// Extra keys (additive): `act_dtype`, `kv_dtype`, `scratch_bytes`, `prefill_chunk`, `probed_sizes`,
+/// `require_admitted`, `reference_only`. `op` strings equal the keys of `TelemetrySnapshot.ops`.
+pub fn plan_json(model: &Model, model_id: &str) -> Value {
+    let info = model.backend.info();
+    let mut worst = Exactness::Exact;
+    for o in &model.resolved.ops {
+        worst = match (worst, o.exactness) {
+            (Exactness::Fast, _) | (_, Exactness::Fast) => Exactness::Fast,
+            (Exactness::Deterministic, _) | (_, Exactness::Deterministic) => Exactness::Deterministic,
+            _ => Exactness::Exact,
+        };
+    }
+    let layers: Vec<Value> = model
+        .layer_kinds()
+        .into_iter()
+        .enumerate()
+        .map(|(i, blocks)| json!({"index": i, "kind": blocks.first().copied().unwrap_or("unknown"), "blocks": blocks}))
+        .collect();
+    let ops: Vec<Value> = model
+        .resolved
+        .ops
+        .iter()
+        .map(|o| {
+            json!({
+                "op": o.op.as_str(), "kernel": o.kernel, "backend": o.backend,
+                "exactness": o.exactness.as_str(), "admitted": o.admitted,
+                "calls_per_decode_step": o.calls_per_decode_step, "scratch_bytes": o.scratch_bytes,
+            })
+        })
+        .collect();
+    json!({
+        "model": model_id,
+        "backend": info.backend,
+        "device": {"name": info.name, "mem_total": info.total_mem, "arch": info.arch},
+        "exactness": worst.as_str(),
+        "layers": layers,
+        "ops": ops,
+        "act_dtype": model.act.name(),
+        "kv_dtype": model.kv.name(),
+        "scratch_bytes": model.resolved.scratch_bytes,
+        "prefill_chunk": model.prefill_chunk(),
+        "probed_sizes": model.resolved.sizes,
+        "require_admitted": model.registry.require_admitted,
+        "reference_only": model.registry.reference_only,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn probe_sizes_cover_small_and_boundaries() {
+        let s = probe_sizes(256);
+        for t in [1, 2, 8, 9, 16, 31, 32, 33, 63, 64, 65, 127, 128, 129, 255, 256] {
+            assert!(s.contains(&t), "{t} missing from {s:?}");
+        }
+        assert!(s.iter().all(|&t| t >= 1 && t <= 256));
+        assert_eq!(probe_sizes(1), vec![1]);
+        let s4 = probe_sizes(4);
+        assert_eq!(s4, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn fnv_is_stable() {
+        assert_eq!(fnv1a(""), 0xcbf29ce484222325);
+        assert_ne!(fnv1a("a"), fnv1a("b"));
+    }
+}

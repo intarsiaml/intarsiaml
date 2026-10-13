@@ -5,16 +5,22 @@
 //!
 //! The engine is synchronous (one worker thread, FIFO queue); every request is
 //! submitted to it and a small bridge thread forwards its events to the async
-//! side. Dropping the HTTP response drops the bridge, which drops the engine's
-//! receiver, which cancels the generation.
+//! side. Dropping the HTTP response sets the request's cancel flag, which the
+//! engine checks between prefill chunks and decode steps. The queue is bounded
+//! (429 when full), `/health` turns 503 when the engine failed or stopped
+//! stepping with work queued, and [`supervisor`] restarts a server process
+//! that exits or trips its watchdog.
 
 mod anthropic;
 mod api;
+pub mod health;
 mod metrics;
 mod openai;
+pub mod supervisor;
 
 use api::{blocking, AppState};
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Json, Response};
 use axum::routing::{get, post};
@@ -25,6 +31,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub use health::{EXIT_FATAL, EXIT_FAILED, EXIT_ORPHANED, EXIT_STALLED};
 pub use metrics::Metrics;
 
 #[derive(Clone, Debug)]
@@ -33,19 +40,52 @@ pub struct ServerConfig {
     pub port: u16,
     /// Model name reported in responses and `/v1/models` (default: the engine's model id).
     pub served_model_name: Option<String>,
+    /// Requests that may wait behind the running one before new ones get 429.
+    pub max_queue: usize,
+    /// `max_tokens` when a request names none, bounded by the context (0 = only the context).
+    pub default_max_tokens: usize,
+    /// Seconds without an engine step, with work queued, before the server reports itself
+    /// stalled (503 on `/health`); 0 disables.
+    pub watchdog_s: f64,
+    /// Exit the process (code [`EXIT_STALLED`] / [`EXIT_FAILED`]) when the watchdog trips,
+    /// for a supervisor to restart.
+    pub exit_on_stall: bool,
+    /// Exit when this parent process is gone (the supervisor).
+    pub parent_pid: Option<u32>,
+    /// Serve the built-in web UI at `/` and `/ui/*` (`--no-ui` turns it off).
+    pub ui: bool,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
-        ServerConfig { host: "127.0.0.1".into(), port: 8090, served_model_name: None }
+        ServerConfig {
+            host: "127.0.0.1".into(),
+            port: 8090,
+            served_model_name: None,
+            max_queue: 64,
+            default_max_tokens: 4096,
+            watchdog_s: 60.0,
+            exit_on_stall: false,
+            parent_pid: None,
+            ui: true,
+        }
     }
 }
 
-/// Build the router (exposed for tests and for embedding).
+/// Build the router with default limits (exposed for tests and for embedding).
 pub fn router(engine: Arc<dyn Engine>, served_model_name: Option<String>) -> Router {
-    let name = served_model_name.unwrap_or_else(|| engine.info().id);
-    let state = AppState::new(engine, name);
-    Router::new()
+    router_with(engine, &ServerConfig { served_model_name, ..Default::default() })
+}
+
+/// Build the router from a full config.
+pub fn router_with(engine: Arc<dyn Engine>, cfg: &ServerConfig) -> Router {
+    let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
+    let state = AppState::new(engine, name, cfg);
+    app(state, cfg.ui)
+}
+
+fn app(state: AppState, ui: bool) -> Router {
+    let router = Router::new()
         .route("/v1/chat/completions", post(openai::chat_completions))
         .route("/v1/completions", post(openai::completions))
         .route("/v1/models", get(openai::models))
@@ -55,7 +95,13 @@ pub fn router(engine: Arc<dyn Engine>, served_model_name: Option<String>) -> Rou
         .route("/health", get(health))
         .route("/metrics", get(prometheus))
         .route("/events", get(events))
-        .with_state(state)
+        .route("/v1/intarsia/plan", get(plan))
+        .with_state(state);
+    if ui {
+        router.merge(intarsia_ui::router())
+    } else {
+        router
+    }
 }
 
 /// Run the server until Ctrl-C / SIGTERM. Blocks the calling thread.
@@ -71,7 +117,18 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         let listener = tokio::net::TcpListener::bind(&addr)
             .await
             .map_err(|e| intarsia_core::Error::Other(format!("bind {addr}: {e}")))?;
-        let app = router(engine, cfg.served_model_name.clone());
+        let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
+        let state = AppState::new(engine.clone(), name, &cfg);
+        if cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() {
+            health::spawn_watchdog(
+                engine,
+                state.progress.clone(),
+                state.metrics.clone(),
+                cfg.exit_on_stall,
+                cfg.parent_pid,
+            );
+        }
+        let app = app(state, cfg.ui);
         tracing::info!("intarsia server listening on http://{addr}");
         eprintln!("intarsia server listening on http://{addr}");
         axum::serve(listener, app)
@@ -103,22 +160,42 @@ async fn health(State(st): State<AppState>) -> Response {
         Ok(s) => s,
         Err(e) => return e.into_response(),
     };
-    let now =
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
-    let busy = snap.running + snap.waiting > 0;
-    // Watchdog hint: work is queued/running but no engine step for a long time.
-    let stalled = busy && snap.last_step_ms > 0 && now.saturating_sub(snap.last_step_ms) > 60_000;
-    Json(json!({
-        "status": if stalled { "stalled" } else { "ok" },
-        "model": st.model_name,
-        "steps_total": snap.steps_total,
-        "last_step_ms": snap.last_step_ms,
-        "running": snap.running,
-        "waiting": snap.waiting,
-        "requests_total": snap.requests_total,
-        "uptime_s": snap.uptime_s,
-    }))
-    .into_response()
+    let (status, no_progress) = st.progress.status(&*st.engine, &snap);
+    st.metrics.set_health(matches!(status, health::Status::Failed(_)), no_progress);
+    let (label, code, detail) = match &status {
+        health::Status::Ok => ("ok", StatusCode::OK, None),
+        health::Status::Stalled(d) => (
+            "stalled",
+            StatusCode::SERVICE_UNAVAILABLE,
+            Some(format!("no engine step for {:.0}s with work queued", d.as_secs_f64())),
+        ),
+        health::Status::Failed(why) => ("failed", StatusCode::SERVICE_UNAVAILABLE, Some(why.clone())),
+    };
+    (
+        code,
+        Json(json!({
+            "status": label,
+            "detail": detail,
+            "model": st.model_name,
+            "steps_total": snap.steps_total,
+            "last_step_ms": snap.last_step_ms,
+            "no_progress_s": no_progress.as_secs_f64(),
+            "running": snap.running,
+            "waiting": snap.waiting,
+            "max_queue": st.max_queue,
+            "requests_total": snap.requests_total,
+            "uptime_s": snap.uptime_s,
+        })),
+    )
+        .into_response()
+}
+
+/// The execution plan (`Engine::plan`): layers, blocks and the kernel chosen per op.
+async fn plan(State(st): State<AppState>) -> Response {
+    match blocking(&st.engine, |e| Ok(e.plan())).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => e.into_response(),
+    }
 }
 
 async fn prometheus(State(st): State<AppState>) -> Response {

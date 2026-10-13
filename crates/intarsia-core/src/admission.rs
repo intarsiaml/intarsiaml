@@ -76,6 +76,9 @@ fn attrs() -> OpAttrs {
 
 /// Generate the sweep cases for one op.
 pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
+    if let Some(cases) = crate::quant::cases::sweep(op, cfg) {
+        return cases; // quantised-weight and MoE ops build their own (format-aware) data
+    }
     let mut rng = SplitMix64::new(cfg.seed ^ (op as u64).wrapping_mul(0x9E37));
     let mut cases = Vec::new();
     let quick = cfg.quick;
@@ -111,7 +114,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             }
             for &r in rows {
                 for &h in &hs2 {
-                    for dt in act_dtypes() {
+                    for (dt, woff) in act_dtypes().into_iter().flat_map(|d| [(d, 0.0f32), (d, 1.0)]) {
+                        if woff != 0.0 && !matches!(op, Op::RmsNorm | Op::RmsNormAdd) {
+                            continue;
+                        }
                         let x = rand_t(&mut rng, dt, &[r, h], 1.0);
                         let (inputs, outputs) = match op {
                             Op::RmsNorm => (vec![x, norm_w(&mut rng, dt, h)], vec![OutSpec::new(dt, &[r, h])]),
@@ -122,8 +128,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                             _ => (vec![x, rand_t(&mut rng, dt, &[r, h], 1.0)], vec![OutSpec::new(dt, &[r, h])]),
                         };
                         push(
-                            format!("R={r} H={h} {dt}"),
-                            HostCall { op, inputs, outputs, attrs: OpAttrs { eps: 1e-6, ..attrs() } },
+                            format!("R={r} H={h} {dt}{}", if woff != 0.0 { " w_offset=1" } else { "" }),
+                            HostCall { op, inputs, outputs, attrs: OpAttrs { eps: 1e-6, w_offset: woff, ..attrs() } },
                         );
                     }
                 }
@@ -139,16 +145,25 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             for &t in rows {
                 for &(n, d) in &dims {
                     for &p in pos0s {
-                        for dt in act_dtypes() {
+                        // rope: full head and partial rotary (a quarter of the head, Qwen3.5); qk_norm: plain and zero-centred
+                        let variants: [(usize, f32); 2] = if op == Op::Rope { [(0, 0.0), ((d / 4) & !1, 0.0)] } else { [(0, 0.0), (0, 1.0)] };
+                        for (dt, (rdim, woff)) in act_dtypes().into_iter().flat_map(|d| variants.map(|v| (d, v))) {
                             let x = rand_t(&mut rng, dt, &[t, n, d], 1.0);
                             let inputs = if op == Op::QkNorm { vec![x, norm_w(&mut rng, dt, d)] } else { vec![x] };
                             push(
-                                format!("T={t} N={n} D={d} pos0={p} {dt}"),
+                                format!("T={t} N={n} D={d} pos0={p} {dt} rot={rdim} off={woff}"),
                                 HostCall {
                                     op,
                                     inputs,
                                     outputs: vec![OutSpec::new(dt, &[t, n, d])],
-                                    attrs: OpAttrs { pos0: p, theta: cfg.rope_theta, head_dim: d, ..attrs() },
+                                    attrs: OpAttrs {
+                                        pos0: p,
+                                        theta: cfg.rope_theta,
+                                        head_dim: d,
+                                        rotary_dim: rdim,
+                                        w_offset: woff,
+                                        ..attrs()
+                                    },
                                 },
                             );
                         }
@@ -228,15 +243,15 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
         }
         Op::AttnPrefill | Op::AttnDecode => {
             let heads: Vec<(usize, usize, usize)> =
-                if quick { vec![(4, 2, 32)] } else { vec![(4, 2, 32), (cfg.n_heads, cfg.n_kv_heads, cfg.head_dim)] };
+                if quick { vec![(4, 2, 32)] } else { vec![(4, 2, 32), (cfg.n_heads, cfg.n_kv_heads, cfg.head_dim), (16, 2, 256)] };
             let mut tp: Vec<(usize, usize)> =
                 if op == Op::AttnDecode { vec![(1, 0), (1, 7), (1, 40)] } else { vec![(5, 0), (16, 0), (7, 13)] };
             // long context / multi-tile cases (kernels often break past a 64/128-row tile or a few k keys)
             if !quick {
                 if op == Op::AttnDecode {
-                    tp.extend([(1, 2000)]);
+                    tp.extend([(1, 2000), (1, 5000)]);
                 } else {
-                    tp.extend([(130, 0), (70, 131)]);
+                    tp.extend([(130, 0), (70, 131), (3, 1500), (200, 1100)]);
                 }
             }
             for &(n, nkv, d) in &heads {
@@ -267,6 +282,11 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                         );
                     }
                 }
+            }
+        }
+        Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => {
+            for c in gdn_sweep(op, cfg, &mut rng) {
+                push(c.label, c.call);
             }
         }
         Op::Argmax | Op::Sample => {
@@ -303,6 +323,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        _ => {} // quant::cases::sweep handled the quantised-weight / MoE ops above
     }
     cases
 }
@@ -431,6 +452,104 @@ pub struct AdmissionOpts {
     pub sweep: Option<SweepConfig>,
     pub only_ops: Option<Vec<Op>>,
     pub only_kernel: Option<String>,
+}
+
+/// Shapes the gated-delta-net sweep covers: (key heads, value heads, dk, dv, conv taps).
+fn gdn_shapes(quick: bool) -> Vec<(usize, usize, usize, usize, usize)> {
+    // small shapes catch indexing bugs; the Qwen3.5/3.6-35B-A3B shape is the one that must be right
+    let mut v = vec![(2, 4, 32, 32, 4)];
+    if !quick {
+        v.extend([(1, 3, 64, 48, 4), (2, 2, 128, 64, 3), (1, 2, 256, 40, 4), (16, 32, 128, 128, 4)]);
+    }
+    v
+}
+
+/// Cases for `GateSplit`, `SigmoidMul`, `GdnConv` and `GdnDeltaRule` (non-zero initial state, several
+/// chunk lengths: the state must carry).
+fn gdn_sweep(op: Op, cfg: &SweepConfig, rng: &mut SplitMix64) -> Vec<Case> {
+    let mut cases = Vec::new();
+    let ts: &[usize] = if cfg.quick { &[1, 5] } else { &[1, 7, 64, 130] };
+    for (hk, hv, dk, dv, ks) in gdn_shapes(cfg.quick) {
+        let c = 2 * hk * dk + hv * dv;
+        for &t in ts {
+            for dt in act_dtypes() {
+                let mut push = |label: String, call: HostCall| cases.push(Case { label, call });
+                match op {
+                    Op::GateSplit => {
+                        let (n, d) = (hv, dk);
+                        push(
+                            format!("T={t} N={n} D={d} {dt}"),
+                            HostCall {
+                                op,
+                                inputs: vec![rand_t(rng, dt, &[t, n, 2 * d], 1.0)],
+                                outputs: vec![OutSpec::new(dt, &[t, n, d]), OutSpec::new(dt, &[t, n, d])],
+                                attrs: attrs(),
+                            },
+                        );
+                    }
+                    Op::SigmoidMul => {
+                        let x = hv * dv;
+                        push(
+                            format!("R={t} X={x} {dt}"),
+                            HostCall {
+                                op,
+                                inputs: vec![rand_t(rng, dt, &[t, x], 1.0), rand_t(rng, dt, &[t, x], 2.0)],
+                                outputs: vec![OutSpec::new(dt, &[t, x])],
+                                attrs: attrs(),
+                            },
+                        );
+                    }
+                    Op::GdnConv => {
+                        push(
+                            format!("T={t} C={c} K={ks} {dt}"),
+                            HostCall {
+                                op,
+                                inputs: vec![rand_t(rng, dt, &[t, c], 1.0), rand_t(rng, dt, &[c, ks], 0.5)],
+                                outputs: vec![
+                                    OutSpec::new(dt, &[t, c]),
+                                    OutSpec {
+                                        dtype: DType::F32,
+                                        shape: vec![c, ks - 1],
+                                        init: Some(rand_t(rng, DType::F32, &[c, ks - 1], 1.0)),
+                                    },
+                                ],
+                                attrs: attrs(),
+                            },
+                        );
+                    }
+                    Op::GdnDeltaRule => {
+                        push(
+                            format!("T={t} Hk={hk} Hv={hv} dk={dk} dv={dv} {dt}"),
+                            HostCall {
+                                op,
+                                inputs: vec![
+                                    rand_t(rng, dt, &[t, c], 1.0),
+                                    rand_t(rng, dt, &[t, hv], 1.0),
+                                    rand_t(rng, dt, &[t, hv], 1.0),
+                                    rand_t(rng, dt, &[hv], 0.5),
+                                    rand_t(rng, dt, &[hv], 0.5),
+                                ],
+                                outputs: vec![
+                                    OutSpec::new(dt, &[t, hv, dv]),
+                                    OutSpec {
+                                        dtype: DType::F32,
+                                        shape: vec![hv, dv, dk],
+                                        init: Some(rand_t(rng, DType::F32, &[hv, dv, dk], 0.1)),
+                                    },
+                                ],
+                                attrs: attrs(),
+                            },
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }
+        if matches!(op, Op::GateSplit | Op::SigmoidMul) {
+            break; // shapes do not depend on the conv/delta configuration beyond the first entry
+        }
+    }
+    cases
 }
 
 /// Compare two output tensors (f32-decoded).
@@ -602,4 +721,359 @@ fn shape_of(hc: &HostCall) -> Result<ShapeInfo> {
     );
     call.check()?;
     Ok(ShapeInfo::from_call(&call))
+}
+
+// ---------------------------------------------------------------------------
+// admission on a model's exact shapes (plan::admit)
+// ---------------------------------------------------------------------------
+
+/// Cost bounds for building a host case from a planned call: the f32 reference is serial and slow,
+/// so rows (`M`/`T`), matmul `N`, attention positions and embedding vocabulary are clamped; `K`,
+/// head counts, head dims, dtypes and attributes stay exact.
+#[derive(Clone, Copy, Debug)]
+pub struct ShapeCaps {
+    pub rows: usize,
+    pub n: usize,
+    pub pos0: usize,
+    pub emb_vocab: usize,
+}
+
+/// Clamped dimensions of a planned call, or `None` for ops without an exact-shape case builder.
+struct Clamped {
+    label: String,
+}
+
+fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
+    if let Some(label) = crate::quant::cases::label(call, caps) {
+        return Some(Clamped { label });
+    }
+    let i = &call.inputs;
+    let o = &call.outputs;
+    let a = &call.attrs;
+    // the signatures this builder was written for; an op whose arity changed falls back to the
+    // kernel's own sweep instead of being graded on a case that does not match what the kernel gets
+    let known = match call.op {
+        Op::Embedding | Op::RmsNorm | Op::Add | Op::QkNorm | Op::Matmul | Op::Logits | Op::SiluGlu => (2, 1),
+        Op::RmsNormAdd => (3, 2),
+        Op::Rope | Op::KvAppend | Op::Argmax => (1, 1),
+        Op::AttnPrefill | Op::AttnDecode => (3, 1),
+        Op::GateSplit => (1, 2),
+        Op::SigmoidMul => (2, 1),
+        Op::GdnConv => (2, 2),
+        Op::GdnDeltaRule => (5, 2),
+        _ => return None,
+    };
+    if known != (i.len(), o.len()) {
+        return None;
+    }
+    let label = match call.op {
+        Op::Embedding => format!(
+            "T={} V={} H={} {}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.emb_vocab),
+            i[1].shape[1],
+            i[1].dtype
+        ),
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+            format!("R={} H={} {} off={}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype, a.w_offset)
+        }
+        Op::QkNorm => format!(
+            "T={} N={} D={} {} off={}",
+            i[0].shape[0].min(caps.rows),
+            i[0].shape[1],
+            i[0].shape[2],
+            i[0].dtype,
+            a.w_offset
+        ),
+        Op::Rope => format!(
+            "T={} N={} D={} pos0={} theta={} rot={} {}",
+            i[0].shape[0].min(caps.rows),
+            i[0].shape[1],
+            i[0].shape[2],
+            a.pos0,
+            a.theta,
+            a.rotary_dim,
+            i[0].dtype
+        ),
+        Op::GateSplit => format!(
+            "T={} N={} D={} {}",
+            i[0].shape[0].min(caps.rows),
+            i[0].shape[1],
+            i[0].shape[2] / 2,
+            i[0].dtype
+        ),
+        Op::SigmoidMul => format!("R={} X={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        Op::GdnConv => format!(
+            "T={} C={} K={} {} w={}",
+            i[0].shape[0].min(caps.rows),
+            i[0].shape[1],
+            i[1].shape[1],
+            i[0].dtype,
+            i[1].dtype
+        ),
+        Op::GdnDeltaRule => {
+            let d = crate::gdn::DeltaDims::from_call(call);
+            format!("T={} Hk={} Hv={} dk={} dv={} {} eps={}", d.t.min(caps.rows), d.hk, d.hv, d.dk, d.dv, i[0].dtype, a.eps)
+        }
+        Op::Matmul | Op::Logits => {
+            if !i[1].dtype.is_float() {
+                return None; // packed / quantised weights need their own generator
+            }
+            format!(
+                "M={} N={} K={} x={} w={} out={}",
+                i[0].shape[0].min(caps.rows),
+                i[1].shape[0].min(caps.n),
+                i[1].shape[1],
+                i[0].dtype,
+                i[1].dtype,
+                o[0].dtype
+            )
+        }
+        Op::KvAppend => {
+            let p = a.pos0.min(caps.pos0);
+            format!(
+                "T={} pos0={p} Nkv={} D={} new={} cache={}",
+                i[0].shape[0].min(caps.rows),
+                i[0].shape[1],
+                i[0].shape[2],
+                i[0].dtype,
+                o[0].dtype
+            )
+        }
+        Op::AttnPrefill | Op::AttnDecode => {
+            let p = a.pos0.min(caps.pos0);
+            format!(
+                "T={} pos0={p} N={} Nkv={} D={} q={} kv={}",
+                i[0].shape[0].min(caps.rows),
+                i[0].shape[1],
+                i[1].shape[0],
+                i[0].shape[2],
+                i[0].dtype,
+                i[1].dtype
+            )
+        }
+        Op::Argmax => format!("R={} V={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        _ => return None,
+    };
+    Some(Clamped { label: format!("{} {}", call.op, label) })
+}
+
+/// Label of the clamped host case for a planned call (the admission cache key part).
+pub fn case_label(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<String> {
+    clamp_call(call, caps).map(|c| c.label)
+}
+
+/// Build a host-side case that exercises the same kernel path as `call` (same dtypes, `K`, heads,
+/// head dims, attributes; rows / `N` / positions clamped per `caps`) with random data.
+pub fn case_from_call(call: &crate::ops::OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> Option<(HostCall, String)> {
+    if let Some(r) = crate::quant::cases::case_from_call(call, caps, rng) {
+        return Some(r);
+    }
+    let label = clamp_call(call, caps)?.label;
+    let i = &call.inputs;
+    let o = &call.outputs;
+    let a = &call.attrs;
+    let op = call.op;
+    let hc = match op {
+        Op::Embedding => {
+            let (t, v, h) = (i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.emb_vocab), i[1].shape[1]);
+            let ids: Vec<i32> = (0..t).map(|_| (rng.next_u64() % v as u64) as i32).collect();
+            HostCall {
+                op,
+                inputs: vec![HostTensor::from_i32(&[t], &ids), rand_t(rng, i[1].dtype, &[v, h], 1.0)],
+                outputs: vec![OutSpec::new(o[0].dtype, &[t, h])],
+                attrs: a.clone(),
+            }
+        }
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+            let (r, h, dt) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype);
+            let x = rand_t(rng, dt, &[r, h], 1.0);
+            let (inputs, outputs) = match op {
+                Op::RmsNorm => (vec![x, norm_w(rng, i[1].dtype, h)], vec![OutSpec::new(o[0].dtype, &[r, h])]),
+                Op::RmsNormAdd => (
+                    vec![x, rand_t(rng, dt, &[r, h], 2.0), norm_w(rng, i[2].dtype, h)],
+                    vec![OutSpec::new(o[0].dtype, &[r, h]), OutSpec::new(o[1].dtype, &[r, h])],
+                ),
+                _ => (vec![x, rand_t(rng, i[1].dtype, &[r, h], 1.0)], vec![OutSpec::new(o[0].dtype, &[r, h])]),
+            };
+            HostCall { op, inputs, outputs, attrs: a.clone() }
+        }
+        Op::QkNorm | Op::Rope => {
+            let (t, n, d, dt) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].shape[2], i[0].dtype);
+            let x = rand_t(rng, dt, &[t, n, d], 1.0);
+            let inputs = if op == Op::QkNorm { vec![x, norm_w(rng, i[1].dtype, d)] } else { vec![x] };
+            HostCall { op, inputs, outputs: vec![OutSpec::new(o[0].dtype, &[t, n, d])], attrs: a.clone() }
+        }
+        Op::Matmul | Op::Logits => {
+            let (m, n, k) = (i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[1].shape[1]);
+            HostCall {
+                op,
+                inputs: vec![
+                    rand_t(rng, i[0].dtype, &[m, k], 1.0),
+                    rand_t(rng, i[1].dtype, &[n, k], 1.0 / (k as f32).sqrt()),
+                ],
+                outputs: vec![OutSpec::new(o[0].dtype, &[m, n])],
+                attrs: a.clone(),
+            }
+        }
+        Op::KvAppend => {
+            let (t, nkv, d) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].shape[2]);
+            let p = a.pos0.min(caps.pos0);
+            let cap = p + t + 5;
+            HostCall {
+                op,
+                inputs: vec![rand_t(rng, i[0].dtype, &[t, nkv, d], 1.0)],
+                outputs: vec![OutSpec {
+                    dtype: o[0].dtype,
+                    shape: vec![nkv, cap, d],
+                    init: Some(rand_t(rng, o[0].dtype, &[nkv, cap, d], 1.0)),
+                }],
+                attrs: OpAttrs { pos0: p, kv_cap: cap, n_kv_heads: nkv, head_dim: d, ..a.clone() },
+            }
+        }
+        Op::AttnPrefill | Op::AttnDecode => {
+            let (t, n, d) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].shape[2]);
+            let nkv = i[1].shape[0];
+            let p = a.pos0.min(caps.pos0);
+            let cap = p + t + 3;
+            HostCall {
+                op,
+                inputs: vec![
+                    rand_t(rng, i[0].dtype, &[t, n, d], 1.0),
+                    rand_t(rng, i[1].dtype, &[nkv, cap, d], 1.0),
+                    rand_t(rng, i[2].dtype, &[nkv, cap, d], 1.0),
+                ],
+                outputs: vec![OutSpec::new(o[0].dtype, &[t, n, d])],
+                attrs: OpAttrs { pos0: p, kv_cap: cap, ..a.clone() },
+            }
+        }
+        Op::GateSplit => {
+            let (t, n, d2) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].shape[2]);
+            HostCall {
+                op,
+                inputs: vec![rand_t(rng, i[0].dtype, &[t, n, d2], 1.0)],
+                outputs: vec![OutSpec::new(o[0].dtype, &[t, n, d2 / 2]), OutSpec::new(o[1].dtype, &[t, n, d2 / 2])],
+                attrs: a.clone(),
+            }
+        }
+        Op::SigmoidMul => {
+            let (r, x) = (i[0].shape[0].min(caps.rows), i[0].shape[1]);
+            HostCall {
+                op,
+                inputs: vec![rand_t(rng, i[0].dtype, &[r, x], 1.0), rand_t(rng, i[1].dtype, &[r, x], 2.0)],
+                outputs: vec![OutSpec::new(o[0].dtype, &[r, x])],
+                attrs: a.clone(),
+            }
+        }
+        Op::GdnConv => {
+            let (t, c, k) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[1].shape[1]);
+            HostCall {
+                op,
+                inputs: vec![rand_t(rng, i[0].dtype, &[t, c], 1.0), rand_t(rng, i[1].dtype, &[c, k], 0.5)],
+                outputs: vec![
+                    OutSpec::new(o[0].dtype, &[t, c]),
+                    OutSpec { dtype: DType::F32, shape: vec![c, k - 1], init: Some(rand_t(rng, DType::F32, &[c, k - 1], 1.0)) },
+                ],
+                attrs: a.clone(),
+            }
+        }
+        Op::GdnDeltaRule => {
+            let d = crate::gdn::DeltaDims::from_call(call);
+            let t = d.t.min(caps.rows);
+            let dt = i[0].dtype;
+            HostCall {
+                op,
+                inputs: vec![
+                    rand_t(rng, dt, &[t, d.conv_dim()], 1.0),
+                    rand_t(rng, i[1].dtype, &[t, d.hv], 1.0),
+                    rand_t(rng, i[2].dtype, &[t, d.hv], 1.0),
+                    rand_t(rng, i[3].dtype, &[d.hv], 0.5),
+                    rand_t(rng, i[4].dtype, &[d.hv], 0.5),
+                ],
+                outputs: vec![
+                    OutSpec::new(o[0].dtype, &[t, d.hv, d.dv]),
+                    OutSpec {
+                        dtype: DType::F32,
+                        shape: vec![d.hv, d.dv, d.dk],
+                        init: Some(rand_t(rng, DType::F32, &[d.hv, d.dv, d.dk], 0.1)),
+                    },
+                ],
+                attrs: a.clone(),
+            }
+        }
+        Op::Argmax => {
+            let (r, v) = (i[0].shape[0].min(caps.rows), i[0].shape[1]);
+            HostCall {
+                op,
+                inputs: vec![rand_t(rng, i[0].dtype, &[r, v], 2.0)],
+                outputs: vec![OutSpec::new(DType::I32, &[r])],
+                attrs: a.clone(),
+            }
+        }
+        _ => return None,
+    };
+    Some((hc, label))
+}
+
+/// Judge candidate outputs against the reference outputs under `kern`'s tolerance:
+/// `(pass, max_abs (scaled), rel_l2)`.
+pub fn judge(kern: &crate::registry::KernelImpl, got: &[HostTensor], want: &[HostTensor]) -> (bool, f64, f64) {
+    let mut ok = got.len() == want.len();
+    let (mut ma, mut rl) = (0f64, 0f64);
+    for (g, w) in got.iter().zip(want) {
+        let (a, r, finite) = compare(g, w);
+        ma = ma.max(a);
+        rl = rl.max(r);
+        let within = if g.dtype == DType::I32 {
+            finite
+        } else if kern.exact == crate::registry::Exactness::Exact {
+            a == 0.0 && r == 0.0
+        } else {
+            a <= kern.tol.max_abs as f64 && r <= kern.tol.rel_l2 as f64
+        };
+        ok &= finite && within;
+    }
+    (ok, ma, rl)
+}
+
+#[cfg(test)]
+mod plan_case_tests {
+    use super::*;
+    use crate::backend::{Buffer, BufferImpl, TensorRef};
+    use crate::ops::OpCall;
+
+    struct P(usize);
+    impl BufferImpl for P {
+        fn bytes(&self) -> usize {
+            self.0
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+    fn t(dt: DType, shape: &[usize]) -> TensorRef {
+        TensorRef::new(Buffer::new(P(shape.iter().product::<usize>() * dt.size_bytes() + 16)), dt, shape)
+    }
+
+    #[test]
+    fn matmul_case_keeps_k_and_clamps_rows_and_n() {
+        let call = OpCall::new(
+            Op::Matmul,
+            vec![t(DType::Bf16, &[256, 4096]), t(DType::Bf16, &[151936, 4096])],
+            vec![t(DType::Bf16, &[256, 151936])],
+            OpAttrs::default(),
+        );
+        let caps = ShapeCaps { rows: 32, n: 1024, pos0: 100, emb_vocab: 64 };
+        let (hc, label) = case_from_call(&call, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert_eq!(hc.inputs[0].shape, vec![32, 4096]);
+        assert_eq!(hc.inputs[1].shape, vec![1024, 4096]);
+        assert!(label.contains("K=4096"), "{label}");
+        assert_eq!(case_label(&call, &caps).unwrap(), label);
+    }
+
+    #[test]
+    fn unknown_ops_have_no_case() {
+        let call = OpCall::new(Op::Sample, vec![t(DType::F32, &[1, 8]), t(DType::F32, &[1])], vec![t(DType::I32, &[1])], OpAttrs::default());
+        assert!(case_from_call(&call, &ShapeCaps { rows: 4, n: 4, pos0: 4, emb_vocab: 4 }, &mut SplitMix64::new(1)).is_none());
+    }
 }

@@ -15,14 +15,20 @@ use crate::backend::{Backend, Buffer, MemKind, TensorRef};
 use crate::dtype::DType;
 use crate::error::{Error, Result};
 use crate::memplan::MemoryPlan;
-use crate::ops::{Op, OpAttrs, OpCall};
-use crate::recipe::{ModelDims, Recipe};
+use crate::ops::{Op, OpAttrs, OpCall, ShapeInfo};
+use crate::quant::moe::{MoeScratch, MoeWeights, OpRunner};
+use crate::quant::{Fp8Act, QTensor, QuantLoadOpts};
+use crate::recipe::{LinearDims, ModelDims, Recipe};
 use crate::registry::Registry;
 use crate::state::{SequenceState, SlotSpec, StateSlot};
 use crate::telemetry::Telemetry;
 use crate::weights::{load_tensor, WeightSource};
-use std::sync::Arc;
+use std::cell::Cell;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+mod gdn_block;
+use gdn_block::{ExtraWs, GdnBlock};
 
 /// Rows of logits computed/downloaded at a time when all positions are requested.
 const LOGIT_ROWS: usize = 16;
@@ -39,6 +45,12 @@ pub struct LoadOptions {
     pub kv_dtype: Option<DType>,
     /// Time every Nth step per op (synchronises the device); 1 = every step; 0 = never.
     pub profile_every: u32,
+    /// Bytes this process may use in total (weights + workspace + KV); the KV cache is
+    /// clamped to what is left, so a fleet lease sizes the KV, not the box's free memory.
+    pub mem_budget: Option<u64>,
+    /// FP8 projections: activations quantised with the checkpoint's static scale (`static`, W8A8) or kept
+    /// 16-bit (`none`, W8A16). `None` = the recipe's `[defaults] fp8_act`.
+    pub fp8_act: Option<Fp8Act>,
 }
 
 impl Default for LoadOptions {
@@ -50,19 +62,26 @@ impl Default for LoadOptions {
             act_dtype: None,
             kv_dtype: None,
             profile_every: 1,
+            mem_budget: None,
+            fp8_act: None,
         }
     }
 }
 
 struct AttnBlock {
     pre_norm: TensorRef,
-    wq: TensorRef,
-    wk: TensorRef,
-    wv: TensorRef,
-    wo: TensorRef,
+    /// `[n_heads * head_dim * (1 + gated), hidden]`: with `gated` each head's rows are `q` then its output gate.
+    wq: QTensor,
+    wk: QTensor,
+    wv: QTensor,
+    wo: QTensor,
     q_norm: Option<TensorRef>,
     k_norm: Option<TensorRef>,
     slot: usize,
+    /// `q` carries a per-head output gate (`attn_out * sigmoid(gate)` before `wo`).
+    gated: bool,
+    /// Leading values of each head that rotate (`partial_rotary_factor * head_dim`); 0 = the whole head.
+    rotary_dim: usize,
 }
 
 struct FfnBlock {
@@ -72,9 +91,17 @@ struct FfnBlock {
     down: TensorRef,
 }
 
+/// Sparse MoE FFN (router + routed experts + gated shared expert); the activation scratch is shared in the workspace.
+struct MoeBlock {
+    pre_norm: TensorRef,
+    w: MoeWeights,
+}
+
 enum Block {
     Attn(AttnBlock),
+    Gdn(GdnBlock),
     Ffn(FfnBlock),
+    Moe(MoeBlock),
 }
 
 struct Workspace {
@@ -91,6 +118,22 @@ struct Workspace {
     a: Buffer,
     logits: Buffer,
     tok: Buffer,
+    /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
+    x: ExtraWs,
+    /// Activations of the MoE blocks (one set, reused by every layer).
+    moe: Option<MoeScratch>,
+}
+
+/// Runs the MoE block's ops through `Model::exec` (profiling, plan recording, kernel scratch).
+struct ExecRunner<'a> {
+    m: &'a Model,
+    profile: bool,
+}
+
+impl OpRunner for ExecRunner<'_> {
+    fn run(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<()> {
+        self.m.exec(op, inputs, outputs, attrs, self.profile)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -125,12 +168,18 @@ pub struct Model {
     pub weights_bytes: u64,
     embed: TensorRef,
     final_norm: TensorRef,
-    lm_head: TensorRef,
+    lm_head: QTensor,
     layers: Vec<Vec<Block>>,
     slot_specs: Vec<SlotSpec>,
     ws: Workspace,
     telemetry: Arc<Telemetry>,
     profile_every: u32,
+    /// Kernel scratch workspace shared by all ops (sized by plan resolution; ops run in stream order).
+    scratch: Option<Buffer>,
+    /// Installed by [`Model::dry_run`]: `exec` records `(op, shape, kernel)` instead of launching.
+    recorder: Mutex<Option<crate::plan::Recorder>>,
+    /// Result of plan resolution (kernel of every op/shape the model needs).
+    pub resolved: crate::plan::ResolvedPlan,
 }
 
 fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
@@ -145,6 +194,11 @@ fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
 }
 
 impl Model {
+    /// Tokens per forward pass (the prefill chunk); callers split long prompts on it to stay responsive.
+    pub fn prefill_chunk(&self) -> usize {
+        self.ws.max_tokens
+    }
+
     pub fn load(
         backend: Arc<dyn Backend>,
         recipe: &Recipe,
@@ -155,12 +209,23 @@ impl Model {
     ) -> Result<Model> {
         recipe.validate()?;
         let b: &dyn Backend = &*backend;
-        let mut weights_bytes = 0u64;
-        let mut load = |tmpl: &str, layer: usize, shape: Option<&[usize]>| -> Result<TensorRef> {
+        let weights_bytes = Cell::new(0u64);
+        let load = |tmpl: &str, layer: usize, shape: Option<&[usize]>| -> Result<TensorRef> {
             let name = resolve(src, &Recipe::expand(tmpl, layer))?;
             let t = load_tensor(b, src, &name, shape)?;
-            weights_bytes += t.nbytes() as u64;
+            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
             Ok(t)
+        };
+        // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
+        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act) };
+        let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| -> Result<QTensor> {
+            let prefix = Recipe::expand(tmpl, layer);
+            let q = crate::quant::load_linear(src, &prefix, b, &qopts)?;
+            if (q.n, q.k) != (n, k) {
+                return Err(Error::model(format!("tensor '{prefix}' is [{}, {}], expected [{n}, {k}]", q.n, q.k)));
+            }
+            weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+            Ok(q)
         };
 
         let embed = load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?;
@@ -178,13 +243,21 @@ impl Model {
         let final_norm = load(&recipe.top.final_norm, 0, Some(&[dims.hidden]))?;
 
         // lm_head: own tensor, or tied to the embedding table.
+        // (the head may be quantised: Qwen3.6 NVFP4 ships `lm_head.{weight,weight_scale,weight_scale_2,input_scale}`)
         let lm_head = {
             let lh = &recipe.top.lm_head;
             let own = resolve(src, &lh.tensor).ok();
+            let dense = |t: TensorRef| QTensor {
+                format: crate::quant::BF16,
+                n: dims.vocab,
+                k: dims.hidden,
+                parts: vec![t],
+                act_quant: false,
+            };
             match (own, &lh.tied_to) {
-                (Some(_), _) if !dims.tie_embeddings => load(&lh.tensor, 0, Some(&[dims.vocab, dims.hidden]))?,
-                (_, Some(_)) => embed.clone(),
-                (Some(_), None) => load(&lh.tensor, 0, Some(&[dims.vocab, dims.hidden]))?,
+                (Some(_), _) if !dims.tie_embeddings => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
+                (_, Some(_)) => dense(embed.clone()),
+                (Some(_), None) => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
                 (None, None) => {
                     return Err(Error::model(format!(
                         "lm_head tensor '{}' missing and the recipe has no tied_to",
@@ -200,7 +273,7 @@ impl Model {
         let mut slot_specs = Vec::new();
         for li in 0..dims.n_layers {
             let mut blocks = Vec::new();
-            for name in &recipe.layer.pattern {
+            for name in recipe.layer.pattern_for(li, &dims.layer_types)? {
                 let pre = recipe
                     .layer
                     .norms
@@ -218,6 +291,20 @@ impl Model {
                         if a.rope != "default" {
                             return Err(Error::Unsupported(format!("rope variant '{}'", a.rope)));
                         }
+                        // partial rotary embeddings: only the first `rotary_dim` values of each head rotate
+                        let rotary_dim = if (dims.partial_rotary_factor - 1.0).abs() < 1e-6 {
+                            0
+                        } else {
+                            let rd = (dims.head_dim as f64 * dims.partial_rotary_factor as f64).round() as usize;
+                            if rd == 0 || rd % 2 != 0 || rd > dims.head_dim {
+                                return Err(Error::Unsupported(format!(
+                                    "partial_rotary_factor {} of head_dim {} gives rotary dim {rd} (must be even)",
+                                    dims.partial_rotary_factor, dims.head_dim
+                                )));
+                            }
+                            rd
+                        };
+                        let gate = usize::from(a.gated);
                         let slot = slot_specs.len();
                         slot_specs.push(SlotSpec::AttnKv {
                             n_kv_heads: dims.n_kv_heads,
@@ -226,14 +313,68 @@ impl Model {
                         });
                         blocks.push(Block::Attn(AttnBlock {
                             pre_norm: load(pre, li, Some(&[dims.hidden]))?,
-                            wq: load(&a.q, li, Some(&[qdim, dims.hidden]))?,
-                            wk: load(&a.k, li, Some(&[kvdim, dims.hidden]))?,
-                            wv: load(&a.v, li, Some(&[kvdim, dims.hidden]))?,
-                            wo: load(&a.o, li, Some(&[dims.hidden, qdim]))?,
+                            wq: load_q(&a.q, li, qdim * (1 + gate), dims.hidden)?,
+                            wk: load_q(&a.k, li, kvdim, dims.hidden)?,
+                            wv: load_q(&a.v, li, kvdim, dims.hidden)?,
+                            wo: load_q(&a.o, li, dims.hidden, qdim)?,
                             q_norm: a.q_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
                             k_norm: a.k_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
                             slot,
+                            gated: a.gated,
+                            rotary_dim,
                         }));
+                    }
+                    "gdn" => {
+                        let g = recipe.layer.gdn.as_ref().unwrap();
+                        if g.kind != "gated_delta_net" {
+                            return Err(Error::Unsupported(format!(
+                                "linear attention kind '{}' is not implemented in this build",
+                                g.kind
+                            )));
+                        }
+                        let lin: LinearDims = dims.linear.ok_or_else(|| {
+                            Error::model("the recipe has a gdn block but config.json has no linear attention dimensions")
+                        })?;
+                        let (c, vdim, hv) = (lin.conv_dim(), lin.v_heads * lin.v_head_dim, lin.v_heads);
+                        let slot = slot_specs.len();
+                        slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin) });
+                        let conv = load(&g.conv, li, None)?;
+                        if conv.numel() != c * lin.conv_kernel {
+                            return Err(Error::model(format!(
+                                "conv taps {:?} do not match [{c}, {}]",
+                                conv.shape, lin.conv_kernel
+                            )));
+                        }
+                        blocks.push(Block::Gdn(GdnBlock {
+                            pre_norm: load(pre, li, Some(&[dims.hidden]))?,
+                            in_qkv: load_q(&g.in_qkv, li, c, dims.hidden)?,
+                            in_z: load_q(&g.in_z, li, vdim, dims.hidden)?,
+                            in_b: load_q(&g.in_b, li, hv, dims.hidden)?,
+                            in_a: load_q(&g.in_a, li, hv, dims.hidden)?,
+                            conv: conv.reshaped(&[c, lin.conv_kernel]),
+                            a_log: load(&g.a_log, li, Some(&[hv]))?,
+                            dt_bias: load(&g.dt_bias, li, Some(&[hv]))?,
+                            norm: load(&g.norm, li, Some(&[lin.v_head_dim]))?,
+                            out: load_q(&g.out, li, dims.hidden, vdim)?,
+                            slot,
+                            lin,
+                        }));
+                    }
+                    "moe" => {
+                        let mc = dims.moe.as_ref().ok_or_else(|| {
+                            Error::model("the recipe has a moe block but config.json has no MoE dimensions")
+                        })?;
+                        let m = recipe.layer.other.get("moe").ok_or_else(|| Error::model("recipe [layer.moe] missing"))?;
+                        if m.get("kind").and_then(|v| v.as_str()) != Some("qwen3_5_moe") {
+                            return Err(Error::Unsupported(format!("moe kind {:?} is not implemented in this build", m.get("kind"))));
+                        }
+                        let tmpl = m
+                            .get("prefix")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| Error::model("recipe [layer.moe] needs a prefix"))?;
+                        let w = MoeWeights::load(b, src, &Recipe::expand(tmpl, li), mc, &qopts)?;
+                        weights_bytes.set(weights_bytes.get() + w.weight_bytes() as u64);
+                        blocks.push(Block::Moe(MoeBlock { pre_norm: load(pre, li, Some(&[dims.hidden]))?, w }));
                     }
                     "ffn" => {
                         let f = recipe.layer.ffn.as_ref().unwrap();
@@ -268,6 +409,21 @@ impl Model {
             ws_bytes += bytes as u64;
             b.alloc(bytes.max(16), MemKind::Device)
         };
+        let (has_gdn, has_gated) = layers.iter().flatten().fold((false, false), |(g, a), blk| match blk {
+            Block::Gdn(_) => (true, a),
+            Block::Attn(x) => (g, a || x.gated),
+            _ => (g, a),
+        });
+        let x = gdn_block::alloc_extra(&mut wb, mt, esz, dims, has_gdn, has_gated)?;
+        let mut moe_bytes = 0u64;
+        let moe = match dims.moe.as_ref().filter(|_| layers.iter().flatten().any(|bl| matches!(bl, Block::Moe(_)))) {
+            Some(mc) => {
+                let si = mc.shared_inter.max(1);
+                moe_bytes = (mt * (mc.experts * esz + mc.top_k * 8 + 2 * mc.hidden * esz + 3 * si * esz + 2 * esz)) as u64;
+                Some(MoeScratch::new(b, mc, mt, act)?)
+            }
+            None => None,
+        };
         let ws = Workspace {
             max_tokens: mt,
             ids: wb(mt * 4)?,
@@ -282,7 +438,19 @@ impl Model {
             a: wb(mt * dims.intermediate * esz)?,
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
+            x,
+            moe,
         };
+        // recurrent state is fixed-size: the live copy plus the prefix-reuse snapshots count against the budget
+        let rec_bytes: u64 = slot_specs
+            .iter()
+            .map(|s| match s {
+                SlotSpec::Recurrent { bytes } => *bytes as u64,
+                _ => 0,
+            })
+            .sum();
+        ws_bytes += moe_bytes;
+        ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
 
         let kv_per_tok: u64 = slot_specs
             .iter()
@@ -293,18 +461,19 @@ impl Model {
                 _ => 0,
             })
             .sum();
-        let plan = MemoryPlan::compute(
+        let plan = MemoryPlan::compute_budgeted(
             &b.info(),
-            weights_bytes,
+            weights_bytes.get(),
             ws_bytes,
             kv_per_tok,
             opts.max_seq,
             dims.max_positions,
             opts.kv_fraction,
+            opts.mem_budget,
         )?;
         let registry = Registry::new(b.name(), &b.info(), b.kernels());
 
-        Ok(Model {
+        let mut model = Model {
             backend,
             registry,
             dims: dims.clone(),
@@ -312,7 +481,7 @@ impl Model {
             act,
             kv,
             plan,
-            weights_bytes,
+            weights_bytes: weights_bytes.get(),
             embed,
             final_norm,
             lm_head,
@@ -321,7 +490,90 @@ impl Model {
             ws,
             telemetry,
             profile_every: opts.profile_every,
-        })
+            scratch: None,
+            recorder: Mutex::new(None),
+            resolved: Default::default(),
+        };
+        // resolve the kernel of every (op, shape) now: a missing kernel is a load error
+        crate::plan::resolve(&mut model)?;
+        Ok(model)
+    }
+
+    /// Apply plan options (`--reference`, admission, `require_admitted`) and re-resolve. `reference`
+    /// is the oracle backend for admission (the cpu backend); required when `opts.admit` is set.
+    pub fn configure_plan(
+        &mut self,
+        opts: &crate::plan::PlanOptions,
+        reference: Option<&dyn Backend>,
+    ) -> Result<crate::plan::AdmitSummary> {
+        self.registry.reference_only = opts.force_reference;
+        self.registry.require_admitted = false;
+        let mut summary = Default::default();
+        if opts.admit {
+            let r = reference.ok_or_else(|| Error::invalid("plan admission needs a reference backend"))?;
+            summary = crate::plan::admit(self, r, opts)?;
+        }
+        self.registry.require_admitted = opts.require_admitted;
+        crate::plan::resolve(self)?;
+        Ok(summary)
+    }
+
+    /// Run the real forward path for `t` tokens at `pos0` with a recorder installed: every `exec`
+    /// selects its kernel and is logged, nothing launches, nothing is uploaded or downloaded.
+    pub fn dry_run(&self, phase: crate::plan::Phase, t: usize, pos0: usize) -> Result<crate::plan::Recorder> {
+        let st = crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, pos0);
+        *self.recorder.lock().unwrap() = Some(crate::plan::Recorder { phase: Some(phase), t, pos0, ..Default::default() });
+        let ids = vec![0u32; t];
+        let run = (|| -> Result<()> {
+            let hn = self.run_chunk(&st, &ids, false)?;
+            // the heads generation and accuracy use: argmax of the last row, logits of up to LOGIT_ROWS rows
+            self.head_argmax(&hn, t - 1, false)?;
+            if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+                r.extra = true;
+            }
+            self.head_logits(&hn, 0, t.min(LOGIT_ROWS), false)?;
+            Ok(())
+        })();
+        let rec = self.recorder.lock().unwrap().take().unwrap_or_default();
+        run?;
+        Ok(rec)
+    }
+
+    /// Make sure the scratch workspace holds at least `bytes` (0 = none needed).
+    pub fn reserve_scratch(&mut self, bytes: usize) -> Result<()> {
+        if bytes == 0 || self.scratch.as_ref().is_some_and(|b| b.bytes() >= bytes) {
+            return Ok(());
+        }
+        self.scratch = None; // free the old one first
+        self.scratch = Some(self.backend.alloc(bytes.max(16), MemKind::Device)?);
+        self.plan.workspace_bytes += bytes as u64;
+        Ok(())
+    }
+
+    fn scratch_view(&self, need: usize) -> Result<TensorRef> {
+        match &self.scratch {
+            Some(b) if b.bytes() >= need => Ok(TensorRef::new(b.clone(), DType::U8, &[need])),
+            Some(b) => Err(Error::Memory(format!("kernel needs {need} scratch bytes but the plan reserved {}", b.bytes()))),
+            None => Err(Error::Memory(format!("kernel needs {need} scratch bytes but the plan reserved none"))),
+        }
+    }
+
+    /// Block kinds of every layer in plan vocabulary ("attention", "dense_ffn", ...).
+    pub fn layer_kinds(&self) -> Vec<Vec<&'static str>> {
+        self.layers
+            .iter()
+            .map(|blocks| {
+                blocks
+                    .iter()
+                    .map(|b| match b {
+                        Block::Attn(_) => "attention",
+                        Block::Gdn(_) => "gated_delta_net",
+                        Block::Ffn(_) => "dense_ffn",
+                        Block::Moe(_) => "moe",
+                    })
+                    .collect()
+            })
+            .collect()
     }
 
     /// Allocate a fresh sequence state with the planned KV capacity.
@@ -333,7 +585,24 @@ impl Model {
     ///
     /// `on_row` is required for [`HeadMode::AllLogits`]: it receives
     /// `(absolute position, logits row)` in order.
+    ///
+    /// A failed forward on a model with recurrent state resets the sequence: the recurrent slots are
+    /// updated in place chunk by chunk, so a pass that died halfway leaves state that matches no token prefix.
     pub fn forward(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        let r = self.forward_inner(st, ids, mode, on_row);
+        if r.is_err() && st.has_recurrent() {
+            let _ = st.reset(&*self.backend);
+        }
+        r
+    }
+
+    fn forward_inner(
         &self,
         st: &mut SequenceState,
         ids: &[u32],
@@ -400,9 +669,42 @@ impl Model {
         attrs: OpAttrs,
         profile: bool,
     ) -> Result<()> {
-        let call = OpCall::new(op, inputs, outputs, attrs);
+        let mut call = OpCall::new(op, inputs, outputs, attrs);
         call.check()?;
+        {
+            let mut rec = self.recorder.lock().unwrap();
+            if let Some(r) = rec.as_mut() {
+                match self.registry.select(&call) {
+                    Ok(k) => r.calls.push(crate::plan::PlannedCall {
+                        phase: r.phase.unwrap_or(crate::plan::Phase::Decode),
+                        t: r.t,
+                        pos0: r.pos0,
+                        kernel: k.name.clone(),
+                        call,
+                        extra: r.extra,
+                    }),
+                    Err(e) => {
+                        let s = ShapeInfo::from_call(&call);
+                        r.missing.push((
+                            call.op,
+                            format!("{e} (heads {}/{} head_dim {} kv_len {})", s.n_heads, s.n_kv_heads, s.head_dim, s.kv_len),
+                        ))
+                    }
+                }
+                return Ok(());
+            }
+        }
         let kernel = self.registry.select(&call)?;
+        if kernel.scratch.is_some() {
+            let need = kernel.scratch_bytes(&ShapeInfo::from_call(&call));
+            if need > 0 {
+                call.scratch = Some(self.scratch_view(need)?);
+            }
+        }
+        if profile {
+            // drain queued work first, or the previous op's (or an async upload's) time lands on this op
+            self.backend.synchronize(0)?;
+        }
         let t0 = Instant::now();
         self.backend.launch(&kernel.name, &call, 0)?;
         if profile {
@@ -423,11 +725,13 @@ impl Model {
         let pos0 = st.len;
         let ws = &self.ws;
 
-        let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
-        self.backend.upload(&ws.ids, 0, &ids_i32, 0)?;
-        for &i in ids {
-            if i as usize >= d.vocab {
-                return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
+        if !self.recorder.lock().unwrap().is_some() {
+            let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+            self.backend.upload(&ws.ids, 0, &ids_i32, 0)?;
+            for &i in ids {
+                if i as usize >= d.vocab {
+                    return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
+                }
             }
         }
 
@@ -444,7 +748,7 @@ impl Model {
             profile,
         )?;
 
-        let eps_attrs = OpAttrs { eps: d.rms_eps, ..Default::default() };
+        let eps_attrs = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
         let mut pending = false;
         let norm_in = |pre: &TensorRef, pending: bool, cur: &mut usize| -> Result<()> {
             if pending {
@@ -470,9 +774,18 @@ impl Model {
                         norm_in(&a.pre_norm, pending, &mut cur)?;
                         self.attn_block(a, st, &nv, &blkv, t, pos0, profile)?;
                     }
+                    Block::Gdn(g) => {
+                        norm_in(&g.pre_norm, pending, &mut cur)?;
+                        self.gdn_block(g, st, &nv, &blkv, t, profile)?;
+                    }
                     Block::Ffn(f) => {
                         norm_in(&f.pre_norm, pending, &mut cur)?;
                         self.ffn_block(f, &nv, &blkv, t, profile)?;
+                    }
+                    Block::Moe(m) => {
+                        norm_in(&m.pre_norm, pending, &mut cur)?;
+                        let ws = self.ws.moe.as_ref().ok_or_else(|| Error::invalid("moe block without workspace"))?;
+                        m.w.forward(&ExecRunner { m: self, profile }, ws, &nv, &blkv)?;
                     }
                 }
                 pending = true;
@@ -481,6 +794,12 @@ impl Model {
         // final: h = h + block_out ; n = norm(h)
         norm_in(&self.final_norm, pending, &mut cur)?;
         Ok(nv)
+    }
+
+    /// `out = x @ W^T` for a linear layer in any supported weight format.
+    fn proj(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, profile: bool) -> Result<()> {
+        let call = w.call(x.clone(), out.clone());
+        self.exec(call.op, call.inputs, call.outputs, call.attrs, profile)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -502,18 +821,26 @@ impl Model {
         let kshape = [t, nkv * hd];
         let q3 = [t, nh, hd];
         let k3 = [t, nkv, hd];
-        let eps = OpAttrs { eps: d.rms_eps, ..Default::default() };
-        let rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, ..Default::default() };
+        let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
+        let rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
 
-        // q: matmul -> [norm] -> rope ; result tracked by `cur`
+        // q: matmul [-> split off the output gate] -> [norm] -> rope ; result tracked by `qc`
         let mut qc = 0usize;
-        self.exec(
-            Op::Matmul,
-            vec![n.clone(), a.wq.clone()],
-            vec![self.view(&ws.q[qc], act, &qshape)],
-            OpAttrs::default(),
-            profile,
-        )?;
+        let gate = if a.gated {
+            let (qg, gate) = self.gated_q_buffers(t);
+            self.proj(n, &a.wq, &qg, profile)?;
+            self.exec(
+                Op::GateSplit,
+                vec![qg.reshaped(&[t, nh, 2 * hd])],
+                vec![self.view(&ws.q[qc], act, &q3), gate.clone()],
+                OpAttrs::default(),
+                profile,
+            )?;
+            Some(gate)
+        } else {
+            self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &qshape), profile)?;
+            None
+        };
         if let Some(w) = &a.q_norm {
             self.exec(
                 Op::QkNorm,
@@ -534,13 +861,7 @@ impl Model {
         qc = 1 - qc;
 
         let mut kc = 0usize;
-        self.exec(
-            Op::Matmul,
-            vec![n.clone(), a.wk.clone()],
-            vec![self.view(&ws.k[kc], act, &kshape)],
-            OpAttrs::default(),
-            profile,
-        )?;
+        self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
         if let Some(w) = &a.k_norm {
             self.exec(
                 Op::QkNorm,
@@ -560,13 +881,7 @@ impl Model {
         )?;
         kc = 1 - kc;
 
-        self.exec(
-            Op::Matmul,
-            vec![n.clone(), a.wv.clone()],
-            vec![self.view(&ws.v, act, &kshape)],
-            OpAttrs::default(),
-            profile,
-        )?;
+        self.proj(n, &a.wv, &self.view(&ws.v, act, &kshape), profile)?;
 
         let slot = match &st.slots[a.slot] {
             StateSlot::AttnKv(s) => s,
@@ -596,13 +911,22 @@ impl Model {
             attrs,
             profile,
         )?;
-        self.exec(
-            Op::Matmul,
-            vec![attn_out.reshaped(&qshape), a.wo.clone()],
-            vec![out.clone()],
-            OpAttrs::default(),
-            profile,
-        )
+        let o_in = match gate {
+            // output gate: attn_out * sigmoid(gate), into the (now free) roped-q buffer
+            Some(g) => {
+                let gated = self.view(&ws.q[qc], act, &qshape);
+                self.exec(
+                    Op::SigmoidMul,
+                    vec![attn_out.reshaped(&qshape), g.reshaped(&qshape)],
+                    vec![gated.clone()],
+                    OpAttrs::default(),
+                    profile,
+                )?;
+                gated
+            }
+            None => attn_out.reshaped(&qshape),
+        };
+        self.proj(&o_in, &a.wo, out, profile)
     }
 
     fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
@@ -623,7 +947,10 @@ impl Model {
         let v = self.dims.vocab;
         let x = hn.rows(r0, c);
         let out = self.view(&self.ws.logits, DType::F32, &[c, v]);
-        self.exec(Op::Logits, vec![x, self.lm_head.clone()], vec![out.clone()], OpAttrs::default(), profile)?;
+        self.proj(&x, &self.lm_head, &out, profile)?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(Vec::new());
+        }
         let mut bytes = vec![0u8; c * v * 4];
         self.backend.download(&self.ws.logits, 0, &mut bytes, 0)?;
         Ok(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
@@ -633,9 +960,12 @@ impl Model {
         let v = self.dims.vocab;
         let x = hn.rows(row, 1);
         let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
-        self.exec(Op::Logits, vec![x, self.lm_head.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
+        self.proj(&x, &self.lm_head, &logits, profile)?;
         let tok = self.view(&self.ws.tok, DType::I32, &[1]);
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(0);
+        }
         let mut b = [0u8; 4];
         self.backend.download(&self.ws.tok, 0, &mut b, 0)?;
         Ok(i32::from_le_bytes(b) as u32)

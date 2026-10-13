@@ -124,6 +124,7 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         seed: args.seed,
         stop: args.stop.clone(),
         stop_ids: vec![],
+        cancel: None,
     };
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -158,6 +159,7 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         cached_tokens,
         prefill_ms,
         decode_ms,
+        ..
     }) = done
     {
         let computed = prompt_tokens - cached_tokens;

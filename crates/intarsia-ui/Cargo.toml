@@ -1,0 +1,17 @@
+[package]
+name = "intarsia-ui"
+description = "Built-in web UI (chat, dashboard, live architecture map), embedded static assets."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+axum = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tower = { workspace = true }
+http-body-util = { workspace = true }

@@ -11,9 +11,12 @@
 //! returns `Error::Unsupported`.
 
 pub mod kernels;
+pub mod quantmoe;
 
 #[cfg(ik_cuda)]
 mod device;
+#[cfg(ik_cuda)]
+mod device_quantmoe;
 #[cfg(ik_cuda)]
 mod ffi;
 

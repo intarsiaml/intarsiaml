@@ -26,6 +26,13 @@ pub struct ModelArgs {
     /// Fraction of measured free memory the KV cache may use.
     #[arg(long, default_value_t = 0.5)]
     pub kv_fraction: f32,
+    /// Total memory this process may use, in GiB (weights + workspace + KV). The KV cache is
+    /// sized to what is left, so a fleetq `--mem` lease decides the context, not the box's free memory.
+    #[arg(long)]
+    pub mem_budget: Option<f64>,
+    /// FP8 projections: `static` (W8A8, checkpoint input_scale) or `none` (W8A16); default: the recipe's.
+    #[arg(long)]
+    pub fp8_act: Option<String>,
     /// Tokens per forward pass (prefill chunk).
     #[arg(long, default_value_t = 256)]
     pub prefill_chunk: usize,
@@ -50,6 +57,20 @@ pub struct ModelArgs {
     /// Model id reported to clients (default: derived from the directory).
     #[arg(long)]
     pub model_id: Option<String>,
+    /// Run every op with the cpu-ref reference kernels (`ref_*`, f64 oracle) instead of the fast ones.
+    /// Fails at load on backends that register no reference kernels (cuda).
+    #[arg(long)]
+    pub reference: bool,
+    /// Run kernel admission on the exact shapes of this model's plan at load (results are cached per
+    /// host under ~/.cache/intarsia/admission/); `serve` always does.
+    #[arg(long)]
+    pub admit: bool,
+    /// Do not read or write the admission cache.
+    #[arg(long)]
+    pub no_admission_cache: bool,
+    /// Only admitted kernels are selectable (set by `serve`).
+    #[arg(skip)]
+    pub require_admitted: bool,
 }
 
 pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
@@ -92,12 +113,28 @@ impl ModelArgs {
                 act_dtype: None,
                 kv_dtype,
                 profile_every: self.profile_every.unwrap_or(if self.backend == "cpu" { 1 } else { 16 }),
+                mem_budget: self.mem_budget.map(|g| (g * (1u64 << 30) as f64) as u64),
+                fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
             },
             recipe: self.recipe.clone(),
             recipe_dirs: self.recipe_dir.clone(),
             chat_template,
             model_id: self.model_id.clone(),
+            plan: intarsia_core::plan::PlanOptions {
+                admit: self.admit || self.require_admitted,
+                require_admitted: self.require_admitted,
+                force_reference: self.reference,
+                cache_dir: None,
+                no_cache: self.no_admission_cache,
+            },
         })
+    }
+
+    /// Production serving: admit the plan's kernels at load and select nothing else.
+    pub fn for_serving(mut self) -> Self {
+        self.admit = true;
+        self.require_admitted = true;
+        self
     }
 
     /// Open the backend and load the model into a ready engine.

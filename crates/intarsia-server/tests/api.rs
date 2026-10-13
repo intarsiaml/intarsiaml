@@ -21,6 +21,12 @@ struct Mock {
     /// When set, generate slowly and forever so cancellation can be observed.
     slow: bool,
     cancelled: Arc<AtomicBool>,
+    /// Engine reports itself failed.
+    fail: bool,
+    /// Finish with this stop sequence.
+    stop_seq: Option<String>,
+    /// Telemetry overrides.
+    busy: (u32, u32),
 }
 
 impl Engine for Mock {
@@ -84,6 +90,7 @@ impl Engine for Mock {
         let max = req.max_tokens;
         self.reqs.lock().unwrap().push(req);
         let slow = self.slow;
+        let stop_seq = self.stop_seq.clone();
         let cancelled = self.cancelled.clone();
         std::thread::spawn(move || {
             if slow {
@@ -104,6 +111,7 @@ impl Engine for Mock {
             let finish = if max < 2 { FinishReason::Length } else { FinishReason::Stop };
             tx.send(GenEvent::Done {
                 finish_reason: finish,
+                stop_sequence: stop_seq,
                 prompt_tokens: plen,
                 completion_tokens: n,
                 cached_tokens: 3,
@@ -117,9 +125,17 @@ impl Engine for Mock {
     fn forward_logits_each(&self, _ids: &[u32], _cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>) -> Result<()> {
         Ok(())
     }
+    fn failed(&self) -> Option<String> {
+        self.failed_hook()
+    }
+    fn plan(&self) -> Value {
+        json!({"model": "mock-model", "layers": [], "ops": []})
+    }
     fn telemetry(&self) -> TelemetrySnapshot {
         let mut t =
             TelemetrySnapshot { steps_total: 42, schema_version: 1, model: "mock-model".into(), ..Default::default() };
+        t.running = self.busy.0;
+        t.waiting = self.busy.1;
         t.prompt_tokens_total = 7;
         t.generation_tokens_total = 9;
         t.cached_tokens_total = 3;
@@ -128,6 +144,12 @@ impl Engine for Mock {
         t.finished.insert("stop".into(), 2);
         t.ops.insert("matmul".into(), OpStat { calls: 5, timed_calls: 5, time_ms: 1500.0 });
         t
+    }
+}
+
+impl Mock {
+    fn failed_hook(&self) -> Option<String> {
+        self.fail.then(|| "worker panicked: boom".to_string())
     }
 }
 
@@ -504,4 +526,139 @@ async fn dropping_the_response_cancels_generation() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     panic!("the engine never saw the cancellation");
+}
+
+fn slow_post(uri: &str, body: Value) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn full_queue_answers_429() {
+    let mock = Arc::new(Mock { slow: true, ..Default::default() });
+    let cfg = intarsia_server::ServerConfig { max_queue: 1, ..Default::default() };
+    let app = intarsia_server::router_with(mock.clone(), &cfg);
+    let chat = json!({"messages": [{"role": "user", "content": "hi"}], "stream": true});
+    // one running + one waiting fill the queue (the mock never finishes)
+    let r1 = app.clone().oneshot(slow_post("/v1/chat/completions", chat.clone())).await.unwrap();
+    let r2 = app.clone().oneshot(slow_post("/v1/messages", json!({"max_tokens": 4, "stream": true,
+        "messages": [{"role": "user", "content": "hi"}]}))).await.unwrap();
+    assert_eq!((r1.status(), r2.status()), (StatusCode::OK, StatusCode::OK));
+    let r3 = app.clone().oneshot(slow_post("/v1/chat/completions", chat.clone())).await.unwrap();
+    assert_eq!(r3.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert!(r3.headers().contains_key("retry-after"));
+    let v: Value = serde_json::from_slice(&r3.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["error"]["type"], "rate_limit_error");
+    let r4 = app.clone().oneshot(slow_post("/v1/messages", json!({"max_tokens": 4,
+        "messages": [{"role": "user", "content": "hi"}]}))).await.unwrap();
+    assert_eq!(r4.status(), StatusCode::TOO_MANY_REQUESTS);
+    let v: Value = serde_json::from_slice(&r4.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["error"]["type"], "rate_limit_error");
+    let (_, _, m) = call(&app, "GET", "/metrics", None).await;
+    assert!(m.contains("intarsia_requests_rejected_total 2"), "{m}");
+
+    // freeing a place (client drops the first response) admits the next request again
+    drop(r1);
+    for _ in 0..200 {
+        let r = app.clone().oneshot(slow_post("/v1/chat/completions", chat.clone())).await.unwrap();
+        if r.status() == StatusCode::OK {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    panic!("the slot was never released");
+}
+
+#[tokio::test]
+async fn cancel_flag_is_set_when_the_response_is_dropped() {
+    let (app, mock) = app();
+    // a completed request must hand the engine a cancel flag
+    call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
+    assert!(mock.reqs.lock().unwrap()[0].cancel.is_some());
+}
+
+#[tokio::test]
+async fn health_503_when_failed_or_stalled() {
+    let mock = Arc::new(Mock { fail: true, ..Default::default() });
+    let app = app_with(mock);
+    let (st, _, body) = call(&app, "GET", "/health", None).await;
+    assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE);
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["status"], "failed");
+    assert!(v["detail"].as_str().unwrap().contains("boom"));
+    // new work is refused with 503 in both dialects
+    let (st, _, _) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
+    assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE);
+    let (st, _, body) =
+        call(&app, "POST", "/v1/messages", Some(json!({"max_tokens": 4, "messages": [{"role":"user","content":"x"}]})))
+            .await;
+    assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(body.contains("overloaded_error"));
+
+    // busy engine whose step counter does not move
+    let mock = Arc::new(Mock { busy: (1, 0), ..Default::default() });
+    let cfg = intarsia_server::ServerConfig { watchdog_s: 0.2, ..Default::default() };
+    let app = intarsia_server::router_with(mock, &cfg);
+    let (st, _, _) = call(&app, "GET", "/health", None).await;
+    assert_eq!(st, StatusCode::OK, "just became busy");
+    tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+    let (st, _, body) = call(&app, "GET", "/health", None).await;
+    assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert!(body.contains("\"stalled\""));
+}
+
+#[tokio::test]
+async fn vllm_gauges_and_plan() {
+    let mock = Arc::new(Mock { busy: (1, 2), ..Default::default() });
+    let app = app_with(mock);
+    let (_, _, m) = call(&app, "GET", "/metrics", None).await;
+    assert!(m.contains("\nvllm:num_requests_running 1\n"), "{m}");
+    assert!(m.contains("\nvllm:num_requests_waiting 2\n"), "{m}");
+    assert!(m.contains("\nintarsia_requests_waiting 2\n"));
+    let (st, _, body) = call(&app, "GET", "/v1/intarsia/plan", None).await;
+    assert_eq!(st, StatusCode::OK);
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["model"], "mock-model");
+}
+
+#[tokio::test]
+async fn anthropic_usage_excludes_cache_reads_and_reports_stop_sequence() {
+    let mock = Arc::new(Mock { stop_seq: Some("###".into()), ..Default::default() });
+    let app = app_with(mock);
+    let body = json!({"max_tokens": 16, "stop_sequences": ["###"], "messages": [{"role": "user", "content": "hello"}]});
+    let (_, _, text) = call(&app, "POST", "/v1/messages", Some(body.clone())).await;
+    let v: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(v["stop_reason"], "stop_sequence");
+    assert_eq!(v["stop_sequence"], "###");
+    // mock: prompt is the templated text, 3 of its tokens were cached
+    let prompt = "user:hello\nassistant:".len() as u64;
+    assert_eq!(v["usage"]["input_tokens"], prompt - 3);
+    assert_eq!(v["usage"]["cache_read_input_tokens"], 3);
+
+    let mut b = body;
+    b["stream"] = json!(true);
+    let (_, _, text) = call(&app, "POST", "/v1/messages", Some(b)).await;
+    let ev = sse_events(&text);
+    let d = &ev.iter().find(|(n, _)| n == "message_delta").unwrap().1;
+    assert_eq!(d["delta"]["stop_reason"], "stop_sequence");
+    assert_eq!(d["delta"]["stop_sequence"], "###");
+    assert_eq!(d["usage"]["input_tokens"], prompt - 3);
+    assert_eq!(d["usage"]["cache_read_input_tokens"], 3);
+}
+
+#[tokio::test]
+async fn default_max_tokens_is_bounded() {
+    let (app, mock) = app();
+    // 64-token context, prompt "abc" (3 tokens): default = min(context - prompt, 4096) = 61
+    call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
+    assert_eq!(mock.reqs.lock().unwrap()[0].max_tokens, 61);
+    let mock = Arc::new(Mock::default());
+    let cfg = intarsia_server::ServerConfig { default_max_tokens: 10, ..Default::default() };
+    let app = intarsia_server::router_with(mock.clone(), &cfg);
+    call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
+    assert_eq!(mock.reqs.lock().unwrap()[0].max_tokens, 10);
 }

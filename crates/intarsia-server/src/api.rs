@@ -1,5 +1,6 @@
 //! Shared plumbing: app state, errors, the engine bridge, SSE helper, sampling parameters.
 
+use crate::health::Progress;
 use crate::metrics::Metrics;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -10,8 +11,9 @@ use intarsia_core::Engine;
 use serde_json::{json, Value};
 use std::collections::VecDeque;
 use std::convert::Infallible;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 #[derive(Clone)]
@@ -20,20 +22,62 @@ pub struct AppState {
     pub model_name: String,
     pub metrics: Arc<Metrics>,
     pub created: u64,
+    /// Requests the engine may hold at once: one running plus `max_queue` waiting.
+    pub max_queue: usize,
+    /// `max_tokens` when the client sends none (0 = as much as the context allows).
+    pub default_max_tokens: usize,
+    pub progress: Arc<Progress>,
+    inflight: Arc<AtomicUsize>,
     counter: Arc<AtomicU64>,
     salt: u64,
 }
 
+/// One admitted request; releases its queue place when dropped.
+struct Slot(Arc<AtomicUsize>);
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+/// Cancels the engine request when the HTTP side goes away (response dropped).
+struct CancelGuard(Arc<AtomicBool>);
+
+impl Drop for CancelGuard {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+}
+
 impl AppState {
-    pub fn new(engine: Arc<dyn Engine>, model_name: String) -> AppState {
+    pub fn new(engine: Arc<dyn Engine>, model_name: String, cfg: &crate::ServerConfig) -> AppState {
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
         AppState {
             engine,
             model_name,
             metrics: Arc::new(Metrics::new()),
             created: now.as_secs(),
+            max_queue: cfg.max_queue,
+            default_max_tokens: cfg.default_max_tokens,
+            progress: Arc::new(Progress::new(Duration::from_secs_f64(cfg.watchdog_s.max(0.0)))),
+            inflight: Arc::new(AtomicUsize::new(0)),
             counter: Arc::new(AtomicU64::new(0)),
             salt: now.as_nanos() as u64 & 0xffff_ffff,
+        }
+    }
+
+    fn acquire(&self) -> Option<Slot> {
+        let limit = self.max_queue.saturating_add(1);
+        let mut n = self.inflight.load(Ordering::Acquire);
+        loop {
+            if n >= limit {
+                return None;
+            }
+            match self.inflight.compare_exchange_weak(n, n + 1, Ordering::AcqRel, Ordering::Acquire) {
+                Ok(_) => return Some(Slot(self.inflight.clone())),
+                Err(cur) => n = cur,
+            }
         }
     }
 
@@ -58,29 +102,46 @@ pub struct ApiError {
     pub status: StatusCode,
     pub flavor: Flavor,
     pub message: String,
+    /// Seconds for the `Retry-After` header (429 / 503).
+    pub retry_after: Option<u32>,
 }
 
 impl ApiError {
+    pub fn new(status: StatusCode, flavor: Flavor, msg: impl std::fmt::Display) -> ApiError {
+        ApiError { status, flavor, message: msg.to_string(), retry_after: None }
+    }
     pub fn bad_request(flavor: Flavor, msg: impl std::fmt::Display) -> ApiError {
-        ApiError { status: StatusCode::BAD_REQUEST, flavor, message: msg.to_string() }
+        ApiError::new(StatusCode::BAD_REQUEST, flavor, msg)
     }
     pub fn internal(flavor: Flavor, msg: impl std::fmt::Display) -> ApiError {
-        ApiError { status: StatusCode::INTERNAL_SERVER_ERROR, flavor, message: msg.to_string() }
+        ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, flavor, msg)
     }
     pub fn not_found(flavor: Flavor, msg: impl std::fmt::Display) -> ApiError {
-        ApiError { status: StatusCode::NOT_FOUND, flavor, message: msg.to_string() }
+        ApiError::new(StatusCode::NOT_FOUND, flavor, msg)
+    }
+    pub fn unavailable(flavor: Flavor, msg: impl std::fmt::Display) -> ApiError {
+        ApiError::new(StatusCode::SERVICE_UNAVAILABLE, flavor, msg)
+    }
+    pub fn too_many_requests(flavor: Flavor, msg: impl std::fmt::Display) -> ApiError {
+        ApiError { retry_after: Some(1), ..ApiError::new(StatusCode::TOO_MANY_REQUESTS, flavor, msg) }
     }
     pub fn body(&self) -> Value {
         match self.flavor {
             Flavor::OpenAi => json!({"error": {
                 "message": self.message,
-                "type": if self.status.is_client_error() { "invalid_request_error" } else { "server_error" },
+                "type": match self.status {
+                    StatusCode::TOO_MANY_REQUESTS => "rate_limit_error",
+                    s if s.is_client_error() => "invalid_request_error",
+                    _ => "server_error",
+                },
                 "param": null,
                 "code": self.status.as_u16(),
             }}),
             Flavor::Anthropic => json!({"type": "error", "error": {
                 "type": match self.status {
                     StatusCode::NOT_FOUND => "not_found_error",
+                    StatusCode::TOO_MANY_REQUESTS => "rate_limit_error",
+                    StatusCode::SERVICE_UNAVAILABLE => "overloaded_error",
                     s if s.is_client_error() => "invalid_request_error",
                     _ => "api_error",
                 },
@@ -92,7 +153,12 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (self.status, Json(self.body())).into_response()
+        let retry = self.retry_after;
+        let mut r = (self.status, Json(self.body())).into_response();
+        if let Some(s) = retry {
+            r.headers_mut().insert(axum::http::header::RETRY_AFTER, axum::http::HeaderValue::from(s));
+        }
+        r
     }
 }
 
@@ -127,21 +193,47 @@ where
     })
 }
 
-/// Submit to the engine and forward its events. Dropping the returned receiver
-/// cancels the request (at the engine's next token).
-pub fn start(st: &AppState, flavor: Flavor, req: GenRequest) -> Result<UnboundedReceiver<GenEvent>, ApiError> {
+/// Events of one admitted request. Dropping it (the HTTP response went away) sets the
+/// request's cancel flag, which the engine checks between prefill chunks and decode steps.
+pub struct GenRx {
+    rx: UnboundedReceiver<GenEvent>,
+    _cancel: CancelGuard,
+}
+
+impl GenRx {
+    pub async fn recv(&mut self) -> Option<GenEvent> {
+        self.rx.recv().await
+    }
+}
+
+/// Admit a request (429 when the queue is full, 503 when the engine has failed), submit it to
+/// the engine and forward its events.
+pub fn start(st: &AppState, flavor: Flavor, mut req: GenRequest) -> Result<GenRx, ApiError> {
+    if let Some(why) = st.engine.failed() {
+        return Err(ApiError::unavailable(flavor, format!("engine failed: {why}")));
+    }
+    let Some(slot) = st.acquire() else {
+        st.metrics.rejected.fetch_add(1, Ordering::Relaxed);
+        return Err(ApiError::too_many_requests(
+            flavor,
+            format!("the request queue is full ({} waiting); retry shortly", st.max_queue),
+        ));
+    };
+    let cancel = Arc::new(AtomicBool::new(false));
+    req.cancel = Some(cancel.clone());
     let rx = st.engine.submit(req).map_err(|e| {
         let status = match e {
             intarsia_core::Error::BadRequest(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::SERVICE_UNAVAILABLE,
         };
-        ApiError { status, flavor, message: e.to_string() }
+        ApiError::new(status, flavor, e)
     })?;
     let (tx, out) = unbounded_channel();
     let metrics = st.metrics.clone();
     std::thread::Builder::new()
         .name("intarsia-bridge".into())
         .spawn(move || {
+            let _slot = slot;
             for ev in rx.iter() {
                 let last = matches!(ev, GenEvent::Done { .. } | GenEvent::Error { .. });
                 if let GenEvent::Done { completion_tokens, prefill_ms, decode_ms, .. } = &ev {
@@ -154,7 +246,7 @@ pub fn start(st: &AppState, flavor: Flavor, req: GenRequest) -> Result<Unbounded
             }
         })
         .map_err(|e| ApiError::internal(flavor, format!("spawn bridge: {e}")))?;
-    Ok(out)
+    Ok(GenRx { rx: out, _cancel: CancelGuard(cancel) })
 }
 
 /// Final result of a non-streaming generation.
@@ -164,15 +256,23 @@ pub struct Collected {
     pub prompt_tokens: usize,
     pub completion_tokens: usize,
     pub cached_tokens: usize,
+    pub stop_sequence: Option<String>,
 }
 
-pub async fn collect(mut rx: UnboundedReceiver<GenEvent>, flavor: Flavor) -> Result<Collected, ApiError> {
+pub async fn collect(mut rx: GenRx, flavor: Flavor) -> Result<Collected, ApiError> {
     let mut text = String::new();
     while let Some(ev) = rx.recv().await {
         match ev {
             GenEvent::Token { text: t, .. } => text.push_str(&t),
-            GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, .. } => {
-                return Ok(Collected { text, finish: finish_reason, prompt_tokens, completion_tokens, cached_tokens })
+            GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. } => {
+                return Ok(Collected {
+                    text,
+                    finish: finish_reason,
+                    prompt_tokens,
+                    completion_tokens,
+                    cached_tokens,
+                    stop_sequence,
+                })
             }
             GenEvent::Error { message } => return Err(ApiError::internal(flavor, message)),
         }
@@ -183,7 +283,7 @@ pub async fn collect(mut rx: UnboundedReceiver<GenEvent>, flavor: Flavor) -> Res
 /// Turn engine events into an SSE response. `prelude` is sent first; `f` maps
 /// each event (and `None` once the channel closes) to zero or more SSE events.
 pub fn sse_from<F>(
-    rx: UnboundedReceiver<GenEvent>,
+    rx: GenRx,
     prelude: Vec<Event>,
     f: F,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>>
@@ -230,7 +330,13 @@ pub struct Sampling {
 }
 
 impl Sampling {
-    pub fn into_request(self, prompt: Vec<u32>, flavor: Flavor, context_len: usize) -> Result<GenRequest, ApiError> {
+    pub fn into_request(
+        self,
+        prompt: Vec<u32>,
+        flavor: Flavor,
+        context_len: usize,
+        default_max_tokens: usize,
+    ) -> Result<GenRequest, ApiError> {
         let bad = |m: &str| ApiError::bad_request(flavor, m);
         let temperature = self.temperature.unwrap_or(1.0);
         if !(temperature >= 0.0) || temperature > 10.0 {
@@ -253,14 +359,19 @@ impl Sampling {
                 context_len
             )));
         }
+        let prompt_len = prompt.len();
         let top_k = match self.top_k {
             Some(k) if k > 0 => k as usize,
             _ => 0,
         };
         Ok(GenRequest {
             prompt,
-            // Default: as much as the context window allows (the engine clamps).
-            max_tokens: self.max_tokens.unwrap_or(usize::MAX / 2),
+            // Default: what is left of the context window, bounded by `default_max_tokens`
+            // (0 = no extra bound) so one client cannot hold the worker for minutes.
+            max_tokens: self.max_tokens.unwrap_or_else(|| {
+                let left = context_len.saturating_sub(prompt_len).max(1);
+                if default_max_tokens == 0 { left } else { left.min(default_max_tokens) }
+            }),
             min_tokens: self.min_tokens,
             ignore_eos: self.ignore_eos,
             temperature,
@@ -269,6 +380,7 @@ impl Sampling {
             seed: self.seed,
             stop_ids: self.stop_ids,
             stop: self.stop,
+            cancel: None,
         })
     }
 }

@@ -61,7 +61,82 @@ bit-identical results (argmax lowest-index tie-break, embedding, kv_append); `De
 run-to-run identical but allowed to differ from the serial reference within tolerance; `Fast` may
 vary between runs (atomics, split-K).
 
+## Scratch workspace
+
+"No allocation inside the launcher" also covers kernels that need temporary global memory (split-KV
+attention partials, split-K reductions, routing tables). The engine allocates it once and passes it in:
+
+1. **Declare the size on the Rust side**, as a function of the call's shape, next to the registration:
+
+   ```rust
+   register_kernel! {
+       op: Op::AttnDecode, name: "attn_decode_splitkv_bf16", backend: "cuda",
+       arch: ["sm_121"], when: |s| s.kv_len >= 1024,
+       // partial (max, sum, acc[D]) per (head, split): f32
+       scratch: |s| s.n_heads * 16 * (s.head_dim + 2) * 4,
+   }
+   ```
+
+   `ShapeInfo` carries `m, n, k, n_heads, n_kv_heads, head_dim, kv_len` and the dtypes.
+2. **Take it in the launcher**: `const ik_scratch* scratch` (see `ik_abi.h`) is the parameter right
+   before `stream`. Check `scratch && scratch->bytes >= need` and return `IK_ERR_INVALID_ARG`
+   otherwise; the contents are uninitialised and do not survive the launch.
+3. **Read it in `Backend::launch`**: `call.scratch` is `Some(TensorRef)` (a `u8` view of at least the
+   declared bytes, 256-byte aligned) exactly when the selected kernel declared a requirement for this
+   shape; map it to `ik_scratch { data, bytes }`.
+
+Plan resolution (below) takes the maximum over every shape the model uses (decode at the first and
+last context position, every prefill size probed) and reserves one buffer at load, so there is no
+allocation on the serving path and a CUDA graph can capture the launch. All ops share the buffer, which
+is safe because ops run in stream order. The admission harness (`run_host`) allocates a private
+workspace of the declared size for each case, so `intarsia kernels test` exercises it too.
+
+## Plan resolution and admission at load
+
+When a model loads, `intarsia_core::plan::resolve` runs the real forward path with a recorder in place of
+the launcher, for decode (`T = 1`, first and last context position) and prefill chunks of every size
+that can occur (all sizes up to 16, then each power of two and its neighbours up to the chunk size,
+because predicates switch on `m`). It selects a kernel for every `(op, shape)` and:
+
+* fails the load, listing every `(op, shape)` without a kernel and where it is needed;
+* sizes the scratch workspace;
+* describes the plan: `intarsia plan show --model DIR --backend cuda [--json]`, `Engine::plan()`,
+  `GET /v1/intarsia/plan` (contract on `plan::plan_json`).
+
+`--admit` (always on in `intarsia serve`, together with `require_admitted`) additionally runs every
+selected kernel against the cpu reference on the plan's own shapes and marks it admitted or rejected; a
+rejected kernel is replaced by the next candidate or the load fails with the reasons. To bound the cost
+of the serial f32 reference, rows are clamped to 32, matmul/logits `N` to 16384 and attention positions
+to 2000 (`K`, head counts, head dims, dtypes and attributes are exact). Results are cached per host
+fingerprint (backend, device, arch, driver/toolkit when the backend reports them, and the executable's
+size and mtime, standing in for the kernel-pack hash) in `~/.cache/intarsia/admission/`. Ops without an
+exact-shape case builder (`admission::case_from_call`) fall back to the kernel's own sweep, once per
+kernel. `--reference` selects only `ref_*` kernels (cpu); backends without reference kernels fail the
+load instead of falling back.
+
 ## Dtype codes
 
 `IK_DTYPE_*` values in `ik_abi.h` equal `intarsia_core::DType`'s `repr(i32)`; a unit test parses
 the header and fails if they drift. Add new dtypes at the end.
+
+## Quantised weights and MoE
+
+`fp8.cu`, `nvfp4.cu`, `moe.cu` and `ik_quant.cuh` (fp4/e4m3 decode helpers, ideas from TensorFold's NVFP4 kernels, MIT, see `LICENSES/TensorFold-MIT.txt`). Registered in `crates/intarsia-backend-cuda/src/quantmoe.rs`. Formats, semantics, numerics and measured speeds: `docs/quant-moe.md`.
+
+## Attention (`attention*.cu`)
+
+Causal GQA over the contiguous bf16 KV cache `[Nkv, cap, D]`. Three families, all registered in
+`crates/intarsia-backend-cuda/src/kernels.rs`; the plan picks by priority and shape:
+
+| kernel | op | when | notes |
+|---|---|---|---|
+| `attn_prefill_bf16`, `attn_decode_bf16` | prefill / decode | any `D <= 256`, even | SIMT, one block per (row, head). Priority 0: the fallback and the simplest reference of the cuda pack |
+| `attn_decode_bf16_splitkv`, `attn_prefill_bf16_splitkv` | decode / prefill | `T <= 16` rows, `D` in 32/64/128/256, `N/Nkv <= 8` | flash-decoding. Grid (split, kv head, row); one block serves all q heads of a kv head, so K/V are read once per group. Partials (f32 `acc[D]`, `m`, `l`) go to the **scratch workspace**, a second kernel merges them. The number of splits is a function of `kv_len` only (`splitkv_parts`, mirrored in the `.cu`), so results are run-to-run identical. Also serves speculative-decoding verify (`q_len > 1`) |
+| `attn_prefill_bf16_flash` | prefill | `T > 16`, `D` in 64/128/256 | FlashAttention-2 style on `mma.sync.m16n8k16` bf16 with f32 accumulate; 64 query rows per block, `cp.async` K/V tiles, Q in registers (`D <= 128`) or smem (`D = 256`). Blocks run longest-first. No scratch |
+
+Measured on GB10 (`cargo test --release -p intarsia-backend-cuda --test attention -- --ignored --nocapture`):
+decode reads KV at about the copy bandwidth (250 GB/s at 16k keys, 8B shape; 225 GB/s at 64k keys for the
+`D = 256`, 8 q heads per kv head hybrid shape); flash prefill reaches 61-65 TFLOPS (`D = 128`) and 44
+TFLOPS (`D = 256`). `INTARSIA_CUDA_DISABLE=name1,name2` hides kernels from the registry for A/B runs.
+`tests/attention.rs` (default test) sweeps random GQA group sizes, head dims, row counts and cache offsets
+against the cpu reference and checks that repeated launches are bit-identical.

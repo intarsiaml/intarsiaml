@@ -6,5 +6,6 @@ pub mod bench;
 pub mod doctor;
 pub mod generate;
 pub mod kernels;
+pub mod plan;
 pub mod serve;
 pub mod top;

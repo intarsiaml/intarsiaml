@@ -30,6 +30,10 @@ pub struct RecipeModel {
     pub chat_template: String,
     pub reasoning_parser: Option<String>,
     pub tool_parser: Option<String>,
+    /// Zero-centred RMSNorm (Qwen3.5/3.6: `x * (1 + w)`): added to every norm weight in the f32 math of the
+    /// pre-block norms, the final norm and the q/k norms (not the gated norm inside GatedDeltaNet).
+    #[serde(default)]
+    pub norm_offset: f32,
 }
 
 fn default_hf() -> String {
@@ -46,9 +50,15 @@ pub struct LayerSpec {
     /// Block names applied in order inside every layer, e.g. `["attn", "ffn"]`.
     /// Each name selects the `[layer.<name>]` table below.
     pub pattern: Vec<String>,
-    /// Hybrid models: `config.json` key holding a per-layer type list (parsed, not yet used).
+    /// Hybrid models: `config.json` key holding a per-layer type list (must equal `[config] layer_types`,
+    /// default `"layer_types"`). When set, layer `i` uses the block pattern `by_type[layer_types[i]]`
+    /// instead of `pattern`; a layer type without an entry is a load error.
     pub pattern_by_layer: Option<String>,
+    /// Block pattern per layer type, e.g. `linear_attention = ["gdn", "ffn"]`.
+    #[serde(default)]
+    pub by_type: BTreeMap<String, Vec<String>>,
     pub attn: Option<AttnSpec>,
+    pub gdn: Option<GdnSpec>,
     pub ffn: Option<FfnSpec>,
     /// `pre_<block>` -> norm tensor prefix; the norm applied before that block.
     #[serde(default)]
@@ -69,9 +79,36 @@ pub struct AttnSpec {
     /// Per-head RMSNorm on q / k before rope (Qwen3). Absent = no qk_norm.
     pub q_norm: Option<String>,
     pub k_norm: Option<String>,
-    /// "default" = neox/rotate-half with `rope_theta` from config.json.
+    /// "default" = neox/rotate-half with `rope_theta` from config.json (the first
+    /// `partial_rotary_factor * head_dim` values of each head rotate).
     #[serde(default = "default_rope")]
     pub rope: String,
+    /// `q` projects to `[n_heads, 2 * head_dim]` per token: the query and a per-head output gate
+    /// (`attn_out * sigmoid(gate)` before `o`), interleaved per head (HF `attn_output_gate`).
+    #[serde(default)]
+    pub gated: bool,
+}
+
+/// Gated DeltaNet linear-attention block (Qwen3-Next / Qwen3.5 / Qwen3.6): tensor name templates.
+#[derive(Clone, Debug, Deserialize)]
+pub struct GdnSpec {
+    /// "gated_delta_net".
+    pub kind: String,
+    /// Fused q/k/v projection `[2*Hk*dk + Hv*dv, hidden]`.
+    pub in_qkv: String,
+    /// Output-gate projection `[Hv*dv, hidden]`.
+    pub in_z: String,
+    /// Beta projection `[Hv, hidden]`.
+    pub in_b: String,
+    /// Decay projection `[Hv, hidden]`.
+    pub in_a: String,
+    /// Depthwise causal conv taps `[C, 1, K]` (or `[C, K]`).
+    pub conv: String,
+    pub a_log: String,
+    pub dt_bias: String,
+    /// Gated RMSNorm weight `[dv]` (plain weight, never offset).
+    pub norm: String,
+    pub out: String,
 }
 
 fn default_rope() -> String {
@@ -110,6 +147,10 @@ pub struct Defaults {
     pub kv_dtype: String,
     #[serde(default = "default_batch")]
     pub max_batch: usize,
+    /// FP8 checkpoints: `static` (W8A8, activations quantised with the checkpoint's `input_scale`) or `none`
+    /// (W8A16). See `quant::fp8` and docs/quant-moe.md.
+    #[serde(default)]
+    pub fp8_act: crate::quant::Fp8Act,
 }
 
 fn default_kv() -> String {
@@ -121,7 +162,7 @@ fn default_batch() -> usize {
 
 impl Default for Defaults {
     fn default() -> Self {
-        Defaults { kv_dtype: default_kv(), max_batch: 1 }
+        Defaults { kv_dtype: default_kv(), max_batch: 1, fp8_act: Default::default() }
     }
 }
 
@@ -139,6 +180,14 @@ pub struct ConfigKeys {
     pub rope_theta: String,
     pub tie_embeddings: String,
     pub max_positions: String,
+    /// Per-layer block type list (hybrid models).
+    pub layer_types: String,
+    /// Linear-attention (GatedDeltaNet) dimensions.
+    pub linear_k_heads: String,
+    pub linear_v_heads: String,
+    pub linear_k_head_dim: String,
+    pub linear_v_head_dim: String,
+    pub linear_conv_kernel: String,
 }
 
 impl Default for ConfigKeys {
@@ -155,7 +204,32 @@ impl Default for ConfigKeys {
             rope_theta: "rope_theta".into(),
             tie_embeddings: "tie_word_embeddings".into(),
             max_positions: "max_position_embeddings".into(),
+            layer_types: "layer_types".into(),
+            linear_k_heads: "linear_num_key_heads".into(),
+            linear_v_heads: "linear_num_value_heads".into(),
+            linear_k_head_dim: "linear_key_head_dim".into(),
+            linear_v_head_dim: "linear_value_head_dim".into(),
+            linear_conv_kernel: "linear_conv_kernel_dim".into(),
         }
+    }
+}
+
+impl LayerSpec {
+    /// Block pattern of layer `i`: `pattern`, or `by_type[layer_types[i]]` for hybrid recipes.
+    pub fn pattern_for(&self, i: usize, layer_types: &[String]) -> Result<&[String]> {
+        if self.pattern_by_layer.is_none() {
+            return Ok(&self.pattern);
+        }
+        let ty = layer_types.get(i).ok_or_else(|| {
+            Error::model(format!(
+                "recipe maps blocks by layer type but config.json has {} layer types (layer {i} has none)",
+                layer_types.len()
+            ))
+        })?;
+        self.by_type.get(ty).map(|v| v.as_slice()).ok_or_else(|| {
+            let known: Vec<&str> = self.by_type.keys().map(|k| k.as_str()).collect();
+            Error::model(format!("layer {i} has type '{ty}' but the recipe only maps {known:?}"))
+        })
     }
 }
 
@@ -174,17 +248,32 @@ impl Recipe {
         if self.layer.pattern.is_empty() {
             return Err(Error::model("recipe layer.pattern is empty"));
         }
-        for b in &self.layer.pattern {
+        let all = self.layer.pattern.iter().chain(self.layer.by_type.values().flatten());
+        for b in all {
             let known = match b.as_str() {
                 "attn" => self.layer.attn.is_some(),
+                "gdn" => self.layer.gdn.is_some(),
                 "ffn" => self.layer.ffn.is_some(),
                 other => self.layer.other.contains_key(other),
             };
             if !known {
                 return Err(Error::model(format!(
-                    "layer.pattern references block '{b}' but there is no [layer.{b}] table"
+                    "layer pattern references block '{b}' but there is no [layer.{b}] table"
                 )));
             }
+        }
+        if let Some(key) = &self.layer.pattern_by_layer {
+            if *key != self.config.layer_types {
+                return Err(Error::model(format!(
+                    "layer.pattern_by_layer = \"{key}\" must equal [config] layer_types = \"{}\"",
+                    self.config.layer_types
+                )));
+            }
+            if self.layer.by_type.is_empty() || self.layer.by_type.values().any(|p| p.is_empty()) {
+                return Err(Error::model("layer.pattern_by_layer needs a non-empty [layer.by_type] pattern per type"));
+            }
+        } else if !self.layer.by_type.is_empty() {
+            return Err(Error::model("[layer.by_type] needs layer.pattern_by_layer"));
         }
         Ok(())
     }
@@ -198,36 +287,297 @@ pub struct ModelDims {
     pub n_heads: usize,
     pub n_kv_heads: usize,
     pub head_dim: usize,
+    /// Dense FFN width; 0 for MoE-only checkpoints (no `intermediate_size` key).
     pub intermediate: usize,
     pub vocab: usize,
     pub rms_eps: f32,
     pub rope_theta: f32,
+    /// Fraction of `head_dim` that rotary embeddings rotate (HF `partial_rotary_factor`, 1.0 when absent).
+    /// The generic GQA block rotates the full head and refuses other values.
+    pub partial_rotary_factor: f32,
     pub tie_embeddings: bool,
     pub max_positions: usize,
+    /// HF `layer_types` (one entry per layer: "full_attention", "linear_attention", ...); empty when absent.
+    pub layer_types: Vec<String>,
+    /// GatedDeltaNet dimensions when the config carries them.
+    pub linear: Option<LinearDims>,
+    /// Sparse MoE FFN dimensions when the config carries them.
+    pub moe: Option<crate::quant::moe::MoeConfig>,
+}
+
+/// Dimensions of a GatedDeltaNet (linear attention) layer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct LinearDims {
+    pub k_heads: usize,
+    pub v_heads: usize,
+    pub k_head_dim: usize,
+    pub v_head_dim: usize,
+    pub conv_kernel: usize,
+}
+
+impl LinearDims {
+    /// Width of the fused q/k/v projection and of the conv: `2 * Hk * dk + Hv * dv`.
+    pub fn conv_dim(&self) -> usize {
+        2 * self.k_heads * self.k_head_dim + self.v_heads * self.v_head_dim
+    }
+}
+
+/// The sub-config holding the text model: `text_config` of multimodal wrappers
+/// (`Qwen3_5MoeForConditionalGeneration`, ...), otherwise the config itself.
+pub fn text_config(cfg: &serde_json::Value) -> &serde_json::Value {
+    cfg.get("text_config").filter(|v| v.is_object()).unwrap_or(cfg)
+}
+
+/// Reject configuration this engine would silently run wrong. Errors name the offending key.
+pub fn check_supported(cfg: &serde_json::Value) -> Result<()> {
+    let tc = text_config(cfg);
+    let unsupported = |m: String| Err(Error::Unsupported(m));
+    if let Some(act) = tc.get("hidden_act").and_then(|v| v.as_str()) {
+        if act != "silu" {
+            return unsupported(format!("config hidden_act = \"{act}\" (only silu is implemented)"));
+        }
+    }
+    if tc.get("attention_bias").and_then(|v| v.as_bool()) == Some(true) {
+        return unsupported("config attention_bias = true (projection biases are not implemented)".into());
+    }
+    if tc.get("use_sliding_window").and_then(|v| v.as_bool()) == Some(true) {
+        return unsupported("config use_sliding_window = true (sliding-window attention is not implemented)".into());
+    }
+    if let Some(lt) = tc.get("layer_types").and_then(|v| v.as_array()) {
+        if lt.iter().any(|t| t.as_str() == Some("sliding_attention")) {
+            return unsupported("config layer_types contains sliding_attention (not implemented)".into());
+        }
+    }
+    // rope: only the plain "default" rotary embedding (rope_type absent, "default" or legacy null)
+    let check_rope = |what: &str, v: &serde_json::Value| -> Result<()> {
+        if v.is_null() {
+            return Ok(());
+        }
+        let ty = v.get("rope_type").or_else(|| v.get("type")).and_then(|t| t.as_str());
+        match ty {
+            None | Some("default") => Ok(()),
+            Some(t) => Err(Error::Unsupported(format!(
+                "config {what}.rope_type = \"{t}\" (only the default rotary embedding is implemented; \
+                 yarn / linear / dynamic / llama3 / longrope scaling would silently change every position)"
+            ))),
+        }
+    };
+    if let Some(v) = tc.get("rope_parameters") {
+        check_rope("rope_parameters", v)?;
+    }
+    if let Some(v) = tc.get("rope_scaling") {
+        check_rope("rope_scaling", v)?;
+    }
+    Ok(())
 }
 
 impl ModelDims {
     pub fn from_hf_config(cfg: &serde_json::Value, keys: &ConfigKeys) -> Result<ModelDims> {
-        let get_u = |k: &str| cfg.get(k).and_then(|v| v.as_u64()).map(|v| v as usize);
+        check_supported(cfg)?;
+        let tc = text_config(cfg);
+        let get_u = |k: &str| tc.get(k).and_then(|v| v.as_u64()).map(|v| v as usize);
         let need_u = |k: &str| get_u(k).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
+        let get_f = |v: &serde_json::Value, k: &str| v.get(k).and_then(|x| x.as_f64());
         let hidden = need_u(&keys.hidden_size)?;
         let n_heads = need_u(&keys.num_heads)?;
         let n_kv_heads = get_u(&keys.num_kv_heads).unwrap_or(n_heads);
         // head_dim is explicit for Qwen3 (128 with hidden 1024 / 16 heads) - never assume hidden/heads.
         let head_dim = get_u(&keys.head_dim).unwrap_or(hidden / n_heads);
-        let get_f = |k: &str| cfg.get(k).and_then(|v| v.as_f64());
+
+        // No silent defaults for the numbers that change every logit: eps, rope theta, context length.
+        let rms_eps = get_f(tc, &keys.rms_eps)
+            .ok_or_else(|| Error::model(format!("config.json missing '{}' (no default is assumed)", keys.rms_eps)))?;
+        // transformers 5 keeps rope settings in `rope_parameters`; older checkpoints have a top-level key.
+        let rp = tc.get("rope_parameters").filter(|v| v.is_object());
+        let theta_new = rp.and_then(|r| get_f(r, &keys.rope_theta));
+        let theta_old = get_f(tc, &keys.rope_theta);
+        let rope_theta = match (theta_new, theta_old) {
+            (Some(a), Some(b)) if (a - b).abs() > 1e-6 * a.abs().max(1.0) => {
+                return Err(Error::model(format!(
+                    "config.json: rope_parameters.{k} = {a} conflicts with {k} = {b}",
+                    k = keys.rope_theta
+                )))
+            }
+            (Some(a), _) | (None, Some(a)) => a,
+            (None, None) => {
+                return Err(Error::model(format!(
+                    "config.json has neither rope_parameters.{k} nor {k} (no default is assumed)",
+                    k = keys.rope_theta
+                )))
+            }
+        };
+        let partial_rotary_factor = rp
+            .and_then(|r| get_f(r, "partial_rotary_factor"))
+            .or_else(|| get_f(tc, "partial_rotary_factor"))
+            .unwrap_or(1.0);
+        if !(partial_rotary_factor > 0.0 && partial_rotary_factor <= 1.0) {
+            return Err(Error::model(format!("partial_rotary_factor {partial_rotary_factor} outside (0, 1]")));
+        }
+        let max_positions = need_u(&keys.max_positions)
+            .map_err(|_| Error::model(format!("config.json missing '{}' (no default is assumed)", keys.max_positions)))?;
+        let is_moe = ["num_experts", "num_local_experts", "moe_intermediate_size"].iter().any(|k| tc.get(*k).is_some());
+        let intermediate = match get_u(&keys.intermediate_size) {
+            Some(v) => v,
+            None if is_moe => 0,
+            None => need_u(&keys.intermediate_size)?,
+        };
+        let tie_embeddings = tc
+            .get(&keys.tie_embeddings)
+            .or_else(|| cfg.get(&keys.tie_embeddings))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let n_layers = need_u(&keys.num_layers)?;
+        let layer_types: Vec<String> = match tc.get(&keys.layer_types).and_then(|v| v.as_array()) {
+            Some(a) => a.iter().map(|v| v.as_str().map(String::from)).collect::<Option<Vec<_>>>().ok_or_else(|| {
+                Error::model(format!("config.json '{}' must be a list of strings", keys.layer_types))
+            })?,
+            None => Vec::new(),
+        };
+        if !layer_types.is_empty() && layer_types.len() != n_layers {
+            return Err(Error::model(format!(
+                "config.json '{}' has {} entries for {n_layers} layers",
+                keys.layer_types,
+                layer_types.len()
+            )));
+        }
+        let linear_keys = [
+            &keys.linear_k_heads,
+            &keys.linear_v_heads,
+            &keys.linear_k_head_dim,
+            &keys.linear_v_head_dim,
+            &keys.linear_conv_kernel,
+        ];
+        let linear = if linear_keys.iter().any(|k| tc.get(k.as_str()).is_some()) {
+            let lu = |k: &String| need_u(k.as_str());
+            let l = LinearDims {
+                k_heads: lu(&keys.linear_k_heads)?,
+                v_heads: lu(&keys.linear_v_heads)?,
+                k_head_dim: lu(&keys.linear_k_head_dim)?,
+                v_head_dim: lu(&keys.linear_v_head_dim)?,
+                conv_kernel: lu(&keys.linear_conv_kernel)?,
+            };
+            if l.k_heads == 0 || l.v_heads % l.k_heads != 0 || l.conv_kernel < 2 {
+                return Err(Error::model(format!(
+                    "linear attention dims {l:?}: value heads must be a multiple of key heads and conv kernel >= 2"
+                )));
+            }
+            Some(l)
+        } else {
+            None
+        };
         Ok(ModelDims {
             hidden,
-            n_layers: need_u(&keys.num_layers)?,
+            n_layers,
             n_heads,
             n_kv_heads,
             head_dim,
-            intermediate: need_u(&keys.intermediate_size)?,
+            intermediate,
             vocab: need_u(&keys.vocab_size)?,
-            rms_eps: get_f(&keys.rms_eps).unwrap_or(1e-6) as f32,
-            rope_theta: get_f(&keys.rope_theta).unwrap_or(10000.0) as f32,
-            tie_embeddings: cfg.get(&keys.tie_embeddings).and_then(|v| v.as_bool()).unwrap_or(false),
-            max_positions: get_u(&keys.max_positions).unwrap_or(4096),
+            rms_eps: rms_eps as f32,
+            rope_theta: rope_theta as f32,
+            partial_rotary_factor: partial_rotary_factor as f32,
+            tie_embeddings,
+            max_positions,
+            layer_types,
+            linear,
+            moe: if is_moe { Some(crate::quant::moe::MoeConfig::from_hf_config(cfg)?) } else { None },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn base() -> serde_json::Value {
+        json!({
+            "hidden_size": 64, "num_hidden_layers": 2, "num_attention_heads": 4, "num_key_value_heads": 2,
+            "head_dim": 16, "intermediate_size": 128, "vocab_size": 300, "rms_norm_eps": 1e-6,
+            "max_position_embeddings": 4096, "rope_theta": 1000000.0, "hidden_act": "silu",
+            "attention_bias": false, "use_sliding_window": false, "rope_scaling": null,
+            "tie_word_embeddings": true
+        })
+    }
+    fn dims(c: &serde_json::Value) -> Result<ModelDims> {
+        ModelDims::from_hf_config(c, &ConfigKeys::default())
+    }
+
+    #[test]
+    fn legacy_config_loads() {
+        let d = dims(&base()).unwrap();
+        assert_eq!((d.rope_theta, d.rms_eps, d.max_positions), (1_000_000.0, 1e-6, 4096));
+        assert!(d.tie_embeddings);
+        assert_eq!(d.partial_rotary_factor, 1.0);
+    }
+
+    #[test]
+    fn rope_parameters_layout_and_text_config() {
+        let mut inner = base();
+        inner.as_object_mut().unwrap().remove("rope_theta");
+        inner["rope_parameters"] = json!({"rope_theta": 10000000, "rope_type": "default", "partial_rotary_factor": 0.25,
+            "mrope_section": [11, 11, 10], "mrope_interleaved": true});
+        let wrapped = json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"], "text_config": inner,
+            "tie_word_embeddings": false});
+        let d = dims(&wrapped).unwrap();
+        assert_eq!(d.rope_theta, 1e7);
+        assert_eq!(d.partial_rotary_factor, 0.25);
+        assert_eq!(d.hidden, 64);
+    }
+
+    #[test]
+    fn missing_numbers_are_errors_not_defaults() {
+        for key in ["rope_theta", "rms_norm_eps", "max_position_embeddings"] {
+            let mut c = base();
+            c.as_object_mut().unwrap().remove(key);
+            let e = dims(&c).unwrap_err().to_string();
+            assert!(e.contains(key) || e.contains("rope_theta"), "{key}: {e}");
+        }
+    }
+
+    #[test]
+    fn conflicting_rope_theta_is_an_error() {
+        let mut c = base();
+        c["rope_parameters"] = json!({"rope_theta": 10000.0});
+        assert!(dims(&c).unwrap_err().to_string().contains("conflicts"));
+        c["rope_parameters"] = json!({"rope_theta": 1000000.0});
+        dims(&c).unwrap();
+    }
+
+    #[test]
+    fn unsupported_fields_are_rejected() {
+        let cases = [
+            ("hidden_act", json!("gelu")),
+            ("attention_bias", json!(true)),
+            ("use_sliding_window", json!(true)),
+            ("rope_scaling", json!({"rope_type": "yarn", "factor": 4.0})),
+            ("rope_scaling", json!({"type": "linear", "factor": 2.0})),
+            ("rope_parameters", json!({"rope_type": "llama3", "rope_theta": 5e5})),
+            ("layer_types", json!(["full_attention", "sliding_attention"])),
+        ];
+        for (k, v) in cases {
+            let mut c = base();
+            c[k] = v;
+            let e = dims(&c).unwrap_err();
+            assert!(matches!(e, Error::Unsupported(_)), "{k}: {e}");
+        }
+        let mut c = base();
+        c["rope_scaling"] = json!({"rope_type": "default"});
+        dims(&c).unwrap();
+    }
+
+    #[test]
+    fn moe_checkpoint_has_no_dense_width() {
+        let mut c = base();
+        c.as_object_mut().unwrap().remove("intermediate_size");
+        assert!(dims(&c).is_err());
+        c["num_experts"] = json!(8);
+        // MoE dims are read with the rest: a MoE config missing them is an error, not a dense model
+        assert!(dims(&c).unwrap_err().to_string().contains("num_experts_per_tok"));
+        c["num_experts_per_tok"] = json!(2);
+        c["moe_intermediate_size"] = json!(32);
+        let d = dims(&c).unwrap();
+        assert_eq!(d.intermediate, 0);
+        assert_eq!(d.moe.unwrap().top_k, 2);
     }
 }

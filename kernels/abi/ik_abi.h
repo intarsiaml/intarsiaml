@@ -84,16 +84,43 @@ typedef struct {
     int32_t     format;       /* enum ik_quant_format */
 } ik_quant;
 
+/* ---- scratch workspace ----------------------------------------------------
+ * "NO allocation inside" holds for kernels that need temporary global memory
+ * too (split-KV attention partials, split-K reductions, MoE routing tables):
+ * the caller allocates it once at plan time and hands it to every launch.
+ *
+ *   - the requirement is declared on the Rust side, per shape: KernelImpl::scratch
+ *     is a function ShapeInfo -> bytes (crates/intarsia-core/src/registry.rs). The
+ *     plan takes the maximum over every shape of the model and reserves one buffer
+ *     for all ops (ops run in stream order, so they may share it);
+ *   - a launcher that uses scratch takes `const ik_scratch* scratch` as the
+ *     parameter immediately before `stream` (nullptr is legal when it declared
+ *     none); `scratch->data` is 256-byte aligned, uninitialised, valid only for
+ *     this launch's stream order; `scratch->bytes` >= the declared size;
+ *   - a launcher returns IK_ERR_INVALID_ARG when scratch is null or too small
+ *     for the shape it was given; it never allocates to make up for it;
+ *   - contents do not survive the launch: write before read, in every launch.
+ */
+typedef struct {
+    void*   data;
+    int64_t bytes;
+} ik_scratch;
+
 /* ---- launchers (Phase 0: dense BF16 weights, no ik_quant) --------------- *
  * All tensors are dense row-major. `stream` is cudaStream_t/hipStream_t.
  * In/out shapes are given per launcher; attributes are plain scalars.
  *
  * ik_embedding_*     ids[T] i32, table[V,H]           -> out[T,H]
- * ik_rmsnorm_*       x[R,H], w[H], eps                -> out[R,H]
+ * ik_rmsnorm_*       x[R,H], w[H], eps, w_offset      -> out[R,H]     (scale = w + w_offset; 1.0 for zero-centred norms)
  * ik_rmsnorm_add_*   x[R,H], res[R,H], w[H], eps      -> out[R,H] = rmsnorm(x+res)*w, sum[R,H] = x+res
  * ik_add_*           a[R,H], b[R,H]                   -> out[R,H]
  * ik_qk_norm_*       x[T,N,D], w[D], eps              -> out[T,N,D]   (rmsnorm over D per head)
- * ik_rope_*          x[T,N,D], pos0, theta            -> out[T,N,D]   (neox/rotate-half, positions pos0..pos0+T-1)
+ * ik_rope_*          x[T,N,D], pos0, theta, rotary_dim -> out[T,N,D]  (neox/rotate-half over the first rotary_dim values, 0 = all; positions pos0..pos0+T-1)
+ * ik_gate_split_*    x[T,N,2D]                        -> q[T,N,D], gate[T,N,D]  (per head: D query values, then D gate values)
+ * ik_sigmoid_mul_*   a[R,X], g[R,X]                   -> out[R,X] = a * sigmoid(g)
+ * ik_gdn_conv_*      x[T,C], taps[C,K], state[C,K-1] f32 (in/out)  -> y[T,C] = silu(causal depthwise conv)
+ * ik_gdn_delta_rule_* qkv[T,2*Hk*dk+Hv*dv], a[T,Hv], b[T,Hv], A_log[Hv], dt_bias[Hv], eps, state[Hv,dv,dk] f32 (in/out)
+ *                                                    -> o[T,Hv,dv]   (gated delta rule, crates/intarsia-core/src/gdn.rs)
  * ik_matmul_*        x[M,K], w[N,K]                   -> out[M,N]     (out = x @ w^T, f32 accumulate)
  * ik_kv_append_*     new[T,Nkv,D], cache[Nkv,cap,D], pos0          (writes rows pos0..pos0+T-1 in place)
  * ik_attn_prefill_*  q[T,N,D], kc[Nkv,cap,D], vc[Nkv,cap,D], pos0, scale -> out[T,N,D]  (causal, GQA)
@@ -105,12 +132,19 @@ typedef struct {
 /* Phase 0 launcher set (BF16 activations/weights; the cuda pack implements all of them).
  * Every launcher returns an enum ik_status. Zero-element tensors are a no-op (IK_OK). */
 int ik_embedding_bf16(const ik_tensor* ids, const ik_tensor* table, ik_tensor* out, void* stream);
-int ik_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, ik_tensor* out, void* stream);
-int ik_rmsnorm_add_bf16(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps,
+int ik_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, float w_offset, ik_tensor* out, void* stream);
+int ik_rmsnorm_add_bf16(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
                         ik_tensor* out, ik_tensor* sum_out, void* stream);
 int ik_add_bf16(const ik_tensor* a, const ik_tensor* b, ik_tensor* out, void* stream);
-int ik_qk_norm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, ik_tensor* out, void* stream);
-int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, ik_tensor* out, void* stream);
+int ik_qk_norm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, float w_offset, ik_tensor* out, void* stream);
+int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_dim, ik_tensor* out, void* stream);
+/* gated attention / GatedDeltaNet helpers (bf16 activations; conv taps, A_log and dt_bias bf16; recurrent state f32) */
+int ik_gate_split_bf16(const ik_tensor* x, ik_tensor* q, ik_tensor* gate, void* stream);
+int ik_sigmoid_mul_bf16(const ik_tensor* a, const ik_tensor* g, ik_tensor* out, void* stream);
+int ik_gdn_conv_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, ik_tensor* state, void* stream);
+/* head_dim (state[2]) in {32, 64, 128, 256}; deterministic */
+int ik_gdn_delta_rule_bf16(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                           const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 /* matmul: cuBLAS (any M, "fast") and a native GEMV (M <= 4, deterministic, run-to-run identical). */
 int ik_matmul_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
 int ik_matmul_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
@@ -123,10 +157,47 @@ int ik_attn_prefill_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tenso
                          float scale, ik_tensor* out, void* stream);
 int ik_attn_decode_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
                         float scale, ik_tensor* out, void* stream);
+/* split-KV (flash-decoding) attention for few query rows: T == 1 (decode) or T <= 16 (verify); uses scratch,
+ * head_dim in {32, 64, 128, 256}, q heads per kv head <= 8. The scratch size is a function of the shape
+ * (cuda backend: splitkv_parts in crates/intarsia-backend-cuda/src/kernels.rs). */
+int ik_attn_decode_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                float scale, ik_tensor* out, const ik_scratch* scratch, void* stream);
+int ik_attn_prefill_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                 float scale, ik_tensor* out, const ik_scratch* scratch, void* stream);
+/* flash-style tensor-core prefill (causal, GQA), head_dim in {64, 128, 256}, no scratch */
+int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                               float scale, ik_tensor* out, void* stream);
 int ik_silu_glu_bf16(const ik_tensor* gate, const ik_tensor* up, ik_tensor* out, void* stream);
 /* argmax: logits dtype F32 or BF16; lowest index wins ties; out is I32 [R] */
 int ik_argmax_f32(const ik_tensor* logits, ik_tensor* out, void* stream);
 int ik_argmax_bf16(const ik_tensor* logits, ik_tensor* out, void* stream);
+
+/* Quantised weights and MoE (docs/quant-moe.md). Activations BF16; outputs BF16 or F32 where stated.
+ *   matmul_fp8_*    x[M,K] bf16, w[N,K] e4m3, scales f32[2] = (weight_scale, input_scale) -> out[M,N]
+ *                   input_scale > 0: W8A8 (x quantised to e4m3 with that static scale), <= 0: W8A16.
+ *                   _gemv: M <= 4 (x staged in shared memory); _mma: any M (bf16 tensor cores). K % 16 == 0.
+ *   matmul_nvfp4_*  x[M,K] bf16, w u8[N,K/2] (2 x e2m1, low nibble first), block_scales e4m3[N,K/16], global f32[1]
+ *                   -> out[M,N]; _gemv: M <= 8, _mma: any M. K % 16 == 0 (W4A16).
+ *   moe_topk_bf16   logits[T,E] bf16 -> weights f32[T,K] (bf16-rounded softmax weights, renormalised over the selected
+ *                   experts when norm != 0), ids i32[T,K]; ties: lowest expert index first; E <= 512, K <= 32.
+ *   moe_experts_bf16  x[T,H], ids i32[T,K], weights f32[T,K], gate_up_w u8[E,2I,H/2], gate_up_s e4m3[E,2I,H/16],
+ *                   down_w u8[E,H,I/2], down_s e4m3[E,H,I/16], gscales f32[E,3] (gate, up, down weight_scale_2)
+ *                   -> out[T,H] = sum_k w * down(silu(gate(x)) * up(x)); uses scratch (intarsia_core::quant::ops::
+ *                   moe_experts_scratch). H, I % 16 == 0, E <= 1024.
+ *   moe_combine_bf16  routed[T,H], shared[T,H], gate_logit[T,1] -> out[T,H] = routed + sigmoid(gate) * shared. */
+int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
+int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
+int ik_matmul_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
+                         const ik_tensor* global_scale, ik_tensor* out, void* stream);
+int ik_matmul_nvfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
+                        const ik_tensor* global_scale, ik_tensor* out, void* stream);
+int ik_moe_topk_bf16(const ik_tensor* logits, int top_k, int norm, ik_tensor* weights, ik_tensor* ids, void* stream);
+int ik_moe_experts_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                        const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                        const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch,
+                        void* stream);
+int ik_moe_combine_bf16(const ik_tensor* routed, const ik_tensor* shared, const ik_tensor* gate_logit, ik_tensor* out,
+                        void* stream);
 
 /* Optional pack introspection (each pack exports one; used by `intarsia doctor`). */
 typedef struct {

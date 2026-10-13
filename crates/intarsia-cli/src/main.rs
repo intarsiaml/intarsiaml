@@ -24,6 +24,8 @@ enum Command {
     Bench(cmd::bench::BenchArgs),
     /// Host fingerprint and known-pitfall checks.
     Doctor(cmd::doctor::DoctorArgs),
+    /// Show the resolved execution plan (kernel per op) for a model.
+    Plan(cmd::plan::PlanArgs),
     /// Terminal dashboard for a running server.
     Top(cmd::top::TopArgs),
 }
@@ -36,6 +38,7 @@ fn main() -> Result<()> {
         Command::Accuracy(a) => cmd::accuracy::run(a),
         Command::Bench(a) => cmd::bench::run(a),
         Command::Doctor(a) => cmd::doctor::run(a),
+        Command::Plan(a) => cmd::plan::run(a),
         Command::Top(a) => cmd::top::run(a),
     }
 }

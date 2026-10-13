@@ -197,6 +197,14 @@ pub trait Backend: Send + Sync {
 
     /// Wait for all work on `stream`.
     fn synchronize(&self, stream: StreamId) -> Result<()>;
+
+    /// Identity of this host + kernel pack for admission caching: anything that can change a
+    /// kernel's numerics (device, arch; backends add driver/toolkit/pack hash). Admission results
+    /// are cached per fingerprint.
+    fn fingerprint(&self) -> String {
+        let i = self.info();
+        format!("{}|{}|{}", self.name(), i.name, i.arch)
+    }
 }
 
 /// Upload a whole host slice into a fresh buffer.

@@ -52,6 +52,54 @@ Metric names (see `crates/intarsia-server/src/metrics.rs`): `intarsia_engine_ste
 `intarsia_op_seconds_total{op}`, `intarsia_op_calls_total{op}`, `intarsia_uptime_seconds`,
 `intarsia_last_step_timestamp_seconds`, `intarsia_info{model,family,backend,device,...}`.
 
+Robustness metrics: `intarsia_requests_rejected_total` (HTTP 429, queue full),
+`intarsia_engine_failed` (1 after a worker panic), `intarsia_engine_no_progress_seconds` (time with
+work queued and no engine step; the watchdog input).
+
+vLLM-compatible gauges: `vllm:num_requests_running` and `vllm:num_requests_waiting` carry the same
+values as `intarsia_requests_{running,waiting}`. `localeval` decides "is this server busy?" from
+exactly these two names (`BUSY_GAUGES` in `/opt/code/deepeval/src/localeval/client.py`), so they must
+stay. Do not graph both; use the `intarsia_*` names in dashboards.
+
+## Health, watchdog and supervisor
+
+`GET /health` answers 200 `{"status":"ok"}`, or 503 with `"status":"failed"` (the engine worker
+panicked; every new request is refused with 503 too) or `"status":"stalled"` (work is queued or
+running but the engine step counter has not moved for `--watchdog-s`, default 60). A hung kernel
+keeps `/metrics` and `/health` answering at the HTTP layer, which is why the heartbeat is the step
+counter and not the socket. The body also carries `no_progress_s`, `running`, `waiting`, `max_queue`.
+
+`intarsia serve` is a supervisor by default: it starts `intarsia serve --child ...` and restarts it
+with doubling backoff (`--restart-backoff-s`, up to 30 s; reset after 60 s of healthy running) when
+the child dies. The child exits by itself with a distinct code when its watchdog trips:
+
+| exit code | meaning | supervisor |
+|---|---|---|
+| 0 | clean shutdown (SIGTERM/Ctrl-C) | exits 0 |
+| 2, 78 | bad command line, model or recipe did not load | exits, no restart |
+| 86 | watchdog: no engine step for `--watchdog-s` with work queued | restart |
+| 87 | engine worker failed (panic) | restart |
+| 88 | the supervisor vanished | (child gone) |
+| other / signal | crash, OOM kill | restart |
+
+A wedged CUDA context has sticky errors, so a fresh process is the only recovery. SIGTERM to the
+supervisor is forwarded to the child (30 s grace, then SIGKILL). `--no-supervisor` runs the server in
+the foreground without restarts, for debugging: the watchdog then only turns `/health` to 503.
+
+Debug hooks (worker thread, any build): `INTARSIA_DEBUG_STALL_S=n` sleeps n seconds at the start of
+every request (forces a stall); `INTARSIA_DEBUG_PANIC=1` panics there. For testing the watchdog only.
+
+Overload: at most one request runs and `--max-queue` (default 64) wait; the next gets HTTP 429 with
+`Retry-After: 1` (`rate_limit_error` in both dialects). A client that disconnects cancels its request:
+the engine checks the flag while queued, between prefill chunks and between decode steps, so a
+cancelled 16k-token prefill frees the worker after the current chunk. `max_tokens` defaults to what is
+left of the context, at most `--default-max-tokens` (4096; 0 = context only).
+
+`GET /v1/intarsia/plan` returns the engine's execution plan (`Engine::plan()`): model, backend,
+device, exactness, `layers[]` (index, kind, blocks) and `ops[]` (op, kernel, backend, exactness,
+admitted, `calls_per_decode_step`). `null` when the engine has no plan. The `op` strings match the
+keys of `ops` in the telemetry snapshot.
+
 Scrape setup. The existing Prometheus in `/opt/code/missioncntrl_/deploy/monitoring/prometheus.yml`
 has global `scrape_interval: 15s` and one job, `missioncntrl`, that uses a bearer token and
 `metrics_path: /api/prometheus`. `intarsia serve` has no auth in Phase 0 and serves the default
@@ -90,6 +138,9 @@ memory (KV bytes/tokens, device memory), kernels (time share, op time rate, laun
 Wedge is `1` when requests are running or waiting but `rate(intarsia_engine_steps_total[1m])` is
 zero. A hung kernel keeps `/metrics` answering, so `up == 1` alone does not mean healthy. Alert on it:
 
+With the supervisor a wedge heals itself within `--watchdog-s` plus a model load, so also alert on
+repeated restarts (`changes(intarsia_uptime_seconds[15m]) > 2`) and on `intarsia_engine_failed == 1`.
+
 ```yaml
 - alert: IntarsiaWedged
   expr: (sum(intarsia_requests_running + intarsia_requests_waiting) > 0) and (sum(rate(intarsia_engine_steps_total[1m])) == 0)
@@ -122,3 +173,13 @@ real device) measured host-to-device, device-to-host and device-copy bandwidth o
 * `serve_port`: port 8090 free (8000 is vLLM on spark1).
 
 The CUDA-specific fields only appear on a binary built with `--features cuda`.
+
+## Web UI
+
+`intarsia serve` serves a built-in UI at `/` (assets compiled into the binary from `web/`, no build step, no
+CDN). Tabs: Chat (streams `/v1/chat/completions`, collapses `<think>` blocks, per-message TTFT and tok/s),
+Dashboard (live `/events`: tok/s sparklines, queue, KV, memory, per-op time share) and Architecture (the engine
+map from `/v1/intarsia/plan` with the live overlay; falls back to the telemetry op names when the plan is
+null). Dark by default, light via the header toggle or the OS preference. `--no-ui` removes it: `/` and `/ui/*`
+then return 404 while the API, `/metrics` and `/events` stay. Token counters are booked when a request ends,
+so while one runs the UI shows steps/s as an approximate decode rate (marked `~`).
