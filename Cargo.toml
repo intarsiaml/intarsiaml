@@ -1,0 +1,66 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/intarsiaml",
+    "crates/intarsia-core",
+    "crates/intarsia-backend-cpu",
+    "crates/intarsia-backend-cuda",
+    "crates/intarsia-models",
+    "crates/intarsia-server",
+    "crates/intarsia-cli",
+    "crates/intarsia-bench",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.90"
+license = "Apache-2.0"
+repository = "https://github.com/intarsiaml/intarsiaml"
+
+# Shared dependency versions. Agents: add new third-party deps here and reference
+# them from a crate with `foo = { workspace = true }`.
+[workspace.dependencies]
+intarsia-core = { path = "crates/intarsia-core" }
+intarsia-backend-cpu = { path = "crates/intarsia-backend-cpu" }
+intarsia-backend-cuda = { path = "crates/intarsia-backend-cuda" }
+intarsia-models = { path = "crates/intarsia-models" }
+intarsia-server = { path = "crates/intarsia-server" }
+
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+toml = "0.9"
+half = { version = "2", features = ["bytemuck"] }
+bytemuck = "1"
+rayon = "1"
+memmap2 = "0.9"
+sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+minijinja = { version = "2", features = ["json", "loop_controls", "builtins", "preserve_order"] }
+minijinja-contrib = { version = "2", features = ["pycompat"] }
+clap = { version = "4", features = ["derive"] }
+ureq = { version = "3", default-features = false }
+ratatui = "0.30"
+intarsia-bench = { path = "crates/intarsia-bench" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+# server agent
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+tokio-stream = "0.1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+# Debug builds of dependencies are optimised so `cargo test` (which runs real
+# kernels and model loads) is not painfully slow.
+[profile.dev.package."*"]
+opt-level = 3
+[profile.dev.package.intarsia-backend-cpu]
+opt-level = 3
+[profile.dev.package.intarsia-core]
+opt-level = 1
+[profile.test.package.intarsia-backend-cpu]
+opt-level = 3

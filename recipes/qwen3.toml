@@ -1,0 +1,46 @@
+# Qwen3 dense decoder (Qwen3ForCausalLM): GQA + per-head qk-norm + SwiGLU FFN.
+# Tensor name templates use {i} for the layer index; ".weight" is appended when the
+# bare name is not a tensor. Dimensions (heads, head_dim, eps, rope theta, tied
+# embeddings, vocab) are read from config.json.
+
+[model]
+match.architectures = ["Qwen3ForCausalLM"]
+family = "qwen3"
+chat_template = "hf"            # the model's own jinja template via minijinja
+reasoning_parser = "think-tags"
+tool_parser = "hermes"
+
+[layer]
+pattern = ["attn", "ffn"]       # blocks applied in order inside every layer
+
+[layer.attn]
+kind = "gqa"
+q = "model.layers.{i}.self_attn.q_proj"
+k = "model.layers.{i}.self_attn.k_proj"
+v = "model.layers.{i}.self_attn.v_proj"
+o = "model.layers.{i}.self_attn.o_proj"
+q_norm = "model.layers.{i}.self_attn.q_norm"
+k_norm = "model.layers.{i}.self_attn.k_norm"
+rope = "default"                # neox / rotate-half, theta = rope_theta
+
+[layer.ffn]
+kind = "dense"
+act = "silu_glu"
+gate = "model.layers.{i}.mlp.gate_proj"
+up = "model.layers.{i}.mlp.up_proj"
+down = "model.layers.{i}.mlp.down_proj"
+
+[layer.norms]
+pre_attn = "model.layers.{i}.input_layernorm"
+pre_ffn = "model.layers.{i}.post_attention_layernorm"
+
+[top]
+embed = "model.embed_tokens"
+final_norm = "model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
+
+[defaults]
+# Phase 0 CPU/CUDA support bf16 KV. fp8_e4m3 KV is accepted by the cpu oracle and the registry
+# but not yet by the GPU kernels.
+kv_dtype = "bf16"
+max_batch = 1

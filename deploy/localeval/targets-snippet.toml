@@ -1,0 +1,19 @@
+# Paste into /opt/code/deepeval/targets.toml (or merge by hand) to benchmark the IntarsiaML
+# engine with `localeval`. Conventions follow the existing spark-* entries.
+#
+# The engine runs on spark1 (host name spark-4e77), port 8090. Port 8000 is the production vLLM
+# (guidance/capcom roles): never point this entry at it. Start the engine inside a fleetq slot, e.g.
+#   fleetq run --host spark1 --mem 24 --label "intarsiaml serve" -- \
+#       ssh spark1 '~/intarsiaml/target/release/intarsia serve --backend cuda --model <dir> --port 8090 --host 0.0.0.0'
+
+[targets.spark-intarsia]
+url = "http://spark-4e77:8090/v1"
+model = "Qwen3-8B"        # the id reported by GET /v1/models (--model-id, default: model directory name)
+host = "spark-4e77"
+engine = "IntarsiaML"
+thinking = "off"          # IntarsiaML applies the chat template as given; no server-side reasoning preset
+thinking_style = "chat_template_kwargs"
+structured = "prompt"     # Phase 0 server has no response_format / json_schema support
+bandwidth_gbs = 221       # measured on the GB10 (unanimis 6a7efe40)
+gb_per_token = 16.4       # Qwen3-8B bf16 weights (~16.4 GB) read once per decoded token
+notes = "IntarsiaML engine, Qwen3-8B bf16, CUDA sm_121; not fleet-role traffic, take a fleetq slot (localeval does)"

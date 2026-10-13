@@ -1,0 +1,13 @@
+# Prometheus scrape config snippet for IntarsiaML. Merge under `scrape_configs:`.
+# `intarsia serve` exposes /metrics (Prometheus text format) on its API port;
+# port 8090 on spark1 (8000 is the vLLM server).
+scrape_configs:
+  - job_name: intarsia
+    metrics_path: /metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["spark1:8090"]   # DGX Spark GB10
+        labels:
+          instance: spark1
+          engine: intarsia
+      # - targets: ["localhost:8090"]   # local dev (cpu backend)

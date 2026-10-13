@@ -1,0 +1,10 @@
+# Add to the scrape_configs list of your prometheus.yml (see docs/observability.md).
+# Spark1 runs `intarsia serve --port 8090`; vLLM on :8000 is a separate job.
+scrape_configs:
+  - job_name: intarsia
+    metrics_path: /metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["spark-4e77:8090"]
+        labels:
+          host: spark1

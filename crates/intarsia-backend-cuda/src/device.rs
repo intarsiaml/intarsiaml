@@ -1,0 +1,303 @@
+//! The CUDA `Backend` implementation (only compiled with a CUDA toolkit, `cfg(ik_cuda)`).
+//!
+//! Threading: the engine calls a backend from several threads (generation worker, the caller's
+//! thread for `forward_logits_each`, the telemetry thread via `info()`). The CUDA runtime keeps a
+//! *per-thread* current device, so every entry point calls `bind()` (cudaSetDevice, a cached no-op
+//! when already current) before touching the runtime.
+
+use crate::ffi::{self, IkDeviceInfo, IkTensor, IK_MAX_DIMS};
+use crate::kernels;
+use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, MemKind, StreamId};
+use intarsia_core::{DType, Error, KernelImpl, OpCall, Result, TensorRef};
+use std::any::Any;
+use std::ffi::{c_void, CStr};
+use std::sync::Mutex;
+
+fn cuda_err(what: &str, code: i32) -> Error {
+    // SAFETY: cudaGetErrorString returns a static NUL-terminated string.
+    let msg = unsafe { CStr::from_ptr(ffi::ik_rt_error_string(code)) }.to_string_lossy().into_owned();
+    Error::backend(format!("{what}: {msg} (cudaError {code})"))
+}
+
+fn check(what: &str, code: i32) -> Result<()> {
+    if code == 0 {
+        Ok(())
+    } else {
+        Err(cuda_err(what, code))
+    }
+}
+
+/// A `cudaMalloc` allocation.
+pub struct CudaBuffer {
+    ptr: *mut c_void,
+    bytes: usize,
+    ordinal: i32,
+}
+
+// SAFETY: a device pointer is just an address; all access goes through the backend, which binds the
+// right device first. Freed exactly once in Drop.
+unsafe impl Send for CudaBuffer {}
+unsafe impl Sync for CudaBuffer {}
+
+impl BufferImpl for CudaBuffer {
+    fn bytes(&self) -> usize {
+        self.bytes
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Drop for CudaBuffer {
+    fn drop(&mut self) {
+        // SAFETY: ptr came from ik_rt_malloc on `ordinal`; errors during teardown are ignored.
+        unsafe {
+            ffi::ik_rt_set_device(self.ordinal);
+            ffi::ik_rt_free(self.ptr);
+        }
+    }
+}
+
+pub struct CudaBackend {
+    ordinal: i32,
+    name: String,
+    arch: String,
+    integrated: bool,
+    total_at_init: u64,
+    bandwidth_gbs: Option<f64>,
+    /// `cudaStream_t` handles (as usize), index = StreamId; grown on demand.
+    streams: Mutex<Vec<usize>>,
+}
+
+impl CudaBackend {
+    pub fn new(ordinal: usize) -> Result<CudaBackend> {
+        let mut n = 0;
+        // SAFETY: plain FFI call with a valid out-pointer.
+        check("cudaGetDeviceCount", unsafe { ffi::ik_rt_device_count(&mut n) })?;
+        if ordinal >= n as usize {
+            return Err(Error::backend(format!("CUDA device {ordinal} requested but only {n} device(s) found")));
+        }
+        let mut info: IkDeviceInfo = unsafe { std::mem::zeroed() };
+        // SAFETY: info is a valid, writable IkDeviceInfo.
+        check("device init", unsafe { ffi::ik_rt_init_device(ordinal as i32, &mut info) })?;
+        let name = unsafe { CStr::from_ptr(info.name.as_ptr()) }.to_string_lossy().into_owned();
+        let arch = format!("sm_{}{}", info.major, info.minor);
+        if arch != kernels::ARCH {
+            return Err(Error::Unsupported(format!(
+                "device {ordinal} ({name}) is {arch} but the kernels were built for {}; rebuild with INTARSIA_CUDA_ARCH={arch}",
+                kernels::ARCH
+            )));
+        }
+        let mut bw = 0f64;
+        // SAFETY: valid out-pointer.
+        let bandwidth_gbs = (unsafe { ffi::ik_rt_measure_bandwidth(&mut bw) } == 0 && bw > 0.0).then_some(bw);
+        let be = CudaBackend {
+            ordinal: ordinal as i32,
+            name,
+            arch,
+            integrated: info.integrated != 0,
+            total_at_init: info.total_bytes,
+            bandwidth_gbs,
+            streams: Mutex::new(Vec::new()),
+        };
+        be.stream(0)?; // create the default stream now so failures surface here
+        Ok(be)
+    }
+
+    fn bind(&self) -> Result<()> {
+        // SAFETY: plain FFI call.
+        check("cudaSetDevice", unsafe { ffi::ik_rt_set_device(self.ordinal) })
+    }
+
+    fn stream(&self, id: StreamId) -> Result<*mut c_void> {
+        let mut s = self.streams.lock().unwrap();
+        while s.len() <= id as usize {
+            let mut h: *mut c_void = std::ptr::null_mut();
+            // SAFETY: valid out-pointer; the device is bound by the caller.
+            check("cudaStreamCreate", unsafe { ffi::ik_rt_stream_create(&mut h) })?;
+            s.push(h as usize);
+        }
+        Ok(s[id as usize] as *mut c_void)
+    }
+
+    fn ptr(buf: &Buffer, offset: usize, len: usize) -> Result<*mut u8> {
+        let b =
+            buf.downcast::<CudaBuffer>().ok_or_else(|| Error::backend("buffer does not belong to the cuda backend"))?;
+        if offset.checked_add(len).is_none_or(|e| e > b.bytes) {
+            return Err(Error::backend(format!("access of {len} bytes at {offset} outside a {}-byte buffer", b.bytes)));
+        }
+        Ok((b.ptr as *mut u8).wrapping_add(offset))
+    }
+
+    fn tensor(t: &TensorRef) -> Result<IkTensor> {
+        if t.shape.len() > IK_MAX_DIMS {
+            return Err(Error::invalid(format!("rank {} exceeds IK_MAX_DIMS", t.shape.len())));
+        }
+        let data = Self::ptr(&t.buf, t.offset, t.nbytes())? as *mut c_void;
+        let mut shape = [1i64; IK_MAX_DIMS];
+        let mut stride = [0i64; IK_MAX_DIMS];
+        let mut acc = 1i64;
+        for i in (0..t.shape.len()).rev() {
+            shape[i] = t.shape[i] as i64;
+            stride[i] = acc;
+            acc *= t.shape[i] as i64;
+        }
+        Ok(IkTensor { data, dtype: t.dtype as i32, ndim: t.shape.len() as i32, shape, stride })
+    }
+}
+
+impl Backend for CudaBackend {
+    fn name(&self) -> &str {
+        "cuda"
+    }
+
+    fn info(&self) -> DeviceInfo {
+        let _ = self.bind();
+        let (mut free, mut total) = (0u64, 0u64);
+        // SAFETY: valid out-pointers.
+        let rc = unsafe { ffi::ik_rt_mem_info(&mut free, &mut total) };
+        if rc != 0 {
+            total = self.total_at_init;
+            free = 0;
+        }
+        DeviceInfo {
+            name: self.name.clone(),
+            backend: "cuda".into(),
+            arch: self.arch.clone(),
+            total_mem: total,
+            free_mem: free,
+            unified: self.integrated,
+            bandwidth_gbs: self.bandwidth_gbs,
+        }
+    }
+
+    fn alloc(&self, bytes: usize, _kind: MemKind) -> Result<Buffer> {
+        self.bind()?;
+        let mut p: *mut c_void = std::ptr::null_mut();
+        // SAFETY: valid out-pointer. Zero-byte requests still get a (1 byte) allocation so the
+        // pointer is valid and unique.
+        let rc = unsafe { ffi::ik_rt_malloc(&mut p, bytes.max(1)) };
+        if rc != 0 {
+            return Err(Error::Memory(format!("cudaMalloc of {bytes} bytes failed: {}", cuda_err("", rc))));
+        }
+        Ok(Buffer::new(CudaBuffer { ptr: p, bytes, ordinal: self.ordinal }))
+    }
+
+    fn upload(&self, dst: &Buffer, dst_offset: usize, src: &[u8], stream: StreamId) -> Result<()> {
+        if src.is_empty() {
+            return Ok(());
+        }
+        self.bind()?;
+        let d = Self::ptr(dst, dst_offset, src.len())?;
+        let s = self.stream(stream)?;
+        // SAFETY: bounds checked above. Copies from pageable host memory return once the source has
+        // been staged, so `src` need not outlive the call.
+        check("upload", unsafe { ffi::ik_rt_memcpy_h2d(d as *mut c_void, src.as_ptr() as *const c_void, src.len(), s) })
+    }
+
+    fn download(&self, src: &Buffer, src_offset: usize, dst: &mut [u8], stream: StreamId) -> Result<()> {
+        if dst.is_empty() {
+            return Ok(());
+        }
+        self.bind()?;
+        let p = Self::ptr(src, src_offset, dst.len())?;
+        let s = self.stream(stream)?;
+        // SAFETY: bounds checked; the wrapper synchronises the stream before returning.
+        check("download", unsafe {
+            ffi::ik_rt_memcpy_d2h(dst.as_mut_ptr() as *mut c_void, p as *const c_void, dst.len(), s)
+        })
+    }
+
+    fn copy(
+        &self,
+        dst: &Buffer,
+        dst_offset: usize,
+        src: &Buffer,
+        src_offset: usize,
+        bytes: usize,
+        stream: StreamId,
+    ) -> Result<()> {
+        if bytes == 0 {
+            return Ok(());
+        }
+        self.bind()?;
+        let d = Self::ptr(dst, dst_offset, bytes)?;
+        let s_ptr = Self::ptr(src, src_offset, bytes)?;
+        let s = self.stream(stream)?;
+        // SAFETY: both ranges bounds-checked.
+        check("copy", unsafe { ffi::ik_rt_memcpy_d2d(d as *mut c_void, s_ptr as *const c_void, bytes, s) })
+    }
+
+    fn zero(&self, dst: &Buffer, stream: StreamId) -> Result<()> {
+        if dst.bytes() == 0 {
+            return Ok(());
+        }
+        self.bind()?;
+        let d = Self::ptr(dst, 0, dst.bytes())?;
+        let s = self.stream(stream)?;
+        // SAFETY: whole-buffer range.
+        check("zero", unsafe { ffi::ik_rt_memset(d as *mut c_void, 0, dst.bytes(), s) })
+    }
+
+    fn kernels(&self) -> Vec<KernelImpl> {
+        kernels::all()
+    }
+
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
+        call.check()?;
+        match kernels::TABLE.iter().find(|(n, _)| *n == kernel) {
+            None => return Err(Error::NoKernel(format!("cuda kernel '{kernel}'"))),
+            Some((_, op)) if *op != call.op => {
+                return Err(Error::invalid(format!("kernel '{kernel}' implements {op}, not {}", call.op)))
+            }
+            _ => {}
+        }
+        self.bind()?;
+        let s = self.stream(stream)?;
+        let inp: Vec<IkTensor> = call.inputs.iter().map(Self::tensor).collect::<Result<_>>()?;
+        let mut out: Vec<IkTensor> = call.outputs.iter().map(Self::tensor).collect::<Result<_>>()?;
+        let a = &call.attrs;
+        let i = |n: usize| &inp[n] as *const IkTensor;
+        let o = out.as_mut_ptr();
+        // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the
+        // launchers validate dtype/rank/stride and return an error status instead of faulting, and
+        // never synchronise or allocate.
+        let rc = unsafe {
+            match kernel {
+                "embedding_bf16" => ffi::ik_embedding_bf16(i(0), i(1), o, s),
+                "rmsnorm_bf16" => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, o, s),
+                "rmsnorm_add_bf16" => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, o, o.add(1), s),
+                "add_bf16" => ffi::ik_add_bf16(i(0), i(1), o, s),
+                "qk_norm_bf16" => ffi::ik_qk_norm_bf16(i(0), i(1), a.eps, o, s),
+                "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, o, s),
+                "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),
+                "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
+                "logits_bf16" => ffi::ik_logits_bf16(i(0), i(1), o, s),
+                "logits_bf16_gemv" => ffi::ik_logits_bf16_gemv(i(0), i(1), o, s),
+                "kv_append_bf16" => ffi::ik_kv_append_bf16(i(0), a.pos0 as i64, o, s),
+                "attn_prefill_bf16" => ffi::ik_attn_prefill_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
+                "attn_decode_bf16" => ffi::ik_attn_decode_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
+                "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
+                "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
+                "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),
+                other => return Err(Error::NoKernel(format!("cuda kernel '{other}' has no dispatch entry"))),
+            }
+        };
+        if rc != 0 {
+            let dts: Vec<DType> = call.inputs.iter().map(|t| t.dtype).collect();
+            return Err(Error::backend(format!(
+                "ik_{kernel} returned {} ({rc}); inputs {dts:?} shapes {:?}",
+                ffi::status_name(rc),
+                call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()
+            )));
+        }
+        Ok(())
+    }
+
+    fn synchronize(&self, stream: StreamId) -> Result<()> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        // SAFETY: plain FFI call; also reports asynchronous kernel failures.
+        check("stream synchronize", unsafe { ffi::ik_rt_stream_sync(s) })
+    }
+}

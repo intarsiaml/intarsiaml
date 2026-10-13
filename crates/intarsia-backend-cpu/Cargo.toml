@@ -1,0 +1,18 @@
+[package]
+name = "intarsia-backend-cpu"
+description = "cpu-ref: the always-on reference backend (the oracle every other backend is graded against)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+intarsia-core = { workspace = true }
+rayon = { workspace = true }
+half = { workspace = true }
+sysinfo = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

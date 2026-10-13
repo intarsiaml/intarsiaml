@@ -1,0 +1,16 @@
+[package]
+name = "intarsia-backend-cuda"
+description = "CUDA backend: native kernels (kernels/cuda) behind the torch-free C ABI, cuBLAS for prefill matmuls."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+build = "build.rs"
+
+[dependencies]
+intarsia-core = { workspace = true }
+
+[dev-dependencies]
+intarsia-backend-cpu = { workspace = true }

@@ -1,0 +1,40 @@
+[package]
+name = "intarsia-cli"
+description = "The `intarsia` command line tool."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "intarsia_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "intarsia"
+path = "src/main.rs"
+
+[features]
+default = []
+# CUDA backend (needs nvcc; off by default so the Mac builds).
+cuda = ["dep:intarsia-backend-cuda"]
+
+# Agents: add the dependencies your command module needs at the end of this
+# section (append only; keep the lines above untouched).
+[dependencies]
+intarsia-core = { workspace = true }
+intarsia-backend-cpu = { workspace = true }
+intarsia-backend-cuda = { workspace = true, optional = true }
+intarsia-models = { workspace = true }
+intarsia-server = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# --- agent-owned dependencies: append below this line ---
+intarsia-bench = { workspace = true }
+sysinfo = { workspace = true }
+half = { workspace = true }
