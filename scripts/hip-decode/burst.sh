@@ -2,7 +2,7 @@
 # One GPU burst on tatooine with the radiance downtime rule. Runs ON tatooine, inside a fleetq lease the caller took
 # (`fleetq acquire --host tatooine --takes-down radiance --mem 30 --label ... --wait`, then
 # `FLEETQ_JOB=<id> ssh tatooine 'bash ~/intarsiaml-hipperf/scripts/hip-decode/burst.sh <stage>...'`, then `fleetq release <id>`
-# only after this script printed "radiance answers"). Stops radiance, runs the stages of remote.sh (hard cap 28 min),
+# only after this script printed "radiance answers"). Stops radiance, runs the stages of remote.sh (hard cap BURST_CAP seconds, default 900 = 15 min),
 # restarts radiance and polls /v1/models (<= 3 min). Logs with the stop / start / answered timestamps (the downtime log) to
 # ~/hipburst-logs/.
 set -uo pipefail
@@ -30,5 +30,5 @@ echo "[burst] job ${FLEETQ_JOB:-none}; stages: $*; stopping radiance $(now)" | t
 systemctl --user stop radiance
 sleep 2
 echo "[burst] radiance stopped $(now)" | tee -a "$LOG"
-timeout 1680 bash "${INTARSIA_REPO:-$HOME/intarsiaml-hipperf}/scripts/hip-decode/remote.sh" "$@" 2>&1 | tee -a "$LOG"
+timeout "${BURST_CAP:-900}" bash "${INTARSIA_REPO:-$HOME/intarsiaml-hipperf}/scripts/hip-decode/remote.sh" "$@" 2>&1 | tee -a "$LOG"
 echo "[burst] stages done $(now) (timeout/cap exit ${PIPESTATUS[0]})" | tee -a "$LOG"

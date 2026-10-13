@@ -64,6 +64,10 @@ IK_DEVI uint4 ik_pack8(const float* f) {
     return u;
 }
 
+/* silu(g) = g * sigmoid(g). The expression is the one silu_glu uses (elementwise.hip): the fused kernels that fold a
+ * silu_glu into their epilogue must produce its bits. */
+IK_DEVI float ik_silu(float g) { return g / (1.f + expf(-g)); }
+
 /* streaming 16 B load of data that is read exactly once (weights): do not pollute the caches */
 typedef unsigned int ik_u32x4 __attribute__((ext_vector_type(4)));
 IK_DEVI uint4 ik_ldcs(const uint4* p) {

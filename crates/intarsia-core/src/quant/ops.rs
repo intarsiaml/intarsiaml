@@ -1,4 +1,5 @@
-//! Validation and shape facts of the quantised-weight and MoE ops (`Op::MatmulFp8` ... `Op::MoeCombine`).
+//! Validation and shape facts of the quantised-weight and MoE ops (`Op::MatmulFp8` ... `Op::MoeCombine`) and of the
+//! fused decode ops (`Op::MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`).
 //! Called from `OpCall::check` / `ShapeInfo::from_call`; the table of signatures is in `ops.rs`.
 
 use crate::backend::TensorRef;
@@ -120,6 +121,81 @@ pub fn check(call: &OpCall) -> Result<()> {
                 return bad(op, "tensors must be bf16/f16/f32".into());
             }
         }
+        Op::MatmulPair => {
+            rank(&i[0], 2, "x")?;
+            let (m, k) = (i[0].shape[0], i[0].shape[1]);
+            if !act(&i[0]) {
+                return bad(op, "x must be bf16/f16/f32".into());
+            }
+            for (j, (w, out)) in [(&i[1], &o[0]), (&i[2], &o[1])].into_iter().enumerate() {
+                rank(w, 2, "w")?;
+                let n = w.shape[0];
+                if !act(w) || w.shape[1] != k {
+                    return bad(op, format!("w{j} must be a bf16/f16/f32 [N,{k}] matrix, got {} {:?}", w.dtype, w.shape));
+                }
+                if !act(out) || out.shape != [m, n] {
+                    return bad(op, format!("out{j} {:?} != [{m},{n}]", out.shape));
+                }
+            }
+        }
+        Op::MatmulFp8Pair => {
+            rank(&i[0], 2, "x")?;
+            let (m, k) = (i[0].shape[0], i[0].shape[1]);
+            if !act(&i[0]) {
+                return bad(op, "x must be bf16/f16/f32".into());
+            }
+            for j in 0..2 {
+                let (w, sc, out) = (&i[1 + 2 * j], &i[2 + 2 * j], &o[j]);
+                rank(w, 2, "w")?;
+                let n = w.shape[0];
+                if w.dtype != DType::Fp8E4m3 || w.shape[1] != k {
+                    return bad(op, format!("w{j} must be fp8_e4m3 [N,{k}], got {} {:?}", w.dtype, w.shape));
+                }
+                if sc.dtype != DType::F32 || sc.shape != [2] {
+                    return bad(op, format!("scales{j} must be f32 [2] = (weight_scale, input_scale)"));
+                }
+                if !act(out) || out.shape != [m, n] {
+                    return bad(op, format!("out{j} {:?} != [{m},{n}]", out.shape));
+                }
+            }
+        }
+        Op::MatmulNvfp4Glu => {
+            rank(&i[0], 2, "x")?;
+            let (m, k) = (i[0].shape[0], i[0].shape[1]);
+            if !act(&i[0]) || !act(&o[0]) {
+                return bad(op, "x and out must be bf16/f16/f32".into());
+            }
+            if k % 16 != 0 {
+                return bad(op, format!("K={k} must be a multiple of 16"));
+            }
+            rank(&i[1], 2, "gate w")?;
+            let n = i[1].shape[0];
+            if o[0].shape != [m, n] {
+                return bad(op, format!("out {:?} != [{m},{n}]", o[0].shape));
+            }
+            for (j, what) in ["gate", "up"].into_iter().enumerate() {
+                let (w, bs, gs) = (&i[1 + 3 * j], &i[2 + 3 * j], &i[3 + 3 * j]);
+                if w.dtype != DType::U8 || w.shape != [n, k / 2] {
+                    return bad(op, format!("{what} w must be u8 [N,K/2]=[{n},{}], got {} {:?}", k / 2, w.dtype, w.shape));
+                }
+                if bs.dtype != DType::Fp8E4m3 || bs.shape != [n, k / 16] {
+                    return bad(op, format!("{what} block scales must be fp8_e4m3 [N,K/16]=[{n},{}], got {:?}", k / 16, bs.shape));
+                }
+                if gs.dtype != DType::F32 || gs.shape != [1] {
+                    return bad(op, format!("{what} global scale must be f32 [1]"));
+                }
+            }
+        }
+        Op::GatedRmsnorm => {
+            rank(&i[0], 2, "x")?;
+            let (r, d) = (i[0].shape[0], i[0].shape[1]);
+            if i[1].shape != [r, d] || i[2].shape != [d] || o[0].shape != [r, d] {
+                return bad(op, format!("shapes x {:?} z {:?} w {:?} out {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape));
+            }
+            if !act(&i[0]) || !act(&i[1]) || !act(&i[2]) || !act(&o[0]) {
+                return bad(op, "tensors must be bf16/f16/f32".into());
+            }
+        }
         _ => unreachable!("quant::ops::check called for {op}"),
     }
     Ok(())
@@ -151,6 +227,23 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.weight = Some(i[3].dtype);
         }
         Op::MoeCombine => {
+            s.m = i[0].shape[0];
+            s.k = i[0].shape[1];
+        }
+        // the fused decode ops: m rows, k reduction (or row width), n the first (or only) output width
+        Op::MatmulPair | Op::MatmulFp8Pair => {
+            s.m = i[0].shape[0];
+            s.k = i[0].shape[1];
+            s.n = i[1].shape[0];
+            s.weight = Some(i[1].dtype);
+        }
+        Op::MatmulNvfp4Glu => {
+            s.m = i[0].shape[0];
+            s.k = i[0].shape[1];
+            s.n = i[1].shape[0];
+            s.weight = Some(i[1].dtype);
+        }
+        Op::GatedRmsnorm => {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1];
         }

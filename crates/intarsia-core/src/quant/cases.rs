@@ -1,4 +1,5 @@
-//! Admission cases for the quantised-weight and MoE ops: the `intarsia kernels test` sweep and the exact-shape
+//! Admission cases for the quantised-weight and MoE ops and the fused decode ops (`MatmulPair`, `MatmulFp8Pair`,
+//! `MatmulNvfp4Glu`, `GatedRmsnorm`): the `intarsia kernels test` sweep and the exact-shape
 //! builders used by plan-time admission (`admission::case_from_call`). Data is generated through the format
 //! encoders so every case is valid (no e4m3 NaN encodings, finite scales, distinct experts per token).
 //!
@@ -139,6 +140,72 @@ pub fn combine_case(rng: &mut SplitMix64, t: usize, h: usize, dt: DType) -> Host
     }
 }
 
+/// `MatmulPair`: two dense `[n0,k]`, `[n1,k]` projections of one `x`.
+pub fn matmul_pair_case(rng: &mut SplitMix64, m: usize, n0: usize, n1: usize, k: usize, dt: DType) -> HostCall {
+    HostCall {
+        op: Op::MatmulPair,
+        inputs: vec![rand_t(rng, dt, &[m, k], 1.0), rand_t(rng, dt, &[n0, k], 0.5), rand_t(rng, dt, &[n1, k], 0.5)],
+        outputs: vec![OutSpec::new(dt, &[m, n0]), OutSpec::new(dt, &[m, n1])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+/// `MatmulFp8Pair`: two fp8 projections of one `x`; `aq0` / `aq1` select W8A8 (static input scale) per segment.
+#[allow(clippy::too_many_arguments)]
+pub fn matmul_fp8_pair_case(
+    rng: &mut SplitMix64,
+    m: usize,
+    n0: usize,
+    n1: usize,
+    k: usize,
+    aq0: bool,
+    aq1: bool,
+    xdt: DType,
+    odt: DType,
+) -> HostCall {
+    let (a, b) = (fp8::random_rows(rng, n0, k, aq0), fp8::random_rows(rng, n1, k, aq1));
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let (mut pa, mut pb) = (a.parts.into_iter(), b.parts.into_iter());
+    HostCall {
+        op: Op::MatmulFp8Pair,
+        inputs: vec![x, pa.next().unwrap(), pa.next().unwrap(), pb.next().unwrap(), pb.next().unwrap()],
+        outputs: vec![OutSpec::new(odt, &[m, n0]), OutSpec::new(odt, &[m, n1])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+/// `MatmulNvfp4Glu`: gate and up `[n,k]` NVFP4 projections of one `x`, combined as `silu(gate) * up`.
+pub fn matmul_nvfp4_glu_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt: DType, odt: DType) -> HostCall {
+    let (g, u) = (nvfp4::random_rows(rng, n, k), nvfp4::random_rows(rng, n, k));
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let (mut pg, mut pu) = (g.parts.into_iter(), u.parts.into_iter());
+    HostCall {
+        op: Op::MatmulNvfp4Glu,
+        inputs: vec![
+            x,
+            pg.next().unwrap(),
+            pg.next().unwrap(),
+            pg.next().unwrap(),
+            pu.next().unwrap(),
+            pu.next().unwrap(),
+            pu.next().unwrap(),
+        ],
+        outputs: vec![OutSpec::new(odt, &[m, n])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+/// `GatedRmsnorm` over `r` rows of width `d` (weights around one, like a trained norm).
+pub fn gated_rmsnorm_case(rng: &mut SplitMix64, r: usize, d: usize, dt: DType) -> HostCall {
+    let w: Vec<f32> = (0..d).map(|_| 1.0 + 0.25 * rng.normal()).collect();
+    HostCall {
+        op: Op::GatedRmsnorm,
+        inputs: vec![rand_t(rng, dt, &[r, d], 1.0), rand_t(rng, dt, &[r, d], 2.0), HostTensor::from_f32_as(dt, &[d], &w)],
+        outputs: vec![OutSpec::new(dt, &[r, d])],
+        attrs: OpAttrs { eps: 1e-6, ..OpAttrs::default() },
+    }
+}
+
 const ACT: [DType; 2] = [DType::Bf16, DType::F32];
 
 /// The sweep for one of the new ops, or `None` for any other op.
@@ -232,6 +299,69 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
             }
         }
+        Op::MatmulPair => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 40] };
+            // (n0, n1, k): the two GDN gate projections and the MoE router + shared-expert gate of Qwen3.6-35B-A3B
+            let mut nnk = vec![(64usize, 40usize, 64usize), (33, 1, 96), (9, 17, 40)];
+            if !quick {
+                nnk.extend([(32, 32, 2048), (256, 1, 2048), (300, 5, 520)]);
+            }
+            for &m in ms {
+                for &(n0, n1, k) in &nnk {
+                    for dt in ACT {
+                        push(format!("M={m} N0={n0} N1={n1} K={k} {dt}"), matmul_pair_case(&mut rng, m, n0, n1, k, dt));
+                    }
+                }
+            }
+        }
+        Op::MatmulFp8Pair => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 40] };
+            let mut nnk = vec![(64usize, 48usize, 64usize), (40, 96, 96), (17, 33, 48)];
+            if !quick {
+                // Qwen3.6-35B-A3B: GDN qkv + z, attention k + v
+                nnk.extend([(8192, 4096, 2048), (512, 512, 2048)]);
+            }
+            for &m in ms {
+                for &(n0, n1, k) in &nnk {
+                    for (xdt, odt, aq0, aq1) in [
+                        (DType::Bf16, DType::Bf16, true, true),
+                        (DType::Bf16, DType::Bf16, false, false),
+                        (DType::Bf16, DType::Bf16, true, false),
+                        (DType::F32, DType::F32, true, true),
+                    ] {
+                        push(
+                            format!("M={m} N0={n0} N1={n1} K={k} x={xdt} out={odt} act_quant={aq0}/{aq1}"),
+                            matmul_fp8_pair_case(&mut rng, m, n0, n1, k, aq0, aq1, xdt, odt),
+                        );
+                    }
+                }
+            }
+        }
+        Op::MatmulNvfp4Glu => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 40] };
+            let mut nk = vec![(64usize, 64usize), (40, 96), (9, 16)];
+            if !quick {
+                nk.extend([(512, 2048), (2048, 512), (300, 4112)]);
+            }
+            for &m in ms {
+                for &(n, k) in &nk {
+                    for (xdt, odt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32)] {
+                        push(format!("M={m} N={n} K={k} x={xdt} out={odt}"), matmul_nvfp4_glu_case(&mut rng, m, n, k, xdt, odt));
+                    }
+                }
+            }
+        }
+        Op::GatedRmsnorm => {
+            let rs: &[usize] = if quick { &[1, 5] } else { &[1, 5, 33, 960] };
+            let ds: &[usize] = if quick { &[128] } else { &[64, 128, 130, 256] };
+            for &r in rs {
+                for &d in ds {
+                    for dt in ACT {
+                        push(format!("R={r} D={d} {dt}"), gated_rmsnorm_case(&mut rng, r, d, dt));
+                    }
+                }
+            }
+        }
         _ => return None,
     }
     Some(cases)
@@ -278,6 +408,33 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].dtype
         ),
         Op::MoeCombine => format!("T={} H={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        Op::MatmulPair => format!(
+            "M={} N0={} N1={} K={} {}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[2].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype
+        ),
+        Op::MatmulFp8Pair => format!(
+            "M={} N0={} N1={} K={} x={} out={} act_quant={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[3].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype,
+            "static/static"
+        ),
+        Op::MatmulNvfp4Glu => format!(
+            "M={} N={} K={} x={} out={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype
+        ),
+        Op::GatedRmsnorm => format!("R={} D={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         _ => return None,
     };
     Some(format!("{} {}", call.op, s))
@@ -304,6 +461,29 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype)
         }
         Op::MoeCombine => combine_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        Op::MatmulPair => matmul_pair_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[2].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+        ),
+        Op::MatmulFp8Pair => matmul_fp8_pair_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[3].shape[0].min(caps.n),
+            i[0].shape[1],
+            true,
+            true,
+            i[0].dtype,
+            o[0].dtype,
+        ),
+        Op::MatmulNvfp4Glu => {
+            matmul_nvfp4_glu_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
+        }
+        Op::GatedRmsnorm => gated_rmsnorm_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         _ => return None,
     };
     Some((hc, label))
@@ -318,7 +498,17 @@ mod tests {
 
     #[test]
     fn every_case_validates() {
-        for op in [Op::MatmulFp8, Op::MatmulNvfp4, Op::MoeTopk, Op::MoeExperts, Op::MoeCombine] {
+        for op in [
+            Op::MatmulFp8,
+            Op::MatmulNvfp4,
+            Op::MoeTopk,
+            Op::MoeExperts,
+            Op::MoeCombine,
+            Op::MatmulPair,
+            Op::MatmulFp8Pair,
+            Op::MatmulNvfp4Glu,
+            Op::GatedRmsnorm,
+        ] {
             let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
             assert!(!cases.is_empty());
             for c in cases {

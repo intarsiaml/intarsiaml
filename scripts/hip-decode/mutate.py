@@ -31,9 +31,37 @@ MUTATIONS = {
     # fp8 gemv v2: the upper two bytes of each converted e4m3 pair read the lower pair's selector
     "fp8-convert": ("kernels/hip/fp8.hip", [(
         "e4m3x2_to_f16x2((uint32_t)c0, 0x030C020Cu)", "e4m3x2_to_f16x2((uint32_t)c0, 0x010C000Cu)")]),
+    # --- fused decode kernels (tests/fused_decode.rs, hip-decode-2) ---
+    # bf16 pair: the second matrix's blocks start one block late (its first rows are never written)
+    "pair-block": ("kernels/hip/matmul.hip", [(
+        "else gemv_body<1, R, U, OutT>(x, w1, o1, N1, K, (int64_t)blockIdx.x - nb0);",
+        "else gemv_body<1, R, U, OutT>(x, w1, o1, N1, K, (int64_t)blockIdx.x - nb0 + 1);")]),
+    # fp8 pair: the second segment stages and scales with the first segment's scales
+    "fp8-pair-scale": ("kernels/hip/fp8.hip", [(
+        "else fp8_gemv_body<1, R, OutT, Q>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);",
+        "else fp8_gemv_body<1, R, OutT, Q>(x, w1, sc0, o1, N1, K, (int64_t)blockIdx.x - nb0);")]),
+    # nvfp4 gate+up+silu: the up projection is scaled with the gate's global scale
+    "glu-scale": ("kernels/hip/nvfp4.hip", [(
+        "ik_warp_sum(acc[1]) * gsu[0]", "ik_warp_sum(acc[1]) * gsg[0]")]),
+    # nvfp4 gate+up+silu: the gate value is not rounded to bf16 before the silu (the unfused GEMV stores it as bf16)
+    "glu-round": ("kernels/hip/nvfp4.hip", [(
+        "const float g = ik_b2f(ik_f2b(ik_warp_sum(acc[0]) * gsg[0]));", "const float g = ik_warp_sum(acc[0]) * gsg[0];")]),
+    # gated rmsnorm: silu is applied to the normalised value instead of z
+    "gated-order": ("kernels/hip/norm.hip", [(
+        "f[k] = ik_silu(zf[k]) * nrm[k];", "f[k] = ik_silu(nrm[k]) * zf[k];")]),
+    # gated rmsnorm: the normalised value skips its bf16 rounding
+    "gated-round": ("kernels/hip/norm.hip", [(
+        "ik_unpack8(ik_pack8(f), nrm);  // the normalised row as the rmsnorm launch stores it (bf16)",
+        "for (int k = 0; k < 8; ++k) nrm[k] = f[k];")]),
 }
 
+# the test target that must fail for each mutation (default decode_v2)
+TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round")}
+
 tree, name = sys.argv[1], sys.argv[2]
+if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target
+    print(TESTS.get(sys.argv[3], "decode_v2"))
+    sys.exit(0)
 path, pairs = MUTATIONS[name]
 p = f"{tree}/{path}"
 s = open(p).read()

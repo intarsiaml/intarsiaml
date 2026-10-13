@@ -10,6 +10,7 @@
 
 mod fast;
 mod fault;
+mod fused_ref;
 mod gdn_ref;
 mod mem;
 mod quant_ref;

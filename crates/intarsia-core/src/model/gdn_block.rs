@@ -13,6 +13,7 @@
 //! ```
 
 use super::*;
+use crate::quant::{BF16, FP8_E4M3};
 
 /// Bytes the recurrent slot of one GatedDeltaNet layer holds: conv state `[C, K-1]` f32, then (256-byte
 /// aligned) the delta-rule state `[Hv, dv, dk]` f32.
@@ -134,10 +135,36 @@ impl Model {
         let core = self.view(&x.core, act, &[t, hv, dv]);
         let normed = self.view(&x.normed, act, &[t, hv, dv]);
 
-        self.proj(n, &g.in_qkv, &qkv, profile)?;
-        self.proj(n, &g.in_z, &z, profile)?;
-        self.proj(n, &g.in_b, &b, profile)?;
-        self.proj(n, &g.in_a, &a, profile)?;
+        // The four projections read the same activation. qkv and z (fp8) go through one launch, and so do the b and a
+        // gates (dense), when the backend has the fused pair kernels; otherwise each runs on its own.
+        let qz_fused = match (g.in_qkv.format, g.in_z.format) {
+            (FP8_E4M3, FP8_E4M3) => self.try_fused(
+                Op::MatmulFp8Pair,
+                vec![n.clone(), g.in_qkv.parts[0].clone(), g.in_qkv.parts[1].clone(), g.in_z.parts[0].clone(), g.in_z.parts[1].clone()],
+                vec![qkv.clone(), z.clone()],
+                OpAttrs::default(),
+                profile,
+            )?,
+            _ => false,
+        };
+        if !qz_fused {
+            self.proj(n, &g.in_qkv, &qkv, profile)?;
+            self.proj(n, &g.in_z, &z, profile)?;
+        }
+        let ba_fused = match (g.in_b.format, g.in_a.format) {
+            (BF16, BF16) => self.try_fused(
+                Op::MatmulPair,
+                vec![n.clone(), g.in_b.parts[0].clone(), g.in_a.parts[0].clone()],
+                vec![b.clone(), a.clone()],
+                OpAttrs::default(),
+                profile,
+            )?,
+            _ => false,
+        };
+        if !ba_fused {
+            self.proj(n, &g.in_b, &b, profile)?;
+            self.proj(n, &g.in_a, &a, profile)?;
+        }
         self.exec(
             Op::GdnConv,
             vec![qkv, g.conv.clone()],
@@ -155,11 +182,23 @@ impl Model {
         )?;
         // gated RMSNorm: rmsnorm(core, w) * silu(z), over rows of dv (the weight is never zero-centred)
         let rows = [t * hv, dv];
+        let norm_attrs = OpAttrs { eps: self.dims.rms_eps, ..Default::default() };
+        // one launch for both when the backend has it (the result then lands in `normed`, not `core`)
+        let gated = self.try_fused(
+            Op::GatedRmsnorm,
+            vec![core.reshaped(&rows), z.reshaped(&rows), g.norm.clone()],
+            vec![normed.reshaped(&rows)],
+            norm_attrs.clone(),
+            profile,
+        )?;
+        if gated {
+            return self.proj(&normed.reshaped(&[t, vdim]), &g.out, out, profile);
+        }
         self.exec(
             Op::RmsNorm,
             vec![core.reshaped(&rows), g.norm.clone()],
             vec![normed.reshaped(&rows)],
-            OpAttrs { eps: self.dims.rms_eps, ..Default::default() },
+            norm_attrs,
             profile,
         )?;
         self.exec(

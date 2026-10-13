@@ -28,7 +28,14 @@
 //! | `GdnConv` | x `[T,C]`, taps `[C,K]` | y `[T,C]` (= silu(causal conv)), conv state `[C,K-1]` f32 (**in place**) | |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
-//! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`).
+//! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
+//! | `MatmulFp8Pair` | x `[M,K]`, (w0 `[N0,K]`, scales0 `[2]`), (w1 `[N1,K]`, scales1 `[2]`) fp8 | `[M,N0]`, `[M,N1]` (= two `MatmulFp8`s) | fused, see `quant::fused` |
+//! | `MatmulNvfp4Glu` | x `[M,K]`, gate (w, block scales, global), up (w, block scales, global), nvfp4 `[N,K]` each | `[M,N]` (= `SiluGlu(MatmulNvfp4(gate), MatmulNvfp4(up))`) | fused, see `quant::fused` |
+//! | `GatedRmsnorm` | x `[R,D]`, z `[R,D]`, w `[D]` | `[R,D]` (= `SiluGlu(z, RmsNorm(x, w))`) | eps, w_offset; fused, see `quant::fused` |
+//!
+//! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The four
+//! fused ops above are optional: a backend registers kernels for them only when it has a fast path, and the model
+//! falls back to the unfused ops it replaces when `Registry::select` finds none.
 //!
 //! Attention is causal GQA: query `t` sits at absolute position `pos0 + t` and
 //! attends cache rows `0..=pos0+t`; the caller must have appended K/V for
@@ -65,10 +72,14 @@ pub enum Op {
     SigmoidMul,
     GdnConv,
     GdnDeltaRule,
+    MatmulPair,
+    MatmulFp8Pair,
+    MatmulNvfp4Glu,
+    GatedRmsnorm,
 }
 
 impl Op {
-    pub const ALL: [Op; 23] = [
+    pub const ALL: [Op; 27] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -92,6 +103,10 @@ impl Op {
         Op::SigmoidMul,
         Op::GdnConv,
         Op::GdnDeltaRule,
+        Op::MatmulPair,
+        Op::MatmulFp8Pair,
+        Op::MatmulNvfp4Glu,
+        Op::GatedRmsnorm,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -120,6 +135,10 @@ impl Op {
             Op::SigmoidMul => "sigmoid_mul",
             Op::GdnConv => "gdn_conv",
             Op::GdnDeltaRule => "gdn_delta_rule",
+            Op::MatmulPair => "matmul_pair",
+            Op::MatmulFp8Pair => "matmul_fp8_pair",
+            Op::MatmulNvfp4Glu => "matmul_nvfp4_glu",
+            Op::GatedRmsnorm => "gated_rmsnorm",
         }
     }
 
@@ -151,6 +170,10 @@ impl Op {
             Op::SigmoidMul => (2, 1),
             Op::GdnConv => (2, 2),
             Op::GdnDeltaRule => (5, 2),
+            Op::MatmulPair => (3, 2),
+            Op::MatmulFp8Pair => (5, 2),
+            Op::MatmulNvfp4Glu => (7, 1),
+            Op::GatedRmsnorm => (3, 1),
         }
     }
 }
@@ -372,9 +395,15 @@ impl OpCall {
                     return bad("out must be i32 [R]".into());
                 }
             }
-            Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => {
-                crate::quant::ops::check(self)?
-            }
+            Op::MatmulFp8
+            | Op::MatmulNvfp4
+            | Op::MoeTopk
+            | Op::MoeExperts
+            | Op::MoeCombine
+            | Op::MatmulPair
+            | Op::MatmulFp8Pair
+            | Op::MatmulNvfp4Glu
+            | Op::GatedRmsnorm => crate::quant::ops::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::check(self)?,
         }
         Ok(())
@@ -450,9 +479,15 @@ impl ShapeInfo {
                 s.m = i[0].shape[0];
                 s.n = i[0].shape[1];
             }
-            Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => {
-                crate::quant::ops::shape(call, &mut s)
-            }
+            Op::MatmulFp8
+            | Op::MatmulNvfp4
+            | Op::MoeTopk
+            | Op::MoeExperts
+            | Op::MoeCombine
+            | Op::MatmulPair
+            | Op::MatmulFp8Pair
+            | Op::MatmulNvfp4Glu
+            | Op::GatedRmsnorm => crate::quant::ops::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::shape(call, &mut s),
         }
         let _ = o;

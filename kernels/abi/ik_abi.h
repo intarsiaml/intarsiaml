@@ -245,6 +245,24 @@ int ik_moe_experts_decode_bf16(const ik_tensor* x, const ik_tensor* ids, const i
 int ik_moe_combine_bf16(const ik_tensor* routed, const ik_tensor* shared, const ik_tensor* gate_logit, ik_tensor* out,
                         void* stream);
 
+/* Fused decode launchers (HIP only; docs/results/2026-10-14-hip-decode-2.md). Each replaces a short chain of the launchers
+ * above and produces the same bits as that chain, so a backend without them keeps the unfused path (the model asks the
+ * registry whether a kernel exists before it uses one). M = 1 (one decode row) except gated_rmsnorm.
+ *   matmul_pair_bf16_gemv   x[1,K], w0[N0,K], w1[N1,K] (bf16, K % 8 == 0) -> out0[1,N0], out1[1,N1]: two matmul_bf16_gemv.
+ *   matmul_fp8_pair_gemv    x[1,K], (w0, scales0), (w1, scales1) fp8 -> out0, out1 (bf16): two matmul_fp8_gemv_v2.
+ *   matmul_nvfp4_glu_gemv   x[1,K], (w, block scales, global) for gate and for up, [N,K] each -> out[1,N] (bf16)
+ *                           = silu_glu(matmul_nvfp4_gemv_v2(gate), matmul_nvfp4_gemv_v2(up)).
+ *   gated_rmsnorm_bf16      x[R,D], z[R,D], w[D], eps, w_offset -> out[R,D] = silu_glu(z, rmsnorm(x, w)); out may be x. */
+int ik_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* out0,
+                             ik_tensor* out1, void* stream);
+int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                            const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream);
+int ik_matmul_nvfp4_glu_gemv(const ik_tensor* x, const ik_tensor* w_gate, const ik_tensor* block_scales_gate,
+                             const ik_tensor* global_scale_gate, const ik_tensor* w_up, const ik_tensor* block_scales_up,
+                             const ik_tensor* global_scale_up, ik_tensor* out, void* stream);
+int ik_gated_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* z, const ik_tensor* w, float eps, float w_offset,
+                          ik_tensor* out, void* stream);
+
 /* Optional pack introspection (each pack exports one; used by `intarsia doctor`). */
 typedef struct {
     int32_t     abi_version;  /* IK_ABI_VERSION the pack was built against */

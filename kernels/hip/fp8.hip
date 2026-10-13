@@ -42,14 +42,16 @@ IK_DEVI uint32_t e4m3x2_to_f16x2(uint32_t w, uint32_t sel) {
 //      the division by the input scale as before; the staged values are e4m3 * 2^-8 (the same trick as the weights), so the
 //      output scale is 2^16 instead of 2^8 (all powers of two: bit-identical to Q = 0, 1)
 //   3  as 2, with the division by the input scale as multiply-by-reciprocal plus one fma correction
+// `blk` is the block's index along the rows of this matrix: blockIdx.x for fp8_gemv_kernel, the index inside its segment
+// for the pair kernel below, which therefore runs this very code (its staging uses the segment's own scales).
 template <int M, int R, typename OutT, int Q>
-__global__ void __launch_bounds__(kWarps * IK_WARP)
-fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
-                OutT* __restrict__ out, int N, int K) {
+__device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w,
+                                              const float* __restrict__ sc, OutT* __restrict__ out, int N, int K,
+                                              int64_t blk) {
     extern __shared__ __align__(16) unsigned char smem[];
     ik_bf16* xs = reinterpret_cast<ik_bf16*>(smem);  // [M][K] bf16: x, or (W8A8) xq as fp16 bits (exact)
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t n0 = ((int64_t)blockIdx.x * kWarps + warp) * R;
+    const int64_t n0 = (blk * kWarps + warp) * R;
     const int nu = K / 16;
     const uint4* wr[R];
 #pragma unroll
@@ -210,6 +212,27 @@ fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, co
         }
 }
 
+template <int M, int R, typename OutT, int Q>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                OutT* __restrict__ out, int N, int K) {
+    fp8_gemv_body<M, R, OutT, Q>(x, w, sc, out, N, K, (int64_t)blockIdx.x);
+}
+
+// Two projections of one activation row in one launch (GDN qkv + z, attention k + v): blocks [0, nb0) run the first
+// matrix with its own scales, the rest the second. Each block stages the activations itself, so the two segments need
+// not share an input scale (the checkpoint's do).
+template <int R, typename OutT, int Q>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const float* __restrict__ sc0,
+                     OutT* __restrict__ o0, int N0, const uint8_t* __restrict__ w1, const float* __restrict__ sc1,
+                     OutT* __restrict__ o1, int N1, int K) {
+    constexpr int per = kWarps * R;
+    const int nb0 = (N0 + per - 1) / per;
+    if ((int)blockIdx.x < nb0) fp8_gemv_body<1, R, OutT, Q>(x, w0, sc0, o0, N0, K, (int64_t)blockIdx.x);
+    else fp8_gemv_body<1, R, OutT, Q>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);
+}
+
 // rows per warp: INTARSIA_HIP_FP8_ROWS=1|2|4 forces one, otherwise 1 for small N (keeps enough blocks in flight)
 // (v2: two rows per warp at every N; measured DRAM-cold on the 35B's projection shapes it is the best or tied for N = 512 to
 // 8192, and 1.4 to 6.7 us faster than one row per warp on N = 2048 and 4096, which v1's default of one row serves)
@@ -357,10 +380,45 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     return ik_launch_status();
 }
 
+// M == 1, bf16 activations and outputs, two rows per warp (the v2 default), staging variant as INTARSIA_HIP_FP8_Q.
+int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1,
+         ik_tensor* o0, ik_tensor* o1, void* stream) {
+    IK_TRY(check(x, w0, sc0, o0));
+    IK_TRY(check(x, w1, sc1, o1));
+    if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (M != 1 || M * K * 2 > 49152) return IK_ERR_SHAPE;
+    if (N0 == 0 && N1 == 0) return IK_OK;
+    if (K == 0) {
+        hipStream_t z = IK_STREAM(stream);
+        if (hipMemsetAsync(o0->data, 0, ik_numel(o0) * 2, z) != hipSuccess) return IK_ERR_LAUNCH;
+        return hipMemsetAsync(o1->data, 0, ik_numel(o1) * 2, z) == hipSuccess ? IK_OK : IK_ERR_LAUNCH;
+    }
+    if (N0 > 0x7fffffffLL || N1 > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    constexpr int R = 2, per = kWarps * R;
+    const unsigned grid = (unsigned)((N0 + per - 1) / per + (N1 + per - 1) / per);
+    const size_t smem = (size_t)K * 2;
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    const uint8_t *p0 = (const uint8_t*)w0->data, *p1 = (const uint8_t*)w1->data;
+    const float *s0 = (const float*)sc0->data, *s1 = (const float*)sc1->data;
+    ik_bf16 *q0 = (ik_bf16*)o0->data, *q1 = (ik_bf16*)o1->data;
+    switch (staging_q()) {
+        case 3: fp8_gemv_pair_kernel<R, ik_bf16, 3><<<grid, kWarps * IK_WARP, smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K); break;
+        case 1: fp8_gemv_pair_kernel<R, ik_bf16, 1><<<grid, kWarps * IK_WARP, smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K); break;
+        default: fp8_gemv_pair_kernel<R, ik_bf16, 2><<<grid, kWarps * IK_WARP, smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K); break;
+    }
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
 
+int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                            const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return pair(x, w0, scales0, w1, scales1, out0, out1, stream);
+}
 int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, 1);
 }
