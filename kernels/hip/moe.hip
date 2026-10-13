@@ -12,6 +12,11 @@
 //                 Grids are sized by min(T*K, E) active experts, read from the grouping output, so decode (T=1)
 //                 launches 8 expert slots, not 256. Every pair's arithmetic is independent of the grouping, so
 //                 the result is bit-identical run to run even though the grouping itself uses atomics.
+//                 Batch size: P = T*K <= 16 (decode, p1 kernels) and T < 16 (grouped GEMV kernels) share one lane and
+//                 accumulation order, so a token's result is bit-identical to T = 1 (as on CUDA). From T = 16 the
+//                 projections run on the tensor cores (moe_wmma.h) with another accumulation order: results then depend
+//                 on the batch (chunk) size within the admission tolerance. INTARSIA_HIP_MOE_WMMA=0 disables that path
+//                 (batch-invariant mode); see docs/backends/hip.md.
 //   moe_combine   out = routed + sigmoid(gate_logit) * shared with HF's rounding points.
 //
 // Scratch layout (must match intarsia_core::quant::ops::moe_experts_scratch, regions rounded to 256 bytes):
@@ -19,12 +24,24 @@
 #include "ik_quant.h"
 #include "moe_wmma.h"
 #include <math.h>
+#include <stdlib.h>
 
 namespace {
 
 constexpr int kMaxExperts = 1024;  // grouping kernel: one thread per expert
 constexpr int kPairChunk = 8;      // pairs sharing one pass over an expert row
 constexpr int kMwMinTokens = 16;   // from this many tokens on the projections run on the tensor cores (moe_wmma.h)
+
+// INTARSIA_HIP_MOE_WMMA=0 turns the tensor-core projections off, so every token count takes the GEMV-style path and a
+// token's result no longer depends on the batch size it was computed in (bit-identical to T=1, like the CUDA backend;
+// about 9x slower MoE at T=256). Default on. Read once per process; part of the backend fingerprint (kernels.rs).
+bool moe_wmma_enabled() {
+    static const bool on = [] {
+        const char* e = getenv("INTARSIA_HIP_MOE_WMMA");
+        return !(e && e[0] == '0');
+    }();
+    return on;
+}
 
 IK_DEVI float round_bf16(float v) { return ik_round_bf16(v); }
 
@@ -535,9 +552,14 @@ int ik_moe_experts_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tenso
             (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)I, (int)K);
         return ik_launch_status();
     }
+    // the tensor-core kernels load expert weights as 16-byte vectors and block scales as 16-bit pairs; the checks above
+    // only guarantee 8 and 1 bytes, so an unaligned view takes the GEMV-style (8-byte / byte access) kernels instead
+    const bool wmma_aligned = ik_aligned16(gate_up_w->data) && ik_aligned16(down_w->data) &&
+                              (reinterpret_cast<uintptr_t>(gate_up_s->data) & 3u) == 0 &&
+                              (reinterpret_cast<uintptr_t>(down_s->data) & 3u) == 0;
     moe_group_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>((const int*)ids->data, (int)P, (int)E, pairs, offsets, active);
     IK_TRY(ik_launch_status());
-    if (T >= kMwMinTokens && H % kMwKB == 0 && I % kMwKB == 0) {  // prefill-sized: tensor-core grouped projections
+    if (T >= kMwMinTokens && H % kMwKB == 0 && I % kMwKB == 0 && wmma_aligned && moe_wmma_enabled()) {  // prefill-sized: tensor-core grouped projections
         const unsigned zt = (unsigned)((T + kMwPairs - 1) / kMwPairs);
         moe_wmma_kernel<true><<<dim3(slots, (unsigned)((I + kMwFeatGateUp - 1) / kMwFeatGateUp), zt), kMwThreads, 0, s>>>(
             (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,

@@ -15,7 +15,8 @@
  * holds row/col l % 16 and k slots (l / 16) * 8 .. +7; C lane l holds pair l % 16 and features (l / 16) * 8 + i.
  * The k slots are permuted identically for A and B so that each lane's weight bytes are contiguous in memory: per
  * 64-element k block, lane (row, h) takes elements h * 32 + s * 8 .. +7 for WMMA step s = 0..3, i.e. 16 consecutive
- * code bytes and two block-scale bytes per row and block (a WMMA k extent of 16 is one NVFP4 scale block).
+ * code bytes and two block-scale bytes per row and block (one NVFP4 scale block is 16 elements; under this permutation the two lane halves h = 0, 1 read different
+ * scale blocks, which is why each lane loads the two scale bytes of its half, at block offset kb * 4 + h * 2).
  *
  * Blocks have 8 waves. gate_up: waves 0-3 take the gate rows and waves 4-7 the up rows of the same 64 features (the
  * up accumulators go through shared memory to the gate waves, which apply the activation); down: 8 waves, 128

@@ -104,21 +104,32 @@ struct GemvCfg {
     int r, u;
 };
 
+// the (R,U) variants gemv_vec instantiates for M == 1 (M > 1 always uses (2,4))
+constexpr bool gemv_instantiated(int r, int u) {
+    return (r == 2 && (u == 2 || u == 4 || u == 8)) || (r == 1 && (u == 2 || u == 4 || u == 8 || u == 16)) ||
+           (r == 4 && (u == 2 || u == 4 || u == 8));
+}
+
 // INTARSIA_HIP_GEMV="R,U" overrides the variant (tuning sweeps); default measured on the R9700 (see docs).
 GemvCfg gemv_cfg() {
     static const GemvCfg cfg = [] {
         GemvCfg c{1, 8};
         if (const char* e = getenv("INTARSIA_HIP_GEMV")) {
             int r = 0, u = 0;
-            if (sscanf(e, "%d,%d", &r, &u) == 2 && (r == 1 || r == 2 || r == 4) && (u == 2 || u == 4 || u == 8 || u == 16)) c = {r, u};
+            // only the instantiated (R,U) set is accepted (see gemv_vec); anything else keeps the default
+            if (sscanf(e, "%d,%d", &r, &u) == 2 && gemv_instantiated(r, u))
+                c = {r, u};
+            else
+                fprintf(stderr, "intarsia-hip: INTARSIA_HIP_GEMV=%s is not an instantiated variant, using %d,%d\n", e, c.r, c.u);
         }
         return c;
     }();
     return cfg;
 }
 
+// returns false when no instantiated variant matches (nothing was launched)
 template <int M, typename OutT>
-void gemv_vec(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+bool gemv_vec(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t K, hipStream_t s) {
     GemvCfg c = gemv_cfg();
     if (M > 1) c = {2, 4};  // multi-row decode is rare; keep the instantiation count down
     const unsigned block = kGemvWarps * IK_WARP;
@@ -126,7 +137,7 @@ void gemv_vec(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t 
     if (c.r == RV && c.u == UV) {                                                                                \
         const unsigned grid = (unsigned)((N + (int64_t)kGemvWarps * RV - 1) / ((int64_t)kGemvWarps * RV));         \
         gemv_kernel<M, RV, UV, OutT><<<grid, block, 0, s>>>(x, w, out, N, K);                                    \
-        return;                                                                                                  \
+        return true;                                                                                             \
     }
     IK_GEMV_CASE(2, 4)
     if constexpr (M == 1) {
@@ -134,16 +145,15 @@ void gemv_vec(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t 
         IK_GEMV_CASE(4, 2) IK_GEMV_CASE(4, 4) IK_GEMV_CASE(4, 8)
     }
 #undef IK_GEMV_CASE
+    return false;
 }
 
 template <int M, typename OutT>
-void gemv_dispatch(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t K, bool vec, hipStream_t s) {
-    if (vec) {
-        gemv_vec<M, OutT>(x, w, out, N, K, s);
-    } else {
-        const unsigned grid = (unsigned)((N + kGemvWarps - 1) / kGemvWarps);
-        gemv_scalar_kernel<M, OutT><<<grid, kGemvWarps * IK_WARP, 0, s>>>(x, w, out, N, K);
-    }
+bool gemv_dispatch(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t K, bool vec, hipStream_t s) {
+    if (vec) return gemv_vec<M, OutT>(x, w, out, N, K, s);
+    const unsigned grid = (unsigned)((N + kGemvWarps - 1) / kGemvWarps);
+    gemv_scalar_kernel<M, OutT><<<grid, kGemvWarps * IK_WARP, 0, s>>>(x, w, out, N, K);
+    return true;
 }
 
 template <typename OutT>
@@ -155,12 +165,14 @@ int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
     const ik_bf16* xp = (const ik_bf16*)x->data;
     const ik_bf16* wp = (const ik_bf16*)w->data;
     OutT* op = (OutT*)out->data;
+    bool launched = false;
     switch (M) {
-        case 1: gemv_dispatch<1, OutT>(xp, wp, op, N, K, vec, s); break;
-        case 2: gemv_dispatch<2, OutT>(xp, wp, op, N, K, vec, s); break;
-        case 3: gemv_dispatch<3, OutT>(xp, wp, op, N, K, vec, s); break;
-        default: gemv_dispatch<4, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 1: launched = gemv_dispatch<1, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 2: launched = gemv_dispatch<2, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 3: launched = gemv_dispatch<3, OutT>(xp, wp, op, N, K, vec, s); break;
+        default: launched = gemv_dispatch<4, OutT>(xp, wp, op, N, K, vec, s); break;
     }
+    if (!launched) return IK_ERR_INVALID_ARG;  // never report OK for a launch that did not happen
     return ik_launch_status();
 }
 
@@ -187,7 +199,7 @@ constexpr int kLD = kBK + 8;  // padded LDS row (elements): 80 B
 template <int WN, int WM, int TN, int TM, typename OutT>
 __global__ void __launch_bounds__(WN * WM * 32)
 gemm_wmma_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* __restrict__ out, int M, int N,
-                 int K) {
+                 int K, bool out_vec) {
     constexpr int NT = WN * WM * IK_WARP;                      // threads per block
     constexpr int BN = WN * TN * 16, BM = WM * TM * 16;        // block tile: weight rows x tokens
     constexpr int CHW = BN * (kBK / 8), CHX = BM * (kBK / 8);  // 16 B chunks per tile
@@ -265,7 +277,7 @@ gemm_wmma_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, O
         __syncthreads();
     }
 
-    const bool vec_ok = (N % 8) == 0;
+    const bool vec_ok = out_vec && (N % 8) == 0;  // out_vec: out is 16 B aligned
 #pragma unroll
     for (int i = 0; i < TN; ++i) {
 #pragma unroll
@@ -329,13 +341,14 @@ int gemm_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
         gemm_simple_kernel<OutT><<<(unsigned)((total + 255) / 256), 256, 0, s>>>(xp, wp, op, M, N, K);
         return ik_launch_status();
     }
+    const bool out_vec = ik_aligned16(out->data);
     // tile (weights x tokens) per M, measured on the R9700 (docs/backends/hip.md); INTARSIA_HIP_GEMM_TILE=<id> forces one
     int tile = gemm_cfg().tile;
     if (tile == 0) tile = M >= 128 ? 1 : 2;
 #define IK_GEMM_TILE(WN, WM, TN, TM)                                                                          \
     {                                                                                                        \
         dim3 grid((unsigned)((M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((N + WN * TN * 16 - 1) / (WN * TN * 16))); \
-        gemm_wmma_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xp, wp, op, (int)M, (int)N, (int)K);       \
+        gemm_wmma_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xp, wp, op, (int)M, (int)N, (int)K, out_vec); \
     }
     switch (tile) {
         case 1: IK_GEMM_TILE(4, 2, 2, 4) break;  // 128 x 128, 8 waves of 32 x 64

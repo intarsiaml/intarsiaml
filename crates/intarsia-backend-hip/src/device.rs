@@ -70,20 +70,23 @@ pub struct HipBackend {
     driver_version: i32,
     /// `hipStream_t` handles (as usize), index = StreamId; grown on demand.
     streams: Mutex<Vec<usize>>,
-    /// per-kernel GPU-time trace (INTARSIA_HIP_TRACE=1), printed to stderr when the backend is dropped
+    /// per-kernel GPU-time trace (INTARSIA_HIP_TRACE=1: start/stop event pair per launch), printed to stderr when the
+    /// backend is dropped
     trace: Option<Mutex<Trace>>,
 }
 
-/// One stream event per launch; the time between successive events is attributed to the later launch, so a kernel's
-/// share includes its dispatch gap (that is what limits a launch-bound decode step). Only deltas inside one batch
-/// (between two synchronisations) are counted.
+/// Two stream events per launch (one recorded just before it, one just after), kept per stream. The elapsed time
+/// between a launch's own two events is that kernel's GPU time (event overhead included, about a microsecond); the time
+/// between the first start and the last stop of a batch (everything launched since the stream was last synchronised)
+/// minus the summed kernel times is stream idle time, i.e. the gaps between launches (host dispatch, bubbles).
 #[derive(Default)]
 struct Trace {
-    pending: Vec<(String, usize)>,
+    /// launches per stream since its last synchronisation: (kernel, start event, stop event)
+    pending: std::collections::HashMap<StreamId, Vec<(String, usize, usize)>>,
     pool: Vec<usize>,
     totals: std::collections::HashMap<String, (f64, u64)>,
     batches: u64,
-    batch_ms: f64,
+    wall_ms: f64,
 }
 
 impl Trace {
@@ -97,33 +100,45 @@ impl Trace {
         h as usize
     }
 
-    fn drain(&mut self) {
-        let p = std::mem::take(&mut self.pending);
-        let mut first = 0f64;
-        for i in 1..p.len() {
+    fn drain(&mut self, stream: StreamId) {
+        let p = self.pending.remove(&stream).unwrap_or_default();
+        let ms = |a: usize, b: usize| {
             let mut ms = 0f32;
             // SAFETY: both events were recorded on a stream that has since been synchronised.
-            let rc = unsafe { ffi::ik_rt_event_elapsed_ms(&mut ms, p[i - 1].1 as *mut c_void, p[i].1 as *mut c_void) };
-            if rc == 0 {
-                let t = self.totals.entry(p[i].0.clone()).or_insert((0.0, 0));
-                t.0 += ms as f64;
-                t.1 += 1;
-                first += ms as f64;
+            (unsafe { ffi::ik_rt_event_elapsed_ms(&mut ms, a as *mut c_void, b as *mut c_void) } == 0).then_some(ms as f64)
+        };
+        for (name, a, b) in &p {
+            if let Some(t) = ms(*a, *b) {
+                let e = self.totals.entry(name.clone()).or_insert((0.0, 0));
+                e.0 += t;
+                e.1 += 1;
             }
         }
-        if p.len() > 1 {
-            self.batches += 1;
-            self.batch_ms += first;
+        if let (Some(first), Some(last)) = (p.first(), p.last()) {
+            if let Some(w) = ms(first.1, last.2) {
+                self.batches += 1;
+                self.wall_ms += w;
+            }
         }
-        self.pool.extend(p.into_iter().map(|(_, e)| e));
+        for (_, a, b) in p {
+            self.pool.push(a);
+            self.pool.push(b);
+        }
     }
 
     fn report(&mut self) {
         let mut rows: Vec<(&String, &(f64, u64))> = self.totals.iter().collect();
         rows.sort_by(|a, b| b.1 .0.partial_cmp(&a.1 .0).unwrap());
         let total: f64 = rows.iter().map(|r| r.1 .0).sum();
-        eprintln!("hip trace: {} batches, {:.1} ms of stream time attributed to {} launches", self.batches, total, rows.iter().map(|r| r.1 .1).sum::<u64>());
-        eprintln!("{:<30} {:>8} {:>10} {:>9} {:>6}", "kernel", "launches", "total ms", "avg us", "%");
+        let launches: u64 = rows.iter().map(|r| r.1 .1).sum();
+        eprintln!(
+            "hip trace: {} batches, {launches} launches, kernel GPU time {total:.1} ms, stream wall time {:.1} ms, idle between launches {:.1} ms ({:.0}% of wall)",
+            self.batches,
+            self.wall_ms,
+            (self.wall_ms - total).max(0.0),
+            100.0 * (self.wall_ms - total).max(0.0) / self.wall_ms.max(1e-9)
+        );
+        eprintln!("{:<30} {:>8} {:>10} {:>9} {:>6}", "kernel", "launches", "total ms", "avg us", "% kern");
         for (name, (ms, n)) in rows {
             eprintln!("{:<30} {:>8} {:>10.2} {:>9.1} {:>5.1}%", name, n, ms, ms * 1e3 / *n as f64, 100.0 * ms / total.max(1e-9));
         }
@@ -135,7 +150,10 @@ impl Drop for HipBackend {
         if let Some(t) = &self.trace {
             let mut t = t.lock().unwrap();
             let _ = self.bind();
-            t.drain();
+            let streams: Vec<StreamId> = t.pending.keys().copied().collect();
+            for st in streams {
+                t.drain(st);
+            }
             t.report();
         }
     }
@@ -180,6 +198,15 @@ impl HipBackend {
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
+    }
+
+    /// INTARSIA_HIP_TRACE: the stream is idle-synchronised (a synchronize, or a copy whose wrapper synchronises it), so
+    /// every event recorded so far has completed and the batch can be read out. Without this a decode run is one
+    /// big batch whose wall time includes the host's gaps between tokens.
+    fn trace_drain(&self, stream: StreamId) {
+        if let Some(tr) = &self.trace {
+            tr.lock().unwrap().drain(stream);
+        }
     }
 
     pub(crate) fn bind(&self) -> Result<()> {
@@ -249,16 +276,18 @@ impl Backend for HipBackend {
         }
     }
 
-    /// backend | device | gfx arch | HIP runtime and driver versions | kernel-pack arch: anything that can change
-    /// a kernel's numerics or its code generation invalidates cached admission results.
+    /// backend | device | gfx arch | HIP runtime and driver versions | kernel-pack arch | compiler | env knobs: anything
+    /// that can change a kernel's numerics or its code generation invalidates cached admission results.
     fn fingerprint(&self) -> String {
         format!(
-            "hip|{}|{}|rt{}|drv{}|pack:{}",
+            "hip|{}|{}|rt{}|drv{}|pack:{}|cc:{}|env:{}",
             self.name,
             self.arch,
             self.runtime_version,
             self.driver_version,
-            kernels::ARCH
+            kernels::ARCH,
+            kernels::COMPILER,
+            kernels::env_knobs()
         )
     }
 
@@ -283,7 +312,9 @@ impl Backend for HipBackend {
         let s = self.stream(stream)?;
         // SAFETY: bounds checked above. Copies from pageable host memory return once the source has
         // been staged, so `src` need not outlive the call.
-        check("upload", unsafe { ffi::ik_rt_memcpy_h2d(d as *mut c_void, src.as_ptr() as *const c_void, src.len(), s) })
+        let r = check("upload", unsafe { ffi::ik_rt_memcpy_h2d(d as *mut c_void, src.as_ptr() as *const c_void, src.len(), s) });
+        self.trace_drain(stream); // the wrapper synchronises the stream
+        r
     }
 
     fn download(&self, src: &Buffer, src_offset: usize, dst: &mut [u8], stream: StreamId) -> Result<()> {
@@ -294,9 +325,11 @@ impl Backend for HipBackend {
         let p = Self::ptr(src, src_offset, dst.len())?;
         let s = self.stream(stream)?;
         // SAFETY: bounds checked; the wrapper synchronises the stream before returning.
-        check("download", unsafe {
+        let r = check("download", unsafe {
             ffi::ik_rt_memcpy_d2h(dst.as_mut_ptr() as *mut c_void, p as *const c_void, dst.len(), s)
-        })
+        });
+        self.trace_drain(stream);
+        r
     }
 
     fn copy(
@@ -363,6 +396,14 @@ impl Backend for HipBackend {
             None => None,
         };
         let sc = scr.as_ref().map_or(std::ptr::null(), |x| x as *const ffi::IkScratch);
+        // INTARSIA_HIP_TRACE: a start event on this stream right before the launch
+        let t_start = self.trace.as_ref().map(|tr| {
+            let mut tr = tr.lock().unwrap();
+            let ev = tr.event();
+            // SAFETY: ev is a live event, s the launch stream.
+            unsafe { ffi::ik_rt_event_record(ev as *mut c_void, s) };
+            ev
+        });
         // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the
         // launchers validate dtype/rank/stride and return an error status instead of faulting, and
         // never synchronise or allocate.
@@ -409,13 +450,15 @@ impl Backend for HipBackend {
                 other => return Err(Error::NoKernel(format!("hip kernel '{other}' has no dispatch entry"))),
             }
         };
-        if rc == 0 {
-            if let Some(tr) = &self.trace {
-                let mut tr = tr.lock().unwrap();
-                let ev = tr.event();
-                // SAFETY: ev is a live event, s the launch stream.
-                unsafe { ffi::ik_rt_event_record(ev as *mut c_void, s) };
-                tr.pending.push((kernel.to_string(), ev));
+        if let (Some(tr), Some(a)) = (&self.trace, t_start) {
+            let mut tr = tr.lock().unwrap();
+            if rc == 0 {
+                let b = tr.event();
+                // SAFETY: b is a live event, s the launch stream.
+                unsafe { ffi::ik_rt_event_record(b as *mut c_void, s) };
+                tr.pending.entry(stream).or_default().push((kernel.to_string(), a, b));
+            } else {
+                tr.pool.push(a);
             }
         }
         if rc != 0 {
@@ -434,9 +477,7 @@ impl Backend for HipBackend {
         let s = self.stream(stream)?;
         // SAFETY: plain FFI call; also reports asynchronous kernel failures.
         let r = check("stream synchronize", unsafe { ffi::ik_rt_stream_sync(s) });
-        if let Some(tr) = &self.trace {
-            tr.lock().unwrap().drain();
-        }
+        self.trace_drain(stream);
         r
     }
 }

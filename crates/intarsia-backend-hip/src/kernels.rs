@@ -1,14 +1,38 @@
 //! The kernel table: which launcher implements which op, for which shapes, and how closely it must
 //! match the reference. Compiled on every host (the table is data); only `device.rs` needs ROCm.
 //!
-//! `name` is the launcher name without the `ik_` prefix (kernels/abi/ik_abi.h). The launcher set is the dense
-//! BF16 one (Qwen3 family plus the gated-attention helpers); the quantised / MoE / GatedDeltaNet launchers of
-//! the cuda pack are not ported yet.
+//! `name` is the launcher name without the `ik_` prefix (kernels/abi/ik_abi.h). This table is the dense BF16 set
+//! (Qwen3 family plus the gated-attention helpers) and the GatedDeltaNet launchers; the quantised (fp8 / nvfp4)
+//! and sparse-MoE launchers are in `quantmoe.rs`, and `all()` registers both.
 
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
 /// Architecture the .hip files were compiled for (`INTARSIA_HIP_ARCH`, default gfx1201).
 pub const ARCH: &str = env!("IK_HIP_ARCH");
+
+/// `hipcc --version` (first lines) of the toolchain that built the kernel library, `none` for the stub build. Part
+/// of the backend fingerprint: a cargo target dir that outlives a ROCm image bump is rebuilt (build.rs tracks the
+/// compiler), and the admission cache never mixes results of two compilers.
+pub const COMPILER: &str = env!("IK_HIP_COMPILER");
+
+/// Tuning / A-B environment knobs that change which kernel variant runs or its numerics, as `NAME=value` pairs of
+/// the ones that are set (sorted). They are read inside the kernel library, so they belong in the fingerprint: a
+/// cached ADMITTED result for the default variant says nothing about `INTARSIA_HIP_GEMV=4,8`.
+pub const ENV_KNOBS: &[&str] = &[
+    "INTARSIA_HIP_DISABLE",
+    "INTARSIA_HIP_FP8_ROWS",
+    "INTARSIA_HIP_GEMM_TILE",
+    "INTARSIA_HIP_GEMV",
+    "INTARSIA_HIP_MOE_WMMA",
+];
+
+pub fn env_knobs() -> String {
+    ENV_KNOBS
+        .iter()
+        .filter_map(|n| std::env::var(n).ok().map(|v| format!("{n}={v}")))
+        .collect::<Vec<_>>()
+        .join(",")
+}
 
 /// (launcher name, op) for every implementation, in registration order.
 pub const TABLE: &[(&str, Op)] = &[
@@ -53,7 +77,8 @@ fn base(name: &str, op: Op) -> KernelImpl {
 const SPLITKV_MAX_ROWS: usize = 16;
 
 /// Split-KV partitioning policy, mirroring `splitkv_count` in kernels/hip/attention_splitkv.hip (the launcher
-/// derives its split count from the key count only, so results are run-to-run identical; this copy must be an
+/// derives its split count from the key count, the query rows and the kv heads, never from the data, so results
+/// are run-to-run identical for a given call shape; this copy must be an
 /// upper bound of it, which `splitkv_scratch` relies on).
 /// Returns the number of KV splits for `rows` query rows over `kv_len` keys and `n_kv_heads` kv heads.
 pub fn splitkv_parts(kv_len: usize, n_kv_heads: usize, rows: usize) -> usize {

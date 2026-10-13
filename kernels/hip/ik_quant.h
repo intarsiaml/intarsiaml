@@ -1,5 +1,8 @@
 /* HIP device helpers shared by the quantised-weight and MoE kernels (fp8.hip, nvfp4.hip, moe.hip).
- * Counterpart of kernels/cuda/ik_quant.cuh; the numerics contract is the same (docs/quant-moe.md):
+ * Counterpart of kernels/cuda/ik_quant.cuh; the numerics contract is the same (docs/quant-moe.md). The "dequantise the
+ * weight to bf16, bf16 MMA with exact products" scheme and the fp4 -> e4m3 lookup idea follow TensorFold's NVFP4
+ * kernels (MIT, Copyright (c) 2026 TensorFold contributors, LICENSES/TensorFold-MIT.txt); the code here is
+ * written for the torch-free C ABI and RDNA4:
  *   - an e4m3 or e2m1*e4m3 weight value is exact in bf16 and in f32, so every product with a bf16/fp8-valued
  *     activation is exact; the global/tensor scale is applied once, after the f32 accumulation;
  *   - everything accumulates in f32 in a fixed order (deterministic run to run).

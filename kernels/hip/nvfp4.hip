@@ -5,7 +5,8 @@
 //   *_gemv  M <= 8: warp-per-output-row, one 16-element block (8 weight bytes + 1 scale byte) per lane-iteration.
 //   *_mma   any M: bf16 WMMA, e2m1*e4m3 dequantised to bf16 in shared memory (exact), f32 accumulate (ik_dq_gemm.h).
 // Deterministic (fixed reduction order). Activations bf16; output bf16 or f32 (the lm_head writes f32 logits).
-// HIP port of kernels/cuda/nvfp4.cu. RDNA4 has no fp4 hardware: the e2m1 codes are looked up in a 16-entry shared
+// HIP port of kernels/cuda/nvfp4.cu (follows TensorFold's NVFP4 kernels, MIT, Copyright (c) 2026 TensorFold
+// contributors, see ik_quant.h and LICENSES/TensorFold-MIT.txt). RDNA4 has no fp4 hardware: the e2m1 codes are looked up in a 16-entry shared
 // table (ik_quant.h) and the block scale (e4m3) is decoded with integer arithmetic.
 #include "ik_dq_gemm.h"
 

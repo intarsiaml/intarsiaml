@@ -62,15 +62,38 @@ fn main() {
 
     if std::env::var("INTARSIA_NO_HIP").map(|v| v == "1").unwrap_or(false) {
         println!("cargo:warning=intarsia-backend-hip: INTARSIA_NO_HIP=1, building the stub");
+        println!("cargo:rustc-env=IK_HIP_COMPILER=none");
         return;
     }
     if !cfg!(target_os = "linux") {
+        println!("cargo:rustc-env=IK_HIP_COMPILER=none");
         return; // no ROCm on this host OS; stay quiet, the stub reports Unsupported at runtime
     }
     let Some(hipcc) = find_hipcc() else {
         println!("cargo:warning=intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)");
+        println!("cargo:rustc-env=IK_HIP_COMPILER=none");
         return;
     };
+
+    // Rebuild when the toolchain changes: cargo's target dir can outlive an image bump, and the cached
+    // libintarsia_hip_kernels.a would then describe kernels built by the old compiler. Track the hipcc binary and the
+    // ROCm version stamp, and bake the compiler version into the backend fingerprint (admission cache key).
+    println!("cargo:rerun-if-changed={}", hipcc.display());
+    if let Some(root) = hipcc.canonicalize().ok().and_then(|p| p.parent().and_then(|b| b.parent()).map(Path::to_path_buf)) {
+        for f in [".info/version", ".info/version-dev"] {
+            let p = root.join(f);
+            if p.is_file() {
+                println!("cargo:rerun-if-changed={}", p.display());
+            }
+        }
+    }
+    let compiler = Command::new(&hipcc)
+        .arg("--version")
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).lines().take(2).collect::<Vec<_>>().join(" ").replace('|', "/"))
+        .unwrap_or_default();
+    println!("cargo:rustc-env=IK_HIP_COMPILER={compiler}");
 
     let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let kdir = manifest.join("../../kernels/hip").canonicalize().expect("kernels/hip");

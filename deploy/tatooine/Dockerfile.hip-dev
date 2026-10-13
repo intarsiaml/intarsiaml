@@ -1,6 +1,8 @@
 # IntarsiaML dev image for the R9700 (gfx1201) track: ROCm 7.2.4 + Rust 1.90.0.
 # Build:  docker build -t intarsia-hip-dev:rocm7.2.4-rust1.90.0 -f Dockerfile.hip-dev .
-FROM rocm/dev-ubuntu-24.04:7.2.4
+# Base pinned by digest (the tag is mutable); apt packages below are unpinned build tools, not part of the numerics.
+# Re-pin: docker pull rocm/dev-ubuntu-24.04:<tag> && docker image inspect --format '{{index .RepoDigests 0}}' rocm/dev-ubuntu-24.04:<tag>
+FROM rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RUSTUP_HOME=/opt/rustup \

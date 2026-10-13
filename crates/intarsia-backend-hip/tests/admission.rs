@@ -91,4 +91,50 @@ fn fingerprint_names_the_arch_and_runtime() {
     // the admission cache key: a different gfx arch or HIP runtime must not reuse cached results
     assert!(fp.contains(&hip.info().arch) && fp.contains("gfx12"), "{fp}");
     assert!(fp.contains("rt") && fp.contains("drv"), "{fp}");
+    // the compiler that built the kernels and the tuning env knobs are part of the key too
+    assert!(fp.contains("|cc:") && fp.contains("|env:"), "{fp}");
+    assert!(fp.contains(&format!("|env:{}", intarsia_backend_hip::kernels::env_knobs())), "{fp}");
+}
+
+/// `INTARSIA_HIP_GEMV` names a (rows per warp, loads in flight) variant. A pair that is not instantiated used to launch
+/// nothing and report success (stale output, garbage logits). Such a value must now fall back to the default variant and
+/// still compute the right answer; the knob is read once per process, so the test re-runs itself with the bad value.
+#[test]
+fn uninstantiated_gemv_knob_still_computes() {
+    use intarsia_core::exec::{run_host, HostCall, OutSpec};
+    use intarsia_core::rng::SplitMix64;
+    use intarsia_core::{Backend as _, DType, HostTensor, Op, OpAttrs};
+    let Some(hip) = device() else { return };
+    if std::env::var_os("INTARSIA_TEST_CHILD").is_none() {
+        let st = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "uninstantiated_gemv_knob_still_computes", "--nocapture"])
+            .env("INTARSIA_HIP_GEMV", "2,16")
+            .env("INTARSIA_TEST_CHILD", "1")
+            .status()
+            .unwrap();
+        assert!(st.success(), "INTARSIA_HIP_GEMV=2,16 broke the GEMV");
+        return;
+    }
+    let cpu = CpuBackend::arc();
+    let mut rng = SplitMix64::new(9);
+    let (n, k) = (1024usize, 4096usize);
+    let hc = HostCall {
+        op: Op::Matmul,
+        inputs: vec![
+            HostTensor::from_f32_as(DType::Bf16, &[1, k], &rng.normal_vec(k, 1.0)),
+            HostTensor::from_f32_as(DType::Bf16, &[n, k], &rng.normal_vec(n * k, 0.05)),
+        ],
+        outputs: vec![OutSpec::new(DType::Bf16, &[1, n])],
+        attrs: OpAttrs::default(),
+    };
+    let rname = cpu.kernels().into_iter().find(|c| c.op == Op::Matmul && c.is_reference).unwrap().name;
+    let want = run_host(&*cpu, &rname, &hc).unwrap()[0].to_f32();
+    let got = run_host(&*hip, "matmul_bf16_gemv", &hc).unwrap()[0].to_f32();
+    let (mut num, mut den) = (0f64, 0f64);
+    for (g, w) in got.iter().zip(&want) {
+        num += ((g - w) as f64).powi(2);
+        den += (*w as f64).powi(2);
+    }
+    let rel = (num / den).sqrt();
+    assert!(rel < 1e-3, "gemv with INTARSIA_HIP_GEMV=2,16: rel_l2 {rel:e}");
 }

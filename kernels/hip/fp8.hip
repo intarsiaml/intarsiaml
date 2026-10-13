@@ -7,7 +7,9 @@
 //   *_mma   any M: bf16 WMMA with the weights dequantised to bf16 in shared memory (exact), f32 accumulate
 //           (ik_dq_gemm.h). Used for prefill and as the correct path for every shape.
 // Both are deterministic (fixed reduction order). Activations bf16; output bf16 or f32.
-// HIP port of kernels/cuda/fp8.cu. gfx12 also has an fp8 x fp8 WMMA (v_wmma_f32_16x16x16_fp8_fp8) that would
+// HIP port of kernels/cuda/fp8.cu; the "dequantise to bf16, bf16 MMA with exact products" scheme follows the ideas of
+// TensorFold's NVFP4 kernels (MIT, Copyright (c) 2026 TensorFold contributors, see ik_quant.h and
+// LICENSES/TensorFold-MIT.txt). gfx12 also has an fp8 x fp8 WMMA (v_wmma_f32_16x16x16_fp8_fp8) that would
 // serve the W8A8 case natively; not used yet (docs/results/2026-10-13-phase2a-hip.md).
 #include "ik_dq_gemm.h"
 

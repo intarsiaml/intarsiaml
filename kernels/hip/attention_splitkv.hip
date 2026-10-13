@@ -11,7 +11,8 @@
 // Stage 2 (combine_kernel): per (row, head) merge the nsplit partials and write the bf16 output.
 //
 // Scratch (ik_scratch): float acc[T][N][nsplit][D] followed by float2 ml[T][N][nsplit]; see splitkv_scratch_bytes.
-// The split policy depends on kv_len only (never on the data), so results are run-to-run identical.
+// The split policy depends on kv_len, the number of query rows and n_kv_heads (never on the data), so results are
+// run-to-run identical for a given call shape.
 // The policy is mirrored in crates/intarsia-backend-hip/src/kernels.rs (splitkv_parts); keep the two in sync.
 #include "ik_hip.h"
 
