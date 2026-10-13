@@ -23,9 +23,12 @@ IK_DEVI float silu(float g) { return g / (1.f + expf(-g)); }
 
 // Grid (channels / 128, token tiles). The history of a tile is read from x (the previous K-1 inputs), or from the
 // incoming state for positions before the sequence start, so tiles are independent. The new state is written by a
-// second kernel (gdn_conv_state_kernel) once every tile is done reading the old one.
+// second kernel (gdn_conv_state_kernel) once every tile is done reading the old one. With one tile (T <= kConvTile:
+// every decode step) there is nothing to wait for: FUSE_STATE makes the thread write its channel's new state itself, which
+// is its final `h` (the last K-1 inputs of [old state | x]), and the second launch goes away.
+template <bool FUSE_STATE>
 __global__ void gdn_conv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w,
-                                ik_bf16* __restrict__ y, const float* __restrict__ state, int64_t T, int C, int K) {
+                                ik_bf16* __restrict__ y, float* state, int64_t T, int C, int K) {
     const int c = blockIdx.x * blockDim.x + threadIdx.x;
     if (c >= C) return;
     const int64_t t0 = (int64_t)blockIdx.y * kConvTile;
@@ -44,6 +47,8 @@ __global__ void gdn_conv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __
         for (int j = 0; j < K - 2; ++j) h[j] = h[j + 1];
         h[K - 2] = cur;
     }
+    if (FUSE_STATE)
+        for (int j = 0; j < K - 1; ++j) state[(int64_t)c * (K - 1) + j] = h[j];
 }
 
 // state[c] = the last K-1 inputs of the extended sequence [old state | x]
@@ -265,8 +270,13 @@ int ik_gdn_conv_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, ik
     const int threads = 128;
     hipStream_t s = IK_STREAM(stream);
     dim3 grid((unsigned)((C + threads - 1) / threads), (unsigned)((T + kConvTile - 1) / kConvTile));
-    gdn_conv_kernel<<<grid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data,
-                                             (ik_bf16*)y->data, (const float*)state->data, T, (int)C, (int)K);
+    if (T <= kConvTile) {
+        gdn_conv_kernel<true><<<grid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data,
+                                                       (ik_bf16*)y->data, (float*)state->data, T, (int)C, (int)K);
+        return ik_launch_status();
+    }
+    gdn_conv_kernel<false><<<grid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data,
+                                                    (ik_bf16*)y->data, (float*)state->data, T, (int)C, (int)K);
     IK_TRY(ik_launch_status());
     gdn_conv_state_kernel<<<(unsigned)((C + threads - 1) / threads), threads, 0, s>>>(
         (const ik_bf16*)x->data, (float*)state->data, T, (int)C, (int)K);

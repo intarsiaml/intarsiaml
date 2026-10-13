@@ -338,3 +338,60 @@ fn bench_real_shapes() {
     }
     let _ = (moe_experts_scratch, Op::MoeTopk, OutSpec::new(DType::F32, &[1]));
 }
+
+/// Decode-path kernels, v1 against v2 (and the env-selected variants) at the real Qwen3.6-35B-A3B decode shapes, DRAM-cold:
+/// `cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_decode_variants`
+/// (run it once per INTARSIA_HIP_FP8_ROWS / INTARSIA_HIP_FP8_Q setting to sweep those knobs).
+#[test]
+#[ignore]
+fn bench_decode_variants() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(5);
+    println!(
+        "env: FP8_ROWS={:?} FP8_Q={:?}",
+        std::env::var("INTARSIA_HIP_FP8_ROWS").ok(),
+        std::env::var("INTARSIA_HIP_FP8_Q").ok()
+    );
+    println!("{:<44} {:>9} {:>9} {:>9}", "case / kernel", "hot us", "cold us", "cold GB/s");
+    let nv = |n: usize, k: usize| (n * k) as f64 * (0.5 + 1.0 / 16.0) / 1e6;
+    let line = |name: &str, kern: &str, hot: f64, cold: f64, mb: f64| {
+        println!("{:<44} {:>9.1} {:>9.1} {:>9.0}", format!("{name} {kern}"), hot * 1e6, cold * 1e6, mb / 1e3 / cold);
+    };
+    for (name, m, n, k, out) in [
+        ("nvfp4 lm_head (248320x2048)", 1usize, 248_320usize, 2048usize, DType::F32),
+        ("nvfp4 shared gate/up (512x2048)", 1, 512, 2048, DType::Bf16),
+        ("nvfp4 shared down (2048x512)", 1, 2048, 512, DType::Bf16),
+    ] {
+        let hc = matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, out);
+        for kern in ["matmul_nvfp4_gemv", "matmul_nvfp4_gemv_v2"] {
+            let hot = bench_hot(&*hip, kern, &hc, 100);
+            let (cold, _, _) = bench_cold(&*hip, kern, &hc, 100, None);
+            line(name, kern, hot, cold, nv(n, k));
+        }
+    }
+    for (name, n, k) in [
+        ("fp8 qkv/q (8192x2048)", 8192usize, 2048usize),
+        ("fp8 z (4096x2048)", 4096, 2048),
+        ("fp8 o_proj (2048x4096)", 2048, 4096),
+        ("fp8 k/v (512x2048)", 512, 2048),
+    ] {
+        let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
+        for kern in ["matmul_fp8_gemv", "matmul_fp8_gemv_v2"] {
+            let hot = bench_hot(&*hip, kern, &hc, 100);
+            let (cold, _, _) = bench_cold(&*hip, kern, &hc, 100, None);
+            line(name, kern, hot, cold, (n * k) as f64 / 1e6);
+        }
+    }
+    let hc = experts_case(&mut rng, 1, 256, 8, 2048, 512, DType::Bf16);
+    let touched = 8.0 * (nv(1024, 2048) + nv(2048, 512));
+    for kern in ["moe_experts_bf16", "moe_experts_bf16_v2"] {
+        let hot = bench_hot(&*hip, kern, &hc, 100);
+        let (cold, _, _) = bench_cold(&*hip, kern, &hc, 100, Some(1));
+        line("moe_experts T=1 (8 of 256)", kern, hot, cold, touched);
+    }
+    let hc = intarsia_core::quant::cases::topk_case(&mut rng, 1, 256, 8, false, DType::Bf16, true);
+    for kern in ["moe_topk_bf16", "moe_topk_bf16_v2"] {
+        let hot = bench_hot(&*hip, kern, &hc, 200);
+        println!("{:<44} {:>9.1}", format!("moe_topk T=1 E=256 {kern}"), hot * 1e6);
+    }
+}

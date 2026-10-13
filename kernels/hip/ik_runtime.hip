@@ -90,6 +90,36 @@ int ik_rt_event_record(void* ev, void* stream) { return (int)hipEventRecord((hip
 int ik_rt_event_elapsed_ms(float* ms, void* a, void* b) { return (int)hipEventElapsedTime(ms, (hipEvent_t)a, (hipEvent_t)b); }
 int ik_rt_event_destroy(void* ev) { return (int)hipEventDestroy((hipEvent_t)ev); }
 
+/* graphs: capture a stream's launches (thread-local mode, so other threads' runtime calls stay legal), instantiate, replay.
+   ik_rt_graph_end always ends the capture, even for a stream whose capture was invalidated, so the stream is never left in
+   capture mode. */
+int ik_rt_graph_begin(void* stream) {
+    return (int)hipStreamBeginCapture((hipStream_t)stream, hipStreamCaptureModeThreadLocal);
+}
+int ik_rt_graph_end(void* stream, void** exec) {
+    *exec = nullptr;
+    hipGraph_t g = nullptr;
+    hipError_t e = hipStreamEndCapture((hipStream_t)stream, &g);
+    if (e != hipSuccess) {
+        if (g) (void)hipGraphDestroy(g);
+        (void)hipGetLastError();  // clear the sticky capture error: the stream is usable again
+        (void)hipStreamSynchronize((hipStream_t)stream);
+        (void)hipGetLastError();
+        return (int)e;
+    }
+    hipGraphExec_t ge = nullptr;
+    e = hipGraphInstantiate(&ge, g, nullptr, nullptr, 0);
+    (void)hipGraphDestroy(g);
+    if (e != hipSuccess) {
+        (void)hipGetLastError();
+        return (int)e;
+    }
+    *exec = (void*)ge;
+    return 0;
+}
+int ik_rt_graph_launch(void* exec, void* stream) { return (int)hipGraphLaunch((hipGraphExec_t)exec, (hipStream_t)stream); }
+int ik_rt_graph_destroy(void* exec) { return (int)hipGraphExecDestroy((hipGraphExec_t)exec); }
+
 int ik_rt_can_access_peer(int device, int peer, int* ok) { return (int)hipDeviceCanAccessPeer(ok, device, peer); }
 
 int ik_rt_enable_peer_access(int device, int peer) {

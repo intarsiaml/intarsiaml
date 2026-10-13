@@ -20,10 +20,13 @@ pub const COMPILER: &str = env!("IK_HIP_COMPILER");
 /// cached ADMITTED result for the default variant says nothing about `INTARSIA_HIP_GEMV=4,8`.
 pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_DISABLE",
+    "INTARSIA_HIP_FP8_Q",
     "INTARSIA_HIP_FP8_ROWS",
     "INTARSIA_HIP_GEMM_TILE",
     "INTARSIA_HIP_GEMV",
+    "INTARSIA_HIP_MOE_PRE",
     "INTARSIA_HIP_MOE_WMMA",
+    "INTARSIA_HIP_XSTAGE",
 ];
 
 pub fn env_knobs() -> String {

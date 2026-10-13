@@ -7,10 +7,11 @@
 
 use crate::ffi::{self, IkDeviceInfo, IkTensor, IK_MAX_DIMS};
 use crate::kernels;
-use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, MemKind, StreamId};
+use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, GraphHandle, GraphImpl, MemKind, StreamId};
 use intarsia_core::{DType, Error, KernelImpl, OpCall, Result, TensorRef};
 use std::any::Any;
 use std::ffi::{c_int, c_void, CStr};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 fn hip_err(what: &str, code: i32) -> Error {
@@ -58,6 +59,28 @@ impl Drop for HipBuffer {
     }
 }
 
+/// An instantiated HIP graph (`hipGraphExec_t`), destroyed on drop.
+struct HipGraph {
+    exec: usize,
+    ordinal: i32,
+}
+
+impl GraphImpl for HipGraph {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Drop for HipGraph {
+    fn drop(&mut self) {
+        // SAFETY: exec came from ik_rt_graph_end and is destroyed exactly once.
+        unsafe {
+            ffi::ik_rt_set_device(self.ordinal);
+            ffi::ik_rt_graph_destroy(self.exec as *mut c_void);
+        }
+    }
+}
+
 pub struct HipBackend {
     ordinal: i32,
     name: String,
@@ -73,6 +96,9 @@ pub struct HipBackend {
     /// per-kernel GPU-time trace (INTARSIA_HIP_TRACE=1: start/stop event pair per launch), printed to stderr when the
     /// backend is dropped
     trace: Option<Mutex<Trace>>,
+    /// a graph capture is running on this backend: launches are recorded, not executed, so the trace's stream events
+    /// (which would become event nodes of the graph) are skipped
+    capturing: AtomicBool,
 }
 
 /// Two stream events per launch (one recorded just before it, one just after), kept per stream. The elapsed time
@@ -195,6 +221,7 @@ impl HipBackend {
             driver_version: info.driver_version,
             streams: Mutex::new(Vec::new()),
             trace: std::env::var_os("INTARSIA_HIP_TRACE").filter(|v| v != "0").map(|_| Mutex::new(Trace::default())),
+            capturing: AtomicBool::new(false),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -404,8 +431,9 @@ impl Backend for HipBackend {
         // i32 element when it runs, so the tensor view (and its device buffer) must outlive the launch: `pos_t` does.
         let pos_t: Option<IkTensor> = call.pos.as_ref().map(Self::tensor).transpose()?;
         let pos = pos_t.as_ref().map_or(std::ptr::null(), |t| t as *const IkTensor);
-        // INTARSIA_HIP_TRACE: a start event on this stream right before the launch
-        let t_start = self.trace.as_ref().map(|tr| {
+        // INTARSIA_HIP_TRACE: a start event on this stream right before the launch (not while a graph is being captured)
+        let trace = self.trace.as_ref().filter(|_| !self.capturing.load(Ordering::Relaxed));
+        let t_start = trace.map(|tr| {
             let mut tr = tr.lock().unwrap();
             let ev = tr.event();
             // SAFETY: ev is a live event, s the launch stream.
@@ -445,12 +473,18 @@ impl Backend for HipBackend {
                     ffi::ik_gdn_delta_rule_bf16(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
                 }
                 "matmul_fp8_gemv" => ffi::ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
+                "matmul_fp8_gemv_v2" => ffi::ik_matmul_fp8_gemv_v2(i(0), i(1), i(2), o, s),
                 "matmul_fp8_mma" => ffi::ik_matmul_fp8_mma(i(0), i(1), i(2), o, s),
                 "matmul_nvfp4_gemv" => ffi::ik_matmul_nvfp4_gemv(i(0), i(1), i(2), i(3), o, s),
+                "matmul_nvfp4_gemv_v2" => ffi::ik_matmul_nvfp4_gemv_v2(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_mma" => ffi::ik_matmul_nvfp4_mma(i(0), i(1), i(2), i(3), o, s),
                 "moe_topk_bf16" => ffi::ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
+                "moe_topk_bf16_v2" => ffi::ik_moe_topk_bf16_v2(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_experts_bf16" => {
                     ffi::ik_moe_experts_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
+                }
+                "moe_experts_bf16_v2" => {
+                    ffi::ik_moe_experts_bf16_v2(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
                 }
                 "moe_combine_bf16" => ffi::ik_moe_combine_bf16(i(0), i(1), i(2), o, s),
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
@@ -458,7 +492,7 @@ impl Backend for HipBackend {
                 other => return Err(Error::NoKernel(format!("hip kernel '{other}' has no dispatch entry"))),
             }
         };
-        if let (Some(tr), Some(a)) = (&self.trace, t_start) {
+        if let (Some(tr), Some(a)) = (trace, t_start) {
             let mut tr = tr.lock().unwrap();
             if rc == 0 {
                 let b = tr.event();
@@ -487,5 +521,36 @@ impl Backend for HipBackend {
         let r = check("stream synchronize", unsafe { ffi::ik_rt_stream_sync(s) });
         self.trace_drain(stream);
         r
+    }
+
+    fn supports_graphs(&self) -> bool {
+        true
+    }
+
+    fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        // SAFETY: plain FFI call; the capture is always ended below, so the stream never stays in capture mode.
+        check("hipStreamBeginCapture", unsafe { ffi::ik_rt_graph_begin(s) })?;
+        self.capturing.store(true, Ordering::Relaxed);
+        let ran = body();
+        self.capturing.store(false, Ordering::Relaxed);
+        let mut exec: *mut c_void = std::ptr::null_mut();
+        // SAFETY: valid out-pointer; ends the capture even when `body` failed (the recording is then dropped).
+        let ended = check("hipStreamEndCapture/hipGraphInstantiate", unsafe { ffi::ik_rt_graph_end(s, &mut exec) });
+        // an instantiated graph is owned (and destroyed on drop) even when the body failed
+        let graph = (!exec.is_null()).then(|| HipGraph { exec: exec as usize, ordinal: self.ordinal });
+        ran?;
+        ended?;
+        let graph = graph.ok_or_else(|| Error::backend("graph capture produced no executable graph"))?;
+        Ok(GraphHandle::new(graph))
+    }
+
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()> {
+        let g = g.downcast::<HipGraph>().ok_or_else(|| Error::backend("graph does not belong to the hip backend"))?;
+        self.bind()?;
+        let s = self.stream(stream)?;
+        // SAFETY: `exec` is a live hipGraphExec_t owned by `g`.
+        check("hipGraphLaunch", unsafe { ffi::ik_rt_graph_launch(g.exec as *mut c_void, s) })
     }
 }

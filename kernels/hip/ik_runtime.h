@@ -44,6 +44,12 @@ int ik_rt_event_create(void** ev);
 int ik_rt_event_record(void* ev, void* stream);
 int ik_rt_event_elapsed_ms(float* ms, void* a, void* b);
 int ik_rt_event_destroy(void* ev);
+
+/* graph capture / replay of a stream (the decode step as one hipGraph); mirrors the CUDA runtime */
+int ik_rt_graph_begin(void* stream);
+int ik_rt_graph_end(void* stream, void** exec);
+int ik_rt_graph_launch(void* exec, void* stream);
+int ik_rt_graph_destroy(void* exec);
 /* tensor parallelism (kernels/hip/allreduce.hip): peer access and the fine-grained (uncached) allocations the
  * all-reduce's scratch and flags live in */
 int ik_rt_can_access_peer(int device, int peer, int* ok);

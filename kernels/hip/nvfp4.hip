@@ -56,25 +56,143 @@ nvfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
     }
 }
 
+// v2: bit-identical to the kernel above (same lane/iteration/accumulation order), restructured for latency. The weights,
+// block scales and activations of the first kPre lane-iterations are requested before the shared table is built, so the
+// table fill and its barrier overlap the global-memory latency instead of preceding it (a decode GEMV here is 0.3 to 2 MB,
+// i.e. a few microseconds, of which that latency is most). Rows past N clamp to row 0 and are masked at the store, so every
+// thread reaches the barrier.
+constexpr int kPre = 4;
+
+// XS: the activations are staged in shared memory once per block (one 16-byte copy per thread) instead of every warp
+// reading the same few kilobytes from the cache hierarchy; the copy and the table fill share one barrier. M * K * 2 bytes of
+// dynamic shared memory (the launcher only picks XS when that is at most 32 KiB).
+template <int M, typename OutT, bool XS>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+nvfp4_gemv_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                     const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    const uint4* xsm = reinterpret_cast<const uint4*>(smem);
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    const bool live = n < N;
+    const int64_t nn = live ? n : 0;
+    const uint2* wr = reinterpret_cast<const uint2*>(w + nn * (K / 2));
+    const uint8_t* sr = bs + nn * (K / 16);
+    const int nu = K / 16;
+    uint2 wv[kPre];
+    uint32_t sb[kPre];
+    uint4 xv[XS ? 1 : kPre][M][2];
+#pragma unroll
+    for (int j = 0; j < kPre; ++j) {
+        const int u = lane + IK_WARP * j;
+        const bool ok = u < nu;
+        wv[j] = ok ? ik_ldcs(wr + u) : make_uint2(0, 0);
+        sb[j] = ok ? sr[u] : 0u;
+        if (!XS) {
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)(ok ? u : 0) * 16);
+                xv[XS ? 0 : j][m][0] = xp[0];
+                xv[XS ? 0 : j][m][1] = xp[1];
+            }
+        }
+    }
+    __shared__ float lut[16];
+    if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+    if (XS) {
+        uint4* xd = reinterpret_cast<uint4*>(smem);
+        for (int i = threadIdx.x; i < M * K / 8; i += blockDim.x) xd[i] = reinterpret_cast<const uint4*>(x)[i];
+    }
+    __syncthreads();
+    if (!live) return;  // whole warp exits together
+    float acc[M];
+#pragma unroll
+    for (int m = 0; m < M; ++m) acc[m] = 0.f;
+    auto step = [&](const uint2& wq, uint32_t sbyte, const uint4 (&xq)[M][2]) {
+        const float sc = ik_e4m3_to_f(sbyte);
+        float wf[16];
+        ik_fp4x8_to_f32(wq.x, lut, wf);
+        ik_fp4x8_to_f32(wq.y, lut, wf + 8);
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            float xf[16];
+            ik_unpack8(xq[m][0], xf);
+            ik_unpack8(xq[m][1], xf + 8);
+            float s = 0.f;
+#pragma unroll
+            for (int e = 0; e < 16; ++e) s = fmaf(wf[e], xf[e], s);
+            acc[m] = fmaf(s, sc, acc[m]);
+        }
+    };
+    auto xload = [&](int u, uint4 (&xq)[M][2]) {
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            if (XS) {
+                xq[m][0] = xsm[(int64_t)m * (K / 8) + u * 2];
+                xq[m][1] = xsm[(int64_t)m * (K / 8) + u * 2 + 1];
+            } else {
+                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * 16);
+                xq[m][0] = xp[0];
+                xq[m][1] = xp[1];
+            }
+        }
+    };
+#pragma unroll
+    for (int j = 0; j < kPre; ++j) {
+        if (lane + IK_WARP * j >= nu) continue;
+        if (XS) {
+            uint4 xq[M][2];
+            xload(lane + IK_WARP * j, xq);
+            step(wv[j], sb[j], xq);
+        } else {
+            step(wv[j], sb[j], xv[XS ? 0 : j]);
+        }
+    }
+    for (int u = lane + IK_WARP * kPre; u < nu; u += IK_WARP) {  // K > 2048: the remaining iterations, loaded as used
+        uint4 xq[M][2];
+        xload(u, xq);
+        step(ik_ldcs(wr + u), sr[u], xq);
+    }
+    const float g = gs[0];
+#pragma unroll
+    for (int m = 0; m < M; ++m) {
+        const float s = ik_warp_sum(acc[m]);
+        if (lane == 0) ik_store(out + (int64_t)m * N + n, s * g);
+    }
+}
+
+// INTARSIA_HIP_XSTAGE=1 stages the activations in shared memory (when they fit); default 0
+bool xstage_enabled() {
+    static const bool on = [] {
+        const char* e = getenv("INTARSIA_HIP_XSTAGE");
+        return e && e[0] == '1';
+    }();
+    return on;
+}
+
 template <int M, typename OutT>
 void gemv_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K,
-              hipStream_t s) {
+              hipStream_t s, bool v2) {
     const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
-    nvfp4_gemv_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K);
+    const size_t xbytes = (size_t)M * K * 2;
+    if (v2 && xstage_enabled() && xbytes <= 32768)
+        nvfp4_gemv_v2_kernel<M, OutT, true><<<grid, kWarps * IK_WARP, xbytes, s>>>(x, w, bs, gs, out, N, (int)K);
+    else if (v2) nvfp4_gemv_v2_kernel<M, OutT, false><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K);
+    else nvfp4_gemv_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K);
 }
 
 template <typename OutT>
 int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N,
-              int64_t K, hipStream_t s) {
+              int64_t K, hipStream_t s, bool v2) {
     switch (M) {
-        case 1: gemv_run<1>(x, w, bs, gs, out, N, K, s); break;
-        case 2: gemv_run<2>(x, w, bs, gs, out, N, K, s); break;
-        case 3: gemv_run<3>(x, w, bs, gs, out, N, K, s); break;
-        case 4: gemv_run<4>(x, w, bs, gs, out, N, K, s); break;
-        case 5: gemv_run<5>(x, w, bs, gs, out, N, K, s); break;
-        case 6: gemv_run<6>(x, w, bs, gs, out, N, K, s); break;
-        case 7: gemv_run<7>(x, w, bs, gs, out, N, K, s); break;
-        case 8: gemv_run<8>(x, w, bs, gs, out, N, K, s); break;
+        case 1: gemv_run<1>(x, w, bs, gs, out, N, K, s, v2); break;
+        case 2: gemv_run<2>(x, w, bs, gs, out, N, K, s, v2); break;
+        case 3: gemv_run<3>(x, w, bs, gs, out, N, K, s, v2); break;
+        case 4: gemv_run<4>(x, w, bs, gs, out, N, K, s, v2); break;
+        case 5: gemv_run<5>(x, w, bs, gs, out, N, K, s, v2); break;
+        case 6: gemv_run<6>(x, w, bs, gs, out, N, K, s, v2); break;
+        case 7: gemv_run<7>(x, w, bs, gs, out, N, K, s, v2); break;
+        case 8: gemv_run<8>(x, w, bs, gs, out, N, K, s, v2); break;
         default: return IK_ERR_SHAPE;
     }
     return ik_launch_status();
@@ -127,8 +245,10 @@ struct Nvfp4Policy {
 
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
+// variant: 0 = tensor-core GEMM, 1 = GEMV, 2 = GEMV v2 (same numerics, latency-restructured)
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik_tensor* gs, ik_tensor* out,
-           void* stream, bool gemv) {
+           void* stream, int variant) {
+    const bool gemv = variant != 0;
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 8));
     IK_TRY(ik_check_a(bs, IK_DTYPE_FP8_E4M3, 2, 1));
@@ -153,8 +273,8 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
         if (M > 8) return IK_ERR_SHAPE;
-        return f32o ? gemv_by_m((int)M, xp, wp, bp, gp, (float*)out->data, N, K, s)
-                    : gemv_by_m((int)M, xp, wp, bp, gp, (ik_bf16*)out->data, N, K, s);
+        return f32o ? gemv_by_m((int)M, xp, wp, bp, gp, (float*)out->data, N, K, s, variant == 2)
+                    : gemv_by_m((int)M, xp, wp, bp, gp, (ik_bf16*)out->data, N, K, s, variant == 2);
     }
     DqArgs a;
     a.x = xp;
@@ -176,11 +296,15 @@ extern "C" {
 
 int ik_matmul_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                          const ik_tensor* global_scale, ik_tensor* out, void* stream) {
-    return launch(x, w, block_scales, global_scale, out, stream, true);
+    return launch(x, w, block_scales, global_scale, out, stream, 1);
+}
+int ik_matmul_nvfp4_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
+                            const ik_tensor* global_scale, ik_tensor* out, void* stream) {
+    return launch(x, w, block_scales, global_scale, out, stream, 2);
 }
 int ik_matmul_nvfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                         const ik_tensor* global_scale, ik_tensor* out, void* stream) {
-    return launch(x, w, block_scales, global_scale, out, stream, false);
+    return launch(x, w, block_scales, global_scale, out, stream, 0);
 }
 
 }  // extern "C"

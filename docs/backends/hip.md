@@ -4,6 +4,10 @@ Status (2026-10-13, Phase 2a): dense BF16 Qwen3 runs end to end on one R9700 (gf
 ABI. 21 kernels, all admitted against the cpu reference. Numbers: [results/2026-10-13-phase2a-hip.md](../results/2026-10-13-phase2a-hip.md).
 Qwen3.6-35B-A3B NVFP4 (FP8 / NVFP4 matmuls, sparse MoE, GatedDeltaNet, gated attention) runs on one card, see `docs/results/2026-10-13-phase2a-hip.md` section 9. MXFP4, speculation and TP=2 are later phases; see "Not done".
 
+Decode (2026-10-13, perf/hip-decode): HIP graph capture/replay of the decode step (`supports_graphs`), latency-restructured `*_v2`
+decode kernels registered beside their v1 kernels (bitwise equal to them), two launch fusions (conv state, rope tail). 35B decode
+97 to 126 tok/s on one R9700; profile, mutation checks, downtime log: [results/2026-10-13-hip-decode.md](../results/2026-10-13-hip-decode.md).
+
 ## Layout
 
 | Path | What |

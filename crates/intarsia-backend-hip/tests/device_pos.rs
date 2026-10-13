@@ -1,9 +1,13 @@
-//! Device-side position on a real GPU (graph capture itself is CUDA-only, see crates/intarsia-backend-cuda/tests/graph_pos.rs).
+//! Device-side position and graph capture/replay on a real GPU (the CUDA twin is crates/intarsia-backend-cuda/tests/graph_pos.rs).
 //!
 //! * rope / kv_append / attn_decode (SIMT and split-KV) read their position from an `i32 [1]` tensor when they
 //!   run; the result must be *bit-identical* to launching with the same value as the host `pos0` (admission's
 //!   `run_host` only exercises the host path, so this is where the device path is checked).
 //! * split-KV decode (max-grid launch) still matches the SIMT kernel at every position.
+//! * a captured kv_append + split-KV graph, replayed at moving positions, equals the eager launch bit for bit;
+//!   (NOT covered: reusing the stream after a failed capture. Two attempts showed the HIP runtime keeps returning
+//!   hipErrorStreamCaptureInvalidated (901) for later calls on that device after an invalidated capture; the core switches
+//!   graphs off after a failed capture and the 35B and 8B never fail one, see docs/results/2026-10-13-hip-decode.md.)
 //!
 //! Needs a GPU: skips (passes) without one. `INTARSIA_HIP_DEVICE` picks the ordinal.
 #![cfg(ik_hip)]
@@ -161,4 +165,64 @@ fn splitkv_decode_matches_the_simt_kernel_at_every_position() {
         let max = a.iter().zip(&b).map(|(x, y)| (x - y).abs()).fold(0f32, f32::max);
         assert!(max < 2e-2, "p={p}: split-KV differs from the SIMT kernel by {max}");
     }
+}
+
+/// The decode step as a graph: kv_append + split-KV attention are captured once with a device position tensor and
+/// replayed at every position (the model's `graph_step.rs` does the same for the whole step); each replay must
+/// equal an eager launch with the host position bit for bit.
+#[test]
+fn graph_replay_follows_the_device_position() {
+    let Some(be) = device() else { return };
+    assert!(be.supports_graphs());
+    let mut rng = SplitMix64::new(21);
+    let (n, nkv, d, cap) = (16usize, 2usize, 256usize, 4096 + 8);
+    let q = put(&*be, &rand_bf16(&mut rng, &[1, n, d], 2.0));
+    let knew = put(&*be, &rand_bf16(&mut rng, &[1, nkv, d], 1.0));
+    let vnew = put(&*be, &rand_bf16(&mut rng, &[1, nkv, d], 1.0));
+    let kc = put(&*be, &rand_bf16(&mut rng, &[nkv, cap, d], 1.0));
+    let vc = put(&*be, &rand_bf16(&mut rng, &[nkv, cap, d], 1.0));
+    let out = put(&*be, &HostTensor::zeros(DType::Bf16, &[1, n, d]));
+    let out_ref = put(&*be, &HostTensor::zeros(DType::Bf16, &[1, n, d]));
+    let pos = pos_tensor(&*be, 0);
+    let append = OpAttrs { kv_cap: cap, n_kv_heads: nkv, head_dim: d, ..OpAttrs::default() };
+    let attn = OpAttrs { scale: 1.0 / (d as f32).sqrt(), n_heads: n, n_kv_heads: nkv, head_dim: d, kv_cap: cap, ..OpAttrs::default() };
+    let step = |p: usize, dev: Option<&TensorRef>, o: &TensorRef| {
+        launch(&*be, "kv_append_bf16", Op::KvAppend, &[knew.clone()], &[kc.clone()], &append, p, dev);
+        launch(&*be, "kv_append_bf16", Op::KvAppend, &[vnew.clone()], &[vc.clone()], &append, p, dev);
+        launch(&*be, "attn_decode_bf16_splitkv", Op::AttnDecode, &[q.clone(), kc.clone(), vc.clone()], &[o.clone()], &attn, p, dev);
+    };
+    // the scratch of each `launch` above is allocated per call; a captured graph keeps its address, so give the
+    // capture one that outlives it
+    let k = be.kernels().into_iter().find(|k| k.name == "attn_decode_bf16_splitkv").unwrap();
+    let probe = OpCall::new(Op::AttnDecode, vec![q.clone(), kc.clone(), vc.clone()], vec![out.clone()], attn.clone());
+    let need = k.scratch_bytes(&ShapeInfo::from_call(&probe));
+    let scratch = TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]);
+    let graph = be
+        .graph_capture(0, &mut || {
+            let mut a = attn.clone();
+            a.pos0 = 0;
+            for (new, cache) in [(&knew, &kc), (&vnew, &vc)] {
+                let mut c = OpCall::new(Op::KvAppend, vec![new.clone()], vec![cache.clone()], append.clone());
+                c.pos = Some(pos.clone());
+                be.launch("kv_append_bf16", &c, 0)?;
+            }
+            let mut c = OpCall::new(Op::AttnDecode, vec![q.clone(), kc.clone(), vc.clone()], vec![out.clone()], a);
+            c.pos = Some(pos.clone());
+            c.scratch = Some(scratch.clone());
+            be.launch("attn_decode_bf16_splitkv", &c, 0)
+        })
+        .unwrap();
+    for &p in &POSITIONS {
+        be.upload(&pos.buf, 0, &(p as i32).to_le_bytes(), 0).unwrap();
+        be.graph_replay(&graph, 0).unwrap();
+        let got = get(&*be, &out);
+        step(p, None, &out_ref); // eager, host position, same caches (the append is idempotent)
+        assert!(got == get(&*be, &out_ref), "graph replay at p={p} differs from the eager launch");
+    }
+    // replaying again at an earlier position (the position moves backwards after a truncate)
+    be.upload(&pos.buf, 0, &(3i32).to_le_bytes(), 0).unwrap();
+    be.graph_replay(&graph, 0).unwrap();
+    let got = get(&*be, &out);
+    step(3, None, &out_ref);
+    assert!(got == get(&*be, &out_ref), "graph replay at p=3 after longer positions");
 }

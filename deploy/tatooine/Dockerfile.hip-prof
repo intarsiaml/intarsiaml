@@ -1,0 +1,24 @@
+# IntarsiaML profiling image for the R9700 (gfx1201) track: the dev image plus the runtime library rocprofv3 needs.
+# rocprofv3 (ROCm 7.2.4, rocprofiler-sdk 1.1.0) ships in rocm/dev-ubuntu-24.04, but injecting it into a process fails with
+# "libdw.so.1: cannot open shared object file" because the base image has no elfutils runtime; this adds it.
+# Everything else is the same as Dockerfile.hip-dev so a binary built in the dev image runs here unchanged (run dev.sh with
+# INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=<the dev image's target volume>).
+# Build:  docker build -t intarsia-hip-prof:rocm7.2.4-rust1.90.0 -f Dockerfile.hip-prof .
+# Base pinned by digest (the tag is mutable); apt packages below are unpinned tools, not part of the numerics.
+# Re-pin: docker pull rocm/dev-ubuntu-24.04:<tag> && docker image inspect --format '{{index .RepoDigests 0}}' rocm/dev-ubuntu-24.04:<tag>
+FROM rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    RUSTUP_HOME=/opt/rustup \
+    CARGO_HOME=/opt/cargo \
+    PATH=/opt/cargo/bin:/opt/rocm/bin:$PATH
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential pkg-config git curl ca-certificates rsync libdw1 libelf1 python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.90.0 \
+ && chmod -R a+rwX /opt/rustup /opt/cargo \
+ && rustc --version && cargo --version
+
+WORKDIR /work
