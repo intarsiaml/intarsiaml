@@ -538,9 +538,12 @@ impl Backend for HipBackend {
         let mut exec: *mut c_void = std::ptr::null_mut();
         // SAFETY: valid out-pointer; ends the capture even when `body` failed (the recording is then dropped).
         let ended = check("hipStreamEndCapture/hipGraphInstantiate", unsafe { ffi::ik_rt_graph_end(s, &mut exec) });
+        // an instantiated graph is owned (and destroyed on drop) even when the body failed
+        let graph = (!exec.is_null()).then(|| HipGraph { exec: exec as usize, ordinal: self.ordinal });
         ran?;
         ended?;
-        Ok(GraphHandle::new(HipGraph { exec: exec as usize, ordinal: self.ordinal }))
+        let graph = graph.ok_or_else(|| Error::backend("graph capture produced no executable graph"))?;
+        Ok(GraphHandle::new(graph))
     }
 
     fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()> {

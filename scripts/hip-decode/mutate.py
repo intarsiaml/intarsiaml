@@ -25,6 +25,12 @@ MUTATIONS = {
     "moe-down": ("kernels/hip/moe.hip", [(
         "                step(k, wv[k], sb[k], hv[XS ? 0 : k][0], hv[XS ? 0 : k][1]);",
         "                step(k, wv[k], sb[k], hv[XS ? 0 : k][1], hv[XS ? 0 : k][1]);")]),
+    # fp8 gemv v2 (default staging Q=2): the output scale of the 2^-8-scaled hardware conversion is halved
+    "fp8-scale": ("kernels/hip/fp8.hip", [(
+        "((Q == 2 || Q == 3) ? 65536.f : 256.f)", "((Q == 2 || Q == 3) ? 32768.f : 256.f)")]),
+    # fp8 gemv v2: the upper two bytes of each converted e4m3 pair read the lower pair's selector
+    "fp8-convert": ("kernels/hip/fp8.hip", [(
+        "e4m3x2_to_f16x2((uint32_t)c0, 0x030C020Cu)", "e4m3x2_to_f16x2((uint32_t)c0, 0x010C000Cu)")]),
 }
 
 tree, name = sys.argv[1], sys.argv[2]

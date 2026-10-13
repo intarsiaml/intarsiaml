@@ -115,7 +115,7 @@ Achieved bandwidth on the big consumers (DRAM-cold microbenchmarks, `quantmoe.rs
      shared-table barrier (the barrier used to precede every load), so the table fill overlaps the memory latency.
    * fp8 gemv stages the activations eight per thread, converts to e4m3 with the gfx12 hardware instruction
      (`v_cvt_pk_fp8_f32`, after an explicit clamp, scale a power of two), and uses two rows per warp at every N
-     (`INTARSIA_HIP_FP8_Q=1|2|3|9`, `INTARSIA_HIP_FP8_ROWS`; default Q=2).
+     (`INTARSIA_HIP_FP8_Q=1|2|3`, `INTARSIA_HIP_FP8_ROWS`; default Q=2).
    * moe top-k packs each candidate into a 32-bit key so a warp argmax round is one shuffle and one max.
 3. **Fusions inside existing launchers** (no new op, 50 fewer launches per step): the single-tile `gdn_conv_bf16` writes its own new
    state (`gdn_conv_state` only runs for T > 32), and the partial-rotary `rope_bf16` copies the un-rotated tail itself
@@ -136,6 +136,19 @@ Achieved bandwidth on the big consumers (DRAM-cold microbenchmarks, `quantmoe.rs
   `hipStreamEndCapture` + `hipGetLastError` + `hipStreamSynchronize` clears the capture error. Stopped. Consequence: a capture
   that fails would leave the HIP backend unusable although `graph_step.rs` would switch graphs off. Neither the 35B nor the 8B
   fails one (1 capture, 1920 and 1905 replays), and the test for it was dropped (documented in `tests/device_pos.rs`).
+
+### Scope notes
+
+* **Tensor parallel is not affected**: `GraphState::new(opts.graphs && tp.world == 1)` (`crates/intarsia-core/src/model.rs`) keeps graphs
+  off for TP models, so the TP=2 path never reaches `graph_capture` (the unrecoverable invalidated-capture case above cannot be
+  hit there). No TP run was made on this branch.
+* Radiance port plan (`docs/research/radiance-port-plan.md`) decode techniques *not* tried, and why: the fused GDN decode block op
+  (conv update + recurrent update + gated rmsnorm in one kernel, section 3.5) would remove ~3 launches per GDN layer (~90 per
+  step) but is a new block-scope op across the CPU / CUDA backends; gate/up weight fusion at load (section 3.3, halves the shared
+  expert GEMV launches and feeds `silu_mul` one row) needs a loader / recipe change; `qk_norm + rope(+gate)` fusion touches 10
+  layers only; per-shape tune tables (section 7.4) were replaced by the knob sweeps above; the fused all-reduce kernels are TP.
+  These are the next candidates: with a ~1.5 us boundary per launch and ~900 launches, every 100 launches removed is ~0.15 ms
+  (~2 %).
 
 ### Not done
 
@@ -174,15 +187,18 @@ Achieved bandwidth on the big consumers (DRAM-cold microbenchmarks, `quantmoe.rs
 | `qwen3-8b-fp32.safetensors` | PASS. prefill top-1 100 %, KL 2.34e-4; decode top-1 100 %, KL 3.63e-4 |
 | `qwen3-8b-long-fp32.safetensors` | PASS. prefill top-1 99.58 %, KL 3.97e-4; decode top-1 100 %, KL 3.57e-4 |
 
-Graph decode equals eager decode bitwise (section 4), so graphs alone cannot change these.
+Graph decode is token-identical to eager over 256 greedy steps on the real 35B, and the kernel-level replay test is bitwise
+(section 4). There is no logits or logprobs dump on the serving path, so the model-level claim is argmax identity, not a logits
+diff; graphs replay the same kernels with the same arguments, so they cannot change these numbers except through that path.
 
 Kernel-level tests (`crates/intarsia-backend-hip/tests/decode_v2.rs`, GPU): nvfp4 / fp8 / topk / experts v2 are compared bitwise
 to v1 and, within the admission budget, to the cpu reference on shapes the sweep does not draw (K past the prefetch window,
 row tails, ties, duplicate and invalid expert ids, saturating and underflowing fp8 activations, all three fp8 staging variants);
 the fused conv state is compared exactly and the rope tail exactly. **Mutation check** (`remote.sh mutate`, each mutation applied
 to a copy of the tree, `cargo test --test decode_v2` must fail): conv state written doubled, nvfp4 iteration skipped, top-k tie
-break flipped, rope tail copy strided wrong, MoE down kernel reading the wrong half row: **5 of 5 fail** (the passing tree: 5 of 5
-pass under every `INTARSIA_HIP_FP8_Q` setting and with `INTARSIA_HIP_XSTAGE=1`).
+break flipped, rope tail copy strided wrong, MoE down kernel reading the wrong half row, fp8 output scale halved, fp8 hardware
+conversion selecting the wrong byte pair: **7 of 7 fail** (job 1667, on the review-fix tree) (the passing tree: 5 of 5 pass under every `INTARSIA_HIP_FP8_Q` setting
+and with `INTARSIA_HIP_XSTAGE=1`).
 
 `intarsia kernels test --backend hip --model <8B>`: 34 kernels, 583 cases, all ADMITTED (the `qualify` run reports PASS). 35B:
 see "Not done" for the pre-existing full-sweep panic; `--quick` ADMITTED.
@@ -213,7 +229,12 @@ work, `systemctl --user start radiance`, poll `/v1/models`, `fleetq release`. Ti
 | 1661 | baseline-tree kernels test (panic check) | 17:33:50 | 17:34:21 (released), answered 15 s after the start | 0:31 |
 | 1663 | MoE warps / prefetch sweep | 17:35:15 | 17:35:56 | 0:41 |
 | 1665 | final-tree graph proof | 17:38:47 | 17:39:11 | 0:24 |
+| 1667 | review fixes: tests, graph proof, accuracy 35B, 7 mutations | 17:44:13 | 17:47:06 | 2:53 |
 
-Total ~31 min against the 90 min cap, longest burst 6:52 against 30 min. The last burst (1665) answered `/v1/models`
-(`Qwen3.8`, 200000 context) at 17:39:11, before `fleetq release`, and a final check from the Mac answered again; builds and rsyncs ran in CPU-only slots (`--mem 0`) without
+Total ~34 min against the 90 min cap, longest burst 6:52 against 30 min. The last burst (1667) answered `/v1/models`
+(`Qwen3.8`, 200000 context) at 17:47:06, before `fleetq release`, and a final check from the Mac answered again; builds and rsyncs ran in CPU-only slots (`--mem 0`) without
 touching radiance. spark1 and spark2 were not used.
+
+Process slips: the leases of jobs 1644, 1648, 1650 and 1654 stayed held for a few minutes while code was edited after their burst
+had finished (radiance was already back up each time; the queue was blocked, not the engine). Job 1661 and the baseline panic
+check ran `~/intarsiaml-base`, which overwrote the shared release binary in the target volume; it was rebuilt before any later run.

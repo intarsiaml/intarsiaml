@@ -132,7 +132,7 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
   echo "=== XSTAGE=1"
   INTARSIA_HIP_XSTAGE=1 $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_decode_variants 2>&1 \
     | grep -E "^env|^nvfp4|^moe" | cut -c1-120
-  for q in 9; do
+  for q in 3; do
     INTARSIA_HIP_FP8_Q=$q $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_decode_variants 2>&1 \
       | grep -E "^env|^fp8" | cut -c1-120
   done
@@ -140,7 +140,7 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
 
 stage_mutate() { # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
   local m
-  for m in conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down; do
+  for m in conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert; do
     rm -rf "$HOME/intarsiaml-mut"; mkdir -p "$HOME/intarsiaml-mut"
     rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$HOME/intarsiaml-mut/"
     python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$HOME/intarsiaml-mut" $m || continue

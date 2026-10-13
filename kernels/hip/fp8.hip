@@ -42,7 +42,6 @@ IK_DEVI uint32_t e4m3x2_to_f16x2(uint32_t w, uint32_t sel) {
 //      the division by the input scale as before; the staged values are e4m3 * 2^-8 (the same trick as the weights), so the
 //      output scale is 2^16 instead of 2^8 (all powers of two: bit-identical to Q = 0, 1)
 //   3  as 2, with the division by the input scale as multiply-by-reciprocal plus one fma correction
-//   9  (timing probe, wrong results) no conversion
 template <int M, int R, typename OutT, int Q>
 __global__ void __launch_bounds__(kWarps * IK_WARP)
 fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
@@ -84,7 +83,7 @@ fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, co
         for (int i8 = threadIdx.x; i8 < M * K / 8; i8 += blockDim.x) {
             const uint4 v = reinterpret_cast<const uint4*>(x)[i8];
             uint4 o;
-            if (!actq || Q == 9) {
+            if (!actq) {
                 o = v;
             } else {
                 float f[8];
@@ -244,7 +243,7 @@ int staging_q() {
     static const int q = [] {
         const char* e = getenv("INTARSIA_HIP_FP8_Q");
         const int v = e ? atoi(e) : 2;
-        return (v == 1 || v == 3 || v == 9) ? v : 2;
+        return (v == 1 || v == 3) ? v : 2;
     }();
     return q;
 }
@@ -255,7 +254,6 @@ void gemv_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, in
     switch (staging_q()) {
         case 2: return gemv_run_q<M, OutT, 2>(x, w, sc, out, N, K, s);
         case 3: return gemv_run_q<M, OutT, 3>(x, w, sc, out, N, K, s);
-        case 9: return gemv_run_q<M, OutT, 9>(x, w, sc, out, N, K, s);
         case 1: return gemv_run_q<M, OutT, 1>(x, w, sc, out, N, K, s);
         default: return gemv_run_q<M, OutT, 2>(x, w, sc, out, N, K, s);
     }
