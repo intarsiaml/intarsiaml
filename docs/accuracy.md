@@ -74,6 +74,14 @@ prints this block and **warns when the reference's KV dtype differs from ours** 
 KL against that reference is the reference's own KV quantisation noise, and it cannot be separated from our error
 until a reference with `--kv-cache-dtype auto` exists. That warning is printed on every 35B run.
 
+**Prefix caching in the golden request.** `golden_vllm.py` re-sends prompt plus continuation to a server that runs with
+`enable_prefix_caching=True` (the `guidance` vLLM). Whether a `prompt_logprobs` request reads cached fp8 KV blocks of
+an earlier request is unverified for vLLM 0.26 (Phase 1b review finding 10b), and the goldens built so far recorded
+nothing about it. `--cache-salt SALT` sends vLLM's per-request `cache_salt` (`SALT-<prompt index>-<n>`) so a request
+cannot share blocks; it is recorded in the `sampling` metadata, and without it the metadata says the cache was not
+controlled. The flag has not been run against a live server; rebuild the goldens with it before relying on a
+KV-noise-free comparison.
+
 ### How a top-k golden is compared (tail bucket)
 
 A top-k reference is compared with three numbers, none of which is the old one alone:
@@ -196,29 +204,154 @@ intarsia accuracy ... --golden G --write-baseline golden/baselines/NAME.json   #
 intarsia accuracy ... --golden G --baseline golden/baselines/NAME.json         # no worse than that, plus margins
 ```
 
-A baseline stores, per mode and per prompt: positions, top-1, mean KL, 21-way KL, top-5, tail masses, max KL,
-greedy match; the identity of the golden (file name, size, FNV-1a 64 of its bytes, prompt and position counts,
-its provenance metadata); and the run configuration (model, backend, device, KV dtype, activation dtype, fp8
-mode, prefill chunk, decode positions, gate class). It is written even when the absolute floor fails in that run
-(it then records `floor_pass: false`). The gate then requires, per mode, with these default margins (flags in
-brackets):
+A baseline stores, per mode and per prompt: positions, top-1, mean KL, 21-way KL, top-5, tail masses, the mean
+per-position |tail difference|, the largest single-position 21-way KL, greedy match; the identity of the golden (file
+name, size, FNV-1a 64 of its bytes, prompt and position counts, its provenance metadata); the run configuration (model,
+backend, device, KV dtype, activation dtype, fp8 mode, prefill chunk, decode positions, gate class); **the code that
+produced it** (below); and how it was executed (command line, kernel disable list, resolved kernel per op). It is written
+even when the absolute floor fails in that run (it then records `floor_pass: false`). The gate then requires, per mode,
+with these default margins (flags in brackets):
 
 | metric | allowed regression |
 |---|---|
 | top-1 | -0.3 pt (`--margin-top1`), but never less than one position (100/n pt: one flip must not fail a 160-position mode) |
 | mean KL, 21-way KL | x1.15 (`--margin-kl`) and at least +1e-6 absolute (a baseline near zero is not brittle) |
 | top-5 | -0.5 pt (`--margin-top5`), at least five overlap units (100/n pt) |
-| `\|tail excess\|` | may grow by 0.002 (`--margin-tail`) over the baseline's |
+| `\|tail excess\|` (signed mean) | may grow by 0.002 (`--margin-tail`) over the baseline's |
+| mean `\|tail difference\|` per position | may grow by 0.002 (`--margin-tail`): the signed mean lets positions that lose and gain tail mass cancel |
+| largest single-position 21-way KL | x2.5 (`--margin-max-kl`), at least +1e-3 (a maximum is a noisy statistic) |
+| **each prompt**: mean 21-way KL | x1.75 (`--margin-prompt-kl`), at least +1e-5 |
+| **each prompt**: top-1 | -1 pt, but at least one position; and each prompt's `\|tail difference\|` +0.002 |
 | non-finite rows | none |
 
-It **refuses to compare** (before running anything) when the golden differs (hash, size, prompt or position
-count: a regenerated golden needs a new baseline) or when the KV dtype, backend, activation dtype, fp8 mode,
-prefill chunk or decode positions differ (`--allow-config-mismatch` downgrades the configuration part to a
-warning; the golden must always match). A different device name is a warning only. The output keeps the two
-verdicts apart: `floor verdict` (class thresholds) and `baseline verdict`, and when the baseline gate fails it
-lists the prompts that moved most. Record a baseline **before** changing kernels, and verify it in a second
-process (the engine is deterministic run to run, so a run passes its own baseline with equal numbers).
-Baselines live in `golden/baselines/` (tracked, unlike the large `*.safetensors`).
+The per-prompt rows exist because the aggregate hides one prompt that got worse: with 10 prompts, one doubling its KL moves
+the mean by about 10% and passes the x1.15 gate (unit test `one_prompt_doubling_fails_although_the_overall_mean_passes`).
+The x2.5 / x1.75 factors are the smallest that let a legitimate bf16 reordering through on the one model that could be
+measured here and still fail a 2x larger change; see "Choosing the self-golden budgets" for the data and its limits.
+
+It **refuses to compare** (before running anything) when the golden differs (hash, size, prompt or position count: a
+regenerated golden needs a new baseline), when the KV dtype, backend, activation dtype, fp8 mode, prefill chunk, decode
+positions or kernel disable list differ (`--allow-config-mismatch` downgrades the configuration part to a warning; the
+golden must always match), and when the code stamp is not a legitimate "before" (next section). A different device name
+is a warning only. The output keeps the verdicts apart: `floor verdict` (class thresholds) and `baseline verdict`, and
+for a failing baseline it names the failing prompts with baseline value, this run and the limit. Verify a baseline in a
+second process (the engine is deterministic run to run, so a run passes its own baseline with equal numbers; that needs
+`--allow-same-code`). Baselines live in `golden/baselines/` (tracked, unlike the large `*.safetensors`).
+
+### Which code produced a baseline (provenance)
+
+Review finding 1: the "before" baseline used to be recorded from the new tree with kernels switched off, and nothing
+said which code made it. Switching off kernels cannot switch off the device-position rope / kv_append / attention
+kernels, the split-KV grid or the loader changes, and a typo in `INTARSIA_CUDA_DISABLE` silently left the new kernel on.
+Now:
+
+* A build stamps itself. `INTARSIA_BUILD_STAMP` (the output of `scripts/tree-stamp.sh`: `head=<sha> code-tree=<hash>
+  dirty=yes|no`, plus `overlay=<paths>`) is passed to `cargo build` and read with `option_env!`. The build boxes get the
+  tree without `.git`, so the binary cannot ask git itself; `scripts/phase1b-acceptance.sh` computes the stamp on the Mac.
+  A binary built without it is "unstamped" and its baselines and self-goldens are refused.
+* A baseline and a self-golden store that stamp. The gate (`--pre-change SHA`, `--revlist FILE`) accepts a baseline only if
+  its head is the declared pre-change commit or an ancestor of the code under test (`git rev-list HEAD` of that tree,
+  written where the history is), the two code trees differ (a self-comparison proves nothing: `--allow-same-code` for
+  reproducibility checks), and the baseline's tree is clean. The one allowed exception is the **harness overlay**: the
+  pre-change engine has no baseline or self-golden support, so "before" is a build of the pre-change commit plus only the files
+  in `HARNESS_OVERLAY_PATHS` (`accuracy.rs` and its three submodules, which read engine output and never change it). Its
+  stamp says `dirty=yes overlay=...` and the gate accepts exactly that. The build under test must be clean (`--allow-dirty`
+  for development).
+* Kernel disable list: a baseline recorded with `INTARSIA_CUDA_DISABLE` / `INTARSIA_HIP_DISABLE` set is refused (it is not
+  the pre-change code). The variables themselves now reject names that match no registered kernel when the device opens.
+* Printed, never refused: `--no-graphs`, the resolved kernel per op, differences from the recorded run. If nothing differs
+  the run says so ("a kernel or graph change cannot show up in this comparison").
+
+### Same-weights regression gate: `--write-self-golden` / `--self-golden`
+
+Review finding 2: against a vLLM reference with an fp8 KV cache the 35B baseline mean KL is about 6.5e-3, mostly the
+reference's own noise, so "no worse than x1.15" allows about 1e-3 nats of real regression. When the weights are the
+same the right reference is the previous build's own distribution:
+
+```
+# the pre-change build (4963b43 + harness overlay), once
+intarsia accuracy --model M --backend cuda --golden G --write-baseline B.json --write-self-golden S.safetensors
+# the new build
+intarsia accuracy --model M --backend cuda --golden G --baseline B.json --pre-change 4963b43 --revlist revlist   # floor, baseline, per prompt
+intarsia accuracy --model M --backend cuda --self-golden S.safetensors --pre-change 4963b43 --revlist revlist    # same weights
+```
+
+The dump keeps, for every prompt of G, the top-64 log-probs (full-vocabulary normalised, so the tail mass is known) of the
+**prefill** path (every position) and of the **decode** path (the teacher-forced window, which is what graph replay and
+the decode MoE kernel changed). It is a `intarsia-golden-topk-v1` file for the prefill rows (`--golden S` works), with
+`dec_pos_i`, `dec_topk_ids_i`, `dec_topk_logprobs_i` for the decode rows and `self_golden=1`, the code stamp and the run
+configuration in the metadata. Each path is compared with the same path of the old build, never prefill with decode, with
+the same comparator as everything else (top-1, KL on the top-64 support, 21-way KL with the tail bucket). Budgets, all
+flags, and the output line `SELF-STATS ...` the acceptance script reads:
+
+| check | flag | default |
+|---|---|---|
+| mean 21-way KL(old \|\| new) | `--self-max-kl` | 1e-4 |
+| largest single-position 21-way KL | `--self-max-pos-kl` | 5e-3 |
+| top-1 flips, percent of positions (at least one position) | `--self-max-flip-pct` | 0.5 |
+| mean per-position `\|tail difference\|` | `--self-max-tail` | 5e-4 |
+| worst prompt's mean KL | `--self-prompt-factor` x `--self-max-kl` | 5 x |
+| non-finite rows | | none |
+
+`--self-golden` needs the same model, backend, KV and activation dtype, fp8 mode, prefill chunk and decode positions
+(`--allow-config-mismatch` to downgrade). It cannot be combined with `--golden`, `--baseline`, `--write-baseline` or
+`--mode reuse`.
+
+### Choosing the self-golden budgets
+
+**Method.** The question a budget answers is "how far does a legitimate change move the logits, and how far a bug".
+The prompt asked for the budget to come from the run-to-run noise of one build on the Mac cpu backend with
+Qwen3-Reranker-0.6B. Measured 2026-10-13 (golden `qwen3-reranker-0.6b-long`, 10 prompts, 1434 prefill and 160 decode
+positions, old build = 4963b43 + harness overlay writing the dump, new build = this tree reading it):
+
+| run against the old build's dump | prefill mean KL21 / flips of 1434 | decode mean KL21 / flips of 160 |
+|---|---|---|
+| new build, same flags (run-to-run) | 2.5e-14 / 0 | 1.5e-14 / 0 |
+| `--prefill-chunk 64`, `1024`; `--kv-dtype f32` | identical to the row above (bitwise) | identical |
+| `--kv-dtype f16` | 2.7e-4 / 19 | 4.7e-4 / 2 |
+| `--reference` (f64 oracle kernels) | 1.3e-3 / 26 | 1.1e-3 / 2 |
+
+1. **Run-to-run noise on one build is exactly zero** (1e-14 is the f32 rounding of the stored log-probs): the engine is
+   bit-reproducible on the cpu, so no budget can be derived from it, and a budget set as a multiple of it would reject any
+   legitimate reordering. (On GPU it is probably also zero; the acceptance script checks it: the new build against its own
+   dump from a second process, budgets 1e-9 / 1e-6 / 0 flips.)
+2. **The smallest non-zero perturbation already saturates this model.** `INTARSIA_CPU_FAULT=<op>:<p>`
+   (`crates/intarsia-backend-cpu/src/fault.rs`, off by default, for gate-sensitivity checks only) moves each bf16 output
+   element of the named ops one ulp up or down with probability `p`, the output change a kernel with another summation
+   order produces. `p = 4.7e-3` is rel_l2 3.5e-4, the size measured between the old and the grouped MoE kernel (unit test
+   `flip_rate_to_rel_l2`); rel_l2 is about `5.1e-3 * sqrt(p)`.
+
+   | `matmul` flip rate p (rel_l2 of each matmul output) | prefill mean KL21 / flips | decode mean KL21 / flips |
+   |---|---|---|
+   | 1e-9 (a handful of flips in about 1e9 outputs) | 9.2e-4 / 24 | 4.9e-4 / 2 |
+   | 1e-6 | 1.0e-3 / 27 | 1.1e-3 / 2 |
+   | 1e-4 | 1.3e-3 / 31 | 1.2e-3 / 3 |
+   | 4.7e-3 (3.5e-4) | 1.2e-3 / 27 | 9.2e-4 / 3 |
+   | 2e-2 (7e-4) | 1.4e-3 / 33 | 1.2e-3 / 3 |
+   | 0.2 (2.3e-3) | 2.0e-3 / 45 | 1.8e-3 / 1 |
+   | 1.0 (5.1e-3) | 3.6e-3 / 50 | 3.8e-3 / 4 |
+   | attention only, p = 1 | 1.4e-3 / 32 | 1.3e-3 / 3 |
+
+   One flipped ulp in the long prompts moves the whole prompt's KL by about 1e-3: the response is flat from a handful of
+   flips up to rel_l2 1e-3 and only then grows (the 0.6B reranker's distributions are flat and an early token's change
+   propagates to every later position). **On this model the noise floor of any non-zero change is about 1e-3 mean KL and 2%
+   top-1 flips**, ten times the review's 1e-4 target. The Mac proxy therefore cannot calibrate a 35B budget (sharper
+   distributions, NVFP4 weights, 40 layers of MoE): it only shows the shape of the problem.
+3. **What the budget must do is decided on the target model**, so the defaults are the review's targets (1e-4 / 5e-3 /
+   0.5% / 5e-4, prompt x5) and the acceptance run derives the budgets it applies as `max(default, 3 x floor)`, where the floor
+   is measured in the same run on the real weights: the pre-change build against its own dump with the SIMT attention
+   kernels instead of flash / split-KV (`INTARSIA_CUDA_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash`),
+   a numerically equivalent reordering. If the floor is above the defaults the gate is less sensitive on that model and the
+   log says by how much; if it is below, the defaults apply. The rule is fixed in the script header before any number
+   exists.
+
+**Sensitivity check (the gate can see a change the old gates cannot).** Old build baseline `B0` and dump `S0`, new build
+with `INTARSIA_CPU_FAULT=matmul:1e-9` (about one flipped element in 1e9 matmul outputs): the baseline gate (floor, baseline,
+per prompt) PASSES (KL against HF moves from 2.380e-3 to 2.463e-3 prefill, within x1.15) while the self-golden gate FAILS
+(mean KL21 9.2e-4 against 1e-4). With `matmul:4.7e-3` (a legitimate-size reordering of every matmul) the baseline gate
+passes with the shipped margins and fails at `matmul:2e-2` (rel_l2 7e-4) on the per-prompt KL, the quantity the old
+aggregate gate could not see. Those margins (x2.5 max KL, x1.75 per prompt) are the ones that separate the two on this
+model; they were x1.5 / x1.3 in the first draft and failed the legitimate-size case. They are untested on the 35B.
 
 ### `--reference`
 

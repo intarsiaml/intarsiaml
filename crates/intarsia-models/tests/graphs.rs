@@ -299,3 +299,105 @@ fn the_recording_contains_the_position_dependent_ops_with_a_device_position() {
     let snap = m.graph_stats();
     assert_eq!((snap.captures, snap.replays), (1, 2));
 }
+
+/// Prefill `prompt[pos..]` the way the engine does (`generate_one`): full chunks, a snapshot after each, a snapshot one
+/// token before the end, then the last token through `LastLogits` (a single-token step, so it takes the graph path).
+/// Returns that last step's logits.
+fn prefill_like_the_engine(m: &Model, st: &mut SequenceState, prompt: &[u32], mut pos: usize) -> Vec<f32> {
+    let chunk = m.prefill_chunk();
+    while prompt.len() - pos > chunk {
+        m.forward(st, &prompt[pos..pos + chunk], HeadMode::None, None).unwrap();
+        pos += chunk;
+        st.snapshot(&*m.backend, intarsia_core::state::RECURRENT_SNAPSHOTS).unwrap();
+    }
+    if prompt.len() - pos > 1 {
+        m.forward(st, &prompt[pos..prompt.len() - 1], HeadMode::None, None).unwrap();
+        pos = prompt.len() - 1;
+        st.snapshot(&*m.backend, intarsia_core::state::RECURRENT_SNAPSHOTS).unwrap();
+    }
+    let StepOut::Logits(l) = m.forward(st, &prompt[pos..], HeadMode::LastLogits, None).unwrap() else { panic!() };
+    l
+}
+
+fn argmax(l: &[f32]) -> u32 {
+    l.iter().enumerate().fold((0, f32::NEG_INFINITY), |b, (i, &x)| if x > b.1 { (i, x) } else { b }).0 as u32
+}
+
+/// What one scenario run produced (for comparing graph, eager and from-scratch runs bit for bit).
+struct Run {
+    /// token count held when the restore happened, and the length restored to
+    len_before_restore: usize,
+    restored_len: usize,
+    /// first-token logits and decoded tokens / logits after the (re)prefill of prompt B
+    first_logits: Vec<f32>,
+    tokens: Vec<u32>,
+    rows: Vec<Vec<f32>>,
+}
+
+const PROMPT_A: [u32; 20] = [3, 17, 5, 9, 31, 2, 8, 44, 7, 13, 21, 4, 6, 12, 19, 23, 27, 30, 11, 15];
+/// Shares the first 16 tokens (two prefill chunks) with `PROMPT_A`, then differs.
+const PROMPT_B: [u32; 22] = [3, 17, 5, 9, 31, 2, 8, 44, 7, 13, 21, 4, 6, 12, 19, 23, 40, 41, 42, 43, 10, 25];
+const DECODE_A: usize = 6;
+const DECODE_B: usize = 24;
+
+/// Serve A (prefill + a few decode steps, which captures the graph), then B through the engine's prefix-reuse path:
+/// roll the sequence back to the recurrent snapshot at the shared prefix, prefill B's suffix, decode.
+fn serve_a_then_b_with_a_restore(m: &Model) -> Run {
+    let mut st = m.new_state().unwrap();
+    let l = prefill_like_the_engine(m, &mut st, &PROMPT_A, 0);
+    decode(m, &mut st, argmax(&l), DECODE_A);
+    let len_before_restore = st.len;
+    // `generate_one`: reuse what the state can return to exactly, then truncate
+    let common = st.tokens.iter().zip(PROMPT_B.iter()).take_while(|(a, b)| a == b).count();
+    let p = st.restorable_len(common.min(PROMPT_B.len() - 1));
+    st.truncate(p, &*m.backend).unwrap();
+    assert_eq!(st.len, p);
+    let first_logits = prefill_like_the_engine(m, &mut st, &PROMPT_B, p);
+    let (tokens, rows) = decode(m, &mut st, argmax(&first_logits), DECODE_B);
+    Run { len_before_restore, restored_len: p, first_logits, tokens, rows }
+}
+
+#[test]
+fn replay_after_a_mid_sequence_gdn_restore_is_bitwise_the_eager_decode() {
+    // The GPU part (the real 35B, 256-step greedy decode with graphs against `--no-graphs`, after a prefix-reuse
+    // restore on a server) is covered by the acceptance run, scripts/phase1b-acceptance.sh stage "graphs".
+    // This test covers the restore-with-graphs mechanics on the tiny hybrid model: the restore copies the snapshot
+    // into the same recurrent buffers the captured graph reads and writes, so the capture must stay valid.
+    let eager = load(Rec::new(false, false), true, 0);
+    let rec = Rec::new(true, false);
+    let graphed = load(rec.clone(), true, 0);
+    assert!(graphed.graph_stats().enabled && !eager.graph_stats().enabled);
+
+    let g = serve_a_then_b_with_a_restore(&graphed);
+    let e = serve_a_then_b_with_a_restore(&eager);
+
+    // the restore really happened: back to the shared two-chunk prefix, strictly inside the held sequence
+    assert_eq!(g.restored_len, 16, "restored to the snapshot at the end of the second prefill chunk");
+    assert!(g.restored_len > 0 && g.restored_len < g.len_before_restore, "{} -> {}", g.len_before_restore, g.restored_len);
+    assert_eq!(g.len_before_restore, PROMPT_A.len() + DECODE_A);
+    assert_eq!((e.len_before_restore, e.restored_len), (g.len_before_restore, g.restored_len));
+
+    // one capture for the whole run: the restore did not invalidate or recreate the recording
+    let stats = graphed.graph_stats();
+    let single_token_steps = (1 + DECODE_A) + (1 + DECODE_B); // the last prompt token goes through the graph too
+    assert_eq!(stats.captures, 1, "no recapture after the restore");
+    assert_eq!(stats.replays, single_token_steps as u64, "every single-token step replayed, before and after the restore");
+    assert_eq!(rec.captures.load(Ordering::Relaxed), 1);
+    assert_eq!(rec.replays.load(Ordering::Relaxed), single_token_steps);
+
+    // graph == eager, bit for bit, across the restore
+    assert!(g.first_logits == e.first_logits, "logits of the first step after the restore differ");
+    assert_eq!(g.tokens, e.tokens, "greedy tokens after the restore");
+    assert_eq!(g.rows.len(), DECODE_B);
+    for (i, (a, b)) in g.rows.iter().zip(&e.rows).enumerate() {
+        assert!(a == b, "logits of post-restore step {i} differ between graph and eager decode");
+    }
+
+    // and the restore itself is right: B prefilled from scratch (no restore) on the eager model gives the same bits
+    let mut st = eager.new_state().unwrap();
+    let l = prefill_like_the_engine(&eager, &mut st, &PROMPT_B, 0);
+    assert!(l == g.first_logits, "restored prefill differs from a from-scratch prefill");
+    let (t, r) = decode(&eager, &mut st, argmax(&l), DECODE_B);
+    assert_eq!(t, g.tokens);
+    assert!(r == g.rows);
+}

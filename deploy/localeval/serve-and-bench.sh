@@ -27,8 +27,10 @@ while [ $# -gt 0 ] && [ "$1" != "--" ]; do serve_args+=("$1"); shift; done
 [ $# -gt 0 ] || { echo "serve-and-bench: no command after --" >&2; exit 2; }
 
 PIDFILE=/tmp/intarsia-serve-$PORT.pid
+# Wait for the server process to be gone before returning, kill -9 after 60 s. Returning at once (the old behaviour) let
+# fleetq release the slot while the child still held its ~38 GB (Phase 1a finding 7, Phase 1b finding 7).
 stop() {
-    ssh "$HOST" "if [ -f $PIDFILE ]; then kill \$(cat $PIDFILE) 2>/dev/null; rm -f $PIDFILE; fi" || true
+    ssh "$HOST" "if [ -f $PIDFILE ]; then pid=\$(cat $PIDFILE); kill \$pid 2>/dev/null; for _ in \$(seq 1 60); do kill -0 \$pid 2>/dev/null || break; sleep 1; done; kill -9 \$pid 2>/dev/null; rm -f $PIDFILE; fi" || true
 }
 trap stop EXIT INT TERM
 

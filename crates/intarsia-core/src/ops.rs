@@ -397,6 +397,9 @@ pub struct ShapeInfo {
     pub kv_len: usize,
     pub act: Option<DType>,
     pub weight: Option<DType>,
+    /// Dtype of the first output (`None` when the call has no outputs). Lets a registration pick its
+    /// per-output-dtype tolerance (`KernelImpl::tol_for`).
+    pub out: Option<DType>,
     /// MoE ops: number of routed experts / experts selected per token.
     pub experts: usize,
     pub top_k: usize,
@@ -406,7 +409,11 @@ impl ShapeInfo {
     pub fn from_call(call: &OpCall) -> ShapeInfo {
         let i = &call.inputs;
         let o = &call.outputs;
-        let mut s = ShapeInfo { act: i.first().map(|t| t.dtype), ..Default::default() };
+        let mut s = ShapeInfo {
+            act: i.first().map(|t| t.dtype),
+            out: o.first().map(|t| t.dtype),
+            ..Default::default()
+        };
         match call.op {
             Op::Embedding => {
                 s.m = i[0].shape[0];
@@ -498,5 +505,15 @@ mod tests {
         assert!(bad.check().is_err());
         let s = ShapeInfo::from_call(&ok);
         assert_eq!((s.m, s.n, s.k), (3, 5, 8));
+        // the first output's dtype is recorded for per-output-dtype tolerances
+        assert_eq!(s.out, Some(DType::Bf16));
+        assert_eq!(ShapeInfo::default().out, None);
+        let f32_out = OpCall::new(
+            Op::Logits,
+            vec![t(DType::Bf16, &[3, 8]), t(DType::Bf16, &[5, 8])],
+            vec![t(DType::F32, &[3, 5])],
+            OpAttrs::default(),
+        );
+        assert_eq!(ShapeInfo::from_call(&f32_out).out, Some(DType::F32));
     }
 }

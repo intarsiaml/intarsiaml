@@ -189,6 +189,28 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
         "Decode speed of the last finished request.",
         snap.last_decode_tok_s,
     );
+    metric(
+        &mut o,
+        "intarsia_graph_replays_total",
+        "counter",
+        "Decode steps replayed from a captured CUDA graph.",
+        snap.graph_replays,
+    );
+    metric(&mut o, "intarsia_graph_captures_total", "counter", "Decode graphs captured.", snap.graph_captures);
+    metric(
+        &mut o,
+        "intarsia_decode_eager_steps_total",
+        "counter",
+        "Single-token decode steps that ran through the eager (non-graph) path.",
+        snap.decode_eager_steps,
+    );
+    metric(
+        &mut o,
+        "intarsia_decode_profiled_steps_total",
+        "counter",
+        "Eager decode steps that ran with per-op profiling (synchronises around every op).",
+        snap.decode_profiled_steps,
+    );
     metric(&mut o, "intarsia_uptime_seconds", "gauge", "Seconds since engine start.", snap.uptime_s);
     metric(
         &mut o,

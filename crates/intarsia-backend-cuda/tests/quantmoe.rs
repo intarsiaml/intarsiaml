@@ -9,7 +9,7 @@ mod common;
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::{upload_new, Backend, MemKind, TensorRef};
 use intarsia_core::exec::{run_host, HostCall, OutSpec};
-use intarsia_core::quant::cases::{experts_case, matmul_nvfp4_case};
+use intarsia_core::quant::cases::{experts_case, matmul_fp8_case, matmul_nvfp4_case};
 use intarsia_core::quant::ops::moe_experts_scratch;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::{DType, HostTensor, Op, OpCall, ShapeInfo};
@@ -42,7 +42,7 @@ fn check_experts_with(cuda: &dyn Backend, kernel: &str, hc: &HostCall, label: &s
     let want = run_host(&cpu, "ref_moe_experts", hc).unwrap();
     let got = run_host(cuda, kernel, hc).unwrap();
     let r = rel_l2(&got[0].to_f32(), &want[0].to_f32());
-    assert!(r < 1e-2, "{kernel} {label}: rel_l2 {r}");
+    assert!(r < 1e-3, "{kernel} {label}: rel_l2 {r}");
     let again = run_host(cuda, kernel, hc).unwrap();
     assert_eq!(got[0].data, again[0].data, "{kernel} {label}: not repeatable");
 }
@@ -107,6 +107,81 @@ fn moe_experts_mma_matches_reference() {
     for (t, e) in [(33usize, 16usize), (100, 16)] {
         let hc = experts_case(&mut rng, t, e, 8, 2048, 512, DType::Bf16);
         check_experts_with(&*cuda, "moe_experts_mma_bf16", &hc, &format!("real shape T={t} E={e}"));
+    }
+}
+
+/// The grouped tensor-core kernel against the warp-per-row kernel it replaces for prefill batches, on the same
+/// inputs (both are also graded against the cpu reference above). The two sum in a different order, so the bf16
+/// outputs may differ by rounding, never by more than rel_l2 1e-3 (the admission budget). Same shapes as
+/// `moe_experts_mma_matches_reference` plus a larger real-layer one (H=2048, I=512). Runs only in the spark1
+/// acceptance run (needs a GPU).
+#[test]
+fn moe_experts_mma_matches_old_kernel() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(21);
+    let k = 4usize;
+    let mut cases: Vec<(String, HostCall)> = Vec::new();
+    for (t, e) in [(40usize, 16usize), (80, 16), (200, 16), (40, 64)] {
+        let base = experts_case(&mut rng, t, e, k, 256, 128, DType::Bf16);
+        let mut hot = base.clone();
+        let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+        hot.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
+        let mut odd = base.clone();
+        let mut ids = odd.inputs[1].to_i32().unwrap();
+        for j in 0..k {
+            ids[j] = 3;
+        }
+        ids[k] = -1;
+        ids[k + 1] = e as i32 + 5;
+        odd.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
+        cases.push((format!("random T={t} E={e}"), base));
+        cases.push((format!("hot experts T={t} E={e}"), hot));
+        cases.push((format!("duplicate and invalid ids T={t} E={e}"), odd));
+    }
+    for (t, e) in [(33usize, 16usize), (100, 16), (256, 64)] {
+        cases.push((format!("real shape T={t} E={e}"), experts_case(&mut rng, t, e, 8, 2048, 512, DType::Bf16)));
+    }
+    for (label, hc) in &cases {
+        let old = run_host(&*cuda, "moe_experts_bf16", hc).unwrap();
+        let new = run_host(&*cuda, "moe_experts_mma_bf16", hc).unwrap();
+        let r = rel_l2(&new[0].to_f32(), &old[0].to_f32());
+        assert!(r <= 1e-3, "{label}: moe_experts_mma_bf16 vs moe_experts_bf16 rel_l2 {r}");
+    }
+}
+
+/// `matmul_*_gemm` (dequantise-once, cp.async pipeline) and `matmul_*_mma` run the same arithmetic in the same order,
+/// so their bf16 outputs are claimed bit-identical (docs/quant-moe.md, "rel_l2 0"). Asserts equal output bytes on one
+/// host call per shape, M in {33, 40, 100, 256} (the gemm kernels need M >= 33), K % 128 == 0. Runs only in the
+/// spark1 acceptance run (needs a GPU); nothing has run it yet.
+fn gemm_vs_mma_bitwise(cuda: &dyn Backend, gemm: &str, mma: &str, mk: &mut dyn FnMut(usize, usize, usize) -> HostCall) {
+    for (m, n, k) in [(33usize, 192usize, 256usize), (40, 256, 128), (100, 192, 384), (256, 512, 2048)] {
+        let hc = mk(m, n, k);
+        let a = run_host(cuda, mma, &hc).unwrap();
+        let b = run_host(cuda, gemm, &hc).unwrap();
+        assert_eq!(a[0].data, b[0].data, "{gemm} vs {mma} differ at M={m} N={n} K={k}");
+    }
+}
+
+/// See `gemm_vs_mma_bitwise`. Runs only in the spark1 acceptance run.
+#[test]
+fn matmul_nvfp4_gemm_is_bitwise_the_mma_kernel() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(71);
+    gemm_vs_mma_bitwise(&*cuda, "matmul_nvfp4_gemm", "matmul_nvfp4_mma", &mut |m, n, k| {
+        matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::Bf16)
+    });
+}
+
+/// See `gemm_vs_mma_bitwise`; both W8A8 (activations quantised once) and weight-only. Runs only in the spark1
+/// acceptance run.
+#[test]
+fn matmul_fp8_gemm_is_bitwise_the_mma_kernel() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(72);
+    for act_quant in [true, false] {
+        gemm_vs_mma_bitwise(&*cuda, "matmul_fp8_gemm", "matmul_fp8_mma", &mut |m, n, k| {
+            matmul_fp8_case(&mut rng, m, n, k, act_quant, DType::Bf16, DType::Bf16)
+        });
     }
 }
 

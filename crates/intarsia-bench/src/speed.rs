@@ -190,6 +190,20 @@ impl Client {
             .map(|n| n as usize)
     }
 
+    /// Scrape the graph counters from `<origin>/metrics` (best effort; `None` when the server does not export them).
+    fn fetch_graph_counters(&self) -> Option<GraphCounters> {
+        let url = format!("{}/metrics", http::origin(&self.cfg.url));
+        let mut req = self.agent.get(&url);
+        if let Some(k) = &self.cfg.api_key {
+            req = req.header("Authorization", format!("Bearer {k}"));
+        }
+        let mut resp = req.call().ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        parse_graph_counters(&resp.body_mut().read_to_string().ok()?)
+    }
+
     fn body(&self, prompt: &str, max_tokens: usize, force: bool) -> Value {
         let mut b = json!({
             "model": self.cfg.model,
@@ -336,6 +350,61 @@ fn r(x: Option<f64>, d: i32) -> Value {
     }
 }
 
+/// Decode-path counters of the server's `/metrics` (intarsia's own; other servers do not export them).
+#[derive(Clone, Copy, Debug, Default)]
+struct GraphCounters {
+    replays: u64,
+    captures: Option<u64>,
+    eager: Option<u64>,
+    profiled: Option<u64>,
+}
+
+/// Parse the graph counters out of Prometheus text; `None` when `intarsia_graph_replays_total` is absent.
+fn parse_graph_counters(text: &str) -> Option<GraphCounters> {
+    let get = |name: &str| -> Option<u64> {
+        text.lines().find_map(|l| {
+            let (n, v) = l.trim().split_once(' ')?;
+            (n == name).then(|| v.trim().parse::<f64>().ok()).flatten().map(|v| v as u64)
+        })
+    };
+    Some(GraphCounters {
+        replays: get("intarsia_graph_replays_total")?,
+        captures: get("intarsia_graph_captures_total"),
+        eager: get("intarsia_decode_eager_steps_total"),
+        profiled: get("intarsia_decode_profiled_steps_total"),
+    })
+}
+
+/// `after - before` of the counters as the JSON `graph` object (`available: false` and nulls when either scrape
+/// lacks the graph metric).
+fn graph_json(before: Option<GraphCounters>, after: Option<GraphCounters>) -> Value {
+    let (Some(b), Some(a)) = (before, after) else {
+        return json!({"available": false, "replays": null, "captures": null, "eager_steps": null, "profiled_steps": null});
+    };
+    let d = |a: Option<u64>, b: Option<u64>| -> Value {
+        match (a, b) {
+            (Some(a), Some(b)) => json!(a.saturating_sub(b)),
+            _ => Value::Null,
+        }
+    };
+    json!({
+        "available": true,
+        "replays": a.replays.saturating_sub(b.replays),
+        "captures": d(a.captures, b.captures),
+        "eager_steps": d(a.eager, b.eager),
+        "profiled_steps": d(a.profiled, b.profiled),
+    })
+}
+
+/// Sample standard deviation; `None` with fewer than two values.
+fn stdev(v: &[f64]) -> Option<f64> {
+    if v.len() < 2 {
+        return None;
+    }
+    let m = v.iter().sum::<f64>() / v.len() as f64;
+    Some((v.iter().map(|x| (x - m).powi(2)).sum::<f64>() / (v.len() - 1) as f64).sqrt())
+}
+
 fn floor_pct(decode: Option<f64>, cfg: &SpeedConfig) -> (Option<f64>, Option<f64>) {
     match (cfg.gb_per_token, cfg.bandwidth_gbs) {
         (Some(g), Some(b)) if g > 0.0 => {
@@ -397,6 +466,7 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
 
     let mut rows = vec![];
     let mut warnings: Vec<String> = vec![];
+    let mut graph_rows: Vec<Value> = vec![];
     for &size in &cfg.sizes {
         if let Some(why) = too_long(size, cfg.gen) {
             eprintln!("  size {size:>6} SKIPPED before sending: {why}");
@@ -404,7 +474,7 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
             rows.push(json!({
                 "target_prompt_tokens": size, "prompt_tokens": null, "gen_tokens": null, "ttft_s": null,
                 "prefill_tok_s": null, "decode_tok_s": null, "bandwidth_floor_tok_s": null, "pct_of_floor": null,
-                "reps_ok": 0, "errors": 0, "skipped": why,
+                "reps_ok": 0, "errors": 0, "graph": null, "skipped": why,
             }));
             continue;
         }
@@ -417,6 +487,7 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
             }
         }
         let mut res = vec![];
+        let g0 = c.fetch_graph_counters();
         for _ in 0..cfg.reps {
             let mut rng = Rng::from_clock();
             let p = make_prompt(n, &mut rng);
@@ -434,12 +505,23 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
             );
             res.push(x);
         }
+        let graph = graph_json(g0, c.fetch_graph_counters());
         let ok: Vec<&CallResult> = res.iter().filter(|x| x.ok).collect();
         let errors = res.len() - ok.len();
+        if graph["available"] == true && cfg.gen > 1 {
+            if graph["replays"].as_u64() == Some(0) {
+                warnings.push(format!("size {size}: 0 graph replays during the measured reps (decode ran eagerly)"));
+            }
+            if let Some(n) = graph["profiled_steps"].as_u64().filter(|&n| n > 0) {
+                warnings.push(format!("size {size}: the timing includes {n} profiled eager steps (per-op profiling synchronises around every op)"));
+            }
+        }
+        graph_rows.push(graph.clone());
         if let Some(e) = res.iter().find_map(|x| x.error.clone()) {
             warnings.push(format!("size {size}: {errors}/{} calls failed, e.g. {e}", res.len()));
         }
         let dec = med(ok.iter().filter_map(|x| x.decode_tok_s()));
+        let reps_dec: Vec<f64> = ok.iter().filter_map(|x| x.decode_tok_s()).collect();
         let (floor, pct) = floor_pct(dec, cfg);
         let short = ok.iter().filter(|x| (x.completion_tokens as usize) < cfg.gen).count();
         if short > 0 {
@@ -452,10 +534,15 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
             "ttft_s": r(med(ok.iter().filter_map(|x| x.ttft_s())), 4),
             "prefill_tok_s": r(med(ok.iter().filter_map(|x| x.prefill_tok_s())), 1),
             "decode_tok_s": r(dec, 2),
+            "decode_tok_s_reps": reps_dec.iter().map(|x| r(Some(*x), 2)).collect::<Vec<_>>(),
+            "decode_tok_s_min": r(reps_dec.iter().copied().reduce(f64::min), 2),
+            "decode_tok_s_max": r(reps_dec.iter().copied().reduce(f64::max), 2),
+            "decode_tok_s_stdev": r(stdev(&reps_dec), 2),
             "bandwidth_floor_tok_s": r(floor, 2),
             "pct_of_floor": r(pct, 1),
             "reps_ok": ok.len(),
             "errors": errors,
+            "graph": graph,
         }));
     }
 
@@ -520,6 +607,21 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
     if !dropped.is_empty() {
         warnings.push(format!("server rejected optional parameters (the retry without them worked), dropped: {dropped:?}"));
     }
+    let graph_total = {
+        let avail: Vec<&Value> = graph_rows.iter().filter(|g| g["available"] == true).collect();
+        if avail.is_empty() || avail.len() != graph_rows.len() {
+            graph_json(None, None)
+        } else {
+            let sum = |k: &str| -> Value {
+                let v: Vec<Option<u64>> = avail.iter().map(|g| g[k].as_u64()).collect();
+                if v.iter().all(Option::is_some) { json!(v.iter().flatten().sum::<u64>()) } else { Value::Null }
+            };
+            json!({
+                "available": true, "replays": sum("replays"), "captures": sum("captures"),
+                "eager_steps": sum("eager_steps"), "profiled_steps": sum("profiled_steps"),
+            })
+        }
+    };
     let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     Ok(json!({
         "kind": "intarsia-bench-speed",
@@ -535,6 +637,7 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
         },
         "calibration": {"base_prompt_tokens": base, "tokens_per_filler_sentence": (per * 100.0).round() / 100.0},
         "fingerprint": Value::Object(cfg.fingerprint.clone()),
+        "graph": graph_total,
         "rows": rows,
         "concurrency": conc_rows,
         "warnings": warnings,
@@ -626,11 +729,19 @@ mod tests {
 
     /// Minimal fake OpenAI server: prompt_tokens grows with the prompt length, 10 content chunks.
     fn fake_server() -> String {
+        fake_server_opt(false)
+    }
+
+    /// The fake server; with `metrics` it also answers `GET /metrics` with graph counters that grow with every chat
+    /// call (9 replays, 1 eager step per call, 1 capture in total, no profiled steps), like intarsia's server.
+    fn fake_server_opt(metrics: bool) -> String {
         let l = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = l.local_addr().unwrap();
+        let calls = Arc::new(std::sync::atomic::AtomicU64::new(0));
         std::thread::spawn(move || {
             for stream in l.incoming() {
                 let Ok(mut s) = stream else { break };
+                let calls = calls.clone();
                 std::thread::spawn(move || {
                     let mut buf = vec![0u8; 1 << 20];
                     let mut got = 0;
@@ -650,6 +761,21 @@ mod tests {
                         }
                     }
                     let txt = String::from_utf8_lossy(&buf[..got]).to_string();
+                    if metrics && txt.starts_with("GET /metrics") {
+                        let n = calls.load(std::sync::atomic::Ordering::SeqCst);
+                        let body = format!(
+                            "# TYPE intarsia_graph_replays_total counter\nintarsia_graph_replays_total {}\n\
+                             intarsia_graph_captures_total 1\nintarsia_decode_eager_steps_total {n}\n\
+                             intarsia_decode_profiled_steps_total 0\nintarsia_requests_finished_total{{reason=\"stop\"}} {n}\n",
+                            n * 9
+                        );
+                        let _ = s.write_all(
+                            format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+                                .as_bytes(),
+                        );
+                        return;
+                    }
+                    calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     let pt = txt.matches("Note ").count() * 12 + 20;
                     let mut out = String::from("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
                     for i in 0..10 {
@@ -679,6 +805,49 @@ mod tests {
         assert_eq!(res["concurrency"].as_array().unwrap().len(), 1);
         let t = render_table(&res);
         assert!(t.contains("prefill"));
+        // a server without the graph metric (vLLM-like): not available, no numbers, no graph warnings
+        assert_eq!(rows[0]["graph"]["available"], false, "{:?}", rows[0]);
+        assert!(rows[0]["graph"]["replays"].is_null());
+        assert_eq!(res["graph"]["available"], false);
+        assert!(!res["warnings"].to_string().contains("graph replays"), "{}", res["warnings"]);
+        // per-rep decode speeds
+        assert_eq!(rows[0]["decode_tok_s_reps"].as_array().unwrap().len(), 2);
+        let (lo, hi) = (rows[0]["decode_tok_s_min"].as_f64().unwrap(), rows[0]["decode_tok_s_max"].as_f64().unwrap());
+        assert!(lo <= rows[0]["decode_tok_s"].as_f64().unwrap() && rows[0]["decode_tok_s"].as_f64().unwrap() <= hi);
+        assert!(rows[0]["decode_tok_s_stdev"].as_f64().is_some());
+    }
+
+    #[test]
+    fn graph_deltas_cover_only_the_measured_reps() {
+        let cfg = SpeedConfig {
+            url: fake_server_opt(true), model: "fake".into(), api_key: None, sizes: vec![128, 512], gen: 10, reps: 3,
+            warmup: 2, concurrency: vec![1], conc_size: 128, gb_per_token: None, bandwidth_gbs: None, label: "t".into(),
+            thinking: None, timeout_s: 20, out_dir: None, fingerprint: Map::new(),
+        };
+        let res = run_speed(&cfg).unwrap();
+        for row in res["rows"].as_array().unwrap() {
+            // 3 measured calls x 9 replays and 1 eager step each; warmups and the capture are not counted
+            let g = &row["graph"];
+            assert_eq!(g["available"], true, "{g}");
+            assert_eq!((g["replays"].as_u64(), g["eager_steps"].as_u64()), (Some(27), Some(3)), "{g}");
+            assert_eq!((g["captures"].as_u64(), g["profiled_steps"].as_u64()), (Some(0), Some(0)), "{g}");
+        }
+        let g = &res["graph"];
+        assert_eq!((g["available"].clone(), g["replays"].as_u64(), g["eager_steps"].as_u64()), (json!(true), Some(54), Some(6)));
+        assert!(!res["warnings"].to_string().contains("graph replays"), "{}", res["warnings"]);
+    }
+
+    #[test]
+    fn parses_graph_counters_and_flags_zero_replays() {
+        let t = "# TYPE intarsia_graph_replays_total counter\nintarsia_graph_replays_total 0\nintarsia_decode_eager_steps_total 12\nintarsia_decode_profiled_steps_total 3\n";
+        let c = parse_graph_counters(t).unwrap();
+        assert_eq!((c.replays, c.captures, c.eager, c.profiled), (0, None, Some(12), Some(3)));
+        assert!(parse_graph_counters("vllm:num_requests_running 0\n").is_none());
+        let g = graph_json(Some(GraphCounters::default()), Some(c));
+        assert_eq!((g["available"].clone(), g["replays"].as_u64()), (json!(true), Some(0)));
+        assert!(g["captures"].is_null());
+        assert_eq!(stdev(&[1.0]), None);
+        assert!((stdev(&[1.0, 3.0]).unwrap() - 2f64.sqrt()).abs() < 1e-12);
     }
 
     /// Fake server with a context limit: `GET /v1/models` reports `max_model_len` (when `advertise`), a chat call

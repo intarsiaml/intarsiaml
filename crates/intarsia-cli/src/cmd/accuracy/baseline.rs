@@ -12,17 +12,27 @@
 //! | mean KL, 21-way KL | x1.15, and at least +1e-6 absolute (a baseline near zero is not brittle) |
 //! | top-5 overlap | -0.5 pt, but at least five overlap units (100/n pt) |
 //! | mean tail excess (ours - reference tail mass) | \|excess\| may grow by 0.002 over the baseline's \|excess\| |
+//! | mean \|tail difference\| per position | may grow by 0.002 (the signed mean lets positions that lose and gain tail mass cancel) |
+//! | max single-position 21-way KL | x2.5, and at least +1e-3 absolute (a maximum is a noisy statistic) |
+//! | each prompt: mean 21-way KL | x1.75, and at least +1e-5 absolute (one prompt doubling must not hide in the mean) |
+//! | each prompt: top-1 | -1 pt, but at least one position |
 //! | non-finite rows | none |
 //!
 //! A baseline is only comparable with the same golden file (content hash and size) and the same run
-//! configuration (KV dtype, activation mode, prefill chunk, decode positions, mode set); anything else is refused,
-//! so a regenerated golden or a changed flag cannot make a stale baseline pass silently.
+//! configuration (KV dtype, activation mode, prefill chunk, decode positions, mode set, kernel disable list);
+//! anything else is refused, so a regenerated golden or a changed flag cannot make a stale baseline pass silently.
+//! It also records the code that produced it (`provenance.rs`) and is refused unless that code is the declared
+//! pre-change commit or its ancestor: the "before" numbers must come from the pre-change build.
+//!
+//! Next to this, `selfgolden.rs` compares a build with the *logits of another build on the same weights*; that is the
+//! gate that can see a small change, because it has no reference noise in it (review finding 2).
 
+use super::provenance::{CodeStamp, ExecInfo};
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const FORMAT: &str = "intarsia-accuracy-baseline-v1";
+pub const FORMAT: &str = "intarsia-accuracy-baseline-v2";
 
 /// Aggregate of one mode (prefill / decode (teacher-forced)) over all prompts.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -38,6 +48,10 @@ pub struct ModeStats {
     pub tail_ref: f64,
     pub tail_ours: f64,
     pub max_kl: f64,
+    /// Largest single-position 21-way KL.
+    pub max_kl21: f64,
+    /// Mean over positions of |tail mass ours - tail mass reference| (the signed mean in `tail_excess` cancels).
+    pub tail_abs: f64,
     pub nonfinite: usize,
     pub greedy_match_pct: f64,
     /// Did the absolute class floor pass when this baseline was recorded?
@@ -59,6 +73,8 @@ pub struct PromptStats {
     pub mean_kl21: f64,
     pub top5_pct: f64,
     pub tail_excess: f64,
+    pub max_kl21: f64,
+    pub tail_abs: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -105,6 +121,10 @@ pub struct Baseline {
     pub format: String,
     pub created_unix: u64,
     pub tool_version: String,
+    /// The code that produced these numbers (`provenance.rs`).
+    pub code: CodeStamp,
+    /// How it was executed: command line, kernel disable list, resolved kernel per op.
+    pub exec: ExecInfo,
     pub golden: GoldenId,
     pub run: RunConfig,
     pub modes: Vec<ModeBaseline>,
@@ -117,11 +137,29 @@ pub struct Margins {
     pub kl_eps: f64,
     pub top5_pts: f64,
     pub tail_abs: f64,
+    /// Largest single-position 21-way KL: ratio and absolute slack.
+    pub max_kl_ratio: f64,
+    pub max_kl_eps: f64,
+    /// Per prompt: mean 21-way KL ratio and absolute slack, top-1 drop in points (at least one position).
+    pub prompt_kl_ratio: f64,
+    pub prompt_kl_eps: f64,
+    pub prompt_top1_pts: f64,
 }
 
 impl Default for Margins {
     fn default() -> Self {
-        Margins { top1_pts: 0.3, kl_ratio: 1.15, kl_eps: 1e-6, top5_pts: 0.5, tail_abs: 0.002 }
+        Margins {
+            top1_pts: 0.3,
+            kl_ratio: 1.15,
+            kl_eps: 1e-6,
+            top5_pts: 0.5,
+            tail_abs: 0.002,
+            max_kl_ratio: 2.5,
+            max_kl_eps: 1e-3,
+            prompt_kl_ratio: 1.75,
+            prompt_kl_eps: 1e-5,
+            prompt_top1_pts: 1.0,
+        }
     }
 }
 
@@ -162,13 +200,44 @@ pub fn judge(base: &ModeStats, cur: &ModeStats, m: &Margins) -> Vec<Check> {
     v.push(Check { name: "top-5 %", base: base.top5_pct, cur: cur.top5_pct, limit: lim, higher_is_better: true, ok: cur.top5_pct >= lim - 1e-9 });
     let lim = base.tail_excess().abs() + m.tail_abs;
     v.push(Check { name: "|tail excess|", base: base.tail_excess().abs(), cur: cur.tail_excess().abs(), limit: lim, higher_is_better: false, ok: cur.tail_excess().abs() <= lim });
+    let lim = base.tail_abs + m.tail_abs;
+    v.push(Check { name: "mean |tail diff|", base: base.tail_abs, cur: cur.tail_abs, limit: lim, higher_is_better: false, ok: cur.tail_abs <= lim });
+    let lim = base.max_kl21 * m.max_kl_ratio + m.max_kl_eps;
+    v.push(Check { name: "max KL(21-way)", base: base.max_kl21, cur: cur.max_kl21, limit: lim, higher_is_better: false, ok: cur.max_kl21 <= lim });
     v.push(Check { name: "non-finite rows", base: base.nonfinite as f64, cur: cur.nonfinite as f64, limit: 0.0, higher_is_better: false, ok: cur.nonfinite == 0 });
     v
 }
 
+/// Per-prompt checks of one mode: the mean over a mode hides one prompt that got much worse.
+/// Returns (prompt name, failed checks) for every prompt that fails; a prompt missing from either side is an error.
+pub fn judge_prompts(base: &[PromptStats], cur: &[PromptStats], m: &Margins) -> Result<Vec<(String, Vec<Check>)>> {
+    let mut failed = Vec::new();
+    for c in cur {
+        let b = base
+            .iter()
+            .find(|b| b.name == c.name)
+            .ok_or_else(|| anyhow!("prompt '{}' is not in the baseline (it has: {})", c.name, base.iter().map(|b| b.name.as_str()).collect::<Vec<_>>().join(", ")))?;
+        let one_position = 100.0 / c.positions.max(1) as f64;
+        let mut v = Vec::new();
+        let lim = b.mean_kl21 * m.prompt_kl_ratio + m.prompt_kl_eps;
+        v.push(Check { name: "prompt KL(21-way)", base: b.mean_kl21, cur: c.mean_kl21, limit: lim, higher_is_better: false, ok: c.mean_kl21 <= lim });
+        let lim = b.top1_pct - m.prompt_top1_pts.max(one_position);
+        v.push(Check { name: "prompt top-1 %", base: b.top1_pct, cur: c.top1_pct, limit: lim, higher_is_better: true, ok: c.top1_pct >= lim - 1e-9 });
+        let lim = b.tail_abs + m.tail_abs;
+        v.push(Check { name: "prompt |tail diff|", base: b.tail_abs, cur: c.tail_abs, limit: lim, higher_is_better: false, ok: c.tail_abs <= lim });
+        if v.iter().any(|x| !x.ok) {
+            failed.push((c.name.clone(), v));
+        }
+    }
+    if base.len() != cur.len() {
+        bail!("the baseline has {} prompts, this run {}", base.len(), cur.len());
+    }
+    Ok(failed)
+}
+
 /// Compare identities. The golden must be the same (hash, size, shape); a configuration difference is an error
 /// unless `allow_config_mismatch`, in which case the differences come back as warnings.
-pub fn compatible(base: &Baseline, golden: &GoldenId, run: &RunConfig, allow_config_mismatch: bool) -> Result<Vec<String>> {
+pub fn compatible(base: &Baseline, golden: &GoldenId, run: &RunConfig, exec: &ExecInfo, allow_config_mismatch: bool) -> Result<Vec<String>> {
     if base.format != FORMAT {
         bail!("baseline format '{}' is not {FORMAT}", base.format);
     }
@@ -195,6 +264,8 @@ pub fn compatible(base: &Baseline, golden: &GoldenId, run: &RunConfig, allow_con
     d("fp8 activation mode", &r.fp8_act, &run.fp8_act, true);
     d("prefill chunk", &r.prefill_chunk, &run.prefill_chunk, true);
     d("decode positions", &r.decode_positions, &run.decode_positions, true);
+    // a baseline recorded with kernels switched off is not the pre-change code (review finding 1)
+    d("kernel disable list", &base.exec.disable_list, &exec.disable_list, true);
     let strict: Vec<&String> = diffs.iter().filter(|d| d.1).map(|d| &d.0).collect();
     if !strict.is_empty() && !allow_config_mismatch {
         bail!(
@@ -232,6 +303,8 @@ mod tests {
             tail_ref: 0.050,
             tail_ours: 0.051,
             max_kl: 0.5,
+            max_kl21: 0.4,
+            tail_abs: 0.004,
             nonfinite: 0,
             greedy_match_pct: 60.0,
             floor_pass: true,
@@ -285,6 +358,12 @@ mod tests {
         c.nonfinite = 1;
         assert_eq!(failed(&judge(&b, &c, &m)), ["non-finite rows"]);
         let mut c = b.clone();
+        c.max_kl21 = 0.4 * 2.5 + 1e-3 + 1e-3; // one position got much worse; the mean did not move
+        assert_eq!(failed(&judge(&b, &c, &m)), ["max KL(21-way)"]);
+        let mut c = b.clone();
+        c.tail_abs += 0.003; // positions that lose and gain tail mass cancel in the signed mean, not here
+        assert_eq!(failed(&judge(&b, &c, &m)), ["mean |tail diff|"]);
+        let mut c = b.clone();
         c.mean_kl = f64::NAN;
         assert_eq!(failed(&judge(&b, &c, &m)), ["mean KL"], "NaN never passes");
     }
@@ -312,6 +391,39 @@ mod tests {
         assert_eq!(failed(&judge(&b, &c, &Margins::default())), ["mean KL"]);
     }
 
+    fn pstats(name: &str, n: usize, kl21: f64) -> PromptStats {
+        PromptStats { name: name.into(), positions: n, top1_pct: 95.0, mean_kl: kl21, mean_kl21: kl21, top5_pct: 90.0, tail_excess: 0.0, max_kl21: 0.1, tail_abs: 0.003 }
+    }
+
+    #[test]
+    fn one_prompt_doubling_fails_although_the_overall_mean_passes() {
+        // review finding 2: 10 prompts, one doubles; the mean KL moves by ~10% and the x1.15 overall gate passes
+        let m = Margins::default();
+        let base: Vec<PromptStats> = (0..10).map(|i| pstats(&format!("p{i}"), 100, 6.5e-3)).collect();
+        let mut cur = base.clone();
+        cur[3].mean_kl21 *= 2.0;
+        let mean = |v: &[PromptStats]| v.iter().map(|p| p.mean_kl21).sum::<f64>() / v.len() as f64;
+        assert!(mean(&cur) <= mean(&base) * m.kl_ratio, "the aggregate gate cannot see it");
+        let f = judge_prompts(&base, &cur, &m).unwrap();
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].0, "p3");
+        assert!(f[0].1.iter().any(|c| c.name == "prompt KL(21-way)" && !c.ok));
+        // noise on every prompt passes
+        let mut noisy = base.clone();
+        noisy.iter_mut().for_each(|p| p.mean_kl21 *= 1.1);
+        assert!(judge_prompts(&base, &noisy, &m).unwrap().is_empty());
+        // a single extra flip on a 16-position prompt is allowed, two are not
+        let b16 = vec![pstats("p", 16, 6.5e-3)];
+        let mut c16 = b16.clone();
+        c16[0].top1_pct -= 6.25;
+        assert!(judge_prompts(&b16, &c16, &m).unwrap().is_empty());
+        c16[0].top1_pct -= 6.25;
+        assert_eq!(judge_prompts(&b16, &c16, &m).unwrap().len(), 1);
+        // a prompt that vanished is an error, not a pass
+        assert!(judge_prompts(&base, &base[..9], &m).is_err());
+        assert!(judge_prompts(&base[..9], &base, &m).is_err());
+    }
+
     fn ids() -> (GoldenId, RunConfig) {
         (
             GoldenId {
@@ -328,26 +440,40 @@ mod tests {
     }
     fn baseline() -> Baseline {
         let (g, r) = ids();
-        Baseline { format: FORMAT.into(), created_unix: 1, tool_version: "x".into(), golden: g, run: r, modes: vec![] }
+        Baseline {
+            format: FORMAT.into(),
+            created_unix: 1,
+            tool_version: "x".into(),
+            code: CodeStamp::parse("head=4963b43 code-tree=aaaaaaaaaaaa dirty=no"),
+            exec: ExecInfo::default(),
+            golden: g,
+            run: r,
+            modes: vec![],
+        }
     }
 
     #[test]
     fn mismatching_golden_or_config_is_refused() {
         let base = baseline();
         let (g, r) = ids();
-        assert!(compatible(&base, &g, &r, false).unwrap().is_empty());
+        assert!(compatible(&base, &g, &r, &ExecInfo::default(), false).unwrap().is_empty());
         let mut g2 = g.clone();
         g2.fnv1a64 = "beef".into(); // a regenerated golden
-        assert!(compatible(&base, &g2, &r, false).unwrap_err().to_string().contains("different golden"));
-        assert!(compatible(&base, &g2, &r, true).is_err(), "the golden must match even with --allow-config-mismatch");
+        assert!(compatible(&base, &g2, &r, &ExecInfo::default(), false).unwrap_err().to_string().contains("different golden"));
+        assert!(compatible(&base, &g2, &r, &ExecInfo::default(), true).is_err(), "the golden must match even with --allow-config-mismatch");
         let mut r2 = r.clone();
         r2.kv_dtype = "fp8_e4m3".into();
-        let e = compatible(&base, &g, &r2, false).unwrap_err().to_string();
+        let e = compatible(&base, &g, &r2, &ExecInfo::default(), false).unwrap_err().to_string();
         assert!(e.contains("kv dtype"), "{e}");
-        assert_eq!(compatible(&base, &g, &r2, true).unwrap().len(), 1);
+        assert_eq!(compatible(&base, &g, &r2, &ExecInfo::default(), true).unwrap().len(), 1);
         let mut r3 = r.clone();
         r3.device = "other GPU".into(); // only a warning
-        assert_eq!(compatible(&base, &g, &r3, false).unwrap().len(), 1);
+        assert_eq!(compatible(&base, &g, &r3, &ExecInfo::default(), false).unwrap().len(), 1);
+        // a run with kernels disabled (or a baseline recorded that way) is not a comparison against the pre-change code
+        let disabled = ExecInfo { disable_list: "INTARSIA_CUDA_DISABLE=moe_experts_mma_bf16".into(), ..Default::default() };
+        let e = compatible(&base, &g, &r, &disabled, false).unwrap_err().to_string();
+        assert!(e.contains("kernel disable list"), "{e}");
+        assert_eq!(compatible(&base, &g, &r, &disabled, true).unwrap().len(), 1);
     }
 
     #[test]
@@ -355,7 +481,7 @@ mod tests {
         let mut b = baseline();
         b.modes.push(ModeBaseline {
             overall: stats(10),
-            prompts: vec![PromptStats { name: "p".into(), positions: 10, top1_pct: 100.0, mean_kl: 0.0, mean_kl21: 0.0, top5_pct: 100.0, tail_excess: 0.0 }],
+            prompts: vec![PromptStats { name: "p".into(), positions: 10, top1_pct: 100.0, mean_kl: 0.0, mean_kl21: 0.0, top5_pct: 100.0, tail_excess: 0.0, max_kl21: 0.0, tail_abs: 0.0 }],
         });
         let p = std::env::temp_dir().join(format!("intarsia-baseline-{}.json", std::process::id()));
         write(&p, &b).unwrap();

@@ -182,7 +182,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             // lm_head: f32 logits; full-vocab N (grid limits on the N axis) with a small K, and the real K
             let vocab = 248_320usize;
             let head: Vec<(usize, usize)> = if quick { vec![(2048, 256)] } else { vec![(vocab, 128), (vocab, 2048), (8192, 2048)] };
-            // m = 40: prefill-sized head (the accuracy runs read logits at every prompt position), selects `*_gemm`
+            // m = 40: a prefill-sized head shape, graded by admission only. It selects `*_gemm` (M >= 33), but the
+            // model's head never runs that path: `head_logits` computes at most LOGIT_ROWS (16) rows per call, so real
+            // heads use `*_gemv` / `*_mma`. The case keeps the large-M f32-output path of `*_gemm` under test.
             for &m in if quick { &[1usize, 40][..] } else { &[1usize, 4, 40][..] } {
                 for &(n, k) in &head {
                     push(format!("M={m} N={n} K={k} x=bf16 out=f32 (head)"), matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::F32));

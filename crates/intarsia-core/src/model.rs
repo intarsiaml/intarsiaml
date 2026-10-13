@@ -670,6 +670,9 @@ impl Model {
             let last = ci + 1 == nchunks;
             let base = st.len;
             let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+            if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) {
+                self.telemetry.decode_eager_step(profile);
+            }
             let hn = self.run_chunk(st, chunk, profile)?;
             match mode {
                 HeadMode::None => {}

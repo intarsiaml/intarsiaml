@@ -16,6 +16,10 @@
 //! * `--baseline FILE` gates "no worse than a recorded run + margin" (`--write-baseline FILE` records one);
 //!   the class thresholds stay as an absolute floor. See `baseline.rs`.
 //! * `--mode reuse`: the prefix-reuse path through `Engine::generate` (turn 2 reusing turn 1 vs a cold run).
+//! * `--write-self-golden FILE` / `--self-golden FILE`: dump this build's own top-k log-probs, and compare another build
+//!   with such a dump on the same weights, with budgets tight enough to see a small change. See `selfgolden.rs`.
+//! * Baselines and self-goldens record the code that produced them and are refused unless that is the declared
+//!   pre-change commit (`--pre-change`) or its ancestor (`--revlist`). See `provenance.rs`.
 //!
 //! Any non-finite value in one of our logits rows fails the gate. Exits non-zero when any gate fails.
 
@@ -27,7 +31,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 mod baseline;
+mod provenance;
+mod selfgolden;
 use baseline::{Baseline, Margins, ModeStats, PromptStats};
+use provenance::{CodeStamp, ExecInfo};
 
 const PPL_TEXT: &str = include_str!("../../../../tools/prompts/ppl.txt");
 
@@ -83,10 +90,59 @@ pub struct AccuracyArgs {
     /// Baseline gate: allowed growth of |mean tail excess| over the baseline's, as a fraction of probability.
     #[arg(long, default_value_t = 0.002)]
     pub margin_tail: f64,
+    /// Baseline gate: allowed ratio of the largest single-position 21-way KL to the baseline's (plus 1e-3 absolute).
+    #[arg(long, default_value_t = 2.5)]
+    pub margin_max_kl: f64,
+    /// Baseline gate: allowed ratio of each prompt's mean 21-way KL to the baseline's (plus 1e-5 absolute).
+    #[arg(long, default_value_t = 1.75)]
+    pub margin_prompt_kl: f64,
     /// Compare against a baseline even when the run configuration (KV dtype, fp8 mode, chunk, ...) differs; the
     /// golden file must still be the same.
     #[arg(long)]
     pub allow_config_mismatch: bool,
+    /// Dump this build's own distribution as a golden (top-k log-probs per position, prefill and decode paths) for
+    /// `--self-golden` of another build. Needs `--golden` (its prompts). The file records the code stamp of this build.
+    #[arg(long)]
+    pub write_self_golden: Option<PathBuf>,
+    /// Ids kept per position in a self-golden.
+    #[arg(long, default_value_t = selfgolden::DEFAULT_TOPK)]
+    pub self_topk: usize,
+    /// Same-weights regression gate: compare this build with the logits another build dumped with
+    /// `--write-self-golden` (its prompts; give no `--golden`). Budgets below.
+    #[arg(long)]
+    pub self_golden: Option<PathBuf>,
+    /// Self-golden budget: mean 21-way KL(old || new), nats.
+    #[arg(long, default_value_t = selfgolden::DEFAULT_BUDGET.max_mean_kl)]
+    pub self_max_kl: f64,
+    /// Self-golden budget: largest single-position 21-way KL, nats.
+    #[arg(long, default_value_t = selfgolden::DEFAULT_BUDGET.max_pos_kl)]
+    pub self_max_pos_kl: f64,
+    /// Self-golden budget: positions whose argmax moved, percent (at least one position).
+    #[arg(long, default_value_t = selfgolden::DEFAULT_BUDGET.max_flip_pct)]
+    pub self_max_flip_pct: f64,
+    /// Self-golden budget: mean per-position |tail mass difference|.
+    #[arg(long, default_value_t = selfgolden::DEFAULT_BUDGET.max_tail_abs)]
+    pub self_max_tail: f64,
+    /// Self-golden budget: a prompt's mean KL may be this many times the mean-KL budget.
+    #[arg(long, default_value_t = selfgolden::DEFAULT_BUDGET.prompt_factor)]
+    pub self_prompt_factor: f64,
+    /// The commit the "before" numbers (baseline, self-golden) must come from. The gate refuses when their code
+    /// stamp is neither this commit nor (with `--revlist`) an ancestor of this build.
+    #[arg(long)]
+    pub pre_change: Option<String>,
+    /// File with `git rev-list HEAD` of the tree this build was made from (written where the git history is: the build
+    /// boxes get the tree without `.git`). Used to check that a baseline's code is an ancestor.
+    #[arg(long)]
+    pub revlist: Option<PathBuf>,
+    /// Development: accept a baseline / self-golden, or a build, that carries no code stamp.
+    #[arg(long)]
+    pub allow_unstamped: bool,
+    /// Check reproducibility: accept a baseline / self-golden from the same code tree as this build.
+    #[arg(long)]
+    pub allow_same_code: bool,
+    /// Development: accept a build from a modified working tree.
+    #[arg(long)]
+    pub allow_dirty: bool,
     /// Reuse mode: tokens generated per comparison (the cold and the reuse run must agree on them).
     #[arg(long, default_value_t = 32)]
     pub reuse_gen: usize,
@@ -213,6 +269,45 @@ impl Golden {
         Ok(PromptRef { ids, rows })
     }
 
+    /// Written by `--write-self-golden`: this engine's own distribution rather than another engine's.
+    fn is_self(&self) -> bool {
+        self.meta.get("self_golden").is_some_and(|v| v == "1")
+    }
+
+    fn self_meta(&self) -> Result<selfgolden::SelfMeta> {
+        let m = self.meta.get("self_meta").ok_or_else(|| anyhow!("self-golden without `self_meta` metadata"))?;
+        serde_json::from_str(m).map_err(|e| anyhow!("self-golden `self_meta`: {e}"))
+    }
+
+    /// Self-golden, decode path: the rows of the teacher-forced window of prompt `i`, as a top-k reference with
+    /// padding (-1 ids) everywhere else. `None`: the file has no decode rows for this prompt.
+    fn self_decode_prompt(&self, i: usize) -> Result<Option<PromptRef>> {
+        if !self.tensors.contains_key(&format!("dec_pos_{i}")) {
+            return Ok(None);
+        }
+        let (b, _) = self.raw(&format!("ids_{i}"), "I32")?;
+        let ids: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap()) as u32).collect();
+        let (pb, _) = self.raw(&format!("dec_pos_{i}"), "I32")?;
+        let pos: Vec<usize> = pb.chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap()) as usize).collect();
+        let (ib, ishape) = self.raw(&format!("dec_topk_ids_{i}"), "I32")?;
+        let (lb, lshape) = self.raw(&format!("dec_topk_logprobs_{i}"), "F32")?;
+        if ishape.len() != 2 || ishape != lshape || ishape[0] != pos.len() {
+            bail!("prompt {i}: decode topk shapes {ishape:?} / {lshape:?} for {} positions", pos.len());
+        }
+        let k = ishape[1];
+        let (n, mut tids, mut lps) = (ids.len(), vec![-1i32; ids.len() * k], vec![-1e30f32; ids.len() * k]);
+        for (r, &p) in pos.iter().enumerate() {
+            if p >= n {
+                bail!("prompt {i}: decode position {p} >= {n}");
+            }
+            for j in 0..k {
+                tids[p * k + j] = i32::from_le_bytes(ib[(r * k + j) * 4..(r * k + j) * 4 + 4].try_into().unwrap());
+                lps[p * k + j] = f32::from_le_bytes(lb[(r * k + j) * 4..(r * k + j) * 4 + 4].try_into().unwrap());
+            }
+        }
+        Ok(Some(PromptRef { ids, rows: RefRows::TopK { ids: tids, lps, k } }))
+    }
+
     fn names(&self) -> Vec<String> {
         let parsed: Option<Vec<Value>> = self.meta.get("prompts").and_then(|s| serde_json::from_str(s).ok());
         let n = (0..).take_while(|i| self.tensors.contains_key(&format!("ids_{i}"))).count();
@@ -292,8 +387,11 @@ struct Agg {
     kl_sum: f64,
     kl_max: f64,
     kl21_sum: f64,
+    kl21_max: f64,
     tail_ref_sum: f64,
     tail_ours_sum: f64,
+    /// Sum over positions of |tail ours - tail reference|.
+    tail_abs_sum: f64,
     nonfinite: usize,
 }
 
@@ -307,8 +405,10 @@ impl Agg {
         self.kl_sum += p.kl;
         self.kl_max = self.kl_max.max(p.kl);
         self.kl21_sum += p.kl21;
+        self.kl21_max = self.kl21_max.max(p.kl21);
         self.tail_ref_sum += p.tail_ref;
         self.tail_ours_sum += p.tail_ours;
+        self.tail_abs_sum += (p.tail_ours - p.tail_ref).abs();
         self.nonfinite += p.nonfinite as usize;
     }
     fn add(&mut self, o: &Agg) {
@@ -320,8 +420,10 @@ impl Agg {
         self.kl_sum += o.kl_sum;
         self.kl_max = self.kl_max.max(o.kl_max);
         self.kl21_sum += o.kl21_sum;
+        self.kl21_max = self.kl21_max.max(o.kl21_max);
         self.tail_ref_sum += o.tail_ref_sum;
         self.tail_ours_sum += o.tail_ours_sum;
+        self.tail_abs_sum += o.tail_abs_sum;
         self.nonfinite += o.nonfinite;
     }
     fn top1_pct(&self) -> f64 {
@@ -335,6 +437,9 @@ impl Agg {
     }
     fn mean_kl21(&self) -> f64 {
         self.kl21_sum / self.n.max(1) as f64
+    }
+    fn mean_tail_abs(&self) -> f64 {
+        self.tail_abs_sum / self.n.max(1) as f64
     }
     fn mean_tail_ref(&self) -> f64 {
         self.tail_ref_sum / self.n.max(1) as f64
@@ -787,6 +892,10 @@ fn run_mode(
     args: &AccuracyArgs,
     gates: &Gates,
     topk: bool,
+    // same-weights comparison with another build's dump: judged with these budgets instead of the class floor
+    self_budget: Option<&selfgolden::SelfBudget>,
+    // `--write-self-golden`: collects our own top-k rows while the mode runs
+    capture: &mut Option<selfgolden::SelfCapture>,
 ) -> Result<ModeResult> {
     let vocab = engine.info().vocab;
     println!("\n== mode: {} ==", mode.name());
@@ -815,12 +924,15 @@ fn run_mode(
     let mut total = Agg::default();
     let mut matches = Vec::new();
     let mut per_prompt = Vec::new();
-    for (name, p) in prompts {
+    for (pi, (name, p)) in prompts.iter().enumerate() {
         let n = p.ids.len();
         let mut stats: Vec<PosStat> = Vec::new();
         let mut cb = |pos: usize, row: &[f32]| -> intarsia_core::Result<()> {
             if row.len() != vocab {
                 return Err(intarsia_core::Error::model(format!("logits row has {} entries, want {vocab}", row.len())));
+            }
+            if let Some(c) = capture.as_mut() {
+                c.push(pi, mode, pos, row);
             }
             let s = compare_pos(p.row(pos), row)
                 .map_err(|e| intarsia_core::Error::model(format!("{name} position {pos}: {e}")))?;
@@ -851,12 +963,54 @@ fn run_mode(
             mean_kl21: agg.mean_kl21(),
             top5_pct: agg.top5_pct(),
             tail_excess: agg.tail_excess(),
+            max_kl21: agg.kl21_max,
+            tail_abs: agg.mean_tail_abs(),
         });
         matches.push((ml, stats.len()));
         total.add(&agg);
     }
     let greedy_pct = 100.0 * matches.iter().map(|m| m.0).sum::<usize>() as f64 / total.n.max(1) as f64;
     row("OVERALL", String::new(), total.n, &total, format!("{greedy_pct:.1}%"));
+    let mstats = |pass: bool| ModeStats {
+        mode: mode.key().into(),
+        positions: total.n,
+        top1_pct: total.top1_pct(),
+        mean_kl: total.mean_kl(),
+        mean_kl21: total.mean_kl21(),
+        top5_pct: total.top5_pct(),
+        tail_ref: total.mean_tail_ref(),
+        tail_ours: total.mean_tail_ours(),
+        max_kl: total.kl_max,
+        max_kl21: total.kl21_max,
+        tail_abs: total.mean_tail_abs(),
+        nonfinite: total.nonfinite,
+        greedy_match_pct: greedy_pct,
+        floor_pass: pass,
+    };
+    if let Some(b) = self_budget {
+        // same weights: the class floors are not the question, the distance to the other build's logits is
+        let checks = selfgolden::judge(&mstats(true), &per_prompt, b);
+        let pass = checks.iter().all(|c| c.ok);
+        println!("{} vs the other build's logits (same weights):", mode.name());
+        for c in &checks {
+            println!("  {:<44} {:>12.4e}  (limit {:.4e})  {}", c.name, c.value, c.limit, if c.ok { "ok" } else { "FAIL" });
+        }
+        // one machine-readable line per mode for scripts/phase1b-acceptance.sh (noise calibration of the budgets)
+        let flips = total.n - total.top1;
+        println!(
+            "SELF-STATS mode={} positions={} mean_kl21={:.6e} max_kl21={:.6e} flips={} flip_pct={:.4} tail_abs={:.6e} worst_prompt_kl21={:.6e}",
+            mode.key(),
+            total.n,
+            total.mean_kl21(),
+            total.kl21_max,
+            flips,
+            100.0 * flips as f64 / total.n.max(1) as f64,
+            total.mean_tail_abs(),
+            per_prompt.iter().map(|p| p.mean_kl21).fold(0.0, f64::max)
+        );
+        println!("{} self-golden => {}", mode.name(), if pass { "PASS" } else { "FAIL" });
+        return Ok(ModeResult { matches, pass, stats: mstats(pass), prompts: per_prompt });
+    }
     let ok_nf = total.nonfinite == 0;
     let ok_top1 = gates.min_top1.is_none_or(|m| total.top1_pct() >= m);
     let (gate_kl, gate_kl_name) = if topk { (total.mean_kl21(), "21-way KL") } else { (total.mean_kl(), "full-vocab KL") };
@@ -895,20 +1049,7 @@ fn run_mode(
         tag(ok_nf),
         if pass { "PASS" } else { "FAIL" },
     );
-    let stats = ModeStats {
-        mode: mode.key().into(),
-        positions: total.n,
-        top1_pct: total.top1_pct(),
-        mean_kl: total.mean_kl(),
-        mean_kl21: total.mean_kl21(),
-        top5_pct: total.top5_pct(),
-        tail_ref: total.mean_tail_ref(),
-        tail_ours: total.mean_tail_ours(),
-        max_kl: total.kl_max,
-        nonfinite: total.nonfinite,
-        greedy_match_pct: greedy_pct,
-        floor_pass: pass,
-    };
+    let stats = mstats(pass);
     Ok(ModeResult { matches, pass, stats, prompts: per_prompt })
 }
 
@@ -928,26 +1069,30 @@ fn print_baseline_checks(mode: Mode, base: &baseline::ModeBaseline, cur: &ModeRe
             if c.ok { "ok" } else { "FAIL" }
         );
     }
-    let ok = checks.iter().all(|c| c.ok);
-    if !ok {
-        // which prompts moved: the largest regressions first
-        let mut moved: Vec<(f64, String)> = Vec::new();
-        for p in &cur.prompts {
-            if let Some(b) = base.prompts.iter().find(|b| b.name == p.name) {
-                let dkl = p.mean_kl21 - b.mean_kl21;
-                let dt1 = p.top1_pct - b.top1_pct;
-                if dkl > m.kl_eps || dt1 < -(100.0 / p.positions.max(1) as f64) {
-                    moved.push((dkl, format!(
-                        "    {:<18} top-1 {:.2} -> {:.2}   KL(21-way) {:.3e} -> {:.3e}   tail excess {:+.4} -> {:+.4}",
-                        p.name, b.top1_pct, p.top1_pct, b.mean_kl21, p.mean_kl21, b.tail_excess, p.tail_excess
-                    )));
-                }
-            }
+    let mut ok = checks.iter().all(|c| c.ok);
+    // every prompt on its own: the mode aggregate hides one prompt that got much worse
+    let bad = match baseline::judge_prompts(&base.prompts, &cur.prompts, m) {
+        Ok(b) => b,
+        Err(e) => {
+            println!("  per-prompt gate: FAIL ({e})");
+            return false;
         }
-        moved.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        if !moved.is_empty() {
-            println!("  prompts that moved (largest KL increase first):");
-            moved.iter().take(8).for_each(|(_, l)| println!("{l}"));
+    };
+    if bad.is_empty() {
+        println!("  per-prompt gate ({} prompts: KL x{} +{:.0e}, top-1 -{} pt or one position, |tail diff| +{}): ok", cur.prompts.len(), m.prompt_kl_ratio, m.prompt_kl_eps, m.prompt_top1_pts, m.tail_abs);
+    }
+    for (name, cs) in &bad {
+        ok = false;
+        for c in cs.iter().filter(|c| !c.ok) {
+            println!(
+                "  prompt {:<18} {:<19} baseline {:>11.4e}  this run {:>11.4e}  limit {} {:>11.4e}  FAIL",
+                name,
+                c.name,
+                c.base,
+                c.cur,
+                if c.higher_is_better { ">=" } else { "<=" },
+                c.limit
+            );
         }
     }
     ok
@@ -1122,14 +1267,73 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
 // golden gate
 // ---------------------------------------------------------------------------
 
+/// The provenance policy from the flags (the revlist file is read here).
+fn provenance_policy(args: &AccuracyArgs) -> Result<provenance::Policy> {
+    let revlist = match &args.revlist {
+        Some(p) => std::fs::read_to_string(p)
+            .with_context(|| format!("reading --revlist {}", p.display()))?
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect(),
+        None => Vec::new(),
+    };
+    Ok(provenance::Policy {
+        pre_change: args.pre_change.clone(),
+        revlist,
+        allow_unstamped: args.allow_unstamped,
+        allow_same_code: args.allow_same_code,
+        allow_dirty: args.allow_dirty,
+    })
+}
+
+/// A self-golden is comparable only with the same weights and the same way of running them.
+fn self_compat(sm: &selfgolden::SelfMeta, run: &baseline::RunConfig, allow_mismatch: bool) -> Result<Vec<String>> {
+    let mut diffs: Vec<(String, bool)> = Vec::new();
+    let mut d = |what: &str, a: &dyn std::fmt::Display, b: &dyn std::fmt::Display, strict: bool| {
+        if a.to_string() != b.to_string() {
+            diffs.push((format!("{what}: self-golden {a}, this run {b}"), strict));
+        }
+    };
+    d("model", &sm.model, &run.model, true);
+    d("backend", &sm.backend, &run.backend, true);
+    d("device", &sm.device, &run.device, false);
+    d("kv dtype", &sm.kv_dtype, &run.kv_dtype, true);
+    d("activation dtype", &sm.act_dtype, &run.act_dtype, true);
+    d("fp8 activation mode", &sm.fp8_act, &run.fp8_act, true);
+    d("prefill chunk", &sm.prefill_chunk, &run.prefill_chunk, true);
+    d("decode positions", &sm.decode_positions, &run.decode_positions, true);
+    let strict: Vec<&String> = diffs.iter().filter(|d| d.1).map(|d| &d.0).collect();
+    if !strict.is_empty() && !allow_mismatch {
+        bail!(
+            "the self-golden was written with a different configuration ({}); write a new one or pass --allow-config-mismatch",
+            strict.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("; ")
+        );
+    }
+    Ok(diffs.into_iter().map(|d| d.0).collect())
+}
+
 fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
-    let path = match &args.golden {
-        Some(p) => p.clone(),
-        None => default_golden(&args.model.model).ok_or_else(|| {
+    if args.golden.is_some() && args.self_golden.is_some() {
+        bail!("--golden and --self-golden are separate runs (the self-golden carries its own prompts); run them one after the other");
+    }
+    let self_mode = args.self_golden.is_some();
+    if self_mode && (args.baseline.is_some() || args.write_baseline.is_some() || args.write_self_golden.is_some()) {
+        bail!("--self-golden cannot be combined with --baseline, --write-baseline or --write-self-golden");
+    }
+    if args.write_self_golden.is_some() && args.golden.is_none() {
+        bail!("--write-self-golden needs --golden: the dump uses that golden's prompts (and teacher-forced ids)");
+    }
+    let path = match (&args.self_golden, &args.golden) {
+        (Some(p), _) | (None, Some(p)) => p.clone(),
+        (None, None) => default_golden(&args.model.model).ok_or_else(|| {
             anyhow!("no golden file found for this model; generate one with tools/golden.py and pass --golden")
         })?,
     };
     let g = Golden::open(&path)?;
+    if self_mode && !g.is_self() {
+        bail!("{}: not a self-golden (no self_golden metadata); write one with --write-self-golden", path.display());
+    }
     let names = g.names();
     if names.is_empty() {
         bail!("{}: no ids_N tensors", path.display());
@@ -1151,8 +1355,25 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     }
     let info = engine.info();
     let gates = resolve_gates(args, &info.kv_dtype)?;
+    let self_meta = if self_mode { Some(g.self_meta()?) } else { None };
+    if let Some(sm) = &self_meta {
+        if want_reuse {
+            bail!("--mode reuse needs the source golden's reuse splits; a self-golden covers the prefill and decode paths only");
+        }
+        for m in &modes {
+            if !sm.modes.split(',').any(|x| x == m.key()) {
+                bail!("the self-golden has no '{}' rows (it has: {}); write it with --mode {}", m.key(), sm.modes, if modes.len() > 1 { "both" } else { m.key() });
+            }
+        }
+    }
     let mut prompts = Vec::new();
+    let mut prompts_dec = Vec::new(); // self-golden: the decode path has its own rows
     for (i, name) in names.iter().enumerate() {
+        if self_mode {
+            if let Some(d) = g.self_decode_prompt(i)? {
+                prompts_dec.push((name.clone(), d));
+            }
+        }
         let p = g.prompt(i)?;
         if let RefRows::Full { vocab, .. } = &p.rows {
             if *vocab != info.vocab {
@@ -1184,18 +1405,20 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     for l in g.describe() {
         eprintln!("  {l}");
     }
-    if let Some(w) = kv_dtype_warning(g.meta_str("kv_dtype"), &info.kv_dtype) {
-        eprintln!("{w}");
+    if !self_mode {
+        if let Some(w) = kv_dtype_warning(g.meta_str("kv_dtype"), &info.kv_dtype) {
+            eprintln!("{w}");
+        }
+        eprintln!(
+            "gates: class {} ({}); top-1 {}, {} <= {:.1e}, |tail excess| <= {}",
+            gates.class.name(),
+            gates.why,
+            gates.min_top1.map_or("not gated".to_string(), |m| format!(">= {m}%")),
+            if topk_k.is_some() { "21-way KL" } else { "KL" },
+            gates.max_kl,
+            gates.max_tail_excess,
+        );
     }
-    eprintln!(
-        "gates: class {} ({}); top-1 {}, {} <= {:.1e}, |tail excess| <= {}",
-        gates.class.name(),
-        gates.why,
-        gates.min_top1.map_or("not gated".to_string(), |m| format!(">= {m}%")),
-        if topk_k.is_some() { "21-way KL" } else { "KL" },
-        gates.max_kl,
-        gates.max_tail_excess,
-    );
     eprintln!(
         "prefill chunk {chunk}; longest prompt {longest}; prompts spanning more than one chunk: {multi}/{}",
         prompts.len()
@@ -1231,20 +1454,74 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
         gate_class: gates.class.name().to_string(),
     };
 
+    // What code this is, and how it ran. Checked before the long runs, like the golden and the configuration.
+    let cur_code = CodeStamp::of_this_build();
+    let exec = ExecInfo::capture(&engine.plan());
+    let policy = provenance_policy(args)?;
+    eprintln!("this build: {}", cur_code.describe());
+    let show_exec_diff = |what: &str, rec: &ExecInfo| {
+        let d = rec.diff(&exec);
+        if d.is_empty() {
+            eprintln!(
+                "WARNING: this run resolved exactly the same kernels and flags as the {what}: a kernel or graph change cannot show up in this comparison"
+            );
+        } else {
+            eprintln!("differences from the {what} (kernels per op, flags): {}", d.join("; "));
+        }
+    };
     let base_file = match &args.baseline {
         Some(bp) => {
             let base = baseline::read(bp)?;
-            for w in baseline::compatible(&base, &golden_id, &run_cfg, args.allow_config_mismatch)? {
+            for w in baseline::compatible(&base, &golden_id, &run_cfg, &exec, args.allow_config_mismatch)? {
                 eprintln!("WARNING: this run differs from the baseline: {w}");
             }
+            for w in provenance::check("baseline", &base.code, &cur_code, &policy)? {
+                eprintln!("WARNING: {w}");
+            }
+            eprintln!("baseline recorded from: {}", base.code.describe());
+            show_exec_diff("baseline's run", &base.exec);
             Some((bp, base))
         }
         None => None,
     };
+    let self_budget = selfgolden::SelfBudget {
+        max_mean_kl: args.self_max_kl,
+        max_pos_kl: args.self_max_pos_kl,
+        max_flip_pct: args.self_max_flip_pct,
+        max_tail_abs: args.self_max_tail,
+        prompt_factor: args.self_prompt_factor,
+    };
+    if let Some(sm) = &self_meta {
+        for w in self_compat(sm, &run_cfg, args.allow_config_mismatch)? {
+            eprintln!("WARNING: this run differs from the self-golden: {w}");
+        }
+        for w in provenance::check("self-golden", &sm.code, &cur_code, &policy)? {
+            eprintln!("WARNING: {w}");
+        }
+        eprintln!("self-golden written by: {} (top-{}, modes {})", sm.code.describe(), sm.topk, sm.modes);
+        show_exec_diff("self-golden's run", &sm.exec);
+        eprintln!(
+            "self-golden budgets: mean KL(21-way) <= {:.1e}, max position KL <= {:.1e}, top-1 flips <= {}% (>= 1 position), mean |tail diff| <= {:.1e}, prompt KL <= x{}",
+            self_budget.max_mean_kl, self_budget.max_pos_kl, self_budget.max_flip_pct, self_budget.max_tail_abs, self_budget.prompt_factor
+        );
+    }
+    if args.write_baseline.is_some() || args.write_self_golden.is_some() {
+        if !cur_code.is_stamped() {
+            eprintln!("WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh");
+        }
+        if cur_code.dirty && cur_code.overlay.is_empty() {
+            eprintln!("WARNING: this build is from a modified tree and not a declared harness overlay; what it writes will be refused as a 'before'");
+        }
+    }
+    let mut capture = args.write_self_golden.as_ref().map(|_| selfgolden::SelfCapture::new(args.self_topk.max(1), prompts.len()));
     let mut floor_ok = true;
     let mut results = Vec::new();
     for m in modes {
-        let r = run_mode(engine, &prompts, m, args, &gates, topk_k.is_some())?;
+        let set = if self_mode && m == Mode::Decode { &prompts_dec } else { &prompts };
+        if set.len() != prompts.len() {
+            bail!("the self-golden has decode rows for {} of {} prompts", set.len(), prompts.len());
+        }
+        let r = run_mode(engine, set, m, args, &gates, topk_k.is_some(), self_mode.then_some(&self_budget), &mut capture)?;
         floor_ok &= r.pass;
         results.push((m, r));
     }
@@ -1265,6 +1542,9 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
             kl_eps: 1e-6,
             top5_pts: args.margin_top5,
             tail_abs: args.margin_tail,
+            max_kl_ratio: args.margin_max_kl,
+            prompt_kl_ratio: args.margin_prompt_kl,
+            ..Margins::default()
         };
         println!(
             "\nbaseline: {} (recorded {}, golden {} hash {}); margins: top-1 -{} pt (>= 1 position), KL x{} (+1e-6), top-5 -{} pt, tail +{}",
@@ -1291,6 +1571,8 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
             format: baseline::FORMAT.into(),
             created_unix: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
             tool_version: env!("CARGO_PKG_VERSION").into(),
+            code: cur_code.clone(),
+            exec: exec.clone(),
             golden: golden_id.clone(),
             run: run_cfg.clone(),
             modes: results.iter().map(|(_, r)| baseline::ModeBaseline { overall: r.stats.clone(), prompts: r.prompts.clone() }).collect(),
@@ -1303,6 +1585,38 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
             if floor_ok { "passed" } else { "FAILED in this run: the baseline records it" }
         );
     }
+    if let (Some(wp), Some(cap)) = (&args.write_self_golden, &capture) {
+        let ids: Vec<Vec<u32>> = prompts.iter().map(|p| p.1.ids.clone()).collect();
+        let prompts_json = g.meta.get("prompts").cloned().unwrap_or_else(|| {
+            serde_json::to_string(&names.iter().zip(&ids).map(|(n, i)| serde_json::json!({"name": n, "n_tokens": i.len()})).collect::<Vec<_>>())
+                .unwrap_or_default()
+        });
+        let sm = selfgolden::SelfMeta {
+            code: cur_code.clone(),
+            exec: exec.clone(),
+            model: run_cfg.model.clone(),
+            backend: run_cfg.backend.clone(),
+            device: run_cfg.device.clone(),
+            kv_dtype: run_cfg.kv_dtype.clone(),
+            act_dtype: run_cfg.act_dtype.clone(),
+            fp8_act: run_cfg.fp8_act.clone(),
+            prefill_chunk: chunk,
+            decode_positions: args.decode_positions,
+            topk: cap.k,
+            modes: results.iter().map(|(m, _)| m.key()).collect::<Vec<_>>().join(","),
+            source_golden: golden_id.file.clone(),
+            source_fnv1a64: golden_id.fnv1a64.clone(),
+        };
+        selfgolden::write(wp, cap, &ids, &prompts_json, &sm)?;
+        println!(
+            "\nwrote self-golden {} (top-{} rows of modes {} for {} prompts; written by {})",
+            wp.display(),
+            cap.k,
+            sm.modes,
+            ids.len(),
+            cur_code.describe()
+        );
+    }
 
     let mut reuse_ok = true;
     if want_reuse {
@@ -1311,10 +1625,13 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     let all_ok = floor_ok && baseline_ok.unwrap_or(true) && reuse_ok;
     if !results.is_empty() {
         println!(
-            "\nfloor verdict (class thresholds, absolute): {}{}{}",
+            "\n{} verdict ({}): {}{}{}",
+            if self_mode { "self-golden" } else { "floor" },
+            if self_mode { "same weights, tight budgets, against the other build's logits" } else { "class thresholds, absolute" },
             if floor_ok { "PASS" } else { "FAIL" },
             match baseline_ok {
                 Some(b) => format!("   baseline verdict (no worse than the recorded run + margins): {}", if b { "PASS" } else { "FAIL" }),
+                None if self_mode => String::new(),
                 None => "   baseline verdict: not requested".to_string(),
             },
             if want_reuse { format!("   prefix-reuse verdict: {}", if reuse_ok { "PASS" } else { "FAIL" }) } else { String::new() },
@@ -1435,7 +1752,7 @@ pub fn run(args: AccuracyArgs) -> Result<()> {
     if args.quick {
         ok &= quick_gate(engine, &args)?;
     }
-    if !args.quick || args.golden.is_some() {
+    if !args.quick || args.golden.is_some() || args.self_golden.is_some() {
         ok &= golden_gate(engine, &args)?;
     }
     if !ok {

@@ -23,8 +23,14 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_combine_bf16", Op::MoeCombine),
 ];
 
-/// Outputs are bf16-rounded (one-ulp flips allowed, as for the dense kernels) or f32 (accumulation order only).
-const TOL: Tol = Tol::new(1.5e-2, 6e-3);
+/// Admission budget of the bf16-rounded outputs: a one-ulp flip (up to 7.8e-3 of the largest output) is allowed, which
+/// is what max_abs 1.5e-2 (about two ulps) is for. rel_l2 is 1e-3, as in the HIP backend: the admission sweep measures
+/// well below it, so a bug that moves outputs by ~1e-3 relative is refused where the former 6e-3 admitted it.
+const TOL: Tol = Tol::new(1.5e-2, 1e-3);
+
+/// Budget for the f32 outputs of the quantised matmuls (lm_head logits), picked per output tensor by dtype
+/// (`KernelImpl::tol_for`); f32 outputs differ from the reference by accumulation order only.
+pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
 
 /// Fewest tokens for which the grouped tensor-core experts kernel is preferred over the warp-per-row one (GB10,
 /// 256 experts, top-8: 1.43 ms vs 1.53 ms at 32 tokens, 0.98 ms vs 0.88 ms at 16).
@@ -50,13 +56,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
                     .priority(10),
                 "matmul_fp8_mma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| s.k % 16 == 0)
                     .exact(Exactness::Deterministic)
-                    .tol(TOL),
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL),
                 // prefill-shaped batches: dequantise-once tensor-core GEMM with the cp.async weight pipeline
                 "matmul_fp8_gemm" => k
                     .acts(bf)
@@ -64,6 +72,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.m >= GEMM_MIN_TOKENS && s.k % 128 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(10),
                 "matmul_nvfp4_gemm" => k
@@ -72,6 +81,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.m >= GEMM_MIN_TOKENS && s.k % 128 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
                     .priority(10),
                 "matmul_nvfp4_gemv" => k
                     .acts(bf)
@@ -79,13 +89,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| (1..=8).contains(&s.m) && s.k % 16 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
                     .priority(10),
                 "matmul_nvfp4_mma" => k
                     .acts(bf)
                     .weights([DType::U8])
                     .when(|s| s.k % 16 == 0)
                     .exact(Exactness::Deterministic)
-                    .tol(TOL),
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))

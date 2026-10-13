@@ -163,9 +163,6 @@ Making the two paths agree is only possible the other way round (the review's lo
 
 ## Open issues
 
-* **CUDA backend, same tolerance flaw (finding 8 of `docs/reviews/2026-10-13-opus-phase2a-review.md`).** `crates/intarsia-backend-cuda/src/quantmoe.rs:23` uses one `TOL` (1.5e-2 / 6e-3) for
-  bf16 and f32 outputs alike. It needs the same change as the HIP one: an f32-output check at the f32 budget (see the HIP test `quant_f32_outputs_meet_the_f32_tolerance`), and a core
-  `judge` / `KernelImpl` that can carry a per-output-dtype tolerance, because `ShapeInfo` has no output dtype and the admission sweep grades every output of a kernel with its single `Tol`.
 * **Registry has no batch-invariance flag** (see "MoE and batch size"): `moe_experts` is registered `Deterministic`, which does not say that its result depends on T from 16 tokens up.
 * **No per-kernel flag for the dense GEMV vs GEMM paths either**; the same T-dependence exists there and is older than this backend.
 

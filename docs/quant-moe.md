@@ -120,8 +120,18 @@ dequantisation (bf16 tile built by CUDA cores) and the per-pair y buffer round t
 MMA (`mma.sync ...e2m1`) was not attempted.
 
 Dense GEMMs, same harness (old `*_mma` -> `*_gemm`, microseconds): NVFP4 M=2048 N=8192 K=2048 2476 -> 1339; M=4096
-N=2048 K=4096 1809 -> 1339; M=257 N=512 K=2048 54 -> 31; FP8 W8A8 M=2048 N=8192 2813 -> 1257. Outputs identical to the
-old kernels (rel_l2 0 in all 30 shape/format combinations checked, bf16 outputs).
+N=2048 K=4096 1809 -> 1339; M=257 N=512 K=2048 54 -> 31; FP8 W8A8 M=2048 N=8192 2813 -> 1257. Two different
+comparisons are behind the accuracy figures, and they must not be mixed up:
+
+* `*_gemm` against the old `*_mma` kernels (dense weights): identical bf16 outputs, rel_l2 0 in all 30 shape/format
+  combinations, measured in the standalone C++ harness (not in a test of this repo yet).
+* grouped MoE `moe_experts_mma_bf16` against the old `moe_experts_bf16`: not identical, up to 3.5e-4 rel_l2, because
+  the summation order differs.
+
+The tests `matmul_nvfp4_gemm_is_bitwise_the_mma_kernel` and `matmul_fp8_gemm_is_bitwise_the_mma_kernel`
+(`crates/intarsia-backend-cuda/tests/quantmoe.rs`) assert the first claim (equal output bytes, M in {33, 40, 100, 256})
+and `moe_experts_mma_matches_old_kernel` bounds the second at rel_l2 1e-3. They need a GPU and only run in the spark1
+acceptance run; nothing has run them yet.
 
 Not done: combining the shared expert and the gate into the experts kernel (needs a new op signature; touches the
 shared `ops.rs`/CPU reference), `moe_topk` is already one fused launch (softmax + top-k + renormalise).

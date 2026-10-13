@@ -9,6 +9,7 @@
 //! `Backend::wrap_host`.
 
 mod fast;
+mod fault;
 mod gdn_ref;
 mod mem;
 mod quant_ref;
@@ -158,10 +159,11 @@ impl Backend for CpuBackend {
             None => call,
         };
         if reference {
-            reference::run(call)
+            reference::run(call)?;
         } else {
-            fast::run(call)
+            fast::run(call)?;
         }
+        fault::apply(self, call)
     }
 
     fn synchronize(&self, _s: StreamId) -> Result<()> {

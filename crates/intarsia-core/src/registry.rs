@@ -32,7 +32,11 @@ impl Exactness {
     }
 }
 
-/// Admission tolerance versus the reference implementation.
+/// Admission tolerance versus the reference implementation. A kernel has one `Tol` for its outputs
+/// (`KernelImpl::tol`) and may carry a second, usually tighter, one for f32 outputs
+/// (`KernelImpl::tol_f32`, e.g. lm_head logits): the budget is picked per output tensor by dtype
+/// (`KernelImpl::tol_for`), because a bf16 output cannot meet an f32 budget (bf16 rounding alone
+/// is ~4e-3 relative per element).
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 pub struct Tol {
     /// Maximum absolute error allowed. Relative-to-scale: see `Tol::scaled`.
@@ -70,7 +74,10 @@ pub struct KernelImpl {
     /// Shape preconditions as code, checked at plan time.
     pub when: Predicate,
     pub exact: Exactness,
+    /// Budget for every output, or for non-f32 outputs when `tol_f32` is set.
     pub tol: Tol,
+    /// Optional separate budget for f32 outputs; `None` = `tol` applies to all outputs.
+    pub tol_f32: Option<Tol>,
     /// The single trusted implementation of an op on the reference backend.
     pub is_reference: bool,
     /// Higher wins when several admitted impls match.
@@ -95,6 +102,7 @@ impl KernelImpl {
             when: always,
             exact: Exactness::Fast,
             tol: Tol::new(1e-2, 1e-2),
+            tol_f32: None,
             is_reference: false,
             priority: 0,
             scratch: None,
@@ -138,6 +146,11 @@ impl KernelImpl {
         self.tol = t;
         self
     }
+    /// Separate (tighter) budget for f32 outputs; see `tol_for`.
+    pub fn tol_f32(mut self, t: Tol) -> Self {
+        self.tol_f32 = Some(t);
+        self
+    }
     pub fn reference(mut self, r: bool) -> Self {
         self.is_reference = r;
         self
@@ -150,6 +163,15 @@ impl KernelImpl {
     pub fn scratch(mut self, f: ScratchFn) -> Self {
         self.scratch = Some(f);
         self
+    }
+
+    /// The tolerance that governs an output tensor of dtype `out`: `tol_f32` for f32 outputs when set,
+    /// `tol` otherwise.
+    pub fn tol_for(&self, out: DType) -> Tol {
+        match self.tol_f32 {
+            Some(t) if out == DType::F32 => t,
+            _ => self.tol,
+        }
     }
 
     /// Scratch bytes this kernel needs for `s` (0 when it declares none).
@@ -326,5 +348,17 @@ mod tests {
         s.m = 1;
         s.act = Some(DType::F32);
         assert!(!k.accepts(&s));
+    }
+
+    #[test]
+    fn tol_for_picks_the_f32_budget_only_for_f32_outputs() {
+        let k = KernelImpl::new(Op::Logits, "x", "b").tol(Tol::new(1.5e-2, 1e-3));
+        // no f32 budget: one tolerance for every output dtype
+        assert_eq!(k.tol_for(DType::F32).rel_l2, 1e-3);
+        assert_eq!(k.tol_for(DType::Bf16).rel_l2, 1e-3);
+        let k = k.tol_f32(Tol::new(1e-3, 2e-4));
+        assert_eq!((k.tol_for(DType::F32).max_abs, k.tol_for(DType::F32).rel_l2), (1e-3, 2e-4));
+        assert_eq!((k.tol_for(DType::Bf16).max_abs, k.tol_for(DType::Bf16).rel_l2), (1.5e-2, 1e-3));
+        assert_eq!(k.tol_for(DType::I32).rel_l2, 1e-3);
     }
 }

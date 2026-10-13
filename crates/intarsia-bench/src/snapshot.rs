@@ -48,6 +48,8 @@ pub struct Snapshot {
     pub kv_used_tokens: u64,
     pub kv_capacity_tokens: u64,
     pub weights_bytes: u64,
+    pub decode_eager_steps: u64,
+    pub decode_profiled_steps: u64,
     pub ops: BTreeMap<String, OpStat>,
 }
 

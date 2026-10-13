@@ -62,6 +62,60 @@ Other flags: `--thinking off` sends `chat_template_kwargs.enable_thinking=false`
 `--key-env VAR` reads a bearer token from an environment variable; `--timeout-s`; `--warmup N`.
 Plain `http://` only (the client is built without TLS); tunnel for https.
 
+### Graph replay, variance and profiling in the result (Phase 1b review findings 4, 5, 6)
+
+`intarsia serve` exports `intarsia_graph_replays_total`, `intarsia_graph_captures_total`,
+`intarsia_decode_eager_steps_total` and `intarsia_decode_profiled_steps_total` in `/metrics` (docs/telemetry.md). `bench speed`
+reads them before and after the measured reps of each size (warmup excluded) and writes, per row and summed at the top level:
+
+* `graph`: `{available, replays, captures, eager_steps, profiled_steps}` as deltas over the measured reps. `available: false`
+  (all null) when the server does not export the counters (vLLM, llama.cpp).
+* `decode_tok_s_reps`, `decode_tok_s_min`, `decode_tok_s_max`, `decode_tok_s_stdev` next to the median `decode_tok_s`.
+* warnings: `0 graph replays during the measured reps (decode ran eagerly)`, and `timing includes N profiled eager steps`.
+* `--require-graphs`: exit non-zero (after saving) if the server does not export the counters or any measured size replayed
+  zero graphs. The acceptance procedure passes it for our server. 0 replays means the run measured the Phase 1a eager path.
+
+**Profiled steps bias the number.** With `--profile-every N` (default 16 on GPU, 1 on cpu) every Nth decode step runs eagerly
+with per-op synchronisation: about 6% of the steps at N = 16, each far slower than a replay. A throughput measurement runs the
+server with `--profile-every 0` so that no step is profiled, on every arm. vLLM has no such steps, so profiling only ever
+penalises our side. The as-shipped default can be reported as an extra, separately labelled arm, never as the A/B number.
+
+**One run per arm is not a result.** Run-to-run and server-restart variation on the GB10 is of the order of the margin the
+Phase 1 gate is decided on (76 against 78 tok/s). The A/B uses interleaved rounds (below), a discarded warmup call per size,
+five measured calls per size per round, the per-round difference against vLLM, and a decision rule written down before the run.
+
+### A/B against vLLM on spark1: `scripts/phase1b-acceptance.sh`
+
+The whole procedure is one script (stages: preflight, build, lease, kernels, accuracy, graphs, ab, verdict; `STAGES=ab,verdict`
+runs a subset). What it enforces, and why:
+
+1. **vLLM is stopped while ours runs.** The `guidance` vLLM reserves 64 GB (`gpu_memory_utilization 0.5`) on the 128 GB unified
+   memory; a 38 GB server or an accuracy job beside it is what hung spark1 at 01:50 on 2026-10-13 (an 8B HF golden job next to
+   it). The script takes one exclusive lease with `fleetq acquire --host spark1 --exclusive --takes-down guidance`, stops the
+   container (`VLLM_CONTAINER`, the name from `docker ps` on the box), and waits for the memory to come back. Nothing else runs
+   in the lease: never a golden or HF job, never a build. Builds happen in an earlier small shared slot.
+2. **Restore before release.** An EXIT/INT/TERM trap stops our server (SIGTERM, wait up to 60 s for the pid, then `kill -9`;
+   `deploy/localeval/serve-and-bench.sh` `stop()` now waits too), then restarts the container and waits for `/health` and
+   `/v1/models`, then releases the slots. fleetq counts the role back only when it sees the expected model again.
+   Dry-run check: `DRY_RUN=1 FAIL_AT=accuracy scripts/phase1b-acceptance.sh` shows the stop, start and release commands being
+   issued after a forced failure (no box is touched in a dry run).
+3. **Memory pre-check.** Before every model load (kernels, each accuracy case, graphs, each A/B round) the script reads
+   `MemAvailable` on the box and aborts if it is below model size + 20 GB (35B: 38 GB, 8B: 17 GB; override with
+   `MODEL_GB_35B` / `MODEL_GB_8B`).
+4. **Interleaved rounds.** `ROUNDS` (default 3) rounds, each: ours-new and ours-old (order alternates per round), then vLLM up,
+   vLLM, vLLM down. vLLM and ours never run at the same time, and drift in the box (thermal state, clocks) hits all arms alike.
+5. **Valid round.** The 1 Hz poller must never see `running > 1` or `waiting > 0` on the server under test (the bench is its only
+   client); ours-new must show replays > 0 and 0 eager or profiled steps for every size. Invalid rounds do not count; up to two
+   extra rounds replace them.
+6. **Decision rule** (header of the script; written before any number existed). Per size S and round r:
+   d(S,r) = ours-new median decode tok/s minus vLLM median in the same round. PASS(S): d >= 0 in every valid round.
+   MARGINAL(S): median d >= 0 but some round below 0. FAIL(S): median d < 0. Fewer than 3 valid rounds: INCONCLUSIVE.
+   The Phase 1 speed gate passes only if 128, 1024 and 4096 all PASS; MARGINAL or INCONCLUSIVE sizes give "NOT DECIDED" and the
+   numbers (min / median / max of d) are reported as they are. If no ours-new round is valid because of 0 replays or eager
+   decode, the A/B fails outright: those numbers would be Phase 1a numbers.
+7. The verdict stage (`verdict.py`, written into the work directory) is the only thing that says PASS. The script exits 0 only
+   if it and the accuracy stages pass.
+
 ### Fleet rules
 
 Anything that loads or runs GPU work on spark1 takes a fleetq slot first (`fleetq status`). The slot

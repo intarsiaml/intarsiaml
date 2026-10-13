@@ -228,6 +228,27 @@ fn case_key(model_kernel: &str, label: &str) -> String {
     format!("{model_kernel}|{label}")
 }
 
+/// Describe the first pair of probed decode positions whose kernel lists differ and what differs
+/// (`ops differ between pos 0 and pos 4096: attn_decode: a vs b`); `None` when all positions agree.
+fn position_diff(by_pos: &BTreeMap<usize, Vec<(Op, &str)>>) -> Option<String> {
+    let mut it = by_pos.iter();
+    let (p0, first) = it.next()?;
+    let (p1, other) = it.find(|(_, v)| *v != first)?;
+    let mut diffs: Vec<String> = Vec::new();
+    for i in 0..first.len().max(other.len()) {
+        let (a, b) = (first.get(i), other.get(i));
+        if a != b {
+            let name = a.or(b).map(|x| x.0.as_str().to_string()).unwrap_or_default();
+            let k = |x: Option<&(Op, &str)>| x.map_or("(none)".to_string(), |x| x.1.to_string());
+            let d = format!("{name}: {} vs {}", k(a), k(b));
+            if !diffs.contains(&d) {
+                diffs.push(d);
+            }
+        }
+    }
+    Some(format!("ops differ between pos {p0} and pos {p1}: {}", diffs.join("; ")))
+}
+
 /// Resolve every `(op, shape)` of the model against the registry and (re)allocate the scratch
 /// workspace. Idempotent; call again after the registry changed (admission, `--reference`).
 pub fn resolve(model: &mut Model) -> Result<()> {
@@ -264,6 +285,11 @@ pub fn resolve(model: &mut Model) -> Result<()> {
         by_pos.entry(c.pos0).or_default().push((c.call.op, c.kernel.as_str()));
     }
     let decode_position_stable = by_pos.values().all(|v| Some(v) == by_pos.values().next());
+    if !decode_position_stable && model.backend.supports_graphs() {
+        if let Some(why) = position_diff(&by_pos) {
+            eprintln!("WARNING: decode graph disabled: {why}");
+        }
+    }
     model.resolved = ResolvedPlan {
         decode_position_stable,
         ops: per_op.into_values().collect(),
@@ -498,8 +524,12 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
                     bad = Some(format!(
                         "{label}: {}",
                         e.error.clone().unwrap_or_else(|| format!(
-                            "max_abs {:.3e} rel_l2 {:.3e} (tol {:.1e}/{:.1e})",
-                            e.max_abs, e.rel_l2, kern.tol.max_abs, kern.tol.rel_l2
+                            "max_abs {:.3e} rel_l2 {:.3e} (tol {:.1e}/{:.1e}{})",
+                            e.max_abs,
+                            e.rel_l2,
+                            kern.tol.max_abs,
+                            kern.tol.rel_l2,
+                            kern.tol_f32.map_or(String::new(), |t| format!(", f32 outputs {:.1e}/{:.1e}", t.max_abs, t.rel_l2))
                         ))
                     ));
                 }
@@ -634,6 +664,19 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn position_diff_names_the_differing_ops() {
+        let mut by_pos: BTreeMap<usize, Vec<(Op, &str)>> = BTreeMap::new();
+        by_pos.insert(0, vec![(Op::Matmul, "mm"), (Op::AttnDecode, "attn_decode_bf16")]);
+        by_pos.insert(10, vec![(Op::Matmul, "mm"), (Op::AttnDecode, "attn_decode_bf16")]);
+        assert_eq!(position_diff(&by_pos), None);
+        by_pos.insert(4096, vec![(Op::Matmul, "mm"), (Op::AttnDecode, "attn_decode_splitkv_bf16")]);
+        assert_eq!(
+            position_diff(&by_pos).unwrap(),
+            "ops differ between pos 0 and pos 4096: attn_decode: attn_decode_bf16 vs attn_decode_splitkv_bf16"
+        );
+    }
 
     #[test]
     fn probe_sizes_cover_small_and_boundaries() {

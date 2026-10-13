@@ -32,6 +32,10 @@ JSON shape (`schema_version` 1; additive changes keep the version, breaking ones
   "kv_used_tokens": 284,
   "kv_capacity_tokens": 4096,
   "weights_bytes": 16400000000,
+  "graph_replays": 2301,
+  "graph_captures": 1,
+  "decode_eager_steps": 0,
+  "decode_profiled_steps": 0,
   "ops": { "matmul": { "calls": 40320, "timed_calls": 2520, "time_ms": 3120.5 }, "...": {} }
 }
 ```
@@ -55,6 +59,9 @@ JSON shape (`schema_version` 1; additive changes keep the version, breaking ones
 | `kv_used_bytes` / `kv_total_bytes` | Filled / allocated bytes of the KV cache (attention slots; recurrent state counts fully). | gauges |
 | `kv_used_tokens` / `kv_capacity_tokens` | Tokens held / planned context length. | gauges |
 | `weights_bytes` | Bytes of loaded weights. | gauge |
+| `graph_replays` / `graph_captures` | Decode steps replayed from a captured CUDA graph, and graphs captured (both `0` with `--no-graphs` or on backends without graph support). | `intarsia_graph_replays_total`, `intarsia_graph_captures_total` (counters) |
+| `decode_eager_steps` | Single-token decode steps (one token, last-logits or argmax head) that ran through the eager path: graphs off or unusable, a profiled step, or a graph fallback. Prefill chunks are not counted, unlike `steps_total`. A served A/B run replaying graphs shows `graph_replays` growing and this staying flat. | `intarsia_decode_eager_steps_total` (counter) |
+| `decode_profiled_steps` | The subset of `decode_eager_steps` that ran with per-op profiling, which synchronises around every op and so skews timings. | `intarsia_decode_profiled_steps_total` (counter) |
 | `device.*` | Name, backend, arch, total memory, **free memory measured at snapshot time**, unified-memory flag. | `intarsia_device_free_bytes` |
 | `ops.<op>.calls` | Launch count per op id (`embedding`, `rmsnorm`, `rmsnorm_add`, `qk_norm`, `rope`, `matmul`, `logits`, `kv_append`, `attn_prefill`, `attn_decode`, `silu_glu`, `argmax`, ...). | `intarsia_op_calls_total{op}` |
 | `ops.<op>.timed_calls`, `ops.<op>.time_ms` | Launches whose duration was measured, and their cumulative milliseconds. Timing needs a device sync, so GPU backends sample (`LoadOptions::profile_every`, default 16 on GPUs; every step on cpu-ref). Estimated per-launch cost is `time_ms / timed_calls`; the share of step time per op is `time_ms` normalised across ops. | `intarsia_op_seconds_total{op}` |

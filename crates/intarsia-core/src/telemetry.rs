@@ -75,6 +75,11 @@ pub struct TelemetrySnapshot {
     /// Decode steps replayed from a captured graph, and graphs captured (0 with `--no-graphs` or on backends without).
     pub graph_replays: u64,
     pub graph_captures: u64,
+    /// Single-token decode steps (one token, last-logits or argmax head) that ran through the eager path:
+    /// graphs off or unusable, a profiled step, or a graph fallback. Prefill chunks are not counted.
+    pub decode_eager_steps: u64,
+    /// The subset of `decode_eager_steps` that ran with per-op profiling, which synchronises around every op.
+    pub decode_profiled_steps: u64,
 
     /// Per-op cumulative time and call counts, keyed by op id (`rmsnorm`, `matmul`, ...).
     pub ops: BTreeMap<String, OpStat>,
@@ -108,6 +113,8 @@ pub struct Telemetry {
     weights_bytes: AtomicU64,
     graph_replays: AtomicU64,
     graph_captures: AtomicU64,
+    decode_eager: AtomicU64,
+    decode_profiled: AtomicU64,
     inner: Mutex<Inner>,
     /// Free-memory probe for live device numbers (set by the engine).
     device_probe: Mutex<Option<Box<dyn Fn() -> DeviceInfo + Send + Sync>>>,
@@ -142,6 +149,8 @@ impl Telemetry {
             weights_bytes: AtomicU64::new(0),
             graph_replays: AtomicU64::new(0),
             graph_captures: AtomicU64::new(0),
+            decode_eager: AtomicU64::new(0),
+            decode_profiled: AtomicU64::new(0),
             inner: Mutex::new(Inner {
                 model: String::new(),
                 device: None,
@@ -175,6 +184,14 @@ impl Telemetry {
     pub fn graph_event(&self, replay: bool) {
         let c = if replay { &self.graph_replays } else { &self.graph_captures };
         c.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Count a single-token decode step that ran eagerly; `profiled` marks per-op profiling.
+    pub fn decode_eager_step(&self, profiled: bool) {
+        self.decode_eager.fetch_add(1, Ordering::Relaxed);
+        if profiled {
+            self.decode_profiled.fetch_add(1, Ordering::Relaxed);
+        }
     }
 
     pub fn steps_total(&self) -> u64 {
@@ -284,6 +301,8 @@ impl Telemetry {
             weights_bytes: self.weights_bytes.load(Ordering::Relaxed),
             graph_replays: self.graph_replays.load(Ordering::Relaxed),
             graph_captures: self.graph_captures.load(Ordering::Relaxed),
+            decode_eager_steps: self.decode_eager.load(Ordering::Relaxed),
+            decode_profiled_steps: self.decode_profiled.load(Ordering::Relaxed),
             ops: g.ops.iter().map(|(k, v)| (k.as_str().to_string(), v.clone())).collect(),
         }
     }

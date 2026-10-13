@@ -140,6 +140,10 @@ impl Engine for Mock {
         t.generation_tokens_total = 9;
         t.cached_tokens_total = 3;
         t.kv_used_bytes = 100;
+        t.graph_replays = 11;
+        t.graph_captures = 2;
+        t.decode_eager_steps = 5;
+        t.decode_profiled_steps = 3;
         t.kv_total_bytes = 1000;
         t.finished.insert("stop".into(), 2);
         t.ops.insert("matmul".into(), OpStat { calls: 5, timed_calls: 5, time_ms: 1500.0 });
@@ -468,6 +472,11 @@ async fn models_health_metrics() {
     assert!(ct.starts_with("text/plain"));
     for needle in [
         "intarsia_engine_steps_total 42",
+        "intarsia_graph_replays_total 11",
+        "intarsia_graph_captures_total 2",
+        "intarsia_decode_eager_steps_total 5",
+        "intarsia_decode_profiled_steps_total 3",
+        "# TYPE intarsia_graph_replays_total counter",
         "intarsia_requests_running 0",
         "intarsia_requests_waiting 0",
         "intarsia_tokens_prompt_total 7",

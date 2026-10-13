@@ -12,6 +12,7 @@
 //! The CUDA and HIP launcher libraries export the same `ik_*` C symbols, so a binary can link only one
 //! of them (see the `compile_error!` in intarsia-cli).
 
+pub mod disable;
 pub mod kernels;
 pub mod quantmoe;
 
@@ -29,6 +30,7 @@ pub const AVAILABLE: bool = cfg!(ik_hip);
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
+    disable::check_env()?;
     Ok(Arc::new(device::HipBackend::new(ordinal)?))
 }
 

@@ -632,6 +632,9 @@ pub fn run_admission(
                 continue;
             }
             n_cases += 1;
+            // Tolerance applied per output tensor by dtype (`tol_for`); the row reports the one of the
+            // first output, which is the governing output of every op with a single result.
+            let row_tol = kern.tol_for(case.call.outputs.first().map_or(DType::Bf16, |o| o.dtype));
             let mut row = AdmissionRow {
                 op: kern.op,
                 kernel: kern.name.clone(),
@@ -640,8 +643,8 @@ pub fn run_admission(
                 exactness: kern.exact,
                 max_abs: 0.0,
                 rel_l2: 0.0,
-                tol_max_abs: kern.tol.max_abs,
-                tol_rel_l2: kern.tol.rel_l2,
+                tol_max_abs: row_tol.max_abs,
+                tol_rel_l2: row_tol.rel_l2,
                 pass: false,
                 error: None,
             };
@@ -663,12 +666,13 @@ pub fn run_admission(
                         ma = ma.max(a);
                         rl = rl.max(r);
                         let int_out = g.dtype == DType::I32;
+                        let tol = kern.tol_for(g.dtype);
                         let within = if int_out {
                             finite
                         } else if kern.exact == crate::registry::Exactness::Exact {
                             a == 0.0 && r == 0.0
                         } else {
-                            a <= kern.tol.max_abs as f64 && r <= kern.tol.rel_l2 as f64
+                            a <= tol.max_abs as f64 && r <= tol.rel_l2 as f64
                         };
                         ok &= finite && within;
                     }
@@ -1024,12 +1028,13 @@ pub fn judge(kern: &crate::registry::KernelImpl, got: &[HostTensor], want: &[Hos
         let (a, r, finite) = compare(g, w);
         ma = ma.max(a);
         rl = rl.max(r);
+        let tol = kern.tol_for(g.dtype);
         let within = if g.dtype == DType::I32 {
             finite
         } else if kern.exact == crate::registry::Exactness::Exact {
             a == 0.0 && r == 0.0
         } else {
-            a <= kern.tol.max_abs as f64 && r <= kern.tol.rel_l2 as f64
+            a <= tol.max_abs as f64 && r <= tol.rel_l2 as f64
         };
         ok &= finite && within;
     }

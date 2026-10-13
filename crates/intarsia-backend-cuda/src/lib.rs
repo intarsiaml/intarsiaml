@@ -10,6 +10,7 @@
 //! Without a CUDA toolkit at build time (the Mac, CI) the crate compiles to a stub and `create`
 //! returns `Error::Unsupported`.
 
+pub mod disable;
 pub mod kernels;
 pub mod quantmoe;
 
@@ -29,6 +30,7 @@ pub const AVAILABLE: bool = cfg!(ik_cuda);
 /// Open CUDA device `ordinal`.
 #[cfg(ik_cuda)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
+    disable::check_env()?;
     Ok(Arc::new(device::CudaBackend::new(ordinal)?))
 }
 

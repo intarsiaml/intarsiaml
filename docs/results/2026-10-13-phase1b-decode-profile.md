@@ -5,12 +5,20 @@ from spark2, not spark1. spark1 was offline for the whole session (ssh timeout, 
 checked 02:36 to 02:53). No engine-level number (kernels test, accuracy, `intarsia bench`, eager vs graph
 tokens) exists yet. See "What is not done".
 
+**Correction (Phase 1b review finding 9, applied 2026-10-13 without a GPU):** every figure below was measured with the
+replica's `ik_moe_experts_bf16` (four launches per MoE block). The engine selects `moe_experts_decode_bf16` for T = 1
+(two launches, priority 10), a kernel the replica never launched, and a graph capture of it has not been exercised
+anywhere. So "graph replay reaches vLLM's level" is a statement about the replica's kernel set; the replica has to be
+rerun with `ik_moe_experts_decode_bf16` (the acceptance run measures the engine itself: `scripts/phase1b-acceptance.sh`).
+The 13.15 ms / 76 tok/s graph figure and the 0.57 ms side-stream figure are NOT engine-kernel-set numbers.
+
 Order note: the task asked for the profile before any code change. The device-position and graph code was written
 first (it is needed to build the graph variant of the replica); this document was written after it.
 
 ## Method
 
-`kernels/cuda_checks/decode_replica.cu` launches the exact kernel sequence of `Model::run_chunk` for one
+`kernels/cuda_checks/decode_replica.cu` launches the kernel sequence of `Model::run_chunk` (with `ik_moe_experts_bf16`,
+not the engine's `ik_moe_experts_decode_bf16`, see the correction above) for one
 Qwen3.6-35B-A3B token (T = 1): 40 layers (30 GatedDeltaNet, 10 gated attention), every layer followed by the MoE
 block (router, top-8 of 256, routed experts, shared expert, combine), then final norm, NVFP4 `lm_head`, argmax.
 Shapes are the real ones (hidden 2048, 16/2 heads of 256, GDN 16 key / 32 value heads of 128, conv width 8192,
@@ -76,8 +84,8 @@ counts 844 ops per step; one op can be several kernels, for example `moe_experts
   recurrence + gated norm in one kernel).
 
 Projection: graph replay alone is worth about 2.1 ms (65 to 76 tok/s in the replica); streams add about 0.6 ms.
-vLLM measures 76 to 78 tok/s on the same checkpoint, so graph replay by itself should reach vLLM's level in the
-engine. The remaining gap to 94 tok/s (10.6 ms) is mostly kernel efficiency, not launch overhead.
+vLLM measures 76 to 78 tok/s on the same checkpoint, so graph replay by itself could reach vLLM's level in the
+engine, if the engine's decode MoE kernel (not the replica's) costs the same inside a captured graph: unmeasured. The remaining gap to 94 tok/s (10.6 ms) is mostly kernel efficiency, not launch overhead.
 
 ## What changed in the code (checks per item in the table below; the CUDA Rust path has never linked or run)
 

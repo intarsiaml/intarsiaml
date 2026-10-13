@@ -1,4 +1,8 @@
-// Native replica of one Qwen3.6-35B-A3B decode step (the exact launcher sequence of Model::run_chunk for T = 1,
+// NOTE (review finding 9): the routed experts are launched with ik_moe_experts_bf16 (4 launches). The engine selects
+// ik_moe_experts_decode_bf16 for T = 1 (2 launches, priority 10), so timings from this file describe that kernel set,
+// not the engine's. Switch the call below to ik_moe_experts_decode_bf16 and rerun to measure the engine's set.
+//
+// Native replica of one Qwen3.6-35B-A3B decode step (the launcher sequence of Model::run_chunk for T = 1,
 // random weights, per-layer dense weights so L2 does not flatter the timings; the routed experts of all 40 layers
 // share one set, which only moves which 8 of 256 experts a layer reads). It exists to measure, without the Rust
 // engine, what the step costs eagerly (one launch per op, the host position) versus replayed from a CUDA graph

@@ -36,7 +36,7 @@ fn check_experts(hip: &dyn Backend, hc: &HostCall, label: &str) {
     let want = run_host(&cpu, "ref_moe_experts", hc).unwrap();
     let got = run_host(hip, "moe_experts_bf16", hc).unwrap();
     let r = rel_l2(&got[0].to_f32(), &want[0].to_f32());
-    assert!(r < 1e-2, "{label}: rel_l2 {r}");
+    assert!(r < 1e-3, "{label}: rel_l2 {r}");
     let again = run_host(hip, "moe_experts_bf16", hc).unwrap();
     assert_eq!(got[0].data, again[0].data, "{label}: not repeatable");
 }
@@ -168,7 +168,7 @@ fn moe_experts_batch_invariance() {
             assert_eq!(diff, 0, "T={t}: {diff} of {t} tokens differ from their T=1 result (strict={strict})");
         } else {
             let r = rel_l2(&all_b, &all_s);
-            assert!(r < 1e-2, "T={t}: batched vs T=1 rel_l2 {r}");
+            assert!(r < 1e-3, "T={t}: batched vs T=1 rel_l2 {r}");
             differing_tokens += diff;
         }
     }

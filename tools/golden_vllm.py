@@ -94,6 +94,12 @@ def main():
     ap.add_argument("--topk", type=int, default=20, help="vLLM prompt_logprobs (top-K per position, max 20 by default)")
     ap.add_argument("--dump-first", action="store_true", help="print the raw response of the first prompt and exit")
     ap.add_argument("--note", default="", help="free text stored in the metadata (e.g. the server's launch flags)")
+    ap.add_argument("--cache-salt", default=None, metavar="SALT",
+                    help="send vLLM's per-request `cache_salt` (SALT-<prompt index>-<n tokens>) so the golden request cannot read prefix-cache "
+                         "blocks of an earlier request (Phase 1b review finding 10b: the prompt+continuation is re-sent to a server with "
+                         "prefix caching on, and whether prompt_logprobs requests bypass the fp8 KV blocks is unverified for 0.26). "
+                         "NOT TESTED against a live server; the value is recorded in the metadata, and a server that does not know the field "
+                         "answers 4xx (then drop the flag and record that the cache was not controlled)")
     args = ap.parse_args()
     base = args.base_url.rstrip("/")
     root = base[:-3] if base.endswith("/v1") else base  # /tokenize lives at the server root
@@ -135,6 +141,8 @@ def main():
         n = len(ids)
         body = {"model": args.model, "prompt": ids + [ids[-1]], "max_tokens": 1, "temperature": 0,
                 "prompt_logprobs": args.topk}
+        if args.cache_salt:
+            body["cache_salt"] = f"{args.cache_salt}-{len(meta_prompts)}-{n}"
         resp = post(base, "/completions", body)
         if args.dump_first:
             print(json.dumps(resp)[:3000])
@@ -189,7 +197,9 @@ def main():
         "template": "chatml",
         "add_special_tokens": "true",
         "sampling": json.dumps({"prompt_logprobs": args.topk, "temperature": 0,
-                                "continuation": "greedy, ignore_eos, from the same server"}),
+                                "continuation": "greedy, ignore_eos, from the same server",
+                                "cache_salt": args.cache_salt or "not used (prefix cache not controlled: unverified whether "
+                                "prompt_logprobs requests read cached fp8 KV blocks)"}),
         "prompt_files": json.dumps([pathlib.Path(x).name for x in args.prompts]),
         "skipped": json.dumps(skipped),
         "topk": str(args.topk),

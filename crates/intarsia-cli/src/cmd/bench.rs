@@ -64,6 +64,10 @@ pub struct SpeedArgs {
     /// Per-request timeout in seconds.
     #[arg(long, default_value_t = 900)]
     pub timeout_s: u64,
+    /// Exit non-zero (after saving and printing the results) unless the server exports the graph metrics and
+    /// every measured size replayed at least one CUDA graph; for A/B runs that must not silently decode eagerly.
+    #[arg(long)]
+    pub require_graphs: bool,
     /// Directory for the JSON result.
     #[arg(long, default_value = "results")]
     pub out_dir: PathBuf,
@@ -141,6 +145,19 @@ fn speed(a: SpeedArgs) -> Result<()> {
         print!("{}", render_table(&res));
     }
     let rows = res["rows"].as_array().cloned().unwrap_or_default();
+    if a.require_graphs {
+        if res["graph"]["available"] != true {
+            bail!("--require-graphs: the server does not export intarsia_graph_replays_total on /metrics");
+        }
+        let eager: Vec<String> = rows
+            .iter()
+            .filter(|x| x["graph"]["available"] == true && x["graph"]["replays"].as_u64() == Some(0))
+            .map(|x| x["target_prompt_tokens"].to_string())
+            .collect();
+        if !eager.is_empty() {
+            bail!("--require-graphs: no graph replays during the measured reps at size(s) {} (decode ran eagerly)", eager.join(", "));
+        }
+    }
     if !rows.is_empty() && rows.iter().all(|x| x["skipped"].is_string()) {
         bail!("every size was skipped: none fits the server's context window (see the warnings above); lower --sizes or raise the server's --max-seq");
     }

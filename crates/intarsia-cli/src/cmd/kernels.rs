@@ -70,13 +70,14 @@ fn list(a: ListArgs) -> Result<()> {
     println!("{:<14} {:<26} {:<13} {:<5} {}", "op", "kernel", "exactness", "ref", "tolerance");
     for k in b.kernels() {
         println!(
-            "{:<14} {:<26} {:<13} {:<5} max_abs={:.1e} rel_l2={:.1e}",
+            "{:<14} {:<26} {:<13} {:<5} max_abs={:.1e} rel_l2={:.1e}{}",
             k.op.as_str(),
             k.name,
             k.exact.as_str(),
             if k.is_reference { "yes" } else { "" },
             k.tol.max_abs,
-            k.tol.rel_l2
+            k.tol.rel_l2,
+            k.tol_f32.map_or(String::new(), |t| format!("  f32 out: max_abs={:.1e} rel_l2={:.1e}", t.max_abs, t.rel_l2))
         );
     }
     Ok(())

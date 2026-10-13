@@ -180,10 +180,12 @@ pub fn run(args: GenerateArgs) -> Result<()> {
     top.sort_by(|a, b| b.1.time_ms.partial_cmp(&a.1.time_ms).unwrap());
     let line: Vec<String> = top.iter().take(5).map(|(k, v)| format!("{k}={:.0}ms/{}", v.time_ms, v.calls)).collect();
     eprintln!(
-        "steps={} graph replays={} (captures {}) top ops: {}",
+        "steps={} graph replays={} (captures {}) eager decode steps={} (profiled {}) top ops: {}",
         t.steps_total,
         t.graph_replays,
         t.graph_captures,
+        t.decode_eager_steps,
+        t.decode_profiled_steps,
         line.join(" ")
     );
     Ok(())
