@@ -11,11 +11,15 @@ use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
+    ("matmul_fp8_gemv_v2", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
+    ("matmul_nvfp4_gemv_v2", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
     ("moe_topk_bf16", Op::MoeTopk),
+    ("moe_topk_bf16_v2", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
+    ("moe_experts_bf16_v2", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
 ];
 
@@ -44,6 +48,14 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(10),
+                "matmul_fp8_gemv_v2" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(20),
                 "matmul_fp8_mma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
@@ -59,6 +71,14 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(10),
+                "matmul_nvfp4_gemv_v2" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=8).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(20),
                 "matmul_nvfp4_mma" => k
                     .acts(bf)
                     .weights([DType::U8])
@@ -71,7 +91,13 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
                     .exact(Exactness::Deterministic)
                     .tol(TOL),
-                "moe_experts_bf16" => k
+                "moe_topk_bf16_v2" => k
+                    .acts(bf)
+                    .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "moe_experts_bf16" | "moe_experts_bf16_v2" => k
                     .acts(bf)
                     .weights([DType::U8])
                     .when(|s| {
@@ -79,7 +105,8 @@ pub fn all() -> Vec<KernelImpl> {
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
-                    .scratch(moe_experts_scratch),
+                    .scratch(moe_experts_scratch)
+                    .priority(if *name == "moe_experts_bf16_v2" { 10 } else { 0 }),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
                 other => unreachable!("quantmoe kernel {other} has no registration"),
             }

@@ -66,6 +66,10 @@ extern "C" {
     pub fn ik_rt_event_record(ev: S, stream: S) -> c_int;
     pub fn ik_rt_event_elapsed_ms(ms: *mut f32, a: S, b: S) -> c_int;
     pub fn ik_rt_event_destroy(ev: S) -> c_int;
+    pub fn ik_rt_graph_begin(stream: S) -> c_int;
+    pub fn ik_rt_graph_end(stream: S, exec: *mut S) -> c_int;
+    pub fn ik_rt_graph_launch(exec: S, stream: S) -> c_int;
+    pub fn ik_rt_graph_destroy(exec: S) -> c_int;
     pub fn ik_rt_can_access_peer(device: c_int, peer: c_int, ok: *mut c_int) -> c_int;
     pub fn ik_rt_enable_peer_access(device: c_int, peer: c_int) -> c_int;
     pub fn ik_rt_malloc_finegrained(p: *mut *mut c_void, bytes: usize) -> c_int;
@@ -125,12 +129,29 @@ extern "C" {
         s: S,
     ) -> c_int;
     pub fn ik_matmul_fp8_gemv(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_fp8_gemv_v2(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_gemv(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_nvfp4_gemv_v2(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_mma(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
+    pub fn ik_moe_topk_bf16_v2(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_moe_experts_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: SC,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_moe_experts_bf16_v2(
         x: T,
         ids: T,
         weights: T,

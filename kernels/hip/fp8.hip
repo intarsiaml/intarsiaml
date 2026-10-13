@@ -35,7 +35,15 @@ IK_DEVI uint32_t e4m3x2_to_f16x2(uint32_t w, uint32_t sel) {
     return (((t >> 1) & 0x3F803F80u) | (t & 0x80008000u));
 }
 
-template <int M, int R, typename OutT>
+// Q selects how the block stages the activations (everything after the prologue is shared):
+//   0  the original: one bf16 per thread-iteration, software e4m3 conversion
+//   1  v2: eight bf16 per thread (one 16-byte load, one 16-byte shared store), same software conversion (bit-identical)
+//   2  v2: eight per thread, the gfx12 fp8 conversion instruction (v_cvt_pk_fp8_f32) after an explicit clamp to +-448 and
+//      the division by the input scale as before; the staged values are e4m3 * 2^-8 (the same trick as the weights), so the
+//      output scale is 2^16 instead of 2^8 (all powers of two: bit-identical to Q = 0, 1)
+//   3  as 2, with the division by the input scale as multiply-by-reciprocal plus one fma correction
+//   9  (timing probe, wrong results) no conversion
+template <int M, int R, typename OutT, int Q>
 __global__ void __launch_bounds__(kWarps * IK_WARP)
 fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
                 OutT* __restrict__ out, int N, int K) {
@@ -61,13 +69,56 @@ fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, co
     const bool actq = sc[1] > 0.f;
     const float s_in = actq ? sc[1] : 1.f;
     const float s_out = sc[0] * s_in;
-    for (int i = threadIdx.x; i < M * K; i += blockDim.x) {
-        const ik_bf16 v = x[i];
-        if (actq) {
-            const _Float16 q = (_Float16)ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(ik_b2f(v), s_in)));
-            xs[i].bits = __builtin_bit_cast(uint16_t, q);
-        } else {
-            xs[i] = v;
+    if constexpr (Q == 0) {
+        for (int i = threadIdx.x; i < M * K; i += blockDim.x) {
+            const ik_bf16 v = x[i];
+            if (actq) {
+                const _Float16 q = (_Float16)ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(ik_b2f(v), s_in)));
+                xs[i].bits = __builtin_bit_cast(uint16_t, q);
+            } else {
+                xs[i] = v;
+            }
+        }
+    } else {
+        const float r_in = Q == 3 ? 1.f / s_in : 0.f;
+        for (int i8 = threadIdx.x; i8 < M * K / 8; i8 += blockDim.x) {
+            const uint4 v = reinterpret_cast<const uint4*>(x)[i8];
+            uint4 o;
+            if (!actq || Q == 9) {
+                o = v;
+            } else {
+                float f[8];
+                ik_unpack8(v, f);
+                if constexpr (Q == 1) {
+                    uint32_t ow[4];
+#pragma unroll
+                    for (int e = 0; e < 4; ++e) {
+                        const _Float16 a = (_Float16)ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[2 * e], s_in)));
+                        const _Float16 b = (_Float16)ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[2 * e + 1], s_in)));
+                        ow[e] = (uint32_t)__builtin_bit_cast(uint16_t, a) | ((uint32_t)__builtin_bit_cast(uint16_t, b) << 16);
+                    }
+                    o = make_uint4(ow[0], ow[1], ow[2], ow[3]);
+                } else {
+#if __has_builtin(__builtin_amdgcn_cvt_pk_fp8_f32)
+                    float y[8];
+#pragma unroll
+                    for (int e = 0; e < 8; ++e) {
+                        float q = Q == 3 ? f[e] * r_in : __fdiv_rn(f[e], s_in);
+                        if (Q == 3) q = fmaf(fmaf(-q, s_in, f[e]), r_in, q);
+                        y[e] = fminf(fmaxf(q, -448.f), 448.f);
+                    }
+                    int c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[0], y[1], 0, false);
+                    c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[2], y[3], c0, true);
+                    int c1 = __builtin_amdgcn_cvt_pk_fp8_f32(y[4], y[5], 0, false);
+                    c1 = __builtin_amdgcn_cvt_pk_fp8_f32(y[6], y[7], c1, true);
+                    o = make_uint4(e4m3x2_to_f16x2((uint32_t)c0, 0x010C000Cu), e4m3x2_to_f16x2((uint32_t)c0, 0x030C020Cu),
+                                   e4m3x2_to_f16x2((uint32_t)c1, 0x010C000Cu), e4m3x2_to_f16x2((uint32_t)c1, 0x030C020Cu));
+#else
+                    o = make_uint4(0, 0, 0, 0);  // no fp8 conversion instruction in this compiler: Q = 2, 3 are unavailable
+#endif
+                }
+            }
+            reinterpret_cast<uint4*>(xs)[i8] = o;
         }
     }
     __syncthreads();
@@ -120,7 +171,7 @@ fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, co
 #pragma unroll
             for (int m = 0; m < M; ++m) {
                 const float s = ik_warp_sum(acc[r][m]);
-                if (lane == 0 && n0 + r < N) ik_store(out + (int64_t)m * N + n0 + r, s * 256.f * s_out);
+                if (lane == 0 && n0 + r < N) ik_store(out + (int64_t)m * N + n0 + r, s * ((Q == 2 || Q == 3) ? 65536.f : 256.f) * s_out);
             }
         return;
     }
@@ -161,38 +212,63 @@ fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, co
 }
 
 // rows per warp: INTARSIA_HIP_FP8_ROWS=1|2|4 forces one, otherwise 1 for small N (keeps enough blocks in flight)
-int gemv_rows(int64_t N) {
+// (v2: two rows per warp at every N; measured DRAM-cold on the 35B's projection shapes it is the best or tied for N = 512 to
+// 8192, and 1.4 to 6.7 us faster than one row per warp on N = 2048 and 4096, which v1's default of one row serves)
+int gemv_rows(int64_t N, bool v2) {
     static const int forced = [] {
         const char* e = getenv("INTARSIA_HIP_FP8_ROWS");
         return e ? atoi(e) : 0;
     }();
     if (forced == 1 || forced == 2 || forced == 4) return forced;
-    return N >= 6144 ? 2 : 1;
+    return (v2 || N >= 6144) ? 2 : 1;
 }
 
-template <int M, int R, typename OutT>
+template <int M, int R, typename OutT, int Q>
 void gemv_run_r(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
     const unsigned grid = (unsigned)((N + kWarps * R - 1) / (kWarps * R));
     const size_t smem = (size_t)M * K * 2;
-    fp8_gemv_kernel<M, R, OutT><<<grid, kWarps * IK_WARP, smem, s>>>(x, w, sc, out, (int)N, (int)K);
+    fp8_gemv_kernel<M, R, OutT, Q><<<grid, kWarps * IK_WARP, smem, s>>>(x, w, sc, out, (int)N, (int)K);
+}
+
+template <int M, typename OutT, int Q>
+void gemv_run_q(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+    switch (gemv_rows(N, Q != 0)) {
+        case 1: gemv_run_r<M, 1, OutT, Q>(x, w, sc, out, N, K, s); break;
+        case 4: gemv_run_r<M, 4, OutT, Q>(x, w, sc, out, N, K, s); break;
+        default: gemv_run_r<M, 2, OutT, Q>(x, w, sc, out, N, K, s); break;
+    }
+}
+
+// activation staging variant of the v2 kernel: INTARSIA_HIP_FP8_Q = 1, 2, 3 (see fp8_gemv_kernel), default 2
+int staging_q() {
+    static const int q = [] {
+        const char* e = getenv("INTARSIA_HIP_FP8_Q");
+        const int v = e ? atoi(e) : 2;
+        return (v == 1 || v == 3 || v == 9) ? v : 2;
+    }();
+    return q;
 }
 
 template <int M, typename OutT>
-void gemv_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
-    switch (gemv_rows(N)) {
-        case 1: gemv_run_r<M, 1>(x, w, sc, out, N, K, s); break;
-        case 4: gemv_run_r<M, 4>(x, w, sc, out, N, K, s); break;
-        default: gemv_run_r<M, 2>(x, w, sc, out, N, K, s); break;
+void gemv_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s, bool v2) {
+    if (!v2) return gemv_run_q<M, OutT, 0>(x, w, sc, out, N, K, s);
+    switch (staging_q()) {
+        case 2: return gemv_run_q<M, OutT, 2>(x, w, sc, out, N, K, s);
+        case 3: return gemv_run_q<M, OutT, 3>(x, w, sc, out, N, K, s);
+        case 9: return gemv_run_q<M, OutT, 9>(x, w, sc, out, N, K, s);
+        case 1: return gemv_run_q<M, OutT, 1>(x, w, sc, out, N, K, s);
+        default: return gemv_run_q<M, OutT, 2>(x, w, sc, out, N, K, s);
     }
 }
 
 template <typename OutT>
-int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s,
+              bool v2) {
     switch (M) {
-        case 1: gemv_run<1>(x, w, sc, out, N, K, s); break;
-        case 2: gemv_run<2>(x, w, sc, out, N, K, s); break;
-        case 3: gemv_run<3>(x, w, sc, out, N, K, s); break;
-        case 4: gemv_run<4>(x, w, sc, out, N, K, s); break;
+        case 1: gemv_run<1>(x, w, sc, out, N, K, s, v2); break;
+        case 2: gemv_run<2>(x, w, sc, out, N, K, s, v2); break;
+        case 3: gemv_run<3>(x, w, sc, out, N, K, s, v2); break;
+        case 4: gemv_run<4>(x, w, sc, out, N, K, s, v2); break;
         default: return IK_ERR_SHAPE;
     }
     return ik_launch_status();
@@ -248,7 +324,9 @@ int check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const
     return IK_OK;
 }
 
-int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream, bool gemv) {
+// variant: 0 = tensor-core GEMM, 1 = GEMV, 2 = GEMV v2 (vectorised activation staging)
+int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream, int variant) {
+    const bool gemv = variant != 0;
     IK_TRY(check(x, w, scales, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
     if (M == 0 || N == 0) return IK_OK;
@@ -264,8 +342,8 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
         if (M > 4 || M * K * 2 > 49152) return IK_ERR_SHAPE;
-        return f32o ? gemv_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s)
-                    : gemv_by_m((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s);
+        return f32o ? gemv_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s, variant == 2)
+                    : gemv_by_m((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s, variant == 2);
     }
     DqArgs a;
     a.x = xp;
@@ -286,10 +364,13 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
 extern "C" {
 
 int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
-    return launch(x, w, scales, out, stream, true);
+    return launch(x, w, scales, out, stream, 1);
+}
+int ik_matmul_fp8_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
+    return launch(x, w, scales, out, stream, 2);
 }
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
-    return launch(x, w, scales, out, stream, false);
+    return launch(x, w, scales, out, stream, 0);
 }
 
 }  // extern "C"
