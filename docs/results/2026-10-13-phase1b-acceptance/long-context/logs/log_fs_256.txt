@@ -1,0 +1,39 @@
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: self_flash_256.safetensors (11 prompts, 41317 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 256; longest prompt 4631; prompts spanning more than one chunk: 11/11
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: the self-golden does not record the code that produced it (written by a build without INTARSIA_BUILD_STAMP, or by an older tool): record it again from the pre-change build (--allow-unstamped)
+self-golden written by: UNSTAMPED (built without INTARSIA_BUILD_STAMP) (top-64, modes prefill)
+differences from the self-golden's run (kernels per op, flags): kernel disable list: baseline '', this run 'INTARSIA_CUDA_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash'; attn_decode: attn_decode_bf16_splitkv -> attn_decode_bf16; attn_prefill: attn_prefill_bf16_flash+attn_prefill_bf16_splitkv -> attn_prefill_bf16
+self-golden budgets: mean KL(21-way) <= 1.0e9, max position KL <= 1.0e9, top-1 flips <= 100% (>= 1 position), mean |tail diff| <= 1.0e9, prompt KL <= x5
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+chat_reuse_4k@4631  4631  4631    90.91   1.499e-1   1.679e-1    1.874e1   0.0459   0.0537    90.40    7/4631      0
+chat_reuse_4k@4608  4608  4608    90.86   1.507e-1   1.687e-1    1.874e1   0.0461   0.0539    90.38    7/4608      0
+chat_reuse_4k@4624  4624  4624    90.87   1.502e-1   1.681e-1    1.874e1   0.0459   0.0537    90.38    7/4624      0
+chat_reuse_4k@4096  4096  4096    90.92   1.393e-1   1.537e-1    1.874e1   0.0497   0.0561    90.40    7/4096      0
+chat_reuse_4k@2048  2048  2048    91.85   9.276e-2   9.927e-2    1.848e1   0.0710   0.0729    91.46    7/2048      0
+chat_reuse_4k@1024  1024  1024    92.38   1.046e-1   1.132e-1    1.848e1   0.0621   0.0655    91.37    7/1024      0
+long_docs_4k@4064   4064  4064    95.94   1.146e-2   1.078e-2    4.046e0   0.0578   0.0584    92.50   32/4064      0
+long_docs_4k@4055   4055  4055    95.93   1.147e-2   1.078e-2    4.046e0   0.0580   0.0585    92.50   32/4055      0
+long_docs_4k@4048   4048  4048    95.95   1.146e-2   1.078e-2    4.046e0   0.0579   0.0585    92.51   32/4048      0
+long_code_4k@4064   4064  4064    97.79   5.653e-3   5.312e-3   6.417e-1   0.0213   0.0214    93.38   18/4064      0
+long_code_4k@4055   4055  4055    97.78   5.657e-3   5.316e-3   6.417e-1   0.0213   0.0214    93.38   18/4055      0
+OVERALL                  41317    93.82   7.590e-2   8.362e-2    1.874e1   0.0466   0.0503    91.68      0.4%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 8.3625e-2  (limit 1.0000e9)  ok
+  max position KL(21-way)                          1.9927e1  (limit 1.0000e9)  ok
+  top-1 flips                                      2.5550e3  (limit 4.1317e4)  ok
+  mean |tail diff|                                7.7901e-3  (limit 1.0000e9)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_reuse_4k@4608]    1.6869e-1  (limit 5.0000e9)  ok
+SELF-STATS mode=prefill positions=41317 mean_kl21=8.362492e-2 max_kl21=1.992658e1 flips=2555 flip_pct=6.1839 tail_abs=7.790063e-3 worst_prompt_kl21=1.686912e-1
+prefill self-golden => PASS
+greedy-match [prefill]: mean 0.4% of positions before the first argmax divergence, worst prompt 0.2% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS

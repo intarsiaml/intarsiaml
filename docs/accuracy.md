@@ -176,6 +176,11 @@ distributions are flat, so the decode-mode figure is the meaningful one.
 **Any NaN or infinity anywhere in one of our logits rows fails that position** (KL counts as infinity, top-1 as
 a miss) and the gate fails whatever the other numbers say. A NaN in the golden is an error, not a pass.
 
+`INTARSIA_ACC_POS_DUMP=<file>` (development aid, any mode) appends one tab-separated line per compared position
+(`mode prompt pos token top1_agrees kl21 tail_ref tail_ours`), to see where along a prompt a difference sits (chunk
+boundaries, special tokens, document regions). Run it once with `--golden` and once with `--self-golden` to locate the
+positions where two kernels or two chunk sizes disagree.
+
 ### Gates
 
 Default thresholds follow the weaker of the weight dtype and the KV dtype (`--gate-class bf16|fp8|4bit`
@@ -387,6 +392,25 @@ mode = last 16 positions of each prompt, 160 positions), activations bf16:
 | Qwen3-8B, cuda (spark1) | HF bf16 (cuda) | prefill | 99.44% | 7.75e-4 | 5.3e-2 | FAIL (top-1: 8 of 1434 positions short of 99.5%) |
 | Qwen3-8B, cuda (spark1) | HF bf16 (cuda) | decode | 100.00% | 8.69e-4 | 1.8e-2 | PASS |
 
+Qwen3-8B against fp32 goldens, measured 2026-10-13 on spark1 (same prompts, same CUDA bf16 build; HF fp32 goldens
+`qwen3-8b-fp32.safetensors` = 8 short prompts, `qwen3-8b-long-fp32.safetensors` = those plus `long_prose_300/700`; HF bf16
+against HF fp32 is mean full-vocabulary KL 5.6e-4 short, 6.3e-4 long, so the bf16 golden carries about as much noise as
+the engine):
+
+| model | golden | mode | top-1 | mean KL | max KL | gate (bf16 class) |
+|---|---|---|---|---|---|---|
+| Qwen3-8B, cuda (spark1) | HF fp32, 8 short prompts | prefill | 100.00% | 2.90e-4 | 1.5e-2 | PASS |
+| Qwen3-8B, cuda (spark1) | HF fp32, 8 short prompts | decode | 100.00% | 3.24e-4 | 6.8e-3 | PASS |
+| Qwen3-8B, cuda (spark1) | HF bf16, 8 short prompts | prefill | 100.00% | 6.38e-4 | 2.0e-2 | PASS |
+| Qwen3-8B, cuda (spark1) | HF bf16, 8 short prompts | decode | 100.00% | 1.12e-3 | 1.5e-2 | FAIL (mean KL 1.0e-3) |
+| Qwen3-8B, cuda (spark1) | HF fp32, 10 prompts | prefill | 99.65% | 4.00e-4 | 2.1e-2 | PASS |
+| Qwen3-8B, cuda (spark1) | HF fp32, 10 prompts | decode | 100.00% | 3.33e-4 | 6.8e-3 | PASS |
+| Qwen3-8B, cuda (spark1) | HF bf16, 10 prompts | prefill | 99.58% | 8.57e-4 | 1.1e-1 | PASS |
+| Qwen3-8B, cuda (spark1) | HF bf16, 10 prompts | decode | 100.00% | 9.81e-4 | 1.5e-2 | PASS |
+
+Against fp32 the engine's KL (2.9e-4 short, 4.0e-4 long, prefill) is below the HF bf16 golden's own distance to fp32
+(5.6e-4, 6.3e-4), and the bf16 golden's decode row is the only FAIL: that failure is mostly the reference's noise. Raw logs: `docs/results/2026-10-13-phase1b-acceptance/long-context/logs/log_8b_*.txt`.
+
 The earlier "99.08% / 1.25e-3" figures counted fp16 ties as agreement and used 8 short prompts; the numbers
 above are not comparable with them. Results are identical for `--prefill-chunk` 64, 256 and 1024 (chunking is
 not the cause). The Qwen3-8B rows are the CUDA backend (admitted kernels: cuBLAS prefill GEMM, GEMV decode) against an HF bf16 golden produced on the same box; the prefill gate misses the 99.5% top-1 default by 0.06 percentage points while mean KL passes, and the defaults were not loosened. Judge new backends mainly by how they compare
@@ -394,7 +418,9 @@ with `cpu` on the same golden file.
 
 ## Where the goldens live
 
-* Mac `golden/` (git-ignored `*.safetensors`): `qwen3-reranker-0.6b-long.safetensors` (HF bf16),
+* Mac `golden/` (git-ignored `*.safetensors`) and `tatooine:/data/models/intarsia/golden/`: `qwen3-8b-fp32.safetensors`
+  and `qwen3-8b-long-fp32.safetensors` (HF fp32, Qwen3-8B, built 2026-10-13 on spark1 with `golden.py --dtype float32`;
+  the bf16 `qwen3-8b.safetensors` / `qwen3-8b-long.safetensors` stay on spark1 and tatooine), `qwen3-reranker-0.6b-long.safetensors` (HF bf16),
   `...-long-fp32.safetensors` (HF fp32), the older 8-prompt `qwen3-reranker-0.6b*.safetensors`, and the two vLLM
   top-20 goldens of the 35B (small): `qwen36-35b-a3b-nvfp4-vllm-top20.safetensors` (10 short prompts, rebuilt
   2026-10-13 with provenance metadata) and `qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors` (4k and 12k prompts +

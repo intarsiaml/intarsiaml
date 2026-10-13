@@ -1,0 +1,122 @@
+== flash chunk 256 vs vLLM
+10:37:43
+chat_reuse_4k@4624  4624  4624    88.47   2.119e-1   2.421e-1    2.887e1   0.0689   0.0834    88.08    7/4624      0
+chat_reuse_4k@4096  4096  4096    88.40   1.929e-1   2.182e-1    2.887e1   0.0743   0.0870    88.20    7/4096      0
+chat_reuse_4k@2048  2048  2048    89.89   8.810e-2   9.389e-2    1.912e1   0.1025   0.1089    89.97    7/2048      0
+chat_reuse_4k@1024  1024  1024    90.23   9.793e-2   1.025e-1    1.912e1   0.0935   0.0974    90.61    7/1024      0
+long_docs_4k@4064   4064  4064    93.50   1.921e-2   1.688e-2    1.727e0   0.0944   0.0968    90.72    0/4064      0
+long_docs_4k@4055   4055  4055    93.54   1.921e-2   1.688e-2    1.727e0   0.0946   0.0970    90.72    0/4055      0
+long_docs_4k@4048   4048  4048    93.55   1.917e-2   1.685e-2    1.727e0   0.0946   0.0970    90.73    0/4048      0
+long_code_4k@4064   4064  4064    96.92   8.005e-3   7.271e-3   6.489e-1   0.0370   0.0381    91.85   18/4064      0
+long_code_4k@4055   4055  4055    96.92   7.981e-3   7.246e-3   6.489e-1   0.0370   0.0382    91.85   18/4055      0
+OVERALL                  41317    91.73   1.043e-1   1.165e-1    2.887e1   0.0730   0.0805    89.77      0.2%      0
+prefill floor [4bit]: top-1 91.73% (not gated for this class) ok | 21-way KL 1.165e-1 (need <= 3.0e-2) FAIL | tail mass ours 0.0805 vs ref 0.0730, excess +0.0075 (|.| <= 0.02) ok | non-finite rows 0 o
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden self_flash_256.safetensors (top-64 rows of modes prefill for 11 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+== simt chunk 256 vs vLLM
+10:40:14
+chat_reuse_4k@4631  4631  4631    88.49   2.165e-1   2.549e-1    2.648e1   0.0688   0.0842    87.80   64/4631      0
+chat_reuse_4k@4608  4608  4608    88.43   2.175e-1   2.561e-1    2.648e1   0.0692   0.0846    87.77   64/4608      0
+chat_reuse_4k@4624  4624  4624    88.45   2.168e-1   2.553e-1    2.648e1   0.0689   0.0843    87.78   64/4624      0
+chat_reuse_4k@4096  4096  4096    88.67   1.965e-1   2.299e-1    2.648e1   0.0743   0.0876    87.99   64/4096      0
+chat_reuse_4k@2048  2048  2048    90.19   9.113e-2   1.001e-1    1.344e1   0.1025   0.1064    89.73   64/2048      0
+chat_reuse_4k@1024  1024  1024    90.04   1.166e-1   1.359e-1    1.344e1   0.0935   0.0991    89.79   64/1024      0
+long_docs_4k@4064   4064  4064    93.82   2.017e-2   1.806e-2    1.805e0   0.0944   0.0967    90.69    0/4064      0
+long_docs_4k@4055   4055  4055    93.86   2.014e-2   1.803e-2    1.805e0   0.0946   0.0968    90.68    0/4055      0
+long_docs_4k@4048   4048  4048    93.85   2.011e-2   1.800e-2    1.805e0   0.0946   0.0968    90.68    0/4048      0
+long_code_4k@4064   4064  4064    96.80   8.504e-3   7.643e-3   7.944e-1   0.0370   0.0380    91.52   20/4064      0
+long_code_4k@4055   4055  4055    96.79   8.489e-3   7.627e-3   7.944e-1   0.0370   0.0380    91.51   20/4055      0
+OVERALL                  41317    91.83   1.073e-1   1.236e-1    2.648e1   0.0730   0.0807    89.54      1.0%      0
+prefill floor [4bit]: top-1 91.83% (not gated for this class) ok | 21-way KL 1.236e-1 (need <= 3.0e-2) FAIL | tail mass ours 0.0807 vs ref 0.0730, excess +0.0077 (|.| <= 0.02) ok | non-finite rows 0 o
+greedy-match [prefill]: mean 1.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+== simt chunk 256 vs flash self-golden
+10:42:28
+long_docs_4k@4055   4055  4055    95.93   1.147e-2   1.078e-2    4.046e0   0.0580   0.0585    92.50   32/4055      0
+long_docs_4k@4048   4048  4048    95.95   1.146e-2   1.078e-2    4.046e0   0.0579   0.0585    92.51   32/4048      0
+long_code_4k@4064   4064  4064    97.79   5.653e-3   5.312e-3   6.417e-1   0.0213   0.0214    93.38   18/4064      0
+long_code_4k@4055   4055  4055    97.78   5.657e-3   5.316e-3   6.417e-1   0.0213   0.0214    93.38   18/4055      0
+OVERALL                  41317    93.82   7.590e-2   8.362e-2    1.874e1   0.0466   0.0503    91.68      0.4%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 8.3625e-2  (limit 1.0000e9)  ok
+  max position KL(21-way)                          1.9927e1  (limit 1.0000e9)  ok
+  top-1 flips                                      2.5550e3  (limit 4.1317e4)  ok
+  mean |tail diff|                                7.7901e-3  (limit 1.0000e9)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_reuse_4k@4608]    1.6869e-1  (limit 5.0000e9)  ok
+SELF-STATS mode=prefill positions=41317 mean_kl21=8.362492e-2 max_kl21=1.992658e1 flips=2555 flip_pct=6.1839 tail_abs=7.790063e-3 worst_prompt_kl21=1.686912e-1
+prefill self-golden => PASS
+greedy-match [prefill]: mean 0.4% of positions before the first argmax divergence, worst prompt 0.2% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
+10:44:41
+== flash chunk 64 vs vLLM
+10:44:41
+chat_reuse_4k@4624  4624  4624    87.50   2.230e-1   2.573e-1    2.293e1   0.0689   0.0856    87.58    7/4624      0
+chat_reuse_4k@4096  4096  4096    87.67   1.986e-1   2.242e-1    2.124e1   0.0743   0.0890    87.80    7/4096      0
+chat_reuse_4k@2048  2048  2048    89.65   9.312e-2   9.767e-2    1.733e1   0.1025   0.1088    89.91    7/2048      0
+chat_reuse_4k@1024  1024  1024    88.77   1.062e-1   1.166e-1    1.298e1   0.0935   0.1004    90.43    7/1024      0
+long_docs_4k@4064   4064  4064    93.65   1.986e-2   1.777e-2    1.738e0   0.0944   0.0971    90.87    0/4064      0
+long_docs_4k@4055   4055  4055    93.66   1.982e-2   1.773e-2    1.738e0   0.0946   0.0973    90.88    0/4055      0
+long_docs_4k@4048   4048  4048    93.70   1.982e-2   1.773e-2    1.738e0   0.0946   0.0972    90.87    0/4048      0
+long_code_4k@4064   4064  4064    96.97   8.179e-3   7.354e-3   9.275e-1   0.0370   0.0380    91.54   18/4064      0
+long_code_4k@4055   4055  4055    96.97   8.184e-3   7.356e-3   9.275e-1   0.0370   0.0380    91.54   18/4055      0
+OVERALL                  41317    91.33   1.093e-1   1.230e-1    2.293e1   0.0730   0.0815    89.54      0.2%      0
+prefill floor [4bit]: top-1 91.33% (not gated for this class) ok | 21-way KL 1.230e-1 (need <= 3.0e-2) FAIL | tail mass ours 0.0815 vs ref 0.0730, excess +0.0085 (|.| <= 0.02) ok | non-finite rows 0 o
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden self_flash_64.safetensors (top-64 rows of modes prefill for 11 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+== flash chunk 1024 vs vLLM
+10:47:36
+chat_reuse_4k@4624  4624  4624    88.24   2.143e-1   2.533e-1    1.795e1   0.0689   0.0857    87.56    7/4624      0
+chat_reuse_4k@4096  4096  4096    88.53   1.915e-1   2.236e-1    1.795e1   0.0743   0.0888    87.78    7/4096      0
+chat_reuse_4k@2048  2048  2048    90.48   7.524e-2   8.091e-2    1.276e1   0.1025   0.1091    89.86    7/2048      0
+chat_reuse_4k@1024  1024  1024    90.72   8.420e-2   9.392e-2    1.276e1   0.0935   0.1001    90.35    7/1024      0
+long_docs_4k@4064   4064  4064    93.65   1.899e-2   1.700e-2    1.699e0   0.0944   0.0965    90.81    0/4064      0
+long_docs_4k@4055   4055  4055    93.69   1.896e-2   1.696e-2    1.699e0   0.0946   0.0966    90.81    0/4055      0
+long_docs_4k@4048   4048  4048    93.70   1.893e-2   1.694e-2    1.699e0   0.0946   0.0966    90.81    0/4048      0
+long_code_4k@4064   4064  4064    97.27   7.903e-3   7.212e-3   3.412e-1   0.0370   0.0378    91.57   20/4064      0
+long_code_4k@4055   4055  4055    97.26   7.877e-3   7.186e-3   3.412e-1   0.0370   0.0378    91.58   20/4055      0
+OVERALL                  41317    91.81   1.039e-1   1.199e-1    1.795e1   0.0730   0.0813    89.51      0.2%      0
+prefill floor [4bit]: top-1 91.81% (not gated for this class) ok | 21-way KL 1.199e-1 (need <= 3.0e-2) FAIL | tail mass ours 0.0813 vs ref 0.0730, excess +0.0083 (|.| <= 0.02) ok | non-finite rows 0 o
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden self_flash_1024.safetensors (top-64 rows of modes prefill for 11 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+== flash chunk 8192 vs vLLM
+10:49:59
+chat_reuse_4k@4624  4624  4624    88.00   2.391e-1   2.718e-1    2.378e1   0.0689   0.0858    87.45    7/4624      0
+chat_reuse_4k@4096  4096  4096    88.11   2.175e-1   2.454e-1    2.038e1   0.0743   0.0894    87.58    7/4096      0
+chat_reuse_4k@2048  2048  2048    90.62   7.634e-2   8.176e-2    1.694e1   0.1025   0.1079    90.01    7/2048      0
+chat_reuse_4k@1024  1024  1024    90.72   8.420e-2   9.392e-2    1.276e1   0.0935   0.1001    90.35    7/1024      0
+long_docs_4k@4064   4064  4064    93.80   2.054e-2   1.823e-2    1.870e0   0.0944   0.0969    90.63    0/4064      0
+long_docs_4k@4055   4055  4055    93.81   2.052e-2   1.820e-2    1.870e0   0.0946   0.0970    90.63    0/4055      0
+long_docs_4k@4048   4048  4048    93.80   2.050e-2   1.818e-2    1.870e0   0.0946   0.0970    90.63    0/4048      0
+long_code_4k@4064   4064  4064    97.44   8.399e-3   7.607e-3   6.583e-1   0.0370   0.0383    91.35   20/4064      0
+long_code_4k@4055   4055  4055    97.44   8.390e-3   7.596e-3   6.583e-1   0.0370   0.0383    91.34   20/4055      0
+OVERALL                  41317    91.77   1.154e-1   1.288e-1    2.378e1   0.0730   0.0816    89.37      0.2%      0
+prefill floor [4bit]: top-1 91.77% (not gated for this class) ok | 21-way KL 1.288e-1 (need <= 3.0e-2) FAIL | tail mass ours 0.0816 vs ref 0.0730, excess +0.0086 (|.| <= 0.02) ok | non-finite rows 0 o
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden self_flash_8192.safetensors (top-64 rows of modes prefill for 11 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+10:52:19

@@ -1,0 +1,7 @@
+[10:56:07] lease 1542; docker stop missioncntrl-guidance
+[10:56:10] memory freed: 111 GB
+[10:57:44] remote script exit 0; vLLM was down 94 s so far
+[10:57:47] docker start missioncntrl-guidance
+[11:01:04] vLLM answers
+[11:01:04] release 1542
+[11:01:04] done

@@ -924,6 +924,10 @@ fn run_mode(
     let mut total = Agg::default();
     let mut matches = Vec::new();
     let mut per_prompt = Vec::new();
+    // development aid: `INTARSIA_ACC_POS_DUMP=<file>` appends one TSV line per position (mode, prompt, pos, token id,
+    // top-1 agrees, 21-way KL, tail masses) so a divergence can be located against chunk / tile boundaries
+    let mut pos_dump = std::env::var_os("INTARSIA_ACC_POS_DUMP")
+        .and_then(|f| std::fs::OpenOptions::new().create(true).append(true).open(f).ok());
     for (pi, (name, p)) in prompts.iter().enumerate() {
         let n = p.ids.len();
         let mut stats: Vec<PosStat> = Vec::new();
@@ -936,6 +940,21 @@ fn run_mode(
             }
             let s = compare_pos(p.row(pos), row)
                 .map_err(|e| intarsia_core::Error::model(format!("{name} position {pos}: {e}")))?;
+            if let Some(f) = pos_dump.as_mut() {
+                use std::io::Write as _;
+                let _ = writeln!(
+                    f,
+                    "{}\t{}\t{}\t{}\t{}\t{:.6e}\t{:.6e}\t{:.6e}",
+                    mode.name(),
+                    name,
+                    pos,
+                    p.ids[pos],
+                    s.top1 as u8,
+                    s.kl21,
+                    s.tail_ref,
+                    s.tail_ours
+                );
+            }
             stats.push(s);
             Ok(())
         };
