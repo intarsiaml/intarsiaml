@@ -50,6 +50,42 @@ impl CpuBackend {
     }
 }
 
+/// Memory a new allocation can use. Linux: sysinfo's `MemAvailable`, unchanged. macOS: sysinfo reports only the free
+/// page list, which the OS keeps tiny on purpose (file cache and compressible memory fill the rest), so use
+/// free + inactive + purgeable + speculative from `host_statistics64`, never below sysinfo's figure.
+fn available_memory(sys: &sysinfo::System) -> u64 {
+    let base = sys.available_memory();
+    #[cfg(target_os = "macos")]
+    {
+        return base.max(macos_reclaimable_bytes().unwrap_or(0));
+    }
+    #[cfg(not(target_os = "macos"))]
+    base
+}
+
+#[cfg(target_os = "macos")]
+fn macos_reclaimable_bytes() -> Option<u64> {
+    // SAFETY: host_statistics64 fills a vm_statistics64 of `count` natural_t words; zeroed is a valid initial value.
+    unsafe {
+        let mut vm: libc::vm_statistics64 = std::mem::zeroed();
+        let mut count = (std::mem::size_of::<libc::vm_statistics64>() / std::mem::size_of::<libc::integer_t>())
+            as libc::mach_msg_type_number_t;
+        #[allow(deprecated)]
+        let host = libc::mach_host_self();
+        let rc = libc::host_statistics64(
+            host,
+            libc::HOST_VM_INFO64,
+            &mut vm as *mut _ as libc::host_info64_t,
+            &mut count,
+        );
+        if rc != 0 {
+            return None;
+        }
+        let pages = vm.free_count as u64 + vm.inactive_count as u64 + vm.purgeable_count as u64 + vm.speculative_count as u64;
+        Some(pages * libc::vm_page_size as u64)
+    }
+}
+
 fn tol_for(op: Op) -> Tol {
     match op {
         // pure data movement / integer results: must match bit for bit
@@ -72,13 +108,14 @@ impl Backend for CpuBackend {
             backend: "cpu".into(),
             arch: "any".into(),
             total_mem: sys.total_memory(),
-            // INTARSIA_CPU_FREE_MEM_GB overrides the measured value: on macOS 27 sysinfo's available_memory() reports
-            // under 2 GB on a 128 GB machine with 70 GB unused, which leaves no KV budget for a 35B model.
+            // INTARSIA_CPU_FREE_MEM_GB overrides the measured value. On macOS sysinfo's available_memory() reports
+            // only the tiny truly-free page list (under 2 GB on a 128 GB machine), so `available_memory` adds the
+            // reclaimable pages there.
             free_mem: std::env::var("INTARSIA_CPU_FREE_MEM_GB")
                 .ok()
                 .and_then(|v| v.parse::<f64>().ok())
                 .map(|gb| (gb * (1u64 << 30) as f64) as u64)
-                .unwrap_or_else(|| sys.available_memory()),
+                .unwrap_or_else(|| available_memory(&sys)),
             unified: true,
             bandwidth_gbs: None,
         }
@@ -175,5 +212,22 @@ impl Backend for CpuBackend {
 
     fn synchronize(&self, _s: StreamId) -> Result<()> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod freemem_tests {
+    use super::*;
+
+    #[test]
+    fn available_memory_is_positive_and_not_below_sysinfo() {
+        let mut sys = sysinfo::System::new();
+        sys.refresh_memory();
+        let old = sys.available_memory();
+        let new = available_memory(&sys);
+        eprintln!("sysinfo available_memory = {} MiB, planner figure = {} MiB", old >> 20, new >> 20);
+        assert!(new > 0);
+        assert!(new >= old);
+        assert!(new <= sys.total_memory());
     }
 }
