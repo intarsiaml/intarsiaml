@@ -208,6 +208,9 @@ pub struct Model {
     tp: TpRank,
     /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
     no_comm: bool,
+    /// `INTARSIA_TP_TEST_BUG=scale:F[@RANK]` (test only, accuracy-gate sensitivity): before every all-reduce, rank `RANK`
+    /// (default 1) multiplies its partial by `F`. The gate must fail on it (docs/accuracy.md, "TP self-golden budget").
+    test_bug: Option<(usize, f32)>,
     /// Ranks 1.. of the group, each a full shard with its own backend, weights, workspace and KV (rank 0 only).
     peers: Vec<Model>,
 }
@@ -224,6 +227,22 @@ impl TpRank {
     pub fn single() -> TpRank {
         TpRank { rank: 0, world: 1, comm: None }
     }
+}
+
+/// `INTARSIA_TP_TEST_BUG=scale:F[@RANK]` -> (rank, factor). Unset or empty: no bug.
+fn parse_tp_test_bug(v: Option<&str>) -> Result<Option<(usize, f32)>> {
+    let Some(v) = v.map(str::trim).filter(|v| !v.is_empty()) else { return Ok(None) };
+    let bad = || Error::invalid(format!("INTARSIA_TP_TEST_BUG={v} (expected scale:FACTOR[@RANK])"));
+    let spec = v.strip_prefix("scale:").ok_or_else(bad)?;
+    let (f, r) = match spec.split_once('@') {
+        Some((f, r)) => (f, r.parse::<usize>().map_err(|_| bad())?),
+        None => (spec, 1),
+    };
+    let f: f32 = f.parse().map_err(|_| bad())?;
+    if !f.is_finite() {
+        return Err(bad());
+    }
+    Ok(Some((r, f)))
 }
 
 fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
@@ -611,6 +630,7 @@ impl Model {
             capture_ops: Mutex::new(None),
             tp,
             no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
+            test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
             peers: Vec::new(),
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
@@ -1394,6 +1414,11 @@ impl Model {
         if self.no_comm {
             return Ok(()); // INTARSIA_TP_NO_COMM: timing experiment, the activations are garbage
         }
+        if let Some((rank, f)) = self.test_bug {
+            if rank == self.tp.rank {
+                self.scale_partial(partial, f)?;
+            }
+        }
         if profile {
             self.backend.synchronize(0)?;
         }
@@ -1408,6 +1433,32 @@ impl Model {
             self.telemetry.record_comm(None);
         }
         Ok(())
+    }
+
+    /// `INTARSIA_TP_TEST_BUG`: multiply a partial by `f` through the host (slow; a deliberate bug for gate sensitivity runs).
+    fn scale_partial(&self, partial: &TensorRef, f: f32) -> Result<()> {
+        self.backend.synchronize(0)?;
+        let mut bytes = vec![0u8; partial.nbytes()];
+        self.backend.download(&partial.buf, partial.offset, &mut bytes, 0)?;
+        match partial.dtype {
+            DType::F32 => {
+                for c in bytes.chunks_exact_mut(4) {
+                    let v = f32::from_le_bytes([c[0], c[1], c[2], c[3]]) * f;
+                    c.copy_from_slice(&v.to_le_bytes());
+                }
+            }
+            DType::Bf16 => {
+                for c in bytes.chunks_exact_mut(2) {
+                    let v = f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16) * f;
+                    let b = v.to_bits();
+                    let r = (b.wrapping_add(0x7fff + ((b >> 16) & 1)) >> 16) as u16; // round to nearest even
+                    c.copy_from_slice(&r.to_le_bytes());
+                }
+            }
+            d => return Err(Error::invalid(format!("INTARSIA_TP_TEST_BUG: partial dtype {d:?} not supported"))),
+        }
+        self.backend.upload(&partial.buf, partial.offset, &bytes, 0)?;
+        self.backend.synchronize(0)
     }
 
     /// Logits for rows `[r0, r0+c)` of the normed hidden states, row-major f32 `[c, vocab]`.
