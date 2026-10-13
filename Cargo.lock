@@ -938,6 +938,7 @@ version = "0.0.1"
 dependencies = [
  "half",
  "intarsia-core",
+ "libc",
  "rayon",
  "serde_json",
  "sysinfo",

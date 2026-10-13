@@ -6,12 +6,17 @@ The engine is under active development. It runs Qwen3 dense models and the hybri
 (Qwen3.6-35B-A3B NVFP4) on a CPU reference backend, on CUDA (DGX Spark, GB10) and on HIP (AMD R9700), behind OpenAI
 and Anthropic compatible APIs. Status as measured on 2026-10-13 (`docs/results/`, decisions in `docs/decisions/`):
 
-- spark1, CUDA, 35B NVFP4: decode about 72 tok/s with CUDA graphs, 91-95% of vLLM (76-78); prefill is still 1.3x to
-  2.8x behind vLLM. The Phase 1 speed gate FAILED.
-- R9700, HIP, one card: Qwen3-8B BF16 decode 36.9 tok/s, 96% of the byte floor; 35B NVFP4 about 96 tok/s.
+- spark1, CUDA, 35B NVFP4: decode about 72 tok/s with CUDA graphs, 91-95% of vLLM (76-78). Prefill chunk 2048 is now the
+  recipe default on CUDA (63b0f72): 4654 tok/s at 4k tokens against vLLM's 6595, so 1.42x behind (2.75x before); 3891 vs
+  5631 at 1k, 4310 vs 6412 at 16k (`docs/results/2026-10-13-prefill-cuda.md`). The Phase 1 speed gate FAILED.
+- R9700, HIP, one card: Qwen3-8B BF16 decode 36.9 tok/s, 96% of the byte floor; 35B NVFP4 decode 135.2 tok/s at 128
+  prompt tokens, 47.4% of the byte floor (`docs/results/2026-10-14-hip-decode-2.md`).
 - R9700, HIP, tp=2: Qwen3-8B BF16 decode 56 tok/s, 1.52x one card. The 35B is not supported at tp=2 yet.
 - Accuracy: 8B passes the bf16 floor on CUDA, HIP and tp=2; the CUDA 35B gate is not accepted (ADR-0007), but its `35b-short` vLLM-golden failure was measured as noise and
   that gate is advisory (ADR-0008); kernel-level error checks stay blocking.
+- New models: `intarsia recipe new` drafts a recipe and `intarsia qualify` runs the staged checks (8B example run: quick
+  section 3 min 8 s, 6 min 34 s with the in-depth section, per `docs/adding-a-model.md`; the 35B on HIP passes the quick
+  section in 1 min 34 s, `docs/results/2026-10-13-qualify/35b-hip-quick/quick-report.md`).
 
 See `docs/ARCHITECTURE.md` for the plan and `docs/results/` for what was measured and what is still missing.
 
