@@ -1,0 +1,11 @@
+[package]
+name = "intarsiaml"
+version = "0.0.1"
+edition = "2021"
+description = "Intarsia: a modular, pluggable inference engine (under development)."
+license = "Apache-2.0"
+repository = "https://github.com/intarsiaml/intarsiaml"
+homepage = "https://github.com/intarsiaml/intarsiaml"
+readme = "README.md"
+keywords = ["inference", "machine-learning", "llm", "modular"]
+categories = ["science"]
