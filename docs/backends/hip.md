@@ -155,7 +155,7 @@ Making the two paths agree is only possible the other way round (the review's lo
   (`moe_experts_mma_bf16`, `moe_experts_decode_bf16`) are not ported; the HIP backend keeps its own WMMA GEMM and MoE kernels, whose registered launcher set is unchanged.
 * **KV layout.** The contiguous separate K / V cache stays; radiance's paged interleaved layout is a deferred decision.
 * **Radiance ports** (MXFP4 x FP8 GEMM, GDN, one-shot all-reduce): Phase 2b onward, see `docs/research/radiance-port-plan.md`.
-* **TP=2** over the two cards (P2P 28 GB/s measured).
+* **TP=2** is done for dense attention + dense FFN models (Phase 2b, section below). Not done: GatedDeltaNet and MoE sharding (Qwen3.6-35B-A3B), FP8/NVFP4 weight sharding, an all-gather in the P2P kernel, radiance's fused all-reduce + RMSNorm.
 * **Unifying with CUDA sources.** Candidates for `ik_portable.h`: `norm`, `argmax`, `attention` (SIMT) and `attention_splitkv` differ from the CUDA files by
   2 to 10 lines (stream type, shuffles, `__ldg`); `elementwise` by 34 (fp8 conversion, bf16 type). The blockers are the `IK_WARP` value (32 on
   gfx12 vs the header's 64), the shuffle mask width, the bf16 type, `ik_launch_status` / `IK_STREAM`, and the launch syntax in the runtime wrappers.
@@ -172,3 +172,15 @@ Making the two paths agree is only possible the other way round (the review's lo
 kernel (start to stop of that launch, event overhead of about a microsecond included) and, separately, the stream's idle time between launches (batch wall time minus summed
 kernel time: host dispatch and bubbles). Earlier traces charged the time between consecutive events to the later kernel, which mixed the two; numbers from those
 runs are "inter-launch wall time", not kernel time (see the fix pass in `docs/results/2026-10-13-phase2a-hip.md`). Use with `--profile-every 0`.
+
+## Tensor parallelism: the P2P all-reduce (Phase 2b)
+
+`--tp 2` on `generate`, `serve`, `accuracy`, `plan show` (and `bench speed --tp 2` for the record) opens HIP devices `0,1` (`--devices` overrides) with `intarsia_backend_hip::create_group`; design in [ADR-0006](../decisions/0006-tensor-parallelism.md), numbers in [the Phase 2b results](../results/2026-10-13-phase2b-tp.md). `--comm host` stages through host memory instead (slow, any backend).
+
+`kernels/hip/allreduce.hip` (`ik_ar2_oneshot`, Rust side `crates/intarsia-backend-hip/src/comm.rs`) is a two-rank one-shot push all-reduce after radiance's `r4d_ar_oneshot_2rank_exact` (Apache-2.0, `kernels/hip/NOTICE-radiance`, `LICENSES/Apache-2.0-radiance.txt`). Rewritten for this ABI, not copied; it keeps the design, not the tuning:
+
+* Each rank has a fine-grained (`hipExtMallocWithFlags(hipDeviceMallocFinegrained)`) scratch (2 slots x 4 MiB) and 16 flags, mapped into the peer (`hipDeviceEnablePeerAccess`), plus 16 launch counters in ordinary memory. A collective is one kernel launch per rank on the rank's own stream, from the rank's own thread: push the local partial into the peer's scratch, `s_wait_storecnt` (drain 3, default; `INTARSIA_HIP_AR_DRAIN=1` uses a system fence instead), raise the peer's per-block flag, spin on the own flag, add own partial and the pushed one in f32, round once.
+* Scratch is double buffered on the launch counter's parity. 16 blocks, fixed, so both ranks' counters stay equal. Messages over 4 MiB split into several launches.
+* The kernel reads a partial in f32 (default: the row-parallel matmuls write f32 through the `logits` op) and writes bf16 into the activation buffer, or reduces bf16 in place (`INTARSIA_TP_PARTIAL=bf16`).
+* A rank that never arrives makes the other trap after ~60 s of polling instead of hanging the card.
+* Not ported: the fused RMSNorm epilogue, the N-rank and two-shot variants, the tiered-int8 wire format.

@@ -95,7 +95,7 @@ serve_bench() { # serve_bench <tp> <gb-per-token> [extra serve args]
     --host 0.0.0.0 --port $port --served-model-name $name --max-seq 8192 >/dev/null
   local up=0
   for i in $(seq 1 120); do
-    if curl -s -m 2 http://127.0.0.1:$port/health 2>/dev/null | grep -q ok; then up=1; break; fi
+    if curl -sf -m 2 http://127.0.0.1:$port/health >/dev/null 2>&1; then up=1; break; fi
     sleep 3
   done
   if [ "$up" != 1 ]; then echo "serve did not come up"; docker logs intarsia-serve 2>&1 | tail -30; docker rm -f intarsia-serve >/dev/null; return 1; fi
