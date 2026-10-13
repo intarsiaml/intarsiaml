@@ -309,11 +309,12 @@ fn bench_real_shapes() {
 /// The grouped kernel must be about as close to the exact result as the warp-per-row kernel it replaces. The two
 /// round differently inside (the old one sums fp32 products in order, this one runs bf16 mma), but the old kernel's
 /// outputs differ from the exact (cpu reference) bf16 outputs in roughly 0.1 % of the elements. Accumulating the
-/// whole K = 2048 dot product inside the tensor core's accumulator loses low bits at every step (the mma aligns and
-/// truncates against the running sum), which put 0.6 to 1 % of the elements one bf16 step off: 3x worse, and on the
-/// 35B that moved prompts' KL against the vLLM golden (docs/results/2026-10-13-phase1b.md, section 8). The kernel now
-/// adds each k16 mma result into the fp32 accumulator itself. Real layer shape (H=2048, I=512); the bound is relative
-/// to the old kernel's own error on the same inputs, so it does not depend on the random data's scale.
+/// whole K = 2048 dot product inside the tensor core's accumulator put 0.6 to 1 % of the elements one bf16 step off
+/// (5 to 10x as many; the mechanism, low bits lost at every accumulate step, is inferred from the effect of the fix).
+/// The kernel now adds each k16 mma result into the fp32 accumulator itself. This is a kernel-precision test only: on
+/// the 35B the end-to-end per-prompt metrics against the vLLM golden did not follow it (docs/results/
+/// 2026-10-13-phase1b.md, section 8). Real layer shape (H=2048, I=512); the bound is relative to the old kernel's own
+/// error on the same inputs, so it does not depend on the random data's scale.
 /// Runs only in the spark1 acceptance run (needs a GPU).
 #[test]
 fn moe_experts_mma_is_as_accurate_as_old_kernel() {

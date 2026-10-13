@@ -271,10 +271,10 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
 #pragma unroll
                 for (int j = 0; j < 4; ++j) {
                     // Each k16 product sum is formed from zero and then added to the running sum with a normal fp32
-                    // add. Accumulating the whole K inside the mma (acc as the C operand) aligns every step's
-                    // result to the larger running value and truncates, which left 0.6 to 1 % of the bf16 outputs one
-                    // step off the exact result (the warp-per-row kernel: about 0.1 %); see tests/quantmoe.rs
-                    // `moe_experts_mma_is_as_accurate_as_old_kernel`.
+                    // add. Accumulating the whole K inside the mma (acc as the C operand) left 0.6 to 1 % of the bf16
+                    // outputs one step off the exact result (the warp-per-row kernel: about 0.1 %); the tensor core's
+                    // accumulate step dropping low bits is the likely cause, inferred from the effect of this change.
+                    // See tests/quantmoe.rs `moe_experts_mma_is_as_accurate_as_old_kernel`.
                     float t[4] = {0.f, 0.f, 0.f, 0.f};
                     ik_mma_bf16_16816(t, a0, a1, a2, a3, b[j][0], b[j][1]);
 #pragma unroll
