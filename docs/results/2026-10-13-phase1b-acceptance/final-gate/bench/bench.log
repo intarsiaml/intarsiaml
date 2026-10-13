@@ -1,0 +1,18 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 8192 tokens
+calibration: 50 base tokens, 21.88 tokens per filler sentence
+  size    128 rep: prompt=129 gen=128 ttft=0.10s prefill=1285 tok/s decode=72.7 tok/s
+  size    128 rep: prompt=131 gen=128 ttft=0.10s prefill=1277 tok/s decode=72.7 tok/s
+  size    128 rep: prompt=127 gen=128 ttft=0.10s prefill=1246 tok/s decode=72.6 tok/s
+  size   1024 rep: prompt=998 gen=128 ttft=0.43s prefill=2315 tok/s decode=72.3 tok/s
+  size   1024 rep: prompt=995 gen=128 ttft=0.43s prefill=2310 tok/s decode=72.2 tok/s
+  size   1024 rep: prompt=1024 gen=128 ttft=0.44s prefill=2352 tok/s decode=72.2 tok/s
+  size   4096 rep: prompt=4099 gen=128 ttft=1.71s prefill=2399 tok/s decode=69.9 tok/s
+  size   4096 rep: prompt=4083 gen=128 ttft=1.69s prefill=2418 tok/s decode=69.8 tok/s
+  size   4096 rep: prompt=4062 gen=128 ttft=1.69s prefill=2407 tok/s decode=69.9 tok/s
+wrote /home/nvidia/intarsia-acc/ab/ours-new-quick-r1/p1b-ours-new-quick-r1.json
+p1b-ours-new-quick-r1  model=intarsia-35b  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+     128      129     0.102         1276        72.7      128
+    1024      998     0.431         2315        72.2      128
+    4096     4083     1.688         2407        69.9      128

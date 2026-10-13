@@ -1,0 +1,17 @@
+O-long|old||long|decode|record|
+N4-long.self|new|matmul_fp8_gemm,matmul_nvfp4_gemm,moe_experts_mma_bf16,moe_experts_decode_bf16|long|decode|self:O-long|
+N2-long.self|new|moe_experts_mma_bf16|long|decode|self:O-long|
+N1-long.self|new|matmul_fp8_gemm,matmul_nvfp4_gemm|long|decode|self:O-long|
+N0-long.self|new||long|decode|self:O-long|
+O-long.simt|old|attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash|long|decode|base:O-long|
+N0-long.simt|new|attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash|long|decode|base:O-long|
+O-short|old||short|both|record|
+F-long.self|fix||long|decode|self:O-long|
+F-short.self|fix||short|both|self:O-short|
+F-long.base|fix||long|decode|base:O-long|
+F-short.base|fix||short|both|base:O-short|
+N0-long.rec|new||long|decode|record|
+FvN0-long|fix||long|decode|self:N0-long.rec|
+N0-short.rec|new||short|both|record|
+FvN0-short|fix||short|both|self:N0-short.rec|
+KB|kb||short|both|plain|

@@ -1,0 +1,42 @@
+[09:35:35] lease 1526
+[09:35:37] memory 111 GB available; running jobs
+[09:35:38] O-long: old dis=[] long decode record 
+[09:37:05] O-long exit 0
+[09:37:05] N4-long.self: new dis=[matmul_fp8_gemm,matmul_nvfp4_gemm,moe_experts_mma_bf16,moe_experts_decode_bf16] long decode self:O-long 
+[09:38:35] N4-long.self exit 0
+[09:38:35] N2-long.self: new dis=[moe_experts_mma_bf16] long decode self:O-long 
+[09:39:57] N2-long.self exit 0
+[09:39:57] N1-long.self: new dis=[matmul_fp8_gemm,matmul_nvfp4_gemm] long decode self:O-long 
+[09:41:06] N1-long.self exit 0
+[09:41:06] N0-long.self: new dis=[] long decode self:O-long 
+[09:42:12] N0-long.self exit 0
+[09:42:12] O-long.simt: old dis=[attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash] long decode base:O-long 
+[09:44:25] O-long.simt exit 0
+[09:44:25] N0-long.simt: new dis=[attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash] long decode base:O-long 
+[09:46:11] N0-long.simt exit 0
+[09:46:11] O-short: old dis=[] short both record 
+[09:47:05] O-short exit 0
+[09:47:05] F-long.self: fix dis=[] long decode self:O-long 
+[09:48:05] F-long.self exit 0
+[09:48:05] F-short.self: fix dis=[] short both self:O-short 
+[09:48:57] F-short.self exit 0
+[09:48:57] F-long.base: fix dis=[] long decode base:O-long 
+[09:50:04] F-long.base exit 0
+[09:50:04] F-short.base: fix dis=[] short both base:O-short 
+[09:50:55] F-short.base exit 0
+[09:50:55] N0-long.rec: new dis=[] long decode record 
+[09:52:00] N0-long.rec exit 0
+[09:52:00] FvN0-long: fix dis=[] long decode self:N0-long.rec 
+[09:53:00] FvN0-long exit 0
+[09:53:00] N0-short.rec: new dis=[] short both record 
+[09:53:51] N0-short.rec exit 0
+[09:53:51] FvN0-short: fix dis=[] short both self:N0-short.rec 
+[09:54:41] FvN0-short exit 0
+[09:54:41] KB: kb dis=[] short both plain 
+[09:55:23] KB exit 0
+[09:55:23] jobs finished after 19 min
+[09:55:23] cleanup: kill our processes on spark1
+[09:55:28] docker start missioncntrl-guidance
+[09:59:10] vLLM answers /v1/models
+[09:59:10] release 1526
+[09:59:10] done

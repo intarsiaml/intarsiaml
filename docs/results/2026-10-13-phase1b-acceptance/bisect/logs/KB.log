@@ -1,0 +1,124 @@
+=== orig round 1
+196 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+196 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    Finished `release` profile [optimized] target(s) in 4.26s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+running 1 test
+case                                       us    weight MB       GB/s
+lm_head M=1 (248320x2048)              1195.3       286.06        239
+shared gate/up M=1 (512x2048)             4.1         0.59        143
+shared down M=1 (2048x512)                4.1         0.59        143
+shared gate M=4                           6.2         0.59         95
+lm_head prefill M=256 mma             11100.9       286.06         26
+fp8 qkv M=1 (8192x2048)                  18.7        16.78        898
+fp8 o_proj M=1 (2048x4096)               14.7         8.39        569
+fp8 qkv M=256 mma                       333.0        16.78         50
+moe_experts T=1 (8 of 256)   moe_experts_bf16             55.4 us    14.16 MB    255 GB/s    0.9 TFLOPS
+moe_experts T=4              moe_experts_bf16            238.1 us    56.62 MB    238 GB/s    0.8 TFLOPS
+moe_experts T=16             moe_experts_bf16            837.5 us   226.49 MB    270 GB/s    1.0 TFLOPS
+moe_experts T=16             moe_experts_mma_bf16        935.3 us   226.49 MB    242 GB/s    0.9 TFLOPS
+moe_experts T=64             moe_experts_bf16           2192.9 us   452.98 MB    207 GB/s    1.5 TFLOPS
+moe_experts T=64             moe_experts_mma_bf16       2009.0 us   452.98 MB    225 GB/s    1.6 TFLOPS
+moe_experts T=128            moe_experts_bf16           3167.2 us   452.98 MB    143 GB/s    2.0 TFLOPS
+moe_experts T=128            moe_experts_mma_bf16       2249.1 us   452.98 MB    201 GB/s    2.9 TFLOPS
+moe_experts T=256            moe_experts_bf16           5596.3 us   452.98 MB     81 GB/s    2.3 TFLOPS
+moe_experts T=256            moe_experts_mma_bf16       2402.9 us   452.98 MB    189 GB/s    5.4 TFLOPS
+moe_experts T=1024           moe_experts_bf16          21042.6 us   452.98 MB     22 GB/s    2.4 TFLOPS
+moe_experts T=1024           moe_experts_mma_bf16       2971.6 us   452.98 MB    152 GB/s   17.3 TFLOPS
+moe_experts T=4096           moe_experts_bf16          91953.2 us   452.98 MB      5 GB/s    2.2 TFLOPS
+moe_experts T=4096           moe_experts_mma_bf16       6685.8 us   452.98 MB     68 GB/s   30.8 TFLOPS
+test bench_real_shapes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.17s
+=== fixed round 1
+196 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+196 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    Finished `release` profile [optimized] target(s) in 4.16s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+running 1 test
+case                                       us    weight MB       GB/s
+lm_head M=1 (248320x2048)              1180.2       286.06        242
+shared gate/up M=1 (512x2048)             4.2         0.59        141
+shared down M=1 (2048x512)                4.1         0.59        143
+shared gate M=4                           6.2         0.59         95
+lm_head prefill M=256 mma             11208.8       286.06         26
+fp8 qkv M=1 (8192x2048)                  18.7        16.78        896
+fp8 o_proj M=1 (2048x4096)               12.0         8.39        698
+fp8 qkv M=256 mma                       291.8        16.78         57
+moe_experts T=1 (8 of 256)   moe_experts_bf16             55.5 us    14.16 MB    255 GB/s    0.9 TFLOPS
+moe_experts T=4              moe_experts_bf16            238.7 us    56.62 MB    237 GB/s    0.8 TFLOPS
+moe_experts T=16             moe_experts_bf16            854.9 us   226.49 MB    265 GB/s    0.9 TFLOPS
+moe_experts T=16             moe_experts_mma_bf16        956.9 us   226.49 MB    237 GB/s    0.8 TFLOPS
+moe_experts T=64             moe_experts_bf16           2210.0 us   452.98 MB    205 GB/s    1.5 TFLOPS
+moe_experts T=64             moe_experts_mma_bf16       2019.8 us   452.98 MB    224 GB/s    1.6 TFLOPS
+moe_experts T=128            moe_experts_bf16           3189.8 us   452.98 MB    142 GB/s    2.0 TFLOPS
+moe_experts T=128            moe_experts_mma_bf16       2351.7 us   452.98 MB    193 GB/s    2.7 TFLOPS
+moe_experts T=256            moe_experts_bf16           5605.2 us   452.98 MB     81 GB/s    2.3 TFLOPS
+moe_experts T=256            moe_experts_mma_bf16       2437.3 us   452.98 MB    186 GB/s    5.3 TFLOPS
+moe_experts T=1024           moe_experts_bf16          21081.6 us   452.98 MB     21 GB/s    2.4 TFLOPS
+moe_experts T=1024           moe_experts_mma_bf16       3090.3 us   452.98 MB    147 GB/s   16.7 TFLOPS
+moe_experts T=4096           moe_experts_bf16          91807.3 us   452.98 MB      5 GB/s    2.2 TFLOPS
+moe_experts T=4096           moe_experts_mma_bf16       6918.6 us   452.98 MB     65 GB/s   29.8 TFLOPS
+test bench_real_shapes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.16s
+=== orig round 2
+196 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+196 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    Finished `release` profile [optimized] target(s) in 4.06s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+running 1 test
+case                                       us    weight MB       GB/s
+lm_head M=1 (248320x2048)              1196.0       286.06        239
+shared gate/up M=1 (512x2048)             4.2         0.59        142
+shared down M=1 (2048x512)                4.1         0.59        143
+shared gate M=4                           6.2         0.59         95
+lm_head prefill M=256 mma             11140.7       286.06         26
+fp8 qkv M=1 (8192x2048)                  18.7        16.78        899
+fp8 o_proj M=1 (2048x4096)               14.8         8.39        565
+fp8 qkv M=256 mma                       285.2        16.78         59
+moe_experts T=1 (8 of 256)   moe_experts_bf16             55.3 us    14.16 MB    256 GB/s    0.9 TFLOPS
+moe_experts T=4              moe_experts_bf16            237.9 us    56.62 MB    238 GB/s    0.8 TFLOPS
+moe_experts T=16             moe_experts_bf16            838.9 us   226.49 MB    270 GB/s    1.0 TFLOPS
+moe_experts T=16             moe_experts_mma_bf16        900.1 us   226.49 MB    252 GB/s    0.9 TFLOPS
+moe_experts T=64             moe_experts_bf16           2206.9 us   452.98 MB    205 GB/s    1.5 TFLOPS
+moe_experts T=64             moe_experts_mma_bf16       2032.0 us   452.98 MB    223 GB/s    1.6 TFLOPS
+moe_experts T=128            moe_experts_bf16           3223.9 us   452.98 MB    141 GB/s    2.0 TFLOPS
+moe_experts T=128            moe_experts_mma_bf16       2301.1 us   452.98 MB    197 GB/s    2.8 TFLOPS
+moe_experts T=256            moe_experts_bf16           5614.4 us   452.98 MB     81 GB/s    2.3 TFLOPS
+moe_experts T=256            moe_experts_mma_bf16       2488.6 us   452.98 MB    182 GB/s    5.2 TFLOPS
+moe_experts T=1024           moe_experts_bf16          21059.9 us   452.98 MB     22 GB/s    2.4 TFLOPS
+moe_experts T=1024           moe_experts_mma_bf16       3066.0 us   452.98 MB    148 GB/s   16.8 TFLOPS
+moe_experts T=4096           moe_experts_bf16          92465.2 us   452.98 MB      5 GB/s    2.2 TFLOPS
+moe_experts T=4096           moe_experts_mma_bf16       6800.6 us   452.98 MB     67 GB/s   30.3 TFLOPS
+test bench_real_shapes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.07s
+=== fixed round 2
+196 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+196 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    Finished `release` profile [optimized] target(s) in 4.12s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+running 1 test
+case                                       us    weight MB       GB/s
+lm_head M=1 (248320x2048)              1173.3       286.06        244
+shared gate/up M=1 (512x2048)             4.2         0.59        142
+shared down M=1 (2048x512)                4.2         0.59        142
+shared gate M=4                           6.2         0.59         95
+lm_head prefill M=256 mma             11032.0       286.06         26
+fp8 qkv M=1 (8192x2048)                  19.1        16.78        879
+fp8 o_proj M=1 (2048x4096)               12.1         8.39        692
+fp8 qkv M=256 mma                       296.4        16.78         57
+moe_experts T=1 (8 of 256)   moe_experts_bf16             55.4 us    14.16 MB    255 GB/s    0.9 TFLOPS
+moe_experts T=4              moe_experts_bf16            238.3 us    56.62 MB    238 GB/s    0.8 TFLOPS
+moe_experts T=16             moe_experts_bf16            831.4 us   226.49 MB    272 GB/s    1.0 TFLOPS
+moe_experts T=16             moe_experts_mma_bf16        905.0 us   226.49 MB    250 GB/s    0.9 TFLOPS
+moe_experts T=64             moe_experts_bf16           2209.1 us   452.98 MB    205 GB/s    1.5 TFLOPS
+moe_experts T=64             moe_experts_mma_bf16       1970.1 us   452.98 MB    230 GB/s    1.6 TFLOPS
+moe_experts T=128            moe_experts_bf16           3224.1 us   452.98 MB    141 GB/s    2.0 TFLOPS
+moe_experts T=128            moe_experts_mma_bf16       2264.8 us   452.98 MB    200 GB/s    2.8 TFLOPS
+moe_experts T=256            moe_experts_bf16           5645.5 us   452.98 MB     80 GB/s    2.3 TFLOPS
+moe_experts T=256            moe_experts_mma_bf16       2400.3 us   452.98 MB    189 GB/s    5.4 TFLOPS
+moe_experts T=1024           moe_experts_bf16          21251.2 us   452.98 MB     21 GB/s    2.4 TFLOPS
+moe_experts T=1024           moe_experts_mma_bf16       3133.1 us   452.98 MB    145 GB/s   16.4 TFLOPS
+moe_experts T=4096           moe_experts_bf16          92733.9 us   452.98 MB      5 GB/s    2.2 TFLOPS
+moe_experts T=4096           moe_experts_mma_bf16       7086.1 us   452.98 MB     64 GB/s   29.1 TFLOPS
+test bench_real_shapes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.20s

@@ -1,0 +1,1 @@
+export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; cd ~/intarsia-acc/new && CARGO_TARGET_DIR=target/acc CARGO_BUILD_JOBS=8 cargo test --release -p intarsia-backend-cuda --test quantmoe moe_experts_mma -- --nocapture --test-threads 1 2>&1 | grep -E "^T=|error|test |panicked|differ|rel_l2" | cut -c1-260
