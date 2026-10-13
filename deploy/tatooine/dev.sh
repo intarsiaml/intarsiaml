@@ -17,6 +17,7 @@ if [[ "${1:-}" == --target-vol ]]; then echo "$TARGET_VOL"; exit 0; fi
 if [[ "${INTARSIA_CLEAN:-0}" == 1 ]]; then docker volume rm -f "$TARGET_VOL" >/dev/null; fi
 ENVS=(-e GPU_MAX_HW_QUEUES=1 -e CARGO_TARGET_DIR=/target)
 [[ -n "${HIP_VISIBLE_DEVICES:-}" ]] && ENVS+=(-e "HIP_VISIBLE_DEVICES=$HIP_VISIBLE_DEVICES")
+ENVS+=(-e "INTARSIA_HOSTNAME=$(hostname)")   # the container's own hostname is a hash; reports want the box's name
 [[ -n "${FLEETQ_JOB:-}" ]] && ENVS+=(-e "FLEETQ_JOB=$FLEETQ_JOB")
 # engine tuning knobs (INTARSIA_HIP_* kernel knobs, INTARSIA_TP_* tensor-parallel knobs) reach the container
 for v in $(compgen -e | grep -E '^INTARSIA_(HIP|TP)_' || true); do ENVS+=(-e "$v=${!v}"); done

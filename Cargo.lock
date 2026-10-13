@@ -984,9 +984,11 @@ dependencies = [
  "intarsia-core",
  "intarsia-models",
  "intarsia-server",
+ "libc",
  "serde",
  "serde_json",
  "sysinfo",
+ "ureq",
 ]
 
 [[package]]

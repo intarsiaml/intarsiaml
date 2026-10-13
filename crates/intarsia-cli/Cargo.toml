@@ -42,3 +42,5 @@ serde_json = { workspace = true }
 intarsia-bench = { workspace = true }
 sysinfo = { workspace = true }
 half = { workspace = true }
+ureq = { workspace = true }
+libc = { workspace = true }
