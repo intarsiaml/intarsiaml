@@ -1742,6 +1742,10 @@ fn st_envelope(c: &mut Ctx) -> Result<Out> {
         "--allow-same-code".into(),
     ]);
     args.extend(c.stamp_flags());
+    // a stamped build is its own "before": the baseline is declared as coming from this build's commit
+    if let Some(head) = BUILD_STAMP.and_then(|s| s.split_whitespace().find_map(|t| t.strip_prefix("head="))) {
+        args.extend(["--pre-change".to_string(), head.to_string()]);
+    }
     let r = c.exec("baseline-selfcheck", args)?;
     let text = r.stdout();
     let verdict_line =
