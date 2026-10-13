@@ -5,7 +5,7 @@ _Drafted by fleet model `guidance` from the raw note; checked against the note b
 # Architecture Decision Record: Rust host with AOT CUDA and HIP kernels
 
 ## Status
-Pending
+Accepted (2026-10-12; Fable 5.1 review agreed with the language choice)
 
 ## Context
 Native radiance (C++/HIP host) starts in 11 s vs 160-165 s for vLLM with equal or better step time (20.25 vs 20.47 ms) (docs/research/amd-r9700-lessons.md). Cold Triton compiles take ~2.5 min on GB10, AOT avoids that. Rust has tokenizers, safetensors, minijinja, llguidance, axum, ratatui, prometheus-client, cudarc.
