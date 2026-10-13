@@ -30,8 +30,11 @@ fn quantise(dtype: DType, v: &[f64]) -> Vec<f64> {
     back.into_iter().map(|x| x as f64).collect()
 }
 
-fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64, w_offset: f64) -> Vec<f64> {
+fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64, w_offset: f64) -> Result<Vec<f64>> {
     let d = w.len();
+    if d == 0 {
+        return Err(Error::invalid("rmsnorm: zero-width weight"));
+    }
     let mut out = vec![0f64; x.len()];
     for (xr, or) in x.chunks(d).zip(out.chunks_mut(d)) {
         let mut ss = 0.0;
@@ -43,7 +46,7 @@ fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64, w_offset: f64) -> Vec<f64> {
             or[i] = xr[i] * r * (w[i] + w_offset);
         }
     }
-    out
+    Ok(out)
 }
 
 pub fn run(call: &OpCall) -> Result<()> {
@@ -72,7 +75,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::RmsNorm | Op::QkNorm => {
             let x = rd(&i[0])?;
             let w = rd(&i[1])?;
-            wr(&o[0], &rmsnorm_rows(&x, &w, a.eps as f64, a.w_offset as f64))
+            wr(&o[0], &rmsnorm_rows(&x, &w, a.eps as f64, a.w_offset as f64)?)
         }
         Op::RmsNormAdd => {
             let x = rd(&i[0])?;
@@ -80,7 +83,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             let w = rd(&i[2])?;
             let sum: Vec<f64> = x.iter().zip(&r).map(|(p, q)| p + q).collect();
             let sum = quantise(o[1].dtype, &sum);
-            wr(&o[0], &rmsnorm_rows(&sum, &w, a.eps as f64, a.w_offset as f64))?;
+            wr(&o[0], &rmsnorm_rows(&sum, &w, a.eps as f64, a.w_offset as f64)?)?;
             wr(&o[1], &sum)
         }
         Op::Add => {
@@ -116,6 +119,9 @@ pub fn run(call: &OpCall) -> Result<()> {
             let n = i[1].shape[0];
             let x = rd(&i[0])?;
             let w = rd(&i[1])?;
+            if n == 0 {
+                return Err(Error::invalid(format!("{}: zero output dim (n=0, m={m}, k={k})", call.op.as_str())));
+            }
             let mut out = vec![0f64; m * n];
             out.par_chunks_mut(n).enumerate().for_each(|(mi, row)| {
                 for (ni, o) in row.iter_mut().enumerate() {
@@ -214,5 +220,33 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod zero_dim_tests {
+    use super::*;
+    use intarsia_core::exec::{run_host, HostCall, OutSpec};
+    use intarsia_core::HostTensor;
+
+    fn run_ref(op: Op, inputs: Vec<HostTensor>, out_shape: &[usize]) -> Result<()> {
+        let b = crate::CpuBackend::arc();
+        let hc = HostCall { op, inputs, outputs: vec![OutSpec::new(DType::F32, out_shape)], attrs: Default::default() };
+        run_host(&*b, &format!("ref_{}", op.as_str()), &hc).map(|_| ())
+    }
+
+    #[test]
+    fn matmul_with_zero_output_dim_is_an_error_not_a_panic() {
+        let x = HostTensor::from_f32(&[2, 4], &[0.5; 8]);
+        let w = HostTensor::from_f32(&[0, 4], &[]);
+        let e = run_ref(Op::Matmul, vec![x, w], &[2, 0]).unwrap_err();
+        assert!(e.to_string().contains("zero output dim"), "{e}");
+    }
+
+    #[test]
+    fn rmsnorm_with_zero_width_is_an_error_not_a_panic() {
+        let x = HostTensor::from_f32(&[2, 0], &[]);
+        let w = HostTensor::from_f32(&[0], &[]);
+        assert!(run_ref(Op::RmsNorm, vec![x, w], &[2, 0]).is_err());
     }
 }

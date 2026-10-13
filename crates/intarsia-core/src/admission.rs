@@ -109,7 +109,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
         }
         Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
             let mut hs2 = hs.clone();
-            if op == Op::SiluGlu && !quick {
+            // `intermediate` is 0 for MoE-only checkpoints (no dense FFN, e.g. Qwen3.6-35B-A3B): no dense width to sweep.
+            if op == Op::SiluGlu && !quick && cfg.intermediate > 0 {
                 hs2.push(cfg.intermediate);
             }
             for &r in rows {
@@ -183,6 +184,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     (cfg.intermediate, cfg.hidden),
                     (cfg.hidden, cfg.intermediate),
                 ]);
+                // A zero dim is skipped, not swept: `intermediate` is 0 for MoE-only checkpoints (no dense FFN, e.g.
+                // Qwen3.6-35B-A3B), and an N=0 or K=0 matmul has nothing to compare.
+                nk.retain(|&(n, k)| n > 0 && k > 0);
             }
             if op == Op::Logits {
                 nk = vec![(
@@ -1039,6 +1043,43 @@ pub fn judge(kern: &crate::registry::KernelImpl, got: &[HostTensor], want: &[Hos
         ok &= finite && within;
     }
     (ok, ma, rl)
+}
+
+#[cfg(test)]
+mod sweep_dim_tests {
+    use super::*;
+
+    /// Qwen3.6-35B-A3B text_config: MoE-only, so `ModelDims::intermediate` is 0.
+    fn moe_35b() -> SweepConfig {
+        SweepConfig {
+            hidden: 2048,
+            n_heads: 16,
+            n_kv_heads: 2,
+            head_dim: 256,
+            intermediate: 0,
+            vocab: 248_320,
+            rope_theta: 1e7,
+            quick: false,
+            seed: 1,
+        }
+    }
+
+    #[test]
+    fn moe_only_config_sweeps_no_zero_dim_case() {
+        let cfg = moe_35b();
+        for op in [Op::Matmul, Op::Logits, Op::SiluGlu] {
+            let cases = sweep(op, &cfg);
+            assert!(!cases.is_empty(), "{op:?}");
+            for c in &cases {
+                for t in &c.call.inputs {
+                    assert!(t.shape.iter().all(|&d| d > 0), "{op:?} {}: zero dim in {:?}", c.label, t.shape);
+                }
+                for o in &c.call.outputs {
+                    assert!(o.shape.iter().all(|&d| d > 0), "{op:?} {}: zero dim out {:?}", c.label, o.shape);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
