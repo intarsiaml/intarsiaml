@@ -1,0 +1,27 @@
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 37.0s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 3972 tokens
+finish=stop prompt=3972 (cached 0) completion=1 | prefill 1117 ms (3556.5 tok/s) | decode 0 ms (0.00 tok/s)
+op table (estimated ms over all launches; total 1616.2 ms):
+op                               ms  share%    calls   timed
+moe_experts                  512.89   31.74      120      80
+matmul                       360.01   22.28      420     280
+matmul_fp8                   303.22   18.76      390     260
+gdn_delta_rule               249.27   15.42       90      60
+matmul_nvfp4                  36.59    2.26      361     240
+gdn_conv                      30.49    1.89       90      60
+rmsnorm_add                   28.63    1.77      240     160
+attn_prefill                  21.97    1.36       20      20
+silu_glu                      19.49    1.21      210     140
+rmsnorm                       12.06    0.75       93      62
+rope                           9.70    0.60       60      40
+moe_combine                    8.59    0.53      120      80
+gate_split                     7.95    0.49       30      20
+sigmoid_mul                    5.66    0.35       30      20
+qk_norm                        4.28    0.26       60      40
+moe_topk                       3.36    0.21      120      80
+kv_append                      1.05    0.07       60      40
+embedding                      0.94    0.06        3       2
+argmax                         0.00    0.00        1       0
+attn_decode                    0.00    0.00       10       0
+steps=3 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: moe_experts=342ms/120 matmul=240ms/420 matmul_fp8=202ms/390 gdn_delta_rule=166ms/90 matmul_nvfp4=24ms/361

@@ -267,6 +267,19 @@ fn bench_real_shapes() {
         let mb = (n * k) as f64 / 1e6;
         println!("{:<34} {:>10.1} {:>12.2} {:>10.0}", name, s * 1e6, mb, mb / 1e3 / s);
     }
+    // prefill-shaped W8A8 projections: bf16 dequantise-once gemm vs the e4m3 tensor-core gemm (TFLOPS = 2*M*N*K)
+    for (name, m, n, k) in [
+        ("fp8 qkv M=256", 256usize, 8192usize, 2048usize),
+        ("fp8 qkv M=2048", 2048, 8192, 2048),
+        ("fp8 o_proj M=2048", 2048, 2048, 4096),
+        ("fp8 qkv M=4096", 4096, 8192, 2048),
+    ] {
+        let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
+        for kern in ["matmul_fp8_gemm", "matmul_fp8_gemm_f8"] {
+            let s = bench(&*cuda, kern, &hc, 10);
+            println!("{:<22} {:<20} {:>10.1} us {:>7.1} TFLOPS", name, kern, s * 1e6, 2.0 * (m * n * k) as f64 / s / 1e12);
+        }
+    }
     // routed experts at the real layer shape: one 256-expert weight set, the first `t` rows of one routing
     let big = experts_case(&mut rng, 4096, 256, 8, 2048, 512, DType::Bf16);
     for (name, t) in [
@@ -277,6 +290,7 @@ fn bench_real_shapes() {
         ("moe_experts T=128", 128),
         ("moe_experts T=256", 256),
         ("moe_experts T=1024", 1024),
+        ("moe_experts T=2048", 2048),
         ("moe_experts T=4096", 4096),
     ] {
         let mut hc = big.clone();
@@ -352,5 +366,70 @@ fn moe_experts_mma_is_independent_of_tile_height() {
     std::env::remove_var("INTARSIA_MOE_BM");
     for (bm, o) in &outs[1..] {
         assert!(o == &outs[0].1, "BM={bm} differs from BM=16");
+    }
+}
+
+/// `matmul_fp8_gemm_f8` runs the products on e4m3 tensor cores instead of dequantising the weights to bf16, so it must be
+/// at least as close to the exact (cpu f64 reference) result as the bf16 `matmul_fp8_gemm` is, in both activation modes:
+/// W8A8 (static input scale: the e4m3 kernel) and weight-only (the launcher's bf16 fallback). The shapes cover an M tail
+/// tile (33, 100), an N that is not a multiple of the 128-row weight tile (192, 384), a tile-height-128 launch
+/// (M >= 1024) and f32 outputs. Runs only in the spark1 run (needs a GPU).
+#[test]
+fn matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm() {
+    let Some(cuda) = device() else { return };
+    let cpu = CpuBackend::new();
+    let mut rng = SplitMix64::new(73);
+    for act_quant in [true, false] {
+        for (m, n, k, out) in [
+            (5usize, 192usize, 256usize, DType::Bf16),
+            (33, 192, 256, DType::Bf16),
+            (100, 512, 2048, DType::Bf16),
+            (256, 384, 1024, DType::F32),
+            (1100, 256, 512, DType::Bf16),
+        ] {
+            let hc = matmul_fp8_case(&mut rng, m, n, k, act_quant, DType::Bf16, out);
+            let want = run_host(&cpu, "ref_matmul_fp8", &hc).unwrap()[0].to_f32();
+            let old = run_host(&*cuda, "matmul_fp8_gemm", &hc).unwrap()[0].to_f32();
+            let got = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
+            let new = got[0].to_f32();
+            let frac = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count() as f64 / want.len() as f64;
+            let (ro, rn) = (rel_l2(&old, &want), rel_l2(&new, &want));
+            let label = format!("act_quant={act_quant} M={m} N={n} K={k} {out:?}");
+            eprintln!("{label}: rel_l2 bf16 gemm {ro:.3e} f8 gemm {rn:.3e}; elements off: {:.4} / {:.4}", frac(&old), frac(&new));
+            assert!(rn < 1e-3, "{label}: rel_l2 {rn:.3e}");
+            assert!(rn <= 2.0 * ro.max(1e-7), "{label}: f8 rel_l2 {rn:.3e}, bf16 gemm {ro:.3e}");
+            assert!(
+                frac(&new) <= 3.0 * frac(&old).max(1e-3),
+                "{label}: {:.4} of the outputs off the reference, bf16 gemm {:.4}",
+                frac(&new),
+                frac(&old)
+            );
+            let again = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
+            assert_eq!(got[0].data, again[0].data, "{label}: not repeatable");
+        }
+    }
+}
+
+/// A row's result must not depend on how many rows share the call or where the row sits in its tile: `matmul_fp8_gemm_f8`
+/// serves every M >= 5, so a prompt chunked differently (tail chunks, prefix reuse) must give each token the same bits.
+/// Compares row slices of one 1100-row call (128-row tiles) with calls of 5, 17, 64 and 100 rows at other offsets (64-row
+/// tiles, tail rows, shifted tile origins), bitwise.
+#[test]
+fn matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(74);
+    let (m, n, k) = (1100usize, 384usize, 1024usize);
+    let whole = matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
+    let all = run_host(&*cuda, "matmul_fp8_gemm_f8", &whole).unwrap();
+    let (xk, on) = (k * 2, n * 2);
+    for (r0, rows) in [(0usize, 5usize), (3, 17), (130, 64), (1000, 100), (1099, 1)] {
+        if rows < 5 {
+            continue; // the registry serves M < 5 with the gemv
+        }
+        let mut hc = whole.clone();
+        hc.inputs[0] = HostTensor { shape: vec![rows, k], data: whole.inputs[0].data[r0 * xk..(r0 + rows) * xk].to_vec(), ..whole.inputs[0].clone() };
+        hc.outputs = vec![OutSpec::new(DType::Bf16, &[rows, n])];
+        let got = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
+        assert!(got[0].data == all[0].data[r0 * on..(r0 + rows) * on], "rows {r0}..{} differ when run as a {rows}-row call", r0 + rows);
     }
 }

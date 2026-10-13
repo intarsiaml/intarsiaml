@@ -5,7 +5,7 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::ARCH;
+use crate::kernels::{opt_in_priority, ARCH};
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 
@@ -13,6 +13,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_gemm", Op::MatmulFp8),
+    ("matmul_fp8_gemm_f8", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemm", Op::MatmulNvfp4),
@@ -35,6 +36,9 @@ pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// Fewest tokens for which the grouped tensor-core experts kernel is preferred over the warp-per-row one (GB10,
 /// 256 experts, top-8: 1.43 ms vs 1.53 ms at 32 tokens, 0.98 ms vs 0.88 ms at 16).
 const MMA_MIN_TOKENS: usize = 32;
+
+/// Fewest tokens for which the e4m3 tensor-core GEMM serves (the gemv serves 1..=4).
+const F8_MIN_TOKENS: usize = 5;
 
 /// Fewest tokens for which the dense dequantise-once GEMMs are preferred over `*_mma`.
 const GEMM_MIN_TOKENS: usize = 33;
@@ -75,6 +79,19 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(10),
+                // OPT-IN (INTARSIA_CUDA_FAST_PREFILL=1, see `kernels::fast_prefill`).
+                // the same on e4m3 tensor cores (no weight dequantisation); W8A16 batches fall back inside the launcher.
+                // Serves every M the gemv does not (>= 5), the shapes `*_mma` and `*_gemm` shared: one rounding for every
+                // chunk length (a tail chunk of 5..32 tokens must give the bits a full chunk gives its rows).
+                "matmul_fp8_gemm_f8" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m >= F8_MIN_TOKENS && s.k % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2)
+                    .priority(opt_in_priority(20)),
                 "matmul_nvfp4_gemm" => k
                     .acts(bf)
                     .weights([DType::U8])

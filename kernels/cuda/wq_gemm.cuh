@@ -44,7 +44,7 @@ template <int FMT, int MT, int WM, typename OutT>
 __global__ void __launch_bounds__(128 * WM)
 wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, const uint8_t* __restrict__ w,
                const uint8_t* __restrict__ bs, const float* __restrict__ gs, OutT* __restrict__ out, int M, int N, int K,
-               int vec_out, int nfast) {
+               int vec_out, int nfast, int only_wo) {
     using F = Fmt<FMT>;
     constexpr int BM = 16 * MT * WM;
     constexpr int NTHREADS = 128 * WM;
@@ -71,6 +71,7 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
     const int U = (S + SPU - 1) / SPU;
     const int64_t row_bytes = FMT == FMT_NVFP4 ? K / 2 : K;
     const bool actq = FMT == FMT_FP8 && gs[1] > 0.f;
+    if (only_wo && actq) return;  // block-uniform: this launch is the weight-only fallback of an e4m3-activation kernel
     const ik_bf16* const a_src = actq ? xq : x;
     const float s_out = FMT == FMT_FP8 ? gs[0] * (actq ? gs[1] : 1.f) : gs[0];
 
@@ -250,7 +251,7 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
 
 template <int FMT, int MT, int WM, typename OutT>
 void launch_gemm(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out,
-                 int M, int N, int K, int vec_out, cudaStream_t s) {
+                 int M, int N, int K, int vec_out, cudaStream_t s, int only_wo) {
     // activation bytes vs weight bytes: the larger operand is the one consecutive blocks should share
     const int nfast = (double)M * 2.0 > (double)N * (FMT == FMT_NVFP4 ? 0.5625 : 1.0) ? 1 : 0;
     constexpr size_t smem = (size_t)(3 * 16 * MT * WM + 2 * kWRows) * LDS * 2 + (size_t)Fmt<FMT>::kRing * kRawUnit;
@@ -263,15 +264,15 @@ void launch_gemm(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const ui
     constexpr int BM = 16 * MT * WM;
     const int64_t nblk = (int64_t)((M + BM - 1) / BM) * ((N + kWRows - 1) / kWRows);
     wq_gemm_kernel<FMT, MT, WM, OutT><<<dim3((unsigned)nblk), 128 * WM, smem, s>>>(x, xq, w, bs, gs, out, M, N, K,
-                                                                                    vec_out, nfast);
+                                                                                    vec_out, nfast, only_wo);
 }
 
 template <int FMT, typename OutT>
 void gemm_by_m(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int M,
-               int N, int K, int vec_out, cudaStream_t s) {
-    if (M <= 16) launch_gemm<FMT, 1, 1>(x, xq, w, bs, gs, out, M, N, K, vec_out, s);
-    else if (M <= 32) launch_gemm<FMT, 1, 2>(x, xq, w, bs, gs, out, M, N, K, vec_out, s);
-    else launch_gemm<FMT, 2, 2>(x, xq, w, bs, gs, out, M, N, K, vec_out, s);
+               int N, int K, int vec_out, cudaStream_t s, int only_wo = 0) {
+    if (M <= 16) launch_gemm<FMT, 1, 1>(x, xq, w, bs, gs, out, M, N, K, vec_out, s, only_wo);
+    else if (M <= 32) launch_gemm<FMT, 1, 2>(x, xq, w, bs, gs, out, M, N, K, vec_out, s, only_wo);
+    else launch_gemm<FMT, 2, 2>(x, xq, w, bs, gs, out, M, N, K, vec_out, s, only_wo);
 }
 
 }  // namespace wq

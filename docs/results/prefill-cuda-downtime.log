@@ -1,0 +1,9 @@
+2026-10-13 job=1614 stop=13:50:21 up=14:05:17 down=14.9 min label="intarsiaml perf/prefill-cuda W1: prefill profile + 35b-short baseline" serving=1
+2026-10-13 job=1619 stop=14:13:57 up=14:22:53 down=8.9 min label="intarsiaml perf/prefill-cuda W2: new kernel tests + microbench + 35b-long baseline" serving=1
+2026-10-13 job=1621 stop=14:29:39 up=14:36:28 down=6.8 min label="intarsiaml perf/prefill-cuda W3: kernel tests, mutation, microbench, nsys" serving=1
+2026-10-13 job=1623 stop=14:39:50 up=14:57:03 down=17.2 min label="intarsiaml perf/prefill-cuda W4: final-build tests, after-profile, 35B accuracy gates" serving=1
+2026-10-13 job=1625 stop=15:01:42 up=15:16:15 down=14.5 min label="intarsiaml perf/prefill-cuda W5: row-invariance build tests, mutation, 35B gates" serving=1
+2026-10-13 job=1628 stop=15:16:52 up=15:30:06 down=13.2 min label="intarsiaml perf/prefill-cuda W6: bisect of the 35B gate changes" serving=1
+2026-10-13 job=1630 stop=15:31:23 up=15:44:54 down=13.5 min label="intarsiaml perf/prefill-cuda W7: A/B round 1 ours arms, tests, c2048 gates" serving=1
+2026-10-13 job=1635 stop=15:46:34 up=15:56:57 down=10.3 min label="prefill-cuda W8: A/B round 2 ours arms" serving=1
+2026-10-13 job=1637 stop=15:58:34 up=16:08:14 down=9.6 min label="prefill-cuda W9: A/B round 3 ours arms" serving=1

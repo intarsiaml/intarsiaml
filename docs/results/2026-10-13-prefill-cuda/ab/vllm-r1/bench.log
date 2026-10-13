@@ -1,0 +1,30 @@
+target http://100.120.88.104:8000/v1/chat/completions  model guidance
+server context window: 32768 tokens
+calibration: 49 base tokens, 21.94 tokens per filler sentence
+  size    128 rep: prompt=124 gen=128 ttft=0.08s prefill=1621 tok/s decode=77.0 tok/s
+  size    128 rep: prompt=134 gen=128 ttft=0.08s prefill=1701 tok/s decode=75.9 tok/s
+  size    128 rep: prompt=131 gen=128 ttft=0.08s prefill=1621 tok/s decode=75.9 tok/s
+  size    128 rep: prompt=133 gen=128 ttft=0.08s prefill=1691 tok/s decode=76.0 tok/s
+  size    128 rep: prompt=127 gen=128 ttft=0.08s prefill=1660 tok/s decode=76.9 tok/s
+  size   1024 rep: prompt=994 gen=128 ttft=0.18s prefill=5632 tok/s decode=77.5 tok/s
+  size   1024 rep: prompt=969 gen=128 ttft=0.17s prefill=5567 tok/s decode=77.4 tok/s
+  size   1024 rep: prompt=963 gen=128 ttft=0.18s prefill=5417 tok/s decode=77.6 tok/s
+  size   1024 rep: prompt=984 gen=128 ttft=0.18s prefill=5543 tok/s decode=75.6 tok/s
+  size   1024 rep: prompt=982 gen=128 ttft=0.18s prefill=5554 tok/s decode=77.5 tok/s
+  size   4096 rep: prompt=4057 gen=128 ttft=0.61s prefill=6627 tok/s decode=76.3 tok/s
+  size   4096 rep: prompt=4049 gen=128 ttft=0.61s prefill=6595 tok/s decode=76.3 tok/s
+  size   4096 rep: prompt=4082 gen=128 ttft=0.62s prefill=6576 tok/s decode=76.3 tok/s
+  size   4096 rep: prompt=4043 gen=128 ttft=0.61s prefill=6594 tok/s decode=76.2 tok/s
+  size   4096 rep: prompt=4022 gen=128 ttft=0.61s prefill=6626 tok/s decode=76.4 tok/s
+  size  16384 rep: prompt=16649 gen=128 ttft=2.57s prefill=6470 tok/s decode=73.6 tok/s
+  size  16384 rep: prompt=16663 gen=128 ttft=2.57s prefill=6475 tok/s decode=73.7 tok/s
+  size  16384 rep: prompt=16628 gen=128 ttft=2.58s prefill=6454 tok/s decode=73.8 tok/s
+  size  16384 rep: prompt=16606 gen=128 ttft=2.64s prefill=6298 tok/s decode=73.8 tok/s
+  size  16384 rep: prompt=16570 gen=128 ttft=2.55s prefill=6491 tok/s decode=73.7 tok/s
+wrote /home/nvidia/intarsia-perf/ab/vllm-r1/prefillcuda-vllm-r1.json
+prefillcuda-vllm-r1  model=guidance  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+     128      131     0.079         1660        76.0      128
+    1024      982     0.177         5554        77.5      128
+    4096     4049     0.613         6595        76.3      128
+   16384    16628     2.573         6470        73.7      128

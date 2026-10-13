@@ -31,6 +31,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
+    ("gdn_delta_rule_bf16_lanes", Op::GdnDeltaRule),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
@@ -80,6 +81,25 @@ fn flash_ok(s: &ShapeInfo) -> bool {
 }
 
 /// Every kernel this backend registers.
+/// `INTARSIA_CUDA_FAST_PREFILL=1` selects the two prefill kernels of docs/results/2026-10-13-prefill-cuda.md
+/// (`gdn_delta_rule_bf16_lanes`, `matmul_fp8_gemm_f8`) over the kernels they were measured against. Both pass admission
+/// and are faster, but each reorders fp32 sums, and the 35B accuracy gates (docs/accuracy.md) of the two together do not
+/// pass: the per-prompt limits are calibrated on an attention / prefill-chunk noise envelope that does not include GEMM or
+/// recurrence rounding. They stay registered and tested; they are not selected until that gate is re-calibrated.
+pub fn fast_prefill() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok_and(|v| v == "1"))
+}
+
+/// Priority of an opt-in kernel: above everything it replaces when `fast_prefill()`, below everything otherwise.
+pub fn opt_in_priority(on: i32) -> i32 {
+    if fast_prefill() {
+        on
+    } else {
+        -10
+    }
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     let mut v = Vec::new();
@@ -143,6 +163,22 @@ pub fn all() -> Vec<KernelImpl> {
                 .when(|s| matches!(s.head_dim, 32 | 64 | 128 | 256) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL),
+            // OPT-IN (INTARSIA_CUDA_FAST_PREFILL=1, see `fast_prefill`).
+            // several lanes per state row (kernels/cuda/gdn.cu): ~4x the threads of the one-thread-per-row kernel, 1.4x
+            // faster at T = 2048 and 2.3x at T = 1. It serves EVERY T (decode included): the recurrence is token-sequential
+            // and this kernel's per-token arithmetic does not depend on T, so a prompt gives the same bits however it is
+            // chunked (prefix reuse, tail chunks) and in decode; the one-thread-per-row kernel stays for other head dims.
+            "gdn_delta_rule_bf16_lanes" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| {
+                    matches!(s.head_dim, 64 | 128)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(opt_in_priority(10)),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),

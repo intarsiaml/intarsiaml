@@ -32,6 +32,20 @@ int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* 
 
 extern "C" {
 
+int ik_fp8_gemm_weight_only_internal(const void* x, const void* w, const void* scales, void* out, int out_is_f32, int64_t M,
+                                     int64_t N, int64_t K, void* stream) {
+    cudaStream_t s = IK_STREAM(stream);
+    const uint8_t* wp = (const uint8_t*)w;
+    const float* sc = (const float*)scales;
+    if (out_is_f32) {
+        wq::gemm_by_m<wq::FMT_FP8, float>((const ik_bf16*)x, nullptr, wp, nullptr, sc, (float*)out, (int)M, (int)N, (int)K, 0, s, 1);
+    } else {
+        const int vec = (N % 8 == 0 && ik_aligned16(out)) ? 1 : 0;
+        wq::gemm_by_m<wq::FMT_FP8, ik_bf16>((const ik_bf16*)x, nullptr, wp, nullptr, sc, (ik_bf16*)out, (int)M, (int)N, (int)K, vec, s, 1);
+    }
+    return ik_launch_status();
+}
+
 int ik_matmul_fp8_gemm(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                        const ik_scratch* scratch, void* stream) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));

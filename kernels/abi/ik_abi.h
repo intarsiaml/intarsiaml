@@ -154,6 +154,10 @@ int ik_gdn_conv_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, ik
 /* head_dim (state[2]) in {32, 64, 128, 256}; deterministic */
 int ik_gdn_delta_rule_bf16(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                            const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
+/* same contract, head_dim in {64, 128}: several lanes share a state row (prefill: the one-thread-per-row kernel is
+ * latency bound). Deterministic; sums in a different (fixed) order than ik_gdn_delta_rule_bf16. */
+int ik_gdn_delta_rule_bf16_lanes(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                                 const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 /* matmul: cuBLAS (any M, "fast") and a native GEMV (M <= 4, deterministic, run-to-run identical). */
 int ik_matmul_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
 int ik_matmul_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
@@ -205,6 +209,10 @@ int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* 
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
 int ik_matmul_fp8_gemm(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                        const ik_scratch* scratch, void* stream);
+/* matmul_fp8_gemm_f8: same op, W8A8 on e4m3 tensor cores (mma m16n8k32): no weight dequantisation. Same arguments and
+ * scratch as matmul_fp8_gemm; weight-only activations (input_scale <= 0) fall back to the bf16 path inside. */
+int ik_matmul_fp8_gemm_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                          const ik_scratch* scratch, void* stream);
 int ik_matmul_nvfp4_gemm(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                          const ik_tensor* global_scale, ik_tensor* out, void* stream);
 int ik_matmul_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
