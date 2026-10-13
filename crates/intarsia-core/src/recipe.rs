@@ -372,6 +372,32 @@ pub fn check_supported(cfg: &serde_json::Value) -> Result<()> {
 }
 
 impl ModelDims {
+    /// The dimensions one tensor-parallel rank works with: attention heads, KV heads and the dense FFN width divided
+    /// by `world`. Hidden size, head size, vocabulary and the rest are replicated. Blocks other than dense attention
+    /// and dense FFN (GatedDeltaNet, MoE) are not sharded yet and are refused by the model loader.
+    pub fn sharded(&self, world: usize) -> crate::error::Result<ModelDims> {
+        use crate::error::Error;
+        if world <= 1 {
+            return Ok(self.clone());
+        }
+        for (what, v) in [("attention heads", self.n_heads), ("KV heads", self.n_kv_heads), ("FFN width", self.intermediate)] {
+            if v % world != 0 {
+                return Err(Error::Unsupported(format!(
+                    "tensor parallelism {world}: {what} ({v}) must be divisible by {world} (n_heads {}, n_kv_heads {}, intermediate {})",
+                    self.n_heads, self.n_kv_heads, self.intermediate
+                )));
+            }
+        }
+        Ok(ModelDims {
+            n_heads: self.n_heads / world,
+            n_kv_heads: self.n_kv_heads / world,
+            intermediate: self.intermediate / world,
+            ..self.clone()
+        })
+    }
+}
+
+impl ModelDims {
     pub fn from_hf_config(cfg: &serde_json::Value, keys: &ConfigKeys) -> Result<ModelDims> {
         check_supported(cfg)?;
         let tc = text_config(cfg);

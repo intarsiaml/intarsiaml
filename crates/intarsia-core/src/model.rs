@@ -12,6 +12,7 @@
 //! and one final `rmsnorm_add` with the model's final norm before the head.
 
 use crate::backend::{Backend, Buffer, GraphHandle, MemKind, TensorRef};
+use crate::comm::Comm;
 use crate::dtype::DType;
 use crate::error::{Error, Result};
 use crate::memplan::MemoryPlan;
@@ -20,9 +21,9 @@ use crate::quant::moe::{MoeScratch, MoeWeights, OpRunner};
 use crate::quant::{Fp8Act, QTensor, QuantLoadOpts};
 use crate::recipe::{LinearDims, ModelDims, Recipe};
 use crate::registry::Registry;
-use crate::state::{SequenceState, SlotSpec, StateSlot};
+use crate::state::{PeerState, SequenceState, SlotSpec, StateSlot};
 use crate::telemetry::Telemetry;
-use crate::weights::{load_tensor, WeightSource};
+use crate::weights::{load_tensor, load_tensor_shard, Shard, ShardAxis, WeightSource};
 use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -168,7 +169,11 @@ pub type RowCallback<'a> = &'a mut dyn FnMut(usize, &[f32]) -> Result<()>;
 pub struct Model {
     pub backend: Arc<dyn Backend>,
     pub registry: Registry,
+    /// The model's dimensions (the checkpoint's, not one rank's).
     pub dims: ModelDims,
+    /// What this rank computes with: heads, KV heads and the FFN width divided by the tensor-parallel degree
+    /// (equal to `dims` without tensor parallelism). Plan shapes and the workspace follow these.
+    pub ldims: ModelDims,
     pub recipe: Recipe,
     pub act: DType,
     pub kv: DType,
@@ -176,7 +181,8 @@ pub struct Model {
     pub weights_bytes: u64,
     embed: TensorRef,
     final_norm: TensorRef,
-    lm_head: QTensor,
+    /// Only rank 0 holds the head (and runs the final norm's consumer): the other ranks stop after the last layer.
+    lm_head: Option<QTensor>,
     layers: Vec<Vec<Block>>,
     slot_specs: Vec<SlotSpec>,
     ws: Workspace,
@@ -192,6 +198,24 @@ pub struct Model {
     graphs: GraphState,
     /// While a graph is being captured: the ops it records (replays count them in telemetry).
     capture_ops: Mutex<Option<Vec<Op>>>,
+    /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
+    tp: TpRank,
+    /// Ranks 1.. of the group, each a full shard with its own backend, weights, workspace and KV (rank 0 only).
+    peers: Vec<Model>,
+}
+
+/// A rank's place in a tensor-parallel group and its handle for collectives.
+#[derive(Clone)]
+pub struct TpRank {
+    pub rank: usize,
+    pub world: usize,
+    pub comm: Option<Arc<dyn Comm>>,
+}
+
+impl TpRank {
+    pub fn single() -> TpRank {
+        TpRank { rank: 0, world: 1, comm: None }
+    }
 }
 
 fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
@@ -219,7 +243,26 @@ impl Model {
         opts: &LoadOptions,
         telemetry: Arc<Telemetry>,
     ) -> Result<Model> {
+        Self::load_shard(backend, recipe, dims, src, opts, telemetry, TpRank::single())
+    }
+
+    /// Load rank `tp.rank` of a `tp.world`-way tensor-parallel model onto `backend`: column-parallel projections
+    /// (q, k, v, gate, up) keep their rows for this rank's heads / FFN slice, row-parallel ones (o, down) keep
+    /// their columns, and only that slice is uploaded. `dims` are the checkpoint's. With `TpRank::single()` this is
+    /// the plain model.
+    pub fn load_shard(
+        backend: Arc<dyn Backend>,
+        recipe: &Recipe,
+        dims: &ModelDims,
+        src: &dyn WeightSource,
+        opts: &LoadOptions,
+        telemetry: Arc<Telemetry>,
+        tp: TpRank,
+    ) -> Result<Model> {
         recipe.validate()?;
+        let global = dims;
+        let local_dims = dims.sharded(tp.world)?;
+        let dims = &local_dims;
         let b: &dyn Backend = &*backend;
         let weights_bytes = Cell::new(0u64);
         let load = |tmpl: &str, layer: usize, shape: Option<&[usize]>| -> Result<TensorRef> {
@@ -229,10 +272,12 @@ impl Model {
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
-        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act) };
-        let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| -> Result<QTensor> {
+        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), shard: None };
+        // `n`, `k`: the shape this rank holds (for a sharded weight, its slice of the checkpoint's `[n, k]`)
+        let load_qs = |tmpl: &str, layer: usize, n: usize, k: usize, axis: Option<ShardAxis>| -> Result<QTensor> {
             let prefix = Recipe::expand(tmpl, layer);
-            let q = crate::quant::load_linear(src, &prefix, b, &qopts)?;
+            let shard = axis.filter(|_| tp.world > 1).map(|axis| Shard { axis, rank: tp.rank, world: tp.world });
+            let q = crate::quant::load_linear(src, &prefix, b, &QuantLoadOpts { shard, ..qopts })?;
             // what the checkpoint declares (hf_quant_config.json) must match what was stored and what we implement
             if let Some(scheme) = src.quant_scheme() {
                 scheme.check_linear(&prefix, q.format)?;
@@ -242,6 +287,20 @@ impl Model {
             }
             weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
             Ok(q)
+        };
+        let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| load_qs(tmpl, layer, n, k, None);
+        // a dense weight `[n, k]` (this rank's shape) in whatever slice the rank keeps
+        let load_sharded = |tmpl: &str, layer: usize, axis: ShardAxis, expect: [usize; 2]| -> Result<TensorRef> {
+            if tp.world == 1 {
+                return load(tmpl, layer, Some(&expect));
+            }
+            let name = resolve(src, &Recipe::expand(tmpl, layer))?;
+            let t = load_tensor_shard(b, src, &name, Shard { axis, rank: tp.rank, world: tp.world })?;
+            if t.shape != expect {
+                return Err(Error::model(format!("tensor '{name}' shard is {:?}, expected {expect:?}", t.shape)));
+            }
+            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            Ok(t)
         };
 
         let embed = load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?;
@@ -260,7 +319,9 @@ impl Model {
 
         // lm_head: own tensor, or tied to the embedding table.
         // (the head may be quantised: Qwen3.6 NVFP4 ships `lm_head.{weight,weight_scale,weight_scale_2,input_scale}`)
-        let lm_head = {
+        let lm_head = if tp.rank != 0 {
+            None
+        } else {
             let lh = &recipe.top.lm_head;
             let own = resolve(src, &lh.tensor).ok();
             let dense = |t: TensorRef| QTensor {
@@ -270,7 +331,7 @@ impl Model {
                 parts: vec![t],
                 act_quant: false,
             };
-            match (own, &lh.tied_to) {
+            Some(match (own, &lh.tied_to) {
                 (Some(_), _) if !dims.tie_embeddings => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
                 // the config says the head is its own tensor but it is not in the checkpoint (renamed, re-exported):
                 // falling back to the embedding table would serve garbage logits without any error
@@ -289,7 +350,7 @@ impl Model {
                         lh.tensor
                     )))
                 }
-            }
+            })
         };
 
         let qdim = dims.n_heads * dims.head_dim;
@@ -338,10 +399,10 @@ impl Model {
                         });
                         blocks.push(Block::Attn(AttnBlock {
                             pre_norm: load(pre, li, Some(&[dims.hidden]))?,
-                            wq: load_q(&a.q, li, qdim * (1 + gate), dims.hidden)?,
-                            wk: load_q(&a.k, li, kvdim, dims.hidden)?,
-                            wv: load_q(&a.v, li, kvdim, dims.hidden)?,
-                            wo: load_q(&a.o, li, dims.hidden, qdim)?,
+                            wq: load_qs(&a.q, li, qdim * (1 + gate), dims.hidden, Some(ShardAxis::Rows))?,
+                            wk: load_qs(&a.k, li, kvdim, dims.hidden, Some(ShardAxis::Rows))?,
+                            wv: load_qs(&a.v, li, kvdim, dims.hidden, Some(ShardAxis::Rows))?,
+                            wo: load_qs(&a.o, li, dims.hidden, qdim, Some(ShardAxis::Cols))?,
                             q_norm: a.q_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
                             k_norm: a.k_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
                             slot,
@@ -350,6 +411,11 @@ impl Model {
                         }));
                     }
                     "gdn" => {
+                        if tp.world > 1 {
+                            return Err(Error::Unsupported(
+                                "tensor parallelism: GatedDeltaNet blocks are not sharded in this build".into(),
+                            ));
+                        }
                         let g = recipe.layer.gdn.as_ref().unwrap();
                         if g.kind != "gated_delta_net" {
                             return Err(Error::Unsupported(format!(
@@ -386,6 +452,11 @@ impl Model {
                         }));
                     }
                     "moe" => {
+                        if tp.world > 1 {
+                            return Err(Error::Unsupported(
+                                "tensor parallelism: MoE blocks are not sharded in this build".into(),
+                            ));
+                        }
                         let mc = dims.moe.as_ref().ok_or_else(|| {
                             Error::model("the recipe has a moe block but config.json has no MoE dimensions")
                         })?;
@@ -411,9 +482,9 @@ impl Model {
                         }
                         blocks.push(Block::Ffn(FfnBlock {
                             pre_norm: load(pre, li, Some(&[dims.hidden]))?,
-                            gate: load(&f.gate, li, Some(&[dims.intermediate, dims.hidden]))?,
-                            up: load(&f.up, li, Some(&[dims.intermediate, dims.hidden]))?,
-                            down: load(&f.down, li, Some(&[dims.hidden, dims.intermediate]))?,
+                            gate: load_sharded(&f.gate, li, ShardAxis::Rows, [dims.intermediate, dims.hidden])?,
+                            up: load_sharded(&f.up, li, ShardAxis::Rows, [dims.intermediate, dims.hidden])?,
+                            down: load_sharded(&f.down, li, ShardAxis::Cols, [dims.hidden, dims.intermediate])?,
                         }));
                     }
                     other => {
@@ -502,7 +573,8 @@ impl Model {
         let mut model = Model {
             backend,
             registry,
-            dims: dims.clone(),
+            dims: global.clone(),
+            ldims: dims.clone(),
             recipe: recipe.clone(),
             act,
             kv,
@@ -519,8 +591,10 @@ impl Model {
             scratch: None,
             recorder: Mutex::new(None),
             resolved: Default::default(),
-            graphs: GraphState::new(opts.graphs),
+            graphs: GraphState::new(opts.graphs && tp.world == 1),
             capture_ops: Mutex::new(None),
+            tp,
+            peers: Vec::new(),
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
@@ -544,6 +618,11 @@ impl Model {
         }
         self.registry.require_admitted = opts.require_admitted;
         crate::plan::resolve(self)?;
+        for i in 0..self.peers.len() {
+            self.peers[i].registry.adopt_status(&self.registry);
+            self.peers[i].graphs.invalidate();
+            crate::plan::resolve(&mut self.peers[i])?;
+        }
         Ok(summary)
     }
 
@@ -556,11 +635,13 @@ impl Model {
         let run = (|| -> Result<()> {
             let hn = self.run_chunk(&st, &ids, false)?;
             // the heads generation and accuracy use: argmax of the last row, logits of up to LOGIT_ROWS rows
-            self.head_argmax(&hn, t - 1, false)?;
-            if let Some(r) = self.recorder.lock().unwrap().as_mut() {
-                r.extra = true;
+            if self.lm_head.is_some() {
+                self.head_argmax(&hn, t - 1, false)?;
+                if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+                    r.extra = true;
+                }
+                self.head_logits(&hn, 0, t.min(LOGIT_ROWS), false)?;
             }
-            self.head_logits(&hn, 0, t.min(LOGIT_ROWS), false)?;
             Ok(())
         })();
         let rec = self.recorder.lock().unwrap().take().unwrap_or_default();
@@ -608,7 +689,103 @@ impl Model {
 
     /// Allocate a fresh sequence state with the planned KV capacity.
     pub fn new_state(&self) -> Result<SequenceState> {
-        SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)
+        let mut st = SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)?;
+        for p in &self.peers {
+            st.peers.push(PeerState {
+                backend: p.backend.clone(),
+                st: SequenceState::new(&*p.backend, &p.slot_specs, self.plan.kv_cap_tokens)?,
+            });
+        }
+        Ok(st)
+    }
+
+    /// Tensor-parallel degree (1 without it).
+    pub fn tp_world(&self) -> usize {
+        self.tp.world
+    }
+
+    /// Every rank's backend, rank 0 first.
+    pub fn rank_backends(&self) -> Vec<Arc<dyn Backend>> {
+        std::iter::once(self.backend.clone()).chain(self.peers.iter().map(|p| p.backend.clone())).collect()
+    }
+
+    /// Rank `r`'s shard (rank 0 is `self`).
+    pub fn rank_model(&self, r: usize) -> Option<&Model> {
+        if r == 0 {
+            Some(self)
+        } else {
+            self.peers.get(r - 1)
+        }
+    }
+
+    /// Collective counters of rank 0 (None without tensor parallelism).
+    pub fn comm_stats(&self) -> Option<crate::comm::CommStats> {
+        self.tp.comm.as_ref().map(|c| c.stats())
+    }
+
+    /// Name of the collective implementation ("host", "hip-p2p", ...), None without tensor parallelism.
+    pub fn comm_name(&self) -> Option<String> {
+        self.tp.comm.as_ref().map(|c| c.name().to_string())
+    }
+
+    /// Assemble a tensor-parallel model from its loaded shards (`shards[r]` is rank `r`): the KV capacity becomes
+    /// the smallest any rank can hold (every rank must keep the same number of tokens), the peers follow rank 0's
+    /// kernel selection, and the plan is re-resolved for the common capacity.
+    pub fn from_shards(mut shards: Vec<Model>) -> Result<Model> {
+        if shards.is_empty() {
+            return Err(Error::invalid("a tensor-parallel group needs at least one shard"));
+        }
+        let world = shards[0].tp.world;
+        if shards.len() != world || shards.iter().enumerate().any(|(i, m)| m.tp.rank != i || m.tp.world != world) {
+            return Err(Error::invalid(format!("expected {world} shards in rank order")));
+        }
+        let cap = shards.iter().map(|m| m.plan.kv_cap_tokens).min().unwrap();
+        for m in shards.iter_mut() {
+            if m.plan.kv_cap_tokens > cap {
+                m.plan.notes.push(format!("context clamped from {} to {cap} tokens: the smallest rank decides", m.plan.kv_cap_tokens));
+                m.plan.kv_cap_tokens = cap;
+                m.plan.kv_total_bytes = cap as u64 * m.plan.kv_bytes_per_token;
+            }
+        }
+        let mut it = shards.into_iter();
+        let mut primary = it.next().unwrap();
+        primary.peers = it.collect();
+        for p in primary.peers.iter_mut() {
+            p.registry.adopt_status(&primary.registry);
+        }
+        crate::plan::resolve(&mut primary)?;
+        for i in 0..primary.peers.len() {
+            let p = &mut primary.peers[i];
+            crate::plan::resolve(p)?;
+        }
+        Ok(primary)
+    }
+
+    /// Load a `backends.len()`-way tensor-parallel model: rank `r` on `backends[r]`, talking through `comms[r]`.
+    /// Shards load one after the other (they share the admission cache and read the same mmap).
+    pub fn load_tp(
+        backends: Vec<Arc<dyn Backend>>,
+        comms: Vec<Arc<dyn Comm>>,
+        recipe: &Recipe,
+        dims: &ModelDims,
+        src: &dyn WeightSource,
+        opts: &LoadOptions,
+        telemetry: Arc<Telemetry>,
+    ) -> Result<Model> {
+        let world = backends.len();
+        if world < 2 || comms.len() != world {
+            return Err(Error::invalid(format!("tensor parallelism needs >= 2 backends and one comm each (got {world} / {})", comms.len())));
+        }
+        let mut shards = Vec::new();
+        for (rank, (backend, comm)) in backends.into_iter().zip(comms).enumerate() {
+            if comm.rank() != rank || comm.world() != world {
+                return Err(Error::invalid(format!("comm {rank} is rank {} of {}", comm.rank(), comm.world())));
+            }
+            // peers keep their own counters: the primary's telemetry is the one the server reports
+            let tel = if rank == 0 { telemetry.clone() } else { Arc::new(Telemetry::new()) };
+            shards.push(Self::load_shard(backend, recipe, dims, src, opts, tel, TpRank { rank, world, comm: Some(comm) })?);
+        }
+        Self::from_shards(shards)
     }
 
     /// Run `ids` through the model starting at `st.len`, appending to the state.
@@ -625,20 +802,20 @@ impl Model {
         mode: HeadMode,
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
-        let r = self.forward_inner(st, ids, mode, on_row);
+        let r = if self.peers.is_empty() {
+            self.forward_inner(st, ids, mode, on_row)
+        } else {
+            self.forward_tp(st, ids, mode, on_row)
+        };
         if r.is_err() && st.has_recurrent() {
             let _ = st.reset(&*self.backend);
         }
         r
     }
 
-    fn forward_inner(
-        &self,
-        st: &mut SequenceState,
-        ids: &[u32],
-        mode: HeadMode,
-        mut on_row: Option<RowCallback<'_>>,
-    ) -> Result<StepOut> {
+    /// Rejections that must happen before any rank starts (a rank that stops early would leave the others waiting
+    /// in a collective).
+    fn check_forward(st: &SequenceState, ids: &[u32], mode: HeadMode, has_row_cb: bool) -> Result<()> {
         if ids.is_empty() {
             return Err(Error::BadRequest("empty token list".into()));
         }
@@ -649,9 +826,106 @@ impl Model {
                 st.cap
             )));
         }
-        if mode == HeadMode::AllLogits && on_row.is_none() {
+        if mode == HeadMode::AllLogits && !has_row_cb {
             return Err(Error::invalid("AllLogits needs a row callback"));
         }
+        Ok(())
+    }
+
+    /// Tensor-parallel forward: ranks 1.. run the layers on their own threads (no head), rank 0 runs the whole
+    /// pass here and returns the result. A rank that fails aborts the communicator so no other rank is left
+    /// waiting.
+    fn forward_tp(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        if st.peers.len() != self.peers.len() {
+            return Err(Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"));
+        }
+        Self::check_forward(st, ids, mode, on_row.is_some())?;
+        // peers follow the primary's length: a pass that failed halfway can leave them ahead of it
+        for p in st.peers.iter_mut() {
+            if p.st.len < st.len {
+                return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", p.st.len, st.len)));
+            }
+            if p.st.len > st.len {
+                p.st.truncate(st.len, &*p.backend)?;
+            }
+        }
+        let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let mut peers = std::mem::take(&mut st.peers);
+        let out = std::thread::scope(|sc| {
+            let handles: Vec<_> = self
+                .peers
+                .iter()
+                .zip(peers.iter_mut())
+                .map(|(m, ps)| {
+                    sc.spawn(move || {
+                        let comm = m.tp.comm.clone();
+                        // a panic must release the other ranks too
+                        struct Guard(Option<Arc<dyn Comm>>, bool);
+                        impl Drop for Guard {
+                            fn drop(&mut self) {
+                                if !self.1 {
+                                    if let Some(c) = &self.0 {
+                                        c.abort();
+                                    }
+                                }
+                            }
+                        }
+                        let mut guard = Guard(comm, false);
+                        let r = m.run_peer(&mut ps.st, ids);
+                        guard.1 = r.is_ok();
+                        r
+                    })
+                })
+                .collect();
+            let r0 = self.forward_inner(st, ids, mode, on_row);
+            if r0.is_err() {
+                comm0.abort();
+            }
+            let mut res = r0;
+            for h in handles {
+                match h.join() {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => {
+                        if res.is_ok() {
+                            res = Err(e);
+                        }
+                    }
+                    Err(_) => {
+                        if res.is_ok() {
+                            res = Err(Error::backend("a tensor-parallel rank panicked"));
+                        }
+                    }
+                }
+            }
+            res
+        });
+        st.peers = peers;
+        out
+    }
+
+    /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head).
+    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        for chunk in ids.chunks(self.ws.max_tokens) {
+            self.run_chunk(ps, chunk, false)?;
+            ps.commit(chunk);
+        }
+        Ok(())
+    }
+
+    fn forward_inner(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        mut on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        Self::check_forward(st, ids, mode, on_row.is_some())?;
         // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
         if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) && self.graphs.usable(self) {
             let profile = self.profile_every > 0
@@ -888,7 +1162,7 @@ impl Model {
         dpos: Option<&TensorRef>,
         profile: bool,
     ) -> Result<()> {
-        let d = &self.dims;
+        let d = &self.ldims;
         let act = self.act;
         let ws = &self.ws;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
@@ -1004,20 +1278,49 @@ impl Model {
             }
             None => attn_out.reshaped(&qshape),
         };
-        self.proj(&o_in, &a.wo, out, profile)
+        self.proj(&o_in, &a.wo, out, profile)?;
+        self.all_reduce(out, profile)
     }
 
     fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
         let act = self.act;
         let ws = &self.ws;
-        let i = self.dims.intermediate;
+        let i = self.ldims.intermediate;
         let g = self.view(&ws.g, act, &[t, i]);
         let u = self.view(&ws.u, act, &[t, i]);
         let a = self.view(&ws.a, act, &[t, i]);
         self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
         self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
         self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
-        self.exec(Op::Matmul, vec![a, f.down.clone()], vec![out.clone()], OpAttrs::default(), profile)
+        self.exec(Op::Matmul, vec![a, f.down.clone()], vec![out.clone()], OpAttrs::default(), profile)?;
+        self.all_reduce(out, profile)
+    }
+
+    /// Sum a row-parallel projection's partial result over the tensor-parallel group, in place. A no-op without
+    /// tensor parallelism. While the plan is recorded nothing runs: the call is counted instead (it would otherwise
+    /// wait for ranks that are not running).
+    fn all_reduce(&self, x: &TensorRef, profile: bool) -> Result<()> {
+        let Some(comm) = &self.tp.comm else { return Ok(()) };
+        if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+            r.comm.push(crate::plan::PlannedComm {
+                phase: r.phase.unwrap_or(crate::plan::Phase::Decode),
+                t: r.t,
+                pos0: r.pos0,
+                bytes: x.nbytes(),
+                extra: r.extra,
+            });
+            return Ok(());
+        }
+        if profile {
+            self.backend.synchronize(0)?;
+        }
+        let t0 = Instant::now();
+        comm.all_reduce_sum(x, 0)?;
+        if profile {
+            self.backend.synchronize(0)?;
+            comm.note_timed(t0.elapsed());
+        }
+        Ok(())
     }
 
     /// Logits for rows `[r0, r0+c)` of the normed hidden states, row-major f32 `[c, vocab]`.
@@ -1025,7 +1328,7 @@ impl Model {
         let v = self.dims.vocab;
         let x = hn.rows(r0, c);
         let out = self.view(&self.ws.logits, DType::F32, &[c, v]);
-        self.proj(&x, &self.lm_head, &out, profile)?;
+        self.proj(&x, self.head()?, &out, profile)?;
         if self.recorder.lock().unwrap().is_some() {
             return Ok(Vec::new());
         }
@@ -1039,7 +1342,7 @@ impl Model {
         let v = self.dims.vocab;
         let x = hn.rows(row, 1);
         let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
-        self.proj(&x, &self.lm_head, &logits, profile)?;
+        self.proj(&x, self.head()?, &logits, profile)?;
         let tok = self.view(&self.ws.tok, DType::I32, &[1]);
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
     }
@@ -1052,6 +1355,11 @@ impl Model {
         let mut b = [0u8; 4];
         self.backend.download(&self.ws.tok, 0, &mut b, 0)?;
         Ok(i32::from_le_bytes(b) as u32)
+    }
+
+    /// The output head (rank 0 only).
+    fn head(&self) -> Result<&QTensor> {
+        self.lm_head.as_ref().ok_or_else(|| Error::invalid(format!("rank {} of the tensor-parallel group has no lm_head", self.tp.rank)))
     }
 
     /// KV cache bytes one token occupies across all attention slots.

@@ -20,6 +20,17 @@ pub struct ModelArgs {
     /// Device ordinal for GPU backends.
     #[arg(long, default_value_t = 0)]
     pub device: usize,
+    /// Tensor-parallel degree: shard the model over this many devices (attention heads, KV heads and the FFN are split,
+    /// every layer ends in an all-reduce). Devices are `--devices`, default `0..tp`.
+    #[arg(long, default_value_t = 1)]
+    pub tp: usize,
+    /// Device ordinals for `--tp` > 1 (comma separated, one per rank).
+    #[arg(long, value_delimiter = ',')]
+    pub devices: Vec<usize>,
+    /// Collective for `--tp` > 1: `auto` (the backend's device-to-device all-reduce when it has one) or `host`
+    /// (staged through host memory: slow, works everywhere, a fallback and a cross-check).
+    #[arg(long, default_value = "auto")]
+    pub comm: String,
     /// Maximum context length in tokens (clamped by measured free memory).
     #[arg(long, default_value_t = 4096)]
     pub max_seq: usize,
@@ -105,9 +116,47 @@ pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
     }
 }
 
+/// Backends and collectives for a tensor-parallel group (`ordinals[r]` is rank `r`).
+pub fn open_group(name: &str, ordinals: &[usize], comm: &str) -> Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
+    match comm {
+        "auto" | "host" => {}
+        other => bail!("unknown --comm '{other}' (auto, host)"),
+    }
+    if name == "hip" && comm == "auto" {
+        #[cfg(feature = "hip")]
+        {
+            return intarsia_backend_hip::create_group(ordinals).map_err(|e| anyhow::anyhow!("{e}"));
+        }
+    }
+    let backends = ordinals.iter().map(|&o| open_backend(name, o)).collect::<Result<Vec<_>>>()?;
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    Ok((backends, comms))
+}
+
 impl ModelArgs {
     pub fn open_backend(&self) -> Result<Arc<dyn Backend>> {
         open_backend(&self.backend, self.device)
+    }
+
+    /// The device ordinals of the tensor-parallel group.
+    pub fn tp_devices(&self) -> Result<Vec<usize>> {
+        if self.tp == 0 {
+            bail!("--tp must be at least 1");
+        }
+        if self.tp == 1 {
+            return Ok(vec![self.device]);
+        }
+        let devs = if self.devices.is_empty() { (0..self.tp).collect() } else { self.devices.clone() };
+        if devs.len() != self.tp {
+            bail!("--tp {} needs {} device ordinals, --devices lists {}", self.tp, self.tp, devs.len());
+        }
+        let mut sorted = devs.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        if sorted.len() != devs.len() && self.backend != "cpu" {
+            bail!("--devices {devs:?} repeats a device");
+        }
+        Ok(devs)
     }
 
     pub fn engine_options(&self) -> Result<EngineOptions> {
@@ -154,8 +203,14 @@ impl ModelArgs {
 
     /// Open the backend and load the model into a ready engine.
     pub fn load(&self) -> Result<Loaded> {
-        let backend = self.open_backend()?;
         let opts = self.engine_options()?;
+        if self.tp > 1 {
+            let (backends, comms) = open_group(&self.backend, &self.tp_devices()?, &self.comm)?;
+            return intarsia_models::load_engine_tp(&self.model, backends, comms, &opts)
+                .map_err(|e| anyhow::anyhow!("{e}"))
+                .with_context(|| format!("loading {} with tp={}", self.model.display(), self.tp));
+        }
+        let backend = self.open_backend()?;
         intarsia_models::load_engine(&self.model, backend, &opts)
             .map_err(|e| anyhow::anyhow!("{e}"))
             .with_context(|| format!("loading {}", self.model.display()))

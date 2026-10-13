@@ -9,6 +9,7 @@
 use crate::backend::{Backend, Buffer, MemKind};
 use crate::dtype::DType;
 use crate::error::{Error, Result};
+use std::sync::Arc;
 
 /// Recurrent-state snapshots a sequence keeps for prefix reuse (see [`SequenceState::snapshot`]).
 pub const RECURRENT_SNAPSHOTS: usize = 4;
@@ -58,6 +59,12 @@ pub struct RecurrentSnapshot {
 
 static NEXT_STATE_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
+/// A tensor-parallel peer rank's share of a sequence: its own slots on its own device.
+pub struct PeerState {
+    pub backend: Arc<dyn Backend>,
+    pub st: SequenceState,
+}
+
 /// All state of one sequence.
 pub struct SequenceState {
     /// Unique per allocated state (never reused): a captured CUDA graph is bound to one state's buffers
@@ -73,6 +80,9 @@ pub struct SequenceState {
     /// Recurrent-state snapshots, oldest first; each is valid for `tokens[..len]` as long as that
     /// prefix is unchanged (dropped when the state is truncated below `len`).
     pub snapshots: Vec<RecurrentSnapshot>,
+    /// Tensor parallelism: the state of ranks 1.. (this struct is rank 0's). Created, truncated and snapshotted
+    /// together with the primary; advanced by the rank's own forward pass.
+    pub peers: Vec<PeerState>,
 }
 
 impl SequenceState {
@@ -102,7 +112,7 @@ impl SequenceState {
             });
         }
         let id = NEXT_STATE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        Ok(SequenceState { id, slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new() })
+        Ok(SequenceState { id, slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new(), peers: Vec::new() })
     }
 
     pub fn total_bytes(&self) -> usize {
@@ -139,6 +149,9 @@ impl SequenceState {
     /// (the oldest is dropped, its buffer reused); a snapshot at the same length is replaced.
     /// No-op without recurrent slots or at length 0 (the zero state needs no copy).
     pub fn snapshot(&mut self, backend: &dyn Backend, keep: usize) -> Result<()> {
+        for p in &mut self.peers {
+            p.st.snapshot(&*p.backend, keep)?;
+        }
         let total = self.recurrent_bytes();
         if total == 0 || self.len == 0 || keep == 0 {
             return Ok(());
@@ -180,6 +193,12 @@ impl SequenceState {
     pub fn truncate(&mut self, len: usize, backend: &dyn Backend) -> Result<()> {
         if len > self.len {
             return Err(Error::invalid("truncate beyond current length"));
+        }
+        for p in &mut self.peers {
+            if len > p.st.len {
+                return Err(Error::invalid("truncate beyond a peer rank's length"));
+            }
+            p.st.truncate(len, &*p.backend)?;
         }
         if self.has_recurrent() {
             if len == 0 {

@@ -58,6 +58,82 @@ pub fn load_tensor(
     Ok(TensorRef::new(buf, info.dtype, &info.shape))
 }
 
+/// Which axis of a 2-D `[rows, cols]` weight a tensor-parallel rank keeps a slice of.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShardAxis {
+    /// Output features: rows `[rank * n / world, (rank + 1) * n / world)`. Contiguous in the file.
+    Rows,
+    /// Input features: columns `[rank * k / world, (rank + 1) * k / world)` of every row. Strided.
+    Cols,
+}
+
+/// One rank's slice of a weight (`world` equal parts along `axis`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Shard {
+    pub axis: ShardAxis,
+    pub rank: usize,
+    pub world: usize,
+}
+
+impl Shard {
+    /// Shape of the slice of a `[n, k]` weight.
+    pub fn local_shape(&self, n: usize, k: usize) -> (usize, usize) {
+        match self.axis {
+            ShardAxis::Rows => (n / self.world, k),
+            ShardAxis::Cols => (n, k / self.world),
+        }
+    }
+}
+
+/// Load this rank's slice of the 2-D tensor `name`. Only the slice is uploaded, so the device never holds the
+/// other ranks' parts. `Rows` slices are a contiguous byte range (zero-copy where the backend allows);
+/// `Cols` slices are gathered row by row into a host staging buffer first.
+pub fn load_tensor_shard(backend: &dyn Backend, src: &dyn WeightSource, name: &str, shard: Shard) -> Result<TensorRef> {
+    let info = src.info(name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
+    if info.shape.len() != 2 {
+        return Err(Error::model(format!("tensor '{name}' is {:?}; only 2-D weights can be sharded", info.shape)));
+    }
+    let (n, k) = (info.shape[0], info.shape[1]);
+    let split = if shard.axis == ShardAxis::Rows { n } else { k };
+    if shard.world == 0 || shard.rank >= shard.world || split % shard.world != 0 {
+        return Err(Error::model(format!(
+            "tensor '{name}' [{n}, {k}] cannot be split into {} equal parts along its {} (rank {})",
+            shard.world,
+            if shard.axis == ShardAxis::Rows { "rows" } else { "columns" },
+            shard.rank
+        )));
+    }
+    let esz = info.dtype.size_bytes();
+    let (ln, lk) = shard.local_shape(n, k);
+    let bytes = src.bytes(name)?;
+    if bytes.len() != n * k * esz {
+        return Err(Error::model(format!("tensor '{name}': byte length mismatch")));
+    }
+    let local = match shard.axis {
+        ShardAxis::Rows => {
+            let off = shard.rank * ln * k * esz;
+            let len = ln * k * esz;
+            if let Some((mem, moff, mlen)) = src.host_memory(name) {
+                if mlen == bytes.len() {
+                    if let Some(buf) = backend.wrap_host(mem, moff + off, len) {
+                        return Ok(TensorRef::new(buf, info.dtype, &[ln, lk]));
+                    }
+                }
+            }
+            upload_new(backend, &bytes[off..off + len])?
+        }
+        ShardAxis::Cols => {
+            let mut stage = Vec::with_capacity(ln * lk * esz);
+            let (c0, c1) = (shard.rank * lk * esz, (shard.rank + 1) * lk * esz);
+            for r in 0..n {
+                stage.extend_from_slice(&bytes[r * k * esz + c0..r * k * esz + c1]);
+            }
+            upload_new(backend, &stage)?
+        }
+    };
+    Ok(TensorRef::new(local, info.dtype, &[ln, lk]))
+}
+
 /// In-memory weights (tests, tiny synthetic models).
 #[derive(Default)]
 pub struct MemWeights {

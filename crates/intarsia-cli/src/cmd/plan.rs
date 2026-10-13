@@ -61,6 +61,35 @@ pub fn render(p: &Value) -> String {
         p["require_admitted"],
         p["reference_only"]
     );
+    if p["tp"].is_object() {
+        let t = &p["tp"];
+        let _ = writeln!(
+            o,
+            "tensor parallel x{} ({} collective)  per rank: {} heads, {} kv heads, ffn {} (model: {}/{}/{})  all-reduce {} calls/decode step, {} B/rank",
+            t["world"],
+            s(t, "comm"),
+            t["per_rank"]["n_heads"],
+            t["per_rank"]["n_kv_heads"],
+            t["per_rank"]["intermediate"],
+            t["global"]["n_heads"],
+            t["global"]["n_kv_heads"],
+            t["global"]["intermediate"],
+            t["all_reduce_calls_per_decode_step"],
+            t["all_reduce_bytes_per_decode_step"]
+        );
+        for r in t["ranks"].as_array().cloned().unwrap_or_default() {
+            let _ = writeln!(
+                o,
+                "  rank {}: {} ({} MiB)  weights {} MiB  kv cap {} tokens{}",
+                r["rank"],
+                s(&r, "device"),
+                r["mem_total"].as_u64().unwrap_or(0) >> 20,
+                r["weights_bytes"].as_u64().unwrap_or(0) >> 20,
+                r["kv_cap_tokens"],
+                if r["holds_lm_head"].as_bool().unwrap_or(false) { "  + lm_head" } else { "" }
+            );
+        }
+    }
     // layers: collapse runs of identical layers
     let layers = p["layers"].as_array().cloned().unwrap_or_default();
     let key = |l: &Value| {

@@ -53,6 +53,7 @@ impl QuantFormat for Fp8E4m3 {
     }
 
     fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
+        opts.refuse_shard("FP8", meta.prefix)?;
         let wi = meta.info("weight").ok_or_else(|| Error::model(format!("'{}.weight' missing", meta.prefix)))?;
         if wi.shape.len() != 2 {
             return Err(Error::model(format!("fp8 '{}': weight must be 2-D, got {:?}", meta.prefix, wi.shape)));

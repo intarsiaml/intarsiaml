@@ -54,6 +54,21 @@ impl Fp8Act {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct QuantLoadOpts {
     pub fp8_act: Fp8Act,
+    /// Tensor parallelism: keep only this rank's slice of the weight (see [`crate::weights::Shard`]). Formats that
+    /// cannot slice their layout refuse with `Unsupported` instead of loading the whole tensor.
+    pub shard: Option<crate::weights::Shard>,
+}
+
+impl QuantLoadOpts {
+    /// Error for a format that has no sharded loader yet.
+    pub fn refuse_shard(&self, what: &str, prefix: &str) -> Result<()> {
+        match self.shard {
+            Some(_) => Err(Error::Unsupported(format!(
+                "tensor parallelism: '{prefix}' is {what}, whose weights cannot be sharded in this build"
+            ))),
+            None => Ok(()),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -202,8 +217,12 @@ impl QuantFormat for Bf16Dense {
         meta.info("weight").is_some_and(|w| w.dtype.is_float() && w.dtype != DType::Fp8E4m3 && w.shape.len() == 2)
             && meta.info("weight_scale").is_none()
     }
-    fn load(&self, meta: &WeightMeta, backend: &dyn Backend, _opts: &QuantLoadOpts) -> Result<QTensor> {
-        let w = crate::weights::load_tensor(backend, meta.src, &format!("{}.weight", meta.prefix), None)?;
+    fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
+        let name = format!("{}.weight", meta.prefix);
+        let w = match opts.shard {
+            Some(sh) => crate::weights::load_tensor_shard(backend, meta.src, &name, sh)?,
+            None => crate::weights::load_tensor(backend, meta.src, &name, None)?,
+        };
         if w.shape.len() != 2 {
             return Err(Error::model(format!("'{}.weight' must be 2-D, got {:?}", meta.prefix, w.shape)));
         }
