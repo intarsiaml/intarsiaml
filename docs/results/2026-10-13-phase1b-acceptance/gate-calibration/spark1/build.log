@@ -1,0 +1,23 @@
+[12:01:54] phase1b acceptance: stages=preflight,build dry_run=0 host=spark1 pre-change=4963b43 work=/opt/code/intarsiaml/target/accept3
+[12:01:54] == preflight: stamp the tree under test, build the pre-change tree
+[12:01:54] tree under test: head=4ad0eea code-tree=bbc5483de9fd dirty=no
+Preparing worktree (detached HEAD 4963b43)
+[12:01:55] pre-change tree: head=4963b43 code-tree=c11b6c190554 dirty=yes overlay=crates/intarsia-cli/src/cmd/accuracy.rs,crates/intarsia-cli/src/cmd/accuracy/baseline.rs,crates/intarsia-cli/src/cmd/accuracy/envelope.rs,crates/intarsia-cli/src/cmd/accuracy/provenance.rs,crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs
+[12:01:55] == build: sync and build both trees on spark1 (shared slot, 16 GB, no GPU)
+/dev/nvme0n1p2  3.7T  3.4T  181G  95% /
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-acc/new/crates/intarsia-server)
+   Compiling clap v4.6.7
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-acc/new/crates/intarsia-bench)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-acc/new/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 25.41s
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-acc/old/crates/intarsia-bench)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-acc/old/crates/intarsia-models)
+   Compiling clap v4.6.7
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-acc/old/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 24.71s
+  Executable tests/attention.rs (target/acc/release/deps/attention-1f3f7fe05bbcd025)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+[12:03:11] done (status 0); artefacts in /opt/code/intarsiaml/target/accept3

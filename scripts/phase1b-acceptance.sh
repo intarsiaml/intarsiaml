@@ -308,7 +308,7 @@ stage_build() {
 # ---------------------------------------------------------------------------------------------------------------------
 stage_lease() {
   log "== lease: exclusive slot on $HOST taking guidance down"
-  LEASE_JOB=$(fq acquire --host "$HOST" --exclusive --takes-down guidance --mem "$MEM_LEASE_GB" --expect 360 \
+  LEASE_JOB=$(fq acquire --host "$HOST" --exclusive --takes-down guidance --mem "$MEM_LEASE_GB" --expect $(( WINDOW_MIN > 0 ? WINDOW_MIN : 360 )) \
               --label "intarsiaml phase1b acceptance (exclusive, vLLM down)" --wait | grep -Eo '[0-9]+' | tail -1)
   [[ -n "$LEASE_JOB" ]] || die "could not read the fleetq job id"
   export FLEETQ_JOB=$LEASE_JOB

@@ -1,0 +1,3 @@
+exit 1
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: PASS
+golden gate: FAIL

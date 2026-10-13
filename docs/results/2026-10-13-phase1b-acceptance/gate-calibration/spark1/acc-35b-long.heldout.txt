@@ -1,0 +1,5 @@
+exit 1
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) / 0 check(s)
+  failing per-prompt checks by k (information): k=0: 2 prompt(s) / 2 check(s), k=1: 1 prompt(s) / 1 check(s), k=2: 1 prompt(s) / 1 check(s) <- used, k=3: 1 prompt(s) / 1 check(s), k=5: 1 prompt(s) / 1 check(s), k=10: 1 prompt(s) / 1 check(s)
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+golden gate: FAIL

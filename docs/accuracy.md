@@ -181,6 +181,21 @@ a miss) and the gate fails whatever the other numbers say. A NaN in the golden i
 boundaries, special tokens, document regions). Run it once with `--golden` and once with `--self-golden` to locate the
 positions where two kernels or two chunk sizes disagree.
 
+### Which golden to gate against
+
+* **Dense models (no experts, no linear-attention layers: Qwen3-8B, the 0.6B Mac model): the HF fp32 golden**
+  (`golden.py --dtype float32`), gate class bf16, plus the baseline gate with its fixed margins. The HF bf16 golden carries
+  about as much noise as the engine under test (HF bf16 against HF fp32: mean KL 5.6e-4 on the 8 short Qwen3-8B prompts,
+  6.3e-4 with the two long ones, against a floor of 1e-3), so a bf16 golden passes or fails the floor on its own noise.
+  Against the fp32 goldens the CUDA engine measures 2.9e-4 / 4.0e-4 (prefill) and passes both modes (table in "Reading the
+  numbers"). Dense models are also quiet: old and new build differ by a mean KL of about 1e-10 on the 8B, which is what the
+  fixed per-prompt margins were calibrated on. The 8B goldens are `qwen3-8b-fp32.safetensors` (8 short prompts) and
+  `qwen3-8b-long-fp32.safetensors` (those plus `long_prose_300/700`); `scripts/phase1b-acceptance.sh` gates its `8b-short`
+  and `8b-long` cases against them with `--gate-class bf16`.
+* **MoE / hybrid / quantised models (the 35B NVFP4): the vLLM top-20 golden** (the only reference that runs the
+  checkpoint), the class floor, a baseline from the pre-change build **and a noise envelope** for the per-prompt part
+  ("Noise envelope" below).
+
 ### Gates
 
 Default thresholds follow the weaker of the weight dtype and the KV dtype (`--gate-class bf16|fp8|4bit`
@@ -225,23 +240,109 @@ with these default margins (flags in brackets):
 | `\|tail excess\|` (signed mean) | may grow by 0.002 (`--margin-tail`) over the baseline's |
 | mean `\|tail difference\|` per position | may grow by 0.002 (`--margin-tail`): the signed mean lets positions that lose and gain tail mass cancel |
 | largest single-position 21-way KL | x2.5 (`--margin-max-kl`), at least +1e-3 (a maximum is a noisy statistic) |
-| **each prompt**: mean 21-way KL | x1.75 (`--margin-prompt-kl`), at least +1e-5 |
-| **each prompt**: top-1 | -1 pt, but at least one position; and each prompt's `\|tail difference\|` +0.002 |
+| **each prompt**: mean 21-way KL | x1.75 (`--margin-prompt-kl`), at least +1e-5; with `--noise-envelope` at least baseline + k x the prompt's measured noise |
+| **each prompt**: top-1 | -1 pt, but at least one position; and each prompt's `\|tail difference\|` +0.002; same widening with an envelope |
 | non-finite rows | none |
 
 The per-prompt rows exist because the aggregate hides one prompt that got worse: with 10 prompts, one doubling its KL moves
 the mean by about 10% and passes the x1.15 gate (unit test `one_prompt_doubling_fails_although_the_overall_mean_passes`).
 The x2.5 / x1.75 factors are the smallest that let a legitimate bf16 reordering through on the one model that could be
 measured here and still fail a 2x larger change; see "Choosing the self-golden budgets" for the data and its limits.
+**On MoE and hybrid models these fixed per-prompt margins are inside the noise** (the 35B moves one prompt by KL 0.13-0.17
+between two equally correct builds); the aggregate checks are not. The per-prompt part is calibrated with a noise envelope
+("Noise envelope" below). Without one the gate keeps the fixed margins and warns when `config.json` shows experts or
+linear-attention layers.
 
 It **refuses to compare** (before running anything) when the golden differs (hash, size, prompt or position count: a
 regenerated golden needs a new baseline), when the KV dtype, backend, activation dtype, fp8 mode, prefill chunk, decode
 positions or kernel disable list differ (`--allow-config-mismatch` downgrades the configuration part to a warning; the
 golden must always match), and when the code stamp is not a legitimate "before" (next section). A different device name
 is a warning only. The output keeps the verdicts apart: `floor verdict` (class thresholds) and `baseline verdict`, and
-for a failing baseline it names the failing prompts with baseline value, this run and the limit. Verify a baseline in a
+for the per-prompt part it prints every prompt and check with baseline value, this run, the limit and where the limit came
+from (`fixed` or `envelope`), plus the envelope delta and the `k` that would have been needed. Verify a baseline in a
 second process (the engine is deterministic run to run, so a run passes its own baseline with equal numbers; that needs
 `--allow-same-code`). Baselines live in `golden/baselines/` (tracked, unlike the large `*.safetensors`).
+
+### Noise envelope: per-prompt limits that follow the noise (`--write-noise-envelope`, `--noise-envelope`)
+
+**Why.** The fixed per-prompt margins (KL x1.75, top-1 -1 pt or one position, `|tail diff|` +0.002) were set on a dense
+model, where an equally correct build moves a prompt by almost nothing. On the MoE / hybrid 35B they sit inside the noise:
+the same build with SIMT instead of flash attention, or with prefill chunk 256 instead of 1024, moves one prompt's 21-way
+KL by 0.13-0.17 (`chat_reuse_4k`) and the others by 0.005-0.012, and the old build fails its own baseline gate when only
+the attention kernel changes (docs/results/2026-10-13-phase1b.md, sections 8-10). A limit smaller than the spread of
+correct builds measures that spread, not a defect. The 8B dense model is quiet (old vs new mean KL about 1e-10), so it
+does not need this.
+
+**Record it** (the same build as the baseline, a second time, with a declared equally correct perturbation):
+
+```
+intarsia accuracy ... --golden G --write-baseline B.json                                  # run 1, unperturbed
+intarsia accuracy ... --golden G --noise-ref B.json --noise-perturb attn-simt --write-noise-envelope E.json
+intarsia accuracy ... --golden G --noise-ref B.json --noise-perturb chunk=64  --write-noise-envelope E.json   # extends E.json
+```
+
+`--noise-perturb` is `chunk` (the baseline's prefill chunk / 4, at least 16), `chunk=N`, `attn-simt` (cuda / hip: sets
+`INTARSIA_CUDA_DISABLE` / `INTARSIA_HIP_DISABLE` to the flash and split-KV attention kernels, the SIMT ones remain) or
+`external:TEXT` (you set other flags or environment yourself, e.g. `INTARSIA_CPU_FAULT=matmul:4.7e-3` on the cpu backend,
+and say what in TEXT). The run is refused unless it is the same golden, the same configuration except the declared
+perturbation, the same build as the one that recorded `B.json` (code stamp equal), and it really changed something. For
+each prompt and mode the envelope keeps both runs' numbers and the delta the per-prompt gate looks at: |top-1 difference|
+in points, |mean 21-way KL difference|, |mean `|tail diff|` difference|; the largest single-position KL difference is
+recorded and printed but no check uses it (there is no per-prompt max-KL check). A second perturbation into the same file
+makes the per-prompt maximum count. The exit status of an envelope run does not depend on its own gates; it also prints
+the perturbed run judged by the fixed margins, which is the quickest way to see that a margin is inside the noise.
+A perturbation that does not reach a prompt (a prefill chunk change leaves every prompt shorter than the chunk
+bit-identical) gives delta 0 for it: that is "not measured", not "quiet", and the writer and the gate both list those
+prompts; the fixed margin applies to them.
+
+**Use it**: `intarsia accuracy ... --golden G --baseline B.json --noise-envelope E.json [--envelope-k 2]`. The envelope is
+refused unless it was measured against this golden, this baseline run configuration and the build that recorded `B.json`.
+Per prompt and check:
+
+```
+limit = baseline value -/+ max(fixed margin, k x envelope delta of that prompt)        k = 2 by default
+```
+
+The verdict prints for every prompt and check the baseline value, this run, the limit, its source (`fixed`, or `envelope`
+when k x delta was wider), the envelope delta, and the `k needed` for that check to pass, followed by the number of
+failing prompts at k = 0, 1, 2, 3, 5, 10. **The aggregate (all-prompt) checks keep their fixed margins and stay hard**; the
+envelope never touches them. Without `--noise-envelope` the per-prompt checks behave as before and the run warns when
+`config.json` shows experts or linear-attention layers (a dense model gets no warning).
+
+**Choosing k.** `k = 2` was fixed before the 35B re-evaluation; it says "a new build may move a prompt twice as far as
+two correct builds of the old code moved it". It is the low end of what is defensible, and the numbers show where:
+
+* The new build's difference to the baseline and the envelope's difference are two draws of the same noise (they share the
+  baseline run), so even a correct build exceeds `k x delta` sometimes. Monte Carlo of one upper-limit check (normal noise;
+  Laplace and t3 are slightly worse), fraction of correct builds that fail it, by number m of real perturbations in the
+  envelope (the maximum is used):
+
+  | m | k = 1 | k = 2 | k = 3 | k = 5 | k = 10 |
+  |---|---|---|---|---|---|
+  | 1 | 25 % | 13.6 % | 9.1 % | 5.5 % | 2.8 % |
+  | 2 | 16.8 % | 5.5 % | 2.6 % | 1.0 % | 0.2 % |
+  | 3 | 12.5 % | 2.7 % | 0.9 % | 0.2 % | 0 |
+  | 4 | 10.0 % | 1.5 % | 0.4 % | 0.1 % | 0 |
+
+  A gate has about 2 modes x 10 prompts x 3 checks, so with one or two perturbations k = 2 flags some prompt of a correct
+  build most of the time.
+* Measured on the Mac (Qwen3-Reranker-0.6B, cpu, `INTARSIA_CPU_FAULT=matmul:p` as the equally correct perturbation, p =
+  4.7e-3 is the size of the old/new MoE kernel difference; 10 prompts x prefill and decode; the envelope's chunk 64
+  perturbation moved nothing, 19 of 20 prompts bit-identical): correct builds of other p / other random draws failed
+  1 prompt with m = 1 (1 of 1 trials) and with m = 2 (2 of 2: one prompt each in `code` + `chat_short`, `chat_system` + an
+  aggregate max-KL); with m = 4 and m = 7 one of 4 trials failed (`chat_system`, a single position KL 0.15, an outlier no
+  sample of the envelope had). Logs, envelopes and the driver scripts: `docs/results/2026-10-13-phase1b-acceptance/gate-calibration/mac/` (the scripts hard-code the scratch directory they ran in; the Monte Carlo is `scripts/mc.py`, run with `uv run --with numpy`).
+* A bug is far outside: attention output x1.05 failed 7/6 aggregate checks and 10 of 10 prompts in both modes; x1.01 failed
+  mean KL, tail-bucket KL and top-5 in prefill, mean KL in decode, and 3 + 1 prompts with the envelope (3 + 3 with fixed
+  margins only: on this dense model the envelope removes none of them); `matmul:1.0` (every output one ulp off, 14x the
+  rel_l2 of the envelope's perturbation) failed 9 + 7 prompts and the aggregates; x1.002 is not distinguishable from a
+  correct build (the same prompt `code` that a correct build failed). 2x the envelope's rel_l2 (`matmul:2e-2`) failed one
+  prompt per mode and the prefill aggregate top-1: the resolution of the gate is about a factor of 2 in rel_l2.
+
+So: treat k = 2 as a pre-registered default, not as a calibrated false-positive rate. A prompt that fails with `k needed`
+below about 3 is inside the spread of correct builds; one with `k needed` above 5 is not. For a hard per-prompt verdict
+record at least 4 perturbations or raise `--envelope-k`; with one or two (all the 35B window could afford) read the
+`k needed` column next to the verdict.
 
 ### Which code produced a baseline (provenance)
 
@@ -426,7 +527,7 @@ with `cpu` on the same golden file.
   2026-10-13 with provenance metadata) and `qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors` (4k and 12k prompts +
   64 greedy continuation tokens each, vLLM 0.26.1rc1 `guidance`, fp8 KV cache).
 * spark1: `~/intarsiaml-golden/` (outside the repo copy on purpose: syncing the repo with `rsync --delete`
-  would remove it): the two vLLM goldens above, `qwen3-8b-full.safetensors` (8 short + 2 long prompts, full
+  would remove it): the two vLLM goldens above, the two HF fp32 goldens `qwen3-8b-fp32.safetensors` / `qwen3-8b-long-fp32.safetensors` (the default for the 8B, pushed and sha256-checked by `scripts/phase1b-acceptance.sh`), `qwen3-8b-full.safetensors` (8 short + 2 long prompts, full
   vocabulary, HF bf16, with metadata, 435 MB), `qwen3-8b-long.safetensors` / `qwen3-8b.safetensors` (older, no
   metadata), and, to be built there, the 8B long golden `qwen3-8b-4k-top20.safetensors` (`golden.py --topk 20 --prompts
   prompts/golden_4k.jsonl` in the `vllm/vllm-openai:v0.28.0-aarch64-cu129` image; `run8b.sh` in that directory has the command;
