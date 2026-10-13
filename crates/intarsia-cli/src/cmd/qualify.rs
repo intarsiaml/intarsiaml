@@ -979,8 +979,7 @@ fn st_plan(c: &mut Ctx) -> Result<Out> {
     }
     if !r.ok() {
         let text = r.stderr();
-        let missing: Vec<String> =
-            text.lines().filter_map(|l| l.trim().strip_prefix("- ")).map(|l| l.to_string()).collect();
+        let missing = missing_kernel_lines(&text);
         if r.code.is_none() {
             return Ok(Out::error(format!("plan show was killed by a signal: {}", r.tail(4))));
         }
@@ -1055,6 +1054,11 @@ fn st_plan(c: &mut Ctx) -> Result<Out> {
         ))
     };
     Ok(o.art(c.rel(&p)).metrics(m))
+}
+
+/// The "- op: N shape(s) without a kernel, ..." lines of the load error `plan.rs` raises (`have no kernel on`).
+fn missing_kernel_lines(stderr: &str) -> Vec<String> {
+    stderr.lines().filter_map(|l| l.trim().strip_prefix("- ")).map(|l| l.to_string()).collect()
 }
 
 fn st_kernels(c: &mut Ctx) -> Result<Out> {
@@ -1968,6 +1972,16 @@ mod tests {
             assert!(server_max_seq(&[size], gen) >= need, "{size}+{gen}");
         }
         assert!(server_max_seq(&[64], 16) >= 2048);
+    }
+
+    #[test]
+    fn missing_kernels_are_listed_from_the_load_error() {
+        // the text built in crates/intarsia-core/src/plan.rs
+        let e = "Error: no kernel for 2 op(s) of this model have no kernel on hip/gfx1201:\n  - matmul: 3 shape(s) without a kernel, e.g. m=1 n=4096 k=4096 fp8; needed by layer.attn.q\n  - attn_decode: 1 shape(s) without a kernel, e.g. hd=256; needed by layer.attn, ...\n";
+        let m = missing_kernel_lines(e);
+        assert_eq!(m.len(), 2);
+        assert!(m[0].starts_with("matmul: 3 shape(s) without a kernel"));
+        assert!(m[1].starts_with("attn_decode:"));
     }
 
     #[test]

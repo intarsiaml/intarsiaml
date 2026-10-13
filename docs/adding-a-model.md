@@ -157,7 +157,12 @@ What each stage needs and how it decides:
   5 GB of weights, no MoE / hybrid / quantisation), an HF fp32 golden with `tools/golden.py` (needs `uv` or a
   python with torch and transformers). Otherwise the stage is **skipped with the reason**; a model that no one can
   make a golden for needs `--golden` or `--reference`. The short golden cannot exercise prefix reuse (the reuse
-  gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden.
+  gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt
+  (`long_prose_700`, continue and restore) is long enough to exercise it: a thin check. A stress run with
+  `--prefill-chunk 16` on the short golden of Qwen3-8B (hip) once failed it (`science`, `continue`: the streams
+  diverged at token 9, 9/32 agreeing; `docs/results/2026-10-13-qualify/run2-prefix-reuse-fail/`); the run was
+  not repeated or investigated, and `qualify` does not include that stress stage. ADR-0007 records a different,
+  also unexplained, prefix-reuse FAIL-then-PASS on the 35B; whether they are related is unknown.
 * **Byte floor** (`bench`, `bench-long`, `tp`): decode is memory bound, so bandwidth / bytes read per token is a
   ceiling on single-stream tok/s. Bytes per token come from the checkpoint's tensor sizes (routed experts scaled by
   `top_k / experts`, the input embedding left out when `lm_head` is a separate tensor; for `--tp` the busiest
