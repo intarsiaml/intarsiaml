@@ -1,0 +1,24 @@
+== chunk size only (same flash kernels), mean KL21 / positions with KL21 > 1
+  chunk  256 vs   64  chat_reuse_4k@4631     mean 0.1349  n>1 101
+  chunk  256 vs   64  long_docs_4k@4064      mean 0.0094  n>1 1
+  chunk  256 vs   64  long_code_4k@4064      mean 0.0049  n>1 0
+  chunk  256 vs 1024  chat_reuse_4k@4631     mean 0.1287  n>1 109
+  chunk  256 vs 1024  long_docs_4k@4064      mean 0.0099  n>1 1
+  chunk  256 vs 1024  long_code_4k@4064      mean 0.0045  n>1 0
+  chunk   64 vs 1024  chat_reuse_4k@4631     mean 0.1400  n>1 105
+  chunk   64 vs 1024  long_docs_4k@4064      mean 0.0096  n>1 1
+  chunk   64 vs 1024  long_code_4k@4064      mean 0.0048  n>1 0
+== who is right where the two disagree sharply (p of the true next token)
+  vLLM right (p>0.9) / ours c256 wrong (p<0.05): 6   ours right / vLLM wrong: 5
+== turn-control tokens (<|im_end|>, <|im_start|>, <|endoftext|>)
+  positions where some engine puts >10% on them: 2013 of 4631
+  ours c256 vs vLLM    mean 0.1921 | on those positions 0.310 (share of all KL 70%) | elsewhere 0.1011, n>1 31
+  ours c256 vs c64     mean 0.1349 | on those positions 0.217 (share of all KL 70%) | elsewhere 0.0715, n>1 29
+  ours c256 vs c1024   mean 0.1287 | on those positions 0.216 (share of all KL 73%) | elsewhere 0.0617, n>1 29
+== by segment of the prompt (mean KL21)
+  ours c256 vs vLLM [system turn 0-24: 0.0497] [user document 25-4516: 0.1975] [question + assistant prompt 4517-4566: 0.0130] [generated <think> continuation 4567-4630: 0.0028]
+  ours c256 vs c64 [system turn 0-24: 0.0122] [user document 25-4516: 0.1388] [question + assistant prompt 4517-4566: 0.0097] [generated <think> continuation 4567-4630: 0.0013]
+== same document with / without the ChatML wrapper (chunk 256 vs chunk 1024, flash)
+  A_raw_doc@4487                   mean 0.0282 n>1  20  positions with >10% turn-control mass 0.0%
+  B_system_user_doc_open@4516      mean 0.1330 n>1 109  positions with >10% turn-control mass 38.9%
+  C_user_doc_closed@4492           mean 0.1064 n>1  85  positions with >10% turn-control mass 34.9%

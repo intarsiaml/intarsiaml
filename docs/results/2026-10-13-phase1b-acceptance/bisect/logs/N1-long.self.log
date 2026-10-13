@@ -1,0 +1,32 @@
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsia-acc/bis/O-long.self.safetensors (5 prompts, 36887 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head 4963b43 code-tree 59c9b247fd19 dirty + harness overlay [crates/intarsia-cli/src/cmd/accuracy.rs, crates/intarsia-cli/src/cmd/accuracy/baseline.rs, crates/intarsia-cli/src/cmd/accuracy/provenance.rs, crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs] | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 256; longest prompt 12064; prompts spanning more than one chunk: 5/5
+this build: head 9d27c01 code-tree 53eefe07ea79 clean
+self-golden written by: head 4963b43 code-tree 59c9b247fd19 dirty + harness overlay [crates/intarsia-cli/src/cmd/accuracy.rs, crates/intarsia-cli/src/cmd/accuracy/baseline.rs, crates/intarsia-cli/src/cmd/accuracy/provenance.rs, crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs] (top-64, modes decode)
+differences from the self-golden's run (kernels per op, flags): kernel disable list: baseline '', this run 'INTARSIA_CUDA_DISABLE=matmul_fp8_gemm,matmul_nvfp4_gemm'; moe_experts: moe_experts_bf16 -> moe_experts_bf16+moe_experts_decode_bf16+moe_experts_mma_bf16
+self-golden budgets: mean KL(21-way) <= 1.0e0, max position KL <= 1.0e1, top-1 flips <= 100% (>= 1 position), mean |tail diff| <= 1.0e0, prompt KL <= x5
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   8.762e-3   8.580e-3   1.007e-1   0.0107   0.0111    90.94     44/64      0
+long_code_4k        4064    64    95.31   6.744e-3   6.265e-3   6.013e-2   0.0254   0.0269    93.44     28/64      0
+chat_reuse_4k       4631    64    98.44   2.396e-3   2.396e-3   8.565e-2   0.0000   0.0000    94.06     51/64      0
+long_docs_12k      12064    64    95.31   1.025e-2   9.655e-3   1.205e-1   0.0223   0.0211    91.25      7/64      0
+long_code_12k      12064    64    96.88   3.026e-3   3.018e-3   5.700e-2   0.0042   0.0044    93.12      2/64      0
+OVERALL                    320    95.94   6.236e-3   5.983e-3   1.205e-1   0.0125   0.0127    92.56     41.2%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                 5.9830e-3  (limit 1.0000e0)  ok
+  max position KL(21-way)                         1.0757e-1  (limit 1.0000e1)  ok
+  top-1 flips                                      1.3000e1  (limit 3.2000e2)  ok
+  mean |tail diff|                                1.0953e-3  (limit 1.0000e0)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [long_docs_12k]         9.6553e-3  (limit 5.0000e0)  ok
+SELF-STATS mode=decode positions=320 mean_kl21=5.982975e-3 max_kl21=1.075662e-1 flips=13 flip_pct=4.0625 tail_abs=1.095266e-3 worst_prompt_kl21=9.655312e-3
+decode (teacher-forced) self-golden => PASS
+greedy-match [decode (teacher-forced)]: mean 41.2% of positions before the first argmax divergence, worst prompt 3.1% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS

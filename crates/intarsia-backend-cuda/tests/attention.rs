@@ -59,6 +59,9 @@ fn attention_kernels_match_reference_on_random_shapes() {
     let tp = [
         (1, 0), (1, 1), (1, 63), (1, 64), (1, 4095), (2, 700), (4, 33), (8, 1999), (16, 5),
         (17, 0), (33, 129), (63, 1), (64, 64), (65, 3000), (130, 77), (300, 0),
+        // the shapes of the 4631-token chat prompt (chunk 256: 18 full chunks, then 23 rows at pos0 4608), and a
+        // non-aligned cache offset with a non-multiple-of-16 row count
+        (23, 4608), (7, 4624), (1, 4630),
     ];
     for &(n, nkv, d) in &heads {
         for &(t, p) in &tp {

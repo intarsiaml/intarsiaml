@@ -1,0 +1,31 @@
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: w_flash256.safetensors (3 prompts, 13495 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 256; longest prompt 4516; prompts spanning more than one chunk: 3/3
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: the self-golden does not record the code that produced it (written by a build without INTARSIA_BUILD_STAMP, or by an older tool): record it again from the pre-change build (--allow-unstamped)
+self-golden written by: UNSTAMPED (built without INTARSIA_BUILD_STAMP) (top-64, modes prefill)
+differences from the self-golden's run (kernels per op, flags): kernel disable list: baseline '', this run 'INTARSIA_CUDA_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash'; attn_decode: attn_decode_bf16_splitkv -> attn_decode_bf16; attn_prefill: attn_prefill_bf16_flash+attn_prefill_bf16_splitkv -> attn_prefill_bf16
+self-golden budgets: mean KL(21-way) <= 1.0e9, max position KL <= 1.0e9, top-1 flips <= 100% (>= 1 position), mean |tail diff| <= 1.0e9, prompt KL <= x5
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+A_raw_doc@4487      4487  4487    94.09   3.075e-2   3.009e-2    1.423e1   0.0652   0.0661    92.10   10/4487      0
+B_system_user_doc_open@4516  4516  4516    90.79   1.533e-1   1.717e-1    1.874e1   0.0470   0.0550    90.24    7/4516      0
+C_user_doc_closed@4492  4492  4492    90.58   1.142e-1   1.219e-1    1.823e1   0.0486   0.0533    90.29   57/4492      0
+OVERALL                  13495    91.82   9.954e-2   1.080e-1    1.874e1   0.0536   0.0581    90.88      0.5%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 1.0804e-1  (limit 1.0000e9)  ok
+  max position KL(21-way)                          1.9927e1  (limit 1.0000e9)  ok
+  top-1 flips                                      1.1040e3  (limit 1.3495e4)  ok
+  mean |tail diff|                                9.4490e-3  (limit 1.0000e9)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [B_system_user_doc_open@4516]    1.7165e-1  (limit 5.0000e9)  ok
+SELF-STATS mode=prefill positions=13495 mean_kl21=1.080391e-1 max_kl21=1.992658e1 flips=1104 flip_pct=8.1808 tail_abs=9.449012e-3 worst_prompt_kl21=1.716547e-1
+prefill self-golden => PASS
+greedy-match [prefill]: mean 0.5% of positions before the first argmax divergence, worst prompt 0.2% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS

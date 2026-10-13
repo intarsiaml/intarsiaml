@@ -1,0 +1,160 @@
+{
+  "format": "intarsia-accuracy-baseline-v2",
+  "created_unix": 1791899519,
+  "tool_version": "0.0.1",
+  "code": {
+    "head": "9d27c01",
+    "code_tree": "53eefe07ea79",
+    "dirty": false,
+    "overlay": []
+  },
+  "exec": {
+    "cmdline": [
+      "/home/nvidia/intarsia-acc/new/target/acc/release/intarsia",
+      "accuracy",
+      "--model",
+      "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+      "--backend",
+      "cuda",
+      "--golden",
+      "/home/nvidia/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+      "--mode",
+      "decode",
+      "--decode-positions",
+      "64",
+      "--max-seq",
+      "16384",
+      "--mem-budget",
+      "70",
+      "--write-baseline",
+      "/home/nvidia/intarsia-acc/bis/N0-long.rec.baseline.json",
+      "--write-self-golden",
+      "/home/nvidia/intarsia-acc/bis/N0-long.rec.self.safetensors"
+    ],
+    "disable_list": "",
+    "kernels": {
+      "argmax": "argmax_f32",
+      "attn_decode": "attn_decode_bf16_splitkv",
+      "attn_prefill": "attn_prefill_bf16_flash+attn_prefill_bf16_splitkv",
+      "embedding": "embedding_bf16",
+      "gate_split": "gate_split_bf16",
+      "gdn_conv": "gdn_conv_bf16",
+      "gdn_delta_rule": "gdn_delta_rule_bf16",
+      "kv_append": "kv_append_bf16",
+      "matmul": "matmul_bf16+matmul_bf16_gemv",
+      "matmul_fp8": "matmul_fp8_gemm+matmul_fp8_gemv+matmul_fp8_mma",
+      "matmul_nvfp4": "matmul_nvfp4_gemm+matmul_nvfp4_gemv+matmul_nvfp4_mma",
+      "moe_combine": "moe_combine_bf16",
+      "moe_experts": "moe_experts_bf16+moe_experts_decode_bf16+moe_experts_mma_bf16",
+      "moe_topk": "moe_topk_bf16",
+      "qk_norm": "qk_norm_bf16",
+      "rmsnorm": "rmsnorm_bf16",
+      "rmsnorm_add": "rmsnorm_add_bf16",
+      "rope": "rope_bf16",
+      "sigmoid_mul": "sigmoid_mul_bf16",
+      "silu_glu": "silu_glu_bf16"
+    }
+  },
+  "golden": {
+    "file": "qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+    "fnv1a64": "1c62c8e49c68fe34",
+    "size": 6061444,
+    "format": "intarsia-golden-topk-v1",
+    "prompts": 5,
+    "positions": 36887,
+    "topk": 20,
+    "engine": "vllm",
+    "engine_version": "0.26.1rc1.dev602+g65b7662d3",
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "model_revision": "not in the model root path",
+    "kv_dtype": "fp8"
+  },
+  "run": {
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "backend": "cuda",
+    "device": "NVIDIA GB10",
+    "kv_dtype": "bf16",
+    "act_dtype": "bf16",
+    "fp8_act": "recipe default",
+    "prefill_chunk": 256,
+    "decode_positions": 64,
+    "gate_class": "4bit"
+  },
+  "modes": [
+    {
+      "overall": {
+        "mode": "decode",
+        "positions": 320,
+        "top1_pct": 96.875,
+        "mean_kl": 0.009421651072572219,
+        "mean_kl21": 0.008652043094231279,
+        "top5_pct": 89.9375,
+        "tail_ref": 0.023018183032261424,
+        "tail_ours": 0.02360853105251578,
+        "max_kl": 0.17336514126813263,
+        "max_kl21": 0.17322891945697236,
+        "tail_abs": 0.0024524731281662044,
+        "nonfinite": 0,
+        "greedy_match_pct": 48.125,
+        "floor_pass": true
+      },
+      "prompts": [
+        {
+          "name": "long_docs_4k",
+          "positions": 64,
+          "top1_pct": 95.3125,
+          "mean_kl": 0.014970343808900863,
+          "mean_kl21": 0.014435964181807657,
+          "top5_pct": 88.4375,
+          "tail_excess": 0.002013045393454087,
+          "max_kl21": 0.17322891945697236,
+          "tail_abs": 0.0023644101027134466
+        },
+        {
+          "name": "long_code_4k",
+          "positions": 64,
+          "top1_pct": 92.1875,
+          "mean_kl": 0.011510802902310473,
+          "mean_kl21": 0.009521751279618417,
+          "top5_pct": 89.6875,
+          "tail_excess": 0.0006062187688205892,
+          "max_kl21": 0.09348273247145099,
+          "tail_abs": 0.004778355136547814
+        },
+        {
+          "name": "chat_reuse_4k",
+          "positions": 64,
+          "top1_pct": 100.0,
+          "mean_kl": 0.002725981942167427,
+          "mean_kl21": 0.002726409102208389,
+          "top5_pct": 92.5,
+          "tail_excess": 2.0752118486557677e-6,
+          "max_kl21": 0.056780961702971366,
+          "tail_abs": 2.8901816060156323e-6
+        },
+        {
+          "name": "long_docs_12k",
+          "positions": 64,
+          "top1_pct": 98.4375,
+          "mean_kl": 0.01330515761203961,
+          "mean_kl21": 0.012047994808052088,
+          "top5_pct": 88.75,
+          "tail_excess": 0.0004446927915131779,
+          "max_kl21": 0.10411880115743247,
+          "tail_abs": 0.003971124526054594
+        },
+        {
+          "name": "long_code_12k",
+          "positions": 64,
+          "top1_pct": 98.4375,
+          "mean_kl": 0.004595969097442719,
+          "mean_kl21": 0.004528096099469844,
+          "top5_pct": 90.3125,
+          "tail_excess": -0.00011429206436474118,
+          "max_kl21": 0.0683597775432908,
+          "tail_abs": 0.0011455856939091493
+        }
+      ]
+    }
+  ]
+}
