@@ -1,0 +1,52 @@
+prefill chunk 256 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on cpu-ref (Apple M5 Max) (vocab 248320, weights/act/kv bf16/bf16)
+golden: /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 not gated, 21-way KL <= 3.0e-2, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+WARNING: INTARSIA_CPU_MUTATE=moe_experts:scale=1.01: bf16 outputs of [moe_experts] are scaled x1.01 on purpose (a deliberate bug, gate sensitivity check)
+count                 38    38   100.00   3.113e-3   3.599e-3   1.758e-2   0.0455   0.0450    92.63     38/38      0
+story                 39    39    94.87   4.435e-3   4.129e-3   2.251e-2   0.0495   0.0497    95.90      4/39      0
+code                  87    87   100.00   1.741e-3   1.508e-3   5.404e-2   0.0179   0.0185    96.55     87/87      0
+science               79    79    97.47   7.002e-3   6.897e-3   6.479e-2   0.0278   0.0287    97.47     22/79      0
+chat_short            18    18    94.44   4.187e-3   4.429e-3   2.614e-2   0.0424   0.0409    96.67      2/18      0
+chat_system           32    32   100.00   1.843e-2   1.814e-2   1.567e-1   0.0305   0.0307    91.25     32/32      0
+chat_multiturn        58    58    98.28   1.347e-2   1.368e-2   6.083e-1   0.0262   0.0249    94.48      2/58      0
+chat_reasoning        90    90    92.22   3.549e-2   3.554e-2   3.175e-1   0.0207   0.0198    94.44      2/90      0
+long_prose_300       300   300    98.67   2.250e-3   2.422e-3   8.795e-2   0.0126   0.0137    90.20     5/300      0
+long_prose_700       700   700    98.57   6.809e-3   6.186e-3   5.622e-1   0.0129   0.0128    89.17     0/700      0
+OVERALL                   1441    98.13   7.687e-3   7.413e-3   6.083e-1   0.0176   0.0178    91.24     13.5%      0
+prefill floor [4bit]: top-1 98.13% (not gated for this class) ok | 21-way KL 7.413e-3 (need <= 3.0e-2) ok | tail mass ours 0.0178 vs ref 0.0176, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.528e-3   1.740e-3   1.195e-2   0.0209   0.0216    93.75     16/16      0
+story                 39    16    93.75   8.763e-3   7.882e-3   2.251e-2   0.0971   0.0981    98.75      4/16      0
+code                  87    16   100.00   8.500e-4   8.521e-4   6.157e-3   0.0007   0.0006    95.00     16/16      0
+science               79    16    87.50   8.591e-3   8.161e-3   2.633e-2   0.0460   0.0474    97.50     14/16      0
+chat_short            18    16    93.75   6.723e-3   7.034e-3   4.272e-2   0.0476   0.0454    97.50      0/16      0
+chat_system           32    16   100.00   6.263e-3   5.841e-3   3.589e-2   0.0421   0.0425    88.75     16/16      0
+chat_multiturn        58    16   100.00   8.670e-2   8.672e-2    1.345e0   0.0014   0.0010    92.50     16/16      0
+chat_reasoning        90    16   100.00   2.085e-2   2.091e-2   1.228e-1   0.0011   0.0009    97.50     16/16      0
+long_prose_300       300    16   100.00   2.567e-4   2.597e-4   2.985e-3   0.0002   0.0002    92.50     16/16      0
+long_prose_700       700    16   100.00   2.068e-2   2.065e-2   2.011e-1   0.0007   0.0008    86.25     16/16      0
+OVERALL                    160    97.50   1.612e-2   1.600e-2    1.345e0   0.0258   0.0259    94.00     81.2%      0
+decode (teacher-forced) floor [4bit]: top-1 97.50% (not gated for this class) ok | 21-way KL 1.600e-2 (need <= 3.0e-2) ok | tail mass ours 0.0259 vs ref 0.0258, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 35.7% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 81.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote baseline cpu-moe101.baseline.json (2 mode(s); absolute floor passed)
+
+wrote self-golden cpu-moe101.dump.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

@@ -1,6 +1,6 @@
 {
   "format": "intarsia-accuracy-baseline-v2",
-  "created_unix": 1791930873,
+  "created_unix": 1791932815,
   "tool_version": "0.0.1",
   "code": {
     "head": "",
@@ -31,7 +31,9 @@
       "--allow-unstamped",
       "--allow-dirty",
       "--write-baseline",
-      "cpu-mut101.baseline.json"
+      "cpu-mut101.baseline.json",
+      "--write-self-golden",
+      "cpu-mut101.dump.safetensors"
     ],
     "disable_list": "",
     "fault": "INTARSIA_CPU_MUTATE=attn_prefill,attn_decode:scale=1.01",

@@ -23,3 +23,30 @@ chat_system           32    32    93.75   1.554e-2   1.534e-2   2.526e-1   0.030
 chat_multiturn        58    58    98.28   1.087e-2   1.098e-2   5.462e-1   0.0262   0.0252    95.17      2/58      0
 chat_reasoning        90    90    91.11   2.580e-2   2.590e-2   1.687e-1   0.0207   0.0200    94.44      2/90      0
 long_prose_300       300   300    99.33   2.419e-3   2.417e-3   1.086e-1   0.0126   0.0128    88.80     5/300      0
+long_prose_700       700   700    98.86   6.183e-3   5.206e-3   7.667e-1   0.0129   0.0126    90.20     0/700      0
+OVERALL                   1441    97.99   6.692e-3   6.234e-3   7.667e-1   0.0176   0.0172    91.35      6.9%      0
+prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.234e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   2.287e-3   2.744e-3   7.487e-3   0.0209   0.0193    88.75     16/16      0
+story                 39    16   100.00   8.425e-3   7.764e-3   2.130e-2   0.0971   0.0913    96.25     16/16      0
+code                  87    16   100.00   1.119e-3   1.120e-3   7.524e-3   0.0007   0.0007    93.75     16/16      0
+science               79    16    93.75   7.374e-3   6.988e-3   1.765e-2   0.0460   0.0473    97.50     15/16      0
+chat_short            18    16    93.75   3.510e-3   4.188e-3   3.254e-2   0.0476   0.0445    97.50      0/16      0
+chat_system           32    16   100.00   6.469e-3   6.313e-3   6.486e-2   0.0421   0.0421    91.25     16/16      0
+chat_multiturn        58    16   100.00   2.056e-2   2.063e-2   3.138e-1   0.0014   0.0011    93.75     16/16      0
+chat_reasoning        90    16   100.00   2.969e-2   3.022e-2   1.554e-1   0.0011   0.0015    93.75     16/16      0
+long_prose_300       300    16   100.00   4.507e-4   4.525e-4   5.503e-3   0.0002   0.0002    87.50     16/16      0
+long_prose_700       700    16   100.00   3.379e-3   3.496e-3   1.805e-2   0.0007   0.0011    87.50     16/16      0
+OVERALL                    160    98.75   8.326e-3   8.391e-3   3.138e-1   0.0258   0.0249    92.75     89.4%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 8.391e-3 (need <= 3.0e-2) ok | tail mass ours 0.0249 vs ref 0.0258, excess -0.0009 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 20.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 89.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote baseline cpu-mut101.baseline.json (2 mode(s); absolute floor passed)
+
+wrote self-golden cpu-mut101.dump.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
