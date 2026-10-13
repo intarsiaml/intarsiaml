@@ -57,6 +57,7 @@ REPS=${REPS:-5}
 GEN=${GEN:-128}
 SIZES=${SIZES:-128,1024,4096}
 MEM_LEASE_GB=${MEM_LEASE_GB:-100}
+BUILD_JOBS=${BUILD_JOBS:-8}               # cargo -j on spark1 while vLLM is up: bounds rustc/nvcc memory
 MODEL_GB_35B=${MODEL_GB_35B:-38}
 MODEL_GB_8B=${MODEL_GB_8B:-17}
 STAGES=${STAGES:-all}
@@ -261,9 +262,9 @@ stage_build() {
   push_goldens
   local nq oq
   nq=$(printf %q "$NEW_STAMP"); oq=$(printf %q "$OLD_STAMP")
-  rsh "cd $R/new && env INTARSIA_BUILD_STAMP=$nq CARGO_TARGET_DIR=target/acc cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -5"
-  rsh "cd $R/old && env INTARSIA_BUILD_STAMP=$oq CARGO_TARGET_DIR=target/acc cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -5"
-  rsh "cd $R/new && CARGO_TARGET_DIR=target/acc cargo test --release -p intarsia-backend-cuda --no-run 2>&1 | tail -5"
+  rsh "cd $R/new && env INTARSIA_BUILD_STAMP=$nq CARGO_BUILD_JOBS=$BUILD_JOBS CARGO_TARGET_DIR=target/acc cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -5"
+  rsh "cd $R/old && env INTARSIA_BUILD_STAMP=$oq CARGO_BUILD_JOBS=$BUILD_JOBS CARGO_TARGET_DIR=target/acc cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -5"
+  rsh "cd $R/new && CARGO_BUILD_JOBS=$BUILD_JOBS CARGO_TARGET_DIR=target/acc cargo test --release -p intarsia-backend-cuda --no-run 2>&1 | tail -5"
   rsh "test -x $NEWBIN && test -x $OLDBIN" || die "a build is missing"
   fq release "$BUILD_JOB" >/dev/null; BUILD_JOB=""; unset FLEETQ_JOB
 }
