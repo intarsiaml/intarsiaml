@@ -48,6 +48,15 @@ trait Comm: Send + Sync {            // one rank's handle onto a group
 
 **Not supported yet.** GatedDeltaNet and MoE blocks (Qwen3.6-35B-A3B), FP8 and NVFP4 weights: sharded loading refuses with `Unsupported` instead of loading unsharded. CUDA graphs are off when `world > 1` (the HIP backend has none anyway). `--tp` on cuda uses the host comm.
 
+## Accuracy gate
+
+TP is gated in two parts, both on the HF fp32 Qwen3-8B goldens (`qwen3-8b-fp32`, `qwen3-8b-long-fp32`):
+
+1. **The fp32 floor.** tp=2 must pass the absolute bf16-class floor (`--gate-class bf16`: prefill and decode top-1 >= 99.5%, full-vocabulary KL <= 1e-3, tail excess <= 0.02) on both goldens. The bf16 goldens were retired as the TP gate: they sit within the engine's own bf16 noise, and tp=1 itself is at 99.51% on the long one, so one extra flip failed tp=2 (99.44%, 8 flips against 7 allowed) without a defect (results doc, section 4).
+2. **The self-golden against tp=1** (`--write-self-golden` on tp=1, `--self-golden` on tp=2, same weights, default budgets, no loosening). This is the measure of what sharding itself changes. The floor shows tp=2 is as close to the reference as tp=1; the self-golden shows how far apart tp=1 and tp=2 are from each other.
+
+Measured result (results doc, "Re-gate against fp32 goldens"): the floor passes on both goldens; the self-golden gate with default budgets **fails** (mean 21-way KL 5.9e-4 prefill and 5.1e-4 decode against 1.0e-4). The default budgets were chosen for same-numerics comparisons (one kernel change on one device); a different summation order across two ranks is not that. The gate is kept at the default budgets and the failure is recorded, not tuned away. Any budget for TP needs its own measured noise floor and a separate decision.
+
 ## HIP all-reduce
 
 See the section added to `docs/backends/hip.md` and the results doc for the measured cost.

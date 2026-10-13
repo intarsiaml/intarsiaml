@@ -75,6 +75,16 @@ stage_accuracy_self() { # tp=2 against tp=1's own logits (same weights, same pro
   done
 }
 
+stage_regate_self() {
+  # tp=2 against the tp=1 self-golden written by stage_regate (same build, so --allow-same-code). The build's
+  # history cannot be checked without .git on the box: bench-out/regate/revlist is `git rev-list HEAD`, copied over.
+  local L=$INTARSIA_REPO/bench-out/regate
+  echo "=== [$(ts)] regate tp=2 self-golden gate against tp=1 (long fp32 prompts, default budgets)"
+  $D $B accuracy --backend hip --model $M --tp 2 --self-golden /work/bench-out/regate/sg-qwen3-8b-long-fp32-tp1.safetensors --mode both \
+    --allow-same-code --revlist /work/bench-out/regate/revlist > "$L/self.tp2.log" 2>&1
+  echo "exit $?"; tail -30 "$L/self.tp2.log"
+}
+
 stage_regate() {
   # Re-gate against the HF fp32 goldens (bf16 gate class), then the same-weights self-golden gate:
   # tp=1 writes its own log-probs on the long golden, tp=2 is judged against them. Full logs: bench-out/regate/.
@@ -90,10 +100,7 @@ stage_regate() {
     $D $B accuracy --backend hip --model $M --tp 2 --golden "$G/$g.safetensors" --mode both --gate-class bf16 > "$L/$g.tp2.log" 2>&1
     echo "exit $?"; tail -22 "$L/$g.tp2.log"
   done
-  echo "=== [$(ts)] regate tp=2 self-golden gate against tp=1 (long fp32 prompts, default budgets)"
-  $D $B accuracy --backend hip --model $M --tp 2 --self-golden /work/bench-out/regate/sg-qwen3-8b-long-fp32-tp1.safetensors --mode both \
-    --allow-same-code > "$L/self.tp2.log" 2>&1
-  echo "exit $?"; tail -30 "$L/self.tp2.log"
+  stage_regate_self
   echo "=== [$(ts)] tp=2 generate sanity"
   $D $B generate --backend hip --model $M --tp 2 -p "The capital of France is" --max-tokens 24 --profile-every 0 2>&1 | grep -v "^warning" | tail -8
 }

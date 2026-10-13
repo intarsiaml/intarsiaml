@@ -1,0 +1,40 @@
+[burst] job 1559; stopping radiance 2026-10-13 11:36:22
+inactive
+[burst] radiance stopped 2026-10-13 11:36:26
+################ stage regate_self start 11:36:26
+=== [11:36:26] regate tp=2 self-golden gate against tp=1 (long fp32 prompts, default budgets)
+exit 1
+prefill self-golden => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   7.444e-6   7.487e-6   5.404e-5   0.0010   0.0009    98.75     16/16      0
+story                 39    16   100.00   3.034e-4   3.002e-4   1.407e-3   0.0073   0.0074    97.50     16/16      0
+code                  80    16   100.00   5.933e-6   5.937e-6   3.020e-5   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   1.823e-4   1.834e-4   7.721e-4   0.0030   0.0031   100.00     16/16      0
+chat_short            18    16   100.00   4.594e-4   4.560e-4   3.569e-3   0.0318   0.0320    97.50     16/16      0
+chat_system           32    16   100.00   2.145e-3   1.971e-3   1.463e-2   0.0515   0.0522    96.25     16/16      0
+chat_multiturn        58    16   100.00   4.036e-4   4.293e-4   3.456e-3   0.0019   0.0017    96.25     16/16      0
+chat_reasoning        90    16   100.00   7.153e-4   7.000e-4   5.766e-3   0.0036   0.0035    97.50     16/16      0
+long_prose_300       300    16   100.00   8.828e-6   8.828e-6   7.253e-5   0.0000   0.0000   100.00     16/16      0
+long_prose_700       700    16   100.00   1.069e-3   1.009e-3   8.456e-3   0.0113   0.0111    98.75     16/16      0
+OVERALL                    160   100.00   5.301e-4   5.071e-4   1.463e-2   0.0111   0.0112    98.25    100.0%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                 5.0714e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         1.4644e-2  (limit 5.0000e-3)  FAIL
+  top-1 flips                                      0.0000e0  (limit 1.0000e0)  ok
+  mean |tail diff|                                2.1336e-4  (limit 5.0000e-4)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_system]           1.9712e-3  (limit 5.0000e-4)  FAIL
+SELF-STATS mode=decode positions=160 mean_kl21=5.071370e-4 max_kl21=1.464406e-2 flips=0 flip_pct=0.0000 tail_abs=2.133617e-4 worst_prompt_kl21=1.971237e-3
+decode (teacher-forced) self-golden => FAIL
+greedy-match [prefill]: mean 81.4% of positions before the first argmax divergence, worst prompt 7.9% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage regate_self end 11:36:34
+[burst] stages done 2026-10-13 11:36:34
+[burst] starting radiance 2026-10-13 11:36:34
+[burst] radiance answers 2026-10-13 11:36:45 (after 15 s)
