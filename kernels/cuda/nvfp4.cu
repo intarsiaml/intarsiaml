@@ -8,6 +8,7 @@
 // The fp4 -> e4m3 byte lookup (`prmt`) follows TensorFold's NVFP4 kernels (MIT, see ik_quant.cuh).
 #include "ik_launch.h"
 #include "ik_quant.cuh"
+#include <initializer_list>
 
 namespace {
 
@@ -52,6 +53,50 @@ nvfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
         const float s = ik_warp_sum(acc[m]);
         if (lane == 0) ik_store(out + (int64_t)m * N + n, s * g);
     }
+}
+
+// Shared-expert gate + up + silu_glu in one launch (M == 1, bf16 out): a warp owns row n of BOTH the gate and the up matrix,
+// so it reads the activations once and ends with silu(gate_n) * up_n. Each row runs exactly the arithmetic of
+// nvfp4_gemv_kernel<1, bf16> (same lane/iteration order, same fma chain, scale applied after the warp sum), the two results
+// are rounded to bf16 as that kernel's store would, and the epilogue is silu_glu_kernel's: the output bits equal those of the
+// three launches this replaces.
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+nvfp4_glu_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg, const uint8_t* __restrict__ bsg,
+                 const float* __restrict__ gsg, const uint8_t* __restrict__ wu, const uint8_t* __restrict__ bsu,
+                 const float* __restrict__ gsu, ik_bf16* __restrict__ out, int64_t N, int K) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    if (n >= N) return;  // whole warp exits together
+    const uint2* wrg = reinterpret_cast<const uint2*>(wg + n * (K / 2));
+    const uint2* wru = reinterpret_cast<const uint2*>(wu + n * (K / 2));
+    const uint8_t* srg = bsg + n * (K / 16);
+    const uint8_t* sru = bsu + n * (K / 16);
+    float ag = 0.f, au = 0.f;
+#pragma unroll 4
+    for (int u = lane; u < K / 16; u += IK_WARP) {
+        const uint2 wgv = __ldcs(wrg + u), wuv = __ldcs(wru + u);
+        const float scg = ik_e4m3_to_f(srg[u]), scu = ik_e4m3_to_f(sru[u]);
+        float fg[16], fu[16];
+        ik_fp4x8_to_f32(wgv.x, fg);
+        ik_fp4x8_to_f32(wgv.y, fg + 8);
+        ik_fp4x8_to_f32(wuv.x, fu);
+        ik_fp4x8_to_f32(wuv.y, fu + 8);
+        const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)u * 16);
+        float xf[16];
+        ik_unpack8(__ldg(xp), xf);
+        ik_unpack8(__ldg(xp + 1), xf + 8);
+        float sg = 0.f, su = 0.f;
+#pragma unroll
+        for (int e = 0; e < 16; ++e) {
+            sg = fmaf(fg[e], xf[e], sg);
+            su = fmaf(fu[e], xf[e], su);
+        }
+        ag = fmaf(sg, scg, ag);
+        au = fmaf(su, scu, au);
+    }
+    const float g = ik_b2f(ik_f2b(ik_warp_sum(ag) * gsg[0]));  // what the gate GEMV stores
+    const float u = ik_b2f(ik_f2b(ik_warp_sum(au) * gsu[0]));  // what the up GEMV stores
+    if (lane == 0) out[n] = ik_f2b(ik_silu(g) * u);
 }
 
 template <int M, typename OutT>
@@ -213,9 +258,38 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik
                 : mma_by_m(xp, wp, bp, gp, (ik_bf16*)out->data, M, N, K, s);
 }
 
+int glu(const ik_tensor* x, const ik_tensor* wg, const ik_tensor* bsg, const ik_tensor* gsg, const ik_tensor* wu,
+        const ik_tensor* bsu, const ik_tensor* gsu, ik_tensor* out, void* stream) {
+    IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
+    for (const ik_tensor* w : {wg, wu}) IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 8));
+    for (const ik_tensor* b : {bsg, bsu}) IK_TRY(ik_check_a(b, IK_DTYPE_FP8_E4M3, 2, 1));
+    for (const ik_tensor* g : {gsg, gsu}) IK_TRY(ik_check_a(g, IK_DTYPE_F32, 1, 4));
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
+    const int64_t M = x->shape[0], K = x->shape[1], N = wg->shape[0];
+    if (M != 1 || K % 16 != 0 || wu->shape[0] != N || wg->shape[1] != K / 2 || wu->shape[1] != K / 2 ||
+        bsg->shape[0] != N || bsu->shape[0] != N || bsg->shape[1] != K / 16 || bsu->shape[1] != K / 16 ||
+        gsg->shape[0] != 1 || gsu->shape[0] != 1 || out->shape[0] != M || out->shape[1] != N)
+        return IK_ERR_SHAPE;
+    if (N == 0) return IK_OK;
+    if (K == 0)
+        return cudaMemsetAsync(out->data, 0, ik_numel(out) * 2, IK_STREAM(stream)) == cudaSuccess ? IK_OK : IK_ERR_LAUNCH;
+    if (K > 0x7fffffffLL || N > 0x7fffffffLL * kWarps) return IK_ERR_SHAPE;
+    const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
+    nvfp4_glu_kernel<<<grid, kWarps * IK_WARP, 0, IK_STREAM(stream)>>>(
+        (const ik_bf16*)x->data, (const uint8_t*)wg->data, (const uint8_t*)bsg->data, (const float*)gsg->data,
+        (const uint8_t*)wu->data, (const uint8_t*)bsu->data, (const float*)gsu->data, (ik_bf16*)out->data, N, (int)K);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
+
+int ik_matmul_nvfp4_glu_gemv(const ik_tensor* x, const ik_tensor* w_gate, const ik_tensor* block_scales_gate,
+                             const ik_tensor* global_scale_gate, const ik_tensor* w_up, const ik_tensor* block_scales_up,
+                             const ik_tensor* global_scale_up, ik_tensor* out, void* stream) {
+    return glu(x, w_gate, block_scales_gate, global_scale_gate, w_up, block_scales_up, global_scale_up, out, stream);
+}
 
 int ik_matmul_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                          const ik_tensor* global_scale, ik_tensor* out, void* stream) {

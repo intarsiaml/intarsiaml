@@ -53,4 +53,8 @@ static inline unsigned ik_round_up(unsigned v, unsigned m) { return (v + m - 1) 
 
 #define IK_STREAM(s) (reinterpret_cast<cudaStream_t>(s))
 
+/* silu(g) = g * sigmoid(g). The one expression silu_glu uses (elementwise.cu): the fused kernels that fold a silu_glu
+ * into their epilogue (nvfp4.cu glu, norm.cu gated rmsnorm) must produce its bits. */
+IK_DEVI float ik_silu(float g) { return g / (1.f + expf(-g)); }
+
 #endif /* IK_LAUNCH_H */
