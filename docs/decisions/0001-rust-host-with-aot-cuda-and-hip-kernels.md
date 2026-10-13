@@ -1,6 +1,6 @@
 # ADR-0001: Rust host with AOT CUDA and HIP kernels
 
-_UNREVIEWED draft by fleet model `guidance` from the raw note_
+_Drafted by fleet model `guidance` from the raw note; checked against the note by Claude 2026-10-12_
 
 # Architecture Decision Record: Rust host with AOT CUDA and HIP kernels
 
