@@ -76,6 +76,7 @@ SERVE_PORT=8090
 VLLM_PORT=8000
 VLLM_HOST=${VLLM_HOST:-127.0.0.1}   # address the vLLM container is bound to (spark1: the tailnet IP; see `docker inspect`, --host)
 DRYLOG="$WORK/dry-run.log"
+RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'   # non-interactive ssh has neither cargo nor nvcc on PATH
 mkdir -p "$WORK"
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
@@ -88,7 +89,7 @@ have_stage() { [[ "$STAGES" == all || ",$STAGES," == *",$1,"* ]]; }
 dry() { printf '%s\n' "$*" >> "$DRYLOG"; }
 rsh() {                                        # run a command line on the box
   if [[ $DRY_RUN == 1 ]]; then dry "ssh $HOST: $*"; return 0; fi
-  ssh -n -o BatchMode=yes "$HOST" "$@"
+  ssh -n -o BatchMode=yes "$HOST" "$RPATH $*"
 }
 rsh_stdin() {                                  # run a command on the box with our stdin (to write a file)
   if [[ $DRY_RUN == 1 ]]; then dry "ssh $HOST (stdin): $*"; cat >/dev/null; return 0; fi
@@ -104,7 +105,7 @@ rsh_out() {                                    # same, stdout wanted (dry run: c
     esac
     return 0
   fi
-  ssh -n -o BatchMode=yes "$HOST" "$@"
+  ssh -n -o BatchMode=yes "$HOST" "$RPATH $*"
 }
 rsync_to() {                                   # rsync_to <local dir> <remote dir>
   if [[ $DRY_RUN == 1 ]]; then dry "rsync $1 -> $HOST:$2"; return 0; fi
