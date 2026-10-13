@@ -24,7 +24,9 @@ pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_FP8_ROWS",
     "INTARSIA_HIP_GEMM_TILE",
     "INTARSIA_HIP_GEMV",
+    "INTARSIA_HIP_MOE_PRE",
     "INTARSIA_HIP_MOE_WMMA",
+    "INTARSIA_HIP_XSTAGE",
 ];
 
 pub fn env_knobs() -> String {

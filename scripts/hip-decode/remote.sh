@@ -124,6 +124,11 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
     INTARSIA_HIP_FP8_ROWS=$rows $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_decode_variants 2>&1 \
       | grep -E "^env|^nvfp4|^fp8|^moe" | cut -c1-120
   done
+  for pre in 1 2; do
+    echo "=== MOE_PRE=$pre"
+    INTARSIA_HIP_MOE_PRE=$pre $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_decode_variants 2>&1 \
+      | grep -E "^moe" | cut -c1-120
+  done
   echo "=== XSTAGE=1"
   INTARSIA_HIP_XSTAGE=1 $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_decode_variants 2>&1 \
     | grep -E "^env|^nvfp4|^moe" | cut -c1-120
@@ -131,6 +136,20 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
     INTARSIA_HIP_FP8_Q=$q $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_decode_variants 2>&1 \
       | grep -E "^env|^fp8" | cut -c1-120
   done
+}
+
+stage_mutate() { # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
+  local m
+  for m in conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down; do
+    rm -rf "$HOME/intarsiaml-mut"; mkdir -p "$HOME/intarsiaml-mut"
+    rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$HOME/intarsiaml-mut/"
+    python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$HOME/intarsiaml-mut" $m || continue
+    printf '%-18s ' "$m"
+    INTARSIA_REPO="$HOME/intarsiaml-mut" deploy/tatooine/dev.sh cargo test --release -p intarsia-backend-hip --test decode_v2 2>&1 \
+      | grep -E "^test result|panicked at|error(\[|:)" | head -3 | cut -c1-200 | tr '\n' ' '
+    echo
+  done
+  rm -rf "$HOME/intarsiaml-mut"
 }
 
 stage_kernels() {
@@ -151,7 +170,7 @@ stage_acc8() {
 
 stage_qualify() { # qualify <model-dir> <tag>
   local m=$1 tag=$2
-  $D $B qualify --model "$m" --backend hip --quick-only --reps 5 --out /work/bench-out/qualify-$tag --golden-dir $G --mem-budget 29 2>&1 | tail -40
+  $D $B qualify --model "$m" --backend hip --quick-only --gen 128 --reps 5 --no-unim --out /work/bench-out/qualify-$tag --golden-dir $G --mem-budget 29 2>&1 | tail -40
 }
 stage_qual35() { stage_qualify $M35 "35b-${1:-base}"; }
 stage_qual8() { stage_qualify $M8 "8b-${1:-base}"; }

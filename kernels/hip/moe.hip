@@ -526,7 +526,7 @@ constexpr int kPre1 = 4;
 // XS: the activations (the token's x row; the token's K intermediate rows) are copied to shared memory once per block, behind
 // the weight requests, instead of every warp reading the same kilobytes through the cache hierarchy. One barrier serves the
 // copy and the table fill. Dynamic shared memory: H * 2 bytes (gate_up), K * I * 2 bytes (down).
-template <bool XS>
+template <bool XS, int PRE>
 __global__ void __launch_bounds__(kRowWarps * IK_WARP)
 moe_gate_up_p1_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ guw, const uint8_t* __restrict__ gus,
                          const float* __restrict__ gscales, const int* __restrict__ ids, ik_bf16* __restrict__ h, int E,
@@ -545,11 +545,11 @@ moe_gate_up_p1_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
     const uint8_t* su = gus + ((int64_t)ee * 2 * I + I + rr) * (H / 16);
     const ik_bf16* xr = x + (int64_t)(p / K) * H;
     const int nu = H / 16;
-    uint2 wgv[kPre1], wuv[kPre1];
-    uint32_t sgb[kPre1], sub[kPre1];
-    uint4 xv[XS ? 1 : kPre1][2];
+    uint2 wgv[PRE], wuv[PRE];
+    uint32_t sgb[PRE], sub[PRE];
+    uint4 xv[XS ? 1 : PRE][2];
 #pragma unroll
-    for (int j = 0; j < kPre1; ++j) {
+    for (int j = 0; j < PRE; ++j) {
         const int u = lane + IK_WARP * j;
         const bool in = u < nu;
         wgv[j] = in ? ik_ldcs(wg + u) : make_uint2(0, 0);
@@ -596,7 +596,7 @@ moe_gate_up_p1_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
         x1 = xp[1];
     };
 #pragma unroll
-    for (int j = 0; j < kPre1; ++j) {
+    for (int j = 0; j < PRE; ++j) {
         if (lane + IK_WARP * j >= nu) continue;
         if (XS) {
             uint4 x0, x1;
@@ -606,7 +606,7 @@ moe_gate_up_p1_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
             step(wgv[j], wuv[j], sgb[j], sub[j], xv[XS ? 0 : j][0], xv[XS ? 0 : j][1]);
         }
     }
-    for (int u = lane + IK_WARP * kPre1; u < nu; u += IK_WARP) {
+    for (int u = lane + IK_WARP * PRE; u < nu; u += IK_WARP) {
         uint4 x0, x1;
         xs2(u, x0, x1);
         step(ik_ldcs(wg + u), ik_ldcs(wu + u), sg[u], su[u], x0, x1);
@@ -729,6 +729,16 @@ bool xstage_enabled() {
     return on;
 }
 
+// INTARSIA_HIP_MOE_PRE = how many lane-iterations of the gate_up kernel are requested before its barrier (1, 2 or 4)
+int moe_pre() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_MOE_PRE");
+        const int x = e ? atoi(e) : 4;
+        return (x == 1 || x == 2) ? x : 4;
+    }();
+    return v;
+}
+
 // ---- combine -------------------------------------------------------------------------------------------------------
 
 template <typename OutT>
@@ -833,13 +843,19 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
             const size_t xb = (size_t)H * 2, hb = (size_t)K * I * 2;
             const bool xs = xstage_enabled() && xb <= 32768 && hb <= 32768;
             if (xs)
-                moe_gate_up_p1_v2_kernel<true><<<g1, kRowWarps * IK_WARP, xb, s>>>(
+                moe_gate_up_p1_v2_kernel<true, 4><<<g1, kRowWarps * IK_WARP, xb, s>>>(
                     (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,
                     (const float*)gscales->data, (const int*)ids->data, hbuf, (int)E, (int)H, (int)I, (int)K);
-            else
-                moe_gate_up_p1_v2_kernel<false><<<g1, kRowWarps * IK_WARP, 0, s>>>(
-                    (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,
-                    (const float*)gscales->data, (const int*)ids->data, hbuf, (int)E, (int)H, (int)I, (int)K);
+            else {
+#define IK_GU_V2(PRE)                                                                                                 \
+    moe_gate_up_p1_v2_kernel<false, PRE><<<g1, kRowWarps * IK_WARP, 0, s>>>(                                          \
+        (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,                    \
+        (const float*)gscales->data, (const int*)ids->data, hbuf, (int)E, (int)H, (int)I, (int)K)
+                if (moe_pre() == 1) IK_GU_V2(1);
+                else if (moe_pre() == 2) IK_GU_V2(2);
+                else IK_GU_V2(4);
+#undef IK_GU_V2
+            }
             IK_TRY(ik_launch_status());
             if (xs)
                 moe_down_reduce_p1_v2_kernel<ik_bf16, true><<<g2, kRowWarps * IK_WARP, hb, s>>>(

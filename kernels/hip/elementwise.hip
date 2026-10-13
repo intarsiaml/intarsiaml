@@ -125,11 +125,12 @@ __global__ void kv_append_kernel(const ik_bf16* __restrict__ src, CacheT* __rest
 // One thread per (token, frequency, group of kHeads heads); the angle is computed in double
 // precision (positions reach tens of thousands, float sincos would drift) and narrowed like
 // the reference's tables. x and out may alias (in-place), so no __restrict__ here. With a partial
-// rotary dim RD < D the values RD..D-1 pass through unchanged (`rope_pass_kernel` copies them when
-// x and out are different buffers).
+// rotary dim RD < D the values RD..D-1 pass through unchanged: when x and out are different buffers the rope
+// kernel copies them itself (`copy_tail`; thread k takes the tail values k, k + RD/2, ... of its heads, which covers
+// each tail once). `rope_pass_kernel` is only used for RD == 0 (no rotation at all).
 constexpr int kRopeHeads = 4;
 __global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int RD, int64_t pos0_host,
-                            float theta, const int32_t* pos_dev) {
+                            float theta, const int32_t* pos_dev, int copy_tail) {
     const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
     const int half = RD / 2;
     const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
@@ -156,6 +157,8 @@ __global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, in
             const int64_t base = (t * N + n0 + j) * D;
             out[base + k] = ik_f2b(a[j] * fc - b[j] * fs);
             out[base + k + half] = ik_f2b(b[j] * fc + a[j] * fs);
+            if (copy_tail)
+                for (int m = RD + k; m < D; m += half) out[base + m] = x[base + m];
         }
     }
 }
@@ -288,13 +291,14 @@ int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_d
     if (RD < 0 || RD > D || RD % 2 != 0) return IK_ERR_INVALID_ARG;
     if (T == 0 || N == 0 || D == 0) return IK_OK;
     hipStream_t s = IK_STREAM(stream);
-    if (RD < D && x->data != out->data)
+    const bool copy_tail = RD < D && x->data != out->data;
+    if (copy_tail && RD == 0)
         rope_pass_kernel<<<blocks(T * N * (D - RD)), kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data,
                                                                      T * N, (int)D, (int)RD);
     if (RD == 0) return ik_launch_status();
     dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
     rope_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
-                                          pos0, theta, pos_dev);
+                                          pos0, theta, pos_dev, copy_tail ? 1 : 0);
     return ik_launch_status();
 }
 

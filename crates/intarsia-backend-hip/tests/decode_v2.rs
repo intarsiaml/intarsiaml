@@ -151,3 +151,55 @@ fn fp8_gemv_v2_is_bitwise_v1() {
         }
     }
 }
+
+/// Fusions inside existing launchers: the single-tile `gdn_conv_bf16` writes its own new state (no `gdn_conv_state` launch),
+/// and the partial-rotary `rope_bf16` copies the un-rotated tail itself (no `rope_pass` launch). Both against the cpu
+/// reference: the conv state is a copy of earlier inputs, so it must match *exactly* (a dropped, shifted or stale state write
+/// fails), the rotated values to the bf16 admission budget, the copied tail exactly.
+#[test]
+fn fused_conv_state_and_rope_tail_match_the_reference() {
+    use intarsia_core::exec::OutSpec;
+    use intarsia_core::{OpAttrs};
+    let Some(hip) = device() else { return };
+    let cpu = CpuBackend::new();
+    let mut rng = SplitMix64::new(35);
+    let rt = |rng: &mut SplitMix64, shape: &[usize], scale: f32| {
+        let n: usize = shape.iter().product();
+        HostTensor::from_f32_as(DType::Bf16, shape, &rng.normal_vec(n, scale))
+    };
+    let refname = |op: Op| cpu.kernels().into_iter().find(|k| k.op == op && k.is_reference).unwrap().name;
+    // conv: T = 1 (decode), 2, 32 (the last single-tile length), 33 and 70 (two kernels, unchanged path); K = 4 as in the model
+    for (t, c, k) in [(1usize, 8192usize, 4usize), (2, 300, 4), (32, 257, 4), (33, 257, 4), (70, 129, 3), (1, 128, 2)] {
+        let init = HostTensor::from_f32_as(DType::F32, &[c, k - 1], &rng.normal_vec(c * (k - 1), 1.0));
+        let hc = HostCall {
+            op: Op::GdnConv,
+            inputs: vec![rt(&mut rng, &[t, c], 1.0), rt(&mut rng, &[c, k], 0.5)],
+            outputs: vec![OutSpec::new(DType::Bf16, &[t, c]), OutSpec { dtype: DType::F32, shape: vec![c, k - 1], init: Some(init) }],
+            attrs: OpAttrs::default(),
+        };
+        let got = run_host(&*hip, "gdn_conv_bf16", &hc).unwrap();
+        let want = run_host(&cpu, &refname(Op::GdnConv), &hc).unwrap();
+        let r = rel_l2(&got[0].to_f32(), &want[0].to_f32());
+        assert!(r < 1e-3, "conv T={t} C={c} K={k}: y rel_l2 {r}");
+        assert!(got[1].data == want[1].data, "conv T={t} C={c} K={k}: the new state differs from the reference");
+    }
+    // rope: partial rotary (64 of 256, the 35B's attention heads), one decode token and a chunk, x != out (run_host always
+    // uses separate buffers), plus a full rotary control
+    for (t, n, d, rd) in [(1usize, 16usize, 256usize, 64usize), (1, 2, 256, 64), (5, 16, 256, 64), (1, 16, 128, 128), (3, 5, 96, 32)] {
+        let hc = HostCall {
+            op: Op::Rope,
+            inputs: vec![rt(&mut rng, &[t, n, d], 1.0)],
+            outputs: vec![OutSpec::new(DType::Bf16, &[t, n, d])],
+            attrs: OpAttrs { rotary_dim: rd, theta: 1e7, pos0: 37, ..OpAttrs::default() },
+        };
+        let got = run_host(&*hip, "rope_bf16", &hc).unwrap();
+        let want = run_host(&cpu, &refname(Op::Rope), &hc).unwrap();
+        let (g, w) = (got[0].to_f32(), want[0].to_f32());
+        assert!(rel_l2(&g, &w) < 1e-3, "rope t={t} n={n} d={d} rd={rd}");
+        for r in 0..t * n {
+            for j in rd..d {
+                assert!(g[r * d + j] == w[r * d + j], "rope tail value ({r},{j}) not copied: t={t} n={n} d={d} rd={rd}");
+            }
+        }
+    }
+}
