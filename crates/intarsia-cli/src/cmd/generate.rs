@@ -179,6 +179,15 @@ pub fn run(args: GenerateArgs) -> Result<()> {
     let mut top: Vec<_> = t.ops.iter().collect();
     top.sort_by(|a, b| b.1.time_ms.partial_cmp(&a.1.time_ms).unwrap());
     let line: Vec<String> = top.iter().take(5).map(|(k, v)| format!("{k}={:.0}ms/{}", v.time_ms, v.calls)).collect();
+    if let Some(c) = t.ops.get("all_reduce") {
+        eprintln!(
+            "tensor parallel: {} all-reduces ({:.1} per step), {} timed, avg {:.1} us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)",
+            c.calls,
+            c.calls as f64 / t.steps_total.max(1) as f64,
+            c.timed_calls,
+            c.time_ms * 1e3 / c.timed_calls.max(1) as f64
+        );
+    }
     eprintln!(
         "steps={} graph replays={} (captures {}) eager decode steps={} (profiled {}) top ops: {}",
         t.steps_total,

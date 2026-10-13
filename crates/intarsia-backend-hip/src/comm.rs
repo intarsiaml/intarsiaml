@@ -120,11 +120,12 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
         // SAFETY: plain FFI.
         rt("hipDeviceEnablePeerAccess", unsafe { ffi::ik_rt_enable_peer_access(a.ordinal(), b.ordinal()) })?;
     }
-    // INTARSIA_HIP_AR_DRAIN: how a rank makes its pushed data visible before it raises the flag: 1 = system fence in
-    // every thread (default, safe), 3 = wait for the stores to complete (radiance's cheaper mode)
+    // INTARSIA_HIP_AR_DRAIN: how a rank makes its pushed data visible before it raises the flag: 3 = wait for the
+    // stores to complete (default, radiance's cheaper mode; the scratch is uncached memory), 1 = a system fence in
+    // every thread (safe baseline, about twice the latency)
     let drain = match std::env::var("INTARSIA_HIP_AR_DRAIN").ok().as_deref() {
-        None | Some("") | Some("1") => 1,
-        Some("3") => 3,
+        None | Some("") | Some("3") => 3,
+        Some("1") => 1,
         Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1 or 3)"))),
     };
     let group = Arc::new(Group {

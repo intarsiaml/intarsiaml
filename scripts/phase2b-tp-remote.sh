@@ -19,8 +19,9 @@ stage_comm() {
   $D cargo test --release -p intarsia-backend-hip --test comm -- --nocapture --test-threads=1 2>&1 | tail -25
   echo "=== [$(ts)] comm: rate"
   $D cargo test --release -p intarsia-backend-hip --test comm -- --ignored --nocapture all_reduce_rate 2>&1 | grep -v "^warning" | tail -15
-  echo "=== [$(ts)] comm: rate, drain=3"
-  INTARSIA_HIP_AR_DRAIN=3 $D cargo test --release -p intarsia-backend-hip --test comm -- --ignored --nocapture all_reduce_rate 2>&1 | grep -v "^warning" | tail -15
+  echo "=== [$(ts)] comm: correctness and rate with the fence drain (INTARSIA_HIP_AR_DRAIN=1; the default is 3)"
+  INTARSIA_HIP_AR_DRAIN=1 $D cargo test --release -p intarsia-backend-hip --test comm -- --nocapture --test-threads=1 2>&1 | grep -E "^test |test result"
+  INTARSIA_HIP_AR_DRAIN=1 $D cargo test --release -p intarsia-backend-hip --test comm -- --ignored --nocapture all_reduce_rate 2>&1 | grep -v "^warning" | tail -9
 }
 
 gen() { # gen <label> <extra args...>
@@ -41,11 +42,14 @@ stage_plan() {
   $D $B plan show --backend hip --model $M --tp 2 2>&1 | tail -40
 }
 
-acc() { # acc <tp> <golden>
-  local tp=$1 g=$2
-  echo "--- accuracy tp=$tp $g"
-  if [ "$tp" = 1 ]; then export HIP_VISIBLE_DEVICES=0; else unset HIP_VISIBLE_DEVICES; fi
-  time $D $B accuracy --backend hip --model $M --tp "$tp" --golden "$G/$g" --mode both 2>&1 | tail -22
+acc() { # acc <tp> <golden> [extra accuracy args]
+  local tp=$1 g=$2; shift 2
+  echo "--- accuracy tp=$tp $g $*"
+  if [ "$tp" = 1 ]; then
+    time env HIP_VISIBLE_DEVICES=0 $D $B accuracy --backend hip --model $M --tp 1 --golden "$G/$g" --mode both "$@" 2>&1 | tail -22
+  else
+    time $D $B accuracy --backend hip --model $M --tp "$tp" --golden "$G/$g" --mode both "$@" 2>&1 | tail -22
+  fi
 }
 
 stage_accuracy() {
@@ -56,10 +60,19 @@ stage_accuracy() {
 
 stage_accuracy_bf16() {
   echo "=== [$(ts)] accuracy tp=2 with bf16 partials (INTARSIA_TP_PARTIAL=bf16: the in-place bf16 all-reduce)"
-  export INTARSIA_TP_PARTIAL=bf16
-  acc 2 qwen3-8b.safetensors
-  acc 2 qwen3-8b-long.safetensors
-  unset INTARSIA_TP_PARTIAL
+  INTARSIA_TP_PARTIAL=bf16 acc 2 qwen3-8b.safetensors
+  INTARSIA_TP_PARTIAL=bf16 acc 2 qwen3-8b-long.safetensors
+}
+
+stage_accuracy_self() { # tp=2 against tp=1's own logits (same weights, same prompts): how often do the top-1s differ
+  echo "=== [$(ts)] self-golden: tp=1 writes its top-k log-probs, tp=2 is compared with them"
+  mkdir -p "$INTARSIA_REPO/bench-out"
+  for g in qwen3-8b qwen3-8b-long; do
+    env HIP_VISIBLE_DEVICES=0 $D $B accuracy --backend hip --model $M --tp 1 --golden "$G/$g.safetensors" --mode prefill \
+      --write-self-golden /work/bench-out/sg-$g-tp1.safetensors --allow-unstamped --allow-dirty 2>&1 | tail -4
+    $D $B accuracy --backend hip --model $M --tp 2 --self-golden /work/bench-out/sg-$g-tp1.safetensors --mode prefill \
+      --allow-unstamped --allow-dirty --allow-same-code 2>&1 | tail -16
+  done
 }
 
 stage_accuracy_tp1() {
@@ -100,9 +113,15 @@ stage_bench() {
   serve_bench 2 8.19
 }
 
-stage_perf() { # decode with per-op profile and the collective time, tp=2
-  echo "=== [$(ts)] decode profile tp=2 (--profile-every 1)"
-  $D $B generate --backend hip --model $M --tp 2 --profile-every 1 -p "The capital of France is" --max-tokens 64 2>&1 | tail -12
+stage_perf() { # decode speed with / without the collectives, and the timed collective, tp=2
+  local P="The capital of France is"
+  echo "=== [$(ts)] decode, 192 tokens, no per-op profiling"
+  echo "--- tp=1"; env HIP_VISIBLE_DEVICES=0 $D $B generate --backend hip --model $M -p "$P" --max-tokens 192 --ignore-eos --profile-every 0 2>&1 | grep -E "finish=|tensor parallel"
+  echo "--- tp=2"; $D $B generate --backend hip --model $M --tp 2 -p "$P" --max-tokens 192 --ignore-eos --profile-every 0 2>&1 | grep -E "finish=|tensor parallel"
+  echo "--- tp=2, collectives skipped (INTARSIA_TP_NO_COMM=1; garbage output, timing only)"
+  INTARSIA_TP_NO_COMM=1 $D $B generate --backend hip --model $M --tp 2 -p "$P" --max-tokens 192 --ignore-eos --profile-every 0 2>&1 | grep -E "finish=|tensor parallel"
+  echo "--- tp=2, per-op profile on every step"
+  $D $B generate --backend hip --model $M --tp 2 -p "$P" --max-tokens 64 --ignore-eos --profile-every 1 2>&1 | grep -E "finish=|tensor parallel|steps="
 }
 
 for s in "$@"; do

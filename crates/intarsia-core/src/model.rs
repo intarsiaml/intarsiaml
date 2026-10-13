@@ -203,6 +203,8 @@ pub struct Model {
     capture_ops: Mutex<Option<Vec<Op>>>,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
     tp: TpRank,
+    /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
+    no_comm: bool,
     /// Ranks 1.. of the group, each a full shard with its own backend, weights, workspace and KV (rank 0 only).
     peers: Vec<Model>,
 }
@@ -605,6 +607,7 @@ impl Model {
             graphs: GraphState::new(opts.graphs && tp.world == 1),
             capture_ops: Mutex::new(None),
             tp,
+            no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
             peers: Vec::new(),
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
@@ -1345,6 +1348,9 @@ impl Model {
             });
             return Ok(());
         }
+        if self.no_comm {
+            return Ok(()); // INTARSIA_TP_NO_COMM: timing experiment, the activations are garbage
+        }
         if profile {
             self.backend.synchronize(0)?;
         }
@@ -1352,7 +1358,11 @@ impl Model {
         comm.all_reduce_sum_into(partial, out, 0)?;
         if profile {
             self.backend.synchronize(0)?;
-            comm.note_timed(t0.elapsed());
+            let d = t0.elapsed();
+            comm.note_timed(d);
+            self.telemetry.record_comm(Some(d));
+        } else {
+            self.telemetry.record_comm(None);
         }
         Ok(())
     }

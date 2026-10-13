@@ -116,6 +116,8 @@ pub struct Telemetry {
     decode_eager: AtomicU64,
     decode_profiled: AtomicU64,
     inner: Mutex<Inner>,
+    /// Tensor-parallel all-reduces (reported in the snapshot's `ops` under `all_reduce`).
+    comm: Mutex<OpStat>,
     /// Free-memory probe for live device numbers (set by the engine).
     device_probe: Mutex<Option<Box<dyn Fn() -> DeviceInfo + Send + Sync>>>,
 }
@@ -160,6 +162,7 @@ impl Telemetry {
                 last_decode_tok_s: 0.0,
                 last_ttft_ms: 0.0,
             }),
+            comm: Mutex::new(OpStat::default()),
             device_probe: Mutex::new(None),
         }
     }
@@ -261,6 +264,16 @@ impl Telemetry {
         }
     }
 
+    /// Count a tensor-parallel all-reduce; pass `Some(duration)` when it was timed (profiled steps).
+    pub fn record_comm(&self, dur: Option<Duration>) {
+        let mut s = self.comm.lock().unwrap();
+        s.calls += 1;
+        if let Some(d) = dur {
+            s.timed_calls += 1;
+            s.time_ms += d.as_secs_f64() * 1e3;
+        }
+    }
+
     pub fn snapshot(&self) -> TelemetrySnapshot {
         let probe = self.device_probe.lock().unwrap();
         let live = probe.as_ref().map(|f| f());
@@ -303,7 +316,14 @@ impl Telemetry {
             graph_captures: self.graph_captures.load(Ordering::Relaxed),
             decode_eager_steps: self.decode_eager.load(Ordering::Relaxed),
             decode_profiled_steps: self.decode_profiled.load(Ordering::Relaxed),
-            ops: g.ops.iter().map(|(k, v)| (k.as_str().to_string(), v.clone())).collect(),
+            ops: {
+                let mut ops: BTreeMap<String, OpStat> = g.ops.iter().map(|(k, v)| (k.as_str().to_string(), v.clone())).collect();
+                let c = self.comm.lock().unwrap().clone();
+                if c.calls > 0 {
+                    ops.insert("all_reduce".into(), c);
+                }
+                ops
+            },
         }
     }
 }
