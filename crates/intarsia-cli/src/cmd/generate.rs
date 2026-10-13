@@ -125,6 +125,7 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         stop: args.stop.clone(),
         stop_ids: vec![],
         cancel: None,
+        trace_logits: None,
     };
     let stdout = std::io::stdout();
     let mut out = stdout.lock();

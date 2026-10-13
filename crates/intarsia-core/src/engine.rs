@@ -41,6 +41,9 @@ pub struct GenRequest {
     /// Set by the caller to cancel the request: checked while queued, between
     /// prefill chunks and between decode steps.
     pub cancel: Option<Arc<AtomicBool>>,
+    /// Accuracy tooling: every sampling step appends its full logits row (before the `min_tokens` mask) here. The
+    /// engine then takes the host-logits path for every step instead of the on-device argmax.
+    pub trace_logits: Option<Arc<Mutex<Vec<Vec<f32>>>>>,
 }
 
 impl Default for GenRequest {
@@ -57,8 +60,19 @@ impl Default for GenRequest {
             stop_ids: Vec::new(),
             stop: Vec::new(),
             cancel: None,
+            trace_logits: None,
         }
     }
+}
+
+/// One step of [`Engine::forward_script`].
+#[derive(Clone, Debug)]
+pub struct ScriptStep {
+    pub ids: Vec<u32>,
+    /// Return the logits row of the last token of `ids`.
+    pub logits: bool,
+    /// Roll the sequence back to this many tokens first (what `generate` does to reuse a prefix).
+    pub truncate: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -202,6 +216,14 @@ pub trait Engine: Send + Sync {
         _cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>,
     ) -> Result<()> {
         Err(Error::Unsupported("this engine has no teacher-forced decode path".into()))
+    }
+
+    /// Scripted forward passes on a fresh sequence (accuracy tooling): each step runs `ids` through the model
+    /// as one forward pass (the caller picks the chunk shapes) and yields the logits row of its last token when
+    /// `logits` is set (a one-token step then takes the serving decode path). Replays what `generate` does to
+    /// the sequence, e.g. prefill chunks, one-token decode steps, prefill chunks at other boundaries.
+    fn forward_script(&self, _steps: &[ScriptStep]) -> Result<Vec<Option<Vec<f32>>>> {
+        Err(Error::Unsupported("this engine has no scripted forward path".into()))
     }
 
     fn telemetry(&self) -> TelemetrySnapshot;
@@ -549,6 +571,28 @@ impl Engine for LocalEngine {
         Ok(())
     }
 
+    fn forward_script(&self, steps: &[ScriptStep]) -> Result<Vec<Option<Vec<f32>>>> {
+        if let Some(why) = self.shared.failure() {
+            return Err(Error::Other(format!("engine failed: {why}")));
+        }
+        let mut g = self.shared.inner.lock().unwrap();
+        let Inner { model, state } = &mut *g;
+        state.reset(&*model.backend)?;
+        let mut out = Vec::with_capacity(steps.len());
+        for s in steps {
+            if let Some(n) = s.truncate {
+                state.truncate(n, &*model.backend)?;
+            }
+            let mode = if s.logits { HeadMode::LastLogits } else { HeadMode::None };
+            out.push(match model.forward(state, &s.ids, mode, None)? {
+                StepOut::Logits(row) => Some(row),
+                _ if s.logits => return Err(Error::Other("backend returned no logits".into())),
+                _ => None,
+            });
+        }
+        Ok(out)
+    }
+
     fn plan(&self) -> Value {
         self.plan.clone()
     }
@@ -655,7 +699,7 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
         // mask on stop ids. With `ignore_eos` (no stop ids) a forced-length greedy run keeps the
         // on-device argmax, so forced-length speed benchmarks measure the real decode path.
         let masks_stop_ids = k <= req.min_tokens && !stop_ids.is_empty();
-        let need_logits = !greedy || masks_stop_ids;
+        let need_logits = !greedy || masks_stop_ids || req.trace_logits.is_some();
         if !need_logits {
             return match model.forward(st, ids, HeadMode::LastArgmax, None)? {
                 StepOut::Token(t) => Ok(t),
@@ -664,6 +708,9 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
         }
         match model.forward(st, ids, HeadMode::LastLogits, None)? {
             StepOut::Logits(mut l) => {
+                if let Some(t) = &req.trace_logits {
+                    t.lock().unwrap().push(l.clone());
+                }
                 if k <= req.min_tokens {
                     for &s in &stop_ids {
                         if let Some(x) = l.get_mut(s as usize) {

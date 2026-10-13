@@ -381,6 +381,7 @@ impl Sampling {
             stop_ids: self.stop_ids,
             stop: self.stop,
             cancel: None,
+            trace_logits: None,
         })
     }
 }

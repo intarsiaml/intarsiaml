@@ -185,3 +185,152 @@ fn forward_logits_all_positions() {
     let best = last.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap().0;
     assert_eq!(g[0] as usize, best);
 }
+
+// ---- prefix reuse is faithful: the logits of a warm run equal those of a cold run -------------------------------
+
+fn engine_chunk(seed: u64, chunk: usize) -> LocalEngine {
+    let t = tiny_weights(DType::Bf16, seed);
+    let tel = Arc::new(Telemetry::new());
+    let m = intarsia_core::model::Model::load(
+        intarsia_backend_cpu::CpuBackend::arc(),
+        &recipe(),
+        &dims(),
+        &t.weights,
+        &LoadOptions { max_seq: 96, prefill_chunk: chunk, ..Default::default() },
+        tel.clone(),
+    )
+    .unwrap();
+    LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny".into(), eos_ids: vec![299], ..Default::default() }, tel).unwrap()
+}
+
+type Trace = std::sync::Arc<std::sync::Mutex<Vec<Vec<f32>>>>;
+
+/// Greedy run of `n` tokens recording the logits row of every step: (tokens, cached prompt tokens, rows).
+fn traced(e: &LocalEngine, prompt: &[u32], n: usize) -> (Vec<u32>, usize, Vec<Vec<f32>>) {
+    let trace: Trace = Default::default();
+    let (mut ids, mut cached) = (vec![], 0);
+    e.generate(
+        GenRequest { prompt: prompt.to_vec(), max_tokens: n, ignore_eos: true, trace_logits: Some(trace.clone()), ..Default::default() },
+        &mut |ev| match ev {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Done { cached_tokens, completion_tokens, .. } => {
+                cached = cached_tokens;
+                ids.truncate(completion_tokens);
+            }
+            GenEvent::Error { message } => panic!("engine error: {message}"),
+        },
+    )
+    .unwrap();
+    let rows = trace.lock().unwrap().clone();
+    (ids, cached, rows)
+}
+
+/// Forget what the engine holds: serve an unrelated prompt whose first token differs from `first`.
+fn flush(e: &LocalEngine, first: u32) {
+    traced(e, &[(first + 1) % 250, 3, 4, 5, 6, 7, 8, 9], 1);
+}
+
+fn prompt_ids(n: usize) -> Vec<u32> {
+    (0..n).map(|i| ((i * 37 + 11) % 250) as u32).collect()
+}
+
+fn max_diff(a: &[Vec<f32>], b: &[Vec<f32>]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.iter().zip(b).flat_map(|(x, y)| x.iter().zip(y).map(|(p, q)| (p - q).abs())).fold(0.0, f32::max)
+}
+
+#[test]
+fn prefix_reuse_restore_on_a_chunk_boundary_is_bit_identical_to_cold() {
+    let chunk = 8;
+    let e = engine_chunk(3, chunk);
+    let p = prompt_ids(45);
+    for split in [16usize, 24, 40] {
+        // turn 1: the same first `split` tokens, then a different tail
+        let mut t1 = p[..split].to_vec();
+        t1.extend(p[split..].iter().take(11).map(|&t| (t + 1) % 250));
+        flush(&e, p[0]);
+        traced(&e, &t1, 4);
+        let (warm, cached, wrows) = traced(&e, &p, 8);
+        assert_eq!(cached, split, "split {split}: the shared prefix is reused, not more, not less");
+        flush(&e, p[0]);
+        let (cold, cold_cached, crows) = traced(&e, &p, 8);
+        assert_eq!(cold_cached, 0);
+        assert_eq!(warm, cold, "split {split}");
+        assert_eq!(wrows.len(), 8);
+        assert_eq!(max_diff(&wrows, &crows), 0.0, "split {split}: warm and cold prefill the same chunks, so the logits are the same bits");
+    }
+}
+
+#[test]
+fn prefix_reuse_continue_and_unaligned_restore_match_cold() {
+    let chunk = 8;
+    let e = engine_chunk(5, chunk);
+    let p = prompt_ids(47);
+    // continue: turn 2 = turn 1 + its reply + more; the reply rows were written one token at a time
+    let split = 21;
+    flush(&e, p[0]);
+    let (reply, _, _) = traced(&e, &p[..split], 7);
+    let mut t2 = p[..split].to_vec();
+    t2.extend(&reply);
+    t2.extend(&p[split..]);
+    let (warm, cached, wrows) = traced(&e, &t2, 8);
+    assert_eq!(cached, split + reply.len() - 1, "everything the engine holds: the last reply token was never fed");
+    flush(&e, p[0]);
+    let (cold, _, crows) = traced(&e, &t2, 8);
+    assert_eq!(warm, cold);
+    // other chunk shapes and decode-written rows: rounding only (the cpu backend is in fact bit-exact here)
+    assert!(max_diff(&wrows, &crows) < 1e-3, "continue: warm vs cold {}", max_diff(&wrows, &crows));
+    // restore at a split inside a chunk
+    let split = 21;
+    let mut t1 = p[..split].to_vec();
+    t1.extend(p[split..].iter().take(9).map(|&t| (t + 1) % 250));
+    flush(&e, p[0]);
+    traced(&e, &t1, 4);
+    let (warm, cached, wrows) = traced(&e, &p, 8);
+    assert_eq!(cached, split);
+    flush(&e, p[0]);
+    let (cold, _, crows) = traced(&e, &p, 8);
+    assert_eq!(warm, cold);
+    assert!(max_diff(&wrows, &crows) < 1e-3, "restore: warm vs cold {}", max_diff(&wrows, &crows));
+}
+
+#[test]
+fn scripted_replay_reproduces_a_warm_generate_bit_for_bit() {
+    use intarsia_core::ScriptStep;
+    let chunk = 8;
+    let e = engine_chunk(9, chunk);
+    let p = prompt_ids(44);
+    let split = 19;
+    flush(&e, p[0]);
+    let (reply, _, _) = traced(&e, &p[..split], 6);
+    let mut t2 = p[..split].to_vec();
+    t2.extend(&reply);
+    t2.extend(&p[split..]);
+    let (warm, cached, wrows) = traced(&e, &t2, 6);
+    // the same operations as a script: turn 1's prefill chunks, its decode steps, turn 2's prefill from the reuse point
+    let step = |ids: &[u32], logits, truncate| ScriptStep { ids: ids.to_vec(), logits, truncate };
+    let mut steps = vec![];
+    let mut pos = 0;
+    while split - pos > chunk {
+        steps.push(step(&p[pos..pos + chunk], false, None));
+        pos += chunk;
+    }
+    steps.push(step(&p[pos..split], true, None));
+    for t in &reply[..reply.len() - 1] {
+        steps.push(step(&[*t], true, None));
+    }
+    let mut pos = cached;
+    let mut first = true;
+    while t2.len() - pos > chunk {
+        steps.push(step(&t2[pos..pos + chunk], false, first.then_some(cached)));
+        first = false;
+        pos += chunk;
+    }
+    steps.push(step(&t2[pos..], true, first.then_some(cached)));
+    for t in &warm[..warm.len() - 1] {
+        steps.push(step(&[*t], true, None));
+    }
+    let rows: Vec<Vec<f32>> = e.forward_script(&steps).unwrap().into_iter().flatten().collect();
+    let tail = &rows[rows.len() - wrows.len()..];
+    assert_eq!(max_diff(tail, &wrows), 0.0, "the engine's warm run is exactly its scripted replay");
+}

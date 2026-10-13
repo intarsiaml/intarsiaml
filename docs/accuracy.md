@@ -156,14 +156,35 @@ when the dir is an HF cache snapshot, else the dir name).
   forward never touches.
 
 * **reuse** (`--mode reuse`, part of `all`): the prefix-reuse path of the real model through `Engine::generate`,
-  what `serve` runs (logits do not travel through that path, so streams are compared). Per prompt whose split
-  is at least one prefill chunk: *continue*: turn 1 = `ids[..s]` + a real 16-token reply, turn 2 = turn 1 + reply
-  + the rest of the prompt (the engine must reuse what it holds, `cached >= s`); *restore*: turn 1 = `ids[..s]`
-  + a different tail, turn 2 = `ids`, so the cache is truncated (attention) or a recurrent snapshot taken at a
-  prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`. A cold run is forced by serving an
-  unrelated prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens)
-  must agree on `--reuse-min-match` (16) leading tokens; the first divergence is printed. `s` is the golden's
-  `reuse_split`, else half of the prompt. A reuse run that has nothing to run on prints SKIPPED and fails.
+  what `serve` runs (the greedy streams are compared; the logits are recorded only to judge a divergence). Per
+  prompt whose split is at least one prefill chunk: *continue*: turn 1 = `ids[..s]` + a real 16-token reply, turn 2 =
+  turn 1 + reply + the rest of the prompt (the engine must reuse what it holds, `cached >= s`); *restore*: turn 1 =
+  `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated (attention) or a recurrent snapshot taken
+  at a prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`; *aligned*: *restore* with `s` rounded
+  down to a multiple of the prefill chunk (attention-only models). A cold run is forced by serving an unrelated
+  prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are compared.
+  `s` is the golden's `reuse_split`, else half of the prompt. A reuse run that has nothing to run on prints SKIPPED
+  and fails. `--reuse-prompt a,b` runs only those prompts.
+  * Identical streams pass. In *aligned* the warm run prefills exactly the chunks of the cold run, so on a backend
+    whose cold run repeats itself bit for bit (checked from the recorded logits when the streams differ) the streams
+    must be identical (`--reuse-exact`, default on).
+  * A diverging pair is judged on the logits (`judge_streams`). Both runs are repeated with the logits row of every
+    step recorded; rows `0..d` share one context (`d` the first divergence), so any difference between them is
+    numerical. The divergence is a *rounding tie* when every shared row agrees within `--reuse-logit-tol` (0.25 nats of
+    log-probability over the top-5 tokens, raised to twice what re-chunking the cold run alone moves them) and
+    `--reuse-kl-tol` (KL(cold || warm) <= 1e-2): the two top candidates were that close and the last bit of the KV
+    rows decided. A broken restore (wrong position, stale row, off-by-one chunk) moves the logits by far more, with
+    KL of order 1, and fails; the unit tests `prefix_reuse_*` in `crates/intarsia-models/tests/engine.rs` pin the
+    engine's bookkeeping bitwise. A divergence that does not reproduce when the logits are recorded is accepted with
+    that note (the run is not repeatable).
+  * Why not "N identical leading tokens" (`--reuse-min-match`, still the fallback for an engine that cannot record
+    logits): a *continue* run reuses KV rows the decode kernels wrote (the reply), which a cold run prefills with
+    the GEMM / prefill-attention kernels; the two differ in the last bf16 bit (KL about 3e-4, the size of the golden
+    gate's decode-against-prefill difference), and a greedy stream flips whenever two candidates are closer than that,
+    at any token (`docs/results/2026-10-13-prefix-reuse.md`).
+  * `--reuse-diag` prints, per case, the logit-level comparison (bitwise rows, argmax flips, KL) of the engine's
+    warm / cold runs against `Engine::forward_script` replays: repeatability, engine against replay, warm against
+    cold, cold at other chunkings, warm with the reply prefilled instead of decoded.
 
 Per prompt and overall: top-1 agreement (strict: our argmax equals the reference argmax; positions that differ
 only because the fp16 reference scores two tokens identically are counted as disagreement and reported

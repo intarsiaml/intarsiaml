@@ -159,10 +159,14 @@ What each stage needs and how it decides:
   make a golden for needs `--golden` or `--reference`. The short golden cannot exercise prefix reuse (the reuse
   gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt
   (`long_prose_700`, continue and restore) is long enough to exercise it: a thin check. A stress run with
-  `--prefill-chunk 16` on the short golden of Qwen3-8B (hip) once failed it (`science`, `continue`: the streams
-  diverged at token 9, 9/32 agreeing; `docs/results/2026-10-13-qualify/run2-prefix-reuse-fail/`); the run was
-  not repeated or investigated, and `qualify` does not include that stress stage. ADR-0007 records a different,
-  also unexplained, prefix-reuse FAIL-then-PASS on the 35B; whether they are related is unknown.
+  `--prefill-chunk 16` on the short golden of Qwen3-8B (hip) failed the old stream-agreement criterion once
+  (`science`, `continue`: the streams diverged at token 9, 9/32 agreeing;
+  `docs/results/2026-10-13-qualify/run2-prefix-reuse-fail/`). It was investigated in
+  `docs/results/2026-10-13-prefix-reuse.md`: not an engine bug but a rounding tie (the decode kernels' KV rows differ
+  from the prefill kernels' in the last bit; the two candidate tokens were 0.0003 nats apart), and the reuse gate now
+  judges a divergence on the logits. `qualify` still does not include the chunk-16 stress stage. ADR-0007's 35B (CUDA)
+  FAIL-then-PASS (`continue` diverging at token 8) has the same signature; it was not re-run, so the same cause is likely,
+  not shown.
 * **Byte floor** (`bench`, `bench-long`, `tp`): decode is memory bound, so bandwidth / bytes read per token is a
   ceiling on single-stream tok/s. Bytes per token come from the checkpoint's tensor sizes (routed experts scaled by
   `top_k / experts`, the input embedding left out when `lm_head` is a separate tensor; for `--tp` the busiest

@@ -1,0 +1,66 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+story continue split 19 turn2 55 cached 34 agree 28/32
+  logit-level diagnostics (32 rows each, chunk 16, reused 34 of 55 prompt tokens):
+    warm run vs warm run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold run vs cold run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    streams: warm == warm again true, cold == cold again true
+    engine warm vs scripted replay of warm       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    engine cold vs scripted replay of cold       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    warm vs cold (same context)                  rows  32  bitwise   0  argmax flips  1  KL mean 2.87e-4 max 3.30e-3  max|dlogit| 2.404e-1
+    cold chunk 16 vs cold chunk 8                rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 15               rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 32               rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold vs warm with prefilled (not decoded) reply rows  32  bitwise   0  argmax flips  1  KL mean 2.93e-4 max 2.36e-3  max|dlogit| 2.929e-1
+    warm vs warm with prefilled reply (decode-KV only) rows  32  bitwise   0  argmax flips  0  KL mean 2.72e-4 max 1.79e-3  max|dlogit| 2.325e-1
+    first divergence at token 28: warm took 9324, cold took 5710; warm run: lp[9324]-lp[5710] = +0.1253; cold run: lp[5710]-lp[9324] = +0.0506; KL(cold||warm) at this row 3.28e-3
+story restore split 19 turn2 39 cached 19 agree 32/32
+  logit-level diagnostics (32 rows each, chunk 16, reused 19 of 39 prompt tokens):
+    warm run vs warm run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold run vs cold run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    streams: warm == warm again true, cold == cold again true
+    engine warm vs scripted replay of warm       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    engine cold vs scripted replay of cold       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    warm vs cold (same context)                  rows  32  bitwise   0  argmax flips  0  KL mean 2.99e-4 max 3.65e-3  max|dlogit| 2.567e-1
+    cold chunk 16 vs cold chunk 8                rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 15               rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 32               rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold vs warm with prefilled (not decoded) reply rows  32  bitwise   0  argmax flips  0  KL mean 4.24e-4 max 2.20e-3  max|dlogit| 4.060e-1
+    warm vs warm with prefilled reply (decode-KV only) rows  32  bitwise   0  argmax flips  0  KL mean 2.67e-4 max 1.08e-3  max|dlogit| 3.453e-1
+story              continue      19     55      34      0     28/32  ok (rounding tie at token 28: warm took 9324 cold took 5710; shared rows differ by 0.143 (before) / 0.100 (here) nats of log-probability, KL up to 3.3e-3; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.125, cold margin 0.051)
+story              restore       19     39      19      0     32/32  ok
+story              aligned       16     39      16      0     32/32  ok
+science continue split 39 turn2 95 cached 54 agree 9/32
+  logit-level diagnostics (32 rows each, chunk 16, reused 54 of 95 prompt tokens):
+    warm run vs warm run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold run vs cold run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    streams: warm == warm again true, cold == cold again true
+    engine warm vs scripted replay of warm       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    engine cold vs scripted replay of cold       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    warm vs cold (same context)                  rows  32  bitwise   0  argmax flips  1  KL mean 1.38e-4 max 1.01e-3  max|dlogit| 2.479e-1
+    cold chunk 16 vs cold chunk 8                rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 15               rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 32               rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold vs warm with prefilled (not decoded) reply rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    warm vs warm with prefilled reply (decode-KV only) rows  32  bitwise   0  argmax flips  1  KL mean 1.38e-4 max 1.01e-3  max|dlogit| 2.479e-1
+    first divergence at token 9: warm took 4354, cold took 576; warm run: lp[4354]-lp[576] = +0.0125; cold run: lp[576]-lp[4354] = +0.0003; KL(cold||warm) at this row 1.98e-4
+science restore split 39 turn2 79 cached 39 agree 32/32
+  logit-level diagnostics (32 rows each, chunk 16, reused 39 of 79 prompt tokens):
+    warm run vs warm run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold run vs cold run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    streams: warm == warm again true, cold == cold again true
+    engine warm vs scripted replay of warm       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    engine cold vs scripted replay of cold       rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    warm vs cold (same context)                  rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 8                rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 16 vs cold chunk 15               rows  32  bitwise   0  argmax flips  0  KL mean 8.98e-5 max 6.68e-4  max|dlogit| 2.486e-1
+    cold chunk 16 vs cold chunk 32               rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold vs warm with prefilled (not decoded) reply rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    warm vs warm with prefilled reply (decode-KV only) rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+science            continue      39     95      54      0      9/32  ok (rounding tie at token 9: warm took 4354 cold took 576; shared rows differ by 0.092 (before) / 0.048 (here) nats of log-probability, KL up to 6.5e-4; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.012, cold margin 0.000; legacy criterion (>= 16 leading tokens): FAIL)
+science            restore       39     79      39      0     32/32  ok
+science            aligned       32     79      32      0     32/32  ok
+prefix-reuse gate: PASS
+golden gate: PASS
+rc=0

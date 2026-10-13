@@ -25,10 +25,11 @@
 
 use crate::common::ModelArgs;
 use anyhow::{anyhow, bail, Context, Result};
-use intarsia_core::engine::{Engine, GenEvent, GenRequest};
+use intarsia_core::engine::{Engine, GenEvent, GenRequest, ScriptStep};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 mod baseline;
 mod envelope;
@@ -174,6 +175,27 @@ pub struct AccuracyArgs {
     /// (bf16 rounding can flip a near-tie when chunk boundaries differ; bit-identical paths agree on all).
     #[arg(long, default_value_t = 16)]
     pub reuse_min_match: usize,
+    /// Reuse mode: after each comparison, replay the warm and the cold run through `Engine::forward_script` and print
+    /// the logit-level differences (bitwise equality, KL, argmax flips) between warm, cold, cold at another chunking and
+    /// the engine's own traced rows.
+    #[arg(long)]
+    pub reuse_diag: bool,
+    /// Reuse mode: judge only these prompts (comma separated names).
+    #[arg(long, value_delimiter = ',')]
+    pub reuse_prompt: Vec<String>,
+    /// Reuse mode: least rounding scale (nats of log-probability over the top-5 tokens) within which a warm and a cold
+    /// distribution count as the same one when their greedy streams diverge; the scale is raised to twice what
+    /// re-chunking the cold run alone moves them. Calibrated on Qwen3-8B / HIP, where decode-written and
+    /// prefill-written KV rows move the top-5 log-probabilities by up to 0.15.
+    #[arg(long, default_value_t = 0.25)]
+    pub reuse_logit_tol: f64,
+    /// Reuse mode: largest KL(cold || warm) in nats over the shared rows up to the divergence for it to count as
+    /// rounding (the bf16 class gate allows a mean KL of 1e-3 against the reference; observed warm vs cold: <= 3.3e-3).
+    #[arg(long, default_value_t = 1e-2)]
+    pub reuse_kl_tol: f64,
+    /// Reuse mode: require the `aligned` case (warm and cold prefill the same chunks) to be bit-identical.
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    pub reuse_exact: bool,
     /// Quick gate: maximum perplexity on the fixed text.
     #[arg(long, default_value_t = 40.0)]
     pub max_ppl: f64,
@@ -1208,7 +1230,17 @@ fn print_baseline_checks(mode: Mode, base: &baseline::ModeBaseline, cur: &ModeRe
 
 /// Greedy generation of `max_tokens` tokens (EOS ignored) and the number of prompt tokens served from the cache.
 fn gen_tokens(engine: &dyn Engine, prompt: Vec<u32>, max_tokens: usize) -> Result<(Vec<u32>, usize)> {
-    let req = GenRequest { prompt, max_tokens, ignore_eos: true, temperature: 0.0, ..Default::default() };
+    gen_tokens_traced(engine, prompt, max_tokens, None)
+}
+
+/// [`gen_tokens`], optionally with the logits row of every sampling step recorded in `trace`.
+fn gen_tokens_traced(
+    engine: &dyn Engine,
+    prompt: Vec<u32>,
+    max_tokens: usize,
+    trace: Option<Arc<Mutex<Vec<Vec<f32>>>>>,
+) -> Result<(Vec<u32>, usize)> {
+    let req = GenRequest { prompt, max_tokens, ignore_eos: true, temperature: 0.0, trace_logits: trace, ..Default::default() };
     let (mut toks, mut cached, mut done, mut err) = (Vec::<u32>::new(), 0usize, 0usize, None);
     engine
         .generate(req, &mut |ev| match ev {
@@ -1240,6 +1272,296 @@ fn first_divergence(a: &[u32], b: &[u32]) -> Option<usize> {
     (0..n).find(|&i| a[i] != b[i]).or((a.len() != b.len()).then_some(n))
 }
 
+// ---- logit-level reuse diagnostics
+
+/// Log-softmax of a logits row in f64.
+fn log_softmax(row: &[f32]) -> Vec<f64> {
+    let mx = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max) as f64;
+    let lse = row.iter().map(|&x| (x as f64 - mx).exp()).sum::<f64>().ln() + mx;
+    row.iter().map(|&x| x as f64 - lse).collect()
+}
+
+/// Lowest-index argmax, like the engine's greedy pick.
+fn argmax_row(row: &[f32]) -> usize {
+    let mut best = 0usize;
+    for (i, &x) in row.iter().enumerate() {
+        if x > row[best] {
+            best = i;
+        }
+    }
+    best
+}
+
+/// KL(a || b) in nats between the softmax of two logits rows.
+fn kl_rows(a: &[f32], b: &[f32]) -> f64 {
+    let (la, lb) = (log_softmax(a), log_softmax(b));
+    la.iter().zip(&lb).map(|(&x, &y)| x.exp() * (x - y)).sum::<f64>().max(0.0)
+}
+
+/// How two runs' logits rows, taken at the same teacher-forced positions, differ.
+#[derive(Default, Clone, Debug)]
+struct RowsCmp {
+    rows: usize,
+    bitwise: usize,
+    flips: usize,
+    mean_kl: f64,
+    max_kl: f64,
+    max_abs: f32,
+}
+
+fn cmp_rows(a: &[Vec<f32>], b: &[Vec<f32>]) -> RowsCmp {
+    let mut c = RowsCmp { rows: a.len().min(b.len()), ..Default::default() };
+    for (x, y) in a.iter().zip(b) {
+        if x == y {
+            c.bitwise += 1;
+            continue;
+        }
+        let kl = kl_rows(x, y);
+        c.mean_kl += kl;
+        c.max_kl = c.max_kl.max(kl);
+        c.max_abs = x.iter().zip(y).map(|(p, q)| (p - q).abs()).fold(c.max_abs, f32::max);
+        c.flips += (argmax_row(x) != argmax_row(y)) as usize;
+    }
+    c.mean_kl /= c.rows.max(1) as f64;
+    c
+}
+
+/// Prefill steps for `ids[from..]` the way `generate` runs them: full `chunk`s while more than one chunk is left,
+/// the remainder last (its last row is wanted).
+fn prefill_steps(ids: &[u32], from: usize, chunk: usize) -> Vec<ScriptStep> {
+    let mut steps = Vec::new();
+    let mut pos = from;
+    while ids.len() - pos > chunk {
+        steps.push(ScriptStep { ids: ids[pos..pos + chunk].to_vec(), logits: false, truncate: None });
+        pos += chunk;
+    }
+    steps.push(ScriptStep { ids: ids[pos..].to_vec(), logits: true, truncate: None });
+    steps
+}
+
+/// The last `m` logits rows of a script's result.
+fn last_rows(res: Vec<Option<Vec<f32>>>, m: usize) -> Vec<Vec<f32>> {
+    let rows: Vec<Vec<f32>> = res.into_iter().flatten().collect();
+    rows[rows.len().saturating_sub(m)..].to_vec()
+}
+
+/// Rows of the `m` generation steps for the prompt `turn2`, teacher-forced on `stream`, as `forward_script` computes
+/// them. `before` are the steps that put the sequence in the state `generate` starts turn 2 from (empty: cold);
+/// turn 2 then prefills `turn2[cached..]` in chunks of `chunk` and decodes `stream[..m-1]` one token at a time.
+fn script_rows(engine: &dyn Engine, before: Vec<ScriptStep>, turn2: &[u32], cached: usize, chunk: usize, stream: &[u32], m: usize) -> Result<Vec<Vec<f32>>> {
+    let mut steps = before;
+    let first = steps.len();
+    steps.extend(prefill_steps(turn2, cached, chunk));
+    steps[first].truncate = Some(cached);
+    for &t in stream.iter().take(m.saturating_sub(1)) {
+        steps.push(ScriptStep { ids: vec![t], logits: true, truncate: None });
+    }
+    Ok(last_rows(engine.forward_script(&steps).map_err(|e| anyhow!("{e}"))?, m))
+}
+
+fn print_cmp(label: &str, c: &RowsCmp) {
+    println!(
+        "    {label:<44} rows {:>3}  bitwise {:>3}  argmax flips {:>2}  KL mean {:.2e} max {:.2e}  max|dlogit| {:.3e}",
+        c.rows, c.bitwise, c.flips, c.mean_kl, c.max_kl, c.max_abs
+    );
+}
+
+/// `--reuse-diag` for one comparison. `turn1` is the first request's prompt, `fed` the tokens of its reply that went
+/// through the model (the last generated token never does), `turn2` the second request, `cached` the tokens the
+/// engine reused for it. The engine's own traced rows (generate) are compared with `forward_script` replays; all
+/// replays are teacher-forced on the cold stream so that their rows share one context.
+#[allow(clippy::too_many_arguments)]
+fn reuse_diag(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, m: usize) -> Result<()> {
+    let flush = || flush_cache(engine, turn2[0], vocab);
+    let tr = || Arc::new(Mutex::new(Vec::<Vec<f32>>::new()));
+    let take = |t: &Arc<Mutex<Vec<Vec<f32>>>>| t.lock().unwrap().clone();
+    let warm_run = || -> Result<(Vec<u32>, Vec<Vec<f32>>)> {
+        flush()?;
+        gen_tokens(engine, turn1.to_vec(), fed.len() + 1)?;
+        let t = tr();
+        let (toks, _) = gen_tokens_traced(engine, turn2.to_vec(), m, Some(t.clone()))?;
+        Ok((toks, take(&t)))
+    };
+    let cold_run = || -> Result<(Vec<u32>, Vec<Vec<f32>>)> {
+        flush()?;
+        let t = tr();
+        let (toks, _) = gen_tokens_traced(engine, turn2.to_vec(), m, Some(t.clone()))?;
+        Ok((toks, take(&t)))
+    };
+    let (w1_tok, w1) = warm_run()?;
+    let (w2_tok, w2) = warm_run()?;
+    let (c1_tok, c1) = cold_run()?;
+    let (c2_tok, c2) = cold_run()?;
+    let before_warm = |chunk: usize| -> Vec<ScriptStep> {
+        let mut s = prefill_steps(turn1, 0, chunk);
+        s.extend(fed.iter().map(|&t| ScriptStep { ids: vec![t], logits: true, truncate: None }));
+        s
+    };
+    // engine rows vs replay of the same op sequence
+    let w_replay = script_rows(engine, before_warm(chunk), turn2, cached, chunk, &w1_tok, m)?;
+    let c_replay = script_rows(engine, Vec::new(), turn2, 0, chunk, &c1_tok, m)?;
+    println!("  logit-level diagnostics ({} rows each, chunk {chunk}, reused {cached} of {} prompt tokens):", m, turn2.len());
+    print_cmp("warm run vs warm run again (determinism)", &cmp_rows(&w1, &w2));
+    print_cmp("cold run vs cold run again (determinism)", &cmp_rows(&c1, &c2));
+    println!("    streams: warm == warm again {}, cold == cold again {}", w1_tok == w2_tok, c1_tok == c2_tok);
+    print_cmp("engine warm vs scripted replay of warm", &cmp_rows(&w1, &w_replay));
+    print_cmp("engine cold vs scripted replay of cold", &cmp_rows(&c1, &c_replay));
+    // all of the following share the cold stream as context
+    let cold_s = script_rows(engine, Vec::new(), turn2, 0, chunk, &c1_tok, m)?;
+    let warm_s = script_rows(engine, before_warm(chunk), turn2, cached, chunk, &c1_tok, m)?;
+    print_cmp("warm vs cold (same context)", &cmp_rows(&warm_s, &cold_s));
+    for c2 in [chunk / 2, chunk.saturating_sub(1), chunk * 2] {
+        if c2 == 0 || c2 == chunk {
+            continue;
+        }
+        let other = script_rows(engine, Vec::new(), turn2, 0, c2, &c1_tok, m)?;
+        print_cmp(&format!("cold chunk {chunk} vs cold chunk {c2}"), &cmp_rows(&cold_s, &other));
+    }
+    // reply rows prefilled instead of decoded, then turn 2 at the warm boundaries: splits warm-vs-cold in two causes
+    let mut prefilled = prefill_steps(&turn2[..cached], 0, chunk);
+    prefilled.last_mut().unwrap().logits = false;
+    let warm_pf = script_rows(engine, prefilled, turn2, cached, chunk, &c1_tok, m)?;
+    print_cmp("cold vs warm with prefilled (not decoded) reply", &cmp_rows(&cold_s, &warm_pf));
+    print_cmp("warm vs warm with prefilled reply (decode-KV only)", &cmp_rows(&warm_s, &warm_pf));
+    // first divergence of the engine streams, with the margin the two tokens had in each run
+    if let Some(d) = first_divergence(&w1_tok, &c1_tok).filter(|&d| d < w1.len().min(c1.len())) {
+        let (w, c) = (w1_tok[d] as usize, c1_tok[d] as usize);
+        let (lw, lc) = (log_softmax(&w1[d]), log_softmax(&c1[d]));
+        println!(
+            "    first divergence at token {d}: warm took {w}, cold took {c}; warm run: lp[{w}]-lp[{c}] = {:+.4}; cold run: lp[{c}]-lp[{w}] = {:+.4}; KL(cold||warm) at this row {:.2e}",
+            lw[w] - lw[c],
+            lc[c] - lc[w],
+            kl_rows(&c1[d], &w1[d])
+        );
+    }
+    Ok(())
+}
+
+// ---- the tie-aware agreement criterion
+
+/// How far two logits rows are apart where it matters for greedy decoding: the largest |difference of the
+/// log-probability| over the tokens in either row's top 5 (the tail of a distribution is noise in log space and
+/// never reaches the argmax).
+fn row_nu(a: &[f32], b: &[f32]) -> f64 {
+    let (la, lb) = (log_softmax(a), log_softmax(b));
+    let top5 = |r: &[f32]| {
+        let mut idx: Vec<usize> = (0..r.len()).collect();
+        idx.sort_by(|&i, &j| r[j].partial_cmp(&r[i]).unwrap_or(std::cmp::Ordering::Equal));
+        idx.truncate(5);
+        idx
+    };
+    let mut cand = top5(a);
+    cand.extend(top5(b));
+    cand.iter().map(|&i| (la[i] - lb[i]).abs()).fold(0.0, f64::max)
+}
+
+/// What the logits say about the first divergence `d` of a warm and a cold greedy stream. Row `j` of each run is the
+/// distribution the run sampled token `j` from; rows `0..=d` share one context (the streams agree before `d`), so
+/// any difference between them is numerical.
+#[derive(Debug, Clone)]
+struct Divergence {
+    /// Largest [`row_nu`] over the shared rows before the divergence.
+    nu_pre: f64,
+    /// [`row_nu`] at the divergent row.
+    nu_div: f64,
+    /// Margin by which the warm run preferred its token over the cold run's (log-prob, >= 0) and vice versa.
+    gap_warm: f64,
+    gap_cold: f64,
+    /// Largest KL(cold || warm) over the shared rows up to and including the divergent one.
+    kl_max: f64,
+    /// Rounding scale allowed: the larger of the floor and twice what re-chunking a cold run alone moves the rows.
+    tol: f64,
+    /// Largest KL between the two runs' rows that still counts as rounding.
+    kl_tol: f64,
+}
+
+impl Divergence {
+    /// Rounding explains the divergence: the two runs' distributions agree to within the rounding scale at every
+    /// shared row, so the tokens only differ because the two top candidates were that close.
+    fn is_tie(&self) -> bool {
+        self.nu_pre <= self.tol && self.nu_div <= self.tol && self.kl_max <= self.kl_tol
+    }
+}
+
+/// `warm_rows[j]`, `cold_rows[j]`: the logits the two runs sampled token `j` from; `ctrl` the largest [`row_nu`]
+/// between two cold runs of different chunking over the same rows (0 when unknown), `floor` the least scale to allow
+/// and `kl_tol` the KL (nats) between two rows beyond which they are different distributions, not roundings of one.
+#[allow(clippy::too_many_arguments)]
+fn judge_divergence(warm: &[u32], cold: &[u32], warm_rows: &[Vec<f32>], cold_rows: &[Vec<f32>], d: usize, ctrl: f64, floor: f64, kl_tol: f64) -> Divergence {
+    let nu_pre = (0..d).map(|j| row_nu(&warm_rows[j], &cold_rows[j])).fold(0.0, f64::max);
+    let nu_div = row_nu(&warm_rows[d], &cold_rows[d]);
+    let (w, c) = (warm[d] as usize, cold[d] as usize);
+    let (lw, lc) = (log_softmax(&warm_rows[d]), log_softmax(&cold_rows[d]));
+    let kl_max = (0..=d).map(|j| kl_rows(&cold_rows[j], &warm_rows[j])).fold(0.0, f64::max);
+    Divergence { nu_pre, nu_div, gap_warm: lw[w] - lw[c], gap_cold: lc[c] - lc[w], kl_max, tol: floor.max(2.0 * ctrl), kl_tol }
+}
+
+struct StreamVerdict {
+    agree: usize,
+    ok: bool,
+    note: String,
+}
+
+/// Compare a warm and a cold greedy stream of `m` tokens. Identical streams pass. A divergence is judged on the
+/// logits: both runs are repeated recording the logits row of every step (`rerun(warm?, trace)`), the divergent row
+/// is compared with the rounding scale of the same prompt run cold at other chunkings, and the divergence passes
+/// only if it is within that scale (a near-tie that rounding flipped). An engine that cannot trace logits falls back to
+/// "at least `--reuse-min-match` identical leading tokens".
+fn judge_streams(
+    engine: &dyn Engine,
+    chunk: usize,
+    turn2: &[u32],
+    warm: &[u32],
+    cold: &[u32],
+    m: usize,
+    args: &AccuracyArgs,
+    rerun: &dyn Fn(bool, Arc<Mutex<Vec<Vec<f32>>>>) -> Result<Vec<u32>>,
+) -> Result<StreamVerdict> {
+    let legacy_min = args.reuse_min_match.min(m);
+    let agree = first_divergence(warm, cold).unwrap_or(warm.len());
+    if first_divergence(warm, cold).is_none() {
+        return Ok(StreamVerdict { agree, ok: true, note: String::new() });
+    }
+    let legacy_ok = agree >= legacy_min;
+    let (tw, tc) = (Arc::new(Mutex::new(Vec::new())), Arc::new(Mutex::new(Vec::new())));
+    let (wt, ct) = match (rerun(true, tw.clone()), rerun(false, tc.clone())) {
+        (Ok(w), Ok(c)) => (w, c),
+        _ => {
+            let note = if legacy_ok { String::new() } else { format!("streams diverge at token {agree}") };
+            return Ok(StreamVerdict { agree, ok: legacy_ok, note });
+        }
+    };
+    let (wr, cr) = (tw.lock().unwrap().clone(), tc.lock().unwrap().clone());
+    let Some(d) = first_divergence(&wt, &ct).filter(|&d| d < wr.len().min(cr.len()).min(wt.len()).min(ct.len())) else {
+        return Ok(StreamVerdict { agree, ok: true, note: format!("diverged at token {agree} on the serving path, not again when recording logits: the run is not repeatable") });
+    };
+    // the rounding scale of this prompt: two cold runs at different chunkings, same context, rows 0..=d
+    let mut ctrl = 0.0f64;
+    let cold_ref = script_rows(engine, Vec::new(), turn2, 0, chunk, &ct, d + 1);
+    if let Ok(base) = cold_ref {
+        for alt in [chunk / 2, chunk.saturating_sub(1)] {
+            if alt == 0 || alt == chunk {
+                continue;
+            }
+            if let Ok(rows) = script_rows(engine, Vec::new(), turn2, 0, alt, &ct, d + 1) {
+                ctrl = base.iter().zip(&rows).map(|(a, b)| row_nu(a, b)).fold(ctrl, f64::max);
+            }
+        }
+    }
+    let dv = judge_divergence(&wt, &ct, &wr, &cr, d, ctrl, args.reuse_logit_tol, args.reuse_kl_tol);
+    let desc = format!(
+        "token {d}: warm took {} cold took {}; shared rows differ by {:.3} (before) / {:.3} (here) nats of log-probability, KL up to {:.1e}; rounding scale {:.3} nats, KL {:.0e} (re-chunked cold run: {:.3}); warm margin {:.3}, cold margin {:.3}",
+        wt[d], ct[d], dv.nu_pre, dv.nu_div, dv.kl_max, dv.tol, dv.kl_tol, ctrl, dv.gap_warm, dv.gap_cold
+    );
+    let (ok, note) = if dv.is_tie() {
+        (true, format!("rounding tie at {desc}"))
+    } else {
+        (false, format!("streams diverge beyond rounding at {desc}"))
+    };
+    let legacy_note = if legacy_ok != ok { format!("; legacy criterion (>= {legacy_min} leading tokens): {}", if legacy_ok { "ok" } else { "FAIL" }) } else { String::new() };
+    Ok(StreamVerdict { agree, ok, note: format!("{note}{legacy_note}") })
+}
+
 struct ReuseRow {
     prompt: String,
     case: &'static str,
@@ -1260,10 +1582,13 @@ struct ReuseRow {
 /// * `restore`: turn 1 = `ids[..s]` + a different tail; turn 2 = `ids`. The common prefix is `s`, shorter than what
 ///   is held, so the cache is truncated (attention) or a recurrent snapshot is restored (GatedDeltaNet / Mamba,
 ///   taken at prefill chunk boundaries): the engine reuses `cached > 0` tokens and again must agree with a cold run.
+/// * `aligned`: `restore` with `s` rounded down to a multiple of the prefill chunk (attention-only models). The warm
+///   run then prefills exactly the chunks a cold run does, so the two must be bit-identical: all tokens agree.
 ///
-/// The cold run is forced by serving an unrelated prompt in between (`cached == 0` is checked). Agreement is
-/// "at least `--reuse-min-match` identical leading tokens": a reuse run chunks the prompt differently from a cold one, so
-/// bf16 rounding can flip a near-tie late in the stream; a broken restore diverges at once.
+/// The cold run is forced by serving an unrelated prompt in between (`cached == 0` is checked). A reuse run chunks the
+/// prompt differently from a cold one (and `continue` reuses rows the decode kernels wrote, which a cold run prefills),
+/// so bf16 rounding can flip a near-tie: a diverging pair is judged on the logits ([`judge_streams`]). A broken restore
+/// moves the logits by far more than rounding and fails at once.
 fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs) -> Result<bool> {
     let info = engine.info();
     let (chunk, ctx, vocab, m) = (args.model.prefill_chunk, info.context_len, info.vocab, args.reuse_gen.max(1));
@@ -1274,7 +1599,18 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         "prompt", "case", "split", "turn2", "cached", "cold", "agree", "result"
     );
     let mut rows: Vec<ReuseRow> = Vec::new();
+    // `warm` / `cold` runs of one case: (trace) -> (stream, cached); the cold run is preceded by a cache flush
+    type Trace = Arc<Mutex<Vec<Vec<f32>>>>;
+    type Run<'a> = &'a dyn Fn(Option<Arc<Mutex<Vec<Vec<f32>>>>>) -> Result<(Vec<u32>, usize)>;
+    let judge = |turn2: &[u32], warm_run: Run, cold_run: Run, warm: &[u32], cold: &[u32]| -> Result<StreamVerdict> {
+        judge_streams(engine, chunk, turn2, warm, cold, m, args, &|is_warm, t| {
+            Ok(if is_warm { warm_run(Some(t))?.0 } else { cold_run(Some(t))?.0 })
+        })
+    };
     for (i, (name, p)) in prompts.iter().enumerate() {
+        if !args.reuse_prompt.is_empty() && !args.reuse_prompt.iter().any(|x| x == name) {
+            continue;
+        }
         let n = p.ids.len();
         let meta = g.prompt_meta(i);
         let n_prompt = meta.as_ref().and_then(|v| v["n_prompt"].as_u64()).map_or(n, |x| x as usize);
@@ -1286,6 +1622,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
             skip("both", format!("split {split} is below one prefill chunk ({chunk}): nothing to reuse across chunk boundaries"));
             continue;
         }
+        let first = rows.len();
         // ---- continue
         {
             let run = || -> Result<ReuseRow> {
@@ -1295,55 +1632,107 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 turn2.extend_from_slice(&reply_toks);
                 turn2.extend_from_slice(&p.ids[split..]);
                 turn2.truncate(ctx.saturating_sub(m + 8));
+                let warm_run = |t: Option<Arc<Mutex<Vec<Vec<f32>>>>>| -> Result<(Vec<u32>, usize)> {
+                    flush_cache(engine, p.ids[0], vocab)?;
+                    gen_tokens(engine, p.ids[..split].to_vec(), reply)?;
+                    gen_tokens_traced(engine, turn2.clone(), m, t)
+                };
+                let cold_run = |t: Option<Arc<Mutex<Vec<Vec<f32>>>>>| -> Result<(Vec<u32>, usize)> {
+                    flush_cache(engine, p.ids[0], vocab)?;
+                    gen_tokens_traced(engine, turn2.clone(), m, t)
+                };
                 let (warm, cached) = gen_tokens(engine, turn2.clone(), m)?;
-                flush_cache(engine, p.ids[0], vocab)?;
-                let (cold, cold_cached) = gen_tokens(engine, turn2.clone(), m)?;
-                let agree = first_divergence(&warm, &cold).unwrap_or(warm.len());
-                let ok = cached >= split && cold_cached == 0 && agree >= args.reuse_min_match.min(m);
+                let (cold, cold_cached) = cold_run(None)?;
+                let v = judge(&turn2, &warm_run, &cold_run, &warm, &cold)?;
+                let ok = cached >= split && cold_cached == 0 && v.ok;
                 let note = if cached < split {
                     format!("reuse covered {cached} < the {split} tokens of turn 1")
                 } else if cold_cached != 0 {
                     "the cold run was not cold".into()
-                } else if agree < args.reuse_min_match.min(m) {
-                    format!("streams diverge at token {agree}")
                 } else {
-                    String::new()
+                    v.note.clone()
                 };
-                Ok(ReuseRow { prompt: name.clone(), case: "continue", split, turn2: turn2.len(), cached, cold_cached, agree, of: m, ok, note })
+                if args.reuse_diag {
+                    println!("{name} continue split {split} turn2 {} cached {cached} agree {}/{m}", turn2.len(), v.agree);
+                    let fed = &reply_toks[..reply_toks.len().saturating_sub(1)];
+                    reuse_diag(engine, vocab, chunk, &p.ids[..split], fed, &turn2, cached, m)?;
+                }
+                Ok(ReuseRow { prompt: name.clone(), case: "continue", split, turn2: turn2.len(), cached, cold_cached, agree: v.agree, of: m, ok, note })
             };
             rows.push(run()?);
         }
-        // ---- restore
-        {
+        // ---- restore, and restore on a chunk-aligned split (the warm run then has the cold run's chunking)
+        let aligned = split / chunk * chunk;
+        for (case, s, exact) in [("restore", split, false), ("aligned", aligned, true)] {
+            if exact && (aligned == split || aligned == 0) {
+                continue; // the split is on a chunk boundary already (or below the first one): same as `restore`
+            }
             let run = || -> Result<ReuseRow> {
-                flush_cache(engine, p.ids[0], vocab)?;
-                let mut turn1: Vec<u32> = p.ids[..split].to_vec();
+                let mut turn1: Vec<u32> = p.ids[..s].to_vec();
                 // a different tail: every token differs from the one at that place of the real prompt
-                turn1.extend(p.ids[split..].iter().take(40).map(|&t| ((t as usize + 1) % vocab) as u32));
-                gen_tokens(engine, turn1, 4)?;
+                turn1.extend(p.ids[s..].iter().take(40).map(|&t| ((t as usize + 1) % vocab) as u32));
                 let mut turn2 = p.ids.clone();
                 turn2.truncate(ctx.saturating_sub(m + 8));
-                let (warm, cached) = gen_tokens(engine, turn2.clone(), m)?;
-                flush_cache(engine, p.ids[0], vocab)?;
-                let (cold, cold_cached) = gen_tokens(engine, turn2.clone(), m)?;
-                let agree = first_divergence(&warm, &cold).unwrap_or(warm.len());
-                let ok = cached > 0 && cached <= split && cold_cached == 0 && agree >= args.reuse_min_match.min(m);
+                let warm_run = |t: Option<Arc<Mutex<Vec<Vec<f32>>>>>| -> Result<(Vec<u32>, usize)> {
+                    flush_cache(engine, p.ids[0], vocab)?;
+                    gen_tokens(engine, turn1.clone(), 4)?;
+                    gen_tokens_traced(engine, turn2.clone(), m, t)
+                };
+                let cold_run = |t: Option<Arc<Mutex<Vec<Vec<f32>>>>>| -> Result<(Vec<u32>, usize)> {
+                    flush_cache(engine, p.ids[0], vocab)?;
+                    gen_tokens_traced(engine, turn2.clone(), m, t)
+                };
+                let (warm, cached) = warm_run(None)?;
+                let (cold, cold_cached) = cold_run(None)?;
+                let bits = exact && args.reuse_exact;
+                // Identical chunking means identical operations: on a backend whose cold run repeats itself bit for
+                // bit (the logits of two cold runs are the same bits) the warm run must equal the cold one.
+                let mut deterministic = None;
+                let v = if bits && warm == cold {
+                    StreamVerdict { agree: m, ok: true, note: String::new() }
+                } else if bits {
+                    let (t1, t2): (Trace, Trace) = Default::default();
+                    cold_run(Some(t1.clone()))?;
+                    cold_run(Some(t2.clone()))?;
+                    let same = *t1.lock().unwrap() == *t2.lock().unwrap();
+                    deterministic = Some(same);
+                    if same {
+                        StreamVerdict {
+                            agree: first_divergence(&warm, &cold).unwrap_or(m),
+                            ok: false,
+                            note: "the warm run prefilled the chunks of the cold run, and the cold run repeats bit for bit, yet the warm run differs from it".into(),
+                        }
+                    } else {
+                        judge(&turn2, &warm_run, &cold_run, &warm, &cold)?
+                    }
+                } else {
+                    judge(&turn2, &warm_run, &cold_run, &warm, &cold)?
+                };
+                let ok = cached > 0 && cached <= s && cold_cached == 0 && v.ok;
                 let note = if cached == 0 {
                     "nothing was reused (no restorable state at or below the split)".into()
-                } else if cached > split {
-                    format!("reused {cached} > the shared prefix {split}: stale state")
+                } else if cached > s {
+                    format!("reused {cached} > the shared prefix {s}: stale state")
                 } else if cold_cached != 0 {
                     "the cold run was not cold".into()
-                } else if agree < args.reuse_min_match.min(m) {
-                    format!("streams diverge at token {agree}")
+                } else if deterministic == Some(false) {
+                    let why = "the cold run does not repeat itself bit for bit, so bit-identity is not required";
+                    if v.note.is_empty() { why.to_string() } else { format!("{why}; {}", v.note) }
                 } else {
-                    String::new()
+                    v.note.clone()
                 };
-                Ok(ReuseRow { prompt: name.clone(), case: "restore", split, turn2: turn2.len(), cached, cold_cached, agree, of: m, ok, note })
+                if args.reuse_diag && !exact {
+                    println!("{name} restore split {s} turn2 {} cached {cached} agree {}/{m}", turn2.len(), v.agree);
+                    // turn 1 generated 4 tokens; the first 3 went through the model (the 4th was never fed)
+                    flush_cache(engine, p.ids[0], vocab)?;
+                    let (t1, _) = gen_tokens(engine, turn1.clone(), 4)?;
+                    reuse_diag(engine, vocab, chunk, &turn1, &t1[..t1.len().saturating_sub(1)], &turn2, cached, m)?;
+                }
+                Ok(ReuseRow { prompt: name.clone(), case, split: s, turn2: turn2.len(), cached, cold_cached, agree: v.agree, of: m, ok, note })
             };
             rows.push(run()?);
         }
-        for r in rows.iter().rev().take(2).collect::<Vec<_>>().into_iter().rev() {
+        for r in &rows[first..] {
             println!(
                 "{:<18} {:<9} {:>6} {:>6} {:>7} {:>6} {:>9}  {}{}",
                 r.prompt,
@@ -2282,5 +2671,45 @@ mod tests {
         assert_eq!(first_divergence(&[1, 2, 3], &[1, 2, 3]), None);
         assert_eq!(first_divergence(&[1, 2, 3], &[1, 9, 3]), Some(1));
         assert_eq!(first_divergence(&[1, 2], &[1, 2, 3]), Some(2));
+    }
+    /// A logits row over 8 tokens whose top two are `a` (token 0) and `b` (token 1).
+    fn row(a: f32, b: f32) -> Vec<f32> {
+        vec![a, b, 0.0, -1.0, -2.0, -3.0, -4.0, -5.0]
+    }
+
+    #[test]
+    fn a_flipped_near_tie_is_rounding_but_a_moved_distribution_is_not() {
+        // shared rows 0..2 agree to 0.002; at row 2 token 0 won by 0.01 (warm) and token 1 by 0.01 (cold)
+        let warm = vec![row(5.0, 1.0), row(4.0, 2.0), row(3.01, 3.0)];
+        let cold = vec![row(5.002, 1.0), row(4.0, 2.001), row(3.0, 3.01)];
+        let (wt, ct) = ([7u32, 7, 0], [7u32, 7, 1]);
+        let d = judge_divergence(&wt, &ct, &warm, &cold, 2, 0.0, 0.05, 1e-2);
+        assert!(d.is_tie(), "{d:?}");
+        assert!((d.gap_warm - 0.01).abs() < 1e-5 && (d.gap_cold - 0.01).abs() < 1e-5, "{d:?}");
+        // the same tokens, but the warm distribution at the divergent row is far from the cold one: not rounding
+        let moved = vec![row(5.0, 1.0), row(4.0, 2.0), row(3.5, 1.0)];
+        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 0.0, 0.05, 1e-2);
+        assert!(!d.is_tie(), "{d:?}");
+        // a shared row before the divergence is already off: not rounding either
+        let off = vec![row(5.0, 1.0), row(3.0, 2.0), row(3.01, 3.0)];
+        let d = judge_divergence(&wt, &ct, &off, &cold, 2, 0.0, 0.05, 1e-2);
+        assert!(!d.is_tie() && d.nu_div <= d.tol, "{d:?}");
+        // the scale re-chunking a cold run moves its rows raises the tolerance, but a different distribution stays one
+        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 1.0, 0.05, 1e-2);
+        assert!(d.nu_div <= d.tol && !d.is_tie(), "{d:?}");
+        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 1.0, 0.05, 10.0);
+        assert!(d.is_tie(), "{d:?}");
+    }
+
+    #[test]
+    fn row_nu_looks_at_the_top_tokens_only() {
+        let a = row(5.0, 1.0);
+        let mut b = a.clone();
+        b[7] = 40.0; // a token that was far down becomes the argmax
+        assert!(row_nu(&a, &b) > 1.0);
+        let mut c = a.clone();
+        c[6] -= 3.0; // a tail token far below the top 5
+        assert!(row_nu(&a, &c) < 1e-3);
+        assert_eq!(row_nu(&a, &a), 0.0);
     }
 }
