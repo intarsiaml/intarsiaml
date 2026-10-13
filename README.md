@@ -10,7 +10,8 @@ and Anthropic compatible APIs. Status as measured on 2026-10-13 (`docs/results/`
   2.8x behind vLLM. The Phase 1 speed gate FAILED.
 - R9700, HIP, one card: Qwen3-8B BF16 decode 36.9 tok/s, 96% of the byte floor; 35B NVFP4 about 96 tok/s.
 - R9700, HIP, tp=2: Qwen3-8B BF16 decode 56 tok/s, 1.52x one card. The 35B is not supported at tp=2 yet.
-- Accuracy: 8B passes the bf16 floor on CUDA, HIP and tp=2; the CUDA 35B gate is not accepted (ADR-0007).
+- Accuracy: 8B passes the bf16 floor on CUDA, HIP and tp=2; the CUDA 35B gate is not accepted (ADR-0007), but its `35b-short` vLLM-golden failure was measured as noise and
+  that gate is advisory (ADR-0008); kernel-level error checks stay blocking.
 
 See `docs/ARCHITECTURE.md` for the plan and `docs/results/` for what was measured and what is still missing.
 

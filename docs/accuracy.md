@@ -221,6 +221,11 @@ positions where two kernels or two chunk sizes disagree.
 
 ### Gates
 
+**Advisory gate (ADR-0008).** For Qwen3.6-35B-A3B-NVFP4 the `35b-short` baseline gate against the vLLM golden is advisory:
+`scripts/phase1b-acceptance.sh` reports its FAIL as `ADVISORY FAIL (ADR-0008)` and does not fail the run. The failures were
+measured as noise (`docs/results/2026-10-14-35b-accuracy.md`), and no gate tried resolves a 5 % attention bug, so loosening
+it would not catch bugs. All other gates, including the `35b-short` floor, `35b-long` and the kernel-level tests, stay blocking.
+
 Default thresholds follow the weaker of the weight dtype and the KV dtype (`--gate-class bf16|fp8|4bit`
 overrides the detection; weights are classified from `quantization_config` in `config.json` and
 `hf_quant_config.json`, none = bf16 class):

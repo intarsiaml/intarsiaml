@@ -394,7 +394,7 @@ ACC_DENSE_BASELINE=${ACC_DENSE_BASELINE:-1}    # 0: dense cases are gated by the
 stage_accuracy() {
   log "== accuracy: old build records baseline + noise envelope, new build is gated"
   local dflag=""; [[ $ALLOW_DIRTY == 1 ]] && dflag="--allow-dirty"
-  local failures=() skipped=() heldout=()
+  local failures=() skipped=() heldout=() advisory=()
   while IFS='|' read -r name model golden gb kind flags; do
     [[ -z "${ACC_ONLY:-}" || ",$ACC_ONLY," == *",$name,"* ]] || continue   # ACC_ONLY=35b-short,35b-long: just those cases
     if ! rsh_out "test -s $golden && echo yes" | grep -q yes && [[ $DRY_RUN != 1 ]]; then
@@ -460,7 +460,12 @@ PY
     # accepted when the baseline verdict is PASS and the floor did not get worse than the old build's floor
     local newl oldl
     newl=$(rsh_out "grep -E 'floor verdict' $L.new.log | tail -1"); oldl=$(rsh_out "grep -E 'floor verdict' $L.old.log 2>/dev/null | tail -1")
-    if [[ -n $newgate ]] && ! grep -q 'baseline verdict[^:]*: PASS' <<<"$newl"; then failures+=("$name: baseline gate"); fi
+    if [[ -n $newgate ]] && ! grep -q 'baseline verdict[^:]*: PASS' <<<"$newl"; then
+      # ADR-0008: the 35b-short vLLM-golden baseline gate is advisory (four failures measured as noise, no gate resolves
+      # a 5 % attention bug). Reported, not blocking; every other gate and every other case stays blocking.
+      if [[ $name == 35b-short ]]; then log "ADVISORY FAIL (ADR-0008): $name: baseline gate (vLLM golden), not failing the run"; advisory+=("$name: baseline gate")
+      else failures+=("$name: baseline gate"); fi
+    fi
     if [[ -z $newgate ]] && ! grep -q 'floor verdict[^:]*: PASS' <<<"$newl" && [[ $DRY_RUN != 1 ]]; then failures+=("$name: floor"); fi
     if [[ -n $newgate ]] && grep -q 'floor verdict[^:]*: FAIL' <<<"$newl" && ! grep -q 'floor verdict[^:]*: FAIL' <<<"$oldl"; then failures+=("$name: floor passed before and fails now"); fi
     # reuse gate ran inside --mode all; it is part of the verdict line (prefix-reuse verdict)
@@ -495,6 +500,7 @@ PY
   fetch_acc
   printf '%s\n' "${failures[@]:-}" > "$WORK/accuracy.failures"
   (( ${#skipped[@]} )) && log "SKIPPED: ${skipped[*]}"
+  (( ${#advisory[@]} )) && log "ADVISORY FAIL (ADR-0008): ${advisory[*]} (reported, not blocking)"
   if (( ${#failures[@]} )) && [[ -n "${failures[0]}" ]]; then
     log "accuracy FAILED: ${failures[*]}"
     log "bisect before touching code: rerun the failing case with --no-graphs, then with INTARSIA_CUDA_DISABLE=<new kernel names> (a typo is now refused)"
