@@ -44,6 +44,16 @@ int ik_rt_event_create(void** ev);
 int ik_rt_event_record(void* ev, void* stream);
 int ik_rt_event_elapsed_ms(float* ms, void* a, void* b);
 int ik_rt_event_destroy(void* ev);
+/* tensor parallelism (kernels/hip/allreduce.hip): peer access and the fine-grained (uncached) allocations the
+ * all-reduce's scratch and flags live in */
+int ik_rt_can_access_peer(int device, int peer, int* ok);
+/* enable access from `device` (made current) to `peer`'s memory; already enabled is success */
+int ik_rt_enable_peer_access(int device, int peer);
+int ik_rt_malloc_finegrained(void** p, size_t bytes);
+/* two-rank one-shot all-reduce launcher (allreduce.hip); not a tensor op, so declared here */
+int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch,
+                   unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes,
+                   int nblocks, int drain, void* stream);
 /* D2D copy bandwidth in GB/s (read + write counted), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);
 const char* ik_rt_error_string(int code);

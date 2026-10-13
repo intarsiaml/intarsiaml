@@ -17,6 +17,8 @@ pub mod kernels;
 pub mod quantmoe;
 
 #[cfg(ik_hip)]
+mod comm;
+#[cfg(ik_hip)]
 mod device;
 #[cfg(ik_hip)]
 mod ffi;
@@ -39,5 +41,36 @@ pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
     Err(intarsia_core::Error::Unsupported(format!(
         "intarsia-backend-hip was built without a ROCm toolchain (device {ordinal}); install ROCm (hipcc) and set ROCM_PATH, then rebuild"
+    )))
+}
+
+/// Open the HIP devices `ordinals` as a tensor-parallel group: one backend per device and the device collective
+/// (peer-to-peer) between them. Rank `r` is `ordinals[r]`.
+#[cfg(ik_hip)]
+pub fn create_group(
+    ordinals: &[usize],
+) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
+    disable::check_env()?;
+    let hips = ordinals
+        .iter()
+        .map(|&o| device::HipBackend::new(o).map(Arc::new))
+        .collect::<intarsia_core::Result<Vec<_>>>()?;
+    let backends: Vec<Arc<dyn Backend>> = hips.iter().map(|h| h.clone() as Arc<dyn Backend>).collect();
+    let comms = if hips.len() == 2 {
+        comm::p2p_group(&hips)?
+    } else {
+        // the peer-to-peer kernel is a two-rank design; larger groups stage through the host
+        intarsia_core::HostCommGroup::new(backends.clone())
+    };
+    Ok((backends, comms))
+}
+
+/// Open HIP devices as a tensor-parallel group (stub: this build has no ROCm toolchain).
+#[cfg(not(ik_hip))]
+pub fn create_group(
+    ordinals: &[usize],
+) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
+    Err(intarsia_core::Error::Unsupported(format!(
+        "intarsia-backend-hip was built without a ROCm toolchain (devices {ordinals:?}); install ROCm (hipcc) and set ROCM_PATH, then rebuild"
     )))
 }

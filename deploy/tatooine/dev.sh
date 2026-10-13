@@ -18,6 +18,8 @@ if [[ "${INTARSIA_CLEAN:-0}" == 1 ]]; then docker volume rm -f "$TARGET_VOL" >/d
 ENVS=(-e GPU_MAX_HW_QUEUES=1 -e CARGO_TARGET_DIR=/target)
 [[ -n "${HIP_VISIBLE_DEVICES:-}" ]] && ENVS+=(-e "HIP_VISIBLE_DEVICES=$HIP_VISIBLE_DEVICES")
 [[ -n "${FLEETQ_JOB:-}" ]] && ENVS+=(-e "FLEETQ_JOB=$FLEETQ_JOB")
+# engine tuning knobs (INTARSIA_HIP_* kernel knobs, INTARSIA_TP_* tensor-parallel knobs) reach the container
+for v in $(compgen -e | grep -E '^INTARSIA_(HIP|TP)_' || true); do ENVS+=(-e "$v=${!v}"); done
 # Named volumes are created root-owned; make them writable for --user once.
 for v in "$TARGET_VOL" "$REGISTRY_VOL"; do
   if ! docker volume inspect "$v" >/dev/null 2>&1; then

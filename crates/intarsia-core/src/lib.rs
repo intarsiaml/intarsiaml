@@ -6,6 +6,7 @@
 
 pub mod admission;
 pub mod backend;
+pub mod comm;
 pub mod dtype;
 pub mod engine;
 pub mod error;
@@ -26,6 +27,7 @@ pub mod tensor;
 pub mod weights;
 
 pub use backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId, TensorRef};
+pub use comm::{Comm, CommStats, HostCommGroup};
 pub use dtype::DType;
 pub use engine::{ChatOpts, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, LocalEngine, ModelInfo, TextCodec};
 pub use error::{Error, Result};

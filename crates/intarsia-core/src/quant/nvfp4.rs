@@ -113,7 +113,8 @@ impl QuantFormat for Nvfp4 {
         matches!((w, s, s2), (Some(w), Some(s), Some(_)) if w.dtype == DType::U8 && s.dtype == DType::Fp8E4m3)
     }
 
-    fn load(&self, meta: &WeightMeta, backend: &dyn Backend, _opts: &QuantLoadOpts) -> Result<QTensor> {
+    fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
+        opts.refuse_shard("NVFP4", meta.prefix)?;
         let name = |s: &str| format!("{}.{s}", meta.prefix);
         let wi = meta.info("weight").ok_or_else(|| Error::model(format!("'{}.weight' missing", meta.prefix)))?;
         if wi.shape.len() != 2 {

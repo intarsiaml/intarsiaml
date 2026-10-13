@@ -251,6 +251,18 @@ impl Registry {
     }
 
     /// Admission status of the implementation called `name`.
+    /// Take over another registry's selection state (flags and admission results). Tensor-parallel peer ranks run
+    /// the same kernels on identical devices, so they follow rank 0's admission instead of repeating it.
+    pub fn adopt_status(&mut self, other: &Registry) {
+        self.require_admitted = other.require_admitted;
+        self.reference_only = other.reference_only;
+        for (k, a) in self.entries.iter_mut() {
+            if let Some(x) = other.admission(&k.name) {
+                *a = x;
+            }
+        }
+    }
+
     pub fn admission(&self, name: &str) -> Option<Admission> {
         self.entries.iter().find(|(k, _)| k.name == name).map(|(_, a)| *a)
     }

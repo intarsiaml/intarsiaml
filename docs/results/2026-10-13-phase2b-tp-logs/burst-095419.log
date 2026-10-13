@@ -1,0 +1,261 @@
+[burst] job 1531; stopping radiance 2026-10-13 09:54:19
+inactive
+[burst] radiance stopped 2026-10-13 09:54:23
+################ stage comm start 09:54:23
+=== [09:54:23] comm: correctness (all-reduce vs host sum, exact; 9600 back-to-back launches; abort)
+warning: function `ik_rt_event_destroy` is never used
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+68 |     pub fn ik_rt_event_destroy(ev: S) -> c_int;
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-hip` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 5 tests
+test all_reduce_is_exact_and_identical_on_both_ranks ... ok
+test all_reduce_rate ... ignored
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+test f32_partials_reduce_into_bf16_with_one_rounding ... ok
+test many_back_to_back_launches_keep_both_scratch_parities_straight ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.47s
+
+=== [09:54:27] comm: rate
+
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 1 test
+     bytes      us/call   GB/s (msg)   launches
+      8192         11.4         0.72       4000
+     16384         11.7         1.40       4000
+     65536         12.8         5.11       4000
+    524288         35.1        14.95        400
+   2097152        112.7        18.61        400
+test all_reduce_rate ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.42s
+
+=== [09:54:28] comm: rate, drain=3
+
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 1 test
+     bytes      us/call   GB/s (msg)   launches
+      8192          5.8         1.41       4000
+     16384          6.3         2.59       4000
+     65536          8.2         8.01       4000
+    524288         32.0        16.40        400
+   2097152        108.7        19.30        400
+test all_reduce_rate ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.35s
+
+################ stage comm end 09:54:29
+################ stage smoke start 09:54:29
+=== [09:54:29] smoke: greedy generation, tp=1 vs tp=2 (host comm) vs tp=2 (p2p)
+--- generate: tp=1
+loaded Qwen3-8B on AMD Radeon Graphics in 1.2s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 5 tokens
+ Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. Theids: [12095, 13, 576, 6722, 315, 15344, 374, 21718, 13, 576, 6722, 315, 17689, 374, 24081, 13, 576, 6722, 315, 9856, 374, 19846, 13, 576, 6722, 315, 279, 25662, 374, 37741, 13, 576, 6722, 315, 32961, 374, 37169, 13, 576, 6722]
+finish=length prompt=5 (cached 0) completion=40 | prefill 77 ms (64.9 tok/s) | decode 1055 ms (36.98 tok/s)
+ capital
+steps=40 graph replays=0 (captures 0) eager decode steps=39 (profiled 2) top ops: matmul=109ms/10080 embedding=8ms/40 logits=7ms/40 rope=5ms/2880 rmsnorm_add=5ms/2880
+--- generate: tp=2 --comm host
+loaded Qwen3-8B on AMD Radeon Graphics x2 (tp=2, host comm) in 2.2s: 36 layers, hidden 4096, act bf16, kv bf16, weights 9.44 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 5 tokens
+ Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. Theids: [12095, 13, 576, 6722, 315, 15344, 374, 21718, 13, 576, 6722, 315, 17689, 374, 24081, 13, 576, 6722, 315, 9856, 374, 19846, 13, 576, 6722, 315, 279, 25662, 374, 37741, 13, 576, 6722, 315, 32961, 374, 37169, 13, 576, 6722]
+finish=length prompt=5 (cached 0) completion=40 | prefill 64 ms (77.9 tok/s) | decode 824 ms (47.31 tok/s)
+steps=40 graph replays=0 (captures 0) eager decode steps=39 (profiled 2) top ops: matmul=43ms/7200 logits=30ms/2920 embedding=5ms/40 rope=5ms/2880 rmsnorm_add=5ms/2880
+ capital
+--- generate: tp=2 (p2p)
+loaded Qwen3-8B on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 2.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 9.44 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 5 tokens
+ Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. The capital
+ids: [12095, 13, 576, 6722, 315, 15344, 374, 21718, 13, 576, 6722, 315, 17689, 374, 24081, 13, 576, 6722, 315, 9856, 374, 19846, 13, 576, 6722, 315, 279, 25662, 374, 37741, 13, 576, 6722, 315, 32961, 374, 37169, 13, 576, 6722]
+finish=length prompt=5 (cached 0) completion=40 | prefill 62 ms (80.9 tok/s) | decode 693 ms (56.29 tok/s)
+steps=40 graph replays=0 (captures 0) eager decode steps=39 (profiled 2) top ops: matmul=43ms/7200 logits=31ms/2920 embedding=7ms/40 rope=5ms/2880 kv_append=5ms/2880
+################ stage smoke end 09:54:38
+################ stage accuracy start 09:54:38
+=== [09:54:38] accuracy tp=2
+--- accuracy tp=2 qwen3-8b.safetensors
+chat_multiturn        58    58   100.00   1.235e-3   1.203e-3   2.902e-2   0.0337   0.0340    98.62     58/58      0
+chat_reasoning        90    90   100.00   7.289e-4   7.083e-4   1.780e-2   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434    99.77   6.545e-4   6.022e-4   2.902e-2   0.0322   0.0322    98.53     88.5%      0
+prefill floor [bf16]: top-1 99.77% (need >= 99.5) ok | full-vocab KL 6.545e-4 (need <= 1.0e-3) ok | tail mass ours 0.0322 vs ref 0.0322, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   3.489e-5   3.233e-5   1.457e-4   0.0028   0.0029    97.50     16/16      0
+story                 39    16   100.00   1.270e-3   1.233e-3   3.869e-3   0.0241   0.0240    96.25     16/16      0
+code                  80    16   100.00   2.156e-5   2.155e-5   1.208e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   3.206e-4   3.081e-4   1.371e-3   0.0102   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   1.038e-3   9.288e-4   5.627e-3   0.0630   0.0627    97.50     16/16      0
+chat_system           32    16   100.00   2.569e-3   1.957e-3   1.352e-2   0.0757   0.0741    96.25     16/16      0
+chat_multiturn        58    16   100.00   1.192e-3   1.170e-3   6.101e-3   0.0073   0.0075    98.75     16/16      0
+chat_reasoning        90    16   100.00   1.512e-3   1.468e-3   6.223e-3   0.0096   0.0097    98.75     16/16      0
+OVERALL                    128   100.00   9.948e-4   8.900e-4   1.352e-2   0.0241   0.0239    97.97    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.948e-4 (need <= 1.0e-3) ok | tail mass ours 0.0239 vs ref 0.0241, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 92.1% of positions before the first argmax divergence, worst prompt 36.7% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy tp=2 qwen3-8b-long.safetensors
+
+real	0m7.925s
+user	0m0.020s
+sys	0m0.014s
+prefill floor [bf16]: top-1 99.44% strict (99.65% if the 3 fp16 reference ties counted as agreement) (need >= 99.5) FAIL | full-vocab KL 8.629e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0187, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   3.489e-5   3.233e-5   1.457e-4   0.0028   0.0029    97.50     16/16      0
+story                 39    16   100.00   1.270e-3   1.233e-3   3.869e-3   0.0241   0.0240    96.25     16/16      0
+code                  80    16   100.00   2.156e-5   2.155e-5   1.208e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   3.206e-4   3.081e-4   1.371e-3   0.0102   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   1.038e-3   9.288e-4   5.627e-3   0.0630   0.0627    97.50     16/16      0
+chat_system           32    16   100.00   2.569e-3   1.957e-3   1.352e-2   0.0757   0.0741    96.25     16/16      0
+chat_multiturn        58    16   100.00   1.192e-3   1.170e-3   6.101e-3   0.0073   0.0075    98.75     16/16      0
+chat_reasoning        90    16   100.00   1.512e-3   1.468e-3   6.223e-3   0.0096   0.0097    98.75     16/16      0
+long_prose_300       300    16   100.00   8.402e-6   8.401e-6   6.875e-5   0.0000   0.0000    96.25     16/16      0
+long_prose_700       700    16   100.00   1.389e-3   1.235e-3   1.331e-2   0.0247   0.0239    97.50     16/16      0
+OVERALL                    160   100.00   9.356e-4   8.363e-4   1.352e-2   0.0218   0.0215    97.75    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.356e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0218, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 74.1% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+
+real	0m13.409s
+user	0m0.026s
+sys	0m0.009s
+################ stage accuracy end 09:54:59
+################ stage accuracy_bf16 start 09:54:59
+=== [09:54:59] accuracy tp=2 with bf16 partials (INTARSIA_TP_PARTIAL=bf16: the in-place bf16 all-reduce)
+--- accuracy tp=2 qwen3-8b.safetensors
+chat_multiturn        58    58   100.00   1.781e-3   1.748e-3   4.724e-2   0.0337   0.0340    98.28     58/58      0
+chat_reasoning        90    90   100.00   6.599e-4   6.404e-4   1.015e-2   0.0243   0.0242    98.44     90/90      0
+OVERALL                    434   100.00   7.111e-4   6.650e-4   4.724e-2   0.0322   0.0322    98.48    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 7.111e-4 (need <= 1.0e-3) ok | tail mass ours 0.0322 vs ref 0.0322, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   4.437e-5   4.177e-5   3.706e-4   0.0028   0.0028    97.50     16/16      0
+story                 39    16   100.00   1.357e-3   1.320e-3   7.367e-3   0.0241   0.0235    96.25     16/16      0
+code                  80    16   100.00   4.456e-5   4.455e-5   2.294e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   3.723e-4   3.582e-4   1.491e-3   0.0102   0.0104    96.25     16/16      0
+chat_short            18    16   100.00   1.606e-3   1.497e-3   1.417e-2   0.0630   0.0622    97.50     16/16      0
+chat_system           32    16   100.00   1.691e-3   1.249e-3   9.330e-3   0.0757   0.0742    96.25     16/16      0
+chat_multiturn        58    16   100.00   1.185e-3   1.151e-3   1.044e-2   0.0073   0.0075   100.00     16/16      0
+chat_reasoning        90    16   100.00   1.647e-3   1.590e-3   1.189e-2   0.0096   0.0098    97.50     16/16      0
+OVERALL                    128   100.00   9.934e-4   9.064e-4   1.417e-2   0.0241   0.0238    97.66    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.934e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0241, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy tp=2 qwen3-8b-long.safetensors
+
+real	0m7.886s
+user	0m0.016s
+sys	0m0.019s
+prefill floor [bf16]: top-1 99.37% strict (99.58% if the 3 fp16 reference ties counted as agreement) (need >= 99.5) FAIL | full-vocab KL 8.281e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0187, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   4.437e-5   4.177e-5   3.706e-4   0.0028   0.0028    97.50     16/16      0
+story                 39    16   100.00   1.357e-3   1.320e-3   7.367e-3   0.0241   0.0235    96.25     16/16      0
+code                  80    16   100.00   4.456e-5   4.455e-5   2.294e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   3.723e-4   3.582e-4   1.491e-3   0.0102   0.0104    96.25     16/16      0
+chat_short            18    16   100.00   1.606e-3   1.497e-3   1.417e-2   0.0630   0.0622    97.50     16/16      0
+chat_system           32    16   100.00   1.691e-3   1.249e-3   9.330e-3   0.0757   0.0742    96.25     16/16      0
+chat_multiturn        58    16   100.00   1.185e-3   1.151e-3   1.044e-2   0.0073   0.0075   100.00     16/16      0
+chat_reasoning        90    16   100.00   1.647e-3   1.590e-3   1.189e-2   0.0096   0.0098    97.50     16/16      0
+long_prose_300       300    16   100.00   9.634e-6   9.633e-6   6.369e-5   0.0000   0.0000    96.25     16/16      0
+long_prose_700       700    16   100.00   1.388e-3   1.236e-3   8.040e-3   0.0247   0.0245    98.75     16/16      0
+OVERALL                    160   100.00   9.345e-4   8.497e-4   1.417e-2   0.0218   0.0215    97.62    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.345e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0218, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.2% of positions before the first argmax divergence, worst prompt 4.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+
+real	0m13.302s
+user	0m0.019s
+sys	0m0.014s
+################ stage accuracy_bf16 end 09:55:21
+################ stage accuracy_tp1 start 09:55:21
+=== [09:55:21] accuracy tp=1 (same build)
+--- accuracy tp=1 qwen3-8b.safetensors
+chat_multiturn        58    58   100.00   7.352e-4   7.045e-4   9.317e-3   0.0337   0.0340    98.62     58/58      0
+chat_reasoning        90    90   100.00   6.498e-4   6.282e-4   1.099e-2   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   5.623e-4   5.108e-4   1.147e-2   0.0322   0.0323    98.43    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 5.623e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0322, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   3.905e-5   3.624e-5   2.000e-4   0.0028   0.0029    96.25     16/16      0
+story                 39    16   100.00   1.319e-3   1.283e-3   5.875e-3   0.0241   0.0238    96.25     16/16      0
+code                  80    16   100.00   2.271e-5   2.270e-5   1.231e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   4.226e-4   4.093e-4   2.310e-3   0.0102   0.0103    98.75     16/16      0
+chat_short            18    16   100.00   1.305e-3   1.195e-3   7.648e-3   0.0630   0.0622    97.50     16/16      0
+chat_system           32    16   100.00   1.603e-3   1.180e-3   1.231e-2   0.0757   0.0736    97.50     16/16      0
+chat_multiturn        58    16   100.00   1.464e-3   1.436e-3   1.316e-2   0.0073   0.0079    97.50     16/16      0
+chat_reasoning        90    16   100.00   1.514e-3   1.463e-3   1.278e-2   0.0096   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   9.611e-4   8.782e-4   1.316e-2   0.0241   0.0238    97.81    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.611e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0241, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+
+real	0m8.093s
+user	0m0.019s
+sys	0m0.017s
+--- accuracy tp=1 qwen3-8b-long.safetensors
+OVERALL                   1434    99.51   7.866e-4   7.453e-4   8.667e-2   0.0187   0.0187    97.68     32.2%      0
+prefill floor [bf16]: top-1 99.51% strict (99.65% if the 2 fp16 reference ties counted as agreement) (need >= 99.5) ok | full-vocab KL 7.866e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0187, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   3.905e-5   3.624e-5   2.000e-4   0.0028   0.0029    96.25     16/16      0
+story                 39    16   100.00   1.319e-3   1.283e-3   5.875e-3   0.0241   0.0238    96.25     16/16      0
+code                  80    16   100.00   2.271e-5   2.270e-5   1.231e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   4.226e-4   4.093e-4   2.310e-3   0.0102   0.0103    98.75     16/16      0
+chat_short            18    16   100.00   1.305e-3   1.195e-3   7.648e-3   0.0630   0.0622    97.50     16/16      0
+chat_system           32    16   100.00   1.603e-3   1.180e-3   1.231e-2   0.0757   0.0736    97.50     16/16      0
+chat_multiturn        58    16   100.00   1.464e-3   1.436e-3   1.316e-2   0.0073   0.0079    97.50     16/16      0
+chat_reasoning        90    16   100.00   1.514e-3   1.463e-3   1.278e-2   0.0096   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.637e-5   1.637e-5   1.994e-4   0.0000   0.0000    96.25     16/16      0
+long_prose_700       700    16   100.00   1.104e-3   9.519e-4   6.061e-3   0.0247   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   8.810e-4   7.994e-4   1.316e-2   0.0218   0.0215    97.75    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 8.810e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0218, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 80.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+
+real	0m13.913s
+user	0m0.017s
+sys	0m0.016s
+################ stage accuracy_tp1 end 09:55:43
+################ stage perf start 09:55:43
+=== [09:55:43] decode profile tp=2 (--profile-every 1)
+Error: backend error: HIP device 1 requested but only 1 device(s) found
+################ stage perf end 09:55:43
+[burst] stages done 2026-10-13 09:55:43
+[burst] starting radiance 2026-10-13 09:55:43
+[burst] radiance answers 2026-10-13 09:55:53 (after 15 s)

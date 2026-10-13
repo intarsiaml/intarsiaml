@@ -68,6 +68,17 @@ pub struct PlannedCall {
     pub extra: bool,
 }
 
+/// A collective (all-reduce) the probed forward pass makes; recorded instead of run.
+#[derive(Clone, Debug)]
+pub struct PlannedComm {
+    pub phase: Phase,
+    pub t: usize,
+    pub pos0: usize,
+    /// Payload bytes of this rank's tensor.
+    pub bytes: usize,
+    pub extra: bool,
+}
+
 /// Recorder installed by [`Model::dry_run`]; `exec` feeds it instead of launching.
 #[derive(Debug, Default)]
 pub struct Recorder {
@@ -77,6 +88,8 @@ pub struct Recorder {
     /// Set while the extra (accuracy) head is being recorded.
     pub extra: bool,
     pub calls: Vec<PlannedCall>,
+    /// Collectives of the pass (tensor parallelism).
+    pub comm: Vec<PlannedComm>,
     /// `(op, description)` of every call that found no kernel.
     pub missing: Vec<(Op, String)>,
 }
@@ -103,6 +116,9 @@ pub struct ResolvedPlan {
     /// graph is valid at every position (a kernel whose `when` predicate looks at `kv_len` would break that).
     pub decode_position_stable: bool,
     pub probes: usize,
+    /// Tensor parallelism: all-reduces in one decode step (`T = 1`) and the bytes each rank contributes.
+    pub comm_calls_per_decode_step: usize,
+    pub comm_bytes_per_decode_step: usize,
     /// Prefill sizes probed.
     pub sizes: Vec<usize>,
 }
@@ -160,7 +176,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
             }
         });
     }
-    SequenceState { id: 0, slots, len, cap, tokens: vec![0; len], snapshots: Vec::new() }
+    SequenceState { id: 0, slots, len, cap, tokens: vec![0; len], snapshots: Vec::new(), peers: Vec::new() }
 }
 
 fn shape_str(s: &ShapeInfo) -> String {
@@ -171,7 +187,7 @@ fn shape_str(s: &ShapeInfo) -> String {
 }
 
 /// Record the plan: probe decode and prefill shapes, collect calls and missing kernels.
-fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>)> {
+fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize))> {
     let chunk = model.prefill_chunk();
     let cap = model.plan.kv_cap_tokens.max(1);
     let sizes = probe_sizes(chunk);
@@ -186,6 +202,7 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>)> {
         probes.push((Phase::Prefill, chunk, cap - chunk));
     }
     let mut calls = Vec::new();
+    let mut comm_decode = (0usize, 0usize);
     // op -> (shapes without a kernel, first description, where it is needed)
     let mut missing: BTreeMap<Op, (BTreeSet<String>, String, BTreeSet<String>)> = BTreeMap::new();
     for (phase, t, pos0) in probes {
@@ -197,6 +214,12 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>)> {
             let e = missing.entry(op).or_insert_with(|| (BTreeSet::new(), m.clone(), BTreeSet::new()));
             e.0.insert(m);
             e.2.insert(format!("{phase:?} t={t}"));
+        }
+        if phase == Phase::Decode && pos0 == 0 {
+            for c in rec.comm.iter().filter(|c| !c.extra) {
+                comm_decode.0 += 1;
+                comm_decode.1 += c.bytes;
+            }
         }
         calls.extend(rec.calls);
     }
@@ -220,7 +243,7 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>)> {
         }
         return Err(Error::NoKernel(msg));
     }
-    Ok((calls, sizes))
+    Ok((calls, sizes, comm_decode))
 }
 
 /// Case key shared by dedupe and the admission cache: kernel + clamped host case label.
@@ -252,7 +275,7 @@ fn position_diff(by_pos: &BTreeMap<usize, Vec<(Op, &str)>>) -> Option<String> {
 /// Resolve every `(op, shape)` of the model against the registry and (re)allocate the scratch
 /// workspace. Idempotent; call again after the registry changed (admission, `--reference`).
 pub fn resolve(model: &mut Model) -> Result<()> {
-    let (calls, sizes) = record(model)?;
+    let (calls, sizes, comm_decode) = record(model)?;
     let mut scratch = 0usize;
     let mut per_op: BTreeMap<(Op, String), PlanOp> = BTreeMap::new();
     let mut unique: BTreeMap<String, PlannedCall> = BTreeMap::new();
@@ -296,6 +319,8 @@ pub fn resolve(model: &mut Model) -> Result<()> {
         unique_calls: unique.into_values().collect(),
         scratch_bytes: scratch,
         probes: calls.len(),
+        comm_calls_per_decode_step: comm_decode.0,
+        comm_bytes_per_decode_step: comm_decode.1,
         sizes,
     };
     Ok(())
@@ -564,7 +589,7 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
 
 fn sweep_entry(model: &Model, reference: &dyn Backend, cand: &dyn Backend, kernel: &str) -> Result<CacheEntry> {
     use crate::admission::{run_admission, AdmissionOpts, SweepConfig};
-    let d = &model.dims;
+    let d = &model.ldims;
     let sweep = SweepConfig {
         hidden: d.hidden,
         n_heads: d.n_heads,
@@ -644,10 +669,43 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
             })
         })
         .collect();
+    let tp = if model.tp_world() > 1 {
+        let l = &model.ldims;
+        let ranks: Vec<Value> = model
+            .rank_backends()
+            .iter()
+            .enumerate()
+            .map(|(r, b)| {
+                let i = b.info();
+                let m = model.rank_model(r);
+                json!({
+                    "rank": r, "device": i.name, "mem_total": i.total_mem, "free_mem": i.free_mem,
+                    "weights_bytes": m.map(|m| m.weights_bytes),
+                    "kv_cap_tokens": m.map(|m| m.plan.kv_cap_tokens),
+                    "holds_lm_head": r == 0,
+                })
+            })
+            .collect();
+        json!({
+            "world": model.tp_world(),
+            "comm": model.comm_name(),
+            "partials": model.tp_partials(),
+            "per_rank": {"n_heads": l.n_heads, "n_kv_heads": l.n_kv_heads, "head_dim": l.head_dim, "intermediate": l.intermediate,
+                         "hidden": l.hidden, "vocab": l.vocab},
+            "global": {"n_heads": model.dims.n_heads, "n_kv_heads": model.dims.n_kv_heads, "intermediate": model.dims.intermediate},
+            "lm_head": "replicated on rank 0 only (full vocabulary); other ranks stop after the last layer",
+            "all_reduce_calls_per_decode_step": model.resolved.comm_calls_per_decode_step,
+            "all_reduce_bytes_per_decode_step": model.resolved.comm_bytes_per_decode_step,
+            "ranks": ranks,
+        })
+    } else {
+        Value::Null
+    };
     json!({
         "model": model_id,
         "backend": info.backend,
         "device": {"name": info.name, "mem_total": info.total_mem, "arch": info.arch},
+        "tp": tp,
         "exactness": worst.as_str(),
         "layers": layers,
         "ops": ops,

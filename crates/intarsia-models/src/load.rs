@@ -10,7 +10,7 @@ use intarsia_core::quant::scheme::QuantScheme;
 use intarsia_core::recipe::{ModelDims, Recipe};
 use intarsia_core::backend::HostMemory;
 use intarsia_core::weights::{WeightInfo, WeightSource};
-use intarsia_core::{Backend, EngineMeta, Error, LocalEngine, Result, Telemetry};
+use intarsia_core::{Backend, Comm, EngineMeta, Error, LocalEngine, Result, Telemetry};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -114,10 +114,25 @@ pub struct Loaded {
 }
 
 pub fn load_engine(dir: &Path, backend: Arc<dyn Backend>, opts: &EngineOptions) -> Result<Loaded> {
+    load_engine_tp(dir, vec![backend], Vec::new(), opts)
+}
+
+/// Like [`load_engine`] for a tensor-parallel group: `backends[r]` is rank `r`, `comms[r]` its collective handle
+/// (`comms` is empty for a single backend).
+pub fn load_engine_tp(
+    dir: &Path,
+    backends: Vec<Arc<dyn Backend>>,
+    comms: Vec<Arc<dyn Comm>>,
+    opts: &EngineOptions,
+) -> Result<Loaded> {
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     let weights = SchemedSource::open(dir)?;
     let telemetry = Arc::new(Telemetry::new());
-    let mut model = Model::load(backend, &recipe, &dims, &weights, &opts.load, telemetry.clone())?;
+    let mut model = if backends.len() == 1 {
+        Model::load(backends.into_iter().next().unwrap(), &recipe, &dims, &weights, &opts.load, telemetry.clone())?
+    } else {
+        Model::load_tp(backends, comms, &recipe, &dims, &weights, &opts.load, telemetry.clone())?
+    };
     // deviations from the declared scheme that are not errors: logged once, at load
     if let Some(note) = weights.scheme().and_then(|s| s.kv_note(model.kv)) {
         eprintln!("quantisation scheme note: {note}");

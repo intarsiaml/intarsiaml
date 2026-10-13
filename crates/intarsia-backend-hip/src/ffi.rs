@@ -66,6 +66,26 @@ extern "C" {
     pub fn ik_rt_event_record(ev: S, stream: S) -> c_int;
     pub fn ik_rt_event_elapsed_ms(ms: *mut f32, a: S, b: S) -> c_int;
     pub fn ik_rt_event_destroy(ev: S) -> c_int;
+    pub fn ik_rt_can_access_peer(device: c_int, peer: c_int, ok: *mut c_int) -> c_int;
+    pub fn ik_rt_enable_peer_access(device: c_int, peer: c_int) -> c_int;
+    pub fn ik_rt_malloc_finegrained(p: *mut *mut c_void, bytes: usize) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_oneshot(
+        x: *mut c_void,
+        out: *mut c_void,
+        dtype: c_int,
+        out_dtype: c_int,
+        n_elem: i64,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
 

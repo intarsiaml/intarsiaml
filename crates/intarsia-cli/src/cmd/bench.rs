@@ -77,6 +77,11 @@ pub struct SpeedArgs {
     /// Print the JSON result instead of the table.
     #[arg(long)]
     pub json: bool,
+    /// Tensor-parallel degree of the server under test (`intarsia serve --tp N`). The server is what shards; this only
+    /// records the degree in the result (`fingerprint.tp`). For the floor, pass `--gb-per-token` as the bytes the
+    /// busiest rank reads per token (rank 0: its half of the layers plus the whole lm_head), not the model size.
+    #[arg(long, default_value_t = 1)]
+    pub tp: usize,
     /// Extra host fingerprint field, KEY=VALUE (repeatable), stored in the JSON.
     #[arg(long = "fingerprint", value_name = "KEY=VALUE")]
     pub fingerprint: Vec<String>,
@@ -107,6 +112,12 @@ fn speed(a: SpeedArgs) -> Result<()> {
     for kv in &a.fingerprint {
         let (k, v) = kv.split_once('=').with_context(|| format!("--fingerprint expects KEY=VALUE, got '{kv}'"))?;
         fp.insert(k.to_string(), Value::String(v.to_string()));
+    }
+    if a.tp == 0 {
+        bail!("--tp must be at least 1");
+    }
+    if a.tp > 1 {
+        fp.insert("tp".into(), Value::from(a.tp as u64));
     }
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let label = sanitize_label(&a.label.clone().unwrap_or_else(|| format!("{}-{now}", a.model)));

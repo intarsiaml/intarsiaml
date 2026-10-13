@@ -209,6 +209,10 @@ impl HipBackend {
         }
     }
 
+    pub(crate) fn ordinal(&self) -> i32 {
+        self.ordinal
+    }
+
     pub(crate) fn bind(&self) -> Result<()> {
         // SAFETY: plain FFI call.
         check("hipSetDevice", unsafe { ffi::ik_rt_set_device(self.ordinal) })
@@ -225,7 +229,7 @@ impl HipBackend {
         Ok(s[id as usize] as *mut c_void)
     }
 
-    fn ptr(buf: &Buffer, offset: usize, len: usize) -> Result<*mut u8> {
+    pub(crate) fn ptr(buf: &Buffer, offset: usize, len: usize) -> Result<*mut u8> {
         let b =
             buf.downcast::<HipBuffer>().ok_or_else(|| Error::backend("buffer does not belong to the hip backend"))?;
         if offset.checked_add(len).is_none_or(|e| e > b.bytes) {
