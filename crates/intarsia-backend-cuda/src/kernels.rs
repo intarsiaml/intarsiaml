@@ -219,9 +219,12 @@ mod tests {
         let table = full_table();
         let names: HashSet<_> = table.iter().map(|(n, _)| *n).collect();
         assert_eq!(names.len(), table.len());
-        // Sample is not implemented on the device (the engine samples on the host from f32 logits)
+        // Sample is not implemented on the device (the engine samples on the host from f32 logits); the fused decode
+        // ops are optional (HIP registers them, the model falls back to the unfused ops when a backend has none)
+        const OPTIONAL: [Op; 5] =
+            [Op::Sample, Op::MatmulPair, Op::MatmulFp8Pair, Op::MatmulNvfp4Glu, Op::GatedRmsnorm];
         for op in Op::ALL {
-            if op != Op::Sample {
+            if !OPTIONAL.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }
         }

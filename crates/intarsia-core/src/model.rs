@@ -146,6 +146,9 @@ impl OpRunner for ExecRunner<'_> {
     fn run(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<()> {
         self.m.exec(op, inputs, outputs, attrs, self.profile)
     }
+    fn run_fused(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<bool> {
+        self.m.try_fused(op, inputs, outputs, attrs, self.profile)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1163,6 +1166,31 @@ impl Model {
         Ok(nv)
     }
 
+    /// Run a fused decode op (`Op::MatmulPair` ... `Op::GatedRmsnorm`) when the registry has a kernel for this exact call,
+    /// returning `true`; return `false` without running anything when it has none (another backend, an unsupported shape such
+    /// as a prefill chunk, a kernel that failed admission, `INTARSIA_HIP_DISABLE`), and the caller runs the ops the fused one
+    /// replaces. The probe goes through `Registry::select`, the lookup `exec` itself makes, so a plan recording sees only
+    /// the calls that will run. Fusion is off under tensor parallelism and with `INTARSIA_NO_FUSION=1`.
+    fn try_fused(
+        &self,
+        op: Op,
+        inputs: Vec<TensorRef>,
+        outputs: Vec<TensorRef>,
+        attrs: OpAttrs,
+        profile: bool,
+    ) -> Result<bool> {
+        static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
+            return Ok(false);
+        }
+        let call = OpCall::new(op, inputs, outputs, attrs);
+        if call.check().is_err() || self.registry.select(&call).is_err() {
+            return Ok(false);
+        }
+        self.exec(call.op, call.inputs, call.outputs, call.attrs, profile)?;
+        Ok(true)
+    }
+
     /// `out = x @ W^T` for a linear layer in any supported weight format.
     fn proj(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, profile: bool) -> Result<()> {
         let call = w.call(x.clone(), out.clone());
@@ -1230,7 +1258,20 @@ impl Model {
         qc = 1 - qc;
 
         let mut kc = 0usize;
-        self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
+        // k and v read the same activation: one launch for both when the backend has the fused fp8 pair
+        let kv_fused = match (a.wk.format, a.wv.format) {
+            (crate::quant::FP8_E4M3, crate::quant::FP8_E4M3) => self.try_fused(
+                Op::MatmulFp8Pair,
+                vec![n.clone(), a.wk.parts[0].clone(), a.wk.parts[1].clone(), a.wv.parts[0].clone(), a.wv.parts[1].clone()],
+                vec![self.view(&ws.k[kc], act, &kshape), self.view(&ws.v, act, &kshape)],
+                OpAttrs::default(),
+                profile,
+            )?,
+            _ => false,
+        };
+        if !kv_fused {
+            self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
+        }
         if let Some(w) = &a.k_norm {
             self.exec(
                 Op::QkNorm,
@@ -1251,7 +1292,9 @@ impl Model {
         )?;
         kc = 1 - kc;
 
-        self.proj(n, &a.wv, &self.view(&ws.v, act, &kshape), profile)?;
+        if !kv_fused {
+            self.proj(n, &a.wv, &self.view(&ws.v, act, &kshape), profile)?;
+        }
 
         let slot = match &st.slots[a.slot] {
             StateSlot::AttnKv(s) => s,

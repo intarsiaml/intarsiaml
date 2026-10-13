@@ -19,12 +19,13 @@ IK_DEVI void store_out(float* p, float v) { *p = v; }
 IK_DEVI void store_out(ik_bf16* p, float v) { *p = ik_f2b(v); }
 
 // R rows per warp, U uint4 loads per lane and row in flight.
+// `blk` is the block's index along the rows of this matrix (blockIdx.x for the plain kernel; the pair kernel below
+// passes the index inside the segment the block belongs to, so both run exactly this code).
 template <int M, int R, int U, typename OutT>
-__global__ void __launch_bounds__(kGemvWarps * IK_WARP)
-gemv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* __restrict__ out, int64_t N,
-            int64_t K) {
+__device__ __forceinline__ void gemv_body(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w,
+                                          OutT* __restrict__ out, int64_t N, int64_t K, int64_t blk) {
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t n0 = ((int64_t)blockIdx.x * kGemvWarps + warp) * R;
+    const int64_t n0 = (blk * kGemvWarps + warp) * R;
     if (n0 >= N) return;  // whole warp exits together; no block-level sync below
     const int64_t nv = K / 8;
     const uint4* x8 = reinterpret_cast<const uint4*>(x);
@@ -74,6 +75,25 @@ gemv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* 
             const float s = ik_warp_sum(acc[r][m]);
             if (lane == 0 && n0 + r < N) store_out(out + m * N + n0 + r, s);
         }
+}
+
+template <int M, int R, int U, typename OutT>
+__global__ void __launch_bounds__(kGemvWarps * IK_WARP)
+gemv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* __restrict__ out, int64_t N,
+            int64_t K) {
+    gemv_body<M, R, U, OutT>(x, w, out, N, K, (int64_t)blockIdx.x);
+}
+
+// Two projections of one activation row in one launch (the GDN a / b gates, the MoE router and shared-expert gate):
+// blocks [0, nb0) run the first matrix, the rest the second, each through the same body as `gemv_kernel<1, R, U>`.
+template <int R, int U, typename OutT>
+__global__ void __launch_bounds__(kGemvWarps * IK_WARP)
+gemv_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w0, OutT* __restrict__ o0, int64_t N0,
+                 const ik_bf16* __restrict__ w1, OutT* __restrict__ o1, int64_t N1, int64_t K) {
+    const int64_t per = (int64_t)kGemvWarps * R;
+    const int64_t nb0 = (N0 + per - 1) / per;
+    if ((int64_t)blockIdx.x < nb0) gemv_body<1, R, U, OutT>(x, w0, o0, N0, K, (int64_t)blockIdx.x);
+    else gemv_body<1, R, U, OutT>(x, w1, o1, N1, K, (int64_t)blockIdx.x - nb0);
 }
 
 // scalar fallback (K % 8 != 0 or unaligned operands): one warp per row, same reduction shape
@@ -385,10 +405,50 @@ int mm(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream, boo
     return f32_out ? gemm_launch<float>(x, w, out, stream) : gemm_launch<ik_bf16>(x, w, out, stream);
 }
 
+// ---- pair launcher (M == 1, vector path only) -----------------------------------------------
+int pair_check(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, const ik_tensor* o0, const ik_tensor* o1) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(w0, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(w1, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(o0, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(o1, IK_DTYPE_BF16, 2));
+    const int64_t M = x->shape[0], K = x->shape[1];
+    if (w0->shape[1] != K || w1->shape[1] != K || o0->shape[0] != M || o1->shape[0] != M ||
+        o0->shape[1] != w0->shape[0] || o1->shape[1] != w1->shape[0])
+        return IK_ERR_SHAPE;
+    return IK_OK;
+}
+
+int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* o0, ik_tensor* o1, void* stream) {
+    IK_TRY(pair_check(x, w0, w1, o0, o1));
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    // decode only (one row) and the vector path; the registry predicate says the same, this keeps a direct call honest
+    if (M != 1 || K % 8 != 0 || !ik_aligned16(x->data) || !ik_aligned16(w0->data) || !ik_aligned16(w1->data))
+        return IK_ERR_SHAPE;
+    if (N0 == 0 && N1 == 0) return IK_OK;
+    if (K == 0) {
+        hipStream_t z = IK_STREAM(stream);
+        if (hipMemsetAsync(o0->data, 0, ik_numel(o0) * 2, z) != hipSuccess) return IK_ERR_LAUNCH;
+        return hipMemsetAsync(o1->data, 0, ik_numel(o1) * 2, z) == hipSuccess ? IK_OK : IK_ERR_LAUNCH;
+    }
+    constexpr int R = 1, U = 8;  // the default variant of gemv_cfg()
+    const int64_t per = (int64_t)kGemvWarps * R;
+    const int64_t blocks = (N0 + per - 1) / per + (N1 + per - 1) / per;
+    if (blocks > 0x7fffffffLL) return IK_ERR_SHAPE;
+    gemv_pair_kernel<R, U, ik_bf16><<<(unsigned)blocks, kGemvWarps * IK_WARP, 0, IK_STREAM(stream)>>>(
+        (const ik_bf16*)x->data, (const ik_bf16*)w0->data, (ik_bf16*)o0->data, N0, (const ik_bf16*)w1->data,
+        (ik_bf16*)o1->data, N1, K);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
 
+int ik_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* out0,
+                             ik_tensor* out1, void* stream) {
+    return pair(x, w0, w1, out0, out1, stream);
+}
 int ik_matmul_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
     return mm(x, w, out, stream, false, false);
 }

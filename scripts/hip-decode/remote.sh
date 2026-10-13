@@ -52,6 +52,7 @@ serve_bench() { # serve_bench <name> <model dir> <gb-per-token> <tag> [extra ser
   local up=0 i
   for i in $(seq 1 200); do
     if curl -sf -m 2 http://127.0.0.1:$port/health >/dev/null 2>&1; then up=1; break; fi
+    docker ps -q -f name=intarsia-serve | grep -q . || break  # the server exited (e.g. a binary without the hip feature): stop waiting
     sleep 3
   done
   if [ "$up" != 1 ]; then echo "serve did not come up"; docker logs intarsia-serve 2>&1 | tail -30; docker rm -f intarsia-serve >/dev/null; return 1; fi
@@ -106,6 +107,11 @@ stage_test() { # cargo tests of the hip crate (kernel tests, device_pos, graph p
   $D cargo test --release -p intarsia-backend-hip -- --nocapture 2>&1 | grep -E "^test |test result|FAILED|panicked" | tail -60
 }
 
+stage_fusedtest() { # the fused decode kernels against the unfused launches (bitwise) and the cpu reference, plus the GPU admission sweep
+  $D cargo test --release -p intarsia-backend-hip --test fused_decode --test admission -- --nocapture --test-threads=1 2>&1 \
+    | grep -E "^test |test result|FAILED|panicked|differs|rel_l2" | cut -c1-400 | tail -40
+}
+
 stage_gtest() { # the graph tests alone, single-threaded, with the full output
   $D cargo test --release -p intarsia-backend-hip --test device_pos -- --nocapture --test-threads=1 2>&1 | grep -vE "^warning|^\s*(\||=|-->)" | tail -40
 }
@@ -113,8 +119,8 @@ stage_gtest() { # the graph tests alone, single-threaded, with the full output
 stage_v2test() { # v2 kernels vs v1 (bitwise) and the cpu reference; the fp8 staging variants 1 (default), 2, 3 each in their own process
   for q in 1 2 3 x; do
     echo "--- INTARSIA_HIP_FP8_Q=$q (x: default Q with INTARSIA_HIP_XSTAGE=1)"
-    INTARSIA_HIP_XSTAGE=$([ $q = x ] && echo 1 || echo 0) INTARSIA_HIP_FP8_Q=$([ $q = x ] && echo 2 || echo $q) $D cargo test --release -p intarsia-backend-hip --test decode_v2 -- --nocapture --test-threads=1 2>&1 \
-      | grep -vE "^warning|^\s*(\||=|-->)|^$|Compiling|Finished|Running" | cut -c1-300 | tail -24
+    INTARSIA_HIP_XSTAGE=$([ $q = x ] && echo 1 || echo 0) INTARSIA_HIP_FP8_Q=$([ $q = x ] && echo 2 || echo $q) $D cargo test --release -p intarsia-backend-hip --test decode_v2 --test fused_decode -- --nocapture --test-threads=1 2>&1 \
+      | grep -vE "^warning|^\s*(\||=|-->)|^$|Compiling|Finished|Running" | cut -c1-300 | tail -40
   done
 }
 
@@ -138,18 +144,20 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
   done
 }
 
-stage_mutate() { # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
+stage_mutate() {
+  # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
+  local MUT="${INTARSIA_MUT_DIR:-$HOME/intarsiaml-hipperf2-mut}"
   local m
-  for m in conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert; do
-    rm -rf "$HOME/intarsiaml-mut"; mkdir -p "$HOME/intarsiaml-mut"
-    rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$HOME/intarsiaml-mut/"
-    python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$HOME/intarsiaml-mut" $m || continue
+  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round}; do
+    rm -rf "$MUT"; mkdir -p "$MUT"
+    rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$MUT/"
+    python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$MUT" $m || continue
     printf '%-18s ' "$m"
-    INTARSIA_REPO="$HOME/intarsiaml-mut" deploy/tatooine/dev.sh cargo test --release -p intarsia-backend-hip --test decode_v2 2>&1 \
+    INTARSIA_REPO="$MUT" deploy/tatooine/dev.sh cargo test --release -p intarsia-backend-hip --test "$(python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" x --test-of $m)" 2>&1 \
       | grep -E "^test result|panicked at|error(\[|:)" | head -3 | cut -c1-200 | tr '\n' ' '
     echo
   done
-  rm -rf "$HOME/intarsiaml-mut"
+  rm -rf "$MUT"
 }
 
 stage_kernels() {

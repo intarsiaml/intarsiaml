@@ -17,7 +17,7 @@ use crate::backend::{upload_new, Backend, MemKind, TensorRef};
 use crate::dtype::DType;
 use crate::error::{Error, Result};
 use crate::ops::{Op, OpAttrs};
-use crate::quant::{load_linear, QTensor, QuantLoadOpts};
+use crate::quant::{load_linear, QTensor, QuantLoadOpts, BF16, NVFP4};
 use crate::weights::{WeightInfo, WeightSource};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -129,6 +129,11 @@ impl MoeScratch {
 /// tests implement it with a fixed kernel name.
 pub trait OpRunner {
     fn run(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<()>;
+    /// Run a fused op if the runner's backend has a kernel for exactly this call and return `true`; otherwise run nothing
+    /// and return `false` (the caller then runs the unfused ops). The default has no fused kernels.
+    fn run_fused(&self, _op: Op, _inputs: Vec<TensorRef>, _outputs: Vec<TensorRef>, _attrs: OpAttrs) -> Result<bool> {
+        Ok(false)
+    }
 }
 
 fn view(t: &TensorRef, rows: usize) -> TensorRef {
@@ -201,8 +206,23 @@ impl MoeWeights {
         let routed = view(&ws.routed, t);
         let e = &self.experts;
         let attrs = || OpAttrs { top_k: c.top_k, norm_topk: c.norm_topk, ..OpAttrs::default() };
-        let call = self.router.call(n.clone(), logits.clone());
-        run.run(call.op, call.inputs, call.outputs, call.attrs)?;
+        // the shared-expert gate logit reads the same activation as the router: one launch for both (dense bf16 pair)
+        let (so, sl) = (view(&ws.sh_out, t), view(&ws.sh_logit, t));
+        let mut gate_logit_done = false;
+        let mut router_done = false;
+        if let Some(sh) = self.shared.as_ref().filter(|sh| self.router.format == BF16 && sh.gate_logit.format == BF16) {
+            router_done = run.run_fused(
+                Op::MatmulPair,
+                vec![n.clone(), self.router.parts[0].clone(), sh.gate_logit.parts[0].clone()],
+                vec![logits.clone(), sl.clone()],
+                OpAttrs::default(),
+            )?;
+            gate_logit_done = router_done;
+        }
+        if !router_done {
+            let call = self.router.call(n.clone(), logits.clone());
+            run.run(call.op, call.inputs, call.outputs, call.attrs)?;
+        }
         run.run(Op::MoeTopk, vec![logits], vec![tw.clone(), ti.clone()], attrs())?;
         run.run(
             Op::MoeExperts,
@@ -221,16 +241,31 @@ impl MoeWeights {
         )?;
         let Some(sh) = &self.shared else { return Ok(()) };
         let (g, u, a) = (view(&ws.sh_g, t), view(&ws.sh_u, t), view(&ws.sh_a, t));
-        let (so, sl) = (view(&ws.sh_out, t), view(&ws.sh_logit, t));
-        for (q, o) in [(&sh.gate, &g), (&sh.up, &u)] {
-            let call = q.call(n.clone(), o.clone());
-            run.run(call.op, call.inputs, call.outputs, call.attrs)?;
+        // shared gate + up + silu_glu in one launch when the backend has the fused nvfp4 kernel
+        let glu_done = if sh.gate.format == NVFP4 && sh.up.format == NVFP4 {
+            let (pg, pu) = (&sh.gate.parts, &sh.up.parts);
+            run.run_fused(
+                Op::MatmulNvfp4Glu,
+                vec![n.clone(), pg[0].clone(), pg[1].clone(), pg[2].clone(), pu[0].clone(), pu[1].clone(), pu[2].clone()],
+                vec![a.clone()],
+                OpAttrs::default(),
+            )?
+        } else {
+            false
+        };
+        if !glu_done {
+            for (q, o) in [(&sh.gate, &g), (&sh.up, &u)] {
+                let call = q.call(n.clone(), o.clone());
+                run.run(call.op, call.inputs, call.outputs, call.attrs)?;
+            }
+            run.run(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default())?;
         }
-        run.run(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default())?;
         let call = sh.down.call(a, so.clone());
         run.run(call.op, call.inputs, call.outputs, call.attrs)?;
-        let call = sh.gate_logit.call(n.clone(), sl.clone());
-        run.run(call.op, call.inputs, call.outputs, call.attrs)?;
+        if !gate_logit_done {
+            let call = sh.gate_logit.call(n.clone(), sl.clone());
+            run.run(call.op, call.inputs, call.outputs, call.attrs)?;
+        }
         run.run(Op::MoeCombine, vec![routed, so, sl], vec![out.clone()], OpAttrs::default())
     }
 }
