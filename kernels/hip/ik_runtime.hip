@@ -90,6 +90,21 @@ int ik_rt_event_record(void* ev, void* stream) { return (int)hipEventRecord((hip
 int ik_rt_event_elapsed_ms(float* ms, void* a, void* b) { return (int)hipEventElapsedTime(ms, (hipEvent_t)a, (hipEvent_t)b); }
 int ik_rt_event_destroy(void* ev) { return (int)hipEventDestroy((hipEvent_t)ev); }
 
+int ik_rt_can_access_peer(int device, int peer, int* ok) { return (int)hipDeviceCanAccessPeer(ok, device, peer); }
+
+int ik_rt_enable_peer_access(int device, int peer) {
+    hipError_t e = hipSetDevice(device);
+    if (e != hipSuccess) return (int)e;
+    e = hipDeviceEnablePeerAccess(peer, 0);
+    if (e == hipErrorPeerAccessAlreadyEnabled) {
+        (void)hipGetLastError();  // clear the sticky error
+        return 0;
+    }
+    return (int)e;
+}
+
+int ik_rt_malloc_finegrained(void** p, size_t bytes) { return (int)hipExtMallocWithFlags(p, bytes, hipDeviceMallocFinegrained); }
+
 int ik_rt_measure_bandwidth(double* gbs) {
     const size_t bytes = 128u << 20;
     void *a = nullptr, *b = nullptr;

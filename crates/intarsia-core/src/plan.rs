@@ -689,6 +689,7 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
         json!({
             "world": model.tp_world(),
             "comm": model.comm_name(),
+            "partials": model.tp_partials(),
             "per_rank": {"n_heads": l.n_heads, "n_kv_heads": l.n_kv_heads, "head_dim": l.head_dim, "intermediate": l.intermediate,
                          "hidden": l.hidden, "vocab": l.vocab},
             "global": {"n_heads": model.dims.n_heads, "n_kv_heads": model.dims.n_kv_heads, "intermediate": model.dims.intermediate},

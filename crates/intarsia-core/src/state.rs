@@ -116,7 +116,7 @@ impl SequenceState {
     }
 
     pub fn total_bytes(&self) -> usize {
-        self.slots.iter().map(|s| s.bytes()).sum()
+        self.slots.iter().map(|s| s.bytes()).sum::<usize>() + self.peers.iter().map(|p| p.st.total_bytes()).sum::<usize>()
     }
 
     /// Bytes of the filled part of the attention caches.
@@ -127,7 +127,8 @@ impl SequenceState {
                 StateSlot::AttnKv(a) => 2 * a.n_kv_heads * a.len * a.head_dim * a.dtype.size_bytes(),
                 StateSlot::Recurrent(r) => r.bytes,
             })
-            .sum()
+            .sum::<usize>()
+            + self.peers.iter().map(|p| p.st.used_bytes()).sum::<usize>()
     }
 
     pub fn has_recurrent(&self) -> bool {

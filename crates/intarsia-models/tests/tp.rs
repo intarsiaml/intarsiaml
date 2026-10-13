@@ -114,7 +114,9 @@ fn shards_hold_only_their_slice_and_the_plan_shows_per_rank_shapes() {
     assert_eq!(r0 + r1, one.weights_bytes + replicated);
     // the plan: all-reduce count and the per-rank matmul shapes
     assert_eq!(two.resolved.comm_calls_per_decode_step, 2 * LAYERS);
-    assert_eq!(two.resolved.comm_bytes_per_decode_step, 2 * LAYERS * H * 2);
+    // f32 partials: 4 bytes per element
+    assert_eq!(two.resolved.comm_bytes_per_decode_step, 2 * LAYERS * H * 4);
+    assert_eq!(two.tp_partials(), Some("f32"));
     let plan = intarsia_core::plan::plan_json(&two, "tiny");
     assert_eq!(plan["tp"]["world"], 2);
     assert_eq!(plan["tp"]["per_rank"]["n_heads"], NH / 2);
@@ -123,7 +125,7 @@ fn shards_hold_only_their_slice_and_the_plan_shows_per_rank_shapes() {
     let mm: Vec<(usize, usize)> = probe
         .calls
         .iter()
-        .filter(|c| c.call.op == intarsia_core::Op::Matmul)
+        .filter(|c| matches!(c.call.op, intarsia_core::Op::Matmul | intarsia_core::Op::Logits))
         .map(|c| (c.call.inputs[1].shape[0], c.call.inputs[1].shape[1]))
         .collect();
     // q [nh/2*hd, H], k/v [nkv/2*hd, H], o [H, nh/2*hd], gate/up [I/2, H], down [H, I/2]
@@ -133,7 +135,7 @@ fn shards_hold_only_their_slice_and_the_plan_shows_per_rank_shapes() {
     // KV is split by heads too
     let st = two.new_state().unwrap();
     assert_eq!(st.peers.len(), 1);
-    assert_eq!(st.total_bytes() * 2, one.new_state().unwrap().total_bytes());
+    assert_eq!(st.total_bytes(), one.new_state().unwrap().total_bytes(), "both ranks together hold the KV of one");
 }
 
 fn norms_per_rank() -> u64 {

@@ -125,6 +125,9 @@ struct Workspace {
     a: Buffer,
     logits: Buffer,
     tok: Buffer,
+    /// Tensor parallelism: f32 `[max_tokens, hidden]` partial results of the row-parallel projections (o, down),
+    /// reduced into the bf16 activation buffer with a single rounding. None: bf16 partials reduced in place.
+    part: Option<Buffer>,
     /// `i32 [1]`: position of the token a captured decode step processes (rewritten before every replay).
     pos: Buffer,
     /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
@@ -498,6 +501,13 @@ impl Model {
         }
 
         // activation workspace
+        // tensor parallelism: INTARSIA_TP_PARTIAL=bf16 reduces bf16 partials in place (two roundings per reduce, like
+        // vLLM); the default keeps the partials in f32 and rounds once, as one unsharded matmul does
+        let part_f32 = match std::env::var("INTARSIA_TP_PARTIAL").ok().as_deref() {
+            None | Some("") | Some("f32") => true,
+            Some("bf16") => false,
+            Some(v) => return Err(Error::invalid(format!("INTARSIA_TP_PARTIAL={v} (f32 or bf16)"))),
+        };
         let mt = opts.prefill_chunk.max(1);
         let esz = act.size_bytes();
         let mut ws_bytes = 0u64;
@@ -534,6 +544,7 @@ impl Model {
             a: wb(mt * dims.intermediate * esz)?,
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
+            part: if tp.world > 1 && part_f32 { Some(wb(mt * dims.hidden * 4)?) } else { None },
             pos: wb(16)?,
             x,
             moe,
@@ -697,6 +708,11 @@ impl Model {
             });
         }
         Ok(st)
+    }
+
+    /// Dtype of the row-parallel partial results the collective sums ("f32" or "bf16"); None without tensor parallelism.
+    pub fn tp_partials(&self) -> Option<&'static str> {
+        (self.tp.world > 1).then(|| if self.ws.part.is_some() { "f32" } else { "bf16" })
     }
 
     /// Tensor-parallel degree (1 without it).
@@ -1278,8 +1294,17 @@ impl Model {
             }
             None => attn_out.reshaped(&qshape),
         };
-        self.proj(&o_in, &a.wo, out, profile)?;
-        self.all_reduce(out, profile)
+        match &self.ws.part {
+            Some(part) => {
+                let part = self.view(part, DType::F32, &[t, d.hidden]);
+                self.proj(&o_in, &a.wo, &part, profile)?;
+                self.all_reduce(&part, out, profile)
+            }
+            None => {
+                self.proj(&o_in, &a.wo, out, profile)?;
+                self.all_reduce(out, out, profile)
+            }
+        }
     }
 
     fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
@@ -1292,21 +1317,30 @@ impl Model {
         self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
         self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
         self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
-        self.exec(Op::Matmul, vec![a, f.down.clone()], vec![out.clone()], OpAttrs::default(), profile)?;
-        self.all_reduce(out, profile)
+        match &self.ws.part {
+            Some(part) => {
+                let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
+                self.exec(Op::Logits, vec![a, f.down.clone()], vec![part.clone()], OpAttrs::default(), profile)?;
+                self.all_reduce(&part, out, profile)
+            }
+            None => {
+                self.exec(Op::Matmul, vec![a, f.down.clone()], vec![out.clone()], OpAttrs::default(), profile)?;
+                self.all_reduce(out, out, profile)
+            }
+        }
     }
 
-    /// Sum a row-parallel projection's partial result over the tensor-parallel group, in place. A no-op without
-    /// tensor parallelism. While the plan is recorded nothing runs: the call is counted instead (it would otherwise
-    /// wait for ranks that are not running).
-    fn all_reduce(&self, x: &TensorRef, profile: bool) -> Result<()> {
+    /// Sum a row-parallel projection's partial results over the tensor-parallel group into `out` (in place when
+    /// `partial` and `out` are the same tensor). A no-op without tensor parallelism. While the plan is recorded
+    /// nothing runs: the call is counted instead (it would otherwise wait for ranks that are not running).
+    fn all_reduce(&self, partial: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
         let Some(comm) = &self.tp.comm else { return Ok(()) };
         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
             r.comm.push(crate::plan::PlannedComm {
                 phase: r.phase.unwrap_or(crate::plan::Phase::Decode),
                 t: r.t,
                 pos0: r.pos0,
-                bytes: x.nbytes(),
+                bytes: partial.nbytes(),
                 extra: r.extra,
             });
             return Ok(());
@@ -1315,7 +1349,7 @@ impl Model {
             self.backend.synchronize(0)?;
         }
         let t0 = Instant::now();
-        comm.all_reduce_sum(x, 0)?;
+        comm.all_reduce_sum_into(partial, out, 0)?;
         if profile {
             self.backend.synchronize(0)?;
             comm.note_timed(t0.elapsed());

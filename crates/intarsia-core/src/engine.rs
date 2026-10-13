@@ -396,7 +396,11 @@ impl LocalEngine {
             id: meta.id.clone(),
             family: model.recipe.model.family.clone(),
             backend: dinfo.backend.clone(),
-            device: dinfo.name.clone(),
+            device: if model.tp_world() > 1 {
+                format!("{} x{} (tp={}, {} comm)", dinfo.name, model.tp_world(), model.tp_world(), model.comm_name().unwrap_or_default())
+            } else {
+                dinfo.name.clone()
+            },
             arch: dinfo.arch.clone(),
             n_layers: model.dims.n_layers,
             hidden: model.dims.hidden,

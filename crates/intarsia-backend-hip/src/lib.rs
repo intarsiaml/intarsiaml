@@ -17,6 +17,8 @@ pub mod kernels;
 pub mod quantmoe;
 
 #[cfg(ik_hip)]
+mod comm;
+#[cfg(ik_hip)]
 mod device;
 #[cfg(ik_hip)]
 mod ffi;
@@ -48,8 +50,18 @@ pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
 pub fn create_group(
     ordinals: &[usize],
 ) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
-    let backends = ordinals.iter().map(|&o| create(o)).collect::<intarsia_core::Result<Vec<_>>>()?;
-    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    disable::check_env()?;
+    let hips = ordinals
+        .iter()
+        .map(|&o| device::HipBackend::new(o).map(Arc::new))
+        .collect::<intarsia_core::Result<Vec<_>>>()?;
+    let backends: Vec<Arc<dyn Backend>> = hips.iter().map(|h| h.clone() as Arc<dyn Backend>).collect();
+    let comms = if hips.len() == 2 {
+        comm::p2p_group(&hips)?
+    } else {
+        // the peer-to-peer kernel is a two-rank design; larger groups stage through the host
+        intarsia_core::HostCommGroup::new(backends.clone())
+    };
     Ok((backends, comms))
 }
 

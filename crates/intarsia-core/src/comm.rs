@@ -79,6 +79,12 @@ pub trait Comm: Send + Sync {
     /// backend. Every rank passes a tensor of the same dtype and element count.
     fn all_reduce_sum(&self, x: &TensorRef, stream: StreamId) -> Result<()>;
 
+    /// `out = round_to(out.dtype)(sum over ranks of partial)`: the reduction takes each rank's `partial` as is (f32,
+    /// bf16 or f16) and rounds once, into `out` (any of those dtypes, same element count). `partial` is left
+    /// untouched and may be a different buffer than `out`. Summing f32 partials and rounding once matches what one
+    /// unsharded matmul does (f32 accumulate, one rounding), where bf16 partials would round twice.
+    fn all_reduce_sum_into(&self, partial: &TensorRef, out: &TensorRef, stream: StreamId) -> Result<()>;
+
     /// `recv` (`world * send.numel()` elements) receives every rank's `send` in rank order. Same dtype on
     /// both. `recv` may not alias `send`.
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()>;
@@ -226,24 +232,40 @@ impl Comm for HostComm {
     }
 
     fn all_reduce_sum(&self, x: &TensorRef, stream: StreamId) -> Result<()> {
-        let n = check_reducible(x)?;
-        self.counters.call(x.nbytes());
+        self.all_reduce_sum_into(x, x, stream)
+    }
+
+    fn all_reduce_sum_into(&self, partial: &TensorRef, out: &TensorRef, stream: StreamId) -> Result<()> {
+        let n = check_reducible(partial)?;
+        if check_reducible(out)? != n {
+            return Err(Error::invalid(format!("all_reduce_sum_into: {n} partial elements into {} output elements", out.numel())));
+        }
+        self.counters.call(partial.nbytes());
         if self.world == 1 {
+            let same = partial.buf.ptr_eq(&out.buf) && partial.offset == out.offset && partial.dtype == out.dtype;
+            if !same {
+                // nothing to sum, but `out` is still owed the (converted) value
+                let mut vals = vec![0f32; n];
+                decode_to_f32(partial.dtype, &self.read(partial, stream)?, &mut vals);
+                let mut bytes = vec![0u8; out.nbytes()];
+                encode_from_f32(out.dtype, &vals, &mut bytes);
+                return self.backend.upload(&out.buf, out.offset, &bytes, stream);
+            }
             return Ok(());
         }
-        let all = self.rv.exchange(self.rank, self.read(x, stream)?, self.timeout)?;
+        let all = self.rv.exchange(self.rank, self.read(partial, stream)?, self.timeout)?;
         let mut acc = vec![0f32; n];
-        decode_to_f32(x.dtype, &all[0], &mut acc);
+        decode_to_f32(partial.dtype, &all[0], &mut acc);
         let mut tmp = vec![0f32; n];
         for part in all.iter().skip(1) {
-            decode_to_f32(x.dtype, part, &mut tmp);
+            decode_to_f32(partial.dtype, part, &mut tmp);
             for (a, b) in acc.iter_mut().zip(&tmp) {
                 *a += *b;
             }
         }
-        let mut out = vec![0u8; x.nbytes()];
-        encode_from_f32(x.dtype, &acc, &mut out);
-        self.backend.upload(&x.buf, x.offset, &out, stream)
+        let mut bytes = vec![0u8; out.nbytes()];
+        encode_from_f32(out.dtype, &acc, &mut bytes);
+        self.backend.upload(&out.buf, out.offset, &bytes, stream)
     }
 
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()> {
