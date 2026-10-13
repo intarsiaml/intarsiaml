@@ -137,6 +137,11 @@ stop_server() {
   SERVER_UP=0
 }
 
+kill_orphans() {                               # remote jobs of ours that outlived an interrupted ssh (they hold 38-70 GB)
+  log "killing any intarsia-acc process still running on $HOST before vLLM is started"
+  rsh "pkill -TERM -f '[i]ntarsia-acc/(new|old)/target/acc/release/'; for i in \$(seq 1 20); do pgrep -f '[i]ntarsia-acc/(new|old)/target/acc/release/' >/dev/null || break; sleep 1; done; pkill -KILL -f '[i]ntarsia-acc/(new|old)/target/acc/release/'; pkill -f '[i]ntarsia-acc/poll.sh'; sleep 3; true" || true
+}
+
 vllm_healthy() { rsh_out "curl -sf http://$VLLM_HOST:$VLLM_PORT/health >/dev/null && curl -sf http://$VLLM_HOST:$VLLM_PORT/v1/models | grep -q ." >/dev/null 2>&1; }
 
 start_vllm() {
@@ -158,6 +163,7 @@ cleanup() {
   set +e
   [[ $rc -ne 0 ]] && log "exiting with status $rc, restoring the box"
   stop_server
+  [[ $VLLM_STOPPED == 1 ]] && kill_orphans
   start_vllm
   for j in "$LEASE_JOB" "$BUILD_JOB"; do
     [[ -n "$j" ]] && { log "releasing fleetq job $j"; fq release "$j" >/dev/null || log "WARNING: release of $j failed"; }
