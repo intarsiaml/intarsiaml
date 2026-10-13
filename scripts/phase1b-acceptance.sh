@@ -40,6 +40,7 @@
 #                    in this repo, and the script restarts it with `docker start`, so no launch flags are guessed)
 #   S1_35B           Qwen3.6-35B-A3B NVFP4 model dir on spark1
 # Optional: S1_8B, PRE_CHANGE (4963b43), ROUNDS (3), REPS (5), GEN (128), SIZES (128,1024,4096), HOST (spark1),
+#   VLLM_HOST (127.0.0.1: address the vLLM container is bound to; spark1 binds its tailnet IP, see `docker inspect`),
 #   MACHINE (spark-4e77), MEM_LEASE_GB (100), MODEL_GB_35B (38), MODEL_GB_8B (17), STAGES (comma list, default all),
 #   AB_SHIPPED (0), ALLOW_DIRTY (0: development only, the tree under test is then not stamped clean),
 #   DRY_RUN (1: stub ssh/rsync/fleetq/docker, log what would run), FAIL_AT=<stage> (DRY_RUN: force that stage to fail
@@ -72,6 +73,7 @@ NEWBIN="$R/new/target/acc/release/intarsia"
 OLDBIN="$R/old/target/acc/release/intarsia"
 SERVE_PORT=8090
 VLLM_PORT=8000
+VLLM_HOST=${VLLM_HOST:-127.0.0.1}   # address the vLLM container is bound to (spark1: the tailnet IP; see `docker inspect`, --host)
 DRYLOG="$WORK/dry-run.log"
 mkdir -p "$WORK"
 
@@ -133,7 +135,7 @@ stop_server() {
   SERVER_UP=0
 }
 
-vllm_healthy() { rsh_out "curl -sf http://127.0.0.1:$VLLM_PORT/health >/dev/null && curl -sf http://127.0.0.1:$VLLM_PORT/v1/models | grep -q ." >/dev/null 2>&1; }
+vllm_healthy() { rsh_out "curl -sf http://$VLLM_HOST:$VLLM_PORT/health >/dev/null && curl -sf http://$VLLM_HOST:$VLLM_PORT/v1/models | grep -q ." >/dev/null 2>&1; }
 
 start_vllm() {
   [[ $VLLM_STOPPED == 1 ]] || return 0
@@ -281,15 +283,15 @@ stage_lease() {
   wait_mem_freed
   rsh_stdin "cat > $R/poll.sh && chmod +x $R/poll.sh" <<'POLL'
 #!/bin/sh
-# poll.sh <port> <outfile>: once a second, the largest running / waiting request counts seen at /metrics, until <outfile>.run goes away
+# poll.sh <host> <port> <outfile>: once a second, the largest running / waiting request counts seen at /metrics, until <outfile>.run goes away
 mr=0; mw=0
-while [ -e "$2.run" ]; do
-  m=$(curl -s "http://127.0.0.1:$1/metrics")
+while [ -e "$3.run" ]; do
+  m=$(curl -s "http://$1:$2/metrics")
   r=$(echo "$m" | awk '/^vllm:num_requests_running/ {print int($2)}' | tail -1)
   w=$(echo "$m" | awk '/^vllm:num_requests_waiting/ {print int($2)}' | tail -1)
   [ "${r:-0}" -gt "$mr" ] && mr=${r:-0}
   [ "${w:-0}" -gt "$mw" ] && mw=${w:-0}
-  echo "$mr $mw" > "$2"
+  echo "$mr $mw" > "$3"
   sleep 1
 done
 POLL
@@ -426,14 +428,15 @@ start_server() {                               # start_server <bin> <extra serve
 
 run_arm() {                                    # run_arm <arm> <round> <port> <served model name> <extra bench flags...>
   local arm=$1 rnd=$2 port=$3 model=$4; shift 4
-  local out="$R/ab/$arm-r$rnd"
+  local out="$R/ab/$arm-r$rnd" host=127.0.0.1
+  [[ $port == "$VLLM_PORT" ]] && host=$VLLM_HOST
   log "-- round $rnd: $arm"
-  rsh "mkdir -p $out && touch $out/inflight.run && echo '0 0' > $out/inflight && (setsid $R/poll.sh $port $out/inflight > /dev/null 2>&1 < /dev/null &)"
-  rsh "$NEWBIN bench speed --url http://127.0.0.1:$port --model $model --sizes $SIZES --gen $GEN --reps $REPS --warmup 1 --thinking off --label p1b-$arm-r$rnd --out-dir $out $* > $out/bench.log 2>&1; echo \$? > $out/bench.rc; rm -f $out/inflight.run; sleep 2"
+  rsh "mkdir -p $out && touch $out/inflight.run && echo '0 0' > $out/inflight && (setsid $R/poll.sh $host $port $out/inflight > /dev/null 2>&1 < /dev/null &)"
+  rsh "$NEWBIN bench speed --url http://$host:$port --model $model --sizes $SIZES --gen $GEN --reps $REPS --warmup 1 --thinking off --label p1b-$arm-r$rnd --out-dir $out $* > $out/bench.log 2>&1; echo \$? > $out/bench.rc; rm -f $out/inflight.run; sleep 2"
 }
 
 capture_vllm_info() {
-  rsh "curl -s http://127.0.0.1:$VLLM_PORT/version > $R/ab/vllm-version.json; curl -s http://127.0.0.1:$VLLM_PORT/metrics | grep -E '^vllm:cache_config_info' > $R/ab/vllm-cache-config.txt; true"
+  rsh "curl -s http://$VLLM_HOST:$VLLM_PORT/version > $R/ab/vllm-version.json; curl -s http://$VLLM_HOST:$VLLM_PORT/metrics | grep -E '^vllm:cache_config_info' > $R/ab/vllm-cache-config.txt; true"
 }
 
 fetch_ab() { [[ $DRY_RUN == 1 ]] || { mkdir -p "$WORK/ab"; scp -qr "$HOST:${R/#\~/.}/ab/." "$WORK/ab/"; }; }
