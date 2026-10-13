@@ -18,7 +18,12 @@ the same command works for IntarsiaML, vLLM, llama.cpp and oMLX.
 * Every prompt starts with a fresh random nonce: no prefix-cache or KV-reuse hit can inflate prefill.
 * Output length is forced with `ignore_eos`, `min_tokens` and `max_tokens` (a row whose `gen` column
   is below `--gen` means the server ignored them; a warning is printed). Servers that reject these
-  parameters with HTTP 400/422 are retried without them and a warning says so.
+  parameters with HTTP 400/422 *naming them* (or saying "unknown/unsupported parameter") are retried without
+  them, and the "rejected optional parameters" warning appears only when that retry worked. A length error
+  ("maximum context length", `max_model_len`) is never treated as a parameter problem.
+* The server's context window is read from `GET /v1/models` (`max_model_len`). A size whose estimated prompt
+  plus `--gen` (+2% and 16 tokens of slack) exceeds it is **skipped before anything is sent**, with a message
+  and a `skipped` row in the JSON; the calibration probe also shrinks to fit a small window.
 * One discarded warmup call per size, then the median of `--reps` measured calls.
 * TTFT = request sent to first content delta. Prefill tok/s = prompt tokens / TTFT (includes queueing
   and HTTP, so small prompts look slow). Decode tok/s = (completion tokens - 1) / (end - first token).

@@ -137,6 +137,25 @@ struct Client {
     url: String,
     cfg: SpeedConfig,
     dropped: Dropped,
+    /// The server's context window in tokens (`max_model_len` / `context_length` of `GET /v1/models`), when it says.
+    ctx: Option<usize>,
+}
+
+/// Does an HTTP error body say the request was too long for the model (a property of the request, not of
+/// optional parameters)?
+fn is_context_error(body: &str) -> bool {
+    let b = body.to_ascii_lowercase();
+    ["context", "max_model_len", "maximum", "too long", "too many tokens", "exceed", "does not fit"]
+        .iter()
+        .any(|k| b.contains(k))
+}
+
+/// Does an HTTP error body complain about an unknown / unsupported parameter without being about length?
+fn is_param_error(body: &str) -> bool {
+    let b = body.to_ascii_lowercase();
+    !is_context_error(&b) && ["unknown", "unrecognized", "unsupported", "extra inputs", "not permitted", "unexpected", "invalid"]
+        .iter()
+        .any(|k| b.contains(k))
 }
 
 impl Client {
@@ -147,7 +166,28 @@ impl Client {
             url: format!("{}/chat/completions", http::api_base(&cfg.url)),
             cfg: cfg.clone(),
             dropped: Arc::new(Mutex::new(BTreeSet::new())),
+            ctx: None,
         })
+    }
+
+    /// Ask the server for its context window (best effort; `None` when it does not say).
+    fn fetch_context(&self) -> Option<usize> {
+        let url = format!("{}/models", http::api_base(&self.cfg.url));
+        let mut req = self.agent.get(&url);
+        if let Some(k) = &self.cfg.api_key {
+            req = req.header("Authorization", format!("Bearer {k}"));
+        }
+        let mut resp = req.call().ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        let v: Value = serde_json::from_str(&resp.body_mut().read_to_string().ok()?).ok()?;
+        let models = v["data"].as_array()?;
+        let m = models.iter().find(|m| m["id"].as_str() == Some(self.cfg.model.as_str())).or_else(|| models.first())?;
+        ["max_model_len", "context_length", "max_context_length", "context_len"]
+            .iter()
+            .find_map(|k| m[*k].as_u64())
+            .map(|n| n as usize)
     }
 
     fn body(&self, prompt: &str, max_tokens: usize, force: bool) -> Value {
@@ -178,18 +218,31 @@ impl Client {
         let r = self.chat_once(prompt, max_tokens, force);
         if let Some(e) = &r.error {
             if e.starts_with("HTTP 400") || e.starts_with("HTTP 422") {
-                // Some servers reject non-standard parameters: drop the ones the error mentions
-                // (or all optional ones) and retry once.
-                let changed = {
-                    let mut d = self.dropped.lock().unwrap();
-                    let named: Vec<&'static str> = OPTIONAL_PARAMS.iter().copied().filter(|p| e.contains(p)).collect();
-                    let drop = if named.is_empty() { OPTIONAL_PARAMS.to_vec() } else { named };
-                    let before = d.len();
-                    d.extend(drop);
-                    d.len() != before
+                // A rejected optional parameter: drop what the error names (or all optional ones when it only
+                // says "unknown parameter") and retry once. A length error (prompt + max_tokens over the
+                // context) is not a parameter problem: report it as it is and drop nothing.
+                let named: Vec<&'static str> = OPTIONAL_PARAMS.iter().copied().filter(|p| e.contains(p)).collect();
+                let drop = if !named.is_empty() {
+                    named
+                } else if is_param_error(e) {
+                    OPTIONAL_PARAMS.to_vec()
+                } else {
+                    Vec::new()
                 };
-                if changed {
-                    return self.chat_once(prompt, max_tokens, force);
+                let added: Vec<&'static str> = {
+                    let mut d = self.dropped.lock().unwrap();
+                    drop.into_iter().filter(|p| d.insert(p)).collect()
+                };
+                if !added.is_empty() {
+                    let retry = self.chat_once(prompt, max_tokens, force);
+                    if !retry.ok {
+                        // the retry failed as well: the parameters were not the problem
+                        let mut d = self.dropped.lock().unwrap();
+                        added.iter().for_each(|p| {
+                            d.remove(p);
+                        });
+                    }
+                    return retry;
                 }
             }
         }
@@ -299,30 +352,62 @@ fn floor_pct(decode: Option<f64>, cfg: &SpeedConfig) -> (Option<f64>, Option<f64
 fn calibrate(c: &Client) -> Result<(f64, f64)> {
     let mut rng = Rng::from_clock();
     let a = c.chat(&make_prompt(0, &mut rng), 1, false);
-    let b = c.chat(&make_prompt(200, &mut rng), 1, false);
-    if !a.ok || !b.ok {
-        bail!(
-            "calibration call failed: {}",
-            a.error.or(b.error).unwrap_or_else(|| "unknown error".into())
-        );
+    if !a.ok {
+        bail!("calibration call failed: {}", a.error.unwrap_or_else(|| "unknown error".into()));
     }
-    if a.prompt_tokens == 0 || b.prompt_tokens <= a.prompt_tokens {
-        bail!("server did not report usable prompt_tokens (got {} and {}); cannot size prompts", a.prompt_tokens, b.prompt_tokens);
+    // A few hundred filler sentences measure the per-sentence cost best; a small context window gets a shorter
+    // probe (the probe must fit, so each step down is tried only when it can: at most ~20 tokens a sentence).
+    let mut last_err = None;
+    for n in [200usize, 100, 50, 20, 10] {
+        if c.ctx.is_some_and(|ctx| n * 20 > ctx / 2) {
+            continue;
+        }
+        let b = c.chat(&make_prompt(n, &mut rng), 1, false);
+        if !b.ok {
+            last_err = b.error;
+            continue;
+        }
+        if a.prompt_tokens == 0 || b.prompt_tokens <= a.prompt_tokens {
+            bail!("server did not report usable prompt_tokens (got {} and {}); cannot size prompts", a.prompt_tokens, b.prompt_tokens);
+        }
+        let per = (b.prompt_tokens - a.prompt_tokens) as f64 / n as f64;
+        return Ok((a.prompt_tokens as f64, per));
     }
-    let per = (b.prompt_tokens - a.prompt_tokens) as f64 / 200.0;
-    Ok((a.prompt_tokens as f64, per))
+    bail!("calibration call failed: {}", last_err.unwrap_or_else(|| "no probe fits the server context".into()))
 }
 
 pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
-    let c = Client::new(cfg)?;
+    let mut c = Client::new(cfg)?;
     eprintln!("target {}  model {}", c.url, cfg.model);
+    c.ctx = c.fetch_context();
+    match c.ctx {
+        Some(n) => eprintln!("server context window: {n} tokens"),
+        None => eprintln!("server did not report a context window; requests are not pre-checked"),
+    }
     let (base, per) = calibrate(&c).context("calibrating prompt size")?;
     eprintln!("calibration: {base:.0} base tokens, {per:.2} tokens per filler sentence");
     let sentences_for = |size: usize| ((size as f64 - base).max(0.0) / per).round() as usize;
+    // Estimated prompt tokens of a request sized `size`, plus `gen` generated, against the context window.
+    let too_long = |size: usize, gen: usize| -> Option<String> {
+        let ctx = c.ctx?;
+        let est = base + sentences_for(size) as f64 * per;
+        let need = (est * 1.02).ceil() as usize + gen + 16;
+        (need > ctx).then(|| format!("~{est:.0} prompt + {gen} generated tokens (+2% and 16 slack) need {need}, the server context is {ctx}"))
+    };
 
     let mut rows = vec![];
     let mut warnings: Vec<String> = vec![];
     for &size in &cfg.sizes {
+        if let Some(why) = too_long(size, cfg.gen) {
+            eprintln!("  size {size:>6} SKIPPED before sending: {why}");
+            warnings.push(format!("size {size}: skipped, {why}"));
+            rows.push(json!({
+                "target_prompt_tokens": size, "prompt_tokens": null, "gen_tokens": null, "ttft_s": null,
+                "prefill_tok_s": null, "decode_tok_s": null, "bandwidth_floor_tok_s": null, "pct_of_floor": null,
+                "reps_ok": 0, "errors": 0, "skipped": why,
+            }));
+            continue;
+        }
         let n = sentences_for(size);
         for _ in 0..cfg.warmup {
             let mut rng = Rng::from_clock();
@@ -377,6 +462,11 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
     // Concurrency rows.
     let mut conc_rows = vec![];
     for &n_streams in cfg.concurrency.iter().filter(|&&n| n > 1) {
+        if let Some(why) = too_long(cfg.conc_size, cfg.gen) {
+            eprintln!("concurrency {n_streams} SKIPPED before sending: {why}");
+            warnings.push(format!("concurrency {n_streams}: skipped, {why}"));
+            continue;
+        }
         let n = sentences_for(cfg.conc_size);
         eprintln!("concurrency {n_streams} at ~{} prompt tokens", cfg.conc_size);
         let mut aggs = vec![];
@@ -428,7 +518,7 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
 
     let dropped: Vec<String> = c.dropped.lock().unwrap().iter().map(|s| s.to_string()).collect();
     if !dropped.is_empty() {
-        warnings.push(format!("server rejected parameters, dropped: {dropped:?}"));
+        warnings.push(format!("server rejected optional parameters (the retry without them worked), dropped: {dropped:?}"));
     }
     let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     Ok(json!({
@@ -475,6 +565,10 @@ pub fn render_table(res: &Value) -> String {
         if floor.is_some() { "  % of floor" } else { "" }
     ));
     for row in res["rows"].as_array().into_iter().flatten() {
+        if row["skipped"].is_string() {
+            s.push_str(&format!("{:>8} skipped: server context too small for this size\n", row["target_prompt_tokens"].to_string()));
+            continue;
+        }
         s.push_str(&format!(
             "{:>8} {} {} {} {} {}{}\n",
             row["target_prompt_tokens"].to_string(), cell(&row["prompt_tokens"], 8, 0), cell(&row["ttft_s"], 9, 3),
@@ -585,5 +679,106 @@ mod tests {
         assert_eq!(res["concurrency"].as_array().unwrap().len(), 1);
         let t = render_table(&res);
         assert!(t.contains("prefill"));
+    }
+
+    /// Fake server with a context limit: `GET /v1/models` reports `max_model_len` (when `advertise`), a chat call
+    /// whose prompt is over `limit` tokens gets HTTP 400 with a length message. Returns the URL and the prompt
+    /// sizes of the chat calls it received.
+    fn ctx_server(limit: usize, advertise: bool) -> (String, Arc<Mutex<Vec<usize>>>) {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let seen2 = seen.clone();
+        std::thread::spawn(move || {
+            for stream in l.incoming() {
+                let Ok(mut s) = stream else { break };
+                let seen = seen2.clone();
+                std::thread::spawn(move || {
+                    let mut buf = vec![0u8; 1 << 20];
+                    let mut got = 0;
+                    loop {
+                        let n = s.read(&mut buf[got..]).unwrap_or(0);
+                        if n == 0 {
+                            return;
+                        }
+                        got += n;
+                        let txt = String::from_utf8_lossy(&buf[..got]).to_string();
+                        if let Some(i) = txt.find("\r\n\r\n") {
+                            let cl = txt[..i].to_lowercase().split("content-length:").nth(1)
+                                .and_then(|x| x.lines().next()).and_then(|x| x.trim().parse::<usize>().ok()).unwrap_or(0);
+                            if got >= i + 4 + cl {
+                                break;
+                            }
+                        }
+                    }
+                    let txt = String::from_utf8_lossy(&buf[..got]).to_string();
+                    if txt.starts_with("GET /v1/models") {
+                        let body = if advertise {
+                            format!("{{\"data\":[{{\"id\":\"fake\",\"max_model_len\":{limit}}}]}}")
+                        } else {
+                            "{\"data\":[{\"id\":\"fake\"}]}".to_string()
+                        };
+                        let _ = s.write_all(
+                            format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+                                .as_bytes(),
+                        );
+                        return;
+                    }
+                    let pt = txt.matches("Note ").count() * 12 + 20;
+                    seen.lock().unwrap().push(pt);
+                    if pt > limit {
+                        let body = format!("{{\"error\":{{\"message\":\"This model's maximum context length is {limit} tokens. However, you requested {pt} tokens.\"}}}}");
+                        let _ = s.write_all(
+                            format!("HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+                                .as_bytes(),
+                        );
+                        return;
+                    }
+                    let mut out = String::from("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
+                    for i in 0..10 {
+                        out.push_str(&format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"t{i}\"}}}}]}}\n\n"));
+                    }
+                    out.push_str(&format!("data: {{\"choices\":[],\"usage\":{{\"prompt_tokens\":{pt},\"completion_tokens\":10}}}}\n\ndata: [DONE]\n\n"));
+                    let _ = s.write_all(out.as_bytes());
+                });
+            }
+        });
+        (format!("http://{addr}"), seen)
+    }
+
+    fn cfg_for(url: String, sizes: Vec<usize>) -> SpeedConfig {
+        SpeedConfig {
+            url, model: "fake".into(), api_key: None, sizes, gen: 10, reps: 1, warmup: 0, concurrency: vec![1],
+            conc_size: 128, gb_per_token: None, bandwidth_gbs: None, label: "t".into(), thinking: None, timeout_s: 20,
+            out_dir: None, fingerprint: Map::new(),
+        }
+    }
+
+    #[test]
+    fn oversize_requests_are_skipped_before_sending() {
+        let (url, seen) = ctx_server(600, true);
+        let res = run_speed(&cfg_for(url, vec![128, 5000])).unwrap();
+        let rows = res["rows"].as_array().unwrap();
+        assert!(rows[0]["skipped"].is_null() && rows[0]["reps_ok"] == 1, "{:?}", rows[0]);
+        assert!(rows[1]["skipped"].is_string(), "{:?}", rows[1]);
+        // calibration sends two calls; the 5000-token size was never sent
+        assert!(seen.lock().unwrap().iter().all(|&pt| pt <= 600), "{:?}", seen.lock().unwrap());
+        let w = res["warnings"].to_string();
+        assert!(w.contains("skipped") && !w.contains("rejected optional parameters"), "{w}");
+        assert!(render_table(&res).contains("skipped"));
+    }
+
+    #[test]
+    fn a_context_400_is_not_reported_as_a_rejected_parameter() {
+        // the server does not advertise its window, so the oversize request is sent and answered with HTTP 400
+        let (url, seen) = ctx_server(600, false);
+        let res = run_speed(&cfg_for(url, vec![128, 5000])).unwrap();
+        let rows = res["rows"].as_array().unwrap();
+        assert_eq!(rows[1]["errors"], 1);
+        let w = res["warnings"].to_string();
+        assert!(w.contains("maximum context length"), "{w}");
+        assert!(!w.contains("rejected optional parameters"), "{w}");
+        // one send for the 5000-token size, no retry without parameters
+        assert_eq!(seen.lock().unwrap().iter().filter(|&&pt| (4900..5100).contains(&pt)).count(), 1);
     }
 }

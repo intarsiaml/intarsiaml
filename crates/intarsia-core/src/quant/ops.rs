@@ -166,3 +166,20 @@ pub fn moe_experts_scratch(s: &ShapeInfo) -> usize {
     let pairs = s.m * s.top_k;
     r(pairs * 4) + r((s.experts + 1) * 4) + r((s.experts + 1) * 4) + r(pairs * s.n * 2) + r(pairs * s.k * 2)
 }
+
+/// Scratch bytes of the grouped tensor-core experts kernel (kernels/cuda/moe_grouped.cu, `scratch_layout`): pairs
+/// `[T*K]` i32, offsets `[E+1]` i32, tile count (256 bytes), tile table `[ceil(P/16) + min(E,P)]` of (expert, row)
+/// i32 pairs (sized for the smallest tile), bf16 sorted activations `[T*K, I]`, bf16 per-pair outputs `[T*K, H]`;
+/// each region rounded up to 256 bytes.
+pub fn moe_experts_mma_scratch(s: &ShapeInfo) -> usize {
+    let r = |x: usize| (x + 255) & !255;
+    let pairs = s.m * s.top_k;
+    let max_tiles = pairs.div_ceil(16) + pairs.min(s.experts);
+    r(pairs * 4) + r((s.experts + 1) * 4) + 256 + r(max_tiles * 8) + r(pairs * s.n * 2) + r(pairs * s.k * 2)
+}
+
+/// Scratch bytes of the two-launch decode experts kernel (kernels/cuda/moe_decode.cu): bf16 activations
+/// `[T*K, I]`, rounded up to 256 bytes.
+pub fn moe_experts_decode_scratch(s: &ShapeInfo) -> usize {
+    ((s.m * s.top_k * s.n * 2) + 255) & !255
+}

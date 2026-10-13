@@ -50,6 +50,13 @@ kernels/
    cargo run -p intarsia-cli -- kernels list --backend cpu
    ```
 
+   `kernels test` exits non-zero when no kernel ran a single case for the requested backend (a filter that
+   matched nothing, a stub build, ...) and prints `SKIPPED: kernel <name> ran 0 cases` for any kernel that ran
+   none; a run that exercised nothing is not a pass. The GPU `cargo test` files in
+   `crates/intarsia-backend-cuda/tests/` print `SKIPPED:` when there is no CUDA device (or when the crate was built
+   without CUDA, `tests/gpu_skipped_report.rs`) and fail instead under `CI=1` or `INTARSIA_REQUIRE_GPU=1`; read
+   "ok" from a Mac `cargo test` as "no GPU code ran".
+
    Every registered implementation runs against the cpu-ref reference over a shape sweep that
    includes the model's real shapes and reports `max_abs`, `rel_l2` and pass/fail. A failing
    kernel is marked rejected and is unselectable on the host: this catches "compiles for sm_120,
@@ -121,7 +128,7 @@ the header and fails if they drift. Add new dtypes at the end.
 
 ## Quantised weights and MoE
 
-`fp8.cu`, `nvfp4.cu`, `moe.cu` and `ik_quant.cuh` (fp4/e4m3 decode helpers, ideas from TensorFold's NVFP4 kernels, MIT, see `LICENSES/TensorFold-MIT.txt`). Registered in `crates/intarsia-backend-cuda/src/quantmoe.rs`. Formats, semantics, numerics and measured speeds: `docs/quant-moe.md`.
+`fp8.cu`, `nvfp4.cu`, `moe.cu`, `moe_grouped.cu`, `moe_decode.cu`, `fp8_gemm.cu`, `nvfp4_gemm.cu`, `wq_gemm.cuh` and `ik_quant.cuh` (fp4/e4m3 decode helpers, ideas from TensorFold's NVFP4 kernels, MIT, see `LICENSES/TensorFold-MIT.txt`). Registered in `crates/intarsia-backend-cuda/src/quantmoe.rs`. Formats, semantics, numerics and measured speeds: `docs/quant-moe.md`.
 
 ## Attention (`attention*.cu`)
 

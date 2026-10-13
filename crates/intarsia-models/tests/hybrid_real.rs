@@ -3,7 +3,7 @@
 //! through the generic decoder, cuda vs the cpu backend. The MoE FFN is left out (layers 0..4 only, pattern
 //! [gdn] / [attn]), so the hidden state is not a trained model's, but both backends see identical inputs.
 //!
-//! Skipped unless `INTARSIA_QWEN36_DIR` points at the checkpoint directory and a CUDA device exists.
+//! Prints SKIPPED (and fails under `CI=1` / `INTARSIA_REQUIRE_GPU=1`) unless `INTARSIA_QWEN36_DIR` points at the checkpoint directory and a CUDA device exists.
 
 use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::recipe::ModelDims;
@@ -58,6 +58,7 @@ fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::Backend>, chunk: usize) -
     let mut dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
     assert_eq!(dims.linear.unwrap().conv_dim(), 8192);
     dims.n_layers = 4; // linear, linear, linear, full
+    dims.tie_embeddings = true; // the real head is its own tensor; this test stubs it with the embedding table
     dims.layer_types.truncate(4);
     assert_eq!(dims.layer_types, ["linear_attention", "linear_attention", "linear_attention", "full_attention"]);
     let src = SafeTensors::open_dir(dir).unwrap();
@@ -85,16 +86,26 @@ fn last_logits(m: &Model, st: &mut intarsia_core::state::SequenceState, ids: &[u
     }
 }
 
+/// An honest skip: `SKIPPED:` on stdout and stderr, a failure when `CI=1` / `INTARSIA_REQUIRE_GPU=1`.
+fn skip(why: &str) {
+    println!("SKIPPED: real_35b_attention_layers_cuda_matches_cpu: {why}");
+    eprintln!("SKIPPED: real_35b_attention_layers_cuda_matches_cpu: {why}");
+    let set = |k: &str| std::env::var(k).is_ok_and(|v| !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false"));
+    if set("CI") || set("INTARSIA_REQUIRE_GPU") {
+        panic!("test was SKIPPED ({why}) but this run requires a GPU (CI / INTARSIA_REQUIRE_GPU is set)");
+    }
+}
+
 #[test]
 fn real_35b_attention_layers_cuda_matches_cpu() {
     let Some(dir) = std::env::var_os("INTARSIA_QWEN36_DIR").map(PathBuf::from) else {
-        eprintln!("skipping: INTARSIA_QWEN36_DIR not set");
+        skip("INTARSIA_QWEN36_DIR not set");
         return;
     };
     let gpu = match intarsia_backend_cuda::create(0) {
         Ok(b) => b,
         Err(e) => {
-            eprintln!("skipping: no usable CUDA device ({e})");
+            skip(&format!("no usable CUDA device ({e})"));
             return;
         }
     };

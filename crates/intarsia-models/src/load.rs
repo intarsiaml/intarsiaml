@@ -6,7 +6,10 @@ use crate::safetensors::SafeTensors;
 use crate::tokenizer::HfCodec;
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::plan::PlanOptions;
+use intarsia_core::quant::scheme::QuantScheme;
 use intarsia_core::recipe::{ModelDims, Recipe};
+use intarsia_core::backend::HostMemory;
+use intarsia_core::weights::{WeightInfo, WeightSource};
 use intarsia_core::{Backend, EngineMeta, Error, LocalEngine, Result, Telemetry};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -60,6 +63,50 @@ pub fn eos_ids(dir: &Path, cfg: &Value) -> Vec<u32> {
     out
 }
 
+/// `hf_quant_config.json` of a model directory, parsed. `Ok(None)` when the file does not exist; a file that exists
+/// but cannot be parsed is an error (a checkpoint whose declared scheme we cannot read must not load unchecked).
+pub fn read_quant_scheme(dir: &Path) -> Result<Option<QuantScheme>> {
+    let p = dir.join("hf_quant_config.json");
+    if !p.exists() {
+        return Ok(None);
+    }
+    QuantScheme::parse(&read_json(&p)?).map(Some)
+}
+
+/// The checkpoint's tensors plus the quantisation scheme it declares, so `Model::load` can check every linear
+/// layer against `hf_quant_config.json` (declared algorithm implemented? agrees with the stored tensors?).
+pub struct SchemedSource {
+    inner: SafeTensors,
+    scheme: Option<QuantScheme>,
+}
+
+impl SchemedSource {
+    pub fn open(dir: &Path) -> Result<SchemedSource> {
+        Ok(SchemedSource { inner: SafeTensors::open_dir(dir)?, scheme: read_quant_scheme(dir)? })
+    }
+    pub fn scheme(&self) -> Option<&QuantScheme> {
+        self.scheme.as_ref()
+    }
+}
+
+impl WeightSource for SchemedSource {
+    fn names(&self) -> Vec<String> {
+        self.inner.names()
+    }
+    fn info(&self, name: &str) -> Option<WeightInfo> {
+        self.inner.info(name)
+    }
+    fn bytes(&self, name: &str) -> Result<&[u8]> {
+        self.inner.bytes(name)
+    }
+    fn host_memory(&self, name: &str) -> Option<(Arc<dyn HostMemory>, usize, usize)> {
+        self.inner.host_memory(name)
+    }
+    fn quant_scheme(&self) -> Option<&QuantScheme> {
+        self.scheme.as_ref()
+    }
+}
+
 pub struct Loaded {
     pub engine: Arc<LocalEngine>,
     pub recipe_source: String,
@@ -68,9 +115,13 @@ pub struct Loaded {
 
 pub fn load_engine(dir: &Path, backend: Arc<dyn Backend>, opts: &EngineOptions) -> Result<Loaded> {
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
-    let weights = SafeTensors::open_dir(dir)?;
+    let weights = SchemedSource::open(dir)?;
     let telemetry = Arc::new(Telemetry::new());
     let mut model = Model::load(backend, &recipe, &dims, &weights, &opts.load, telemetry.clone())?;
+    // deviations from the declared scheme that are not errors: logged once, at load
+    if let Some(note) = weights.scheme().and_then(|s| s.kv_note(model.kv)) {
+        eprintln!("quantisation scheme note: {note}");
+    }
     // the admission oracle is always the cpu backend (its `ref_*` kernels)
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;

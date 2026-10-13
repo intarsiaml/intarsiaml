@@ -99,6 +99,9 @@ pub struct ResolvedPlan {
     /// Unique `(kernel, shape)` calls, one per distinct case key (the admission work list).
     pub unique_calls: Vec<PlannedCall>,
     pub scratch_bytes: usize,
+    /// The decode step selects the same kernel for every op at the first and the last position, so one captured
+    /// graph is valid at every position (a kernel whose `when` predicate looks at `kv_len` would break that).
+    pub decode_position_stable: bool,
     pub probes: usize,
     /// Prefill sizes probed.
     pub sizes: Vec<usize>,
@@ -157,7 +160,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
             }
         });
     }
-    SequenceState { slots, len, cap, tokens: vec![0; len], snapshots: Vec::new() }
+    SequenceState { id: 0, slots, len, cap, tokens: vec![0; len], snapshots: Vec::new() }
 }
 
 fn shape_str(s: &ShapeInfo) -> String {
@@ -255,7 +258,14 @@ pub fn resolve(model: &mut Model) -> Result<()> {
         unique.entry(case_key(&c.kernel, &label)).or_insert_with(|| c.clone());
     }
     model.reserve_scratch(scratch)?;
+    // decode kernels per probed position: graph replay needs them identical across positions
+    let mut by_pos: BTreeMap<usize, Vec<(Op, &str)>> = BTreeMap::new();
+    for c in calls.iter().filter(|c| c.phase == Phase::Decode && !c.extra) {
+        by_pos.entry(c.pos0).or_default().push((c.call.op, c.kernel.as_str()));
+    }
+    let decode_position_stable = by_pos.values().all(|v| Some(v) == by_pos.values().next());
     model.resolved = ResolvedPlan {
+        decode_position_stable,
         ops: per_op.into_values().collect(),
         unique_calls: unique.into_values().collect(),
         scratch_bytes: scratch,

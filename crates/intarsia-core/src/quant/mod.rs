@@ -16,6 +16,7 @@ pub mod moe;
 pub mod nvfp4;
 pub mod ops;
 pub mod reference;
+pub mod scheme;
 
 use crate::backend::{Backend, TensorRef};
 use crate::dtype::DType;

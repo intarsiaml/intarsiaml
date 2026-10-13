@@ -36,6 +36,13 @@ int ik_rt_stream_create(void** stream);
 int ik_rt_stream_sync(void* stream);
 /* D2D copy bandwidth in GB/s (one read + one write counted once per byte copied), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);
+/* CUDA graphs: everything launched on `stream` between begin and end is recorded, not run (thread-local capture mode,
+ * so other threads may keep calling the runtime). end instantiates the graph; the returned exec is replayed with
+ * ik_rt_graph_launch on any stream and freed with ik_rt_graph_destroy. A failed capture leaves the stream usable. */
+int ik_rt_graph_begin(void* stream);
+int ik_rt_graph_end(void* stream, void** exec);
+int ik_rt_graph_launch(void* exec, void* stream);
+int ik_rt_graph_destroy(void* exec);
 const char* ik_rt_error_string(int code);
 
 #ifdef __cplusplus

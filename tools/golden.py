@@ -11,8 +11,12 @@ Format and usage: docs/accuracy.md. Consumed by `intarsia accuracy --golden FILE
                      [--prompts a.jsonl b.jsonl] [--topk 20]
 
 Default prompt sets: prompts/golden.jsonl (8 short prompts) + prompts/golden_long.jsonl (2 prompts
-of 300 and 700 tokens, so default 256-token prefill chunks are crossed). Only torch, transformers,
-safetensors and numpy are needed (runs inside the vLLM image).
+of 300 and 700 tokens, so default 256-token prefill chunks are crossed). Long sets: prompts/golden_4k.jsonl
+(~4k-token prompts, each followed by 64 tokens of this model's own greedy continuation, see goldenlib.py);
+use `--topk 20` for them (a full-vocabulary 4k golden is over a GB per prompt). The metadata records the
+reference engine (transformers + torch versions), model revision (snapshot hash of the path), dtype and the
+KV dtype the reference attention used (its activation dtype), the template and the prompt files.
+Only torch, transformers, safetensors and numpy are needed (runs inside the vLLM image).
 """
 import argparse
 import json
@@ -57,13 +61,23 @@ def main():
     tensors, meta_prompts = {}, []
     t0 = time.time()
     vocab = 0
+    tokenize = lambda t: tok(t, add_special_tokens=True).input_ids
     for i, p in enumerate(prompts):
-        ids, text = gl.prompt_ids(
-            p, lambda t: tok(t, add_special_tokens=True).input_ids, args.template, apply_template)
+        ids, text = gl.prompt_ids(p, tokenize, args.template, apply_template)
+        n_prompt = len(ids)
+        split = gl.reuse_split(p, ids, tokenize) if args.template == "chatml" else None
+        want = int(p.get("continue", 0))
+        if want:
+            with torch.no_grad():
+                gen = model.generate(torch.tensor([ids], device=args.device), attention_mask=torch.ones(1, n_prompt, device=args.device, dtype=torch.long),
+                                     max_new_tokens=want, min_new_tokens=want, do_sample=False,
+                                     pad_token_id=tok.pad_token_id if tok.pad_token_id is not None else 0)
+            ids = ids + [int(t) for t in gen[0, n_prompt:].tolist()]
         n = len(ids)
         with torch.no_grad():
             logits = model(torch.tensor([ids], device=args.device)).logits[0].float()  # [n, vocab]
         lp = torch.log_softmax(logits, dim=-1).cpu()
+        del logits
         vocab = lp.shape[1]
         tensors[f"ids_{i}"] = np.array(ids, dtype=np.int32)
         if args.topk > 0:
@@ -72,19 +86,31 @@ def main():
             tensors[f"topk_logprobs_{i}"] = v.numpy().astype(np.float32)
         else:
             tensors[f"logprobs_{i}"] = lp.numpy().astype(np.float16)
-        meta_prompts.append({"name": p["name"], "kind": p["kind"], "n_tokens": n, "text": text})
-        print(f"[{i}] {p['name']:<16} {n:4d} tokens  vocab={vocab}  argmax_last={int(lp[-1].argmax())}", flush=True)
+        meta_prompts.append(gl.meta_prompt(p, text, n, n_prompt, split))
+        print(f"[{i}] {p['name']:<16} {n:5d} tokens ({n_prompt}+{n - n_prompt})  vocab={vocab}  "
+              f"argmax_last={int(lp[-1].argmax())}  {time.time() - t0:.0f}s", flush=True)
+        del lp
 
+    kv_names = {"bfloat16": "bf16", "float32": "f32", "float16": "f16"}
     meta = {
         "format": gl.FORMAT_TOPK if args.topk > 0 else gl.FORMAT_FULL,
         "model": str(args.model),
+        "model_revision": gl.snapshot_hash(args.model) or "not in the model path",
+        "source": "hf",
+        "engine": "hf-transformers",
+        "engine_version": "transformers " + __import__("transformers").__version__ + ", torch " + torch.__version__,
         "torch": torch.__version__,
         "transformers": __import__("transformers").__version__,
         "device": args.device,
         "dtype": args.dtype,
+        "kv_dtype": kv_names.get(args.dtype, args.dtype),
         "template": args.template,
+        "add_special_tokens": "true",
+        "sampling": json.dumps({"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"}),
+        "prompt_files": json.dumps([pathlib.Path(x).name for x in args.prompts]),
         "vocab": str(vocab),
         "prompts": json.dumps(meta_prompts),
+        "built_unix": str(int(time.time())),
     }
     if args.topk > 0:
         meta["topk"] = str(args.topk)

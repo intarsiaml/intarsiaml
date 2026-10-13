@@ -1,8 +1,10 @@
 //! cuda quantised-weight / MoE kernels: edge cases beyond the admission sweep (skewed and invalid routing,
 //! multi-chunk experts) and an ignored microbenchmark on the real Qwen3.6-35B-A3B shapes
 //! (`cargo test --release -p intarsia-backend-cuda --test quantmoe -- --ignored --nocapture`).
-//! Needs a GPU: skips (passes) without one.
+//! Needs a GPU: without one the tests print SKIPPED (and fail under CI=1 / INTARSIA_REQUIRE_GPU=1).
 #![cfg(ik_cuda)]
+
+mod common;
 
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::{upload_new, Backend, MemKind, TensorRef};
@@ -19,7 +21,7 @@ fn device() -> Option<Arc<dyn Backend>> {
     match intarsia_backend_cuda::create(ord) {
         Ok(b) => Some(b),
         Err(e) => {
-            eprintln!("skipping: no usable CUDA device ({e})");
+            common::skip("quantmoe", &format!("no usable CUDA device ({e})"));
             None
         }
     }
@@ -32,13 +34,80 @@ fn rel_l2(a: &[f32], b: &[f32]) -> f64 {
 }
 
 fn check_experts(cuda: &dyn Backend, hc: &HostCall, label: &str) {
+    check_experts_with(cuda, "moe_experts_bf16", hc, label);
+}
+
+fn check_experts_with(cuda: &dyn Backend, kernel: &str, hc: &HostCall, label: &str) {
     let cpu = CpuBackend::new();
     let want = run_host(&cpu, "ref_moe_experts", hc).unwrap();
-    let got = run_host(cuda, "moe_experts_bf16", hc).unwrap();
+    let got = run_host(cuda, kernel, hc).unwrap();
     let r = rel_l2(&got[0].to_f32(), &want[0].to_f32());
-    assert!(r < 1e-2, "{label}: rel_l2 {r}");
-    let again = run_host(cuda, "moe_experts_bf16", hc).unwrap();
-    assert_eq!(got[0].data, again[0].data, "{label}: not repeatable");
+    assert!(r < 1e-2, "{kernel} {label}: rel_l2 {r}");
+    let again = run_host(cuda, kernel, hc).unwrap();
+    assert_eq!(got[0].data, again[0].data, "{kernel} {label}: not repeatable");
+}
+
+/// The two-launch decode kernel does the same arithmetic as the warp-per-row kernel, so for T <= 4 the outputs are
+/// bit-identical (including duplicate and invalid ids), and both match the reference.
+#[test]
+fn moe_experts_decode_matches_old_kernel() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(33);
+    for (t, e, k, h, i) in [(1usize, 64usize, 8usize, 2048usize, 512usize), (2, 16, 8, 2048, 512), (4, 32, 8, 2048, 512), (3, 16, 4, 256, 64), (1, 8, 2, 64, 32)] {
+        let base = experts_case(&mut rng, t, e, k, h, i, DType::Bf16);
+        let mut odd = base.clone();
+        let mut ids = odd.inputs[1].to_i32().unwrap();
+        ids[0] = 3.min(e as i32 - 1);
+        if ids.len() > 1 {
+            ids[1] = ids[0]; // duplicate within a token
+        }
+        if ids.len() > 3 {
+            ids[2] = -1;
+            ids[3] = e as i32 + 5;
+        }
+        odd.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
+        for (label, hc) in [("random", &base), ("duplicate and invalid ids", &odd)] {
+            let label = format!("{label} T={t} E={e} K={k} H={h} I={i}");
+            check_experts_with(&*cuda, "moe_experts_decode_bf16", hc, &label);
+            let old = run_host(&*cuda, "moe_experts_bf16", hc).unwrap();
+            let new = run_host(&*cuda, "moe_experts_decode_bf16", hc).unwrap();
+            assert_eq!(old[0].data, new[0].data, "{label}: decode kernel differs from moe_experts_bf16");
+        }
+    }
+}
+
+/// The grouped tensor-core kernel on skewed, duplicated and invalid routing at tile heights 16 / 32 / 64
+/// (the kernel picks the height from pairs per expert: T*K/E <= 10 -> 16, <= 21 -> 32, else 64), including an
+/// expert that owns many tiles and experts that own none.
+#[test]
+fn moe_experts_mma_matches_reference() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(21);
+    let k = 4usize;
+    for (t, e) in [(40usize, 16usize), (80, 16), (200, 16), (40, 64)] {
+        let base = experts_case(&mut rng, t, e, k, 256, 128, DType::Bf16);
+        check_experts_with(&*cuda, "moe_experts_mma_bf16", &base, &format!("random T={t} E={e}"));
+        // every token picks experts 0..k: T pairs per expert, many tiles each, the other experts get none
+        let mut hot = base.clone();
+        let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+        hot.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
+        check_experts_with(&*cuda, "moe_experts_mma_bf16", &hot, &format!("hot experts T={t} E={e}"));
+        // duplicate ids within a token, out-of-range ids
+        let mut odd = base.clone();
+        let mut ids = odd.inputs[1].to_i32().unwrap();
+        for j in 0..k {
+            ids[j] = 3;
+        }
+        ids[k] = -1;
+        ids[k + 1] = e as i32 + 5;
+        odd.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
+        check_experts_with(&*cuda, "moe_experts_mma_bf16", &odd, &format!("duplicate and invalid ids T={t} E={e}"));
+    }
+    // real layer shape (H=2048, I=512), a handful of experts, tile counts that are not multiples of the tile height
+    for (t, e) in [(33usize, 16usize), (100, 16)] {
+        let hc = experts_case(&mut rng, t, e, 8, 2048, 512, DType::Bf16);
+        check_experts_with(&*cuda, "moe_experts_mma_bf16", &hc, &format!("real shape T={t} E={e}"));
+    }
 }
 
 #[test]
@@ -123,11 +192,41 @@ fn bench_real_shapes() {
         let mb = (n * k) as f64 / 1e6;
         println!("{:<34} {:>10.1} {:>12.2} {:>10.0}", name, s * 1e6, mb, mb / 1e3 / s);
     }
-    for (name, t, e) in [("moe_experts T=1 (8 of 256)", 1usize, 256usize), ("moe_experts T=4", 4, 256), ("moe_experts T=64", 64, 256)] {
-        let hc = experts_case(&mut rng, t, e, 8, 2048, 512, DType::Bf16);
-        let s = bench(&*cuda, "moe_experts_bf16", &hc, 20);
-        let touched = (t * 8).min(e) as f64 * (nv(1024, 2048) + nv(2048, 512));
-        println!("{:<34} {:>10.1} {:>12.2} {:>10.0}", name, s * 1e6, touched, touched / 1e3 / s);
+    // routed experts at the real layer shape: one 256-expert weight set, the first `t` rows of one routing
+    let big = experts_case(&mut rng, 4096, 256, 8, 2048, 512, DType::Bf16);
+    for (name, t) in [
+        ("moe_experts T=1 (8 of 256)", 1usize),
+        ("moe_experts T=4", 4),
+        ("moe_experts T=16", 16),
+        ("moe_experts T=64", 64),
+        ("moe_experts T=128", 128),
+        ("moe_experts T=256", 256),
+        ("moe_experts T=1024", 1024),
+        ("moe_experts T=4096", 4096),
+    ] {
+        let mut hc = big.clone();
+        hc.inputs[0] = HostTensor { shape: vec![t, 2048], data: big.inputs[0].data[..t * 2048 * 2].to_vec(), ..big.inputs[0].clone() };
+        hc.inputs[1] = HostTensor { shape: vec![t, 8], data: big.inputs[1].data[..t * 8 * 4].to_vec(), ..big.inputs[1].clone() };
+        hc.inputs[2] = HostTensor { shape: vec![t, 8], data: big.inputs[2].data[..t * 8 * 4].to_vec(), ..big.inputs[2].clone() };
+        hc.outputs = vec![OutSpec::new(DType::Bf16, &[t, 2048])];
+        let touched = (t * 8).min(256) as f64 * (nv(1024, 2048) + nv(2048, 512));
+        // flops: 2 * pairs * (H*2I + I*H)
+        let tflop = 2.0 * (t * 8) as f64 * (2048.0 * 1024.0 + 512.0 * 2048.0) / 1e12;
+        for kern in ["moe_experts_bf16", "moe_experts_mma_bf16"] {
+            if kern == "moe_experts_mma_bf16" && t < 16 {
+                continue;
+            }
+            let s = bench(&*cuda, kern, &hc, if t >= 1024 { 5 } else { 20 });
+            println!(
+                "{:<28} {:<22} {:>10.1} us {:>8.2} MB {:>6.0} GB/s {:>6.1} TFLOPS",
+                name,
+                kern,
+                s * 1e6,
+                touched,
+                touched / 1e3 / s,
+                tflop / s
+            );
+        }
     }
     let _ = (moe_experts_scratch, Op::MoeTopk, OutSpec::new(DType::F32, &[1]));
 }

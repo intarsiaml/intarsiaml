@@ -8,6 +8,15 @@
 //!   (`tools/golden_vllm.py`, `golden.py --topk`).
 //! * `--quick`: day-0 gate: perplexity on a fixed English text plus greedy sanity prompts.
 //!
+//! * KL is reported twice: over the reference's top-k support renormalised (as before), and over the **21-way
+//!   partition** {the 20 reference top ids, everything else}: the "other" bucket is `1 - sum(top-k)` for the
+//!   reference and our softmax mass outside the same ids for us. That one sees probability moving outside the
+//!   top-k (the renormalised KL cannot) and is the gated KL for top-k goldens. The mass each side puts in the
+//!   bucket ("tail") is printed and gated.
+//! * `--baseline FILE` gates "no worse than a recorded run + margin" (`--write-baseline FILE` records one);
+//!   the class thresholds stay as an absolute floor. See `baseline.rs`.
+//! * `--mode reuse`: the prefix-reuse path through `Engine::generate` (turn 2 reusing turn 1 vs a cold run).
+//!
 //! Any non-finite value in one of our logits rows fails the gate. Exits non-zero when any gate fails.
 
 use crate::common::ModelArgs;
@@ -16,6 +25,9 @@ use intarsia_core::engine::{Engine, GenEvent, GenRequest};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+mod baseline;
+use baseline::{Baseline, Margins, ModeStats, PromptStats};
 
 const PPL_TEXT: &str = include_str!("../../../../tools/prompts/ppl.txt");
 
@@ -30,7 +42,8 @@ pub struct AccuracyArgs {
     /// (give both --quick and --golden to run both).
     #[arg(long)]
     pub quick: bool,
-    /// Golden comparison mode: `prefill`, `decode` (teacher-forced single-token steps) or `both`.
+    /// Golden comparison mode: `prefill`, `decode` (teacher-forced single-token steps), `both` (prefill and decode),
+    /// `reuse` (prefix reuse through `generate`, cold vs reused) or `all`.
     #[arg(long, default_value = "both")]
     pub mode: String,
     /// Decode mode: positions per prompt fed one token at a time (clamped to prompt length - 1).
@@ -46,6 +59,41 @@ pub struct AccuracyArgs {
     /// Golden gate: maximum mean KL(ref||ours) in nats. Default per class: bf16 1e-3, fp8 5e-3, 4bit 3e-2.
     #[arg(long)]
     pub max_mean_kl: Option<f64>,
+    /// Golden gate: maximum |mean(our tail mass - reference tail mass)|, probability points as a fraction (the tail is
+    /// everything outside the reference's top-20). Absolute floor next to the KL gate; default 0.02.
+    #[arg(long)]
+    pub max_tail_excess: Option<f64>,
+    /// Record this run as a baseline (JSON, e.g. golden/baselines/<name>.json). Written even when a floor gate fails
+    /// (it then says so inside), before the run exits.
+    #[arg(long)]
+    pub write_baseline: Option<PathBuf>,
+    /// Gate "no worse than this recorded baseline + margins" (the class thresholds stay as an absolute floor).
+    /// Refuses to compare when the golden file or the run configuration differs from the baseline's.
+    #[arg(long)]
+    pub baseline: Option<PathBuf>,
+    /// Baseline gate: allowed drop of top-1 agreement, percentage points (at least one position's worth).
+    #[arg(long, default_value_t = 0.3)]
+    pub margin_top1: f64,
+    /// Baseline gate: allowed ratio of mean KL and tail-bucket KL to the baseline's (plus 1e-6 absolute).
+    #[arg(long, default_value_t = 1.15)]
+    pub margin_kl: f64,
+    /// Baseline gate: allowed drop of top-5 overlap, percentage points (at least five overlap units).
+    #[arg(long, default_value_t = 0.5)]
+    pub margin_top5: f64,
+    /// Baseline gate: allowed growth of |mean tail excess| over the baseline's, as a fraction of probability.
+    #[arg(long, default_value_t = 0.002)]
+    pub margin_tail: f64,
+    /// Compare against a baseline even when the run configuration (KV dtype, fp8 mode, chunk, ...) differs; the
+    /// golden file must still be the same.
+    #[arg(long)]
+    pub allow_config_mismatch: bool,
+    /// Reuse mode: tokens generated per comparison (the cold and the reuse run must agree on them).
+    #[arg(long, default_value_t = 32)]
+    pub reuse_gen: usize,
+    /// Reuse mode: the reuse and cold token streams must agree on at least this many leading tokens
+    /// (bf16 rounding can flip a near-tie when chunk boundaries differ; bit-identical paths agree on all).
+    #[arg(long, default_value_t = 16)]
+    pub reuse_min_match: usize,
     /// Quick gate: maximum perplexity on the fixed text.
     #[arg(long, default_value_t = 40.0)]
     pub max_ppl: f64,
@@ -217,10 +265,22 @@ struct PosStat {
     /// |top5(ref) and top5(ours)| (at most 5, or k when the reference has fewer).
     overlap: usize,
     n_top: usize,
+    /// KL(ref||ours): `Full` golden: over the whole vocabulary; `TopK` golden: over the reference's top-k support,
+    /// both sides renormalised there (blind to mass moving outside it).
     kl: f64,
+    /// KL over the 21-way partition {reference top-`TAIL_K` ids (top-k golden: its k ids), everything else}; the
+    /// "other" bucket is `1 - sum(top-k)` for the reference and our softmax mass outside those ids for us. By the
+    /// chain rule this is a true lower bound of the full-vocabulary KL and it sees mass that leaves the top-k.
+    kl21: f64,
+    /// Reference probability mass outside the support S, and ours.
+    tail_ref: f64,
+    tail_ours: f64,
     /// Our row has a NaN or an infinity: the position fails whatever the other numbers say.
     nonfinite: bool,
 }
+
+/// Support size of the tail bucket for full-vocabulary goldens (a top-k golden uses its own k).
+const TAIL_K: usize = 20;
 
 #[derive(Default, Clone, Debug)]
 struct Agg {
@@ -231,6 +291,9 @@ struct Agg {
     top5_den: usize,
     kl_sum: f64,
     kl_max: f64,
+    kl21_sum: f64,
+    tail_ref_sum: f64,
+    tail_ours_sum: f64,
     nonfinite: usize,
 }
 
@@ -243,6 +306,9 @@ impl Agg {
         self.top5_den += p.n_top;
         self.kl_sum += p.kl;
         self.kl_max = self.kl_max.max(p.kl);
+        self.kl21_sum += p.kl21;
+        self.tail_ref_sum += p.tail_ref;
+        self.tail_ours_sum += p.tail_ours;
         self.nonfinite += p.nonfinite as usize;
     }
     fn add(&mut self, o: &Agg) {
@@ -253,6 +319,9 @@ impl Agg {
         self.top5_den += o.top5_den;
         self.kl_sum += o.kl_sum;
         self.kl_max = self.kl_max.max(o.kl_max);
+        self.kl21_sum += o.kl21_sum;
+        self.tail_ref_sum += o.tail_ref_sum;
+        self.tail_ours_sum += o.tail_ours_sum;
         self.nonfinite += o.nonfinite;
     }
     fn top1_pct(&self) -> f64 {
@@ -263,6 +332,19 @@ impl Agg {
     }
     fn top5_pct(&self) -> f64 {
         100.0 * self.top5 as f64 / self.top5_den.max(1) as f64
+    }
+    fn mean_kl21(&self) -> f64 {
+        self.kl21_sum / self.n.max(1) as f64
+    }
+    fn mean_tail_ref(&self) -> f64 {
+        self.tail_ref_sum / self.n.max(1) as f64
+    }
+    fn mean_tail_ours(&self) -> f64 {
+        self.tail_ours_sum / self.n.max(1) as f64
+    }
+    /// Mean of (our tail mass - reference tail mass): positive when we put more probability outside the top-k.
+    fn tail_excess(&self) -> f64 {
+        (self.tail_ours_sum - self.tail_ref_sum) / self.n.max(1) as f64
     }
 }
 
@@ -278,16 +360,58 @@ fn is_finite_row(row: &[f32]) -> bool {
     row.iter().all(|v| v.is_finite())
 }
 
+/// `ours` softmax split by a support: (log-sum-exp of the whole row, probability mass outside `support`, and the
+/// probabilities of the support ids in order). The tail is summed directly, not as `1 - sum(support)`.
+fn ours_split(ours: &[f32], support: &[usize]) -> (f64, f64, Vec<f64>) {
+    let l = lse(ours.iter().map(|&v| v as f64));
+    let mut mask = vec![false; ours.len()];
+    for &i in support {
+        mask[i] = true;
+    }
+    let tail: f64 = ours.iter().zip(&mask).filter(|(_, &m)| !m).map(|(&v, _)| (v as f64 - l).exp()).sum();
+    (l, tail, support.iter().map(|&i| (ours[i] as f64 - l).exp()).collect())
+}
+
+/// KL over the partition {support ids, tail}: `p`, `q` are the probabilities of the support ids (in the same order)
+/// and `pt`, `qt` the tail masses. A reference tail of zero contributes nothing; a tail of ours of zero against a
+/// reference tail above zero is floored at 1e-300 (a huge but finite KL).
+fn kl_partition(p: &[f64], q: &[f64], pt: f64, qt: f64) -> f64 {
+    let mut kl = 0.0;
+    for (&pi, &qi) in p.iter().zip(q) {
+        if pi > 0.0 {
+            kl += pi * (pi.ln() - qi.max(1e-300).ln());
+        }
+    }
+    if pt > 0.0 {
+        kl += pt * (pt.ln() - qt.max(1e-300).ln());
+    }
+    kl.max(0.0) // rounding can leave -1e-17
+}
+
 /// Compare one position. `ours` are raw logits. A non-finite value anywhere in `ours` makes the
 /// position fail (KL = infinity, top-1 miss). A NaN in the reference is a broken golden: error.
 ///
-/// * `Full`: the fp16 reference is renormalised (cancels fp16 rounding bias); KL over the whole vocab.
-/// * `TopK`: KL over the reference's top-k support, both sides renormalised over that support
-///   (a lower bound of the full-vocabulary KL); top-1 is our full-vocabulary argmax against the
-///   reference's best id.
+/// * `Full`: the fp16 reference is renormalised (cancels fp16 rounding bias); `kl` over the whole vocab. The tail
+///   bucket (`kl21`, masses) uses the reference's top-`TAIL_K` ids as the support, so the numbers are comparable
+///   with top-k goldens.
+/// * `TopK`: `kl` over the reference's top-k support, both sides renormalised there (blind to mass that moves
+///   outside); `kl21` over the 21-way partition with an explicit "other" bucket on both sides, `1 - sum(top-k)` for
+///   the reference (read from the full-vocabulary log-probs it reports) and our softmax mass outside the k ids;
+///   top-1 is our full-vocabulary argmax against the reference's best id.
 fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
     let finite = is_finite_row(ours);
     let o = || ours.iter().map(|&v| v as f64);
+    let bad = |n_top: usize| PosStat {
+        top1: false,
+        tie: false,
+        overlap: 0,
+        n_top,
+        kl: f64::INFINITY,
+        kl21: f64::INFINITY,
+        tail_ref: 0.0,
+        tail_ours: 0.0,
+        nonfinite: true,
+    };
     match reference {
         RefRow::Full(r) => {
             if r.iter().any(|&b| half::f16::from_bits(b).is_nan()) {
@@ -299,14 +423,7 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
             let rf = || r.iter().map(|&b| f16_to_f64(b));
             let rt = top_k(rf(), 5);
             if !finite {
-                return Ok(PosStat {
-                    top1: false,
-                    tie: false,
-                    overlap: 0,
-                    n_top: rt.len(),
-                    kl: f64::INFINITY,
-                    nonfinite: true,
-                });
+                return Ok(bad(rt.len()));
             }
             let (rl, ol) = (lse(rf()), lse(o()));
             let mut kl = 0.0;
@@ -317,11 +434,17 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
                 }
             }
             let kl = kl.max(0.0); // renormalisation rounding can leave -1e-17
+            // tail bucket over the reference's top-TAIL_K ids
+            let support = top_k(rf(), TAIL_K);
+            let (_, q_tail, q) = ours_split(ours, &support);
+            let p: Vec<f64> = support.iter().map(|&i| (f16_to_f64(r[i]) - rl).exp()).collect();
+            let p_tail = (1.0 - p.iter().sum::<f64>()).max(0.0);
+            let kl21 = kl_partition(&p, &q, p_tail, q_tail);
             let ot = top_k(o(), 5);
             let top1 = ot[0] == rt[0];
             let tie = !top1 && f16_to_f64(r[ot[0]]) >= f16_to_f64(r[rt[0]]);
             let overlap = ot.iter().filter(|i| rt.contains(i)).count();
-            Ok(PosStat { top1, tie, overlap, n_top: rt.len(), kl, nonfinite: false })
+            Ok(PosStat { top1, tie, overlap, n_top: rt.len(), kl, kl21, tail_ref: p_tail, tail_ours: q_tail, nonfinite: false })
         }
         RefRow::TopK(ids, lps) => {
             let valid: Vec<(usize, f64)> =
@@ -346,16 +469,9 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
                 v.into_iter().take(5).map(|x| x.0).collect()
             };
             if !finite {
-                return Ok(PosStat {
-                    top1: false,
-                    tie: false,
-                    overlap: 0,
-                    n_top: rt.len(),
-                    kl: f64::INFINITY,
-                    nonfinite: true,
-                });
+                return Ok(bad(rt.len()));
             }
-            // distributions over the support
+            // distributions over the support, both renormalised there
             let lr_all = lse(valid.iter().map(|v| v.1));
             let lo: Vec<f64> = valid.iter().map(|v| ours[v.0] as f64).collect();
             let lo_all = lse(lo.iter().copied());
@@ -365,9 +481,30 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
                 kl += lp.exp() * (lp - (l - lo_all));
             }
             let kl = kl.max(0.0);
+            // 21-way partition: the reference's log-probs are full-vocabulary, so its tail is what the k ids leave;
+            // rounding of the reported log-probs can push the sum a hair over 1 (then rescale, tail 0)
+            let support: Vec<usize> = valid.iter().map(|v| v.0).collect();
+            let mut p: Vec<f64> = valid.iter().map(|v| v.1.exp()).collect();
+            let ps: f64 = p.iter().sum();
+            if ps > 1.0 {
+                p.iter_mut().for_each(|x| *x /= ps);
+            }
+            let p_tail = (1.0 - p.iter().sum::<f64>()).max(0.0);
+            let (_, q_tail, q) = ours_split(ours, &support);
+            let kl21 = kl_partition(&p, &q, p_tail, q_tail);
             let ot = top_k(o(), 5);
             let overlap = ot.iter().filter(|i| rt.contains(i)).count();
-            Ok(PosStat { top1: ot[0] == ref_top, tie: false, overlap, n_top: rt.len(), kl, nonfinite: false })
+            Ok(PosStat {
+                top1: ot[0] == ref_top,
+                tie: false,
+                overlap,
+                n_top: rt.len(),
+                kl,
+                kl21,
+                tail_ref: p_tail,
+                tail_ours: q_tail,
+                nonfinite: false,
+            })
         }
     }
 }
@@ -482,8 +619,15 @@ struct Gates {
     class: GateClass,
     why: String,
     min_top1: Option<f64>,
+    /// Maximum mean KL: the 21-way (tail-bucket) KL for top-k goldens, the full-vocabulary KL otherwise.
     max_kl: f64,
+    /// Maximum |mean(our tail mass - reference tail mass)|.
+    max_tail_excess: f64,
 }
+
+/// Default absolute floor on the tail-mass difference (all classes): a bug that moves a few percent of the
+/// probability outside the reference's top-k fails, quantisation noise (measured, docs/accuracy.md) does not.
+const DEFAULT_MAX_TAIL_EXCESS: f64 = 0.02;
 
 fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str) -> Result<Gates> {
     let (class, why) = match &args.gate_class {
@@ -498,7 +642,13 @@ fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str) -> Result<Gates> {
         }
     };
     let (t1, kl) = class.defaults();
-    Ok(Gates { class, why, min_top1: args.min_top1.or(t1), max_kl: args.max_mean_kl.unwrap_or(kl) })
+    Ok(Gates {
+        class,
+        why,
+        min_top1: args.min_top1.or(t1),
+        max_kl: args.max_mean_kl.unwrap_or(kl),
+        max_tail_excess: args.max_tail_excess.unwrap_or(DEFAULT_MAX_TAIL_EXCESS),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -530,13 +680,104 @@ impl Mode {
             Mode::Decode => "decode (teacher-forced)",
         }
     }
+    /// Key of the mode inside a baseline file.
+    fn key(self) -> &'static str {
+        match self {
+            Mode::Prefill => "prefill",
+            Mode::Decode => "decode",
+        }
+    }
 }
 
 struct ModeResult {
     /// Per-prompt leading run of argmax agreement and the number of positions compared.
     matches: Vec<(usize, usize)>,
+    /// The absolute (class) floor passed.
     pass: bool,
+    stats: ModeStats,
+    prompts: Vec<PromptStats>,
 }
+
+// ---------------------------------------------------------------------------
+// golden metadata
+// ---------------------------------------------------------------------------
+
+/// Canonical name of a dtype string (HF `bfloat16`, vLLM `fp8`, our `bf16`, ...), so aliases compare equal.
+fn norm_dtype(s: &str) -> String {
+    let l = s.trim().to_ascii_lowercase();
+    match l.as_str() {
+        "bfloat16" | "bf16" => "bf16".into(),
+        "float16" | "fp16" | "f16" | "half" => "f16".into(),
+        "float32" | "fp32" | "f32" | "float" => "f32".into(),
+        "auto" => "auto".into(),
+        _ if l.contains("e5m2") => "fp8_e5m2".into(),
+        _ if l == "fp8" || l.contains("e4m3") || l == "fp8e4m3" => "fp8_e4m3".into(),
+        _ => l,
+    }
+}
+
+/// Warning text when the reference's KV cache precision differs from ours (or is not recorded), else `None`.
+/// A reference that ran an fp8 KV cache against our bf16 one cannot be told apart from model error.
+fn kv_dtype_warning(golden_kv: Option<&str>, ours: &str) -> Option<String> {
+    let o = norm_dtype(ours);
+    match golden_kv.map(norm_dtype).as_deref() {
+        None | Some("") | Some("unknown") => Some(format!(
+            "WARNING: the golden does not record the reference's KV cache dtype (it predates the metadata, or the server did not say); \
+             we run a {o} KV cache, and a KV precision difference (e.g. an fp8 reference cache) would be indistinguishable from model error"
+        )),
+        // vLLM's `auto` is the model dtype: a 16-bit cache. Fine against any 16/32-bit cache of ours.
+        Some("auto") if matches!(o.as_str(), "bf16" | "f16" | "f32") => None,
+        Some(g) if g == o => None,
+        Some(g) => Some(format!(
+            "WARNING: KV dtype mismatch: the reference ran with a {g} KV cache, we run {o}. Part of the KL / top-1 gap is KV \
+             quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them"
+        )),
+    }
+}
+
+impl Golden {
+    /// The `prompts` metadata entry of prompt `i` (name, n_tokens, n_prompt, reuse_split, ...).
+    fn prompt_meta(&self, i: usize) -> Option<Value> {
+        let parsed: Vec<Value> = serde_json::from_str(self.meta.get("prompts")?).ok()?;
+        parsed.into_iter().nth(i)
+    }
+
+    fn meta_str(&self, k: &str) -> Option<&str> {
+        self.meta.get(k).map(String::as_str).filter(|s| !s.is_empty())
+    }
+
+    /// One line per fact the golden's metadata records about its reference.
+    fn describe(&self) -> Vec<String> {
+        let m = |k: &str| self.meta_str(k).unwrap_or("-");
+        let engine = self.meta_str("engine").or(self.meta_str("source")).unwrap_or("hf (older golden)");
+        let mut out = vec![format!(
+            "reference: engine {} {} | model {} | revision {} | dtype {} | KV dtype {} | template {}",
+            engine,
+            self.meta_str("engine_version").unwrap_or_else(|| self.meta_str("transformers").unwrap_or("-")),
+            m("model"),
+            m("model_revision"),
+            m("dtype"),
+            m("kv_dtype"),
+            m("template"),
+        )];
+        if let Some(c) = self.meta_str("cache_config_info") {
+            out.push(format!("reference cache config: {c}"));
+        }
+        out.push(format!(
+            "sampling/prompts: {} | prompt files {} | add_special_tokens {} | max_model_len {} | launch flags: {}",
+            m("sampling"),
+            m("prompt_files"),
+            m("add_special_tokens"),
+            m("max_model_len"),
+            m("launch_flags"),
+        ));
+        out
+    }
+}
+
+// ---------------------------------------------------------------------------
+// run one mode
+// ---------------------------------------------------------------------------
 
 /// Run one mode over all prompts and judge it against `gates`.
 fn run_mode(
@@ -545,15 +786,35 @@ fn run_mode(
     mode: Mode,
     args: &AccuracyArgs,
     gates: &Gates,
+    topk: bool,
 ) -> Result<ModeResult> {
     let vocab = engine.info().vocab;
     println!("\n== mode: {} ==", mode.name());
+    let kl_name = if topk { "KL(supp)" } else { "KL(full)" };
+    let row = |name: &str, n: String, pos: usize, a: &Agg, greedy: String| {
+        println!(
+            "{:<18} {:>5} {:>5} {:>8.2} {:>10.3e} {:>10.3e} {:>10.3e} {:>8.4} {:>8.4} {:>8.2} {:>9} {:>6}",
+            name,
+            n,
+            pos,
+            a.top1_pct(),
+            a.mean_kl(),
+            a.mean_kl21(),
+            a.kl_max,
+            a.mean_tail_ref(),
+            a.mean_tail_ours(),
+            a.top5_pct(),
+            greedy,
+            a.nonfinite
+        );
+    };
     println!(
-        "{:<18} {:>5} {:>5} {:>8} {:>11} {:>11} {:>8} {:>9} {:>7}",
-        "prompt", "n", "pos", "top-1 %", "mean KL", "max KL", "top-5 %", "greedy", "nonfin"
+        "{:<18} {:>5} {:>5} {:>8} {:>10} {:>10} {:>10} {:>8} {:>8} {:>8} {:>9} {:>6}",
+        "prompt", "n", "pos", "top-1 %", kl_name, "KL(21-way)", "max KL", "tail ref", "tail us", "top-5 %", "greedy", "nonfin"
     );
     let mut total = Agg::default();
     let mut matches = Vec::new();
+    let mut per_prompt = Vec::new();
     for (name, p) in prompts {
         let n = p.ids.len();
         let mut stats: Vec<PosStat> = Vec::new();
@@ -581,39 +842,30 @@ fn run_mode(
         let mut agg = Agg::default();
         stats.iter().for_each(|s| agg.push(s));
         let ml = greedy_match_len(&stats);
-        println!(
-            "{:<18} {:>5} {:>5} {:>8.2} {:>11.3e} {:>11.3e} {:>8.2} {:>9} {:>7}",
-            name,
-            n,
-            stats.len(),
-            agg.top1_pct(),
-            agg.mean_kl(),
-            agg.kl_max,
-            agg.top5_pct(),
-            format!("{ml}/{}", stats.len()),
-            agg.nonfinite
-        );
+        row(name, n.to_string(), stats.len(), &agg, format!("{ml}/{}", stats.len()));
+        per_prompt.push(PromptStats {
+            name: name.clone(),
+            positions: agg.n,
+            top1_pct: agg.top1_pct(),
+            mean_kl: agg.mean_kl(),
+            mean_kl21: agg.mean_kl21(),
+            top5_pct: agg.top5_pct(),
+            tail_excess: agg.tail_excess(),
+        });
         matches.push((ml, stats.len()));
         total.add(&agg);
     }
-    println!(
-        "{:<18} {:>5} {:>5} {:>8.2} {:>11.3e} {:>11.3e} {:>8.2} {:>9} {:>7}",
-        "OVERALL",
-        "",
-        total.n,
-        total.top1_pct(),
-        total.mean_kl(),
-        total.kl_max,
-        total.top5_pct(),
-        format!("{:.1}%", 100.0 * matches.iter().map(|m| m.0).sum::<usize>() as f64 / total.n.max(1) as f64),
-        total.nonfinite
-    );
+    let greedy_pct = 100.0 * matches.iter().map(|m| m.0).sum::<usize>() as f64 / total.n.max(1) as f64;
+    row("OVERALL", String::new(), total.n, &total, format!("{greedy_pct:.1}%"));
     let ok_nf = total.nonfinite == 0;
     let ok_top1 = gates.min_top1.is_none_or(|m| total.top1_pct() >= m);
-    let ok_kl = total.mean_kl() <= gates.max_kl; // NaN / inf compare false
+    let (gate_kl, gate_kl_name) = if topk { (total.mean_kl21(), "21-way KL") } else { (total.mean_kl(), "full-vocab KL") };
+    let ok_kl = gate_kl <= gates.max_kl; // NaN / inf compare false
+    let ok_tail = total.tail_excess().abs() <= gates.max_tail_excess;
     let tag = |ok: bool| if ok { "ok" } else { "FAIL" };
+    let pass = ok_nf && ok_top1 && ok_kl && ok_tail;
     println!(
-        "{} gate [{}]: top-1 {:.2}%{} ({}) {} | mean KL {:.3e} (need <= {:.1e}) {} | non-finite rows {} {} => {}{}",
+        "{} floor [{}]: top-1 {:.2}%{} ({}) {} | {gate_kl_name} {:.3e} (need <= {:.1e}) {} | tail mass ours {:.4} vs ref {:.4}, excess {:+.4} (|.| <= {}) {} | non-finite rows {} {} => {}",
         mode.name(),
         gates.class.name(),
         total.top1_pct(),
@@ -631,16 +883,244 @@ fn run_mode(
             None => "not gated for this class".into(),
         },
         tag(ok_top1),
-        total.mean_kl(),
+        gate_kl,
         gates.max_kl,
         tag(ok_kl),
+        total.mean_tail_ours(),
+        total.mean_tail_ref(),
+        total.tail_excess(),
+        gates.max_tail_excess,
+        tag(ok_tail),
         total.nonfinite,
         tag(ok_nf),
-        if ok_nf && ok_top1 && ok_kl { "PASS" } else { "FAIL" },
-        "",
+        if pass { "PASS" } else { "FAIL" },
     );
-    Ok(ModeResult { matches, pass: ok_nf && ok_top1 && ok_kl })
+    let stats = ModeStats {
+        mode: mode.key().into(),
+        positions: total.n,
+        top1_pct: total.top1_pct(),
+        mean_kl: total.mean_kl(),
+        mean_kl21: total.mean_kl21(),
+        top5_pct: total.top5_pct(),
+        tail_ref: total.mean_tail_ref(),
+        tail_ours: total.mean_tail_ours(),
+        max_kl: total.kl_max,
+        nonfinite: total.nonfinite,
+        greedy_match_pct: greedy_pct,
+        floor_pass: pass,
+    };
+    Ok(ModeResult { matches, pass, stats, prompts: per_prompt })
 }
+
+/// Print the baseline comparison of one mode; returns whether every check passed.
+fn print_baseline_checks(mode: Mode, base: &baseline::ModeBaseline, cur: &ModeResult, m: &Margins) -> bool {
+    let checks = baseline::judge(&base.overall, &cur.stats, m);
+    println!("\nbaseline gate, {} ({} positions):", mode.name(), cur.stats.positions);
+    println!("  {:<16} {:>12} {:>12} {:>12}  {}", "metric", "baseline", "this run", "limit", "");
+    for c in &checks {
+        println!(
+            "  {:<16} {:>12.5e} {:>12.5e} {:>12.5e}  {} {}",
+            c.name,
+            c.base,
+            c.cur,
+            c.limit,
+            if c.higher_is_better { ">=" } else { "<=" },
+            if c.ok { "ok" } else { "FAIL" }
+        );
+    }
+    let ok = checks.iter().all(|c| c.ok);
+    if !ok {
+        // which prompts moved: the largest regressions first
+        let mut moved: Vec<(f64, String)> = Vec::new();
+        for p in &cur.prompts {
+            if let Some(b) = base.prompts.iter().find(|b| b.name == p.name) {
+                let dkl = p.mean_kl21 - b.mean_kl21;
+                let dt1 = p.top1_pct - b.top1_pct;
+                if dkl > m.kl_eps || dt1 < -(100.0 / p.positions.max(1) as f64) {
+                    moved.push((dkl, format!(
+                        "    {:<18} top-1 {:.2} -> {:.2}   KL(21-way) {:.3e} -> {:.3e}   tail excess {:+.4} -> {:+.4}",
+                        p.name, b.top1_pct, p.top1_pct, b.mean_kl21, p.mean_kl21, b.tail_excess, p.tail_excess
+                    )));
+                }
+            }
+        }
+        moved.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        if !moved.is_empty() {
+            println!("  prompts that moved (largest KL increase first):");
+            moved.iter().take(8).for_each(|(_, l)| println!("{l}"));
+        }
+    }
+    ok
+}
+
+// ---------------------------------------------------------------------------
+// prefix reuse through `generate`
+// ---------------------------------------------------------------------------
+
+/// Greedy generation of `max_tokens` tokens (EOS ignored) and the number of prompt tokens served from the cache.
+fn gen_tokens(engine: &dyn Engine, prompt: Vec<u32>, max_tokens: usize) -> Result<(Vec<u32>, usize)> {
+    let req = GenRequest { prompt, max_tokens, ignore_eos: true, temperature: 0.0, ..Default::default() };
+    let (mut toks, mut cached, mut done, mut err) = (Vec::<u32>::new(), 0usize, 0usize, None);
+    engine
+        .generate(req, &mut |ev| match ev {
+            GenEvent::Token { id, .. } => toks.push(id),
+            GenEvent::Done { cached_tokens, completion_tokens, .. } => {
+                cached = cached_tokens;
+                done = completion_tokens;
+            }
+            GenEvent::Error { message } => err = Some(message),
+        })
+        .map_err(|e| anyhow!("{e}"))?;
+    if let Some(m) = err {
+        bail!("generation failed: {m}");
+    }
+    toks.truncate(done); // a held-back text remainder arrives as one extra event repeating the last id
+    Ok((toks, cached))
+}
+
+/// Replace whatever the engine holds in its cache by an unrelated short prompt whose first token differs from `first`.
+fn flush_cache(engine: &dyn Engine, first: u32, vocab: usize) -> Result<()> {
+    let head = ((first as usize + 1) % vocab.max(2)) as u32;
+    let prompt: Vec<u32> = std::iter::once(head).chain((1..8).map(|i| (i * 31 % vocab.max(2)) as u32)).collect();
+    gen_tokens(engine, prompt, 1)?;
+    Ok(())
+}
+
+fn first_divergence(a: &[u32], b: &[u32]) -> Option<usize> {
+    let n = a.len().min(b.len());
+    (0..n).find(|&i| a[i] != b[i]).or((a.len() != b.len()).then_some(n))
+}
+
+struct ReuseRow {
+    prompt: String,
+    case: &'static str,
+    split: usize,
+    turn2: usize,
+    cached: usize,
+    cold_cached: usize,
+    agree: usize,
+    of: usize,
+    ok: bool,
+    note: String,
+}
+
+/// The prefix-reuse path of a real model, compared with a cold run, through `Engine::generate` (what `serve` runs):
+///
+/// * `continue`: turn 1 = `ids[..s]` and a real reply of the model; turn 2 = turn 1 + reply + the rest of the prompt.
+///   The engine must reuse everything it holds (`cached >= s`) and produce the same greedy tokens as a cold run.
+/// * `restore`: turn 1 = `ids[..s]` + a different tail; turn 2 = `ids`. The common prefix is `s`, shorter than what
+///   is held, so the cache is truncated (attention) or a recurrent snapshot is restored (GatedDeltaNet / Mamba,
+///   taken at prefill chunk boundaries): the engine reuses `cached > 0` tokens and again must agree with a cold run.
+///
+/// The cold run is forced by serving an unrelated prompt in between (`cached == 0` is checked). Agreement is
+/// "at least `--reuse-min-match` identical leading tokens": a reuse run chunks the prompt differently from a cold one, so
+/// bf16 rounding can flip a near-tie late in the stream; a broken restore diverges at once.
+fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs) -> Result<bool> {
+    let info = engine.info();
+    let (chunk, ctx, vocab, m) = (args.model.prefill_chunk, info.context_len, info.vocab, args.reuse_gen.max(1));
+    let reply = 16usize;
+    println!("\n== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==");
+    println!(
+        "{:<18} {:<9} {:>6} {:>6} {:>7} {:>6} {:>9}  {}",
+        "prompt", "case", "split", "turn2", "cached", "cold", "agree", "result"
+    );
+    let mut rows: Vec<ReuseRow> = Vec::new();
+    for (i, (name, p)) in prompts.iter().enumerate() {
+        let n = p.ids.len();
+        let meta = g.prompt_meta(i);
+        let n_prompt = meta.as_ref().and_then(|v| v["n_prompt"].as_u64()).map_or(n, |x| x as usize);
+        let split = meta.as_ref().and_then(|v| v["reuse_split"].as_u64()).map_or(n_prompt / 2, |x| x as usize).min(n.saturating_sub(2));
+        let skip = |case: &'static str, why: String| {
+            println!("{name:<18} {case:<9} skipped: {why}");
+        };
+        if split < chunk {
+            skip("both", format!("split {split} is below one prefill chunk ({chunk}): nothing to reuse across chunk boundaries"));
+            continue;
+        }
+        // ---- continue
+        {
+            let run = || -> Result<ReuseRow> {
+                flush_cache(engine, p.ids[0], vocab)?;
+                let (reply_toks, _) = gen_tokens(engine, p.ids[..split].to_vec(), reply)?;
+                let mut turn2: Vec<u32> = p.ids[..split].to_vec();
+                turn2.extend_from_slice(&reply_toks);
+                turn2.extend_from_slice(&p.ids[split..]);
+                turn2.truncate(ctx.saturating_sub(m + 8));
+                let (warm, cached) = gen_tokens(engine, turn2.clone(), m)?;
+                flush_cache(engine, p.ids[0], vocab)?;
+                let (cold, cold_cached) = gen_tokens(engine, turn2.clone(), m)?;
+                let agree = first_divergence(&warm, &cold).unwrap_or(warm.len());
+                let ok = cached >= split && cold_cached == 0 && agree >= args.reuse_min_match.min(m);
+                let note = if cached < split {
+                    format!("reuse covered {cached} < the {split} tokens of turn 1")
+                } else if cold_cached != 0 {
+                    "the cold run was not cold".into()
+                } else if agree < args.reuse_min_match.min(m) {
+                    format!("streams diverge at token {agree}")
+                } else {
+                    String::new()
+                };
+                Ok(ReuseRow { prompt: name.clone(), case: "continue", split, turn2: turn2.len(), cached, cold_cached, agree, of: m, ok, note })
+            };
+            rows.push(run()?);
+        }
+        // ---- restore
+        {
+            let run = || -> Result<ReuseRow> {
+                flush_cache(engine, p.ids[0], vocab)?;
+                let mut turn1: Vec<u32> = p.ids[..split].to_vec();
+                // a different tail: every token differs from the one at that place of the real prompt
+                turn1.extend(p.ids[split..].iter().take(40).map(|&t| ((t as usize + 1) % vocab) as u32));
+                gen_tokens(engine, turn1, 4)?;
+                let mut turn2 = p.ids.clone();
+                turn2.truncate(ctx.saturating_sub(m + 8));
+                let (warm, cached) = gen_tokens(engine, turn2.clone(), m)?;
+                flush_cache(engine, p.ids[0], vocab)?;
+                let (cold, cold_cached) = gen_tokens(engine, turn2.clone(), m)?;
+                let agree = first_divergence(&warm, &cold).unwrap_or(warm.len());
+                let ok = cached > 0 && cached <= split && cold_cached == 0 && agree >= args.reuse_min_match.min(m);
+                let note = if cached == 0 {
+                    "nothing was reused (no restorable state at or below the split)".into()
+                } else if cached > split {
+                    format!("reused {cached} > the shared prefix {split}: stale state")
+                } else if cold_cached != 0 {
+                    "the cold run was not cold".into()
+                } else if agree < args.reuse_min_match.min(m) {
+                    format!("streams diverge at token {agree}")
+                } else {
+                    String::new()
+                };
+                Ok(ReuseRow { prompt: name.clone(), case: "restore", split, turn2: turn2.len(), cached, cold_cached, agree, of: m, ok, note })
+            };
+            rows.push(run()?);
+        }
+        for r in rows.iter().rev().take(2).collect::<Vec<_>>().into_iter().rev() {
+            println!(
+                "{:<18} {:<9} {:>6} {:>6} {:>7} {:>6} {:>9}  {}{}",
+                r.prompt,
+                r.case,
+                r.split,
+                r.turn2,
+                r.cached,
+                r.cold_cached,
+                format!("{}/{}", r.agree, r.of),
+                if r.ok { "ok" } else { "FAIL" },
+                if r.note.is_empty() { String::new() } else { format!(" ({})", r.note) }
+            );
+        }
+    }
+    if rows.is_empty() {
+        println!("reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk {chunk}); not a pass");
+        return Ok(false);
+    }
+    let ok = rows.iter().all(|r| r.ok);
+    println!("prefix-reuse gate: {}", if ok { "PASS" } else { "FAIL" });
+    Ok(ok)
+}
+
+// ---------------------------------------------------------------------------
+// golden gate
+// ---------------------------------------------------------------------------
 
 fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     let path = match &args.golden {
@@ -654,12 +1134,21 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     if names.is_empty() {
         bail!("{}: no ids_N tensors", path.display());
     }
-    let modes: Vec<Mode> = match args.mode.as_str() {
-        "prefill" => vec![Mode::Prefill],
-        "decode" => vec![Mode::Decode],
-        "both" => vec![Mode::Prefill, Mode::Decode],
-        o => bail!("unknown --mode '{o}' (prefill, decode, both)"),
+    let (want_prefill, want_decode, want_reuse) = match args.mode.as_str() {
+        "prefill" => (true, false, false),
+        "decode" => (false, true, false),
+        "both" => (true, true, false),
+        "reuse" => (false, false, true),
+        "all" => (true, true, true),
+        o => bail!("unknown --mode '{o}' (prefill, decode, both, reuse, all)"),
     };
+    let mut modes: Vec<Mode> = Vec::new();
+    if want_prefill {
+        modes.push(Mode::Prefill);
+    }
+    if want_decode {
+        modes.push(Mode::Decode);
+    }
     let info = engine.info();
     let gates = resolve_gates(args, &info.kv_dtype)?;
     let mut prompts = Vec::new();
@@ -673,34 +1162,39 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
         prompts.push((name.clone(), p));
     }
     let longest = prompts.iter().map(|p| p.1.ids.len()).max().unwrap_or(0);
+    let positions: usize = prompts.iter().map(|p| p.1.ids.len()).sum();
     let chunk = args.model.prefill_chunk;
     let multi = prompts.iter().filter(|p| p.1.ids.len() > chunk).count();
+    let topk_k = match &prompts[0].1.rows {
+        RefRows::TopK { k, .. } => Some(*k),
+        _ => None,
+    };
     eprintln!(
-        "golden: {} ({} prompts, {}, reference {} {} {}, torch {})",
+        "golden: {} ({} prompts, {} positions, {})",
         path.display(),
         names.len(),
-        if g.is_topk() {
-            format!(
-                "top-{} log-probs, KL over the reference's top-k support renormalised",
-                match &prompts[0].1.rows {
-                    RefRows::TopK { k, .. } => *k,
-                    _ => 0,
-                }
-            )
-        } else {
-            "full-vocabulary log-probs".into()
+        positions,
+        match topk_k {
+            Some(k) => format!(
+                "top-{k} log-probs: KL(supp) over the top-{k} support renormalised, KL(21-way) with an explicit other bucket"
+            ),
+            None => format!("full-vocabulary log-probs; the 21-way KL / tail use the reference top-{TAIL_K} as support"),
         },
-        g.meta.get("source").map(String::as_str).unwrap_or("hf"),
-        g.meta.get("device").map(String::as_str).unwrap_or("?"),
-        g.meta.get("dtype").map(String::as_str).unwrap_or("?"),
-        g.meta.get("torch").map(String::as_str).unwrap_or("?"),
     );
+    for l in g.describe() {
+        eprintln!("  {l}");
+    }
+    if let Some(w) = kv_dtype_warning(g.meta_str("kv_dtype"), &info.kv_dtype) {
+        eprintln!("{w}");
+    }
     eprintln!(
-        "gates: class {} ({}); top-1 {}, mean KL <= {:.1e}",
+        "gates: class {} ({}); top-1 {}, {} <= {:.1e}, |tail excess| <= {}",
         gates.class.name(),
         gates.why,
         gates.min_top1.map_or("not gated".to_string(), |m| format!(">= {m}%")),
-        gates.max_kl
+        if topk_k.is_some() { "21-way KL" } else { "KL" },
+        gates.max_kl,
+        gates.max_tail_excess,
     );
     eprintln!(
         "prefill chunk {chunk}; longest prompt {longest}; prompts spanning more than one chunk: {multi}/{}",
@@ -709,11 +1203,49 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
     if multi == 0 {
         eprintln!("WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk {} or a golden with longer prompts", (longest / 3).max(1));
     }
-    let mut all_ok = true;
+    // Identity of this run, and the baseline (read and checked BEFORE the long runs: a baseline for another golden or
+    // another configuration is refused up front).
+    let golden_id = baseline::GoldenId {
+        file: path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default(),
+        fnv1a64: format!("{:016x}", baseline::fnv1a64(&g.data)),
+        size: g.data.len() as u64,
+        format: g.meta_str("format").unwrap_or(if topk_k.is_some() { "intarsia-golden-topk-v1" } else { "intarsia-golden-v1" }).to_string(),
+        prompts: names.len(),
+        positions,
+        topk: topk_k,
+        engine: g.meta_str("engine").or(g.meta_str("source")).unwrap_or("").to_string(),
+        engine_version: g.meta_str("engine_version").unwrap_or("").to_string(),
+        model: g.meta_str("model").unwrap_or("").to_string(),
+        model_revision: g.meta_str("model_revision").unwrap_or("").to_string(),
+        kv_dtype: g.meta_str("kv_dtype").unwrap_or("").to_string(),
+    };
+    let run_cfg = baseline::RunConfig {
+        model: info.id.clone(),
+        backend: info.backend.clone(),
+        device: info.device.clone(),
+        kv_dtype: norm_dtype(&info.kv_dtype),
+        act_dtype: norm_dtype(&info.act_dtype),
+        fp8_act: args.model.fp8_act.clone().unwrap_or_else(|| "recipe default".into()),
+        prefill_chunk: chunk,
+        decode_positions: args.decode_positions,
+        gate_class: gates.class.name().to_string(),
+    };
+
+    let base_file = match &args.baseline {
+        Some(bp) => {
+            let base = baseline::read(bp)?;
+            for w in baseline::compatible(&base, &golden_id, &run_cfg, args.allow_config_mismatch)? {
+                eprintln!("WARNING: this run differs from the baseline: {w}");
+            }
+            Some((bp, base))
+        }
+        None => None,
+    };
+    let mut floor_ok = true;
     let mut results = Vec::new();
     for m in modes {
-        let r = run_mode(engine, &prompts, m, args, &gates)?;
-        all_ok &= r.pass;
+        let r = run_mode(engine, &prompts, m, args, &gates, topk_k.is_some())?;
+        floor_ok &= r.pass;
         results.push((m, r));
     }
     for (m, r) in &results {
@@ -722,6 +1254,71 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
             (fr.iter().sum::<f64>() / fr.len().max(1) as f64, fr.iter().cloned().fold(1.0, f64::min))
         };
         println!("greedy-match [{}]: mean {:.1}% of positions before the first argmax divergence, worst prompt {:.1}% (informational)", m.name(), 100.0 * mean, 100.0 * min);
+    }
+
+    // baseline-relative gate
+    let mut baseline_ok: Option<bool> = None;
+    if let Some((bp, base)) = &base_file {
+        let margins = Margins {
+            top1_pts: args.margin_top1,
+            kl_ratio: args.margin_kl,
+            kl_eps: 1e-6,
+            top5_pts: args.margin_top5,
+            tail_abs: args.margin_tail,
+        };
+        println!(
+            "\nbaseline: {} (recorded {}, golden {} hash {}); margins: top-1 -{} pt (>= 1 position), KL x{} (+1e-6), top-5 -{} pt, tail +{}",
+            bp.display(),
+            base.created_unix,
+            base.golden.file,
+            base.golden.fnv1a64,
+            margins.top1_pts,
+            margins.kl_ratio,
+            margins.top5_pts,
+            margins.tail_abs
+        );
+        let mut ok = true;
+        for (m, r) in &results {
+            let Some(bm) = base.modes.iter().find(|b| b.overall.mode == m.key()) else {
+                bail!("{}: the baseline has no '{}' mode (it has: {}); record one with --write-baseline", bp.display(), m.key(), base.modes.iter().map(|b| b.overall.mode.as_str()).collect::<Vec<_>>().join(", "));
+            };
+            ok &= print_baseline_checks(*m, bm, r, &margins);
+        }
+        baseline_ok = Some(ok);
+    }
+    if let Some(wp) = &args.write_baseline {
+        let b = Baseline {
+            format: baseline::FORMAT.into(),
+            created_unix: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
+            tool_version: env!("CARGO_PKG_VERSION").into(),
+            golden: golden_id.clone(),
+            run: run_cfg.clone(),
+            modes: results.iter().map(|(_, r)| baseline::ModeBaseline { overall: r.stats.clone(), prompts: r.prompts.clone() }).collect(),
+        };
+        baseline::write(wp, &b)?;
+        println!(
+            "\nwrote baseline {} ({} mode(s); absolute floor {})",
+            wp.display(),
+            b.modes.len(),
+            if floor_ok { "passed" } else { "FAILED in this run: the baseline records it" }
+        );
+    }
+
+    let mut reuse_ok = true;
+    if want_reuse {
+        reuse_ok = reuse_gate(engine, &g, &prompts, args)?;
+    }
+    let all_ok = floor_ok && baseline_ok.unwrap_or(true) && reuse_ok;
+    if !results.is_empty() {
+        println!(
+            "\nfloor verdict (class thresholds, absolute): {}{}{}",
+            if floor_ok { "PASS" } else { "FAIL" },
+            match baseline_ok {
+                Some(b) => format!("   baseline verdict (no worse than the recorded run + margins): {}", if b { "PASS" } else { "FAIL" }),
+                None => "   baseline verdict: not requested".to_string(),
+            },
+            if want_reuse { format!("   prefix-reuse verdict: {}", if reuse_ok { "PASS" } else { "FAIL" }) } else { String::new() },
+        );
     }
     println!("golden gate: {}", if all_ok { "PASS" } else { "FAIL" });
     Ok(all_ok)
@@ -965,7 +1562,7 @@ mod tests {
 
     #[test]
     fn greedy_match_length_counts_the_leading_run() {
-        let mk = |ok: bool| PosStat { top1: ok, tie: false, overlap: 5, n_top: 5, kl: 0.0, nonfinite: false };
+        let mk = |ok: bool| PosStat { top1: ok, tie: false, overlap: 5, n_top: 5, kl: 0.0, kl21: 0.0, tail_ref: 0.0, tail_ours: 0.0, nonfinite: false };
         let s: Vec<PosStat> = [true, true, true, false, true].into_iter().map(mk).collect();
         assert_eq!(greedy_match_len(&s), 3);
         assert_eq!(greedy_match_len(&[]), 0);
@@ -1045,5 +1642,101 @@ mod tests {
     fn repeat_detection() {
         assert_eq!(max_4gram_repeat(&[1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]), 4);
         assert_eq!(max_4gram_repeat(&[1, 2, 3]), 0);
+    }
+
+    // -- tail bucket (review finding 1) -----------------------------------------------------------
+
+    /// A vocabulary of `v` tokens: the first 20 hold the probability, the rest sit at logit -10.
+    fn peaked(v: usize) -> Vec<f32> {
+        (0..v).map(|i| if i < 20 { 5.0 - 0.1 * i as f32 } else { -10.0 }).collect()
+    }
+
+    #[test]
+    fn mass_leaving_the_top_k_is_invisible_to_the_renormalised_kl_but_not_to_the_tail_bucket() {
+        // The scenario of the review: a bug (zeroed block scales in the lm_head) lifts thousands of rare-token
+        // logits from about -10 to about 0. Most of our probability moves outside the reference's top-20.
+        let reference = peaked(20_000);
+        let (ids, lps) = topk_ref(&reference, 20);
+        let mut broken = reference.clone();
+        for v in broken.iter_mut().skip(20).take(3000) {
+            *v = 0.0;
+        }
+        let a = compare_pos(RefRow::TopK(&ids, &lps), &broken).unwrap();
+        assert!(a.top1, "the argmax survives, as in the review");
+        assert!(a.kl < 1e-9, "the renormalised KL is blind to it: {}", a.kl);
+        assert!(a.tail_ours > 0.6 && a.tail_ref < 0.01, "tail mass ours {} ref {}", a.tail_ours, a.tail_ref);
+        assert!(a.kl21 > 0.5, "the 21-way KL sees it: {}", a.kl21);
+        // and the gates built on those numbers fail where the old one passed
+        let mut agg = Agg::default();
+        agg.push(&a);
+        assert!(agg.mean_kl() <= 3e-2, "old 4-bit gate (renormalised KL) passes");
+        assert!(agg.mean_kl21() > 3e-2, "21-way KL fails the same floor");
+        assert!(agg.tail_excess().abs() > DEFAULT_MAX_TAIL_EXCESS, "tail excess {}", agg.tail_excess());
+        // the same with a full-vocabulary golden
+        let r = full_ref(&reference);
+        let b = compare_pos(RefRow::Full(&r), &broken).unwrap();
+        assert!(b.kl > 0.5, "full KL sees it too: {}", b.kl);
+        assert!(b.kl21 > 0.5 && b.tail_ours > 0.6, "{b:?}");
+    }
+
+    #[test]
+    fn identical_distributions_have_no_tail_difference() {
+        let l = peaked(5000);
+        let (ids, lps) = topk_ref(&l, 20);
+        let a = compare_pos(RefRow::TopK(&ids, &lps), &l).unwrap();
+        assert!(a.kl21 < 1e-6 && (a.tail_ours - a.tail_ref).abs() < 1e-6, "{a:?}");
+        assert!(a.tail_ref > 1e-5, "the tail is real: {}", a.tail_ref);
+        let b = compare_pos(RefRow::Full(&full_ref(&l)), &l).unwrap();
+        assert!(b.kl21 < 1e-3 && (b.tail_ours - b.tail_ref).abs() < 1e-3, "{b:?}"); // fp16 reference rounding
+    }
+
+    #[test]
+    fn the_21_way_kl_is_a_lower_bound_of_the_full_kl() {
+        let l = logits(300);
+        let r = full_ref(&l);
+        let mut x = l.clone();
+        for (i, v) in x.iter_mut().enumerate() {
+            *v += ((i * 31) % 17) as f32 * 0.07;
+        }
+        let a = compare_pos(RefRow::Full(&r), &x).unwrap();
+        assert!(a.kl > 1e-3, "{}", a.kl);
+        assert!(a.kl21 <= a.kl + 1e-9, "partition KL {} must not exceed the full KL {}", a.kl21, a.kl);
+        // a top-k golden of the same reference: its 21-way value is the same partition (K = 20)
+        let (ids, lps) = topk_ref(&l, 20);
+        let b = compare_pos(RefRow::TopK(&ids, &lps), &x).unwrap();
+        assert!((b.kl21 - a.kl21).abs() < 1e-3, "{} vs {}", b.kl21, a.kl21);
+    }
+
+    #[test]
+    fn reference_logprobs_summing_just_over_one_do_not_break_the_tail() {
+        let l = logits(100);
+        let (ids, mut lps) = topk_ref(&l, 100); // the whole vocabulary: the tail is exactly empty
+        lps.iter_mut().for_each(|x| *x += 1e-6); // reporting rounding: the sum is a hair over 1
+        let a = compare_pos(RefRow::TopK(&ids, &lps), &l).unwrap();
+        assert!(a.tail_ref < 1e-9 && a.tail_ours < 1e-9 && a.kl21 < 1e-5, "{a:?}");
+    }
+
+    #[test]
+    fn kv_dtype_aliases_and_warnings() {
+        assert_eq!(norm_dtype("bfloat16"), "bf16");
+        assert_eq!(norm_dtype("fp8"), "fp8_e4m3");
+        assert_eq!(norm_dtype("fp8_e4m3"), "fp8_e4m3");
+        assert_eq!(norm_dtype("float8_e4m3fn"), "fp8_e4m3");
+        assert_eq!(norm_dtype("fp8_e5m2"), "fp8_e5m2");
+        assert!(kv_dtype_warning(Some("bfloat16"), "bf16").is_none());
+        assert!(kv_dtype_warning(Some("auto"), "bf16").is_none());
+        assert!(kv_dtype_warning(Some("fp8"), "fp8_e4m3").is_none());
+        let w = kv_dtype_warning(Some("fp8"), "bf16").unwrap();
+        assert!(w.contains("mismatch") && w.contains("fp8_e4m3") && w.contains("bf16"), "{w}");
+        assert!(kv_dtype_warning(None, "bf16").unwrap().contains("does not record"));
+        assert!(kv_dtype_warning(Some("unknown"), "bf16").unwrap().contains("does not record"));
+        assert!(kv_dtype_warning(Some("auto"), "fp8_e4m3").is_some());
+    }
+
+    #[test]
+    fn first_divergence_of_streams() {
+        assert_eq!(first_divergence(&[1, 2, 3], &[1, 2, 3]), None);
+        assert_eq!(first_divergence(&[1, 2, 3], &[1, 9, 3]), Some(1));
+        assert_eq!(first_divergence(&[1, 2], &[1, 2, 3]), Some(2));
     }
 }

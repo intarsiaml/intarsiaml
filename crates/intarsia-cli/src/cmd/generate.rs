@@ -179,6 +179,12 @@ pub fn run(args: GenerateArgs) -> Result<()> {
     let mut top: Vec<_> = t.ops.iter().collect();
     top.sort_by(|a, b| b.1.time_ms.partial_cmp(&a.1.time_ms).unwrap());
     let line: Vec<String> = top.iter().take(5).map(|(k, v)| format!("{k}={:.0}ms/{}", v.time_ms, v.calls)).collect();
-    eprintln!("steps={} top ops: {}", t.steps_total, line.join(" "));
+    eprintln!(
+        "steps={} graph replays={} (captures {}) top ops: {}",
+        t.steps_total,
+        t.graph_replays,
+        t.graph_captures,
+        line.join(" ")
+    );
     Ok(())
 }

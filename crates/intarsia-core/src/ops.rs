@@ -9,7 +9,7 @@
 //! | `RmsNormAdd` | x `[R,H]`, res `[R,H]`, w `[H]` | normed `[R,H]`, sum `[R,H]` (= x + res) | eps, w_offset |
 //! | `Add` | a `[R,H]`, b `[R,H]` | `[R,H]` | |
 //! | `QkNorm` | x `[T,N,D]`, w `[D]` | `[T,N,D]` | eps, w_offset |
-//! | `Rope` | x `[T,N,D]` | `[T,N,D]` | pos0, theta, rotary_dim (neox / rotate-half over the first `rotary_dim` values, 0 = all `D`; the rest is copied) |
+//! | `Rope` | x `[T,N,D]` | `[T,N,D]` | pos0 (or `OpCall::pos`), theta, rotary_dim (neox / rotate-half over the first `rotary_dim` values, 0 = all `D`; the rest is copied) |
 //! | `Matmul` | x `[M,K]`, w `[N,K]` | `[M,N]` (= x @ w^T) | |
 //! | `Logits` | x `[M,K]`, w `[V,K]` | `[M,V]` f32 | same math as `Matmul`, f32 output |
 //! | `KvAppend` | new `[T,Nkv,D]` | cache `[Nkv,cap,D]` (written in place) | pos0 |
@@ -215,11 +215,16 @@ pub struct OpCall {
     /// a scratch requirement (`KernelImpl::scratch`). `u8` view of at least the declared size,
     /// 256-byte aligned, uninitialised, stream-ordered (see kernels/README.md). `None` otherwise.
     pub scratch: Option<TensorRef>,
+    /// Device-side position (`Rope`, `KvAppend`, `AttnDecode`): an `i32 [1]` tensor holding `pos0`. A kernel
+    /// that runs with it reads the position when it executes, not when it was launched, so a captured CUDA graph
+    /// replays at every position. `attrs.pos0` then only bounds the call (validation, shape predicates); results
+    /// are bit-identical to a launch whose host `pos0` equals the tensor's value. `None` = use `attrs.pos0`.
+    pub pos: Option<TensorRef>,
 }
 
 impl OpCall {
     pub fn new(op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> OpCall {
-        OpCall { op, inputs, outputs, attrs, scratch: None }
+        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None }
     }
 
     /// Validate arity, ranks, shapes, dtypes and bounds. Backends and the
@@ -236,6 +241,15 @@ impl OpCall {
         }
         for t in self.inputs.iter().chain(self.outputs.iter()) {
             t.check_bounds()?;
+        }
+        if let Some(p) = &self.pos {
+            p.check_bounds()?;
+            if !matches!(self.op, Op::Rope | Op::KvAppend | Op::AttnDecode) {
+                return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
+            }
+            if p.dtype != DType::I32 || p.numel() != 1 {
+                return Err(Error::invalid(format!("{}: device position must be i32 [1], got {} {:?}", self.op, p.dtype, p.shape)));
+            }
         }
         let i = &self.inputs;
         let o = &self.outputs;

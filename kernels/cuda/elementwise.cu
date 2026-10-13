@@ -71,7 +71,9 @@ __global__ void silu_glu_kernel(const ik_bf16* __restrict__ g, const ik_bf16* __
 // new[T,Nkv,D] -> cache[Nkv,cap,D] rows pos0..pos0+T-1.
 template <typename CacheT, int VEC>
 __global__ void kv_append_kernel(const ik_bf16* __restrict__ src, CacheT* __restrict__ cache, int64_t T,
-                                 int64_t NKV, int64_t D, int64_t cap, int64_t pos0) {
+                                 int64_t NKV, int64_t D, int64_t cap, int64_t pos0_host, const int32_t* pos_dev) {
+    // device-side position (CUDA graphs: the step is captured once, the position changes per replay)
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
     // one thread per VEC consecutive elements of D
     const int64_t dv = D / VEC;
     const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
@@ -102,8 +104,9 @@ __global__ void kv_append_kernel(const ik_bf16* __restrict__ src, CacheT* __rest
 // rotary dim RD < D the values RD..D-1 pass through unchanged (`rope_pass_kernel` copies them when
 // x and out are different buffers).
 constexpr int kRopeHeads = 4;
-__global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int RD, int64_t pos0,
-                            float theta) {
+__global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int RD, int64_t pos0_host,
+                            float theta, const int32_t* pos_dev) {
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
     const int half = RD / 2;
     const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= T * half) return;
@@ -223,8 +226,10 @@ int ik_silu_glu_bf16(const ik_tensor* gate, const ik_tensor* up, ik_tensor* out,
     return ik_launch_status();
 }
 
-int ik_kv_append_bf16(const ik_tensor* new_kv, int64_t pos0, ik_tensor* cache, void* stream) {
+int ik_kv_append_bf16(const ik_tensor* new_kv, int64_t pos0, ik_tensor* cache, const ik_tensor* pos, void* stream) {
     IK_TRY(ik_check(new_kv, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check_pos(pos));
+    const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
     if (!cache) return IK_ERR_INVALID_ARG;
     if (cache->dtype != IK_DTYPE_BF16 && cache->dtype != IK_DTYPE_FP8_E4M3) return IK_ERR_DTYPE;
     IK_TRY(ik_check(cache, cache->dtype, 3));
@@ -237,18 +242,21 @@ int ik_kv_append_bf16(const ik_tensor* new_kv, int64_t pos0, ik_tensor* cache, v
     if (cache->dtype == IK_DTYPE_BF16) {
         ik_bf16* c = (ik_bf16*)cache->data;
         if (D % 8 == 0 && ik_aligned16(src) && ik_aligned16(c))
-            kv_append_kernel<ik_bf16, 8><<<blocks(T * NKV * (D / 8)), kThreads, 0, s>>>(src, c, T, NKV, D, cap, pos0);
+            kv_append_kernel<ik_bf16, 8><<<blocks(T * NKV * (D / 8)), kThreads, 0, s>>>(src, c, T, NKV, D, cap, pos0, pos_dev);
         else
-            kv_append_kernel<ik_bf16, 1><<<blocks(T * NKV * D), kThreads, 0, s>>>(src, c, T, NKV, D, cap, pos0);
+            kv_append_kernel<ik_bf16, 1><<<blocks(T * NKV * D), kThreads, 0, s>>>(src, c, T, NKV, D, cap, pos0, pos_dev);
     } else {
         __nv_fp8_storage_t* c = (__nv_fp8_storage_t*)cache->data;
-        kv_append_kernel<__nv_fp8_storage_t, 1><<<blocks(T * NKV * D), kThreads, 0, s>>>(src, c, T, NKV, D, cap, pos0);
+        kv_append_kernel<__nv_fp8_storage_t, 1><<<blocks(T * NKV * D), kThreads, 0, s>>>(src, c, T, NKV, D, cap, pos0, pos_dev);
     }
     return ik_launch_status();
 }
 
-int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_dim, ik_tensor* out, void* stream) {
+int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_dim, ik_tensor* out,
+                 const ik_tensor* pos, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check_pos(pos));
+    const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
     IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
     const int64_t T = x->shape[0], N = x->shape[1], D = x->shape[2];
     const int64_t RD = rotary_dim == 0 ? D : rotary_dim;
@@ -262,7 +270,7 @@ int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_d
     if (RD == 0) return ik_launch_status();
     dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
     rope_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
-                                          pos0, theta);
+                                          pos0, theta, pos_dev);
     return ik_launch_status();
 }
 

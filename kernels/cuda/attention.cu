@@ -14,7 +14,9 @@ constexpr int kMaxD = 256;      // head_dim limit (two output dims per thread)
 template <bool VEC>
 __global__ void __launch_bounds__(kThreads)
 attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
-            ik_bf16* __restrict__ out, int64_t N, int64_t NKV, int D, int64_t cap, int64_t pos0, float scale) {
+            ik_bf16* __restrict__ out, int64_t N, int64_t NKV, int D, int64_t cap, int64_t pos0_host, float scale,
+            const int32_t* pos_dev) {
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;  // device position: CUDA graph replays
     __shared__ float qs[kMaxD];
     __shared__ float sc[kThreads];
     __shared__ float red[kThreads / IK_WARP + 1];
@@ -84,7 +86,9 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
 }
 
 int attn_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
-                ik_tensor* out, void* stream, bool decode) {
+                ik_tensor* out, const ik_tensor* pos, void* stream, bool decode) {
+    IK_TRY(ik_check_pos(pos));
+    const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
     IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
     IK_TRY(ik_check(kc, IK_DTYPE_BF16, 3));
     IK_TRY(ik_check(vc, IK_DTYPE_BF16, 3));
@@ -103,11 +107,11 @@ int attn_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, in
     if (vec)
         attn_kernel<true><<<(unsigned)nblocks, kThreads, 0, s>>>((const ik_bf16*)q->data, (const ik_bf16*)kc->data,
                                                                   (const ik_bf16*)vc->data, (ik_bf16*)out->data, N,
-                                                                  NKV, (int)D, cap, pos0, scale);
+                                                                  NKV, (int)D, cap, pos0, scale, pos_dev);
     else
         attn_kernel<false><<<(unsigned)nblocks, kThreads, 0, s>>>((const ik_bf16*)q->data, (const ik_bf16*)kc->data,
                                                                    (const ik_bf16*)vc->data, (ik_bf16*)out->data, N,
-                                                                   NKV, (int)D, cap, pos0, scale);
+                                                                   NKV, (int)D, cap, pos0, scale, pos_dev);
     return ik_launch_status();
 }
 
@@ -117,12 +121,12 @@ extern "C" {
 
 int ik_attn_prefill_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                          ik_tensor* out, void* stream) {
-    return attn_launch(q, kc, vc, pos0, scale, out, stream, false);
+    return attn_launch(q, kc, vc, pos0, scale, out, nullptr, stream, false);
 }
 
 int ik_attn_decode_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
-                        ik_tensor* out, void* stream) {
-    return attn_launch(q, kc, vc, pos0, scale, out, stream, true);
+                        ik_tensor* out, const ik_tensor* pos, void* stream) {
+    return attn_launch(q, kc, vc, pos0, scale, out, pos, stream, true);
 }
 
 }  // extern "C"

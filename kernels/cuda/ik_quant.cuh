@@ -99,6 +99,44 @@ IK_DEVI void ik_mma_bf16_16816(float* c, uint32_t a0, uint32_t a1, uint32_t a2, 
         : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1));
 }
 
+/* ---- dequantise-to-bf16 tiles and async copies (moe_grouped.cu) ------------------------------------------ */
+
+/* 16 fp4 values (8 bytes, element j = nibble j) times a block scale -> 16 bf16 in two 16-byte vectors. Exact: e2m1 *
+ * e4m3 has at most 4 significant bits. */
+IK_DEVI void ik_fp4x16_scaled_to_bf16(uint2 w, float sc, uint4& lo, uint4& hi) {
+    float f[16];
+    ik_fp4x8_to_f32(w.x, f);
+    ik_fp4x8_to_f32(w.y, f + 8);
+#pragma unroll
+    for (int e = 0; e < 16; ++e) f[e] *= sc;
+    lo = ik_pack8(f);
+    hi = ik_pack8(f + 8);
+}
+
+/* 16-byte global -> shared copy through L2 (bypasses L1); `src_bytes` < 16 zero-fills the rest (0 = all zero, the
+ * source is then not read but must still be a valid address). */
+IK_DEVI void ik_cp_async16(void* smem_dst, const void* gmem_src, int src_bytes) {
+    const unsigned d = static_cast<unsigned>(__cvta_generic_to_shared(smem_dst));
+    asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;\n" ::"r"(d), "l"(gmem_src), "r"(src_bytes) : "memory");
+}
+IK_DEVI void ik_cp_async_commit() { asm volatile("cp.async.commit_group;\n" ::: "memory"); }
+IK_DEVI void ik_cp_async_wait_all() { asm volatile("cp.async.wait_group 0;\n" ::: "memory"); }
+/* wait until at most N of the most recently committed groups are still in flight */
+template <int N>
+IK_DEVI void ik_cp_async_wait_group() {
+    asm volatile("cp.async.wait_group %0;\n" ::"n"(N) : "memory");
+}
+
+/* ldmatrix.x4: four 8x8 b16 matrices from shared memory; lane l supplies the address of row (l & 7) of matrix (l >> 3),
+ * result register i holds, for lane l, elements (row l >> 2, columns 2 * (l & 3) + {0, 1}) of matrix i. */
+IK_DEVI void ik_ldmatrix_x4(uint32_t& r0, uint32_t& r1, uint32_t& r2, uint32_t& r3, const void* smem_row) {
+    const unsigned a = static_cast<unsigned>(__cvta_generic_to_shared(smem_row));
+    asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];\n"
+                 : "=r"(r0), "=r"(r1), "=r"(r2), "=r"(r3)
+                 : "r"(a)
+                 : "memory");
+}
+
 /* ---- validation ----------------------------------------------------------------------------------------- */
 
 /* dense rank-`ndim` tensor of `dtype`, data aligned to `align` bytes */

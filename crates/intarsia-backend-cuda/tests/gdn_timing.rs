@@ -1,6 +1,8 @@
 //! Timing of the GatedDeltaNet kernels at the Qwen3.6-35B-A3B shapes (16 key / 32 value heads of 128, conv width
-//! 8192, kernel 4). Prints microseconds per launch; only asserts that the launches succeed. Skips without a GPU.
+//! 8192, kernel 4). Prints microseconds per launch; only asserts that the launches succeed. Without a GPU it prints SKIPPED.
 #![cfg(ik_cuda)]
+
+mod common;
 
 use intarsia_core::{DType, MemKind, Op, OpAttrs, OpCall, TensorRef};
 use std::time::Instant;
@@ -14,9 +16,12 @@ fn t(b: &dyn intarsia_core::Backend, dt: DType, shape: &[usize]) -> TensorRef {
 
 #[test]
 fn gdn_kernels_timing_at_35b_shapes() {
-    let Ok(b) = intarsia_backend_cuda::create(0) else {
-        eprintln!("skipping: no usable CUDA device");
-        return;
+    let b = match intarsia_backend_cuda::create(0) {
+        Ok(b) => b,
+        Err(e) => {
+            common::skip("gdn_timing", &format!("no usable CUDA device ({e})"));
+            return;
+        }
     };
     let (hk, hv, dk, dv, ks, c) = (16usize, 32usize, 128usize, 128usize, 4usize, 8192usize);
     let state = t(&*b, DType::F32, &[hv, dv, dk]);

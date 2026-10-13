@@ -11,7 +11,7 @@
 //! ```
 //! and one final `rmsnorm_add` with the model's final norm before the head.
 
-use crate::backend::{Backend, Buffer, MemKind, TensorRef};
+use crate::backend::{Backend, Buffer, GraphHandle, MemKind, TensorRef};
 use crate::dtype::DType;
 use crate::error::{Error, Result};
 use crate::memplan::MemoryPlan;
@@ -28,7 +28,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 mod gdn_block;
+mod graph_step;
 use gdn_block::{ExtraWs, GdnBlock};
+use graph_step::GraphState;
 
 /// Rows of logits computed/downloaded at a time when all positions are requested.
 const LOGIT_ROWS: usize = 16;
@@ -51,6 +53,9 @@ pub struct LoadOptions {
     /// FP8 projections: activations quantised with the checkpoint's static scale (`static`, W8A8) or kept
     /// 16-bit (`none`, W8A16). `None` = the recipe's `[defaults] fp8_act`.
     pub fp8_act: Option<Fp8Act>,
+    /// Replay the single-token decode step as a captured graph when the backend supports it (`--no-graphs` turns
+    /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
+    pub graphs: bool,
 }
 
 impl Default for LoadOptions {
@@ -64,6 +69,7 @@ impl Default for LoadOptions {
             profile_every: 1,
             mem_budget: None,
             fp8_act: None,
+            graphs: true,
         }
     }
 }
@@ -118,6 +124,8 @@ struct Workspace {
     a: Buffer,
     logits: Buffer,
     tok: Buffer,
+    /// `i32 [1]`: position of the token a captured decode step processes (rewritten before every replay).
+    pos: Buffer,
     /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
     x: ExtraWs,
     /// Activations of the MoE blocks (one set, reused by every layer).
@@ -180,6 +188,10 @@ pub struct Model {
     recorder: Mutex<Option<crate::plan::Recorder>>,
     /// Result of plan resolution (kernel of every op/shape the model needs).
     pub resolved: crate::plan::ResolvedPlan,
+    /// Captured decode step (CUDA graph); see `model/graph_step.rs`.
+    graphs: GraphState,
+    /// While a graph is being captured: the ops it records (replays count them in telemetry).
+    capture_ops: Mutex<Option<Vec<Op>>>,
 }
 
 fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
@@ -221,6 +233,10 @@ impl Model {
         let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| -> Result<QTensor> {
             let prefix = Recipe::expand(tmpl, layer);
             let q = crate::quant::load_linear(src, &prefix, b, &qopts)?;
+            // what the checkpoint declares (hf_quant_config.json) must match what was stored and what we implement
+            if let Some(scheme) = src.quant_scheme() {
+                scheme.check_linear(&prefix, q.format)?;
+            }
             if (q.n, q.k) != (n, k) {
                 return Err(Error::model(format!("tensor '{prefix}' is [{}, {}], expected [{n}, {k}]", q.n, q.k)));
             }
@@ -256,6 +272,15 @@ impl Model {
             };
             match (own, &lh.tied_to) {
                 (Some(_), _) if !dims.tie_embeddings => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
+                // the config says the head is its own tensor but it is not in the checkpoint (renamed, re-exported):
+                // falling back to the embedding table would serve garbage logits without any error
+                (None, _) if !dims.tie_embeddings => {
+                    return Err(Error::model(format!(
+                        "lm_head tensor '{}' (or '{}.weight') is missing from the checkpoint and the config does not tie the \
+                         embeddings (tie_word_embeddings is false or absent); if the checkpoint really ties them, say so in config.json",
+                        lh.tensor, lh.tensor
+                    )))
+                }
                 (_, Some(_)) => dense(embed.clone()),
                 (Some(_), None) => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
                 (None, None) => {
@@ -438,6 +463,7 @@ impl Model {
             a: wb(mt * dims.intermediate * esz)?,
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
+            pos: wb(16)?,
             x,
             moe,
         };
@@ -493,6 +519,8 @@ impl Model {
             scratch: None,
             recorder: Mutex::new(None),
             resolved: Default::default(),
+            graphs: GraphState::new(opts.graphs),
+            capture_ops: Mutex::new(None),
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
@@ -506,6 +534,7 @@ impl Model {
         opts: &crate::plan::PlanOptions,
         reference: Option<&dyn Backend>,
     ) -> Result<crate::plan::AdmitSummary> {
+        self.graphs.invalidate(); // kernel choices change
         self.registry.reference_only = opts.force_reference;
         self.registry.require_admitted = false;
         let mut summary = Default::default();
@@ -544,6 +573,7 @@ impl Model {
         if bytes == 0 || self.scratch.as_ref().is_some_and(|b| b.bytes() >= bytes) {
             return Ok(());
         }
+        self.graphs.invalidate(); // a captured graph holds the old scratch address
         self.scratch = None; // free the old one first
         self.scratch = Some(self.backend.alloc(bytes.max(16), MemKind::Device)?);
         self.plan.workspace_bytes += bytes as u64;
@@ -622,6 +652,18 @@ impl Model {
         if mode == HeadMode::AllLogits && on_row.is_none() {
             return Err(Error::invalid("AllLogits needs a row callback"));
         }
+        // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
+        if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) && self.graphs.usable(self) {
+            let profile = self.profile_every > 0
+                && self.telemetry.steps_total() % (self.profile_every as u64 * graph_step::PROFILE_STRETCH) == 0;
+            if !profile {
+                if let Some(out) = self.graph_decode_step(st, ids[0], mode == HeadMode::LastLogits)? {
+                    st.commit(ids);
+                    self.telemetry.step();
+                    return Ok(out);
+                }
+            }
+        }
         let nchunks = ids.len().div_ceil(self.ws.max_tokens);
         let mut out = StepOut::None;
         for (ci, chunk) in ids.chunks(self.ws.max_tokens).enumerate() {
@@ -669,7 +711,21 @@ impl Model {
         attrs: OpAttrs,
         profile: bool,
     ) -> Result<()> {
+        self.exec_pos(op, inputs, outputs, attrs, None, profile)
+    }
+
+    /// `exec` with an optional device-side position (`OpCall::pos`) for position-dependent decode ops.
+    fn exec_pos(
+        &self,
+        op: Op,
+        inputs: Vec<TensorRef>,
+        outputs: Vec<TensorRef>,
+        attrs: OpAttrs,
+        pos: Option<&TensorRef>,
+        profile: bool,
+    ) -> Result<()> {
         let mut call = OpCall::new(op, inputs, outputs, attrs);
+        call.pos = pos.cloned();
         call.check()?;
         {
             let mut rec = self.recorder.lock().unwrap();
@@ -710,6 +766,8 @@ impl Model {
         if profile {
             self.backend.synchronize(0)?;
             self.telemetry.record_op(op, Some(t0.elapsed()));
+        } else if let Some(ops) = self.capture_ops.lock().unwrap().as_mut() {
+            ops.push(op); // being captured: nothing ran, each replay counts these
         } else {
             self.telemetry.record_op(op, None);
         }
@@ -718,14 +776,27 @@ impl Model {
 
     /// Returns the normed final hidden states `[T, H]`.
     fn run_chunk(&self, st: &SequenceState, ids: &[u32], profile: bool) -> Result<TensorRef> {
+        self.run_chunk_at(st, ids, profile, None, true)
+    }
+
+    /// `run_chunk` with the decode-graph hooks: `dpos` is the device-side position (attention ops read it when
+    /// they run, `attrs.pos0` is then 0) and `upload_ids = false` leaves `ws.ids` as the caller wrote it.
+    fn run_chunk_at(
+        &self,
+        st: &SequenceState,
+        ids: &[u32],
+        profile: bool,
+        dpos: Option<&TensorRef>,
+        upload_ids: bool,
+    ) -> Result<TensorRef> {
         let t = ids.len();
         let d = &self.dims;
         let act = self.act;
         let h = d.hidden;
-        let pos0 = st.len;
+        let pos0 = if dpos.is_some() { 0 } else { st.len };
         let ws = &self.ws;
 
-        if !self.recorder.lock().unwrap().is_some() {
+        if upload_ids && !self.recorder.lock().unwrap().is_some() {
             let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
             self.backend.upload(&ws.ids, 0, &ids_i32, 0)?;
             for &i in ids {
@@ -772,7 +843,7 @@ impl Model {
                 match block {
                     Block::Attn(a) => {
                         norm_in(&a.pre_norm, pending, &mut cur)?;
-                        self.attn_block(a, st, &nv, &blkv, t, pos0, profile)?;
+                        self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, profile)?;
                     }
                     Block::Gdn(g) => {
                         norm_in(&g.pre_norm, pending, &mut cur)?;
@@ -811,6 +882,7 @@ impl Model {
         out: &TensorRef,
         t: usize,
         pos0: usize,
+        dpos: Option<&TensorRef>,
         profile: bool,
     ) -> Result<()> {
         let d = &self.dims;
@@ -851,11 +923,12 @@ impl Model {
             )?;
             qc = 1 - qc;
         }
-        self.exec(
+        self.exec_pos(
             Op::Rope,
             vec![self.view(&ws.q[qc], act, &q3)],
             vec![self.view(&ws.q[1 - qc], act, &q3)],
             rope.clone(),
+            dpos,
             profile,
         )?;
         qc = 1 - qc;
@@ -872,11 +945,12 @@ impl Model {
             )?;
             kc = 1 - kc;
         }
-        self.exec(
+        self.exec_pos(
             Op::Rope,
             vec![self.view(&ws.k[kc], act, &k3)],
             vec![self.view(&ws.k[1 - kc], act, &k3)],
             rope.clone(),
+            dpos,
             profile,
         )?;
         kc = 1 - kc;
@@ -891,8 +965,8 @@ impl Model {
         let kcache = self.view(&slot.k, slot.dtype, &cache_shape);
         let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
         let append = OpAttrs { pos0, kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
-        self.exec(Op::KvAppend, vec![self.view(&ws.k[kc], act, &k3)], vec![kcache.clone()], append.clone(), profile)?;
-        self.exec(Op::KvAppend, vec![self.view(&ws.v, act, &k3)], vec![vcache.clone()], append, profile)?;
+        self.exec_pos(Op::KvAppend, vec![self.view(&ws.k[kc], act, &k3)], vec![kcache.clone()], append.clone(), dpos, profile)?;
+        self.exec_pos(Op::KvAppend, vec![self.view(&ws.v, act, &k3)], vec![vcache.clone()], append, dpos, profile)?;
 
         let attn_out = self.view(&ws.q[1 - qc], act, &q3);
         let attrs = OpAttrs {
@@ -904,11 +978,12 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
-        self.exec(
+        self.exec_pos(
             if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
             vec![self.view(&ws.q[qc], act, &q3), kcache, vcache],
             vec![attn_out.clone()],
             attrs,
+            if t == 1 { dpos } else { None },
             profile,
         )?;
         let o_in = match gate {
@@ -956,13 +1031,18 @@ impl Model {
         Ok(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
     }
 
-    fn head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {
+    /// lm_head + argmax of one row, left in `ws.logits` (`[1, V]` f32) and `ws.tok`; no host traffic.
+    fn head_to_device(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<()> {
         let v = self.dims.vocab;
         let x = hn.rows(row, 1);
         let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
         self.proj(&x, &self.lm_head, &logits, profile)?;
         let tok = self.view(&self.ws.tok, DType::I32, &[1]);
-        self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)?;
+        self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    fn head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {
+        self.head_to_device(hn, row, profile)?;
         if self.recorder.lock().unwrap().is_some() {
             return Ok(0);
         }

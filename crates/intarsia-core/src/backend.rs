@@ -80,6 +80,30 @@ impl std::fmt::Debug for Buffer {
     }
 }
 
+/// A captured, replayable stream of launches (CUDA graph). Plain handle; freed on drop.
+pub trait GraphImpl: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+}
+
+/// A reference-counted captured graph (see [`Backend::graph_capture`]).
+#[derive(Clone)]
+pub struct GraphHandle(Arc<dyn GraphImpl>);
+
+impl GraphHandle {
+    pub fn new<G: GraphImpl>(g: G) -> GraphHandle {
+        GraphHandle(Arc::new(g))
+    }
+    pub fn downcast<T: 'static>(&self) -> Option<&T> {
+        self.0.as_any().downcast_ref::<T>()
+    }
+}
+
+impl std::fmt::Debug for GraphHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "GraphHandle")
+    }
+}
+
 /// Immutable host memory that a backend with host-addressable memory may use
 /// without copying (mmap'd weight files). See [`Backend::wrap_host`].
 pub trait HostMemory: Send + Sync {
@@ -197,6 +221,25 @@ pub trait Backend: Send + Sync {
 
     /// Wait for all work on `stream`.
     fn synchronize(&self, stream: StreamId) -> Result<()>;
+
+    /// Can this backend record launches into a replayable graph (`graph_capture`)?
+    fn supports_graphs(&self) -> bool {
+        false
+    }
+
+    /// Run `body` with every launch on `stream` *recorded instead of executed*, and return the recording. Nothing
+    /// in `body` may synchronise, allocate, or copy from pageable host memory; it must not depend on host state
+    /// that changes between replays (position and token ids go through device buffers the caller rewrites).
+    /// The recording keeps the buffer addresses it saw: the caller keeps those buffers alive and in place for
+    /// as long as it replays the graph. If `body` fails, the capture is discarded and the error returned.
+    fn graph_capture(&self, _stream: StreamId, _body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        Err(Error::Unsupported(format!("backend '{}' has no graph capture", self.name())))
+    }
+
+    /// Enqueue the recorded launches on `stream` (asynchronous, like any launch).
+    fn graph_replay(&self, _g: &GraphHandle, _stream: StreamId) -> Result<()> {
+        Err(Error::Unsupported(format!("backend '{}' has no graph replay", self.name())))
+    }
 
     /// Identity of this host + kernel pack for admission caching: anything that can change a
     /// kernel's numerics (device, arch; backends add driver/toolkit/pack hash). Admission results

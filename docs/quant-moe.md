@@ -72,8 +72,54 @@ All are `Deterministic` (the counting sort uses atomics, but each pair's arithme
 `moe_experts` needs scratch (`quant::ops::moe_experts_scratch`, plan-reserved).
 
 Not done (v1): FP4 tensor-core MMA (`mma ... e2m1`), cuBLASLt FP8 for prefill, a fused whole-block decode op,
-GEMV variants with the router/top-k fused. The prefill path (`*_mma`) re-dequantises a weight tile for every
-M-tile of 64 rows, so very long chunks are slower than a dequantise-once-then-cuBLAS scheme would be.
+GEMV variants with the router/top-k fused. The `*_mma` prefill path re-dequantises a weight tile for every M-tile
+of 64 rows; the `*_gemm` kernels below (phase 1b) are 1.3-2x faster with a better memory schedule but still dequantise per
+M-tile.
+
+## Prefill and decode kernels added in phase 1b (key `moe`)
+
+Standalone numbers below are from a GB10 (sm_121, same part as spark1) with `kernels/cuda/*.cu` built by nvcc 13.0 and
+driven by a small C++ harness (random weights at the real layer shape: 256 experts, H=2048, I=512, top-8). The
+end-to-end spark1 numbers are not in yet (spark1 was offline for the whole session).
+
+| kernel | selected for | what it does |
+|---|---|---|
+| `moe_experts_mma_bf16` (`moe_grouped.cu`) | T >= 32, H % 128, I % 128 | counting-sort (token, slot) pairs by expert and cut them into tiles of BM = 16/32/64 pairs of one expert; gate_up block = tile x 64 intermediate columns (64 gate + 64 up rows): weights are copied with cp.async, dequantised once per tile and 64-wide k step into bf16 shared memory, `mma.sync` m16n8k16 bf16 with f32 accumulate, SiLU-GLU in the epilogue; down block = tile x 128 output rows; fixed-order reduce over k. Only active experts get blocks. |
+| `moe_experts_decode_bf16` (`moe_decode.cu`) | T = 1 | gate_up+silu in one launch, down + per-token reduce in the second (4 launches -> 2). Bit-identical to `moe_experts_bf16`. |
+| `matmul_nvfp4_gemm`, `matmul_fp8_gemm` (`nvfp4_gemm.cu`, `fp8_gemm.cu`, `wq_gemm.cuh`) | M >= 33, K % 128 | same schedule as the grouped MoE kernel for dense weights. W8A8 pre-quantises the activations once into scratch. |
+
+Memory schedule (the thing that decided the speed, measured with a no-compute read microbenchmark on the same box): reading
+a weight row in 32-byte pieces at a 1 KB row stride reached 120-130 GB/s, runs of 64 B/row 209 GB/s, 128 B/row 231 GB/s,
+fully linear 243 GB/s. The first version of the grouped kernel (32 B/row per thread) was bound by that; staging 64-byte
+runs through cp.async (units of 128 fp4 k-values per row, two 64-wide steps per unit) removed it. Other things tried
+and kept: 8 warps per block for BM >= 32 (more overlap between dequantise, copy and mma), `ldmatrix.x4` for both
+operands, a 3-slot A ring, full-row output stores through shared memory, tile index on `blockIdx.y` so the weight
+column tiles of one pair tile are adjacent.
+
+Standalone results, microseconds per call (old `moe_experts_bf16` -> `moe_experts_mma_bf16`, BM chosen from pairs/expert):
+
+| tokens | old | new | speed-up |
+|---|---|---|---|
+| 32 | 1528 | 1425 | 1.07x |
+| 64 | 2216 | 2079 | 1.07x |
+| 128 | 3219 | 2307 | 1.4x |
+| 256 | 5767 | 2515 | 2.3x |
+| 512 | 11006 | 2635 | 4.2x |
+| 1024 | 21712 | 3075 | 7.1x |
+| 2048 | 43270 | 4190 | 10.3x |
+| 4096 | 93833 | 6985 | 13.4x |
+
+Below 32 tokens the old kernel is as fast or faster (a 16-token batch touches almost every expert once, so there is
+nothing to share), and the registry thresholds say so. At 4096 tokens the new kernel runs at about 29 TFLOPS; the
+dequantisation (bf16 tile built by CUDA cores) and the per-pair y buffer round trip are what is left; FP4 block-scaled
+MMA (`mma.sync ...e2m1`) was not attempted.
+
+Dense GEMMs, same harness (old `*_mma` -> `*_gemm`, microseconds): NVFP4 M=2048 N=8192 K=2048 2476 -> 1339; M=4096
+N=2048 K=4096 1809 -> 1339; M=257 N=512 K=2048 54 -> 31; FP8 W8A8 M=2048 N=8192 2813 -> 1257. Outputs identical to the
+old kernels (rel_l2 0 in all 30 shape/format combinations checked, bf16 outputs).
+
+Not done: combining the shared expert and the gate into the experts kernel (needs a new op signature; touches the
+shared `ops.rs`/CPU reference), `moe_topk` is already one fused launch (softmax + top-k + renormalise).
 
 ## Tests
 

@@ -140,7 +140,11 @@ fn speed(a: SpeedArgs) -> Result<()> {
     } else {
         print!("{}", render_table(&res));
     }
-    let all_failed = res["rows"].as_array().is_some_and(|r| !r.is_empty() && r.iter().all(|x| x["reps_ok"].as_u64() == Some(0)));
+    let rows = res["rows"].as_array().cloned().unwrap_or_default();
+    if !rows.is_empty() && rows.iter().all(|x| x["skipped"].is_string()) {
+        bail!("every size was skipped: none fits the server's context window (see the warnings above); lower --sizes or raise the server's --max-seq");
+    }
+    let all_failed = !rows.is_empty() && rows.iter().all(|x| x["reps_ok"].as_u64() == Some(0));
     if all_failed {
         bail!("every call failed; see warnings above");
     }

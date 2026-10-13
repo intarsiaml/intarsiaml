@@ -1,8 +1,10 @@
 //! Randomised shape sweep of the cuda attention kernels (SIMT, split-KV, flash) against the cpu
 //! reference: GQA group sizes 1..8 (incl. non power of two), head_dim 32/64/128/256, query rows 1..300,
-//! cache offsets up to a long context, odd sizes that do not align to any tile. Needs a GPU: skips
-//! (passes) without one. `INTARSIA_CUDA_DEVICE` picks the ordinal.
+//! cache offsets up to a long context, odd sizes that do not align to any tile. Needs a GPU: without one the
+//! tests print SKIPPED (and fail under CI=1 / INTARSIA_REQUIRE_GPU=1). `INTARSIA_CUDA_DEVICE` picks the ordinal.
 #![cfg(ik_cuda)]
+
+mod common;
 
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::admission::judge;
@@ -15,7 +17,7 @@ fn device() -> Option<std::sync::Arc<dyn Backend>> {
     match intarsia_backend_cuda::create(ord) {
         Ok(b) => Some(b),
         Err(e) => {
-            eprintln!("skipping: no usable CUDA device ({e})");
+            common::skip("attention", &format!("no usable CUDA device ({e})"));
             None
         }
     }

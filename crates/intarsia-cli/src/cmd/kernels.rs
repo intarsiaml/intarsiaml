@@ -115,8 +115,19 @@ fn test(a: TestArgs) -> Result<()> {
         print!("{}", report.render(a.verbose));
         println!("{} kernels, {} cases in {:.1}s", report.kernels.len(), report.rows.len(), t0.elapsed().as_secs_f64());
     }
-    if report.kernels.is_empty() {
-        bail!("no kernels were tested");
+    // An admission run that exercised nothing must not look like a pass (a filter that matched no kernel, a backend
+    // whose kernels all skipped): say SKIPPED per kernel and fail when no kernel ran a single case.
+    let skipped: Vec<&str> = report.kernels.iter().filter(|k| k.cases == 0).map(|k| k.kernel.as_str()).collect();
+    for k in &skipped {
+        eprintln!("SKIPPED: kernel {k} ran 0 cases on backend '{}'", a.backend);
+    }
+    let ran = report.kernels.len() - skipped.len();
+    if ran == 0 {
+        bail!(
+            "no kernel ran any case on backend '{}' ({} registered kernel(s) matched the filters): nothing was tested",
+            a.backend,
+            report.kernels.len()
+        );
     }
     if !report.all_pass() {
         bail!("kernel admission failed");

@@ -182,7 +182,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             // lm_head: f32 logits; full-vocab N (grid limits on the N axis) with a small K, and the real K
             let vocab = 248_320usize;
             let head: Vec<(usize, usize)> = if quick { vec![(2048, 256)] } else { vec![(vocab, 128), (vocab, 2048), (8192, 2048)] };
-            for &m in if quick { &[1usize][..] } else { &[1usize, 4][..] } {
+            // m = 40: prefill-sized head (the accuracy runs read logits at every prompt position), selects `*_gemm`
+            for &m in if quick { &[1usize, 40][..] } else { &[1usize, 4, 40][..] } {
                 for &(n, k) in &head {
                     push(format!("M={m} N={n} K={k} x=bf16 out=f32 (head)"), matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::F32));
                 }
@@ -206,9 +207,13 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
         }
         Op::MoeExperts => {
             // (T, E, K, H, I)
-            let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 8, 2, 64, 32), (5, 16, 4, 128, 48)];
+            let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 8, 2, 64, 32), (5, 16, 4, 128, 48), (36, 16, 4, 128, 128)];
             if !quick {
-                shapes.extend([(1, 64, 8, 2048, 512), (4, 32, 8, 2048, 512), (40, 32, 8, 2048, 512), (130, 16, 8, 256, 64)]);
+                shapes.extend([(1, 64, 8, 2048, 512), (4, 32, 8, 2048, 512), (40, 32, 8, 2048, 512), (130, 16, 8, 256, 64), (130, 16, 8, 256, 128)]);
+                // grouped tensor-core kernel (T >= 32, H % 128, I % 128): short K loops, odd step counts, multi-tile experts
+                shapes.extend([(60, 16, 8, 2048, 512), (45, 16, 4, 640, 384)]);
+                // the real expert count (Qwen3.6-35B-A3B: 256 experts, top-8) at a prefill-sized batch
+                shapes.push((256, 256, 8, 2048, 512));
             }
             for (t, e, k, h, i) in shapes {
                 for dt in ACT {

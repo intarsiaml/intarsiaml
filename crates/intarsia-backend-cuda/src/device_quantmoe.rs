@@ -20,11 +20,41 @@ type S = *mut c_void;
 extern "C" {
     fn ik_matmul_fp8_gemv(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     fn ik_matmul_fp8_mma(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
+    fn ik_matmul_fp8_gemm(x: T, w: T, scales: T, out: TM, scratch: *const IkScratch, s: S) -> c_int;
     fn ik_matmul_nvfp4_gemv(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     fn ik_matmul_nvfp4_mma(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
+    fn ik_matmul_nvfp4_gemm(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     fn ik_moe_experts_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_mma_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_decode_bf16(
         x: T,
         ids: T,
         weights: T,
@@ -71,10 +101,45 @@ impl CudaBackend {
             match kernel {
                 "matmul_fp8_gemv" => ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
                 "matmul_fp8_mma" => ik_matmul_fp8_mma(i(0), i(1), i(2), o, s),
+                "matmul_fp8_gemm" => ik_matmul_fp8_gemm(
+                    i(0),
+                    i(1),
+                    i(2),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
                 "matmul_nvfp4_gemv" => ik_matmul_nvfp4_gemv(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_mma" => ik_matmul_nvfp4_mma(i(0), i(1), i(2), i(3), o, s),
+                "matmul_nvfp4_gemm" => ik_matmul_nvfp4_gemm(i(0), i(1), i(2), i(3), o, s),
                 "moe_topk_bf16" => ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_experts_bf16" => ik_moe_experts_bf16(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_mma_bf16" => ik_moe_experts_mma_bf16(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_decode_bf16" => ik_moe_experts_decode_bf16(
                     i(0),
                     i(1),
                     i(2),

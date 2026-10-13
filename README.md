@@ -5,7 +5,8 @@ A modular inference engine built from interchangeable pieces: easy to plug into,
 The engine is under active development. Phase 0 (the seams) runs Qwen3 dense models on a CPU reference backend and on
 CUDA (tested on a DGX Spark, GB10), behind OpenAI and Anthropic compatible APIs. Phase 1a adds the hybrid
 GatedDeltaNet + sparse-MoE family with FP8 and NVFP4 weights: Qwen3.6-35B-A3B NVFP4 runs end to end on the GB10 at
-63-65 tok/s decode (vLLM: 77-78) and tracks vLLM's logits (top-1 98.4%); prefill is the open gap. See
+63-65 tok/s decode (vLLM: 77-78) and tracks vLLM's logits (top-1 98.4%); prefill is the open gap. Phase 1b code (CUDA graph decode, grouped tensor-core MoE kernels, accuracy baselines) is in
+the tree but not yet measured on the GB10; the numbers above are still Phase 1a (`docs/results/2026-10-13-phase1b.md`). See
 `docs/ARCHITECTURE.md` for the plan, `docs/results/2026-10-12-phase0.md` and `docs/results/2026-10-12-phase1a.md` for
 what was measured and what is still missing.
 

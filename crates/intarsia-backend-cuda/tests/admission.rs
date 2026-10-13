@@ -1,6 +1,8 @@
 //! Runs the kernel admission sweep of every cuda kernel against the cpu reference. Needs a GPU:
-//! skips (passes) when no device is available. `INTARSIA_CUDA_DEVICE` picks the ordinal.
+//! without one the test prints SKIPPED (and fails under CI=1 / INTARSIA_REQUIRE_GPU=1). `INTARSIA_CUDA_DEVICE` picks the ordinal.
 #![cfg(ik_cuda)]
+
+mod common;
 
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::admission::{run_admission, AdmissionOpts};
@@ -10,7 +12,7 @@ fn device() -> Option<std::sync::Arc<dyn intarsia_core::Backend>> {
     match intarsia_backend_cuda::create(ord) {
         Ok(b) => Some(b),
         Err(e) => {
-            eprintln!("skipping: no usable CUDA device ({e})");
+            common::skip("admission", &format!("no usable CUDA device ({e})"));
             None
         }
     }

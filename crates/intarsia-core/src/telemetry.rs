@@ -72,6 +72,10 @@ pub struct TelemetrySnapshot {
 
     pub weights_bytes: u64,
 
+    /// Decode steps replayed from a captured graph, and graphs captured (0 with `--no-graphs` or on backends without).
+    pub graph_replays: u64,
+    pub graph_captures: u64,
+
     /// Per-op cumulative time and call counts, keyed by op id (`rmsnorm`, `matmul`, ...).
     pub ops: BTreeMap<String, OpStat>,
 }
@@ -102,6 +106,8 @@ pub struct Telemetry {
     kv_used_tokens: AtomicU64,
     kv_cap_tokens: AtomicU64,
     weights_bytes: AtomicU64,
+    graph_replays: AtomicU64,
+    graph_captures: AtomicU64,
     inner: Mutex<Inner>,
     /// Free-memory probe for live device numbers (set by the engine).
     device_probe: Mutex<Option<Box<dyn Fn() -> DeviceInfo + Send + Sync>>>,
@@ -134,6 +140,8 @@ impl Telemetry {
             kv_used_tokens: AtomicU64::new(0),
             kv_cap_tokens: AtomicU64::new(0),
             weights_bytes: AtomicU64::new(0),
+            graph_replays: AtomicU64::new(0),
+            graph_captures: AtomicU64::new(0),
             inner: Mutex::new(Inner {
                 model: String::new(),
                 device: None,
@@ -161,6 +169,12 @@ impl Telemetry {
     pub fn step(&self) {
         self.steps.fetch_add(1, Ordering::Relaxed);
         self.last_step_ms.store(now_ms(), Ordering::Relaxed);
+    }
+
+    /// Count a captured decode graph (`replay = false`) or one replay of it.
+    pub fn graph_event(&self, replay: bool) {
+        let c = if replay { &self.graph_replays } else { &self.graph_captures };
+        c.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn steps_total(&self) -> u64 {
@@ -268,6 +282,8 @@ impl Telemetry {
             kv_used_tokens: self.kv_used_tokens.load(Ordering::Relaxed),
             kv_capacity_tokens: self.kv_cap_tokens.load(Ordering::Relaxed),
             weights_bytes: self.weights_bytes.load(Ordering::Relaxed),
+            graph_replays: self.graph_replays.load(Ordering::Relaxed),
+            graph_captures: self.graph_captures.load(Ordering::Relaxed),
             ops: g.ops.iter().map(|(k, v)| (k.as_str().to_string(), v.clone())).collect(),
         }
     }

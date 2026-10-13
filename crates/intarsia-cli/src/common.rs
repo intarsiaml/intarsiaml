@@ -42,6 +42,9 @@ pub struct ModelArgs {
     /// Time every Nth step per op (default: every step on cpu, every 16th on GPUs; 0 = never).
     #[arg(long)]
     pub profile_every: Option<u32>,
+    /// Run the single-token decode step eagerly instead of replaying a captured CUDA graph (A/B and debugging).
+    #[arg(long)]
+    pub no_graphs: bool,
     /// Recipe file (default: matched by architecture from recipes/ and built-ins).
     #[arg(long)]
     pub recipe: Option<PathBuf>,
@@ -115,6 +118,7 @@ impl ModelArgs {
                 profile_every: self.profile_every.unwrap_or(if self.backend == "cpu" { 1 } else { 16 }),
                 mem_budget: self.mem_budget.map(|g| (g * (1u64 << 30) as f64) as u64),
                 fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
+                graphs: !self.no_graphs,
             },
             recipe: self.recipe.clone(),
             recipe_dirs: self.recipe_dir.clone(),

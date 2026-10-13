@@ -30,6 +30,14 @@ static inline int ik_check(const ik_tensor* t, int dtype, int ndim) {
     return IK_OK;
 }
 
+/* optional device-side position: null, or an i32 tensor with one element (the launcher's host `pos0` is then only a
+ * bound for validation and grid sizing; the kernel reads the position from the tensor when it runs) */
+static inline int ik_check_pos(const ik_tensor* t) {
+    if (!t) return IK_OK;
+    if (!t->data || t->dtype != IK_DTYPE_I32 || ik_numel(t) != 1) return IK_ERR_INVALID_ARG;
+    return IK_OK;
+}
+
 #define IK_TRY(expr)                 \
     do {                             \
         int _ik_s = (expr);          \

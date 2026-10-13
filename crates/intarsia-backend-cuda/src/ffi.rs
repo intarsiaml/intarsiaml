@@ -59,6 +59,10 @@ extern "C" {
     pub fn ik_rt_stream_sync(stream: S) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
+    pub fn ik_rt_graph_begin(stream: S) -> c_int;
+    pub fn ik_rt_graph_end(stream: S, exec: *mut *mut c_void) -> c_int;
+    pub fn ik_rt_graph_launch(exec: *mut c_void, stream: S) -> c_int;
+    pub fn ik_rt_graph_destroy(exec: *mut c_void) -> c_int;
 
     // ---- launchers (kernels/abi/ik_abi.h) ----
     pub fn ik_embedding_bf16(ids: T, table: T, out: TM, s: S) -> c_int;
@@ -66,7 +70,7 @@ extern "C" {
     pub fn ik_rmsnorm_add_bf16(x: T, res: T, w: T, eps: f32, w_offset: f32, out: TM, sum: TM, s: S) -> c_int;
     pub fn ik_add_bf16(a: T, b: T, out: TM, s: S) -> c_int;
     pub fn ik_qk_norm_bf16(x: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
-    pub fn ik_rope_bf16(x: T, pos0: i64, theta: f32, rotary_dim: i64, out: TM, s: S) -> c_int;
+    pub fn ik_rope_bf16(x: T, pos0: i64, theta: f32, rotary_dim: i64, out: TM, pos: T, s: S) -> c_int;
     pub fn ik_gate_split_bf16(x: T, q: TM, gate: TM, s: S) -> c_int;
     pub fn ik_sigmoid_mul_bf16(a: T, g: T, out: TM, s: S) -> c_int;
     pub fn ik_gdn_conv_bf16(x: T, taps: T, y: TM, state: TM, s: S) -> c_int;
@@ -75,10 +79,10 @@ extern "C" {
     pub fn ik_matmul_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
-    pub fn ik_kv_append_bf16(new_kv: T, pos0: i64, cache: TM, s: S) -> c_int;
+    pub fn ik_kv_append_bf16(new_kv: T, pos0: i64, cache: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
-    pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
-    pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;
+    pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_flash(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;

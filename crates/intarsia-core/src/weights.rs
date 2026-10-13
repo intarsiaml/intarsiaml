@@ -22,6 +22,11 @@ pub trait WeightSource: Send + Sync {
     fn host_memory(&self, _name: &str) -> Option<(Arc<dyn HostMemory>, usize, usize)> {
         None
     }
+    /// The quantisation scheme the checkpoint declares (`hf_quant_config.json`), when the source knows it.
+    /// `Model::load` checks every linear layer against it.
+    fn quant_scheme(&self) -> Option<&crate::quant::scheme::QuantScheme> {
+        None
+    }
 }
 
 /// Load one named tensor onto the backend (zero-copy when the backend allows it).

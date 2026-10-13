@@ -56,8 +56,13 @@ pub struct RecurrentSnapshot {
     buf: Buffer,
 }
 
+static NEXT_STATE_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 /// All state of one sequence.
 pub struct SequenceState {
+    /// Unique per allocated state (never reused): a captured CUDA graph is bound to one state's buffers
+    /// and identifies it by this id. 0 for recording-only phantom states.
+    pub id: u64,
     pub slots: Vec<StateSlot>,
     /// Tokens processed so far (KV rows filled in every attention slot).
     pub len: usize,
@@ -96,7 +101,8 @@ impl SequenceState {
                 }
             });
         }
-        Ok(SequenceState { slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new() })
+        let id = NEXT_STATE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Ok(SequenceState { id, slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new() })
     }
 
     pub fn total_bytes(&self) -> usize {

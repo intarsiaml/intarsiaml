@@ -6,21 +6,36 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::ARCH;
-use intarsia_core::quant::ops::moe_experts_scratch;
+use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
+    ("matmul_fp8_gemm", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
+    ("matmul_nvfp4_gemm", Op::MatmulNvfp4),
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
+    ("moe_experts_decode_bf16", Op::MoeExperts),
+    ("moe_experts_mma_bf16", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
 ];
 
 /// Outputs are bf16-rounded (one-ulp flips allowed, as for the dense kernels) or f32 (accumulation order only).
 const TOL: Tol = Tol::new(1.5e-2, 6e-3);
+
+/// Fewest tokens for which the grouped tensor-core experts kernel is preferred over the warp-per-row one (GB10,
+/// 256 experts, top-8: 1.43 ms vs 1.53 ms at 32 tokens, 0.98 ms vs 0.88 ms at 16).
+const MMA_MIN_TOKENS: usize = 32;
+
+/// Fewest tokens for which the dense dequantise-once GEMMs are preferred over `*_mma`.
+const GEMM_MIN_TOKENS: usize = 33;
+
+/// Most tokens for which the two-launch decode experts kernel is preferred (45 us vs 59 us at 1 token; slower than
+/// the grouping kernel from 2 tokens on, 130 us vs 119 us).
+const DECODE_MAX_TOKENS: usize = 1;
 
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
@@ -42,6 +57,22 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.k % 16 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL),
+                // prefill-shaped batches: dequantise-once tensor-core GEMM with the cp.async weight pipeline
+                "matmul_fp8_gemm" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m >= GEMM_MIN_TOKENS && s.k % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(|s| s.m * s.k * 2)
+                    .priority(10),
+                "matmul_nvfp4_gemm" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.m >= GEMM_MIN_TOKENS && s.k % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
                 "matmul_nvfp4_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])
@@ -69,6 +100,32 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .scratch(moe_experts_scratch),
+                // decode: no grouping launch, per-token reduce folded into the down projection (2 launches, not 4)
+                "moe_experts_decode_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        s.m <= DECODE_MAX_TOKENS
+                            && s.top_k <= 16
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && s.top_k * s.n * 2 <= 49152
+                            && s.k * 2 <= 49152
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_decode_scratch)
+                    .priority(10),
+                // grouped tensor-core experts for batches (prefill): H % 128, I % 128, at least 32 tokens so a typical
+                // active expert sees several pairs; decode and tiny batches keep the warp-per-row kernel
+                "moe_experts_mma_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.m >= MMA_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_mma_scratch)
+                    .priority(10),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
                 other => unreachable!("quantmoe kernel {other} has no registration"),
             }

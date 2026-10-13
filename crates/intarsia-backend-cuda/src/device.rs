@@ -7,7 +7,7 @@
 
 use crate::ffi::{self, IkDeviceInfo, IkTensor, IK_MAX_DIMS};
 use crate::kernels;
-use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, MemKind, StreamId};
+use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, GraphHandle, GraphImpl, MemKind, StreamId};
 use intarsia_core::{DType, Error, KernelImpl, OpCall, Result, TensorRef};
 use std::any::Any;
 use std::ffi::{c_void, CStr};
@@ -54,6 +54,28 @@ impl Drop for CudaBuffer {
         unsafe {
             ffi::ik_rt_set_device(self.ordinal);
             ffi::ik_rt_free(self.ptr);
+        }
+    }
+}
+
+/// An instantiated CUDA graph (`cudaGraphExec_t`), destroyed on drop.
+struct CudaGraph {
+    exec: usize,
+    ordinal: i32,
+}
+
+impl GraphImpl for CudaGraph {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Drop for CudaGraph {
+    fn drop(&mut self) {
+        // SAFETY: exec came from ik_rt_graph_end and is destroyed exactly once.
+        unsafe {
+            ffi::ik_rt_set_device(self.ordinal);
+            ffi::ik_rt_graph_destroy(self.exec as *mut c_void);
         }
     }
 }
@@ -276,6 +298,9 @@ impl Backend for CudaBackend {
             None => None,
         };
         let sc = scr.as_ref().map_or(std::ptr::null(), |x| x as *const ffi::IkScratch);
+        // optional device-side position (rope / kv_append / attn_decode); null = the host `pos0`
+        let pos_t: Option<IkTensor> = call.pos.as_ref().map(Self::tensor).transpose()?;
+        let pos = pos_t.as_ref().map_or(std::ptr::null(), |t| t as *const IkTensor);
         // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the
         // launchers validate dtype/rank/stride and return an error status instead of faulting, and
         // never synchronise or allocate.
@@ -286,7 +311,7 @@ impl Backend for CudaBackend {
                 "rmsnorm_add_bf16" => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
                 "add_bf16" => ffi::ik_add_bf16(i(0), i(1), o, s),
                 "qk_norm_bf16" => ffi::ik_qk_norm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
-                "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, s),
+                "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, pos, s),
                 "gate_split_bf16" => ffi::ik_gate_split_bf16(i(0), o, o.add(1), s),
                 "sigmoid_mul_bf16" => ffi::ik_sigmoid_mul_bf16(i(0), i(1), o, s),
                 "gdn_conv_bf16" => ffi::ik_gdn_conv_bf16(i(0), i(1), o, o.add(1), s),
@@ -297,11 +322,11 @@ impl Backend for CudaBackend {
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
                 "logits_bf16" => ffi::ik_logits_bf16(i(0), i(1), o, s),
                 "logits_bf16_gemv" => ffi::ik_logits_bf16_gemv(i(0), i(1), o, s),
-                "kv_append_bf16" => ffi::ik_kv_append_bf16(i(0), a.pos0 as i64, o, s),
+                "kv_append_bf16" => ffi::ik_kv_append_bf16(i(0), a.pos0 as i64, o, pos, s),
                 "attn_prefill_bf16" => ffi::ik_attn_prefill_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
-                "attn_decode_bf16" => ffi::ik_attn_decode_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
+                "attn_decode_bf16" => ffi::ik_attn_decode_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, pos, s),
                 "attn_decode_bf16_splitkv" => {
-                    ffi::ik_attn_decode_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
+                    ffi::ik_attn_decode_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, pos, s)
                 }
                 "attn_prefill_bf16_splitkv" => {
                     ffi::ik_attn_prefill_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
@@ -329,5 +354,31 @@ impl Backend for CudaBackend {
         let s = self.stream(stream)?;
         // SAFETY: plain FFI call; also reports asynchronous kernel failures.
         check("stream synchronize", unsafe { ffi::ik_rt_stream_sync(s) })
+    }
+
+    fn supports_graphs(&self) -> bool {
+        true
+    }
+
+    fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        // SAFETY: plain FFI call; the capture is always ended below, so the stream never stays in capture mode.
+        check("cudaStreamBeginCapture", unsafe { ffi::ik_rt_graph_begin(s) })?;
+        let ran = body();
+        let mut exec: *mut c_void = std::ptr::null_mut();
+        // SAFETY: valid out-pointer; ends the capture even when `body` failed (the recording is then dropped).
+        let ended = check("cudaStreamEndCapture/cudaGraphInstantiate", unsafe { ffi::ik_rt_graph_end(s, &mut exec) });
+        ran?;
+        ended?;
+        Ok(GraphHandle::new(CudaGraph { exec: exec as usize, ordinal: self.ordinal }))
+    }
+
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()> {
+        let g = g.downcast::<CudaGraph>().ok_or_else(|| Error::backend("graph does not belong to the cuda backend"))?;
+        self.bind()?;
+        let s = self.stream(stream)?;
+        // SAFETY: `exec` is a live cudaGraphExec_t owned by `g`.
+        check("cudaGraphLaunch", unsafe { ffi::ik_rt_graph_launch(g.exec as *mut c_void, s) })
     }
 }

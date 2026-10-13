@@ -99,6 +99,28 @@ int ik_rt_measure_bandwidth(double* gbs) {
     return (int)e;
 }
 
+int ik_rt_graph_begin(void* stream) {
+    return (int)cudaStreamBeginCapture((cudaStream_t)stream, cudaStreamCaptureModeThreadLocal);
+}
+int ik_rt_graph_end(void* stream, void** exec) {
+    *exec = nullptr;
+    cudaGraph_t g = nullptr;
+    cudaError_t e = cudaStreamEndCapture((cudaStream_t)stream, &g);  // also ends an invalidated capture
+    if (e != cudaSuccess) {
+        if (g) cudaGraphDestroy(g);
+        cudaGetLastError();  // clear the sticky capture error: the stream is usable again
+        return (int)e;
+    }
+    cudaGraphExec_t ge = nullptr;
+    e = cudaGraphInstantiate(&ge, g, 0);
+    cudaGraphDestroy(g);
+    if (e != cudaSuccess) return (int)e;
+    *exec = (void*)ge;
+    return 0;
+}
+int ik_rt_graph_launch(void* exec, void* stream) { return (int)cudaGraphLaunch((cudaGraphExec_t)exec, (cudaStream_t)stream); }
+int ik_rt_graph_destroy(void* exec) { return (int)cudaGraphExecDestroy((cudaGraphExec_t)exec); }
+
 const char* ik_rt_error_string(int code) { return cudaGetErrorString((cudaError_t)code); }
 
 }  // extern "C"

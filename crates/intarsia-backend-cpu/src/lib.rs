@@ -138,6 +138,25 @@ impl Backend for CpuBackend {
         if name != call.op.as_str() {
             return Err(Error::invalid(format!("kernel '{kernel}' cannot run op '{}'", call.op)));
         }
+        // device-side position: resolve it now (the cpu runs synchronously, so the value is current)
+        let patched;
+        let call = match &call.pos {
+            Some(p) => {
+                let mut bytes = [0u8; 4];
+                self.download(&p.buf, p.offset, &mut bytes, 0)?;
+                let pos0 = i32::from_le_bytes(bytes);
+                if pos0 < 0 {
+                    return Err(Error::invalid(format!("{}: negative device position {pos0}", call.op)));
+                }
+                let mut c = call.clone();
+                c.attrs.pos0 = pos0 as usize;
+                c.pos = None;
+                c.check()?;
+                patched = c;
+                &patched
+            }
+            None => call,
+        };
         if reference {
             reference::run(call)
         } else {
