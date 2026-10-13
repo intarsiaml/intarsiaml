@@ -2,13 +2,17 @@
 
 A modular inference engine built from interchangeable pieces: easy to plug into, easy to extend.
 
-The engine is under active development. Phase 0 (the seams) runs Qwen3 dense models on a CPU reference backend and on
-CUDA (tested on a DGX Spark, GB10), behind OpenAI and Anthropic compatible APIs. Phase 1a adds the hybrid
-GatedDeltaNet + sparse-MoE family with FP8 and NVFP4 weights: Qwen3.6-35B-A3B NVFP4 runs end to end on the GB10 at
-63-65 tok/s decode (vLLM: 77-78) and tracks vLLM's logits (top-1 98.4%); prefill is the open gap. Phase 1b code (CUDA graph decode, grouped tensor-core MoE kernels, accuracy baselines) is in
-the tree but not yet measured on the GB10; the numbers above are still Phase 1a (`docs/results/2026-10-13-phase1b.md`). See
-`docs/ARCHITECTURE.md` for the plan, `docs/results/2026-10-12-phase0.md` and `docs/results/2026-10-12-phase1a.md` for
-what was measured and what is still missing.
+The engine is under active development. It runs Qwen3 dense models and the hybrid GatedDeltaNet + sparse-MoE family
+(Qwen3.6-35B-A3B NVFP4) on a CPU reference backend, on CUDA (DGX Spark, GB10) and on HIP (AMD R9700), behind OpenAI
+and Anthropic compatible APIs. Status as measured on 2026-10-13 (`docs/results/`, decisions in `docs/decisions/`):
+
+- spark1, CUDA, 35B NVFP4: decode about 72 tok/s with CUDA graphs, 91-95% of vLLM (76-78); prefill is still 1.3x to
+  2.8x behind vLLM. The Phase 1 speed gate FAILED.
+- R9700, HIP, one card: Qwen3-8B BF16 decode 36.9 tok/s, 96% of the byte floor; 35B NVFP4 about 96 tok/s.
+- R9700, HIP, tp=2: Qwen3-8B BF16 decode 56 tok/s, 1.52x one card. The 35B is not supported at tp=2 yet.
+- Accuracy: 8B passes the bf16 floor on CUDA, HIP and tp=2; the CUDA 35B gate is not accepted (ADR-0007).
+
+See `docs/ARCHITECTURE.md` for the plan and `docs/results/` for what was measured and what is still missing.
 
 Built-in web UI (chat, live dashboard, live architecture map) at `/` when serving; `--no-ui` turns it off. See `docs/architecture-diagram.md`.
 
