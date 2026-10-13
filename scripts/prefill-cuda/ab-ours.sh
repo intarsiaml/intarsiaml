@@ -8,7 +8,7 @@ set -u
 P=$HOME/intarsia-perf
 M=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 SIZES=${SIZES:-128,1024,4096,16384}; GEN=${GEN:-128}; REPS=${REPS:-5}; MAX_SEQ=${MAX_SEQ:-20480}
-AB=${AB_DIR:-$P/ab}; PORT=8090; RND=$1; shift; BENCH_BIN=${BENCH_BIN:-$P/dev2/target/acc/release/intarsia}
+AB=${AB_DIR:-$P/ab}; PORT=8090; RND=$1; shift; BENCH_BIN=${BENCH_BIN:-$P/dev3/target/acc/release/intarsia}
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 60 )) || { echo "ABORT: memory"; exit 1; }
 for spec in "$@"; do
   arm=${spec%%:*}; rest=${spec#*:}; bin=${rest%%:*}; flags=${rest#*:}; flags=${flags//=/ }
