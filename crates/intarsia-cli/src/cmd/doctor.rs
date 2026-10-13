@@ -14,7 +14,7 @@ use std::time::Instant;
 
 #[derive(clap::Args, Debug)]
 pub struct DoctorArgs {
-    /// Backend to inspect: cpu, cuda, or auto (cuda when compiled in, else cpu).
+    /// Backend to inspect: cpu, cuda, hip, or auto (cuda / hip when compiled in, else cpu).
     #[arg(long, default_value = "auto")]
     pub backend: String,
     /// Device ordinal for GPU backends.
@@ -136,11 +136,21 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         "proc_driver_nvidia": read("/proc/driver/nvidia/version").map(|t| t.lines().next().unwrap_or("").to_string()),
         "nvcc": nvcc,
         "cuda_toolkit_version": cuda_ver,
+        "rocm_version": read("/opt/rocm/.info/version"),
+        "hipcc": out("hipcc", &["--version"]).and_then(|t| t.lines().next().map(|l| l.trim().to_string())),
     });
 
     // --- backend ---
     let want = match args.backend.as_str() {
-        "auto" => if cfg!(feature = "cuda") { "cuda" } else { "cpu" },
+        "auto" => {
+            if cfg!(feature = "cuda") {
+                "cuda"
+            } else if cfg!(feature = "hip") {
+                "hip"
+            } else {
+                "cpu"
+            }
+        }
         o => o,
     }
     .to_string();
@@ -183,6 +193,15 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         (Some(cc), Ok(_)) => checks.push(check("sm_121_target", "info", format!("GPU compute capability {cc}; backend '{want}' selected"), None)),
         (None, _) => checks.push(check("sm_121_target", "info", "no NVIDIA GPU visible (nvidia-smi missing or failing)", None)),
     }
+    if let (Ok(be), "hip") = (&backend, want.as_str()) {
+        let arch = be.info().arch;
+        let n = backend_json["kernels_by_arch"][arch.as_str()].as_u64().unwrap_or(0);
+        if n > 0 {
+            checks.push(check("hip_arch_target", "ok", format!("GPU is {arch} and {n} kernels are built for it"), None));
+        } else {
+            checks.push(check("hip_arch_target", "fail", format!("GPU is {arch} but no kernel is registered for it"), Some("rebuild with INTARSIA_HIP_ARCH=<gfx arch> (the kernels need gfx12: wave32 + WMMA)")));
+        }
+    }
     if cc.as_deref() == Some("12.1") {
         let ver = cuda_ver.clone().or_else(|| nvcc.clone()).unwrap_or_default();
         let major = ver.split(|c: char| !c.is_ascii_digit() && c != '.').find(|t| t.contains('.')).and_then(|t| t.split('.').next()).and_then(|m| m.parse::<u32>().ok());
@@ -215,11 +234,14 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         }
     }
     let hip = std::env::var("GPU_MAX_HW_QUEUES").ok();
+    // radiance measured ~20% on MoE decode with 4 hardware queues (docs/research/amd-r9700-lessons.md)
+    let hw_ok = matches!(hip.as_deref(), Some("1") | Some("2"));
+    let st = if want == "hip" && !hw_ok { "warn" } else { "info" };
     checks.push(check(
         "hip_gpu_max_hw_queues",
-        "info",
-        format!("GPU_MAX_HW_QUEUES={} (only relevant to the future HIP backend: set it to 1-2 on ROCm to avoid queue oversubscription slowdowns)", hip.as_deref().unwrap_or("unset")),
-        None,
+        st,
+        format!("GPU_MAX_HW_QUEUES={} (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)", hip.as_deref().unwrap_or("unset")),
+        (st == "warn").then_some("export GPU_MAX_HW_QUEUES=1 before starting the engine"),
     ));
     match std::net::TcpListener::bind(("127.0.0.1", args.port)) {
         Ok(_) => checks.push(check("serve_port", "ok", format!("port {} is free", args.port), None)),
@@ -234,7 +256,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
     let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let report = json!({
         "kind": "intarsia-doctor", "schema_version": 1, "timestamp_unix": ts,
-        "intarsia_version": env!("CARGO_PKG_VERSION"), "cuda_feature": cfg!(feature = "cuda"),
+        "intarsia_version": env!("CARGO_PKG_VERSION"), "cuda_feature": cfg!(feature = "cuda"), "hip_feature": cfg!(feature = "hip"),
         "host": host, "gpu": gpu, "backend": backend_json, "checks": checks,
     });
     if let Some(p) = &args.out {

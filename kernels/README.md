@@ -8,6 +8,7 @@ involved at run time.
 kernels/
   abi/ik_abi.h        the C ABI: ik_tensor, ik_quant, status codes, launcher conventions
   cuda/               native CUDA C++ launchers (cuda backend)
+  hip/                native HIP C++ launchers for gfx12 / R9700 (hip backend, docs/backends/hip.md)
   common/ik_portable.h  (planned) CUDA/HIP intrinsic shims shared by simple kernels
   packs/              vendored/ported packs (tensorfold, radiance, ...), each with its LICENSE
 ```
@@ -120,6 +121,8 @@ load instead of falling back.
 the header and fails if they drift. Add new dtypes at the end.
 
 ## Quantised weights and MoE
+
+HIP ports (gfx1201): `kernels/hip/{fp8,nvfp4,moe,gdn}.hip` with `ik_quant.h`, `ik_dq_gemm.h`, `moe_wmma.h`; see `docs/results/2026-10-13-phase2a-hip.md` section 9. RDNA4 has no fp4/fp8 conversion instructions, so e2m1 is a 16-entry LDS table and e4m3 is decoded with integer arithmetic.
 
 `fp8.cu`, `nvfp4.cu`, `moe.cu` and `ik_quant.cuh` (fp4/e4m3 decode helpers, ideas from TensorFold's NVFP4 kernels, MIT, see `LICENSES/TensorFold-MIT.txt`). Registered in `crates/intarsia-backend-cuda/src/quantmoe.rs`. Formats, semantics, numerics and measured speeds: `docs/quant-moe.md`.
 
