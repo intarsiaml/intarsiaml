@@ -51,6 +51,10 @@ pub struct GenerateArgs {
     /// Debug: print the N highest logits of the last prompt position (runs one extra prefill).
     #[arg(long)]
     pub show_logits: Option<usize>,
+    /// Print every op's time, calls and share of the timed total to stderr at the end (use with `--profile-every 1`
+    /// and `--max-tokens 1` for a pure prefill profile).
+    #[arg(long)]
+    pub op_table: bool,
 }
 
 pub fn run(args: GenerateArgs) -> Result<()> {
@@ -176,6 +180,18 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         );
     }
     let t = engine.telemetry();
+    if args.op_table {
+        // time_ms covers the timed launches only; scale to all launches of the op
+        let est = |v: &intarsia_core::telemetry::OpStat| v.time_ms * v.calls as f64 / v.timed_calls.max(1) as f64;
+        let mut rows: Vec<_> = t.ops.iter().map(|(k, v)| (k.clone(), est(v), v)).collect();
+        rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        let total: f64 = rows.iter().map(|r| r.1).sum();
+        eprintln!("op table (estimated ms over all launches; total {total:.1} ms):");
+        eprintln!("{:<24} {:>10} {:>7} {:>8} {:>7}", "op", "ms", "share%", "calls", "timed");
+        for (k, ms, v) in &rows {
+            eprintln!("{:<24} {:>10.2} {:>7.2} {:>8} {:>7}", k, ms, 100.0 * ms / total.max(1e-9), v.calls, v.timed_calls);
+        }
+    }
     let mut top: Vec<_> = t.ops.iter().collect();
     top.sort_by(|a, b| b.1.time_ms.partial_cmp(&a.1.time_ms).unwrap());
     let line: Vec<String> = top.iter().take(5).map(|(k, v)| format!("{k}={:.0}ms/{}", v.time_ms, v.calls)).collect();
