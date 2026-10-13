@@ -1,0 +1,56 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "phase2a-hip-qwen3-8b-chunk1024",
+  "timestamp_unix": 1791870552,
+  "url": "http://127.0.0.1:8090",
+  "model": "qwen3-8b-intarsia-hip",
+  "config": {
+    "sizes": [
+      1024,
+      4096
+    ],
+    "gen": 32,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 16.38,
+    "bandwidth_gbs": 627.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 47.0,
+    "tokens_per_filler_sentence": 20.63
+  },
+  "fingerprint": {},
+  "rows": [
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 997.0,
+      "gen_tokens": 32.0,
+      "ttft_s": 0.2236,
+      "prefill_tok_s": 4412.5,
+      "decode_tok_s": 36.24,
+      "bandwidth_floor_tok_s": 38.28,
+      "pct_of_floor": 94.7,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4140.0,
+      "gen_tokens": 32.0,
+      "ttft_s": 1.1117,
+      "prefill_tok_s": 3714.1,
+      "decode_tok_s": 35.06,
+      "bandwidth_floor_tok_s": 38.28,
+      "pct_of_floor": 91.6,
+      "reps_ok": 3,
+      "errors": 0
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

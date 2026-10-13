@@ -14,7 +14,7 @@ pub struct ModelArgs {
     /// Model directory (config.json, tokenizer.json, *.safetensors).
     #[arg(long, short = 'm')]
     pub model: PathBuf,
-    /// Backend: `cpu` (reference oracle) or `cuda` (build with `--features cuda`).
+    /// Backend: `cpu` (reference oracle), `cuda` (build with `--features cuda`) or `hip` (`--features hip`).
     #[arg(long, default_value = "cpu")]
     pub backend: String,
     /// Device ordinal for GPU backends.
@@ -90,7 +90,18 @@ pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
                 bail!("this binary was built without the `cuda` feature (cargo build -p intarsia-cli --features cuda)")
             }
         }
-        other => bail!("unknown backend '{other}' (cpu, cuda)"),
+        "hip" => {
+            #[cfg(feature = "hip")]
+            {
+                intarsia_backend_hip::create(device).map_err(|e| anyhow::anyhow!("{e}"))
+            }
+            #[cfg(not(feature = "hip"))]
+            {
+                let _ = device;
+                bail!("this binary was built without the `hip` feature (cargo build -p intarsia-cli --features hip)")
+            }
+        }
+        other => bail!("unknown backend '{other}' (cpu, cuda, hip)"),
     }
 }
 

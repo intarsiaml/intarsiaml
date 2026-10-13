@@ -1,0 +1,16 @@
+[package]
+name = "intarsia-backend-hip"
+description = "HIP backend (AMD gfx12 / R9700): native kernels (kernels/hip) behind the torch-free C ABI, WMMA prefill GEMM and attention."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+build = "build.rs"
+
+[dependencies]
+intarsia-core = { workspace = true }
+
+[dev-dependencies]
+intarsia-backend-cpu = { workspace = true }

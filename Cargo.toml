@@ -5,6 +5,7 @@ members = [
     "crates/intarsia-core",
     "crates/intarsia-backend-cpu",
     "crates/intarsia-backend-cuda",
+    "crates/intarsia-backend-hip",
     "crates/intarsia-models",
     "crates/intarsia-server",
     "crates/intarsia-ui",
@@ -25,6 +26,7 @@ repository = "https://github.com/intarsiaml/intarsiaml"
 intarsia-core = { path = "crates/intarsia-core" }
 intarsia-backend-cpu = { path = "crates/intarsia-backend-cpu" }
 intarsia-backend-cuda = { path = "crates/intarsia-backend-cuda" }
+intarsia-backend-hip = { path = "crates/intarsia-backend-hip" }
 intarsia-models = { path = "crates/intarsia-models" }
 intarsia-server = { path = "crates/intarsia-server" }
 intarsia-ui = { path = "crates/intarsia-ui" }

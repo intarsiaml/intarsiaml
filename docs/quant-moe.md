@@ -71,6 +71,11 @@ expert projections are NVFP4 (`W4A16_NVFP4`), the router `gate.weight` and `shar
 All are `Deterministic` (the counting sort uses atomics, but each pair's arithmetic does not depend on its slot).
 `moe_experts` needs scratch (`quant::ops::moe_experts_scratch`, plan-reserved).
 
+**Batch invariance of `moe_experts`.** On CUDA a token's routed-expert output does not depend on how many other tokens share the call. On the HIP backend
+it does from 16 tokens on: T < 16 (and P = T*K <= 16) use GEMV-style kernels with one accumulation order (bit-identical to T = 1), T >= 16 uses a bf16-WMMA
+path with a different order (same results within the admission tolerance, not the same bits). So on HIP `moe_experts` is `Deterministic` (run-to-run identical for a
+given shape and batch) but not batch-invariant; `INTARSIA_HIP_MOE_WMMA=0` restores invariance at a prefill cost (MoE 3x slower at T = 256). Details and the test: `docs/backends/hip.md`, "MoE and batch size".
+
 Not done (v1): FP4 tensor-core MMA (`mma ... e2m1`), cuBLASLt FP8 for prefill, a fused whole-block decode op,
 GEMV variants with the router/top-k fused. The `*_mma` prefill path re-dequantises a weight tile for every M-tile
 of 64 rows; the `*_gemm` kernels below (phase 1b) are 1.3-2x faster with a better memory schedule but still dequantise per

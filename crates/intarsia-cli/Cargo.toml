@@ -20,6 +20,9 @@ path = "src/main.rs"
 default = []
 # CUDA backend (needs nvcc; off by default so the Mac builds).
 cuda = ["dep:intarsia-backend-cuda"]
+# HIP backend for AMD gfx12 (needs hipcc / ROCm; off by default). Exclusive with `cuda`: both kernel libraries
+# export the same `ik_*` C symbols, so one binary links only one of them (compile_error! in lib.rs).
+hip = ["dep:intarsia-backend-hip"]
 
 # Agents: add the dependencies your command module needs at the end of this
 # section (append only; keep the lines above untouched).
@@ -27,6 +30,7 @@ cuda = ["dep:intarsia-backend-cuda"]
 intarsia-core = { workspace = true }
 intarsia-backend-cpu = { workspace = true }
 intarsia-backend-cuda = { workspace = true, optional = true }
+intarsia-backend-hip = { workspace = true, optional = true }
 intarsia-models = { workspace = true }
 intarsia-server = { workspace = true }
 anyhow = { workspace = true }

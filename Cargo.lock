@@ -952,6 +952,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "intarsia-backend-hip"
+version = "0.0.1"
+dependencies = [
+ "intarsia-backend-cpu",
+ "intarsia-core",
+]
+
+[[package]]
 name = "intarsia-bench"
 version = "0.0.1"
 dependencies = [
@@ -971,6 +979,7 @@ dependencies = [
  "half",
  "intarsia-backend-cpu",
  "intarsia-backend-cuda",
+ "intarsia-backend-hip",
  "intarsia-bench",
  "intarsia-core",
  "intarsia-models",
