@@ -31,7 +31,8 @@ pub fn model_name(dir: &Path, override_name: Option<&str>) -> String {
 }
 
 pub fn sanitize(s: &str) -> String {
-    let t: String = s.chars().map(|c| if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') { c } else { '_' }).collect();
+    let t: String =
+        s.chars().map(|c| if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') { c } else { '_' }).collect();
     if t.is_empty() {
         "model".into()
     } else {
@@ -166,15 +167,23 @@ pub fn weight_facts(dir: &Path, cfg: &Value) -> Result<WeightFacts> {
         tc.get("num_experts_per_tok").and_then(|v| v.as_u64()).unwrap_or(0) as f64,
     );
     let moe = experts > 0.0;
-    let hybrid = tc.get("layer_types").and_then(|v| v.as_array()).is_some_and(|a| {
-        a.iter().filter_map(|t| t.as_str()).any(|t| t != "full_attention")
-    });
+    let hybrid = tc
+        .get("layer_types")
+        .and_then(|v| v.as_array())
+        .is_some_and(|a| a.iter().filter_map(|t| t.as_str()).any(|t| t != "full_attention"));
     let names = st.names();
     let has_head = names.iter().any(|n| n == "lm_head.weight");
     let (mut total, mut active) = (0f64, 0f64);
-    let mut quantized = cfg.get("quantization_config").is_some() || tc.get("quantization_config").is_some() || dir.join("hf_quant_config.json").exists();
+    let mut quantized = cfg.get("quantization_config").is_some()
+        || tc.get("quantization_config").is_some()
+        || dir.join("hf_quant_config.json").exists();
     for n in &names {
-        if n.contains("visual") || n.contains("vision") || n.starts_with("mtp") || n.contains(".mtp.") || n.contains("mtp.") {
+        if n.contains("visual")
+            || n.contains("vision")
+            || n.starts_with("mtp")
+            || n.contains(".mtp.")
+            || n.contains("mtp.")
+        {
             continue;
         }
         let Some(i) = st.info(n) else { continue };
@@ -226,7 +235,10 @@ mod tests {
         let n = |p: Option<PathBuf>| p.map(|p| p.file_name().unwrap().to_string_lossy().to_string());
         assert_eq!(n(find_golden("Qwen3-8B", &dirs, false)).as_deref(), Some("qwen3-8b-fp32.safetensors"));
         assert_eq!(n(find_golden("Qwen3-8B", &dirs, true)).as_deref(), Some("qwen3-8b-long-fp32.safetensors"));
-        assert_eq!(n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, false)).as_deref(), Some("qwen36-35b-a3b-nvfp4-vllm-top20.safetensors"));
+        assert_eq!(
+            n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, false)).as_deref(),
+            Some("qwen36-35b-a3b-nvfp4-vllm-top20.safetensors")
+        );
         assert_eq!(n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, true)), None);
         assert_eq!(n(find_golden("Llama-3", &dirs, false)), None);
         let _ = std::fs::remove_dir_all(&d);

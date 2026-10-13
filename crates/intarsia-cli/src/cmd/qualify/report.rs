@@ -2,7 +2,7 @@
 //! `quick.json` / `full.json`, and the Prometheus text pushed by `--push-metrics`. The layout is the one documented in
 //! `docs/qualify-report-template.md`; a test keeps the two in step.
 
-use super::state::{State, StageRecord, Verdict};
+use super::state::{StageRecord, State, Verdict};
 use serde_json::{json, Value};
 use std::fmt::Write;
 
@@ -62,7 +62,12 @@ fn stage<'a>(state: &'a State, id: &str) -> Option<&'a StageRecord> {
 
 /// Speed rows of the stage `id`: (size, prefill, decode, pct of floor).
 fn speed_rows(state: &State, id: &str) -> Vec<Value> {
-    stage(state, id).map(|s| s.metrics["rows"].as_array().cloned().unwrap_or_default()).unwrap_or_default().into_iter().filter(|r| r["skipped"].is_null()).collect()
+    stage(state, id)
+        .map(|s| s.metrics["rows"].as_array().cloned().unwrap_or_default())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|r| r["skipped"].is_null())
+        .collect()
 }
 
 fn accuracy_modes(s: &StageRecord) -> Vec<Value> {
@@ -76,8 +81,16 @@ pub fn summary_json(state: &State, meta: &Meta, full: bool) -> Value {
     let stages = included(state, full);
     let have_full = state.stages.iter().any(|s| s.section == "full");
     let verdict = overall(&stages, full && !meta.quick_only, have_full);
-    let failures: Vec<Value> = stages.iter().filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error)).map(|s| json!({"stage": s.id, "verdict": s.verdict.label(), "reason": s.reason})).collect();
-    let skips: Vec<Value> = stages.iter().filter(|s| s.verdict == Verdict::Skip).map(|s| json!({"stage": s.id, "reason": s.reason})).collect();
+    let failures: Vec<Value> = stages
+        .iter()
+        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error))
+        .map(|s| json!({"stage": s.id, "verdict": s.verdict.label(), "reason": s.reason}))
+        .collect();
+    let skips: Vec<Value> = stages
+        .iter()
+        .filter(|s| s.verdict == Verdict::Skip)
+        .map(|s| json!({"stage": s.id, "reason": s.reason}))
+        .collect();
     let decode: Vec<Value> = speed_rows(state, "bench").iter().map(|r| json!({"size": r["size"], "decode_tok_s": r["decode_tok_s"], "prefill_tok_s": r["prefill_tok_s"], "pct_of_floor": r["pct_of_floor"], "ttft_s": r["ttft_s"]})).collect();
     let mut accuracy = vec![];
     for id in ["acc-short", "acc-all", "acc-long", "tp"] {
@@ -113,15 +126,44 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     let verdict = overall(&stages, full && !meta.quick_only, have_full);
     let mut o = String::new();
     let title = if full { "Qualification report" } else { "Qualification quick report" };
-    let _ = writeln!(o, "# {title}: {} on {}{}\n", meta.model, meta.backend, if meta.tp > 1 && full { format!(" (tp variant: {})", meta.tp) } else { String::new() });
+    let _ = writeln!(
+        o,
+        "# {title}: {} on {}{}\n",
+        meta.model,
+        meta.backend,
+        if meta.tp > 1 && full { format!(" (tp variant: {})", meta.tp) } else { String::new() }
+    );
     let doctor = stage(state, "doctor");
-    let dev = doctor.map(|d| format!("{} ({})", d.metrics["device"]["name"].as_str().unwrap_or("?"), d.metrics["device"]["arch"].as_str().unwrap_or("?"))).unwrap_or_else(|| "not recorded".into());
-    let _ = writeln!(o, "_{} section, generated unix {}, intarsia {} build `{}`._\n", if full { "Full (quick + in-depth)" } else { "Quick" }, meta.generated_unix, meta.version, meta.build_stamp.as_deref().unwrap_or("unstamped"));
+    let dev = doctor
+        .map(|d| {
+            format!(
+                "{} ({})",
+                d.metrics["device"]["name"].as_str().unwrap_or("?"),
+                d.metrics["device"]["arch"].as_str().unwrap_or("?")
+            )
+        })
+        .unwrap_or_else(|| "not recorded".into());
+    let _ = writeln!(
+        o,
+        "_{} section, generated unix {}, intarsia {} build `{}`._\n",
+        if full { "Full (quick + in-depth)" } else { "Quick" },
+        meta.generated_unix,
+        meta.version,
+        meta.build_stamp.as_deref().unwrap_or("unstamped")
+    );
 
     // ---- headline ----
     let _ = writeln!(o, "## Headline\n");
     let count = |v: Verdict| stages.iter().filter(|s| s.verdict == v).count();
-    let _ = writeln!(o, "**Verdict: {verdict}** ({} stages: {} pass, {} fail, {} error, {} skipped)\n", stages.len(), count(Verdict::Pass), count(Verdict::Fail), count(Verdict::Error), count(Verdict::Skip));
+    let _ = writeln!(
+        o,
+        "**Verdict: {verdict}** ({} stages: {} pass, {} fail, {} error, {} skipped)\n",
+        stages.len(),
+        count(Verdict::Pass),
+        count(Verdict::Fail),
+        count(Verdict::Error),
+        count(Verdict::Skip)
+    );
     let _ = writeln!(o, "| | |\n|---|---|");
     let _ = writeln!(o, "| Model | {} (`{}`) |", meta.model, meta.model_dir);
     let _ = writeln!(o, "| Backend / device | {} / {} |", meta.backend, dev);
@@ -132,8 +174,19 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     if rows.is_empty() {
         let _ = writeln!(o, "| Decode | not measured |\n| Prefill | not measured |");
     } else {
-        let dec: Vec<String> = rows.iter().map(|r| format!("{} tok: **{}** tok/s ({}% of floor)", r["size"], num(&r["decode_tok_s"], 1), r["pct_of_floor"].as_f64().map(|p| format!("{p:.0}")).unwrap_or_else(|| "n/a".into()))).collect();
-        let pre: Vec<String> = rows.iter().map(|r| format!("{} tok: **{}** tok/s", r["size"], num(&r["prefill_tok_s"], 0))).collect();
+        let dec: Vec<String> = rows
+            .iter()
+            .map(|r| {
+                format!(
+                    "{} tok: **{}** tok/s ({}% of floor)",
+                    r["size"],
+                    num(&r["decode_tok_s"], 1),
+                    r["pct_of_floor"].as_f64().map(|p| format!("{p:.0}")).unwrap_or_else(|| "n/a".into())
+                )
+            })
+            .collect();
+        let pre: Vec<String> =
+            rows.iter().map(|r| format!("{} tok: **{}** tok/s", r["size"], num(&r["prefill_tok_s"], 0))).collect();
         let _ = writeln!(o, "| Decode | {} |", dec.join("; "));
         let _ = writeln!(o, "| Prefill | {} |", pre.join("; "));
     }
@@ -142,8 +195,22 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
             let txt = match s.verdict {
                 Verdict::Skip => format!("skipped: {}", s.reason),
                 _ => {
-                    let m: Vec<String> = accuracy_modes(s).iter().map(|m| format!("{} top-1 {}% KL {}", m["mode"].as_str().unwrap_or("?"), num(&m["top1_pct"], 2), sci(&m["mean_kl"]))).collect();
-                    format!("**{}**{}", s.verdict.label(), if m.is_empty() { String::new() } else { format!(" ({})", m.join("; ")) })
+                    let m: Vec<String> = accuracy_modes(s)
+                        .iter()
+                        .map(|m| {
+                            format!(
+                                "{} top-1 {}% KL {}",
+                                m["mode"].as_str().unwrap_or("?"),
+                                num(&m["top1_pct"], 2),
+                                sci(&m["mean_kl"])
+                            )
+                        })
+                        .collect();
+                    format!(
+                        "**{}**{}",
+                        s.verdict.label(),
+                        if m.is_empty() { String::new() } else { format!(" ({})", m.join("; ")) }
+                    )
                 }
             };
             let label = match id {
@@ -157,13 +224,27 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     if let Some(g) = stage(state, "gate") {
         let _ = writeln!(o, "| Quick gate | **{}**: {} |", g.verdict.label(), md_cell(&g.reason));
     }
-    let _ = writeln!(o, "| Wall time | quick {}{} |", fmt_dur(section_wall(state, "quick")), if full { format!(", in-depth {}, total {}", fmt_dur(section_wall(state, "full")), fmt_dur(section_wall(state, "quick") + section_wall(state, "full"))) } else { String::new() });
+    let _ = writeln!(
+        o,
+        "| Wall time | quick {}{} |",
+        fmt_dur(section_wall(state, "quick")),
+        if full {
+            format!(
+                ", in-depth {}, total {}",
+                fmt_dur(section_wall(state, "full")),
+                fmt_dur(section_wall(state, "quick") + section_wall(state, "full"))
+            )
+        } else {
+            String::new()
+        }
+    );
     if let Some(r) = &meta.reference {
         let _ = writeln!(o, "| Reference | {r} |");
     }
     let _ = writeln!(o);
     let _ = writeln!(o, "### Failures\n");
-    let fails: Vec<&&StageRecord> = stages.iter().filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error)).collect();
+    let fails: Vec<&&StageRecord> =
+        stages.iter().filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error)).collect();
     if fails.is_empty() {
         let _ = writeln!(o, "None.\n");
     } else {
@@ -187,14 +268,25 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     let _ = writeln!(o, "## Stages\n");
     let _ = writeln!(o, "| # | Stage | Section | Verdict | Wall | Result |\n|---|---|---|---|---|---|");
     for (i, s) in stages.iter().enumerate() {
-        let _ = writeln!(o, "| {} | `{}` {} | {} | {} | {} | {} |", i + 1, s.id, s.title, s.section, s.verdict.label(), fmt_dur(s.wall_s), md_cell(&s.reason));
+        let _ = writeln!(
+            o,
+            "| {} | `{}` {} | {} | {} | {} | {} |",
+            i + 1,
+            s.id,
+            s.title,
+            s.section,
+            s.verdict.label(),
+            fmt_dur(s.wall_s),
+            md_cell(&s.reason)
+        );
     }
     let _ = writeln!(o);
 
     // ---- speed ----
     let _ = writeln!(o, "## Speed\n");
     let mut any = false;
-    for (id, label) in [("bench", "quick bench"), ("bench-long", "long-context bench"), ("tp", "tensor-parallel bench")] {
+    for (id, label) in [("bench", "quick bench"), ("bench-long", "long-context bench"), ("tp", "tensor-parallel bench")]
+    {
         if !stages.iter().any(|s| s.id == id) {
             continue;
         }
@@ -204,10 +296,26 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
         }
         any = true;
         let m = &stage(state, id).unwrap().metrics;
-        let _ = writeln!(o, "**{label}** (floor: {} GB/token at {} GB/s; {})\n", num(&m["gb_per_token"], 2), num(&m["bandwidth_gbs"], 0), m["floor_inputs"].as_str().unwrap_or("no floor inputs"));
+        let _ = writeln!(
+            o,
+            "**{label}** (floor: {} GB/token at {} GB/s; {})\n",
+            num(&m["gb_per_token"], 2),
+            num(&m["bandwidth_gbs"], 0),
+            m["floor_inputs"].as_str().unwrap_or("no floor inputs")
+        );
         let _ = writeln!(o, "| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |\n|---|---|---|---|---|---|---|");
         for r in rows {
-            let _ = writeln!(o, "| {} | {} | {} | {} | {} | {} | {} |", r["prompt_tokens"].as_f64().map(|p| format!("{p:.0}")).unwrap_or_else(|| r["size"].to_string()), num(&r["ttft_s"], 3), num(&r["prefill_tok_s"], 0), num(&r["decode_tok_s"], 2), num(&r["decode_stdev"], 2), num(&r["floor_tok_s"], 1), num(&r["pct_of_floor"], 1));
+            let _ = writeln!(
+                o,
+                "| {} | {} | {} | {} | {} | {} | {} |",
+                r["prompt_tokens"].as_f64().map(|p| format!("{p:.0}")).unwrap_or_else(|| r["size"].to_string()),
+                num(&r["ttft_s"], 3),
+                num(&r["prefill_tok_s"], 0),
+                num(&r["decode_tok_s"], 2),
+                num(&r["decode_stdev"], 2),
+                num(&r["floor_tok_s"], 1),
+                num(&r["pct_of_floor"], 1)
+            );
         }
         let _ = writeln!(o);
     }
@@ -218,7 +326,8 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
         let _ = writeln!(o, "**A/B against the reference (localeval)**: {}\n", ab.reason);
         let _ = writeln!(o, "| Prompt tokens | decode ours / reference | prefill ours / reference |\n|---|---|---|");
         for r in ab.metrics["ratios"].as_array().cloned().unwrap_or_default() {
-            let _ = writeln!(o, "| {} | {}x | {}x |", r["size"], num(&r["decode_ratio"], 2), num(&r["prefill_ratio"], 2));
+            let _ =
+                writeln!(o, "| {} | {}x | {}x |", r["size"], num(&r["decode_ratio"], 2), num(&r["prefill_ratio"], 2));
         }
         let _ = writeln!(o, "\n{}\n", ab.metrics["note"].as_str().unwrap_or(""));
     }
@@ -234,15 +343,40 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
         }
         any = true;
         let m = if id == "tp" { &s.metrics["accuracy"] } else { &s.metrics };
-        let _ = writeln!(o, "**{id}** against `{}` ({}; gate class {})\n", m["golden"].as_str().unwrap_or("?"), m["golden_how"].as_str().unwrap_or("?"), m["gate_class"].as_str().unwrap_or("?"));
+        let _ = writeln!(
+            o,
+            "**{id}** against `{}` ({}; gate class {})\n",
+            m["golden"].as_str().unwrap_or("?"),
+            m["golden_how"].as_str().unwrap_or("?"),
+            m["gate_class"].as_str().unwrap_or("?")
+        );
         let _ = writeln!(o, "| Mode | Positions | Top-1 % | Top-5 % | Mean KL | Mean KL (21-way) | Max KL (21-way) | |tail diff| | Non-finite | Greedy match % | Floor |\n|---|---|---|---|---|---|---|---|---|---|---|");
         for m in modes {
-            let _ = writeln!(o, "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |", m["mode"].as_str().unwrap_or("?"), m["positions"], num(&m["top1_pct"], 2), num(&m["top5_pct"], 2), sci(&m["mean_kl"]), sci(&m["mean_kl21"]), sci(&m["max_kl21"]), sci(&m["tail_abs"]), m["nonfinite"], num(&m["greedy_match_pct"], 1), if m["floor_pass"] == true { "pass" } else { "FAIL" });
+            let _ = writeln!(
+                o,
+                "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
+                m["mode"].as_str().unwrap_or("?"),
+                m["positions"],
+                num(&m["top1_pct"], 2),
+                num(&m["top5_pct"], 2),
+                sci(&m["mean_kl"]),
+                sci(&m["mean_kl21"]),
+                sci(&m["max_kl21"]),
+                sci(&m["tail_abs"]),
+                m["nonfinite"],
+                num(&m["greedy_match_pct"], 1),
+                if m["floor_pass"] == true { "pass" } else { "FAIL" }
+            );
         }
         let _ = writeln!(o);
     }
     if let Some(e) = stage(state, "envelope").filter(|s| s.verdict != Verdict::Skip) {
-        let _ = writeln!(o, "**Regression gating artifacts**: {}\n\n`{}`\n", e.reason, e.metrics["use"].as_str().unwrap_or(""));
+        let _ = writeln!(
+            o,
+            "**Regression gating artifacts**: {}\n\n`{}`\n",
+            e.reason,
+            e.metrics["use"].as_str().unwrap_or("")
+        );
     }
     if let Some(g) = stage(state, "gate") {
         let _ = writeln!(o, "**Quick gate**: {}\n", md_cell(&g.reason));
@@ -264,9 +398,18 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     if let Some(p) = stage(state, "plan") {
         let _ = writeln!(o, "- plan: {} ({})", md_cell(&p.reason), p.verdict.label());
         if let Some(ops) = p.metrics["ops"].as_array().filter(|a| !a.is_empty()) {
-            let _ = writeln!(o, "\n| Op | Kernel | Exactness | Admitted | Calls / decode step |\n|---|---|---|---|---|");
+            let _ =
+                writeln!(o, "\n| Op | Kernel | Exactness | Admitted | Calls / decode step |\n|---|---|---|---|---|");
             for op in ops {
-                let _ = writeln!(o, "| {} | {} | {} | {} | {} |", op["op"].as_str().unwrap_or("?"), op["kernel"].as_str().unwrap_or("?"), op["exactness"].as_str().unwrap_or("?"), if op["admitted"] == true { "yes" } else { "no" }, op["calls_per_decode_step"]);
+                let _ = writeln!(
+                    o,
+                    "| {} | {} | {} | {} | {} |",
+                    op["op"].as_str().unwrap_or("?"),
+                    op["kernel"].as_str().unwrap_or("?"),
+                    op["exactness"].as_str().unwrap_or("?"),
+                    if op["admitted"] == true { "yes" } else { "no" },
+                    op["calls_per_decode_step"]
+                );
             }
         }
         if let Some(m) = p.metrics["missing_kernels"].as_array().filter(|a| !a.is_empty()) {
@@ -286,7 +429,15 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     let _ = writeln!(o, "| Stage | Build stamp | Host | Started (unix) | Command |\n|---|---|---|---|---|");
     for s in &stages {
         let cmd = s.provenance["commands"].as_array().and_then(|c| c.last()).and_then(|c| c.as_str()).unwrap_or("-");
-        let _ = writeln!(o, "| `{}` | {} | {} | {} | `{}` |", s.id, s.provenance["build_stamp"].as_str().unwrap_or("-"), s.provenance["host"].as_str().unwrap_or("-"), s.started_unix, md_cell(cmd));
+        let _ = writeln!(
+            o,
+            "| `{}` | {} | {} | {} | `{}` |",
+            s.id,
+            s.provenance["build_stamp"].as_str().unwrap_or("-"),
+            s.provenance["host"].as_str().unwrap_or("-"),
+            s.started_unix,
+            md_cell(cmd)
+        );
     }
     let _ = writeln!(o, "\nModel fingerprint: `{}`. Build stamp `unstamped` means a plain `cargo build`: baselines written here are fine for gating this binary, but `--pre-change` provenance checks refuse them as a \"before\".\n", stage(state, "doctor").or(stages.first().copied()).map(|s| s.provenance["model_fingerprint"].as_str().unwrap_or("-")).unwrap_or("-"));
     for h in &state.hooks {
@@ -342,7 +493,11 @@ pub fn prometheus_text(summary: &Value) -> String {
     let mut kl = String::new();
     for a in summary["headline"]["accuracy"].as_array().cloned().unwrap_or_default() {
         for m in a["modes"].as_array().cloned().unwrap_or_default() {
-            let l = format!("stage=\"{}\",mode=\"{}\"", esc(a["stage"].as_str().unwrap_or("")), esc(m["mode"].as_str().unwrap_or("")));
+            let l = format!(
+                "stage=\"{}\",mode=\"{}\"",
+                esc(a["stage"].as_str().unwrap_or("")),
+                esc(m["mode"].as_str().unwrap_or(""))
+            );
             if let Some(v) = m["top1_pct"].as_f64() {
                 let _ = writeln!(o, "intarsia_qualify_accuracy_top1_pct{{{l}}} {v}");
             }
@@ -353,7 +508,11 @@ pub fn prometheus_text(summary: &Value) -> String {
     }
     g(&mut o, "intarsia_qualify_accuracy_mean_kl", "Mean KL(reference || ours), nats.");
     o.push_str(&kl);
-    g(&mut o, "intarsia_qualify_stage_pass", "1 when the stage passed, 0 when it failed or errored (skipped stages are absent).");
+    g(
+        &mut o,
+        "intarsia_qualify_stage_pass",
+        "1 when the stage passed, 0 when it failed or errored (skipped stages are absent).",
+    );
     let mut secs = String::new();
     for s in summary["stages"].as_array().cloned().unwrap_or_default() {
         let id = esc(s["id"].as_str().unwrap_or(""));
@@ -372,7 +531,11 @@ pub fn prometheus_text(summary: &Value) -> String {
     }
     g(&mut o, "intarsia_qualify_stage_seconds", "Wall time of a stage.");
     o.push_str(&secs);
-    g(&mut o, "intarsia_qualify_exit_code", "Exit code qualify would return for this section (0 pass, 1 gate failed, 2 pipeline failed or incomplete).");
+    g(
+        &mut o,
+        "intarsia_qualify_exit_code",
+        "Exit code qualify would return for this section (0 pass, 1 gate failed, 2 pipeline failed or incomplete).",
+    );
     let _ = writeln!(o, "intarsia_qualify_exit_code{{section=\"{section}\"}} {}", summary["exit_code"]);
     g(&mut o, "intarsia_qualify_section_seconds", "Wall time of the quick and the in-depth section.");
     let _ = writeln!(o, "intarsia_qualify_section_seconds{{section=\"quick\"}} {}", summary["wall_s"]["quick"]);
@@ -388,7 +551,20 @@ mod tests {
     use serde_json::Map;
 
     fn rec(id: &str, section: &str, v: Verdict, reason: &str, metrics: Value) -> StageRecord {
-        StageRecord { id: id.into(), title: format!("{id} title"), section: section.into(), verdict: v, reason: reason.into(), started_unix: 1, wall_s: 61.0, provenance: json!({"build_stamp": "unstamped", "host": "h", "commands": ["intarsia x"]}), artifacts: vec![format!("logs/{id}.out")], metrics, facts: Map::new(), notes: vec![] }
+        StageRecord {
+            id: id.into(),
+            title: format!("{id} title"),
+            section: section.into(),
+            verdict: v,
+            reason: reason.into(),
+            started_unix: 1,
+            wall_s: 61.0,
+            provenance: json!({"build_stamp": "unstamped", "host": "h", "commands": ["intarsia x"]}),
+            artifacts: vec![format!("logs/{id}.out")],
+            metrics,
+            facts: Map::new(),
+            notes: vec![],
+        }
     }
 
     fn sample() -> (State, Meta) {
@@ -401,7 +577,20 @@ mod tests {
         s.put(rec("acc-short", "quick", Verdict::Fail, "top-1 98%", json!({"golden": "g", "golden_how": "found", "gate_class": "bf16", "modes": [{"mode": "prefill", "positions": 10, "top1_pct": 98.0, "mean_kl": 1e-3, "mean_kl21": 1e-3, "floor_pass": false}]})));
         s.put(rec("bench", "quick", Verdict::Pass, "decode", json!({"gb_per_token": 16.4, "bandwidth_gbs": 627.0, "floor_inputs": "x", "rows": [{"size": 128, "prompt_tokens": 126.0, "decode_tok_s": 36.9, "prefill_tok_s": 2000.0, "pct_of_floor": 89.0}]})));
         s.put(rec("envelope", "full", Verdict::Pass, "written", json!({"use": "cmd"})));
-        (s, Meta { model: "M".into(), model_dir: "/m".into(), backend: "hip".into(), tp: 1, reference: None, build_stamp: None, version: "0".into(), generated_unix: 5, quick_only: false })
+        (
+            s,
+            Meta {
+                model: "M".into(),
+                model_dir: "/m".into(),
+                backend: "hip".into(),
+                tp: 1,
+                reference: None,
+                build_stamp: None,
+                version: "0".into(),
+                generated_unix: 5,
+                quick_only: false,
+            },
+        )
     }
 
     /// Headings of `docs/qualify-report-template.md` and of a rendered report are the same, in the same order.
@@ -409,7 +598,12 @@ mod tests {
     fn rendered_report_follows_the_documented_template() {
         let (s, m) = sample();
         let template = include_str!("../../../../../docs/qualify-report-template.md");
-        let heads = |t: &str| t.lines().filter(|l| l.starts_with("## ") || l.starts_with("### ")).map(|l| l.to_string()).collect::<Vec<_>>();
+        let heads = |t: &str| {
+            t.lines()
+                .filter(|l| l.starts_with("## ") || l.starts_with("### "))
+                .map(|l| l.to_string())
+                .collect::<Vec<_>>()
+        };
         let full = render(&s, &m, true);
         assert_eq!(heads(&full), heads(template));
         assert!(full.contains("**Verdict: FAIL**"));
@@ -431,7 +625,10 @@ mod tests {
         let t = prometheus_text(&j);
         assert!(t.contains("intarsia_qualify_decode_tok_s{size=\"128\"} 36.9"));
         assert!(t.contains("intarsia_qualify_stage_pass{stage=\"acc-short\"} 0"));
-        assert!(!t.contains("intarsia_qualify_stage_pass{stage=\"kernels\"}"), "skipped stages are not reported as pass or fail: {t}");
+        assert!(
+            !t.contains("intarsia_qualify_stage_pass{stage=\"kernels\"}"),
+            "skipped stages are not reported as pass or fail: {t}"
+        );
         assert!(t.contains("intarsia_qualify_exit_code{section=\"quick\"} 1"));
     }
 

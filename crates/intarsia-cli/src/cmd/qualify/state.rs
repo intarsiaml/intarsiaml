@@ -85,7 +85,8 @@ impl State {
             return Ok(None);
         }
         let t = std::fs::read_to_string(&p).with_context(|| format!("reading {}", p.display()))?;
-        let s: State = serde_json::from_str(&t).with_context(|| format!("{} is not a qualify state file", p.display()))?;
+        let s: State =
+            serde_json::from_str(&t).with_context(|| format!("{} is not a qualify state file", p.display()))?;
         if s.version != STATE_VERSION {
             bail!("{} has state version {}, this build writes {}", p.display(), s.version, STATE_VERSION);
         }
@@ -146,7 +147,9 @@ mod tests {
         s.save(&dir).unwrap();
         let back = State::load(&dir).unwrap().unwrap();
         assert_eq!(back.get("doctor").unwrap().verdict, Verdict::Pass);
-        assert!(Verdict::Pass.is_done() && Verdict::Skip.is_done() && Verdict::Fail.is_done() && !Verdict::Error.is_done());
+        assert!(
+            Verdict::Pass.is_done() && Verdict::Skip.is_done() && Verdict::Fail.is_done() && !Verdict::Error.is_done()
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -155,7 +155,14 @@ pub struct Out {
 
 impl Out {
     fn new(verdict: Verdict, reason: impl Into<String>) -> Out {
-        Out { verdict, reason: reason.into(), metrics: Value::Null, artifacts: vec![], facts: Map::new(), notes: vec![] }
+        Out {
+            verdict,
+            reason: reason.into(),
+            metrics: Value::Null,
+            artifacts: vec![],
+            facts: Map::new(),
+            notes: vec![],
+        }
     }
     fn pass(reason: impl Into<String>) -> Out {
         Out::new(Verdict::Pass, reason)
@@ -199,18 +206,84 @@ struct StageDef {
 }
 
 const STAGES: &[StageDef] = &[
-    StageDef { id: "doctor", title: "doctor: host and device fingerprint, known pitfalls", section: "quick", needs: &[], run: st_doctor },
+    StageDef {
+        id: "doctor",
+        title: "doctor: host and device fingerprint, known pitfalls",
+        section: "quick",
+        needs: &[],
+        run: st_doctor,
+    },
     StageDef { id: "recipe", title: "recipe resolve", section: "quick", needs: &[], run: st_recipe },
-    StageDef { id: "plan", title: "plan show: load the model, resolve a kernel per op", section: "quick", needs: &["recipe", "doctor"], run: st_plan },
-    StageDef { id: "kernels", title: "kernels test on the model's shapes", section: "quick", needs: &["doctor"], run: st_kernels },
-    StageDef { id: "gate", title: "quick gate: sanity prompts, perplexity, non-finite", section: "quick", needs: &["plan"], run: st_gate },
-    StageDef { id: "acc-short", title: "short accuracy against a golden", section: "quick", needs: &["plan"], run: st_acc_short },
-    StageDef { id: "bench", title: "bench speed 128 / 1024 / 4096 with the byte floor", section: "quick", needs: &["plan"], run: st_bench },
-    StageDef { id: "acc-all", title: "accuracy --mode all on the short golden (prefill, decode, prefix reuse)", section: "full", needs: &["plan"], run: st_acc_all },
-    StageDef { id: "acc-long", title: "accuracy --mode all on the long golden", section: "full", needs: &["plan"], run: st_acc_long },
-    StageDef { id: "envelope", title: "noise envelope and baseline for regression gating", section: "full", needs: &["plan"], run: st_envelope },
-    StageDef { id: "bench-long", title: "long-context bench up to 16k", section: "full", needs: &["plan"], run: st_bench_long },
-    StageDef { id: "ab", title: "A/B against the reference server via localeval", section: "full", needs: &["plan"], run: st_ab },
+    StageDef {
+        id: "plan",
+        title: "plan show: load the model, resolve a kernel per op",
+        section: "quick",
+        needs: &["recipe", "doctor"],
+        run: st_plan,
+    },
+    StageDef {
+        id: "kernels",
+        title: "kernels test on the model's shapes",
+        section: "quick",
+        needs: &["doctor"],
+        run: st_kernels,
+    },
+    StageDef {
+        id: "gate",
+        title: "quick gate: sanity prompts, perplexity, non-finite",
+        section: "quick",
+        needs: &["plan"],
+        run: st_gate,
+    },
+    StageDef {
+        id: "acc-short",
+        title: "short accuracy against a golden",
+        section: "quick",
+        needs: &["plan"],
+        run: st_acc_short,
+    },
+    StageDef {
+        id: "bench",
+        title: "bench speed 128 / 1024 / 4096 with the byte floor",
+        section: "quick",
+        needs: &["plan"],
+        run: st_bench,
+    },
+    StageDef {
+        id: "acc-all",
+        title: "accuracy --mode all on the short golden (prefill, decode, prefix reuse)",
+        section: "full",
+        needs: &["plan"],
+        run: st_acc_all,
+    },
+    StageDef {
+        id: "acc-long",
+        title: "accuracy --mode all on the long golden",
+        section: "full",
+        needs: &["plan"],
+        run: st_acc_long,
+    },
+    StageDef {
+        id: "envelope",
+        title: "noise envelope and baseline for regression gating",
+        section: "full",
+        needs: &["plan"],
+        run: st_envelope,
+    },
+    StageDef {
+        id: "bench-long",
+        title: "long-context bench up to 16k",
+        section: "full",
+        needs: &["plan"],
+        run: st_bench_long,
+    },
+    StageDef {
+        id: "ab",
+        title: "A/B against the reference server via localeval",
+        section: "full",
+        needs: &["plan"],
+        run: st_ab,
+    },
     StageDef { id: "tp", title: "tensor-parallel variant", section: "full", needs: &["plan"], run: st_tp },
 ];
 
@@ -278,7 +351,8 @@ fn pipeline(mut a: QualifyArgs) -> Result<i32> {
     let name = facts::model_name(&a.model, a.model_name.as_deref());
     let out = match (&a.out, a.resume) {
         (Some(o), _) => o.clone(),
-        (None, true) => newest_report_dir(&name).ok_or_else(|| anyhow!("--resume: no reports/{name}/ directory to continue; give --out"))?,
+        (None, true) => newest_report_dir(&name)
+            .ok_or_else(|| anyhow!("--resume: no reports/{name}/ directory to continue; give --out"))?,
         (None, false) => {
             let stamp = chrono_stamp();
             PathBuf::from("reports").join(&name).join(stamp)
@@ -305,7 +379,8 @@ fn pipeline(mut a: QualifyArgs) -> Result<i32> {
         Some(b) => b.clone(),
         None => std::env::current_exe().context("finding this executable")?,
     };
-    let mut c = Ctx { a, out, name, bin, state, facts: Map::new(), cmds: vec![], t0: Instant::now(), hook_children: vec![] };
+    let mut c =
+        Ctx { a, out, name, bin, state, facts: Map::new(), cmds: vec![], t0: Instant::now(), hook_children: vec![] };
     c.say(&format!("{} on {}, report directory {}", c.name, c.a.backend, c.out.display()));
     if BUILD_STAMP.is_none() {
         c.say("this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped");
@@ -320,7 +395,12 @@ fn pipeline(mut a: QualifyArgs) -> Result<i32> {
             if c.a.quick_only {
                 break;
             }
-            if c.a.fail_fast && c.state.stages.iter().any(|s| s.section == "quick" && matches!(s.verdict, Verdict::Fail | Verdict::Error)) {
+            if c.a.fail_fast
+                && c.state
+                    .stages
+                    .iter()
+                    .any(|s| s.section == "quick" && matches!(s.verdict, Verdict::Fail | Verdict::Error))
+            {
                 c.say("--fail-fast: a quick gate failed, the in-depth section is not started");
                 break;
             }
@@ -346,7 +426,12 @@ fn pipeline(mut a: QualifyArgs) -> Result<i32> {
 }
 
 fn newest_report_dir(name: &str) -> Option<PathBuf> {
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(PathBuf::from("reports").join(name)).ok()?.flatten().map(|e| e.path()).filter(|p| p.join("state.json").exists()).collect();
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(PathBuf::from("reports").join(name))
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.join("state.json").exists())
+        .collect();
     dirs.sort();
     dirs.pop()
 }
@@ -439,7 +524,13 @@ impl Ctx {
         };
         let wall = t.elapsed().as_secs_f64();
         let rec = self.record(def, out, started, wall);
-        self.say(&format!("{}: {} in {:.1}s{}", def.id, rec.verdict.label(), wall, if rec.reason.is_empty() { String::new() } else { format!(" ({})", first_line(&rec.reason)) }));
+        self.say(&format!(
+            "{}: {} in {:.1}s{}",
+            def.id,
+            rec.verdict.label(),
+            wall,
+            if rec.reason.is_empty() { String::new() } else { format!(" ({})", first_line(&rec.reason)) }
+        ));
         for (k, v) in &rec.facts {
             self.facts.insert(k.clone(), v.clone());
         }
@@ -471,7 +562,13 @@ impl Ctx {
 
     fn provenance(&self) -> Value {
         let env: Map<String, Value> = std::env::vars()
-            .filter(|(k, _)| k.starts_with("INTARSIA_") || k == "GPU_MAX_HW_QUEUES" || k == "HIP_VISIBLE_DEVICES" || k == "CUDA_VISIBLE_DEVICES" || k == "FLEETQ_JOB")
+            .filter(|(k, _)| {
+                k.starts_with("INTARSIA_")
+                    || k == "GPU_MAX_HW_QUEUES"
+                    || k == "HIP_VISIBLE_DEVICES"
+                    || k == "CUDA_VISIBLE_DEVICES"
+                    || k == "FLEETQ_JOB"
+            })
             .map(|(k, v)| (k, Value::String(v)))
             .collect();
         json!({
@@ -509,7 +606,14 @@ impl Ctx {
 
     /// The model + backend flags shared by every model-loading command.
     fn load_args(&self, tp: usize) -> Vec<String> {
-        let mut v = vec!["--model".into(), self.a.model.display().to_string(), "--backend".into(), self.a.backend.clone(), "--device".into(), self.a.device.to_string()];
+        let mut v = vec![
+            "--model".into(),
+            self.a.model.display().to_string(),
+            "--backend".into(),
+            self.a.backend.clone(),
+            "--device".into(),
+            self.a.device.to_string(),
+        ];
         if tp > 1 {
             v.push("--tp".into());
             v.push(tp.to_string());
@@ -560,13 +664,28 @@ impl Ctx {
         self.a.bench_sizes.clone().unwrap_or_else(|| if self.smoke() { vec![64, 256] } else { vec![128, 1024, 4096] })
     }
     fn long_sizes(&self) -> Vec<usize> {
-        self.a.long_sizes.clone().unwrap_or_else(|| if self.smoke() { vec![256, 1024] } else { vec![1024, 4096, 16384] })
+        self.a
+            .long_sizes
+            .clone()
+            .unwrap_or_else(|| if self.smoke() { vec![256, 1024] } else { vec![1024, 4096, 16384] })
     }
     fn gen_tokens(&self, long: bool) -> usize {
-        self.a.gen.unwrap_or(if self.smoke() { 16 } else if long { 64 } else { 128 })
+        self.a.gen.unwrap_or(if self.smoke() {
+            16
+        } else if long {
+            64
+        } else {
+            128
+        })
     }
     fn reps(&self, long: bool) -> usize {
-        self.a.reps.unwrap_or(if self.smoke() { 1 } else if long { 2 } else { 3 })
+        self.a.reps.unwrap_or(if self.smoke() {
+            1
+        } else if long {
+            2
+        } else {
+            3
+        })
     }
     fn decode_positions(&self, long: bool) -> usize {
         if self.smoke() {
@@ -652,7 +771,13 @@ impl Ctx {
         if let Some(cmd) = self.a.on_quick_done.clone() {
             let json_path = self.path("quick.json");
             let mut c = Command::new("sh");
-            c.arg("-c").arg(&cmd).arg("qualify").arg(report_path).env("INTARSIA_QUICK_REPORT", report_path).env("INTARSIA_QUICK_JSON", std::fs::canonicalize(&json_path).unwrap_or(json_path)).env("INTARSIA_REPORT_DIR", std::fs::canonicalize(&self.out).unwrap_or(self.out.clone()));
+            c.arg("-c")
+                .arg(&cmd)
+                .arg("qualify")
+                .arg(report_path)
+                .env("INTARSIA_QUICK_REPORT", report_path)
+                .env("INTARSIA_QUICK_JSON", std::fs::canonicalize(&json_path).unwrap_or(json_path))
+                .env("INTARSIA_REPORT_DIR", std::fs::canonicalize(&self.out).unwrap_or(self.out.clone()));
             match c.spawn() {
                 Ok(ch) => {
                     self.say(&format!("--on-quick-done started: {cmd}"));
@@ -660,7 +785,9 @@ impl Ctx {
                 }
                 Err(e) => {
                     self.say(&format!("WARNING: --on-quick-done could not start: {e}"));
-                    self.state.hooks.push(json!({"hook": "on-quick-done", "command": cmd, "started": false, "error": e.to_string()}));
+                    self.state.hooks.push(
+                        json!({"hook": "on-quick-done", "command": cmd, "started": false, "error": e.to_string()}),
+                    );
                 }
             }
         }
@@ -670,7 +797,12 @@ impl Ctx {
     fn push(&mut self, url: &str, summary: &Value, section: &str) {
         let (model, backend) = (self.name.clone(), self.a.backend.clone());
         let body = report::prometheus_text(summary);
-        let target = format!("{}/metrics/job/intarsia_qualify/model/{}/backend/{}", url.trim_end_matches('/'), facts::sanitize(&model), facts::sanitize(&backend));
+        let target = format!(
+            "{}/metrics/job/intarsia_qualify/model/{}/backend/{}",
+            url.trim_end_matches('/'),
+            facts::sanitize(&model),
+            facts::sanitize(&backend)
+        );
         let agent = intarsia_bench::http::agent(Some(Duration::from_secs(20)));
         let res = agent.put(&target).header("Content-Type", "text/plain; version=0.0.4").send(body.as_str());
         let (ok, detail) = match res {
@@ -679,7 +811,9 @@ impl Ctx {
             Err(e) => (false, e.to_string()),
         };
         self.say(&format!("--push-metrics ({section}): {} {detail}", if ok { "pushed" } else { "WARNING: failed" }));
-        self.state.hooks.push(json!({"hook": "push-metrics", "section": section, "url": target, "ok": ok, "detail": detail}));
+        self.state
+            .hooks
+            .push(json!({"hook": "push-metrics", "section": section, "url": target, "ok": ok, "detail": detail}));
     }
 
     /// Wait (bounded) for the `--on-quick-done` command and record how it ended.
@@ -701,9 +835,13 @@ impl Ctx {
             };
             let ok = status == Some(Some(0));
             if !ok {
-                self.say(&format!("WARNING: --on-quick-done did not exit 0 ({status:?}); this does not change the exit code"));
+                self.say(&format!(
+                    "WARNING: --on-quick-done did not exit 0 ({status:?}); this does not change the exit code"
+                ));
             }
-            self.state.hooks.push(json!({"hook": "on-quick-done", "command": cmd, "started": true, "exit": status.flatten(), "ok": ok}));
+            self.state.hooks.push(
+                json!({"hook": "on-quick-done", "command": cmd, "started": true, "exit": status.flatten(), "ok": ok}),
+            );
         }
     }
 
@@ -730,7 +868,13 @@ fn hostname() -> String {
             return h;
         }
     }
-    Command::new("hostname").output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|s| !s.is_empty()).or_else(|| std::env::var("HOSTNAME").ok()).unwrap_or_else(|| "unknown".into())
+    Command::new("hostname")
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("HOSTNAME").ok())
+        .unwrap_or_else(|| "unknown".into())
 }
 
 fn read_json(p: &Path) -> Result<Value> {
@@ -748,7 +892,15 @@ fn f(v: &Value) -> Option<f64> {
 
 fn st_doctor(c: &mut Ctx) -> Result<Out> {
     let p = c.path("doctor.json");
-    let args = vec!["doctor".into(), "--backend".into(), c.a.backend.clone(), "--device".into(), c.a.device.to_string(), "--out".into(), p.display().to_string()];
+    let args = vec![
+        "doctor".into(),
+        "--backend".into(),
+        c.a.backend.clone(),
+        "--device".into(),
+        c.a.device.to_string(),
+        "--out".into(),
+        p.display().to_string(),
+    ];
     let r = c.exec("doctor", args)?;
     if !r.ok() {
         return Ok(Out::error(format!("doctor {}: {}", r.describe(), r.tail(5))));
@@ -764,7 +916,12 @@ fn st_doctor(c: &mut Ctx) -> Result<Out> {
     } else if !fails.is_empty() {
         Out::fail(fails.join("; "))
     } else {
-        Out::pass(format!("{} ({}), {} kernels registered", dev["name"].as_str().unwrap_or("?"), dev["arch"].as_str().unwrap_or("?"), j["backend"]["kernel_count"]))
+        Out::pass(format!(
+            "{} ({}), {} kernels registered",
+            dev["name"].as_str().unwrap_or("?"),
+            dev["arch"].as_str().unwrap_or("?"),
+            j["backend"]["kernel_count"]
+        ))
     };
     o = o
         .art(c.rel(&p))
@@ -787,7 +944,9 @@ fn st_recipe(c: &mut Ctx) -> Result<Out> {
     let mut o;
     if let Some(p) = &c.a.recipe {
         let r = intarsia_models::recipe::load_recipe_file(p).map_err(|e| anyhow!("{e}"))?;
-        o = Out::pass(format!("explicit recipe {} (family {})", p.display(), r.model.family)).fact("recipe", p.display().to_string()).fact("family", r.model.family.clone());
+        o = Out::pass(format!("explicit recipe {} (family {})", p.display(), r.model.family))
+            .fact("recipe", p.display().to_string())
+            .fact("family", r.model.family.clone());
     } else {
         let an = super::recipe::analyse(&c.a.model, &c.a.recipe_dir)?;
         c.cmds.push(format!("recipe::analyse({})", c.a.model.display()));
@@ -827,16 +986,29 @@ fn st_plan(c: &mut Ctx) -> Result<Out> {
     }
     if !r.ok() {
         let text = r.stderr();
-        let missing: Vec<String> = text.lines().filter_map(|l| l.trim().strip_prefix("- ")).map(|l| l.to_string()).collect();
+        let missing: Vec<String> =
+            text.lines().filter_map(|l| l.trim().strip_prefix("- ")).map(|l| l.to_string()).collect();
         if r.code.is_none() {
             return Ok(Out::error(format!("plan show was killed by a signal: {}", r.tail(4))));
         }
         let mut o = if text.contains("have no kernel on") {
             // a load error that names the ops without a kernel: add what this backend does register
-            let list = c.exec("kernels-list", vec!["kernels".into(), "list".into(), "--backend".into(), c.a.backend.clone(), "--device".into(), c.a.device.to_string()])?;
+            let list = c.exec(
+                "kernels-list",
+                vec![
+                    "kernels".into(),
+                    "list".into(),
+                    "--backend".into(),
+                    c.a.backend.clone(),
+                    "--device".into(),
+                    c.a.device.to_string(),
+                ],
+            )?;
             let mut o = Out::fail(format!("missing kernels on {}: {}", c.a.backend, missing.join(" | ")));
             if list.ok() {
-                o = o.art(c.rel(&list.out)).note("the kernels this backend does register are listed in the kernels-list artifact");
+                o = o
+                    .art(c.rel(&list.out))
+                    .note("the kernels this backend does register are listed in the kernels-list artifact");
             }
             o
         } else {
@@ -848,11 +1020,18 @@ fn st_plan(c: &mut Ctx) -> Result<Out> {
     std::fs::copy(&r.out, &p)?;
     let j = read_json(&p)?;
     let ops = j["ops"].as_array().cloned().unwrap_or_default();
-    let unadmitted: Vec<String> = ops.iter().filter(|o| o["admitted"] != true).map(|o| format!("{}:{}", o["op"].as_str().unwrap_or("?"), o["kernel"].as_str().unwrap_or("?"))).collect();
+    let unadmitted: Vec<String> = ops
+        .iter()
+        .filter(|o| o["admitted"] != true)
+        .map(|o| format!("{}:{}", o["op"].as_str().unwrap_or("?"), o["kernel"].as_str().unwrap_or("?")))
+        .collect();
     let layers = j["layers"].as_array().cloned().unwrap_or_default();
     let mut kinds: Vec<String> = vec![];
     for l in &layers {
-        let k = l["blocks"].as_array().map(|b| b.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join("+")).unwrap_or_default();
+        let k = l["blocks"]
+            .as_array()
+            .map(|b| b.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join("+"))
+            .unwrap_or_default();
         if kinds.last() != Some(&k) {
             kinds.push(k);
         }
@@ -864,26 +1043,50 @@ fn st_plan(c: &mut Ctx) -> Result<Out> {
         "load_s": r.wall_s,
     });
     let o = if j["reference_only"] == true && c.a.backend != "cpu" {
-        Out::fail(format!("only reference kernels would run on {}: this backend registers none for the model's ops", c.a.backend))
+        Out::fail(format!(
+            "only reference kernels would run on {}: this backend registers none for the model's ops",
+            c.a.backend
+        ))
     } else if !unadmitted.is_empty() && c.a.backend != "cpu" {
-        Out::fail(format!("{} op(s) selected a kernel that did not pass admission: {}", unadmitted.len(), unadmitted.join(", ")))
+        Out::fail(format!(
+            "{} op(s) selected a kernel that did not pass admission: {}",
+            unadmitted.len(),
+            unadmitted.join(", ")
+        ))
     } else {
-        Out::pass(format!("{} ops resolved, exactness {}, loaded in {:.1}s", ops.len(), j["exactness"].as_str().unwrap_or("?"), r.wall_s))
+        Out::pass(format!(
+            "{} ops resolved, exactness {}, loaded in {:.1}s",
+            ops.len(),
+            j["exactness"].as_str().unwrap_or("?"),
+            r.wall_s
+        ))
     };
     Ok(o.art(c.rel(&p)).metrics(m))
 }
 
 fn st_kernels(c: &mut Ctx) -> Result<Out> {
     if c.a.backend == "cpu" {
-        return Ok(Out::skip("cpu-ref is the oracle every other backend is admitted against; admission has nothing to compare it with"));
+        return Ok(Out::skip(
+            "cpu-ref is the oracle every other backend is admitted against; admission has nothing to compare it with",
+        ));
     }
-    let mut args = vec!["kernels".to_string(), "test".into(), "--backend".into(), c.a.backend.clone(), "--device".into(), c.a.device.to_string(), "--model".into(), c.a.model.display().to_string()];
+    let mut args = vec![
+        "kernels".to_string(),
+        "test".into(),
+        "--backend".into(),
+        c.a.backend.clone(),
+        "--device".into(),
+        c.a.device.to_string(),
+        "--model".into(),
+        c.a.model.display().to_string(),
+    ];
     if c.smoke() {
         args.push("--quick".into());
     }
     let r = c.exec("kernels", args)?;
     let text = r.stdout();
-    let summary = text.lines().rev().find(|l| l.contains(" kernels, ") && l.contains(" cases in ")).unwrap_or("").to_string();
+    let summary =
+        text.lines().rev().find(|l| l.contains(" kernels, ") && l.contains(" cases in ")).unwrap_or("").to_string();
     if r.timed_out || r.code.is_none() {
         return Ok(Out::error(format!("kernels test {}", r.describe())));
     }
@@ -892,8 +1095,19 @@ fn st_kernels(c: &mut Ctx) -> Result<Out> {
     } else {
         let err = r.stderr();
         if err.contains("kernel admission failed") || err.contains("nothing was tested") {
-            let bad: Vec<String> = text.lines().filter(|l| l.contains("FAIL")).take(6).map(|l| l.trim().to_string()).collect();
-            Out::fail(format!("{} {}", first_line(&err.lines().rev().find(|l| l.starts_with("Error:")).unwrap_or("kernel admission failed").to_string()), bad.join(" | ")))
+            let bad: Vec<String> =
+                text.lines().filter(|l| l.contains("FAIL")).take(6).map(|l| l.trim().to_string()).collect();
+            Out::fail(format!(
+                "{} {}",
+                first_line(
+                    &err.lines()
+                        .rev()
+                        .find(|l| l.starts_with("Error:"))
+                        .unwrap_or("kernel admission failed")
+                        .to_string()
+                ),
+                bad.join(" | ")
+            ))
         } else {
             Out::error(format!("kernels test {}: {}", r.describe(), r.tail(5)))
         }
@@ -915,14 +1129,24 @@ fn st_gate(c: &mut Ctx) -> Result<Out> {
     if r.timed_out || r.code.is_none() {
         return Ok(Out::error(format!("quick gate {}", r.describe())));
     }
-    let ppl = line_value(&text, "perplexity:").and_then(|s| s.split_whitespace().next()).and_then(|s| s.parse::<f64>().ok());
+    let ppl =
+        line_value(&text, "perplexity:").and_then(|s| s.split_whitespace().next()).and_then(|s| s.parse::<f64>().ok());
     let sane_ok = text.lines().filter(|l| l.starts_with("sanity ok")).count();
     let sane_bad = text.lines().filter(|l| l.starts_with("sanity FAIL")).count();
     let m = json!({"perplexity": ppl, "perplexity_line": line_value(&text, "perplexity:").map(|s| s.trim()), "sanity_ok": sane_ok, "sanity_failed": sane_bad});
     let o = if r.ok() && text.contains("quick gate: PASS") {
-        Out::pass(format!("perplexity {}, {sane_ok}/{} sanity prompts ok, no non-finite rows", ppl.map(|p| format!("{p:.2}")).unwrap_or("?".into()), sane_ok + sane_bad))
+        Out::pass(format!(
+            "perplexity {}, {sane_ok}/{} sanity prompts ok, no non-finite rows",
+            ppl.map(|p| format!("{p:.2}")).unwrap_or("?".into()),
+            sane_ok + sane_bad
+        ))
     } else if text.contains("quick gate: FAIL") {
-        let bad: Vec<String> = text.lines().filter(|l| l.contains("FAIL") && !l.starts_with("quick gate:")).take(5).map(|l| l.trim().chars().take(200).collect()).collect();
+        let bad: Vec<String> = text
+            .lines()
+            .filter(|l| l.contains("FAIL") && !l.starts_with("quick gate:"))
+            .take(5)
+            .map(|l| l.trim().chars().take(200).collect())
+            .collect();
         Out::fail(bad.join(" | "))
     } else {
         Out::error(format!("quick gate {}: {}", r.describe(), r.tail(5)))
@@ -939,7 +1163,13 @@ enum Golden {
 }
 
 fn have_cmd(name: &str) -> bool {
-    Command::new(name).arg("--version").stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().map(|s| s.success()).unwrap_or(false)
+    Command::new(name)
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }
 
 impl Ctx {
@@ -953,7 +1183,11 @@ impl Ctx {
         let given = if long { self.a.golden_long.clone() } else { self.a.golden.clone() };
         if let Some(g) = given {
             if !g.exists() {
-                return Ok(Golden::None(format!("--golden{} {} does not exist", if long { "-long" } else { "" }, g.display())));
+                return Ok(Golden::None(format!(
+                    "--golden{} {} does not exist",
+                    if long { "-long" } else { "" },
+                    g.display()
+                )));
             }
             return Ok(self.have_golden(key, g, "given with --golden".into()));
         }
@@ -976,12 +1210,20 @@ impl Ctx {
 
     fn make_golden(&mut self, long: bool) -> Result<Golden> {
         let Some(repo) = facts::repo_root() else {
-            return Ok(Golden::None("no golden found and the repository tools/ are not reachable to make one (set INTARSIA_REPO)".into()));
+            return Ok(Golden::None(
+                "no golden found and the repository tools/ are not reachable to make one (set INTARSIA_REPO)".into(),
+            ));
         };
         let key = if long { "golden_long" } else { "golden_short" };
         let out = self.path(&format!("goldens/{}-{}.safetensors", self.name, if long { "long" } else { "short" }));
         let python: Vec<String> = if have_cmd("uv") {
-            vec!["uv".into(), "run".into(), "--project".into(), repo.join("tools").display().to_string(), "python".into()]
+            vec![
+                "uv".into(),
+                "run".into(),
+                "--project".into(),
+                repo.join("tools").display().to_string(),
+                "python".into(),
+            ]
         } else {
             vec!["python3".into()]
         };
@@ -992,7 +1234,9 @@ impl Ctx {
             Some(r) if r.starts_with("http://") || r.starts_with("https://") => {
                 let base = intarsia_bench::http::api_base(&r);
                 let model = self.reference_model(&base)?;
-                cmd.arg(repo.join("tools/golden_vllm.py")).args(["--base-url", &base, "--model", &model, "--out"]).arg(&out);
+                cmd.arg(repo.join("tools/golden_vllm.py"))
+                    .args(["--base-url", &base, "--model", &model, "--out"])
+                    .arg(&out);
                 cmd.arg("--prompts").arg(repo.join("tools/prompts/golden.jsonl"));
                 if long {
                     cmd.arg(repo.join("tools/prompts/golden_long.jsonl"));
@@ -1010,7 +1254,11 @@ impl Ctx {
                 if gb > self.a.make_golden_max_gb {
                     return Ok(Golden::None(format!("no golden found, and {gb:.1} GB of weights is too large to make an fp32 HF golden quickly (limit {} GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>", self.a.make_golden_max_gb)));
                 }
-                cmd.arg(repo.join("tools/golden.py")).args(["--model"]).arg(&model_dir).args(["--dtype", "float32", "--device", "cpu", "--out"]).arg(&out);
+                cmd.arg(repo.join("tools/golden.py"))
+                    .args(["--model"])
+                    .arg(&model_dir)
+                    .args(["--dtype", "float32", "--device", "cpu", "--out"])
+                    .arg(&out);
                 cmd.arg("--prompts").arg(repo.join("tools/prompts/golden.jsonl"));
                 if long {
                     cmd.arg(repo.join("tools/prompts/golden_long.jsonl"));
@@ -1023,9 +1271,17 @@ impl Ctx {
         }
         self.say(&format!("making the {} golden ({desc})", if long { "long" } else { "short" }));
         self.cmds.push(format!("{:?}", cmd));
-        let r = proc::run_captured(cmd, &self.path(&format!("logs/make-golden-{}", if long { "long" } else { "short" })), Duration::from_secs(self.a.stage_timeout_min * 60))?;
+        let r = proc::run_captured(
+            cmd,
+            &self.path(&format!("logs/make-golden-{}", if long { "long" } else { "short" })),
+            Duration::from_secs(self.a.stage_timeout_min * 60),
+        )?;
         if !r.ok() || !out.exists() {
-            return Ok(Golden::None(format!("no golden found and making one failed ({}): {}", r.describe(), r.tail(3))));
+            return Ok(Golden::None(format!(
+                "no golden found and making one failed ({}): {}",
+                r.describe(),
+                r.tail(3)
+            )));
         }
         desc.push_str(&format!(" in {:.0}s", r.wall_s));
         Ok(self.have_golden(key, out, desc))
@@ -1036,10 +1292,18 @@ impl Ctx {
             return Ok(m.clone());
         }
         let agent = intarsia_bench::http::agent(Some(Duration::from_secs(15)));
-        let mut resp = agent.get(&format!("{base}/models")).call().map_err(|e| anyhow!("asking the reference server for /v1/models: {e}"))?;
-        let text = resp.body_mut().read_to_string().map_err(|e| anyhow!("reading /v1/models of the reference server: {e}"))?;
-        let v: Value = serde_json::from_str(&text).map_err(|e| anyhow!("/v1/models of the reference server is not JSON: {e}"))?;
-        v["data"][0]["id"].as_str().map(String::from).ok_or_else(|| anyhow!("the reference server lists no model; pass --reference-model"))
+        let mut resp = agent
+            .get(&format!("{base}/models"))
+            .call()
+            .map_err(|e| anyhow!("asking the reference server for /v1/models: {e}"))?;
+        let text =
+            resp.body_mut().read_to_string().map_err(|e| anyhow!("reading /v1/models of the reference server: {e}"))?;
+        let v: Value =
+            serde_json::from_str(&text).map_err(|e| anyhow!("/v1/models of the reference server is not JSON: {e}"))?;
+        v["data"][0]["id"]
+            .as_str()
+            .map(String::from)
+            .ok_or_else(|| anyhow!("the reference server lists no model; pass --reference-model"))
     }
 }
 
@@ -1057,14 +1321,33 @@ struct AccRun {
 }
 
 impl Ctx {
-    fn accuracy(&mut self, stem: &str, golden: &Path, mode: &str, long: bool, tp: usize, extra: &[String]) -> Result<AccRun> {
+    fn accuracy(
+        &mut self,
+        stem: &str,
+        golden: &Path,
+        mode: &str,
+        long: bool,
+        tp: usize,
+        extra: &[String],
+    ) -> Result<AccRun> {
         let baseline = self.path(&format!("baselines/{stem}.baseline.json"));
         if let Some(d) = baseline.parent() {
             std::fs::create_dir_all(d)?;
         }
         let mut args = vec!["accuracy".to_string()];
         args.extend(self.load_args(tp));
-        args.extend(["--golden".into(), golden.display().to_string(), "--mode".into(), mode.into(), "--decode-positions".into(), self.decode_positions(long).to_string(), "--max-seq".into(), self.acc_max_seq(long).to_string(), "--write-baseline".into(), baseline.display().to_string()]);
+        args.extend([
+            "--golden".into(),
+            golden.display().to_string(),
+            "--mode".into(),
+            mode.into(),
+            "--decode-positions".into(),
+            self.decode_positions(long).to_string(),
+            "--max-seq".into(),
+            self.acc_max_seq(long).to_string(),
+            "--write-baseline".into(),
+            baseline.display().to_string(),
+        ]);
         args.extend(extra.iter().cloned());
         let r = self.exec(stem, args)?;
         let text = r.stdout();
@@ -1079,14 +1362,30 @@ impl Ctx {
             (Verdict::Error, format!("accuracy {}: {}", r.describe(), r.tail(5)))
         };
         let b = if baseline.exists() { read_json(&baseline).ok() } else { None };
-        let modes = b.as_ref().and_then(|b| b["modes"].as_array()).map(|a| a.iter().map(|m| m["overall"].clone()).collect()).unwrap_or_default();
+        let modes = b
+            .as_ref()
+            .and_then(|b| b["modes"].as_array())
+            .map(|a| a.iter().map(|m| m["overall"].clone()).collect())
+            .unwrap_or_default();
         let gate_class = b.as_ref().map(|b| b["run"]["gate_class"].clone()).unwrap_or(Value::Null);
-        Ok(AccRun { verdict, reason, modes, gate_class, out: r.out.clone(), err: r.err.clone(), baseline, run_wall: r.wall_s })
+        Ok(AccRun {
+            verdict,
+            reason,
+            modes,
+            gate_class,
+            out: r.out.clone(),
+            err: r.err.clone(),
+            baseline,
+            run_wall: r.wall_s,
+        })
     }
 
     fn acc_out(&self, a: AccRun, golden: &Path, how: &str, key_prefix: &str) -> Out {
         let m = json!({"golden": golden.display().to_string(), "golden_how": how, "golden_fingerprint": facts::file_fingerprint(golden), "gate_class": a.gate_class, "modes": a.modes, "run_s": a.run_wall});
-        let mut o = Out::new(a.verdict, if a.verdict == Verdict::Pass { acc_summary(&a.modes) } else { a.reason.clone() }).metrics(m).art(self.rel(&a.out));
+        let mut o =
+            Out::new(a.verdict, if a.verdict == Verdict::Pass { acc_summary(&a.modes) } else { a.reason.clone() })
+                .metrics(m)
+                .art(self.rel(&a.out));
         if a.baseline.exists() {
             o = o.art(self.rel(&a.baseline)).fact(&format!("{key_prefix}_baseline"), self.rel(&a.baseline));
         }
@@ -1123,7 +1422,18 @@ fn acc_fail_digest(text: &str) -> Vec<String> {
 }
 
 fn acc_summary(modes: &[Value]) -> String {
-    modes.iter().map(|m| format!("{} top-1 {:.2}% KL {:.2e}", m["mode"].as_str().unwrap_or("?"), m["top1_pct"].as_f64().unwrap_or(f64::NAN), m["mean_kl"].as_f64().unwrap_or(f64::NAN))).collect::<Vec<_>>().join("; ")
+    modes
+        .iter()
+        .map(|m| {
+            format!(
+                "{} top-1 {:.2}% KL {:.2e}",
+                m["mode"].as_str().unwrap_or("?"),
+                m["top1_pct"].as_f64().unwrap_or(f64::NAN),
+                m["mean_kl"].as_f64().unwrap_or(f64::NAN)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 fn st_acc_short(c: &mut Ctx) -> Result<Out> {
@@ -1181,31 +1491,78 @@ impl Ctx {
     }
 
     /// Start a server, run `bench speed` against it, stop the server. `tp` > 1 serves sharded.
-    fn bench_run(&mut self, stem: &str, sizes: &[usize], gen: usize, reps: usize, tp: usize, per_rank_gb: Option<f64>) -> Result<BenchRun> {
+    fn bench_run(
+        &mut self,
+        stem: &str,
+        sizes: &[usize],
+        gen: usize,
+        reps: usize,
+        tp: usize,
+        per_rank_gb: Option<f64>,
+    ) -> Result<BenchRun> {
         let max_seq = ((sizes.iter().max().copied().unwrap_or(1024) + gen + 128).div_ceil(256) * 256).max(2048); // the bench calibrates prompt sizes with probes that need room
         let port = proc::free_port(self.a.port);
         let url = format!("http://127.0.0.1:{port}");
         let served = format!("qualify-{}", self.name);
         let mut sargs = vec!["serve".to_string()];
         sargs.extend(self.load_args(tp));
-        sargs.extend(["--host".into(), "127.0.0.1".into(), "--port".into(), port.to_string(), "--served-model-name".into(), served.clone(), "--max-seq".into(), max_seq.to_string(), "--profile-every".into(), "0".into(), "--no-supervisor".into(), "--no-ui".into()]);
+        sargs.extend([
+            "--host".into(),
+            "127.0.0.1".into(),
+            "--port".into(),
+            port.to_string(),
+            "--served-model-name".into(),
+            served.clone(),
+            "--max-seq".into(),
+            max_seq.to_string(),
+            "--profile-every".into(),
+            "0".into(),
+            "--no-supervisor".into(),
+            "--no-ui".into(),
+        ]);
         let mut cmd = self.base_cmd();
         cmd.args(&sargs);
         self.cmds.push(format!("{} {}", self.bin.display(), sargs.join(" ")));
         let t = Instant::now();
         let mut server = proc::Server::start(cmd, &self.path(&format!("logs/{stem}-server")), url.clone())?;
-        let load_s = server.wait_healthy(Duration::from_secs(self.a.stage_timeout_min * 60)).map_err(|e| anyhow!("{e:#}"))?;
+        let load_s =
+            server.wait_healthy(Duration::from_secs(self.a.stage_timeout_min * 60)).map_err(|e| anyhow!("{e:#}"))?;
         self.say(&format!("server up in {load_s:.0}s on {url} (max-seq {max_seq})"));
         let _ = t;
         let bench_dir = self.path("bench");
         let label = format!("qualify-{}-{}-{}", self.name, self.a.backend, stem);
         let (gb, bw, _src) = self.floor_inputs(per_rank_gb);
         let mut bargs: Vec<String> = vec![
-            "bench".into(), "speed".into(), "--url".into(), url.clone(), "--model".into(), served, "--sizes".into(), sizes.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(","),
-            "--gen".into(), gen.to_string(), "--reps".into(), reps.to_string(), "--warmup".into(), "1".into(), "--thinking".into(), "off".into(), "--label".into(), label.clone(),
-            "--out-dir".into(), bench_dir.display().to_string(), "--tp".into(), tp.to_string(),
-            "--fingerprint".into(), format!("model={}", self.name), "--fingerprint".into(), format!("backend={}", self.a.backend), "--fingerprint".into(), format!("build={}", BUILD_STAMP.unwrap_or("unstamped")),
-            "--timeout-s".into(), "900".into(),
+            "bench".into(),
+            "speed".into(),
+            "--url".into(),
+            url.clone(),
+            "--model".into(),
+            served,
+            "--sizes".into(),
+            sizes.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(","),
+            "--gen".into(),
+            gen.to_string(),
+            "--reps".into(),
+            reps.to_string(),
+            "--warmup".into(),
+            "1".into(),
+            "--thinking".into(),
+            "off".into(),
+            "--label".into(),
+            label.clone(),
+            "--out-dir".into(),
+            bench_dir.display().to_string(),
+            "--tp".into(),
+            tp.to_string(),
+            "--fingerprint".into(),
+            format!("model={}", self.name),
+            "--fingerprint".into(),
+            format!("backend={}", self.a.backend),
+            "--fingerprint".into(),
+            format!("build={}", BUILD_STAMP.unwrap_or("unstamped")),
+            "--timeout-s".into(),
+            "900".into(),
         ];
         if let Some(g) = gb {
             bargs.extend(["--gb-per-token".into(), format!("{g:.4}")]);
@@ -1271,7 +1628,12 @@ impl Ctx {
             Out::fail(bad.join("; "))
         } else {
             let first = slim.iter().find(|r| r["skipped"].is_null()).unwrap();
-            Out::pass(format!("decode {:.1} tok/s at {} tokens{}", first["decode_tok_s"].as_f64().unwrap_or(0.0), first["size"], first["pct_of_floor"].as_f64().map(|p| format!(" ({p:.0}% of the byte floor)")).unwrap_or_default()))
+            Out::pass(format!(
+                "decode {:.1} tok/s at {} tokens{}",
+                first["decode_tok_s"].as_f64().unwrap_or(0.0),
+                first["size"],
+                first["pct_of_floor"].as_f64().map(|p| format!(" ({p:.0}% of the byte floor)")).unwrap_or_default()
+            ))
         };
         o = o.metrics(m).art(self.rel(&b.path)).art(self.rel(&b.out)).art(self.rel(&b.server_err));
         for n in notes {
@@ -1315,7 +1677,8 @@ fn st_envelope(c: &mut Ctx) -> Result<Out> {
         Golden::None(why) => return Ok(Out::skip(format!("no baseline can be recorded without a golden: {why}"))),
     };
     // The baseline is the quick short-accuracy run's (same golden, same flags): record it again only when that stage left none.
-    let base_rel = c.state.get("acc-short").and_then(|s| s.facts.get("short_baseline")).and_then(|v| v.as_str()).map(String::from);
+    let base_rel =
+        c.state.get("acc-short").and_then(|s| s.facts.get("short_baseline")).and_then(|v| v.as_str()).map(String::from);
     let baseline = match base_rel.map(|r| c.path(&r)).filter(|p| p.exists()) {
         Some(p) => p,
         None => {
@@ -1336,7 +1699,23 @@ fn st_envelope(c: &mut Ctx) -> Result<Out> {
     for p in &perturb {
         let mut args = vec!["accuracy".to_string()];
         args.extend(c.load_args(1));
-        args.extend(["--golden".into(), g.display().to_string(), "--mode".into(), "both".into(), "--decode-positions".into(), c.decode_positions(false).to_string(), "--max-seq".into(), c.acc_max_seq(false).to_string(), "--noise-ref".into(), baseline.display().to_string(), "--noise-perturb".into(), p.clone(), "--write-noise-envelope".into(), env.display().to_string(), "--allow-same-code".into()]);
+        args.extend([
+            "--golden".into(),
+            g.display().to_string(),
+            "--mode".into(),
+            "both".into(),
+            "--decode-positions".into(),
+            c.decode_positions(false).to_string(),
+            "--max-seq".into(),
+            c.acc_max_seq(false).to_string(),
+            "--noise-ref".into(),
+            baseline.display().to_string(),
+            "--noise-perturb".into(),
+            p.clone(),
+            "--write-noise-envelope".into(),
+            env.display().to_string(),
+            "--allow-same-code".into(),
+        ]);
         args.extend(c.stamp_flags());
         let r = c.exec(&format!("envelope-{}", facts::sanitize(p)), args)?;
         if !r.ok() || !env.exists() {
@@ -1347,11 +1726,26 @@ fn st_envelope(c: &mut Ctx) -> Result<Out> {
     // self-check: the pair must gate the same build (the point of writing them)
     let mut args = vec!["accuracy".to_string()];
     args.extend(c.load_args(1));
-    args.extend(["--golden".into(), g.display().to_string(), "--mode".into(), "both".into(), "--decode-positions".into(), c.decode_positions(false).to_string(), "--max-seq".into(), c.acc_max_seq(false).to_string(), "--baseline".into(), baseline.display().to_string(), "--noise-envelope".into(), env.display().to_string(), "--allow-same-code".into()]);
+    args.extend([
+        "--golden".into(),
+        g.display().to_string(),
+        "--mode".into(),
+        "both".into(),
+        "--decode-positions".into(),
+        c.decode_positions(false).to_string(),
+        "--max-seq".into(),
+        c.acc_max_seq(false).to_string(),
+        "--baseline".into(),
+        baseline.display().to_string(),
+        "--noise-envelope".into(),
+        env.display().to_string(),
+        "--allow-same-code".into(),
+    ]);
     args.extend(c.stamp_flags());
     let r = c.exec("baseline-selfcheck", args)?;
     let text = r.stdout();
-    let verdict_line = text.lines().find(|l| l.contains("baseline verdict")).map(|l| l.trim().to_string()).unwrap_or_default();
+    let verdict_line =
+        text.lines().find(|l| l.contains("baseline verdict")).map(|l| l.trim().to_string()).unwrap_or_default();
     if r.timed_out || r.code.is_none() {
         return Ok(Out::error(format!("baseline self-check {}", r.describe())));
     }
@@ -1360,7 +1754,11 @@ fn st_envelope(c: &mut Ctx) -> Result<Out> {
         "use": format!("intarsia accuracy --model <dir> --backend {} --golden {} --baseline {} --noise-envelope {}  (copy both files next to the golden, e.g. golden/baselines/)", c.a.backend, g.display(), c.rel(&baseline), c.rel(&env))});
     let _ = published;
     let o = if verdict_line.contains(": PASS") {
-        Out::pass(format!("baseline and envelope ({}) written; they gate this build: {}", perturb.join(" + "), verdict_line.split(':').next_back().unwrap_or("").trim()))
+        Out::pass(format!(
+            "baseline and envelope ({}) written; they gate this build: {}",
+            perturb.join(" + "),
+            verdict_line.split(':').next_back().unwrap_or("").trim()
+        ))
     } else if verdict_line.is_empty() {
         Out::error(format!("baseline self-check printed no baseline verdict: {}", r.tail(4)))
     } else {
@@ -1380,7 +1778,11 @@ fn localeval_dir(c: &Ctx) -> PathBuf {
 }
 
 fn list_dirs(p: &Path) -> Vec<String> {
-    std::fs::read_dir(p).map(|rd| rd.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().to_string()).collect()).unwrap_or_default()
+    std::fs::read_dir(p)
+        .map(|rd| {
+            rd.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().to_string()).collect()
+        })
+        .unwrap_or_default()
 }
 
 fn st_ab(c: &mut Ctx) -> Result<Out> {
@@ -1392,10 +1794,15 @@ fn st_ab(c: &mut Ctx) -> Result<Out> {
     }
     let dir = localeval_dir(c);
     if !dir.join("pyproject.toml").exists() {
-        return Ok(Out::skip(format!("localeval is not at {} (--localeval-dir); the A/B must run through localeval, never an ad-hoc script", dir.display())));
+        return Ok(Out::skip(format!(
+            "localeval is not at {} (--localeval-dir); the A/B must run through localeval, never an ad-hoc script",
+            dir.display()
+        )));
     }
     if !have_cmd("uv") {
-        return Ok(Out::skip("uv is not installed here, so localeval cannot run; run the A/B from a machine that has /opt/code/deepeval"));
+        return Ok(Out::skip(
+            "uv is not installed here, so localeval cannot run; run the A/B from a machine that has /opt/code/deepeval",
+        ));
     }
     let base = intarsia_bench::http::api_base(&refr);
     let ref_model = c.reference_model(&base)?;
@@ -1407,7 +1814,20 @@ fn st_ab(c: &mut Ctx) -> Result<Out> {
     let served = format!("qualify-{}", c.name);
     let mut sargs = vec!["serve".to_string()];
     sargs.extend(c.load_args(1));
-    sargs.extend(["--host".into(), "127.0.0.1".into(), "--port".into(), port.to_string(), "--served-model-name".into(), served.clone(), "--max-seq".into(), max_seq.to_string(), "--profile-every".into(), "0".into(), "--no-supervisor".into(), "--no-ui".into()]);
+    sargs.extend([
+        "--host".into(),
+        "127.0.0.1".into(),
+        "--port".into(),
+        port.to_string(),
+        "--served-model-name".into(),
+        served.clone(),
+        "--max-seq".into(),
+        max_seq.to_string(),
+        "--profile-every".into(),
+        "0".into(),
+        "--no-supervisor".into(),
+        "--no-ui".into(),
+    ]);
     let mut cmd = c.base_cmd();
     cmd.args(&sargs);
     c.cmds.push(format!("{} {}", c.bin.display(), sargs.join(" ")));
@@ -1415,11 +1835,30 @@ fn st_ab(c: &mut Ctx) -> Result<Out> {
     server.wait_healthy(Duration::from_secs(c.a.stage_timeout_min * 60)).map_err(|e| anyhow!("{e:#}"))?;
     let results = dir.join("results");
     let mut runs = vec![];
-    for (arm, arm_url, arm_model) in [("ours", format!("{url}/v1"), served.clone()), ("reference", base.clone(), ref_model.clone())] {
+    for (arm, arm_url, arm_model) in
+        [("ours", format!("{url}/v1"), served.clone()), ("reference", base.clone(), ref_model.clone())]
+    {
         let before = list_dirs(&results);
         let mut args: Vec<String> = vec![
-            "run".into(), "--project".into(), dir.display().to_string(), "localeval".into(), "speed".into(), "--url".into(), arm_url, "--model".into(), arm_model, "--label".into(), format!("qualify-{}-{arm}", c.name),
-            "--thinking".into(), "off".into(), "--sizes".into(), sizes.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(","), "--gen".into(), gen.to_string(), "--reps".into(), reps.to_string(),
+            "run".into(),
+            "--project".into(),
+            dir.display().to_string(),
+            "localeval".into(),
+            "speed".into(),
+            "--url".into(),
+            arm_url,
+            "--model".into(),
+            arm_model,
+            "--label".into(),
+            format!("qualify-{}-{arm}", c.name),
+            "--thinking".into(),
+            "off".into(),
+            "--sizes".into(),
+            sizes.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(","),
+            "--gen".into(),
+            gen.to_string(),
+            "--reps".into(),
+            reps.to_string(),
         ];
         if c.a.no_unim {
             args.push("--no-unim".into());
@@ -1427,16 +1866,25 @@ fn st_ab(c: &mut Ctx) -> Result<Out> {
         let mut cmd = Command::new("uv");
         cmd.args(&args);
         c.cmds.push(format!("uv {}", args.join(" ")));
-        let r = proc::run_captured(cmd, &c.path(&format!("logs/ab-{arm}")), Duration::from_secs(c.a.stage_timeout_min * 60))?;
+        let r = proc::run_captured(
+            cmd,
+            &c.path(&format!("logs/ab-{arm}")),
+            Duration::from_secs(c.a.stage_timeout_min * 60),
+        )?;
         let new_dir = list_dirs(&results).into_iter().find(|d| !before.contains(d));
         let result = new_dir.as_ref().and_then(|d| read_json(&results.join(d).join("result.json")).ok());
         if !r.ok() {
             drop(server);
-            return Ok(Out::error(format!("localeval speed ({arm}) {}: {}", r.describe(), r.tail(6))).art(c.rel(&r.err)));
+            return Ok(
+                Out::error(format!("localeval speed ({arm}) {}: {}", r.describe(), r.tail(6))).art(c.rel(&r.err))
+            );
         }
         let Some(res) = result else {
             drop(server);
-            return Ok(Out::error(format!("localeval speed ({arm}) exited 0 but left no new results/<run_id>/result.json under {}", results.display())));
+            return Ok(Out::error(format!(
+                "localeval speed ({arm}) exited 0 but left no new results/<run_id>/result.json under {}",
+                results.display()
+            )));
         };
         let rows: Vec<Value> = res["speed"]["rows"].as_array().cloned().unwrap_or_default().iter().map(|r| json!({"size": r["target_prompt_tokens"], "prefill_tok_s": r["prefill_tok_s"]["median"], "decode_tok_s": r["decode_tok_s"]["median"], "ttft_s": r["ttft_s"]["median"]})).collect();
         runs.push(json!({"arm": arm, "run_id": res["run_id"], "result": results.join(new_dir.unwrap()).join("result.json").display().to_string(), "model": ref_model_or(&res), "rows": rows}));
@@ -1474,7 +1922,10 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
         return Ok(Out::fail(format!("the model does not load with --tp {tp}: {}", pr.tail(6))).art(c.rel(&pr.err)));
     }
     let pj: Value = serde_json::from_str(&pr.stdout()).map_err(|e| anyhow!("tp plan JSON: {e}"))?;
-    let per_rank_gb = pj["tp"]["ranks"].as_array().map(|r| r.iter().filter_map(|x| x["weights_bytes"].as_u64()).max().unwrap_or(0) as f64 / 1e9).filter(|g| *g > 0.0);
+    let per_rank_gb = pj["tp"]["ranks"]
+        .as_array()
+        .map(|r| r.iter().filter_map(|x| x["weights_bytes"].as_u64()).max().unwrap_or(0) as f64 / 1e9)
+        .filter(|g| *g > 0.0);
     let tp_plan = json!({"world": pj["tp"]["world"], "comm": pj["tp"]["comm"], "all_reduce_calls_per_decode_step": pj["tp"]["all_reduce_calls_per_decode_step"], "ranks": pj["tp"]["ranks"], "load_s": pr.wall_s});
     let sizes = c.quick_sizes();
     let b = c.bench_run(&format!("tp{tp}"), &sizes, c.gen_tokens(false), c.reps(false), tp, per_rank_gb)?;
@@ -1492,9 +1943,13 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
     if let Some((g, how, a)) = acc {
         metrics["accuracy"] = json!({"golden": g.display().to_string(), "golden_how": how, "gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
         match a.verdict {
-            Verdict::Fail if o.verdict == Verdict::Pass => o = Out::fail(format!("tp={tp} accuracy: {}", a.reason)).art(c.rel(&b.path)),
+            Verdict::Fail if o.verdict == Verdict::Pass => {
+                o = Out::fail(format!("tp={tp} accuracy: {}", a.reason)).art(c.rel(&b.path))
+            }
             Verdict::Error => o = Out::error(format!("tp={tp} accuracy: {}", a.reason)),
-            Verdict::Pass if o.verdict == Verdict::Pass => o.reason = format!("{}; accuracy {}", o.reason, acc_summary(&a.modes)),
+            Verdict::Pass if o.verdict == Verdict::Pass => {
+                o.reason = format!("{}; accuracy {}", o.reason, acc_summary(&a.modes))
+            }
             _ => {}
         }
         o.artifacts.push(c.rel(&a.baseline));
@@ -1518,7 +1973,10 @@ mod tests {
         assert_eq!(ids.len(), dedup.len(), "duplicate stage id");
         // quick stages come first, the dependencies of every stage come before it
         let first_full = STAGES.iter().position(|s| s.section == "full").unwrap();
-        assert!(STAGES[..first_full].iter().all(|s| s.section == "quick") && STAGES[first_full..].iter().all(|s| s.section == "full"));
+        assert!(
+            STAGES[..first_full].iter().all(|s| s.section == "quick")
+                && STAGES[first_full..].iter().all(|s| s.section == "full")
+        );
         for (i, s) in STAGES.iter().enumerate() {
             for n in s.needs {
                 assert!(ids[..i].contains(n), "{} needs {n} which does not come before it", s.id);
@@ -1538,7 +1996,14 @@ mod tests {
     #[test]
     fn accuracy_failures_are_digested() {
         let t = "prefill floor [bf16]: top-1 99.08% (need >= 99.5) FAIL | full-vocab KL 5.503e-4 (need <= 1.0e-3) ok | non-finite rows 0 ok => FAIL\ndecode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 1.089e-3 (need <= 1.0e-3) FAIL | non-finite rows 0 ok => FAIL\nfloor verdict (x): FAIL   prefix-reuse verdict: FAIL\n";
-        assert_eq!(acc_fail_digest(t), vec!["prefill: top-1 99.08% (need >= 99.5)", "decode: full-vocab KL 1.089e-3 (need <= 1.0e-3)", "prefix reuse differs from a cold run"]);
+        assert_eq!(
+            acc_fail_digest(t),
+            vec![
+                "prefill: top-1 99.08% (need >= 99.5)",
+                "decode: full-vocab KL 1.089e-3 (need <= 1.0e-3)",
+                "prefix reuse differs from a cold run"
+            ]
+        );
     }
 
     #[test]

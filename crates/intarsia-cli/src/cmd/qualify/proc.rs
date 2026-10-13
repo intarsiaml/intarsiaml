@@ -162,7 +162,11 @@ impl Server {
                 }
             }
             if t0.elapsed() > timeout {
-                bail!("the server was not healthy after {:.0}s:\n{}", t0.elapsed().as_secs_f64(), tail_of(&self.err, 12));
+                bail!(
+                    "the server was not healthy after {:.0}s:\n{}",
+                    t0.elapsed().as_secs_f64(),
+                    tail_of(&self.err, 12)
+                );
             }
             std::thread::sleep(Duration::from_secs(2));
         }
