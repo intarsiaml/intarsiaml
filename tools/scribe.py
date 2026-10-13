@@ -34,7 +34,8 @@ def call(title, note):
     req = urllib.request.Request(URL, json.dumps(body).encode(),
                                  {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=300) as r:
-        return json.load(r)["choices"][0]["message"]["content"].strip()
+        text = json.load(r)["choices"][0]["message"]["content"].strip()
+        return re.sub(r"^#[^\n]*\n+", "", text)  # we write our own H1
 
 def main():
     title, note = sys.argv[1], sys.stdin.read()

@@ -1,8 +1,10 @@
-# IntarsiaML architecture plan (v0.1, 2026-10-12)
+# IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
 
 Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
 
-Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md). Decisions are logged in [decisions/](decisions/).
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
 
 ---
 
@@ -134,20 +136,29 @@ Rules:
 - **Autotuner**: for each (op, shape bucket) on a host, time the eligible implementations and store the winner in a **tuning DB** keyed by host fingerprint (GPU, driver, toolkit, kernel-pack hash). The DB is a committed lockfile per platform (`tuning/<fingerprint>.toml`) so results reproduce.
 - **Exactness modes** (from TensorFold): `fast` (any passing kernel), `deterministic` (fixed reduction order, run-to-run identical), `exact` (multi-row verify equals serial decode bit-for-bit; required for lossless speculation claims). Mode is a server flag and is reported in every result.
 
-### 3.3 Kernel packs (how we get fast quickly)
+### 3.3 Kernel ABI and kernel packs
 
-Writing every kernel from scratch will not converge. Kernels come in **packs** behind the same op signatures:
+Every pack is a **port**, not an import (most upstream kernels take `torch::Tensor`). The port target is one torch-free C ABI, `kernels/abi/ik_abi.h`:
 
-| Pack | Backends | License | Gives us |
+```c
+typedef struct { void* data; int32_t dtype; int32_t ndim; int64_t shape[6]; int64_t stride[6]; } ik_tensor;
+typedef struct { const void* scales; const void* zeros; int32_t group; int32_t format; } ik_quant;
+// every launcher: raw tensors in, status out, explicit stream, no allocation inside
+int ik_rmsnorm_add(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, ik_tensor* out, void* stream);
+```
+
+Kernels are compiled by `nvcc`/`hipcc` into a static library per backend and bound from Rust via `extern "C"`. The same shim pattern covers HIP, where Rust bindings are thin (no RCCL or hipBLASLt crates).
+
+| Pack | Backend | License | Port first |
 |---|---|---|---|
-| `native` (ours) | CUDA, HIP | Apache-2.0 | norms, rope, sampling, small-M GEMV, fused all-reduce+norm+quant, verify attention |
-| `ggml` (from llama.cpp) | CUDA, HIP (Vulkan/SYCL later) | MIT | GGUF k-quant MMQ/MMVQ: day-0 coverage of unsloth GGUFs |
-| `flashinfer` | CUDA | Apache-2.0 | paged/ragged attention, sampling |
-| `cutlass` | CUDA | BSD-3 | NVFP4/FP8 GEMM for prefill on sm_12x |
-| `exl3` (ExLlamaV3) | CUDA | MIT | EXL3 trellis GEMV, the current best Spark decode |
-| `ck` / `aiter` | HIP | MIT | WMMA GEMM, MoE tiles for gfx1201 (tile tables retuned) |
+| `native` (ours) | CUDA + HIP | Apache-2.0 | norms, rope, embedding, sampling, simple attention, glue |
+| `tensorfold` | CUDA (+ its ROCm variants) | MIT | EXL3 linear/experts, NVFP4 `qmmf`, GDN, DFlash verify, attention: holds the Spark bar |
+| `radiance` (`libr4d`) | HIP gfx1201 | Apache-2.0 (keep `NOTICE`) | MXFP4×FP8 GEMM, one-shot 2/3-rank all-reduce (+norm+quant), GDN recurrent update, paged attention, int2 lm_head: holds the R9700 bar |
+| `cublaslt` / `hipblaslt` | vendor | vendor | prefill GEMM, registered as `Exactness::Fast` only (algorithm choice varies by shape; graphs freeze one) |
 
-Rule: **no pack is vendored without a verified license file in-tree** (`LICENSES/`). libr4d (radiance's kernels) has no license file, so we reference its ideas, not its code. Each pack is a git submodule pinned by commit, built AOT, and every kernel it exports passes the admission test like ours.
+Other packs (flashinfer, cutlass, ggml, exl3 upstream, ck/aiter) are added only when a measured gap names one. Rule: **no pack is vendored without its license file in `LICENSES/`**, pinned by commit, and every exported kernel passes the admission test.
+
+**Block-scope fused ops are first-class.** Radiance and TensorFold are fast because of hand-fused, family-specific kernels (all-reduce in a GEMV epilogue, norm+quant into GDN). A generic pattern-rewriting fuser is a compiler project we will not build. Instead the registry holds fused block ops (e.g. `gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) whose reference is the generic op chain. The plan compiler picks the fused op when one is admitted for the shape, else falls back to the chain.
 
 ### 3.4 Quant formats as plugins
 
@@ -204,7 +215,7 @@ Hybrid models (Qwen3.5/3.8 GDN + full attention every 4th layer) use `pattern_by
 
 `recipe + config + weights + host` → **plan**:
 1. Build the op graph for one decode step and one prefill chunk.
-2. Apply fusion rules (pattern rewrites in the registry: `add+rmsnorm`, `allreduce+rmsnorm+quant`, `gate+up` concat).
+2. Prefer admitted block-scope fused ops (3.3) over their generic op chains; only trivial load-time rewrites (`gate+up` weight concat, QKV concat).
 3. For each op, pick the kernel: preconditions → admission pass → tuning DB winner → fallback chain ending at the reference (reference on GPU is never selected silently; it raises an error unless `--allow-slow`).
 4. Allocate activations (static arena), KV pool from **measured** free memory (wrong pins OOM'd radiance at startup; GB10 reports no GPU memory via nvidia-smi, so measure via the driver).
 5. Capture CUDA/HIP graphs per batch-size bucket for decode and verify steps.
@@ -215,7 +226,8 @@ The plan is serializable (`intarsia plan show`) so the UI and humans can see exa
 
 ## 4. Runtime
 
-- **Scheduler**: continuous batching with chunked prefill (adaptive chunk size as in radiance's MoE lane), request priorities (`priority: background`), memory-based admission. A **step watchdog** aborts and restarts the engine loop if the step counter stops advancing for N seconds while work is queued (vLLM's cuDNN FP8 hang on GB10 kept `/metrics` alive while dead).
+- **Scheduler**: continuous batching with chunked prefill (adaptive chunk size as in radiance's MoE lane), request priorities (`priority: background`), memory-based admission. A **step watchdog** runs as a **process supervisor** (`intarsia serve` forks the engine worker): if the step counter stops advancing for N seconds while work is queued, the supervisor kills and restarts the worker, because a wedged CUDA context has sticky errors (vLLM's cuDNN FP8 hang on GB10 kept `/metrics` alive while dead).
+- **Sequence state** is designed for hybrid models from day 1: each sequence owns per-layer *state slots* that are either attention KV (grows with tokens) or recurrent state (fixed size: GDN/Mamba conv + SSM state). Prefix caching snapshots recurrent state at block boundaries (radiance's lazy-GDN snapshot bug was a state-abstraction bug). Phase 0 implements contiguous KV + recurrent slots for one sequence; Phase 1 adds paging.
 - **KV**: paged blocks; radix-tree prefix cache keyed by (model, plan hash, token ids); FP8/BF16 KV; optional host-RAM tier on discrete GPUs (refused on GB10 unified memory).
 - **Speculation**: pluggable drafters (`mtp`, `dflash` block drafter, `ngram`). Verify uses a split-KV attention kernel for q_len>1 (R9700 lesson: 8930 → 475 µs at 18k). Acceptance per workload is a first-class metric.
 - **Sampling**: greedy/temperature/top-k/top-p/min-p/penalties; seeded; `ignore_eos` + `min_tokens` honoured (localeval's speed protocol depends on it); structured output via `llguidance`.
@@ -228,10 +240,11 @@ The plan is serializable (`intarsia plan show`) so the UI and humans can see exa
 ## 6. Accuracy system
 
 1. **Op level**: kernel admission tests (3.2).
-2. **Model level, golden logits**: `tools/golden.py` (Python, offline) runs HF `transformers` in BF16 on a fixed prompt set (~64 prompts, mixed lengths, chat-templated) and stores top-k logits + full-vocab log-probs for the first N positions. `intarsia accuracy <model>` compares: mean/max KL, top-1 agreement, top-5 overlap, greedy-token match length.
-3. **Gates** per quant (defaults, overridable per recipe): BF16 vs HF: top-1 ≥ 99.5%, mean KL ≤ 1e-3; FP8: KL ≤ 5e-3; 4-bit: KL ≤ 3e-2 and benchmark deltas within noise. A failed gate blocks publishing.
-4. **Task level**: localeval quality suites (gsm8k, mmlu, ifeval, tool use, long-context) in the deep stage.
-5. **Determinism checks**: `deterministic` mode run twice must produce identical tokens; `exact` mode with and without drafting must produce identical tokens.
+2. **Quick gate (day-0 safe)**: 5 greedy sanity prompts (non-empty, no repetition loops, answers a known fact) + perplexity on a fixed 2k-token text vs the expected range for the family. Works when HF has no implementation yet.
+3. **Model level, golden logits (deep pass, skippable; skips recorded in the manifest)**: `tools/golden.py` (Python, offline) runs HF `transformers` in BF16 on a fixed prompt set (~64 prompts, mixed lengths, chat-templated) and stores top-k logits + full-vocab log-probs for the first N positions. `intarsia accuracy <model>` compares: mean/max KL, top-1 agreement, top-5 overlap, greedy-token match length.
+4. **Gates** per quant (defaults, overridable per recipe): BF16 vs HF: top-1 ≥ 99.5%, mean KL ≤ 1e-3; FP8: KL ≤ 5e-3; 4-bit: KL ≤ 3e-2 and benchmark deltas within noise. A failed gate blocks publishing.
+5. **Task level**: localeval quality suites (gsm8k, mmlu, ifeval, tool use, long-context) in the deep stage.
+6. **Determinism checks**: `deterministic` mode run twice must produce identical tokens; `exact` mode with and without drafting must produce identical tokens.
 
 ## 7. Benchmarks and model onboarding
 
@@ -245,11 +258,10 @@ Benchmarks are plugins (`trait BenchPlugin { fn plan(); fn run(); fn report(); }
 | Stage | Target time | Gate |
 |---|---|---|
 | inspect + recipe draft | 2 min | all tensors mapped |
-| golden logits (HF reference, offline) | 10-30 min | — |
-| load + accuracy check | 5 min | KL/top-1 gate |
+| load + quick gate (greedy sanity + perplexity) | 5 min | sane output, perplexity in range |
 | quick bench (e2e sweep at c=1,4) | 15 min | numbers sane vs floor |
 | **publish quick results** (markdown + JSON + unanimis) | 1 min | — |
-| deep: quant matrix, long-context 4k/16k/32k, concurrency to 16, localeval quality, spec-decode acceptance by workload | 2-3 h | quality within noise of BF16 |
+| deep: HF golden logits (KL/top-1 gate, skippable), quant matrix, long-context 4k/16k/32k, concurrency to 16, localeval quality, spec-decode acceptance by workload | 2-3 h | quality within noise of BF16 |
 
 Quick results publish while deep keeps running. Every result embeds the host fingerprint, plan hash, kernel picks, exactness mode, thinking on/off.
 
@@ -306,17 +318,17 @@ docs/                     # ARCHITECTURE, decisions/, research/, recipes/
 
 | Phase | Scope | Gate |
 |---|---|---|
-| **0. Vertical slice (this session)** | Rust workspace; `cpu-ref` + `cuda` backend minimal (BF16 GEMV/GEMM via cuBLASLt, rmsnorm, rope, simple paged attention); Qwen3 recipe; OpenAI + Anthropic streaming; `/metrics`; web UI skeleton with dark mode and architecture map; golden-logit tool; Spark container | Qwen3-8B BF16 on spark1: golden top-1 ≥ 99.5%, both APIs stream, `localeval speed` runs, numbers shown next to vLLM on the same box |
-| 1. Fast single-GPU Spark | graphs, fused decode kernels, FP8/NVFP4 quant plugins, flashinfer + cutlass packs, prefix cache, continuous batching | beat vLLM single-stream on Qwen3-8B FP8 and 35B-A3B NVFP4 on spark1 |
-| 2. R9700 + MoE + spec | HIP backend, ggml pack (GGUF), MoE blocks, MTP/DFlash drafters, verify attention, onboarding pipeline | beat llama.cpp on R9700 and Spark; quick onboarding < 2 h |
-| 3. TP | Comm trait, NCCL 2×Spark, P2P one-shot + RCCL 2×R9700, fused AR+norm+quant | TP=2 speedup ≥ 1.6× decode on R9700 27B |
-| 4. Chase the leaders | hybrid GDN blocks, EXL3 pack, small-M kernels, autotuner at scale, Apple/Metal decision | within 10% of TensorFold on Spark; beat vLLM-radiance on R9700 |
+| **0. Seams (this session)** | Rust workspace; kernel registry with cpu-ref oracle + admission tests; C kernel ABI; `cuda` backend via the ABI shim (native BF16 kernels + cuBLASLt as Fast); recipe loader + Qwen3 recipe; sequence state with recurrent slots (single sequence, contiguous KV); measured-memory allocation; OpenAI chat/completions streaming (`ignore_eos`, `min_tokens`, `usage.cached_tokens`) + Anthropic `/v1/messages`; `/metrics` + `/events` + `/health`; `intarsia top` TUI; golden-logit tool + `intarsia accuracy`; built-in speed sweep + localeval target | (a) Mac: Qwen3-0.6B-arch on cpu-ref matches HF golden. (b) spark1: Qwen3-8B BF16 on CUDA matches golden (top-1 ≥ 99%), both APIs stream, `localeval speed` runs. vLLM numbers are a smoke comparison only. |
+| 1. The hard kernels on Spark | port TensorFold NVFP4 GEMV + GDN + verify attention to the ABI; MoE block; hybrid GDN recipe; graphs; paged KV + prefix cache + continuous batching; Responses API; web UI (chat, dashboard, live architecture map) | Qwen3.6-35B-A3B NVFP4 on spark1 correct and ≥ vLLM single-stream (86-90 tok/s) |
+| 2. R9700 | HIP backend via shim; port radiance MXFP4×FP8 GEMM, GDN, attention; GPU_MAX_HW_QUEUES etc. in `doctor`; onboarding DAG | beat llama.cpp on R9700 (35B-A3B MoE > 112 tok/s); quick onboarding < 2 h |
+| 3. Speculation + TP | DFlash/MTP drafters; radiance one-shot all-reduce(+norm+quant); NCCL 2×Spark | Qwen3.8-27B TP=2 on R9700 beats vLLM-radiance (150 tok/s) |
+| 4. Chase the leaders | EXL3 pack, small-M kernels, autotuner at scale, Apple/Metal decision | within 10% of TensorFold on Spark and radiance on R9700 |
 | 5. Intel Arc | Vulkan or SYCL backend | when better hardware arrives |
 
 ## 14. Risks
 
 1. **Quota/time**: the plan is larger than one week. Mitigation: phases are independently useful; Phase 0 proves every seam.
-2. **Kernel pack integration cost** (ggml, flashinfer have their own memory/layout assumptions). Mitigation: adapters per op, admission tests; start with one pack.
+2. **Kernel ports are the critical path** (review item 1; the operator's own estimate was 7-9 weeks for one model on one platform). Mitigation: one C ABI, two packs that already hold the bars (TensorFold, radiance), port the three hard kernels first (quant GEMV, GDN, verify attention), nothing else until a measured gap names it.
 3. **R9700 boxes are production** (radiance). Every R9700 run takes radiance down via `fleetq --takes-down radiance` and needs the user's go-ahead.
 4. **Spark disk is 95% full** (190 GB free on spark1). Containers and golden-logit files must be pruned.
 5. **Exactness vs speed**: exact mode limits kernel choice; keep it a mode.
