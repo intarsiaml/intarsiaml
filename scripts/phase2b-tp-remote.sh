@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Phase 2b tensor-parallel gates. Runs ON tatooine, inside a fleetq lease that has radiance down and BOTH R9700s
 # (see scripts/phase2b-burst.sh, which takes the lease, stops radiance, runs this, restarts radiance and waits for it).
-#   scripts/phase2b-tp-remote.sh comm smoke plan accuracy bench
+#   scripts/phase2b-tp-remote.sh comm smoke plan accuracy regate bench
 # Needs the release build from `deploy/tatooine/dev.sh cargo build --release -p intarsia-cli --features hip`
 # and `cargo test --release -p intarsia-backend-hip --no-run` (CPU slot, no lease).
 set -uo pipefail
@@ -73,6 +73,29 @@ stage_accuracy_self() { # tp=2 against tp=1's own logits (same weights, same pro
     $D $B accuracy --backend hip --model $M --tp 2 --self-golden /work/bench-out/sg-$g-tp1.safetensors --mode prefill \
       --allow-unstamped --allow-dirty --allow-same-code 2>&1 | tail -16
   done
+}
+
+stage_regate() {
+  # Re-gate against the HF fp32 goldens (bf16 gate class), then the same-weights self-golden gate:
+  # tp=1 writes its own log-probs on the long golden, tp=2 is judged against them. Full logs: bench-out/regate/.
+  local L=$INTARSIA_REPO/bench-out/regate
+  mkdir -p "$L"
+  for g in qwen3-8b-fp32 qwen3-8b-long-fp32; do
+    local sg=()
+    [ "$g" = qwen3-8b-long-fp32 ] && sg=(--write-self-golden /work/bench-out/regate/sg-$g-tp1.safetensors)
+    echo "=== [$(ts)] regate tp=1 $g (both, bf16 class)"
+    env HIP_VISIBLE_DEVICES=0 $D $B accuracy --backend hip --model $M --tp 1 --golden "$G/$g.safetensors" --mode both --gate-class bf16 "${sg[@]}" > "$L/$g.tp1.log" 2>&1
+    echo "exit $?"; tail -22 "$L/$g.tp1.log"
+    echo "=== [$(ts)] regate tp=2 $g (both, bf16 class)"
+    $D $B accuracy --backend hip --model $M --tp 2 --golden "$G/$g.safetensors" --mode both --gate-class bf16 > "$L/$g.tp2.log" 2>&1
+    echo "exit $?"; tail -22 "$L/$g.tp2.log"
+  done
+  echo "=== [$(ts)] regate tp=2 self-golden gate against tp=1 (long fp32 prompts, default budgets)"
+  $D $B accuracy --backend hip --model $M --tp 2 --self-golden /work/bench-out/regate/sg-qwen3-8b-long-fp32-tp1.safetensors --mode both \
+    --allow-same-code > "$L/self.tp2.log" 2>&1
+  echo "exit $?"; tail -30 "$L/self.tp2.log"
+  echo "=== [$(ts)] tp=2 generate sanity"
+  $D $B generate --backend hip --model $M --tp 2 -p "The capital of France is" --max-tokens 24 --profile-every 0 2>&1 | grep -v "^warning" | tail -8
 }
 
 stage_accuracy_tp1() {
