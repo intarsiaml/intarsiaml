@@ -351,29 +351,69 @@ fn moe_experts_mma_is_as_accurate_as_old_kernel() {
 
 /// Diagnostic for docs/results/2026-10-14-35b-accuracy.md: the fraction of bf16 outputs off the cpu reference for the
 /// grouped (mma) kernel and the warp-per-row kernel over small token counts (the kernel serves T >= 32; a 58-token
-/// prompt's decode-mode prefill is T = 42). Prints only; run with `--include-ignored --nocapture`.
+/// prompt's decode-mode prefill is T = 42), the largest error in bf16 steps, and whether a case that breaks the bounds of
+/// `moe_experts_mma_is_as_accurate_as_old_kernel` repeats bit for bit. Prints only; run with `--include-ignored
+/// --nocapture`. `INTARSIA_SWEEP_SEEDS=a..b` (default 1..17) and `INTARSIA_SWEEP_T=t1,t2,..` choose the cases.
 #[test]
 #[ignore]
 fn moe_experts_mma_small_t_sweep() {
     let Some(cuda) = device() else { return };
     let cpu = CpuBackend::new();
-    for seed in [5u64, 11] {
-        let mut rng = SplitMix64::new(seed);
-        for t in [32usize, 33, 40, 42, 48, 58, 63, 64, 96, 128, 512] {
+    let seeds: Vec<u64> = std::env::var("INTARSIA_SWEEP_SEEDS")
+        .ok()
+        .and_then(|v| v.split_once("..").map(|(a, b)| (a.parse().unwrap()..b.parse().unwrap()).collect()))
+        .unwrap_or_else(|| (1..17).collect());
+    let ts: Vec<usize> = std::env::var("INTARSIA_SWEEP_T")
+        .map(|v| v.split(',').map(|x| x.parse().unwrap()).collect())
+        .unwrap_or_else(|_| vec![32, 33, 34, 35, 40, 41, 42, 48, 49, 57, 63, 64]);
+    let ulps = |a: &[f32], b: &[f32]| {
+        let key = |x: f32| {
+            let u = (x.to_bits() >> 16) as i32;
+            if u & 0x8000 != 0 { -(u & 0x7fff) } else { u }
+        };
+        a.iter().zip(b).map(|(x, y)| (key(*x) - key(*y)).unsigned_abs()).max().unwrap_or(0)
+    };
+    let (mut n, mut breaches) = (0, 0);
+    for &seed in &seeds {
+        for &t in &ts {
+            let mut rng = SplitMix64::new(seed * 1000 + t as u64);
             let hc = experts_case(&mut rng, t, 64, 8, 2048, 512, DType::Bf16);
             let want = run_host(&cpu, "ref_moe_experts", &hc).unwrap()[0].to_f32();
             let old = run_host(&*cuda, "moe_experts_bf16", &hc).unwrap()[0].to_f32();
             let new = run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].to_f32();
             let frac = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count() as f64 / want.len() as f64;
+            let (fo, fn_) = (frac(&old), frac(&new));
+            let (ro, rn) = (rel_l2(&old, &want), rel_l2(&new, &want));
+            let breach = fn_ > 3.0 * fo.max(1e-3) || rn > 2.5 * ro;
+            n += 1;
+            let mut extra = String::new();
+            if breach {
+                breaches += 1;
+                let again = run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].to_f32();
+                let ids: Vec<i32> = hc.inputs[1].to_f32().iter().map(|&x| x as i32).collect();
+                let mut per = vec![0usize; 64];
+                for &e in &ids {
+                    if (0..64).contains(&e) {
+                        per[e as usize] += 1;
+                    }
+                }
+                extra = format!(
+                    " BREACH repeat-bitwise={} max-pairs/expert={} experts-used={}",
+                    again.iter().zip(&new).all(|(x, y)| x.to_bits() == y.to_bits()),
+                    per.iter().max().unwrap(),
+                    per.iter().filter(|&&c| c > 0).count()
+                );
+            }
             eprintln!(
-                "SWEEP seed={seed} T={t:4}: off-reference old {:.4} % mma {:.4} %; rel_l2 old {:.3e} mma {:.3e}",
-                frac(&old) * 100.0,
-                frac(&new) * 100.0,
-                rel_l2(&old, &want),
-                rel_l2(&new, &want)
+                "SWEEP seed={seed:3} T={t:4}: off-reference old {:.4} % mma {:.4} %; rel_l2 old {ro:.3e} mma {rn:.3e}; max ulp old {} mma {}{extra}",
+                fo * 100.0,
+                fn_ * 100.0,
+                ulps(&old, &want),
+                ulps(&new, &want)
             );
         }
     }
+    eprintln!("SWEEP done: {n} cases, {breaches} break the bounds of moe_experts_mma_is_as_accurate_as_old_kernel");
 }
 
 /// The tile height (16, 32 or 64 pairs, normally chosen from the mean pairs per expert; `INTARSIA_MOE_BM` forces it)

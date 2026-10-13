@@ -71,7 +71,13 @@ impl Backend for CpuBackend {
             backend: "cpu".into(),
             arch: "any".into(),
             total_mem: sys.total_memory(),
-            free_mem: sys.available_memory(),
+            // INTARSIA_CPU_FREE_MEM_GB overrides the measured value: on macOS 27 sysinfo's available_memory() reports
+            // under 2 GB on a 128 GB machine with 70 GB unused, which leaves no KV budget for a 35B model.
+            free_mem: std::env::var("INTARSIA_CPU_FREE_MEM_GB")
+                .ok()
+                .and_then(|v| v.parse::<f64>().ok())
+                .map(|gb| (gb * (1u64 << 30) as f64) as u64)
+                .unwrap_or_else(|| sys.available_memory()),
             unified: true,
             bandwidth_gbs: None,
         }
