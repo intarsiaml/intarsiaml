@@ -230,18 +230,27 @@ pub const EXPERIMENT_SHADERS: &[&str] = &[
     "gemv_pair_bf16_rt_u4s8",
 ];
 
-/// Entry points of `intarsia_metal4.metallib` (`METAL4_SOURCES` in build.rs, compiled `-std=metal4.0`). Not part of
-/// [`shader_names`]: a failure to load them only drops the kernels in [`requires_metal4`], never `MetalBackend::new`.
-pub const METAL4_SHADERS: &[&str] = &["gemm_nax_probe"];
+/// Entry points of `intarsia_metal4.metallib` (`METAL4_SOURCES` in build.rs, compiled `-std=metal4.0`): one per
+/// `gemm_nax::NAX_VARIANTS` entry. Not part of [`shader_names`]: a failure to load them only drops the kernels in
+/// [`requires_metal4`], never `MetalBackend::new`.
+pub fn metal4_shaders() -> Vec<&'static str> {
+    crate::gemm_nax::NAX_VARIANTS.iter().map(|v| v.shader).collect()
+}
 
+/// `Op::Matmul`, M >= 16, bf16 on the M5 neural accelerators (`mpp::tensor_ops::matmul2d`, gemm_nax.rs):
+/// `relaxed_precision` false / true.
+pub const MATMUL_BF16_NAX: &str = "matmul_bf16_nax";
+pub const MATMUL_BF16_NAX_RELAXED: &str = "matmul_bf16_nax_relaxed";
+/// Shader entry points those two launch.
+pub const NAX_DEFAULT: &str = "gemm_nax_t128x64w4";
+pub const NAX_DEFAULT_RELAXED: &str = "gemm_nax_t128x64w4_r";
 /// Registered kernels that run on a `METAL4_SHADERS` pipeline; `Backend::kernels` hides them when the metal4.0 library
 /// could not be loaded.
+pub const NAX_KERNELS: &[&str] = &[MATMUL_BF16_NAX, MATMUL_BF16_NAX_RELAXED];
+
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
 }
-
-/// `Op::Matmul`, M >= 16, on the neural accelerators (`mpp::tensor_ops::matmul2d`).
-pub const NAX_KERNELS: &[&str] = &[];
 
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
@@ -285,6 +294,8 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
     (MATMUL_PAIR_BF16_GEMV, Op::MatmulPair),
     (QK_NORM_ROPE_KV_BF16, Op::QkNormRopeKv),
+    (MATMUL_BF16_NAX, Op::Matmul),
+    (MATMUL_BF16_NAX_RELAXED, Op::Matmul),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -362,6 +373,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(10),
+                // NAX GEMM (metal4.0 library): M >= 16 so the 16-row accelerator tiles are not mostly padding; any K (the
+                // primitive zero-fills a K tail, tests/gemm_nax.rs `nax_k_tails`). Priority -1 in this spike: registered
+                // and graded by `kernels test`, never selected; the full P1 work raises it above `matmul_bf16` once the
+                // model-level accuracy gates pass.
+                MATMUL_BF16_NAX | MATMUL_BF16_NAX_RELAXED => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m >= 16 && s.k >= 16 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -381,6 +403,17 @@ mod tests {
             assert!(name.starts_with(op.as_str()), "{name} is not named after op {op}");
         }
         assert_eq!(all().len(), TABLE.len());
+    }
+
+    #[test]
+    fn metal4_shaders_are_the_nax_variants_and_not_metal3_shaders() {
+        let m4 = metal4_shaders();
+        for n in [NAX_DEFAULT, NAX_DEFAULT_RELAXED] {
+            assert!(m4.contains(&n), "{n}");
+        }
+        assert!(!shader_names().iter().any(|n| m4.contains(n)));
+        let set: HashSet<_> = m4.iter().collect();
+        assert_eq!(set.len(), m4.len());
     }
 
     #[test]

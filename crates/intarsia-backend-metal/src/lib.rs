@@ -28,7 +28,7 @@ pub mod decode;
 mod dense;
 mod fill;
 mod fused;
-mod gemm_nax;
+pub mod gemm_nax;
 mod host;
 pub mod kernels;
 pub mod profile;
@@ -84,7 +84,7 @@ fn make_pso(device: &ProtocolObject<dyn MTLDevice>, lib: &ProtocolObject<dyn MTL
         .map_err(|e| err(name, e))
 }
 
-/// Load `intarsia_metal4.metallib` and create the pipelines of `kernels::METAL4_SHADERS` into `psos`. All or nothing: on
+/// Load `intarsia_metal4.metallib` and create the pipelines of `kernels::metal4_shaders()` into `psos`. All or nothing: on
 /// any failure (no library built, an OS or GPU that cannot load metal4.0 code, a pipeline error) `psos` is left as it
 /// was, the reason is logged once at debug level (`INTARSIA_METAL_DEBUG`) and the caller registers none of those kernels.
 fn load_metal4(device: &ProtocolObject<dyn MTLDevice>, psos: &mut HashMap<&'static str, Pso>) -> bool {
@@ -101,7 +101,7 @@ fn load_metal4(device: &ProtocolObject<dyn MTLDevice>, psos: &mut HashMap<&'stat
         }
     };
     let mut made = Vec::new();
-    for &name in kernels::METAL4_SHADERS {
+    for name in kernels::metal4_shaders() {
         match make_pso(device, &lib, name) {
             Ok(p) => made.push((name, p)),
             Err(e) => {
@@ -166,7 +166,7 @@ pub struct MetalBackend {
     device: Device,
     queue: Queue,
     psos: HashMap<&'static str, Pso>,
-    /// The metal4.0 library loaded and every `kernels::METAL4_SHADERS` pipeline was created. When false those kernels
+    /// The metal4.0 library loaded and every `kernels::metal4_shaders()` pipeline was created. When false those kernels
     /// are neither registered (`Backend::kernels`) nor launchable and the metal3.1 kernels run instead.
     metal4: bool,
     stream: Mutex<Stream>,
@@ -196,7 +196,7 @@ impl MetalBackend {
         Self::with_metal4(false)
     }
 
-    /// Whether the metal4.0 kernels (`kernels::METAL4_SHADERS`, e.g. the NAX GEMM) are loaded and registered.
+    /// Whether the metal4.0 kernels (`kernels::metal4_shaders()`, e.g. the NAX GEMM) are loaded and registered.
     pub fn has_metal4(&self) -> bool {
         self.metal4
     }
@@ -625,6 +625,9 @@ impl Backend for MetalBackend {
                     plan.threads,
                 )
             });
+        }
+        if kernels::NAX_KERNELS.contains(&kernel) && call.op == Op::Matmul {
+            return self.launch_nax(kernel, call);
         }
         if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
             return self.launch_matmul_pair(call);
