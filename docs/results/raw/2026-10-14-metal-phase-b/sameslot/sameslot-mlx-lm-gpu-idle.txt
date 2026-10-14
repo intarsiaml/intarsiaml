@@ -1,0 +1,7 @@
+== sample set 2026-10-14T17:07:12-04:00
+"Device Utilization %"=99
+"Device Utilization %"=2
+"Device Utilization %"=0
+median=2
+zoom: 
+FINAL median=2 tries=0

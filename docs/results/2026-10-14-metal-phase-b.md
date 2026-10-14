@@ -540,3 +540,85 @@ Unchanged. Neither registers `QkNormRopeKv`, so `fused_ok` finds no kernel and r
 - No GPU test on models with partial rotary / zero-centred norms (Qwen3.5/3.6); the kernel tests cover those parameters synthetically.
 - Contender: GPU idle readings were 0-10 percent before every timed run; the A/B pairs, both localeval orders and B3's repeat agree, so no run was discarded.
 - fleetq jobs: #1850 (qkv_fold test), #1851 (smoke), #1852 (kernels test, identity, accuracy), #1853 (Linux check), #1854 (A/B), #1855-#1856 (failed localeval attempts, no data), #1857 and #1858 (localeval), #1859 (cargo test, metal backend).
+
+## Same-slot baselines (one fleetq slot)
+
+**Outcome.** All three decode exit criteria hold at 128 and 1k, and two of three hold at 4k, in one exclusive fleetq slot (#1867, endor) with intarsia, mlx-lm, llama.cpp and intarsia again run back to back. The 4k point misses the 85% byte-floor criterion on average (84.9%, runs 84.4% and 85.4%), so it is a borderline miss, not a clear pass. Intarsia decodes 104-106% of mlx-lm and 101-102% of llama.cpp (the llama.cpp margin is 1-2%, inside the ~5% decode noise, so read it as a tie). Prefill, which these criteria do not cover, is far behind: 4k marginal prefill is about 205 tok/s against 3134 (mlx-lm) and 2082 (llama.cpp).
+
+Same machine state: one `fleetq acquire --host endor --exclusive --mem 40 --expect 30 --wait` (#1867), all servers and localeval run under `FLEETQ_JOB=1867`, released afterwards. Order intarsia-1, mlx-lm, llama.cpp, intarsia-2; each server was stopped, with its port closed and its pid gone, before the next started. `endor-kev` and `endor-tensorfold` stayed resident and untouched. Driver: `raw/2026-10-14-metal-phase-b/sameslot/driver.log`.
+
+Command for every run: `uv run localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off` (1 discarded warmup, median of 3 reps), with the same server flags as the morning baselines (below).
+
+### Decode tok/s, median (min-max)
+
+| Prompt tokens (intarsia / mlx-lm / llama.cpp) | intarsia-1 | mlx-lm 0.31.3 | llama.cpp b11146 | intarsia-2 |
+|---|---:|---:|---:|---:|
+| ~128 (113 / 133 / 134; intarsia-2 114) | 35.1 (34.5-36.0) | 34.3 (33.6-34.3) | 35.1 (35.1-35.3) | 36.1 (35.8-36.1) |
+| ~1k (991 / 991 / 990; intarsia-2 990) | 35.1 (35.0-35.4) | 33.6 (32.9-33.6) | 35.0 (35.0-35.0) | 35.7 (35.5-35.7) |
+| ~4k (4089 / 4087 / 4090; intarsia-2 4086) | 34.3 (34.3-34.7) | 32.6 (32.5-32.6) | 33.8 (33.7-34.0) | 34.7 (34.3-34.7) |
+
+### Marginal prefill tok/s (Δprompt tokens / ΔTTFT from the previous row; the 128 row has none)
+
+| Size | intarsia-1 | mlx-lm | llama.cpp | intarsia-2 |
+|---|---:|---:|---:|---:|
+| ~1k | 350 | 4423 | 3068 | 351 |
+| ~4k | 205 | 3134 | 2082 | 205 |
+
+Plain prefill tok/s at 4k (TTFT-based): intarsia 227 / 228, mlx-lm 2896, llama.cpp 2173. The mlx-lm 128-token TTFT is noisy (324-597 tok/s, 48% spread), and the 128 and 1k rows are request-overhead dominated, so I quote marginal prefill. Intarsia's 4k marginal prefill is 6.5% of mlx-lm and 9.9% of llama.cpp. It is unchanged from the 205-207 tok/s seen through phase B, which did not touch prefill.
+
+### Intarsia against the byte floor, mlx-lm and llama.cpp
+
+Floor is 40.6 tok/s (15.1368 GB per decode token at 614 GB/s, weights only). Mean is the mean of the two intarsia medians.
+
+| Size | mean tok/s | % floor, mean | % floor, run 1 / run 2 | vs mlx-lm, mean (run 1 / run 2) | vs llama.cpp, mean (run 1 / run 2) | drift run 2 vs run 1 |
+|---|---:|---:|---:|---:|---:|---:|
+| ~128 | 35.60 | 87.7 | 86.4 / 89.0 | 103.8% (102.3 / 105.3) | 101.3% (99.8 / 102.8) | +2.9% |
+| ~1k | 35.39 | 87.2 | 86.4 / 87.9 | 105.4% (104.5 / 106.3) | 101.2% (100.3 / 102.1) | +1.7% |
+| ~4k | 34.47 | 84.9 | 84.4 / 85.4 | 105.7% (105.1 / 106.3) | 101.9% (101.4 / 102.5) | +1.1% |
+
+Drift between the bracketing intarsia runs is +1.1 to +2.9%, all in the same direction (run 2 faster) and inside the ~5% decode noise. It does not look like thermal throttling or a state decay, but it does mean single-run percentages carry about +-1.5 points of uncertainty. The 4k floor percentage straddles the 85% line (84.4 in run 1, 85.4 in run 2), so this measurement cannot settle that point either way.
+
+### Exit criteria under this measurement (decode)
+
+| Criterion | 128 | 1k | 4k |
+|---|---|---|---|
+| >= 90% of mlx-lm | holds (102-105%) | holds (105-106%) | holds (105-106%) |
+| >= 85% of byte floor | holds (86.4-89.0%) | holds (86.4-87.9%) | **does not hold on the mean** (84.9%; run 1 84.4%, run 2 85.4%) |
+| not below llama.cpp | holds, tie (99.8 / 102.8%) | holds, tie (100.3 / 102.1%) | holds, tie (101.4 / 102.5%) |
+
+For the llama.cpp row: intarsia-1 at 128 tokens is 0.2% below llama.cpp, which is noise, and every other cell is above. "Not below" holds, but only as a tie, not as a lead. These criteria are decode-only. Prefill is 10-15x behind both engines and is a separate open item.
+
+### Against the morning baselines
+
+The morning mlx-lm and llama.cpp runs (07:25-07:29, `20261014-072555-adhoc-llamacpp-bf16`, `20261014-072755-adhoc-mlx-lm-bf16`, in a different slot) were slower at 4k than the same engines are here: mlx-lm 31.0 then against 32.6 now, llama.cpp 31.7 then against 33.8 now. At 128 and 1k they agree within about 2%. So cross-slot ratios against the morning baselines overstated intarsia's relative position at 4k. The same-slot ratios above are the ones to use.
+
+### GPU idle and Zoom (recorded before each run, after the server was up and before localeval)
+
+`ioreg ... "Device Utilization %"`, 3 samples 1 s apart. Raw: `*-gpu-idle.txt`.
+
+| Run | samples (%) | median | Zoom |
+|---|---|---:|---|
+| intarsia-1 | 94, 0, 4 | 4 | not running |
+| mlx-lm | 99, 2, 0 | 2 | not running |
+| llama.cpp | 97, 0, 1 | 1 | not running |
+| intarsia-2 | 98, 0, 23, then after a 10 s wait 25, 9, 0 | 23, then 9 | not running |
+
+The first sample in each set (94-99%) is the model-load tail from the server that just came up, so I treat the median as the reading. For intarsia-2 the first median was 23, above the 10% limit. The driver waited 10 s and resampled, giving a median of 9 (25, 9, 0), which passed, but the GPU had not clearly settled; the 25 is a leftover from the model load or the previous teardown. Intarsia-2 came out faster, not slower, so this did not hurt the bracket, but I cannot rule out a small effect. `pgrep -fl zoom.us` was empty at every reading.
+
+### Setup
+
+- Intarsia: repo HEAD `a296a78`, `target/release/intarsia` built 16:06 (cargo reported it up to date), `serve --model /Users/josef/models/Qwen3-8B --backend metal --device 0 --host 127.0.0.1 --port 8093 --served-model-name intarsia-metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`. Server ready after 31 s both times.
+- mlx-lm: `mlx_lm.server --model /Users/josef/models/Qwen3-8B --port 8092 --chat-template-args '{"enable_thinking":false}' --prompt-cache-size 1`. Versions mlx 0.32.1, mlx-lm 0.31.3, mlx-metal 0.32.1.
+- llama.cpp: `/opt/homebrew/bin/llama-server -m /Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf -ngl 999 -fa on -c 8192 --cache-ram 0 --port 8091`. Version 0.5.0, build 11146, commit 7fe450e19.
+- macOS 27.0 (26A428), localeval 0.2.1, deepeval 4.2.6.
+- The morning server commands were not saved verbatim in `baselines/`, so I matched them from the instructions and checked them against the morning logs: n_slots 4, n_ctx_slot 8192, `--cache-idle-slots requires --cache-ram, disabling` for llama.cpp, and `Prompt Cache: 1 sequences` for mlx-lm.
+- The llama.cpp server logged 4 "failed to find free space in the KV cache, retrying with smaller batch size" warnings (the morning log has the same). It retries and the reported numbers are valid, but I did not investigate them.
+- No server errors or panics in the other logs. Localeval exit 0 for all four runs.
+
+### Run IDs
+
+- intarsia-1: `20261014-170432-adhoc-sameslot-intarsia-1`, unanimis `0c55123e`
+- mlx-lm: `20261014-170715-adhoc-sameslot-mlx-lm`, unanimis `cac5f999`
+- llama.cpp: `20261014-170847-adhoc-sameslot-llamacpp`, unanimis `3443ea3e`
+- intarsia-2: `20261014-171057-adhoc-sameslot-intarsia-2`, unanimis `d5bb804e`
+- fleetq #1867. `result.json` and `summary.md` for each run, server logs, localeval output, GPU readings and `versions.txt` are in `docs/results/raw/2026-10-14-metal-phase-b/sameslot/`.

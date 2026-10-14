@@ -1,0 +1,176 @@
+##### sameslot-intarsia-1
+server up after 31s
+== sample set 2026-10-14T17:04:29-04:00
+"Device Utilization %"=94
+"Device Utilization %"=0
+"Device Utilization %"=4
+median=4
+zoom: 
+FINAL median=4 tries=0
+localeval exit 0
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: speed; label: sameslot-intarsia-1
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label sameslot-intarsia-1`
+- result file: `results/20261014-170432-adhoc-sameslot-intarsia-1/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 113 | 0.36 | 299 (298–300) * | - | 35.1 (34.5–36.0) | 36.2 (35.6–36.3) | - | - | 256 |
+| 991 | 2.87 | 344 (315–344) * | 350 | 35.1 (35.0–35.4) | 35.9 (35.2–35.9) | - | - | 256 |
+| 4089 | 17.99 | 227 (225–228) | 205 | 34.3 (34.3–34.7) | 34.8 (34.6–35.0) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-170432-adhoc-sameslot-intarsia-1/result.json
+[localeval] logged to unanimis: 0c55123e-2154-4aea-814e-0c648b65ba6d
+port 8093 closed
+pid 74455 gone
+##### sameslot-mlx-lm
+server up after 2s
+== sample set 2026-10-14T17:07:12-04:00
+"Device Utilization %"=99
+"Device Utilization %"=2
+"Device Utilization %"=0
+median=2
+zoom: 
+FINAL median=2 tries=0
+localeval exit 0
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8092/v1 --model /Users/josef/models/Qwen3-8B --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label sameslot-mlx-lm`
+- result file: `results/20261014-170715-adhoc-sameslot-mlx-lm/result.json`
+
+## Speed sweep
+
+served `/Users/josef/models/Qwen3-8B`, fingerprint `0.31.3-0.32.1-macOS-27.0-arm64-arm-64bit-applegpu_g17s`, ctx ?, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 133 | 0.23 | 566 (324–597) * | - | 34.3 (33.6–34.3) | 43.2 (39.3–43.3) | - | - | 256 |
+| 991 | 0.42 | 2337 (2252–2340) * | 4423 | 33.6 (32.9–33.6) | 39.6 (39.0–41.1) | - | - | 256 |
+| 4087 | 1.41 | 2896 (2287–2933) | 3134 | 32.6 (32.5–32.6) | 37.9 (37.7–41.8) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-170715-adhoc-sameslot-mlx-lm/result.json
+[localeval] logged to unanimis: cac5f999-1706-49f7-a5b0-7b833c5c7a3f
+port 8092 closed
+pid 75139 gone
+##### sameslot-llamacpp
+server up after 4s
+== sample set 2026-10-14T17:08:43-04:00
+"Device Utilization %"=97
+"Device Utilization %"=0
+"Device Utilization %"=1
+median=1
+zoom: 
+FINAL median=1 tries=0
+localeval exit 0
+
+- model: `/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf` on ? (?), url `http://127.0.0.1:8091/v1`
+- thinking: off; run kind: speed; label: sameslot-llamacpp
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8091/v1 --model /Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label sameslot-llamacpp`
+- result file: `results/20261014-170847-adhoc-sameslot-llamacpp/result.json`
+
+## Speed sweep
+
+served `/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf`, fingerprint `b11146-7fe450e19`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 134 | 0.11 | 1166 (1050–1200) * | - | 35.1 (35.1–35.3) | 35.5 (35.4–35.5) | 1200 | 35.1 | 256 |
+| 990 | 0.39 | 2520 (2505–2529) * | 3068 | 35.0 (35.0–35.0) | 35.2 (35.2–35.2) | 2544 | 35.0 | 256 |
+| 4090 | 1.88 | 2173 (2117–2202) | 2082 | 33.8 (33.7–34.0) | 34.2 (34.1–34.2) | 2179 | 33.8 | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-170847-adhoc-sameslot-llamacpp/result.json
+[localeval] logged to unanimis: 3443ea3e-d355-4c2b-a21b-307d4ee983c8
+port 8091 closed
+pid 75391 gone
+##### sameslot-intarsia-2
+server up after 31s
+== sample set 2026-10-14T17:10:40-04:00
+"Device Utilization %"=98
+"Device Utilization %"=0
+"Device Utilization %"=23
+median=23
+zoom: 
+idle util 23 > 10, waiting 10s (try 0)
+== sample set 2026-10-14T17:10:53-04:00
+"Device Utilization %"=25
+"Device Utilization %"=9
+"Device Utilization %"=0
+median=9
+zoom: 
+FINAL median=9 tries=1
+localeval exit 0
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: speed; label: sameslot-intarsia-2
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label sameslot-intarsia-2`
+- result file: `results/20261014-171057-adhoc-sameslot-intarsia-2/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 114 | 0.36 | 301 (298–301) * | - | 36.1 (35.8–36.1) | 36.4 (36.1–36.4) | - | - | 256 |
+| 990 | 2.86 | 344 (344–344) * | 350 | 35.7 (35.5–35.7) | 35.9 (35.9–36.0) | - | - | 256 |
+| 4086 | 17.94 | 228 (227–229) | 205 | 34.7 (34.3–34.7) | 34.8 (34.8–34.9) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-171057-adhoc-sameslot-intarsia-2/result.json
+[localeval] logged to unanimis: d5bb804e-2fea-4317-b648-24f94ae0bbb8
+port 8093 closed
+pid 75645 gone
+ALLDONE
