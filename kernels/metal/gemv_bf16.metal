@@ -106,6 +106,12 @@ INST(4, 1, 4)
 INST(4, 2, 4)
 INST(8, 1, 2)
 INST(8, 2, 2)
+INST(1, 4, 1)
+INST(1, 4, 2)
+INST(1, 2, 4)
+INST(1, 8, 4)
+INST(1, 8, 2)
+INST(1, 2, 2)
 
 // 8-byte variant for operands that are only 8-byte aligned (safetensors shards whose header length is 8 mod 16 put
 // every tensor at 8 mod 16) and K % 4 == 0: one simdgroup per row, UNROLL 8-byte loads per lane per step.
@@ -252,3 +258,250 @@ kernel void gemv_pair_bf16_a8(device const uint2* W0 [[buffer(0)]],
     const float s = simd_sum(acc);
     if (lane == 0 && row < n) Y[row] = to_bf16(s);
 }
+
+// ---- Phase B part 3 experiments: row-per-threadgroup (split-K inside the threadgroup) and generic pair ---------------
+// `gemv_bf16_rt<UNROLL, SG>`: one threadgroup of SG simdgroups per output row. The SG*32 lanes stream the row together
+// (lane L of the threadgroup reads chunk (step*UNROLL + u)*SG*32 + L), so a row is consumed in K/(8*SG*32*UNROLL) steps
+// and a row finishes after one or a few load round trips instead of K/(8*32*UNROLL) per simdgroup. Per-simdgroup
+// partials are combined in a fixed order through threadgroup memory (deterministic, no atomics).
+template <int SG>
+inline float tg_sum(float acc, uint sg, uint lane, threadgroup float* part) {
+    const float s = simd_sum(acc);
+    if (lane == 0) part[sg] = s;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    float t = part[0];
+    for (int i = 1; i < SG; ++i) t += part[i];
+    return t;
+}
+
+template <int UNROLL, int SG>
+kernel void gemv_bf16_rt(device const uint4* W [[buffer(0)]],
+                         device const uint4* X [[buffer(1)]],
+                         device ushort* Y [[buffer(2)]],
+                         constant GemvParams& p [[buffer(3)]],
+                         uint tg [[threadgroup_position_in_grid]],
+                         uint sg [[simdgroup_index_in_threadgroup]],
+                         uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float part[SG];
+    const uint k8 = p.k / 8;
+    device const uint4* wr = W + (ulong)tg * k8;
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * UNROLL;
+    const uint nblk = k8 / block;
+    uint i = sg * 32 + lane;
+    float acc = 0.0f;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint4 xv[UNROLL];
+        uint4 wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) acc += dot8(wv[u], xv[u]);
+    }
+    for (i = nblk * block + sg * 32 + lane; i < k8; i += lanes) acc += dot8(wr[i], X[i]);
+    const float t = tg_sum<SG>(acc, sg, lane, part);
+    if (sg == 0 && lane == 0) Y[p.y_skip + tg] = to_bf16(t);
+}
+
+#define INST_RT(UNROLL, SG)                                                                                           \
+    template [[host_name("gemv_bf16_rt_u" #UNROLL "s" #SG)]] kernel void gemv_bf16_rt<UNROLL, SG>(                  \
+        device const uint4*, device const uint4*, device ushort*, constant GemvParams&, uint, uint, uint);
+
+INST_RT(1, 4)
+INST_RT(2, 4)
+INST_RT(4, 4)
+INST_RT(1, 8)
+INST_RT(2, 8)
+INST_RT(1, 2)
+INST_RT(2, 2)
+INST_RT(4, 2)
+INST_RT(8, 2)
+INST_RT(1, 16)
+INST_RT(2, 16)
+INST_RT(3, 16)
+INST_RT(3, 8)
+INST_RT(6, 8)
+INST_RT(3, 4)
+INST_RT(4, 8)
+
+// Pair variants of the above and a templated version of `gemv_pair_bf16` (which is <4, 4>).
+template <int UNROLL, int SG>
+kernel void gemv_pair_bf16_t(device const uint4* W0 [[buffer(0)]],
+                             device const uint4* W1 [[buffer(1)]],
+                             device const uint4* X [[buffer(2)]],
+                             device ushort* Y0 [[buffer(3)]],
+                             device ushort* Y1 [[buffer(4)]],
+                             constant PairParams& p [[buffer(5)]],
+                             uint tg [[threadgroup_position_in_grid]],
+                             uint sg [[simdgroup_index_in_threadgroup]],
+                             uint lane [[thread_index_in_simdgroup]]) {
+    const uint groups0 = (p.n0 + SG - 1) / SG;
+    const bool second = tg >= groups0;
+    device const uint4* W = second ? W1 : W0;
+    device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
+    const uint n = second ? p.n1 : p.n0;
+    const uint k8 = p.k / 8;
+    const uint row = ((second ? tg - groups0 : tg) * SG + sg);
+    device const uint4* wr = W + (ulong)min(row, n - 1) * k8;
+    float acc = 0.0f;
+    const uint block = 32 * UNROLL;
+    const uint nblk = k8 / block;
+    uint i = lane;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint4 xv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + 32 * u];
+        uint4 wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + 32 * u];
+        for (int u = 0; u < UNROLL; ++u) acc += dot8(wv[u], xv[u]);
+    }
+    for (i = nblk * block + lane; i < k8; i += 32) {
+        const uint4 xv = X[i];
+        acc += dot8(wr[i], xv);
+    }
+    const float s = simd_sum(acc);
+    if (lane == 0 && row < n) Y[row] = to_bf16(s);
+}
+
+#define INST_PAIR_T(UNROLL, SG)                                                                                       \
+    template [[host_name("gemv_pair_bf16_u" #UNROLL "s" #SG)]] kernel void gemv_pair_bf16_t<UNROLL, SG>(            \
+        device const uint4*, device const uint4*, device const uint4*, device ushort*, device ushort*,               \
+        constant PairParams&, uint, uint, uint);
+
+INST_PAIR_T(4, 4)
+INST_PAIR_T(4, 2)
+INST_PAIR_T(4, 1)
+INST_PAIR_T(2, 4)
+INST_PAIR_T(8, 4)
+
+template <int UNROLL, int SG>
+kernel void gemv_pair_bf16_rt(device const uint4* W0 [[buffer(0)]],
+                              device const uint4* W1 [[buffer(1)]],
+                              device const uint4* X [[buffer(2)]],
+                              device ushort* Y0 [[buffer(3)]],
+                              device ushort* Y1 [[buffer(4)]],
+                              constant PairParams& p [[buffer(5)]],
+                              uint tg [[threadgroup_position_in_grid]],
+                              uint sg [[simdgroup_index_in_threadgroup]],
+                              uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float part[SG];
+    const bool second = tg >= p.n0;
+    device const uint4* W = second ? W1 : W0;
+    device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
+    const uint row = second ? tg - p.n0 : tg;
+    const uint k8 = p.k / 8;
+    device const uint4* wr = W + (ulong)row * k8;
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * UNROLL;
+    const uint nblk = k8 / block;
+    uint i = sg * 32 + lane;
+    float acc = 0.0f;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint4 xv[UNROLL];
+        uint4 wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) acc += dot8(wv[u], xv[u]);
+    }
+    for (i = nblk * block + sg * 32 + lane; i < k8; i += lanes) acc += dot8(wr[i], X[i]);
+    const float t = tg_sum<SG>(acc, sg, lane, part);
+    if (sg == 0 && lane == 0) Y[row] = to_bf16(t);
+}
+
+#define INST_PAIR_RT(UNROLL, SG)                                                                                      \
+    template [[host_name("gemv_pair_bf16_rt_u" #UNROLL "s" #SG)]] kernel void gemv_pair_bf16_rt<UNROLL, SG>(        \
+        device const uint4*, device const uint4*, device const uint4*, device ushort*, device ushort*,               \
+        constant PairParams&, uint, uint, uint);
+
+INST_PAIR_RT(1, 4)
+INST_PAIR_RT(2, 4)
+INST_PAIR_RT(4, 4)
+INST_PAIR_RT(1, 8)
+INST_PAIR_RT(2, 8)
+INST_PAIR_RT(2, 2)
+INST_PAIR_RT(4, 2)
+INST_PAIR_RT(1, 16)
+INST_PAIR_RT(2, 16)
+INST_PAIR_RT(4, 8)
+
+// 8-byte-load versions of the row-per-threadgroup kernels (operands only 8-byte aligned, K % 4 == 0).
+template <int UNROLL, int SG>
+kernel void gemv_bf16_rt_a8(device const uint2* W [[buffer(0)]],
+                            device const uint2* X [[buffer(1)]],
+                            device ushort* Y [[buffer(2)]],
+                            constant GemvParams& p [[buffer(3)]],
+                            uint tg [[threadgroup_position_in_grid]],
+                            uint sg [[simdgroup_index_in_threadgroup]],
+                            uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float part[SG];
+    const uint k4 = p.k / 4;
+    device const uint2* wr = W + (ulong)tg * k4;
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * UNROLL;
+    const uint nblk = k4 / block;
+    uint i = sg * 32 + lane;
+    float acc = 0.0f;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint2 xv[UNROLL];
+        uint2 wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) acc += dot4(wv[u], xv[u]);
+    }
+    for (i = nblk * block + sg * 32 + lane; i < k4; i += lanes) acc += dot4(wr[i], X[i]);
+    const float t = tg_sum<SG>(acc, sg, lane, part);
+    if (sg == 0 && lane == 0) Y[p.y_skip + tg] = to_bf16(t);
+}
+
+#define INST_RT_A8(UNROLL, SG)                                                                                        \
+    template [[host_name("gemv_bf16_rt_a8u" #UNROLL "s" #SG)]] kernel void gemv_bf16_rt_a8<UNROLL, SG>(             \
+        device const uint2*, device const uint2*, device ushort*, constant GemvParams&, uint, uint, uint);
+
+INST_RT_A8(4, 8)
+INST_RT_A8(8, 4)
+INST_RT_A8(2, 8)
+INST_RT_A8(4, 4)
+INST_RT_A8(8, 8)
+
+template <int UNROLL, int SG>
+kernel void gemv_pair_bf16_rt_a8(device const uint2* W0 [[buffer(0)]],
+                                 device const uint2* W1 [[buffer(1)]],
+                                 device const uint2* X [[buffer(2)]],
+                                 device ushort* Y0 [[buffer(3)]],
+                                 device ushort* Y1 [[buffer(4)]],
+                                 constant PairParams& p [[buffer(5)]],
+                                 uint tg [[threadgroup_position_in_grid]],
+                                 uint sg [[simdgroup_index_in_threadgroup]],
+                                 uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float part[SG];
+    const bool second = tg >= p.n0;
+    device const uint2* W = second ? W1 : W0;
+    device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
+    const uint row = second ? tg - p.n0 : tg;
+    const uint k4 = p.k / 4;
+    device const uint2* wr = W + (ulong)row * k4;
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * UNROLL;
+    const uint nblk = k4 / block;
+    uint i = sg * 32 + lane;
+    float acc = 0.0f;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint2 xv[UNROLL];
+        uint2 wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) acc += dot4(wv[u], xv[u]);
+    }
+    for (i = nblk * block + sg * 32 + lane; i < k4; i += lanes) acc += dot4(wr[i], X[i]);
+    const float t = tg_sum<SG>(acc, sg, lane, part);
+    if (sg == 0 && lane == 0) Y[row] = to_bf16(t);
+}
+
+#define INST_PAIR_RT_A8(UNROLL, SG)                                                                                   \
+    template [[host_name("gemv_pair_bf16_rt_a8u" #UNROLL "s" #SG)]] kernel void gemv_pair_bf16_rt_a8<UNROLL, SG>(   \
+        device const uint2*, device const uint2*, device const uint2*, device ushort*, device ushort*,               \
+        constant PairParams&, uint, uint, uint);
+
+INST_PAIR_RT_A8(4, 8)
+INST_PAIR_RT_A8(8, 4)
+INST_PAIR_RT_A8(2, 8)
+INST_PAIR_RT_A8(4, 4)
+INST_PAIR_RT_A8(8, 8)

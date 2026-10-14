@@ -16,7 +16,8 @@ const PAIR_TOL: Tol = Tol::new(1.5e-2, 1e-3);
 /// `KernelImpl::name` of the batch-1 bf16 GEMV (the HIP backend calls the same thing `matmul_bf16_gemv`).
 pub const MATMUL_BF16_GEMV: &str = "matmul_bf16_gemv";
 
-/// A vectorised GEMV shader variant (an instantiation of `gemv_bf16_t<ROWS, UNROLL, SG>`).
+/// A vectorised GEMV shader variant (an instantiation of `gemv_bf16_t<ROWS, UNROLL, SG>`, or of the row-per-threadgroup
+/// `gemv_bf16_rt<UNROLL, SG>` when `row_tg`).
 #[derive(Clone, Copy, Debug)]
 pub struct GemvVariant {
     pub name: &'static str,
@@ -26,12 +27,18 @@ pub struct GemvVariant {
     pub unroll: u32,
     /// Simdgroups (32 lanes) per threadgroup.
     pub sg: u32,
+    /// Row-per-threadgroup form: all `sg` simdgroups of a threadgroup work on the same row (`rows` is 1).
+    pub row_tg: bool,
 }
 
 impl GemvVariant {
     /// Output rows per threadgroup.
     pub const fn rows_per_tg(&self) -> u32 {
-        self.rows * self.sg
+        if self.row_tg {
+            self.rows
+        } else {
+            self.rows * self.sg
+        }
     }
     pub const fn threads_per_tg(&self) -> u32 {
         self.sg * 32
@@ -40,7 +47,18 @@ impl GemvVariant {
 
 macro_rules! variant {
     ($r:literal, $u:literal, $s:literal) => {
-        GemvVariant { name: concat!("gemv_bf16_r", $r, "u", $u, "s", $s), rows: $r, unroll: $u, sg: $s }
+        GemvVariant { name: concat!("gemv_bf16_r", $r, "u", $u, "s", $s), rows: $r, unroll: $u, sg: $s, row_tg: false }
+    };
+}
+
+macro_rules! variant_rt {
+    ($u:literal, $s:literal) => {
+        GemvVariant { name: concat!("gemv_bf16_rt_u", $u, "s", $s), rows: 1, unroll: $u, sg: $s, row_tg: true }
+    };
+}
+macro_rules! variant_rt_a8 {
+    ($u:literal, $s:literal) => {
+        GemvVariant { name: concat!("gemv_bf16_rt_a8u", $u, "s", $s), rows: 1, unroll: $u, sg: $s, row_tg: true }
     };
 }
 
@@ -59,33 +77,48 @@ pub const GEMV_VARIANTS: &[GemvVariant] = &[
     variant!(4, 2, 4),
     variant!(8, 1, 2),
     variant!(8, 2, 2),
+    variant_rt!(2, 8),
+    variant_rt!(4, 4),
+    variant_rt!(2, 4),
+    variant_rt!(1, 16),
 ];
 
-/// The variant `matmul_bf16_gemv` launches when the operands allow vector loads (chosen from the spike sweep, raw log
-/// docs/results/raw/2026-10-14-metal-spike/gemv_bw.log: one row per simdgroup, four 16-byte loads per lane in flight).
-pub const DEFAULT_GEMV: GemvVariant = variant!(1, 4, 4);
+/// The variant `matmul_bf16_gemv` launches when the operands allow vector loads. Phase B part 3: one row per threadgroup
+/// of 8 simdgroups (256 lanes, two 16-byte loads each, so a K=4096 row is one load round trip and a threadgroup, the unit
+/// whose tail ends a dispatch, is short); docs/results/raw/2026-10-14-metal-phase-b/b3/. The spike's choice was
+/// `variant!(1, 4, 4)` (one row per simdgroup, four loads per lane), still compiled in as `GEMV_VARIANTS[2]`.
+pub const DEFAULT_GEMV: GemvVariant = variant_rt!(2, 8);
 
 /// 8-byte-load variants (`gemv_bf16_a8_t<UNROLL, SG>`, one row per simdgroup) for K % 4 == 0 and operands that are
 /// 8-byte but not 16-byte aligned, e.g. every weight of a safetensors shard whose header length is 8 mod 16.
 pub const GEMV_A8_VARIANTS: &[GemvVariant] = &[
-    GemvVariant { name: "gemv_bf16_a8u4s4", rows: 1, unroll: 4, sg: 4 },
-    GemvVariant { name: "gemv_bf16_a8u8s4", rows: 1, unroll: 8, sg: 4 },
-    GemvVariant { name: "gemv_bf16_a8u8s8", rows: 1, unroll: 8, sg: 8 },
+    GemvVariant { name: "gemv_bf16_a8u4s4", rows: 1, unroll: 4, sg: 4, row_tg: false },
+    GemvVariant { name: "gemv_bf16_a8u8s4", rows: 1, unroll: 8, sg: 4, row_tg: false },
+    GemvVariant { name: "gemv_bf16_a8u8s8", rows: 1, unroll: 8, sg: 8, row_tg: false },
+    variant_rt_a8!(4, 8),
+    variant_rt_a8!(8, 4),
 ];
-pub const DEFAULT_GEMV_A8: GemvVariant = GEMV_A8_VARIANTS[1];
+/// The 8-byte-load default, the row-per-threadgroup form (`gemv_bf16_rt_a8`): the same eight simdgroups, each lane four
+/// 8-byte loads, i.e. the same bytes in flight per row as `DEFAULT_GEMV`.
+pub const DEFAULT_GEMV_A8: GemvVariant = variant_rt_a8!(4, 8);
 
 /// Fallback for any K and any 2-byte alignment: one simdgroup per row, 8 rows per threadgroup, 2-byte loads.
-pub const GEMV_SCALAR: GemvVariant = GemvVariant { name: "gemv_bf16_scalar", rows: 1, unroll: 1, sg: 8 };
+pub const GEMV_SCALAR: GemvVariant = GemvVariant { name: "gemv_bf16_scalar", rows: 1, unroll: 1, sg: 8, row_tg: false };
 
 /// `MatmulPair` (the optional fused decode op): two bf16 GEMVs of one `x` in one dispatch. The shader
-/// `gemv_pair_bf16` is `gemv_bf16_r1u4s4` over two weight matrices, so each output is bitwise the `Matmul` GEMV's.
+/// `gemv_pair_bf16_rt_u2s8` is `gemv_bf16_rt_u2s8` (`DEFAULT_GEMV`) over two weight matrices, so each output is bitwise
+/// the `Matmul` GEMV's.
 pub const MATMUL_PAIR_BF16_GEMV: &str = "matmul_pair_bf16_gemv";
-pub const GEMV_PAIR_BF16: &str = "gemv_pair_bf16";
+pub const GEMV_PAIR_BF16: &str = "gemv_pair_bf16_rt_u2s8";
 /// The 8-byte-load form (`DEFAULT_GEMV_A8` rows: K % 4 == 0, operands 8-byte aligned).
-pub const GEMV_PAIR_BF16_A8: &str = "gemv_pair_bf16_a8";
-/// Rows per threadgroup of `gemv_pair_bf16` (it is `DEFAULT_GEMV`: one row per simdgroup, 4 simdgroups).
-pub const GEMV_PAIR_ROWS_PER_TG: u32 = 4;
-pub const GEMV_PAIR_THREADS: u32 = 128;
+pub const GEMV_PAIR_BF16_A8: &str = "gemv_pair_bf16_rt_a8u4s8";
+/// Rows per threadgroup of the pair shaders (one row per threadgroup, like `DEFAULT_GEMV`) and their threads.
+pub const GEMV_PAIR_ROWS_PER_TG: u32 = DEFAULT_GEMV.rows_per_tg();
+pub const GEMV_PAIR_THREADS: u32 = DEFAULT_GEMV.threads_per_tg();
+/// The spike's one-row-per-simdgroup pair shaders (phase B part 2), kept compiled in for comparison: bitwise
+/// `gemv_bf16_r1u4s4` / `gemv_bf16_a8u8s4`, 4 rows and 128 threads per threadgroup.
+pub const GEMV_PAIR_BF16_R1: &str = "gemv_pair_bf16";
+pub const GEMV_PAIR_BF16_R1_A8: &str = "gemv_pair_bf16_a8";
 
 /// bf16 GEMM, any M; the shader is `gemm_bf16_t<OutT>` with a bf16 (`Matmul`) or f32 (`Logits`) output.
 pub const MATMUL_BF16: &str = "matmul_bf16";
@@ -143,6 +176,57 @@ pub const COPY_PER_THREAD: usize = 4;
 pub const READ_PER_THREAD: usize = 16;
 
 /// Every shader entry point the backend builds a pipeline for.
+/// Phase B part 3 experiment shaders (row-per-threadgroup GEMV, templated pair), benchmarked by `examples/gemv_b3.rs`.
+pub const EXPERIMENT_SHADERS: &[&str] = &[
+    "gemv_bf16_r1u4s1",
+    "gemv_bf16_r1u4s2",
+    "gemv_bf16_r1u2s4",
+    "gemv_bf16_r1u8s4",
+    "gemv_bf16_r1u8s2",
+    "gemv_bf16_r1u2s2",
+    "gemv_bf16_rt_u1s4",
+    "gemv_bf16_rt_u2s4",
+    "gemv_bf16_rt_u4s4",
+    "gemv_bf16_rt_u1s8",
+    "gemv_bf16_rt_u2s8",
+    "gemv_bf16_rt_u1s2",
+    "gemv_bf16_rt_u2s2",
+    "gemv_bf16_rt_u4s2",
+    "gemv_bf16_rt_u8s2",
+    "gemv_bf16_rt_u1s16",
+    "gemv_bf16_rt_u2s16",
+    "gemv_bf16_rt_u3s16",
+    "gemv_bf16_rt_u3s8",
+    "gemv_bf16_rt_u6s8",
+    "gemv_bf16_rt_u3s4",
+    "gemv_bf16_rt_u4s8",
+    "gemv_bf16_rt_a8u4s8",
+    "gemv_bf16_rt_a8u8s4",
+    "gemv_bf16_rt_a8u2s8",
+    "gemv_bf16_rt_a8u4s4",
+    "gemv_bf16_rt_a8u8s8",
+    "gemv_pair_bf16_rt_a8u4s8",
+    "gemv_pair_bf16_rt_a8u8s4",
+    "gemv_pair_bf16_rt_a8u2s8",
+    "gemv_pair_bf16_rt_a8u4s4",
+    "gemv_pair_bf16_rt_a8u8s8",
+    "gemv_pair_bf16_u4s4",
+    "gemv_pair_bf16_u4s2",
+    "gemv_pair_bf16_u4s1",
+    "gemv_pair_bf16_u2s4",
+    "gemv_pair_bf16_u8s4",
+    "gemv_pair_bf16_rt_u1s4",
+    "gemv_pair_bf16_rt_u2s4",
+    "gemv_pair_bf16_rt_u4s4",
+    "gemv_pair_bf16_rt_u1s8",
+    "gemv_pair_bf16_rt_u2s8",
+    "gemv_pair_bf16_rt_u2s2",
+    "gemv_pair_bf16_rt_u4s2",
+    "gemv_pair_bf16_rt_u1s16",
+    "gemv_pair_bf16_rt_u2s16",
+    "gemv_pair_bf16_rt_u4s8",
+];
+
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
@@ -152,10 +236,13 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
-    v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8]);
+    v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
     v.push(ARGMAX_F32_V4);
+    v.extend(EXPERIMENT_SHADERS);
+    let mut seen = std::collections::HashSet::new();
+    v.retain(|n| seen.insert(*n)); // the experiment list repeats the promoted variants
     v
 }
 
