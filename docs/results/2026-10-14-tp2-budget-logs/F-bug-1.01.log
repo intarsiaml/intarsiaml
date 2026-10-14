@@ -1,0 +1,41 @@
+prefill chunk 256 (default)
+accuracy: Qwen3-8B on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 151936, weights/act/kv bf16/bf16)
+golden: /models/golden/qwen3-8b-fp32.safetensors (8 prompts, 434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+  reference: engine hf-transformers transformers 5.15.1, torch 2.13.0+cu129 | model /hf/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 | revision b968826d9c46dd6066d109eabc6255188de91218 | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (--gate-class); top-1 >= 99.5%, KL <= 1.0e-3, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+this build: head 192f652 code-tree 0da171c71cb8 clean
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   5.922e-4   3.248e-4   1.844e-2   0.0324   0.0314   100.00     38/38      0
+story                 39    39   100.00   4.930e-4   3.067e-4   1.019e-2   0.0400   0.0393    97.95     39/39      0
+code                  80    80   100.00   1.932e-4   9.761e-5   1.000e-2   0.0142   0.0140    99.75     80/80      0
+science               79    79   100.00   2.415e-4   1.764e-4   9.113e-3   0.0168   0.0163    99.24     79/79      0
+chat_short            18    18   100.00   5.808e-4   5.227e-4   4.322e-3   0.1108   0.1108    97.78     18/18      0
+chat_system           32    32   100.00   5.234e-4   3.462e-4   8.954e-3   0.0841   0.0834    98.12     32/32      0
+chat_multiturn        58    58   100.00   8.222e-4   8.016e-4   2.686e-2   0.0340   0.0339    98.97     58/58      0
+chat_reasoning        90    90   100.00   3.508e-4   3.395e-4   1.183e-2   0.0243   0.0243    99.33     90/90      0
+OVERALL                    434   100.00   4.210e-4   3.308e-4   2.686e-2   0.0325   0.0321    99.12    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 4.210e-4 (need <= 1.0e-3) ok | tail mass ours 0.0321 vs ref 0.0325, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.234e-5   1.111e-5   1.207e-4   0.0029   0.0029   100.00     16/16      0
+story                 39    16   100.00   3.863e-4   3.675e-4   1.456e-3   0.0237   0.0238    97.50     16/16      0
+code                  80    16   100.00   5.464e-5   5.463e-5   6.612e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   1.950e-4   1.885e-4   7.215e-4   0.0104   0.0101    98.75     16/16      0
+chat_short            18    16   100.00   6.164e-4   5.587e-4   2.900e-3   0.0621   0.0622    98.75     16/16      0
+chat_system           32    16   100.00   1.342e-3   1.001e-3   8.952e-3   0.0736   0.0723    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.693e-4   2.497e-4   1.209e-3   0.0076   0.0075   100.00     16/16      0
+chat_reasoning        90    16   100.00   5.487e-4   5.149e-4   3.761e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   4.281e-4   3.682e-4   8.952e-3   0.0238   0.0236    98.59    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 4.281e-4 (need <= 1.0e-3) ok | tail mass ours 0.0236 vs ref 0.0238, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

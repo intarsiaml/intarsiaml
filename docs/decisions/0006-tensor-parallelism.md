@@ -57,6 +57,8 @@ TP is gated in two parts, both on the HF fp32 Qwen3-8B goldens (`qwen3-8b-fp32`,
 
 Measured result (results doc, "Re-gate against fp32 goldens"): the floor passes on both goldens; the self-golden gate with default budgets **fails** (mean 21-way KL 5.9e-4 prefill and 5.1e-4 decode against 1.0e-4). The default budgets were chosen for same-numerics comparisons (one kernel change on one device); a different summation order across two ranks is not that. The gate is kept at the default budgets and the failure is recorded, not tuned away. Any budget for TP needs its own measured noise floor and a separate decision.
 
+Follow-up (2026-10-14, `docs/results/2026-10-14-tp2-budget.md`, `docs/accuracy.md` "TP self-golden budget"): the 5.9e-4 is the size of an equally correct reordering (switching tp=1 to SIMT attention gives 6.1e-4), and a TP budget derived from tp=1's equivalent variants (k = 2) exists, but it does not reliably catch a 1% partial-scale bug, so it is not shipped. The self-golden gate is not a TP gate; the f32 Mac test (sharding and reduction logic with the host communicator, catches 1%) and the fp32 floor (catches 2% and more) are; nothing on the GPU gates catches a 1% model-level bug.
+
 ## HIP all-reduce
 
 See the section added to `docs/backends/hip.md` and the results doc for the measured cost.

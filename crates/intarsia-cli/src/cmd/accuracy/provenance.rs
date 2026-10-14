@@ -94,7 +94,8 @@ pub struct ExecInfo {
     pub cmdline: Vec<String>,
     /// `INTARSIA_CUDA_DISABLE` / `INTARSIA_HIP_DISABLE`, "" when unset.
     pub disable_list: String,
-    /// `INTARSIA_CPU_FAULT` / `INTARSIA_CPU_MUTATE` (gate-sensitivity hooks of the cpu backend), "" when unset.
+    /// `INTARSIA_CPU_FAULT` / `INTARSIA_CPU_MUTATE` (gate-sensitivity hooks of the cpu backend) and `INTARSIA_TP_TEST_BUG`
+    /// (a deliberate tensor-parallel bug), "" when unset.
     /// Printed in the diff, never used to refuse a comparison; the noise envelope uses it to see that a perturbation
     /// set this way really differs from the unperturbed run. Absent in files written before it existed.
     #[serde(default)]
@@ -110,7 +111,7 @@ impl ExecInfo {
             .filter_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()).map(|v| format!("{k}={v}")))
             .collect::<Vec<_>>()
             .join(" ");
-        let fault = ["INTARSIA_CPU_FAULT", "INTARSIA_CPU_MUTATE"]
+        let fault = ["INTARSIA_CPU_FAULT", "INTARSIA_CPU_MUTATE", "INTARSIA_TP_TEST_BUG"]
             .iter()
             .filter_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()).map(|v| format!("{k}={v}")))
             .collect::<Vec<_>>()

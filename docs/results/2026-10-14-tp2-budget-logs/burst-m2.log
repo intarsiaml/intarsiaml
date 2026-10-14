@@ -1,0 +1,185 @@
+[burst] job 1734; stages: m2; stopping radiance 2026-10-13 19:54:34
+[burst] radiance stopped 2026-10-13 19:54:36
+################ stage m2 start 19:54:36
+=== [19:54:36] variant t2 (tp=2)
+[19:54:51] A-t2 rc=0 (15 s) env='' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-t2.safetensors'
+    OVERALL                   1434    99.51   4.187e-4   3.840e-4   6.219e-2   0.0188   0.0187    98.61     30.6%      0
+    OVERALL                    160   100.00   3.454e-4   3.020e-4   7.731e-3   0.0215   0.0215    98.50    100.0%      0
+    golden gate: PASS
+[19:54:59] B-t2 rc=1 (8 s) env='' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.65   5.979e-4   5.896e-4   5.023e-2   0.0124   0.0123    98.34     45.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.896296e-4 max_kl21=5.024094e-2 flips=5 flip_pct=0.3487 tail_abs=1.498608e-4 worst_prompt_kl21=9.832936e-4
+    OVERALL                    160   100.00   5.301e-4   5.071e-4   1.463e-2   0.0111   0.0112    98.25    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.071370e-4 max_kl21=1.464406e-2 flips=0 flip_pct=0.0000 tail_abs=2.133617e-4 worst_prompt_kl21=1.971237e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[19:55:08] B-t2-repeat rc=1 (9 s) env='' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.65   5.979e-4   5.896e-4   5.023e-2   0.0124   0.0123    98.34     45.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.896296e-4 max_kl21=5.024094e-2 flips=5 flip_pct=0.3487 tail_abs=1.498608e-4 worst_prompt_kl21=9.832936e-4
+    OVERALL                    160   100.00   5.301e-4   5.071e-4   1.463e-2   0.0111   0.0112    98.25    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.071370e-4 max_kl21=1.464406e-2 flips=0 flip_pct=0.0000 tail_abs=2.133617e-4 worst_prompt_kl21=1.971237e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+=== [19:55:08] variant t2-bf16part (tp=2)
+[19:55:22] A-t2-bf16part rc=0 (14 s) env='INTARSIA_TP_PARTIAL=bf16' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-t2-bf16part.safetensors'
+    OVERALL                   1434    99.86   3.793e-4   3.471e-4   3.761e-2   0.0188   0.0186    98.69     42.6%      0
+    OVERALL                    160   100.00   3.097e-4   2.700e-4   7.887e-3   0.0215   0.0215    98.38    100.0%      0
+    golden gate: PASS
+[19:55:31] B-t2-bf16part rc=1 (9 s) env='INTARSIA_TP_PARTIAL=bf16' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.58   5.977e-4   5.887e-4   7.437e-2   0.0124   0.0123    98.44     34.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.887494e-4 max_kl21=7.436687e-2 flips=6 flip_pct=0.4184 tail_abs=2.167844e-4 worst_prompt_kl21=9.289929e-4
+    OVERALL                    160   100.00   5.304e-4   5.099e-4   1.255e-2   0.0111   0.0112    98.25    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.099109e-4 max_kl21=1.256365e-2 flips=0 flip_pct=0.0000 tail_abs=2.622399e-4 worst_prompt_kl21=1.404899e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+=== [19:55:31] variant t2-host (tp=2)
+[19:55:47] A-t2-host rc=0 (16 s) env='' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-t2-host.safetensors --comm host'
+    OVERALL                   1434    99.51   4.187e-4   3.840e-4   6.219e-2   0.0188   0.0187    98.61     30.6%      0
+    OVERALL                    160   100.00   3.454e-4   3.020e-4   7.731e-3   0.0215   0.0215    98.50    100.0%      0
+    golden gate: PASS
+[19:55:57] B-t2-host rc=1 (10 s) env='' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt --comm host'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.65   5.979e-4   5.896e-4   5.023e-2   0.0124   0.0123    98.34     45.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.896296e-4 max_kl21=5.024094e-2 flips=5 flip_pct=0.3487 tail_abs=1.498608e-4 worst_prompt_kl21=9.832936e-4
+    OVERALL                    160   100.00   5.301e-4   5.071e-4   1.463e-2   0.0111   0.0112    98.25    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.071370e-4 max_kl21=1.464406e-2 flips=0 flip_pct=0.0000 tail_abs=2.133617e-4 worst_prompt_kl21=1.971237e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+=== [19:55:57] variant t2-chunk64 (tp=2)
+[19:56:12] A-t2-chunk64 rc=0 (15 s) env='' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-t2-chunk64.safetensors --prefill-chunk 64'
+    OVERALL                   1434    99.51   4.191e-4   3.845e-4   6.219e-2   0.0188   0.0187    98.61     30.6%      0
+    OVERALL                    160   100.00   3.226e-4   2.803e-4   5.785e-3   0.0215   0.0215    98.62    100.0%      0
+    golden gate: PASS
+[19:56:22] B-t2-chunk64 rc=1 (10 s) env='' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt --prefill-chunk 64 --allow-config-mismatch'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.65   5.983e-4   5.900e-4   5.023e-2   0.0124   0.0123    98.34     45.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.900227e-4 max_kl21=5.024094e-2 flips=5 flip_pct=0.3487 tail_abs=1.498481e-4 worst_prompt_kl21=9.832936e-4
+    OVERALL                    160   100.00   5.031e-4   4.809e-4   1.463e-2   0.0111   0.0112    98.38    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=4.808970e-4 max_kl21=1.464406e-2 flips=0 flip_pct=0.0000 tail_abs=2.225710e-4 worst_prompt_kl21=1.971237e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+=== [19:56:22] variant t2-simt (tp=2)
+[19:56:36] A-t2-simt rc=0 (14 s) env='INTARSIA_HIP_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-t2-simt.safetensors'
+    OVERALL                   1434    99.65   3.797e-4   3.468e-4   3.186e-2   0.0188   0.0187    98.63     30.6%      0
+    OVERALL                    160   100.00   3.070e-4   2.620e-4   8.117e-3   0.0215   0.0214    98.62    100.0%      0
+    golden gate: PASS
+[19:56:45] B-t2-simt rc=1 (9 s) env='INTARSIA_HIP_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.51   5.701e-4   5.622e-4   6.653e-2   0.0124   0.0124    98.37     39.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.621888e-4 max_kl21=6.652800e-2 flips=7 flip_pct=0.4881 tail_abs=1.647010e-4 worst_prompt_kl21=7.524911e-4
+    OVERALL                    160   100.00   4.057e-4   3.793e-4   1.182e-2   0.0111   0.0111    97.88    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=3.792732e-4 max_kl21=8.075908e-3 flips=0 flip_pct=0.0000 tail_abs=2.105896e-4 worst_prompt_kl21=1.289687e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[19:56:53] C-t2-bf16part rc=1 (8 s) env='INTARSIA_TP_PARTIAL=bf16' args='--self-golden /work/bench-out/tp2b/measure/sg-t2.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.65   6.162e-4   6.129e-4   1.563e-1   0.0123   0.0123    98.30     34.2%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=6.128673e-4 max_kl21=1.561811e-1 flips=5 flip_pct=0.3487 tail_abs=1.855208e-4 worst_prompt_kl21=3.082098e-3
+    OVERALL                    160   100.00   5.389e-4   5.144e-4   1.392e-2   0.0112   0.0112    98.38    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.144368e-4 max_kl21=1.393094e-2 flips=0 flip_pct=0.0000 tail_abs=2.220655e-4 worst_prompt_kl21=1.300172e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[19:57:03] C-t2-chunk64 rc=1 (10 s) env='' args='--self-golden /work/bench-out/tp2b/measure/sg-t2.safetensors --allow-same-code --revlist /work/revlist.txt --prefill-chunk 64 --allow-config-mismatch'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434   100.00   1.301e-6   1.300e-6   3.584e-4   0.0123   0.0123   100.00    100.0%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=1.299558e-6 max_kl21=3.583778e-4 flips=0 flip_pct=0.0000 tail_abs=2.995627e-7 worst_prompt_kl21=1.824585e-5
+    OVERALL                    160   100.00   1.138e-4   1.119e-4   8.003e-3   0.0112   0.0112    99.88    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=1.118918e-4 max_kl21=7.694426e-3 flips=0 flip_pct=0.0000 tail_abs=1.434889e-5 worst_prompt_kl21=1.118918e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[19:57:12] C-t2-simt rc=1 (9 s) env='INTARSIA_HIP_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash' args='--self-golden /work/bench-out/tp2b/measure/sg-t2.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.72   5.442e-4   5.395e-4   5.629e-2   0.0123   0.0124    98.41     85.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.394651e-4 max_kl21=5.620902e-2 flips=4 flip_pct=0.2789 tail_abs=1.372684e-4 worst_prompt_kl21=1.201824e-3
+    OVERALL                    160   100.00   5.656e-4   5.337e-4   1.401e-2   0.0112   0.0111    98.25    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.336888e-4 max_kl21=1.342299e-2 flips=0 flip_pct=0.0000 tail_abs=2.352270e-4 worst_prompt_kl21=1.514009e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[19:57:22] C-t2-host rc=0 (10 s) env='' args='--self-golden /work/bench-out/tp2b/measure/sg-t2.safetensors --allow-same-code --revlist /work/revlist.txt --comm host'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434   100.00  9.995e-16  4.984e-11  2.755e-14   0.0123   0.0123   100.00    100.0%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=4.983638e-11 max_kl21=2.045337e-8 flips=0 flip_pct=0.0000 tail_abs=4.236997e-9 worst_prompt_kl21=9.538547e-11
+    OVERALL                    160   100.00  1.090e-15  1.041e-11  7.169e-15   0.0112   0.0112   100.00    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=1.040903e-11 max_kl21=1.466224e-9 flips=0 flip_pct=0.0000 tail_abs=7.845090e-9 worst_prompt_kl21=9.420831e-11
+    self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+    golden gate: PASS
+=== [19:57:22] variant bug-1.01 (tp=2)
+[19:57:37] A-bug-1.01 rc=0 (15 s) env='INTARSIA_TP_TEST_BUG=scale:1.01' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-bug-1.01.safetensors'
+    OVERALL                   1434    99.51   6.728e-4   6.222e-4   1.328e-1   0.0188   0.0186    98.20     34.1%      0
+    OVERALL                    160   100.00   5.153e-4   4.543e-4   1.348e-2   0.0215   0.0213    98.00    100.0%      0
+    golden gate: PASS
+[19:57:47] B-bug-1.01 rc=1 (10 s) env='INTARSIA_TP_TEST_BUG=scale:1.01' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.51   9.425e-4   9.340e-4   2.228e-1   0.0124   0.0123    97.98     40.0%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=9.340155e-4 max_kl21=2.227915e-1 flips=7 flip_pct=0.4881 tail_abs=2.224008e-4 worst_prompt_kl21=1.273997e-3
+    OVERALL                    160   100.00   7.367e-4   6.959e-4   2.101e-2   0.0111   0.0110    97.75    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=6.958830e-4 max_kl21=1.948051e-2 flips=0 flip_pct=0.0000 tail_abs=3.582711e-4 worst_prompt_kl21=2.266978e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+=== [19:57:47] variant bug-1.003 (tp=2)
+[19:58:02] A-bug-1.003 rc=0 (15 s) env='INTARSIA_TP_TEST_BUG=scale:1.003' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-bug-1.003.safetensors'
+    OVERALL                   1434    99.79   4.312e-4   3.897e-4   4.211e-2   0.0188   0.0186    98.54     46.2%      0
+    OVERALL                    160   100.00   4.047e-4   3.574e-4   8.063e-3   0.0215   0.0216    98.25    100.0%      0
+    golden gate: PASS
+[19:58:12] B-bug-1.003 rc=1 (10 s) env='INTARSIA_TP_TEST_BUG=scale:1.003' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.65   5.455e-4   5.401e-4   6.400e-2   0.0124   0.0123    98.49     56.5%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.401234e-4 max_kl21=6.399796e-2 flips=5 flip_pct=0.3487 tail_abs=1.862531e-4 worst_prompt_kl21=9.339860e-4
+    OVERALL                    160   100.00   5.342e-4   5.191e-4   9.144e-3   0.0111   0.0111    97.88    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.190575e-4 max_kl21=9.145188e-3 flips=0 flip_pct=0.0000 tail_abs=2.180467e-4 worst_prompt_kl21=1.303594e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+=== [19:58:12] variant bug-1.001 (tp=2)
+[19:58:28] A-bug-1.001 rc=0 (16 s) env='INTARSIA_TP_TEST_BUG=scale:1.001' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/sg-bug-1.001.safetensors'
+    OVERALL                   1434    99.58   3.980e-4   3.665e-4   5.132e-2   0.0188   0.0187    98.51     30.6%      0
+    OVERALL                    160   100.00   3.465e-4   3.027e-4   9.270e-3   0.0215   0.0214    98.00    100.0%      0
+    golden gate: PASS
+[19:58:38] B-bug-1.001 rc=1 (10 s) env='INTARSIA_TP_TEST_BUG=scale:1.001' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.44   6.076e-4   6.015e-4   1.117e-1   0.0124   0.0124    98.38     39.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=6.015087e-4 max_kl21=1.116704e-1 flips=8 flip_pct=0.5579 tail_abs=1.811394e-4 worst_prompt_kl21=8.465851e-4
+    OVERALL                    160   100.00   4.486e-4   4.251e-4   8.896e-3   0.0111   0.0111    97.62    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=4.250738e-4 max_kl21=6.323937e-3 flips=0 flip_pct=0.0000 tail_abs=1.584866e-4 worst_prompt_kl21=1.110702e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+=== [19:58:38] short fp32 golden (floor)
+[19:58:46] F-S0 rc=0 (8 s) env='HIP_VISIBLE_DEVICES=0' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+    OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+    golden gate: PASS
+[19:58:54] F-t1-chunk64 rc=0 (8 s) env='HIP_VISIBLE_DEVICES=0' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16 --prefill-chunk 64'
+    OVERALL                    434   100.00   2.341e-4   1.706e-4   1.314e-2   0.0325   0.0323    98.85    100.0%      0
+    OVERALL                    128   100.00   3.616e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.28    100.0%      0
+    golden gate: PASS
+[19:59:02] F-t1-simt rc=0 (8 s) env='HIP_VISIBLE_DEVICES=0 INTARSIA_HIP_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434    99.77   3.279e-4   2.617e-4   1.584e-2   0.0325   0.0322    98.71     88.5%      0
+    OVERALL                    128   100.00   3.348e-4   2.948e-4   5.858e-3   0.0238   0.0236    98.75    100.0%      0
+    golden gate: PASS
+[19:59:10] F-t2 rc=0 (8 s) env='' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434    99.77   3.902e-4   3.232e-4   6.219e-2   0.0325   0.0322    98.85     88.5%      0
+    OVERALL                    128   100.00   3.518e-4   3.083e-4   7.731e-3   0.0238   0.0239    98.59    100.0%      0
+    golden gate: PASS
+[19:59:18] F-bug-1.01 rc=0 (8 s) env='INTARSIA_TP_TEST_BUG=scale:1.01' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434   100.00   4.210e-4   3.308e-4   2.686e-2   0.0325   0.0321    99.12    100.0%      0
+    OVERALL                    128   100.00   4.281e-4   3.682e-4   8.952e-3   0.0238   0.0236    98.59    100.0%      0
+    golden gate: PASS
+################ stage 1.001 end 19:59:18
+[burst] stages done 2026-10-13 19:59:18 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-13 19:59:18
+[burst] radiance answers 2026-10-13 19:59:28 (after 15 s)

@@ -1,0 +1,63 @@
+prefill chunk 256 (default)
+accuracy: Qwen3-8B on AMD Radeon Graphics (vocab 151936, weights/act/kv bf16/bf16)
+golden: /work/bench-out/tp2b/measure/S0.safetensors (10 prompts, 1434 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head 192f652 code-tree 0da171c71cb8 clean | model Qwen3-8B | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+this build: head 192f652 code-tree 0da171c71cb8 clean
+WARNING: the self-golden is from the same code tree as this build (--allow-same-code): this checks reproducibility only
+self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+differences from the self-golden's run (kernels per op, flags): kernel disable list: baseline '', this run 'INTARSIA_HIP_DISABLE=matmul_bf16_gemv,logits_bf16_gemv'; logits: logits_bf16+logits_bf16_gemv -> logits_bf16; matmul: matmul_bf16+matmul_bf16_gemv -> matmul_bf16
+self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00  8.567e-16  1.103e-13  3.636e-15   0.0260   0.0260   100.00     38/38      0
+story                 39    39   100.00  7.384e-16  2.303e-13  5.696e-15   0.0269   0.0269   100.00     39/39      0
+code                  80    80   100.00  9.754e-16  5.261e-12  4.061e-15   0.0111   0.0111   100.00     80/80      0
+science               79    79   100.00  6.957e-16  2.510e-12  4.746e-15   0.0117   0.0117   100.00     79/79      0
+chat_short            18    18   100.00  1.610e-12  3.564e-12  2.893e-11   0.0832   0.0832   100.00     18/18      0
+chat_system           32    32   100.00  2.149e-15  2.114e-13  2.766e-14   0.0643   0.0643   100.00     32/32      0
+chat_multiturn        58    58   100.00  1.328e-15  3.071e-12  2.766e-14   0.0245   0.0245   100.00     58/58      0
+chat_reasoning        90    90   100.00  1.040e-15  2.545e-11  2.766e-14   0.0180   0.0180   100.00     90/90      0
+long_prose_300       300   300   100.00  7.556e-16  4.505e-12  5.753e-15   0.0079   0.0079   100.00   300/300      0
+long_prose_700       700   700   100.00  9.827e-16  1.803e-10  7.100e-15   0.0070   0.0070   100.00   700/700      0
+OVERALL                   1434   100.00  2.115e-14  9.115e-11  2.893e-11   0.0124   0.0124   100.00    100.0%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                9.1152e-11  (limit 1.0000e-4)  ok
+  max position KL(21-way)                         4.8893e-8  (limit 5.0000e-3)  ok
+  top-1 flips                                      0.0000e0  (limit 7.0000e0)  ok
+  mean |tail diff|                                4.7877e-9  (limit 5.0000e-4)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [long_prose_700]       1.8027e-10  (limit 5.0000e-4)  ok
+SELF-STATS mode=prefill positions=1434 mean_kl21=9.115198e-11 max_kl21=4.889324e-8 flips=0 flip_pct=0.0000 tail_abs=4.787718e-9 worst_prompt_kl21=1.802697e-10
+prefill self-golden => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   5.278e-6   5.441e-6   2.584e-5   0.0010   0.0009    98.75     16/16      0
+story                 39    16   100.00   2.919e-4   2.910e-4   8.511e-4   0.0073   0.0072    98.75     16/16      0
+code                  80    16   100.00   3.848e-6   3.858e-6   2.418e-5   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   8.733e-5   8.803e-5   4.429e-4   0.0030   0.0030    98.75     16/16      0
+chat_short            18    16   100.00   2.694e-4   2.641e-4   2.064e-3   0.0318   0.0317   100.00     16/16      0
+chat_system           32    16   100.00   1.251e-3   1.151e-3   8.897e-3   0.0515   0.0505    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.236e-4   2.339e-4   9.528e-4   0.0019   0.0017    97.50     16/16      0
+chat_reasoning        90    16   100.00   2.828e-4   2.771e-4   2.400e-3   0.0036   0.0035   100.00     16/16      0
+long_prose_300       300    16   100.00   8.757e-6   8.758e-6   6.057e-5   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   5.878e-4   5.677e-4   2.888e-3   0.0113   0.0115    96.25     16/16      0
+OVERALL                    160   100.00   3.012e-4   2.890e-4   8.897e-3   0.0111   0.0110    98.38    100.0%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                 2.8905e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         8.9302e-3  (limit 5.0000e-3)  FAIL
+  top-1 flips                                      0.0000e0  (limit 1.0000e0)  ok
+  mean |tail diff|                                2.1123e-4  (limit 5.0000e-4)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_system]           1.1506e-3  (limit 5.0000e-4)  FAIL
+SELF-STATS mode=decode positions=160 mean_kl21=2.890455e-4 max_kl21=8.930170e-3 flips=0 flip_pct=0.0000 tail_abs=2.112307e-4 worst_prompt_kl21=1.150622e-3
+decode (teacher-forced) self-golden => FAIL
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
