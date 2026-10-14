@@ -1,6 +1,6 @@
 # Metal phase A exit gate (2026-10-14)
 
-**Outcome: `intarsia qualify --backend metal` on Qwen3-8B BF16 passes: 10 stages PASS, 2 SKIP, 0 FAIL, 0 ERROR, exit code 0.** Accuracy against the fp32 goldens is in the same range as HIP and CUDA. Decode is 33.3 tok/s at 128 tokens, 96-97 percent of mlx-lm (34.4) and llama.cpp (34.8). Prefill is the gap: 311-326 tok/s warm up to 1k tokens and 95 tok/s at 16k, against 2000-3500 on HIP and 3189 (mlx-lm, 4k marginal). The 7.6 tok/s prefill seen on a 16-token prompt is not the kernels: it is disk page-in of the 16.4 GB of mmap'd weights on a cold page cache (section 3).
+**Outcome: `intarsia qualify --backend metal` on Qwen3-8B BF16 passes: 10 stages PASS, 2 SKIP, 0 FAIL, 0 ERROR, exit code 0.** Accuracy against the fp32 goldens is in the same range as HIP and CUDA. Decode is 33.3 tok/s at 128 tokens, 96-97 percent of mlx-lm (34.4) and llama.cpp (34.8). That comparison is across harnesses (qualify's `bench speed` vs localeval through a server), so it is indicative only. Phase B's exit is not met: it needs at least 85 percent of the byte floor (82 here) and decode not below llama.cpp, measured the same way as the baselines. Prefill is the gap: 311-326 tok/s warm up to 1k tokens and 95 tok/s at 16k, against 2000-3500 on HIP and 3189 (mlx-lm, 4k marginal). The 7.6 tok/s prefill seen on a 16-token prompt is not the kernels: it is disk page-in of the 16.4 GB of mmap'd weights on a cold page cache (section 3).
 
 Host: endor (Apple M5 Max, 40-core GPU, 128 GB, macOS 27.0). Branch `spike/metal` at `708df23` plus the two harness changes in section 1. Model `/Users/josef/models/Qwen3-8B` (BF16, 16.38 GB), goldens `golden/qwen3-8b-fp32.safetensors` and `golden/qwen3-8b-long-fp32.safetensors` (found by model name). Build was unstamped (`INTARSIA_BUILD_STAMP` unset), so the baselines written under `baselines/` are marked unstamped.
 
@@ -100,7 +100,7 @@ So, for a 16-token prompt:
 - About 0.18 s more is, by inference from timing, the first GPU touch of the weights with a warm page cache. The clean evidence is the server's first request against its later ones at the same length: 429 ms vs 251-260 ms for 53-58 tokens, same process, same path. It is not measured directly (no GPU page-fault counter was read), and the first request also includes any other one-time cost in the engine. The fresh-process `generate` runs (470-540 ms) are a different path and length and only agree roughly.
 - The remaining ~250 ms is the real cost of a 53-token prefill (see below).
 
-**Warm prefill throughput** (server, `/v1/completions`, unique nonce per prompt so the prefix cache cannot hit, wall time for `max_tokens=1`; log in `prefill-probe-server.log`, probe in `probe_ttft.py`; the nonce adds about 35 tokens to each prompt):
+**Warm prefill throughput** (server, `/v1/completions`, unique nonce per prompt so the prefix cache cannot hit, wall time for `max_tokens=1`; log in `prefill-probe-server.log`, probe in `probe_ttft.py`, a diagnostic for page-in vs kernel time only, not a speed figure to compare engines (cross-engine numbers come from localeval); the nonce adds about 35 tokens to each prompt):
 
 | Prompt tokens | Wall | tok/s |
 |---:|---:|---:|

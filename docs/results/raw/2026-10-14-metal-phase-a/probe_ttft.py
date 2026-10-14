@@ -1,3 +1,4 @@
+# DIAGNOSTIC ONLY: separates page-in from kernel time. Not a benchmark; cross-engine speed uses localeval.
 # one non-streaming /v1/completions call per prompt (max_tokens=1) against a running `intarsia serve`;
 # wall time of the call = queue + prefill + 1 decode step. Each prompt starts with a unique nonce so the prefix cache cannot hit.
 import json, sys, time, urllib.request, uuid
