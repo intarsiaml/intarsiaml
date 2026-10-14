@@ -1,0 +1,2 @@
+mx.metal.device_info is deprecated and will be removed in a future version. Use mx.device_info instead.
+mlx 0.32.1 applegpu_g17s
