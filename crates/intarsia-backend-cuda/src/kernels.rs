@@ -220,9 +220,10 @@ mod tests {
         let names: HashSet<_> = table.iter().map(|(n, _)| *n).collect();
         assert_eq!(names.len(), table.len());
         // Sample is not implemented on the device (the engine samples on the host from f32 logits); the four fused decode
-        // ops are registered (quantmoe.rs) and the model still falls back to the unfused ops for an exact call without one
+        // ops are registered (quantmoe.rs) and the model still falls back to the unfused ops for an exact call without one.
+        // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers.
         for op in Op::ALL {
-            if op != Op::Sample {
+            if op != Op::Sample && op != Op::QkNormRopeKv {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }
         }

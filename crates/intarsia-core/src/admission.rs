@@ -245,6 +245,61 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::QkNormRopeKv => {
+            // (heads, kv heads, head_dim): a small GQA group, the model's, and the widest head (256) the GPU kernels take
+            let dims: Vec<(usize, usize, usize)> = if quick {
+                vec![(4, 2, 64)]
+            } else {
+                vec![(4, 2, 64), (cfg.n_heads, cfg.n_kv_heads, cfg.head_dim), (8, 2, 256)]
+            };
+            for &t in rows {
+                for &(n, nkv, d) in &dims {
+                    for &p in &[0usize, 37] {
+                        // full and partial rotary (a quarter of the head, Qwen3.5), plain and zero-centred norms
+                        for (rdim, woff) in [(0usize, 0.0f32), ((d / 4) & !1, 1.0)] {
+                            // the kv cache is a bf16 / f32 one here: an fp8 cache re-rounds a one-ulp difference of the
+                            // f32 and f64 stages into a whole fp8 step (KvAppend's own cases cover fp8)
+                            for dt in act_dtypes() {
+                                let cap = p + t + 5;
+                                let cache = |rng: &mut SplitMix64| OutSpec {
+                                    dtype: dt,
+                                    shape: vec![nkv, cap, d],
+                                    init: Some(rand_t(rng, dt, &[nkv, cap, d], 1.0)),
+                                };
+                                let inputs = vec![
+                                    rand_t(&mut rng, dt, &[t, n, d], 1.0),
+                                    rand_t(&mut rng, dt, &[t, nkv, d], 1.0),
+                                    rand_t(&mut rng, dt, &[t, nkv, d], 1.0),
+                                    norm_w(&mut rng, dt, d),
+                                    norm_w(&mut rng, dt, d),
+                                ];
+                                let outputs = vec![OutSpec::new(dt, &[t, n, d]), cache(&mut rng), cache(&mut rng)];
+                                push(
+                                    format!("T={t} pos0={p} N={n} Nkv={nkv} D={d} {dt} rot={rdim} off={woff}"),
+                                    HostCall {
+                                        op,
+                                        inputs,
+                                        outputs,
+                                        attrs: OpAttrs {
+                                            pos0: p,
+                                            theta: cfg.rope_theta,
+                                            eps: 1e-6,
+                                            w_offset: woff,
+                                            rotary_dim: rdim,
+                                            n_heads: n,
+                                            n_kv_heads: nkv,
+                                            head_dim: d,
+                                            kv_cap: cap,
+                                            ..attrs()
+                                        },
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Op::AttnPrefill | Op::AttnDecode => {
             let heads: Vec<(usize, usize, usize)> =
                 if quick { vec![(4, 2, 32)] } else { vec![(4, 2, 32), (cfg.n_heads, cfg.n_kv_heads, cfg.head_dim), (16, 2, 256)] };
@@ -765,6 +820,7 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
         Op::RmsNormAdd => (3, 2),
         Op::Rope | Op::KvAppend | Op::Argmax => (1, 1),
         Op::AttnPrefill | Op::AttnDecode => (3, 1),
+        Op::QkNormRopeKv => (5, 3),
         Op::GateSplit => (1, 2),
         Op::SigmoidMul => (2, 1),
         Op::GdnConv => (2, 2),
@@ -846,6 +902,20 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
                 i[0].shape[2],
                 i[0].dtype,
                 o[0].dtype
+            )
+        }
+        Op::QkNormRopeKv => {
+            let p = a.pos0.min(caps.pos0);
+            format!(
+                "T={} pos0={p} N={} Nkv={} D={} {} cache={} rot={} off={}",
+                i[0].shape[0].min(caps.rows),
+                i[0].shape[1],
+                i[1].shape[1],
+                i[0].shape[2],
+                i[0].dtype,
+                o[1].dtype,
+                a.rotary_dim,
+                a.w_offset
             )
         }
         Op::AttnPrefill | Op::AttnDecode => {
@@ -937,6 +1007,28 @@ pub fn case_from_call(call: &crate::ops::OpCall, caps: &ShapeCaps, rng: &mut Spl
                     init: Some(rand_t(rng, o[0].dtype, &[nkv, cap, d], 1.0)),
                 }],
                 attrs: OpAttrs { pos0: p, kv_cap: cap, n_kv_heads: nkv, head_dim: d, ..a.clone() },
+            }
+        }
+        Op::QkNormRopeKv => {
+            let (t, n, nkv, d) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[1].shape[1], i[0].shape[2]);
+            let (p, dt) = (a.pos0.min(caps.pos0), i[0].dtype);
+            let cap = p + t + 5;
+            let cache = |rng: &mut SplitMix64| OutSpec {
+                dtype: o[1].dtype,
+                shape: vec![nkv, cap, d],
+                init: Some(rand_t(rng, o[1].dtype, &[nkv, cap, d], 1.0)),
+            };
+            HostCall {
+                op,
+                inputs: vec![
+                    rand_t(rng, dt, &[t, n, d], 1.0),
+                    rand_t(rng, dt, &[t, nkv, d], 1.0),
+                    rand_t(rng, dt, &[t, nkv, d], 1.0),
+                    norm_w(rng, i[3].dtype, d),
+                    norm_w(rng, i[4].dtype, d),
+                ],
+                outputs: vec![OutSpec::new(o[0].dtype, &[t, n, d]), cache(rng), cache(rng)],
+                attrs: OpAttrs { pos0: p, kv_cap: cap, ..a.clone() },
             }
         }
         Op::AttnPrefill | Op::AttnDecode => {

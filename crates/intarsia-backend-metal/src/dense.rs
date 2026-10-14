@@ -25,6 +25,26 @@ pub struct OpP {
     pub pad: u32,
 }
 
+/// Kernel arguments of `qk_norm_rope_kv_bf16` (`QkRopeKvP` in kernels/metal/qk_rope_kv.metal; 80 bytes).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+struct QkRopeKvP {
+    t: u32,
+    n: u32,
+    nkv: u32,
+    d: u32,
+    rd: u32,
+    cap: u32,
+    use_dev: u32,
+    pos0: u32,
+    /// Leading bf16 elements of q, k, v, q_w, k_w, q_out, k cache, v cache.
+    skips: [u32; 8],
+    eps: f32,
+    w_offset: f32,
+    theta: f32,
+    pad: u32,
+}
+
 /// One tensor bound to a shader argument: the MTLBuffer, the 4-byte aligned byte offset, the leftover elements.
 pub(crate) struct Bind {
     pub(crate) mtl: MtlBuffer,
@@ -275,6 +295,7 @@ impl MetalBackend {
                 dim(total, "T*Nkv*D")?;
                 self.dispatch(kernel, &[&src, &cache, pos.as_ref().unwrap_or(&src)], &p, Grid::Threads(total))
             }
+            QK_NORM_ROPE_KV_BF16 => self.launch_qk_norm_rope_kv(call),
             ARGMAX_F32 | ARGMAX_BF16 => {
                 let (r, v) = (i[0].shape[0], i[0].shape[1]);
                 if r == 0 {
@@ -417,6 +438,74 @@ impl MetalBackend {
             ATTN_DECODE_BF16_SPLITKV => self.launch_attn_splitkv(call),
             other => Err(Error::NoKernel(format!("metal kernel '{other}' for op '{}'", call.op))),
         }
+    }
+
+    /// `QkNormRopeKv`: one threadgroup per (token, q head | k head | v head), `roundup32(D)` threads (element i on thread i,
+    /// the layout `rmsnorm_bf16_ex1` uses for the unfused norm, so the sums are bitwise those).
+    fn launch_qk_norm_rope_kv(&self, call: &OpCall) -> Result<()> {
+        let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
+        let bf = DType::Bf16;
+        let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+        let (nkv, cap) = (i[1].shape[1], o[1].shape[1]);
+        if t * n * d == 0 {
+            return Ok(());
+        }
+        if d % 2 != 0 || d > 256 {
+            return Err(Error::invalid(format!("{QK_NORM_ROPE_KV_BF16}: head_dim {d} must be even and at most 256")));
+        }
+        let binds = [
+            self.bind(&i[0], bf, false, "q")?,
+            self.bind(&i[1], bf, false, "k")?,
+            self.bind(&i[2], bf, false, "v")?,
+            self.bind(&i[3], bf, false, "q_w")?,
+            self.bind(&i[4], bf, false, "k_w")?,
+            self.bind(&o[0], bf, true, "q_out")?,
+            self.bind(&o[1], bf, true, "k cache")?,
+            self.bind(&o[2], bf, true, "v cache")?,
+        ];
+        let (pos, use_dev) = self.pos_bind(call)?;
+        let threads = d.next_multiple_of(32);
+        let pso = self.pso(QK_NORM_ROPE_KV_BF16)
+            .ok_or_else(|| Error::backend(format!("metal: no pipeline '{QK_NORM_ROPE_KV_BF16}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < threads {
+            return Err(Error::backend(format!("{QK_NORM_ROPE_KV_BF16}: {threads} threads exceed the pipeline limit")));
+        }
+        let groups = t * (n + 2 * nkv);
+        dim(groups, "T*(N+2*Nkv)")?;
+        let mut skips = [0u32; 8];
+        for (s, b) in skips.iter_mut().zip(&binds) {
+            *s = b.skip;
+        }
+        let params = QkRopeKvP {
+            t: dim(t, "T")?,
+            n: dim(n, "N")?,
+            nkv: dim(nkv, "Nkv")?,
+            d: dim(d, "D")?,
+            rd: dim(if a.rotary_dim == 0 { d } else { a.rotary_dim }, "rotary_dim")?,
+            cap: dim(cap, "cap")?,
+            use_dev,
+            pos0: dim(a.pos0, "pos0")?,
+            skips,
+            eps: a.eps,
+            w_offset: a.w_offset,
+            theta: a.theta,
+            pad: 0,
+        };
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(pso);
+            for (idx, b) in binds.iter().enumerate() {
+                // SAFETY: the offset lies inside the buffer (TensorRef bounds were checked by `OpCall::check`).
+                unsafe { enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx) };
+            }
+            let pb = pos.as_ref().unwrap_or(&binds[0]);
+            // SAFETY: as above; the position buffer is only read when `use_dev` is set.
+            unsafe { enc.setBuffer_offset_atIndex(Some(&pb.mtl), pb.off, 8) };
+            set_bytes(enc, &params, 9);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: groups, height: 1, depth: 1 },
+                MTLSize { width: threads, height: 1, depth: 1 },
+            );
+        })
     }
 
     /// The device-side position tensor of `Rope` / `KvAppend` (`OpCall::pos`) as a binding plus the shader's flag.

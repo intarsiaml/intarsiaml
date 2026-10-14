@@ -140,6 +140,9 @@ pub const QK_NORM_BF16: &str = "qk_norm_bf16";
 pub const ROPE_BF16: &str = "rope_bf16";
 pub const SILU_GLU_BF16: &str = "silu_glu_bf16";
 pub const KV_APPEND_BF16: &str = "kv_append_bf16";
+/// `QkNormRopeKv` (qk_rope_kv.metal): qk-norm, rope and the k / v cache appends of a layer in one dispatch, bitwise the
+/// unfused `qk_norm_bf16` (`rmsnorm_bf16_ex1` at head_dim <= 256) + `rope_bf16` + `kv_append_bf16` sequence.
+pub const QK_NORM_ROPE_KV_BF16: &str = "qk_norm_rope_kv_bf16";
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 /// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
@@ -234,6 +237,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
+    v.push(QK_NORM_ROPE_KV_BF16);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
@@ -267,6 +271,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_DECODE_BF16, Op::AttnDecode),
     (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
     (MATMUL_PAIR_BF16_GEMV, Op::MatmulPair),
+    (QK_NORM_ROPE_KV_BF16, Op::QkNormRopeKv),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -333,6 +338,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(PAIR_TOL)
+                    .priority(10),
+                // fused attention prologue; `weights` is the cache dtype (bf16 only, as KvAppend), head_dim as the norm kernel's
+                // one-element-per-thread threadgroup allows. Any T (prefill rows included). Bitwise the unfused kernels', graded
+                // against the cpu composition with the budget of the ops it fuses.
+                QK_NORM_ROPE_KV_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
                     .priority(10),
                 other => unreachable!("kernel {other} has no registration"),
             }

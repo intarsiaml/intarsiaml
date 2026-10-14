@@ -1,4 +1,5 @@
-//! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`).
+//! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
+//! `QkNormRopeKv`).
 //! Each is defined as the composition of the ops it replaces, so the oracle of a fused kernel is exactly "the
 //! unfused path, including the output rounding of every intermediate tensor". `sub` is the executor of the
 //! constituent ops: the f64 reference for `ref_*`, the f32 kernels for `cpu_f32_*`.
@@ -40,6 +41,17 @@ pub fn run(call: &OpCall, sub: fn(&OpCall) -> Result<()>) -> Result<()> {
             let normed = tmp(&o[0], &o[0].shape);
             step(sub, Op::RmsNorm, vec![i[0].clone(), i[2].clone()], vec![normed.clone()], a.clone())?;
             step(sub, Op::SiluGlu, vec![i[1].clone(), normed], vec![o[0].clone()], d())
+        }
+        Op::QkNormRopeKv => {
+            // intermediates are in the activation dtype (the unfused path stores each op's output in its tensor), the
+            // caches get their own dtype from `KvAppend`
+            let (qn, kn, kr) = (tmp(&i[0], &i[0].shape), tmp(&i[1], &i[1].shape), tmp(&i[1], &i[1].shape));
+            step(sub, Op::QkNorm, vec![i[0].clone(), i[3].clone()], vec![qn.clone()], a.clone())?;
+            step(sub, Op::Rope, vec![qn], vec![o[0].clone()], a.clone())?;
+            step(sub, Op::QkNorm, vec![i[1].clone(), i[4].clone()], vec![kn.clone()], a.clone())?;
+            step(sub, Op::Rope, vec![kn], vec![kr.clone()], a.clone())?;
+            step(sub, Op::KvAppend, vec![kr], vec![o[1].clone()], a.clone())?;
+            step(sub, Op::KvAppend, vec![i[2].clone()], vec![o[2].clone()], a.clone())
         }
         other => Err(Error::invalid(format!("fused_ref cannot run {other}"))),
     }

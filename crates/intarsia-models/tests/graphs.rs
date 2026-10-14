@@ -287,12 +287,13 @@ fn the_recording_contains_the_position_dependent_ops_with_a_device_position() {
     decode(&m, &mut st, f, 2);
     let last = rec.last.lock().unwrap();
     let count = |op: Op| last.iter().filter(|(o, _)| *o == op).count();
-    // 2 full-attention layers: q and k rope, k and v append, one decode attention each
-    assert_eq!((count(Op::Rope), count(Op::KvAppend), count(Op::AttnDecode)), (4, 4, 2));
+    // 2 full-attention layers, one decode attention each. The cpu backend registers the fused `QkNormRopeKv`, which takes
+    // over q and k rope and the k and v appends of a layer (a backend without it runs 4 rope + 4 kv_append here).
+    assert_eq!((count(Op::Rope), count(Op::KvAppend), count(Op::QkNormRopeKv), count(Op::AttnDecode)), (0, 0, 2, 2));
     assert_eq!(count(Op::AttnPrefill), 0);
     for (op, has_pos) in last.iter() {
-        let needs = matches!(op, Op::Rope | Op::KvAppend | Op::AttnDecode);
-        assert_eq!(*has_pos, needs, "{op}: device position expected exactly on rope / kv_append / attn_decode");
+        let needs = matches!(op, Op::Rope | Op::KvAppend | Op::QkNormRopeKv | Op::AttnDecode);
+        assert_eq!(*has_pos, needs, "{op}: device position expected exactly on rope / kv_append / qk_norm_rope_kv / attn_decode");
     }
     assert_eq!(count(Op::Embedding), 1);
     assert_eq!(count(Op::Argmax), 1);

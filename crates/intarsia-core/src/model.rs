@@ -1199,22 +1199,111 @@ impl Model {
         attrs: OpAttrs,
         profile: bool,
     ) -> Result<bool> {
-        static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
-            return Ok(false);
-        }
         let call = OpCall::new(op, inputs, outputs, attrs);
-        if call.check().is_err() || self.registry.select(&call).is_err() {
+        if !self.fused_ok(&call) {
             return Ok(false);
         }
         self.exec(call.op, call.inputs, call.outputs, call.attrs, profile)?;
         Ok(true)
     }
 
+    /// Whether `try_fused` would run `call` (fusion enabled, call valid, a kernel selectable), without running it. For a
+    /// fused op whose replaced ops are spread over the layer, so the caller must decide before it emits any of them.
+    fn fused_ok(&self, call: &OpCall) -> bool {
+        static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
+            return false;
+        }
+        call.check().is_ok() && self.registry.select(call).is_ok()
+    }
+
     /// `out = x @ W^T` for a linear layer in any supported weight format.
     fn proj(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, profile: bool) -> Result<()> {
         let call = w.call(x.clone(), out.clone());
         self.exec(call.op, call.inputs, call.outputs, call.attrs, profile)
+    }
+
+    /// k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair. Returns
+    /// whether it ran (then `k_out` and `v_out` hold both projections); `false` leaves both to `proj`.
+    fn kv_pair(&self, a: &AttnBlock, n: &TensorRef, k_out: &TensorRef, v_out: &TensorRef, profile: bool) -> Result<bool> {
+        match (a.wk.format, a.wv.format) {
+            (crate::quant::FP8_E4M3, crate::quant::FP8_E4M3) => self.try_fused(
+                Op::MatmulFp8Pair,
+                vec![n.clone(), a.wk.parts[0].clone(), a.wk.parts[1].clone(), a.wv.parts[0].clone(), a.wv.parts[1].clone()],
+                vec![k_out.clone(), v_out.clone()],
+                OpAttrs::default(),
+                profile,
+            ),
+            (crate::quant::BF16, crate::quant::BF16) => self.try_fused(
+                Op::MatmulPair,
+                vec![n.clone(), a.wk.parts[0].clone(), a.wv.parts[0].clone()],
+                vec![k_out.clone(), v_out.clone()],
+                OpAttrs::default(),
+                profile,
+            ),
+            _ => Ok(false),
+        }
+    }
+
+    /// The attention prologue as one op (`Op::QkNormRopeKv`): the k and v projections, then q-norm, rope and the k / v
+    /// cache appends together. `ws.q[*qc]` holds the projected q; on `true` the normed and roped q is in
+    /// `ws.q[1 - *qc]` (`qc` flipped once, as the unfused norm + rope pair leaves it) and both caches have the new rows.
+    /// On `false` nothing was emitted, so the caller runs the unfused sequence unchanged: the backend has no kernel for
+    /// this exact call (CUDA / HIP never register one; a cache that is not bf16 on Metal; admission), the block has no
+    /// q or k norm, or fusion is off. The decision is taken before the k / v projections so the fallback keeps its order.
+    #[allow(clippy::too_many_arguments)]
+    fn qkv_fold(
+        &self,
+        a: &AttnBlock,
+        n: &TensorRef,
+        qc: &mut usize,
+        t: usize,
+        pos0: usize,
+        dpos: Option<&TensorRef>,
+        kcache: &TensorRef,
+        vcache: &TensorRef,
+        cap: usize,
+        profile: bool,
+    ) -> Result<bool> {
+        let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) else { return Ok(false) };
+        let (d, act, ws) = (&self.ldims, self.act, &self.ws);
+        let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
+        let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
+        let attrs = OpAttrs {
+            eps: d.rms_eps,
+            w_offset: self.recipe.model.norm_offset,
+            pos0,
+            theta: d.rope_theta,
+            head_dim: hd,
+            rotary_dim: a.rotary_dim,
+            n_heads: nh,
+            n_kv_heads: nkv,
+            kv_cap: cap,
+            ..Default::default()
+        };
+        let mut call = OpCall::new(
+            Op::QkNormRopeKv,
+            vec![
+                self.view(&ws.q[*qc], act, &[t, nh, hd]),
+                k_out.reshaped(&[t, nkv, hd]),
+                v_out.reshaped(&[t, nkv, hd]),
+                qw.clone(),
+                kw.clone(),
+            ],
+            vec![self.view(&ws.q[1 - *qc], act, &[t, nh, hd]), kcache.clone(), vcache.clone()],
+            attrs,
+        );
+        call.pos = dpos.cloned();
+        if !self.fused_ok(&call) {
+            return Ok(false);
+        }
+        if !self.kv_pair(a, n, &k_out, &v_out, profile)? {
+            self.proj(n, &a.wk, &k_out, profile)?;
+            self.proj(n, &a.wv, &v_out, profile)?;
+        }
+        self.exec_pos(call.op, call.inputs, call.outputs, call.attrs, dpos, profile)?;
+        *qc = 1 - *qc;
+        Ok(true)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1257,72 +1346,6 @@ impl Model {
             self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &qshape), profile)?;
             None
         };
-        if let Some(w) = &a.q_norm {
-            self.exec(
-                Op::QkNorm,
-                vec![self.view(&ws.q[qc], act, &q3), w.clone()],
-                vec![self.view(&ws.q[1 - qc], act, &q3)],
-                eps.clone(),
-                profile,
-            )?;
-            qc = 1 - qc;
-        }
-        self.exec_pos(
-            Op::Rope,
-            vec![self.view(&ws.q[qc], act, &q3)],
-            vec![self.view(&ws.q[1 - qc], act, &q3)],
-            rope.clone(),
-            dpos,
-            profile,
-        )?;
-        qc = 1 - qc;
-
-        let mut kc = 0usize;
-        // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
-        let kv_fused = match (a.wk.format, a.wv.format) {
-            (crate::quant::FP8_E4M3, crate::quant::FP8_E4M3) => self.try_fused(
-                Op::MatmulFp8Pair,
-                vec![n.clone(), a.wk.parts[0].clone(), a.wk.parts[1].clone(), a.wv.parts[0].clone(), a.wv.parts[1].clone()],
-                vec![self.view(&ws.k[kc], act, &kshape), self.view(&ws.v, act, &kshape)],
-                OpAttrs::default(),
-                profile,
-            )?,
-            (crate::quant::BF16, crate::quant::BF16) => self.try_fused(
-                Op::MatmulPair,
-                vec![n.clone(), a.wk.parts[0].clone(), a.wv.parts[0].clone()],
-                vec![self.view(&ws.k[kc], act, &kshape), self.view(&ws.v, act, &kshape)],
-                OpAttrs::default(),
-                profile,
-            )?,
-            _ => false,
-        };
-        if !kv_fused {
-            self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
-        }
-        if let Some(w) = &a.k_norm {
-            self.exec(
-                Op::QkNorm,
-                vec![self.view(&ws.k[kc], act, &k3), w.clone()],
-                vec![self.view(&ws.k[1 - kc], act, &k3)],
-                eps.clone(),
-                profile,
-            )?;
-            kc = 1 - kc;
-        }
-        self.exec_pos(
-            Op::Rope,
-            vec![self.view(&ws.k[kc], act, &k3)],
-            vec![self.view(&ws.k[1 - kc], act, &k3)],
-            rope.clone(),
-            dpos,
-            profile,
-        )?;
-        kc = 1 - kc;
-
-        if !kv_fused {
-            self.proj(n, &a.wv, &self.view(&ws.v, act, &kshape), profile)?;
-        }
-
         let slot = match &st.slots[a.slot] {
             StateSlot::AttnKv(s) => s,
             StateSlot::Recurrent(_) => return Err(Error::invalid("attention block bound to a recurrent state slot")),
@@ -1331,8 +1354,62 @@ impl Model {
         let kcache = self.view(&slot.k, slot.dtype, &cache_shape);
         let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
         let append = OpAttrs { pos0, kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
-        self.exec_pos(Op::KvAppend, vec![self.view(&ws.k[kc], act, &k3)], vec![kcache.clone()], append.clone(), dpos, profile)?;
-        self.exec_pos(Op::KvAppend, vec![self.view(&ws.v, act, &k3)], vec![vcache.clone()], append, dpos, profile)?;
+        // qk-norm + rope + kv-append as one op when the backend has it (needs both norms); else the ops one by one
+        let folded = self.qkv_fold(a, n, &mut qc, t, pos0, dpos, &kcache, &vcache, slot.cap, profile)?;
+        if !folded {
+            if let Some(w) = &a.q_norm {
+                self.exec(
+                    Op::QkNorm,
+                    vec![self.view(&ws.q[qc], act, &q3), w.clone()],
+                    vec![self.view(&ws.q[1 - qc], act, &q3)],
+                    eps.clone(),
+                    profile,
+                )?;
+                qc = 1 - qc;
+            }
+            self.exec_pos(
+                Op::Rope,
+                vec![self.view(&ws.q[qc], act, &q3)],
+                vec![self.view(&ws.q[1 - qc], act, &q3)],
+                rope.clone(),
+                dpos,
+                profile,
+            )?;
+            qc = 1 - qc;
+
+            let mut kc = 0usize;
+            // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
+            let kv_fused = self.kv_pair(a, n, &self.view(&ws.k[kc], act, &kshape), &self.view(&ws.v, act, &kshape), profile)?;
+            if !kv_fused {
+                self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
+            }
+            if let Some(w) = &a.k_norm {
+                self.exec(
+                    Op::QkNorm,
+                    vec![self.view(&ws.k[kc], act, &k3), w.clone()],
+                    vec![self.view(&ws.k[1 - kc], act, &k3)],
+                    eps.clone(),
+                    profile,
+                )?;
+                kc = 1 - kc;
+            }
+            self.exec_pos(
+                Op::Rope,
+                vec![self.view(&ws.k[kc], act, &k3)],
+                vec![self.view(&ws.k[1 - kc], act, &k3)],
+                rope.clone(),
+                dpos,
+                profile,
+            )?;
+            kc = 1 - kc;
+
+            if !kv_fused {
+                self.proj(n, &a.wv, &self.view(&ws.v, act, &kshape), profile)?;
+            }
+
+            self.exec_pos(Op::KvAppend, vec![self.view(&ws.k[kc], act, &k3)], vec![kcache.clone()], append.clone(), dpos, profile)?;
+            self.exec_pos(Op::KvAppend, vec![self.view(&ws.v, act, &k3)], vec![vcache.clone()], append, dpos, profile)?;
+        }
 
         let attn_out = self.view(&ws.q[1 - qc], act, &q3);
         let attrs = OpAttrs {

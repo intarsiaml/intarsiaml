@@ -32,15 +32,21 @@
 //! | `MatmulFp8Pair` | x `[M,K]`, (w0 `[N0,K]`, scales0 `[2]`), (w1 `[N1,K]`, scales1 `[2]`) fp8 | `[M,N0]`, `[M,N1]` (= two `MatmulFp8`s) | fused, see `quant::fused` |
 //! | `MatmulNvfp4Glu` | x `[M,K]`, gate (w, block scales, global), up (w, block scales, global), nvfp4 `[N,K]` each | `[M,N]` (= `SiluGlu(MatmulNvfp4(gate), MatmulNvfp4(up))`) | fused, see `quant::fused` |
 //! | `GatedRmsnorm` | x `[R,D]`, z `[R,D]`, w `[D]` | `[R,D]` (= `SiluGlu(z, RmsNorm(x, w))`) | eps, w_offset; fused, see `quant::fused` |
+//! | `QkNormRopeKv` | q `[T,N,D]`, k `[T,Nkv,D]`, v `[T,Nkv,D]`, q_w `[D]`, k_w `[D]` (all one float dtype) | q_out `[T,N,D]`, k cache, v cache `[Nkv,cap,D]` (**in place**) | eps, w_offset, theta, rotary_dim, pos0 (or `OpCall::pos`); fused attention prologue, see below |
 //!
-//! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The four
+//! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The five
 //! fused ops above are optional: a backend registers kernels for them only when it has a fast path, and the model
 //! falls back to the unfused ops it replaces when `Registry::select` finds none.
 //!
 //! Attention is causal GQA: query `t` sits at absolute position `pos0 + t` and
 //! attends cache rows `0..=pos0+t`; the caller must have appended K/V for
 //! those rows first (`KvAppend`). Output tensors never alias inputs except
-//! `KvAppend`'s cache (in-place by definition).
+//! the caches of `KvAppend` and `QkNormRopeKv` (in place by definition).
+//!
+//! `QkNormRopeKv` is the per-layer sequence `q_out = Rope(QkNorm(q, q_w))`, `KvAppend(Rope(QkNorm(k, k_w)), k cache)`,
+//! `KvAppend(v, v cache)` in one op (six launches become one). It is defined as exactly that composition, including
+//! the rounding of every intermediate to the input dtype (`intarsia-backend-cpu`'s `fused_ref`), and it needs both
+//! norms, so models without q/k norms keep the unfused ops. Like the other fused ops it is optional.
 
 use crate::backend::TensorRef;
 use crate::dtype::DType;
@@ -76,10 +82,11 @@ pub enum Op {
     MatmulFp8Pair,
     MatmulNvfp4Glu,
     GatedRmsnorm,
+    QkNormRopeKv,
 }
 
 impl Op {
-    pub const ALL: [Op; 27] = [
+    pub const ALL: [Op; 28] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -107,6 +114,7 @@ impl Op {
         Op::MatmulFp8Pair,
         Op::MatmulNvfp4Glu,
         Op::GatedRmsnorm,
+        Op::QkNormRopeKv,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -139,6 +147,7 @@ impl Op {
             Op::MatmulFp8Pair => "matmul_fp8_pair",
             Op::MatmulNvfp4Glu => "matmul_nvfp4_glu",
             Op::GatedRmsnorm => "gated_rmsnorm",
+            Op::QkNormRopeKv => "qk_norm_rope_kv",
         }
     }
 
@@ -174,6 +183,7 @@ impl Op {
             Op::MatmulFp8Pair => (5, 2),
             Op::MatmulNvfp4Glu => (7, 1),
             Op::GatedRmsnorm => (3, 1),
+            Op::QkNormRopeKv => (5, 3),
         }
     }
 }
@@ -267,7 +277,7 @@ impl OpCall {
         }
         if let Some(p) = &self.pos {
             p.check_bounds()?;
-            if !matches!(self.op, Op::Rope | Op::KvAppend | Op::AttnDecode) {
+            if !matches!(self.op, Op::Rope | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) {
                 return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
             }
             if p.dtype != DType::I32 || p.numel() != 1 {
@@ -380,6 +390,37 @@ impl OpCall {
                     return bad("shape mismatch".into());
                 }
             }
+            Op::QkNormRopeKv => {
+                for (t, what) in [(&i[0], "q"), (&i[1], "k"), (&i[2], "v"), (&o[0], "q_out"), (&o[1], "k cache"), (&o[2], "v cache")] {
+                    rank(t, 3, what)?;
+                }
+                let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+                let (nkv, cap) = (o[1].shape[0], o[1].shape[1]);
+                if i[1].shape != [t, nkv, d] || i[2].shape != i[1].shape || o[0].shape != i[0].shape {
+                    return bad(format!("q {:?} k {:?} v {:?} q_out {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape));
+                }
+                if o[2].shape != o[1].shape || o[1].shape[2] != d || o[2].dtype != o[1].dtype {
+                    return bad(format!("caches {:?} {:?} must match each other and [Nkv,cap,{d}]", o[1].shape, o[2].shape));
+                }
+                if i[3].shape != [d] || i[4].shape != [d] {
+                    return bad(format!("norm weights {:?} {:?} != [{d}]", i[3].shape, i[4].shape));
+                }
+                if nkv == 0 || n % nkv != 0 || d % 2 != 0 {
+                    return bad(format!("N={n} Nkv={nkv} D={d}: N must be a multiple of Nkv and D even"));
+                }
+                if a.rotary_dim > d || a.rotary_dim % 2 != 0 {
+                    return bad(format!("rotary_dim {} must be even and <= head_dim {d}", a.rotary_dim));
+                }
+                if a.pos0 + t > cap {
+                    return bad(format!("append {t} rows at {} into cache {:?}", a.pos0, o[1].shape));
+                }
+                for (tn, what) in [(&i[0], "q"), (&i[1], "k"), (&i[2], "v"), (&i[3], "q_w"), (&i[4], "k_w"), (&o[0], "q_out")] {
+                    float(tn, what)?;
+                    if tn.dtype != i[0].dtype {
+                        return bad(format!("{what} is {}, q is {}: one activation dtype", tn.dtype, i[0].dtype));
+                    }
+                }
+            }
             Op::Argmax => {
                 rank(&i[0], 2, "logits")?;
                 if o[0].dtype != DType::I32 || o[0].shape != [i[0].shape[0]] {
@@ -466,6 +507,14 @@ impl ShapeInfo {
                 s.n = i[1].shape[0];
                 s.weight = Some(i[1].dtype);
             }
+            Op::QkNormRopeKv => {
+                s.m = i[0].shape[0];
+                s.n_heads = i[0].shape[1];
+                s.head_dim = i[0].shape[2];
+                s.k = s.head_dim;
+                s.n_kv_heads = i[1].shape[1];
+                s.weight = Some(o[1].dtype); // kv cache dtype
+            }
             Op::AttnPrefill | Op::AttnDecode => {
                 s.m = i[0].shape[0];
                 s.n_heads = i[0].shape[1];
@@ -550,5 +599,35 @@ mod tests {
             OpAttrs::default(),
         );
         assert_eq!(ShapeInfo::from_call(&f32_out).out, Some(DType::F32));
+    }
+
+    #[test]
+    fn check_qk_norm_rope_kv() {
+        let f = |shape: &[usize]| t(DType::Bf16, shape);
+        let attrs = OpAttrs { pos0: 3, rotary_dim: 8, kv_cap: 16, n_kv_heads: 2, head_dim: 16, ..OpAttrs::default() };
+        let mk = |a: OpAttrs, kcache: TensorRef| {
+            OpCall::new(
+                Op::QkNormRopeKv,
+                vec![f(&[2, 4, 16]), f(&[2, 2, 16]), f(&[2, 2, 16]), f(&[16]), f(&[16])],
+                vec![f(&[2, 4, 16]), kcache, f(&[2, 16, 16])],
+                a,
+            )
+        };
+        let ok = mk(attrs.clone(), f(&[2, 16, 16]));
+        ok.check().unwrap();
+        let s = ShapeInfo::from_call(&ok);
+        assert_eq!((s.m, s.n_heads, s.n_kv_heads, s.head_dim, s.weight), (2, 4, 2, 16, Some(DType::Bf16)));
+        // a device-side position is accepted, only this op among the norm / matmul ops
+        let mut dev = mk(attrs.clone(), f(&[2, 16, 16]));
+        dev.pos = Some(t(DType::I32, &[1]));
+        dev.check().unwrap();
+        // 3 + 2 rows fit a 16-row cache; 15 + 2 do not
+        assert!(mk(OpAttrs { pos0: 15, ..attrs.clone() }, f(&[2, 16, 16])).check().is_err());
+        // caches must agree; the cache width must be the head dim; odd rotary dim; a mixed activation dtype
+        assert!(mk(attrs.clone(), f(&[2, 8, 16])).check().is_err());
+        assert!(mk(OpAttrs { rotary_dim: 7, ..attrs.clone() }, f(&[2, 16, 16])).check().is_err());
+        let mut mixed = mk(attrs, f(&[2, 16, 16]));
+        mixed.inputs[3] = t(DType::F32, &[16]);
+        assert!(mixed.check().is_err());
     }
 }
