@@ -1,0 +1,6 @@
+prefill chunk 256 (default)
+admission on plan shapes: 14 kernel(s) checked, 277 case(s) run, 0 cached
+loaded Qwen3-8B on Apple M5 Max in 33.7s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 16 tokens
+finish=length prompt=16 (cached 0) completion=8 | prefill 471 ms (34.0 tok/s) | decode 230 ms (30.37 tok/s)
+steps=8 graph replays=0 (captures 0) eager decode steps=7 (profiled 0) top ops: matmul=237ms/2016 rmsnorm_add=128ms/576 embedding=37ms/8 kv_append=23ms/576 logits=17ms/8

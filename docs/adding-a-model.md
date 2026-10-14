@@ -110,7 +110,7 @@ build`, not with garbage output.
 ## 2. `intarsia qualify`
 
 ```sh
-intarsia qualify --model <dir> --backend <cpu|cuda|hip> [--tp N] [--reference <url-or-hf-dir>]
+intarsia qualify --model <dir> --backend <cpu|cuda|hip|metal> [--tp N] [--reference <url-or-hf-dir>]
                  [--golden FILE] [--golden-long FILE] [--out reports/<model>/<stamp>/]
                  [--quick-only] [--resume] [--push-metrics <pushgateway url>] [--on-quick-done '<cmd>']
 ```

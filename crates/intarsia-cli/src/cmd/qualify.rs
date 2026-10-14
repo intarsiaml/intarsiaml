@@ -29,7 +29,7 @@ pub struct QualifyArgs {
     /// Model directory (config.json, tokenizer.json, *.safetensors).
     #[arg(long, short = 'm')]
     pub model: PathBuf,
-    /// Backend: cpu, cuda or hip (the binary must be built with the feature).
+    /// Backend: cpu, cuda, hip or metal (the binary must be built with the feature).
     #[arg(long, default_value = "cpu")]
     pub backend: String,
     /// Device ordinal for GPU backends.
@@ -329,8 +329,8 @@ fn pipeline(mut a: QualifyArgs) -> Result<i32> {
     if a.tp == 0 {
         bail!("--tp must be at least 1");
     }
-    if !["cpu", "cuda", "hip"].contains(&a.backend.as_str()) {
-        bail!("unknown backend '{}' (cpu, cuda, hip)", a.backend);
+    if !["cpu", "cuda", "hip", "metal"].contains(&a.backend.as_str()) {
+        bail!("unknown backend '{}' (cpu, cuda, hip, metal)", a.backend);
     }
     for s in &a.skip {
         if !STAGES.iter().any(|d| d.id == s) {
@@ -1680,7 +1680,9 @@ fn st_envelope(c: &mut Ctx) -> Result<Out> {
     let env = c.path("baselines/envelope.json");
     let _ = std::fs::remove_file(&env);
     let mut perturb = vec!["chunk".to_string()];
-    if c.a.backend != "cpu" {
+    // attn-simt switches off the flash / split-KV attention kernels, which only cuda and hip have; cpu and metal
+    // measure the noise envelope with the chunk perturbation alone
+    if matches!(c.a.backend.as_str(), "cuda" | "hip") {
         perturb.push("attn-simt".into());
     }
     let mut runs = vec![];
