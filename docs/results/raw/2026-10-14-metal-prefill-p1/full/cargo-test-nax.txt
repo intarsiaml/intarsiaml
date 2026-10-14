@@ -1,0 +1,31 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/gemm_nax.rs (target/release/deps/gemm_nax-437184b2b116056c)
+
+running 9 tests
+test nax_is_run_to_run_deterministic ... ok
+test nax_k_tails ... ok
+test nax_kernels_are_registered_for_prefill_shapes_only ... ok
+test nax_launch_picks_tiles_without_changing_bits ... ok
+test nax_launch_through_the_backend ... ok
+test nax_matches_f64_reference ... ok
+test nax_pair_is_bitwise_two_singles ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_tile_pick_is_by_shape_and_covers_both_tiles ... FAILED
+
+failures:
+
+---- nax_tile_pick_is_by_shape_and_covers_both_tiles stdout ----
+
+thread 'nax_tile_pick_is_by_shape_and_covers_both_tiles' (88816518) panicked at crates/intarsia-backend-metal/tests/gemm_nax.rs:225:5:
+assertion `left == right` failed
+  left: 128
+ right: 64
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    nax_tile_pick_is_by_shape_and_covers_both_tiles
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.62s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test gemm_nax`

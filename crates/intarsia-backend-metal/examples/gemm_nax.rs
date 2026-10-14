@@ -1,6 +1,8 @@
 //! P1 spike: NAX bf16 GEMM microbench and error table (docs/results/2026-10-14-metal-prefill-p1-spike.md).
 //!
-//!   cargo run --release -p intarsia-backend-metal --example gemm_nax -- bench|err [shape ...]
+//!   cargo run --release -p intarsia-backend-metal --example gemm_nax -- bench|err|pair|pick [shape ...]
+//!   pair: gate/up (2 x 12288x4096) and k/v (2 x 1024x4096) as one pair dispatch against two single dispatches, per tile
+//!   pick: the shipped tile pick (gemm_nax::pick_variant) against each fixed tile, per shape and M
 //!   shapes: qo (4096x4096), kv (1024x4096), gu (12288x4096), down (4096x12288); default all
 //!   env: NAX_M=256,1024,2048  NAX_ONLY=<shader substrings, comma separated>  NAX_SWZ=0,2 (swizzle log2 candidates)
 //!        NAX_REPS=<dispatches per chain> NAX_ROUNDS=<interleaved rounds> NAX_POOL_MIB=<rotating distinct weights>
@@ -23,7 +25,7 @@ fn main() {
 #[cfg(target_os = "macos")]
 mod imp {
     use intarsia_backend_metal::bench::{self, stats, Rng};
-    use intarsia_backend_metal::gemm_nax::{encode_nax, NaxParams, NaxVariant, NAX_VARIANTS};
+    use intarsia_backend_metal::gemm_nax::{encode_nax, encode_nax_pair, pick_variant, NaxPairParams, NaxParams, NaxVariant, NAX_VARIANTS};
     use intarsia_backend_metal::{MetalBackend, MtlBuffer};
     use objc2_metal::{MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue};
 
@@ -164,6 +166,99 @@ mod imp {
         bench::gpu_seconds(&cb)
     }
 
+    /// Chain of `count` dispatches of either the pair kernel (`pair`) or the two single kernels, tile `v`.
+    #[allow(clippy::too_many_arguments)]
+    fn pair_chain(be: &MetalBackend, v: &NaxVariant, pair: bool, m: usize, n: usize, k: usize, o0: &Operands, o1: &Operands, count: usize) -> f64 {
+        let cb = be.queue().commandBuffer().unwrap();
+        let enc = cb.computeCommandEncoder().unwrap();
+        for i in 0..count {
+            let (w0, w1) = (&o0.ws[i % o0.ws.len()], &o1.ws[i % o1.ws.len()]);
+            if pair {
+                let pso = be.pso(v.pair_shader).unwrap();
+                let p = NaxPairParams { m: m as u32, n0: n as u32, n1: n as u32, k: k as u32, ..Default::default() };
+                encode_nax_pair(&enc, pso, v, (&o0.a, 0), (w0, 0), (w1, 0), (&o0.c, 0), (&o1.c, 0), &p);
+            } else {
+                let pso = be.pso(v.shader).unwrap();
+                let p = params(m, n, k, 0, o0);
+                encode_nax(&enc, pso, v, (&o0.a, 0), (w0, 0), (&o0.c, 0), &p);
+                encode_nax(&enc, pso, v, (&o0.a, 0), (w1, 0), (&o1.c, 0), &p);
+            }
+        }
+        enc.endEncoding();
+        be.commit(&cb);
+        MetalBackend::wait(&cb).unwrap();
+        bench::gpu_seconds(&cb)
+    }
+
+    fn pair_mode(be: &MetalBackend) {
+        let ms: Vec<usize> = env_list("NAX_M", &[16, 64, 256, 1024, 2048]);
+        let rounds = env_usize("NAX_ROUNDS", 15);
+        let reps = env_usize("NAX_REPS", 10);
+        let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
+        for (label, n, k) in [("gate_up", 12288usize, 4096usize), ("kv", 1024, 4096)] {
+            for &m in &ms {
+                let o0 = Operands::new(be, m, n, k, pool, (0, 0, 0));
+                let o1 = Operands::new(be, m, n, k, pool, (0, 0, 0));
+                let flop = 2.0 * m as f64 * (2 * n) as f64 * k as f64;
+                // (variant, pair?) grid
+                let grid: Vec<(NaxVariant, bool)> = NAX_VARIANTS.iter().flat_map(|v| [(*v, true), (*v, false)]).collect();
+                let mut samples: Vec<Vec<f64>> = vec![Vec::new(); grid.len()];
+                for (v, pr) in &grid {
+                    pair_chain(be, v, *pr, m, n, k, &o0, &o1, 2);
+                }
+                let mut order: Vec<usize> = (0..grid.len()).collect();
+                for _ in 0..rounds {
+                    order.rotate_left(1);
+                    for &gi in &order {
+                        let (v, pr) = &grid[gi];
+                        let secs = pair_chain(be, v, *pr, m, n, k, &o0, &o1, reps);
+                        samples[gi].push(flop * reps as f64 / secs / 1e12);
+                    }
+                }
+                for (gi, (v, pr)) in grid.iter().enumerate() {
+                    let st = stats(&mut samples[gi]);
+                    println!(
+                        "PAIR shape={label} M={m} N={n} K={k} tile={}x{} mode={} median_tflops={:.2} p10={:.2} p90={:.2}",
+                        v.bm, v.bn, if *pr { "pair" } else { "2single" }, st.median, st.p10, st.p90
+                    );
+                }
+            }
+        }
+    }
+
+    /// The shipped pick against each fixed tile, per Qwen3-8B shape and M (single kernel).
+    fn pick_mode(be: &MetalBackend, shapes: &[&Shape]) {
+        let ms: Vec<usize> = env_list("NAX_M", &[16, 32, 64, 128, 205, 256, 512, 1024, 2048]);
+        let rounds = env_usize("NAX_ROUNDS", 15);
+        let reps = env_usize("NAX_REPS", 10);
+        let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
+        for s in shapes {
+            for &m in &ms {
+                let op = Operands::new(be, m, s.n, s.k, pool, (0, 0, 0));
+                let flop = 2.0 * m as f64 * s.n as f64 * s.k as f64;
+                let picked = pick_variant(m, s.n);
+                let mut samples: Vec<Vec<f64>> = vec![Vec::new(); NAX_VARIANTS.len()];
+                for v in NAX_VARIANTS {
+                    dispatch_chain(be, v, m, s.n, s.k, 0, &op, 2);
+                }
+                for r in 0..rounds {
+                    for vi in 0..NAX_VARIANTS.len() {
+                        let vi = (vi + r) % NAX_VARIANTS.len();
+                        let v = &NAX_VARIANTS[vi];
+                        let secs = dispatch_chain(be, v, m, s.n, s.k, 0, &op, reps);
+                        samples[vi].push(flop * reps as f64 / secs / 1e12);
+                    }
+                }
+                let med: Vec<f64> = samples.iter_mut().map(|x| stats(x).median).collect();
+                println!(
+                    "PICK shape={} M={m} N={} K={} t64x64={:.2} t128x64={:.2} picked={}x{} best={}",
+                    s.label, s.n, s.k, med[0], med[1], picked.bm, picked.bn,
+                    if med[0] >= med[1] { "64x64" } else { "128x64" }
+                );
+            }
+        }
+    }
+
     fn candidates() -> Vec<NaxVariant> {
         let only = std::env::var("NAX_ONLY").ok();
         NAX_VARIANTS
@@ -211,8 +306,8 @@ mod imp {
                 for (gi, (v, z)) in grid.iter().enumerate() {
                     let st = stats(&mut samples[gi]);
                     println!(
-                        "RESULT shape={} M={} N={} K={} cand={} swz={} relaxed={} median_tflops={:.2} p10={:.2} p90={:.2} us_per_call={:.1}",
-                        s.label, m, s.n, s.k, v.shader, z, v.relaxed, st.median, st.p10, st.p90,
+                        "RESULT shape={} M={} N={} K={} cand={} swz={} median_tflops={:.2} p10={:.2} p90={:.2} us_per_call={:.1}",
+                        s.label, m, s.n, s.k, v.shader, z, st.median, st.p10, st.p90,
                         flop / (st.median * 1e12) * 1e6
                     );
                 }
@@ -324,8 +419,8 @@ mod imp {
                             }
                         }
                         println!(
-                            "ERR shape={} M={} N={} K={} cand={} swz={} relaxed={} rows={} max_abs={:.4e} max_abs_over_rms={:.3e} max_rel(|ref|>=0.1rms)={:.3e} rel_l2={:.3e} max_ulp(of max(|ref|,0.1rms))={:.2} bias_ulp={:+.3} nonfinite={} ref_rms={:.3} ref_max={:.2} hash={:016x}",
-                            s.label, m, s.n, s.k, v.shader, z, v.relaxed, rows.len(), max_abs, max_abs / rms, max_rel_big,
+                            "ERR shape={} M={} N={} K={} cand={} swz={} rows={} max_abs={:.4e} max_abs_over_rms={:.3e} max_rel(|ref|>=0.1rms)={:.3e} rel_l2={:.3e} max_ulp(of max(|ref|,0.1rms))={:.2} bias_ulp={:+.3} nonfinite={} ref_rms={:.3} ref_max={:.2} hash={:016x}",
+                            s.label, m, s.n, s.k, v.shader, z, rows.len(), max_abs, max_abs / rms, max_rel_big,
                             (num / den).sqrt(), max_ulp, bias / cnt.max(1) as f64, nonfinite, rms, max_ref, hash
                         );
                     }
@@ -343,6 +438,8 @@ mod imp {
         match mode.as_str() {
             "bench" => bench_mode(&be, &shapes),
             "err" => err_mode(&be, &shapes),
+            "pair" => pair_mode(&be),
+            "pick" => pick_mode(&be, &shapes),
             other => panic!("mode '{other}': bench or err"),
         }
     }

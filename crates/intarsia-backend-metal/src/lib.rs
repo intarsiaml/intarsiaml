@@ -629,8 +629,11 @@ impl Backend for MetalBackend {
                 )
             });
         }
-        if kernels::NAX_KERNELS.contains(&kernel) && call.op == Op::Matmul {
+        if kernel == kernels::MATMUL_BF16_NAX && call.op == Op::Matmul {
             return self.launch_nax(kernel, call);
+        }
+        if kernel == kernels::MATMUL_PAIR_BF16_NAX && call.op == Op::MatmulPair {
+            return self.launch_nax_pair(kernel, call);
         }
         if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
             return self.launch_matmul_pair(call);
