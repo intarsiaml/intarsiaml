@@ -9,7 +9,7 @@ set -u
 P=$HOME/intarsia-decfuse
 case "$1" in
   35b) M=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5; MEM=45; NAME=intarsia-35b ;;
-  8b)  M=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218; MEM=30; NAME=intarsia-8b ;;
+  8b)  M=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218; MEM=40; NAME=intarsia-8b ;;
   *) echo "model 35b|8b"; exit 2 ;;
 esac
 MODEL=$1; RND=$2; shift 2
@@ -20,7 +20,7 @@ for spec in "$@"; do
   bin=$P/$tree/target/acc/release/intarsia
   out=$AB/$MODEL-$arm-r$RND; rm -rf $out; mkdir -p $out
   echo "== $MODEL round $RND arm $arm (tree $tree env '$envs') $(date +%T)"
-  nohup env $envs $bin serve --backend cuda --model $M --port $PORT --host 127.0.0.1 --served-model-name $NAME --max-seq 8192 --mem-budget $MEM --profile-every 0 > $out/serve.log 2>&1 < /dev/null &
+  nohup env $envs $bin serve --backend cuda --model $M --port $PORT --host 127.0.0.1 --served-model-name $NAME --max-seq ${MAX_SEQ:-20480} --mem-budget $MEM --profile-every 0 > $out/serve.log 2>&1 < /dev/null &
   spid=$!
   up=0; for i in $(seq 1 120); do curl -sf http://127.0.0.1:$PORT/health >/dev/null && { up=1; break; }; sleep 2; done
   [ $up = 1 ] || { echo "server did not come up, see $out/serve.log"; kill $spid; exit 1; }

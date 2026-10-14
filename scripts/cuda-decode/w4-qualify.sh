@@ -17,6 +17,7 @@ if need 5 "qualify --quick-only, 35B"; then
   $DEV qualify --model $M35 --backend cuda --quick-only --gen 128 --reps 5 --no-unim --out $O/qualify-35b --golden-dir $GD --mem-budget 45 > $O/qualify-35b.log 2>&1
   echo "qualify exit $?"; tail -40 $O/qualify-35b.log | cut -c1-200
 fi
-need 3 "8B A/B round 1" && bash $D/w-ab.sh 8b 1 base:base dev:dev
-need 3 "8B A/B round 2" && bash $D/w-ab.sh 8b 2 dev:dev base:base
+need 7 "35B A/B round 3" && bash $D/w-ab.sh 35b 3 base:base dev:dev
+# the 8B is dense bf16: no fused op applies to it, so one round is a confirmation of no change
+need 5 "8B A/B" && bash $D/w-ab.sh 8b 1 base:base dev:dev
 echo "== w4 done $(date +%T), $(left) min left"

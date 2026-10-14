@@ -43,7 +43,8 @@ MUTATIONS = {
         "const float nrm = ik_b2f(xr[i]) * r * (ik_b2f(w[i]) + woff);")]),
     # --- moe_experts_decode_v2 (tests/quantmoe.rs moe_experts_decode_matches_old_kernel) ---
     # v2 down: the last expert slot is not added to the total. (Summing the slots in reverse order was tried first and
-    # SURVIVED: bf16-valued terms add exactly in fp32, so the order is not observable on any test data. Equivalent mutant.)
+    # SURVIVED on the test data: the K bf16-valued terms sit within a few binades, so their fp32 sums are exact and any
+    # order gives the same bits. v2 keeps the original order by construction; the tests do NOT guard summation order.)
     "down-order": ("kernels/cuda/moe_decode.cu", [(
         "for (int k = 0; k < K; ++k) total += term[k][threadIdx.x];",
         "for (int k = 0; k < K - 1; ++k) total += term[k][threadIdx.x];")]),
