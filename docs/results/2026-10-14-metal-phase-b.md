@@ -318,3 +318,35 @@ I did not fold these inside the backend by looking at consecutive launches: it c
 
 Dependency-tracked concurrent encoder (estimate above); GEMV tuning; the fold ops; rope, kv_append and silu_glu are at the dispatch floor and untouched. HIP/CUDA behaviour with the new `model.rs` probes is untested.
 fleetq jobs: #1810, #1811, #1815-#1818, #1820, #1824, #1826, #1827, #1830-#1836 (the attention agent's jobs in between are not mine).
+
+## Phase B part 2, merged (2a + 2b)
+
+`spike/metal` @ `f1131f1` merges `metal-b2-attn` (`4fa52e1`) and `metal-b2-fuse` (`5d24762`). The conflicts were all additive: kernel tables, `LAUNCHER_SOURCES`, `bind` visibility and this doc. Raw logs are in `raw/2026-10-14-metal-phase-b/b2-merged/`.
+
+**Decode, localeval** (same args as b1: `--sizes 128,1024,4096 --gen 256 --reps 3 --thinking off`), run `intarsia-metal-bf16-b2merged-r2`, fleetq #1844, unanimis `b3111ddb`:
+
+| prompt | b1 | 2a | 2b | merged | mlx-lm | llama.cpp | merged % of 40.6 floor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ~128 | 32.7 | 32.6 | 33.8 | **34.3** | 34.4 | 34.8 | 84.5 |
+| ~1k | 32.5 | 32.8 | 33.5 | **33.2** | 33.8 | 33.4 | 81.8 |
+| ~4k | 30.1 | 31.7 | 30.8 | **33.1** | 31.0 | 31.7 | 81.5 |
+
+- **Phase B exit status:**
+  - ≥ 90% of mlx-lm: met everywhere (98-107%).
+  - Not below llama.cpp: met at 4k (+4%), a tie at 1k (-0.6%), and 1.4% short at 128.
+  - ≥ 85% of byte floor: not met (81.5-84.5%).
+- **Prefill** (marginal) is 347 tok/s at 1k and 203 at 4k, against mlx-lm 3189 at 4k. Unchanged by part 2.
+- **The first merged run was discarded.** Run `intarsia-metal-bf16-b2merged`, fleetq #1840, unanimis `e97945ab`, gave 26-27 tok/s. A `generate` probe with the same binary and command gave 33.6 tok/s at 14:04, 28.3 tok/s at 14:12 and 33.9 tok/s at 14:15, so the slowdown came from the machine, not the code. The source was not identified: there was no thermal warning, the GPU was 2-4% busy when idle, and `endor-kev` / `endor-tensorfold` have no health check. The retry (#1844) is the result above; all numbers are single runs.
+
+**Correctness of the merge:**
+- `cargo test -p intarsia-backend-metal --release` and `cargo test --workspace --release --exclude intarsia-backend-metal` pass.
+- `intarsia kernels test --backend metal -m Qwen3-8B`: 18 kernels, 202 cases, all ADMITTED (#1838).
+- Greedy token ids are identical to `40996bb` for 48 tokens on the short, 1k and 4k prompts, and for 256 tokens on the 4k prompt. The 256-token short prompt diverges at about token 42. That prompt is a synthetic list of near-tie phrasings ("counted" vs "remembered").
+- Golden accuracy (`--gate-class bf16`, #1839), merged vs `40996bb`: both PASS. The short golden's decode KL rises from 3.639e-4 to 3.890e-4 (top-1 100%), and the long golden goes from 3.637e-4 to 3.627e-4. Prefill is identical. The decode-only shift fits split-KV's different summation order (2a). 2b alone was bitwise identical.
+
+**Before merging to main:**
+- The 2b change in `crates/intarsia-core/src/model.rs` routes bf16 gate/up and k/v through `Op::MatmulPair` on every backend that registers it. On CUDA and HIP this switches dense bf16 decode onto their existing `matmul_pair_bf16_gemv`, which is admitted but was never used on this path before. That change has not been run on CUDA or HIP. spark1 has no Qwen3-8B and tatooine has no cargo for this user. `INTARSIA_NO_FUSION=1` turns it off.
+
+**Next levers:**
+- GEMV efficiency: 26.4 of about 29 ms is at 570-585 GB/s, against a 614 ceiling. Closing that gap is worth about 1.5 ms.
+- The proposed core ops `QkNormRope` plus a KV-append fold (0.3-0.45 ms), and device-side greedy token feedback (about 0.3 ms of step-boundary idle).
