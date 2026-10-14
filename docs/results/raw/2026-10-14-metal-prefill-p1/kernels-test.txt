@@ -274,4 +274,4 @@ matmul_pair    matmul_pair_bf16_gemv           6      0     0.000e0     0.000e0 
 qk_norm_rope_kv qk_norm_rope_kv_bf16           36      0    1.479e-3    8.704e-5  ADMITTED
 matmul         matmul_bf16_nax                 7      0    3.185e-3    8.100e-5  ADMITTED
 matmul         matmul_bf16_nax_relaxed         7      0    3.185e-3    8.100e-5  ADMITTED
-21 kernels, 252 cases in 37.2s
+21 kernels, 252 cases in 37.3s

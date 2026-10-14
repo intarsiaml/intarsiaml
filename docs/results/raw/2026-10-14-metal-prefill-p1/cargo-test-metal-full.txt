@@ -1,5 +1,4 @@
-   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/crates/intarsia-backend-metal)
-    Finished `release` profile [optimized] target(s) in 0.70s
+    Finished `release` profile [optimized] target(s) in 0.03s
      Running unittests src/lib.rs (target/release/deps/intarsia_backend_metal-a3d6d251e1457bba)
 
 running 6 tests
@@ -26,7 +25,7 @@ test splitkv_matches_f64_reference ... ok
 test splitkv_predicate_and_scratch_declaration ... ok
 test splitkv_scratch_is_required_and_checked ... ok
 
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
 
      Running tests/dense.rs (target/release/deps/dense-45bc33a58b99cddc)
 
@@ -40,7 +39,7 @@ test logits_gemm_and_gemv_match_f64_reference ... ok
 test predicates_route_m1_to_gemv ... ok
 test upload_after_pending_launch_waits_for_it ... ok
 
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
 
      Running tests/fill.rs (target/release/deps/fill-25b3ea888e58de09)
 
@@ -52,7 +51,7 @@ test overlapping_copy_in_one_buffer_is_a_memmove ... ok
 test wrapped_host_memory_is_a_source_but_never_a_target ... ok
 test zero_covers_exactly_the_buffer ... ok
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
 
      Running tests/fused.rs (target/release/deps/fused-bbab7e45a574aacb)
 
@@ -75,7 +74,7 @@ test nax_launch_through_the_backend ... ok
 test nax_matches_f64_reference ... ok
 test nax_rows_do_not_depend_on_the_call ... ok
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
 
      Running tests/gemv.rs (target/release/deps/gemv-1bf4d6f8a23a54f6)
 
@@ -87,7 +86,7 @@ test qwen3_8b_shapes ... ok
 test shader_choice_follows_alignment_and_k ... ok
 test unaligned_operand_offsets ... ok
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.08s
 
      Running tests/lowlat.rs (target/release/deps/lowlat-4d5db086d9b3f54d)
 
@@ -105,7 +104,7 @@ test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test prefill_runs_without_the_metal4_library ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
 
      Running tests/qkv_fold.rs (target/release/deps/qkv_fold-b222873799747e1e)
 
@@ -116,7 +115,7 @@ test head_dims_and_partial_rotary ... ok
 test operands_at_two_byte_offsets ... ok
 test prefill_rows_are_bitwise ... ok
 
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
 
      Running tests/wrap_host.rs (target/release/deps/wrap_host-63239f81b7af9e98)
 
@@ -125,7 +124,7 @@ test gemv_on_wrapped_weights ... ok
 test wrap_page_rounding_with_synthetic_file ... ok
 test wrap_real_safetensors_unaligned_and_last_tensor ... ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.51s
 
    Doc-tests intarsia_backend_metal
 

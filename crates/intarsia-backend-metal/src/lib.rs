@@ -527,15 +527,18 @@ impl Backend for MetalBackend {
     /// can change a kernel's numerics, code generation, selection or launch geometry invalidates cached admission
     /// results. The launcher hash (build.rs, `LAUNCHER_SOURCES`) covers the Rust that picks the GEMV variant and sets the
     /// grids, which the metallib bytes do not see. The default implementation is not used because it goes through
-    /// `info()`, which runs the (100 ms) bandwidth probe. No env knob changes kernel selection or numerics
-    /// (`IK_METAL_TRACKED` only toggles hazard tracking, `INTARSIA_METAL_DEBUG` and `INTARSIA_METAL_PROFILE` only
-    /// log), so none is folded.
+    /// `info()`, which runs the (100 ms) bandwidth probe. The one env knob that changes the registered kernel set,
+    /// `INTARSIA_METAL_NO_METAL4` (and an OS that cannot load the metal4.0 library), is folded as `metal4:0|1`, so a
+    /// run without the NAX kernels never shares admission results with one that has them. The others change neither
+    /// selection nor numerics (`IK_METAL_TRACKED` only toggles hazard tracking, `INTARSIA_METAL_DEBUG` and
+    /// `INTARSIA_METAL_PROFILE` only log), so none is folded.
     fn fingerprint(&self) -> String {
         format!(
-            "metal|{}|{}|metallib:{:016x}|launch:{}",
+            "metal|{}|{}|metallib:{:016x}|metal4:{}|launch:{}",
             self.device.name(),
             self.device.architecture().name(),
             metallib_hash(),
+            self.metal4 as u8,
             LAUNCHER_HASH
         )
     }
