@@ -105,11 +105,19 @@ pub const ATTN_DECODE_BF16_V8: &str = "attn_decode_bf16_v8";
 /// `AttnDecode`, GQA-grouped split-KV (attention_splitkv.metal, launcher attn.rs): stage 1 `attn_decode_bf16_splitkv_g{GP}`
 /// (GP = query heads per kv head rounded up to a power of two) and the combine pass. Needs scratch.
 pub const ATTN_DECODE_BF16_SPLITKV: &str = "attn_decode_bf16_splitkv";
-pub const ATTN_DECODE_SPLITKV_SHADERS: [&str; 5] = [
-    "attn_decode_bf16_splitkv_g1",
-    "attn_decode_bf16_splitkv_g2",
-    "attn_decode_bf16_splitkv_g4",
-    "attn_decode_bf16_splitkv_g8",
+pub const ATTN_DECODE_SPLITKV_SHADERS: [&str; 13] = [
+    "attn_decode_bf16_splitkv_g1u2",
+    "attn_decode_bf16_splitkv_g1u4",
+    "attn_decode_bf16_splitkv_g1u8",
+    "attn_decode_bf16_splitkv_g2u2",
+    "attn_decode_bf16_splitkv_g2u4",
+    "attn_decode_bf16_splitkv_g2u8",
+    "attn_decode_bf16_splitkv_g4u2",
+    "attn_decode_bf16_splitkv_g4u4",
+    "attn_decode_bf16_splitkv_g4u8",
+    "attn_decode_bf16_splitkv_g8u2",
+    "attn_decode_bf16_splitkv_g8u4",
+    "attn_decode_bf16_splitkv_g8u8",
     "attn_decode_bf16_combine",
 ];
 pub const COPY_U4: &str = "copy_u4";

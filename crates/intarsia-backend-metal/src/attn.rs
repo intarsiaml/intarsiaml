@@ -40,6 +40,16 @@ fn policy() -> (usize, usize) {
     })
 }
 
+/// TEMPORARY tuning knobs: (index of the units-in-flight variant 0..3 = 2 / 4 / 8, simdgroup cap).
+fn tuning() -> (usize, usize) {
+    static P: OnceLock<(usize, usize)> = OnceLock::new();
+    *P.get_or_init(|| {
+        let u = std::env::var("INTARSIA_METAL_SPLITKV_U").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(2);
+        let sg = std::env::var("INTARSIA_METAL_SPLITKV_SG").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(MAX_SG);
+        (match u { 4 => 1, 8 => 2, _ => 0 }, sg.clamp(1, MAX_SG))
+    })
+}
+
 /// Number of KV splits for `visible` keys over `nkv` kv heads, at most `max_split` (shader: `ask_nsplit`).
 pub fn decode_splits(visible: usize, nkv: usize, max_split: usize) -> usize {
     let (min_keys, target) = policy();
@@ -136,8 +146,10 @@ impl MetalBackend {
         };
         u32_of(nkv * cap * d, "Nkv*cap*D")?;
         let gp = grp.next_power_of_two();
-        let nsg = (TG_FLOATS / (gp * d)).clamp(1, MAX_SG);
-        let (name1, name2) = (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
+        let (u, sg_cap) = tuning();
+        let nsg = (TG_FLOATS / (gp * d)).clamp(1, MAX_SG).min(sg_cap);
+        let name1 = ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize * 3 + u];
+        let name2 = ATTN_DECODE_SPLITKV_SHADERS[12];
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         // with one split stage 1 writes the output itself; a device position decides that on the GPU
