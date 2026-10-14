@@ -1,0 +1,6 @@
+pre 4k pair1 idle_util=1(waits=1) 29.808 29.533 0.275 544.0 (33.06 tok/s)
+v1 4k pair1 idle_util=0(waits=1) 29.477 29.175 0.302 544.0 (33.40 tok/s)
+v1 4k pair2 idle_util=2(waits=1) 29.519 29.229 0.290 544.0 (33.36 tok/s)
+pre 4k pair2 idle_util=2(waits=1) 30.354 30.056 0.298 544.0 (32.48 tok/s)
+pre 4k pair3 idle_util=5(waits=1) 29.981 29.678 0.303 544.0 (32.89 tok/s)
+v1 4k pair3 idle_util=0(waits=1) 29.141 28.838 0.303 544.0 (33.83 tok/s)

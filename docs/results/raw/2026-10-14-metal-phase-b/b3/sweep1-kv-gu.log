@@ -1,0 +1,31 @@
+rounds 12, pool 3072 MiB, a8 false
+
+== case kv K=4096 N=1024+1024 : 16.0 MiB per dispatch x 192 dispatches per chain ==
+idle utilization readings per round: [0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0]; discarded rounds (>10%): 12
+RESULT case=kv cand=gemv_pair_bf16 median=514.8 p10=445.6 p90=539.7 pct_peak=83.8 us_per_dispatch=32.62 vs_first=+0.0% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_u4s2 median=532.5 p10=497.0 p90=546.0 pct_peak=86.7 us_per_dispatch=31.53 vs_first=+3.5% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_u4s1 median=541.0 p10=496.4 p90=543.3 pct_peak=88.1 us_per_dispatch=31.03 vs_first=+5.1% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_u2s4 median=507.4 p10=389.2 p90=520.8 pct_peak=82.6 us_per_dispatch=33.09 vs_first=-1.4% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_u8s4 median=536.0 p10=347.6 p90=547.8 pct_peak=87.3 us_per_dispatch=31.32 vs_first=+4.1% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u1s4 median=552.4 p10=402.4 p90=557.8 pct_peak=90.0 us_per_dispatch=30.39 vs_first=+7.3% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u2s4 median=561.8 p10=547.0 p90=567.3 pct_peak=91.5 us_per_dispatch=29.89 vs_first=+9.1% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u4s4 median=561.1 p10=544.4 p90=563.5 pct_peak=91.4 us_per_dispatch=29.92 vs_first=+9.0% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u1s8 median=557.8 p10=542.9 p90=561.9 pct_peak=90.8 us_per_dispatch=30.10 vs_first=+8.4% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u2s8 median=568.3 p10=496.6 p90=570.1 pct_peak=92.6 us_per_dispatch=29.54 vs_first=+10.4% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u2s2 median=534.9 p10=528.8 p90=538.6 pct_peak=87.1 us_per_dispatch=31.39 vs_first=+3.9% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u4s2 median=545.4 p10=520.6 p90=553.4 pct_peak=88.8 us_per_dispatch=30.78 vs_first=+6.0% diff_elems=0 max_abs_diff=0.000e0
+
+== case gu K=4096 N=12288+12288 : 192.1 MiB per dispatch x 16 dispatches per chain ==
+idle utilization readings per round: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; discarded rounds (>10%): 12
+RESULT case=gu cand=gemv_pair_bf16 median=593.8 p10=545.5 p90=595.3 pct_peak=96.7 us_per_dispatch=339.16 vs_first=+0.0% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=gu cand=gemv_pair_bf16_u4s2 median=594.1 p10=551.6 p90=595.4 pct_peak=96.8 us_per_dispatch=338.97 vs_first=+0.1% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=gu cand=gemv_pair_bf16_u4s1 median=592.6 p10=553.9 p90=594.7 pct_peak=96.5 us_per_dispatch=339.84 vs_first=-0.2% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=gu cand=gemv_pair_bf16_u2s4 median=591.4 p10=554.0 p90=595.0 pct_peak=96.3 us_per_dispatch=340.51 vs_first=-0.4% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=gu cand=gemv_pair_bf16_u8s4 median=592.2 p10=547.6 p90=597.2 pct_peak=96.5 us_per_dispatch=340.05 vs_first=-0.3% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=gu cand=gemv_pair_bf16_rt_u1s4 median=595.2 p10=546.1 p90=598.4 pct_peak=96.9 us_per_dispatch=338.36 vs_first=+0.2% diff_elems=10 max_abs_diff=2.500e-1
+RESULT case=gu cand=gemv_pair_bf16_rt_u2s4 median=598.9 p10=582.3 p90=600.1 pct_peak=97.5 us_per_dispatch=336.27 vs_first=+0.9% diff_elems=10 max_abs_diff=2.500e-1
+RESULT case=gu cand=gemv_pair_bf16_rt_u4s4 median=598.1 p10=534.4 p90=601.6 pct_peak=97.4 us_per_dispatch=336.71 vs_first=+0.7% diff_elems=10 max_abs_diff=2.500e-1
+RESULT case=gu cand=gemv_pair_bf16_rt_u1s8 median=596.8 p10=541.0 p90=599.0 pct_peak=97.2 us_per_dispatch=337.43 vs_first=+0.5% diff_elems=2 max_abs_diff=9.766e-4
+RESULT case=gu cand=gemv_pair_bf16_rt_u2s8 median=599.8 p10=587.8 p90=602.3 pct_peak=97.7 us_per_dispatch=335.74 vs_first=+1.0% diff_elems=2 max_abs_diff=9.766e-4
+RESULT case=gu cand=gemv_pair_bf16_rt_u2s2 median=598.1 p10=578.4 p90=600.0 pct_peak=97.4 us_per_dispatch=336.72 vs_first=+0.7% diff_elems=4 max_abs_diff=9.766e-4
+RESULT case=gu cand=gemv_pair_bf16_rt_u4s2 median=597.6 p10=567.7 p90=598.5 pct_peak=97.3 us_per_dispatch=336.99 vs_first=+0.6% diff_elems=4 max_abs_diff=9.766e-4

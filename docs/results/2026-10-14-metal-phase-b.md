@@ -350,3 +350,106 @@ fleetq jobs: #1810, #1811, #1815-#1818, #1820, #1824, #1826, #1827, #1830-#1836 
 **Next levers:**
 - GEMV efficiency: 26.4 of about 29 ms is at 570-585 GB/s, against a 614 ceiling. Closing that gap is worth about 1.5 ms.
 - The proposed core ops `QkNormRope` plus a KV-append fold (0.3-0.45 ms), and device-side greedy token feedback (about 0.3 ms of step-boundary idle).
+
+## Phase B part 3: GEMV efficiency
+
+Branch `spike/metal` on `649cc37`, code in `7b491e1`. Host endor (Apple M5 Max 40c, 614 GB/s nominal, macOS 27.0), `/Users/josef/models/Qwen3-8B` BF16. Raw logs, scripts and traces: `docs/results/raw/2026-10-14-metal-phase-b/b3/`.
+
+**Outcome.** The decode GEMV got about 1.0 ms per token faster (29.34 to 28.39 ms stream period at a 128-token context, 4 interleaved pairs; 0.3 to 0.8 ms at 4k, 3 pairs). localeval decode, pre and after run back to back in one slot: **34.9 / 34.4 / 33.4 tok/s at 128 / 1k / 4k, against 33.6 / 33.3 / 32.7 for the 649cc37 binary** (+4.0 / +3.3 / +2.1 percent; the tool calls all three noise, below its 10 percent band, but the 128-token stream-period gain is outside the run-to-run spread). That is 86.0 / 84.7 / 82.3 percent of the 40.6 tok/s byte floor. The 85 percent target is met at 128, missed by 0.3 points at 1k and by 2.7 at 4k. The 4k gap is no longer GEMV: the GEMVs now run at 545 to 600 GB/s in the stream and the rest of the 4k shortfall is attention and the small ops (last section).
+
+The change is one idea: **one threadgroup of 8 simdgroups per output row** (`gemv_bf16_rt<2, 8>`, 256 lanes, two 16-byte loads each) instead of one simdgroup per row with 4 rows per threadgroup (`r1u4s4`). The lanes of a threadgroup split K between them and the 8 simdgroup partials are summed in a fixed order through threadgroup memory. A K=4096 row is then one load round trip, and a threadgroup, which is the unit whose tail ends a serial dispatch, is short (8 KB per row instead of 32 KB for four rows, one round trip instead of four). The same form exists for the 8-byte-load kernels (`gemv_bf16_rt_a8`, 4 loads of 8 bytes per lane) and for both `MatmulPair` shaders. The dispatch count (544 per step) is unchanged.
+
+**Accumulation order changes.** K is no longer summed per simdgroup lane in the old order, so GEMV and pair outputs are no longer bitwise those of the old kernels: in the bench's random data 2 of 4096 q/o outputs, 1 of 4096 down outputs and 10 of 24576 gate/up outputs flip by one bf16 ulp. The pair kernel is still bitwise two single GEMV launches (the existing `tests/fused.rs` assertions pass unchanged). Accuracy is under Correctness below.
+
+### 1. Where the ms were (real stream, before)
+
+Kernel-mode GPU trace of the 649cc37 binary, 128 decode steps on `prompt-short.txt`, two runs, idle GPU reading 0 to 10 percent before each (`profile/*-kernel-short.jsonl.gz`, `shapes.py`). Kernel mode inflates small ops by a per-command-buffer cost, so the stream-period numbers in section 4 are the totals; the per-call numbers compare before and after under identical conditions.
+
+| shape (calls/token) | before us/call (GB/s) | after us/call (GB/s) | ms/token before | after | saved |
+|---|---:|---:|---:|---:|---:|
+| q, o 4096x4096 (72) | 59.8 (561) | 58.5 (574) | 4.306 | 4.208 | 0.097 |
+| k+v pair 2x1024x4096 (36) | 31.8 (528) | 30.9 (544) | 1.143 | 1.111 | 0.032 |
+| gate+up pair 2x12288x4096 (36) | 341.1 (590) | 335.7 (600) | 12.278 | 12.085 | 0.193 |
+| down 4096x12288 (36) | 175.2 (575) | 170.2 (591) | 6.309 | 6.129 | 0.180 |
+| lm_head 151936x4096 (1) | 2080.6 (598) | 2075.9 (600) | 2.081 | 2.076 | 0.005 |
+| **GEMV total** | | | **26.12** | **25.61** | **0.51** |
+
+Per-call figures are kernel-trace medians of the last 100 steps, averaged over the two runs of each binary. The kernel-trace saving is 0.51 ms; the stream saving is about twice that, because the per-dispatch drain between serially dependent dispatches (the tail of one dispatch before the next can start) is part of the stream period and not of an isolated command buffer's time. Shorter threadgroup tails shrink it. Kernel-sum per token: 29.20 / 29.86 ms before (two runs), 28.36 / 28.44 after.
+
+The loss against 614 GB/s was not uniform. The big shapes (gate/up, lm_head, 100 MB and more per dispatch) were already at 590 to 600 GB/s, which is the practical ceiling of this memory system (the lm_head GEMV never exceeds about 600, the read-only probe in the spike gave 552 to 568). The losses were in the shapes with a short dispatch or a long per-row loop: q/o (60 us per dispatch), k+v (32 us) and down (K=12288, 24.6 KB per row, 4 rows per threadgroup, so a threadgroup runs about 100 KB and its tail is long).
+
+### 2. Levers
+
+All numbers are from `examples/gemv_b3.rs`: the shape's chain of distinct weights (3 GiB pool, 16 to 192 dispatches) in one command buffer with serial dispatch, i.e. what the decode stream does; candidates are measured interleaved round by round with the order rotated each round, and a round starts only after the GPU's idle `Device Utilization %` read at most 10 (the readings per round are in each log). Medians of 12 to 24 rounds, GB/s of weight + x + y bytes. Differences under about 2 percent are inside the spread.
+
+| lever | result | kept |
+|---|---|---|
+| **Row per threadgroup, SG simdgroups per row (`rt`)**, sweep of UNROLL (1..8) and SG (2, 4, 8, 16) | `rt_u2s8` best or tied everywhere: q/o 583.6 vs 567.8 for `r1u4s4` (+2.8 percent; +4.9 in the first sweep), down 591.6 vs 580.2 (+2.0), k+v pair 565.2 vs 540.2 (+4.6; +10.4 in the first sweep), gate/up pair 599.8 vs 593.8 (+1.0). Neighbours (`u2s4`, `u4s4`, `u4s8`, `u3s8`, `u6s8`, `u2s16`) land within 1 to 2 percent of it; SG=2 and `u1s4` are worse. | yes, `rt_u2s8` |
+| Fewer, smaller threadgroups with the old one-row-per-simdgroup shape (`r1u4s2`, `r1u4s1`, pair `u4s2`, `u4s1`) | +1.5 / +1.1 percent on q/o, -0.1 / -0.5 on down, +3.5 / +5.1 on k+v pair, 0 on gate/up: smaller threadgroups help the short dispatches a little, the per-row serial loop still dominates down. | no (subsumed) |
+| Loads in flight per lane (`r1u2s4`, `r1u8s4`, `r1u8s2`, `r1u2s2`; `rt` u1..u8) | u2 on the old shape is 1.4 to 2.8 percent slower, u8 equal to u4. In `rt`, 2 loads per lane at 256 lanes already put a whole K=4096 row in flight at once; more only helps nothing. | no |
+| 2 or 4 rows per threadgroup sharing the x load (`rtr2`, `rtr4`, tried, then removed from the tree) | -1.9 to +3.2 percent vs `r1u4s4` on q/o, -3.1 to +1.5 on down, always at or below `rt_u2s8` (`sweep3-rtr.log`). | no |
+| x traffic: x staged in threadgroup memory / x loads removed | Staging cannot help `rt` (each lane reads each x chunk once per threadgroup, the threadgroup memory copy would be read once too). A probe kernel with the x loads removed (wrong results on purpose, `gemv_bf16_rtx_u2s8`, removed again) was not faster at the p90 of its rounds (q/o 573.6 vs 580.9, down 594.5 vs 597.3; medians were unusable, see Limits), so the repeated x reads are not the limiter. | no |
+| **a8 path (shard 1, 8 mod 16)**: 8-byte-load kernel vs 16-byte kernel on the same data | The existing a8 kernel is as fast as the aligned one, in the synthetic chain (q/o 565.5 vs 567.5, down 582.8 vs 579.0, k+v 545.0 vs 543.8, gate/up 592.1 vs 593.3) and in the real stream (layers 0-6, which are entirely in shard 1: q/o 59.7 us vs 59.7 for layers 8-35, k+v pair 31.7 vs 31.7, gate/up pair 340.2 vs 340.6, down 174.9 vs 175.1). Shard 1 holds layers 0-6 and four tensors of layer 7, about 2.9 GB of 2-D bf16 weights outside the embedding. | a8 `rt` form added so those layers get the same gain (`rt_a8u4s8`: +2.1 / +2.6 / +5.0 / +0.9 percent on q/o, down, k+v, gate/up). |
+| **Realigning shard-1 weights at load** (one-time copy to 16-byte-aligned buffers, about 2.9 GB extra) | Not implemented: it buys nothing, the a8 kernel is as fast. The memory cost would be real (2.9 GB of 15.1) for zero speed. Layer 7's k (a8) and v (16-byte) fall back to two GEMV dispatches instead of one pair (1 of 36 layers, one extra dispatch, about 1 us); realigning k_proj/v_proj of layer 7 alone would fix that and is not worth a load-time option. | no |
+| Down projection K=12288: split-K | Splitting K inside the threadgroup is what `rt` does (down +2.0 percent). A split across threadgroups needs a second pass or atomics (changes the dispatch count or determinism); down is already at 591 GB/s, 96 percent of 614 and the same as the gate/up pair, so there is nothing left for it. | not tried across threadgroups |
+| Persistent grid sized to the 40 cores | Not tried: with 4096 short threadgroups (q/o, down) the tail is already a fraction of a microsecond of load latency; the remaining gap to the 600 GB/s ceiling is 1 to 3 percent for gate/up and down and 3 to 5 percent for q/o and k+v. | no |
+| lm_head (`logits_bf16_gemv`, f32 out) | Left alone, 598 to 600 GB/s. | n/a |
+| Concurrent dispatch for independent GEMVs | Not redone. | n/a |
+
+The first and second sweeps are `sweep1-*.log` and `sweep2-qo-down-kv.log`, the a8 comparison `sweep4-a8.log` (offset 8 bound pools for the a8 candidates; the "diff_elems" columns of that file compare different data and are meaningless), the x probe `sweep5-xprobe*.log`. fleetq #1845 held all of them.
+
+### 3. Remaining gap in the stream
+
+After: gate/up 600 GB/s (97.7 percent of 614), lm_head 600, down 591 (96.3), q/o 574 (93.5), k+v pair 544 (88.6). Taking q/o, k+v and down to 600 GB/s would save about 0.4 ms per token more (0.18 + 0.10 + 0.09), roughly +0.5 tok/s, and the per-dispatch drain is what is left of it. The structural way to get the rest is fewer, larger dispatches (a q+k+v triple GEMV, the proposed `MatmulTriple`, 36 fewer drains, 0.1 to 0.2 ms), not a faster GEMV kernel.
+
+### 4. Interleaved A/B in the real stream
+
+`b3/ab.sh`: the engine's `generate` with `INTARSIA_METAL_PROFILE=cb:<file>` (stream as normal), 129 forced tokens, step period / GPU busy / idle from the last 128 steps (`b2b/period.py`), A and B alternated each pair (A B, B A, ...) in the same slot (fleetq #1846). Before each run the idle `Device Utilization %` is read and the run waits until it is at most 10 (the value used is printed). Binaries: `pre` = 649cc37 built into its own target dir, `v1` = this branch (`7b491e1`, byte-identical to the localeval binary).
+
+| context | pair | pre period / busy (ms) | pre tok/s | idle % | after period / busy (ms) | after tok/s | idle % |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 128 | 1 | 29.423 / 29.117 | 33.98 | 2 | 28.318 / 28.012 | 35.31 | 2 |
+| 128 | 2 | 29.382 / 29.115 | 34.03 | 4 | 28.323 / 28.033 | 35.30 | 2 |
+| 128 | 3 | 29.333 / 29.057 | 34.09 | 2 | 28.527 / 28.236 | 35.05 | 5 |
+| 128 | 4 | 29.209 / 28.909 | 34.23 | 3 | 28.371 / 28.065 | 35.24 | 3 |
+| 128 | mean | **29.337** / 29.050 | 34.08 | | **28.385** / 28.087 | 35.23 | |
+| 4k | 1 | 29.808 / 29.533 | 33.06 | 1 | 29.477 / 29.175 | 33.40 | 0 |
+| 4k | 2 | 30.354 / 30.056 | 32.48 | 2 | 29.519 / 29.229 | 33.36 | 2 |
+| 4k | 3 | 29.981 / 29.678 | 32.89 | 5 | 29.141 / 28.838 | 33.83 | 0 |
+| 4k | mean | **30.048** / 29.756 | 32.81 | | **29.379** / 29.081 | 33.53 | |
+
+Saving: 0.95 ms (3.2 percent) at 128, 0.67 ms (2.2 percent) at 4k. Every after run is faster than every pre run at 128; at 4k each pair is faster after (0.33, 0.84, 0.84 ms). The idle gap between steps is unchanged (0.27 to 0.31 ms). Logs `ab-short-1.log`, `ab-4k-1.log`, traces in `ab/`.
+
+### 5. localeval, pre and after back to back
+
+`b3/leval2.sh`: one fleetq slot, the server of one binary up, `localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off`, server down, the next binary, same arguments (`intarsia serve ... --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`). Decode tok/s median (min-max):
+
+| prompt | pre r2, `20261014-151912-adhoc-intarsia-metal-bf16-b3pre-r2` | after r2, `20261014-151601-adhoc-intarsia-metal-bf16-b3gemv-r2` | change | after, % of 40.6 floor | mlx-lm / llama.cpp (earlier today) | after vs mlx-lm / llama.cpp |
+|---|---:|---:|---:|---:|---:|---:|
+| ~128 | 33.6 (33.2-33.6) | **34.9** (34.8-35.0) | +4.0% | 86.0% | 34.4 / 34.8 | 101% / 100% |
+| ~1k | 33.3 (33.2-33.6) | **34.4** (34.4-34.5) | +3.3% | 84.7% | 33.8 / 33.4 | 102% / 103% |
+| ~4k | 32.7 (32.6-32.7) | **33.4** (33.4-33.6) | +2.1% | 82.3% | 31.0 / 31.7 | 108% / 105% |
+
+Marginal prefill is unchanged (4k: 207 vs 205 tok/s), as it should be: nothing in prefill changed (`localeval compare`: all deltas "noise", `localeval-r2/compare-pre-vs-b3gemv-r2.txt`). This r2 pair ran after / pre (order reversed) in fleetq #1849. The first pair, run pre / after in #1848 (`20261014-150822-adhoc-intarsia-metal-bf16-b3pre`: 33.6 / 32.5 / 32.6; `20261014-151140-adhoc-intarsia-metal-bf16-b3gemv`: 34.7 / 33.3 / 30.2), is contaminated at 4k: the after run's 4k prefill dropped 12 percent (197 vs 223 tok/s) and its decode range is 29.8 to 33.7, with nothing changed in prefill, which is the GPU contender below; 128 and 1k of that pair agree with r2 (+3.3 and +2.2 percent). mlx-lm and llama.cpp are single runs from this morning (`20261014-072555-adhoc-llamacpp-bf16`, `20261014-072755-adhoc-mlx-lm-bf16`), a different machine state, indicative only. Merged part 2 (649cc37) measured 34.3 / 33.2 / 33.1 at 16:00-ish yesterday's baselines are hours apart; the pre binary here measured 33.6 / 33.3 / 32.7, so the state today is about 2 percent lower than the merged measurement at 128 and equal at 4k.
+
+### 6. Correctness
+
+- `cargo test -p intarsia-backend-metal --release`: 48 passed, 0 failed (`checks/cargo-test-metal.log`). New coverage comes for free from the variant tables: `every_variant_matches_reference` (K=4104, N=1031) runs the new `rt` and `rt_a8` variants against the f64 reference, the `tests/fused.rs` pair tests assert the pair is bitwise two single GEMVs (16-byte and 8-byte aligned, odd N, N1 = 1, K below one block, output offsets).
+- `cargo test --workspace --release --exclude intarsia-backend-metal`: 266 passed, 0 failed. `cargo check --workspace`: ok (`checks/`).
+- `intarsia kernels test --backend metal -m /Users/josef/models/Qwen3-8B`: 18 kernels, 202 cases, all ADMITTED, `matmul_pair_bf16_gemv` 6 cases max error 0 (`kernels-test.out`). The metallib hash changed, so the cached admission was redone.
+- `intarsia accuracy --gate-class bf16`: short golden PASS, prefill KL 2.608e-4 (unchanged), decode KL **4.042e-4** (merged 3.890e-4), top-1 100 percent; long golden PASS, prefill 3.738e-4 (unchanged), decode **4.071e-4** (merged 3.627e-4), top-1 100 percent (`accuracy/`). Decode KL moved by +4 and +12 percent, the same size as the shifts seen between the earlier tree states (3.639e-4 for 2b, 3.890e-4 merged), gate is 1.0e-3. The reorder of the K sum is the only decode change.
+- Greedy ids against the 649cc37 binary, `--show-ids` (`identity/`): 48 tokens on the short and the 4k prompt: ids and stdout identical. 256 tokens: 4k prompt identical; short prompt first differs at generated token 49 (ids 26471 in 649cc37, 29994 here), the near-tie that 649cc37 itself flipped relative to `40996bb` (part 2 merged section); this tree's 256 ids are identical to `40996bb`'s and to 2b-alone's.
+
+### Limits
+
+- **GPU contender.** Zoom (`zoom.us`, started 11:46, a new process again this afternoon) uses the GPU intermittently; the idle utilization read 10 to 30 percent for stretches during this phase and a few of my bench rounds (the x-probe medians, one localeval 4k run) were visibly degraded (q/o `r1u4s4` fell from about 567 to 505 GB/s in `sweep5-xprobe.log`). Idle-gating before a round does not exclude the contender starting mid-round. Medians over interleaved rounds, the p90 where the medians were unusable, and a reversed second localeval pair are the mitigation; the pre/after A/B pairs above all read 0 to 5 percent idle and agree with each other.
+- The 1.0 ms stream saving is about twice what the isolated kernel times account for (0.51 ms). The extra half millisecond is attributed to the shorter tails between serial dependent dispatches, which an isolated command buffer cannot show; I did not measure the tails directly.
+- 4k shows 2.2 percent and localeval's own noise band is 10 percent, so only the 128 and the paired-stream numbers are outside noise individually.
+- The `rt` kernels differ from the old ones in accumulation order (see Outcome); GPU kernels on CUDA/HIP are untouched. The old `r1` GEMV and pair kernels stay compiled in (`GEMV_VARIANTS`, `gemv_pair_bf16`, `gemv_pair_bf16_a8`) for comparison; the registry always picks `rt`.
+- Experiment shaders listed in `EXPERIMENT_SHADERS` (kernels.rs) are compiled into the metallib only for `examples/gemv_b3.rs`.
+
+### Next levers (from this phase)
+
+1. 4k is attention and small ops: 4k attention is 2.06 ms/token (59 percent of its byte floor) and the elementwise/row ops about 1.5 ms. Reaching 85 percent at 4k (34.5 tok/s, 29.0 ms) from 29.4 ms needs about 0.4 ms from there: the `QkNormRope` + KV-append fold (0.3 to 0.45 ms) or device-side greedy token feedback (about 0.3 ms of step-boundary idle).
+2. `MatmulTriple` (q, k, v as one dispatch): 36 fewer dispatch drains, 0.1 to 0.2 ms.
+3. fleetq jobs of this part: #1845 (microbench sweeps), #1846 (A/B, kernel traces, correctness checks), #1847 (aborted: bad output path), #1848 and #1849 (localeval pairs).

@@ -1,0 +1,8 @@
+fleetq job 1849
+intarsia-metal-bf16-b3gemv-r2 idle_util=0(waits=2)
+intarsia-metal-bf16-b3gemv-r2 server up
+intarsia-metal-bf16-b3gemv-r2 localeval exit 0
+intarsia-metal-bf16-b3pre-r2 idle_util=9(waits=2)
+intarsia-metal-bf16-b3pre-r2 server up
+intarsia-metal-bf16-b3pre-r2 localeval exit 0
+#1849 "metal B3 gemv localeval pre/after back to back" (claude-31e10c55) done on endor exclusive 24 GB

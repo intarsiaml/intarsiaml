@@ -1,0 +1,9 @@
+    Checking intarsia-core v0.0.1 (/opt/code/intarsiaml/crates/intarsia-core)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/crates/intarsia-backend-metal)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-hip v0.0.1 (/opt/code/intarsiaml/crates/intarsia-backend-hip)
+    Checking intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/crates/intarsia-backend-cpu)
+    Checking intarsia-server v0.0.1 (/opt/code/intarsiaml/crates/intarsia-server)
+    Checking intarsia-models v0.0.1 (/opt/code/intarsiaml/crates/intarsia-models)
+    Checking intarsia-cli v0.0.1 (/opt/code/intarsiaml/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.26s
