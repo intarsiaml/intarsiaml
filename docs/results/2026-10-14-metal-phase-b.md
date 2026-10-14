@@ -20,7 +20,7 @@ Decode tok/s, median (min-max) of 3 reps, 256 forced tokens; percent of byte flo
 | ~1k (988 / 992 / 989 / 991) | 31.4 (31.0-31.7) | 32.5 (32.2-32.5) | 33.8 | 33.4 | 93% | 94% | 77% | 80% |
 | ~4k (4089 all) | 30.2 (29.8-30.3) | 30.1 (29.7-30.3) | 31.0 | 31.7 | 97% | 95% | 74% | 74% |
 
-Reading it: pre and after differ by -2 percent, +3.5 percent and -0.3 percent, inside the harness's documented decode noise (about 5 percent); neither is a result of the changes (see section 2, no decode-path change). The baselines are single runs of the other engines. Exit criteria (scope doc section 4) on the pre numbers: at least 90 percent of mlx-lm **met** at all three sizes; at least 85 percent of floor **not met** (82 / 77 / 74; note that at 4k the weights-only floor is unreachable for any engine here: mlx-lm is at 76 and llama.cpp at 78 percent there, and 36 layers of KV add about 0.6 GB/token at 4k, so the 85 percent target is only meaningful at the short size); not below llama.cpp **not met** (94-96 percent). To meet "not below llama.cpp" intarsia needs about 28.7 / 29.9 / 31.5 ms per token at 128 / 1k / 4k against 29.8 / 31.8 / 33.1 now, i.e. 1.1 / 1.9 / 1.6 ms/token to save.
+Reading it: pre and after differ by -2.2, +3.5 and -0.3 percent in decode, and `localeval compare` (`compare-pre-vs-b1.txt`) marks every one of them noise (threshold 10 percent for speed); the changes do not alter any decode launch (section 2; the only decode-path difference is one extra uncontended mutex lock per launch to read the profile flag, about 616 per step). The baselines are single runs of the other engines. Exit criteria (scope doc section 4) on the pre numbers: at least 90 percent of mlx-lm **met** at all three sizes; at least 85 percent of floor **not met** (82 / 77 / 74; note that at 4k the weights-only floor is unreachable for any engine here: mlx-lm is at 76 and llama.cpp at 78 percent there, and 36 layers of KV add about 0.6 GB/token at 4k, so the 85 percent target is only meaningful at the short size); not below llama.cpp **not met** (94-96 percent). To meet "not below llama.cpp" intarsia needs about 28.7 / 29.9 / 31.5 ms per token at 128 / 1k / 4k against 29.9 / 31.8 / 33.1 now (1000 / the pre decode tok/s), i.e. 1.2 / 1.9 / 1.6 ms/token to save.
 
 The qualify quick bench (same binary as the after run, floor taken from the new table, no `--bandwidth-gbs`): 33.5 / 32.2 / 30.4 tok/s = 83 / 79 / 75 percent of floor (`qualify-quick/quick-report.md`), consistent with phase A's 33.3 / 32.1 / 30.3.
 
@@ -45,7 +45,7 @@ Nothing runs per decode or prefill step for a dense attention model. For Qwen3.5
 
 ## 3. Fingerprint covers launcher logic (step 2)
 
-`build.rs` now hashes (FNV-1a 64, file name plus contents) `src/lib.rs` (GEMV variant choice by alignment and K, `plan_gemv`), `src/kernels.rs` (kernel table and predicates), `src/dense.rs` (launch geometry of the dense ops) and `src/fill.rs`, emits it as `INTARSIA_METAL_LAUNCHER_HASH`, and `fingerprint()` becomes `metal|<device>|<arch>|metallib:<hash>|launch:<hash>`. Any edit to those files, comments included, changes the fingerprint (deliberately conservative: it costs one re-admission). The list is `LAUNCHER_SOURCES` in `build.rs`; add a file there when it starts to influence selection or geometry. Cost: build.rs reruns on those edits (about 2 s incl. shader compile). Test: `fingerprint_names_device_and_metallib` asserts the `launch:` suffix.
+`build.rs` now hashes (FNV-1a 64, file name plus contents) `src/lib.rs` (GEMV variant choice by alignment and K, `plan_gemv`), `src/kernels.rs` (kernel table and predicates), `src/dense.rs` (launch geometry of the dense ops) and `src/fill.rs`, emits it as `INTARSIA_METAL_LAUNCHER_HASH`, and `fingerprint()` becomes `metal|<device>|<arch>|metallib:<hash>|launch:<hash>`. Any edit to those files, comments included, changes the fingerprint (deliberately conservative: it costs one re-admission). The list is `LAUNCHER_SOURCES` in `build.rs`; add a file there when it starts to influence selection or geometry. Cost: build.rs reruns on those edits (about 2 s incl. shader compile). Test: `fingerprint_names_device_and_metallib` asserts the `launch:` suffix. Gap: `fill.rs` takes its thread-group width and `copy_threads` from `bench.rs`, which is not in the list; copy and zero are not admitted kernels, so no cached admission depends on it, but a change there would not alter the fingerprint.
 
 ## 4. qualify floor table (step 3)
 
@@ -68,7 +68,7 @@ Runs: `intarsia generate --backend metal --max-seq 8192 --profile-every 0 --temp
 | matmul_bf16_gemv (down) | 4096x12288 | 36 | 176.6 | 6.36 | 21.5% | 570 |
 | matmul_bf16_gemv (q, o) | 4096x4096 | 72 | 60.7 | 4.37 | 14.8% | 552 |
 | logits_bf16_gemv (lm_head) | 151936x4096 | 1 | 2092.9 | 2.09 | 7.1% | 595 |
-| matmul_bf16_gemv (k, v) | 1024x4096 | 72 | 17.4 | 1.25 | 4.2% | 483 |
+| matmul_bf16_gemv (k, v) | 1024x4096 | 72 | 17.4 | 1.25 | 4.2% | 483 (about 580 after removing the ~3 us fixed cost, below) |
 | rmsnorm_add_bf16 | | 72 | 14.9 | 1.07 | 3.6% | |
 | attn_decode_bf16 | | 36 | 18.2 | 0.66 | 2.2% | |
 | rope_bf16 | | 72 | 6.3 | 0.46 | 1.5% | |
@@ -79,7 +79,7 @@ Runs: `intarsia generate --backend metal --max-seq 8192 --profile-every 0 --temp
 | rmsnorm_bf16, embedding_bf16 | | 2 | | 0.02 | 0.1% | |
 | **sum** | | 616 | | **29.55** | | |
 
-GEMV total 26.62 ms/token = 15.136 GB at **569 GB/s** (92.7 percent of 614; the spike's GEMV-only ceiling was 94.6 percent); elementwise/row 2.06 ms; attention (decode + kv_append) 0.87 ms.
+Every record carries about 3 us of fixed per-command-buffer cost (the near-empty `silu_glu` and `embedding` records are 2.8 and 3.0 us), so the small-kernel GB/s are understated: k/v is about 14.4 us, roughly 580 GB/s, once it is removed. GEMV total 26.62 ms/token = 15.136 GB at **569 GB/s** (92.7 percent of 614; the spike's GEMV-only ceiling was 94.6 percent); elementwise/row 2.06 ms; attention (decode + kv_append) 0.87 ms.
 
 **At ~4k context** the same table differs in one row: `attn_decode_bf16` 130.0 us/call, 4.68 ms/token (13.3 percent), against 18.2 us at 122 tokens; GEMV 27.80 ms (544 GB/s), elementwise 2.35 ms, attention total 4.94 ms. Full table: `profile/analysis-4k.md`. The K/V of one layer at 4062 tokens is 16.6 MB, which is 29 us at 575 GB/s: the kernel is about 4.5 times its byte floor.
 
@@ -103,8 +103,8 @@ At 4k the step period is 32.94 ms (30.4 tok/s), busy 32.40 ms (98.4 percent), ga
 Estimates are from the byte floors and launch counts above, not from prototypes.
 
 1. **Decode attention at long context: about 3.6 ms/token at 4k (11 percent), about 1.1 at 1k (interpolated, not measured), about 0.4 at 128.** 130 us/call against a 29 us byte floor at 4k. GQA-grouped decode (4 query heads share each KV head, so K/V are read once per group instead of four times) plus split-KV for parallelism over the sequence. This single item covers the 4k and most of the 1k gap to llama.cpp.
-2. **The 363 small elementwise launches: about 1.0-1.2 ms/token at every size.** `rmsnorm_add` is 72 calls at 14.9 us for an 8 KB row, latency bound (one threadgroup reduction): a faster row kernel is about 0.6 ms; fusing `qk_norm` + `rope` + `kv_append` (216 launches to 72) is about 0.4-0.5 ms; `silu_glu` into the down projection or gate/up fusion saves more launches. Together with item 3 this is what closes the 128-token gap (1.1 ms/token to save).
-3. **GEMV launch count and tail: about 0.5-1 ms/token.** GEMV averages 569 GB/s; the bytes alone at the 595 GB/s the lm_head reaches would be 25.4 ms, 1.2 ms less. The shortfall is concentrated in the small kernels (k/v 483 GB/s, q/o 552): fusing q/k/v into one dispatch (3 to 1 per layer) and gate/up into one removes 108 launches and their ramp/tail. The 0.5 ms inter-step gap (commit the step in chunks so the GPU starts while the host is still encoding; about 0.3 ms) rides along with this.
+2. **The 363 small elementwise launches: about 1.0-1.2 ms/token at every size.** `rmsnorm_add` is 72 calls at 14.9 us for an 8 KB row, latency bound (one threadgroup reduction): a faster row kernel is about 0.6 ms; fusing `qk_norm` + `rope` + `kv_append` (216 launches to 72) is about 0.4-0.5 ms; `silu_glu` into the down projection or gate/up fusion saves more launches. Items 2 and 3 are both "cut the dispatch count": the isolated sum (29.55 ms) roughly equals the in-stream busy time (29.32 ms), which suggests the ~3 us per-dispatch cost exists in the single serial encoder too, i.e. about 1.5-1.8 ms/token over 616 dispatches. Together they are what closes the 128-token gap (1.2 ms/token to save).
+3. **Cut the dispatch count (GEMV fusion): about 0.5-1 ms/token.** GEMV averages 569 GB/s; the bytes alone at the 595 GB/s the lm_head reaches would be 25.4 ms, 1.2 ms less. With the fixed per-record cost removed the small GEMVs are not slow per byte (k/v about 580 GB/s), so the shortfall is mostly per-dispatch ramp and tail, not GEMV inefficiency: fusing q/k/v into one dispatch (3 to 1 per layer) and gate/up into one removes 108 launches. The 0.5 ms inter-step gap (commit the step in chunks so the GPU starts while the host is still encoding; about 0.3 ms) rides along with this.
 
 Not in the list because the profile does not support them: graph/ICB replay (GPU is already 98 percent busy, encode is not the limit), and a faster GEMV core (already at 93 percent of 614).
 
@@ -122,7 +122,8 @@ Not in the list because the profile does not support them: graph/ICB replay (GPU
 
 - The two localeval runs are single runs per engine; pre/after differences of up to 5 percent are noise. The mlx-lm and llama.cpp numbers are the earlier single runs (same machine, same arguments, about two hours earlier), not rerun.
 - Per-op times come from isolated command buffers (a few microseconds of fixed cost per record, GPU clock state after idle); they agree with the in-stream busy time to 1 percent at 122 tokens and overstate by 8 percent at 4k. Single run per mode and size.
-- The decode profile was taken with the new binary; the changes in this part do not touch decode launches, and `plain` runs of the pre and new binaries match (32.8-33.5 tok/s).
+- The decode profile was taken with the new binary; the changes in this part do not alter which kernels decode launches (one extra mutex lock per launch aside), and `plain` runs of the pre and new binaries match (32.8-33.5 tok/s).
 - The first and third levers' ms/token values are estimates. The 1k attention figure is interpolated.
 - Background load on endor (`endor-kev`, `endor-tensorfold`) and thermal state were not checked, as in phase A.
+- `profile.rs` and the `INTARSIA_METAL_PROFILE` hooks in `lib.rs` go beyond the listed steps; they were added because the engine's own op table distorts decode (section 5) and per-op GPU time was the point of step 4. Off by default.
 - GPU unit tests were first run outside a fleetq slot during development (small, seconds) and again inside slot #1803 for the recorded result.
