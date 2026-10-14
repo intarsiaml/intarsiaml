@@ -27,6 +27,7 @@ mod buffer;
 pub mod decode;
 mod dense;
 mod fill;
+mod fused;
 mod host;
 pub mod kernels;
 pub mod profile;
@@ -81,9 +82,12 @@ pub struct GemvParams {
     pub pad: [u32; 3],
 }
 
-/// Dispatches appended to one command buffer before it is committed (not waited on) and a fresh one is opened. Bounds
-/// the size of a command buffer and lets the GPU start on a long step before the host reaches `synchronize`.
-pub const MAX_DISPATCHES: usize = 4096;
+/// Dispatches appended to one command buffer before it is committed (not waited on) and a fresh one is opened. The GPU
+/// starts on a decode step when its first command buffer is committed instead of after the host has encoded all of the
+/// step's ~550 dispatches: the idle time between steps fell from 0.51 to 0.29 ms/token (64 measures the same as 128, 256
+/// in between, see docs/results/2026-10-14-metal-phase-b.md "Phase B part 2b"). `INTARSIA_METAL_COMMIT_EVERY=<n>`
+/// overrides it.
+pub const MAX_DISPATCHES: usize = 128;
 
 /// The stream: the open command buffer and encoder plus every committed buffer not yet waited on.
 #[derive(Default)]
@@ -97,6 +101,8 @@ struct Stream {
     prof: Option<profile::Prof>,
     /// Label of the launch being encoded, taken by the next flush when profiling.
     label: Option<profile::Label>,
+    /// Dispatches per command buffer before it is committed (`COMMIT_EVERY`, overridable for experiments).
+    commit_every: usize,
 }
 
 pub struct MetalBackend {
@@ -155,7 +161,15 @@ impl MetalBackend {
             device,
             queue,
             psos,
-            stream: Mutex::new(Stream { prof: profile::Prof::from_env(), ..Stream::default() }),
+            stream: Mutex::new(Stream {
+                prof: profile::Prof::from_env(),
+                commit_every: std::env::var("INTARSIA_METAL_COMMIT_EVERY")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .filter(|&n| n > 0)
+                    .unwrap_or(MAX_DISPATCHES),
+                ..Stream::default()
+            }),
             hosts: Mutex::new(host::HostCache::default()),
             page_size,
             bandwidth: OnceLock::new(),
@@ -267,7 +281,7 @@ impl MetalBackend {
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
         let per_kernel = st.prof.as_ref().is_some_and(|p| p.per_kernel);
-        if st.dispatches >= MAX_DISPATCHES || per_kernel {
+        if st.dispatches >= st.commit_every || per_kernel {
             Self::flush_locked(&mut st);
             if per_kernel {
                 // run launches one at a time: independent ones (gate / up, k / v) would otherwise overlap across
@@ -545,6 +559,9 @@ impl Backend for MetalBackend {
                     plan.threads,
                 )
             });
+        }
+        if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
+            return self.launch_matmul_pair(call);
         }
         self.launch_dense(kernel, call)
     }

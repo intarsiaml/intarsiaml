@@ -201,3 +201,120 @@ Verdict of `localeval compare` (b1 vs b2a): every row noise or overhead-dominate
 * The 16k trace needs `--max-seq 17000` (KV about 2.4 GB at 16.6k).
 * Bit-for-bit equality of host and device-position launches is not provided (see Design); `OpCall::pos` is not used by the Metal engine path today (no graph replay).
 * Tuning sweeps used `INTARSIA_METAL_SPLITKV_U` / `_X` experiment knobs; they were removed before the final build (the sweep logs remain as raw data; `sweep/usg-v2.log` and `sweep/alu-experiments.log` come from the intermediate commit "template U variants and tuning knobs (WIP)").
+
+## Phase B part 2b: launch reduction
+
+Branch `metal-b2-fuse` (base `40996bb`), endor (Apple M5 Max, 614 GB/s), `/Users/josef/models/Qwen3-8B` BF16. Raw logs, scripts and traces:
+`docs/results/raw/2026-10-14-metal-phase-b/b2b/`. Goal was to cut decode dispatches and per-launch fixed cost (target at least 1.5 ms/token).
+**Result: 616 -> 544 dispatches per step, about 0.5 to 1.0 ms/token faster (1.7 to 3.3 percent); the 1.5 ms target is not met.** Output is
+bitwise unchanged: the greedy 256-token ids and the accuracy numbers are identical to `40996bb`.
+
+### What the engine fuses for Qwen3-8B (and what it does not)
+
+The four optional fused core ops are `MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu` and `GatedRmsnorm`. At `40996bb` the engine invoked **none of them for dense
+bf16 Qwen3-8B**: `ffn_block` ran gate, up and `SiluGlu` as three launches without a `try_fused` probe, and the k/v probe in `attn_block` only matched
+fp8 weights. `MatmulPair` was only probed for GatedDeltaNet b/a, `MatmulFp8Pair` for fp8 projections, `MatmulNvfp4Glu` and `GatedRmsnorm` for nvfp4 shared
+experts and GDN (Qwen3.5/3.6). So registering a Metal `MatmulPair` alone would have changed nothing.
+
+Two additive call sites in `crates/intarsia-core/src/model.rs` now probe `MatmulPair` for gate + up (`ffn_block`) and for bf16 k + v (`attn_block`, next to
+the existing fp8 arm; v is computed with k, before the k norm / rope, as the fp8 path already does). No new core op. Not existing: a bf16 pair fused with
+`SiluGlu` (`MatmulNvfp4Glu` is nvfp4 only), a q/k/v triple, and any norm/rope/KV-append fold (proposals below).
+
+**Cross-backend effect (not tested here):** the cpu backend registers `MatmulPair` too, so a dense bf16 layer now plans 3 `matmul` + 2 `matmul_pair`
+(`crates/intarsia-models/tests/plan.rs` updated, workspace tests pass). HIP and CUDA also register `matmul_pair_bf16_gemv` (`m == 1`, `k % 8 == 0`), so
+their dense bf16 decode will now take it. Their tests claim bitwise equality with two GEMVs, but nobody ran them on those boxes in this task; check
+before merging if HIP/CUDA dense bf16 matters. `INTARSIA_NO_FUSION=1` turns all of it off.
+
+### Dispatch cost: serial vs concurrent encoder (`examples/dispatch_cost.rs`, fleetq #1810, #1818)
+
+2000 chained dispatches in one command buffer, GPU timestamps, median of 15 (`dispatch-cost-before.log`, `dispatch-cost-after.log`):
+
+| kernel | serial encoder | concurrent + barrier after every dispatch | concurrent, no barrier |
+|---|---:|---:|---:|
+| `add_bf16`, 32 elements (near-empty) | 0.83-1.05 us | 0.99-1.12 us | 0.10-0.13 us |
+| `rmsnorm_add` H=4096, 256 thr (old) | 6.0 us | 6.3 us | 0.12 us |
+| `rmsnorm_add` H=4096, 512 thr | 4.1 us | 4.5 us | 0.12 us |
+| `rmsnorm_add_bf16_ex16`, 256 thr (new) | 2.7 us | 3.1 us | 0.12 us |
+
+- The fixed cost of a dependent dispatch is about **0.9 us on the serial encoder**; concurrent plus a buffer barrier costs 0.2 us **more**. The stream stays
+  on the serial encoder. The "no barrier" column is independent dispatches overlapping, not a per-dispatch cost, and is unsafe for the dependent chains of a decode step.
+  A concurrent encoder only pays with dependency-tracked barriers (barrier only on read/write overlap of the tensor ranges): in the layer's op graph that
+  frees at most q-branch/k-branch overlap, about 1-2 dispatches per layer (estimate 0.1-0.2 ms), minus about 0.1 ms of barrier cost. Not built.
+- **Why `rmsnorm_add` took 15 us:** one threadgroup per row, latency bound, not bandwidth bound. With 2-byte strided loads, two passes (the second re-reads x and
+  res, then loads w) and 256 threads it needs 6.0 us even with hot caches (19 us at 64 threads, 4.1 us at 512). The 14.9 us in the phase B1 table is that plus the roughly 3 us
+  of a one-dispatch command buffer (kernel mode) plus cold weight loads. Dispatch overhead itself is the 0.9 us above.
+- **Fix** (`rmsnorm_bf16_ex*`, `rmsnorm_add_bf16_ex*`, also used for `qk_norm`): same element-to-thread assignment and reduction order as the 256-thread kernels (so the result
+  is **bitwise identical**, test `low_latency_norms_are_bitwise_the_256_thread_kernels`), but all loads (x, res, w) are issued before the reduction, values stay in registers for
+  the second pass, one barrier instead of two, none for rows of at most 32 elements. Rows up to 8192 elements; wider rows use the old kernel. A first version with 8-element vector loads
+  was 2.5 us hot but changed the summation order and flipped greedy tokens after 22 and 49 tokens, so it was dropped for the exact-order form. `rope` is already at the dispatch floor (2.1 us hot); a
+  one-thread-per-pair form measured 2.0 us and was removed. `argmax_f32` over 151936 logits: `argmax_f32_v4` (float4 loads, 1024 threads) 64 -> 12 us hot, 143 -> 15 us in the trace; same result,
+  including ties and NaN.
+
+### What changed
+
+| change | launches/step | where |
+|---|---:|---|
+| `MatmulPair` for gate + up and bf16 k + v: `gemv_pair_bf16` (16-byte loads) and `gemv_pair_bf16_a8` (8-byte loads: 15 of the 72 pairs sit in a shard with an 8 mod 16 header), one dispatch, bitwise two `matmul_bf16_gemv` | -72 | `src/fused.rs`, `gemv_bf16.metal`, `model.rs` |
+| low-latency norms, argmax | 0 | `dense_ops.metal`, `dense.rs` |
+| command buffer committed every 128 dispatches (was 4096, i.e. only at the readback) | 0 | `lib.rs` `MAX_DISPATCHES`; `INTARSIA_METAL_COMMIT_EVERY` overrides |
+
+Registered with HIP's predicate and tolerance (`Tol::new(1.5e-2, 1e-3)`); the launcher falls back to two ordinary GEMV dispatches for any other alignment (tests cover 16-byte, 8-byte, mixed, 2-byte, K % 4 != 0).
+
+### Results
+
+Per category, GPU-timestamp kernel trace (one command buffer per launch, 128 decode steps, `profile/analysis2-*.md`; fleetq #1827, #1833):
+
+| | ctx 128 before | ctx 128 after | ctx 4k before | ctx 4k after |
+|---|---:|---:|---:|---:|
+| launches per step | 616 | 544 | 616 | 544 |
+| GEMV: launches / ms per token | 253 / 27.22 | 181 / 26.38 | 253 / 26.73 | 181 / 26.40 |
+| elementwise/row: launches / ms | 255 / 2.19 | 255 / 1.47 | 255 / 2.00 | 255 / 1.48 |
+| attention + kv_append: launches / ms | 108 / 0.96 | 108 / 0.84 | 108 / 4.20 | 108 / 4.18 |
+| `rmsnorm_add` us per call | 16.1 | 9.4 | 14.7 | 9.5 |
+| `argmax_f32` us | 143 | 14 | 134 | 15 |
+| gate+up GEMV GB/s | 564 | 585 (pair) | 576 | 585 (pair) |
+| k+v GEMV GB/s | 463 | 522 (pair) | 477 | 520 (pair) |
+| stream as normal (cb trace): period / GPU busy / idle, ms per token | 30.02 / 29.50 / 0.52 | 29.37 / 29.06 / 0.31 | 32.83 / 32.30 / 0.53 | 32.01 / 31.69 / 0.31 |
+
+Isolated-buffer kernel sums overstate the gain (they drop 1.7 ms because every removed launch also removes about 3 us of per-command-buffer overhead). The in-stream figures are the ones that count, and they are noisy:
+interleaved 5-rep runs (`reps-*.log`, period from the cb trace, same slot, base and new alternating) give medians of 30.01 -> 29.54 ms (ctx 128) and 33.21 -> 32.75 ms (4k), i.e. -0.46 ms, while
+the commit-cadence sweep (5 reps, binary before the a8 pair) gave 29.95 -> 28.94 ms (-1.0 ms). Run-to-run spread of one variant is about 0.5 ms, so the in-stream gain is **0.5 to 1.0 ms**. Commit cadence alone: idle between steps
+0.52 ms (4096) -> 0.37 (256) -> 0.31 (128) -> 0.28 (64); 128 chosen. The remaining 0.3 ms is the host side of the step boundary (wake-up after the readback, sampling, embedding upload, encoding the first 128 dispatches).
+
+localeval `speed` (`--sizes 128,1024,4096 --gen 256 --reps 3 --thinking off`, same arguments as the b1 run, `docs/results/raw/2026-10-14-metal-phase-b/b2b/localeval/`, fleetq #1835):
+
+| ctx | b1 decode tok/s | b2fuse | mlx-lm | llama.cpp |
+|---|---:|---:|---:|---:|
+| ~128 | 32.7 | **33.8** (33.2-33.9) | 34.4 | 34.8 |
+| ~1k | 32.5 | **33.5** (33.2-33.8) | 33.8 | 33.4 |
+| ~4k | 30.1 | **30.8** (30.7-30.8) | 31.0 | 31.7 |
+
+Run `20261014-135214-adhoc-intarsia-metal-bf16-b2fuse` (unanimis e9c3c2d6), `compare` against `20261014-100122-adhoc-intarsia-metal-bf16-b1`: decode +2.4 to +3.3 percent, all inside the tool's 10 percent noise band
+(1.0 / 0.9 / 0.75 ms/token). Against the other engines: 98 / 99 / 99 percent of mlx-lm and 97 / 100 / 97 percent of llama.cpp. The 1k marginal prefill is flagged "slower" (343 -> 284 tok/s); an interleaved check at 4k (`prefill-check.log`, fleetq #1836) shows no
+prefill difference between base and new for any commit cadence (about 220 tok/s), so that figure is the known mid-length prefill noise (up to +-39 percent in fleet history).
+
+### Correctness
+
+- `cargo test -p intarsia-backend-metal --release`: 40 passed, 0 failed (`checks/cargo-test-metal.log`; new: `tests/fused.rs` 5 tests, `tests/lowlat.rs` 5 tests).
+- `intarsia kernels test --backend metal -m /Users/josef/models/Qwen3-8B`: 17 kernels, 187 cases, all ADMITTED, including `matmul_pair_bf16_gemv` (6 cases, zero error against the cpu reference) (`kernels-test.out`).
+- Greedy `generate` (256 tokens, 122-token and 4062-token prompts) against the `40996bb` binary: stdout and token ids identical (`identity/`).
+- `intarsia accuracy --gate-class bf16` on `golden/qwen3-8b-fp32.safetensors` and `qwen3-8b-long-fp32.safetensors`: both binaries give the same numbers (short: top-1 100 percent, mean KL 3.639e-4, PASS; long: top-1 100 percent, KL 3.637e-4, PASS) (`accuracy/`).
+- `cargo check --workspace` and `cargo test --release --workspace --exclude intarsia-backend-metal` pass.
+
+### Why the target was missed, and what would get closer
+
+The dispatch floor is about 1 us per dependent launch, so 72 fewer launches is worth about 0.1 ms; the rest of the gain is faster small kernels (0.3 ms), argmax (0.13 ms), pair-GEMV tail effects (about 0.1 ms) and the earlier GPU start (0.2 ms).
+GEMV is 26.4 of 29 ms at 570-585 GB/s; reaching the 614 GB/s ceiling is worth 1.5 ms on its own and is a kernel-efficiency job, not a launch-count job.
+
+Proposals (new core ops, not added; savings are per decode step at 1-3 us per removed small launch):
+1. `MatmulPairGlu` (x, w_gate, w_up -> silu(gate) * up, bf16-rounding gate and up first so it equals `SiluGlu(Matmul, Matmul)`): -36 launches and the g/u round trip, about 0.1 ms.
+2. `QkNormRope` (x `[T,N,D]`, w `[D]` -> roped out; eps, w_offset, rope attrs) for q and k: -72 launches. Fold the k result into the cache as well (`KvAppend` of k after rope as one op, or a `KvAppendPair` writing k and v rows): -36 to -72 more. Together about 0.3-0.45 ms.
+3. `MatmulTriple` for q/k/v (one x, three weights): -36 launches and one big dispatch instead of 4096 + 2048 rows, about 0.1-0.2 ms; needs the q projection to move after the k/v ones in `attn_block`.
+4. Device-side greedy feedback (argmax output read directly by the next step's embedding, tokens read back asynchronously): removes most of the 0.3 ms step-boundary idle. Engine change.
+
+I did not fold these inside the backend by looking at consecutive launches: it cannot know that an intermediate tensor is dead, and the engine has no hook for it.
+
+### Not done
+
+Dependency-tracked concurrent encoder (estimate above); GEMV tuning; the fold ops; rope, kv_append and silu_glu are at the dispatch floor and untouched. HIP/CUDA behaviour with the new `model.rs` probes is untested.
+fleetq jobs: #1810, #1811, #1815-#1818, #1820, #1824, #1826, #1827, #1830-#1836 (the attention agent's jobs in between are not mine).

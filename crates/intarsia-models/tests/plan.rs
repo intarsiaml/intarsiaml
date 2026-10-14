@@ -130,8 +130,10 @@ fn plan_json_follows_the_contract() {
     assert_eq!(layers[0]["blocks"], serde_json::json!(["attention", "dense_ffn"]));
     let ops = p["ops"].as_array().unwrap();
     let find = |name: &str| ops.iter().find(|o| o["op"] == name).unwrap_or_else(|| panic!("no op {name}"));
-    // per decode step: 4 attn matmuls + 3 ffn matmuls per layer
-    assert_eq!(find("matmul")["calls_per_decode_step"], 7 * LAYERS);
+    // per decode step and layer: q, o and down are single matmuls; gate + up and k + v are fused `MatmulPair`s (the cpu
+    // backend registers the optional fused ops too)
+    assert_eq!(find("matmul")["calls_per_decode_step"], 3 * LAYERS);
+    assert_eq!(find("matmul_pair")["calls_per_decode_step"], 2 * LAYERS);
     assert_eq!(find("attn_decode")["calls_per_decode_step"], LAYERS);
     assert_eq!(find("attn_prefill")["calls_per_decode_step"], 0, "prefill-only kernel");
     assert_eq!(find("matmul")["kernel"], "cpu_f32_matmul");

@@ -10,6 +10,9 @@ const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 /// f32 outputs of bf16 inputs: only accumulation-order noise (same as the hip backend's logits).
 const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 
+/// Budget of `matmul_pair_bf16_gemv`, the same as the hip kernel's (`TOL` in intarsia-backend-hip/src/quantmoe.rs).
+const PAIR_TOL: Tol = Tol::new(1.5e-2, 1e-3);
+
 /// `KernelImpl::name` of the batch-1 bf16 GEMV (the HIP backend calls the same thing `matmul_bf16_gemv`).
 pub const MATMUL_BF16_GEMV: &str = "matmul_bf16_gemv";
 
@@ -74,6 +77,16 @@ pub const DEFAULT_GEMV_A8: GemvVariant = GEMV_A8_VARIANTS[1];
 /// Fallback for any K and any 2-byte alignment: one simdgroup per row, 8 rows per threadgroup, 2-byte loads.
 pub const GEMV_SCALAR: GemvVariant = GemvVariant { name: "gemv_bf16_scalar", rows: 1, unroll: 1, sg: 8 };
 
+/// `MatmulPair` (the optional fused decode op): two bf16 GEMVs of one `x` in one dispatch. The shader
+/// `gemv_pair_bf16` is `gemv_bf16_r1u4s4` over two weight matrices, so each output is bitwise the `Matmul` GEMV's.
+pub const MATMUL_PAIR_BF16_GEMV: &str = "matmul_pair_bf16_gemv";
+pub const GEMV_PAIR_BF16: &str = "gemv_pair_bf16";
+/// The 8-byte-load form (`DEFAULT_GEMV_A8` rows: K % 4 == 0, operands 8-byte aligned).
+pub const GEMV_PAIR_BF16_A8: &str = "gemv_pair_bf16_a8";
+/// Rows per threadgroup of `gemv_pair_bf16` (it is `DEFAULT_GEMV`: one row per simdgroup, 4 simdgroups).
+pub const GEMV_PAIR_ROWS_PER_TG: u32 = 4;
+pub const GEMV_PAIR_THREADS: u32 = 128;
+
 /// bf16 GEMM, any M; the shader is `gemm_bf16_t<OutT>` with a bf16 (`Matmul`) or f32 (`Logits`) output.
 pub const MATMUL_BF16: &str = "matmul_bf16";
 pub const LOGITS_BF16: &str = "logits_bf16";
@@ -96,6 +109,12 @@ pub const SILU_GLU_BF16: &str = "silu_glu_bf16";
 pub const KV_APPEND_BF16: &str = "kv_append_bf16";
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
+/// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
+/// loads before the reduction (`rmsnorm_bf16_ex<NIT>`, `rmsnorm_add_bf16_ex<NIT>`, bitwise the same results as the
+/// kernels above; `NIT` = elements per thread) and `argmax_f32_v4`. Not separate registry entries.
+pub const RMSNORM_EX: [&str; 3] = ["rmsnorm_bf16_ex1", "rmsnorm_bf16_ex16", "rmsnorm_bf16_ex32"];
+pub const RMSNORM_ADD_EX: [&str; 3] = ["rmsnorm_add_bf16_ex1", "rmsnorm_add_bf16_ex16", "rmsnorm_add_bf16_ex32"];
+pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
 
 pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
 pub const ATTN_DECODE_BF16: &str = "attn_decode_bf16";
@@ -133,6 +152,10 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
+    v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8]);
+    v.extend(RMSNORM_EX);
+    v.extend(RMSNORM_ADD_EX);
+    v.push(ARGMAX_F32_V4);
     v
 }
 
@@ -156,6 +179,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_PREFILL_BF16, Op::AttnPrefill),
     (ATTN_DECODE_BF16, Op::AttnDecode),
     (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
+    (MATMUL_PAIR_BF16_GEMV, Op::MatmulPair),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -215,6 +239,14 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(BF16_TOL)
                     .priority(10)
                     .scratch(crate::attn::splitkv_scratch),
+                // fused decode pair (gate + up, k + v): bitwise two `matmul_bf16_gemv`s; the hip entry's predicate and tolerance
+                MATMUL_PAIR_BF16_GEMV => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .priority(10),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })

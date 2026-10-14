@@ -202,3 +202,161 @@ template [[host_name("argmax_f32")]] kernel void argmax_t<float>(
     device const float*, device int*, constant OpP&, uint, uint, uint, uint, uint, uint);
 template [[host_name("argmax_bf16")]] kernel void argmax_t<ushort>(
     device const ushort*, device int*, constant OpP&, uint, uint, uint, uint, uint, uint);
+
+// =====================================================================================================================
+// Phase B2b: low-latency forms of the row norms. Bitwise the same results as `rmsnorm_bf16` / `rmsnorm_add_bf16`: the
+// same element-to-thread assignment (element i belongs to thread i % 256) and the same reduction order (strided fma
+// per thread, simd_sum, serial sum over the simdgroup partials). What changes is the latency: every load of the row (x,
+// res, w) is issued before the reduction and the elements stay in registers for the second pass, so a row costs one
+// memory round trip, one barrier and no re-read. Any alignment, any skip.
+// The host picks NIT = max elements per thread and the width: H <= 256 -> NIT 1 with roundup32(H) threads (the idle
+// threads of the 256-thread kernel only contributed exact zeros), H <= 4096 -> NIT 16, H <= 8192 -> NIT 32, 256 threads.
+// =====================================================================================================================
+
+// Threadgroup sum with a single barrier (part[] is used once) and none at all for one simdgroup.
+inline float tg_sum1(float v, threadgroup float* part, uint lane, uint sg, uint nsg) {
+    v = simd_sum(v);
+    if (nsg == 1) return v;
+    if (lane == 0) part[sg] = v;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    float t = 0.0f;
+    for (uint j = 0; j < nsg; ++j) t += part[j];
+    return t;
+}
+
+template <int NIT>
+kernel void rmsnorm_bf16_ex_t(device const ushort* x [[buffer(0)]],
+                              device const ushort* w [[buffer(1)]],
+                              device ushort* out [[buffer(2)]],
+                              constant OpP& p [[buffer(3)]],
+                              uint row [[threadgroup_position_in_grid]],
+                              uint tid [[thread_position_in_threadgroup]],
+                              uint tgs [[threads_per_threadgroup]],
+                              uint lane [[thread_index_in_simdgroup]],
+                              uint sg [[simdgroup_index_in_threadgroup]],
+                              uint nsg [[simdgroups_per_threadgroup]]) {
+    threadgroup float part[32];
+    const uint h = p.a;
+    device const ushort* xr = x + p.s0 + (ulong)row * h;
+    device ushort* orow = out + p.s2 + (ulong)row * h;
+    float xf[NIT];
+    float wf[NIT];
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (i < h) {
+            xf[j] = bf2f(xr[i]);
+            wf[j] = bf2f(w[p.s1 + i]);
+        }
+    }
+    float ss = 0.0f;
+    for (int j = 0; j < NIT; ++j) {
+        if (tid + (uint)j * tgs < h) ss = fma(xf[j], xf[j], ss);
+    }
+    const float tot = tg_sum1(ss, part, lane, sg, nsg);
+    const float r = 1.0f / precise::sqrt(tot / (float)h + p.f0);
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (i < h) orow[i] = f2bf(xf[j] * r * (wf[j] + p.f1));
+    }
+}
+
+template <int NIT>
+kernel void rmsnorm_add_bf16_ex_t(device const ushort* x [[buffer(0)]],
+                                  device const ushort* res [[buffer(1)]],
+                                  device const ushort* w [[buffer(2)]],
+                                  device ushort* normed [[buffer(3)]],
+                                  device ushort* sum [[buffer(4)]],
+                                  constant OpP& p [[buffer(5)]],
+                                  uint row [[threadgroup_position_in_grid]],
+                                  uint tid [[thread_position_in_threadgroup]],
+                                  uint tgs [[threads_per_threadgroup]],
+                                  uint lane [[thread_index_in_simdgroup]],
+                                  uint sg [[simdgroup_index_in_threadgroup]],
+                                  uint nsg [[simdgroups_per_threadgroup]]) {
+    threadgroup float part[32];
+    const uint h = p.a;
+    const ulong base = (ulong)row * h;
+    float xf[NIT];
+    float rf[NIT];
+    float wf[NIT];
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (i < h) {
+            xf[j] = bf2f(x[p.s0 + base + i]);
+            rf[j] = bf2f(res[p.s1 + base + i]);
+            wf[j] = bf2f(w[p.s2 + i]);
+        }
+    }
+    float sb[NIT];  // the bf16-rounded sum, as a float: the norm sees the rounded value
+    float ss = 0.0f;
+    for (int j = 0; j < NIT; ++j) {
+        if (tid + (uint)j * tgs < h) {
+            sb[j] = bf2f(f2bf(xf[j] + rf[j]));
+            ss = fma(sb[j], sb[j], ss);
+        }
+    }
+    const float tot = tg_sum1(ss, part, lane, sg, nsg);
+    const float r = 1.0f / precise::sqrt(tot / (float)h + p.f0);
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (i < h) {
+            sum[p.s4 + base + i] = f2bf(sb[j]);
+            normed[p.s3 + base + i] = f2bf(sb[j] * r * (wf[j] + p.f1));
+        }
+    }
+}
+
+#define INST_NORM_EX(NAME, NIT)                                                                                       \
+    template [[host_name(NAME)]] kernel void rmsnorm_bf16_ex_t<NIT>(                                                 \
+        device const ushort*, device const ushort*, device ushort*, constant OpP&, uint, uint, uint, uint, uint, uint);
+#define INST_NORM_ADD_EX(NAME, NIT)                                                                                   \
+    template [[host_name(NAME)]] kernel void rmsnorm_add_bf16_ex_t<NIT>(                                             \
+        device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*,          \
+        constant OpP&, uint, uint, uint, uint, uint, uint);
+INST_NORM_EX("rmsnorm_bf16_ex1", 1)
+INST_NORM_EX("rmsnorm_bf16_ex16", 16)
+INST_NORM_EX("rmsnorm_bf16_ex32", 32)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex1", 1)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex16", 16)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex32", 32)
+
+// Argmax over f32 logits, vector form: V % 4 == 0 and the row 16-byte aligned (no skip). Same result as `argmax_f32`
+// (lowest index of the maximum, NaN never wins, empty / all -inf row gives 0). One threadgroup per row of up to 1024 threads;
+// thread t visits the float4 chunks t, t + tgs, ... in increasing order, so its running (max, index) keeps the lowest
+// index of its own maximum; the cross-thread resolution is the same as the scalar kernel's.
+kernel void argmax_f32_v4(device const float4* logits [[buffer(0)]],
+                          device int* out [[buffer(1)]],
+                          constant OpP& p [[buffer(2)]],
+                          uint row [[threadgroup_position_in_grid]],
+                          uint tid [[thread_position_in_threadgroup]],
+                          uint tgs [[threads_per_threadgroup]],
+                          uint lane [[thread_index_in_simdgroup]],
+                          uint sg [[simdgroup_index_in_threadgroup]],
+                          uint nsg [[simdgroups_per_threadgroup]]) {
+    threadgroup float pv[32];
+    threadgroup uint pi[32];
+    const uint v4 = p.a / 4;
+    device const float4* l = logits + (ulong)row * v4;
+    float bv = -INFINITY;
+    uint bi = 0xffffffffu;
+    for (uint c = tid; c < v4; c += tgs) {
+        const float4 x = l[c];
+        const uint i0 = c * 4;
+        if (x.x > bv) { bv = x.x; bi = i0; }
+        if (x.y > bv) { bv = x.y; bi = i0 + 1; }
+        if (x.z > bv) { bv = x.z; bi = i0 + 2; }
+        if (x.w > bv) { bv = x.w; bi = i0 + 3; }
+    }
+    float m = simd_max(bv);
+    uint mi = simd_min(bv == m ? bi : 0xffffffffu);
+    if (lane == 0) { pv[sg] = m; pi[sg] = mi; }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid == 0) {
+        float gm = -INFINITY;
+        uint gi = 0xffffffffu;
+        for (uint j = 0; j < nsg; ++j) {
+            if (pv[j] > gm || (pv[j] == gm && pi[j] < gi)) { gm = pv[j]; gi = pi[j]; }
+        }
+        out[row] = gi == 0xffffffffu ? 0 : (int)gi;
+    }
+}

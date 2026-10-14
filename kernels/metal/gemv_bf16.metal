@@ -161,3 +161,94 @@ kernel void gemv_bf16_scalar(device const ushort* W [[buffer(0)]],
     const float s = simd_sum(acc);
     if (lane == 0 && row < p.n) Y[p.y_skip + row] = to_bf16(s);
 }
+
+// ---- MatmulPair: two GEMVs of one x in one dispatch -------------------------------------------------------------------
+// y0[N0] = W0[N0,K] . x and y1[N1] = W1[N1,K] . x. Threadgroups [0, ceil(N0/SG)) work on the first matrix, the rest on
+// the second; each row is computed exactly as `gemv_bf16_t<1, 4, 4>` does (same lane/step order, same simd_sum), so
+// both outputs are bitwise those of two separate GEMVs. Vector loads only: K % 8 == 0 and 16-byte aligned W0, W1, x.
+// The host (crates/intarsia-backend-metal/src/fused.rs) falls back to two GEMV dispatches for anything else.
+struct PairParams {
+    uint k;
+    uint n0;
+    uint n1;
+    uint y0_skip;
+    uint y1_skip;
+    uint pad0;
+    uint pad1;
+    uint pad2;
+};
+
+kernel void gemv_pair_bf16(device const uint4* W0 [[buffer(0)]],
+                           device const uint4* W1 [[buffer(1)]],
+                           device const uint4* X [[buffer(2)]],
+                           device ushort* Y0 [[buffer(3)]],
+                           device ushort* Y1 [[buffer(4)]],
+                           constant PairParams& p [[buffer(5)]],
+                           uint tg [[threadgroup_position_in_grid]],
+                           uint sg [[simdgroup_index_in_threadgroup]],
+                           uint lane [[thread_index_in_simdgroup]]) {
+    constexpr int UNROLL = 4;
+    constexpr uint SG = 4;
+    const uint groups0 = (p.n0 + SG - 1) / SG;
+    const bool second = tg >= groups0;
+    device const uint4* W = second ? W1 : W0;
+    device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
+    const uint n = second ? p.n1 : p.n0;
+    const uint k8 = p.k / 8;
+    const uint row = ((second ? tg - groups0 : tg) * SG + sg);
+    device const uint4* wr = W + (ulong)min(row, n - 1) * k8;
+    float acc = 0.0f;
+    const uint block = 32 * UNROLL;
+    const uint nblk = k8 / block;
+    uint i = lane;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint4 xv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + 32 * u];
+        uint4 wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + 32 * u];
+        for (int u = 0; u < UNROLL; ++u) acc += dot8(wv[u], xv[u]);
+    }
+    for (i = nblk * block + lane; i < k8; i += 32) {
+        const uint4 xv = X[i];
+        acc += dot8(wr[i], xv);
+    }
+    const float s = simd_sum(acc);
+    if (lane == 0 && row < n) Y[row] = to_bf16(s);
+}
+
+// Same for operands that are only 8-byte aligned (`gemv_bf16_a8_t<8, 4>` rows: one simdgroup per row, 4 simdgroups per
+// threadgroup, 8 8-byte loads per lane per step), K % 4 == 0. Bitwise the two `gemv_bf16_a8u8s4` launches.
+kernel void gemv_pair_bf16_a8(device const uint2* W0 [[buffer(0)]],
+                              device const uint2* W1 [[buffer(1)]],
+                              device const uint2* X [[buffer(2)]],
+                              device ushort* Y0 [[buffer(3)]],
+                              device ushort* Y1 [[buffer(4)]],
+                              constant PairParams& p [[buffer(5)]],
+                              uint tg [[threadgroup_position_in_grid]],
+                              uint sg [[simdgroup_index_in_threadgroup]],
+                              uint lane [[thread_index_in_simdgroup]]) {
+    constexpr int UNROLL = 8;
+    constexpr uint SG = 4;
+    const uint groups0 = (p.n0 + SG - 1) / SG;
+    const bool second = tg >= groups0;
+    device const uint2* W = second ? W1 : W0;
+    device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
+    const uint n = second ? p.n1 : p.n0;
+    const uint k4 = p.k / 4;
+    const uint row = (second ? tg - groups0 : tg) * SG + sg;
+    device const uint2* wr = W + (ulong)min(row, n - 1) * k4;
+    float acc = 0.0f;
+    const uint block = 32 * UNROLL;
+    const uint nblk = k4 / block;
+    uint i = lane;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint2 xv[UNROLL];
+        uint2 wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + 32 * u];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + 32 * u];
+        for (int u = 0; u < UNROLL; ++u) acc += dot4(wv[u], xv[u]);
+    }
+    for (i = nblk * block + lane; i < k4; i += 32) acc += dot4(wr[i], X[i]);
+    const float s = simd_sum(acc);
+    if (lane == 0 && row < n) Y[row] = to_bf16(s);
+}

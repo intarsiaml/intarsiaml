@@ -1,0 +1,24 @@
+fleetq: #1822 running on endor: ./target/release/examples/dispatch_cost
+device: Apple M5 Max; 2000 chained dispatches per command buffer, median of 15
+
+kernel                                           serial   concurrent+barrier   concurrent, no barrier
+add_bf16, 1 tg x 32 thr (near-empty)             0.83us               0.99us                   0.10us
+rmsnorm_add_bf16 H=4096, 64 thr                 18.88us              18.97us                   0.21us
+rmsnorm_add_bf16 H=4096, 128 thr                10.26us              10.59us                   0.12us
+rmsnorm_add_bf16 H=4096, 256 thr                 6.02us               6.41us                   0.11us
+rmsnorm_add_bf16 H=4096, 512 thr                 4.15us               4.47us                   0.10us
+rmsnorm_add_bf16 H=4096, 1024 thr                4.79us               5.10us                   0.10us
+rmsnorm_bf16 H=4096, 128 thr                     8.20us               8.56us                   0.12us
+rmsnorm_bf16 H=4096, 256 thr                     5.22us               5.53us                   0.11us
+rmsnorm_bf16 H=4096, 512 thr                     3.63us               3.97us                   0.12us
+rmsnorm_bf16 H=4096, 1024 thr                    4.41us               4.74us                   0.12us
+rmsnorm_add_bf16_ex16 H=4096, 256 thr (new)      2.74us               3.05us                   0.12us
+rmsnorm_bf16_ex16 H=4096, 256 thr (new)          2.09us               2.46us                   0.12us
+rmsnorm_bf16_ex1 (qk_norm) 32 rows x 128, 128 thr (new)     1.48us               1.79us                   0.49us
+rope_bf16 q [1,32,128], 16 tg x 256 thr          2.06us               2.19us                   0.33us
+argmax_f32 V=151936, 256 thr                    63.69us              63.93us                   1.26us
+argmax_f32_v4 V=151936, 1024 thr (new)          12.02us              12.38us                   0.30us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 32 thr     2.19us               2.55us                   0.51us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 128 thr     1.59us               1.96us                   0.44us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 256 thr     1.69us               2.00us                   0.41us
+fleetq: #1822 done (exit 0)

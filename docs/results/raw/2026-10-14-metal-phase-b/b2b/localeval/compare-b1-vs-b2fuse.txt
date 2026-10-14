@@ -1,0 +1,20 @@
+# compare: 20261014-100122-adhoc-intarsia-metal-bf16-b1 → 20261014-135214-adhoc-intarsia-metal-bf16-b2fuse
+
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+
+| prompt tok | metric | A | B | Δ | verdict |
+|---:|---|---:|---:|---:|---|
+| 114 | prefill_tok_s | 298.6 | 282.3 | -5.5% | overhead-dominated |
+| 114 | decode_tok_s | 32.7 | 33.8 | +3.2% | noise |
+| 114 | peak_decode_tok_s | 33.4 | 34.6 | +3.6% | noise |
+| 992 | prefill_tok_s | 337.6 | 282.9 | -16.2% | overhead-dominated |
+| 992 | marginal_prefill_tok_s | 342.7 | 283.6 | -17.2% | slower |
+| 992 | decode_tok_s | 32.5 | 33.5 | +3.3% | noise |
+| 992 | peak_decode_tok_s | 32.7 | 34.1 | +4.3% | noise |
+| 4089 | prefill_tok_s | 226.9 | 212.0 | -6.5% | noise |
+| 4089 | marginal_prefill_tok_s | 205.3 | 196.3 | -4.4% | noise |
+| 4089 | decode_tok_s | 30.1 | 30.8 | +2.4% | noise |
+| 4089 | peak_decode_tok_s | 30.4 | 31.4 | +3.3% | noise |
+
+- A: `intarsia-metal` @ http://127.0.0.1:8094/v1 thinking=off (2026-10-14T10:01:22-04:00)
+- B: `intarsia-metal` @ http://127.0.0.1:8479/v1 thinking=off (2026-10-14T13:52:14-04:00)
