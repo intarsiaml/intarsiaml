@@ -21,6 +21,7 @@
 
 #![cfg(target_os = "macos")]
 
+mod attn;
 pub mod bench;
 mod buffer;
 pub mod decode;
