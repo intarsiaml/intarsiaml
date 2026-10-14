@@ -127,3 +127,77 @@ Not in the list because the profile does not support them: graph/ICB replay (GPU
 - Background load on endor (`endor-kev`, `endor-tensorfold`) and thermal state were not checked, as in phase A.
 - `profile.rs` and the `INTARSIA_METAL_PROFILE` hooks in `lib.rs` go beyond the listed steps; they were added because the engine's own op table distorts decode (section 5) and per-op GPU time was the point of step 4. Off by default.
 - GPU unit tests were first run outside a fleetq slot during development (small, seconds) and again inside slot #1803 for the recorded result.
+
+## Phase B part 2a: decode attention
+
+Branch `metal-b2-attn` (from `40996bb`). Host endor (Apple M5 Max 40c, 614 GB/s), Qwen3-8B BF16: 32 q heads, 8 kv heads, head_dim 128, bf16 KV cache, 36 layers. Raw logs: `docs/results/raw/2026-10-14-metal-phase-b/b2a/`. fleetq: #1812 #1813 #1817 #1819 #1821 (microbench and tuning sweeps), #1825 (kernels test, identity, traces, final microbench), #1828 (localeval).
+
+**Outcome.** Attention per call (in-stream, GPU timestamps): **105 -> 46 us at 4k, 393 -> 135 us at 16k, 32.5 -> 20.7 us at 1k** (2.3x / 2.9x / 1.6x). At 4k that is 59 percent of the 614 GB/s byte floor (365 GB/s effective), at 16k 81 percent (498 GB/s). Decode (localeval `20261014-133256-adhoc-intarsia-metal-bf16-b2attn`) is 32.6 / 32.8 / 31.7 tok/s at 128 / 1k / 4k against b1 32.7 / 32.5 / 30.1. `localeval compare` marks all three decode deltas as noise (4k is +5.3 percent, under its 10 percent threshold; `leval/compare-b1-vs-b2a.txt`), so the localeval pair alone does not prove a gain. The evidence is the per-call saving, which is far outside noise and consistent with the 4k step: 36 calls x (110 - 57 us) = 1.9 ms of the 33 ms step in the kernel trace (microbench: 2.1 ms), i.e. 30.1 -> about 31.9 tok/s predicted, 31.7 measured. The attention-floor gap to mlx-lm / llama.cpp that phase B1 identified at 4k (31.0 / 31.7 tok/s, single earlier runs, not rerun) is closed on paper; 128 and 1k stay 2-6 percent below them (34.4 / 33.8 and 34.8 / 33.4).
+
+### Design
+
+* New registry kernel `attn_decode_bf16_splitkv` (priority 10, needs scratch, `Deterministic`, `BF16_TOL` as HIP's AttnDecode). `attn_decode_bf16` stays registered as the no-scratch kernel for every shape the new one rejects (head_dim not a power of two in 8..256, group over 8, `m != 1`); the new kernel's launcher itself falls back to it for K/V caches that are not 16-byte aligned. Predicate: `m == 1`, head_dim in {8,...,256} power of two, `n_heads % n_kv_heads == 0`, group <= 8.
+* **Stage 1** (`kernels/metal/attention_splitkv.metal`, launcher `src/attn.rs`): grid `nkv x nsplit` threadgroups. A threadgroup reads its slice of one kv head's K/V rows once and applies them to all `G = N / Nkv` query heads (GP = G rounded up to 1/2/4/8 heads in registers; q is pre-scaled by `scale * log2(e)`, softmax in the log2 domain). Each lane loads 16 bytes of a row (head_dim/8 lanes per key, 256/head_dim keys per simdgroup step, two steps of loads in flight). The keys-per-step slots of a simdgroup are merged with `simd_shuffle_xor`, the simdgroups through 16 KB of threadgroup memory. 4 simdgroups (128 threads) per threadgroup, 8 when the grid has at most 64 threadgroups. With one split, stage 1 writes the bf16 output itself and there is no second pass.
+* **Stage 2** (`attn_decode_bf16_combine`): one threadgroup per q head, one thread per output dim, combines the partials in split order. No atomics, so results are run-to-run identical. Both stages are encoded in one `with_encoder` call: one launch is one profiled record.
+* **Split policy** (the same function in launcher and shader): `nsplit = clamp(min(ceil(visible / 128), ceil(120 / Nkv)), 1, 64)`; chunk = ceil(visible / nsplit) rounded up to 32 keys, trailing splits may be empty (they publish max = -inf). For Qwen3-8B: 1 split up to 128 keys, 8 splits at 1k, 15 splits from about 1800 keys on. 120 threadgroups is the sweep optimum on this 40-core GPU (3 resident threadgroups of 4 simdgroups per core); 25 splits = 200 threadgroups was 20 percent slower at 4k than 15-20, i.e. more than one resident wave costs (`sweep/policy-sg4.log`). `INTARSIA_METAL_SPLITKV=<min_keys>,<target>` overrides the policy for sweeps (changes rounding order; unset in production).
+* **Scratch** (`KernelImpl::scratch` -> `OpCall::scratch`, nothing allocated by the backend): `float part[N][max_split][D]`, then `float2 ml[N][max_split]`. Declared bound is context-independent, `N * 64 * (D+2) * 4` (1.06 MB for Qwen3-8B); the 15-split steady state touches 250 KB. The launcher returns `Error::invalid` for a missing, too small or misaligned scratch.
+* **Device-side position** (`OpCall::pos`): the visible-key count is clamped as in the old kernel; the grid is sized for a full cache and the shader derives the real split count from the position it reads (surplus threadgroups return), so the tensor decides and the host `pos0` only bounds the call. A host-position launch uses the same split count but may use another simdgroup count (4 vs 8), so host and device results agree to rounding order (tests: 1 bf16 ulp), while two device-position launches are bit-identical.
+* Shared files touched minimally: `dense.rs` (`Bind`, `bind`, `pos_bind` made `pub(crate)`, one match arm), `kernels.rs` (constants, TABLE entry, registration, shader names), `lib.rs` (`mod attn;`), `build.rs` (`src/attn.rs` added to `LAUNCHER_SOURCES`). The shader is a new file next to `attention.metal`.
+
+### Per-call attention time
+
+In-stream microbench (`crates/intarsia-backend-metal/examples/attn_bw.rs`, `bench/attn_bw.txt`): 36 launches per command buffer, one distinct KV cache per layer so reads come from DRAM like a decode step's; median of 30 reps from the stream's command-buffer GPU timestamps. Bytes are the K+V rows read once, `2 * 8 * visible * 128 * 2`; "GB/s" is that over the time (the old kernel really reads them 4 times).
+
+| visible keys | K+V MB | floor at 614 GB/s us | before us (GB/s) | after us (GB/s, % of 614) | speedup |
+|---:|---:|---:|---:|---:|---:|
+| 64 | 0.3 | 0.4 | 11.5 (23) | 10.5 (25, 4%) | 1.10x |
+| 128 | 0.5 | 0.9 | 10.3 (51) | 11.8 (44, 7%) | 0.87x |
+| 256 | 1.0 | 1.7 | 16.7 (63) | 16.5 (63, 10%) | 1.01x |
+| 512 | 2.1 | 3.4 | 20.3 (103) | 17.4 (120, 20%) | 1.17x |
+| 1024 | 4.2 | 6.8 | 32.5 (129) | 20.7 (203, 33%) | 1.57x |
+| 2048 | 8.4 | 13.7 | 56.6 (148) | 31.2 (269, 44%) | 1.81x |
+| 4096 | 16.8 | 27.3 | 104.9 (160) | 45.9 (365, 59%) | 2.29x |
+| 8192 | 33.6 | 54.6 | 200.6 (167) | 76.4 (439, 71%) | 2.63x |
+| 16384 | 67.1 | 109.3 | 393.1 (171) | 134.7 (498, 81%) | 2.92x |
+
+Per-launch GPU-timestamp trace of real decode (`INTARSIA_METAL_PROFILE=kernel`, last 128 steps, `trace/attn-trace.md`; each launch is its own command buffer, so Metal's fixed per-buffer cost and idle-GPU clock state are in the figure, more for the two-dispatch launch than for the old single dispatch):
+
+| context | build | us/call (median, p10-p90) | ms/token (36 calls) | GB/s |
+|---|---|---:|---:|---:|
+| 1k (968 tok) | before | 37.6 (36.3-38.8) | 1.35 | 112 |
+| 1k (968 tok) | after | 35.6 (32.7-36.6) | 1.28 | 119 |
+| 4k (4062 tok) | before | 110.0 (108.5-111.8) | 3.96 | 154 |
+| 4k (4062 tok) | after | 57.1 (56.3-58.8) | 2.06 | 296 |
+| 16k (16578 tok) | before | 404.9 (402.5-410.5) | 14.58 | 168 |
+| 16k (16578 tok) | after | 145.8 (143.7-152.6) | 5.25 | 468 |
+
+At 4k and 16k the trace agrees with the microbench within the fixed per-buffer cost; at 1k it hides most of the gain (35.6 vs 20.7 us). The localeval figures are the end-to-end truth.
+
+### localeval (run `20261014-133256-adhoc-intarsia-metal-bf16-b2attn`, same arguments as b1)
+
+`--sizes 128,1024,4096 --gen 256 --reps 3 --thinking off`, `intarsia serve --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`, fleetq #1828. Decode tok/s, median (min-max):
+
+| prompt (tok) | b1 (`20261014-100122`) | b2a | change | mlx-lm | llama.cpp |
+|---|---:|---:|---:|---:|---:|
+| ~128 (114) | 32.7 | 32.6 (32.4-32.8) | -0.3% | 34.4 | 34.8 |
+| ~1k (991) | 32.5 | 32.8 (32.7-33.0) | +0.9% | 33.8 | 33.4 |
+| ~4k (4110) | 30.1 | 31.7 (31.6-31.8) | +5.3% | 31.0 | 31.7 |
+
+Verdict of `localeval compare` (b1 vs b2a): every row noise or overhead-dominated, including decode 4k +5.3 percent and peak decode +6.2 percent. Prefill is unchanged by design (298 / 341 / 223 tok/s; prefill attention is out of scope). Decode at 4k is now about 78 percent of the weights-plus-KV floor (b1: 74 percent).
+
+### Correctness
+
+* `cargo test -p intarsia-backend-metal --release`: all pass (unit 5, attention 10, dense 8, fill 6, gemv 6, wrap_host 3). New attention tests: split-KV against the f64 reference over GQA groups 1/2/3/4/5/6/8 and 9, 16 (fallback), head_dim 8/16/32/64/128/256 and non-power-of-two (96, 30: fallback), contexts 1, 17, 128, 129, 1k, 4k, ~16k, 16-byte-aligned offsets and odd element offsets (fallback); worst error 0.73-0.95 of the half-bf16-ulp tolerance, as for the old kernel. Determinism and agreement with the single-pass kernel (< 2 percent), device-position equivalence at positions 0..4095 with 1 to 15 splits (60 for the 2-kv-head shape), clamping, missing/short scratch rejected, predicate and scratch declaration (independent of the context length).
+* `intarsia kernels test --backend metal -m /Users/josef/models/Qwen3-8B`: 17 kernels, 196 cases, all ADMITTED, including `attn_decode_bf16_splitkv` (15 cases = 3 head configs x positions 0, 7, 40, 2000, 5000 from `intarsia-core/src/admission.rs`, so the 2-pass combine path is compared with the cpu oracle; max_abs 3.356e-3, rel_l2 2.358e-4, identical to `attn_decode_bf16` because the worst element is the output's bf16 rounding) (`checks/kernels-test.out`).
+* The registry picks the new kernel in real decode: the `new` kernel traces hold 4608 `attn_decode_bf16_splitkv` records (36 layers x 128 steps) and no `attn_decode_bf16` one.
+* Greedy `generate` (48 tokens, temperature 0) on Qwen3-8B with the 122-token, 968-token and 4062-token prompts: token ids identical between the `40996bb` binary and the new one (`identity/`, the `ids:` line of the `.err` files; `.out` byte-identical). These prompts are repetitive, so 48 identical tokens are weak evidence on their own; the kernel-level error above is the stronger one, and a different split count changes rounding order only.
+* `cargo check --workspace` passes.
+
+### Limits and left undone
+
+* Up to about 224 visible keys the old single-pass kernel is 0-3 us per call faster (11.8 vs 10.3 us at 128 keys, 36 calls per token, at most 0.1 ms/token or 0.3 percent of decode). Not worth a second selection path for now: the registry cannot see the context length (`kv_len` in a plan probe would break graph validity) and a launcher-side switch would leave the one-split direct path without test coverage.
+* At 4k the call is 59 percent of the byte floor. Skipping the score shuffles or the exps changes the time by under 5 percent (`sweep/alu-experiments.log`), so it is not ALU-bound; U (loads in flight per lane) 4 and 8 and 2 or 8 simdgroups per threadgroup were slower than the shipped 2 / 4 at 4k and 16k (`sweep/usg-v2.log`). What is left is the fixed ramp/tail of two serial dispatches (about 10 us at 4k) and DRAM efficiency; folding the combine into the next op or a one-dispatch last-block-combines variant (needs an atomic counter) are the next ideas.
+* The head_dim 8 path (one lane per key) and group 5/6 paths are tested for correctness only, not tuned.
+* The 16k trace needs `--max-seq 17000` (KV about 2.4 GB at 16.6k).
+* Bit-for-bit equality of host and device-position launches is not provided (see Design); `OpCall::pos` is not used by the Metal engine path today (no graph replay).
+* Tuning sweeps used `INTARSIA_METAL_SPLITKV_U` / `_X` experiment knobs; they were removed before the final build (the sweep logs remain as raw data; `sweep/usg-v2.log` and `sweep/alu-experiments.log` come from the intermediate commit "template U variants and tuning knobs (WIP)").

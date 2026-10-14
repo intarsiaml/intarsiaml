@@ -26,10 +26,10 @@ pub struct OpP {
 }
 
 /// One tensor bound to a shader argument: the MTLBuffer, the 4-byte aligned byte offset, the leftover elements.
-struct Bind {
-    mtl: MtlBuffer,
-    off: usize,
-    skip: u32,
+pub(crate) struct Bind {
+    pub(crate) mtl: MtlBuffer,
+    pub(crate) off: usize,
+    pub(crate) skip: u32,
 }
 
 /// Threads per threadgroup of the row-reduction kernels (rmsnorm, argmax): a multiple of 32, at most 1024.
@@ -57,7 +57,7 @@ fn dim(v: usize, what: &str) -> Result<u32> {
 }
 
 impl MetalBackend {
-    fn bind(&self, t: &TensorRef, dt: DType, write: bool, what: &str) -> Result<Bind> {
+    pub(crate) fn bind(&self, t: &TensorRef, dt: DType, write: bool, what: &str) -> Result<Bind> {
         if t.dtype != dt {
             return Err(Error::invalid(format!("metal {what}: expected {dt}, got {}", t.dtype)));
         }
@@ -380,12 +380,13 @@ impl MetalBackend {
                     )
                 })
             }
+            ATTN_DECODE_BF16_SPLITKV => self.launch_attn_splitkv(call),
             other => Err(Error::NoKernel(format!("metal kernel '{other}' for op '{}'", call.op))),
         }
     }
 
     /// The device-side position tensor of `Rope` / `KvAppend` (`OpCall::pos`) as a binding plus the shader's flag.
-    fn pos_bind(&self, call: &OpCall) -> Result<(Option<Bind>, u32)> {
+    pub(crate) fn pos_bind(&self, call: &OpCall) -> Result<(Option<Bind>, u32)> {
         match &call.pos {
             Some(p) => Ok((Some(self.bind(p, DType::I32, false, "pos")?), 1)),
             None => Ok((None, 0)),

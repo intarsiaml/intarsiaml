@@ -102,6 +102,16 @@ pub const ATTN_DECODE_BF16: &str = "attn_decode_bf16";
 /// `AttnDecode` with 16-byte loads (head_dim a power of two in 8..=256, 16-byte aligned K / V caches); the launcher of
 /// `attn_decode_bf16` picks it, it is not a separate registry entry.
 pub const ATTN_DECODE_BF16_V8: &str = "attn_decode_bf16_v8";
+/// `AttnDecode`, GQA-grouped split-KV (attention_splitkv.metal, launcher attn.rs): stage 1 `attn_decode_bf16_splitkv_g{GP}`
+/// (GP = query heads per kv head rounded up to a power of two) and the combine pass. Needs scratch.
+pub const ATTN_DECODE_BF16_SPLITKV: &str = "attn_decode_bf16_splitkv";
+pub const ATTN_DECODE_SPLITKV_SHADERS: [&str; 5] = [
+    "attn_decode_bf16_splitkv_g1",
+    "attn_decode_bf16_splitkv_g2",
+    "attn_decode_bf16_splitkv_g4",
+    "attn_decode_bf16_splitkv_g8",
+    "attn_decode_bf16_combine",
+];
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
 /// `Backend::zero` / `Backend::copy` kernels (copy.metal): 16-byte vector forms plus byte forms for the unaligned rest.
@@ -122,6 +132,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
+    v.extend(ATTN_DECODE_SPLITKV_SHADERS);
     v
 }
 
@@ -144,6 +155,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ARGMAX_BF16, Op::Argmax),
     (ATTN_PREFILL_BF16, Op::AttnPrefill),
     (ATTN_DECODE_BF16, Op::AttnDecode),
+    (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -193,6 +205,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL),
+                // GQA-grouped split-KV decode (each K / V row read once per step, the sequence spread over
+                // threadgroups): needs scratch for the partials; ranks above the single-pass kernel.
+                ATTN_DECODE_BF16_SPLITKV => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::attn::splitkv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10)
+                    .scratch(crate::attn::splitkv_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -216,9 +238,13 @@ mod tests {
 
     #[test]
     fn attention_is_registered_for_both_ops() {
-        for op in [Op::AttnPrefill, Op::AttnDecode] {
-            assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), 1, "{op}");
+        // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
+        for (op, n) in [(Op::AttnPrefill, 1), (Op::AttnDecode, 2)] {
+            assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));
+        for s in ATTN_DECODE_SPLITKV_SHADERS {
+            assert!(shader_names().contains(&s), "{s}");
+        }
     }
 }

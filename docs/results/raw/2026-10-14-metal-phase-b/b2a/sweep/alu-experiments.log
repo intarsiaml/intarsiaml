@@ -1,0 +1,36 @@
+== normal
+     128 attn_decode_bf16_splitkv        24.3      16.0      32.3       22   (4% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        30.8      30.8      31.6      136   (22% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        47.4      46.6      53.6      354   (58% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       148.0     147.5     148.6      453   (74% of 614 GB/s)
+== X=1 no shuffle reduce
+     128 attn_decode_bf16_splitkv        17.1      11.9      20.6       31   (5% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        22.9      22.9      24.9      183   (30% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        45.5      45.3      46.1      369   (60% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       141.2     140.7     142.0      475   (77% of 614 GB/s)
+== X=2 no exp
+     128 attn_decode_bf16_splitkv        15.5      15.2      30.6       34   (6% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        30.0      29.9      40.0      140   (23% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        45.3      45.2      45.8      370   (60% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       146.2     145.7     146.8      459   (75% of 614 GB/s)
+== nsplit=1 (no combine), SG=4
+     128 attn_decode_bf16_splitkv        16.1      16.0      32.0       33   (5% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        79.8      79.6      80.1       53   (9% of 614 GB/s)
+== nsplit=1 (no combine), SG=8
+     128 attn_decode_bf16_splitkv        11.9      11.8      54.1       44   (7% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        45.7      45.6      45.9       92   (15% of 614 GB/s)
+== SG=2
+     128 attn_decode_bf16_splitkv        24.6      24.5      24.8       21   (3% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        31.8      31.7      32.5      132   (21% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        71.0      69.9      74.4      236   (39% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       177.3     176.4     178.0      378   (62% of 614 GB/s)
+== SG=2 target 640
+     128 attn_decode_bf16_splitkv        24.6      24.6      40.4       21   (3% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        31.8      31.8      32.2      132   (21% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        70.2      69.7      74.1      239   (39% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       194.0     190.4     196.8      346   (56% of 614 GB/s)
+== SG=4 target 640
+     128 attn_decode_bf16_splitkv        16.1      16.0      17.3       33   (5% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        23.2      23.1      31.2      181   (29% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        56.9      56.6      58.0      295   (48% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       168.5     166.7     172.7      398   (65% of 614 GB/s)
