@@ -1,0 +1,14 @@
+fleetq: #1750 running on spark1: scripts/cuda-decode/mutate.sh down-order down-round down-h down-invalid down-scale
+applied down-order to ./kernels/cuda/moe_decode.cu
+KILLED   down-order: moe_experts_decode_matches_old_kernel result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.62s 
+applied down-round to ./kernels/cuda/moe_decode.cu
+KILLED   down-round: moe_experts_decode_matches_old_kernel result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.60s 
+applied down-h to ./kernels/cuda/moe_decode.cu
+KILLED   down-h: moe_experts_decode_matches_old_kernel result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.59s 
+applied down-invalid to ./kernels/cuda/moe_decode.cu
+KILLED   down-invalid: moe_experts_decode_matches_old_kernel result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.82s 
+applied down-scale to ./kernels/cuda/moe_decode.cu
+KILLED   down-scale: moe_experts_decode_matches_old_kernel result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.61s 
+unmutated: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+test result: ok. 10 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 3.32s
+fleetq: #1750 done (exit 0)
