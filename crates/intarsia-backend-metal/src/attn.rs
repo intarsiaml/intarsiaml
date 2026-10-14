@@ -6,7 +6,8 @@
 //!
 //! The split count comes from the number of visible keys only (never from the data), so a call is run-to-run identical.
 //! `decode_splits` is the host copy of the shader's `ask_nsplit`; the shader recomputes it from the clamped position, so
-//! a host `pos0` and a device-side position (`OpCall::pos`) give bit-identical results.
+//! a host `pos0` and a device-side position (`OpCall::pos`) use the same split count (they may differ in simdgroups per
+//! threadgroup, so their results agree up to rounding order, not bit for bit).
 
 use crate::dense::OpP;
 use crate::kernels::*;
@@ -18,14 +19,16 @@ use std::sync::OnceLock;
 /// Most splits a launch uses (the scratch bound `splitkv_scratch` and the shader's grid are sized by it).
 pub const MAX_SPLIT: usize = 64;
 /// Split policy defaults: a split holds at least `MIN_KEYS` keys, and splitting stops once `nkv x nsplit` reaches
-/// `TARGET_TGS` threadgroups (docs/results/2026-10-14-metal-phase-b.md, "Phase B part 2a").
+/// `TARGET_TGS` threadgroups (docs/results/2026-10-14-metal-phase-b.md, "Phase B part 2a"): 120 = 3 threadgroups of 4 simdgroups per core of a 40-core GPU, more than a wave costs 20 percent.
 const MIN_KEYS: usize = 128;
-const TARGET_TGS: usize = 160;
+const TARGET_TGS: usize = 120;
 /// Largest query-head group per kv head the kernels take (`GP` of the shader).
 const MAX_GROUP: usize = 8;
 /// Threadgroup accumulator floats of the shader (`ASK_TG_FLOATS`): `nsg * GP * D` must fit.
 const TG_FLOATS: usize = 4096;
 const MAX_SG: usize = 8;
+/// At most this many threadgroups in the grid: use `MAX_SG` simdgroups per threadgroup, else `MAX_SG / 2`.
+const FEW_TGS: usize = 64;
 
 /// `(min_keys, target_tgs)`; `INTARSIA_METAL_SPLITKV=<min_keys>,<target>` overrides them (diagnostic for sweeps, it
 /// changes the rounding order of the result like any other split count).
@@ -37,16 +40,6 @@ fn policy() -> (usize, usize) {
             Some((a.trim().parse::<usize>().ok()?.max(1), b.trim().parse::<usize>().ok()?.max(1)))
         });
         parsed.unwrap_or((MIN_KEYS, TARGET_TGS))
-    })
-}
-
-/// TEMPORARY tuning knobs: (index of the units-in-flight variant 0..3 = 2 / 4 / 8, simdgroup cap).
-fn tuning() -> (usize, usize) {
-    static P: OnceLock<(usize, usize)> = OnceLock::new();
-    *P.get_or_init(|| {
-        let u = std::env::var("INTARSIA_METAL_SPLITKV_U").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(2);
-        let sg = std::env::var("INTARSIA_METAL_SPLITKV_SG").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(MAX_SG);
-        (match u { 4 => 1, 8 => 2, _ => 0 }, sg.clamp(1, MAX_SG))
     })
 }
 
@@ -146,10 +139,11 @@ impl MetalBackend {
         };
         u32_of(nkv * cap * d, "Nkv*cap*D")?;
         let gp = grp.next_power_of_two();
-        let (u, sg_cap) = tuning();
-        let nsg = (TG_FLOATS / (gp * d)).clamp(1, MAX_SG).min(sg_cap);
-        let name1 = ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize * 3 + u];
-        let name2 = ATTN_DECODE_SPLITKV_SHADERS[12];
+        // few threadgroups (short context): 8 simdgroups each put more loads in flight; a full wave of them: 4, which
+        // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
+        let nsg = if use_dev == 0 && nkv * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
+        let nsg = nsg.min((TG_FLOATS / (gp * d)).max(1));
+        let (name1, name2) = (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         // with one split stage 1 writes the output itself; a device position decides that on the GPU

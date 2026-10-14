@@ -350,12 +350,22 @@ fn splitkv_is_deterministic_and_close_to_single_pass() {
     assert!(worst < 0.02, "split-KV vs single-pass: worst relative difference {worst}");
 }
 
-/// Host `pos0` and the device position tensor give bit-identical results (the kernels re-derive the split count from the
-/// clamped position), a position past the cache is clamped, and the host attribute only bounds the call.
+/// Elementwise within one bf16 ulp (the host and device launches may pick different threadgroup shapes, so their
+/// rounding order differs).
+fn assert_close(a: &[u16], b: &[u16], what: &str) {
+    for (i, (x, y)) in a.iter().zip(b).enumerate() {
+        let (x, y) = (bf16_to_f32(*x), bf16_to_f32(*y));
+        assert!((x - y).abs() <= 2f32.powi(-7) * x.abs().max(y.abs()) + 1e-6, "{what}: element {i}: {x} vs {y}");
+    }
+}
+
+/// The device position tensor decides: host `pos0` and tensor agree up to rounding order (same split count, the
+/// threadgroup shape may differ), the attribute only bounds the call (results with the same tensor are bit-identical),
+/// a position past the cache is clamped.
 #[test]
 fn splitkv_device_position() {
     for off in [[0; 4], [2; 4]] {
-        // cap 4096 so that the position can pick 1, 3 and 32 splits; D = 128 and 64
+        // cap 4096 so that the position can pick 1, 3 and 15 splits; D = 128 and 64
         for (n, nkv, d) in [(32, 8, 128), (8, 2, 64)] {
             let cs = c(1, n, nkv, d, 0, 4096, off);
             let r = setup(&cs, 600);
@@ -378,13 +388,16 @@ fn splitkv_device_position() {
             };
             for pos in [0usize, 100, 127, 128, 129, 700, 4000, 4095] {
                 let host = launch(pos, None);
-                assert_eq!(host, launch(pos, Some(pos as i32)), "pos {pos}: device position == host position");
+                let dev = launch(pos, Some(pos as i32));
+                assert_close(&host, &dev, &format!("pos {pos}: device position vs host position"));
                 // the tensor decides, the attribute (here: a different position) only bounds the call
-                assert_eq!(launch(10, Some(pos as i32)), host, "pos {pos}: attribute 10, tensor decides");
+                assert_eq!(launch(10, Some(pos as i32)), dev, "pos {pos}: attribute 10, tensor decides");
+                assert_eq!(launch(pos, Some(pos as i32)), dev, "pos {pos}: run-to-run");
             }
             assert_ne!(launch(10, None), launch(4000, None));
-            assert_eq!(launch(0, Some(5000)), launch(4095, None), "position past the cache is clamped to cap");
-            assert_eq!(launch(0, Some(-3)), launch(0, None), "a negative position sees one key");
+            assert_eq!(launch(0, Some(5000)), launch(0, Some(4095)), "position past the cache is clamped to cap");
+            assert_close(&launch(0, Some(5000)), &launch(4095, None), "clamped position vs host cap");
+            assert_close(&launch(0, Some(-3)), &launch(0, None), "a negative position sees one key");
         }
     }
 }

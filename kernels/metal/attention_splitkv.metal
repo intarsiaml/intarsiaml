@@ -13,8 +13,9 @@
 // stream per query head. Scores are kept in the log2 domain (q is pre-multiplied by scale * log2(e)). The slots of a
 // simdgroup are merged with simd_shuffle_xor, the simdgroups through threadgroup memory.
 //
-// Split policy (one function on host and device, so a call is bit-identical whether the position comes from OpP or from
-// the device tensor): nsplit = clamp(min(ceil(visible / min_keys), ceil(target_tgs / Nkv)), 1, max_split); the split
+// Split policy (one function on host and device: the split count depends only on the clamped position, whether it comes
+// from OpP or from the device tensor; the host may pick another threadgroup shape, so the two paths agree up to rounding
+// order): nsplit = clamp(min(ceil(visible / min_keys), ceil(target_tgs / Nkv)), 1, max_split); the split
 // chunk is ceil(visible / nsplit) rounded up to ASK_CHUNK_ALIGN keys, so trailing splits may be empty. With nsplit == 1
 // stage 1 writes the bf16 output itself and stage 2 is not needed (the launcher skips it for a host position; for a
 // device position it runs and returns immediately). Otherwise stage 1 writes the unnormalised partial accumulator
@@ -30,6 +31,7 @@
 
 constant constexpr uint ASK_MAX_SG = 8;        // simdgroups per stage-1 threadgroup, at most
 constant constexpr uint ASK_TG_FLOATS = 4096;  // threadgroup accumulator floats: nsg * GP * D must fit (launcher checks)
+constant constexpr uint ASK_U = 2;             // units of work (KPS keys) in flight per simdgroup step
 constant constexpr uint ASK_CHUNK_ALIGN = 32;  // split chunks are a multiple of this many keys
 constant constexpr float ASK_LOG2E = 1.4426950408889634f;
 
@@ -55,7 +57,7 @@ inline ulong ask_chunk(ulong visible, uint nsplit) {
     return (c + ASK_CHUNK_ALIGN - 1) / ASK_CHUNK_ALIGN * ASK_CHUNK_ALIGN;
 }
 
-template <uint GP, uint U>
+template <uint GP>
 kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
                                   device const ushort* kc [[buffer(1)]],
                                   device const ushort* vc [[buffer(2)]],
@@ -106,17 +108,17 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
     }
 
     const ulong units = (end - start + kps - 1) / kps;
-    for (ulong u0 = sg; u0 < units; u0 += (ulong)nsg * U) {
-        uint4 kr[U], vr[U];
-        bool ok[U];
-        for (uint u = 0; u < U; ++u) {  // all loads first: they are independent and hide each other's latency
+    for (ulong u0 = sg; u0 < units; u0 += (ulong)nsg * ASK_U) {
+        uint4 kr[ASK_U], vr[ASK_U];
+        bool ok[ASK_U];
+        for (uint u = 0; u < ASK_U; ++u) {  // all loads first: they are independent and hide each other's latency
             const ulong j = start + (u0 + (ulong)u * nsg) * kps + slot;
             ok[u] = j < end;
             kr[u] = ok[u] ? kb[j * row4] : uint4(0);
             vr[u] = ok[u] ? vb[j * row4] : uint4(0);
         }
-        float sc[U][GP];
-        for (uint u = 0; u < U; ++u) {
+        float sc[ASK_U][GP];
+        for (uint u = 0; u < ASK_U; ++u) {
             float kf[8];
             ask_unpack8(kr[u], kf);
             for (uint g = 0; g < GP; ++g) {
@@ -125,17 +127,17 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
                 sc[u][g] = dot;
             }
         }
-        for (uint u = 0; u < U; ++u)
+        for (uint u = 0; u < ASK_U; ++u)
             for (uint g = 0; g < GP; ++g)
                 for (uint o = 1; o < lpk; o <<= 1) sc[u][g] += simd_shuffle_xor(sc[u][g], (ushort)o);
-        float pr[U][GP];
+        float pr[ASK_U][GP];
         for (uint g = 0; g < GP; ++g) {
             float m_new = m[g];
-            for (uint u = 0; u < U; ++u) m_new = max(m_new, ok[u] ? sc[u][g] : -INFINITY);
+            for (uint u = 0; u < ASK_U; ++u) m_new = max(m_new, ok[u] ? sc[u][g] : -INFINITY);
             // a slot whose keys are all past the end keeps m = -inf; its score -inf must not meet m_new = -inf
             const float corr = m_new == -INFINITY ? 1.0f : exp2(m[g] - m_new);
             float psum = 0.0f;
-            for (uint u = 0; u < U; ++u) {
+            for (uint u = 0; u < ASK_U; ++u) {
                 pr[u][g] = (ok[u] && m_new != -INFINITY) ? exp2(sc[u][g] - m_new) : 0.0f;
                 psum += pr[u][g];
             }
@@ -143,7 +145,7 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
             m[g] = m_new;
             for (uint i = 0; i < 8; ++i) acc[g][i] *= corr;
         }
-        for (uint u = 0; u < U; ++u) {
+        for (uint u = 0; u < ASK_U; ++u) {
             float vf[8];
             ask_unpack8(vr[u], vf);
             for (uint g = 0; g < GP; ++g)
@@ -197,22 +199,14 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
     }
 }
 
-#define ASK_INST(GP, U)                                                                                        \
-    template [[host_name("attn_decode_bf16_splitkv_g" #GP "u" #U)]] kernel void attn_decode_splitkv_t<GP, U>(  \
+#define ASK_INST(GP)                                                                                           \
+    template [[host_name("attn_decode_bf16_splitkv_g" #GP)]] kernel void attn_decode_splitkv_t<GP>(            \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device const int*, \
         device float*, constant OpP&, uint2, uint, uint, uint);
-ASK_INST(1, 2)
-ASK_INST(1, 4)
-ASK_INST(1, 8)
-ASK_INST(2, 2)
-ASK_INST(2, 4)
-ASK_INST(2, 8)
-ASK_INST(4, 2)
-ASK_INST(4, 4)
-ASK_INST(4, 8)
-ASK_INST(8, 2)
-ASK_INST(8, 4)
-ASK_INST(8, 8)
+ASK_INST(1)
+ASK_INST(2)
+ASK_INST(4)
+ASK_INST(8)
 #undef ASK_INST
 
 // Stage 2: one threadgroup per query head, one thread per output dim (threads == D). Combines the nsplit partials in
