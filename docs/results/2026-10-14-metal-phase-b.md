@@ -333,15 +333,15 @@ fleetq jobs: #1810, #1811, #1815-#1818, #1820, #1824, #1826, #1827, #1830-#1836 
 
 - **Phase B exit status:**
   - ≥ 90% of mlx-lm: met everywhere (98-107%).
-  - Not below llama.cpp: met at 4k (+4%), a tie at 1k (-0.6%), and 1.4% short at 128.
+  - Not below llama.cpp: indicative only. Merged is +4% at 4k, -0.6% at 1k and -1.4% at 128, but that is one retry run against a baseline taken 7 hours earlier in a different machine state. Closing this criterion needs llama.cpp and intarsia measured back to back in one fleetq slot, with nothing else on the GPU.
   - ≥ 85% of byte floor: not met (81.5-84.5%).
 - **Prefill** (marginal) is 347 tok/s at 1k and 203 at 4k, against mlx-lm 3189 at 4k. Unchanged by part 2.
-- **The first merged run was discarded.** Run `intarsia-metal-bf16-b2merged`, fleetq #1840, unanimis `e97945ab`, gave 26-27 tok/s. A `generate` probe with the same binary and command gave 33.6 tok/s at 14:04, 28.3 tok/s at 14:12 and 33.9 tok/s at 14:15, so the slowdown came from the machine, not the code. The source was not identified: there was no thermal warning, the GPU was 2-4% busy when idle, and `endor-kev` / `endor-tensorfold` have no health check. The retry (#1844) is the result above; all numbers are single runs.
+- **The first merged run was discarded.** Run `intarsia-metal-bf16-b2merged`, fleetq #1840, unanimis `e97945ab`, gave 26-27 tok/s. A `generate` probe with the same binary and command gave 33.6 tok/s at 14:04, 28.3 tok/s at 14:12 and 33.9 tok/s at 14:15, so the slowdown came from the machine, not the code. The likely source is Zoom. `zoom.us` had been running since about 11:46, and video encode/decode contends for the GPU intermittently. There was no thermal warning, and the GPU was 2-4% busy between runs. This also splits today's series: the baselines (07:25) and b1 (10:01) ran before Zoom started, while 2a (13:32), 2b (13:52) and both merged runs ran during it. Cross-run deltas therefore span a change in machine state; for example, merged is about 0.5 ms/token faster than 2a and 2b combined would predict. The retry (#1844) is the result above; all numbers are single runs.
 
 **Correctness of the merge:**
 - `cargo test -p intarsia-backend-metal --release` and `cargo test --workspace --release --exclude intarsia-backend-metal` pass.
 - `intarsia kernels test --backend metal -m Qwen3-8B`: 18 kernels, 202 cases, all ADMITTED (#1838).
-- Greedy token ids are identical to `40996bb` for 48 tokens on the short, 1k and 4k prompts, and for 256 tokens on the 4k prompt. The 256-token short prompt diverges at about token 42. That prompt is a synthetic list of near-tie phrasings ("counted" vs "remembered").
+- Greedy token ids are identical to `40996bb` for 48 tokens on the short, 1k and 4k prompts, and for 256 tokens on the 4k prompt. The 256-token short prompt first diverges at generated token 49 (id 26471 vs 29994, from the `--show-ids` lists), just past the 48-token window. This is expected: 2a's split-KV kernel replaces the old decode kernel at every context length (the traces show no plain `attn_decode_bf16`), its reduction order differs, so rounding moves and a near-tie eventually flips. The evidence is the decode-only KL shift below.
 - Golden accuracy (`--gate-class bf16`, #1839), merged vs `40996bb`: both PASS. The short golden's decode KL rises from 3.639e-4 to 3.890e-4 (top-1 100%), and the long golden goes from 3.637e-4 to 3.627e-4. Prefill is identical. The decode-only shift fits split-KV's different summation order (2a). 2b alone was bitwise identical.
 
 **Before merging to main:**
