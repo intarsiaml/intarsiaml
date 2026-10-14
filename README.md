@@ -6,8 +6,8 @@ The engine is under active development. It runs Qwen3 dense models and the hybri
 (Qwen3.6-35B-A3B NVFP4) on a CPU reference backend, on CUDA (DGX Spark, GB10) and on HIP (AMD R9700), behind OpenAI
 and Anthropic compatible APIs. Status as measured on 2026-10-13 (`docs/results/`, decisions in `docs/decisions/`):
 
-- spark1, CUDA, 35B NVFP4: decode 80.3 / 79.7 / 77.0 tok/s at 128 / 1024 / 4096 tokens with CUDA graphs and fused decode ops, above vLLM's 76-78
-  (`docs/results/2026-10-14-cuda-decode-fusion.md`; vLLM not re-measured). Prefill chunk 2048 is now the
+- spark1, CUDA, 35B NVFP4: decode 80.3 / 79.7 / 77.0 tok/s at 128 / 1024 / 4096 tokens with CUDA graphs and fused decode ops, vs vLLM's 75.9 / 76.7 / 75.1 re-measured 2026-10-13 with the same client (+5.8% / +3.9% / +2.5%; the 4096 margin is within noise)
+  (`docs/results/2026-10-14-cuda-decode-fusion.md`). Prefill chunk 2048 is now the
   recipe default on CUDA (63b0f72): 4654 tok/s at 4k tokens against vLLM's 6595, so 1.42x behind (2.75x before); 3891 vs
   5631 at 1k, 4310 vs 6412 at 16k (`docs/results/2026-10-13-prefill-cuda.md`). The Phase 1 speed gate FAILED.
 - R9700, HIP, one card: Qwen3-8B BF16 decode 36.9 tok/s, 96% of the byte floor; 35B NVFP4 decode 135.2 tok/s at 128

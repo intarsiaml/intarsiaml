@@ -179,3 +179,27 @@ first `mutate.py` order mutation was an equivalent mutant on the test data (sect
 Files: `kernels/cuda/{matmul,fp8,nvfp4,norm,moe_decode,elementwise}.cu`, `ik_launch.h`, `kernels/abi/ik_abi.h`,
 `crates/intarsia-backend-cuda/src/{quantmoe,device_quantmoe,kernels}.rs`, `tests/{fused_decode,quantmoe}.rs`,
 `scripts/cuda-decode/*`.
+
+## vLLM re-measured 2026-10-13
+
+Measured 2026-10-13 20:57-21:00 EDT on spark1 with vLLM left up (container `missioncntrl-guidance`, id `guidance`, root
+`nvidia/Qwen3.6-35B-A3B-NVFP4`, vLLM 0.26.1rc1.dev602+g65b7662d3, the model the engine runs), nothing else running (fleetq #1761
+exclusive, GPU idle). Same client and flags as the vLLM arm of `scripts/prefill-cuda/ab-vllm.sh`:
+`intarsia bench speed --url http://100.120.88.104:8000 --model guidance --sizes 128,1024,4096 --gen 128 --reps 5 --warmup 1 --thinking off`,
+run 3 times back to back (3 rounds, median of 5 reps per round; vLLM only, not interleaved with intarsia, which was last
+measured in the earlier windows). Cells are min / median / max of the 3 round values.
+
+| prompt tokens | vLLM decode tok/s | intarsia decode | intarsia / vLLM | vLLM prefill tok/s |
+|---|---|---|---|---|
+| 128 | 74.9 / 75.9 / 76.1 | 80.3 | 1.058x | 1526 / 1546 / 1549 |
+| 1024 | 76.0 / 76.7 / 77.4 | 79.7 | 1.039x | 5296 / 5338 / 5393 |
+| 4096 | 74.5 / 75.1 / 76.0 | 77.0 | 1.025x | 6267 / 6334 / 6485 |
+
+Cross-check with localeval (`localeval speed spark-guidance --sizes 128,1024,4096`, 3 reps, thinking default, unanimis
+a437db8e, result `/opt/code/deepeval/results/20261013-205919-spark-guidance-intarsiaml-vllm-remeasure`): decode 76.1 / 75.8 / 76.3,
+prefill 1395 / 5163 / 6357 tok/s. Consistent with the bench numbers.
+
+Result: vLLM is 75-77 tok/s decode, slightly below the earlier 76.2 / 77.6 / 76.4 (same tool). Intarsia is ahead at all three sizes, by
+5.8%, 3.9% and 2.5%. The 4096 margin is inside the roughly 5% decode noise band and intarsia's side was not re-run in the same
+session, so only 128 and 1024 are a clear lead; 4096 is parity-to-slightly-ahead. Prefill is unchanged: vLLM is far ahead
+(see `2026-10-13-prefill-cuda.md`). Raw logs: not committed (scratchpad); figures above are copied from them.
