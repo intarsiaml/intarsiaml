@@ -453,3 +453,90 @@ Marginal prefill is unchanged (4k: 207 vs 205 tok/s), as it should be: nothing i
 1. 4k is attention and small ops: 4k attention is 2.06 ms/token (59 percent of its byte floor) and the elementwise/row ops about 1.5 ms. Reaching 85 percent at 4k (34.5 tok/s, 29.0 ms) from 29.4 ms needs about 0.4 ms from there: the `QkNormRope` + KV-append fold (0.3 to 0.45 ms) or device-side greedy token feedback (about 0.3 ms of step-boundary idle).
 2. `MatmulTriple` (q, k, v as one dispatch): 36 fewer dispatch drains, 0.1 to 0.2 ms.
 3. Not done or not tried: a persistent grid, cross-threadgroup split-K, 32-byte (u16) loads per lane, realignment (rejected on the data above), the ADR-0009 text still names `r1u4s4` as the default (historical, left as written). fleetq jobs of this part: #1845 (microbench sweeps), #1846 (A/B, kernel traces, correctness checks), #1847 (aborted: bad output path), #1848 and #1849 (localeval pairs).
+
+## Phase B part 4: qk-norm / rope / KV fold
+
+Branch `spike/metal` on `48fd9ca`, code in `2ed47c2`. Host endor (Apple M5 Max 40c, 614 GB/s nominal, macOS 27.0), `/Users/josef/models/Qwen3-8B` BF16. Raw logs and scripts: `docs/results/raw/2026-10-14-metal-phase-b/b4/`.
+
+**Outcome.** One new optional fused op, `QkNormRopeKv`, replaces the six per-layer launches qk_norm(q), rope(q), qk_norm(k), rope(k), kv_append(k), kv_append(v) with one. **Decode dispatches per step 544 -> 364** (-180, 36 layers x 5). The output is **bitwise unchanged**: same greedy ids at 48 and 256 tokens on both prompts, and the accuracy numbers equal B3's to the printed digit. Stream time per token falls **0.66 ms at 128 context and 0.46 ms at 4k** (interleaved A/B, 4 pairs each). localeval decode, pre and after back to back in one slot, then a second pair in reversed order: **35.7 / 35.3 / 34.3 tok/s at 128 / 1k / 4k = 87.9 / 86.9 / 84.5 percent of the 40.6 tok/s byte floor** (B3: 86.0 / 84.7 / 82.3). 128 and 1k clear the 85 percent exit; **4k misses it by 0.5 points** (34.3 against 34.5 tok/s). The fold was the 0.3-0.45 ms lever from part 2b and delivered more than that (its estimate was per removed dispatch, the dependent-launch tails add to it); what is left at 4k is attention (2.06 ms/token in part 3), not launches.
+
+### 1. Op design and why
+
+`Op::QkNormRopeKv` (`crates/intarsia-core/src/ops.rs`, appended last in `Op` and `ALL` so every existing op keeps its admission-sweep seed):
+
+| inputs | outputs | attrs |
+|---|---|---|
+| q `[T,N,D]`, k `[T,Nkv,D]`, v `[T,Nkv,D]`, q_w `[D]`, k_w `[D]` (one float dtype) | q_out `[T,N,D]`, k cache `[Nkv,cap,D]`, v cache (both **in place**, like `KvAppend`) | eps, w_offset, theta, rotary_dim, pos0 or `OpCall::pos` (device-side position), kv_cap, n_kv_heads, head_dim |
+
+Defined as exactly `q_out = Rope(QkNorm(q, q_w))`, `KvAppend(Rope(QkNorm(k, k_w)), k cache)`, `KvAppend(v, v cache)`, including the rounding of every intermediate to the input dtype. The cpu implementation is that composition (`fused_ref.rs`, used by both `ref_` and `cpu_f32_`, so the admission reference is the unfused ops by construction).
+
+**One op, not two.** The two-op split from part 2b (`QkNormRope` + `KvAppendPair`) removes 108 launches; the single op removes 180, and it needs no extra intermediate tensors: k never needs a workspace copy because only attention reads it, and attention reads the cache. The cost is a wider op (5 inputs, 3 outputs) and a requirement that both norms exist; models without q/k norms keep the unfused ops. Prefill is not special-cased: the same grid covers T rows (row t sits at `pos0 + t`), so the prefill chunk and both goldens exercise the fold.
+
+**Core change** (additive; the unfused path is untouched):
+- `ops.rs`: variant, arity (5,3), validation in `OpCall::check` (shapes, one dtype, caches agree, `pos0 + T <= cap`, even rotary dim), `ShapeInfo` (cache dtype in `weight`, as `AttnDecode`), device position allowed for the op.
+- `model.rs`: `qkv_fold` runs right after the q projection. It builds the call, asks `fused_ok` (the same fusion-off / `check` / `Registry::select` test `try_fused` does, now factored out and shared) and returns `false` before emitting anything if the op is not selectable; then the sequence continues exactly as before. If selectable it runs the k/v projections (the existing `MatmulPair` / `MatmulFp8Pair` via `kv_pair`, else two `proj`), then the fused op through `exec_pos` with the decode graph's device position. The order of the unfused fallback is unchanged. `qc` flips once and q_out lands in `ws.q[1 - qc]`, so attention and the output-gate buffer follow as before.
+- `admission.rs`: sweep cases (T 1/5/32, pos0 0/37, three head shapes including D=256, rotary 0 and D/4, w_offset 0 and 1, bf16 and f32; fp8 caches are not swept because an f32 versus f64 difference re-rounded into an fp8 step would fail for a reason that is not a kernel bug; `KvAppend`'s own cases cover fp8), plus the exact-shape label and case builder used by plan-time admission.
+- Tests that enumerate ops: the CUDA and HIP kernel-table coverage tests now list the op as not registered there (`UNIMPLEMENTED` in HIP, an exclusion in CUDA); `intarsia-models/tests/graphs.rs` counts the fused op for the cpu backend, which registers every op in `Op::ALL` (so the cpu now takes the fold too; its recording shows 2 `QkNormRopeKv` + 2 `AttnDecode` in place of 4 rope + 4 kv_append).
+
+**Metal kernel** `qk_norm_rope_kv_bf16` (`kernels/metal/qk_rope_kv.metal`, launcher in `dense.rs`): one threadgroup per (token, head) over N + 2 Nkv heads; q heads norm, rope and store to q_out; k heads norm, rope and store into cache row `pos0 + t`; v heads copy into the v cache row. `roundup32(D)` threads with element i on thread i, the layout `rmsnorm_bf16_ex1` (what `qk_norm_bf16` runs at D <= 256) uses, with the same fma / `simd_sum` / serial-partials reduction. The normed value is rounded to bf16 before the rotation (the unfused norm stores bf16 and rope reads it back); the rotation partner comes from threadgroup memory. The rope and cache-drop expressions are copied from `rope_bf16` / `kv_append_bf16`. Own parameter struct (`QkRopeKvP`, 80 bytes) because `OpP` has 5 skips and eight bf16 operands need eight. Predicate: bf16 activations and bf16 caches, even head_dim <= 256, bf16 q_out, any T; priority 10. Registered with `BF16_TOL` (1.5e-2 / 6e-3, the budget of the ops it fuses); the admission worst case is 1.5e-3 max_abs / 8.7e-5 rel_l2.
+
+### 2. Dispatches per step
+
+GPU-timestamp trace (`INTARSIA_METAL_PROFILE=cb:<file>`, `period.py`): **544 -> 364 dispatches per decode step** at both 128 and 4k context (the A/B logs print it in the fourth column). This is the only proof the fold is active rather than silently falling back (a fallback would also be bitwise); the engine takes it on all 36 layers.
+
+### 3. Interleaved A/B (fleetq #1854)
+
+`b4/ab.sh`: `pre` (a binary built from `48fd9ca` in its own target dir) against `fold` (`2ed47c2`), A B / B A alternating, 4 pairs per context, cb-mode trace of a 129-token forced decode (128 steps), GPU `Device Utilization %` read before each run (the script waits and resamples above 10; every run started at 10 or below). Step period / GPU busy, ms per token:
+
+| ctx | pair | pre idle % | pre period / busy | fold idle % | fold period / busy |
+|---|---:|---:|---|---:|---|
+| 128 | 1 | 10 | 28.862 / 28.541 | 10 | 28.128 / 27.816 |
+| 128 | 2 | 0 | 28.880 / 28.568 | 0 | 28.158 / 27.845 |
+| 128 | 3 | 10 | 28.665 / 28.383 | 10 | 28.105 / 27.820 |
+| 128 | 4 | 8 | 28.751 / 28.447 | 0 | 28.143 / 27.843 |
+| 128 | mean | | **28.790** / 28.485 | | **28.134** / 27.831 |
+| 4k | 1 | 0 | 29.624 / 29.325 | 0 | 29.166 / 28.851 |
+| 4k | 2 | 10 | 29.586 / 29.291 | 0 | 29.143 / 28.808 |
+| 4k | 3 | 0 | 29.586 / 29.301 | 10 | 29.117 / 28.821 |
+| 4k | 4 | 0 | 29.588 / 29.290 | 10 | 29.124 / 28.816 |
+| 4k | mean | | **29.596** / 29.302 | | **29.138** / 28.824 |
+
+Gain **0.656 ms (2.3 percent) at 128 and 0.458 ms (1.5 percent) at 4k** in the step period; every pair agrees within 0.1 ms. GPU idle per step is unchanged (0.3 ms: step boundary). That is 3.6 us per removed dispatch at 128 (180 removed) and 2.5 us at 4k; the 4k figure is smaller because the same fixed cost is paid while the longer attention shares less of the gap. Stream period against the 24.65 ms byte floor: 87.6 percent at 128, 84.6 percent at 4k. Logs: `b4/ab-short-1.log`, `b4/ab-4k-1.log`.
+
+### 4. localeval (fleetq #1857 pair 1, #1858 pair 2)
+
+`b4/leval4.sh` (the B3 `leval2.sh` with absolute output paths): `localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off` against `intarsia serve --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`, one slot per pair, idle utilization 8-10 percent before each server. Decode tok/s, median (min-max); % is of the 40.6 tok/s floor.
+
+| prompt tok | pair 1 pre | pair 1 fold | pair 2 fold (first) | pair 2 pre | fold, % floor | B3 after (649cc37 -> 7b491e1), % floor |
+|---|---:|---:|---:|---:|---:|---:|
+| ~128 | 34.9 (34.8-34.9) | **35.7** (35.6-35.7) | **35.6** (35.6-35.7) | 34.9 (34.5-35.0) | 87.9 / 87.7 | 34.9, 86.0 |
+| ~1k | 34.4 (34.3-34.5) | **35.3** (35.3-35.3) | **35.3** (34.6-35.3) | 34.4 | 86.9 / 86.9 | 34.4, 84.7 |
+| ~4k | 33.4 (32.6-33.6) | **34.3** (34.3-34.3) | **34.3** (34.3-34.3) | 33.3 (33.1-33.7) | 84.5 / 84.5 | 33.4, 82.3 |
+
+Gains +2.2 / +2.7 / +2.6 percent (pair 1) and +2.3 / +2.4 / +3.1 percent (pair 2); `localeval compare` marks them noise under its 10 percent speed threshold, but they repeat in both orders and match the stream A/B (-0.66 and -0.46 ms is +2.3 and +1.6 percent). The pre numbers reproduce B3's after numbers (34.9 / 34.4 / 33.4 against 34.9 / 34.4 / 33.4), so the machine state matches. Run ids (results under `/opt/code/deepeval/results/`, summaries copied to `b4/localeval*/`):
+- pair 1: `20261014-161833-adhoc-intarsia-metal-bf16-b4pre`, `20261014-162143-adhoc-intarsia-metal-bf16-b4fold`
+- pair 2 (reversed): `20261014-162453-adhoc-intarsia-metal-bf16-b4fold-r2`, `20261014-162800-adhoc-intarsia-metal-bf16-b4pre-r2`
+
+Two earlier attempts (#1855, #1856) produced no run: a relative output path failed after the servers were up, so no number comes from them.
+
+**Against the 85 percent exit:** 128 and 1k pass with margin (87.9 and 86.9); 4k is 84.5 percent, 0.2 tok/s (about 0.35 ms/token) short. Not widened: the remaining lever at 4k is the attention kernel (part 3: 2.06 ms/token, 59 percent of its byte floor).
+
+### 5. Correctness
+
+- `cargo test -p intarsia-backend-metal --release`: all pass, including `tests/qkv_fold.rs` (5 tests): the fused kernel against the unfused Metal sequence on identical data, comparing q_out and **the whole caches byte for byte** (untouched rows included; poisoned q_out). Cases: decode at pos 0 / 133 / 4000 / 8100 / 8191 with host and device positions, prefill T = 5 / 64 / 256 / 300 at several `pos0`, D = 64 / 96 / 128 / 256, rotary 0 and D/4, w_offset 0 and 1, theta up to 1e7, all bf16 operands at a 2-byte offset, and a device position at or past the cache end (rows dropped as `kv_append_bf16` does). One dispatch per launch is asserted. **The fold is bitwise the unfused Metal kernels in every case.**
+- `cargo test --workspace --release --exclude intarsia-backend-metal`: all pass (the one failure after adding the op, `graphs.rs`, is the updated recording count above). `cargo check --workspace`: ok on endor; `cargo check --workspace --all-targets` on Linux (spark1, git bundle, fleetq #1853): ok (`b4/linux-check.log`; the warnings in it are existing ones).
+- `intarsia kernels test --backend metal -m /Users/josef/models/Qwen3-8B` (#1852, `b4/kernels-test.out`): all kernels ADMITTED, including `qk_norm_rope_kv_bf16` (36 cases, max_abs 1.479e-3, rel_l2 8.704e-5).
+- `intarsia accuracy --gate-class bf16` (#1852, `b4/accuracy/`): short golden prefill KL **2.608e-4**, decode **4.042e-4**; long golden (8192) prefill **3.738e-4**, decode **4.071e-4**; all PASS. Identical to B3 (2.608e-4 / 4.042e-4 / 3.738e-4 / 4.071e-4), as a bitwise fold must give.
+- Greedy ids against the `48fd9ca` binary, `--show-ids`, 48 and 256 tokens on `prompt-short.txt` and `prompt-4k.txt`: stdout byte-identical and `ids:` lines identical in all four (`b4/identity/`, `b4/checks4.log`).
+
+### 6. CUDA / HIP
+
+Unchanged. Neither registers `QkNormRopeKv`, so `fused_ok` finds no kernel and returns before anything is emitted; the unfused sequence then runs in its original order (the fold decision sits after the q projection and before the q norm, the `kv_pair` helper is the old inline match moved verbatim, and the fallback body is the old code re-indented). `try_fused`'s behaviour is the same code path as before. The Linux all-targets check passes and `intarsia-models/tests/plan.rs` (HIP / CUDA op counts) still passes. The only edits in those crates are two test exclusions that list the op as not registered there. Untested on a CUDA or HIP device (none here); the claim rests on the registry having no kernel for the op.
+
+### 7. Not done / limits
+
+- 4k is 84.5 percent, below the 85 percent exit; no attention work was attempted.
+- fp8 and f32 KV caches never take the Metal kernel (predicate); they would need the unfused path, which falls to the cpu on Metal as before.
+- No GPU test on models with partial rotary / zero-centred norms (Qwen3.5/3.6); the kernel tests cover those parameters synthetically.
+- Contender: GPU idle readings were 0-10 percent before every timed run; the A/B pairs, both localeval orders and B3's repeat agree, so no run was discarded.
+- fleetq jobs: #1850 (qkv_fold test), #1851 (smoke), #1852 (kernels test, identity, accuracy), #1853 (Linux check), #1854 (A/B), #1855-#1856 (failed localeval attempts, no data), #1857 and #1858 (localeval).

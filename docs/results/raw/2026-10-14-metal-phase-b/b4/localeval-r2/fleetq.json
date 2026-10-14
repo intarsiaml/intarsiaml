@@ -1,0 +1,26 @@
+{
+  "id": 1858,
+  "state": "running",
+  "kind": "lease",
+  "owner": "claude-31e10c55",
+  "label": "metal B4 fold localeval pre/after back to back",
+  "hosts": [
+    "endor"
+  ],
+  "mem_gb": 24.0,
+  "exclusive": true,
+  "uses": [],
+  "takes_down": [],
+  "created_at": 1792009458.9742138,
+  "started_at": 1792009458.98179,
+  "ended_at": null,
+  "heartbeat_at": 1792009458.98179,
+  "expect_s": 1500.0,
+  "command": "",
+  "reason": "",
+  "exit_code": null,
+  "note": "",
+  "mem_map": {},
+  "flags": [],
+  "roles_taken_down": []
+}

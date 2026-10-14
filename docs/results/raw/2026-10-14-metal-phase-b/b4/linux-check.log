@@ -1,0 +1,242 @@
+fleetq: #1853 running on spark1: ssh spark1 '. ~/.cargo/env; rm -rf /tmp/intarsia-b4; git clone -q /tmp/b4.bundle -b spike/metal /tmp/intarsia-b4 && cd /tmp/intarsia-b4 && CARGO_TARGET_DIR=/tmp/intarsia-b4-target cargo check --workspace --all-targets'
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+    Checking itoa v1.0.18
+   Compiling serde v1.0.229
+    Checking equivalent v1.0.2
+    Checking foldhash v0.2.0
+    Checking allocator-api2 v0.2.21
+    Checking cfg-if v1.0.5
+    Checking memchr v2.8.3
+   Compiling libc v0.2.190
+   Compiling zmij v1.0.23
+   Compiling thiserror v2.0.21
+   Compiling serde_json v1.0.154
+   Compiling zerocopy v0.8.62
+    Checking either v1.19.0
+   Compiling crossbeam-utils v0.8.23
+   Compiling crossbeam-epoch v0.9.21
+   Compiling crossbeam-deque v0.8.8
+   Compiling rayon-core v1.13.0
+    Checking log v0.4.34
+    Checking smallvec v1.16.3
+   Compiling ident_case v1.0.1
+   Compiling strsim v0.11.1
+    Checking ryu v1.0.23
+    Checking bitflags v2.13.2
+   Compiling rustversion v1.0.23
+    Checking hashbrown v0.17.1
+    Checking itertools v0.14.0
+    Checking unicode-segmentation v1.13.3
+    Checking static_assertions v1.1.0
+    Checking once_cell v1.21.4
+   Compiling getrandom v0.3.4
+   Compiling fnv v1.0.7
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.14
+   Compiling intarsia-backend-cuda v0.0.1 (/tmp/intarsia-b4/crates/intarsia-backend-cuda)
+   Compiling pkg-config v0.3.34
+   Compiling version_check v0.9.5
+   Compiling cc v1.8.0
+    Checking aho-corasick v1.1.5
+   Compiling paste v1.0.15
+    Checking regex-syntax v0.8.11
+    Checking indexmap v2.14.2
+   Compiling esaxx-rs v0.1.10
+    Checking minimal-lexical v0.2.1
+   Compiling pastey v0.2.3
+   Compiling macro_rules_attribute-proc_macro v0.2.3
+    Checking winnow v1.0.4
+    Checking nom v7.1.3
+    Checking base64 v0.13.1
+    Checking memo-map v0.3.4
+    Checking unicode-normalization-alignments v0.1.12
+    Checking winnow v0.7.15
+    Checking unicode_categories v0.1.1
+    Checking bytes v1.12.1
+    Checking toml_parser v1.1.5+spec-1.1.0
+    Checking toml_writer v1.1.3+spec-1.1.0
+    Checking rayon v1.12.0
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+    Checking http v1.5.0
+    Checking pin-project-lite v0.2.17
+    Checking regex-automata v0.4.18
+   Compiling ahash v0.8.12
+    Checking toml_datetime v0.7.5+spec-1.1.0
+    Checking serde_spanned v1.1.2
+   Compiling httparse v1.10.1
+    Checking futures-core v0.3.34
+   Compiling intarsia-backend-metal v0.0.1 (/tmp/intarsia-b4/crates/intarsia-backend-metal)
+    Checking toml v0.9.12+spec-1.1.0
+   Compiling heck v0.5.0
+    Checking percent-encoding v2.3.2
+    Checking tower-service v0.3.3
+    Checking hashbrown v0.16.1
+    Checking unicode-width v0.2.2
+    Checking http-body v1.1.0
+    Checking sync_wrapper v1.0.2
+    Checking sysinfo v0.37.2
+    Checking errno v0.3.14
+    Checking mio v1.2.4
+    Checking castaway v0.2.4
+    Checking signal-hook-registry v1.4.8
+    Checking rand_core v0.9.5
+    Checking macro_rules_attribute v0.2.3
+    Checking memmap2 v0.9.11
+    Checking socket2 v0.6.5
+   Compiling parking_lot_core v0.9.12
+    Checking httpdate v1.0.3
+    Checking tower-layer v0.3.3
+    Checking slab v0.4.12
+    Checking atomic-waker v1.1.2
+   Compiling signal-hook v0.3.18
+    Checking futures-task v0.3.34
+    Checking http-body-util v0.1.5
+    Checking unicode-truncate v2.0.1
+    Checking form_urlencoded v1.2.2
+    Checking lru v0.18.5
+   Compiling rustix v1.1.5
+    Checking futures-util v0.3.34
+    Checking critical-section v1.2.0
+    Checking scopeguard v1.2.0
+    Checking mime v0.3.17
+   Compiling intarsia-backend-hip v0.0.1 (/tmp/intarsia-b4/crates/intarsia-backend-hip)
+   Compiling indoc v2.0.8
+    Checking lock_api v0.4.14
+   Compiling convert_case v0.10.0
+    Checking serde_path_to_error v0.1.20
+    Checking axum-core v0.5.6
+    Checking matchit v0.8.4
+    Checking rayon-cond v0.4.0
+    Checking num_threads v0.1.7
+    Checking time-core v0.1.9
+    Checking num-conv v0.2.2
+   Compiling litrs v1.0.1
+    Checking linux-raw-sys v0.12.1
+    Checking powerfmt v0.2.1
+    Checking deranged v0.5.8
+    Checking parking_lot v0.12.5
+    Checking signal-hook-mio v0.2.5
+    Checking line-clipping v0.3.8
+    Checking tracing-core v0.1.36
+    Checking utf8parse v0.2.2
+    Checking base64 v0.23.1
+   Compiling anyhow v1.0.104
+    Checking anstyle v1.0.14
+    Checking anstyle-parse v1.0.0
+    Checking colorchoice v1.0.5
+    Checking anstyle-query v1.1.5
+    Checking utf8-zero v0.8.1
+    Checking is_terminal_polyfill v1.70.2
+    Checking clap_lex v1.1.1
+    Checking ureq-proto v0.6.4
+    Checking anstream v1.0.0
+    Checking intarsiaml v0.0.1 (/tmp/intarsia-b4/crates/intarsiaml)
+    Checking regex v1.13.1
+   Compiling darling_core v0.20.11
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+    Checking ureq v3.4.2
+    Checking clap_builder v4.6.7
+    Checking time v0.3.55
+   Compiling darling_core v0.24.1
+   Compiling document-features v0.2.12
+   Compiling onig_sys v69.9.3
+   Compiling zerocopy-derive v0.8.62
+   Compiling monostate-impl v0.1.18
+   Compiling strum_macros v0.28.0
+   Compiling derive_more-impl v2.1.1
+   Compiling tracing-attributes v0.1.31
+    Checking monostate v0.1.18
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling bytemuck_derive v1.12.1
+   Compiling darling_macro v0.20.11
+   Compiling tokio-macros v2.7.2
+   Compiling clap_derive v4.6.7
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+    Checking derive_more v2.1.1
+    Checking crossterm v0.29.0
+   Compiling darling_macro v0.24.1
+    Checking tracing v0.1.44
+    Checking bytemuck v1.25.2
+   Compiling darling v0.24.1
+   Compiling instability v0.3.14
+    Checking strum v0.28.0
+    Checking kasuari v0.4.12
+    Checking tokio v1.53.2
+   Compiling derive_builder_macro v0.20.2
+    Checking clap v4.6.7
+    Checking compact_str v0.9.1
+    Checking spm_precompiled v0.1.4
+    Checking minijinja v2.24.0
+    Checking dary_heap v0.3.9
+    Checking serde_urlencoded v0.7.1
+    Checking ratatui-core v0.1.2
+    Checking derive_builder v0.20.2
+    Checking half v2.7.1
+    Checking ppv-lite86 v0.2.21
+    Checking rand_chacha v0.9.0
+    Checking intarsia-core v0.0.1 (/tmp/intarsia-b4/crates/intarsia-core)
+    Checking rand v0.9.5
+    Checking hyper v1.12.0
+    Checking tower v0.5.3
+    Checking tokio-stream v0.1.19
+    Checking ratatui-widgets v0.3.2
+    Checking ratatui-crossterm v0.1.2
+    Checking hyper-util v0.1.21
+    Checking axum v0.8.9
+    Checking minijinja-contrib v2.24.0
+    Checking ratatui-macros v0.7.2
+    Checking ratatui v0.30.2
+    Checking intarsia-bench v0.0.1 (/tmp/intarsia-b4/crates/intarsia-bench)
+    Checking onig v6.5.3
+    Checking intarsia-backend-cpu v0.0.1 (/tmp/intarsia-b4/crates/intarsia-backend-cpu)
+    Checking tokenizers v0.22.2
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Checking intarsia-ui v0.0.1 (/tmp/intarsia-b4/crates/intarsia-ui)
+    Checking intarsia-server v0.0.1 (/tmp/intarsia-b4/crates/intarsia-server)
+    Checking intarsia-models v0.0.1 (/tmp/intarsia-b4/crates/intarsia-models)
+    Checking intarsia-cli v0.0.1 (/tmp/intarsia-b4/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 17.07s
+fleetq: #1853 done (exit 0)
