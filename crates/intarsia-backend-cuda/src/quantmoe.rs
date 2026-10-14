@@ -20,6 +20,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
     ("moe_experts_decode_bf16", Op::MoeExperts),
+    ("moe_experts_decode_v2_bf16", Op::MoeExperts),
     ("moe_experts_mma_bf16", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
     // fused decode launchers (docs/results/2026-10-14-cuda-decode-fusion.md): each is bitwise the chain of launches it
@@ -155,6 +156,22 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .scratch(moe_experts_decode_scratch)
                     .priority(10),
+                // the same kernel pair with the down projection restructured for occupancy (bitwise equal; kernels/cuda/moe_decode.cu)
+                "moe_experts_decode_v2_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        s.m <= DECODE_MAX_TOKENS
+                            && s.top_k <= 16
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && s.top_k * s.n * 2 <= 49152
+                            && s.k * 2 <= 49152
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_decode_scratch)
+                    .priority(20),
                 // grouped tensor-core experts for batches (prefill): H % 128, I % 128, at least 32 tokens so a typical
                 // active expert sees several pairs; decode and tiny batches keep the warp-per-row kernel
                 "moe_experts_mma_bf16" => k

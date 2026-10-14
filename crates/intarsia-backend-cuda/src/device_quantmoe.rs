@@ -68,6 +68,20 @@ extern "C" {
         scratch: *const IkScratch,
         s: S,
     ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_decode_v2_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
     fn ik_moe_combine_bf16(routed: T, shared: T, gate: T, out: TM, s: S) -> c_int;
     fn ik_matmul_pair_bf16_gemv(x: T, w0: T, w1: T, out0: TM, out1: TM, s: S) -> c_int;
     fn ik_matmul_fp8_pair_gemv(x: T, w0: T, sc0: T, w1: T, sc1: T, out0: TM, out1: TM, s: S) -> c_int;
@@ -154,6 +168,19 @@ impl CudaBackend {
                     s,
                 ),
                 "moe_experts_decode_bf16" => ik_moe_experts_decode_bf16(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_decode_v2_bf16" => ik_moe_experts_decode_v2_bf16(
                     i(0),
                     i(1),
                     i(2),

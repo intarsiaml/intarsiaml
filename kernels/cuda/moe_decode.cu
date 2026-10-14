@@ -19,6 +19,7 @@ constexpr int kMaxK = 16;  // experts per token held in registers by the down ke
 
 IK_DEVI float round_bf16(float v) { return ik_b2f(ik_f2b(v)); }
 
+template <int U>
 __global__ void __launch_bounds__(kRowWarps * IK_WARP)
 moe_dec_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ guw, const uint8_t* __restrict__ gus,
                        const float* __restrict__ gscales, const int* __restrict__ ids, ik_bf16* __restrict__ h, int E,
@@ -39,7 +40,7 @@ moe_dec_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     const uint8_t* sg = gus + ((int64_t)e * 2 * I + r) * (H / 16);
     const uint8_t* su = gus + ((int64_t)e * 2 * I + I + r) * (H / 16);
     float ag = 0.f, au = 0.f;
-#pragma unroll 2
+#pragma unroll U
     for (int u = lane; u < H / 16; u += IK_WARP) {
         const uint2 wgv = __ldcs(wg + u), wuv = __ldcs(wu + u);
         const float sgv = ik_e4m3_to_f(sg[u]), suv = ik_e4m3_to_f(su[u]);
@@ -124,16 +125,112 @@ moe_dec_down_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ d
     if (lane == 0) out[(int64_t)t * H + r] = ik_f2b(total);
 }
 
+// v2 down projection: the same arithmetic as moe_dec_down_kernel, restructured because that kernel keeps all K experts of a
+// row in registers (160 per thread: ONE 256-thread block per SM, 256 blocks = 5.3 waves, 94 GB/s on the 35B's down weights).
+// Here a warp owns an expert SLOT (warp w: slots w, w + 8, ...) and R output rows of the block: 8 independent weight loads
+// per lane, no activation staging (each lane reads its own 32 bytes of the slot's h row), few registers. The K per-slot terms
+// round(round(down_k(h_k)) * w_k) go through shared memory and are summed in slot order 0..K-1 by one thread per output
+// element: the same additions in the same order as the one-warp-per-row kernel, so the outputs are bitwise equal.
+// An invalid id stores 0 (x + 0 == x here: the running total starts at +0 and so is never -0).
+template <int R>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP)
+moe_dec_down_v2_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns,
+                       const float* __restrict__ gscales, const int* __restrict__ ids, const float* __restrict__ wts,
+                       ik_bf16* __restrict__ out, int E, int H, int I, int K) {
+    __shared__ float term[kMaxK][R];
+    const int t = blockIdx.y;
+    const int r0 = blockIdx.x * R;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    for (int k = warp; k < K; k += kRowWarps) {
+        const int v = ids[(int64_t)t * K + k];
+        const bool ok = v >= 0 && v < E;
+        float acc[R];
+#pragma unroll
+        for (int i = 0; i < R; ++i) acc[i] = 0.f;
+        if (ok) {
+            const uint2* wrow[R];
+            const uint8_t* srow[R];
+#pragma unroll
+            for (int i = 0; i < R; ++i) {
+                const int64_t row = (int64_t)v * H + (r0 + i < H ? r0 + i : H - 1);  // rows >= H are read, never stored
+                wrow[i] = reinterpret_cast<const uint2*>(dnw + row * (I / 2));
+                srow[i] = dns + row * (I / 16);
+            }
+            const uint4* hp = reinterpret_cast<const uint4*>(h + ((int64_t)t * K + k) * I);
+#pragma unroll 1
+            for (int u = lane; u < I / 16; u += IK_WARP) {
+                uint2 wv[R];
+                float sv[R];
+#pragma unroll
+                for (int i = 0; i < R; ++i) {
+                    wv[i] = __ldcs(wrow[i] + u);
+                    sv[i] = ik_e4m3_to_f(srow[i][u]);
+                }
+                float hf[16];
+                ik_unpack8(hp[2 * u], hf);
+                ik_unpack8(hp[2 * u + 1], hf + 8);
+#pragma unroll
+                for (int i = 0; i < R; ++i) {
+                    float fw[16];
+                    ik_fp4x8_to_f32(wv[i].x, fw);
+                    ik_fp4x8_to_f32(wv[i].y, fw + 8);
+                    float pdot = 0.f;
+#pragma unroll
+                    for (int e = 0; e < 16; ++e) pdot = fmaf(fw[e], hf[e], pdot);
+                    acc[i] = fmaf(pdot, sv[i], acc[i]);
+                }
+            }
+        }
+#pragma unroll
+        for (int i = 0; i < R; ++i) {
+            const float s = ik_warp_sum(acc[i]);
+            if (lane == 0)
+                term[k][i] = ok ? round_bf16(round_bf16(s * gscales[v * 3 + 2]) * wts[(int64_t)t * K + k]) : 0.f;
+        }
+    }
+    __syncthreads();
+    if (threadIdx.x < R && r0 + (int)threadIdx.x < H) {
+        float total = 0.f;
+        for (int k = 0; k < K; ++k) total += term[k][threadIdx.x];
+        out[(int64_t)t * H + r0 + threadIdx.x] = ik_f2b(total);
+    }
+}
+
 inline int64_t r256(int64_t v) { return (v + 255) & ~int64_t(255); }
 
-}  // namespace
+// Tuning knobs for A/B runs (host side, read when the launch is recorded): rows per block of the v2 down kernel
+// (INTARSIA_MOE_DOWN_R = 1|2|4|8) and the unroll of the gate_up loop (INTARSIA_MOE_GU_UNROLL = 1|2|4).
+int knob(const char* name, int dflt, int a, int b, int c, int d) {
+    if (const char* v = getenv(name)) {
+        const int x = atoi(v);
+        if (x == a || x == b || x == c || x == d) return x;
+    }
+    return dflt;
+}
 
-extern "C" {
+template <int U>
+void launch_gate_up(const ik_tensor* x, const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* gscales,
+                    const ik_tensor* ids, ik_bf16* hbuf, int64_t P, int64_t E, int64_t H, int64_t I, int64_t K,
+                    cudaStream_t s) {
+    moe_dec_gate_up_kernel<U><<<dim3((unsigned)P, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
+                                (size_t)H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
+                                                    (const uint8_t*)gate_up_s->data, (const float*)gscales->data,
+                                                    (const int*)ids->data, hbuf, (int)E, (int)H, (int)I, (int)K);
+}
 
-int ik_moe_experts_decode_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
-                               const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
-                               const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
-                               const ik_scratch* scratch, void* stream) {
+template <int R>
+void launch_down_v2(const ik_bf16* hbuf, const ik_tensor* down_w, const ik_tensor* down_s, const ik_tensor* gscales,
+                    const ik_tensor* ids, const ik_tensor* weights, ik_tensor* out, int64_t T, int64_t E, int64_t H,
+                    int64_t I, int64_t K, cudaStream_t s) {
+    moe_dec_down_v2_kernel<R><<<dim3((unsigned)((H + R - 1) / R), (unsigned)T), kRowWarps * IK_WARP, 0, s>>>(
+        hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data,
+        (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)I, (int)K);
+}
+
+// Shared by both entry points: validation, scratch, and the two launches. v2 selects the restructured down kernel.
+int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
+                  const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s, const ik_tensor* gscales,
+                  ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -160,17 +257,46 @@ int ik_moe_experts_decode_bf16(const ik_tensor* x, const ik_tensor* ids, const i
     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
     ik_bf16* hbuf = (ik_bf16*)scratch->data;
     cudaStream_t s = IK_STREAM(stream);
-    moe_dec_gate_up_kernel<<<dim3((unsigned)P, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
-                             (size_t)H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
-                                                 (const uint8_t*)gate_up_s->data, (const float*)gscales->data,
-                                                 (const int*)ids->data, hbuf, (int)E, (int)H, (int)I, (int)K);
+    switch (v2 ? knob("INTARSIA_MOE_GU_UNROLL", 2, 1, 2, 4, 4) : 2) {
+        case 1: launch_gate_up<1>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+        case 4: launch_gate_up<4>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+        default: launch_gate_up<2>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+    }
     IK_TRY(ik_launch_status());
+    if (v2) {
+        switch (knob("INTARSIA_MOE_DOWN_R", 4, 1, 2, 4, 8)) {
+            case 1: launch_down_v2<1>(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s); break;
+            case 2: launch_down_v2<2>(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s); break;
+            case 8: launch_down_v2<8>(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s); break;
+            default: launch_down_v2<4>(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s); break;
+        }
+        return ik_launch_status();
+    }
     moe_dec_down_kernel<<<dim3((unsigned)T, (unsigned)((H + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
                           (size_t)K * I * 2, s>>>(hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
                                                    (const float*)gscales->data, (const int*)ids->data,
                                                    (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H,
                                                    (int)I, (int)K);
     return ik_launch_status();
+}
+
+}  // namespace
+
+extern "C" {
+
+int ik_moe_experts_decode_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                               const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                               const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                               const ik_scratch* scratch, void* stream) {
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false);
+}
+
+// The same op and the same bits with the restructured down projection (moe_dec_down_v2_kernel).
+int ik_moe_experts_decode_v2_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                  const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                  const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                  const ik_scratch* scratch, void* stream) {
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true);
 }
 
 }  // extern "C"

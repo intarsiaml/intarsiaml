@@ -41,8 +41,34 @@ MUTATIONS = {
     "gated-round-scalar": ("kernels/cuda/norm.cu", [(
         "const float nrm = ik_b2f(ik_f2b(ik_b2f(xr[i]) * r * (ik_b2f(w[i]) + woff)));",
         "const float nrm = ik_b2f(xr[i]) * r * (ik_b2f(w[i]) + woff);")]),
+    # --- moe_experts_decode_v2 (tests/quantmoe.rs moe_experts_decode_matches_old_kernel) ---
+    # v2 down: the K per-slot terms are summed in reverse slot order
+    "down-order": ("kernels/cuda/moe_decode.cu", [(
+        "for (int k = 0; k < K; ++k) total += term[k][threadIdx.x];",
+        "for (int k = K - 1; k >= 0; --k) total += term[k][threadIdx.x];")]),
+    # v2 down: the slot term skips the rounding of the down projection before the routing weight
+    "down-round": ("kernels/cuda/moe_decode.cu", [(
+        "term[k][i] = ok ? round_bf16(round_bf16(s * gscales[v * 3 + 2]) * wts[(int64_t)t * K + k]) : 0.f;",
+        "term[k][i] = ok ? round_bf16((s * gscales[v * 3 + 2]) * wts[(int64_t)t * K + k]) : 0.f;")]),
+    # v2 down: the upper half of each lane's intermediate slice is replaced by its lower half
+    "down-h": ("kernels/cuda/moe_decode.cu", [(
+        "ik_unpack8(hp[2 * u + 1], hf + 8);", "ik_unpack8(hp[2 * u], hf + 8);")]),
+    # v2 down: an invalid id still contributes (the term of an out-of-range expert is not zeroed)
+    "down-invalid": ("kernels/cuda/moe_decode.cu", [(
+        "wts[(int64_t)t * K + k]) : 0.f;", "wts[(int64_t)t * K + k]) : 1.f;")]),
+    # v2 down: the second row of a block reads the first row's weight scales
+    "down-scale": ("kernels/cuda/moe_decode.cu", [(
+        "srow[i] = dns + row * (I / 16);", "srow[i] = dns + ((int64_t)v * H + r0) * (I / 16);")]),
 }
 
+# test selection per mutation (cargo test arguments after -p intarsia-backend-cuda)
+V2 = ("down-order", "down-round", "down-h", "down-invalid", "down-scale")
+def test_args(name):
+    return "--test quantmoe moe_experts_decode_matches_old_kernel" if name in V2 else "--test fused_decode"
+
+if sys.argv[1] == "--args":  # mutate.py --args <name>: print the cargo test arguments
+    print(test_args(sys.argv[2]))
+    sys.exit(0)
 tree, name = sys.argv[1], sys.argv[2]
 path, pairs = MUTATIONS[name]
 p = f"{tree}/{path}"
