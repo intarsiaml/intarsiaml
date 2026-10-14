@@ -1278,11 +1278,18 @@ impl Model {
         qc = 1 - qc;
 
         let mut kc = 0usize;
-        // k and v read the same activation: one launch for both when the backend has the fused fp8 pair
+        // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
         let kv_fused = match (a.wk.format, a.wv.format) {
             (crate::quant::FP8_E4M3, crate::quant::FP8_E4M3) => self.try_fused(
                 Op::MatmulFp8Pair,
                 vec![n.clone(), a.wk.parts[0].clone(), a.wk.parts[1].clone(), a.wv.parts[0].clone(), a.wv.parts[1].clone()],
+                vec![self.view(&ws.k[kc], act, &kshape), self.view(&ws.v, act, &kshape)],
+                OpAttrs::default(),
+                profile,
+            )?,
+            (crate::quant::BF16, crate::quant::BF16) => self.try_fused(
+                Op::MatmulPair,
+                vec![n.clone(), a.wk.parts[0].clone(), a.wv.parts[0].clone()],
                 vec![self.view(&ws.k[kc], act, &kshape), self.view(&ws.v, act, &kshape)],
                 OpAttrs::default(),
                 profile,
@@ -1380,8 +1387,18 @@ impl Model {
         let g = self.view(&ws.g, act, &[t, i]);
         let u = self.view(&ws.u, act, &[t, i]);
         let a = self.view(&ws.a, act, &[t, i]);
-        self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
-        self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
+        // gate and up read the same activation: one launch for both when the backend has the fused bf16 pair
+        let gu_fused = self.try_fused(
+            Op::MatmulPair,
+            vec![n.clone(), f.gate.clone(), f.up.clone()],
+            vec![g.clone(), u.clone()],
+            OpAttrs::default(),
+            profile,
+        )?;
+        if !gu_fused {
+            self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
+            self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
+        }
         self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
         match &self.ws.part {
             Some(part) => {

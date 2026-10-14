@@ -26,6 +26,7 @@ mod buffer;
 pub mod decode;
 mod dense;
 mod fill;
+mod fused;
 mod host;
 pub mod kernels;
 pub mod profile;
@@ -96,6 +97,8 @@ struct Stream {
     prof: Option<profile::Prof>,
     /// Label of the launch being encoded, taken by the next flush when profiling.
     label: Option<profile::Label>,
+    /// Dispatches per command buffer before it is committed (`COMMIT_EVERY`, overridable for experiments).
+    commit_every: usize,
 }
 
 pub struct MetalBackend {
@@ -154,7 +157,15 @@ impl MetalBackend {
             device,
             queue,
             psos,
-            stream: Mutex::new(Stream { prof: profile::Prof::from_env(), ..Stream::default() }),
+            stream: Mutex::new(Stream {
+                prof: profile::Prof::from_env(),
+                commit_every: std::env::var("INTARSIA_METAL_COMMIT_EVERY")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .filter(|&n| n > 0)
+                    .unwrap_or(MAX_DISPATCHES),
+                ..Stream::default()
+            }),
             hosts: Mutex::new(host::HostCache::default()),
             page_size,
             bandwidth: OnceLock::new(),
@@ -266,7 +277,7 @@ impl MetalBackend {
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
         let per_kernel = st.prof.as_ref().is_some_and(|p| p.per_kernel);
-        if st.dispatches >= MAX_DISPATCHES || per_kernel {
+        if st.dispatches >= st.commit_every || per_kernel {
             Self::flush_locked(&mut st);
             if per_kernel {
                 // run launches one at a time: independent ones (gate / up, k / v) would otherwise overlap across
@@ -544,6 +555,9 @@ impl Backend for MetalBackend {
                     plan.threads,
                 )
             });
+        }
+        if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
+            return self.launch_matmul_pair(call);
         }
         self.launch_dense(kernel, call)
     }

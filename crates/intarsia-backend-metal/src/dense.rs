@@ -34,6 +34,8 @@ struct Bind {
 
 /// Threads per threadgroup of the row-reduction kernels (rmsnorm, argmax): a multiple of 32, at most 1024.
 const ROW_THREADS: usize = 256;
+/// Threads per threadgroup of `argmax_f32_v4`.
+const ARGMAX_V4_THREADS: usize = 1024;
 /// Threads per threadgroup of the GEMM (4 simdgroups).
 const GEMM_THREADS: usize = 128;
 const GEMM_TILE: usize = 32;
@@ -57,6 +59,19 @@ fn dim(v: usize, what: &str) -> Result<u32> {
 }
 
 impl MetalBackend {
+    /// The low-latency row-norm kernel for rows of `h` elements as (pipeline, threads per threadgroup): it keeps the
+    /// 256-thread kernel's element-to-thread assignment, so results are bitwise those of `rmsnorm_bf16` /
+    /// `rmsnorm_add_bf16`. Rows of up to 8192 elements; `None` (the 256-thread kernel) for wider ones.
+    fn norm_ex(&self, h: usize, names: &[&'static str; 3]) -> Option<(&'static str, usize)> {
+        let (name, threads) = match h {
+            0..=ROW_THREADS => (names[0], h.next_multiple_of(32)),
+            ..=4096 => (names[1], ROW_THREADS),
+            ..=8192 => (names[2], ROW_THREADS),
+            _ => return None,
+        };
+        (self.pso(name)?.maxTotalThreadsPerThreadgroup() >= threads).then_some((name, threads))
+    }
+
     fn bind(&self, t: &TensorRef, dt: DType, write: bool, what: &str) -> Result<Bind> {
         if t.dtype != dt {
             return Err(Error::invalid(format!("metal {what}: expected {dt}, got {}", t.dtype)));
@@ -145,6 +160,9 @@ impl MetalBackend {
                     f1: a.w_offset,
                     pad: 0,
                 };
+                if let Some((names, threads)) = self.norm_ex(h, &RMSNORM_EX) {
+                    return self.dispatch(names, &[&x, &w, &out], &p, Grid::Groups { x: rows, y: 1, threads });
+                }
                 self.dispatch(
                     // qk_norm is rmsnorm over rows = T*N of width D
                     RMSNORM_BF16,
@@ -171,6 +189,14 @@ impl MetalBackend {
                     f1: a.w_offset,
                     pad: 0,
                 };
+                if let Some((names, threads)) = self.norm_ex(h, &RMSNORM_ADD_EX) {
+                    return self.dispatch(
+                        names,
+                        &[&x, &res, &w, &normed, &sum],
+                        &p,
+                        Grid::Groups { x: rows, y: 1, threads },
+                    );
+                }
                 self.dispatch(
                     kernel,
                     &[&x, &res, &w, &normed, &sum],
@@ -261,6 +287,14 @@ impl MetalBackend {
                     skips: [l.skip, 0, 0, 0, 0],
                     ..Default::default()
                 };
+                if kernel == ARGMAX_F32 && v % 4 == 0 && l.skip == 0 && l.off % 16 == 0 {
+                    return self.dispatch(
+                        ARGMAX_F32_V4,
+                        &[&l, &out],
+                        &p,
+                        Grid::Groups { x: r, y: 1, threads: ARGMAX_V4_THREADS },
+                    );
+                }
                 self.dispatch(kernel, &[&l, &out], &p, Grid::Groups { x: r, y: 1, threads: ROW_THREADS })
             }
             ATTN_PREFILL_BF16 | ATTN_DECODE_BF16 => {
