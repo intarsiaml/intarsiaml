@@ -101,6 +101,22 @@ mod imp {
                 fill_scaled((a.contents().as_ptr() as *mut u8).add(aoff) as *mut u16, m * k, 7, 1.0);
                 std::ptr::write_bytes(c.contents().as_ptr() as *mut u8, 0, m * n * 2 + coff);
             }
+            if std::env::var_os("NAX_OUTLIERS").is_some() {
+                // heavy-tailed data: every 97th activation x100, every 89th weight x30 (still bf16 values)
+                // SAFETY: the same ranges as filled above.
+                unsafe {
+                    let pa = (a.contents().as_ptr() as *mut u8).add(aoff) as *mut u16;
+                    for i in (0..m * k).step_by(97) {
+                        let v = bench::bf16_to_f32(std::ptr::read_unaligned(pa.add(i)));
+                        std::ptr::write_unaligned(pa.add(i), bench::f32_to_bf16(v * 100.0));
+                    }
+                    let pw = (ws[0].contents().as_ptr() as *mut u8).add(woff) as *mut u16;
+                    for i in (0..n * k).step_by(89) {
+                        let v = bench::bf16_to_f32(std::ptr::read_unaligned(pw.add(i)));
+                        std::ptr::write_unaligned(pw.add(i), bench::f32_to_bf16(v * 30.0));
+                    }
+                }
+            }
             Operands { a, ws, c, aoff, woff, coff }
         }
     }

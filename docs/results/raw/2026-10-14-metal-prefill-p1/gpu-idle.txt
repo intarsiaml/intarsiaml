@@ -1,0 +1,11 @@
+== idle before
+"Device Utilization %"=4
+"Device Utilization %"=4
+"Device Utilization %"=0
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+== idle after
+"Device Utilization %"=81
+"Device Utilization %"=0
+"Device Utilization %"=4
