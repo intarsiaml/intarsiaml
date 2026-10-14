@@ -1,0 +1,26 @@
+fleetq · 07:25:19 · last health check 9s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 46.9 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+
+spark2 (spark-fa00) online · 116 GB: services 64, jobs 12, free 40 · box reports 56.9 free, GPU 0% busy
+  + spark2-vllm              retro                        64 GB  up
+  RUNNING #1768 "f64-moe f64" (claude-00b4970c) running on spark2 12 GB for 1m
+  QUEUED 1. #1770 "TensorFold native: v1.0.10 merge, lean split, build and byte-equal gates" (claude-00b4970c): needs 48 GB on spark2; 40 GB free of 116
+
+endor (endor) online · 110 GB: services 50, jobs 0, free 60
+  + endor-kev                standing                     18 GB  assumed up (no health check)
+  + endor-tensorfold         standing                     32 GB  assumed up (no health check)
+
+tatooine-r9700 (tatooine) online · 32 GB: services 31, jobs 0, free 1 · box reports 0.1 free, GPU 3% busy
+  + radiance-rank0           radiance                     31 GB  up
+
+tatooine-r9700-2 (tatooine) online · 32 GB: services 31, jobs 0, free 1 · box reports 0.1 free, GPU 3% busy
+  + radiance-rank1           radiance                     31 GB  up
+
+Recent:
+  #1771 done 45s ago: "metal spike ICB check (tracked buffers)" (claude-31e10c55) exit 0
+  #1769 done 69s ago: "metal spike ICB check" (claude-31e10c55) exit 0
+  #1767 done 2m ago: "metal spike gemv bw" (claude-31e10c55) exit 0
+  #1766 done 4m ago: "metal spike gemv bw (ceiling kernels)" (claude-31e10c55) exit 0
+  #1765 done 4m ago: "metal spike gemv bw (read ceiling check)" (claude-31e10c55) exit 0

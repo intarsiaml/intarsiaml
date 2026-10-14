@@ -1,0 +1,417 @@
+//! Metal backend (macOS, Apple GPU). Spike: the pieces needed to judge docs/research/macos-metal-backend-scope.md
+//! phase A, not a complete backend.
+//!
+//!  * Memory is `MTLResourceStorageModeShared` (unified memory): `alloc`, `upload`, `download` and `copy` are memcpys
+//!    through `MTLBuffer::contents()` after the queue has drained.
+//!  * `wrap_host` imports mmap'd weight files without copying (`newBufferWithBytesNoCopy`), see [`host`].
+//!  * One kernel implementation is registered, the batch-1 bf16 GEMV for `Op::Matmul` (`matmul_bf16_gemv`). The
+//!    shaders are AOT compiled from kernels/metal/*.metal by build.rs and embedded as one metallib.
+//!  * One `MTLCommandQueue`. Every `launch` commits its own command buffer (no batching in the spike);
+//!    `synchronize` waits on the last committed one, which is enough because a queue starts command buffers in order
+//!    and every resource here is hazard-tracked.
+//!
+//! Exports no `ik_*` symbols and is not wired into intarsia-cli.
+
+#![cfg(target_os = "macos")]
+
+pub mod bench;
+mod buffer;
+pub mod decode;
+mod host;
+pub mod kernels;
+
+pub use buffer::{MetalBuffer, MtlBuffer};
+pub use kernels::{GemvVariant, DEFAULT_GEMV, GEMV_VARIANTS};
+
+use dispatch2::DispatchData;
+use intarsia_core::backend::{Backend, Buffer, DeviceInfo, HostMemory, MemKind, StreamId};
+use intarsia_core::{DType, Error, KernelImpl, Op, OpCall, Result, TensorRef};
+use objc2::rc::Retained;
+use objc2::runtime::ProtocolObject;
+use objc2_foundation::NSString;
+use objc2_metal::{
+    MTLBuffer, MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue, MTLComputeCommandEncoder,
+    MTLComputePipelineDescriptor, MTLComputePipelineState, MTLCreateSystemDefaultDevice, MTLDevice, MTLLibrary,
+    MTLResourceOptions, MTLSize,
+};
+use std::collections::HashMap;
+use std::ffi::c_void;
+use std::ptr::NonNull;
+use std::sync::{Arc, Mutex, OnceLock};
+
+pub type Device = Retained<ProtocolObject<dyn MTLDevice>>;
+pub type Queue = Retained<ProtocolObject<dyn MTLCommandQueue>>;
+pub type CommandBuffer = Retained<ProtocolObject<dyn MTLCommandBuffer>>;
+pub type Pso = Retained<ProtocolObject<dyn MTLComputePipelineState>>;
+pub type Encoder = Retained<ProtocolObject<dyn MTLComputeCommandEncoder>>;
+
+/// All kernels of this crate, built by build.rs (empty when the Metal toolchain was missing at build time).
+static METALLIB: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/intarsia.metallib"));
+
+/// Kernel arguments of the GEMV shaders (`GemvParams` in gemv_bf16.metal; 32 bytes).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GemvParams {
+    pub k: u32,
+    pub n: u32,
+    pub w_skip: u32,
+    pub x_skip: u32,
+    pub y_skip: u32,
+    pub pad: [u32; 3],
+}
+
+pub struct MetalBackend {
+    device: Device,
+    queue: Queue,
+    psos: HashMap<&'static str, Pso>,
+    /// Last committed command buffer; `synchronize` waits on it.
+    last: Mutex<Option<CommandBuffer>>,
+    hosts: Mutex<host::HostCache>,
+    page_size: usize,
+    /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
+    /// cached. Construction stays cheap; the one-off cost lands on whoever asks first (the telemetry probe).
+    bandwidth: OnceLock<Option<f64>>,
+}
+
+// SAFETY: Apple documents MTLDevice, MTLCommandQueue, MTLComputePipelineState and MTLBuffer as usable from any thread;
+// the one non-thread-safe object we keep (the last command buffer) is behind a Mutex and only committed/awaited.
+unsafe impl Send for MetalBackend {}
+unsafe impl Sync for MetalBackend {}
+
+fn err<E: std::fmt::Debug>(what: &str, e: E) -> Error {
+    Error::backend(format!("metal: {what}: {e:?}"))
+}
+
+impl MetalBackend {
+    pub fn new() -> Result<MetalBackend> {
+        let device = MTLCreateSystemDefaultDevice().ok_or_else(|| Error::backend("metal: no system default device"))?;
+        let queue = device.newCommandQueue().ok_or_else(|| Error::backend("metal: newCommandQueue failed"))?;
+        if METALLIB.is_empty() {
+            return Err(Error::backend(
+                "metal: the metallib was not built (Xcode Metal toolchain missing at build time; see build.rs)",
+            ));
+        }
+        let data = DispatchData::from_bytes(METALLIB);
+        let lib = device.newLibraryWithData_error(&data).map_err(|e| err("newLibraryWithData", e))?;
+        let mut psos = HashMap::new();
+        for name in kernels::shader_names() {
+            let f = lib
+                .newFunctionWithName(&NSString::from_str(name))
+                .ok_or_else(|| Error::backend(format!("metal: function '{name}' missing from the metallib")))?;
+            let desc = MTLComputePipelineDescriptor::new();
+            desc.setComputeFunction(Some(&f));
+            // ICB-encodable, so the spike's indirect-command-buffer check can use the same pipelines
+            desc.setSupportIndirectCommandBuffers(true);
+            let pso = device
+                .newComputePipelineStateWithDescriptor_options_reflection_error(
+                    &desc,
+                    objc2_metal::MTLPipelineOption::None,
+                    None,
+                )
+                .map_err(|e| err(name, e))?;
+            psos.insert(name, pso);
+        }
+        // SAFETY: sysconf has no preconditions.
+        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+        Ok(MetalBackend {
+            device,
+            queue,
+            psos,
+            last: Mutex::new(None),
+            hosts: Mutex::new(host::HostCache::default()),
+            page_size,
+            bandwidth: OnceLock::new(),
+        })
+    }
+
+    pub fn arc() -> Result<Arc<dyn Backend>> {
+        Ok(Arc::new(MetalBackend::new()?))
+    }
+
+    pub fn device(&self) -> &ProtocolObject<dyn MTLDevice> {
+        &self.device
+    }
+
+    pub fn queue(&self) -> &ProtocolObject<dyn MTLCommandQueue> {
+        &self.queue
+    }
+
+    /// Host page size (16 KiB on Apple Silicon); `wrap_host` rounds to it.
+    pub fn page_size(&self) -> usize {
+        self.page_size
+    }
+
+    /// Compute pipeline for a shader entry point (see `kernels::shader_names`).
+    pub fn pso(&self, name: &str) -> Option<&Pso> {
+        self.psos.get(name)
+    }
+
+    /// A fresh shared-storage `MTLBuffer` of `bytes` (at least 1). `untracked` skips Metal's hazard tracking, which
+    /// is only safe when the caller orders every access itself (serial encoders, a drained queue).
+    pub fn new_mtl_buffer(&self, bytes: usize, untracked: bool) -> Result<MtlBuffer> {
+        let mut opts = MTLResourceOptions::StorageModeShared;
+        if untracked {
+            opts |= MTLResourceOptions::HazardTrackingModeUntracked;
+        }
+        self.device
+            .newBufferWithLength_options(bytes.max(1), opts)
+            .ok_or_else(|| Error::Memory(format!("metal: newBuffer of {bytes} bytes failed")))
+    }
+
+    /// Commit `cb` and remember it as the last committed buffer.
+    pub fn commit(&self, cb: &CommandBuffer) {
+        // hold the lock across the commit so concurrent launches cannot leave an older buffer in `last`
+        let mut last = self.last.lock().unwrap();
+        cb.commit();
+        *last = Some(cb.clone());
+    }
+
+    /// Wait for `cb` and turn a GPU error into an `Error`.
+    pub fn wait(cb: &ProtocolObject<dyn MTLCommandBuffer>) -> Result<()> {
+        cb.waitUntilCompleted();
+        if cb.status() == MTLCommandBufferStatus::Error {
+            return Err(Error::backend(format!("metal: command buffer failed: {:?}", cb.error())));
+        }
+        Ok(())
+    }
+
+    fn mbuf<'a>(&self, b: &'a Buffer) -> Result<&'a MetalBuffer> {
+        b.downcast::<MetalBuffer>().ok_or_else(|| Error::backend("foreign buffer"))
+    }
+
+    /// Shared-memory pointer of `[offset, offset+len)` of `b`, bounds-checked.
+    fn host_range<'a>(&self, b: &'a Buffer, offset: usize, len: usize) -> Result<(&'a MetalBuffer, *mut u8)> {
+        let mb = self.mbuf(b)?;
+        if offset.checked_add(len).is_none_or(|e| e > mb.bytes) {
+            return Err(Error::backend("metal buffer access out of bounds"));
+        }
+        // SAFETY: bounds-checked above.
+        Ok((mb, unsafe { mb.host_ptr().add(offset) }))
+    }
+
+    /// Run `f` with a fresh compute encoder, commit, return the command buffer (not waited on).
+    pub fn encode_and_commit(
+        &self,
+        f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>),
+    ) -> Result<CommandBuffer> {
+        let cb = self.queue.commandBuffer().ok_or_else(|| Error::backend("metal: commandBuffer failed"))?;
+        let enc = cb.computeCommandEncoder().ok_or_else(|| Error::backend("metal: computeCommandEncoder failed"))?;
+        f(&enc);
+        enc.endEncoding();
+        self.commit(&cb);
+        Ok(cb)
+    }
+
+    /// Name of the shader `launch("matmul_bf16_gemv", call)` would dispatch (operand alignment and K pick it).
+    pub fn gemv_shader_for(&self, call: &OpCall) -> Result<&'static str> {
+        Ok(self.plan_gemv(call)?.name)
+    }
+
+    /// Decide kernel and bindings for a Matmul call (x `[1,K]`, w `[N,K]`, y `[1,N]`, all bf16).
+    fn plan_gemv<'a>(&self, call: &'a OpCall) -> Result<GemvPlan> {
+        let (x, w, y) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
+            ([x, w], [y]) => (x, w, y),
+            _ => return Err(Error::invalid("matmul: expected 2 inputs / 1 output")),
+        };
+        if x.shape.len() != 2 || w.shape.len() != 2 || y.shape.len() != 2 || x.shape[0] != 1 || y.shape[0] != 1 {
+            return Err(Error::invalid("matmul_bf16_gemv: needs x [1,K], w [N,K], y [1,N]"));
+        }
+        let (k, n) = (w.shape[1], w.shape[0]);
+        if x.shape[1] != k || y.shape[1] != n {
+            return Err(Error::invalid("matmul_bf16_gemv: shape mismatch"));
+        }
+        if [x.dtype, w.dtype, y.dtype] != [DType::Bf16; 3] {
+            return Err(Error::invalid("matmul_bf16_gemv: bf16 only"));
+        }
+        if k > u32::MAX as usize || n > u32::MAX as usize {
+            return Err(Error::invalid("matmul_bf16_gemv: dimension exceeds u32"));
+        }
+        let addr = |t: &'a TensorRef| -> Result<(&'a MetalBuffer, usize)> {
+            let mb = self.mbuf(&t.buf)?;
+            Ok((mb, mb.base + t.offset))
+        };
+        let (wb, wo) = addr(w)?;
+        let (xb, xo) = addr(x)?;
+        let (yb, yo) = addr(y)?;
+        if yb.read_only {
+            return Err(Error::backend("metal: output buffer is read-only (wrapped host memory)"));
+        }
+        // Kernel choice by what the operands allow. 16-byte vector loads need K % 8 == 0 and 16-byte aligned W and x;
+        // 8-byte loads need K % 4 == 0 and 8-byte alignment (a safetensors shard with header length 8 mod 16 puts every
+        // weight there); anything else takes the scalar kernel, which binds each buffer at a 4-byte aligned offset and
+        // skips the leftover ushort in-kernel. y is written with 2-byte stores in all of them, so it only needs the
+        // 4-byte binding trick.
+        let mut params = GemvParams { k: k as u32, n: n as u32, y_skip: ((yo & 3) / 2) as u32, ..Default::default() };
+        let y_bind = yo & !3;
+        let (v, w_bind, x_bind) = if k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 {
+            (DEFAULT_GEMV, wo, xo)
+        } else if k % 4 == 0 && wo % 8 == 0 && xo % 8 == 0 {
+            (kernels::DEFAULT_GEMV_A8, wo, xo)
+        } else {
+            params.w_skip = ((wo & 3) / 2) as u32;
+            params.x_skip = ((xo & 3) / 2) as u32;
+            (kernels::GEMV_SCALAR, wo & !3, xo & !3)
+        };
+        let (name, groups, threads) = (v.name, (n as u32).div_ceil(v.rows_per_tg()), v.threads_per_tg());
+        Ok(GemvPlan {
+            name,
+            w: (wb.mtl.clone(), w_bind),
+            x: (xb.mtl.clone(), x_bind),
+            y: (yb.mtl.clone(), y_bind),
+            params,
+            groups,
+            threads,
+        })
+    }
+}
+
+/// A resolved GEMV launch: pipeline, buffer bindings (MTLBuffer, byte offset) and grid.
+struct GemvPlan {
+    name: &'static str,
+    w: (MtlBuffer, usize),
+    x: (MtlBuffer, usize),
+    y: (MtlBuffer, usize),
+    params: GemvParams,
+    groups: u32,
+    threads: u32,
+}
+
+/// Pass `v` to the shader as a small inline constant buffer at `index`.
+pub fn set_bytes<T: Copy>(enc: &ProtocolObject<dyn MTLComputeCommandEncoder>, v: &T, index: usize) {
+    // SAFETY: `v` is a valid, initialised T for the call; Metal copies the bytes.
+    unsafe {
+        enc.setBytes_length_atIndex(
+            NonNull::new_unchecked(v as *const T as *mut c_void),
+            std::mem::size_of::<T>(),
+            index,
+        )
+    }
+}
+
+/// Encode one GEMV dispatch (`y = W x`) with the shader's kernel arguments passed inline.
+pub fn encode_gemv(
+    enc: &ProtocolObject<dyn MTLComputeCommandEncoder>,
+    pso: &ProtocolObject<dyn MTLComputePipelineState>,
+    w: (&ProtocolObject<dyn MTLBuffer>, usize),
+    x: (&ProtocolObject<dyn MTLBuffer>, usize),
+    y: (&ProtocolObject<dyn MTLBuffer>, usize),
+    params: &GemvParams,
+    groups: u32,
+    threads: u32,
+) {
+    enc.setComputePipelineState(pso);
+    // SAFETY: offsets are inside the buffers (the callers check) and aligned for the kernel's pointer types.
+    unsafe {
+        enc.setBuffer_offset_atIndex(Some(w.0), w.1, 0);
+        enc.setBuffer_offset_atIndex(Some(x.0), x.1, 1);
+        enc.setBuffer_offset_atIndex(Some(y.0), y.1, 2);
+    }
+    set_bytes(enc, params, 3);
+    enc.dispatchThreadgroups_threadsPerThreadgroup(
+        MTLSize { width: groups as usize, height: 1, depth: 1 },
+        MTLSize { width: threads as usize, height: 1, depth: 1 },
+    );
+}
+
+impl Backend for MetalBackend {
+    fn name(&self) -> &str {
+        "metal"
+    }
+
+    fn info(&self) -> DeviceInfo {
+        let total = self.device.recommendedMaxWorkingSetSize();
+        let used = self.device.currentAllocatedSize() as u64;
+        let bandwidth = *self.bandwidth.get_or_init(|| bench::measure_copy_gbs(self, 1 << 30, 3, 7).ok());
+        DeviceInfo {
+            name: self.device.name().to_string(),
+            backend: "metal".into(),
+            arch: self.device.architecture().name().to_string(),
+            total_mem: total,
+            free_mem: total.saturating_sub(used),
+            unified: true,
+            bandwidth_gbs: bandwidth,
+        }
+    }
+
+    fn alloc(&self, bytes: usize, _kind: MemKind) -> Result<Buffer> {
+        let mtl = self.new_mtl_buffer(bytes, false)?;
+        Ok(Buffer::new(MetalBuffer { mtl, base: 0, bytes, read_only: false, _host: None }))
+    }
+
+    fn upload(&self, dst: &Buffer, dst_offset: usize, src: &[u8], _s: StreamId) -> Result<()> {
+        self.synchronize(0)?;
+        let (mb, p) = self.host_range(dst, dst_offset, src.len())?;
+        if mb.read_only {
+            return Err(Error::backend("metal buffer is read-only (wrapped host memory)"));
+        }
+        // SAFETY: bounds-checked, GPU idle, `src` cannot overlap a buffer the backend allocated.
+        unsafe { std::ptr::copy_nonoverlapping(src.as_ptr(), p, src.len()) };
+        Ok(())
+    }
+
+    fn download(&self, src: &Buffer, src_offset: usize, dst: &mut [u8], _s: StreamId) -> Result<()> {
+        self.synchronize(0)?;
+        let (_, p) = self.host_range(src, src_offset, dst.len())?;
+        // SAFETY: bounds-checked, GPU idle.
+        unsafe { std::ptr::copy_nonoverlapping(p, dst.as_mut_ptr(), dst.len()) };
+        Ok(())
+    }
+
+    fn copy(
+        &self,
+        dst: &Buffer,
+        dst_offset: usize,
+        src: &Buffer,
+        src_offset: usize,
+        bytes: usize,
+        _s: StreamId,
+    ) -> Result<()> {
+        self.synchronize(0)?;
+        let (db, dp) = self.host_range(dst, dst_offset, bytes)?;
+        let (_, sp) = self.host_range(src, src_offset, bytes)?;
+        if db.read_only {
+            return Err(Error::backend("metal buffer is read-only (wrapped host memory)"));
+        }
+        // SAFETY: bounds-checked, GPU idle; `copy` tolerates overlap within one buffer.
+        unsafe { std::ptr::copy(sp, dp, bytes) };
+        Ok(())
+    }
+
+    fn wrap_host(&self, mem: Arc<dyn HostMemory>, offset: usize, len: usize) -> Option<Buffer> {
+        host::wrap(self, mem, offset, len)
+    }
+
+    fn kernels(&self) -> Vec<KernelImpl> {
+        kernels::all()
+    }
+
+    fn launch(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
+        call.check()?;
+        if kernel != kernels::MATMUL_BF16_GEMV || call.op != Op::Matmul {
+            return Err(Error::NoKernel(format!("metal kernel '{kernel}' for op '{}'", call.op)));
+        }
+        let plan = self.plan_gemv(call)?;
+        let pso = self.pso(plan.name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{}'", plan.name)))?;
+        self.encode_and_commit(|enc| {
+            encode_gemv(
+                enc,
+                pso,
+                (&plan.w.0, plan.w.1),
+                (&plan.x.0, plan.x.1),
+                (&plan.y.0, plan.y.1),
+                &plan.params,
+                plan.groups,
+                plan.threads,
+            )
+        })?;
+        Ok(())
+    }
+
+    fn synchronize(&self, _s: StreamId) -> Result<()> {
+        let last = self.last.lock().unwrap().clone();
+        match last {
+            Some(cb) => Self::wait(&cb),
+            None => Ok(()),
+        }
+    }
+}

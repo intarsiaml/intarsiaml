@@ -6,6 +6,7 @@ members = [
     "crates/intarsia-backend-cpu",
     "crates/intarsia-backend-cuda",
     "crates/intarsia-backend-hip",
+    "crates/intarsia-backend-metal",
     "crates/intarsia-models",
     "crates/intarsia-server",
     "crates/intarsia-ui",
@@ -27,6 +28,7 @@ intarsia-core = { path = "crates/intarsia-core" }
 intarsia-backend-cpu = { path = "crates/intarsia-backend-cpu" }
 intarsia-backend-cuda = { path = "crates/intarsia-backend-cuda" }
 intarsia-backend-hip = { path = "crates/intarsia-backend-hip" }
+intarsia-backend-metal = { path = "crates/intarsia-backend-metal" }
 intarsia-models = { path = "crates/intarsia-models" }
 intarsia-server = { path = "crates/intarsia-server" }
 intarsia-ui = { path = "crates/intarsia-ui" }
@@ -65,7 +67,11 @@ libc = "0.2"
 opt-level = 3
 [profile.dev.package.intarsia-backend-cpu]
 opt-level = 3
+[profile.dev.package.intarsia-backend-metal]
+opt-level = 3
 [profile.dev.package.intarsia-core]
 opt-level = 1
 [profile.test.package.intarsia-backend-cpu]
+opt-level = 3
+[profile.test.package.intarsia-backend-metal]
 opt-level = 3
