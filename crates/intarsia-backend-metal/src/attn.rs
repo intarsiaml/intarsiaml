@@ -139,6 +139,7 @@ impl MetalBackend {
             pad: u32_of(min_keys, "min_keys")?,
         };
         u32_of(nkv * cap * d, "Nkv*cap*D")?;
+        u32_of(n * max_split * (d + 2), "N*max_split*(D+2)")?; // the shader indexes the scratch with 32-bit math
         let gp = grp.next_power_of_two();
         // few threadgroups (short context): 8 simdgroups each put more loads in flight; a full wave of them: 4, which
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)

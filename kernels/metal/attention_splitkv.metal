@@ -48,14 +48,16 @@ inline void ask_unpack8(uint4 w, thread float* f) {
     f[7] = as_type<float>(w.w & 0xffff0000u);
 }
 
-inline uint ask_nsplit(ulong visible, uint nkv, uint max_split, uint min_keys, uint target) {
-    const ulong by_len = (visible + min_keys - 1) / min_keys;
-    const ulong by_fill = ((ulong)target + nkv - 1) / nkv;
-    return (uint)max(min(min(by_len, by_fill), (ulong)max_split), (ulong)1);
+// 32-bit integer math throughout (visible <= cap < 2^32, the launcher checks Nkv * cap * D < 2^32): 64-bit division is
+// emulated on the GPU and sits on the ramp of every launch.
+inline uint ask_nsplit(uint visible, uint nkv, uint max_split, uint min_keys, uint target) {
+    const uint by_len = (visible + min_keys - 1) / min_keys;
+    const uint by_fill = (target + nkv - 1) / nkv;
+    return max(min(min(by_len, by_fill), max_split), 1u);
 }
 
-inline ulong ask_chunk(ulong visible, uint nsplit) {
-    const ulong c = (visible + nsplit - 1) / nsplit;
+inline uint ask_chunk(uint visible, uint nsplit) {
+    const uint c = (visible + nsplit - 1) / nsplit;
     return (c + ASK_CHUNK_ALIGN - 1) / ASK_CHUNK_ALIGN * ASK_CHUNK_ALIGN;
 }
 
@@ -126,34 +128,34 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
     threadgroup float tacc[ASK_TG_FLOATS];
 
     const uint n = p.b, nkv = p.c, d = p.d;
-    const ulong cap = p.e;
+    const uint cap = p.e;
     const int pos_raw = p.g != 0 ? posbuf[0] : (int)p.f;
-    const ulong visible = min((ulong)max(pos_raw, 0) + 1, cap);  // clamped, as the other decode kernels
+    const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);  // clamped, as the other decode kernels
     const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
     const uint kvh = tg.x, sp = tg.y;
     if (sp >= nsplit) return;  // uniform over the threadgroup
     const uint grp = n / nkv;  // query heads per kv head, <= GP
-    const ulong chunk = ask_chunk(visible, nsplit);
-    const ulong start = (ulong)sp * chunk;
-    const ulong end = min(visible, start + chunk);
-    device float2* ml = (device float2*)(part + (ulong)n * p.h * d);
+    const uint chunk = ask_chunk(visible, nsplit);
+    const uint start = sp * chunk;
+    const uint end = min(visible, start + chunk);
+    device float2* ml = (device float2*)(part + n * p.h * d);
     if (start >= end) {  // an empty split (the chunk rounding leaves trailing ones): max = -inf, sum = 0
-        if (sg == 0 && lane < grp) ml[(ulong)(kvh * grp + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
+        if (sg == 0 && lane < grp) ml[(kvh * grp + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
         return;
     }
 
     const uint lpk = d / 8, kps = 32 / lpk;
     const uint slot = lane / lpk, c8 = lane % lpk;
     // 16-byte aligned by the launcher (skips of k / v are 0)
-    device const uint4* kb = (device const uint4*)(kc + (ulong)kvh * cap * d) + c8;
-    device const uint4* vb = (device const uint4*)(vc + (ulong)kvh * cap * d) + c8;
+    device const uint4* kb = (device const uint4*)(kc + kvh * cap * d) + c8;
+    device const uint4* vb = (device const uint4*)(vc + kvh * cap * d) + c8;
     float qv[GP][8], acc[GP][8], m[GP], l[GP];
     const float qs = p.f0 * ASK_LOG2E;
     for (uint g = 0; g < GP; ++g) {
         // one 16-byte load of the lane's 8 q values (the launcher guarantees a 16-byte aligned q, skip 0): 8 scalar loads
         // are a chain of load issues on the ramp of every launch; the values and the scaling are unchanged
         float qf[8];
-        ask_unpack8(g < grp ? ((device const uint4*)(q + (ulong)(kvh * grp + g) * d + c8 * 8))[0] : uint4(0), qf);
+        ask_unpack8(g < grp ? ((device const uint4*)(q + (kvh * grp + g) * d + c8 * 8))[0] : uint4(0), qf);
         for (uint i = 0; i < 8; ++i) {
             qv[g][i] = g < grp ? qf[i] * qs : 0.0f;
             acc[g][i] = 0.0f;
@@ -162,8 +164,8 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
         l[g] = 0.0f;
     }
 
-    const uint units = (uint)(end - start + kps - 1) / kps;
-    const uint start32 = (uint)start, end32 = (uint)end;  // < cap < 2^32 (launcher): 32-bit index math in the loop
+    const uint units = (end - start + kps - 1) / kps;
+    const uint start32 = start, end32 = end;
     for (uint u0 = sg; u0 < units; u0 += nsg * ASK_U) {
         // the loads of this step, all issued before any is used: they are independent and hide each other's latency
         // (a step is "full" when every slot of every unit has a key; only the last step of a split can be partial)
@@ -200,8 +202,9 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
 
     // merge the simdgroups; thread -> (query head g, dim di)
     const uint tid = sg * 32 + lane;
+    const uint lgd = ctz(d);
     for (uint idx = tid; idx < grp * d; idx += nsg * 32) {
-        const uint g = idx / d, di = idx % d;
+        const uint g = idx >> lgd, di = idx & (d - 1);  // d is a power of two
         float mt = -INFINITY;
         for (uint s = 0; s < nsg; ++s) mt = max(mt, tm[s * GP + g]);
         float lt = 0.0f, num = 0.0f;
@@ -211,7 +214,7 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
             lt += tl[s * GP + g] * w;
             num += tacc[(s * GP + g) * d + di] * w;
         }
-        const ulong head = (ulong)kvh * grp + g;
+        const uint head = kvh * grp + g;
         if (nsplit == 1) {
             out[p.s3 + head * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
         } else {
@@ -241,11 +244,11 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
                                      uint di [[thread_position_in_threadgroup]]) {
     const uint n = p.b, nkv = p.c, d = p.d;
     const int pos_raw = p.g != 0 ? posbuf[0] : (int)p.f;
-    const ulong visible = min((ulong)max(pos_raw, 0) + 1, (ulong)p.e);
+    const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
     const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
     if (nsplit == 1) return;  // stage 1 wrote the output
-    device const float2* ml = (device const float2*)(part + (ulong)n * p.h * d) + (ulong)head * p.h;
-    device const float* acc = part + (ulong)head * p.h * d + di;
+    device const float2* ml = (device const float2*)(part + n * p.h * d) + head * p.h;
+    device const float* acc = part + head * p.h * d + di;
     // Loads come in batches of ASK_COMB_U splits, all issued before any is used: the combine is a chain of dependent
     // round trips otherwise (one per split), which made it the longest part of a short launch. The first batch's
     // accumulators are loaded together with its (max, sum) pairs. Arithmetic and order are those of a plain loop over
@@ -255,7 +258,7 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
     for (uint u = 0; u < ASK_COMB_U; ++u) {
         const bool ok = u < nsplit;
         v0[u] = ok ? ml[u] : float2(-INFINITY, 0.0f);
-        a0[u] = ok ? acc[(ulong)u * d] : 0.0f;
+        a0[u] = ok ? acc[u * d] : 0.0f;
     }
     float mt = -INFINITY;
     for (uint u = 0; u < ASK_COMB_U; ++u) mt = max(mt, v0[u].x);
@@ -277,7 +280,7 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
         for (uint u = 0; u < ASK_COMB_U; ++u) {
             const bool ok = s0 + u < nsplit;
             v[u] = ok ? ml[s0 + u] : float2(-INFINITY, 0.0f);
-            a[u] = ok ? acc[(ulong)(s0 + u) * d] : 0.0f;
+            a[u] = ok ? acc[(s0 + u) * d] : 0.0f;
         }
         for (uint u = 0; u < ASK_COMB_U; ++u) {
             if (v[u].x == -INFINITY) continue;
@@ -286,5 +289,5 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
             num += a[u] * w;
         }
     }
-    out[p.s3 + (ulong)head * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
+    out[p.s3 + head * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
 }
