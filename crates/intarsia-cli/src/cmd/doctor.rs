@@ -14,7 +14,7 @@ use std::time::Instant;
 
 #[derive(clap::Args, Debug)]
 pub struct DoctorArgs {
-    /// Backend to inspect: cpu, cuda, hip, or auto (cuda / hip when compiled in, else cpu).
+    /// Backend to inspect: cpu, cuda, hip, metal, or auto (cuda / hip / metal when compiled in, else cpu).
     #[arg(long, default_value = "auto")]
     pub backend: String,
     /// Device ordinal for GPU backends.
@@ -147,6 +147,8 @@ pub fn run(args: DoctorArgs) -> Result<()> {
                 "cuda"
             } else if cfg!(feature = "hip") {
                 "hip"
+            } else if cfg!(all(feature = "metal", target_os = "macos")) {
+                "metal"
             } else {
                 "cpu"
             }
@@ -202,6 +204,24 @@ pub fn run(args: DoctorArgs) -> Result<()> {
             checks.push(check("hip_arch_target", "fail", format!("GPU is {arch} but no kernel is registered for it"), Some("rebuild with INTARSIA_HIP_ARCH=<gfx arch> (the kernels need gfx12: wave32 + WMMA)")));
         }
     }
+    if let (Ok(_), "metal") = (&backend, want.as_str()) {
+        let dev = &backend_json["device"];
+        let gb = |k: &str| dev[k].as_f64().unwrap_or(0.0) / 1e9;
+        let bw = dev["bandwidth_gbs"].as_f64().map_or("not measured".to_string(), |b| format!("{b:.0} GB/s measured copy"));
+        checks.push(check(
+            "metal_device",
+            "info",
+            format!(
+                "{} ({}), {} memory, {:.1} GB recommended working set, {:.1} GB free, bandwidth {bw}",
+                dev["name"].as_str().unwrap_or("?"),
+                dev["arch"].as_str().unwrap_or("?"),
+                if dev["unified"].as_bool().unwrap_or(false) { "unified" } else { "discrete" },
+                gb("total_mem"),
+                gb("free_mem"),
+            ),
+            None,
+        ));
+    }
     if cc.as_deref() == Some("12.1") {
         let ver = cuda_ver.clone().or_else(|| nvcc.clone()).unwrap_or_default();
         let major = ver.split(|c: char| !c.is_ascii_digit() && c != '.').find(|t| t.contains('.')).and_then(|t| t.split('.').next()).and_then(|m| m.parse::<u32>().ok());
@@ -256,7 +276,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
     let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let report = json!({
         "kind": "intarsia-doctor", "schema_version": 1, "timestamp_unix": ts,
-        "intarsia_version": env!("CARGO_PKG_VERSION"), "cuda_feature": cfg!(feature = "cuda"), "hip_feature": cfg!(feature = "hip"),
+        "intarsia_version": env!("CARGO_PKG_VERSION"), "cuda_feature": cfg!(feature = "cuda"), "hip_feature": cfg!(feature = "hip"), "metal_feature": cfg!(all(feature = "metal", target_os = "macos")),
         "host": host, "gpu": gpu, "backend": backend_json, "checks": checks,
     });
     if let Some(p) = &args.out {

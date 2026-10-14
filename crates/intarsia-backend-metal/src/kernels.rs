@@ -7,6 +7,9 @@ use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 /// bf16-rounded outputs: a one-ulp flip is allowed (same budget as the cpu and hip backends).
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 
+/// f32 outputs of bf16 inputs: only accumulation-order noise (same as the hip backend's logits).
+const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
+
 /// `KernelImpl::name` of the batch-1 bf16 GEMV (the HIP backend calls the same thing `matmul_bf16_gemv`).
 pub const MATMUL_BF16_GEMV: &str = "matmul_bf16_gemv";
 
@@ -71,6 +74,29 @@ pub const DEFAULT_GEMV_A8: GemvVariant = GEMV_A8_VARIANTS[1];
 /// Fallback for any K and any 2-byte alignment: one simdgroup per row, 8 rows per threadgroup, 2-byte loads.
 pub const GEMV_SCALAR: GemvVariant = GemvVariant { name: "gemv_bf16_scalar", rows: 1, unroll: 1, sg: 8 };
 
+/// bf16 GEMM, any M; the shader is `gemm_bf16_t<OutT>` with a bf16 (`Matmul`) or f32 (`Logits`) output.
+pub const MATMUL_BF16: &str = "matmul_bf16";
+pub const LOGITS_BF16: &str = "logits_bf16";
+/// `Logits` with M == 1: the f32-output GEMV.
+pub const LOGITS_BF16_GEMV: &str = "logits_bf16_gemv";
+pub const GEMM_O_BF16: &str = "gemm_bf16_o_bf16";
+pub const GEMM_O_F32: &str = "gemm_bf16_o_f32";
+pub const GEMV_F32O_V: &str = "gemv_f32o_v";
+pub const GEMV_F32O_SCALAR: &str = "gemv_f32o_scalar";
+
+/// Dense elementwise / row ops. The kernel names are the hip launcher names (without `ik_`) and the shaders'
+/// `host_name`s, one shader per kernel except `qk_norm_bf16`, which runs `rmsnorm_bf16`.
+pub const EMBEDDING_BF16: &str = "embedding_bf16";
+pub const RMSNORM_BF16: &str = "rmsnorm_bf16";
+pub const RMSNORM_ADD_BF16: &str = "rmsnorm_add_bf16";
+pub const ADD_BF16: &str = "add_bf16";
+pub const QK_NORM_BF16: &str = "qk_norm_bf16";
+pub const ROPE_BF16: &str = "rope_bf16";
+pub const SILU_GLU_BF16: &str = "silu_glu_bf16";
+pub const KV_APPEND_BF16: &str = "kv_append_bf16";
+pub const ARGMAX_F32: &str = "argmax_f32";
+pub const ARGMAX_BF16: &str = "argmax_bf16";
+
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
 /// 16-byte vectors each copy/read thread handles (`PER_THREAD` in copy.metal).
@@ -83,16 +109,95 @@ pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4]);
+    v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
+    v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
+    v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v
 }
 
-/// Every kernel implementation this backend registers.
+/// (kernel name, op) for every implementation, in registration order. Attention (`AttnPrefill`, `AttnDecode`) and
+/// the quantised / MoE / GatedDeltaNet ops are not ported yet, so the registry reports `NoKernel` for them.
+pub const TABLE: &[(&str, Op)] = &[
+    (EMBEDDING_BF16, Op::Embedding),
+    (RMSNORM_BF16, Op::RmsNorm),
+    (RMSNORM_ADD_BF16, Op::RmsNormAdd),
+    (ADD_BF16, Op::Add),
+    (QK_NORM_BF16, Op::QkNorm),
+    (ROPE_BF16, Op::Rope),
+    (MATMUL_BF16, Op::Matmul),
+    (MATMUL_BF16_GEMV, Op::Matmul),
+    (LOGITS_BF16, Op::Logits),
+    (LOGITS_BF16_GEMV, Op::Logits),
+    (KV_APPEND_BF16, Op::KvAppend),
+    (SILU_GLU_BF16, Op::SiluGlu),
+    (ARGMAX_F32, Op::Argmax),
+    (ARGMAX_BF16, Op::Argmax),
+];
+
+/// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
 pub fn all() -> Vec<KernelImpl> {
-    vec![KernelImpl::new(Op::Matmul, MATMUL_BF16_GEMV, "metal")
-        .acts([DType::Bf16])
-        .weights([DType::Bf16])
-        .when(|s| s.m == 1 && s.out.is_none_or(|d| d == DType::Bf16))
-        .exact(Exactness::Deterministic)
-        .tol(BF16_TOL)
-        .priority(10)]
+    let bf = [DType::Bf16];
+    TABLE
+        .iter()
+        .map(|&(name, op)| {
+            let k = KernelImpl::new(op, name, "metal");
+            match name {
+                EMBEDDING_BF16 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+                RMSNORM_BF16 | RMSNORM_ADD_BF16 | ADD_BF16 | QK_NORM_BF16 | SILU_GLU_BF16 => {
+                    k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
+                }
+                ROPE_BF16 => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL),
+                // tiled GEMM, f32 accumulate in a fixed K order, run-to-run identical; any M
+                MATMUL_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.out.is_none_or(|d| d == DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(0),
+                // decode GEMV: fixed reduction order, run-to-run identical
+                MATMUL_BF16_GEMV => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.out.is_none_or(|d| d == DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                LOGITS_BF16 => k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(F32_TOL).priority(0),
+                LOGITS_BF16_GEMV => {
+                    k.acts(bf).weights(bf).when(|s| s.m == 1).exact(Exactness::Deterministic).tol(F32_TOL).priority(10)
+                }
+                // the cache dtype is the output's; only bf16 caches are ported (fp8 / f32 caches fall to the cpu)
+                KV_APPEND_BF16 => {
+                    k.acts(bf).when(|s| s.out == Some(DType::Bf16)).exact(Exactness::Exact).tol(Tol::EXACT)
+                }
+                ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
+                ARGMAX_BF16 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+                other => unreachable!("kernel {other} has no registration"),
+            }
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn names_unique_and_named_after_their_op() {
+        let names: HashSet<_> = TABLE.iter().map(|(n, _)| *n).collect();
+        assert_eq!(names.len(), TABLE.len());
+        for (name, op) in TABLE {
+            assert!(name.starts_with(op.as_str()), "{name} is not named after op {op}");
+        }
+        assert_eq!(all().len(), TABLE.len());
+    }
+
+    #[test]
+    fn attention_is_not_registered() {
+        for (_, op) in TABLE {
+            assert!(!matches!(op, Op::AttnPrefill | Op::AttnDecode));
+        }
+    }
 }

@@ -4,19 +4,26 @@
 //!  * Memory is `MTLResourceStorageModeShared` (unified memory): `alloc`, `upload`, `download` and `copy` are memcpys
 //!    through `MTLBuffer::contents()` after the queue has drained.
 //!  * `wrap_host` imports mmap'd weight files without copying (`newBufferWithBytesNoCopy`), see [`host`].
-//!  * One kernel implementation is registered, the batch-1 bf16 GEMV for `Op::Matmul` (`matmul_bf16_gemv`). The
-//!    shaders are AOT compiled from kernels/metal/*.metal by build.rs and embedded as one metallib.
-//!  * One `MTLCommandQueue`. Every `launch` commits its own command buffer (no batching in the spike);
-//!    `synchronize` waits on the last committed one, which is enough because a queue starts command buffers in order
-//!    and every resource here is hazard-tracked.
+//!  * Kernels: the batch-1 bf16 GEMV and a tiled GEMM for `Matmul`/`Logits`, plus the dense elementwise / row ops
+//!    (`Embedding`, `RmsNorm`, `RmsNormAdd`, `Add`, `QkNorm`, `Rope`, `SiluGlu`, `Argmax`, `KvAppend`), see [`kernels`]
+//!    and `dense.rs`. Attention is not implemented yet (the registry reports `NoKernel`). The shaders are AOT compiled
+//!    from kernels/metal/*.metal by build.rs and embedded as one metallib.
+//!  * One `MTLCommandQueue` and one open command buffer + compute encoder per backend ("the stream"). `launch` appends a
+//!    dispatch to it; nothing is committed until `synchronize`, a host access to a buffer, or [`MAX_DISPATCHES`]
+//!    dispatches. The encoder is `MTLDispatchTypeSerial`: every dispatch starts after the previous one finished and sees
+//!    its memory writes, so dependent ops need no barriers (the spike measured barriers at about 3 percent, see
+//!    docs/results/2026-10-14-metal-spike.md). Concurrent dispatch plus targeted barriers is a phase B option.
+//!  * Host access (`upload`, `download`, `copy`, `zero`) first flushes and waits for all pending GPU work, the simplest
+//!    rule that is always correct on shared storage. It is a no-op when nothing is pending.
 //!
-//! Exports no `ik_*` symbols and is not wired into intarsia-cli.
+//! Exports no `ik_*` symbols.
 
 #![cfg(target_os = "macos")]
 
 pub mod bench;
 mod buffer;
 pub mod decode;
+mod dense;
 mod host;
 pub mod kernels;
 
@@ -31,8 +38,8 @@ use objc2::runtime::ProtocolObject;
 use objc2_foundation::NSString;
 use objc2_metal::{
     MTLBuffer, MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue, MTLComputeCommandEncoder,
-    MTLComputePipelineDescriptor, MTLComputePipelineState, MTLCreateSystemDefaultDevice, MTLDevice, MTLLibrary,
-    MTLResourceOptions, MTLSize,
+    MTLComputePipelineDescriptor, MTLComputePipelineState, MTLCreateSystemDefaultDevice, MTLDevice, MTLDispatchType,
+    MTLLibrary, MTLResourceOptions, MTLSize,
 };
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -60,12 +67,25 @@ pub struct GemvParams {
     pub pad: [u32; 3],
 }
 
+/// Dispatches appended to one command buffer before it is committed (not waited on) and a fresh one is opened. Bounds
+/// the size of a command buffer and lets the GPU start on a long step before the host reaches `synchronize`.
+pub const MAX_DISPATCHES: usize = 4096;
+
+/// The stream: the open command buffer and encoder plus every committed buffer not yet waited on.
+#[derive(Default)]
+struct Stream {
+    open: Option<(CommandBuffer, Encoder)>,
+    dispatches: usize,
+    inflight: Vec<CommandBuffer>,
+    /// First GPU error seen on a buffer that was pruned from `inflight` before `synchronize` looked at it.
+    failed: Option<String>,
+}
+
 pub struct MetalBackend {
     device: Device,
     queue: Queue,
     psos: HashMap<&'static str, Pso>,
-    /// Last committed command buffer; `synchronize` waits on it.
-    last: Mutex<Option<CommandBuffer>>,
+    stream: Mutex<Stream>,
     hosts: Mutex<host::HostCache>,
     page_size: usize,
     /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
@@ -74,7 +94,7 @@ pub struct MetalBackend {
 }
 
 // SAFETY: Apple documents MTLDevice, MTLCommandQueue, MTLComputePipelineState and MTLBuffer as usable from any thread;
-// the one non-thread-safe object we keep (the last command buffer) is behind a Mutex and only committed/awaited.
+// the non-thread-safe objects we keep (the open command buffer and encoder) are behind a Mutex.
 unsafe impl Send for MetalBackend {}
 unsafe impl Sync for MetalBackend {}
 
@@ -117,7 +137,7 @@ impl MetalBackend {
             device,
             queue,
             psos,
-            last: Mutex::new(None),
+            stream: Mutex::new(Stream::default()),
             hosts: Mutex::new(host::HostCache::default()),
             page_size,
             bandwidth: OnceLock::new(),
@@ -158,12 +178,13 @@ impl MetalBackend {
             .ok_or_else(|| Error::Memory(format!("metal: newBuffer of {bytes} bytes failed")))
     }
 
-    /// Commit `cb` and remember it as the last committed buffer.
+    /// Commit a command buffer the caller built on [`Self::queue`] itself (the spike's benchmarks do). Flushes the open
+    /// stream first so queue order matches call order, then tracks `cb` for `synchronize`.
     pub fn commit(&self, cb: &CommandBuffer) {
-        // hold the lock across the commit so concurrent launches cannot leave an older buffer in `last`
-        let mut last = self.last.lock().unwrap();
+        let mut st = self.stream.lock().unwrap();
+        Self::flush_locked(&mut st);
         cb.commit();
-        *last = Some(cb.clone());
+        Self::track(&mut st, cb.clone());
     }
 
     /// Wait for `cb` and turn a GPU error into an `Error`.
@@ -171,6 +192,55 @@ impl MetalBackend {
         cb.waitUntilCompleted();
         if cb.status() == MTLCommandBufferStatus::Error {
             return Err(Error::backend(format!("metal: command buffer failed: {:?}", cb.error())));
+        }
+        Ok(())
+    }
+
+    fn track(st: &mut Stream, cb: CommandBuffer) {
+        // drop finished buffers so a long run without `synchronize` does not grow the list; keep their first error
+        let mut failed = st.failed.take();
+        st.inflight.retain(|c| match c.status() {
+            MTLCommandBufferStatus::Completed => false,
+            MTLCommandBufferStatus::Error => {
+                failed.get_or_insert_with(|| format!("metal: command buffer failed: {:?}", c.error()));
+                false
+            }
+            _ => true,
+        });
+        st.failed = failed;
+        st.inflight.push(cb);
+    }
+
+    /// End the open encoder and commit its command buffer (not waited on).
+    fn flush_locked(st: &mut Stream) {
+        if let Some((cb, enc)) = st.open.take() {
+            enc.endEncoding();
+            cb.commit();
+            Self::track(st, cb);
+            st.dispatches = 0;
+        }
+    }
+
+    /// Commit everything encoded so far without waiting for it.
+    pub fn flush(&self) {
+        Self::flush_locked(&mut self.stream.lock().unwrap());
+    }
+
+    /// Append work to the stream's open serial compute encoder (opening a command buffer and encoder when none is
+    /// open). `f` must encode exactly one dispatch.
+    pub fn with_encoder(&self, f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>)) -> Result<()> {
+        let mut st = self.stream.lock().unwrap();
+        if st.open.is_none() {
+            let cb = self.queue.commandBuffer().ok_or_else(|| Error::backend("metal: commandBuffer failed"))?;
+            let enc = cb
+                .computeCommandEncoderWithDispatchType(MTLDispatchType::Serial)
+                .ok_or_else(|| Error::backend("metal: computeCommandEncoder failed"))?;
+            st.open = Some((cb, enc));
+        }
+        f(&st.open.as_ref().unwrap().1);
+        st.dispatches += 1;
+        if st.dispatches >= MAX_DISPATCHES {
+            Self::flush_locked(&mut st);
         }
         Ok(())
     }
@@ -189,7 +259,8 @@ impl MetalBackend {
         Ok((mb, unsafe { mb.host_ptr().add(offset) }))
     }
 
-    /// Run `f` with a fresh compute encoder, commit, return the command buffer (not waited on).
+    /// Run `f` with a fresh compute encoder in its own command buffer, commit it, return it (not waited on). A
+    /// benchmark / test helper: `Backend::launch` goes through the stream instead.
     pub fn encode_and_commit(
         &self,
         f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>),
@@ -385,32 +456,54 @@ impl Backend for MetalBackend {
         kernels::all()
     }
 
-    fn launch(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
-        call.check()?;
-        if kernel != kernels::MATMUL_BF16_GEMV || call.op != Op::Matmul {
-            return Err(Error::NoKernel(format!("metal kernel '{kernel}' for op '{}'", call.op)));
+    fn zero(&self, dst: &Buffer, _s: StreamId) -> Result<()> {
+        self.synchronize(0)?;
+        let (mb, p) = self.host_range(dst, 0, dst.bytes())?;
+        if mb.read_only {
+            return Err(Error::backend("metal buffer is read-only (wrapped host memory)"));
         }
-        let plan = self.plan_gemv(call)?;
-        let pso = self.pso(plan.name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{}'", plan.name)))?;
-        self.encode_and_commit(|enc| {
-            encode_gemv(
-                enc,
-                pso,
-                (&plan.w.0, plan.w.1),
-                (&plan.x.0, plan.x.1),
-                (&plan.y.0, plan.y.1),
-                &plan.params,
-                plan.groups,
-                plan.threads,
-            )
-        })?;
+        // SAFETY: the whole buffer, GPU idle.
+        unsafe { std::ptr::write_bytes(p, 0, dst.bytes()) };
         Ok(())
     }
 
+    fn launch(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
+        call.check()?;
+        if kernel == kernels::MATMUL_BF16_GEMV && call.op == Op::Matmul {
+            let plan = self.plan_gemv(call)?;
+            let pso =
+                self.pso(plan.name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{}'", plan.name)))?;
+            return self.with_encoder(|enc| {
+                encode_gemv(
+                    enc,
+                    pso,
+                    (&plan.w.0, plan.w.1),
+                    (&plan.x.0, plan.x.1),
+                    (&plan.y.0, plan.y.1),
+                    &plan.params,
+                    plan.groups,
+                    plan.threads,
+                )
+            });
+        }
+        self.launch_dense(kernel, call)
+    }
+
+    /// Commit the open command buffer and wait for every committed one; the first GPU error is returned. The
+    /// backend has one stream, so every `StreamId` means the same thing.
     fn synchronize(&self, _s: StreamId) -> Result<()> {
-        let last = self.last.lock().unwrap().clone();
-        match last {
-            Some(cb) => Self::wait(&cb),
+        // hold the lock while waiting: a concurrent launch queues behind this synchronize, not into it
+        let mut st = self.stream.lock().unwrap();
+        Self::flush_locked(&mut st);
+        let pending = std::mem::take(&mut st.inflight);
+        let mut first = st.failed.take();
+        for cb in &pending {
+            if let Err(e) = Self::wait(cb) {
+                first.get_or_insert_with(|| e.to_string());
+            }
+        }
+        match first {
+            Some(e) => Err(Error::backend(e)),
             None => Ok(()),
         }
     }

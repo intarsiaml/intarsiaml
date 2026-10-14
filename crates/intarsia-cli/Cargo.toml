@@ -23,6 +23,9 @@ cuda = ["dep:intarsia-backend-cuda"]
 # HIP backend for AMD gfx12 (needs hipcc / ROCm; off by default). Exclusive with `cuda`: both kernel libraries
 # export the same `ik_*` C symbols, so one binary links only one of them (compile_error! in lib.rs).
 hip = ["dep:intarsia-backend-hip"]
+# Metal backend for Apple GPUs (macOS only: the dependency is target-gated, so the feature is a no-op elsewhere; needs the
+# Xcode Metal toolchain at build time). Combinable with cpu; independent of the cuda / hip symbol exclusion.
+metal = ["dep:intarsia-backend-metal"]
 
 # Agents: add the dependencies your command module needs at the end of this
 # section (append only; keep the lines above untouched).
@@ -44,3 +47,6 @@ sysinfo = { workspace = true }
 half = { workspace = true }
 ureq = { workspace = true }
 libc = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+intarsia-backend-metal = { workspace = true, optional = true }

@@ -14,7 +14,8 @@ pub struct ModelArgs {
     /// Model directory (config.json, tokenizer.json, *.safetensors).
     #[arg(long, short = 'm')]
     pub model: PathBuf,
-    /// Backend: `cpu` (reference oracle), `cuda` (build with `--features cuda`) or `hip` (`--features hip`).
+    /// Backend: `cpu` (reference oracle), `cuda` (build with `--features cuda`), `hip` (`--features hip`) or `metal`
+    /// (macOS, `--features metal`).
     #[arg(long, default_value = "cpu")]
     pub backend: String,
     /// Device ordinal for GPU backends.
@@ -115,7 +116,21 @@ pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
                 bail!("this binary was built without the `hip` feature (cargo build -p intarsia-cli --features hip)")
             }
         }
-        other => bail!("unknown backend '{other}' (cpu, cuda, hip)"),
+        "metal" => {
+            #[cfg(all(feature = "metal", target_os = "macos"))]
+            {
+                if device != 0 {
+                    bail!("the metal backend drives the system default GPU only (--device {device} is not supported)");
+                }
+                intarsia_backend_metal::MetalBackend::arc().map_err(|e| anyhow::anyhow!("{e}"))
+            }
+            #[cfg(not(all(feature = "metal", target_os = "macos")))]
+            {
+                let _ = device;
+                bail!("this binary was built without the Metal backend (macOS only: cargo build -p intarsia-cli --features metal)")
+            }
+        }
+        other => bail!("unknown backend '{other}' (cpu, cuda, hip, metal)"),
     }
 }
 
@@ -124,6 +139,9 @@ pub fn open_group(name: &str, ordinals: &[usize], comm: &str) -> Result<(Vec<Arc
     match comm {
         "auto" | "host" => {}
         other => bail!("unknown --comm '{other}' (auto, host)"),
+    }
+    if name == "metal" && ordinals.len() > 1 {
+        bail!("the metal backend has one GPU (the system default); --tp {} needs {} devices", ordinals.len(), ordinals.len());
     }
     if name == "hip" && comm == "auto" {
         #[cfg(feature = "hip")]

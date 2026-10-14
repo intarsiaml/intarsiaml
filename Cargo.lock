@@ -1017,6 +1017,7 @@ dependencies = [
  "intarsia-backend-cpu",
  "intarsia-backend-cuda",
  "intarsia-backend-hip",
+ "intarsia-backend-metal",
  "intarsia-bench",
  "intarsia-core",
  "intarsia-models",
