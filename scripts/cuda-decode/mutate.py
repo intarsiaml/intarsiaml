@@ -42,10 +42,11 @@ MUTATIONS = {
         "const float nrm = ik_b2f(ik_f2b(ik_b2f(xr[i]) * r * (ik_b2f(w[i]) + woff)));",
         "const float nrm = ik_b2f(xr[i]) * r * (ik_b2f(w[i]) + woff);")]),
     # --- moe_experts_decode_v2 (tests/quantmoe.rs moe_experts_decode_matches_old_kernel) ---
-    # v2 down: the K per-slot terms are summed in reverse slot order
+    # v2 down: the last expert slot is not added to the total. (Summing the slots in reverse order was tried first and
+    # SURVIVED: bf16-valued terms add exactly in fp32, so the order is not observable on any test data. Equivalent mutant.)
     "down-order": ("kernels/cuda/moe_decode.cu", [(
         "for (int k = 0; k < K; ++k) total += term[k][threadIdx.x];",
-        "for (int k = K - 1; k >= 0; --k) total += term[k][threadIdx.x];")]),
+        "for (int k = 0; k < K - 1; ++k) total += term[k][threadIdx.x];")]),
     # v2 down: the slot term skips the rounding of the down projection before the routing weight
     "down-round": ("kernels/cuda/moe_decode.cu", [(
         "term[k][i] = ok ? round_bf16(round_bf16(s * gscales[v * 3 + 2]) * wts[(int64_t)t * K + k]) : 0.f;",
