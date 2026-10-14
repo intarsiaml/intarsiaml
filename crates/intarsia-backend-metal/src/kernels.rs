@@ -230,6 +230,19 @@ pub const EXPERIMENT_SHADERS: &[&str] = &[
     "gemv_pair_bf16_rt_u4s8",
 ];
 
+/// Entry points of `intarsia_metal4.metallib` (`METAL4_SOURCES` in build.rs, compiled `-std=metal4.0`). Not part of
+/// [`shader_names`]: a failure to load them only drops the kernels in [`requires_metal4`], never `MetalBackend::new`.
+pub const METAL4_SHADERS: &[&str] = &["gemm_nax_probe"];
+
+/// Registered kernels that run on a `METAL4_SHADERS` pipeline; `Backend::kernels` hides them when the metal4.0 library
+/// could not be loaded.
+pub fn requires_metal4(kernel: &str) -> bool {
+    NAX_KERNELS.contains(&kernel)
+}
+
+/// `Op::Matmul`, M >= 16, on the neural accelerators (`mpp::tensor_ops::matmul2d`).
+pub const NAX_KERNELS: &[&str] = &[];
+
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));

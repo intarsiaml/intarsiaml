@@ -28,6 +28,7 @@ pub mod decode;
 mod dense;
 mod fill;
 mod fused;
+mod gemm_nax;
 mod host;
 pub mod kernels;
 pub mod profile;
@@ -59,6 +60,59 @@ pub type Encoder = Retained<ProtocolObject<dyn MTLComputeCommandEncoder>>;
 
 /// All kernels of this crate, built by build.rs (empty when the Metal toolchain was missing at build time).
 static METALLIB: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/intarsia.metallib"));
+/// The metal4.0 kernels (`METAL4_SOURCES` in build.rs); empty when the toolchain could not build them.
+static METALLIB4: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/intarsia_metal4.metallib"));
+
+/// Print `msg` once per process when `INTARSIA_METAL_DEBUG` is set (the metal4.0 fallback reason).
+fn debug_once(msg: &str) {
+    static ONCE: OnceLock<()> = OnceLock::new();
+    if std::env::var_os("INTARSIA_METAL_DEBUG").is_some() {
+        ONCE.get_or_init(|| eprintln!("intarsia-backend-metal: metal4.0 kernels unavailable: {msg}"));
+    }
+}
+
+fn make_pso(device: &ProtocolObject<dyn MTLDevice>, lib: &ProtocolObject<dyn MTLLibrary>, name: &str) -> Result<Pso> {
+    let f = lib
+        .newFunctionWithName(&NSString::from_str(name))
+        .ok_or_else(|| Error::backend(format!("metal: function '{name}' missing from the metallib")))?;
+    let desc = MTLComputePipelineDescriptor::new();
+    desc.setComputeFunction(Some(&f));
+    // ICB-encodable, so the spike's indirect-command-buffer check can use the same pipelines
+    desc.setSupportIndirectCommandBuffers(true);
+    device
+        .newComputePipelineStateWithDescriptor_options_reflection_error(&desc, objc2_metal::MTLPipelineOption::None, None)
+        .map_err(|e| err(name, e))
+}
+
+/// Load `intarsia_metal4.metallib` and create the pipelines of `kernels::METAL4_SHADERS` into `psos`. All or nothing: on
+/// any failure (no library built, an OS or GPU that cannot load metal4.0 code, a pipeline error) `psos` is left as it
+/// was, the reason is logged once at debug level (`INTARSIA_METAL_DEBUG`) and the caller registers none of those kernels.
+fn load_metal4(device: &ProtocolObject<dyn MTLDevice>, psos: &mut HashMap<&'static str, Pso>) -> bool {
+    if METALLIB4.is_empty() {
+        debug_once("the library was not built");
+        return false;
+    }
+    let data = DispatchData::from_bytes(METALLIB4);
+    let lib = match device.newLibraryWithData_error(&data) {
+        Ok(l) => l,
+        Err(e) => {
+            debug_once(&format!("newLibraryWithData: {e:?}"));
+            return false;
+        }
+    };
+    let mut made = Vec::new();
+    for &name in kernels::METAL4_SHADERS {
+        match make_pso(device, &lib, name) {
+            Ok(p) => made.push((name, p)),
+            Err(e) => {
+                debug_once(&e.to_string());
+                return false;
+            }
+        }
+    }
+    psos.extend(made);
+    true
+}
 
 /// FNV-1a 64 of the launcher sources (`LAUNCHER_SOURCES` in build.rs), hex.
 pub const LAUNCHER_HASH: &str = env!("INTARSIA_METAL_LAUNCHER_HASH");
@@ -67,7 +121,10 @@ pub const LAUNCHER_HASH: &str = env!("INTARSIA_METAL_LAUNCHER_HASH");
 pub fn metallib_hash() -> u64 {
     static HASH: OnceLock<u64> = OnceLock::new();
     *HASH.get_or_init(|| {
-        METALLIB.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3))
+        METALLIB
+            .iter()
+            .chain(METALLIB4)
+            .fold(0xcbf2_9ce4_8422_2325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3))
     })
 }
 /// Kernel arguments of the GEMV shaders (`GemvParams` in gemv_bf16.metal; 32 bytes).
@@ -109,6 +166,9 @@ pub struct MetalBackend {
     device: Device,
     queue: Queue,
     psos: HashMap<&'static str, Pso>,
+    /// The metal4.0 library loaded and every `kernels::METAL4_SHADERS` pipeline was created. When false those kernels
+    /// are neither registered (`Backend::kernels`) nor launchable and the metal3.1 kernels run instead.
+    metal4: bool,
     stream: Mutex<Stream>,
     hosts: Mutex<host::HostCache>,
     page_size: usize,
@@ -128,6 +188,20 @@ fn err<E: std::fmt::Debug>(what: &str, e: E) -> Error {
 
 impl MetalBackend {
     pub fn new() -> Result<MetalBackend> {
+        Self::with_metal4(std::env::var_os("INTARSIA_METAL_NO_METAL4").is_none_or(|v| v.is_empty() || v == "0"))
+    }
+
+    /// Like [`Self::new`] but never loads the metal4.0 library (the fallback `INTARSIA_METAL_NO_METAL4=1` forces).
+    pub fn new_without_metal4() -> Result<MetalBackend> {
+        Self::with_metal4(false)
+    }
+
+    /// Whether the metal4.0 kernels (`kernels::METAL4_SHADERS`, e.g. the NAX GEMM) are loaded and registered.
+    pub fn has_metal4(&self) -> bool {
+        self.metal4
+    }
+
+    fn with_metal4(want_metal4: bool) -> Result<MetalBackend> {
         let device = MTLCreateSystemDefaultDevice().ok_or_else(|| Error::backend("metal: no system default device"))?;
         let queue = device.newCommandQueue().ok_or_else(|| Error::backend("metal: newCommandQueue failed"))?;
         if METALLIB.is_empty() {
@@ -139,28 +213,16 @@ impl MetalBackend {
         let lib = device.newLibraryWithData_error(&data).map_err(|e| err("newLibraryWithData", e))?;
         let mut psos = HashMap::new();
         for name in kernels::shader_names() {
-            let f = lib
-                .newFunctionWithName(&NSString::from_str(name))
-                .ok_or_else(|| Error::backend(format!("metal: function '{name}' missing from the metallib")))?;
-            let desc = MTLComputePipelineDescriptor::new();
-            desc.setComputeFunction(Some(&f));
-            // ICB-encodable, so the spike's indirect-command-buffer check can use the same pipelines
-            desc.setSupportIndirectCommandBuffers(true);
-            let pso = device
-                .newComputePipelineStateWithDescriptor_options_reflection_error(
-                    &desc,
-                    objc2_metal::MTLPipelineOption::None,
-                    None,
-                )
-                .map_err(|e| err(name, e))?;
-            psos.insert(name, pso);
+            psos.insert(name, make_pso(&device, &lib, name)?);
         }
+        let metal4 = want_metal4 && load_metal4(&device, &mut psos);
         // SAFETY: sysconf has no preconditions.
         let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
         Ok(MetalBackend {
             device,
             queue,
             psos,
+            metal4,
             stream: Mutex::new(Stream {
                 prof: profile::Prof::from_env(),
                 commit_every: std::env::var("INTARSIA_METAL_COMMIT_EVERY")
@@ -528,7 +590,11 @@ impl Backend for MetalBackend {
     }
 
     fn kernels(&self) -> Vec<KernelImpl> {
-        kernels::all()
+        let mut ks = kernels::all();
+        if !self.metal4 {
+            ks.retain(|k| !kernels::requires_metal4(&k.name));
+        }
+        ks
     }
 
     fn zero(&self, dst: &Buffer, _s: StreamId) -> Result<()> {
