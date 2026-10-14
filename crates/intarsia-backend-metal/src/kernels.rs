@@ -81,6 +81,8 @@ pub const GEMV_SCALAR: GemvVariant = GemvVariant { name: "gemv_bf16_scalar", row
 /// `gemv_pair_bf16` is `gemv_bf16_r1u4s4` over two weight matrices, so each output is bitwise the `Matmul` GEMV's.
 pub const MATMUL_PAIR_BF16_GEMV: &str = "matmul_pair_bf16_gemv";
 pub const GEMV_PAIR_BF16: &str = "gemv_pair_bf16";
+/// The 8-byte-load form (`DEFAULT_GEMV_A8` rows: K % 4 == 0, operands 8-byte aligned).
+pub const GEMV_PAIR_BF16_A8: &str = "gemv_pair_bf16_a8";
 /// Rows per threadgroup of `gemv_pair_bf16` (it is `DEFAULT_GEMV`: one row per simdgroup, 4 simdgroups).
 pub const GEMV_PAIR_ROWS_PER_TG: u32 = 4;
 pub const GEMV_PAIR_THREADS: u32 = 128;
@@ -139,7 +141,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
-    v.push(GEMV_PAIR_BF16);
+    v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
     v.push(ARGMAX_F32_V4);

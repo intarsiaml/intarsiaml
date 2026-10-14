@@ -90,9 +90,19 @@ fn output_offsets_with_a_leftover_element() {
 }
 
 #[test]
+fn eight_byte_aligned_weights_are_one_dispatch_of_the_a8_pair() {
+    // every weight of a safetensors shard with an 8 mod 16 header is only 8-byte aligned: K % 4 == 0 takes the a8 kernel
+    pair_vs_singles(130, 70, 256, Offs { w0: 8, w1: 8, ..ZERO }, 60, 1);
+    pair_vs_singles(12288, 12288, 4096, Offs { w0: 8, w1: 24, ..ZERO }, 61, 1);
+    pair_vs_singles(1024, 1024, 4096, Offs { w0: 8, w1: 8, x: 8, y0: 2, ..ZERO }, 62, 1);
+    pair_vs_singles(33, 5, 100, Offs { w0: 8, w1: 8, ..ZERO }, 63, 1);
+}
+
+#[test]
 fn other_alignments_fall_back_to_two_dispatches() {
-    // W only 8-byte aligned (8-byte kernel), or 2-byte aligned (scalar), or K % 8 != 0: two launches, same results
+    // halves on different kernels (16-byte vs 8-byte), 2-byte aligned (scalar), or K % 4 != 0: two launches, same results
     pair_vs_singles(130, 70, 256, Offs { w0: 8, ..ZERO }, 50, 2);
     pair_vs_singles(130, 70, 256, Offs { w1: 2, x: 2, ..ZERO }, 51, 2);
-    pair_vs_singles(130, 70, 100, ZERO, 52, 2);
+    pair_vs_singles(130, 70, 100, ZERO, 52, 1);
+    pair_vs_singles(130, 70, 102, ZERO, 53, 2);
 }

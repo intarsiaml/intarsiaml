@@ -81,9 +81,12 @@ pub struct GemvParams {
     pub pad: [u32; 3],
 }
 
-/// Dispatches appended to one command buffer before it is committed (not waited on) and a fresh one is opened. Bounds
-/// the size of a command buffer and lets the GPU start on a long step before the host reaches `synchronize`.
-pub const MAX_DISPATCHES: usize = 4096;
+/// Dispatches appended to one command buffer before it is committed (not waited on) and a fresh one is opened. The GPU
+/// starts on a decode step when its first command buffer is committed instead of after the host has encoded all of the
+/// step's ~550 dispatches: the idle time between steps fell from 0.51 to 0.29 ms/token (64 measures the same as 128, 256
+/// in between, see docs/results/2026-10-14-metal-phase-b.md "Phase B part 2b"). `INTARSIA_METAL_COMMIT_EVERY=<n>`
+/// overrides it.
+pub const MAX_DISPATCHES: usize = 128;
 
 /// The stream: the open command buffer and encoder plus every committed buffer not yet waited on.
 #[derive(Default)]

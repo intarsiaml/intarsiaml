@@ -1,11 +1,15 @@
 //! Launchers of the optional fused decode ops (`MatmulPair`). The model runs them when the registry has a kernel for the
 //! exact call and falls back to the ops they replace otherwise (`Model::try_fused`).
 //!
-//! `MatmulPair`: `y0 = x W0^T`, `y1 = x W1^T` of one `x [1,K]`. When both GEMVs would take the default 16-byte vector
-//! kernel it is one dispatch of `gemv_pair_bf16` (kernels/metal/gemv_bf16.metal), bitwise the two `matmul_bf16_gemv`
-//! launches; any other operand alignment is two ordinary GEMV dispatches (correct, not faster).
+//! `MatmulPair`: `y0 = x W0^T`, `y1 = x W1^T` of one `x [1,K]`. When both GEMVs would take the same one of the two
+//! default kernels (16-byte vector loads, or 8-byte loads for operands that are only 8-byte aligned, which is every weight
+//! of a safetensors shard whose header length is 8 mod 16) it is one dispatch of `gemv_pair_bf16` / `gemv_pair_bf16_a8`
+//! (kernels/metal/gemv_bf16.metal), bitwise the two `matmul_bf16_gemv` launches; anything else is two ordinary GEMV
+//! dispatches (correct, not faster).
 
-use crate::kernels::{DEFAULT_GEMV, GEMV_PAIR_BF16, GEMV_PAIR_ROWS_PER_TG, GEMV_PAIR_THREADS};
+use crate::kernels::{
+    DEFAULT_GEMV, DEFAULT_GEMV_A8, GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_ROWS_PER_TG, GEMV_PAIR_THREADS,
+};
 use crate::{encode_gemv, set_bytes, MetalBackend};
 use intarsia_core::backend::TensorRef;
 use intarsia_core::{Error, Op, OpAttrs, OpCall, Result};
@@ -35,8 +39,14 @@ impl MetalBackend {
         };
         let (p0, p1) = (self.plan_gemv(&single(w0, y0))?, self.plan_gemv(&single(w1, y1))?);
         let pso = |name: &str| self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")));
-        if p0.name == DEFAULT_GEMV.name && p1.name == DEFAULT_GEMV.name {
-            let pair = pso(GEMV_PAIR_BF16)?;
+        // both halves on the same GEMV kernel and that kernel has a pair form: one dispatch
+        let shader = match (p0.name, p1.name) {
+            (a, b) if a == DEFAULT_GEMV.name && b == a => Some(GEMV_PAIR_BF16),
+            (a, b) if a == DEFAULT_GEMV_A8.name && b == a => Some(GEMV_PAIR_BF16_A8),
+            _ => None,
+        };
+        if let Some(shader) = shader {
+            let pair = pso(shader)?;
             let params = PairParams {
                 k: p0.params.k,
                 n0: p0.params.n,

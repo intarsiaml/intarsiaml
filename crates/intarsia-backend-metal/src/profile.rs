@@ -39,6 +39,12 @@ impl Label {
                 (l.n, l.k, l.bytes) = (w.shape[0], w.shape[1], weight_bytes(w));
             }
         }
+        if call.op == Op::MatmulPair {
+            // both weight matrices: n is the sum of their rows
+            if let [_, w0, w1] = call.inputs.as_slice() {
+                (l.n, l.k, l.bytes) = (w0.shape[0] + w1.shape[0], w0.shape[1], weight_bytes(w0) + weight_bytes(w1));
+            }
+        }
         l
     }
 }
