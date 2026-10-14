@@ -1,0 +1,45 @@
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0    4.016e-3    3.472e-4  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0    1.603e-3    2.132e-5  ADMITTED
+rope           rope_bf16                      36      0    2.959e-5    9.571e-7  ADMITTED
+matmul         matmul_bf16                    15      0    4.115e-3    1.550e-4  ADMITTED
+matmul         matmul_bf16_gemv               10      0    6.873e-8    5.253e-9  ADMITTED
+logits         logits_bf16                     4      0    2.623e-6    2.123e-6  ADMITTED
+logits         logits_bf16_gemv                4      0    1.260e-7    8.363e-8  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              21      0    1.078e-3    7.900e-5  ADMITTED
+attn_decode    attn_decode_bf16               15      0    4.883e-4    5.150e-5  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         6      0    4.310e-3    2.423e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv      12      0    1.174e-3    3.165e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0    4.883e-4    3.290e-5  ADMITTED
+silu_glu       silu_glu_bf16                   6      0     0.000e0     0.000e0  ADMITTED
+gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.841e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    3.773e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_lanes      12      0    1.221e-4    4.646e-5  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 60      0    4.329e-3    1.939e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm                 8      0    4.184e-3    1.723e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_f8             24      0    4.329e-3    1.849e-4  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    5.549e-6    9.427e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               34      0    2.841e-3    6.587e-5  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemm               6      0    2.252e-3    5.061e-5  ADMITTED
+moe_topk       moe_topk_bf16                  48      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16               11      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_bf16         2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_bf16            6      0    3.185e-3    1.245e-4  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           6      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16             16      0    7.940e-6    3.586e-7  ADMITTED
+41 kernels, 569 cases in 30.6s

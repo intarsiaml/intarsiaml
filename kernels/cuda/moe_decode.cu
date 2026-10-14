@@ -127,7 +127,7 @@ moe_dec_down_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ d
 
 // v2 down projection: the same arithmetic as moe_dec_down_kernel, restructured because that kernel keeps all K experts of a
 // row in registers (160 per thread: ONE 256-thread block per SM, 256 blocks = 5.3 waves, 94 GB/s on the 35B's down weights).
-// Here a warp owns an expert SLOT (warp w: slots w, w + 8, ...) and R output rows of the block: 8 independent weight loads
+// Here a warp owns an expert SLOT (warp w: slots w, w + 8, ...) and R output rows of the block: R independent weight loads
 // per lane, no activation staging (each lane reads its own 32 bytes of the slot's h row), few registers. The K per-slot terms
 // round(round(down_k(h_k)) * w_k) go through shared memory and are summed in slot order 0..K-1 by one thread per output
 // element: the same additions in the same order as the one-warp-per-row kernel, so the outputs are bitwise equal.

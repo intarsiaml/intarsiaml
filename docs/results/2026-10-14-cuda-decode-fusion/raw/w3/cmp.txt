@@ -1,0 +1,2 @@
+60 tensors in /home/nvidia/intarsia-decfuse/out/w3/base.dump.safetensors, 60 in /home/nvidia/intarsia-decfuse/out/w3/dev.dump.safetensors: 0 differ
+per-position TSV identical
