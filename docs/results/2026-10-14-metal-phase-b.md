@@ -627,7 +627,7 @@ The first sample in each set (94-99%) is the model-load tail from the server tha
 
 Branch `metal-b5-attn` (from `spike/metal` `62d602e`), code in `2484c1a` and `c709ee1`. Host endor (Apple M5 Max, 614 GB/s nominal), Qwen3-8B BF16. Raw logs and scripts: `docs/results/raw/2026-10-14-metal-phase-b/b5/`. fleetq: #1868 (profile, early experiments), #1870 (tests, microbench, A/B, traces, correctness checks), #1872 / #1875 / #1878 (localeval pairs). #1869 and #1874 belong to another agent's prefill work and ran in between.
 
-**Outcome.** The 4k point now clears the 85 percent exit, with a small margin: localeval decode at 4k is **34.7 tok/s mean over four runs (34.4-35.0), 85.5 percent of the 40.6 tok/s floor**, against 34.2 (33.6-34.6, 84.3 percent) for the pre binary run in the same slots; the gain shows in all four pre/new pairs (+0.8, +0.4, +0.6, +0.2 tok/s). The aim of 35.0 was reached in one run only. Stream time per token (interleaved A/B, 5 pairs) falls **0.72 ms at 4k (29.27 -> 28.55 ms) and 0.33 ms at 128 context (28.09 -> 27.76 ms)**. Per attention call (in-stream microbench) 45.2 -> 36.2 us at 4k, 132.4 -> 121.5 us at 16k (no regression), 11.9 -> 8.1 us at 128. The output is **bitwise unchanged** (fingerprint of 15 shapes, greedy ids, accuracy to the printed digit). The gain did not come from streaming: the kernel was already at the DRAM read ceiling on the slope; what was removed is per-launch ramp cost (64-bit integer division, scalar `q` loads, 64-bit index math, a chain of dependent loads in the combine).
+**Outcome.** The 4k point now clears the 85 percent exit, with a small margin: localeval decode at 4k is **34.7 tok/s mean over four runs (34.4-35.0), 85.5 percent of the 40.6 tok/s floor**, against 34.2 (33.6-34.6, 84.3 percent) for the pre binary run in the same slots; the gain shows in all four pre/new pairs (+0.8, +0.4, +0.6, +0.2 tok/s). The aim of 35.0 was reached in one run only. Stream time per token (interleaved A/B, 5 pairs) falls **0.72 ms at 4k (29.27 -> 28.55 ms) and 0.33 ms at 128 context (28.09 -> 27.76 ms)**. Per attention call (in-stream microbench) 45.2 -> 36.2 us at 4k, 132.4 -> 121.5 us at 16k (no regression), 11.9 -> 8.1 us at 128. The output is **bitwise unchanged** (fingerprint of 15 shapes, greedy ids, accuracy to the printed digit). The gain is mostly fixed per-launch cost: the fitted intercept falls from 16.1 to 7.8 us (64-bit integer division, scalar `q` loads, 64-bit index math, a chain of dependent loads in the combine) and the fitted rate moves only from 577 to 590 GB/s, worth about 0.6 us at 4k; the kernel was already at the DRAM read ceiling on the slope.
 
 ### What the 4k gap actually is (profile before any change)
 
@@ -647,7 +647,7 @@ All keep the arithmetic and its order, so results are bit for bit those of the p
 
 ### Per-call attention time, in-stream microbench (`examples/attn_bw`, interleaved pre/new, 5 pairs, medians)
 
-36 launches per command buffer, one KV cache per layer so reads come from DRAM; 400 reps for the three short contexts (with 30 reps the 128-2k rows were erratic for both binaries: the GPU had not left its idle clock), 30 reps above. `bw_ab.log`, `bw_ab_small.log`, `bw/`, `bw-small/`. GB/s is K+V bytes over the time. The spread across the 5 pairs was at most 0.2 us, except one 134.3 us pre outlier at 16k.
+36 launches per command buffer, one KV cache per layer so reads come from DRAM; 400 reps for the three short contexts (with 30 reps the 128-2k rows were erratic for both binaries: the GPU had not left its idle clock), 30 reps above. `bw_ab.log`, `bw_ab_small.log`, `bw/`, `bw-small/` (one idle sample before each run, waiting until at most 10 percent; Zoom not checked). GB/s is K+V bytes over the time. The spread across the 5 pairs was at most 0.2 us, except one 134.3 us pre outlier at 16k.
 
 | visible keys | K+V MB | before us (GB/s) | after us (GB/s, % of 614) | speedup | saved us |
 |---:|---:|---:|---:|---:|---:|
@@ -673,7 +673,7 @@ Real decode, kernel-mode GPU timestamps (`INTARSIA_METAL_PROFILE=kernel`, last 1
 
 ### Interleaved A/B of the decode stream (`exp.sh`, cb-mode trace of a 129-token forced decode, 128 steps, order alternating)
 
-GPU idle utilization was 0-10 percent before every run (`ab-4k-1.log`, `ab-short-1.log`). Step period in ms, mean over the 128 steps (the median of 16-step windows, `period2.py`, is within 0.1 ms):
+The scripts take one GPU idle utilization sample before each run and wait (up to 20 tries) until it is at most 10 percent; the value is in the logs (`ab-4k-1.log`, `ab-short-1.log`: 0-9). Zoom was not checked for the A/B, the microbench or the traces. Step period in ms, mean over the 128 steps (the median of 16-step windows, `period2.py`, is within 0.15 ms):
 
 | ctx | pair | pre | new |
 |---|---:|---:|---:|
@@ -694,7 +694,7 @@ Gain **0.72 ms (2.5 percent) at 4k, 0.33 ms (1.2 percent) at 128**; new is faste
 
 ### localeval (4 pairs, `leval5.sh`, arguments of the earlier phases)
 
-`localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off` against `intarsia serve --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`; each binary served and measured back to back in one slot. Decode tok/s, median (min-max). GPU idle 3-9 percent before every server (pair 1: new waited 12 samples for it). Zoom was running during #1878 (pairs 3 and 4), not before. Run ids are `results/20261014-HHMMSS-adhoc-<label>` under `/opt/code/deepeval/`: `184430-b5pre`, `184811-b5new`, `185715-b5new-r2`, `190033-b5pre-r2`, `190812-b5pre-r3`, `191124-b5new-r3`, `191429-b5new-r4`, `191740-b5pre-r4`; the per-run `.out` files are in `b5/localeval-p{1,2,3}/`.
+`localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off` against `intarsia serve --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`; each binary served and measured back to back in one slot. Decode tok/s, median (min-max). One GPU idle sample before every server, waiting until at most 10 percent (3-9 at the start; pair 1 new waited 12 samples). Zoom count recorded by `leval5.sh`: none at the servers of #1872 and #1875, three zoom.us processes at all four servers of #1878 (pairs 3 and 4). unanimis records (pre, new): pair 1 `940be1a4-91ca-447f-85d8-2b5ff416f8bf`, `e6af618f-9732-451c-9b57-7a6262e80cd4`; pair 2 `6f9aa138-98ec-49b6-aac7-05661d275b2d` (new), `4e55ddb1-97d0-4d08-8dff-c2359cb37996` (pre); pair 3 `0b532bd6-f464-4c71-92b2-be03d74787b4`, `01166dc7-aa7f-4a35-8ed1-41271f7c8bbc`; pair 4 `e0e43929-9048-4734-902f-8003559e8023` (new), `0f41a467-db20-4d2d-81cc-5583c08896a4` (pre). Run ids are `results/20261014-HHMMSS-adhoc-<label>` under `/opt/code/deepeval/`: `184430-b5pre`, `184811-b5new`, `185715-b5new-r2`, `190033-b5pre-r2`, `190812-b5pre-r3`, `191124-b5new-r3`, `191429-b5new-r4`, `191740-b5pre-r4`; the per-run `.out` files are in `b5/localeval-p{1,2,3}/`.
 
 | prompt tok | p1 pre | p1 new | p2 new (first) | p2 pre | p3 pre | p3 new | p4 new (first) | p4 pre |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -708,7 +708,7 @@ Gain **0.72 ms (2.5 percent) at 4k, 0.33 ms (1.2 percent) at 128**; new is faste
 | ~1k | 33.8 (31.2-35.5) | 35.2 (33.7-35.8) | +4% (noisy) | 86.7% |
 | ~4k | 34.2 | **34.7** (34.4-35.0) | **+1.5%** | **85.5%** |
 
-`localeval compare` would call every one of these noise (its speed threshold is 10 percent), so the evidence is the repeat across four pairs and both orders plus the stream A/B, not any single comparison. The pre 1k reps in pairs 1 and 2 show the noise (29-34 tok/s); pre 4k (34.2) matches the earlier same-slot baselines (34.3, 34.7).
+`localeval compare` would call every one of these noise (its speed threshold is 10 percent), so the evidence is the repeat across four pairs and both orders plus the stream A/B, not any single comparison. Pair 1 shows the noise at 1k in both binaries (pre 29.4-34.1, new 31.3-35.4 tok/s); pre 1k in pair 2 (33.4) is low although its repetitions are tight. Pre 4k (34.2) matches the earlier same-slot baselines (34.3, 34.7).
 
 ### Dead ends (and what each showed)
 
@@ -734,7 +734,7 @@ Figures marked (console) were read from the terminal during the work and are not
 ### Limits and not done
 
 * 4k is cleared with a small margin: 85.5 percent mean, one of four runs at 84.7 and one at 86.2; 35.0 tok/s was met in one of four runs. Decode noise on this host is about ±5 percent; Zoom was running during the last two pairs.
-* `q` must now be 16-byte aligned for the split-KV kernel (else the slower single-pass kernel runs). The engine's workspace `q` is aligned in `generate` and `serve`: the 4k kernel-mode trace shows the 45 us split-KV figure, which the fallback (about 110 us at 4k) would not give.
+* `q` must now be 16-byte aligned for the split-KV kernel (else the slower single-pass kernel runs). The engine's workspace `q` is aligned in `generate`: the 4k kernel-mode trace shows the 45 us split-KV figure, which the fallback (about 110 us at 4k) would not give. For `serve` this is an inference, not a trace: with the fallback every token would cost about +2 ms (36 x 55 us) and 4k decode would be near 32.5 tok/s, and localeval shows 34.7.
 * The stream gain being about twice the per-call gain is unexplained (see above).
 * CUDA / HIP are untouched (only Metal files and one example changed); no run there.
 * The engine exercises only the host-position path; the device-position path passes the existing equivalence tests with the new 32-bit math, but no engine run uses it.
