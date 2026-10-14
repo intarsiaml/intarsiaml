@@ -1,6 +1,6 @@
 # ADR-0009: The macOS backend is a native Metal crate; MLX is a benchmark oracle only
 
-Status: Proposed (drafted 2026-10-14 after the spike; awaiting operator acceptance)
+Status: Accepted (operator decision, 2026-10-14: "accept ADR-0009")
 
 Context: `docs/research/macos-metal-backend-scope.md` scoped four options and deferred this ADR until a 10 to 15 hour spike had measured (a) a skeleton with `wrap_host` and one GEMV, (b) that GEMV's bandwidth against 614 GB/s, (c) mlx-lm and llama.cpp on Qwen3-8B BF16, and (d) ICB compute encoding. Section 6 set the gate: "If GEMV reaches at least 80 percent of bandwidth and MLX BF16 is within reach, accept the plan above". Results: `docs/results/2026-10-14-metal-spike.md` (branch `spike/metal`, `fae83b2`). Host: endor, M5 Max 40-core GPU, 128 GB, macOS 27.0.
 
