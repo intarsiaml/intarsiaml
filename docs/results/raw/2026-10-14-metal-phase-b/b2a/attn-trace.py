@@ -38,7 +38,7 @@ def prompt_tokens(path):
 
 
 d = sys.argv[1]
-print("| context | build | attention launches/token | us/call (mean) | min-max | ms/token | K+V MB/call | GB/s |")
+print("| context | build | attention launches/token | us/call (median) | p10-p90 | ms/token (median x calls) | K+V MB/call | GB/s (median) |")
 print("|---|---|---:|---:|---:|---:|---:|---:|")
 for tag in sys.argv[2:]:
     nominal = {"1k": 1000, "4k": 4090, "16k": 16300}.get(tag)
@@ -46,7 +46,9 @@ for tag in sys.argv[2:]:
         segs = steps(load(f"{d}/kernel-{b}-{tag}.jsonl"))
         durs = [(r["e"] - r["s"]) * 1e6 for s in segs for r in s if r["op"] in ATTN]
         calls = len(durs) / len(segs)
-        mean = sum(durs) / len(durs)
+        sd = sorted(durs)
+        mean = sd[len(sd) // 2]
+        p10, p90 = sd[len(sd) // 10], sd[len(sd) * 9 // 10]
         n = prompt_tokens(f"{d}/{b}-{tag}.err") or nominal
         mb = 2 * NKV * (n + len(segs) // 2) * D * 2 / 1e6
-        print(f"| {tag} ({n} tok) | {b} | {calls:.0f} | {mean:.1f} | {min(durs):.1f}-{max(durs):.1f} | {mean * calls / 1e3:.2f} | {mb:.1f} | {mb * 1e6 / (mean * 1e-6) / 1e9:.0f} |")
+        print(f"| {tag} ({n} tok) | {b} | {calls:.0f} | {mean:.1f} | {p10:.1f}-{p90:.1f} | {mean * calls / 1e3:.2f} | {mb:.1f} | {mb * 1e6 / (mean * 1e-6) / 1e9:.0f} |")
