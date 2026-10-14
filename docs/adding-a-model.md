@@ -186,7 +186,7 @@ What each stage needs and how it decides:
   ceiling on single-stream tok/s. Bytes per token come from the checkpoint's tensor sizes (routed experts scaled by
   `top_k / experts`, the input embedding left out when `lm_head` is a separate tensor; for `--tp` the busiest
   rank's weights from the tp plan), bandwidth from `--bandwidth-gbs`, else a table by GPU arch (gfx1201 627 GB/s
-  as in `docs/results/2026-10-13-phase2a-hip.md`, GB10 221), else `doctor`'s measured device copy. The report names
+  as in `docs/results/2026-10-13-phase2a-hip.md`, GB10 221, Apple M5 Max `applegpu_g17s` 614), else `doctor`'s measured device copy. The report names
   where both came from; above 100 % means a wrong input. Override with `--gb-per-token` / `--bandwidth-gbs`.
 * **Speed is measured, not gated**: there is no threshold in `qualify`; a bench stage fails only when a size
   produced no result. Servers run with `--profile-every 0` (profiled steps bias throughput, see

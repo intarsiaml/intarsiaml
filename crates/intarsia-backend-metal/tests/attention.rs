@@ -270,5 +270,8 @@ fn fingerprint_names_device_and_metallib() {
     assert!(f.starts_with("metal|"), "{f}");
     assert!(f.contains(&format!("metallib:{:016x}", intarsia_backend_metal::metallib_hash())), "{f}");
     assert_ne!(intarsia_backend_metal::metallib_hash(), 0);
+    // the Rust launcher sources (build.rs LAUNCHER_SOURCES) are part of the identity too
+    assert!(f.ends_with(&format!("|launch:{}", intarsia_backend_metal::LAUNCHER_HASH)), "{f}");
+    assert_eq!(intarsia_backend_metal::LAUNCHER_HASH.len(), 16);
     assert_eq!(f, backend().fingerprint(), "stable across instances");
 }

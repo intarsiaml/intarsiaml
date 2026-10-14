@@ -74,7 +74,7 @@ pub fn copy_threads(n16: usize, per_thread: usize) -> usize {
     n16.div_ceil(per_thread).div_ceil(32) * 32
 }
 
-fn dispatch_threads(enc: &ProtocolObject<dyn MTLComputeCommandEncoder>, threads: usize) {
+pub(crate) fn dispatch_threads(enc: &ProtocolObject<dyn MTLComputeCommandEncoder>, threads: usize) {
     enc.dispatchThreads_threadsPerThreadgroup(
         MTLSize { width: threads, height: 1, depth: 1 },
         MTLSize { width: 256, height: 1, depth: 1 },

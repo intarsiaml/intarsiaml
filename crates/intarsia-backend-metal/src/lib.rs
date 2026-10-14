@@ -1,8 +1,8 @@
 //! Metal backend (macOS, Apple GPU). Spike: the pieces needed to judge docs/research/macos-metal-backend-scope.md
 //! phase A, not a complete backend.
 //!
-//!  * Memory is `MTLResourceStorageModeShared` (unified memory): `alloc`, `upload`, `download` and `copy` are memcpys
-//!    through `MTLBuffer::contents()` after the queue has drained.
+//!  * Memory is `MTLResourceStorageModeShared` (unified memory): `alloc`, `upload` and `download` are memcpys through
+//!    `MTLBuffer::contents()` after the queue has drained.
 //!  * `wrap_host` imports mmap'd weight files without copying (`newBufferWithBytesNoCopy`), see [`host`].
 //!  * Kernels: the batch-1 bf16 GEMV and a tiled GEMM for `Matmul`/`Logits`, plus the dense elementwise / row ops
 //!    (`Embedding`, `RmsNorm`, `RmsNormAdd`, `Add`, `QkNorm`, `Rope`, `SiluGlu`, `Argmax`, `KvAppend`), see [`kernels`]
@@ -13,8 +13,9 @@
 //!    dispatches. The encoder is `MTLDispatchTypeSerial`: every dispatch starts after the previous one finished and sees
 //!    its memory writes, so dependent ops need no barriers (the spike measured barriers at about 3 percent, see
 //!    docs/results/2026-10-14-metal-spike.md). Concurrent dispatch plus targeted barriers is a phase B option.
-//!  * Host access (`upload`, `download`, `copy`, `zero`) first flushes and waits for all pending GPU work, the simplest
-//!    rule that is always correct on shared storage. It is a no-op when nothing is pending.
+//!  * Host access (`upload`, `download`) first flushes and waits for all pending GPU work, the simplest rule that is
+//!    always correct on shared storage. It is a no-op when nothing is pending. `copy` and `zero` are dispatches appended
+//!    to the stream (no wait), see [`fill`]; only a `copy` whose ranges overlap inside one buffer takes the host path.
 //!
 //! Exports no `ik_*` symbols.
 
@@ -24,8 +25,10 @@ pub mod bench;
 mod buffer;
 pub mod decode;
 mod dense;
+mod fill;
 mod host;
 pub mod kernels;
+pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
 pub use kernels::{GemvVariant, DEFAULT_GEMV, GEMV_VARIANTS};
@@ -54,6 +57,9 @@ pub type Encoder = Retained<ProtocolObject<dyn MTLComputeCommandEncoder>>;
 
 /// All kernels of this crate, built by build.rs (empty when the Metal toolchain was missing at build time).
 static METALLIB: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/intarsia.metallib"));
+
+/// FNV-1a 64 of the launcher sources (`LAUNCHER_SOURCES` in build.rs), hex.
+pub const LAUNCHER_HASH: &str = env!("INTARSIA_METAL_LAUNCHER_HASH");
 
 /// FNV-1a 64 of the embedded metallib (every shader source change changes it), computed once.
 pub fn metallib_hash() -> u64 {
@@ -86,6 +92,10 @@ struct Stream {
     inflight: Vec<CommandBuffer>,
     /// First GPU error seen on a buffer that was pruned from `inflight` before `synchronize` looked at it.
     failed: Option<String>,
+    /// `INTARSIA_METAL_PROFILE` trace, see [`profile`].
+    prof: Option<profile::Prof>,
+    /// Label of the launch being encoded, taken by the next flush when profiling.
+    label: Option<profile::Label>,
 }
 
 pub struct MetalBackend {
@@ -144,7 +154,7 @@ impl MetalBackend {
             device,
             queue,
             psos,
-            stream: Mutex::new(Stream::default()),
+            stream: Mutex::new(Stream { prof: profile::Prof::from_env(), ..Stream::default() }),
             hosts: Mutex::new(host::HostCache::default()),
             page_size,
             bandwidth: OnceLock::new(),
@@ -223,9 +233,18 @@ impl MetalBackend {
         if let Some((cb, enc)) = st.open.take() {
             enc.endEncoding();
             cb.commit();
+            let label = st.label.take();
+            if let Some(p) = st.prof.as_mut() {
+                p.note(cb.clone(), label, st.dispatches);
+            }
             Self::track(st, cb);
             st.dispatches = 0;
         }
+    }
+
+    /// Dispatches encoded into the open command buffer and not yet committed (0 after a flush / synchronize).
+    pub fn pending_dispatches(&self) -> usize {
+        self.stream.lock().unwrap().dispatches
     }
 
     /// Commit everything encoded so far without waiting for it.
@@ -246,8 +265,16 @@ impl MetalBackend {
         }
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
-        if st.dispatches >= MAX_DISPATCHES {
+        let per_kernel = st.prof.as_ref().is_some_and(|p| p.per_kernel);
+        if st.dispatches >= MAX_DISPATCHES || per_kernel {
             Self::flush_locked(&mut st);
+            if per_kernel {
+                // run launches one at a time: independent ones (gate / up, k / v) would otherwise overlap across
+                // command buffers and their times could not be told apart
+                if let Some(cb) = st.inflight.last() {
+                    cb.waitUntilCompleted();
+                }
+            }
         }
         Ok(())
     }
@@ -391,6 +418,14 @@ pub fn encode_gemv(
     );
 }
 
+impl Drop for MetalBackend {
+    fn drop(&mut self) {
+        // an open encoder must be ended before it is released (Metal aborts otherwise); this also waits for the queue,
+        // which writes the last trace records when INTARSIA_METAL_PROFILE is set. A no-op when nothing is pending.
+        let _ = self.synchronize(0);
+    }
+}
+
 impl Backend for MetalBackend {
     fn name(&self) -> &str {
         "metal"
@@ -411,12 +446,21 @@ impl Backend for MetalBackend {
         }
     }
 
-    /// backend | device | GPU architecture | hash of the embedded metallib: anything that can change a kernel's numerics
-    /// or code generation invalidates cached admission results. The default implementation is not used because it
-    /// goes through `info()`, which runs the (100 ms) bandwidth probe. No env knob changes kernel selection or
-    /// numerics (`IK_METAL_TRACKED` only toggles hazard tracking, `INTARSIA_METAL_DEBUG` only logs), so none is folded.
+    /// backend | device | GPU architecture | hash of the embedded metallib | hash of the launcher sources: anything that
+    /// can change a kernel's numerics, code generation, selection or launch geometry invalidates cached admission
+    /// results. The launcher hash (build.rs, `LAUNCHER_SOURCES`) covers the Rust that picks the GEMV variant and sets the
+    /// grids, which the metallib bytes do not see. The default implementation is not used because it goes through
+    /// `info()`, which runs the (100 ms) bandwidth probe. No env knob changes kernel selection or numerics
+    /// (`IK_METAL_TRACKED` only toggles hazard tracking, `INTARSIA_METAL_DEBUG` and `INTARSIA_METAL_PROFILE` only
+    /// log), so none is folded.
     fn fingerprint(&self) -> String {
-        format!("metal|{}|{}|metallib:{:016x}", self.device.name(), self.device.architecture().name(), metallib_hash())
+        format!(
+            "metal|{}|{}|metallib:{:016x}|launch:{}",
+            self.device.name(),
+            self.device.architecture().name(),
+            metallib_hash(),
+            LAUNCHER_HASH
+        )
     }
 
     fn alloc(&self, bytes: usize, _kind: MemKind) -> Result<Buffer> {
@@ -452,13 +496,14 @@ impl Backend for MetalBackend {
         bytes: usize,
         _s: StreamId,
     ) -> Result<()> {
-        self.synchronize(0)?;
-        let (db, dp) = self.host_range(dst, dst_offset, bytes)?;
-        let (_, sp) = self.host_range(src, src_offset, bytes)?;
-        if db.read_only {
-            return Err(Error::backend("metal buffer is read-only (wrapped host memory)"));
+        if bytes == 0 || self.gpu_copy(dst, dst_offset, src, src_offset, bytes)? {
+            return Ok(());
         }
-        // SAFETY: bounds-checked, GPU idle; `copy` tolerates overlap within one buffer.
+        // overlapping ranges in one buffer: memmove semantics need the host
+        self.synchronize(0)?;
+        let (_, dp) = self.host_range(dst, dst_offset, bytes)?;
+        let (_, sp) = self.host_range(src, src_offset, bytes)?;
+        // SAFETY: bounds-checked, GPU idle; `ptr::copy` handles the overlap, `gpu_copy` checked dst is writable.
         unsafe { std::ptr::copy(sp, dp, bytes) };
         Ok(())
     }
@@ -472,18 +517,17 @@ impl Backend for MetalBackend {
     }
 
     fn zero(&self, dst: &Buffer, _s: StreamId) -> Result<()> {
-        self.synchronize(0)?;
-        let (mb, p) = self.host_range(dst, 0, dst.bytes())?;
-        if mb.read_only {
-            return Err(Error::backend("metal buffer is read-only (wrapped host memory)"));
-        }
-        // SAFETY: the whole buffer, GPU idle.
-        unsafe { std::ptr::write_bytes(p, 0, dst.bytes()) };
-        Ok(())
+        self.gpu_zero(dst)
     }
 
     fn launch(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
         call.check()?;
+        {
+            let mut st = self.stream.lock().unwrap();
+            if st.prof.is_some() {
+                st.label = Some(profile::Label::of(kernel, call));
+            }
+        }
         if kernel == kernels::MATMUL_BF16_GEMV && call.op == Op::Matmul {
             let plan = self.plan_gemv(call)?;
             let pso =
@@ -516,6 +560,9 @@ impl Backend for MetalBackend {
             if let Err(e) = Self::wait(cb) {
                 first.get_or_insert_with(|| e.to_string());
             }
+        }
+        if let Some(p) = st.prof.as_mut() {
+            p.resolve();
         }
         match first {
             Some(e) => Err(Error::backend(e)),

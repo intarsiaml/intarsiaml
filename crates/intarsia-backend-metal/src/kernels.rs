@@ -104,6 +104,10 @@ pub const ATTN_DECODE_BF16: &str = "attn_decode_bf16";
 pub const ATTN_DECODE_BF16_V8: &str = "attn_decode_bf16_v8";
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
+/// `Backend::zero` / `Backend::copy` kernels (copy.metal): 16-byte vector forms plus byte forms for the unaligned rest.
+pub const ZERO_U4: &str = "zero_u4";
+pub const ZERO_BYTES: &str = "zero_bytes";
+pub const COPY_BYTES: &str = "copy_bytes";
 /// 16-byte vectors each copy/read thread handles (`PER_THREAD` in copy.metal).
 pub const COPY_PER_THREAD: usize = 4;
 /// Same for `read_xor_u4` (`READ_PER_THREAD`).
@@ -113,7 +117,7 @@ pub const READ_PER_THREAD: usize = 16;
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
-    v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4]);
+    v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);

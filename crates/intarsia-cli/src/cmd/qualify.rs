@@ -1478,6 +1478,9 @@ impl Ctx {
         } else if arch.starts_with("sm_121") {
             src.push("bandwidth: 221 GB/s, the GB10 measured figure".into());
             Some(221.0)
+        } else if arch == "applegpu_g17s" {
+            src.push("bandwidth: 614 GB/s, the Apple M5 Max (40-core GPU) spec figure of docs/decisions/0009-native-metal-backend.md".into());
+            Some(614.0)
         } else {
             self.fact_f64("copy_gbs").map(|b| {
                 src.push("bandwidth: doctor's measured device copy (read+write bytes counted)".into());
