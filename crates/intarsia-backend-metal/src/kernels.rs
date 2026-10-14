@@ -97,6 +97,11 @@ pub const KV_APPEND_BF16: &str = "kv_append_bf16";
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 
+pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
+pub const ATTN_DECODE_BF16: &str = "attn_decode_bf16";
+/// `AttnDecode` with 16-byte loads (head_dim a power of two in 8..=256, 16-byte aligned K / V caches); the launcher of
+/// `attn_decode_bf16` picks it, it is not a separate registry entry.
+pub const ATTN_DECODE_BF16_V8: &str = "attn_decode_bf16_v8";
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
 /// 16-byte vectors each copy/read thread handles (`PER_THREAD` in copy.metal).
@@ -112,11 +117,12 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
+    v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v
 }
 
-/// (kernel name, op) for every implementation, in registration order. Attention (`AttnPrefill`, `AttnDecode`) and
-/// the quantised / MoE / GatedDeltaNet ops are not ported yet, so the registry reports `NoKernel` for them.
+/// (kernel name, op) for every implementation, in registration order. The quantised / MoE / GatedDeltaNet ops are not
+/// ported yet, so the registry reports `NoKernel` for them.
 pub const TABLE: &[(&str, Op)] = &[
     (EMBEDDING_BF16, Op::Embedding),
     (RMSNORM_BF16, Op::RmsNorm),
@@ -132,6 +138,8 @@ pub const TABLE: &[(&str, Op)] = &[
     (SILU_GLU_BF16, Op::SiluGlu),
     (ARGMAX_F32, Op::Argmax),
     (ARGMAX_BF16, Op::Argmax),
+    (ATTN_PREFILL_BF16, Op::AttnPrefill),
+    (ATTN_DECODE_BF16, Op::AttnDecode),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -173,6 +181,14 @@ pub fn all() -> Vec<KernelImpl> {
                 }
                 ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
                 ARGMAX_BF16 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+                // causal GQA, f32 online softmax; `weights` is the K cache dtype (bf16 only, as KvAppend). Same
+                // predicate and tolerance as the hip `attn_prefill_bf16` / `attn_decode_bf16`.
+                ATTN_PREFILL_BF16 | ATTN_DECODE_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -195,9 +211,10 @@ mod tests {
     }
 
     #[test]
-    fn attention_is_not_registered() {
-        for (_, op) in TABLE {
-            assert!(!matches!(op, Op::AttnPrefill | Op::AttnDecode));
+    fn attention_is_registered_for_both_ops() {
+        for op in [Op::AttnPrefill, Op::AttnDecode] {
+            assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), 1, "{op}");
         }
+        assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));
     }
 }

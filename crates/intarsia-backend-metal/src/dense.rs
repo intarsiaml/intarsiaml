@@ -1,5 +1,6 @@
 //! Launch planning and encoding of the dense ops (everything but the batch-1 `Matmul` GEMV, which lives in `lib.rs`):
-//! `Embedding`, `RmsNorm`, `RmsNormAdd`, `Add`, `QkNorm`, `Rope`, `SiluGlu`, `Argmax`, `KvAppend`, the tiled GEMM for
+//! `Embedding`, `RmsNorm`, `RmsNormAdd`, `Add`, `QkNorm`, `Rope`, `SiluGlu`, `Argmax`, `KvAppend`, `AttnPrefill`,
+//! `AttnDecode` (kernels/metal/attention.metal), the tiled GEMM for
 //! `Matmul` / `Logits` and the f32-output GEMV for `Logits` with M == 1. Shaders: kernels/metal/{dense_ops,gemm_bf16,
 //! gemv_f32out}.metal; semantics: the cpu-ref oracle (crates/intarsia-backend-cpu/src/reference.rs).
 //!
@@ -36,6 +37,13 @@ const ROW_THREADS: usize = 256;
 /// Threads per threadgroup of the GEMM (4 simdgroups).
 const GEMM_THREADS: usize = 128;
 const GEMM_TILE: usize = 32;
+/// Query rows per threadgroup of `attn_prefill_bf16` (one simdgroup each; `ATT_PF_BQ` in attention.metal). The
+/// threadgroup has `ATTN_THREADS` threads; the decode kernels use `ATTN_DEC_SG` simdgroups.
+const ATTN_PF_BQ: usize = 8;
+const ATTN_THREADS: usize = 256;
+/// Simdgroups per threadgroup of the decode kernels (`ATT_DEC_SG` in attention.metal: keep in sync, the shader's
+/// threadgroup arrays are sized by it).
+const ATTN_DEC_SG: usize = 16;
 
 enum Grid {
     /// `n` threads in a line (`dispatchThreads`: the last threadgroup may be partial).
@@ -254,6 +262,59 @@ impl MetalBackend {
                     ..Default::default()
                 };
                 self.dispatch(kernel, &[&l, &out], &p, Grid::Groups { x: r, y: 1, threads: ROW_THREADS })
+            }
+            ATTN_PREFILL_BF16 | ATTN_DECODE_BF16 => {
+                let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+                let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
+                if t * n * d == 0 {
+                    return Ok(());
+                }
+                if d % 2 != 0 || d > 256 {
+                    return Err(Error::invalid(format!("{kernel}: head_dim {d} must be even and at most 256")));
+                }
+                let decode = kernel == ATTN_DECODE_BF16;
+                let (q, kc, vc, out) = (
+                    self.bind(&i[0], bf, false, "q")?,
+                    self.bind(&i[1], bf, false, "k cache")?,
+                    self.bind(&i[2], bf, false, "v cache")?,
+                    self.bind(&o[0], bf, true, "out")?,
+                );
+                let (pos, use_dev) = if decode { self.pos_bind(call)? } else { (None, 0) };
+                let p = OpP {
+                    dims: [
+                        dim(t, "T")?,
+                        dim(n, "N")?,
+                        dim(nkv, "Nkv")?,
+                        dim(d, "D")?,
+                        dim(cap, "cap")?,
+                        dim(a.pos0, "pos0")?,
+                        use_dev,
+                        0,
+                    ],
+                    skips: [q.skip, kc.skip, vc.skip, out.skip, 0],
+                    f0: a.scale,
+                    f1: 0.0,
+                    pad: 0,
+                };
+                dim(t * n * d, "T*N*D")?;
+                dim(nkv * cap * d, "Nkv*cap*D")?;
+                if decode {
+                    let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
+                    let wide = (d / 8).is_power_of_two() && d % 8 == 0 && ka % 16 == 0 && va % 16 == 0;
+                    self.dispatch(
+                        if wide { ATTN_DECODE_BF16_V8 } else { kernel },
+                        &[&q, &kc, &vc, &out, pos.as_ref().unwrap_or(&q)],
+                        &p,
+                        Grid::Groups { x: n, y: 1, threads: ATTN_DEC_SG * 32 },
+                    )
+                } else {
+                    self.dispatch(
+                        kernel,
+                        &[&q, &kc, &vc, &out],
+                        &p,
+                        Grid::Groups { x: t.div_ceil(ATTN_PF_BQ), y: n, threads: ATTN_THREADS },
+                    )
+                }
             }
             MATMUL_BF16 | LOGITS_BF16 => {
                 let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);

@@ -6,7 +6,7 @@
 //!  * `wrap_host` imports mmap'd weight files without copying (`newBufferWithBytesNoCopy`), see [`host`].
 //!  * Kernels: the batch-1 bf16 GEMV and a tiled GEMM for `Matmul`/`Logits`, plus the dense elementwise / row ops
 //!    (`Embedding`, `RmsNorm`, `RmsNormAdd`, `Add`, `QkNorm`, `Rope`, `SiluGlu`, `Argmax`, `KvAppend`), see [`kernels`]
-//!    and `dense.rs`. Attention is not implemented yet (the registry reports `NoKernel`). The shaders are AOT compiled
+//!    and `dense.rs`, and causal GQA attention (`AttnPrefill`, `AttnDecode`, kernels/metal/attention.metal). The shaders are AOT compiled
 //!    from kernels/metal/*.metal by build.rs and embedded as one metallib.
 //!  * One `MTLCommandQueue` and one open command buffer + compute encoder per backend ("the stream"). `launch` appends a
 //!    dispatch to it; nothing is committed until `synchronize`, a host access to a buffer, or [`MAX_DISPATCHES`]
@@ -55,6 +55,13 @@ pub type Encoder = Retained<ProtocolObject<dyn MTLComputeCommandEncoder>>;
 /// All kernels of this crate, built by build.rs (empty when the Metal toolchain was missing at build time).
 static METALLIB: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/intarsia.metallib"));
 
+/// FNV-1a 64 of the embedded metallib (every shader source change changes it), computed once.
+pub fn metallib_hash() -> u64 {
+    static HASH: OnceLock<u64> = OnceLock::new();
+    *HASH.get_or_init(|| {
+        METALLIB.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3))
+    })
+}
 /// Kernel arguments of the GEMV shaders (`GemvParams` in gemv_bf16.metal; 32 bytes).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
@@ -402,6 +409,14 @@ impl Backend for MetalBackend {
             unified: true,
             bandwidth_gbs: bandwidth,
         }
+    }
+
+    /// backend | device | GPU architecture | hash of the embedded metallib: anything that can change a kernel's numerics
+    /// or code generation invalidates cached admission results. The default implementation is not used because it
+    /// goes through `info()`, which runs the (100 ms) bandwidth probe. No env knob changes kernel selection or
+    /// numerics (`IK_METAL_TRACKED` only toggles hazard tracking, `INTARSIA_METAL_DEBUG` only logs), so none is folded.
+    fn fingerprint(&self) -> String {
+        format!("metal|{}|{}|metallib:{:016x}", self.device.name(), self.device.architecture().name(), metallib_hash())
     }
 
     fn alloc(&self, bytes: usize, _kind: MemKind) -> Result<Buffer> {

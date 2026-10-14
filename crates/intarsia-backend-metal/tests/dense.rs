@@ -1,6 +1,6 @@
 //! The dense ops and the per-stream command-buffer encoding, on the GPU: GEMM against an f64 reference (including
-//! odd element offsets), dependent launches in one encoder, host access with work pending, device-side positions, and
-//! the ops that must stay unregistered. The cpu-oracle comparison of every kernel is `intarsia kernels test --backend
+//! odd element offsets), dependent launches in one encoder, host access with work pending, device-side positions. Attention has its
+//! own file (attention.rs). The cpu-oracle comparison of every kernel is `intarsia kernels test --backend
 //! metal`.
 
 #![cfg(target_os = "macos")]
@@ -12,7 +12,7 @@ use intarsia_backend_metal::bench::{bf16_to_f32, f32_to_bf16};
 use intarsia_backend_metal::kernels::{ADD_BF16, LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV};
 use intarsia_backend_metal::{MetalBackend, MAX_DISPATCHES};
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
-use intarsia_core::{DType, Error, Op, OpAttrs, OpCall, ShapeInfo};
+use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
 
 /// Upload `data` at byte offset `off` of a fresh buffer (the bytes before and after are 0xEE guards).
 fn upload_at(be: &MetalBackend, off: usize, data: &[u16]) -> Buffer {
@@ -294,20 +294,6 @@ fn argmax_ties_nan_and_all_neg_inf() {
     let got: Vec<i32> = raw.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
     // the oracle's rule: lowest index among maxima, NaN never wins, nothing above -inf gives 0
     assert_eq!(got, vec![0, 0, 0, 10]);
-}
-
-#[test]
-fn attention_stays_unregistered_and_unlaunchable() {
-    let be = backend();
-    assert!(!be.kernels().iter().any(|k| matches!(k.op, Op::AttnPrefill | Op::AttnDecode)));
-    let b = be.alloc(1 << 12, MemKind::Device).unwrap();
-    let call = OpCall::new(
-        Op::AttnDecode,
-        vec![t(&b, 0, DType::Bf16, &[1, 2, 2]), t(&b, 0, DType::Bf16, &[1, 1, 2]), t(&b, 0, DType::Bf16, &[1, 1, 2])],
-        vec![t(&b, 0, DType::Bf16, &[1, 2, 2])],
-        OpAttrs { n_heads: 2, n_kv_heads: 1, head_dim: 2, kv_cap: 1, ..Default::default() },
-    );
-    assert!(matches!(be.launch("attn_decode_bf16", &call, 0), Err(Error::NoKernel(_))));
 }
 
 #[test]
