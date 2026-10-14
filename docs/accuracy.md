@@ -534,7 +534,7 @@ against `S0` with the default budget flags, and only its `SELF-STATS` line is re
 | mean \|tail diff\| | 2.1e-4 (gemv off, decode) | 4.2e-4 | 1.5e-4 / 2.1e-4 |
 | worst prompt mean KL | 1.15e-3 (gemv off, decode) | 2.3e-3 (x1.9 the mean-KL budget) | 9.8e-4 / 2.0e-3 |
 
-tp=2 passes all five with margin (the tightest, worst prompt in decode, at 87% of its limit).
+tp=2 passes all five with margin (the tightest, worst prompt in decode, at 86% of its limit).
 
 **It was not shipped, because it does not catch a 1% partial-scale bug.** `INTARSIA_TP_TEST_BUG=scale:F[@RANK]`
 (test-only, `crates/intarsia-core/src/model.rs`; printed in the self-golden's exec diff as a fault) multiplies one rank's
