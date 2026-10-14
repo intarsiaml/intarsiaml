@@ -70,7 +70,7 @@ fn u32_of(v: usize, what: &str) -> Result<u32> {
 }
 
 impl MetalBackend {
-    /// Launch `attn_decode_bf16_splitkv`. Operands the kernels cannot take (K / V caches not 16-byte aligned, or a shape
+    /// Launch `attn_decode_bf16_splitkv`. Operands the kernels cannot take (q or K / V caches not 16-byte aligned, or a shape
     /// `splitkv_ok` rejects) run the single-pass `attn_decode_bf16` instead, which needs no scratch.
     pub(crate) fn launch_attn_splitkv(&self, call: &OpCall) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
@@ -86,7 +86,8 @@ impl MetalBackend {
             && n / nkv <= MAX_GROUP
             && matches!(d, 8 | 16 | 32 | 64 | 128 | 256);
         let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
-        if !shape_ok || ka % 16 != 0 || va % 16 != 0 {
+        let qa = self.mbuf(&i[0].buf)?.base + i[0].offset;
+        if !shape_ok || ka % 16 != 0 || va % 16 != 0 || qa % 16 != 0 {
             return self.launch_dense(ATTN_DECODE_BF16, call);
         }
 
@@ -132,7 +133,7 @@ impl MetalBackend {
                 use_dev,
                 u32_of(max_split, "max_split")?,
             ],
-            skips: [q.skip, 0, 0, out.skip, 0],
+            skips: [0, 0, 0, out.skip, 0],
             f0: a.scale,
             f1: 0.0,
             pad: u32_of(min_keys, "min_keys")?,

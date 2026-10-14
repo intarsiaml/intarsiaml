@@ -2,7 +2,7 @@
 // device-side position clamped to the cache); this file only changes how the work is spread over the GPU.
 //
 // attn_decode_bf16_splitkv_g{1,2,4,8} (stage 1) + attn_decode_bf16_combine (stage 2). T == 1, head_dim a power of two in
-// [8, 256], K / V caches 16-byte aligned (the launcher, crates/intarsia-backend-metal/src/attn.rs, falls back to the
+// [8, 256], q and K / V caches 16-byte aligned (the launcher, crates/intarsia-backend-metal/src/attn.rs, falls back to the
 // kernels of attention.metal otherwise).
 //
 // Stage 1: one threadgroup per (kv head, split). It reads its slice of the kv head's keys / values ONCE and applies them to
@@ -23,7 +23,8 @@
 // partials in split order (fixed order: run-to-run identical, no atomics).
 //
 // Kernel arguments (`OpP`): a = target threadgroups for the policy, b = N, c = Nkv, d = D, e = cap, f = host pos0, g = use
-// device position, h = max_split (grid y; also the scratch stride), s0 / s3 = skips of q / out, f0 = scale, pad = min_keys.
+// device position, h = max_split (grid y; also the scratch stride), s3 = skip of out (q is 16-byte aligned, skip 0; the launcher
+// falls back otherwise), f0 = scale, pad = min_keys.
 // Scratch layout (floats): part[N][max_split][D] then float2 ml[N][max_split].
 // stage 1 bind: 0 q, 1 k cache, 2 v cache, 3 out, 4 pos, 5 scratch, 6 OpP.  stage 2 bind: 0 out, 1 pos, 2 scratch, 3 OpP.
 
@@ -32,7 +33,8 @@
 constant constexpr uint ASK_MAX_SG = 8;        // simdgroups per stage-1 threadgroup, at most
 constant constexpr uint ASK_TG_FLOATS = 4096;  // threadgroup accumulator floats: nsg * GP * D must fit (launcher checks)
 constant constexpr uint ASK_U = 2;             // units of work (KPS keys) in flight per simdgroup step
-constant constexpr uint ASK_CHUNK_ALIGN = 32;  // split chunks are a multiple of this many keys
+constant constexpr uint ASK_CHUNK_ALIGN = 32;
+constant constexpr uint ASK_COMB_U = 16;      // splits whose partials the combine loads at once  // split chunks are a multiple of this many keys
 constant constexpr float ASK_LOG2E = 1.4426950408889634f;
 
 inline void ask_unpack8(uint4 w, thread float* f) {
@@ -55,6 +57,57 @@ inline uint ask_nsplit(ulong visible, uint nkv, uint max_split, uint min_keys, u
 inline ulong ask_chunk(ulong visible, uint nsplit) {
     const ulong c = (visible + nsplit - 1) / nsplit;
     return (c + ASK_CHUNK_ALIGN - 1) / ASK_CHUNK_ALIGN * ASK_CHUNK_ALIGN;
+}
+
+// One step of the main loop: ASK_U units (KPS keys each) of this simdgroup. FULL: every key of the step exists, so the
+// bounds selects of the partial last step drop out (the arithmetic is the same, bit for bit).
+template <uint GP, bool FULL>
+inline void ask_step(device const uint4* kb, device const uint4* vb, uint start32, uint end32, uint u0, uint nsg, uint kps,
+                     uint slot, uint lpk, thread float (&qv)[GP][8], thread float (&acc)[GP][8], thread float (&m)[GP],
+                     thread float (&l)[GP]) {
+    const uint row4 = lpk;  // uint4 per row
+    uint4 kr[ASK_U], vr[ASK_U];
+    bool ok[ASK_U];
+    for (uint u = 0; u < ASK_U; ++u) {
+        const uint j = start32 + (u0 + u * nsg) * kps + slot;
+        ok[u] = FULL || j < end32;
+        kr[u] = ok[u] ? kb[j * row4] : uint4(0);
+        vr[u] = ok[u] ? vb[j * row4] : uint4(0);
+    }
+    float sc[ASK_U][GP];
+    for (uint u = 0; u < ASK_U; ++u) {
+        float kf[8];
+        ask_unpack8(kr[u], kf);
+        for (uint g = 0; g < GP; ++g) {
+            float dot = 0.0f;
+            for (uint i = 0; i < 8; ++i) dot += qv[g][i] * kf[i];
+            sc[u][g] = dot;
+        }
+    }
+    for (uint u = 0; u < ASK_U; ++u)
+        for (uint g = 0; g < GP; ++g)
+            for (uint o = 1; o < lpk; o <<= 1) sc[u][g] += simd_shuffle_xor(sc[u][g], (ushort)o);
+    float pr[ASK_U][GP];
+    for (uint g = 0; g < GP; ++g) {
+        float m_new = m[g];
+        for (uint u = 0; u < ASK_U; ++u) m_new = max(m_new, ok[u] ? sc[u][g] : -INFINITY);
+        // a slot whose keys are all past the end keeps m = -inf; its score -inf must not meet m_new = -inf
+        const float corr = m_new == -INFINITY ? 1.0f : exp2(m[g] - m_new);
+        float psum = 0.0f;
+        for (uint u = 0; u < ASK_U; ++u) {
+            pr[u][g] = (ok[u] && m_new != -INFINITY) ? exp2(sc[u][g] - m_new) : 0.0f;
+            psum += pr[u][g];
+        }
+        l[g] = l[g] * corr + psum;
+        m[g] = m_new;
+        for (uint i = 0; i < 8; ++i) acc[g][i] *= corr;
+    }
+    for (uint u = 0; u < ASK_U; ++u) {
+        float vf[8];
+        ask_unpack8(vr[u], vf);
+        for (uint g = 0; g < GP; ++g)
+            for (uint i = 0; i < 8; ++i) acc[g][i] += pr[u][g] * vf[i];
+    }
 }
 
 template <uint GP>
@@ -94,62 +147,31 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
     // 16-byte aligned by the launcher (skips of k / v are 0)
     device const uint4* kb = (device const uint4*)(kc + (ulong)kvh * cap * d) + c8;
     device const uint4* vb = (device const uint4*)(vc + (ulong)kvh * cap * d) + c8;
-    const ulong row4 = lpk;  // uint4 per row
-
     float qv[GP][8], acc[GP][8], m[GP], l[GP];
     const float qs = p.f0 * ASK_LOG2E;
     for (uint g = 0; g < GP; ++g) {
+        // one 16-byte load of the lane's 8 q values (the launcher guarantees a 16-byte aligned q, skip 0): 8 scalar loads
+        // are a chain of load issues on the ramp of every launch; the values and the scaling are unchanged
+        float qf[8];
+        ask_unpack8(g < grp ? ((device const uint4*)(q + (ulong)(kvh * grp + g) * d + c8 * 8))[0] : uint4(0), qf);
         for (uint i = 0; i < 8; ++i) {
-            qv[g][i] = g < grp ? bf2f(q[p.s0 + (ulong)(kvh * grp + g) * d + c8 * 8 + i]) * qs : 0.0f;
+            qv[g][i] = g < grp ? qf[i] * qs : 0.0f;
             acc[g][i] = 0.0f;
         }
         m[g] = -INFINITY;
         l[g] = 0.0f;
     }
 
-    const ulong units = (end - start + kps - 1) / kps;
-    for (ulong u0 = sg; u0 < units; u0 += (ulong)nsg * ASK_U) {
-        uint4 kr[ASK_U], vr[ASK_U];
-        bool ok[ASK_U];
-        for (uint u = 0; u < ASK_U; ++u) {  // all loads first: they are independent and hide each other's latency
-            const ulong j = start + (u0 + (ulong)u * nsg) * kps + slot;
-            ok[u] = j < end;
-            kr[u] = ok[u] ? kb[j * row4] : uint4(0);
-            vr[u] = ok[u] ? vb[j * row4] : uint4(0);
-        }
-        float sc[ASK_U][GP];
-        for (uint u = 0; u < ASK_U; ++u) {
-            float kf[8];
-            ask_unpack8(kr[u], kf);
-            for (uint g = 0; g < GP; ++g) {
-                float dot = 0.0f;
-                for (uint i = 0; i < 8; ++i) dot += qv[g][i] * kf[i];
-                sc[u][g] = dot;
-            }
-        }
-        for (uint u = 0; u < ASK_U; ++u)
-            for (uint g = 0; g < GP; ++g)
-                for (uint o = 1; o < lpk; o <<= 1) sc[u][g] += simd_shuffle_xor(sc[u][g], (ushort)o);
-        float pr[ASK_U][GP];
-        for (uint g = 0; g < GP; ++g) {
-            float m_new = m[g];
-            for (uint u = 0; u < ASK_U; ++u) m_new = max(m_new, ok[u] ? sc[u][g] : -INFINITY);
-            // a slot whose keys are all past the end keeps m = -inf; its score -inf must not meet m_new = -inf
-            const float corr = m_new == -INFINITY ? 1.0f : exp2(m[g] - m_new);
-            float psum = 0.0f;
-            for (uint u = 0; u < ASK_U; ++u) {
-                pr[u][g] = (ok[u] && m_new != -INFINITY) ? exp2(sc[u][g] - m_new) : 0.0f;
-                psum += pr[u][g];
-            }
-            l[g] = l[g] * corr + psum;
-            m[g] = m_new;
-            for (uint i = 0; i < 8; ++i) acc[g][i] *= corr;
-        }
-        for (uint u = 0; u < ASK_U; ++u) {
-            float vf[8];
-            ask_unpack8(vr[u], vf);
-            for (uint g = 0; g < GP; ++g)
-                for (uint i = 0; i < 8; ++i) acc[g][i] += pr[u][g] * vf[i];
+    const uint units = (uint)(end - start + kps - 1) / kps;
+    const uint start32 = (uint)start, end32 = (uint)end;  // < cap < 2^32 (launcher): 32-bit index math in the loop
+    for (uint u0 = sg; u0 < units; u0 += nsg * ASK_U) {
+        // the loads of this step, all issued before any is used: they are independent and hide each other's latency
+        // (a step is "full" when every slot of every unit has a key; only the last step of a split can be partial)
+        const bool full = start32 + (u0 + (ASK_U - 1) * nsg + 1) * kps <= end32;
+        if (full) {
+            ask_step<GP, true>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
+        } else {
+            ask_step<GP, false>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
         }
     }
 
@@ -224,15 +246,45 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
     if (nsplit == 1) return;  // stage 1 wrote the output
     device const float2* ml = (device const float2*)(part + (ulong)n * p.h * d) + (ulong)head * p.h;
     device const float* acc = part + (ulong)head * p.h * d + di;
+    // Loads come in batches of ASK_COMB_U splits, all issued before any is used: the combine is a chain of dependent
+    // round trips otherwise (one per split), which made it the longest part of a short launch. The first batch's
+    // accumulators are loaded together with its (max, sum) pairs. Arithmetic and order are those of a plain loop over
+    // the splits, so the result is bitwise the same.
+    float2 v0[ASK_COMB_U];
+    float a0[ASK_COMB_U];
+    for (uint u = 0; u < ASK_COMB_U; ++u) {
+        const bool ok = u < nsplit;
+        v0[u] = ok ? ml[u] : float2(-INFINITY, 0.0f);
+        a0[u] = ok ? acc[(ulong)u * d] : 0.0f;
+    }
     float mt = -INFINITY;
-    for (uint s = 0; s < nsplit; ++s) mt = max(mt, ml[s].x);
+    for (uint u = 0; u < ASK_COMB_U; ++u) mt = max(mt, v0[u].x);
+    for (uint s0 = ASK_COMB_U; s0 < nsplit; s0 += ASK_COMB_U) {
+        float2 v[ASK_COMB_U];
+        for (uint u = 0; u < ASK_COMB_U; ++u) v[u] = s0 + u < nsplit ? ml[s0 + u] : float2(-INFINITY, 0.0f);
+        for (uint u = 0; u < ASK_COMB_U; ++u) mt = max(mt, v[u].x);
+    }
     float lt = 0.0f, num = 0.0f;
-    for (uint s = 0; s < nsplit; ++s) {
-        const float2 v = ml[s];
-        if (v.x == -INFINITY) continue;
-        const float w = exp2(v.x - mt);
-        lt += v.y * w;
-        num += acc[(ulong)s * d] * w;
+    for (uint u = 0; u < ASK_COMB_U; ++u) {
+        if (v0[u].x == -INFINITY) continue;
+        const float w = exp2(v0[u].x - mt);
+        lt += v0[u].y * w;
+        num += a0[u] * w;
+    }
+    for (uint s0 = ASK_COMB_U; s0 < nsplit; s0 += ASK_COMB_U) {
+        float2 v[ASK_COMB_U];
+        float a[ASK_COMB_U];
+        for (uint u = 0; u < ASK_COMB_U; ++u) {
+            const bool ok = s0 + u < nsplit;
+            v[u] = ok ? ml[s0 + u] : float2(-INFINITY, 0.0f);
+            a[u] = ok ? acc[(ulong)(s0 + u) * d] : 0.0f;
+        }
+        for (uint u = 0; u < ASK_COMB_U; ++u) {
+            if (v[u].x == -INFINITY) continue;
+            const float w = exp2(v[u].x - mt);
+            lt += v[u].y * w;
+            num += a[u] * w;
+        }
     }
     out[p.s3 + (ulong)head * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
 }
