@@ -1,6 +1,6 @@
 //! `INTARSIA_TP_TEST_BUG=scale:F`: the deliberate TP bug the accuracy gate's sensitivity is measured with
 //! (docs/accuracy.md, "TP self-golden budget"). Its own test binary because it sets a process environment variable
-//! before the models load; this file holds a single test so nothing else reads the variable concurrently.
+//! before the models load. The tests here serialise on a mutex so none reads the variable while another sets it.
 
 mod common;
 use common::*;
@@ -8,7 +8,9 @@ use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::comm::HostCommGroup;
 use intarsia_core::model::{HeadMode, LoadOptions, Model};
 use intarsia_core::{Backend, DType, Telemetry};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+static ENV: Mutex<()> = Mutex::new(());
 
 fn tp2_logits(t: &Tiny, opts: &LoadOptions, ids: &[u32]) -> Vec<f32> {
     let backends: Vec<Arc<dyn Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
@@ -30,12 +32,40 @@ fn rel_l2(a: &[f32], b: &[f32]) -> f64 {
     (num / den).sqrt()
 }
 
+/// The guard that does catch a 1% partial-scale bug (the GPU accuracy gates do not, docs/accuracy.md "TP self-golden
+/// budget"): f32 weights and KV, host comm, tp=2 against the unsharded model. Summation order moves the logits by ~1e-7
+/// (the bound in `tp.rs` is 1e-5); the bug by orders more.
 #[test]
-fn test_bug_moves_the_logits_and_scale_one_does_not() {
+fn f32_tp2_vs_tp1_separates_a_one_percent_partial_scale_bug_from_summation_order() {
+    let _g = ENV.lock().unwrap_or_else(|e| e.into_inner());
     let t = tiny_weights(DType::F32, 5);
     let opts = LoadOptions { kv_dtype: Some(DType::F32), ..Default::default() };
     let ids: Vec<u32> = (0..9).map(|i| ((i * 37 + 11) % V) as u32).collect();
-    // SAFETY: the only test of this binary, nothing reads the environment concurrently.
+    unsafe { std::env::remove_var("INTARSIA_TP_TEST_BUG") };
+    let one = load(&t, &opts);
+    let mut st = one.new_state().unwrap();
+    let mut reference = vec![];
+    let mut cb = |_p: usize, r: &[f32]| {
+        reference = r.to_vec();
+        Ok(())
+    };
+    one.forward(&mut st, &ids, HeadMode::AllLogits, Some(&mut cb)).unwrap();
+    let clean = rel_l2(&tp2_logits(&t, &opts, &ids), &reference);
+    unsafe { std::env::set_var("INTARSIA_TP_TEST_BUG", "scale:1.01") };
+    let bug = rel_l2(&tp2_logits(&t, &opts, &ids), &reference);
+    unsafe { std::env::remove_var("INTARSIA_TP_TEST_BUG") };
+    eprintln!("tp2 vs tp1, f32: summation order rel_l2 {clean:.3e}; scale:1.01 on rank 1 rel_l2 {bug:.3e}");
+    assert!(clean < 1e-5, "clean tp=2 rel_l2 {clean}");
+    assert!(bug > 100.0 * 1e-5, "a 1% partial-scale bug must sit far above the 1e-5 bound (rel_l2 {bug})");
+}
+
+#[test]
+fn test_bug_moves_the_logits_and_scale_one_does_not() {
+    let _g = ENV.lock().unwrap_or_else(|e| e.into_inner());
+    let t = tiny_weights(DType::F32, 5);
+    let opts = LoadOptions { kv_dtype: Some(DType::F32), ..Default::default() };
+    let ids: Vec<u32> = (0..9).map(|i| ((i * 37 + 11) % V) as u32).collect();
+    // SAFETY: the tests of this binary hold ENV, nothing else reads the environment concurrently.
     unsafe { std::env::remove_var("INTARSIA_TP_TEST_BUG") };
     let clean = tp2_logits(&t, &opts, &ids);
     unsafe { std::env::set_var("INTARSIA_TP_TEST_BUG", "scale:1.0") };

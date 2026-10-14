@@ -487,6 +487,88 @@ passes with the shipped margins and fails at `matmul:2e-2` (rel_l2 7e-4) on the 
 aggregate gate could not see. Those margins (x2.5 max KL, x1.75 per prompt) are the ones that separate the two on this
 model; they were x1.5 / x1.3 in the first draft and failed the legitimate-size case. They are untested on the 35B.
 
+### TP self-golden budget (tp=2 against tp=1): measured, not shipped
+
+**Question.** `--tp 2` against a `--tp 1` self-golden of the same weights (Qwen3-8B BF16, 2x R9700) fails the default budgets
+by 5-6x (mean KL 5.9e-4 prefill, 5.1e-4 decode against 1e-4). Is that a defect, or the size of an equally correct
+reordering, and can a TP budget be derived from measured noise rather than set by hand?
+
+**Method** (all on the long fp32 prompt set, 10 prompts, 1434 prefill and 160 decode positions; raw logs in `docs/results/2026-10-14-tp2-budget-logs/`,
+table generator `scripts/tp2-budget-summarize.py`, results `docs/results/2026-10-14-tp2-budget.md`). `S0` is the tp=1 default dump. Every other configuration is run
+against `S0` with the default budget flags, and only its `SELF-STATS` line is read.
+
+1. **Spread of equivalent tp=1 variants against `S0`**: run twice (second process), device 1 instead of 0,
+   `INTARSIA_NO_FUSION=1`, `--prefill-chunk 1024`, `--prefill-chunk 64`, `INTARSIA_HIP_DISABLE` of the flash / split-KV
+   attention kernels (SIMT attention), of the decode gemv kernels (`matmul_bf16_gemv,logits_bf16_gemv`), and the combination.
+   Run-to-run, device 1, `INTARSIA_NO_FUSION=1` (the run reports the same resolved kernels: the fused kernels do not
+   apply to this model, so fusion is not a difference between tp=1 and tp=2 here) and chunk 1024 (2 of 10 prompts span
+   more than one chunk of 256, none of 1024) are bitwise identical to `S0` (mean KL 9e-11, the rounding of the stored
+   log-probs). The variants that move the logits are SIMT attention, the gemv switch and, a little, chunk 64:
+
+   | tp=1 variant vs `S0` | prefill mean KL / max pos KL / flips of 1434 / tail / worst prompt | decode mean KL / max pos KL / flips of 160 / tail / worst prompt |
+   |---|---|---|
+   | chunk 64 | 1.2e-6 / 3.3e-4 / 0 / 5.2e-7 / 2.0e-5 | 4.7e-5 / 2.9e-3 / 0 / 3.6e-6 / 4.7e-4 |
+   | SIMT attention (= with no-fusion, chunk 64) | **6.07e-4 / 4.9e-2 / 6** / 1.6e-4 / 7.7e-4 | **3.54e-4** / 6.2e-3 / 0 / 2.0e-4 / 7.6e-4 |
+   | decode gemv off | 9e-11 (identical) | 2.89e-4 / **8.9e-3** / 0 / **2.1e-4** / **1.15e-3** |
+   | **max over the variants** | 6.07e-4 / 4.9e-2 / 6 (0.42%) | 3.54e-4 / 8.9e-3 / 0 / 2.1e-4 / 1.15e-3 |
+
+2. **tp=2 against `S0`** (f32 partials, P2P): prefill 5.90e-4 / 5.0e-2 / 5 flips / 1.5e-4 / 9.8e-4, decode 5.07e-4 / 1.5e-2 /
+   0 / 2.1e-4 / 2.0e-3. The P2P and host communicators, and a second run, give the same numbers to the last digit; bf16
+   partials, chunk 64 and SIMT attention under tp=2 land at 5.6-5.9e-4 prefill (5-7 flips) and 3.8-5.1e-4 decode.
+3. **Distance to the fp32 golden** (what the floor measures; full-vocabulary KL, prefill / decode): tp=1 variants
+   3.97e-4 - 4.22e-4 / 2.70e-4 - 3.57e-4, tp=2 4.19e-4 / 3.45e-4: **inside the spread of the tp=1 variants**. The top-1
+   agreement is 99.51% for tp=2 against 99.58% for every tp=1 variant (one position; the tp=2 variants span 99.51 - 99.86%). On
+   the short golden's prompts (434 / 128 positions) tp=2 (3.90e-4 prefill) is outside the three tp=1 runs there
+   (2.34e-4 - 3.28e-4); the budget below was derived on the long set only.
+4. **Conclusion on the numbers**: tp=2 against tp=1 is the same kind of perturbation as the attention-kernel switch. The
+   prefill figures are inside the tp=1 spread, the decode figures (5.1e-4 against 3.5e-4) outside it by 1.4x and inside it at
+   k = 2. The default 1e-4 budget was chosen for single-kernel changes and cannot apply to TP.
+
+**Derived TP budget** (budget = max over the tp=1 variants x k, with k = 2 = `envelope::DEFAULT_K`, not touched):
+
+| check | max over tp=1 variants (which) | x 2 | tp=2 observed |
+|---|---|---|---|
+| mean 21-way KL | 6.07e-4 (SIMT attention, prefill) | 1.2e-3 | 5.9e-4 / 5.1e-4 |
+| largest single-position KL | 4.9e-2 (SIMT attention, prefill) | 9.8e-2 | 5.0e-2 / 1.5e-2 |
+| top-1 flips (prefill) | 6 of 1434 (SIMT attention) | 12 = 0.84% | 5 |
+| mean \|tail diff\| | 2.1e-4 (gemv off, decode) | 4.2e-4 | 1.5e-4 / 2.1e-4 |
+| worst prompt mean KL | 1.15e-3 (gemv off, decode) | 2.3e-3 (x1.9 the mean-KL budget) | 9.8e-4 / 2.0e-3 |
+
+tp=2 passes all five with margin (the tightest, worst prompt in decode, at 87% of its limit).
+
+**It was not shipped, because it does not catch a 1% partial-scale bug.** `INTARSIA_TP_TEST_BUG=scale:F[@RANK]`
+(test-only, `crates/intarsia-core/src/model.rs`; printed in the self-golden's exec diff as a fault) multiplies one rank's
+partial by `F` before every all-reduce (rank 1 by default). Against `S0`, judged by the derived budget above:
+
+| bug | prefill mean KL / max pos KL / flips | decode mean KL / max pos KL | verdict at the derived budget | fp32 floor (long golden) |
+|---|---|---|---|---|
+| none (tp=2) | 5.9e-4 / 5.0e-2 / 5 | 5.1e-4 / 1.5e-2 | pass | pass |
+| 1.001, rank 1 | 6.0e-4 / **1.1e-1** / 8 | 4.3e-4 / 6.3e-3 | **fails on max pos KL, from one position** | pass |
+| 1.003, rank 1 | 5.4e-4 / 6.4e-2 / 5 | 5.2e-4 / 9.1e-3 | pass | pass |
+| 1.005, rank 1 | 5.5e-4 / 4.9e-2 / 8 | 5.2e-4 / 1.2e-2 | pass | not run |
+| **1.01, rank 1** | 9.3e-4 / **2.2e-1** / 7 | 7.0e-4 / 1.9e-2 | **fails, on prefill max pos KL alone** | pass (top-1 99.51%, KL 6.7e-4) |
+| **1.01, rank 0** | 7.4e-4 / 7.2e-2 / 5 | 5.8e-4 / 1.1e-2 | **pass** | not run |
+| 1.01, rank 1, short golden's prompts | 4.3e-4 / 4.5e-2 / 0 | 5.8e-4 / 1.1e-2 | **pass** | pass |
+| 1.02, rank 1 | **1.44e-3** / 1.7e-1 / 7 | **1.32e-3** / 4.0e-2 | fails (mean KL, both modes) | **fails** (KL 1.17e-3, top-1 99.37%) |
+| 1.03 / 1.05 / 1.1 | 2.5e-3 / 5.4e-3 / 1.9e-2 | 2.0e-3 / 3.8e-3 / 1.4e-2 | fails | fails |
+
+A 1% bug is about a 0.5% change of each block output, 5.7e-3 relative in the f32 logits of the Mac model
+(`crates/intarsia-models/tests/tp_test_bug.rs`) but only 1.6x the bf16 reordering noise in mean KL here. The derived budget
+fails the rank-1 realisation on a single heavy-tailed statistic (the largest KL of 1434 positions; it also fails a 0.1%
+bug, and reads 1.6e-1 for clean tp=2 with bf16 partials against the tp=2 default dump) and passes the rank-0 realisation
+and the short golden's prompts. The mean KL, flips and worst-prompt checks only see the bug from 2% (long golden; on the
+short golden's 128 decode positions it fails at 2% by 1.23e-3 against 1.21e-3) or 3%. No single mean-KL budget separates
+a 1% bug from clean tp=2 either: the rank-0 bug's decode figure (5.8e-4) is below clean tp=2's prefill figure (5.9e-4),
+and its prefill figure (7.4e-4) is 1.2x the SIMT-attention spread, k = 1.2 instead of the envelope's 2.
+
+**What guards TP instead.** (a) the Mac f32 test `tp2_matches_tp1_prefill_and_decode_f32` (`crates/intarsia-models/tests/tp.rs`,
+summation order 2.5e-7 against its 1e-5 bound) and `tp_test_bug.rs` (the same comparison with `scale:1.01` gives 5.7e-3:
+23000x the clean figure): it checks the sharding and the reduction exactly, in `cargo test --workspace`; (b) the exact
+all-reduce tests on the GPU (`crates/intarsia-backend-hip/tests/comm.rs`); (c) the fp32-golden floor on both prompt sets
+(`--gate-class bf16`), which fails a partial-scale bug from 2%. Together they leave a gap between 1% and 2% on the GPU gates
+that only (a) closes. The default self-golden budget is unchanged, so `--tp 2` against a tp=1 self-golden keeps failing it;
+do not use that comparison as a TP gate.
+
 ### `--reference`
 
 `--reference` makes every op run its `ref_*` kernel (the f64 oracle) instead of the fast cpu kernels (before

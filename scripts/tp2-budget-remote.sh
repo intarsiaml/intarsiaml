@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# TP=2 self-golden budget: measurements and the validation of the shipped gate. Runs ON tatooine, inside a fleetq lease that
+# TP=2 self-golden budget: measurements (docs/results/2026-10-14-tp2-budget.md). Runs ON tatooine, inside a fleetq lease that
 # has radiance down and BOTH R9700s (scripts/tp2-budget-burst.sh takes care of the stop / restart / poll).
 #   scripts/tp2-budget-remote.sh m1        # S0, tp=1 equivalent variants
 #   scripts/tp2-budget-remote.sh m2        # (same build, after m1) tp=2, tp=2 variants, tp=2 with a deliberate bug, short golden floor
-#   scripts/tp2-budget-remote.sh validate  # the shipped gate, no hand-passed budget flags
+#   scripts/tp2-budget-remote.sh m3        # (same build, after m1) bug ladder, short-golden sample
 # Logs: $INTARSIA_REPO/bench-out/tp2b/<TAG>/ (pull them back before the next rsync --delete).
 # Needs the release build from `deploy/tatooine/dev.sh cargo build --release -p intarsia-cli --features hip`.
 # No `-e`: a gate that FAILS exits non-zero, which is a result here, not an error. Every run's exit code is logged.
@@ -102,21 +102,31 @@ stage_m2() {
   acc F-bug-1.01 2 "INTARSIA_TP_TEST_BUG=scale:1.01" --golden "$GS" --gate-class bf16
 }
 
-stage_validate() {
-  # The shipped gate, no budget flags: a fresh S0 from this very build, then tp=2 clean must PASS, bugs must FAIL.
-  echo "=== [$(ts)] binary check"
-  $D bash -c "grep -c 'built without the .hip. feature' $B; ls -la $B" 2>&1 | tail -2 | tee -a "$L/runs.txt"
-  acc A-S0 1 "HIP_VISIBLE_DEVICES=0" --golden "$GL" --gate-class bf16 --write-self-golden "$W/S0.safetensors"
-  acc V-t2 2 "" --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
-  acc V-t2-floor 2 "" --golden "$GL" --gate-class bf16
-  acc V-t2-bf16part 2 "INTARSIA_TP_PARTIAL=bf16" --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
-  acc V-t2-host 2 "" --comm host --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
-  for s in 1.01 1.003; do
-    acc "V-bug-$s" 2 "INTARSIA_TP_TEST_BUG=scale:$s" --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
+stage_m3() {
+  # (same build, after m1) how the deliberate bug scales, and the budget on the short fp32 golden's prompts (a second,
+  # independent sample of the same comparison). S0 comes from m1.
+  for s in 1.01@0 1.02 1.005 1.05; do
+    acc "B-bug-$s" 2 "INTARSIA_TP_TEST_BUG=scale:$s" --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
   done
-  # tp=1 variants against S0 must still judge by the DEFAULT budget (the TP budget is for world != writer's world)
-  acc V-t1-chunk64 1 "HIP_VISIBLE_DEVICES=0" --prefill-chunk 64 --allow-config-mismatch --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
-  acc V-t1-repeat 1 "HIP_VISIBLE_DEVICES=0" --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
+  acc A-short-S0 1 "HIP_VISIBLE_DEVICES=0" --golden "$GS" --gate-class bf16 --write-self-golden "$W/S0short.safetensors"
+  acc B-short-repeat 1 "HIP_VISIBLE_DEVICES=0" --self-golden "$W/S0short.safetensors" --allow-same-code --revlist /work/revlist.txt
+  acc B-short-t1-simt 1 "HIP_VISIBLE_DEVICES=0 INTARSIA_HIP_DISABLE=$SIMT" --self-golden "$W/S0short.safetensors" --allow-same-code --revlist /work/revlist.txt
+  acc B-short-t1-gemvoff 1 "HIP_VISIBLE_DEVICES=0 INTARSIA_HIP_DISABLE=$GEMVOFF" --self-golden "$W/S0short.safetensors" --allow-same-code --revlist /work/revlist.txt
+  acc B-short-t2 2 "" --self-golden "$W/S0short.safetensors" --allow-same-code --revlist /work/revlist.txt
+  for s in 1.01 1.02; do
+    acc "B-short-bug-$s" 2 "INTARSIA_TP_TEST_BUG=scale:$s" --self-golden "$W/S0short.safetensors" --allow-same-code --revlist /work/revlist.txt
+  done
+}
+
+stage_m4() {
+  # (same build, after m1) where the fp32-golden floor catches the deliberate bug, and the self-golden gate at 1.03 / 1.1.
+  for s in 1.02 1.03 1.05 1.1; do
+    acc "A-bug-$s" 2 "INTARSIA_TP_TEST_BUG=scale:$s" --golden "$GL" --gate-class bf16
+    acc "F-bug-$s" 2 "INTARSIA_TP_TEST_BUG=scale:$s" --golden "$GS" --gate-class bf16
+  done
+  for s in 1.03 1.1; do
+    acc "B-bug-$s" 2 "INTARSIA_TP_TEST_BUG=scale:$s" --self-golden "$W/S0.safetensors" --allow-same-code --revlist /work/revlist.txt
+  done
 }
 
 for s in "$@"; do

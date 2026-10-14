@@ -1,0 +1,57 @@
+[burst] job 1744; stages: m4; stopping radiance 2026-10-13 20:02:48
+[burst] radiance stopped 2026-10-13 20:02:50
+################ stage m4 start 20:02:50
+[20:03:05] A-bug-1.02 rc=1 (15 s) env='INTARSIA_TP_TEST_BUG=scale:1.02' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16'
+    OVERALL                   1434    99.37   1.174e-3   1.103e-3   8.975e-2   0.0188   0.0187    97.82     29.3%      0
+    OVERALL                    160    99.38   1.045e-3   9.385e-4   2.596e-2   0.0215   0.0214    97.62     91.9%      0
+    golden gate: FAIL
+[20:03:13] F-bug-1.02 rc=1 (8 s) env='INTARSIA_TP_TEST_BUG=scale:1.02' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434    99.77   7.525e-4   6.456e-4   2.691e-2   0.0325   0.0322    99.08     84.1%      0
+    OVERALL                    128    99.22   1.010e-3   9.082e-4   2.596e-2   0.0238   0.0237    97.97     89.8%      0
+    golden gate: FAIL
+[20:03:28] A-bug-1.03 rc=1 (15 s) env='INTARSIA_TP_TEST_BUG=scale:1.03' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16'
+    OVERALL                   1434    99.16   2.178e-3   2.067e-3   3.811e-1   0.0188   0.0186    97.02     24.1%      0
+    OVERALL                    160    99.38   1.780e-3   1.579e-3   3.926e-2   0.0215   0.0212    97.50     92.5%      0
+    golden gate: FAIL
+[20:03:37] F-bug-1.03 rc=1 (9 s) env='INTARSIA_TP_TEST_BUG=scale:1.03' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434    99.31   9.890e-4   8.325e-4   3.853e-2   0.0325   0.0323    98.48     69.8%      0
+    OVERALL                    128    99.22   1.597e-3   1.398e-3   3.926e-2   0.0238   0.0236    97.97     90.6%      0
+    golden gate: FAIL
+[20:03:51] A-bug-1.05 rc=1 (14 s) env='INTARSIA_TP_TEST_BUG=scale:1.05' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16'
+    OVERALL                   1434    98.54   5.045e-3   4.815e-3   6.848e-1   0.0188   0.0187    95.51     17.4%      0
+    OVERALL                    160    98.12   3.669e-3   3.231e-3   6.837e-2   0.0215   0.0211    96.38     77.5%      0
+    golden gate: FAIL
+[20:04:00] F-bug-1.05 rc=1 (9 s) env='INTARSIA_TP_TEST_BUG=scale:1.05' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434    97.93   1.969e-3   1.727e-3   7.190e-2   0.0325   0.0324    97.60     47.5%      0
+    OVERALL                    128    97.66   3.385e-3   2.951e-3   6.837e-2   0.0238   0.0233    97.19     71.9%      0
+    golden gate: FAIL
+[20:04:14] A-bug-1.1 rc=1 (14 s) env='INTARSIA_TP_TEST_BUG=scale:1.1' args='--golden /models/golden/qwen3-8b-long-fp32.safetensors --gate-class bf16'
+    OVERALL                   1434    97.28   1.846e-2   1.760e-2    2.373e0   0.0188   0.0189    91.98      9.6%      0
+    OVERALL                    160    97.50   1.428e-2   1.262e-2   4.053e-1   0.0215   0.0208    93.38     70.0%      0
+    golden gate: FAIL
+[20:04:23] F-bug-1.1 rc=1 (9 s) env='INTARSIA_TP_TEST_BUG=scale:1.1' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16'
+    OVERALL                    434    96.31   6.997e-3   6.208e-3   2.199e-1   0.0325   0.0322    95.85     29.3%      0
+    OVERALL                    128    96.88   1.090e-2   9.271e-3   2.316e-1   0.0238   0.0229    94.53     62.5%      0
+    golden gate: FAIL
+[20:04:33] B-bug-1.03 rc=1 (10 s) env='INTARSIA_TP_TEST_BUG=scale:1.03' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.30   2.489e-3   2.470e-3   5.265e-1   0.0124   0.0123    96.88     30.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=2.470238e-3 max_kl21=5.265047e-1 flips=10 flip_pct=0.6974 tail_abs=3.309802e-4 worst_prompt_kl21=3.176831e-3
+    OVERALL                    160    99.38   2.107e-3   2.024e-3   5.233e-2   0.0111   0.0109    96.88     92.5%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=2.024189e-3 max_kl21=5.231862e-2 flips=1 flip_pct=0.6250 tail_abs=3.904764e-4 worst_prompt_kl21=6.092323e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:04:42] B-bug-1.1 rc=1 (9 s) env='INTARSIA_TP_TEST_BUG=scale:1.1' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    97.35   1.885e-2   1.881e-2    2.413e0   0.0124   0.0123    91.90      9.6%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=1.880992e-2 max_kl21=2.412752e0 flips=38 flip_pct=2.6499 tail_abs=9.540949e-4 worst_prompt_kl21=2.568851e-2
+    OVERALL                    160    97.50   1.441e-2   1.390e-2   4.044e-1   0.0111   0.0104    93.75     70.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=1.390373e-2 max_kl21=4.044086e-1 flips=4 flip_pct=2.5000 tail_abs=1.302802e-3 worst_prompt_kl21=5.624560e-2
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+################ stage 1.1 end 20:04:42
+[burst] stages done 2026-10-13 20:04:42 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-13 20:04:43
+[burst] radiance answers 2026-10-13 20:04:53 (after 15 s)
