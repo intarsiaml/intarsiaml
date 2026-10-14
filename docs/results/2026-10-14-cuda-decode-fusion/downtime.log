@@ -1,1 +1,2 @@
 2026-10-13 job=1730 stop=19:48:05 up=19:53:40 down=5.5 min label="cuda-decode-fusion W1: baseline nsys decode profile" serving=1
+2026-10-13 job=1753 stop=20:12:57 up=20:23:06 down=10.1 min label="cuda-decode-fusion W2: dev nsys profile and 35B A/B rounds 1-2" serving=1

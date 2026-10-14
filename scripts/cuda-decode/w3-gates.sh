@@ -21,27 +21,19 @@ sha256sum $GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors | cut -c1-16
 
 SHORT="--mode both --decode-positions 16 --max-seq 4096 --mem-budget 60 --prefill-chunk 256"
 acc35() { # acc35 <tag> <bin>
-  need 3 "accuracy 35b-short $1" || return 0
+  need 4 "accuracy 35b-short $1" || return 0
   rm -f $O/$1.pos.tsv
   INTARSIA_ACC_POS_DUMP=$O/$1.pos.tsv $2 accuracy --model $M35 --backend cuda --golden $GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors $SHORT \
     --write-baseline $O/$1.baseline.json --write-self-golden $O/$1.dump.safetensors --allow-dirty > $O/$1.log 2>&1
-  echo "exit $?"; grep -E "verdict|golden gate|failing per-prompt|^prefill |^decode|aggregate" $O/$1.log | head -12 | cut -c1-230
+  echo "exit $?"; grep -E "verdict|golden gate|failing per-prompt|^prefill |^decode" $O/$1.log | head -8 | cut -c1-230
 }
-acc35 base $BASE
 acc35 dev $DEV
-if [ -s $O/base.dump.safetensors ] && [ -s $O/dev.dump.safetensors ]; then
-  python3 -I $D/cmp_dump.py $O/base.dump.safetensors $O/dev.dump.safetensors | tee $O/cmp.txt
-  cmp $O/base.pos.tsv $O/dev.pos.tsv && echo "per-position TSV identical" | tee -a $O/cmp.txt
-fi
 
 acc8() { # acc8 <tag> <golden file>
   need 2 "accuracy 8B $1" || return 0
   $DEV accuracy --model $M8 --backend cuda --golden $GD/$2 --mode both --decode-positions 16 --max-seq 4096 --mem-budget 40 --gate-class bf16 --allow-dirty > $O/$1.log 2>&1
   echo "exit $?"; grep -E "verdict|golden gate|^prefill |^decode|PASS|FAIL" $O/$1.log | head -10 | cut -c1-230
 }
-acc8 8b-short qwen3-8b-fp32.safetensors
-acc8 8b-long qwen3-8b-long-fp32.safetensors
-
 gen35() { # gen35 <tag> <bin> [extra args]
   local tag=$1 bin=$2; shift 2
   $bin generate -m $M35 --backend cuda --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
@@ -64,5 +56,13 @@ if [ -s $O/gen35-base.ids ] && cmp -s $O/gen35-base.ids $O/gen35-graph.ids; then
   echo "BASE == DEV: the 256 generated token ids of the base build and the dev build are identical" | tee -a $O/graphproof.txt
 else
   echo "BASE != DEV: token ids differ" | tee -a $O/graphproof.txt
+fi
+acc8 8b-short qwen3-8b-fp32.safetensors
+acc8 8b-long qwen3-8b-long-fp32.safetensors
+# last (lowest priority if the window is cut short): the base build's accuracy run and the bitwise comparison of the dumps
+acc35 base $BASE
+if [ -s $O/base.dump.safetensors ] && [ -s $O/dev.dump.safetensors ]; then
+  python3 -I $D/cmp_dump.py $O/base.dump.safetensors $O/dev.dump.safetensors | tee $O/cmp.txt
+  cmp $O/base.pos.tsv $O/dev.pos.tsv && echo "per-position TSV identical" | tee -a $O/cmp.txt
 fi
 echo "== w3 done $(date +%T), $(left) min left"
