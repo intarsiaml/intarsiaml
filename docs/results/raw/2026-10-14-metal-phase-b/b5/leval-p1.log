@@ -1,0 +1,8 @@
+fleetq job 1872
+b5pre idle_util=9(waits=1) zoom=0
+b5pre server up
+b5pre localeval exit 0
+b5new idle_util=9(waits=12) zoom=0
+b5new server up
+b5new localeval exit 0
+#1872 "metal B5 localeval pair 1 pre then new" (claude-31e10c55) done on endor exclusive 24 GB

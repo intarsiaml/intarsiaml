@@ -1,0 +1,18 @@
+fleetq: #1878 waiting (#2 in line): in line behind #1877 "metal P1 NAX gemm spike: tests + admission" (claude-31e10c55) on endor
+fleetq:   #1877 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1877 set, or it will wait for #1877 to be released.
+fleetq: #1878 waiting (#1 in line): endor is held exclusively by #1877 "metal P1 NAX gemm spike: tests + admission" (claude-31e10c55)
+fleetq:   #1877 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1877 set, or it will wait for #1877 to be released.
+fleetq job 1878
+b5pre-r3 idle_util=4(waits=0) zoom=3
+b5pre-r3 server up
+b5pre-r3 localeval exit 0
+b5new-r3 idle_util=5(waits=0) zoom=3
+b5new-r3 server up
+b5new-r3 localeval exit 0
+b5new-r4 idle_util=5(waits=0) zoom=3
+b5new-r4 server up
+b5new-r4 localeval exit 0
+b5pre-r4 idle_util=5(waits=0) zoom=3
+b5pre-r4 server up
+b5pre-r4 localeval exit 0
+#1878 "metal B5 localeval pairs 3+4 (pre new new pre)" (claude-31e10c55) done on endor exclusive 24 GB

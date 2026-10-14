@@ -1,0 +1,6 @@
+pre 1k idle_util=7(waits=2)
+new 1k idle_util=9(waits=3)
+pre 4k idle_util=5(waits=1)
+new 4k idle_util=2(waits=1)
+pre 16k idle_util=6(waits=1)
+new 16k idle_util=2(waits=2)
