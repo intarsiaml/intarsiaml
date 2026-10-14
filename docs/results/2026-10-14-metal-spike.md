@@ -27,7 +27,7 @@ Raw logs: `docs/results/raw/2026-10-14-metal-spike/`.
 - Tests: `cargo test -p intarsia-backend-metal` gives 9/9 (6 GEMV, 3 `wrap_host`).
   - GEMV is checked against an f64 reference at all Qwen3-8B shapes, odd N/K and unaligned offsets.
   - Worst error is 0.97 of a half bf16 ulp.
-  - The Linux build of the workspace has not been checked; this must happen before merge. The Cargo.toml `objc2*` dependencies are under `cfg(target_os = "macos")`, and `build.rs` tests `CARGO_CFG_TARGET_OS`. There is no `rustup` on endor, so cross-checking needs a fleet box.
+  - Linux: `cargo check --workspace --all-targets`, `cargo check -p intarsia-cli --features metal` and `cargo test -p intarsia-backend-metal` all pass on spark1 (aarch64 Linux, cargo 1.90, fleetq #1784, at `83fd291`). The crate compiles to nothing there.
 
 ## (b) GEMV bandwidth
 
