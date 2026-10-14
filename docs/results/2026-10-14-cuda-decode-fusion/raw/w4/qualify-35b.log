@@ -1,0 +1,18 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on cuda, report directory /home/nvidia/intarsia-decfuse/out/w4/qualify-35b
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.9s (NVIDIA GB10 (sm_121), 41 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.4s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     53s] plan: PASS in 51.9s (32 ops resolved, exactness fast, loaded in 51.9s)
+[qualify     53s] == kernels [kernels test on the model's shapes]
+[qualify     84s] kernels: PASS in 31.3s (41 kernels, 569 cases in 30.6s)
+[qualify     84s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    127s] gate: PASS in 42.6s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    127s] == acc-short [short accuracy against a golden]
+[qualify    179s] acc-short: PASS in 52.1s (prefill top-1 97.92% KL 5.87e-3; decode top-1 98.12% KL 1.54e-2)
+[qualify    179s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    219s] server up in 40s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    252s] bench: PASS in 73.2s (decode 80.7 tok/s at 128 tokens (82% of the byte floor))
+QUICK DONE: /home/nvidia/intarsia-decfuse/out/w4/qualify-35b/quick-report.md
+[qualify    252s] exit code 0

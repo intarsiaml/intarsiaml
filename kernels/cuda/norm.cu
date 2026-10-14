@@ -67,6 +67,72 @@ __global__ void rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __r
     }
 }
 
+// The GatedDeltaNet output norm: out = silu(z) * rmsnorm(x, w), one block per row. It is rmsnorm_kernel<false, VEC> (same block
+// size, same per-thread accumulation and block reduction, same bf16 rounding of the normalised value) followed by
+// silu_glu_kernel on (z, normalised): the bits of the two launches it replaces. `out` may be `x` (each element is read, then
+// written, by the same thread after the reduction barrier).
+template <bool VEC>
+__global__ void gated_rmsnorm_kernel(const ik_bf16* x, const ik_bf16* __restrict__ z, const ik_bf16* __restrict__ w,
+                                     ik_bf16* out, int64_t H, float eps, float woff) {
+    __shared__ float red[32];
+    const int64_t row = blockIdx.x;
+    const ik_bf16* xr = x + row * H;
+    const ik_bf16* zr = z + row * H;
+    ik_bf16* orow = out + row * H;
+    float ss = 0.f;
+    if (VEC) {
+        const int64_t nv = H / 8;
+        for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+            float f[8];
+            ik_unpack8(reinterpret_cast<const uint4*>(xr)[i], f);
+#pragma unroll
+            for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
+        }
+    } else {
+        for (int64_t i = threadIdx.x; i < H; i += blockDim.x) {
+            const float v = ik_b2f(xr[i]);
+            ss += v * v;
+        }
+    }
+    ss = ik_block_sum(ss, red);
+    const float r = rsqrtf(ss / (float)H + eps);
+    if (VEC) {
+        const int64_t nv = H / 8;
+        for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+            float f[8], g[8], zf[8];
+            ik_unpack8(reinterpret_cast<const uint4*>(xr)[i], f);
+            ik_unpack8(reinterpret_cast<const uint4*>(w)[i], g);
+            ik_unpack8(reinterpret_cast<const uint4*>(zr)[i], zf);
+#pragma unroll
+            for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
+            float nrm[8];
+            ik_unpack8(ik_pack8(f), nrm);  // the normalised row as the rmsnorm launch stores it (bf16)
+#pragma unroll
+            for (int k = 0; k < 8; ++k) f[k] = ik_silu(zf[k]) * nrm[k];
+            reinterpret_cast<uint4*>(orow)[i] = ik_pack8(f);
+        }
+    } else {
+        for (int64_t i = threadIdx.x; i < H; i += blockDim.x) {
+            const float nrm = ik_b2f(ik_f2b(ik_b2f(xr[i]) * r * (ik_b2f(w[i]) + woff)));
+            orow[i] = ik_f2b(ik_silu(ik_b2f(zr[i])) * nrm);
+        }
+    }
+}
+
+int launch_gated(const ik_bf16* x, const ik_bf16* z, const ik_bf16* w, ik_bf16* out, int64_t rows, int64_t H, float eps,
+                 float woff, cudaStream_t s) {
+    if (rows == 0 || H == 0) return IK_OK;
+    // the same vector / block-size decisions as rmsnorm (launch_rows), so the reduction order is the same; silu_glu's own
+    // vector decision does not change a single element's value
+    const bool vec = H % 8 == 0 && ik_aligned16(x) && ik_aligned16(w) && ik_aligned16(out) && ik_aligned16(z);
+    const int64_t items = vec ? H / 8 : H;
+    const unsigned bd = ik_round_up((unsigned)(items < 256 ? items : 256), 32);
+    if (rows > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (vec) gated_rmsnorm_kernel<true><<<(unsigned)rows, bd, 0, s>>>(x, z, w, out, H, eps, woff);
+    else gated_rmsnorm_kernel<false><<<(unsigned)rows, bd, 0, s>>>(x, z, w, out, H, eps, woff);
+    return ik_launch_status();
+}
+
 int launch_rows(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik_bf16* out, ik_bf16* sum, int64_t rows,
                 int64_t H, float eps, float woff, cudaStream_t s) {
     if (rows == 0 || H == 0) return IK_OK;
@@ -90,6 +156,19 @@ int launch_rows(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik_bf16*
 }  // namespace
 
 extern "C" {
+
+int ik_gated_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* z, const ik_tensor* w, float eps, float w_offset,
+                          ik_tensor* out, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(z, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(w, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
+    if (z->shape[0] != x->shape[0] || z->shape[1] != x->shape[1] || w->shape[0] != x->shape[1] ||
+        out->shape[0] != x->shape[0] || out->shape[1] != x->shape[1])
+        return IK_ERR_SHAPE;
+    return launch_gated((const ik_bf16*)x->data, (const ik_bf16*)z->data, (const ik_bf16*)w->data,
+                        (ik_bf16*)out->data, x->shape[0], x->shape[1], eps, w_offset, IK_STREAM(stream));
+}
 
 int ik_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, float w_offset, ik_tensor* out, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));

@@ -242,10 +242,16 @@ int ik_moe_experts_decode_bf16(const ik_tensor* x, const ik_tensor* ids, const i
                                const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                                const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                                const ik_scratch* scratch, void* stream);
+/* moe_experts_decode_v2_bf16: the same op and the same bits as moe_experts_decode_bf16 (CUDA), with the down projection
+ * restructured: a warp per expert slot instead of per output row (docs/results/2026-10-14-cuda-decode-fusion.md). */
+int ik_moe_experts_decode_v2_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                  const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                  const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                  const ik_scratch* scratch, void* stream);
 int ik_moe_combine_bf16(const ik_tensor* routed, const ik_tensor* shared, const ik_tensor* gate_logit, ik_tensor* out,
                         void* stream);
 
-/* Fused decode launchers (HIP only; docs/results/2026-10-14-hip-decode-2.md). Each replaces a short chain of the launchers
+/* Fused decode launchers (HIP: docs/results/2026-10-14-hip-decode-2.md; CUDA: docs/results/2026-10-14-cuda-decode-fusion.md). Each replaces a short chain of the launchers
  * above and produces the same bits as that chain, so a backend without them keeps the unfused path (the model asks the
  * registry whether a kernel exists before it uses one). M = 1 (one decode row) except gated_rmsnorm.
  *   matmul_pair_bf16_gemv   x[1,K], w0[N0,K], w1[N1,K] (bf16, K % 8 == 0) -> out0[1,N0], out1[1,N1]: two matmul_bf16_gemv.

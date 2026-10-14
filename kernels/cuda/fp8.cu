@@ -16,10 +16,12 @@ constexpr int kWarps = 8;
 
 // ---- GEMV --------------------------------------------------------------------------------------------------------
 
+// `blk` is the block's index along the rows of this matrix: blockIdx.x for fp8_gemv_kernel, the index inside its segment
+// for the pair kernel below, which therefore runs this very code (its staging uses the segment's own scales).
 template <int M, typename OutT>
-__global__ void __launch_bounds__(kWarps * IK_WARP)
-fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
-                OutT* __restrict__ out, int N, int K) {
+__device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w,
+                                              const float* __restrict__ sc, OutT* __restrict__ out, int N, int K,
+                                              int64_t blk) {
     extern __shared__ __align__(16) unsigned char smem[];
     ik_bf16* xs = reinterpret_cast<ik_bf16*>(smem);  // [M][K] bf16: x, or xq (fp8 values are exact in bf16)
     const bool actq = sc[1] > 0.f;
@@ -31,7 +33,7 @@ fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, co
     }
     __syncthreads();
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    const int64_t n = blk * kWarps + warp;
     if (n >= N) return;
     const uint4* wr = reinterpret_cast<const uint4*>(w + n * K);
     float acc[M];
@@ -58,6 +60,26 @@ fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, co
         const float s = ik_warp_sum(acc[m]);
         if (lane == 0) ik_store(out + (int64_t)m * N + n, s * s_out);
     }
+}
+
+template <int M, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                OutT* __restrict__ out, int N, int K) {
+    fp8_gemv_body<M, OutT>(x, w, sc, out, N, K, (int64_t)blockIdx.x);
+}
+
+// Two projections of one activation row in one launch (GDN qkv + z, attention k + v): blocks [0, nb0) run the first
+// matrix with its own scales, the rest the second. Each block stages the activations itself, so the two segments need
+// not share an input scale (the checkpoint's do).
+template <typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const float* __restrict__ sc0,
+                     OutT* __restrict__ o0, int N0, const uint8_t* __restrict__ w1, const float* __restrict__ sc1,
+                     OutT* __restrict__ o1, int N1, int K) {
+    const int nb0 = (N0 + kWarps - 1) / kWarps;
+    if ((int)blockIdx.x < nb0) fp8_gemv_body<1, OutT>(x, w0, sc0, o0, N0, K, (int64_t)blockIdx.x);
+    else fp8_gemv_body<1, OutT>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);
 }
 
 template <int M, typename OutT>
@@ -218,9 +240,36 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     return f32o ? mma_by_m(xp, wp, sp, (float*)out->data, M, N, K, s) : mma_by_m(xp, wp, sp, (ik_bf16*)out->data, M, N, K, s);
 }
 
+// M == 1, bf16 activations and outputs.
+int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1,
+         ik_tensor* o0, ik_tensor* o1, void* stream) {
+    IK_TRY(check(x, w0, sc0, o0));
+    IK_TRY(check(x, w1, sc1, o1));
+    if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (M != 1 || M * K * 2 > 49152) return IK_ERR_SHAPE;
+    if (N0 == 0 && N1 == 0) return IK_OK;
+    cudaStream_t s = IK_STREAM(stream);
+    if (K == 0) {
+        if (cudaMemsetAsync(o0->data, 0, ik_numel(o0) * 2, s) != cudaSuccess) return IK_ERR_LAUNCH;
+        return cudaMemsetAsync(o1->data, 0, ik_numel(o1) * 2, s) == cudaSuccess ? IK_OK : IK_ERR_LAUNCH;
+    }
+    if (N0 > 0x7fffffffLL || N1 > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    const unsigned grid = (unsigned)((N0 + kWarps - 1) / kWarps + (N1 + kWarps - 1) / kWarps);
+    fp8_gemv_pair_kernel<ik_bf16><<<grid, kWarps * IK_WARP, (size_t)K * 2, s>>>(
+        (const ik_bf16*)x->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data, (int)N0,
+        (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, (int)N1, (int)K);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
+
+int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                            const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return pair(x, w0, scales0, w1, scales1, out0, out1, stream);
+}
 
 int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, true);

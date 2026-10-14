@@ -47,7 +47,7 @@ __global__ void add_kernel(const ik_bf16* __restrict__ a, const ik_bf16* __restr
 }
 
 // ---- silu_glu ----------------------------------------------------------------------------
-IK_DEVI float silu(float g) { return g / (1.f + expf(-g)); }
+IK_DEVI float silu(float g) { return ik_silu(g); }
 
 template <bool VEC>
 __global__ void silu_glu_kernel(const ik_bf16* __restrict__ g, const ik_bf16* __restrict__ u,

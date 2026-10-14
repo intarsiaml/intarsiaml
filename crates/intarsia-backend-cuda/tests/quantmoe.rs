@@ -53,7 +53,19 @@ fn check_experts_with(cuda: &dyn Backend, kernel: &str, hc: &HostCall, label: &s
 fn moe_experts_decode_matches_old_kernel() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(33);
-    for (t, e, k, h, i) in [(1usize, 64usize, 8usize, 2048usize, 512usize), (2, 16, 8, 2048, 512), (4, 32, 8, 2048, 512), (3, 16, 4, 256, 64), (1, 8, 2, 64, 32)] {
+    // (T, E, K, H, I): the real layer shape, more tokens, K below / above the 8 warps of a block (idle warps; a warp owning
+    // two slots), I of one and of several lane iterations (I / 16 = 3 active lanes; 64 lane iterations of 32), K = E
+    for (t, e, k, h, i) in [
+        (1usize, 64usize, 8usize, 2048usize, 512usize),
+        (2, 16, 8, 2048, 512),
+        (4, 32, 8, 2048, 512),
+        (3, 16, 4, 256, 64),
+        (1, 8, 2, 64, 32),
+        (1, 32, 10, 256, 1024),
+        (2, 32, 16, 128, 32),
+        (1, 16, 1, 64, 48),
+        (2, 4, 4, 48, 16),
+    ] {
         let base = experts_case(&mut rng, t, e, k, h, i, DType::Bf16);
         let mut odd = base.clone();
         let mut ids = odd.inputs[1].to_i32().unwrap();
@@ -68,10 +80,13 @@ fn moe_experts_decode_matches_old_kernel() {
         odd.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
         for (label, hc) in [("random", &base), ("duplicate and invalid ids", &odd)] {
             let label = format!("{label} T={t} E={e} K={k} H={h} I={i}");
-            check_experts_with(&*cuda, "moe_experts_decode_bf16", hc, &label);
             let old = run_host(&*cuda, "moe_experts_bf16", hc).unwrap();
-            let new = run_host(&*cuda, "moe_experts_decode_bf16", hc).unwrap();
-            assert_eq!(old[0].data, new[0].data, "{label}: decode kernel differs from moe_experts_bf16");
+            // the v2 kernel (down projection restructured) must give the same bits as the original decode kernel
+            for kernel in ["moe_experts_decode_bf16", "moe_experts_decode_v2_bf16"] {
+                check_experts_with(&*cuda, kernel, hc, &label);
+                let new = run_host(&*cuda, kernel, hc).unwrap();
+                assert_eq!(old[0].data, new[0].data, "{label}: {kernel} differs from moe_experts_bf16");
+            }
         }
     }
 }
@@ -234,6 +249,79 @@ fn bench(b: &dyn Backend, kernel: &str, hc: &HostCall, reps: usize) -> f64 {
     }
     b.synchronize(0).unwrap();
     t0.elapsed().as_secs_f64() / reps as f64
+}
+
+/// Cold-weight timing of the T = 1 routed experts at the real layer shape (256 experts, top-8, H 2048, I 512). 96 different
+/// routings cycle through one weight set, so consecutive launches read different experts (as the 40 layers of a decode step
+/// do) instead of the L2-warm same eight, and all 96 launches are captured in one CUDA graph so the host launch cost (a few
+/// us per call here) does not count. Prints microseconds per call and the effective bandwidth over the bytes touched.
+/// Knobs: INTARSIA_MOE_DOWN_R, INTARSIA_MOE_GU_UNROLL (moe_decode.cu).
+#[test]
+#[ignore]
+fn bench_moe_decode_cold() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(9);
+    const N: usize = 96;
+    let big = experts_case(&mut rng, N, 256, 8, 2048, 512, DType::Bf16);
+    let weights: Vec<TensorRef> = big.inputs[3..8].iter().map(|t| dev_tensor(&*cuda, t)).collect();
+    let row = |t: &HostTensor, i: usize, width: usize, bytes: usize| HostTensor {
+        shape: vec![1, width],
+        data: t.data[i * width * bytes..(i + 1) * width * bytes].to_vec(),
+        ..t.clone()
+    };
+    let mut calls = Vec::new();
+    for i in 0..N {
+        let mut inputs = vec![
+            dev_tensor(&*cuda, &row(&big.inputs[0], i, 2048, 2)),
+            dev_tensor(&*cuda, &row(&big.inputs[1], i, 8, 4)),
+            dev_tensor(&*cuda, &row(&big.inputs[2], i, 8, 4)),
+        ];
+        inputs.extend(weights.iter().cloned());
+        let out = dev_tensor(&*cuda, &HostTensor::zeros(DType::Bf16, &[1, 2048]));
+        calls.push(OpCall::new(Op::MoeExperts, inputs, vec![out], big.attrs.clone()));
+    }
+    let nv = |n: usize, k: usize| (n * k) as f64 * (0.5 + 1.0 / 16.0) / 1e6;
+    let touched = 8.0 * (nv(1024, 2048) + nv(2048, 512));
+    let need = cuda.kernels().iter().find(|k| k.name == "moe_experts_decode_bf16").unwrap().scratch_bytes(&ShapeInfo::from_call(&calls[0]));
+    let scratch = TensorRef::new(cuda.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]);
+    for c in &mut calls {
+        c.scratch = Some(scratch.clone());
+    }
+    println!("{:<34} {:>10} {:>10}", "variant (T=1, 8 of 256 experts)", "us/call", "GB/s");
+    for (label, kernel, down_r, gu) in [
+        ("decode (original)", "moe_experts_decode_bf16", "", ""),
+        ("decode v2 R=1", "moe_experts_decode_v2_bf16", "1", "2"),
+        ("decode v2 R=2", "moe_experts_decode_v2_bf16", "2", "2"),
+        ("decode v2 R=4", "moe_experts_decode_v2_bf16", "4", "2"),
+        ("decode v2 R=8", "moe_experts_decode_v2_bf16", "8", "2"),
+        ("decode v2 R=4 gate_up unroll 1", "moe_experts_decode_v2_bf16", "4", "1"),
+        ("decode v2 R=4 gate_up unroll 4", "moe_experts_decode_v2_bf16", "4", "4"),
+    ] {
+        std::env::set_var("INTARSIA_MOE_DOWN_R", down_r);
+        std::env::set_var("INTARSIA_MOE_GU_UNROLL", gu);
+        let g = cuda
+            .graph_capture(0, &mut || {
+                for c in &calls {
+                    cuda.launch(kernel, c, 0)?;
+                }
+                Ok(())
+            })
+            .unwrap();
+        for _ in 0..3 {
+            cuda.graph_replay(&g, 0).unwrap();
+        }
+        cuda.synchronize(0).unwrap();
+        let reps = 20;
+        let t0 = Instant::now();
+        for _ in 0..reps {
+            cuda.graph_replay(&g, 0).unwrap();
+        }
+        cuda.synchronize(0).unwrap();
+        let s = t0.elapsed().as_secs_f64() / (reps * N) as f64;
+        println!("{:<34} {:>10.1} {:>10.0}", label, s * 1e6, touched / 1e3 / s);
+    }
+    std::env::remove_var("INTARSIA_MOE_DOWN_R");
+    std::env::remove_var("INTARSIA_MOE_GU_UNROLL");
 }
 
 #[test]

@@ -1,0 +1,24 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 20480 tokens
+calibration: 49 base tokens, 22.03 tokens per filler sentence
+  size    128 rep: prompt=129 gen=128 ttft=0.10s prefill=1294 tok/s decode=80.2 tok/s
+  size    128 rep: prompt=137 gen=128 ttft=0.10s prefill=1336 tok/s decode=80.2 tok/s
+  size    128 rep: prompt=130 gen=128 ttft=0.10s prefill=1270 tok/s decode=80.2 tok/s
+  size    128 rep: prompt=130 gen=128 ttft=0.10s prefill=1307 tok/s decode=80.2 tok/s
+  size    128 rep: prompt=131 gen=128 ttft=0.10s prefill=1258 tok/s decode=80.2 tok/s
+  size   1024 rep: prompt=973 gen=128 ttft=0.25s prefill=3860 tok/s decode=79.6 tok/s
+  size   1024 rep: prompt=989 gen=128 ttft=0.25s prefill=3878 tok/s decode=79.5 tok/s
+  size   1024 rep: prompt=974 gen=128 ttft=0.25s prefill=3864 tok/s decode=79.4 tok/s
+  size   1024 rep: prompt=976 gen=128 ttft=0.25s prefill=3863 tok/s decode=79.6 tok/s
+  size   1024 rep: prompt=951 gen=128 ttft=0.24s prefill=3939 tok/s decode=79.6 tok/s
+  size   4096 rep: prompt=4037 gen=128 ttft=0.86s prefill=4685 tok/s decode=76.9 tok/s
+  size   4096 rep: prompt=4087 gen=128 ttft=0.87s prefill=4689 tok/s decode=76.8 tok/s
+  size   4096 rep: prompt=4058 gen=128 ttft=0.86s prefill=4716 tok/s decode=76.8 tok/s
+  size   4096 rep: prompt=4048 gen=128 ttft=0.86s prefill=4691 tok/s decode=76.8 tok/s
+  size   4096 rep: prompt=4036 gen=128 ttft=0.85s prefill=4721 tok/s decode=76.9 tok/s
+wrote /home/nvidia/intarsia-decfuse/out/ab/35b-dev-r3/cudadecode-35b-dev-r3.json
+cudadecode-35b-dev-r3  model=intarsia-35b  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+     128      130     0.102         1294        80.2      128
+    1024      974     0.252         3864        79.6      128
+    4096     4048     0.862         4691        76.8      128

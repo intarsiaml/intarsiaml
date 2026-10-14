@@ -20,8 +20,15 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
     ("moe_experts_decode_bf16", Op::MoeExperts),
+    ("moe_experts_decode_v2_bf16", Op::MoeExperts),
     ("moe_experts_mma_bf16", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
+    // fused decode launchers (docs/results/2026-10-14-cuda-decode-fusion.md): each is bitwise the chain of launches it
+    // replaces; the model falls back to that chain when the registry has no kernel for the exact call
+    ("matmul_pair_bf16_gemv", Op::MatmulPair),
+    ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
+    ("matmul_nvfp4_glu_gemv", Op::MatmulNvfp4Glu),
+    ("gated_rmsnorm_bf16", Op::GatedRmsnorm),
 ];
 
 /// Admission budget of the bf16-rounded outputs: a one-ulp flip (up to 7.8e-3 of the largest output) is allowed, which
@@ -32,6 +39,10 @@ const TOL: Tol = Tol::new(1.5e-2, 1e-3);
 /// Budget for the f32 outputs of the quantised matmuls (lm_head logits), picked per output tensor by dtype
 /// (`KernelImpl::tol_for`); f32 outputs differ from the reference by accumulation order only.
 pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
+
+/// Budget of the fused kernels that end in a silu (`expf`, a division and a bf16 rounding of a product of two roundings):
+/// the same as the elementwise kernels' (kernels.rs `BF16_TOL`).
+const GLU_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 
 /// Fewest tokens for which the grouped tensor-core experts kernel is preferred over the warp-per-row one (GB10,
 /// 256 experts, top-8: 1.43 ms vs 1.53 ms at 32 tokens, 0.98 ms vs 0.88 ms at 16).
@@ -145,6 +156,22 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .scratch(moe_experts_decode_scratch)
                     .priority(10),
+                // the same kernel pair with the down projection restructured for occupancy (bitwise equal; kernels/cuda/moe_decode.cu)
+                "moe_experts_decode_v2_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        s.m <= DECODE_MAX_TOKENS
+                            && s.top_k <= 16
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && s.top_k * s.n * 2 <= 49152
+                            && s.k * 2 <= 49152
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_decode_scratch)
+                    .priority(20),
                 // grouped tensor-core experts for batches (prefill): H % 128, I % 128, at least 32 tokens so a typical
                 // active expert sees several pairs; decode and tiny batches keep the warp-per-row kernel
                 "moe_experts_mma_bf16" => k
@@ -156,6 +183,30 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(moe_experts_mma_scratch)
                     .priority(10),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
+                // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces
+                // (tests/fused_decode.rs), so the budget is that of the kernels it is built from.
+                "matmul_pair_bf16_gemv" => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "matmul_fp8_pair_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "matmul_nvfp4_glu_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(GLU_TOL)
+                    .priority(10),
+                "gated_rmsnorm_bf16" => k.acts(bf).when(|s| s.out == Some(DType::Bf16)).exact(Exactness::Deterministic).tol(GLU_TOL),
                 other => unreachable!("quantmoe kernel {other} has no registration"),
             }
         })
