@@ -1,0 +1,4 @@
+heads 32/8 head_dim 64, chunk 256, 36 layers (one KV cache each), 6 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   3840 flash                            684.3     684.0     685.8    12.16
+   3840 attn_flash_h64_bk16_s4_q1_pf     717.5     716.9     720.3    11.60
