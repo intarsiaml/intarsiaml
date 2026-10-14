@@ -1,0 +1,15 @@
+heads 32 kv 8 dim 128 visible      1: ae5b74f8a5d631fd
+heads 32 kv 8 dim 128 visible    100: af99833521f437c3
+heads 32 kv 8 dim 128 visible    129: 2e7167dde52cd9fd
+heads 32 kv 8 dim 128 visible   1000: 21823a5a59a5e0ff
+heads 32 kv 8 dim 128 visible   4090: 5093ae51d0ebb263
+heads 32 kv 8 dim 128 visible   4096: 20b060e05de26ed0
+heads 32 kv 8 dim 128 visible  16384: e6dcec349bc9d5ef
+heads 16 kv 2 dim 128 visible 100000: a4d1a09ca175eede
+heads  8 kv 1 dim 128 visible  70000: bd5bb755cb6bffde
+heads 16 kv 2 dim  64 visible  33333: 693a6c951d66be63
+heads 12 kv 2 dim 256 visible  20000: 785b94b175cc5347
+heads  6 kv 2 dim  32 visible   9000: 902de209edb904f6
+heads  8 kv 8 dim 128 visible   5000: 071cc77ce3ffb3c3
+heads 40 kv 8 dim 128 visible   8000: 9e65f1e06cb9f712
+heads 64 kv 8 dim 128 visible  12000: a28e6c55fc9b7bd1

@@ -1,0 +1,4 @@
+total us/step (sum of per-launch kernel-mode durations): A 28598  B 29549  diff +951
+op                                      n      k  calls     A us     B us  A ms/st  B ms/st  diff ms
+attn_decode_bf16_splitkv                0      0     36     26.8     55.9    0.985    2.035   +1.051
+matmul_pair_bf16_gemv               24576   4096     36    340.5    341.1   12.528   12.483   -0.045

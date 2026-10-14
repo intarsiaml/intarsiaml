@@ -622,3 +622,125 @@ The first sample in each set (94-99%) is the model-load tail from the server tha
 - llama.cpp: `20261014-170847-adhoc-sameslot-llamacpp`, unanimis `3443ea3e`
 - intarsia-2: `20261014-171057-adhoc-sameslot-intarsia-2`, unanimis `d5bb804e`
 - fleetq #1867. `result.json` and `summary.md` for each run, server logs, localeval output, GPU readings and `versions.txt` are in `docs/results/raw/2026-10-14-metal-phase-b/sameslot/`.
+
+## Phase B part 5: decode attention at 4k
+
+Branch `metal-b5-attn` (from `spike/metal` `62d602e`), code in `2484c1a` and `c709ee1`. Host endor (Apple M5 Max, 614 GB/s nominal), Qwen3-8B BF16. Raw logs and scripts: `docs/results/raw/2026-10-14-metal-phase-b/b5/`. fleetq: #1868 (profile, early experiments), #1870 (tests, microbench, A/B, traces, correctness checks), #1872 / #1875 / #1878 (localeval pairs). #1869 and #1874 belong to another agent's prefill work and ran in between.
+
+**Outcome.** The 4k point now clears the 85 percent exit, with a small margin: localeval decode at 4k is **34.7 tok/s mean over four runs (34.4-35.0), 85.5 percent of the 40.6 tok/s floor**, against 34.2 (33.6-34.6, 84.3 percent) for the pre binary run in the same slots; the gain shows in all four pre/new pairs (+0.8, +0.4, +0.6, +0.2 tok/s). The aim of 35.0 was reached in one run only. Stream time per token (interleaved A/B, 5 pairs) falls **0.72 ms at 4k (29.27 -> 28.55 ms) and 0.33 ms at 128 context (28.09 -> 27.76 ms)**. Per attention call (in-stream microbench) 45.2 -> 36.2 us at 4k, 132.4 -> 121.5 us at 16k (no regression), 11.9 -> 8.1 us at 128. The output is **bitwise unchanged** (fingerprint of 15 shapes, greedy ids, accuracy to the printed digit). The gain did not come from streaming: the kernel was already at the DRAM read ceiling on the slope; what was removed is per-launch ramp cost (64-bit integer division, scalar `q` loads, 64-bit index math, a chain of dependent loads in the combine).
+
+### What the 4k gap actually is (profile before any change)
+
+* Kernel-mode op diff, 4k against 128 context (64 steps each, `b5/profile/opdiff-short-vs-4k-pre.txt`): the step grows by +0.95 ms, and **+1.05 ms of it is `attn_decode_bf16_splitkv`** (26.8 -> 55.9 us per call, 36 calls). Every GEMV, norm and the fold are flat within 0.05 ms. Nothing else scales with context (no host-side or KV-append growth).
+* In the stream (cb-mode A/B of part 4) 4k costs +1.0 ms over 128; the extra bytes are about 3948 tokens x 36 layers x 4096 B = 582 MB, i.e. **580 GB/s marginal**, at the measured read ceiling (`gemv_bw` read-only 569-581 GB/s, copy 548). The byte traffic itself cannot be sped up; B2a's "59 percent of peak" (365 GB/s) was an average pulled down by a fixed cost.
+* The pre microbench fits `t = a + bytes / b` (4k and 16k points): **b = 577 GB/s, a = 16.1 us** per call; the 2k, 4k, 8k points agree within 0.3 us (console figures of #1868: 30.9, 45.9, 75.6, 134.5 us). Decomposition of the 16 us with switches in the shader (timing only, wrong results): the combine dispatch about 5 us, exposed arithmetic about 3 us, launch + DRAM ramp + drain about 8 us. 36 x 16 us = 0.58 ms/token was the whole prize; the 0.4 ms asked for meant removing most of the fixed part, not touching the slope.
+* After the changes: `b = 590 GB/s, a = 7.8 us`.
+
+### Changes (`kernels/metal/attention_splitkv.metal`, `src/attn.rs`)
+
+All keep the arithmetic and its order, so results are bit for bit those of the pre kernel.
+
+1. **One 16-byte load of the lane's 8 `q` values** instead of eight 2-byte loads (the launcher sends an unaligned `q` to the single-pass fallback, as it already does for K/V). 128 context: 11.9 -> about 9.3 us, 4k about -2 us. A runtime branch between a vector and a scalar path lost most of the gain (compiler scheduling), so the vector load is unconditional.
+2. **32-bit loop index math** (`j`, `units`, offsets; the launcher already checks `Nkv*cap*D < 2^32`, now also the scratch element count). 4k -1.0 us.
+3. **32-bit `ask_nsplit` / `ask_chunk` and a shift instead of `idx / d`.** The split policy did three 64-bit divisions per threadgroup and two more in the combine; 64-bit division is emulated on the GPU and sits on the ramp of every launch. **4k -3.3 us, the largest single item.** The remaining 64-bit offset math became 32-bit too: -1.3 us.
+4. **Combine loads in batches** (`ASK_COMB_U = 16` splits in flight, the first batch's partials loaded together with its (max, sum) pairs) instead of a chain of dependent loads per split: 4k -1.8 us. And a **full-step fast path** (`ask_step<GP, FULL>`): steps whose keys all exist drop the bounds selects, -0.3 us.
+
+### Per-call attention time, in-stream microbench (`examples/attn_bw`, interleaved pre/new, 5 pairs, medians)
+
+36 launches per command buffer, one KV cache per layer so reads come from DRAM; 400 reps for the three short contexts (with 30 reps the 128-2k rows were erratic for both binaries: the GPU had not left its idle clock), 30 reps above. `bw_ab.log`, `bw_ab_small.log`, `bw/`, `bw-small/`. GB/s is K+V bytes over the time. The spread across the 5 pairs was at most 0.2 us, except one 134.3 us pre outlier at 16k.
+
+| visible keys | K+V MB | before us (GB/s) | after us (GB/s, % of 614) | speedup | saved us |
+|---:|---:|---:|---:|---:|---:|
+| 128 | 0.5 | 11.9 (44) | 8.1 (65, 11%) | 1.47x | 3.8 |
+| 1024 | 4.2 | 20.5 (205) | 14.4 (291, 47%) | 1.42x | 6.1 |
+| 2048 | 8.4 | 30.6 (274) | 21.9 (383, 62%) | 1.40x | 8.7 |
+| 4096 | 16.8 | 45.2 (371) | 36.2 (463, 75%) | 1.25x | 9.0 |
+| 8192 | 33.6 | 74.3 (452) | 64.8 (518, 84%) | 1.15x | 9.5 |
+| 16384 | 67.1 | 132.4 (507) | 121.5 (552, 90%) | 1.09x | 10.9 |
+
+Real decode, kernel-mode GPU timestamps (`INTARSIA_METAL_PROFILE=kernel`, last 128 steps, each launch its own command buffer, so Metal's per-buffer cost is in the figure; `trace/attn-trace.md`; 16k needs `--max-seq 17000`):
+
+| context | build | us/call (median, p10-p90) | ms/token (36 calls) | GB/s |
+|---|---|---:|---:|---:|
+| 1k (968 tok) | pre | 34.3 (31.1-35.0) | 1.23 | 123 |
+| 1k (968 tok) | new | 25.3 (22.8-26.3) | 0.91 | 167 |
+| 4k (4062 tok) | pre | 55.2 (54.5-56.0) | 1.99 | 306 |
+| 4k (4062 tok) | new | 45.3 (44.6-46.2) | 1.63 | 373 |
+| 16k (16578 tok) | pre | 143.1 (141.9-151.7) | 5.15 | 476 |
+| 16k (16578 tok) | new | 135.1 (132.1-145.6) | 4.86 | 504 |
+
+16k does not regress (-8.0 us per call). At 4k the op diff of the whole step (`trace/opdiff-4k.txt`) shows attention -0.354 ms and every other op within +0.05 ms (together +0.15 ms: the kernel-mode figures of those ops drift a little between the two runs; the A/B below is the arbiter).
+
+### Interleaved A/B of the decode stream (`exp.sh`, cb-mode trace of a 129-token forced decode, 128 steps, order alternating)
+
+GPU idle utilization was 0-10 percent before every run (`ab-4k-1.log`, `ab-short-1.log`). Step period in ms, mean over the 128 steps (the median of 16-step windows, `period2.py`, is within 0.1 ms):
+
+| ctx | pair | pre | new |
+|---|---:|---:|---:|
+| 4k | 1 | 28.927 | 28.323 |
+| 4k | 2 | 29.465 | 28.784 |
+| 4k | 3 | 29.396 | 28.573 |
+| 4k | 4 | 29.125 | 28.407 |
+| 4k | 5 | 29.430 | 28.647 |
+| 4k | mean | **29.269** | **28.547** |
+| 128 | 1 | 28.367 | 27.824 |
+| 128 | 2 | 28.013 | 27.864 |
+| 128 | 3 | 27.992 | 27.713 |
+| 128 | 4 | 28.187 | 27.714 |
+| 128 | 5 | 27.898 | 27.683 |
+| 128 | mean | **28.091** | **27.760** |
+
+Gain **0.72 ms (2.5 percent) at 4k, 0.33 ms (1.2 percent) at 128**; new is faster in every pair. 4k period 28.55 ms is 86.3 percent of the 24.65 ms byte floor (pre 84.2). The stream gain is about twice what the per-call figures predict (0.32-0.35 ms at 4k from the microbench and the kernel-mode trace, 0.14 ms at 128 from the microbench). I did not isolate why; a cheaper ramp may also shorten the previous op's drain, but that is a guess. localeval below gives 0.42 ms at 4k, between the two.
+
+### localeval (4 pairs, `leval5.sh`, arguments of the earlier phases)
+
+`localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off` against `intarsia serve --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`; each binary served and measured back to back in one slot. Decode tok/s, median (min-max). GPU idle 3-9 percent before every server (pair 1: new waited 12 samples for it). Zoom was running during #1878 (pairs 3 and 4), not before. Run ids are `results/20261014-HHMMSS-adhoc-<label>` under `/opt/code/deepeval/`: `184430-b5pre`, `184811-b5new`, `185715-b5new-r2`, `190033-b5pre-r2`, `190812-b5pre-r3`, `191124-b5new-r3`, `191429-b5new-r4`, `191740-b5pre-r4`; the per-run `.out` files are in `b5/localeval-p{1,2,3}/`.
+
+| prompt tok | p1 pre | p1 new | p2 new (first) | p2 pre | p3 pre | p3 new | p4 new (first) | p4 pre |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ~128 | 35.3 | 35.6 | 36.1 | 35.8 | 35.8 | 36.2 | 36.0 | 35.9 |
+| ~1k | 31.2 (29.4-34.1) | 33.7 (31.3-35.4) | 35.6 | 33.4 | 35.1 | 35.8 | 35.7 | 35.5 |
+| ~4k | 33.6 (33.0-33.9) | 34.4 (34.2-34.6) | 35.0 (34.7-35.1) | 34.6 (33.8-34.6) | 34.2 (33.9-34.3) | 34.8 (34.3-34.9) | 34.7 (34.6-34.9) | 34.5 (34.3-34.6) |
+
+| | pre mean (4 runs) | new mean | change | new, % of 40.6 floor |
+|---|---:|---:|---:|---:|
+| ~128 | 35.7 | 36.0 | +0.9% | 88.7% |
+| ~1k | 33.8 (31.2-35.5) | 35.2 (33.7-35.8) | +4% (noisy) | 86.7% |
+| ~4k | 34.2 | **34.7** (34.4-35.0) | **+1.5%** | **85.5%** |
+
+`localeval compare` would call every one of these noise (its speed threshold is 10 percent), so the evidence is the repeat across four pairs and both orders plus the stream A/B, not any single comparison. The pre 1k reps in pairs 1 and 2 show the noise (29-34 tok/s); pre 4k (34.2) matches the earlier same-slot baselines (34.3, 34.7).
+
+### Dead ends (and what each showed)
+
+Figures marked (console) were read from the terminal during the work and are not in a log file; the fused variant's patch is saved as `b5/dead_end_fused_combine.patch`.
+
+* **Fused combine: the last threadgroup per kv head reduces (atomic counter in a backend-owned buffer, device-scope fences).** Three formulations measured 54.0, 51.5 and 59.5 us at 4k against 45.7 us for the two-dispatch version in the same sessions (console). The fences and the atomic are cheap (a variant that left out the combine work: 39.8-40.0 us, +0.6 over no combine at all, 39.2); the loss is the serial combine on 8 threadgroups after the slowest split. The separate combine, after batching its loads, costs only about 0.8 us over an empty second dispatch (stage 1 only: 35.3 vs 36.1 us), so fusion has nothing left to win. It also needs `-std=metal3.2` for `atomic_thread_fence`. Dropped.
+* **Software-pipelined main loop** (issue the next step's K/V loads before this step's arithmetic): 43.2 vs 39.2 us (no-combine configuration, console). Slower.
+* **Loads in flight, retested on the final kernel:** `ASK_U` 1 / 3 / 4 = 38.2 / 37.7 / 39.0 us against 36.1 for the shipped 2 (console).
+* **Split policy and threadgroup shape:** `INTARSIA_METAL_SPLITKV` target 96 / 104 / 120 / 128 / 136 / 160 = 42.1 / 41.3 / 40.6 / 41.2 / 43.8 / 43.9 us on a mid-work kernel (console); 120 stays best. In a load-only variant (arithmetic removed) 120 / 128 / 160 threadgroups all gave 36.3-36.7 us, 8 simdgroups 39-45 us, 200-320 threadgroups 38-41 us (with the full kernel and the old combine 200+ was 48-60 us): more concurrent streams do not help and 8 simdgroups hurt. A balanced 16 x 256-key split (target 128, no 288-key stragglers) gave no gain. Halving the static threadgroup memory (16 -> 8 KB) changed nothing (45.8 vs 45.9 us).
+* **Packed bf16 `q` in registers** (16 registers fewer, scale applied after the dot): -0.6 to -0.9 us, inside the run-to-run spread, and not bitwise. Dropped. `fast::exp2` in the softmax: no change (37.5 vs 37.4 us). B2a's finding that ALU is not the limit of the loop still holds; it does not hold for the ramp.
+* **Skip experiments in the stream** (`exp1/`: no combine, no fold dispatch, both) ran while the GPU was busy with display work (a WebKit content process, 6-21 percent utilization with nothing of ours running; the same configuration ranged 29.3-31.8 ms) and are not usable. Kept only as the record.
+* **What is left**, same switch method on the final kernel at 4k: the epilogue after the main loop (slot merge, threadgroup merge, partial stores) about 2.4 us; preamble, epilogue and both dispatches with the loop removed 6.1 us; the loop itself 30.4 us for 16.8 MB, i.e. 552 GB/s against a 580-590 GB/s slope. Load-only (no arithmetic) is 34.4-35.2 us against 36.1-36.5 us for the full kernel, so about 1.5 us of arithmetic is still exposed.
+
+### Correctness
+
+* `cargo test -p intarsia-backend-metal --release` (#1870, `b5/cargo-test-metal.log`): 53 passed, 0 failed. New attention cases: `q` at 4 mod 16 bytes (falls back to the single-pass kernel), `q` 16-byte aligned with `out` at an odd element offset, 2 kv heads with 20000 keys (60 splits, the combine's later batches) and 1 kv head with 30000 keys (64 splits, the cap); the former `q` at 2 bytes case now exercises the fallback.
+* `cargo test --workspace --release --no-fail-fast --exclude intarsia-backend-metal`: 267 passed, 0 failed (`b5/cargo-test-workspace.log`). `cargo check --workspace`: ok.
+* New `examples/attn_hash.rs` (FNV-1a of the output of one launch on fixed random data, 15 shapes: 1 to 100000 keys, group 1 to 8, head_dim 64 / 128 / 256, 1 to 64 splits): **identical output for the pre and the final build in every case** (`attn_hash-pre.txt`, `attn_hash-new3.txt`; `-new` and `-new2` are the two intermediate states, identical as well).
+* `intarsia kernels test --backend metal -m /Users/josef/models/Qwen3-8B`: 19 kernels, 238 cases, all ADMITTED, `attn_decode_bf16_splitkv` 15 cases, max_abs 3.356e-3, rel_l2 2.358e-4 (`b5/kernels-test.out`).
+* `intarsia accuracy --gate-class bf16` against `golden/qwen3-8b-fp32.safetensors` and `golden/qwen3-8b-long-fp32.safetensors`: PASS. Short prefill KL **2.608e-4**, decode **4.042e-4**; long prefill **3.738e-4**, decode **4.071e-4**: equal to the pre figures to the printed digit, as a bitwise change must give (`b5/accuracy/`).
+* Greedy ids, 48 and 256 tokens, `prompt-short.txt` and `prompt-4k.txt`, against the `spike/metal` `62d602e` binary: stdout byte-identical and `ids:` lines identical in all four runs, so there is no near-tie flip to report (`b5/identity/`, `checks5.log`).
+
+### Limits and not done
+
+* 4k is cleared with a small margin: 85.5 percent mean, one of four runs at 84.7 and one at 86.2; 35.0 tok/s was met in one of four runs. Decode noise on this host is about ±5 percent; Zoom was running during the last two pairs.
+* `q` must now be 16-byte aligned for the split-KV kernel (else the slower single-pass kernel runs). The engine's workspace `q` is aligned in `generate` and `serve`: the 4k kernel-mode trace shows the 45 us split-KV figure, which the fallback (about 110 us at 4k) would not give.
+* The stream gain being about twice the per-call gain is unexplained (see above).
+* CUDA / HIP are untouched (only Metal files and one example changed); no run there.
+* The engine exercises only the host-position path; the device-position path passes the existing equivalence tests with the new 32-bit math, but no engine run uses it.
+
+### Next levers, all untested
+
+* **The same ramp audit on the other decode kernels.** Attention lost 9 us per call to 64-bit division, scalar loads, 64-bit index math and dependent loads; the other 328 launches per token (`rmsnorm_add`, `silu_glu`, `qk_norm_rope_kv`, the GEMV prologues) have not been checked for the same thing, and each microsecond of ramp there is 0.33 ms/token at every context. What to look for: integer division or modulo by a runtime value, 64-bit math on per-thread addresses, runs of scalar loads before the first use.
+* Fold `qk_norm_rope_kv` into attention stage 1 to drop that dispatch boundary (part 4 measured 2.5-3.6 us per removed dispatch); the `q` norm and rope would overlap the K/V load ramp.
+* Stage 1 epilogue (about 2.4 us): compute the simdgroup-merge weights once per head instead of once per output element.

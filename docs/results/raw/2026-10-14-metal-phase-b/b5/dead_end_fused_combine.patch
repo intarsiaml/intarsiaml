@@ -1,0 +1,311 @@
+diff --git a/crates/intarsia-backend-metal/build.rs b/crates/intarsia-backend-metal/build.rs
+index 6d280b2..366b285 100644
+--- a/crates/intarsia-backend-metal/build.rs
++++ b/crates/intarsia-backend-metal/build.rs
+@@ -11,6 +11,8 @@ use std::process::Command;
+ const XCODE_DEVELOPER_DIR: &str = "/Applications/Xcode.app/Contents/Developer";
+ /// bfloat needs MSL 3.1.
+ const METAL_STD: &str = "-std=metal3.1";
++/// Shaders that need a newer language version: device-scope `atomic_thread_fence` (attention_splitkv, the fused combine).
++const METAL_STD_32: &str = "-std=metal3.2";
+ 
+ /// Rust sources that decide which kernel a call takes and with which grid / bindings (GEMV variant choice by alignment,
+ /// dense launch geometry, the kernel table, the copy / zero launchers). Their hash goes into `Backend::fingerprint`, so
+@@ -61,7 +63,8 @@ fn build(shaders: &[PathBuf], out_dir: &Path, developer_dir: &Option<String>) ->
+     for s in shaders {
+         let air = out_dir.join(s.file_stem().unwrap()).with_extension("air");
+         let mut c = xcrun(developer_dir);
+-        c.args(["-sdk", "macosx", "metal", "-c", METAL_STD, "-O3", "-fno-fast-math", "-o"]).arg(&air).arg(s);
++        let std = if s.file_stem().is_some_and(|f| f == "attention_splitkv") { METAL_STD_32 } else { METAL_STD };
++        c.args(["-sdk", "macosx", "metal", "-c", std, "-O3", "-fno-fast-math", "-o"]).arg(&air).arg(s);
+         run(c, &format!("metal -c {}", s.display()))?;
+         airs.push(air);
+     }
+diff --git a/crates/intarsia-backend-metal/src/attn.rs b/crates/intarsia-backend-metal/src/attn.rs
+index 90f9944..f186962 100644
+--- a/crates/intarsia-backend-metal/src/attn.rs
++++ b/crates/intarsia-backend-metal/src/attn.rs
+@@ -25,8 +25,10 @@ const TARGET_TGS: usize = 120;
+ /// Largest query-head group per kv head the kernels take (`GP` of the shader).
+ const MAX_GROUP: usize = 8;
+ /// Threadgroup accumulator floats of the shader (`ASK_TG_FLOATS`): `nsg * GP * D` must fit.
+-const TG_FLOATS: usize = 4096;
++const TG_FLOATS: usize = 2048;
+ const MAX_SG: usize = 8;
++/// Arrival counters of the fused combine (one per kv head); more kv heads than this use the separate combine pass.
++pub(crate) const MAX_COUNTERS: usize = 1024;
+ /// At most this many threadgroups in the grid: use `MAX_SG` simdgroups per threadgroup, else `MAX_SG / 2`.
+ const FEW_TGS: usize = 64;
+ 
+@@ -120,6 +122,10 @@ impl MetalBackend {
+             return Err(Error::invalid("metal attn_decode_bf16_splitkv: scratch must be 16-byte aligned"));
+         }
+ 
++        // with one split stage 1 writes the output itself; a device position decides that on the GPU
++        let combine = use_dev == 1 || max_split > 1;
++        // fused: the last threadgroup of each kv head combines its partials, no second dispatch
++        let fused = combine && nkv <= MAX_COUNTERS && std::env::var_os("INTARSIA_METAL_ATTN_UNFUSED").is_none();
+         let (min_keys, target) = policy();
+         let p = OpP {
+             dims: [
+@@ -132,9 +138,9 @@ impl MetalBackend {
+                 use_dev,
+                 u32_of(max_split, "max_split")?,
+             ],
+-            skips: [q.skip, 0, 0, out.skip, 0],
++            skips: [q.skip, 0, 0, out.skip, u32::from(fused)],
+             f0: a.scale,
+-            f1: 0.0,
++            f1: std::env::var("B5_MODE").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0),
+             pad: u32_of(min_keys, "min_keys")?,
+         };
+         u32_of(nkv * cap * d, "Nkv*cap*D")?;
+@@ -146,8 +152,6 @@ impl MetalBackend {
+         let (name1, name2) = (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
+         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
+         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
+-        // with one split stage 1 writes the output itself; a device position decides that on the GPU
+-        let combine = use_dev == 1 || max_split > 1;
+         let pos_b = pos.as_ref().unwrap_or(&q);
+         // one `with_encoder` for both stages: one launch is one profiled record and one dispatch toward the commit limit
+         self.with_encoder(|enc| {
+@@ -159,12 +163,14 @@ impl MetalBackend {
+                     enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx);
+                 }
+             }
++            // SAFETY: the counter buffer holds MAX_COUNTERS >= nkv u32s.
++            unsafe { enc.setBuffer_offset_atIndex(Some(&self.attn_counters), 0, 7) };
+             set_bytes(enc, &p, 6);
+             enc.dispatchThreadgroups_threadsPerThreadgroup(
+                 MTLSize { width: nkv, height: max_split, depth: 1 },
+                 MTLSize { width: nsg * 32, height: 1, depth: 1 },
+             );
+-            if combine {
++            if combine && !fused {
+                 // SAFETY: as above.
+                 unsafe {
+                     enc.setComputePipelineState(pso2);
+diff --git a/crates/intarsia-backend-metal/src/dense.rs b/crates/intarsia-backend-metal/src/dense.rs
+index 6a083db..5fbca88 100644
+--- a/crates/intarsia-backend-metal/src/dense.rs
++++ b/crates/intarsia-backend-metal/src/dense.rs
+@@ -443,6 +443,7 @@ impl MetalBackend {
+     /// `QkNormRopeKv`: one threadgroup per (token, q head | k head | v head), `roundup32(D)` threads (element i on thread i,
+     /// the layout `rmsnorm_bf16_ex1` uses for the unfused norm, so the sums are bitwise those).
+     fn launch_qk_norm_rope_kv(&self, call: &OpCall) -> Result<()> {
++        if std::env::var("B5_SKIPQK").is_ok() { return Ok(()); }
+         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
+         let bf = DType::Bf16;
+         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+diff --git a/crates/intarsia-backend-metal/src/lib.rs b/crates/intarsia-backend-metal/src/lib.rs
+index 6758532..6faccfe 100644
+--- a/crates/intarsia-backend-metal/src/lib.rs
++++ b/crates/intarsia-backend-metal/src/lib.rs
+@@ -115,6 +115,11 @@ pub struct MetalBackend {
+     /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
+     /// cached. Construction stays cheap; the one-off cost lands on whoever asks first (the telemetry probe).
+     bandwidth: OnceLock<Option<f64>>,
++    /// Arrival counters of the split-KV decode attention's last-arriver combine (`attn.rs`): one `u32` per kv head, zero
++    /// between launches (the last threadgroup of a kv head resets its counter). Owned here, not in the plan's scratch
++    /// workspace, because that is shared with other ops and has no zero-at-rest guarantee. One stream, one serial
++    /// encoder: two attention launches never overlap.
++    pub(crate) attn_counters: MtlBuffer,
+ }
+ 
+ // SAFETY: Apple documents MTLDevice, MTLCommandQueue, MTLComputePipelineState and MTLBuffer as usable from any thread;
+@@ -157,6 +162,14 @@ impl MetalBackend {
+         }
+         // SAFETY: sysconf has no preconditions.
+         let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
++        let attn_counters = device
++            .newBufferWithLength_options(
++                attn::MAX_COUNTERS * 4,
++                MTLResourceOptions::StorageModeShared | MTLResourceOptions::HazardTrackingModeUntracked,
++            )
++            .ok_or_else(|| Error::Memory("metal: attention counter buffer failed".into()))?;
++        // SAFETY: shared storage of attn::MAX_COUNTERS * 4 bytes, not yet visible to the GPU.
++        unsafe { std::ptr::write_bytes(attn_counters.contents().as_ptr() as *mut u8, 0, attn::MAX_COUNTERS * 4) };
+         Ok(MetalBackend {
+             device,
+             queue,
+@@ -173,6 +186,7 @@ impl MetalBackend {
+             hosts: Mutex::new(host::HostCache::default()),
+             page_size,
+             bandwidth: OnceLock::new(),
++            attn_counters,
+         })
+     }
+ 
+diff --git a/kernels/metal/attention_splitkv.metal b/kernels/metal/attention_splitkv.metal
+index 3606cb9..f237d40 100644
+--- a/kernels/metal/attention_splitkv.metal
++++ b/kernels/metal/attention_splitkv.metal
+@@ -30,9 +30,10 @@
+ #include "common.h"
+ 
+ constant constexpr uint ASK_MAX_SG = 8;        // simdgroups per stage-1 threadgroup, at most
+-constant constexpr uint ASK_TG_FLOATS = 4096;  // threadgroup accumulator floats: nsg * GP * D must fit (launcher checks)
++constant constexpr uint ASK_TG_FLOATS = 2048;  // threadgroup accumulator floats: nsg * GP * D must fit (launcher checks)
+ constant constexpr uint ASK_U = 2;             // units of work (KPS keys) in flight per simdgroup step
+-constant constexpr uint ASK_CHUNK_ALIGN = 32;  // split chunks are a multiple of this many keys
++constant constexpr uint ASK_CHUNK_ALIGN = 32;
++constant constexpr uint ASK_COMB_U = 4;       // splits whose partials the fused combine loads at once  // split chunks are a multiple of this many keys
+ constant constexpr float ASK_LOG2E = 1.4426950408889634f;
+ 
+ inline void ask_unpack8(uint4 w, thread float* f) {
+@@ -57,6 +58,63 @@ inline ulong ask_chunk(ulong visible, uint nsplit) {
+     return (c + ASK_CHUNK_ALIGN - 1) / ASK_CHUNK_ALIGN * ASK_CHUNK_ALIGN;
+ }
+ 
++
++// Last-arriver combine (replaces stage 2): every threadgroup of a kv head calls this after publishing its partials. The
++// kv head's counter (a zeroed backend-owned buffer) counts arrivals; the threadgroup that sees nsplit - 1 earlier ones reads
++// all partials, combines them in split order (the same arithmetic as attn_decode_bf16_combine, so the output is bitwise
++// the two-stage result) and resets the counter for the next launch.
++template <uint GP>
++inline void ask_combine_last(device ushort* out, device float* part, device float2* ml, device atomic_uint* cnt,
++                             constant OpP& p, uint kvh, uint sp, uint nsplit, uint grp, uint d, uint tid, uint nsg,
++                             threadgroup uint& tlast, threadgroup float* tacc) {
++    atomic_thread_fence(mem_flags::mem_device, memory_order_seq_cst, thread_scope_device);
++    threadgroup_barrier(mem_flags::mem_device);
++    if (tid == 0) tlast = atomic_fetch_add_explicit(&cnt[kvh], 1u, memory_order_relaxed) + 1 == nsplit ? 1u : 0u;
++    threadgroup_barrier(mem_flags::mem_threadgroup);
++    if (tlast == 0) return;
++    atomic_thread_fence(mem_flags::mem_device, memory_order_seq_cst, thread_scope_device);
++    // every thread is past the accumulator merge (the barriers above), so tacc is free: (max, sum) of all partials of the kv
++    // head go there, [g][s]. The partial accumulators are loaded by the thread that owns the output dim, GP heads and
++    // ASK_COMB_U splits at a time, before the barrier that waits for the gather, so the two round trips overlap.
++    threadgroup float2* tml = (threadgroup float2*)tacc;
++    const uint nth = nsg * 32;
++    constexpr uint CU = 64 / GP;  // splits per batch
++    for (uint i = tid; i < grp * nsplit; i += nth) tml[i] = ml[((ulong)kvh * grp + i / nsplit) * p.h + i % nsplit];
++    for (uint di = tid; di < d; di += nth) {
++        float a[CU][GP];
++        for (uint u = 0; u < CU; ++u)
++            for (uint g = 0; g < GP; ++g)
++                a[u][g] = (g < grp && u < nsplit) ? part[((ulong)(kvh * grp + g) * p.h + u) * d + di] : 0.0f;
++        threadgroup_barrier(mem_flags::mem_threadgroup);
++        float mt[GP], lt[GP], num[GP];
++        for (uint g = 0; g < GP; ++g) {
++            mt[g] = -INFINITY;
++            lt[g] = 0.0f;
++            num[g] = 0.0f;
++            if (g < grp)
++                for (uint s = 0; s < nsplit; ++s) mt[g] = max(mt[g], tml[g * nsplit + s].x);
++        }
++        for (uint s0 = 0; s0 < nsplit; s0 += CU) {
++            if (s0 > 0)
++                for (uint u = 0; u < CU; ++u)
++                    for (uint g = 0; g < GP; ++g)
++                        a[u][g] = (g < grp && s0 + u < nsplit) ? part[((ulong)(kvh * grp + g) * p.h + s0 + u) * d + di] : 0.0f;
++            for (uint u = 0; u < CU; ++u)
++                for (uint g = 0; g < GP; ++g) {
++                    if (g >= grp || s0 + u >= nsplit) continue;
++                    const float2 v = tml[g * nsplit + s0 + u];
++                    if (v.x == -INFINITY) continue;
++                    const float w = exp2(v.x - mt[g]);
++                    lt[g] += v.y * w;
++                    num[g] += a[u][g] * w;
++                }
++        }
++        for (uint g = 0; g < grp; ++g)
++            out[p.s3 + ((ulong)kvh * grp + g) * d + di] = f2bf(lt[g] > 0.0f ? num[g] / lt[g] : 0.0f);
++    }
++    if (tid == 0) atomic_store_explicit(&cnt[kvh], 0u, memory_order_relaxed);
++}
++
+ template <uint GP>
+ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
+                                   device const ushort* kc [[buffer(1)]],
+@@ -65,12 +123,14 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
+                                   device const int* posbuf [[buffer(4)]],
+                                   device float* part [[buffer(5)]],
+                                   constant OpP& p [[buffer(6)]],
++                                  device atomic_uint* cnt [[buffer(7)]],
+                                   uint2 tg [[threadgroup_position_in_grid]],
+                                   uint sg [[simdgroup_index_in_threadgroup]],
+                                   uint nsg [[simdgroups_per_threadgroup]],
+                                   uint lane [[thread_index_in_simdgroup]]) {
+     threadgroup float tm[ASK_MAX_SG * GP], tl[ASK_MAX_SG * GP];
+     threadgroup float tacc[ASK_TG_FLOATS];
++    threadgroup uint tlast;
+ 
+     const uint n = p.b, nkv = p.c, d = p.d;
+     const ulong cap = p.e;
+@@ -84,8 +144,11 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
+     const ulong start = (ulong)sp * chunk;
+     const ulong end = min(visible, start + chunk);
+     device float2* ml = (device float2*)(part + (ulong)n * p.h * d);
++    const uint tid = sg * 32 + lane;
++    const bool fused = p.s4 != 0 && nsplit > 1;  // the last threadgroup of a kv head combines (no stage 2)
+     if (start >= end) {  // an empty split (the chunk rounding leaves trailing ones): max = -inf, sum = 0
+         if (sg == 0 && lane < grp) ml[(ulong)(kvh * grp + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
++        if (fused) ask_combine_last<GP>(out, part, ml, cnt, p, kvh, sp, nsplit, grp, d, tid, nsg, tlast, tacc);
+         return;
+     }
+ 
+@@ -96,13 +159,15 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
+     device const uint4* vb = (device const uint4*)(vc + (ulong)kvh * cap * d) + c8;
+     const ulong row4 = lpk;  // uint4 per row
+ 
+-    float qv[GP][8], acc[GP][8], m[GP], l[GP];
++    uint qp[GP][4];
++    float acc[GP][8], m[GP], l[GP];
+     const float qs = p.f0 * ASK_LOG2E;
+     for (uint g = 0; g < GP; ++g) {
+-        for (uint i = 0; i < 8; ++i) {
+-            qv[g][i] = g < grp ? bf2f(q[p.s0 + (ulong)(kvh * grp + g) * d + c8 * 8 + i]) * qs : 0.0f;
+-            acc[g][i] = 0.0f;
++        for (uint i = 0; i < 4; ++i) {
++            const ulong o = p.s0 + (ulong)(kvh * grp + g) * d + c8 * 8 + 2 * i;
++            qp[g][i] = g < grp ? ((uint)q[o] | ((uint)q[o + 1] << 16)) : 0u;
+         }
++        for (uint i = 0; i < 8; ++i) acc[g][i] = 0.0f;
+         m[g] = -INFINITY;
+         l[g] = 0.0f;
+     }
+@@ -123,8 +188,11 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
+             ask_unpack8(kr[u], kf);
+             for (uint g = 0; g < GP; ++g) {
+                 float dot = 0.0f;
+-                for (uint i = 0; i < 8; ++i) dot += qv[g][i] * kf[i];
+-                sc[u][g] = dot;
++                for (uint i = 0; i < 4; ++i) {
++                    dot += as_type<float>(qp[g][i] << 16) * kf[2 * i];
++                    dot += as_type<float>(qp[g][i] & 0xffff0000u) * kf[2 * i + 1];
++                }
++                sc[u][g] = dot * qs;
+             }
+         }
+         for (uint u = 0; u < ASK_U; ++u)
+@@ -177,7 +245,6 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
+     threadgroup_barrier(mem_flags::mem_threadgroup);
+ 
+     // merge the simdgroups; thread -> (query head g, dim di)
+-    const uint tid = sg * 32 + lane;
+     for (uint idx = tid; idx < grp * d; idx += nsg * 32) {
+         const uint g = idx / d, di = idx % d;
+         float mt = -INFINITY;
+@@ -197,19 +264,20 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
+             if (di == 0) ml[head * p.h + sp] = float2(mt, lt);
+         }
+     }
++    if (fused) ask_combine_last<GP>(out, part, ml, cnt, p, kvh, sp, nsplit, grp, d, tid, nsg, tlast, tacc);
+ }
+ 
+ #define ASK_INST(GP)                                                                                           \
+     template [[host_name("attn_decode_bf16_splitkv_g" #GP)]] kernel void attn_decode_splitkv_t<GP>(            \
+         device const ushort*, device const ushort*, device const ushort*, device ushort*, device const int*, \
+-        device float*, constant OpP&, uint2, uint, uint, uint);
++        device float*, constant OpP&, device atomic_uint*, uint2, uint, uint, uint);
+ ASK_INST(1)
+ ASK_INST(2)
+ ASK_INST(4)
+ ASK_INST(8)
+ #undef ASK_INST
+ 
+-// Stage 2: one threadgroup per query head, one thread per output dim (threads == D). Combines the nsplit partials in
++// Stage 2 (used when the fused combine is off): one threadgroup per query head, one thread per output dim (threads == D). Combines the nsplit partials in
+ // split order; empty splits (max = -inf) contribute nothing.
+ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
+                                      device const int* posbuf [[buffer(1)]],
