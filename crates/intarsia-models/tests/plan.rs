@@ -130,14 +130,10 @@ fn plan_json_follows_the_contract() {
     assert_eq!(layers[0]["blocks"], serde_json::json!(["attention", "dense_ffn"]));
     let ops = p["ops"].as_array().unwrap();
     let find = |name: &str| ops.iter().find(|o| o["op"] == name).unwrap_or_else(|| panic!("no op {name}"));
-    // per decode step: o and down are single matmuls in every layer. The first block has no residual to add, so its q is a
-    // plain matmul and its k + v a fused `MatmulPair`; every later attention input is one `RmsNormAddMatmulQkv`, and every
-    // FFN (residual add, pre-norm, gate + up, GLU) one `RmsNormAddMatmulGlu` (the cpu backend registers the optional fused
-    // ops too)
-    assert_eq!(find("matmul")["calls_per_decode_step"], 2 * LAYERS + 1);
-    assert_eq!(find("matmul_pair")["calls_per_decode_step"], 1);
-    assert_eq!(find("rmsnorm_add_matmul_qkv")["calls_per_decode_step"], LAYERS - 1);
-    assert_eq!(find("rmsnorm_add_matmul_glu")["calls_per_decode_step"], LAYERS);
+    // per decode step and layer: q, o and down are single matmuls; gate + up and k + v are fused `MatmulPair`s (the cpu
+    // backend registers the optional fused ops too)
+    assert_eq!(find("matmul")["calls_per_decode_step"], 3 * LAYERS);
+    assert_eq!(find("matmul_pair")["calls_per_decode_step"], 2 * LAYERS);
     assert_eq!(find("attn_decode")["calls_per_decode_step"], LAYERS);
     assert_eq!(find("attn_prefill")["calls_per_decode_step"], 0, "prefill-only kernel");
     assert_eq!(find("matmul")["kernel"], "cpu_f32_matmul");
@@ -187,8 +183,7 @@ fn admission_on_plan_shapes_is_cached_and_enforced() {
 
 #[test]
 fn bad_kernel_is_rejected_on_plan_shapes_and_replaced() {
-    // (the cpu backend's fused `RmsNormAddMatmulGlu` replaces `SiluGlu` in the FFN; the residual-add norm is still planned)
-    let w = wrap(None, None, Some(Op::RmsNormAdd));
+    let w = wrap(None, None, Some(Op::SiluGlu));
     let mut m = load_on(w, LoadOptions { max_seq: 64, ..Default::default() }).unwrap();
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
     let sum = m
@@ -198,9 +193,9 @@ fn bad_kernel_is_rejected_on_plan_shapes_and_replaced() {
         )
         .unwrap();
     assert_eq!(sum.rejected.len(), 1, "{:?}", sum.rejected);
-    assert_eq!(sum.rejected[0].0, "cpu_f32_rmsnorm_add");
-    let norm = m.resolved.ops.iter().find(|o| o.op == Op::RmsNormAdd).unwrap();
-    assert_eq!(norm.kernel, "ref_rmsnorm_add", "falls back to the next admitted kernel");
+    assert_eq!(sum.rejected[0].0, "cpu_f32_silu_glu");
+    let silu = m.resolved.ops.iter().find(|o| o.op == Op::SiluGlu).unwrap();
+    assert_eq!(silu.kernel, "ref_silu_glu", "falls back to the next admitted kernel");
 }
 
 #[test]

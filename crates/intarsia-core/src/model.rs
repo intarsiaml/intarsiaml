@@ -1161,30 +1161,16 @@ impl Model {
             for block in blocks {
                 match block {
                     Block::Attn(a) => {
-                        // residual add + input norm + q, k, v projections as one op when the backend has it (decode, Metal)
-                        let next = 1 - cur;
-                        let qkv = pending && self.attn_norm_qkv(a, &blkv, &hv(cur), &hv(next), &eps_attrs, t, profile)?;
-                        if qkv {
-                            cur = next;
-                        } else {
-                            norm_in(&a.pre_norm, pending, &mut cur)?;
-                        }
-                        self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, qkv, profile)?;
+                        norm_in(&a.pre_norm, pending, &mut cur)?;
+                        self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, profile)?;
                     }
                     Block::Gdn(g) => {
                         norm_in(&g.pre_norm, pending, &mut cur)?;
                         self.gdn_block(g, st, &nv, &blkv, t, profile)?;
                     }
                     Block::Ffn(f) => {
-                        // residual add + pre-norm + gate / up + GLU as one op when the backend has it (decode, Metal)
-                        let next = 1 - cur;
-                        if pending && self.ffn_norm_glu(f, &blkv, &hv(cur), &hv(next), &eps_attrs, t, profile)? {
-                            cur = next;
-                            self.ffn_down(f, &blkv, t, profile)?;
-                        } else {
-                            norm_in(&f.pre_norm, pending, &mut cur)?;
-                            self.ffn_block(f, &nv, &blkv, t, profile)?;
-                        }
+                        norm_in(&f.pre_norm, pending, &mut cur)?;
+                        self.ffn_block(f, &nv, &blkv, t, profile)?;
                     }
                     Block::Moe(m) => {
                         norm_in(&m.pre_norm, pending, &mut cur)?;
@@ -1277,7 +1263,6 @@ impl Model {
         kcache: &TensorRef,
         vcache: &TensorRef,
         cap: usize,
-        kv_done: bool,
         profile: bool,
     ) -> Result<bool> {
         let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) else { return Ok(false) };
@@ -1312,47 +1297,13 @@ impl Model {
         if !self.fused_ok(&call) {
             return Ok(false);
         }
-        if !kv_done && !self.kv_pair(a, n, &k_out, &v_out, profile)? {
+        if !self.kv_pair(a, n, &k_out, &v_out, profile)? {
             self.proj(n, &a.wk, &k_out, profile)?;
             self.proj(n, &a.wv, &v_out, profile)?;
         }
         self.exec_pos(call.op, call.inputs, call.outputs, call.attrs, dpos, profile)?;
         *qc = 1 - *qc;
         Ok(true)
-    }
-
-    /// The attention input as one op (`Op::RmsNormAddMatmulQkv`): `sum = x + res`, `normed = norm(sum)`, then the q, k and
-    /// v projections of `normed` into `ws.q[0]`, `ws.k[0]` and `ws.v`. On `true` `sum_out` holds the new residual stream and
-    /// the projections are done (`attn_block` is told with `qkv_done`); on `false` nothing was emitted. Needs plain bf16
-    /// projections and no output gate on q (the gated q projection has a different width and a split after it).
-    #[allow(clippy::too_many_arguments)]
-    fn attn_norm_qkv(
-        &self,
-        a: &AttnBlock,
-        x: &TensorRef,
-        res: &TensorRef,
-        sum_out: &TensorRef,
-        eps_attrs: &OpAttrs,
-        t: usize,
-        profile: bool,
-    ) -> Result<bool> {
-        if a.gated || ![&a.wq, &a.wk, &a.wv].iter().all(|w| w.format == crate::quant::BF16) {
-            return Ok(false);
-        }
-        let (d, act, ws) = (&self.ldims, self.act, &self.ws);
-        let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
-        self.try_fused(
-            Op::RmsNormAddMatmulQkv,
-            vec![x.clone(), res.clone(), a.pre_norm.clone(), a.wq.parts[0].clone(), a.wk.parts[0].clone(), a.wv.parts[0].clone()],
-            vec![
-                self.view(&ws.q[0], act, &[t, nh * hd]),
-                self.view(&ws.k[0], act, &[t, nkv * hd]),
-                self.view(&ws.v, act, &[t, nkv * hd]),
-                sum_out.clone(),
-            ],
-            eps_attrs.clone(),
-            profile,
-        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1365,7 +1316,6 @@ impl Model {
         t: usize,
         pos0: usize,
         dpos: Option<&TensorRef>,
-        qkv_done: bool,
         profile: bool,
     ) -> Result<()> {
         let d = &self.ldims;
@@ -1393,9 +1343,7 @@ impl Model {
             )?;
             Some(gate)
         } else {
-            if !qkv_done {
-                self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &qshape), profile)?;
-            }
+            self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &qshape), profile)?;
             None
         };
         let slot = match &st.slots[a.slot] {
@@ -1407,7 +1355,7 @@ impl Model {
         let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
         let append = OpAttrs { pos0, kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
         // qk-norm + rope + kv-append as one op when the backend has it (needs both norms); else the ops one by one
-        let folded = self.qkv_fold(a, n, &mut qc, t, pos0, dpos, &kcache, &vcache, slot.cap, qkv_done, profile)?;
+        let folded = self.qkv_fold(a, n, &mut qc, t, pos0, dpos, &kcache, &vcache, slot.cap, profile)?;
         if !folded {
             if let Some(w) = &a.q_norm {
                 self.exec(
@@ -1431,7 +1379,7 @@ impl Model {
 
             let mut kc = 0usize;
             // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
-            let kv_fused = qkv_done || self.kv_pair(a, n, &self.view(&ws.k[kc], act, &kshape), &self.view(&ws.v, act, &kshape), profile)?;
+            let kv_fused = self.kv_pair(a, n, &self.view(&ws.k[kc], act, &kshape), &self.view(&ws.v, act, &kshape), profile)?;
             if !kv_fused {
                 self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
             }
@@ -1509,68 +1457,26 @@ impl Model {
         }
     }
 
-    /// The FFN's first half as one op (`Op::RmsNormAddMatmulGlu`): `sum = x + res`, `normed = norm(sum)`, then
-    /// `ws.a = silu(normed Wg^T) * (normed Wu^T)`, replacing the residual-add norm, the gate / up projections and the GLU.
-    /// On `true` `sum_out` holds the new residual stream and `ws.a` the activation (the caller continues with
-    /// [`Self::ffn_down`]); on `false` nothing was emitted and the caller runs the unfused sequence. Same fallback rules as
-    /// `qkv_fold`: no kernel for this exact call (a prefill chunk, CUDA / HIP, a K the kernel does not take), fusion off.
-    #[allow(clippy::too_many_arguments)]
-    fn ffn_norm_glu(
-        &self,
-        f: &FfnBlock,
-        x: &TensorRef,
-        res: &TensorRef,
-        sum_out: &TensorRef,
-        eps_attrs: &OpAttrs,
-        t: usize,
-        profile: bool,
-    ) -> Result<bool> {
-        let a = self.view(&self.ws.a, self.act, &[t, self.ldims.intermediate]);
-        self.try_fused(
-            Op::RmsNormAddMatmulGlu,
-            vec![x.clone(), res.clone(), f.pre_norm.clone(), f.gate.clone(), f.up.clone()],
-            vec![a, sum_out.clone()],
-            eps_attrs.clone(),
-            profile,
-        )
-    }
-
     fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
         let act = self.act;
         let ws = &self.ws;
         let i = self.ldims.intermediate;
+        let g = self.view(&ws.g, act, &[t, i]);
+        let u = self.view(&ws.u, act, &[t, i]);
         let a = self.view(&ws.a, act, &[t, i]);
-        // gate / up and the GLU as one op when the backend has it
-        let glu_fused = self.try_fused(
-            Op::MatmulGlu,
+        // gate and up read the same activation: one launch for both when the backend has the fused bf16 pair
+        let gu_fused = self.try_fused(
+            Op::MatmulPair,
             vec![n.clone(), f.gate.clone(), f.up.clone()],
-            vec![a.clone()],
+            vec![g.clone(), u.clone()],
             OpAttrs::default(),
             profile,
         )?;
-        if !glu_fused {
-            let g = self.view(&ws.g, act, &[t, i]);
-            let u = self.view(&ws.u, act, &[t, i]);
-            // gate and up read the same activation: one launch for both when the backend has the fused bf16 pair
-            let gu_fused = self.try_fused(
-                Op::MatmulPair,
-                vec![n.clone(), f.gate.clone(), f.up.clone()],
-                vec![g.clone(), u.clone()],
-                OpAttrs::default(),
-                profile,
-            )?;
-            if !gu_fused {
-                self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
-                self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
-            }
-            self.exec(Op::SiluGlu, vec![g, u], vec![a], OpAttrs::default(), profile)?;
+        if !gu_fused {
+            self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
+            self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
         }
-        self.ffn_down(f, out, t, profile)
-    }
-
-    /// The FFN's down projection of `ws.a` into `out` (summed over the tensor-parallel group when there is one).
-    fn ffn_down(&self, f: &FfnBlock, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
-        let a = self.view(&self.ws.a, self.act, &[t, self.ldims.intermediate]);
+        self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
