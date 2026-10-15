@@ -37,6 +37,14 @@ fn batch_bitwise_equals_solo_steps() {
 }
 
 #[test]
+fn batch_beside_prefill_chunks() {
+    let m = batched(8);
+    // 4 decoding sequences, a 150-token prompt prefilled in chunks of 16 beside them
+    let n = batch_identity::run_with_prefill(&m, &[5, 20, 33, 60], 150, 16, (1, 250));
+    assert_eq!(n, 4 * 2 * 150usize.div_ceil(16));
+}
+
+#[test]
 fn batch_plan_records_the_batched_pass() {
     let m = batched(4);
     for pos0 in [0, 10, 159] {

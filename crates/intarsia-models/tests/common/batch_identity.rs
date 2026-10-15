@@ -44,12 +44,11 @@ fn prompt(i: usize, len: usize, (lo, hi): (u32, u32)) -> Vec<u32> {
     (0..len).map(|_| lo + (rng.next_u64() % (hi - lo) as u64) as u32).collect()
 }
 
-/// Returns the number of (row, step) pairs compared.
-pub fn run(model: &Model, cfg: &Cfg) -> usize {
+fn make_seqs(model: &Model, lens: &[usize], vocab_range: (u32, u32)) -> Vec<Seq> {
     let params = SamplingParams { temperature: 0.8, top_k: 40, top_p: 0.9 };
     let mut seqs: Vec<Seq> = Vec::new();
-    for (i, &len) in cfg.lens.iter().enumerate() {
-        let p = prompt(i, len, cfg.vocab_range);
+    for (i, &len) in lens.iter().enumerate() {
+        let p = prompt(i, len, vocab_range);
         let (mut solo, mut batch) = (model.new_state().unwrap(), model.new_state().unwrap());
         // prefill all but the last prompt token on both sides (identical code, identical chunks); the last one is the
         // first decode input
@@ -60,6 +59,70 @@ pub fn run(model: &Model, cfg: &Cfg) -> usize {
         let mk = || Sampler::new(if sampled { params.clone() } else { SamplingParams::default() }, Some(100 + i as u64));
         seqs.push(Seq { solo, batch, tok: p[len - 1], sampled, sampler_solo: mk(), sampler_batch: mk() });
     }
+    seqs
+}
+
+/// One batched step of `idxs` against the same solo steps; panics at the first bit that differs. Returns rows compared.
+fn step(model: &Model, seqs: &mut [Seq], idxs: &[usize], step: usize) -> usize {
+    let b = idxs.len();
+    let modes: Vec<HeadMode> = idxs
+        .iter()
+        .map(|&i| if seqs[i].sampled || step % 2 == 0 { HeadMode::LastLogits } else { HeadMode::LastArgmax })
+        .collect();
+    let ids: Vec<u32> = idxs.iter().map(|&i| seqs[i].tok).collect();
+    let ctx: Vec<usize> = idxs.iter().map(|&i| seqs[i].solo.len).collect();
+
+    // solo steps
+    let solo: Vec<StepOut> = idxs
+        .iter()
+        .zip(&modes)
+        .map(|(&i, &m)| {
+            let tok = seqs[i].tok;
+            model.forward(&mut seqs[i].solo, &[tok], m, None).unwrap()
+        })
+        .collect();
+
+    // one batched step
+    let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|s| Some(&mut s.batch)).collect();
+    let mut refs: Vec<&mut SequenceState> = idxs.iter().map(|&i| slots[i].take().unwrap()).collect();
+    let batched = model.forward_batch(&mut refs, &ids, &modes).unwrap();
+    drop(refs);
+    assert_eq!(batched.len(), b);
+
+    for (r, &i) in idxs.iter().enumerate() {
+        let what = format!("batch {b} step {step} row {r} (sequence {i}, context {} -> {})", ctx[r], ctx[r] + 1);
+        let (next_solo, next_batch) = match (&solo[r], &batched[r]) {
+            (StepOut::Token(a), StepOut::Token(c)) => {
+                assert_eq!(a, c, "{what}: argmax token");
+                (*a, *c)
+            }
+            (StepOut::Logits(a), StepOut::Logits(c)) => {
+                assert_eq!(a.len(), c.len(), "{what}: logits length");
+                if let Some(k) = (0..a.len()).find(|&k| a[k].to_bits() != c[k].to_bits()) {
+                    let diff = (0..a.len()).filter(|&k| a[k].to_bits() != c[k].to_bits()).count();
+                    panic!("{what}: logits differ at {diff} of {} entries, first at {k}: solo {} batch {}", a.len(), a[k], c[k]);
+                }
+                assert_eq!(bits(a), bits(c));
+                let s = &mut seqs[i];
+                if s.sampled {
+                    (s.sampler_solo.sample(a) as u32, s.sampler_batch.sample(c) as u32)
+                } else {
+                    (argmax(a) as u32, argmax(c) as u32)
+                }
+            }
+            (a, c) => panic!("{what}: output kinds differ: solo {a:?} batch {c:?}"),
+        };
+        assert_eq!(next_solo, next_batch, "{what}: next token");
+        assert_eq!(seqs[i].solo.len, seqs[i].batch.len, "{what}: state length");
+        assert_eq!(seqs[i].solo.tokens, seqs[i].batch.tokens, "{what}: state tokens");
+        seqs[i].tok = next_solo;
+    }
+    b
+}
+
+/// Returns the number of (row, step) pairs compared.
+pub fn run(model: &Model, cfg: &Cfg) -> usize {
+    let mut seqs = make_seqs(model, &cfg.lens, cfg.vocab_range);
     let n = seqs.len();
     let mut compared = 0;
     let mut offset = 0;
@@ -68,61 +131,69 @@ pub fn run(model: &Model, cfg: &Cfg) -> usize {
         // a rotating window, so every sequence length meets every batch size over the run
         let idxs: Vec<usize> = (0..b).map(|j| (offset + j) % n).collect();
         offset += b + 1;
-        for step in 0..cfg.steps {
-            let modes: Vec<HeadMode> = idxs
-                .iter()
-                .map(|&i| if seqs[i].sampled || step % 2 == 0 { HeadMode::LastLogits } else { HeadMode::LastArgmax })
-                .collect();
-            let ids: Vec<u32> = idxs.iter().map(|&i| seqs[i].tok).collect();
-            let ctx: Vec<usize> = idxs.iter().map(|&i| seqs[i].solo.len).collect();
-
-            // solo steps
-            let solo: Vec<StepOut> = idxs
-                .iter()
-                .zip(&modes)
-                .map(|(&i, &m)| {
-                    let tok = seqs[i].tok;
-                    model.forward(&mut seqs[i].solo, &[tok], m, None).unwrap()
-                })
-                .collect();
-
-            // one batched step
-            let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|s| Some(&mut s.batch)).collect();
-            let mut refs: Vec<&mut SequenceState> = idxs.iter().map(|&i| slots[i].take().unwrap()).collect();
-            let batched = model.forward_batch(&mut refs, &ids, &modes).unwrap();
-            drop(refs);
-            assert_eq!(batched.len(), b);
-
-            for (r, &i) in idxs.iter().enumerate() {
-                let what = format!("batch {b} step {step} row {r} (sequence {i}, context {} -> {})", ctx[r], ctx[r] + 1);
-                let (next_solo, next_batch) = match (&solo[r], &batched[r]) {
-                    (StepOut::Token(a), StepOut::Token(c)) => {
-                        assert_eq!(a, c, "{what}: argmax token");
-                        (*a, *c)
-                    }
-                    (StepOut::Logits(a), StepOut::Logits(c)) => {
-                        assert_eq!(a.len(), c.len(), "{what}: logits length");
-                        if let Some(k) = (0..a.len()).find(|&k| a[k].to_bits() != c[k].to_bits()) {
-                            let diff = (0..a.len()).filter(|&k| a[k].to_bits() != c[k].to_bits()).count();
-                            panic!("{what}: logits differ at {diff} of {} entries, first at {k}: solo {} batch {}", a.len(), a[k], c[k]);
-                        }
-                        assert_eq!(bits(a), bits(c));
-                        let s = &mut seqs[i];
-                        if s.sampled {
-                            (s.sampler_solo.sample(a) as u32, s.sampler_batch.sample(c) as u32)
-                        } else {
-                            (argmax(a) as u32, argmax(c) as u32)
-                        }
-                    }
-                    (a, c) => panic!("{what}: output kinds differ: solo {a:?} batch {c:?}"),
-                };
-                assert_eq!(next_solo, next_batch, "{what}: next token");
-                assert_eq!(seqs[i].solo.len, seqs[i].batch.len, "{what}: state length");
-                assert_eq!(seqs[i].solo.tokens, seqs[i].batch.tokens, "{what}: state tokens");
-                seqs[i].tok = next_solo;
-                compared += 1;
-            }
+        for s in 0..cfg.steps {
+            compared += step(model, &mut seqs, &idxs, s);
         }
+    }
+    compared
+}
+
+/// Batched decode steps running beside the prefill of another sequence (same model, shared scratch): between the
+/// batched steps of `decode_lens.len()` decoding sequences, the next `chunk` tokens of a `prefill_len` prompt go through
+/// `Model::forward` (alternately before and after the batched step). Decode rows must still equal their solo steps
+/// ([`step`]); the prefilled state must equal the same prompt prefilled alone chunk by chunk: the logits of the last chunk
+/// bit for bit, and three decode steps that read its KV. Returns the number of decode rows compared.
+pub fn run_with_prefill(model: &Model, decode_lens: &[usize], prefill_len: usize, chunk: usize, vocab_range: (u32, u32)) -> usize {
+    let mut seqs = make_seqs(model, decode_lens, vocab_range);
+    let idxs: Vec<usize> = (0..seqs.len()).collect();
+    let p = prompt(99, prefill_len, vocab_range);
+    let (mut alone, mut mixed) = (model.new_state().unwrap(), model.new_state().unwrap());
+    let pieces: Vec<&[u32]> = p.chunks(chunk).collect();
+    // the reference: the prompt alone, same chunks, the last one with its logits
+    let mut want = None;
+    for (k, c) in pieces.iter().enumerate() {
+        let last = k + 1 == pieces.len();
+        let out = model.forward(&mut alone, c, if last { HeadMode::LastLogits } else { HeadMode::None }, None).unwrap();
+        if last {
+            want = Some(out);
+        }
+    }
+    let mut got = None;
+    let mut compared = 0;
+    let mut s = 0;
+    for (k, c) in pieces.iter().enumerate() {
+        let last = k + 1 == pieces.len();
+        let mut chunk_step = |mixed: &mut SequenceState| {
+            let out = model.forward(mixed, c, if last { HeadMode::LastLogits } else { HeadMode::None }, None).unwrap();
+            if last {
+                got = Some(out);
+            }
+        };
+        // two batched steps per chunk, the chunk before the first on even chunks and between the two on odd ones
+        if k % 2 == 0 {
+            chunk_step(&mut mixed);
+            compared += step(model, &mut seqs, &idxs, s);
+            compared += step(model, &mut seqs, &idxs, s + 1);
+        } else {
+            compared += step(model, &mut seqs, &idxs, s);
+            chunk_step(&mut mixed);
+            compared += step(model, &mut seqs, &idxs, s + 1);
+        }
+        s += 2;
+    }
+    let (Some(StepOut::Logits(a)), Some(StepOut::Logits(b))) = (want, got) else { panic!("no prefill logits") };
+    assert_eq!(bits(&a), bits(&b), "prefill chunk logits differ from the solo prefill");
+    assert_eq!(alone.len, mixed.len);
+    // the KV the interleaved prefill wrote is the one the solo prefill wrote: decode three tokens from each
+    let mut tok = argmax(&a) as u32;
+    for i in 0..3 {
+        let (x, y) = (
+            model.forward(&mut alone, &[tok], HeadMode::LastLogits, None).unwrap(),
+            model.forward(&mut mixed, &[tok], HeadMode::LastLogits, None).unwrap(),
+        );
+        let (StepOut::Logits(x), StepOut::Logits(y)) = (x, y) else { panic!() };
+        assert_eq!(bits(&x), bits(&y), "decode step {i} after the interleaved prefill");
+        tok = argmax(&x) as u32;
     }
     compared
 }

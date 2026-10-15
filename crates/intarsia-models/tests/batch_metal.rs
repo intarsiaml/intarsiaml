@@ -75,4 +75,10 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     let n = batch_identity::run(&m, &cfg);
     eprintln!("{n} (row, step) pairs bitwise identical in {:.1} s", t0.elapsed().as_secs_f64());
     assert_eq!(n, (2 + 3 + 4 + 6 + 8) * 6);
+
+    // batched decode steps beside a prefill: 4 decoding sequences, a 1300-token prompt prefilled in 256-token chunks
+    let t0 = std::time::Instant::now();
+    let n = batch_identity::run_with_prefill(&m, &[37, 130, 500, 1100], 1300, 256, (1000, 30000));
+    eprintln!("{n} decode rows bitwise identical beside 256-token prefill chunks, prefill bitwise equal, {:.1} s", t0.elapsed().as_secs_f64());
+    assert_eq!(n, 4 * 2 * 1300usize.div_ceil(256));
 }
