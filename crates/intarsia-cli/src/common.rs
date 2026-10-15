@@ -277,11 +277,16 @@ impl ModelArgs {
 
     /// Production serving: admit the plan's kernels at load and select nothing else.
     pub fn for_serving(mut self) -> Self {
-        self.admit = true;
-        // The int8 KV kernels have no cpu-oracle admission cases (the oracle has no block-scaled cache), so they stay "untested"
-        // and `require_admitted` would leave the plan without an attention kernel. Everything else is still admitted; the int8
-        // kernels are covered by crates/intarsia-backend-metal/tests/kv_i8.rs (docs/results/2026-10-15-metal-kv-quant.md).
-        self.require_admitted = !self.kv_dtype.as_deref().map(DType::parse).is_some_and(|d| matches!(d, Ok(DType::I8)));
+        // int8 KV cache: its kernels have no cpu-oracle counterpart (the oracle has no block-scaled cache), and `plan::admit` builds its
+        // cases from the model's own calls, so the oracle fails them and the kernels are Rejected. Serving an int8 cache therefore runs
+        // without admission (the kernels are covered by crates/intarsia-backend-metal/tests/kv_i8.rs and the batch identity test;
+        // docs/results/2026-10-15-metal-kv-quant.md); everything else keeps `admit` + `require_admitted`.
+        let int8 = self.kv_dtype.as_deref().map(DType::parse).is_some_and(|d| matches!(d, Ok(DType::I8)));
+        if int8 {
+            eprintln!("warning: --kv-dtype int8: serving without kernel admission (no oracle for a block-scaled KV cache)");
+        }
+        self.admit = !int8;
+        self.require_admitted = !int8;
         // Metal has no decode graphs, so a profiled step synchronises around every op: at the default N = 16 that
         // costs about 12% of served decode. CUDA/HIP keep their default (graph decode profiles far less often).
         if self.profile_every.is_none() && self.backend == "metal" {

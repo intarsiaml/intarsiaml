@@ -174,3 +174,28 @@ qualify exit 0
 done Thu Oct 15 18:12:29 EDT 2026
 ######## localeval on merged binary Thu Oct 15 18:12:29 EDT 2026
 temp before localeval-bf16: 0 C (waited 0 s)
+localeval bf16 exit 0 (72 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval2/bf16-181229
+loaded Qwen3-8B on metal (Apple M5 Max) in 38.6s, context 20480 tokens
+temp before localeval-fp8: 62 C (waited 10 s)
+localeval fp8 exit 0 (69 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval2/fp8-181424
+loaded Qwen3-8B on metal (Apple M5 Max) in 38.8s, context 20480 tokens
+temp before localeval-int8: 62 C (waited 10 s)
+server died
+localeval int8 exit 2 (0 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval2/int8-181626
+      - attn_decode: 2 shape(s) without a kernel, e.g. no kernel for attn_decode on metal/applegpu_g17s (m=1 n=0 k=128 act=Some(Bf16) w=Some(I8)) (heads 32/8 he
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workL.sh:kill:21: kill 32592 failed: no such process
+temp before localeval-int8: 52 C (waited 0 s)
+server died
+localeval int8 exit 2 (0 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval2/int8-181718
+      - attn_decode: 2 shape(s) without a kernel, e.g. no kernel for attn_decode on metal/applegpu_g17s (m=1 n=0 k=128 act=Some(Bf16) w=Some(I8)) (heads 32/8 he
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workL.sh:kill:21: kill 32881 failed: no such process
+temp before localeval-fp8: 50 C (waited 0 s)
+localeval fp8 exit 0 (73 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval2/fp8-181800
+loaded Qwen3-8B on metal (Apple M5 Max) in 38.3s, context 20480 tokens
+temp before localeval-bf16: 58 C (waited 30 s)
+localeval bf16 exit 0 (70 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval2/bf16-181956
+loaded Qwen3-8B on metal (Apple M5 Max) in 38.2s, context 20480 tokens
+######## all done Thu Oct 15 18:22:18 EDT 2026
+script exit 0 Thu Oct 15 18:22:18 EDT 2026
+#2081 "metal kv quant: final default-path gates (cargo test, kernels test, ids, qualify)" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2081 released Thu Oct 15 18:22:18 EDT 2026
