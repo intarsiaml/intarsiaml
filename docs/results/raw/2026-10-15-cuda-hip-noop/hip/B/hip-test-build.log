@@ -1,0 +1,65 @@
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling hashbrown v0.17.1
+   Compiling serde_json v1.0.154
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling either v1.19.0
+   Compiling rayon v1.12.0
+   Compiling indexmap v2.14.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling thiserror-impl v2.0.21
+   Compiling serde_derive v1.0.229
+   Compiling thiserror v2.0.21
+   Compiling bytemuck v1.25.2
+   Compiling zerocopy-derive v0.8.62
+   Compiling zerocopy v0.8.62
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/work/crates/intarsia-core)
+   Compiling intarsia-backend-cpu v0.0.1 (/work/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+warning: function `ik_rt_event_destroy` is never used
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+68 |     pub fn ik_rt_event_destroy(ev: S) -> c_int;
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-hip` (lib) generated 1 warning
+warning: unused import: `Backend`
+   --> crates/intarsia-backend-hip/tests/admission.rs:106:25
+    |
+106 |     use intarsia_core::{Backend as _, DType, HostTensor, Op, OpAttrs};
+    |                         ^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` on by default
+
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+   |
+52 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+   |                                             ^           ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+52 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+52 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: `intarsia-backend-hip` (test "admission") generated 1 warning
+warning: `intarsia-backend-hip` (lib test) generated 1 warning (1 duplicate)
+warning: `intarsia-backend-hip` (test "quantmoe") generated 1 warning (run `cargo fix --test "quantmoe"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 6.55s
+  Executable unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-818d9eec60198013)
+  Executable tests/admission.rs (/target/release/deps/admission-505212eeaca09fd4)
+  Executable tests/attention.rs (/target/release/deps/attention-3141cbf87c98b4a4)
+  Executable tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+  Executable tests/decode_v2.rs (/target/release/deps/decode_v2-9f28658bcd4a52c9)
+  Executable tests/device_pos.rs (/target/release/deps/device_pos-3c8eb3ac90869ced)
+  Executable tests/fused_decode.rs (/target/release/deps/fused_decode-eff5df608cb32afa)
+  Executable tests/gdn_timing.rs (/target/release/deps/gdn_timing-51fb4d47facb061e)
+  Executable tests/matmul_bench.rs (/target/release/deps/matmul_bench-b539399282f496d3)
+  Executable tests/quantmoe.rs (/target/release/deps/quantmoe-10e731d4a1437cc4)
+EXIT 0

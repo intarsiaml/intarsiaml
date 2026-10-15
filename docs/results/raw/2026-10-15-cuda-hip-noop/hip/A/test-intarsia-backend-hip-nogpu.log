@@ -1,0 +1,142 @@
+warning: function `ik_rt_event_destroy` is never used
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+68 |     pub fn ik_rt_event_destroy(ev: S) -> c_int;
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-hip` (lib) generated 1 warning
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+   |
+52 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+   |                                             ^           ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+52 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+52 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: `intarsia-backend-hip` (test "quantmoe") generated 1 warning (run `cargo fix --test "quantmoe"` to apply 1 suggestion)
+warning: unused import: `Backend`
+   --> crates/intarsia-backend-hip/tests/admission.rs:106:25
+    |
+106 |     use intarsia_core::{Backend as _, DType, HostTensor, Op, OpAttrs};
+    |                         ^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` on by default
+
+warning: `intarsia-backend-hip` (test "admission") generated 1 warning
+warning: `intarsia-backend-hip` (lib test) generated 1 warning (1 duplicate)
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-818d9eec60198013)
+
+running 6 tests
+test kernels::tests::arch_is_a_gfx12_target ... ok
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admission.rs (/target/release/deps/admission-505212eeaca09fd4)
+
+running 6 tests
+test info_reports_the_device ... ok
+test every_hip_kernel_matches_the_reference ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test fingerprint_names_the_arch_and_runtime ... ok
+test uninstantiated_gemv_knob_still_computes ... ok
+test backend_is_usable_from_other_threads ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/attention.rs (/target/release/deps/attention-3141cbf87c98b4a4)
+
+running 3 tests
+test attention_throughput ... ignored
+test attention_kernels_match_reference_on_random_shapes ... ok
+test attention_causal_and_chunk_edges_are_exact ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 5 tests
+test all_reduce_rate ... ignored
+test many_back_to_back_launches_keep_both_scratch_parities_straight ... ok
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+test f32_partials_reduce_into_bf16_with_one_rounding ... ok
+test all_reduce_is_exact_and_identical_on_both_ranks ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/decode_v2.rs (/target/release/deps/decode_v2-9f28658bcd4a52c9)
+
+running 5 tests
+test moe_experts_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/device_pos.rs (/target/release/deps/device_pos-3c8eb3ac90869ced)
+
+running 4 tests
+test graph_replay_follows_the_device_position ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/fused_decode.rs (/target/release/deps/fused_decode-eff5df608cb32afa)
+
+running 4 tests
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/gdn_timing.rs (/target/release/deps/gdn_timing-51fb4d47facb061e)
+
+running 1 test
+test gdn_kernels_timing_at_35b_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/matmul_bench.rs (/target/release/deps/matmul_bench-b539399282f496d3)
+
+running 2 tests
+test gemm_throughput_on_qwen3_8b_shapes ... ignored
+test gemv_bandwidth_on_qwen3_8b_shapes ... ignored
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/quantmoe.rs (/target/release/deps/quantmoe-10e731d4a1437cc4)
+
+running 5 tests
+test bench_decode_variants ... ignored
+test bench_real_shapes ... ignored
+test quant_f32_outputs_meet_the_f32_tolerance ... ok
+test moe_experts_batch_invariance ... ok
+test moe_experts_skewed_and_invalid_routing ... ok
+
+test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests intarsia_backend_hip
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT 0

@@ -1,0 +1,95 @@
+   Compiling syn v3.0.9
+   Compiling serde_core v1.0.229
+   Compiling syn v2.0.119
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling hashbrown v0.17.1
+   Compiling memchr v2.8.3
+   Compiling indexmap v2.14.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling bytemuck v1.25.2
+   Compiling thiserror v2.0.21
+   Compiling zerocopy-derive v0.8.62
+   Compiling zerocopy v0.8.62
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/tmp/cnc/B/crates/intarsia-core)
+    Finished `release` profile [optimized] target(s) in 7.96s
+     Running unittests src/lib.rs (/tmp/cnc/B-target/release/deps/intarsia_core-d23bf19be496349b)
+
+running 55 tests
+test admission::plan_case_tests::unknown_ops_have_no_case ... ok
+test dtype::tests::abi_header_matches ... ok
+test gdn::tests::conv_state_carries_across_chunks ... ok
+test dtype::tests::fp8_e5m2_roundtrip ... ok
+test gdn::tests::delta_rule_first_token_is_beta_scaled_v ... ok
+test dtype::tests::bulk_roundtrip_bf16 ... ok
+test dtype::tests::fp8_e4m3_roundtrip_all_codes ... ok
+test gdn::tests::delta_rule_state_carries_across_chunks ... ok
+test gdn::tests::split_and_gate ... ok
+test memplan::tests::clamps_to_free_memory ... ok
+test memplan::tests::mem_budget_caps_kv ... ok
+test ops::tests::check_matmul ... ok
+test ops::tests::op_names_roundtrip ... ok
+test plan::tests::fnv_is_stable ... ok
+test ops::tests::check_qk_norm_rope_kv ... ok
+test plan::tests::position_diff_names_the_differing_ops ... ok
+test plan::tests::probe_sizes_cover_small_and_boundaries ... ok
+test quant::fp8::tests::activation_snaps_to_the_fp8_grid ... ok
+test quant::fp8::tests::quantize_then_dequant ... ok
+test quant::nvfp4::tests::code_table_and_rounding ... ok
+test quant::nvfp4::tests::quantize_roundtrip_error_is_small ... ok
+test quant::scheme::tests::a_global_algorithm_covers_every_layer_except_the_excluded ... ok
+test quant::nvfp4::tests::nibble_order_is_low_first ... ok
+test quant::scheme::tests::declared_and_stored_formats_must_agree ... ok
+test quant::scheme::tests::globs ... ok
+test quant::scheme::tests::kv_cache_deviation_is_a_note ... ok
+test quant::scheme::tests::matching_formats_pass ... ok
+test quant::scheme::tests::parses_the_modelopt_layout ... ok
+test recipe::tests::legacy_config_loads ... ok
+test recipe::tests::missing_numbers_are_errors_not_defaults ... ok
+test quant::scheme::tests::the_real_qwen36_scheme_accepts_what_the_loader_finds ... ok
+test quant::scheme::tests::w4a4_and_unknown_algorithms_are_rejected ... ok
+test recipe::tests::conflicting_rope_theta_is_an_error ... ok
+test registry::tests::tol_for_picks_the_f32_budget_only_for_f32_outputs ... ok
+test sampler::tests::greedy_and_ties ... ok
+test quant::tests::detect_each_format ... ok
+test sampler::tests::seeded_reproducible ... ok
+test rng::tests::deterministic_and_in_range ... ok
+test recipe::tests::unsupported_fields_are_rejected ... ok
+test recipe::tests::rope_parameters_layout_and_text_config ... ok
+test sampler::tests::top_k_one_is_argmax ... ok
+test sampler::tests::top_p_cuts_tail ... ok
+test recipe::tests::moe_checkpoint_has_no_dense_width ... ok
+test spec::tests::accept_longest_matching_prefix ... ok
+test spec::tests::config_parse ... ok
+test spec::tests::propose_falls_back_to_shorter_suffixes ... ok
+test registry::tests::macro_builds_impl ... ok
+test spec::tests::propose_longest_suffix_most_recent ... ok
+test spec::tests::propose_never_proposes_the_suffix_position_itself ... ok
+test spec::tests::propose_overlapping_repetition ... ok
+test spec::tests::accept_needs_one_row_per_draft_plus_one - should panic ... ok
+test telemetry::tests::counters ... ok
+test quant::cases::tests::every_case_validates ... ok
+test admission::plan_case_tests::matmul_case_keeps_k_and_clamps_rows_and_n ... ok
+test admission::sweep_dim_tests::moe_only_config_sweeps_no_zero_dim_case ... ok
+
+test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.37s
+
+     Running tests/gdn_hf.rs (/tmp/cnc/B-target/release/deps/gdn_hf-c4ceba4a6d3b24ed)
+
+running 2 tests
+test conv_matches_hf_with_and_without_carried_state ... ok
+test delta_rule_matches_hf_recurrent_and_chunked ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests intarsia_core
+
+running 1 test
+test crates/intarsia-core/src/registry.rs - registry::register_kernel (line 206) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT 0
