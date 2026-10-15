@@ -600,10 +600,8 @@ impl Backend for MetalBackend {
         if !self.metal4 {
             ks.retain(|k| !kernels::requires_metal4(&k.name));
         }
-        // the multi-row pair would be the only pair kernel accepting M = 2..8 (see multirow.rs): not listed by default
-        if !multirow::pair_entry_enabled() {
-            ks.retain(|k| k.name != multirow::MATMUL_PAIR_BF16_GEMV_ROWS);
-        }
+        // The multi-row entries (GEMVs, pair, logits, split-KV attention rows) are `rows_exact`: `Registry::select`
+        // gives them only to speculative verify calls (`OpCall::exact_rows`), so listing them changes no ordinary pick.
         ks
     }
 

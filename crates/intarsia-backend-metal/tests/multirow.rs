@@ -450,44 +450,45 @@ fn all_variants_logits() {
     }
 }
 
-/// The tiled GEMM / old logits kernels are still what the registry picks for M = 2..15 (the multi-row entries rank below).
+/// Ordinary calls (`exact_rows` false) still get the tiled GEMM / old logits kernels for M = 2..15 and no pair
+/// kernel below the NAX threshold, through `Registry::select` itself; verify calls (`exact_rows`) of M = 2..8 get
+/// the multi-row GEMVs and nothing else, and M > 8 verify calls fail instead of landing on another kernel.
 #[test]
 fn serving_selection_unchanged() {
     let be = backend();
-    let ks = be.kernels();
+    let reg = intarsia_core::Registry::new(be.name(), &be.info(), be.kernels());
+    let pick = |c: &OpCall| reg.select(c).map(|k| k.name.clone());
     for m in [2usize, 3, 8, 15] {
         let w = weights(&be, 64, 64, 0, 1);
         let xb = padded(&be, 0, &rand_rows(m, 64, 2), 16);
         let yb = out_buffer(&be, 0, m * 64 * 2);
-        let call = matmul_call(tref(&xb, 0, &[m, 64]), w.clone(), tref(&yb, 0, &[m, 64]));
-        let s = ShapeInfo::from_call(&call);
-        let best = ks.iter().filter(|k| k.op == Op::Matmul && k.accepts(&s)).max_by_key(|k| k.priority).unwrap();
-        assert_eq!(best.name, MATMUL_BF16, "M={m}");
+        let mut call = matmul_call(tref(&xb, 0, &[m, 64]), w.clone(), tref(&yb, 0, &[m, 64]));
+        assert_eq!(pick(&call).unwrap(), MATMUL_BF16, "M={m}");
         let yf = out_buffer(&be, 0, m * 64 * 4);
-        let lcall = OpCall::new(
+        let mut lcall = OpCall::new(
             Op::Logits,
             vec![tref(&xb, 0, &[m, 64]), w],
             vec![tref_dt(&yf, 0, DType::F32, &[m, 64])],
             OpAttrs::default(),
         );
-        let s = ShapeInfo::from_call(&lcall);
-        let best = ks.iter().filter(|k| k.op == Op::Logits && k.accepts(&s)).max_by_key(|k| k.priority).unwrap();
-        assert_eq!(best.name, LOGITS_BF16, "M={m}");
-        // the pair entry is hidden unless INTARSIA_METAL_MULTIROW=1, so no pair kernel accepts M >= 2 below the NAX threshold
-        let pcall = pair_call(
+        assert_eq!(pick(&lcall).unwrap(), LOGITS_BF16, "M={m}");
+        let mut pcall = pair_call(
             tref(&xb, 0, &[m, 64]),
             weights(&be, 64, 64, 0, 3),
             weights(&be, 64, 64, 0, 4),
             tref(&yb, 0, &[m, 64]),
             tref(&yb, 0, &[m, 64]),
         );
-        let s = ShapeInfo::from_call(&pcall);
-        let pair_accepting: Vec<&str> =
-            ks.iter().filter(|k| k.op == Op::MatmulPair && k.accepts(&s)).map(|k| k.name.as_str()).collect();
-        if std::env::var_os("INTARSIA_METAL_MULTIROW").is_some_and(|v| v != "0") {
-            assert_eq!(pair_accepting, [MATMUL_PAIR_BF16_GEMV_ROWS], "M={m}");
+        assert!(pick(&pcall).is_err(), "M={m}: ordinary pair call got {:?}", pick(&pcall));
+        call.exact_rows = true;
+        lcall.exact_rows = true;
+        pcall.exact_rows = true;
+        if m <= 8 {
+            assert_eq!(pick(&call).unwrap(), MATMUL_BF16_GEMV_ROWS, "M={m}");
+            assert_eq!(pick(&lcall).unwrap(), LOGITS_BF16_GEMV_ROWS, "M={m}");
+            assert_eq!(pick(&pcall).unwrap(), MATMUL_PAIR_BF16_GEMV_ROWS, "M={m}");
         } else {
-            assert!(pair_accepting.is_empty(), "M={m}: {pair_accepting:?}");
+            assert!(pick(&call).is_err() && pick(&lcall).is_err() && pick(&pcall).is_err(), "M={m}");
         }
     }
 }

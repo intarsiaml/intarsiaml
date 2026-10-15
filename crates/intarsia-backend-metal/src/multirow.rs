@@ -14,9 +14,9 @@
 //! Layouts: `x [R, K]`, `y [R, N]` row-major. Any other alignment (the 1-row scalar kernels) falls back to `R` ordinary
 //! 1-row launches, which is bit-exact by construction.
 //!
-//! The registry entries are NOT used by serving: `Matmul` / `Logits` rank below the tiled GEMM (priority -1), and the
-//! `MatmulPair` entry is hidden unless `INTARSIA_METAL_MULTIROW=1` (it is the only pair kernel that would accept
-//! `M = 2..8`, so without the gate the model would start fusing short prefill chunks with it).
+//! The registry entries are `rows_exact` (G1, speculative decoding): `Registry::select` hands them only to verify calls
+//! (`OpCall::exact_rows`, `Model::forward_verify`) and never to ordinary prefill / decode calls, whose picks are
+//! unchanged (tiled GEMM / logits GEMM for M = 2..15, no pair kernel below the NAX threshold).
 
 use crate::{encode_gemv, set_bytes, GemvParams, MetalBackend};
 use intarsia_core::backend::TensorRef;
@@ -111,7 +111,8 @@ pub fn shader_names() -> Vec<&'static str> {
     v
 }
 
-/// Whether the (default-off) `MatmulPair` registry entry is visible: `INTARSIA_METAL_MULTIROW=1`.
+/// Former switch for listing the `MatmulPair` rows entry (`INTARSIA_METAL_MULTIROW=1`). The entry is now always
+/// listed: it is `rows_exact`, so only verify calls can select it. Kept for the G0 scripts that still set it.
 pub fn pair_entry_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var_os("INTARSIA_METAL_MULTIROW").is_some_and(|v| v != "0"))

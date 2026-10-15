@@ -21,6 +21,7 @@ pub mod recipe;
 pub mod registry;
 pub mod rng;
 pub mod sampler;
+pub mod spec;
 pub mod state;
 pub mod telemetry;
 pub mod tensor;

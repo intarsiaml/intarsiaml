@@ -449,10 +449,10 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(5),
-                // G0 multi-row GEMVs (bitwise the 1-row serving GEMV per row, tests/multirow.rs). Registered below the
-                // tiled GEMM / logits GEMM (priority -1) so serving never selects them; `kernels test` grades them
-                // against the cpu reference like the 1-row kernels (the harness cannot grade against the 1-row Metal
-                // launch without a core change, see the G0 report).
+                // G0 multi-row GEMVs (bitwise the 1-row serving GEMV per row, tests/multirow.rs). `rows_exact`: only
+                // speculative verify calls (`OpCall::exact_rows`) select them, ordinary calls never do (priority -1 is
+                // kept but no longer matters); `kernels test` grades them against the cpu reference like the 1-row
+                // kernels (the harness cannot grade against the 1-row Metal launch, see the G0 report).
                 crate::multirow::MATMUL_BF16_GEMV_ROWS => k
                     .acts(bf)
                     .weights(bf)
@@ -462,9 +462,9 @@ pub fn all() -> Vec<KernelImpl> {
                     })
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
-                    .priority(-1),
-                // not listed by `Backend::kernels` unless INTARSIA_METAL_MULTIROW=1: no other pair kernel accepts
-                // M = 2..8, so a listed entry would make the model fuse short prefill chunks with it
+                    .priority(-1)
+                    .rows_exact(),
+                // the only pair kernel accepting M = 2..8: being `rows_exact`, ordinary prefill chunks never fuse with it
                 crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS => k
                     .acts(bf)
                     .weights(bf)
@@ -475,16 +475,18 @@ pub fn all() -> Vec<KernelImpl> {
                     })
                     .exact(Exactness::Deterministic)
                     .tol(PAIR_TOL)
-                    .priority(-1),
+                    .priority(-1)
+                    .rows_exact(),
                 crate::multirow::LOGITS_BF16_GEMV_ROWS => k
                     .acts(bf)
                     .weights(bf)
                     .when(|s| (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m))
                     .exact(Exactness::Deterministic)
                     .tol(F32_TOL)
-                    .priority(-1),
-                // G0b: 2..=8 verification rows, bitwise the 1-row split-KV decode per row. Below attn_prefill_bf16 (0), which
-                // takes any T, so serving never selects it; `kernels test` grades it against the cpu reference.
+                    .priority(-1)
+                    .rows_exact(),
+                // G0b: 2..=8 verification rows, bitwise the 1-row split-KV decode (host position) per row. `rows_exact`:
+                // only verify calls select it; `kernels test` grades it against the cpu reference.
                 ATTN_PREFILL_BF16_SPLITKV_ROWS => k
                     .acts(bf)
                     .weights(bf)
@@ -492,6 +494,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(-1)
+                    .rows_exact()
                     .scratch(crate::attn::rows_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
