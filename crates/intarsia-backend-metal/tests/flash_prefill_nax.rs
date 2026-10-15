@@ -15,6 +15,7 @@ use intarsia_backend_metal::flash_nax::{fallbacks, select_variant, NAX_FLASH_VAR
 use intarsia_backend_metal::kernels::{ATTN_PREFILL_BF16, ATTN_PREFILL_BF16_FLASH, ATTN_PREFILL_BF16_FLASH_NAX};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
+use intarsia_core::registry::Registry;
 use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
 
 const NAN_BF16: u16 = 0x7FC0;
@@ -324,4 +325,40 @@ fn flash_predicate() {
     assert!(!accepts(f, &mk(256, 4, 2, 128, DType::Fp8E4m3)), "fp8 cache");
     assert!(accepts(ATTN_PREFILL_BF16, &mk(4, 4, 2, 128, DType::Bf16)), "the old kernel stays registered");
     assert!(accepts(ATTN_PREFILL_BF16_FLASH, &mk(4, 4, 2, 64, DType::Bf16)), "the P2 kernel stays registered");
+}
+
+/// Chunks through the registry, the way the engine launches them: a chunk of at least 48 rows runs the NAX kernel, a short
+/// tail the P2 kernel. Each split gives results within the f64-reference tolerance (the tail's bits differ from a single
+/// call's, its accuracy does not), and splits whose chunks all take the NAX kernel are bitwise the single call.
+#[test]
+fn registry_split_with_a_short_tail_matches_the_reference() {
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    select_variant(None);
+    let cs = c(300, 32, 8, 128, 100, 400);
+    let dt = data(&cs, 1100);
+    let scale = 1.0 / (cs.d as f32).sqrt();
+    let want = reference_attn(&cs, scale, &dt);
+    let r = setup(&cs, &dt, [0; 3]);
+    let reg = Registry::new("metal", &r.be.info(), r.be.kernels());
+    let whole = run_once(&r, &cs, ATTN_PREFILL_BF16_FLASH_NAX, scale, 0);
+    for (split, nax_only) in [(vec![256, 44], false), (vec![300], true), (vec![150, 150], true), (vec![100, 200], true), (vec![253, 47], false)] {
+        let out = out_buf(&r.be, &cs, 0);
+        let mut t0 = 0;
+        let mut names = Vec::new();
+        for &nt in &split {
+            let call = call_rows(&r, &cs, &out, 0, t0, nt, scale);
+            let name = reg.select(&call).unwrap().name.clone();
+            r.be.launch(&name, &call, 0).unwrap();
+            names.push(name);
+            t0 += nt;
+        }
+        r.be.synchronize(0).unwrap();
+        let got = read_u16(&r.be, &out, 0, cs.t * cs.n * cs.d);
+        check(&cs, &got, &want, &format!("split {split:?} via {names:?}"));
+        let all_nax = names.iter().all(|n| n == ATTN_PREFILL_BF16_FLASH_NAX);
+        assert_eq!(all_nax, nax_only, "split {split:?}: {names:?}");
+        if nax_only {
+            assert!(got == whole, "split {split:?}: all chunks on the NAX kernel must be bitwise the single call");
+        }
+    }
 }

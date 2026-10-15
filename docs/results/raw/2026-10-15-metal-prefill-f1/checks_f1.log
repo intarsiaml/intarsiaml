@@ -1,0 +1,2 @@
+fleetq: #1920 waiting (#1 in line): endor is held exclusively by #1919 "metal D1: op traces + fusion unit tests + 48-token identity" (claude-31e10c55)
+fleetq:   #1919 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1919 set, or it will wait for #1919 to be released.

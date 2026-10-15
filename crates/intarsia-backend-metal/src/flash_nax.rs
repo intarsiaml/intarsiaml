@@ -3,9 +3,12 @@
 //! in the shader header). One threadgroup per (block of query positions, kv head); a simdgroup owns 16 query rows of one
 //! query head, Q stays in registers and K / V fragments are read from device memory by the lanes.
 //!
-//! Same op contract as `attn_prefill_bf16_flash` (flash.rs): any T and pos0, so how a prompt is cut into chunks never
-//! changes which kernel a row goes through. Served: head_dim 128 and a group size (query heads per kv head) of 1, 2, 4 or
-//! 8; other head dims stay on the P2 kernel. Operands it cannot take (a leading element skip on q / out, K / V caches not
+//! Same op contract as `attn_prefill_bf16_flash` (flash.rs): any T and pos0. Registered for chunks of at least
+//! [`NAX_FLASH_MIN_M`] rows, where it is faster than the P2 kernel, so a prompt's last chunk can be a short tail that runs
+//! on the P2 kernel: how a prompt is cut into chunks changes the bits of the rows of such a tail (not their meaning: both
+//! kernels are within the same bf16 error of the f64 reference), as P1's `NAX_MIN_M` does for the matmuls of a tail of
+//! under 16 rows. Calls that all take this kernel are bitwise chunk invariant. Served: head_dim 128 and a group size
+//! (query heads per kv head) of 1, 2, 4 or 8; other head dims stay on the P2 kernel. Operands it cannot take (a leading element skip on q / out, K / V caches not
 //! 16-byte aligned) run the P2 flash kernel (or `attn_prefill_bf16` where that cannot either); counted in `fallbacks`.
 
 use crate::dense::OpP;
