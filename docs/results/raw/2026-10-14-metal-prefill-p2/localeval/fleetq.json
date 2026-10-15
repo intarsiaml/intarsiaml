@@ -1,0 +1,26 @@
+{
+  "id": 1902,
+  "state": "running",
+  "kind": "lease",
+  "owner": "claude-31e10c55",
+  "label": "metal P2 flash prefill localeval pre new new pre",
+  "hosts": [
+    "endor"
+  ],
+  "mem_gb": 24.0,
+  "exclusive": true,
+  "uses": [],
+  "takes_down": [],
+  "created_at": 1792026748.0996964,
+  "started_at": 1792027132.2361157,
+  "ended_at": null,
+  "heartbeat_at": 1792027132.2361157,
+  "expect_s": 2400.0,
+  "command": "",
+  "reason": "",
+  "exit_code": null,
+  "note": "",
+  "mem_map": {},
+  "flags": [],
+  "roles_taken_down": []
+}

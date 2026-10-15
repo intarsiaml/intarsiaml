@@ -1,0 +1,26 @@
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/flash_prefill.rs (target/release/deps/flash_prefill-f1a476cf4e6ff173)
+
+running 4 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+metal attn_prefill_bf16_flash: misaligned operands (q skip 1, out skip 0, k cache at 0, v cache at 0); running attn_prefill_bf16 (reported once)
+test flash_falls_back_on_misaligned_operands ... ok
+attn_flash_h128_bk16_s4_q1: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk16_s8_q1: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk24_s4_q1: worst error 0.903 of tolerance over 13 cases
+attn_flash_b128_bk16_s4_q1: worst error 0.746 of tolerance over 13 cases
+attn_flash_b128_bk16_s8_q1: worst error 0.746 of tolerance over 13 cases
+attn_flash_b128_bk24_s4_q1: worst error 0.746 of tolerance over 13 cases
+attn_flash_b128_bk32_s4_q1: worst error 0.746 of tolerance over 13 cases
+attn_flash_b128_bk8_s4_q1: worst error 0.746 of tolerance over 13 cases
+attn_flash_h128_bk16_s4_q1_pf: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk24_s4_q1_pf: worst error 0.903 of tolerance over 13 cases
+attn_flash_b128_bk16_s4_q1_pf: worst error 0.746 of tolerance over 13 cases
+attn_flash_b128_bk24_s4_q1_pf: worst error 0.746 of tolerance over 13 cases
+attn_flash_b128_bk32_s4_q1_pf: worst error 0.746 of tolerance over 13 cases
+attn_flash_b128_bk16_s8_q1_pf: worst error 0.746 of tolerance over 13 cases
+test flash_matches_f64_reference ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.15s
+

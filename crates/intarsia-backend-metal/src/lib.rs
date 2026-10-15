@@ -27,6 +27,7 @@ mod buffer;
 pub mod decode;
 mod dense;
 mod fill;
+pub mod flash;
 mod fused;
 mod host;
 pub mod kernels;
@@ -559,6 +560,9 @@ impl Backend for MetalBackend {
                     plan.threads,
                 )
             });
+        }
+        if kernel == kernels::ATTN_PREFILL_BF16_FLASH && call.op == Op::AttnPrefill {
+            return self.launch_attn_flash(call);
         }
         if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
             return self.launch_matmul_pair(call);

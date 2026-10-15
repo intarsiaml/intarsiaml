@@ -17,7 +17,7 @@ const METAL_STD: &str = "-std=metal3.1";
 /// changing one invalidates cached admission results exactly like a shader change does (admission otherwise only sees
 /// the metallib bytes). Any edit to these files counts, comments included: over-invalidating costs one re-admission,
 /// under-invalidating would trust a stale result. Add a file here when it starts to influence selection or geometry.
-const LAUNCHER_SOURCES: &[&str] = &["src/lib.rs", "src/kernels.rs", "src/dense.rs", "src/fill.rs", "src/attn.rs", "src/fused.rs"];
+const LAUNCHER_SOURCES: &[&str] = &["src/lib.rs", "src/kernels.rs", "src/dense.rs", "src/fill.rs", "src/attn.rs", "src/fused.rs", "src/flash.rs"];
 
 /// FNV-1a 64 over the launcher sources (file name, then contents, in list order).
 fn launcher_hash(manifest_dir: &Path) -> u64 {

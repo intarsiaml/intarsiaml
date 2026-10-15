@@ -1,0 +1,36 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a6a0312aabf864646/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.39s
+     Running tests/flash_prefill.rs (target/release/deps/flash_prefill-f1a476cf4e6ff173)
+
+running 4 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+metal attn_prefill_bf16_flash: misaligned operands (q skip 1, out skip 0, k cache at 0, v cache at 0); running attn_prefill_bf16 (reported once)
+test flash_falls_back_on_misaligned_operands ... ok
+attn_flash_h128_bk32_s8_q2: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk32_s4_q2: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk32_s8_q1: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk16_s8_q2: worst error 0.903 of tolerance over 13 cases
+attn_flash_b128_bk32_s8_q2: worst error 0.746 of tolerance over 13 cases
+attn_flash_h128_bk32_s4_q1: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk16_s4_q1: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk16_s8_q1: worst error 0.903 of tolerance over 13 cases
+attn_flash_h128_bk64_s4_q1_sh: worst error 0.895 of tolerance over 13 cases
+attn_flash_h128_bk64_s8_q1_sh: worst error 0.895 of tolerance over 13 cases
+attn_flash_h128_bk64_s4_q2_sh: worst error 0.895 of tolerance over 13 cases
+attn_flash_h128_bk64_s8_q2_sh: worst error 0.895 of tolerance over 13 cases
+attn_flash_h128_bk32_s8_q2_sh: worst error 0.903 of tolerance over 13 cases
+
+thread 'flash_matches_f64_reference' (88763063) panicked at crates/intarsia-backend-metal/tests/flash_prefill.rs:200:9:
+attn_flash_dbg1 Case { t: 1, n: 4, nkv: 2, d: 128, pos0: 0, cap: 16 }: element 0: gpu 0 ref -0.220703125 tol 0.0011924553433343302
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test flash_matches_f64_reference ... FAILED
+
+failures:
+
+failures:
+    flash_matches_f64_reference
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.08s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test flash_prefill`
