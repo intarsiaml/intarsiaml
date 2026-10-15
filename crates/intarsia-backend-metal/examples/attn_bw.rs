@@ -6,7 +6,8 @@
 //!   cargo run --release -p intarsia-backend-metal --example attn_bw -- [--heads N] [--kv-heads N] [--dim D]
 //!       [--layers L] [--reps R] [kernel...] [ctx...]
 //!
-//! `kernel` is `single` (attn_decode_bf16) or `splitkv` (default: both); `ctx` the number of visible keys (default
+//! `kernel` is `single` (attn_decode_bf16), `splitkv` (default: both) or `f8` (attn_decode_f8_splitkv on an fp8 e4m3 cache, half
+//! the bytes); `ctx` the number of visible keys (default
 //! 128 1024 4096 16384). The split policy can be set with `INTARSIA_METAL_SPLITKV=<min_keys>,<target_tgs>`.
 //! Run inside a fleetq slot (it streams up to ~2.5 GB).
 
@@ -23,7 +24,7 @@ fn main() {
 #[cfg(target_os = "macos")]
 mod imp {
     use intarsia_backend_metal::bench::{f32_to_bf16, stats, Rng};
-    use intarsia_backend_metal::kernels::{ATTN_DECODE_BF16, ATTN_DECODE_BF16_SPLITKV};
+    use intarsia_backend_metal::kernels::{ATTN_DECODE_BF16, ATTN_DECODE_BF16_SPLITKV, ATTN_DECODE_F8_SPLITKV};
     use intarsia_backend_metal::MetalBackend;
     use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
     use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
@@ -40,6 +41,19 @@ mod imp {
             // SAFETY: u16 -> u8 view of the same memory.
             let bytes = unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, m * 2) };
             be.upload(&b, off * 2, bytes, 0).unwrap();
+            off += m;
+        }
+        b
+    }
+
+    fn rand_buf8(be: &MetalBackend, n: usize, rng: &mut Rng) -> Buffer {
+        let b = be.alloc(n, MemKind::Device).unwrap();
+        let chunk = 1 << 22;
+        let mut off = 0;
+        while off < n {
+            let m = chunk.min(n - off);
+            let v: Vec<u8> = (0..m).map(|_| intarsia_core::dtype::f32_to_fp8_e4m3(rng.unit() * 4.0)).collect();
+            be.upload(&b, off, &v, 0).unwrap();
             off += m;
         }
         b
@@ -63,6 +77,7 @@ mod imp {
                 "--reps" => reps = args.next().unwrap().parse().unwrap(),
                 "single" => kernels.push(ATTN_DECODE_BF16),
                 "splitkv" => kernels.push(ATTN_DECODE_BF16_SPLITKV),
+                "f8" => kernels.push(ATTN_DECODE_F8_SPLITKV),
                 n => ctxs.push(n.parse().expect("context length")),
             }
         }
@@ -109,8 +124,27 @@ mod imp {
                     )
                 })
                 .collect();
-            let bytes = (2 * kv_heads * ctx * dim * 2) as f64;
+            let caches8: Vec<(Buffer, Buffer)> = if kernels.contains(&ATTN_DECODE_F8_SPLITKV) {
+                (0..layers).map(|_| (rand_buf8(&be, kv_heads * cap * dim, &mut rng), rand_buf8(&be, kv_heads * cap * dim, &mut rng))).collect()
+            } else {
+                Vec::new()
+            };
+            let calls8: Vec<OpCall> = caches8
+                .iter()
+                .map(|(k, v)| {
+                    let t8 = |b: &Buffer, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: DType::Fp8E4m3, shape: shape.to_vec() };
+                    OpCall::new(
+                        Op::AttnDecode,
+                        vec![t(&q, &[1, heads, dim]), t8(k, &[kv_heads, cap, dim]), t8(v, &[kv_heads, cap, dim])],
+                        vec![t(&out, &[1, heads, dim])],
+                        attn.clone(),
+                    )
+                })
+                .collect();
             for &kernel in &kernels {
+                let is8 = kernel == ATTN_DECODE_F8_SPLITKV;
+                let calls = if is8 { &calls8 } else { &calls };
+                let bytes = (2 * kv_heads * ctx * dim * if is8 { 1 } else { 2 }) as f64;
                 let need = be
                     .kernels()
                     .iter()
@@ -123,7 +157,7 @@ mod imp {
                 let mut samples = Vec::new();
                 let mut seen = 0usize;
                 for rep in 0..reps + 3 {
-                    for c in &calls {
+                    for c in calls.iter() {
                         let mut c = c.clone();
                         c.scratch = scratch.clone();
                         be.launch(kernel, &c, 0).unwrap();

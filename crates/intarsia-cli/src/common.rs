@@ -48,7 +48,9 @@ pub struct ModelArgs {
     /// Tokens per forward pass (prefill chunk); default: the recipe's value for the backend, then its base value, then 256.
     #[arg(long)]
     pub prefill_chunk: Option<usize>,
-    /// KV cache dtype override (bf16, f16, f32, fp8_e4m3); default from the recipe.
+    /// KV cache dtype override: `bf16` (the recipe default), `fp8` / `fp8_e4m3` (half the KV bytes; Metal has the kernels
+    /// (opt-in, accuracy in docs/results/2026-10-15-metal-kv-quant.md), the cpu oracle takes it, other backends refuse
+    /// at plan time), `f16`, `f32` (cpu oracle). `int8` is not implemented.
     #[arg(long)]
     pub kv_dtype: Option<String>,
     /// Time every Nth step per op (default: every step on cpu, every 16th on GPUs; 0 = never).
@@ -190,6 +192,13 @@ impl ModelArgs {
 
     pub fn engine_options(&self) -> Result<EngineOptions> {
         let kv_dtype = self.kv_dtype.as_deref().map(DType::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?;
+        if matches!(kv_dtype, Some(DType::I8 | DType::U8 | DType::I32 | DType::Fp8E5m2)) {
+            bail!(
+                "--kv-dtype {}: not a KV cache dtype here (bf16, f16, f32, fp8 / fp8_e4m3); an int8 KV cache would need \
+                 per-block scales, which are not implemented",
+                self.kv_dtype.as_deref().unwrap_or("")
+            );
+        }
         let chat_template = if let Some(p) = &self.chat_template_file {
             ChatTemplateSource::File(p.clone())
         } else if self.chat_template_from_config {

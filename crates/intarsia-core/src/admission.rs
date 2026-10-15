@@ -257,14 +257,20 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     for &p in &[0usize, 37] {
                         // full and partial rotary (a quarter of the head, Qwen3.5), plain and zero-centred norms
                         for (rdim, woff) in [(0usize, 0.0f32), ((d / 4) & !1, 1.0)] {
-                            // the kv cache is a bf16 / f32 one here: an fp8 cache re-rounds a one-ulp difference of the
-                            // f32 and f64 stages into a whole fp8 step (KvAppend's own cases cover fp8)
-                            for dt in act_dtypes() {
+                            // the kv cache is the activation dtype, plus one bf16-activation case per run with an fp8 cache
+                            // (the quantised KV of `--kv-dtype fp8_e4m3`; a one-ulp difference of the f32 and f64 stages can
+                            // re-round into a whole fp8 step there, so a kernel registered for it carries the tolerance for that)
+                            let combos: Vec<(DType, DType)> = act_dtypes()
+                                .into_iter()
+                                .map(|d| (d, d))
+                                .chain((rdim == 0).then_some((DType::Bf16, DType::Fp8E4m3)))
+                                .collect();
+                            for (dt, kdt) in combos {
                                 let cap = p + t + 5;
                                 let cache = |rng: &mut SplitMix64| OutSpec {
-                                    dtype: dt,
+                                    dtype: kdt,
                                     shape: vec![nkv, cap, d],
-                                    init: Some(rand_t(rng, dt, &[nkv, cap, d], 1.0)),
+                                    init: Some(rand_t(rng, kdt, &[nkv, cap, d], 1.0)),
                                 };
                                 let inputs = vec![
                                     rand_t(&mut rng, dt, &[t, n, d], 1.0),
@@ -275,7 +281,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                                 ];
                                 let outputs = vec![OutSpec::new(dt, &[t, n, d]), cache(&mut rng), cache(&mut rng)];
                                 push(
-                                    format!("T={t} pos0={p} N={n} Nkv={nkv} D={d} {dt} rot={rdim} off={woff}"),
+                                    format!("T={t} pos0={p} N={n} Nkv={nkv} D={d} {dt} rot={rdim} off={woff}{}", if kdt == dt { String::new() } else { format!(" kv={kdt}") }),
                                     HostCall {
                                         op,
                                         inputs,

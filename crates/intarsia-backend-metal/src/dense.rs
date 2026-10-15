@@ -306,7 +306,26 @@ impl MetalBackend {
                 dim(total, "T*Nkv*D")?;
                 self.dispatch(kernel, &[&src, &cache, pos.as_ref().unwrap_or(&src)], &p, Grid::Threads(total))
             }
-            QK_NORM_ROPE_KV_BF16 => self.launch_qk_norm_rope_kv(call),
+            KV_APPEND_F8 => {
+                let (t, nkv, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+                let cap = o[0].shape[1];
+                let total = t * nkv * d;
+                if total == 0 {
+                    return Ok(());
+                }
+                let (src, cache) =
+                    (self.bind(&i[0], bf, false, "new")?, self.bind(&o[0], DType::Fp8E4m3, true, "fp8 cache")?);
+                let (pos, use_dev) = self.pos_bind(call)?;
+                let p = OpP {
+                    dims: [dim(t, "T")?, dim(nkv, "Nkv")?, dim(d, "D")?, dim(cap, "cap")?, use_dev, dim(a.pos0, "pos0")?, 0, 0],
+                    skips: [src.skip, cache.skip, 0, 0, 0],
+                    ..Default::default()
+                };
+                dim(total, "T*Nkv*D")?;
+                self.dispatch(kernel, &[&src, &cache, pos.as_ref().unwrap_or(&src)], &p, Grid::Threads(total))
+            }
+            QK_NORM_ROPE_KV_BF16 => self.launch_qk_norm_rope_kv(call, false),
+            QK_NORM_ROPE_KV_F8 => self.launch_qk_norm_rope_kv(call, true),
             ARGMAX_F32 | ARGMAX_BF16 => {
                 let (r, v) = (i[0].shape[0], i[0].shape[1]);
                 if r == 0 {
@@ -447,15 +466,17 @@ impl MetalBackend {
                 })
             }
             ATTN_DECODE_BF16_SPLITKV => self.launch_attn_splitkv(call),
+            ATTN_DECODE_F8_SPLITKV => self.launch_attn_splitkv_f8(call),
             other => Err(Error::NoKernel(format!("metal kernel '{other}' for op '{}'", call.op))),
         }
     }
 
     /// `QkNormRopeKv`: one threadgroup per (token, q head | k head | v head), `roundup32(D)` threads (element i on thread i,
     /// the layout `rmsnorm_bf16_ex1` uses for the unfused norm, so the sums are bitwise those).
-    fn launch_qk_norm_rope_kv(&self, call: &OpCall) -> Result<()> {
+    fn launch_qk_norm_rope_kv(&self, call: &OpCall, f8: bool) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let bf = DType::Bf16;
+        let kvd = if f8 { DType::Fp8E4m3 } else { bf };
         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
         let (nkv, cap) = (i[1].shape[1], o[1].shape[1]);
         if t * n * d == 0 {
@@ -471,18 +492,20 @@ impl MetalBackend {
             self.bind(&i[3], bf, false, "q_w")?,
             self.bind(&i[4], bf, false, "k_w")?,
             self.bind(&o[0], bf, true, "q_out")?,
-            self.bind(&o[1], bf, true, "k cache")?,
-            self.bind(&o[2], bf, true, "v cache")?,
+            self.bind(&o[1], kvd, true, "k cache")?,
+            self.bind(&o[2], kvd, true, "v cache")?,
         ];
         let (pos, use_dev) = self.pos_bind(call)?;
         let rd = if a.rotary_dim == 0 { d } else { a.rotary_dim };
         // prefill rows of a 128-wide fully rotated head (Qwen3): one threadgroup of QK_PF_HEADS simdgroups per token and
         // QK_PF_HEADS heads, one simdgroup per head (bitwise the decode form, kernels/metal/qk_rope_kv.metal)
-        let pf = t > 1 && d == 128 && rd == 128 && self.pso(QK_NORM_ROPE_KV_BF16_PF).is_some() && !qk_pf_disabled();
+        let (pf_name, dec_name) =
+            if f8 { (QK_NORM_ROPE_KV_F8_PF, QK_NORM_ROPE_KV_F8) } else { (QK_NORM_ROPE_KV_BF16_PF, QK_NORM_ROPE_KV_BF16) };
+        let pf = t > 1 && d == 128 && rd == 128 && self.pso(pf_name).is_some() && !qk_pf_disabled();
         let (name, threads, groups) = if pf {
-            (QK_NORM_ROPE_KV_BF16_PF, QK_PF_HEADS * 32, t * (n + 2 * nkv).div_ceil(QK_PF_HEADS))
+            (pf_name, QK_PF_HEADS * 32, t * (n + 2 * nkv).div_ceil(QK_PF_HEADS))
         } else {
-            (QK_NORM_ROPE_KV_BF16, d.next_multiple_of(32), t * (n + 2 * nkv))
+            (dec_name, d.next_multiple_of(32), t * (n + 2 * nkv))
         };
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         if pso.maxTotalThreadsPerThreadgroup() < threads {

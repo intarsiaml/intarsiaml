@@ -193,6 +193,42 @@ pub const ATTN_DECODE_SPLITKV_SHADERS: [&str; 5] = [
 pub const ATTN_PREFILL_BF16_SPLITKV_ROWS: &str = "attn_prefill_bf16_splitkv_rows";
 pub const ATTN_ROWS_SHADERS: [&str; 5] =
     ["attn_rows_splitkv_g1", "attn_rows_splitkv_g2", "attn_rows_splitkv_g4", "attn_rows_splitkv_g8", "attn_rows_combine"];
+
+// ---- fp8 e4m3 KV cache (`--kv-dtype fp8_e4m3`) -------------------------------------------------------------------------
+// Opt-in: every entry below takes a Fp8E4m3 cache (the `weights` dtype of attention and QkNormRopeKv, the output dtype of
+// KvAppend) and nothing else, so the bf16 registrations and the default path are untouched. Same ops as their bf16
+// twins, same priorities.
+/// `KvAppend` into an fp8 cache (dense_ops.metal): round to nearest even, saturating (the oracle's `f32_to_fp8_e4m3`).
+pub const KV_APPEND_F8: &str = "kv_append_f8";
+/// `QkNormRopeKv` with fp8 k / v caches (qk_rope_kv.metal): the bf16 kernel with the cache stores encoded; `_pf` the prefill
+/// form chosen by the launcher as for bf16.
+pub const QK_NORM_ROPE_KV_F8: &str = "qk_norm_rope_kv_f8";
+pub const QK_NORM_ROPE_KV_F8_PF: &str = "qk_norm_rope_kv_f8_pf";
+/// `AttnDecode` split-KV over an fp8 cache (attention_splitkv.metal): stage 1 `attn_decode_f8_splitkv_g{GP}`; the combine
+/// pass is the bf16 one (it never reads the cache).
+pub const ATTN_DECODE_F8_SPLITKV: &str = "attn_decode_f8_splitkv";
+pub const ATTN_DECODE_F8_SPLITKV_SHADERS: [&str; 4] = [
+    "attn_decode_f8_splitkv_g1",
+    "attn_decode_f8_splitkv_g2",
+    "attn_decode_f8_splitkv_g4",
+    "attn_decode_f8_splitkv_g8",
+];
+/// `AttnPrefill` 2..=8 rows over an fp8 cache: bitwise the 1-row `attn_decode_f8_splitkv` per row (`rows_exact`).
+pub const ATTN_PREFILL_F8_SPLITKV_ROWS: &str = "attn_prefill_f8_splitkv_rows";
+pub const ATTN_ROWS_F8_SHADERS: [&str; 4] = [
+    "attn_rows_f8_splitkv_g1",
+    "attn_rows_f8_splitkv_g2",
+    "attn_rows_f8_splitkv_g4",
+    "attn_rows_f8_splitkv_g8",
+];
+/// `AttnPrefill` over an fp8 cache: the cache is decoded to a bf16 staging buffer (`kv_dequant_f8`, exact: every e4m3 value
+/// is a bf16 value) and the bf16 flash kernel (the NAX one, or the P2 one without metal4.0) runs on it. See flash_nax.rs.
+pub const ATTN_PREFILL_F8_FLASH_NAX: &str = "attn_prefill_f8_flash_nax";
+pub const ATTN_PREFILL_F8_FLASH: &str = "attn_prefill_f8_flash";
+pub const KV_DEQUANT_F8: &str = "kv_dequant_f8";
+/// Test-only shaders (fp8_conv.metal): the exhaustive conversion checks of tests/kv_fp8.rs.
+pub const FP8_TEST_SHADERS: [&str; 2] = ["fp8_test_decode", "fp8_test_encode"];
+
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
 /// `Backend::zero` / `Backend::copy` kernels (copy.metal): 16-byte vector forms plus byte forms for the unaligned rest.
@@ -275,7 +311,8 @@ pub const MATMUL_PAIR_BF16_NAX: &str = "matmul_pair_bf16_nax";
 /// `AttnPrefill` on the neural accelerators (attention_flash_nax.metal, launcher flash_nax.rs): head_dim 128; ranks above
 /// the P2 flash kernel and falls back to it for operands it cannot take.
 pub const ATTN_PREFILL_BF16_FLASH_NAX: &str = "attn_prefill_bf16_flash_nax";
-pub const NAX_KERNELS: &[&str] = &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX];
+pub const NAX_KERNELS: &[&str] =
+    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, ATTN_PREFILL_F8_FLASH_NAX];
 
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
@@ -289,6 +326,10 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.extend([QK_NORM_ROPE_KV_BF16, QK_NORM_ROPE_KV_BF16_PF]);
+    v.extend([KV_APPEND_F8, QK_NORM_ROPE_KV_F8, QK_NORM_ROPE_KV_F8_PF, KV_DEQUANT_F8]);
+    v.extend(ATTN_DECODE_F8_SPLITKV_SHADERS);
+    v.extend(ATTN_ROWS_F8_SHADERS);
+    v.extend(FP8_TEST_SHADERS);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
     v.extend(ATTN_ROWS_SHADERS);
@@ -334,6 +375,12 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS, Op::MatmulPair),
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
+    (KV_APPEND_F8, Op::KvAppend),
+    (QK_NORM_ROPE_KV_F8, Op::QkNormRopeKv),
+    (ATTN_DECODE_F8_SPLITKV, Op::AttnDecode),
+    (ATTN_PREFILL_F8_FLASH, Op::AttnPrefill),
+    (ATTN_PREFILL_F8_FLASH_NAX, Op::AttnPrefill),
+    (ATTN_PREFILL_F8_SPLITKV_ROWS, Op::AttnPrefill),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -496,6 +543,51 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(-1)
                     .rows_exact()
                     .scratch(crate::attn::rows_scratch),
+                // ---- fp8 e4m3 KV cache: the bf16 twins' predicates with the cache dtype swapped. Tolerances: the cache holds
+                // the e4m3 rounding of the bf16 values in both the oracle and here, so the cache bytes agree except where
+                // a one-ulp difference of the f32 stages of the fused prologue lands on a rounding boundary (one e4m3
+                // step); attention reads that same cache, so its tolerance is the bf16 one.
+                KV_APPEND_F8 => {
+                    k.acts(bf).when(|s| s.out == Some(DType::Fp8E4m3)).exact(Exactness::Exact).tol(Tol::EXACT)
+                }
+                QK_NORM_ROPE_KV_F8 => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                ATTN_DECODE_F8_SPLITKV => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::attn::splitkv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10)
+                    .scratch(crate::attn::splitkv_scratch),
+                ATTN_PREFILL_F8_FLASH => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::flash::flash_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                ATTN_PREFILL_F8_FLASH_NAX => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::flash_nax::nax_flash_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(12),
+                ATTN_PREFILL_F8_SPLITKV_ROWS => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::attn::rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1)
+                    .rows_exact()
+                    .scratch(crate::attn::rows_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -529,7 +621,7 @@ mod tests {
     #[test]
     fn attention_is_registered_for_both_ops() {
         // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 2)] {
+        for (op, n) in [(Op::AttnPrefill, 7), (Op::AttnDecode, 3)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));

@@ -155,3 +155,34 @@ pub fn measure_copy_gbs(be: &MetalBackend, bytes: usize, warmup: usize, reps: us
 
 /// Keep an `MtlBuffer` list alive helper for readability in the examples.
 pub type Pool = Vec<MtlBuffer>;
+
+/// Run a one-input one-output flat shader (`name`: buffer 0 = `input`, buffer 1 = `out_bytes` of output, one thread per
+/// element of `threads`) and return the output. The conversion tests of tests/kv_fp8.rs use it on the `fp8_test_*` shaders.
+pub fn run_flat_shader(be: &MetalBackend, name: &str, input: &[u8], out_bytes: usize, threads: usize) -> Result<Vec<u8>> {
+    use objc2_metal::MTLComputePipelineState;
+    let pso = be.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+    let (src, dst) = (be.new_mtl_buffer(input.len(), false)?, be.new_mtl_buffer(out_bytes, false)?);
+    // SAFETY: shared-storage buffers of at least the copied lengths; the GPU is idle (nothing has been encoded yet).
+    unsafe {
+        std::ptr::copy_nonoverlapping(input.as_ptr(), src.contents().as_ptr() as *mut u8, input.len());
+        std::ptr::write_bytes(dst.contents().as_ptr() as *mut u8, 0, out_bytes);
+    }
+    be.with_encoder(|enc| {
+        enc.setComputePipelineState(pso);
+        // SAFETY: both buffers outlive the dispatch (they are dropped after `synchronize`).
+        unsafe {
+            enc.setBuffer_offset_atIndex(Some(&src), 0, 0);
+            enc.setBuffer_offset_atIndex(Some(&dst), 0, 1);
+        }
+        let w = pso.maxTotalThreadsPerThreadgroup().min(256);
+        enc.dispatchThreads_threadsPerThreadgroup(
+            MTLSize { width: threads, height: 1, depth: 1 },
+            MTLSize { width: w, height: 1, depth: 1 },
+        );
+    })?;
+    intarsia_core::backend::Backend::synchronize(be, 0)?;
+    let mut out = vec![0u8; out_bytes];
+    // SAFETY: as above, the GPU has finished.
+    unsafe { std::ptr::copy_nonoverlapping(dst.contents().as_ptr() as *const u8, out.as_mut_ptr(), out_bytes) };
+    Ok(out)
+}

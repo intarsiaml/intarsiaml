@@ -73,8 +73,18 @@ impl MetalBackend {
     /// Launch `attn_decode_bf16_splitkv`. Operands the kernels cannot take (q or K / V caches not 16-byte aligned, or a shape
     /// `splitkv_ok` rejects) run the single-pass `attn_decode_bf16` instead, which needs no scratch.
     pub(crate) fn launch_attn_splitkv(&self, call: &OpCall) -> Result<()> {
+        self.launch_attn_splitkv_kv(call, false)
+    }
+
+    /// `launch_attn_splitkv` over an fp8 e4m3 K / V cache (`attn_decode_f8_splitkv`, `--kv-dtype fp8_e4m3`).
+    pub(crate) fn launch_attn_splitkv_f8(&self, call: &OpCall) -> Result<()> {
+        self.launch_attn_splitkv_kv(call, true)
+    }
+
+    fn launch_attn_splitkv_kv(&self, call: &OpCall, f8: bool) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let bf = DType::Bf16;
+        let kvd = if f8 { DType::Fp8E4m3 } else { bf };
         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
         let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
         if t * n * d == 0 {
@@ -88,13 +98,18 @@ impl MetalBackend {
         let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
         let qa = self.mbuf(&i[0].buf)?.base + i[0].offset;
         if !shape_ok || ka % 16 != 0 || va % 16 != 0 || qa % 16 != 0 {
+            if f8 {
+                return Err(Error::invalid(format!(
+                    "metal {ATTN_DECODE_F8_SPLITKV}: shape or alignment the fp8 split-KV kernel cannot take (N {n} Nkv {nkv} head_dim {d}, q at {qa}, k cache at {ka}, v cache at {va}); there is no single-pass fp8 kernel"
+                )));
+            }
             return self.launch_dense(ATTN_DECODE_BF16, call);
         }
 
         let (q, kc, vc, out) = (
             self.bind(&i[0], bf, false, "q")?,
-            self.bind(&i[1], bf, false, "k cache")?,
-            self.bind(&i[2], bf, false, "v cache")?,
+            self.bind(&i[1], kvd, false, "k cache")?,
+            self.bind(&i[2], kvd, false, "v cache")?,
             self.bind(&o[0], bf, true, "out")?,
         );
         let (pos, use_dev) = self.pos_bind(call)?;
@@ -145,7 +160,8 @@ impl MetalBackend {
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
         let nsg = if use_dev == 0 && nkv * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
         let nsg = nsg.min((TG_FLOATS / (gp * d)).max(1));
-        let (name1, name2) = (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
+        let stage1: &[&str] = if f8 { &ATTN_DECODE_F8_SPLITKV_SHADERS[..] } else { &ATTN_DECODE_SPLITKV_SHADERS[..4] };
+        let (name1, name2) = (stage1[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         // with one split stage 1 writes the output itself; a device position decides that on the GPU
@@ -212,8 +228,20 @@ impl MetalBackend {
     /// (what the 1-row launcher does for them).
     #[doc(hidden)]
     pub fn launch_attn_rows(&self, call: &OpCall) -> Result<()> {
+        self.launch_attn_rows_kv(call, false)
+    }
+
+    /// `launch_attn_rows` over an fp8 e4m3 K / V cache (`attn_prefill_f8_splitkv_rows`): bitwise the 1-row
+    /// `launch_attn_splitkv_f8` call per row.
+    #[doc(hidden)]
+    pub fn launch_attn_rows_f8(&self, call: &OpCall) -> Result<()> {
+        self.launch_attn_rows_kv(call, true)
+    }
+
+    fn launch_attn_rows_kv(&self, call: &OpCall, f8: bool) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let bf = DType::Bf16;
+        let kvd = if f8 { DType::Fp8E4m3 } else { bf };
         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
         let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
         if t * n * d == 0 {
@@ -227,6 +255,11 @@ impl MetalBackend {
         let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
         let qa = self.mbuf(&i[0].buf)?.base + i[0].offset;
         if !shape_ok || ka % 16 != 0 || va % 16 != 0 || qa % 16 != 0 {
+            if f8 {
+                return Err(Error::invalid(format!(
+                    "metal {ATTN_PREFILL_F8_SPLITKV_ROWS}: shape or alignment the fp8 split-KV kernel cannot take (T {t} N {n} Nkv {nkv} head_dim {d}); there is no single-pass fp8 kernel"
+                )));
+            }
             for r in 0..t {
                 let mut at = a.clone();
                 at.pos0 = a.pos0 + r;
@@ -243,8 +276,8 @@ impl MetalBackend {
         }
         let (q, kc, vc, out) = (
             self.bind(&i[0], bf, false, "q")?,
-            self.bind(&i[1], bf, false, "k cache")?,
-            self.bind(&i[2], bf, false, "v cache")?,
+            self.bind(&i[1], kvd, false, "k cache")?,
+            self.bind(&i[2], kvd, false, "v cache")?,
             self.bind(&o[0], bf, true, "out")?,
         );
         let (pos, use_dev) = self.pos_bind(call)?;
@@ -288,7 +321,8 @@ impl MetalBackend {
         // threadgroup shape: the largest simdgroup count any row's 1-row launch uses (row 0: the fewest splits)
         let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, nkv, MAX_SPLIT);
         let nsg = rows_nsg(use_dev == 0, nkv, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp, d);
-        let (name1, name2) = (ATTN_ROWS_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
+        let stage1: &[&str] = if f8 { &ATTN_ROWS_F8_SHADERS[..] } else { &ATTN_ROWS_SHADERS[..4] };
+        let (name1, name2) = (stage1[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         let combine = use_dev == 1 || max_split > 1;

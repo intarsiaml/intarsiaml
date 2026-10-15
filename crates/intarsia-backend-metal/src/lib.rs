@@ -178,6 +178,9 @@ pub struct MetalBackend {
     /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
     /// cached. Construction stays cheap; the one-off cost lands on whoever asks first (the telemetry probe).
     bandwidth: OnceLock<Option<f64>>,
+    /// bf16 staging copy of an fp8 KV cache for the fp8 prefill attention (`flash_nax.rs`), grown on demand: K then V,
+    /// `[Nkv, cap, D]` bf16 each. Never allocated for bf16 caches.
+    kv_stage: Mutex<Option<Buffer>>,
 }
 
 // SAFETY: Apple documents MTLDevice, MTLCommandQueue, MTLComputePipelineState and MTLBuffer as usable from any thread;
@@ -238,6 +241,7 @@ impl MetalBackend {
             hosts: Mutex::new(host::HostCache::default()),
             page_size,
             bandwidth: OnceLock::new(),
+            kv_stage: Mutex::new(None),
         })
     }
 
@@ -651,6 +655,14 @@ impl Backend for MetalBackend {
         }
         if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
             return self.launch_attn_rows(call);
+        }
+        if kernel == kernels::ATTN_PREFILL_F8_SPLITKV_ROWS && call.op == Op::AttnPrefill {
+            return self.launch_attn_rows_f8(call);
+        }
+        if (kernel == kernels::ATTN_PREFILL_F8_FLASH || kernel == kernels::ATTN_PREFILL_F8_FLASH_NAX)
+            && call.op == Op::AttnPrefill
+        {
+            return self.launch_attn_prefill_f8(kernel, call);
         }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
             return self.launch_matmul_rows(call);

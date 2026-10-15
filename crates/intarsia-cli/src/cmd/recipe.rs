@@ -2010,7 +2010,7 @@ fn emit(cx: &EmitCtx) -> (String, Vec<String>, Vec<String>) {
     for p in &quant.problems {
         o.todo(p);
     }
-    o.field("kv_dtype", &s("bf16"), "default: bf16 KV cache (fp8_e4m3 KV is accepted by the cpu oracle only)");
+    o.field("kv_dtype", &s("bf16"), "default: bf16 KV cache (fp8_e4m3 KV: the cpu oracle and the Metal backend; `--kv-dtype fp8` per run)");
     let same_blocks = cr.is_some_and(|r| {
         let inferred: BTreeSet<String> =
             det.types.iter().flat_map(|t| t.pattern.iter().map(|b| b.to_string())).collect();

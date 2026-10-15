@@ -168,6 +168,76 @@ impl MetalBackend {
     }
 }
 
+impl MetalBackend {
+    /// `AttnPrefill` over an fp8 e4m3 K / V cache (`attn_prefill_f8_flash_nax`, `attn_prefill_f8_flash`).
+    ///
+    /// The NAX flash kernel loads K / V fragments with `cooperative_tensor::load` straight from a bf16 device tensor, and
+    /// lane loads of bytes instead cost it its 3.3x (docs/results/2026-10-15-metal-prefill-f1-nax-attn.md); prefill
+    /// attention is compute bound (46-51 TFLOPS), so halving the bytes it reads gains nothing anyway. So the cache is decoded
+    /// to a bf16 staging buffer first (`kv_dequant_f8`, exact: every e4m3 value is a bf16 value) and the unchanged bf16
+    /// flash kernel runs on that: the same bits as the bf16 kernel on the decoded cache, for every T and pos0. The decode
+    /// covers the `pos0 + T` visible rows of each kv head (about 1 percent of a 40k prefill).
+    pub(crate) fn launch_attn_prefill_f8(&self, kernel: &str, call: &OpCall) -> Result<()> {
+        let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
+        let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+        let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
+        if t * n * d == 0 {
+            return Ok(());
+        }
+        if d % 8 != 0 {
+            return Err(Error::invalid(format!("{kernel}: head_dim {d} is not a multiple of 8")));
+        }
+        let (ks, vs) = (self.bind(&i[1], DType::Fp8E4m3, false, "k cache")?, self.bind(&i[2], DType::Fp8E4m3, false, "v cache")?);
+        let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
+        if ka % 8 != 0 || va % 8 != 0 {
+            return Err(Error::invalid(format!("{kernel}: fp8 caches must be 8-byte aligned (k at {ka}, v at {va})")));
+        }
+        let kv_len = (a.pos0 + t).min(cap);
+        let plane = nkv * cap * d * 2; // bytes of one bf16 plane
+        let stage = {
+            let mut g = self.kv_stage.lock().unwrap();
+            if g.as_ref().is_none_or(|b| b.bytes() < 2 * plane) {
+                *g = Some(intarsia_core::backend::Backend::alloc(self, 2 * plane, intarsia_core::backend::MemKind::Device)?);
+            }
+            g.as_ref().unwrap().clone()
+        };
+        let mut kt = intarsia_core::backend::TensorRef::new(stage.clone(), DType::Bf16, &[nkv, cap, d]);
+        let mut vt = kt.clone();
+        vt.offset = plane;
+        kt.offset = 0;
+        let (kd, vd) = (self.bind(&kt, DType::Bf16, true, "k stage")?, self.bind(&vt, DType::Bf16, true, "v stage")?);
+        u32_of(nkv * cap * d, "Nkv*cap*D")?;
+        let p = OpP {
+            dims: [u32_of(nkv, "Nkv")?, u32_of(cap, "cap")?, u32_of(d, "D")?, u32_of(kv_len, "kv_len")?, 0, 0, 0, 0],
+            ..Default::default()
+        };
+        let pso = self.pso(KV_DEQUANT_F8).ok_or_else(|| Error::backend(format!("metal: no pipeline '{KV_DEQUANT_F8}'")))?;
+        let chunks = kv_len * (d / 8);
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(pso);
+            for (idx, b) in [&ks, &vs, &kd, &vd].into_iter().enumerate() {
+                // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`; the staging
+                // buffer holds two planes).
+                unsafe { enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx) };
+            }
+            set_bytes(enc, &p, 4);
+            enc.dispatchThreads_threadsPerThreadgroup(
+                MTLSize { width: chunks, height: nkv, depth: 2 },
+                MTLSize { width: 256.min(chunks.max(1)), height: 1, depth: 1 },
+            );
+        })?;
+        let mut c2 = OpCall::new(call.op, vec![i[0].clone(), kt, vt], o.clone(), a.clone());
+        c2.scratch = call.scratch.clone();
+        c2.pos = call.pos.clone();
+        c2.exact_rows = call.exact_rows;
+        if kernel == ATTN_PREFILL_F8_FLASH_NAX {
+            self.launch_attn_flash_nax(&c2)
+        } else {
+            self.launch_attn_flash(&c2)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

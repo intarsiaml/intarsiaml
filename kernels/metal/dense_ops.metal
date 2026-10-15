@@ -159,6 +159,22 @@ kernel void kv_append_bf16(device const ushort* src [[buffer(0)]],
     cache[p.s1 + ((ulong)h * p.d + pos0 + t) * p.c + e] = src[p.s0 + gid];
 }
 
+// KvAppend into an fp8 e4m3 cache (`--kv-dtype fp8_e4m3`): bf16 rows, one e4m3 byte per element (round to nearest even,
+// saturating, f32_to_e4m3 of common.h = the oracle's `f32_to_fp8_e4m3`). Same arguments as kv_append_bf16; s1 in bytes.
+kernel void kv_append_f8(device const ushort* src [[buffer(0)]],
+                         device uchar* cache [[buffer(1)]],
+                         device const int* posbuf [[buffer(2)]],
+                         constant OpP& p [[buffer(3)]],
+                         uint gid [[thread_position_in_grid]]) {
+    if (gid >= p.a * p.b * p.c) return;
+    const uint e = gid % p.c;
+    const uint h = (gid / p.c) % p.b;
+    const uint t = gid / (p.c * p.b);
+    const uint pos0 = p.e != 0 ? (uint)posbuf[0] : p.f;
+    if (pos0 + t >= p.d) return;
+    cache[p.s1 + ((ulong)h * p.d + pos0 + t) * p.c + e] = (uchar)f32_to_e4m3(bf2f(src[p.s0 + gid]));
+}
+
 // ---- Argmax: lowest index among the maximal values of each row (NaN never wins; an all -inf / NaN row gives 0) -----------
 // One threadgroup per row. bind: 0 logits [R,V] (f32 or bf16), 1 out (i32 [R]). a = V. s0 skip of logits.
 inline float ld_logit(device const float* l, ulong i) { return l[i]; }
