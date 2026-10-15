@@ -1,0 +1,7 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/qualifyG-bf16
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 33 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]

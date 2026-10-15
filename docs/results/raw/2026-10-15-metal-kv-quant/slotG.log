@@ -1,2 +1,74 @@
 fleetq: #2081 waiting (#3 in line): in line behind #2076 "gemm midm: pick3 final rule A/B" (claude-0e8026c5) on endor
 fleetq: #2081 waiting (#2 in line): in line behind #2080 "cb-m1 step1 final gates on merged b300b3e: tests, kernels test, bench, identity" (claude-0e8026c5) on endor
+fleetq: #2081 waiting (#1 in line): endor is held exclusively by #2080 "cb-m1 step1 final gates on merged b300b3e: tests, kernels test, bench, identity" (claude-0e8026c5)
+fleetq job 2081 (metal kv quant: final default-path gates (cargo test, kernels test, ids, qualify)) acquired Thu Oct 15 17:50:59 EDT 2026
+INTARSIA_METAL_F8_U=4
+== 0. KV memory sizing: tokens that fit a 40 GiB budget, bf16 vs fp8 (plan lines)
+bf16: loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+fp8: loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv fp8_e4m3, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "attn_decode_bf16_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "qk_norm_rope_kv_bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:  "kv_dtype": "bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "attn_decode_f8_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "qk_norm_rope_kv_f8",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:  "kv_dtype": "fp8_e4m3",
+== 1. cargo test -p intarsia-backend-metal --release (all, incl. kv_fp8)
+exit 101
+   1 FAILED
+   1 test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+   1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.78s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.91s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.36s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.70s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.11s
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s
+   1 thread 'decode_i8_matches_f64_reference' (93732954) panicked at crates/intarsia-backend-metal/tests/kv_i8.rs:254:40:
+== 2. kernels test --backend metal
+exit 0
+33
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 Nkv=8 D=128 cap=6 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=9 Nkv=8 D=128 cap=15 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=0 Nkv=8 D=128 cap=11 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=9 Nkv=8 D=128 cap=20 new=bf16 cache=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=2.228e-7 rel_l2=6.702e-9 T=5 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.619e-4 rel_l2=6.819e-6 T=5 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=8.084e-7 rel_l2=3.782e-8 T=5 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=5.174e-5 rel_l2=2.671e-6 T=32 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=6.158e-4 rel_l2=1.643e-5 T=32 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.374e-3 rel_l2=2.385e-5 T=32 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=7.062e-4 rel_l2=1.453e-5 T=32 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=3.613e-4 rel_l2=8.683e-6 T=32 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.490e-8 rel_l2=3.715e-8 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=3.130e-6 rel_l2=2.297e-7 T=1 pos0=7 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.277e-5 rel_l2=9.203e-7 T=1 pos0=40 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+== 3. default-path greedy ids, base vs new (bf16 KV), 256 tokens
+bf16 KV, new vs base binary, short-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, 4k-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, open-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, grounded-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-docs-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-code-256: ids identical (256 tokens)
+== 6. qualify, fresh full run on the default (bf16 KV)

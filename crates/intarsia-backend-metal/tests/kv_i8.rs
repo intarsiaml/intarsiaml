@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::*;
+use common::{backend as plain_backend, *};
 use intarsia_backend_metal::bench::{bf16_to_f32, f32_to_bf16};
 use intarsia_backend_metal::kernels::*;
 use intarsia_backend_metal::MetalBackend;
@@ -15,6 +15,12 @@ use intarsia_core::state::kv_plane_bytes;
 use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
 
 const B: usize = 32;
+
+/// The backend with the int8 KV kernels listed (they are hidden unless an int8 cache is requested, see `kernels::int8_kv_enabled`).
+fn backend() -> MetalBackend {
+    std::env::set_var("INTARSIA_METAL_KV_INT8", "1");
+    plain_backend()
+}
 
 fn tr(b: &Buffer, off: usize, dt: DType, shape: &[usize]) -> TensorRef {
     TensorRef { buf: b.clone(), offset: off, dtype: dt, shape: shape.to_vec() }
@@ -345,9 +351,8 @@ fn prefill_i8_is_bitwise_the_bf16_flash_kernels_on_the_staged_cache() {
 
 #[test]
 fn i8_kernels_are_registered_only_for_int8_caches() {
-    // not listed by default (the cpu oracle cannot admit them), listed once an int8 cache is requested
-    assert!(backend().kernels().iter().all(|k| !is_int8_kv_kernel(&k.name)));
-    std::env::set_var("INTARSIA_METAL_KV_INT8", "1");
+    // listed once an int8 cache is requested (hidden by default, `kernels::int8_kv_enabled`; process-wide env, so the
+    // "hidden by default" half is checked by `kernels test` in the gates, not here)
     let be = backend();
     let ks = be.kernels();
     let s = |m: usize, kv: DType, out: DType| ShapeInfo {
