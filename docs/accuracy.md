@@ -641,6 +641,7 @@ with `cpu` on the same golden file.
   vocabulary, HF bf16, with metadata, 435 MB), `qwen3-8b-long.safetensors` / `qwen3-8b.safetensors` (older, no
   metadata), and, to be built there, the 8B long golden `qwen3-8b-4k-top20.safetensors` (`golden.py --topk 20 --prompts
   prompts/golden_4k.jsonl` in the `vllm/vllm-openai:v0.28.0-aarch64-cu129` image; `run8b.sh` in that directory has the command;
-  NOT built yet: spark1 went offline during that run).
+  NOT built yet: spark1 went offline during that run). The Mac has its own, built on CPU: `qwen3-8b-4k-fp32-top20.safetensors`
+  (HF fp32, top-20, 3 prompts, 2.1 MB; `docs/results/2026-10-15-metal-golden-4k.md`).
   Pass them with `--golden`.
 * `golden/baselines/*.json` (tracked): recorded runs, named after golden and model; see the baseline section.

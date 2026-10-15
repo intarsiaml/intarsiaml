@@ -1,0 +1,12 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    99.48   2.011e-4   1.808e-4   3.825e-2   0.1011   0.1010    99.02   67/4064      0
+long_code_4k        4064  4064    99.53   1.563e-4   1.503e-4   2.975e-2   0.0264   0.0264    99.07  171/4064      0
+chat_reuse_4k       4557  4557    99.34   2.965e-4   2.757e-4   1.750e-1   0.0795   0.0797    98.78   33/4557      0
+OVERALL                  12685    99.45   2.210e-4   2.051e-4   1.750e-1   0.0694   0.0694    98.95      2.1%      0
+prefill floor [bf16]: top-1 99.45% (need >= 99.5) FAIL | 21-way KL 2.051e-4 (need <= 1.0e-3) ok | tail mass ours 0.0694 vs ref 0.0694, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+greedy-match [prefill]: mean 2.2% of positions before the first argmax divergence, worst prompt 0.7% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL

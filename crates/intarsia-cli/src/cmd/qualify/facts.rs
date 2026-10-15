@@ -94,6 +94,20 @@ fn find_scored(name: &str, dirs: &[PathBuf], base: impl Fn(bool, bool) -> Option
     best.map(|(_, p)| p)
 }
 
+/// The recorded baseline (and noise envelope, if there is one) of a golden for a backend: `<golden stem>.<backend>.baseline.json`
+/// / `.envelope.json` in the first of `dirs` that has the baseline (`golden/baselines/`, see `docs/accuracy.md`).
+pub fn find_baseline(golden: &Path, backend: &str, dirs: &[PathBuf]) -> Option<(PathBuf, Option<PathBuf>)> {
+    let stem = golden.file_stem()?.to_str()?;
+    for d in dirs {
+        let b = d.join(format!("{stem}.{backend}.baseline.json"));
+        if b.is_file() {
+            let e = d.join(format!("{stem}.{backend}.envelope.json"));
+            return Some((b, e.is_file().then_some(e)));
+        }
+    }
+    None
+}
+
 /// Root of the repository checkout (the directory with `tools/golden.py`): `INTARSIA_REPO`, the working directory or
 /// an ancestor of the executable (`target/release/intarsia`).
 pub fn repo_root() -> Option<PathBuf> {
@@ -266,6 +280,27 @@ mod tests {
         assert_eq!(n(find_golden_4k("Qwen3-8B", &dirs)).as_deref(), Some("qwen3-8b-4k-fp32.safetensors"));
         assert_eq!(n(find_golden_4k("Qwen3.6-35B-A3B-NVFP4", &dirs)), None);
         assert_eq!(n(find_golden_4k("Llama-3", &dirs)), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn baselines_are_found_by_golden_stem_and_backend() {
+        let d = std::env::temp_dir().join(format!("qualify-base-{}", std::process::id()));
+        let (a, b) = (d.join("a"), d.join("b"));
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        for f in ["g.metal.baseline.json", "g.metal.envelope.json"] {
+            std::fs::write(b.join(f), b"{}").unwrap();
+        }
+        std::fs::write(a.join("g.cuda.baseline.json"), b"{}").unwrap();
+        let dirs = vec![a.clone(), b.clone()];
+        let g = Path::new("/x/g.safetensors");
+        let (bp, ep) = find_baseline(g, "metal", &dirs).unwrap();
+        assert_eq!(bp, b.join("g.metal.baseline.json"));
+        assert_eq!(ep, Some(b.join("g.metal.envelope.json")));
+        let (bp, ep) = find_baseline(g, "cuda", &dirs).unwrap();
+        assert_eq!((bp, ep), (a.join("g.cuda.baseline.json"), None));
+        assert!(find_baseline(g, "hip", &dirs).is_none());
         let _ = std::fs::remove_dir_all(&d);
     }
 

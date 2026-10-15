@@ -1,0 +1,101 @@
+fleetq: #1979 waiting (#1 in line): endor is held exclusively by #1978 "metal G0 multirow gemv" (claude-31e10c55)
+fleetq:   #1978 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1978 set, or it will wait for #1978 to be released.
+fleetq job 1979
+SAFE stamp: head=f67c379 code-tree=b7b7b80a8f67 dirty=no
+P3 stamp: head=0af824d code-tree=fdde68198b2c dirty=no
+== 1. accuracy --mode all on the 4k golden
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/safe/all-default exit 1
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/safe/all-c2048 exit 1
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/all-default exit 1
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/all-c256 exit 1
+-- safe/all-default
+prefix-reuse gate: PASS
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+-- safe/all-c2048
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+prefix-reuse gate: PASS
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+-- p3/all-default
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+prefix-reuse gate: PASS
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+-- p3/all-c256
+prefix-reuse gate: PASS
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+== 2. baseline + envelope + selfcheck, SAFE at chunk 256 (perturb chunk=2048)
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/safe/baseline exit 1
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/safe/envelope exit 0
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/safe/selfcheck exit 1
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+== 3. same for P3 at chunk 2048 (perturb chunk=256), into raw dir (P3's golden/baselines is for its own merge)
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/baseline exit 1
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/envelope exit 0
+/opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/selfcheck exit 1
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+== 4. qualify (full, fresh), both builds
+safe qualify exit 1
+p3 qualify exit 1
+-- safe
+**Verdict: FAIL** (13 stages: 10 pass, 1 fail, 0 error, 2 skipped)
+| Accuracy (short golden) | **PASS** (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4) |
+| Accuracy (4k golden) | **FAIL** (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4) |
+- `acc-4k` **FAIL**: prefill: top-1 99.28% (need >= 99.5); decode: top-1 98.96% (need >= 99.5)
+| # | Stage | Section | Verdict | Wall | Result |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4 |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 23s | prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4 |
+| 9 | `acc-4k` accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048) | full | FAIL | 1m32s | prefill: top-1 99.28% (need >= 99.5); decode: top-1 98.96% (need >= 99.5) |
+- `acc-long`: prefix reuse is gated in acc-4k, on the 4k golden
+## Accuracy
+**acc-short** against `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-fp32.safetensors` (found by model name; gate class bf16)
+**acc-long** against `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-long-fp32.safetensors` (found by model name; gate class bf16)
+**acc-4k** against `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-4k-fp32-top20.safetensors` (found by model name; gate class bf16)
+`intarsia accuracy --model <dir> --backend metal --golden /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-fp32.safetensors --baseline baselines/acc-short.baseline.json --noise-envelope baselines/envelope.json  (copy both files next to th
+| `gate` | head=f67c379 code-tree=b7b7b80a8f67 dirty=no | endor.kuepker.haus | 1792067548 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-a accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --quick --max-seq 2048` |
+| `acc-short` | head=f67c379 code-tree=b7b7b80a8f67 dirty=no | endor.kuepker.haus | 1792067558 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-a accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tmp
+| `acc-long` | head=f67c379 code-tree=b7b7b80a8f67 dirty=no | endor.kuepker.haus | 1792067643 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-a accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tmp/
+| `acc-4k` | head=f67c379 code-tree=b7b7b80a8f67 dirty=no | endor.kuepker.haus | 1792067666 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-a accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tmp/cl
+| `envelope` | head=f67c379 code-tree=b7b7b80a8f67 dirty=no | endor.kuepker.haus | 1792067759 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-a accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tmp/
+- `logs/acc-short.out` (acc-short)
+- `baselines/acc-short.baseline.json` (acc-short)
+- `logs/acc-long.out` (acc-long)
+- `baselines/acc-long.baseline.json` (acc-long)
+- `logs/acc-4k.out` (acc-4k)
+- `baselines/acc-4k.baseline.json` (acc-4k)
+- `baselines/acc-short.baseline.json` (envelope)
+-- p3
+**Verdict: FAIL** (13 stages: 10 pass, 1 fail, 0 error, 2 skipped)
+| Accuracy (short golden) | **PASS** (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4) |
+| Accuracy (4k golden) | **FAIL** (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4) |
+- `acc-4k` **FAIL**: prefill: top-1 99.28% (need >= 99.5); decode: top-1 98.96% (need >= 99.5)
+| # | Stage | Section | Verdict | Wall | Result |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4 |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 23s | prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4 |
+| 9 | `acc-4k` accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048) | full | FAIL | 59s | prefill: top-1 99.28% (need >= 99.5); decode: top-1 98.96% (need >= 99.5) |
+- `acc-long`: prefix reuse is gated in acc-4k, on the 4k golden
+## Accuracy
+**acc-short** against `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-fp32.safetensors` (found by model name; gate class bf16)
+**acc-long** against `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-long-fp32.safetensors` (found by model name; gate class bf16)
+**acc-4k** against `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-4k-fp32-top20.safetensors` (found by model name; gate class bf16)
+`intarsia accuracy --model <dir> --backend metal --golden /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold/qwen3-8b-fp32.safetensors --baseline baselines/acc-short.baseline.json --noise-envelope baselines/envelope.json  (copy both files next to th
+| `gate` | head=0af824d code-tree=fdde68198b2c dirty=no | endor.kuepker.haus | 1792067926 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-p3 accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --quick --max-seq 2048` |
+| `acc-short` | head=0af824d code-tree=fdde68198b2c dirty=no | endor.kuepker.haus | 1792067936 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-p3 accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tm
+| `acc-long` | head=0af824d code-tree=fdde68198b2c dirty=no | endor.kuepker.haus | 1792068020 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-p3 accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tmp
+| `acc-4k` | head=0af824d code-tree=fdde68198b2c dirty=no | endor.kuepker.haus | 1792068044 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-p3 accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tmp/c
+| `envelope` | head=0af824d code-tree=fdde68198b2c dirty=no | endor.kuepker.haus | 1792068102 | `/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-p3 accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --golden /private/tmp
+- `logs/acc-short.out` (acc-short)
+- `baselines/acc-short.baseline.json` (acc-short)
+- `logs/acc-long.out` (acc-long)
+- `baselines/acc-long.baseline.json` (acc-long)
+- `logs/acc-4k.out` (acc-4k)
+- `baselines/acc-4k.baseline.json` (acc-4k)
+- `baselines/acc-short.baseline.json` (envelope)
+done
+#1979 "metal golden-4k: accuracy, baselines, qualify (SAFE+tailfix vs P3)" (claude-31e10c55) done on endor exclusive 24 GB
