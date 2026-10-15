@@ -621,7 +621,7 @@ impl Engine for LocalEngine {
     }
 }
 
-struct Outcome {
+pub(crate) struct Outcome {
     reason: FinishReason,
     stop_sequence: Option<String>,
     prompt_tokens: usize,
@@ -635,8 +635,10 @@ fn run_job(sh: &Shared, job: Job) {
     sh.telemetry.request_started();
     let t_total = Instant::now();
     debug_hooks();
+    let Job { req, tx } = job;
+    let plen = req.prompt.len();
     let mut g = sh.inner.lock().unwrap();
-    let res = generate_one(sh, &mut g, &job.req, &job.tx);
+    let res = generate_one(sh, &mut g, req, tx.clone());
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
     drop(g);
     sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
@@ -651,7 +653,7 @@ fn run_job(sh: &Shared, job: Job) {
                 o.decode,
                 o.prefill,
             );
-            let _ = job.tx.send(GenEvent::Done {
+            let _ = tx.send(GenEvent::Done {
                 finish_reason: o.reason,
                 prompt_tokens: o.prompt_tokens,
                 completion_tokens: o.completion_tokens,
@@ -664,14 +666,14 @@ fn run_job(sh: &Shared, job: Job) {
         Err(e) => {
             sh.telemetry.request_finished(
                 "error",
-                job.req.prompt.len(),
+                plen,
                 0,
                 0,
                 t_total.elapsed(),
                 Duration::ZERO,
                 t_total.elapsed(),
             );
-            let _ = job.tx.send(GenEvent::Error { message: e.to_string() });
+            let _ = tx.send(GenEvent::Error { message: e.to_string() });
         }
     }
 }
@@ -723,249 +725,399 @@ fn spec_verify(
     Ok(step)
 }
 
-fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEvent>) -> Result<Outcome> {
-    let Inner { model, state: st } = g;
-    let plen = req.prompt.len();
-    if plen == 0 {
-        return Err(Error::BadRequest("empty prompt".into()));
-    }
-    if plen >= st.cap {
-        return Err(Error::BadRequest(format!(
-            "prompt of {plen} tokens does not fit the context window of {} tokens",
-            st.cap
-        )));
-    }
-    let max_new = req.max_tokens.min(st.cap - plen);
+/// Result of one [`Seq::prefill_step`].
+pub(crate) enum PrefillStep {
+    /// A prompt chunk went through the model; call again.
+    Chunk,
+    /// The prompt is in and the first token is sampled (`Seq::tok`): start the decode loop.
+    Started,
+    /// The request ended without generating (cancelled during prefill, or no room for a token).
+    Finished(Outcome),
+}
 
-    // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
-    let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
-    if st.has_recurrent() {
-        // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
-        // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
-        p = st.restorable_len(p);
-    }
-    st.truncate(p, &*model.backend)?;
-    let cached = p;
+/// What [`Seq::plan_step`] wants next for a decoding sequence.
+pub(crate) enum Next {
+    /// A token already known (a verified speculative run): no forward pass.
+    Emit(u32),
+    /// A verify pass over `[tok, drafts...]` ([`Seq::verify`]).
+    Verify(Vec<u32>),
+    /// One plain decode step of `[tok]` ([`Seq::head_mode`], [`Seq::token_from`]).
+    Plain,
+}
 
-    let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
-    let greedy = req.temperature <= 0.0;
-    let mut sampler = Sampler::new(params, req.seed);
-    let mut stop_ids: Vec<u32> = req.stop_ids.clone();
-    if !req.ignore_eos {
-        stop_ids.extend_from_slice(&sh.eos);
-    }
+/// One request's generation state machine: sampling, `min_tokens` masking, stop ids / strings, streaming, `max_tokens`,
+/// cancellation and speculative drafting, independent of how the forward passes are scheduled.
+/// `generate_one` drives one `Seq` to completion; a batching scheduler can interleave several, each against its own
+/// [`SequenceState`].
+///
+/// Lifecycle: [`Seq::new`] (validates, reuses the cached KV prefix) -> [`Seq::prefill_step`] until `Started` ->
+/// loop { [`Seq::on_token`] (true = done) ; [`Seq::advance`] } -> [`Seq::finish`].
+pub(crate) struct Seq {
+    req: GenRequest,
+    tx: Sender<GenEvent>,
+    codec: Arc<dyn TextCodec>,
+    telemetry: Arc<Telemetry>,
+    plen: usize,
+    cached: usize,
+    max_new: usize,
+    greedy: bool,
+    sampler: Sampler,
+    /// `req.stop_ids` plus the model's EOS ids (unless `ignore_eos`).
+    stop_ids: Vec<u32>,
+    t0: Instant,
+    /// Prompt tokens in the KV cache.
+    pos: usize,
+    prefill: Duration,
+    t_dec: Instant,
+    /// The token just sampled, not yet through [`Seq::on_token`].
+    tok: u32,
+    /// The last token that was emitted (carries the final held-back text).
+    last_id: u32,
+    generated: usize,
+    reason: Option<FinishReason>,
+    string_stop: bool,
+    dec: IncrementalDecoder,
+    stops: StopMatcher,
+    // Speculative decoding (greedy only: sampled requests, logit tracing and recurrent state take plain steps). A
+    // verify pass yields several tokens; they wait in `pending` and go through the same per-token checks as sequential
+    // tokens, so EOS / stop ids, stop strings, min_tokens and max_tokens act on them exactly the same way.
+    spec_on: bool,
+    spec_k: usize,
+    pending: std::collections::VecDeque<u32>,
+    /// The next token must come from a plain step (a verify row inside the min_tokens mask chose a stop id).
+    plain_next: bool,
+    /// Prompt + tokens so far: the drafter's lookup context.
+    ctx: Vec<u32>,
+    /// Stops drafting where it does not pay (open-ended text), see `spec::GateParams`.
+    gate: crate::spec::SpecGate,
+}
 
-    // choose how to get the next token: argmax on device when nothing needs the logits
-    let pick = |model: &Model, st: &mut SequenceState, ids: &[u32], k: usize, sampler: &mut Sampler| -> Result<u32> {
-        // The logits only travel to the host when something uses them: sampling, or the min_tokens
-        // mask on stop ids. With `ignore_eos` (no stop ids) a forced-length greedy run keeps the
-        // on-device argmax, so forced-length speed benchmarks measure the real decode path.
-        let masks_stop_ids = k <= req.min_tokens && !stop_ids.is_empty();
-        let need_logits = !greedy || masks_stop_ids || req.trace_logits.is_some();
-        if !need_logits {
-            return match model.forward(st, ids, HeadMode::LastArgmax, None)? {
-                StepOut::Token(t) => Ok(t),
-                _ => Err(Error::Other("backend returned no token".into())),
-            };
+impl Seq {
+    /// Validate the request and reuse the KV prefix `st` holds (truncating it to what is reused).
+    fn new(sh: &Shared, model: &Model, st: &mut SequenceState, req: GenRequest, tx: Sender<GenEvent>) -> Result<Seq> {
+        let plen = req.prompt.len();
+        if plen == 0 {
+            return Err(Error::BadRequest("empty prompt".into()));
         }
-        match model.forward(st, ids, HeadMode::LastLogits, None)? {
-            StepOut::Logits(mut l) => {
-                if let Some(t) = &req.trace_logits {
+        if plen >= st.cap {
+            return Err(Error::BadRequest(format!(
+                "prompt of {plen} tokens does not fit the context window of {} tokens",
+                st.cap
+            )));
+        }
+        let max_new = req.max_tokens.min(st.cap - plen);
+
+        // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
+        let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
+        if st.has_recurrent() {
+            // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
+            // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
+            p = st.restorable_len(p);
+        }
+        st.truncate(p, &*model.backend)?;
+
+        let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
+        let greedy = req.temperature <= 0.0;
+        let sampler = Sampler::new(params, req.seed);
+        let mut stop_ids: Vec<u32> = req.stop_ids.clone();
+        if !req.ignore_eos {
+            stop_ids.extend_from_slice(&sh.eos);
+        }
+        // Like vLLM, stop strings are not checked until `min_tokens` tokens exist.
+        let stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
+        let spec_on =
+            sh.spec.enabled() && greedy && req.trace_logits.is_none() && !st.has_recurrent() && model.verify_rows() >= 2;
+        let spec_k = sh.spec.k.min(model.verify_rows().saturating_sub(1));
+        let ctx: Vec<u32> = if spec_on { req.prompt.clone() } else { Vec::new() };
+        let now = Instant::now();
+        Ok(Seq {
+            plen,
+            cached: p,
+            max_new,
+            greedy,
+            sampler,
+            stop_ids,
+            t0: now,
+            pos: p,
+            prefill: Duration::ZERO,
+            t_dec: now,
+            tok: 0,
+            last_id: 0,
+            generated: 0,
+            reason: None,
+            string_stop: false,
+            dec: IncrementalDecoder::new(),
+            stops,
+            spec_on,
+            spec_k,
+            pending: std::collections::VecDeque::new(),
+            plain_next: false,
+            ctx,
+            gate: crate::spec::SpecGate::new(crate::spec::GateParams::from_env()),
+            codec: sh.codec.clone(),
+            telemetry: sh.telemetry.clone(),
+            req,
+            tx,
+        })
+    }
+
+    fn cancelled(&self) -> bool {
+        self.req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed))
+    }
+
+    fn cancel_outcome(&self) -> Outcome {
+        Outcome {
+            reason: FinishReason::Cancelled,
+            stop_sequence: None,
+            prompt_tokens: self.plen,
+            completion_tokens: 0,
+            cached_tokens: self.cached,
+            prefill: self.t0.elapsed(),
+            decode: Duration::ZERO,
+        }
+    }
+
+    /// How the head of a step that samples the `k`-th generated token (1-based) must run: the logits only travel to
+    /// the host when something uses them (sampling, the `min_tokens` mask on stop ids, logit tracing); otherwise the
+    /// argmax stays on device. With `ignore_eos` (no stop ids) a forced-length greedy run keeps the on-device argmax,
+    /// so forced-length speed benchmarks measure the real decode path.
+    pub(crate) fn head_mode(&self, k: usize) -> HeadMode {
+        let masks_stop_ids = k <= self.req.min_tokens && !self.stop_ids.is_empty();
+        if !self.greedy || masks_stop_ids || self.req.trace_logits.is_some() {
+            HeadMode::LastLogits
+        } else {
+            HeadMode::LastArgmax
+        }
+    }
+
+    /// The `k`-th generated token from the output of a step run with [`Seq::head_mode`]`(k)`.
+    pub(crate) fn token_from(&mut self, out: StepOut, k: usize) -> Result<u32> {
+        let logits = self.head_mode(k) == HeadMode::LastLogits;
+        match out {
+            StepOut::Token(t) if !logits => Ok(t),
+            StepOut::Logits(mut l) if logits => {
+                if let Some(t) = &self.req.trace_logits {
                     t.lock().unwrap().push(l.clone());
                 }
-                if k <= req.min_tokens {
-                    for &s in &stop_ids {
+                if k <= self.req.min_tokens {
+                    for &s in &self.stop_ids {
                         if let Some(x) = l.get_mut(s as usize) {
                             *x = f32::NEG_INFINITY;
                         }
                     }
                 }
-                Ok(sampler.sample(&l) as u32)
+                Ok(self.sampler.sample(&l) as u32)
             }
-            _ => Err(Error::Other("backend returned no logits".into())),
+            _ => Err(Error::Other(if logits { "backend returned no logits" } else { "backend returned no token" }.into())),
         }
-    };
+    }
 
-    let cancelled = || req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed));
-    let t0 = Instant::now();
-    let cancel_outcome = |p: usize| Outcome {
-        reason: FinishReason::Cancelled,
-        stop_sequence: None,
-        prompt_tokens: plen,
-        completion_tokens: 0,
-        cached_tokens: p,
-        prefill: t0.elapsed(),
-        decode: Duration::ZERO,
-    };
-    if max_new == 0 {
-        return Ok(Outcome {
-            reason: FinishReason::Length,
-            stop_sequence: None,
-            prompt_tokens: plen,
-            completion_tokens: 0,
-            cached_tokens: cached,
-            prefill: Duration::ZERO,
-            decode: Duration::ZERO,
-        });
-    }
-    // Prefill all but the last chunk here so a cancel is noticed between chunks.
-    let chunk = model.prefill_chunk().max(1);
-    let mut pos = p;
-    while plen - pos > chunk {
-        if cancelled() {
-            return Ok(cancel_outcome(cached));
+    /// Run the next prompt chunk (all but the last chunk first, so a cancel is noticed between chunks), then the final
+    /// one with the first token sampled from it.
+    pub(crate) fn prefill_step(&mut self, model: &Model, st: &mut SequenceState) -> Result<PrefillStep> {
+        if self.max_new == 0 {
+            return Ok(PrefillStep::Finished(Outcome {
+                reason: FinishReason::Length,
+                stop_sequence: None,
+                prompt_tokens: self.plen,
+                completion_tokens: 0,
+                cached_tokens: self.cached,
+                prefill: Duration::ZERO,
+                decode: Duration::ZERO,
+            }));
         }
-        match model.forward(st, &req.prompt[pos..pos + chunk], HeadMode::None, None)? {
-            StepOut::None => {}
-            _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
+        let chunk = model.prefill_chunk().max(1);
+        if self.cancelled() {
+            return Ok(PrefillStep::Finished(self.cancel_outcome()));
         }
-        pos += chunk;
-        st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+        if self.plen - self.pos > chunk {
+            match model.forward(st, &self.req.prompt[self.pos..self.pos + chunk], HeadMode::None, None)? {
+                StepOut::None => {}
+                _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
+            }
+            self.pos += chunk;
+            st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+            return Ok(PrefillStep::Chunk);
+        }
+        if st.has_recurrent() && self.plen - self.pos > 1 {
+            // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
+            // but its last token, as with an attention-only cache
+            model.forward(st, &self.req.prompt[self.pos..self.plen - 1], HeadMode::None, None)?;
+            self.pos = self.plen - 1;
+            st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+        }
+        let mode = self.head_mode(1);
+        let out = model.forward(st, &self.req.prompt[self.pos..], mode, None)?;
+        self.tok = self.token_from(out, 1)?;
+        self.prefill = self.t0.elapsed();
+        self.t_dec = Instant::now();
+        Ok(PrefillStep::Started)
     }
-    if cancelled() {
-        return Ok(cancel_outcome(cached));
-    }
-    if st.has_recurrent() && plen - pos > 1 {
-        // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
-        // but its last token, as with an attention-only cache
-        model.forward(st, &req.prompt[pos..plen - 1], HeadMode::None, None)?;
-        pos = plen - 1;
-        st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
-    }
-    let mut tok = pick(model, st, &req.prompt[pos..], 1, &mut sampler)?;
-    let prefill = t0.elapsed();
-    let t_dec = Instant::now();
 
-    let codec = &*sh.codec;
-    let mut dec = IncrementalDecoder::new();
-    // Like vLLM, stop strings are not checked until `min_tokens` tokens exist.
-    let mut stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
-    let mut generated = 0usize;
-    let mut reason;
-    let mut string_stop = false;
-    let mut last_id = tok;
-    // Speculative decoding (greedy only: sampled requests, logit tracing and recurrent state take plain steps). A
-    // verify pass yields several tokens; they wait in `pending` and go through the same per-token checks below, so
-    // EOS / stop ids, stop strings, min_tokens and max_tokens act on them exactly as on sequential tokens.
-    let spec = sh.spec;
-    let spec_on = spec.enabled() && greedy && req.trace_logits.is_none() && !st.has_recurrent() && model.verify_rows() >= 2;
-    let spec_k = spec.k.min(model.verify_rows().saturating_sub(1));
-    let mut pending: std::collections::VecDeque<u32> = std::collections::VecDeque::new();
-    // the next token must come from a plain step (a verify row inside the min_tokens mask chose a stop id)
-    let mut plain_next = false;
-    // prompt + tokens so far: the drafter's lookup context
-    let mut ctx: Vec<u32> = if spec_on { req.prompt.clone() } else { Vec::new() };
-    // stops drafting where it does not pay (open-ended text), see `spec::GateParams`
-    let mut gate = crate::spec::SpecGate::new(crate::spec::GateParams::from_env());
-    loop {
-        generated += 1;
-        if spec_on {
-            ctx.push(tok);
+    /// Account for `self.tok`: EOS / stop ids, incremental detokenisation, stop strings, streaming, `max_tokens`,
+    /// cancellation. Returns true when the sequence is finished (call [`Seq::finish`]).
+    pub(crate) fn on_token(&mut self) -> Result<bool> {
+        let tok = self.tok;
+        self.generated += 1;
+        if self.spec_on {
+            self.ctx.push(tok);
         }
-        if stop_ids.contains(&tok) {
-            reason = FinishReason::Stop;
-            break;
+        if self.stop_ids.contains(&tok) {
+            self.reason = Some(FinishReason::Stop);
+            return Ok(true);
         }
-        last_id = tok;
-        let delta = dec.push(codec, tok)?;
-        if req.min_tokens > 0 && generated == req.min_tokens + 1 {
-            stops = StopMatcher::new(&req.stop);
+        self.last_id = tok;
+        let delta = self.dec.push(&*self.codec, tok)?;
+        if self.req.min_tokens > 0 && self.generated == self.req.min_tokens + 1 {
+            self.stops = StopMatcher::new(&self.req.stop);
         }
-        let (text, stopped) = stops.push(&delta);
-        if tx.send(GenEvent::Token { id: tok, text }).is_err() {
-            reason = FinishReason::Cancelled;
-            break;
+        let (text, stopped) = self.stops.push(&delta);
+        if self.tx.send(GenEvent::Token { id: tok, text }).is_err() {
+            self.reason = Some(FinishReason::Cancelled);
+            return Ok(true);
         }
         if stopped {
-            string_stop = true;
-            reason = FinishReason::Stop;
-            break;
+            self.string_stop = true;
+            self.reason = Some(FinishReason::Stop);
+            return Ok(true);
         }
-        if generated >= max_new {
-            reason = FinishReason::Length;
-            break;
+        if self.generated >= self.max_new {
+            self.reason = Some(FinishReason::Length);
+            return Ok(true);
         }
-        if cancelled() {
-            reason = FinishReason::Cancelled;
-            break;
+        if self.cancelled() {
+            self.reason = Some(FinishReason::Cancelled);
+            return Ok(true);
         }
-        if let Some(t) = pending.pop_front() {
-            tok = t;
-            continue;
+        Ok(false)
+    }
+
+    /// What the sequence needs to produce its next token.
+    pub(crate) fn plan_step(&mut self, st: &SequenceState) -> Next {
+        if let Some(t) = self.pending.pop_front() {
+            return Next::Emit(t);
         }
-        if spec_on && !std::mem::take(&mut plain_next) && gate.allow() {
+        if self.spec_on && !std::mem::take(&mut self.plain_next) && self.gate.allow() {
             // verify feeds 1 + d tokens: keep them inside the context window
             let room = st.cap.saturating_sub(st.len + 1);
-            let drafts = crate::spec::propose_min(&ctx, spec_k.min(room), gate.min_n());
+            let drafts = crate::spec::propose_min(&self.ctx, self.spec_k.min(room), self.gate.min_n());
             if !drafts.is_empty() {
-                let pos = st.len;
-                let step = spec_verify(model, st, tok, &drafts, generated, req.min_tokens, &stop_ids)?;
-                sh.telemetry.spec_step(drafts.len(), step.accepted);
-                gate.record(step.accepted);
-                if crate::spec::trace_enabled() {
-                    eprintln!(
-                        "spec: token {} pos {} drafted {} accepted {} emits {}{}",
-                        generated + 1,
-                        pos,
-                        drafts.len(),
-                        step.accepted,
-                        step.emit.len(),
-                        if step.plain_next { " (min_tokens cut: next token by a plain step)" } else { "" }
-                    );
-                }
-                pending.extend(step.emit);
-                plain_next = step.plain_next;
-                if let Some(t) = pending.pop_front() {
-                    tok = t;
-                    continue;
-                }
+                return Next::Verify(drafts);
             }
         }
-        // a plain step now, so a pending "plain next" (a min_tokens cut that emitted nothing) is served by this one
-        plain_next = false;
-        tok = pick(model, st, &[tok], generated + 1, &mut sampler)?;
+        Next::Plain
     }
-    if spec_on {
-        // A stop inside an accepted run leaves KV rows of tokens that were never emitted: roll back to what sequential
-        // decode holds at this point (every emitted token but the last fed), so a following request reuses the same
-        // prefix and prefills the same chunks.
-        let want = plen + generated - 1;
-        if crate::spec::trace_enabled() && (!pending.is_empty() || st.len > want) {
+
+    /// Run the verify pass for `drafts` ([`Next::Verify`]); the verified tokens queue up for [`Seq::plan_step`].
+    pub(crate) fn verify(&mut self, model: &Model, st: &mut SequenceState, drafts: &[u32]) -> Result<()> {
+        let pos = st.len;
+        let step = spec_verify(model, st, self.tok, drafts, self.generated, self.req.min_tokens, &self.stop_ids)?;
+        self.telemetry.spec_step(drafts.len(), step.accepted);
+        self.gate.record(step.accepted);
+        if crate::spec::trace_enabled() {
             eprintln!(
-                "spec: finished at token {generated} with {} verified tokens unemitted; KV {} -> {want}",
-                pending.len(),
-                st.len
+                "spec: token {} pos {} drafted {} accepted {} emits {}{}",
+                self.generated + 1,
+                pos,
+                drafts.len(),
+                step.accepted,
+                step.emit.len(),
+                if step.plain_next { " (min_tokens cut: next token by a plain step)" } else { "" }
             );
         }
-        if st.len > want {
-            st.truncate(want, &*model.backend)?;
-        }
+        self.pending.extend(step.emit);
+        self.plain_next = step.plain_next;
+        Ok(())
     }
-    if reason != FinishReason::Cancelled && !string_stop {
-        // release anything still held back: partial UTF-8 and possible stop-string prefixes
-        let mut tail = String::new();
-        if let Ok(t) = dec.flush(codec) {
-            let (rel, hit) = stops.push(&t);
-            tail.push_str(&rel);
-            if hit {
-                string_stop = true;
-                reason = FinishReason::Stop;
+
+    /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).
+    pub(crate) fn advance(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
+        match self.plan_step(st) {
+            Next::Emit(t) => {
+                self.tok = t;
+                return Ok(());
+            }
+            Next::Verify(drafts) => {
+                self.verify(model, st, &drafts)?;
+                if let Some(t) = self.pending.pop_front() {
+                    self.tok = t;
+                    return Ok(());
+                }
+            }
+            Next::Plain => {}
+        }
+        // a plain step now, so a pending "plain next" (a min_tokens cut that emitted nothing) is served by this one
+        self.plain_next = false;
+        let k = self.generated + 1;
+        let mode = self.head_mode(k);
+        let out = model.forward(st, &[self.tok], mode, None)?;
+        self.tok = self.token_from(out, k)?;
+        Ok(())
+    }
+
+    /// Roll the KV back, release held-back text and report. Call once [`Seq::on_token`] returned true.
+    pub(crate) fn finish(mut self, model: &Model, st: &mut SequenceState) -> Result<Outcome> {
+        let mut reason = self.reason.expect("finish before the sequence ended");
+        if self.spec_on {
+            // A stop inside an accepted run leaves KV rows of tokens that were never emitted: roll back to what sequential
+            // decode holds at this point (every emitted token but the last fed), so a following request reuses the same
+            // prefix and prefills the same chunks.
+            let want = self.plen + self.generated - 1;
+            if crate::spec::trace_enabled() && (!self.pending.is_empty() || st.len > want) {
+                eprintln!(
+                    "spec: finished at token {} with {} verified tokens unemitted; KV {} -> {want}",
+                    self.generated,
+                    self.pending.len(),
+                    st.len
+                );
+            }
+            if st.len > want {
+                st.truncate(want, &*model.backend)?;
             }
         }
-        if !string_stop {
-            tail.push_str(&stops.flush());
+        if reason != FinishReason::Cancelled && !self.string_stop {
+            // release anything still held back: partial UTF-8 and possible stop-string prefixes
+            let mut tail = String::new();
+            if let Ok(t) = self.dec.flush(&*self.codec) {
+                let (rel, hit) = self.stops.push(&t);
+                tail.push_str(&rel);
+                if hit {
+                    self.string_stop = true;
+                    reason = FinishReason::Stop;
+                }
+            }
+            if !self.string_stop {
+                tail.push_str(&self.stops.flush());
+            }
+            if !tail.is_empty() {
+                let _ = self.tx.send(GenEvent::Token { id: self.last_id, text: tail });
+            }
         }
-        if !tail.is_empty() {
-            let _ = tx.send(GenEvent::Token { id: last_id, text: tail });
+        Ok(Outcome {
+            reason,
+            stop_sequence: if self.string_stop { self.stops.matched().map(String::from) } else { None },
+            prompt_tokens: self.plen,
+            completion_tokens: self.generated,
+            cached_tokens: self.cached,
+            prefill: self.prefill,
+            decode: self.t_dec.elapsed(),
+        })
+    }
+}
+
+/// Single-sequence driver: prefill, then one token at a time until the sequence ends.
+fn generate_one(sh: &Shared, g: &mut Inner, req: GenRequest, tx: Sender<GenEvent>) -> Result<Outcome> {
+    let Inner { model, state: st } = g;
+    let mut seq = Seq::new(sh, model, st, req, tx)?;
+    loop {
+        match seq.prefill_step(model, st)? {
+            PrefillStep::Chunk => {}
+            PrefillStep::Started => break,
+            PrefillStep::Finished(o) => return Ok(o),
         }
     }
-    Ok(Outcome {
-        reason,
-        stop_sequence: if string_stop { stops.matched().map(String::from) } else { None },
-        prompt_tokens: plen,
-        completion_tokens: generated,
-        cached_tokens: cached,
-        prefill,
-        decode: t_dec.elapsed(),
-    })
+    while !seq.on_token()? {
+        seq.advance(model, st)?;
+    }
+    seq.finish(model, st)
 }

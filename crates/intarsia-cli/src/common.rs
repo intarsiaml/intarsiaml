@@ -94,6 +94,10 @@ pub struct ModelArgs {
     /// Most draft tokens per verify pass with `--spec ngram` (1..=6).
     #[arg(long, default_value_t = intarsia_core::spec::SPEC_K_DEFAULT)]
     pub spec_k: usize,
+    /// Concurrent sequences the engine decodes together (continuous batching). Only 1 is implemented so far; larger
+    /// values are rejected until the batching scheduler lands (docs/research/continuous-batching-design.md, M1).
+    #[arg(long, default_value_t = 1)]
+    pub max_batch: usize,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -189,6 +193,12 @@ impl ModelArgs {
     }
 
     pub fn engine_options(&self) -> Result<EngineOptions> {
+        if self.max_batch == 0 {
+            bail!("--max-batch must be at least 1");
+        }
+        if self.max_batch > 1 {
+            bail!("--max-batch {} is not implemented yet (continuous batching is milestone M1); use --max-batch 1", self.max_batch);
+        }
         let kv_dtype = self.kv_dtype.as_deref().map(DType::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?;
         let chat_template = if let Some(p) = &self.chat_template_file {
             ChatTemplateSource::File(p.clone())
