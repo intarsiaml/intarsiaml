@@ -37,7 +37,9 @@ Exit codes: `compare` / `gate` 1 on any mismatch, reference error or missing ref
 
 ## 3. What is compared
 
-The server exposes no token ids: `crates/intarsia-server/src/openai.rs` has no logprobs and no ids extension (`GenEvent::Token` carries an id internally, the API drops it), and `crates/` was off limits. **Token ids are therefore not compared.** Compared per request, exactly:
+Since the `metal-server-ids` branch the server can return the generated token ids (section 8), and the harness compares them as the primary criterion whenever both runs have them. Compared per request, exactly:
+
+* **token ids** (when available, see section 8): the full id list must be equal; a difference is reported first, as `TOKEN IDS differ at token N`;
 
 * the response text, byte for byte;
 * for streamed runs against the streamed reference, the whole list of SSE deltas. Each non-empty delta is one token's released text, so this is the closest stand-in for an id sequence (it also catches different token boundaries that concatenate to the same text);
@@ -78,7 +80,7 @@ An earlier GPU run on the first case set (40 cases, slot #2051, B=2, 8 mixed, 4 
 
 ## 6. Limits and gaps
 
-* **No token ids.** Text, deltas, finish and counts are compared. For the M1 gate the server needs an ids extension (for example an `x_token_ids` field on each chunk and on the final response) to compare `ids` as the gate text says; the harness would add it to the compared fields.
+* **Token ids need the server extension** (section 8). Against a server without it the harness falls back to text, deltas, finish and counts, and prints a warning that ids were not compared.
 * **Only the serial server was tested.** Server-side concurrency was 1 in every run, so a pass here shows the harness and the client-side concurrency (B outstanding requests, mixed stream modes, cancels) work, not that batched output is identical. The injected-bug mock shows detection works when requests do overlap.
 * **Not run on the GPU:** the full 203 cases (including the three `golden_4k` prompts), B=3 and B=6, and the stream modes at B=2 and B=8 separately. Estimated cost of the full gate on the serial server from the measured 83 s per 49 cases: about 6 min per replay, about 7 min for the reference, so about 40 min for `--b 2,3,4,6,8 --streams mixed`; a batched server will be faster.
 * **Cancel effectiveness.** Only 3 of the 5 cancelled requests emitted output; the others were cancelled while queued or at the first token. With the serial queue a millisecond cancel mostly fires before the request starts, so most cancels are by delta count; the report prints the "emitted >0" count so a gate run can require enough effective cancels. The harness does not check that the server released the cancelled request's slot or that later requests are unaffected beyond their own identity.
@@ -99,3 +101,14 @@ All GPU use ran in exclusive endor slots (`--mem 24`), taken by `cbidentity_e2e.
 | #2055 | e2e on the final case set (49 cases), the table above | 15:12:32 | 15:22:03 |
 
 No `intarsia serve` process of this session was left (`leftover serve on port 8099: 0`).
+
+## 8. Token ids (`return_token_ids`)
+
+`intarsia serve` takes an opt-in request field `"return_token_ids": true` (top level, as in vLLM) on `/v1/chat/completions` and `/v1/completions`. Without it the responses are unchanged. With it:
+
+* non-streaming: `choices[0].token_ids`, the generated ids in order;
+* streaming: `choices[0].delta.token_ids` (chat) or `choices[0].token_ids` (completions) on each token chunk, as a one-element list. Tokens whose text is still held back (partial UTF-8, possible stop-string prefix) get a chunk with empty content and their id, so the concatenated ids are complete even where the text delta is delayed;
+* the stop/EOS token is not in the list (it is counted in `completion_tokens`, so `len(token_ids) == completion_tokens` for `length`, one less for an EOS stop). The engine's text-only tail event (it repeats the last id to release held-back text) is recognised from `completion_tokens` and its id is dropped, its text is still sent. Cost: with the field set, streaming holds back the newest token by one event.
+* known edge: a stop-id finish whose held-back text then completes a stop string in the final flush is miscounted by one (the tail id is kept). It needs both a stop token and a stop string to meet in the flush; the engine would have to flag the tail event to remove the edge.
+
+Harness: `--token-ids auto|on|off` (default `auto`) on `run` and `gate`. `auto` sends a 1-token probe with `return_token_ids` and requests ids only if `token_ids` comes back; `on` aborts if the probe fails; `off` never asks. The run header records `token_ids`. `compare` compares ids only for pairs where both records have them (also as a prefix check for cancelled requests), counts them in the `ids cmp` column and warns when a test run compared none. The self-test (`uv run tools/cbidentity.py selftest`) covers: synthetic id cases, a mock with ids, an id-only injected bug (`mock --bug inflight-id`, text identical, caught by the ids alone), and a mock without the extension (`mock --no-ids`, probe says no, text criteria still run, warning printed, `--token-ids on` fails).
