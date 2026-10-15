@@ -352,7 +352,10 @@ Core path M0-M3: **17-23 working days** (estimate). Optional M4-M6: +9-11. This 
 | 6 | **FIFO admission.** | No priorities and no shortest-prompt-first. |
 | 7 | **Speculation turns off automatically at B >= 4** (configurable). | `--spec ngram` stays on at low load, and the scheduler stops drafting while 4 or more sequences are active. |
 
-Questions 9 and 10, and the slot layout part of 3, are still open.
+| 9 | **MoE and recurrent/hybrid models out of scope.** (2026-10-15 19:29 EDT) | `BatchEngine` refuses them at load. Batching them would need its own estimate and decision. |
+| 10 | **ADR-0010 accepted.** | `docs/decisions/0010-continuous-batching.md` (branch metal-cb-adr). |
+
+Only the slot layout part of 3 is still open.
 
 ## 9. Sources and confidence
 
