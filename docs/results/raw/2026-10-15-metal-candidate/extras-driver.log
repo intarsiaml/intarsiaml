@@ -1,0 +1,23 @@
+fleetq: #1961 waiting (#1 in line): endor is held exclusively by #1960 "f1b final gates (tests, accuracy, ids, chunk, qualify)" (claude-31e10c55)
+fleetq:   #1960 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1960 set, or it will wait for #1960 to be released.
+fleetq job 1961
+== 1. selfcheck at chunk 256, --allow-config-mismatch
+short exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+long exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+== 2. decode cross-check
+pre 4k: period/busy/idle/disp 28.160 27.830 0.330 364.0 (35.47 tok/s)
+base 4k: period/busy/idle/disp 28.345 28.009 0.336 364.0 (35.27 tok/s)
+cand 4k: period/busy/idle/disp 28.959 28.534 0.425 364.0 (34.53 tok/s)
+cand 4k: period/busy/idle/disp 28.153 27.825 0.328 364.0 (35.52 tok/s)
+base 4k: period/busy/idle/disp 28.086 27.795 0.291 364.0 (35.60 tok/s)
+pre 4k: period/busy/idle/disp 28.092 27.768 0.324 364.0 (35.59 tok/s)
+pre short: period/busy/idle/disp 27.096 26.805 0.291 364.0 (36.90 tok/s)
+base short: period/busy/idle/disp 27.320 26.986 0.334 364.0 (36.60 tok/s)
+cand short: period/busy/idle/disp 27.160 26.862 0.298 364.0 (36.81 tok/s)
+cand short: period/busy/idle/disp 27.098 26.781 0.317 364.0 (36.90 tok/s)
+base short: period/busy/idle/disp 27.040 26.752 0.288 364.0 (36.98 tok/s)
+pre short: period/busy/idle/disp 27.072 26.752 0.320 364.0 (36.93 tok/s)
+done
+#1961 "metal-candidate extras (c256 selfcheck, decode cross-check)" (claude-31e10c55) done on endor exclusive 24 GB

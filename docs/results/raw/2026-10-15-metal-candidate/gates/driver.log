@@ -1,0 +1,130 @@
+fleetq job 1957
+== 1. metal unit tests + kernel admission
+cargo test metal exit 0
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.83s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.71s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.69s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+kernels test exit 0
+ADMITTED count: 23
+23 kernels, 272 cases in 32.8s
+== 2. plan
+plan cand default: "prefill_chunk": 2048 "prefill_chunk_source": "recipe qwen3 
+== 3. decode dispatches per step (364 expected), base vs cand ABBA
+base short: period/busy/idle/disp 27.336 27.011 0.324 364.0 (36.58 tok/s)
+cand short: period/busy/idle/disp 27.246 26.894 0.352 364.0 (36.70 tok/s)
+cand short: period/busy/idle/disp 27.429 27.083 0.346 364.0 (36.45 tok/s)
+base short: period/busy/idle/disp 28.312 27.837 0.475 364.0 (35.31 tok/s)
+base 4k: period/busy/idle/disp 29.631 29.038 0.593 364.0 (33.74 tok/s)
+cand 4k: period/busy/idle/disp 29.619 29.169 0.450 364.0 (33.76 tok/s)
+cand 4k: period/busy/idle/disp 29.782 29.288 0.494 364.0 (33.57 tok/s)
+base 4k: period/busy/idle/disp 29.930 29.445 0.485 364.0 (33.40 tok/s)
+== 4. accuracy vs fp32 goldens (bf16 gate class): base (256), cand default (2048), cand --prefill-chunk 256
+accuracy base short exit 0
+accuracy base long exit 0
+base short: top-1 99.77% full-vocab KL 2.686e-4 PASS top-1 100.00% full-vocab KL 3.739e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 256 (default)
+base long: top-1 99.65% full-vocab KL 4.342e-4 PASS top-1 100.00% full-vocab KL 3.731e-4 PASS PASS PASS 
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+accuracy cand short exit 0
+accuracy cand long exit 0
+cand short: top-1 99.54% full-vocab KL 2.602e-4 PASS top-1 100.00% full-vocab KL 3.089e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 2048 (recipe qwen3, metal)
+cand long: top-1 99.58% full-vocab KL 3.993e-4 PASS top-1 100.00% full-vocab KL 3.041e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+prefill chunk 2048 (recipe qwen3, metal)
+accuracy cand-c256 short exit 0
+accuracy cand-c256 long exit 0
+cand-c256 short: top-1 99.54% full-vocab KL 2.602e-4 PASS top-1 100.00% full-vocab KL 3.089e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 256 (--prefill-chunk)
+cand-c256 long: top-1 99.58% full-vocab KL 3.993e-4 PASS top-1 100.00% full-vocab KL 3.041e-4 PASS PASS PASS 
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+== 4b. baseline self-check against P3's recorded Metal baselines/envelopes (read-only, no re-record), cand default and c256
+selfcheck short default exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+selfcheck long default exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+selfcheck short 256 exit 1
+selfcheck long 256 exit 1
+== 5. greedy ids, base vs cand
+short 48 tokens base vs cand: ids identical (48 tokens)
+4k 48 tokens base vs cand: ids identical (48 tokens)
+short 256 tokens base vs cand: ids identical (256 tokens)
+4k 256 tokens base vs cand: ids identical (256 tokens)
+== 6. chunk invariance (cand): 4k 48 ids default vs several --prefill-chunk; short-golden prefill KL per chunk
+cand 4k: default vs chunk 64: ids identical (48 tokens)
+cand 4k: default vs chunk 128: ids identical (48 tokens)
+cand 4k: default vs chunk 256: ids identical (48 tokens)
+cand 4k: default vs chunk 512: ids identical (48 tokens)
+cand 4k: default vs chunk 1024: ids identical (48 tokens)
+cand 4k: default vs chunk 2048: ids identical (48 tokens)
+cand 4k: default vs chunk 4050: ids identical (48 tokens)
+accuracy prefill cand short chunk 16: full-vocab KL 2.883e-4
+accuracy prefill cand short chunk 64: full-vocab KL 2.613e-4
+accuracy prefill cand short chunk 128: full-vocab KL 2.602e-4
+accuracy prefill cand short chunk 256: full-vocab KL 2.602e-4
+accuracy prefill cand short chunk 512: full-vocab KL 2.602e-4
+accuracy prefill cand short chunk 2048: full-vocab KL 2.602e-4
+== 7. qualify, default recipe (chunk 2048) and recipe forced to metal chunk 256
+qualify default exit 1
+**Verdict: FAIL** (12 stages: 9 pass, 1 fail, 0 error, 2 skipped)
+| Accuracy (short golden) | **PASS** (prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4) |
+| Accuracy (long golden) | **FAIL** (prefill top-1 99.58% KL 3.99e-4; decode top-1 99.80% KL 3.02e-4) |
+| Quick gate | **PASS**: perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+- `acc-long` **FAIL**: prefix reuse differs from a cold run
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 23 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 36s | 15 ops resolved, exactness deterministic, loaded in 35.8s |
+| 4 | `kernels` kernels test on the model's shapes | quick | PASS | 33s | 23 kernels, 272 cases in 32.8s |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 10s | perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4 |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | PASS | 71s | decode 36.7 tok/s at 128 tokens (90% of the byte floor) |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | FAIL | 24s | prefix reuse differs from a cold run |
+| 9 | `envelope` noise envelope and baseline for regression gating | full | PASS | 15s | baseline and envelope (chunk) written; they gate this build: PASS |
+| 10 | `bench-long` long-context bench up to 16k | full | PASS | 71s | decode 36.6 tok/s at 1024 tokens (90% of the byte floor) |
+| 11 | `ab` A/B against the reference server via localeval | full | SKIP | 0s | no --reference server given |
+| 12 | `tp` tensor-parallel variant | full | SKIP | 0s | --tp not given (or 1) |
+**Regression gating artifacts**: baseline and envelope (chunk) written; they gate this build: PASS
+- recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
+- plan: 15 ops resolved, exactness deterministic, loaded in 35.8s (PASS)
+- kernels test: 23 kernels, 272 cases in 32.8s (PASS)
+qualify c256 exit 0
+**Verdict: PASS** (12 stages: 10 pass, 0 fail, 0 error, 2 skipped)
+| Accuracy (short golden) | **PASS** (prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.58% KL 3.99e-4; decode top-1 99.80% KL 3.02e-4) |
+| Quick gate | **PASS**: perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 23 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | explicit recipe /opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/docs/results/raw/2026-10-15-metal-candidate/gates/qwen3-c256.toml (family qwen3) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 32s | 15 ops resolved, exactness deterministic, loaded in 31.5s |
+| 4 | `kernels` kernels test on the model's shapes | quick | PASS | 33s | 23 kernels, 272 cases in 32.6s |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 10s | perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4 |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | PASS | 72s | decode 36.5 tok/s at 128 tokens (90% of the byte floor) |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 39s | prefill top-1 99.58% KL 3.99e-4; decode top-1 99.80% KL 3.02e-4 |
+| 9 | `envelope` noise envelope and baseline for regression gating | full | PASS | 15s | baseline and envelope (chunk) written; they gate this build: PASS |
+| 10 | `bench-long` long-context bench up to 16k | full | PASS | 74s | decode 36.3 tok/s at 1024 tokens (90% of the byte floor) |
+| 11 | `ab` A/B against the reference server via localeval | full | SKIP | 0s | no --reference server given |
+| 12 | `tp` tensor-parallel variant | full | SKIP | 0s | --tp not given (or 1) |
+**Regression gating artifacts**: baseline and envelope (chunk) written; they gate this build: PASS
+- recipe: explicit recipe /opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/docs/results/raw/2026-10-15-metal-candidate/gates/qwen3-c256.toml (family qwen3) (PASS)
+- plan: 15 ops resolved, exactness deterministic, loaded in 31.5s (PASS)
+- kernels test: 23 kernels, 272 cases in 32.6s (PASS)
+done
+#1957 "metal-candidate gates (tests, accuracy, ids, qualify)" (claude-31e10c55) done on endor exclusive 24 GB

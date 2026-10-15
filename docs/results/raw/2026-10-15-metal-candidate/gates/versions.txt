@@ -1,0 +1,4 @@
+0b2e3a2df1f57f59e4aba0d9ab6cf7885b35c46c
+-rwxr-xr-x@ 1 josef  wheel  16480016 Oct 15 01:40 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-base
+-rwxr-xr-x@ 1 josef  wheel  16565744 Oct 15 01:40 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-cand
+intarsia 0.0.1

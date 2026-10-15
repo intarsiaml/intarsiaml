@@ -1,0 +1,5 @@
+   Compiling intarsia-backend-hip v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/crates/intarsia-backend-hip)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/crates/intarsia-backend-metal)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.18s
+exit 0

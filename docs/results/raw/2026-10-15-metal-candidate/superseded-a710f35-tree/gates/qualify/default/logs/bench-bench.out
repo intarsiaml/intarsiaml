@@ -1,0 +1,10 @@
+qualify-Qwen3-8B-metal-bench  model=qualify-Qwen3-8B  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      121     0.053         2338        36.5      128       90.0
+    1024        -         -            -           -        -          -
+    4096        -         -            -           -        -          -
+bandwidth floor: 40.6 tok/s
+warning: size 1024: warmup failed: request: io: Connection refused (os error 61)
+warning: size 1024: 3/3 calls failed, e.g. request: io: Connection refused (os error 61)
+warning: size 4096: warmup failed: request: io: Connection refused (os error 61)
+warning: size 4096: 3/3 calls failed, e.g. request: io: Connection refused (os error 61)

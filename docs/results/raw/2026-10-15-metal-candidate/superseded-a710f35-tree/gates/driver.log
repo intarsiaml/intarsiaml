@@ -1,0 +1,81 @@
+fleetq job 1956
+== 1. metal unit tests + kernel admission
+cargo test metal exit 0
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.68s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.80s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+kernels test exit 0
+ADMITTED count: 23
+23 kernels, 272 cases in 32.8s
+== 2. plan
+plan cand default: "prefill_chunk": 2048 "prefill_chunk_source": "recipe qwen3 
+== 3. decode dispatches per step (364 expected), base vs cand ABBA
+base short: period/busy/idle/disp 27.186 26.873 0.313 364.0 (36.78 tok/s)
+cand short: period/busy/idle/disp 27.239 26.947 0.292 364.0 (36.71 tok/s)
+cand short: period/busy/idle/disp 27.258 26.935 0.322 364.0 (36.68 tok/s)
+base short: period/busy/idle/disp 27.051 26.769 0.281 364.0 (36.96 tok/s)
+base 4k: period/busy/idle/disp 28.019 27.709 0.309 364.0 (35.69 tok/s)
+cand 4k: period/busy/idle/disp 28.256 27.926 0.330 364.0 (35.39 tok/s)
+cand 4k: period/busy/idle/disp 28.069 27.776 0.292 364.0 (35.62 tok/s)
+base 4k: period/busy/idle/disp 28.262 27.948 0.314 364.0 (35.38 tok/s)
+== 4. accuracy vs fp32 goldens (bf16 gate class): base (256), cand default (2048), cand --prefill-chunk 256
+accuracy base short exit 0
+accuracy base long exit 0
+base short: top-1 99.77% full-vocab KL 2.686e-4 PASS top-1 100.00% full-vocab KL 3.739e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 256 (default)
+base long: top-1 99.65% full-vocab KL 4.342e-4 PASS top-1 100.00% full-vocab KL 3.731e-4 PASS PASS PASS 
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+accuracy cand short exit 0
+accuracy cand long exit 0
+cand short: top-1 99.54% full-vocab KL 2.602e-4 PASS top-1 100.00% full-vocab KL 3.089e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 2048 (recipe qwen3, metal)
+cand long: top-1 99.58% full-vocab KL 3.993e-4 PASS top-1 100.00% full-vocab KL 3.041e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+prefill chunk 2048 (recipe qwen3, metal)
+accuracy cand-c256 short exit 0
+accuracy cand-c256 long exit 0
+cand-c256 short: top-1 99.54% full-vocab KL 2.602e-4 PASS top-1 100.00% full-vocab KL 3.089e-4 PASS PASS PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 256 (--prefill-chunk)
+cand-c256 long: top-1 99.58% full-vocab KL 3.993e-4 PASS top-1 100.00% full-vocab KL 3.041e-4 PASS PASS PASS 
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+== 4b. baseline self-check against P3's recorded Metal baselines/envelopes (read-only, no re-record), cand default and c256
+selfcheck short default exit 1
+selfcheck long default exit 1
+selfcheck short 256 exit 1
+selfcheck long 256 exit 1
+== 5. greedy ids, base vs cand
+short 48 tokens base vs cand: ids identical (48 tokens)
+4k 48 tokens base vs cand: ids identical (48 tokens)
+short 256 tokens base vs cand: ids identical (256 tokens)
+4k 256 tokens base vs cand: ids identical (256 tokens)
+== 6. chunk invariance (cand): 4k 48 ids default vs several --prefill-chunk; short-golden prefill KL per chunk
+cand 4k: default vs chunk 64: ids identical (48 tokens)
+cand 4k: default vs chunk 128: ids identical (48 tokens)
+cand 4k: default vs chunk 256: ids identical (48 tokens)
+cand 4k: default vs chunk 512: ids identical (48 tokens)
+cand 4k: default vs chunk 1024: ids identical (48 tokens)
+cand 4k: default vs chunk 2048: ids identical (48 tokens)
+cand 4k: default vs chunk 4050: ids identical (48 tokens)
+accuracy prefill cand short chunk 16: full-vocab KL 2.883e-4
+accuracy prefill cand short chunk 64: full-vocab KL 2.613e-4
+accuracy prefill cand short chunk 128: full-vocab KL 2.602e-4
+accuracy prefill cand short chunk 256: full-vocab KL 2.602e-4
+accuracy prefill cand short chunk 512: full-vocab KL 2.602e-4
+accuracy prefill cand short chunk 2048: full-vocab KL 2.602e-4
+== 7. qualify, default recipe (chunk 2048) and recipe forced to metal chunk 256

@@ -1,0 +1,16 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/docs/results/raw/2026-10-15-metal-candidate/gates/qualify/default
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 23 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     37s] plan: PASS in 36.5s (15 ops resolved, exactness deterministic, loaded in 36.5s)
+[qualify     37s] == kernels [kernels test on the model's shapes]
+[qualify     71s] kernels: PASS in 34.4s (23 kernels, 272 cases in 34.2s)
+[qualify     71s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     83s] gate: PASS in 11.9s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     83s] == acc-short [short accuracy against a golden]
+[qualify     90s] acc-short: PASS in 7.2s (prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4)
+[qualify     90s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    123s] server up in 32s on http://127.0.0.1:8090 (max-seq 4608)

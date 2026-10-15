@@ -1,0 +1,30 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/docs/results/raw/2026-10-15-metal-candidate/gates/qualify/default
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 23 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     36s] plan: PASS in 35.8s (15 ops resolved, exactness deterministic, loaded in 35.8s)
+[qualify     36s] == kernels [kernels test on the model's shapes]
+[qualify     69s] kernels: PASS in 33.0s (23 kernels, 272 cases in 32.8s)
+[qualify     69s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     79s] gate: PASS in 9.8s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     79s] == acc-short [short accuracy against a golden]
+[qualify     86s] acc-short: PASS in 7.0s (prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4)
+[qualify     86s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    118s] server up in 32s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    157s] bench: PASS in 71.3s (decode 36.7 tok/s at 128 tokens (90% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/docs/results/raw/2026-10-15-metal-candidate/gates/qualify/default/quick-report.md
+[qualify    157s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    181s] acc-long: FAIL in 23.6s (prefix reuse differs from a cold run)
+[qualify    181s] == envelope [noise envelope and baseline for regression gating]
+[qualify    196s] envelope: PASS in 14.6s (baseline and envelope (chunk) written; they gate this build: PASS)
+[qualify    196s] == bench-long [long-context bench up to 16k]
+[qualify    230s] server up in 34s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    266s] bench-long: PASS in 70.8s (decode 36.6 tok/s at 1024 tokens (90% of the byte floor))
+[qualify    266s] == ab [A/B against the reference server via localeval]
+[qualify    266s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    266s] == tp [tensor-parallel variant]
+[qualify    266s] tp: SKIP in 0.0s (--tp not given (or 1))
+FULL DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a0a61a602516c3238/docs/results/raw/2026-10-15-metal-candidate/gates/qualify/default/full-report.md
+[qualify    266s] exit code 1

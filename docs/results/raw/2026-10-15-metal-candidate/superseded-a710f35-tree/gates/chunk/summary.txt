@@ -1,0 +1,7 @@
+cand 4k: default vs chunk 64: ids identical (48 tokens)
+cand 4k: default vs chunk 128: ids identical (48 tokens)
+cand 4k: default vs chunk 256: ids identical (48 tokens)
+cand 4k: default vs chunk 512: ids identical (48 tokens)
+cand 4k: default vs chunk 1024: ids identical (48 tokens)
+cand 4k: default vs chunk 2048: ids identical (48 tokens)
+cand 4k: default vs chunk 4050: ids identical (48 tokens)

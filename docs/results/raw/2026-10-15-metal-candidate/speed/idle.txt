@@ -1,0 +1,5 @@
+idle start: "Device Utilization %"=94 "Device Utilization %"=1 "Device Utilization %"=0 
+idle 1k: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 
+idle 4k: "Device Utilization %"=89 "Device Utilization %"=3 "Device Utilization %"=0 
+idle 16k: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=1 
+idle end: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
