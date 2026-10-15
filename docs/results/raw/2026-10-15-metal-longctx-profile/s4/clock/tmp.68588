@@ -1,0 +1,3 @@
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  30720 nax                            54702.2   53247.2   59798.8    19.47

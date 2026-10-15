@@ -1,2 +1,293 @@
 fleetq: #2022 waiting (#4 in line): in line behind #2013 "prefill-balance: slot A ABBA prefill base vs new (Qwen3-8B)" (claude-0e8026c5) on endor
 fleetq: #2022 waiting (#3 in line): in line behind #2018 "metal-weight-realign: slot1b identity, memory, accuracy" (claude-0e8026c5) on endor
+fleetq: #2022 waiting (#2 in line): in line behind #2019 "metal-weight-realign: slot4 env-mode tests" (claude-0e8026c5) on endor
+fleetq: #2022 waiting (#1 in line): endor is held exclusively by #2019 "metal-weight-realign: slot4 env-mode tests" (claude-0e8026c5)
+fleetq job 2022 (metal longctx profile) acquired Thu Oct 15 13:40:20 EDT 2026
+  RUNNING #2022 "metal longctx profile" (claude-31e10c55) running on endor exclusive 60 GB for 2s
+  QUEUED 1. #2031 "metal spec G2G3: E: G3 localeval quality dataset ABBA" (claude-31e10c55): endor is held exclusively by #2022 "metal longctx profile" (claude-31e10c55)
+idle start: "Device Utilization %"=0 "Device Utilization %"=0 "Device Utilization %"=1 
+=== warmup
+warm2 [13:40:27]: prefill 1296 ms (3160.5 tok/s) | decode 199 ms (35.14 tok/s) clock(med p10 %<1450 W C)=[1617 935 20 96 63] clockok=0
+=== A. 32k kernel-mode + cb traces first (the 32k traces of slots 1-2 ran under 1450 MHz)
+temp before kernel-32768: 63 C
+ctx32768-c2048-a1 [13:40:53]: prefill 19705 ms (1662.7 tok/s) | decode 6055 ms (10.57 tok/s) clock(med p10 %<1450 W C)=[1345 1202 87 47 77] clockok=1
+temp before kernel-32768: 68 C
+ctx32768-c2048-a2 [13:41:20]: prefill 19608 ms (1670.9 tok/s) | decode 6407 ms (9.99 tok/s) clock(med p10 %<1450 W C)=[1384 1201 69 56 88] clockok=1
+temp before cb-32768: 72 C
+  cooled to 59 C after 10 s
+ctx32768-c2048-a1 [13:41:53]: prefill 17849 ms (1835.6 tok/s) | decode 4588 ms (27.90 tok/s) clock(med p10 %<1450 W C)=[1222 1142 97 45 78] clockok=1
+=== D2. prefill attention (NAX flash, default s4): chunk size at pos0 16384
+temp before flash-c512-p16384b-a1: 74 C
+  cooled to 59 C after 10 s
+## flash-c512-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1617 666 20 100 61 5] clockok=0
+heads 32/8 head_dim 128, chunk 512, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                             3171.1    3168.5    3213.1    44.02
+temp before flash-c1024-p16384b-a1: 60 C
+## flash-c1024-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1617 1579 10 104 75 10] clockok=0
+heads 32/8 head_dim 128, chunk 1024, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                             6336.2    6323.0    6348.8    44.74
+temp before flash-c4096-p16384b-a1: 74 C
+  cooled to 55 C after 10 s
+## flash-c4096-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1124 1009 96 42 72 50] clockok=1
+heads 32/8 head_dim 128, chunk 4096, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                            31997.6   30638.8   37542.2    38.66
+temp before flash-c2048-p16384b-a1: 70 C
+## flash-c2048-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1517 1342 32 93 81 19] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                            12843.0   12113.5   13822.1    45.48
+=== F. decode split policy sweep, min_keys,target_tgs
+temp before sweep-40000-128,120-a1: 80 C
+  cooled to 56 C after 10 s
+## sweep-40000-128,120 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,120
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16_splitkv       288.4     287.3     289.7      568   (93% of 614 GB/s)
+temp before sweep-40000-128,60-a1: 55 C
+## sweep-40000-128,60 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,60
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16_splitkv       296.6     295.6     298.3      552   (90% of 614 GB/s)
+temp before sweep-40000-128,240-a1: 54 C
+## sweep-40000-128,240 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,240
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16_splitkv       306.0     304.6     306.7      535   (87% of 614 GB/s)
+temp before sweep-40000-128,360-a1: 53 C
+## sweep-40000-128,360 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,360
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16_splitkv       323.4     322.8     325.6      507   (83% of 614 GB/s)
+temp before sweep-40000-128,512-a1: 52 C
+## sweep-40000-128,512 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,512
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16_splitkv       319.5     318.7     321.2      513   (84% of 614 GB/s)
+temp before sweep-40000-256,120-a1: 51 C
+## sweep-40000-256,120 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 256,120
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16_splitkv       288.8     287.9     290.0      567   (92% of 614 GB/s)
+temp before sweep-40000-128,120-a1: 51 C
+## sweep-40000-128,120 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,120
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16_splitkv       285.7     284.7     288.1      574   (93% of 614 GB/s)
+temp before sweep-16384-128,120-a1: 51 C
+## sweep-16384-128,120 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,120
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       122.3     121.7     123.1      549   (89% of 614 GB/s)
+temp before sweep-16384-128,60-a1: 51 C
+## sweep-16384-128,60 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,60
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       126.2     125.7     127.5      532   (87% of 614 GB/s)
+temp before sweep-16384-128,240-a1: 51 C
+## sweep-16384-128,240 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,240
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       137.0     136.3     137.7      490   (80% of 614 GB/s)
+temp before sweep-16384-128,360-a1: 51 C
+## sweep-16384-128,360 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,360
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       141.8     141.1     142.0      473   (77% of 614 GB/s)
+temp before sweep-16384-128,512-a1: 50 C
+## sweep-16384-128,512 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,512
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       136.8     136.4     137.3      491   (80% of 614 GB/s)
+temp before sweep-16384-256,120-a1: 50 C
+## sweep-16384-256,120 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 256,120
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       121.9     121.5     123.9      551   (90% of 614 GB/s)
+temp before sweep-16384-128,120-a1: 50 C
+## sweep-16384-128,120 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy 128,120
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       122.8     122.1     124.9      547   (89% of 614 GB/s)
+--- greedy ids at 4k, 48 tokens, per variant
+=== E. NAX flash NSG / BK experiment (patched build): s4 s8 s16 s32 s4_k64 s8_k64, chunk 2048, ABBA by position
+temp before fv-attn_nax_d128_s4-p38912-a1: 77 C
+  cooled to 59 C after 10 s
+## fv-attn_nax_d128_s4-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1617 1401 23 107 90 43] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4               30131.4   28824.0   32796.1    44.47
+temp before fv-attn_nax_d128_s8-p38912-a1: 87 C
+  cooled to 67 C after 10 s
+## fv-attn_nax_d128_s8-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1503 1241 35 83 94 48] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8               32066.1   30864.6   36069.4    41.79
+temp before fv-attn_nax_d128_s16-p38912-a1: 92 C
+  cooled to 68 C after 20 s
+## fv-attn_nax_d128_s16-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1527 1418 22 81 95 50] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s16              34374.1   33144.8   35497.1    38.98
+temp before fv-attn_nax_d128_s32-p38912-a1: 94 C
+  cooled to 69 C after 20 s
+## fv-attn_nax_d128_s32-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1430 1182 51 40 96 114] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s32              80582.8   78120.6   81231.5    16.63
+temp before fv-attn_nax_d128_s4_k64-p38912-a1: 96 C
+  cooled to 66 C after 20 s
+## fv-attn_nax_d128_s4_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1242 1113 97 28 74 133] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4_k64           90825.1   87884.3   94143.7    14.75
+temp before fv-attn_nax_d128_s8_k64-p38912-a1: 71 C
+  cooled to 59 C after 10 s
+## fv-attn_nax_d128_s8_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1276 1186 97 28 71 136] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8_k64           92141.0   91420.6   96571.1    14.54
+temp before fv-attn_nax_d128_s8_k64-p38912-a1: 70 C
+## fv-attn_nax_d128_s8_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1370 1156 82 34 79 130] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8_k64           95490.9   87728.6   98199.3    14.03
+temp before fv-attn_nax_d128_s4_k64-p38912-a1: 73 C
+  cooled to 63 C after 10 s
+## fv-attn_nax_d128_s4_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1244 1137 98 28 74 134] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4_k64           90486.6   87514.6   95704.6    14.81
+temp before fv-attn_nax_d128_s32-p38912-a1: 73 C
+  cooled to 62 C after 10 s
+## fv-attn_nax_d128_s32-p38912 attempt 1 clock(med p10 %<1450 W C n)=[643 568 99 11 71 173] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s32             130667.8  115337.3  131471.7    10.26
+temp before fv-attn_nax_d128_s16-p38912-a1: 70 C
+## fv-attn_nax_d128_s16-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1042 852 90 31 79 67] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s16              48872.4   47695.6   53040.4    27.42
+temp before fv-attn_nax_d128_s8-p38912-a1: 73 C
+  cooled to 62 C after 10 s
+## fv-attn_nax_d128_s8-p38912 attempt 1 clock(med p10 %<1450 W C n)=[853 708 97 24 70 75] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8               48033.3   45444.2   60707.0    27.90
+temp before fv-attn_nax_d128_s4-p38912-a1: 69 C
+## fv-attn_nax_d128_s4-p38912 attempt 1 clock(med p10 %<1450 W C n)=[885 665 88 26 80 69] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4               50005.4   47094.5   60515.8    26.80
+temp before fv-attn_nax_d128_s4-p8192-a1: 72 C
+  cooled to 60 C after 10 s
+## fv-attn_nax_d128_s4-p8192 attempt 1 clock(med p10 %<1450 W C n)=[964 692 93 30 66 14] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4               10179.8    9899.0   13212.1    30.38
+temp before fv-attn_nax_d128_s8-p8192-a1: 65 C
+## fv-attn_nax_d128_s8-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1180 1143 92 45 71 12] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8                8481.8    8293.7    8603.9    36.46
+temp before fv-attn_nax_d128_s16-p8192-a1: 70 C
+## fv-attn_nax_d128_s16-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1083 1014 92 36 71 13] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s16              10035.1    9487.7   10372.2    30.82
+temp before fv-attn_nax_d128_s32-p8192-a1: 70 C
+## fv-attn_nax_d128_s32-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1133 856 70 26 75 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s32              19187.4   17366.5   21256.1    16.12
+temp before fv-attn_nax_d128_s4_k64-p8192-a1: 73 C
+  cooled to 60 C after 10 s
+## fv-attn_nax_d128_s4_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1326 1059 90 34 69 29] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4_k64           19384.8   18713.5   21047.0    15.95
+temp before fv-attn_nax_d128_s8_k64-p8192-a1: 69 C
+## fv-attn_nax_d128_s8_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1308 1238 74 32 71 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8_k64           20145.1   19371.4   21046.6    15.35
+temp before fv-attn_nax_d128_s8_k64-p8192-a1: 70 C
+## fv-attn_nax_d128_s8_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1474 1260 48 44 75 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8_k64           18964.9   17583.6   20462.4    16.31
+temp before fv-attn_nax_d128_s4_k64-p8192-a1: 73 C
+  cooled to 59 C after 10 s
+## fv-attn_nax_d128_s4_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1338 1237 85 35 69 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4_k64           19297.6   18757.9   20053.1    16.03
+temp before fv-attn_nax_d128_s32-p8192-a1: 68 C
+## fv-attn_nax_d128_s32-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1025 736 79 22 72 29] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s32              19755.2   18584.5   23540.8    15.65
+temp before fv-attn_nax_d128_s16-p8192-a1: 70 C
+## fv-attn_nax_d128_s16-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1229 980 92 46 73 13] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s16               9070.2    8568.9   10700.3    34.10
+temp before fv-attn_nax_d128_s8-p8192-a1: 72 C
+  cooled to 58 C after 10 s
+## fv-attn_nax_d128_s8-p8192 attempt 1 clock(med p10 %<1450 W C n)=[876 716 87 25 65 15] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8               11350.1    9574.5   12850.8    27.25
+temp before fv-attn_nax_d128_s4-p8192-a1: 64 C
+## fv-attn_nax_d128_s4-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1226 1190 82 49 70 11] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4                8229.1    7965.7    8411.2    37.58
+=== D1. prefill attention (NAX flash, default s4), chunk 2048 by position, then chunk size at pos0 16384
+temp before flash-c2048-p38912-a1: 69 C
+## flash-c2048-p38912 attempt 1 clock(med p10 %<1450 W C n)=[969 692 85 29 78 65] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 nax                            46814.5   40902.5   60874.9    28.62
+temp before flash-c2048-p8192-a1: 71 C
+  cooled to 59 C after 10 s
+## flash-c2048-p8192 attempt 1 clock(med p10 %<1450 W C n)=[910 810 86 27 66 14] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 nax                            10958.6   10447.5   11633.7    28.22
+temp before flash-c2048-p63488-a1: 66 C
+## flash-c2048-p63488 attempt 1 clock(med p10 %<1450 W C n)=[938 658 86 28 81 111] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  63488 nax                            80448.1   78345.7   97474.5    26.91
+temp before flash-c2048-p0-a1: 72 C
+  cooled to 67 C after 10 s
+## flash-c2048-p0 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 nax                              684.0     683.0     684.7    50.26
+temp before flash-c2048-p30720-a1: 67 C
+## flash-c2048-p30720 attempt 1 clock(med p10 %<1450 W C n)=[634 553 97 15 80 66] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  30720 nax                            54702.2   53247.2   59798.8    19.47
+=== G. NSG variants in the engine: plain prefill (1 token), 40k
+temp before g-40000-s4: 75 C
+  cooled to 70 C after 10 s
+ctx40000-s4-17779 [13:54:05]: prefill 32721 ms (1222.4 tok/s) | decode 0 ms (0.00 tok/s) clock(med p10 %<1450 W C)=[947 872 100 27 83] clockok=1
+temp before g-40000-s16: 73 C
+  cooled to 61 C after 10 s
+ctx40000-s16-11637 [13:54:47]: prefill 31326 ms (1276.9 tok/s) | decode 0 ms (0.00 tok/s) clock(med p10 %<1450 W C)=[1020 924 100 30 72] clockok=1
+temp before g-40000-s4_k64: 71 C
+  cooled to 58 C after 10 s
+ctx40000-s4_k64-2897 [13:55:45]: prefill 46627 ms (857.9 tok/s) | decode 0 ms (0.00 tok/s) clock(med p10 %<1450 W C)=[1230 1070 100 31 74] clockok=1
+temp before g-40000-s8: 73 C
+  cooled to 60 C after 10 s
+ctx40000-s8-2852 [13:56:27]: prefill 31334 ms (1276.5 tok/s) | decode 0 ms (0.00 tok/s) clock(med p10 %<1450 W C)=[998 884 100 30 72] clockok=1
+temp before g-40000-s8_k64: 71 C
+script exit 143 Thu Oct 15 13:56:29 EDT 2026
+#2022 "metal longctx profile" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2022 released Thu Oct 15 13:56:29 EDT 2026
