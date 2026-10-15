@@ -14,6 +14,7 @@ trap stop_server EXIT
 CB=(uv run tools/cbidentity.py)
 SCALE=${SCALE:-0.25}
 for C in 2048 256; do
+  if [ -n "${REFDIR:-}" ]; then cp $REFDIR/ref$C.jsonl $O/ref$C.jsonl; continue; fi   # reuse references of an earlier run
   start_server ref$C 8101 --prefill-chunk $C --max-batch 1 || exit 3
   "${CB[@]}" run --mode solo --url http://127.0.0.1:8101 --token-ids on --out $O/ref$C.jsonl > $O/run-ref$C.log 2>&1; echo "ref $C: exit $?"
   stop_server
