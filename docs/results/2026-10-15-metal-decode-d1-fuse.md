@@ -5,11 +5,12 @@ green) and none beat the unfused stream in an interleaved A/B. Decode dispatches
 period did not: the best variant is neutral (-0.15 / -0.02 ms short / 4k median, inside the noise), the others are 0.2 to 2.1 ms
 slower. The stop rule (two consecutive attempts each < 0.2 ms/token) was met at 00:10 EDT, so the run stopped there. The tree
 under `crates/` and `kernels/` on `metal-d1-fuse` is byte-identical to `spike/metal` (766c723); the fusion code is kept in
-history only (a18b8e1 .. 0bc548e) and reverted in 01157c0. **Merge-ready: no (nothing to merge; the branch only adds this doc and raw logs).**
+history only (a18b8e1 .. 0bc548e) and reverted in 01157c0. **Merge-ready: not applicable. There is no code change to merge: vs spike/metal the branch is docs and raw logs only (net-zero experiment history), so a merge is harmless and the CUDA/HIP no-op check has nothing to check. The fusion-on binary passed every guardrail (ids identical, KL identical to base, kernels ADMITTED); it was dropped for speed only. Whether to merge the docs branch is your call.**
 
 Host endor (Apple M5 Max, 614 GB/s), `/Users/josef/models/Qwen3-8B` BF16, base binary = spike/metal 766c723.
-Raw logs: `docs/results/raw/2026-10-15-metal-decode-d1/`. fleetq: #1921 (op traces, unit tests, 48-token identity), #1923 (A/B 1), #1929 (A/B 3), #1930 (gates), #1931 (base accuracy),
-#1932 (cargo test metal); the kernel-trace and A/B 2 slots (between #1923 and #1929) were also taken under label "metal D1".
+Raw logs: `docs/results/raw/2026-10-15-metal-decode-d1/`. fleetq: #1921 (op traces, unit tests, 48-token identity), #1923 (A/B 1), #1925 (kernel traces), #1927 (A/B 2), #1929 (A/B 3), #1930 (gates),
+#1931 (base accuracy), #1932 (cargo test metal). #1917 and #1918 were cancelled before running. #1919 is void: both binaries lacked `--features metal`,
+so its "identity identical" compared two identical error messages; #1921 is the valid rerun. (#1922, #1924, #1926, #1928 belong to another agent.)
 
 ## 1. Decode op list (kernel-mode GPU trace, `trace/base-kernel.jsonl.gz`, `trace_sum.py`)
 
@@ -61,7 +62,7 @@ Median of per-pair deltas vs the spike/metal binary, ms/token. `ab*.log`, summar
 Reading: removing a ~3 us `silu_glu` dispatch is worth nothing once the FFN pair GEMV is already at bandwidth; the norm prologue
 costs more than the dispatches it removes (every one of the 12288 / 6144 threadgroups redoes the 4096-element add + norm and
 two barriers before its weight stream can fully ramp, and kernel-mode times of the fused kernels, 361 us vs 371 + 5 + 3 us unfused,
-do not show it because kernel mode serializes the ramps the real stream overlaps). The lower-register prologue rewrite (A/B 2) made
+do not show it, hypothesis: kernel mode serializes the ramps the real stream overlaps; not measured. The step-period A/Bs are the evidence). The lower-register prologue rewrite (A/B 2) made
 it worse, not better. A/B 3 shows the only variant that is not slower, and it is flat.
 
 Stop rule: MatmulGlu (+0.19, then -0.15 / -0.02) and RmsNormAddMatmulGlu (+0.19, +1.10 / +0.63) are two consecutive attempts below
