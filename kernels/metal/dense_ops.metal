@@ -224,7 +224,7 @@ inline float tg_sum1(float v, threadgroup float* part, uint lane, uint sg, uint 
     return t;
 }
 
-template <int NIT>
+template <int NIT, bool FULL>
 kernel void rmsnorm_bf16_ex_t(device const ushort* x [[buffer(0)]],
                               device const ushort* w [[buffer(1)]],
                               device ushort* out [[buffer(2)]],
@@ -238,29 +238,30 @@ kernel void rmsnorm_bf16_ex_t(device const ushort* x [[buffer(0)]],
     threadgroup float part[32];
     const uint h = p.a;
     device const ushort* xr = x + p.s0 + (ulong)row * h;
+    device const ushort* wr = w + p.s1;
     device ushort* orow = out + p.s2 + (ulong)row * h;
     float xf[NIT];
     float wf[NIT];
     for (int j = 0; j < NIT; ++j) {
         const uint i = tid + (uint)j * tgs;
-        if (i < h) {
+        if (FULL || i < h) {
             xf[j] = bf2f(xr[i]);
-            wf[j] = bf2f(w[p.s1 + i]);
+            wf[j] = bf2f(wr[i]);
         }
     }
     float ss = 0.0f;
     for (int j = 0; j < NIT; ++j) {
-        if (tid + (uint)j * tgs < h) ss = fma(xf[j], xf[j], ss);
+        if (FULL || tid + (uint)j * tgs < h) ss = fma(xf[j], xf[j], ss);
     }
     const float tot = tg_sum1(ss, part, lane, sg, nsg);
     const float r = 1.0f / precise::sqrt(tot / (float)h + p.f0);
     for (int j = 0; j < NIT; ++j) {
         const uint i = tid + (uint)j * tgs;
-        if (i < h) orow[i] = f2bf(xf[j] * r * (wf[j] + p.f1));
+        if (FULL || i < h) orow[i] = f2bf(xf[j] * r * (wf[j] + p.f1));
     }
 }
 
-template <int NIT>
+template <int NIT, bool FULL>
 kernel void rmsnorm_add_bf16_ex_t(device const ushort* x [[buffer(0)]],
                                   device const ushort* res [[buffer(1)]],
                                   device const ushort* w [[buffer(2)]],
@@ -275,22 +276,28 @@ kernel void rmsnorm_add_bf16_ex_t(device const ushort* x [[buffer(0)]],
                                   uint nsg [[simdgroups_per_threadgroup]]) {
     threadgroup float part[32];
     const uint h = p.a;
+    // row pointers once: the per-access `skip + 64-bit row base + i` sums sat on every load and store
     const ulong base = (ulong)row * h;
+    device const ushort* xr = x + p.s0 + base;
+    device const ushort* rr = res + p.s1 + base;
+    device const ushort* wr = w + p.s2;
+    device ushort* nr = normed + p.s3 + base;
+    device ushort* sr = sum + p.s4 + base;
     float xf[NIT];
     float rf[NIT];
     float wf[NIT];
     for (int j = 0; j < NIT; ++j) {
         const uint i = tid + (uint)j * tgs;
-        if (i < h) {
-            xf[j] = bf2f(x[p.s0 + base + i]);
-            rf[j] = bf2f(res[p.s1 + base + i]);
-            wf[j] = bf2f(w[p.s2 + i]);
+        if (FULL || i < h) {
+            xf[j] = bf2f(xr[i]);
+            rf[j] = bf2f(rr[i]);
+            wf[j] = bf2f(wr[i]);
         }
     }
     float sb[NIT];  // the bf16-rounded sum, as a float: the norm sees the rounded value
     float ss = 0.0f;
     for (int j = 0; j < NIT; ++j) {
-        if (tid + (uint)j * tgs < h) {
+        if (FULL || tid + (uint)j * tgs < h) {
             sb[j] = bf2f(f2bf(xf[j] + rf[j]));
             ss = fma(sb[j], sb[j], ss);
         }
@@ -299,31 +306,47 @@ kernel void rmsnorm_add_bf16_ex_t(device const ushort* x [[buffer(0)]],
     const float r = 1.0f / precise::sqrt(tot / (float)h + p.f0);
     for (int j = 0; j < NIT; ++j) {
         const uint i = tid + (uint)j * tgs;
-        if (i < h) {
-            sum[p.s4 + base + i] = f2bf(sb[j]);
-            normed[p.s3 + base + i] = f2bf(sb[j] * r * (wf[j] + p.f1));
+        if (FULL || i < h) {
+            sr[i] = f2bf(sb[j]);
+            nr[i] = f2bf(sb[j] * r * (wf[j] + p.f1));
         }
     }
 }
 
-#define INST_NORM_EX(NAME, NIT)                                                                                       \
-    template [[host_name(NAME)]] kernel void rmsnorm_bf16_ex_t<NIT>(                                                 \
+// `_f` variants: H == NIT * threads (every thread owns exactly NIT elements, e.g. H = 4096 = 16 x 256), so the bounds
+// selects are gone. The host picks them; same arithmetic, same results.
+#define INST_NORM_EX(NAME, NIT, FULL)                                                                                 \
+    template [[host_name(NAME)]] kernel void rmsnorm_bf16_ex_t<NIT, FULL>(                                           \
         device const ushort*, device const ushort*, device ushort*, constant OpP&, uint, uint, uint, uint, uint, uint);
-#define INST_NORM_ADD_EX(NAME, NIT)                                                                                   \
-    template [[host_name(NAME)]] kernel void rmsnorm_add_bf16_ex_t<NIT>(                                             \
+#define INST_NORM_ADD_EX(NAME, NIT, FULL)                                                                             \
+    template [[host_name(NAME)]] kernel void rmsnorm_add_bf16_ex_t<NIT, FULL>(                                       \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*,          \
         constant OpP&, uint, uint, uint, uint, uint, uint);
-INST_NORM_EX("rmsnorm_bf16_ex1", 1)
-INST_NORM_EX("rmsnorm_bf16_ex16", 16)
-INST_NORM_EX("rmsnorm_bf16_ex32", 32)
-INST_NORM_ADD_EX("rmsnorm_add_bf16_ex1", 1)
-INST_NORM_ADD_EX("rmsnorm_add_bf16_ex16", 16)
-INST_NORM_ADD_EX("rmsnorm_add_bf16_ex32", 32)
+INST_NORM_EX("rmsnorm_bf16_ex1", 1, false)
+INST_NORM_EX("rmsnorm_bf16_ex16", 16, false)
+INST_NORM_EX("rmsnorm_bf16_ex32", 32, false)
+INST_NORM_EX("rmsnorm_bf16_ex1_f", 1, true)
+INST_NORM_EX("rmsnorm_bf16_ex16_f", 16, true)
+INST_NORM_EX("rmsnorm_bf16_ex32_f", 32, true)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex1", 1, false)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex16", 16, false)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex32", 32, false)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex1_f", 1, true)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex16_f", 16, true)
+INST_NORM_ADD_EX("rmsnorm_add_bf16_ex32_f", 32, true)
 
 // Argmax over f32 logits, vector form: V % 4 == 0 and the row 16-byte aligned (no skip). Same result as `argmax_f32`
 // (lowest index of the maximum, NaN never wins, empty / all -inf row gives 0). One threadgroup per row of up to 1024 threads;
 // thread t visits the float4 chunks t, t + tgs, ... in increasing order, so its running (max, index) keeps the lowest
 // index of its own maximum; the cross-thread resolution is the same as the scalar kernel's.
+constant constexpr uint AMX_U = 8;
+inline void amx_upd(float4 x, uint i0, thread float& bv, thread uint& bi) {
+    if (x.x > bv) { bv = x.x; bi = i0; }
+    if (x.y > bv) { bv = x.y; bi = i0 + 1; }
+    if (x.z > bv) { bv = x.z; bi = i0 + 2; }
+    if (x.w > bv) { bv = x.w; bi = i0 + 3; }
+}
+
 kernel void argmax_f32_v4(device const float4* logits [[buffer(0)]],
                           device int* out [[buffer(1)]],
                           constant OpP& p [[buffer(2)]],
@@ -339,14 +362,15 @@ kernel void argmax_f32_v4(device const float4* logits [[buffer(0)]],
     device const float4* l = logits + (ulong)row * v4;
     float bv = -INFINITY;
     uint bi = 0xffffffffu;
-    for (uint c = tid; c < v4; c += tgs) {
-        const float4 x = l[c];
-        const uint i0 = c * 4;
-        if (x.x > bv) { bv = x.x; bi = i0; }
-        if (x.y > bv) { bv = x.y; bi = i0 + 1; }
-        if (x.z > bv) { bv = x.z; bi = i0 + 2; }
-        if (x.w > bv) { bv = x.w; bi = i0 + 3; }
+    // AMX_U chunks in flight per thread (one load round trip per AMX_U chunks instead of per chunk), visited in the
+    // same increasing order as the one-at-a-time loop, so the result is the same.
+    uint c = tid;
+    for (; c + (AMX_U - 1) * tgs < v4; c += AMX_U * tgs) {
+        float4 xs[AMX_U];
+        for (uint u = 0; u < AMX_U; ++u) xs[u] = l[c + u * tgs];
+        for (uint u = 0; u < AMX_U; ++u) amx_upd(xs[u], (c + u * tgs) * 4, bv, bi);
     }
+    for (; c < v4; c += tgs) amx_upd(l[c], c * 4, bv, bi);
     float m = simd_max(bv);
     uint mi = simd_min(bv == m ? bi : 0xffffffffu);
     if (lane == 0) { pv[sg] = m; pi[sg] = mi; }

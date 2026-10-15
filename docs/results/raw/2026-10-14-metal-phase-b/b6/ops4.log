@@ -1,0 +1,345 @@
+== pre pair1 idle_util=1(waits=1)
+norm_add                               2.95     2.91     2.95
+qkrope                                 2.85     2.81     2.89
+silu                                   1.24     1.21     1.24
+argmax                                12.70    12.59    12.94
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== f pair1 idle_util=1(waits=2)
+norm_add                               2.35     2.33     2.38
+qkrope                                 2.64     2.60     2.67
+silu                                   1.24     1.21     1.24
+argmax                                11.87    11.85    11.94
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== nof pair1 idle_util=0(waits=1)
+norm_add                               2.63     2.60     2.69
+qkrope                                 2.63     2.60     2.68
+silu                                   1.24     1.21     1.24
+argmax                                11.93    11.91    12.05
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== f pair2 idle_util=1(waits=2)
+norm_add                               2.27     2.24     2.32
+qkrope                                 2.60     2.59     2.65
+silu                                   1.21     1.21     1.22
+argmax                                11.96    11.90    13.87
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== nof pair2 idle_util=0(waits=1)
+norm_add                               2.59     2.54     2.63
+qkrope                                 2.63     2.60     2.81
+silu                                   1.23     1.21     1.24
+argmax                                11.96    11.92    12.11
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== pre pair2 idle_util=0(waits=1)
+norm_add                               2.88     2.85     2.90
+qkrope                                 2.77     2.74     2.80
+silu                                   1.19     1.18     1.20
+argmax                                13.25    12.82    13.68
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== nof pair3 idle_util=0(waits=1)
+norm_add                               2.63     2.59     2.63
+qkrope                                 2.64     2.60     2.67
+silu                                   1.24     1.21     1.24
+argmax                                11.93    11.90    12.03
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== pre pair3 idle_util=10(waits=0)
+norm_add                               2.89     2.86     2.91
+qkrope                                 2.77     2.75     2.82
+silu                                   1.19     1.17     1.22
+argmax                                13.42    13.31    13.71
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== f pair3 idle_util=0(waits=1)
+norm_add                               2.33     2.28     2.38
+qkrope                                 2.63     2.59     2.70
+silu                                   1.24     1.21     1.24
+argmax                                11.94    11.91    12.04
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== pre pair4 idle_util=4(waits=0)
+norm_add                               2.95     2.91     2.95
+qkrope                                 2.86     2.82     2.92
+silu                                   1.24     1.21     1.24
+argmax                                12.85    12.67    13.13
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== f pair4 idle_util=1(waits=2)
+norm_add                               2.35     2.32     2.38
+qkrope                                 2.63     2.59     2.68
+silu                                   1.21     1.21     1.23
+argmax                                11.92    11.89    12.03
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== nof pair4 idle_util=0(waits=2)
+norm_add                               2.58     2.55     2.63
+qkrope                                 2.63     2.60     3.18
+silu                                   1.24     1.21     1.24
+argmax                                11.90    11.87    12.01
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== f pair5 idle_util=0(waits=2)
+norm_add                               2.35     2.32     2.38
+qkrope                                 2.63     2.60     2.68
+silu                                   1.23     1.21     1.24
+argmax                                11.93    11.90    12.04
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== nof pair5 idle_util=1(waits=2)
+norm_add                               2.62     2.59     2.63
+qkrope                                 2.56     2.55     2.61
+silu                                   1.19     1.19     1.19
+argmax                                11.96    11.93    12.07
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d
+== pre pair5 idle_util=0(waits=0)
+norm_add                               2.95     2.92     2.96
+qkrope                                 2.85     2.82     2.89
+silu                                   1.24     1.21     1.24
+argmax                                12.70    12.63    12.86
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d

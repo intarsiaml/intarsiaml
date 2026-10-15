@@ -147,9 +147,24 @@ pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 /// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
 /// loads before the reduction (`rmsnorm_bf16_ex<NIT>`, `rmsnorm_add_bf16_ex<NIT>`, bitwise the same results as the
-/// kernels above; `NIT` = elements per thread) and `argmax_f32_v4`. Not separate registry entries.
-pub const RMSNORM_EX: [&str; 3] = ["rmsnorm_bf16_ex1", "rmsnorm_bf16_ex16", "rmsnorm_bf16_ex32"];
-pub const RMSNORM_ADD_EX: [&str; 3] = ["rmsnorm_add_bf16_ex1", "rmsnorm_add_bf16_ex16", "rmsnorm_add_bf16_ex32"];
+/// kernels above; `NIT` = elements per thread) and `argmax_f32_v4`. Not separate registry entries. The last three of
+/// each norm list are the `_f` forms for H == NIT * threads (no bounds selects, phase B6).
+pub const RMSNORM_EX: [&str; 6] = [
+    "rmsnorm_bf16_ex1",
+    "rmsnorm_bf16_ex16",
+    "rmsnorm_bf16_ex32",
+    "rmsnorm_bf16_ex1_f",
+    "rmsnorm_bf16_ex16_f",
+    "rmsnorm_bf16_ex32_f",
+];
+pub const RMSNORM_ADD_EX: [&str; 6] = [
+    "rmsnorm_add_bf16_ex1",
+    "rmsnorm_add_bf16_ex16",
+    "rmsnorm_add_bf16_ex32",
+    "rmsnorm_add_bf16_ex1_f",
+    "rmsnorm_add_bf16_ex16_f",
+    "rmsnorm_add_bf16_ex32_f",
+];
 pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
 
 pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
