@@ -87,6 +87,9 @@ fn realign(be: &MetalBackend, src: &[u8]) -> Result<Buffer> {
         // SAFETY: `[a, b)` lies inside the live mapping `src` is a slice of; MADV_DONTNEED only advises.
         unsafe { libc::madvise(a as *mut c_void, b - a, libc::MADV_DONTNEED) };
     }
+    if std::env::var_os("INTARSIA_METAL_DEBUG").is_some() {
+        eprintln!("intarsia-backend-metal: realign {} bytes (address mod 16 = {})", src.len(), src.as_ptr() as usize % 16);
+    }
     be.realigned_bytes.fetch_add(src.len(), Ordering::Relaxed);
     be.realigned_tensors.fetch_add(1, Ordering::Relaxed);
     Ok(Buffer::new(MetalBuffer { mtl, base: 0, bytes: src.len(), read_only: true, _host: None }))
