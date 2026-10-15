@@ -27,4 +27,4 @@ matmul_pair    matmul_pair_bf16_nax            6      0    8.633e-5    3.758e-6 
 matmul         matmul_bf16_gemv_rows           7      0    2.155e-4    1.006e-5  ADMITTED
 matmul_pair    matmul_pair_bf16_gemv_rows     12      0     0.000e0     0.000e0  ADMITTED
 logits         logits_bf16_gemv_rows           2      0    1.077e-7    8.987e-8  ADMITTED
-26 kernels, 293 cases in 42.7s
+26 kernels, 293 cases in 41.6s

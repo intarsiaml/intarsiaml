@@ -6,7 +6,7 @@
     "total_mem": 115448725504,
     "free_mem": 115442761728,
     "unified": true,
-    "bandwidth_gbs": 552.7094787712675
+    "bandwidth_gbs": 551.0077088296381
   },
   "reference_backend": "cpu",
   "rows": [
