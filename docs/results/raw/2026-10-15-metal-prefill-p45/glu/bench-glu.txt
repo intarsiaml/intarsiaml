@@ -1,0 +1,12 @@
+GLU M=256 N=12288 K=4096 tile=t64x64w2 glu_us=882.4 pair_us=814.3 delta_us=68.2
+GLU M=256 N=12288 K=4096 tile=t64x64w4 glu_us=895.5 pair_us=912.8 delta_us=-17.3
+GLU M=256 N=12288 K=4096 tile=t128x64w4 glu_us=1037.4 pair_us=987.5 delta_us=49.9
+GLU M=256 N=12288 K=4096 tile=t32x128w2 glu_us=1082.6 pair_us=988.6 delta_us=93.9
+GLU M=222 N=12288 K=4096 tile=t64x64w2 glu_us=1038.1 pair_us=963.6 delta_us=74.6
+GLU M=222 N=12288 K=4096 tile=t64x64w4 glu_us=1030.7 pair_us=1002.9 delta_us=27.8
+GLU M=222 N=12288 K=4096 tile=t128x64w4 glu_us=1057.5 pair_us=1006.8 delta_us=50.7
+GLU M=222 N=12288 K=4096 tile=t32x128w2 glu_us=1064.9 pair_us=909.1 delta_us=155.8
+GLU M=2048 N=12288 K=4096 tile=t64x64w2 glu_us=9059.1 pair_us=8130.8 delta_us=928.2
+GLU M=2048 N=12288 K=4096 tile=t64x64w4 glu_us=9267.8 pair_us=8134.0 delta_us=1133.9
+GLU M=2048 N=12288 K=4096 tile=t128x64w4 glu_us=9108.1 pair_us=8833.2 delta_us=274.9
+GLU M=2048 N=12288 K=4096 tile=t32x128w2 glu_us=9138.2 pair_us=8728.2 delta_us=410.1

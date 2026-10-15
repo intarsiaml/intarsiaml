@@ -1,0 +1,13 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/qkv_fold.rs (target/release/deps/qkv_fold-b222873799747e1e)
+
+running 6 tests
+test a_device_position_past_the_cache_is_dropped_not_written ... ok
+test operands_at_two_byte_offsets ... ok
+test head_dims_and_partial_rotary ... ok
+test prefill_rows_are_bitwise ... ok
+test decode_qwen3_8b_is_bitwise_the_unfused_sequence ... ok
+test prefill_form_head_counts_off_the_threadgroup_group ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+

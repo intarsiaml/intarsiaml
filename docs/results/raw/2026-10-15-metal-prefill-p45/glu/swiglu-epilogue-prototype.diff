@@ -1,0 +1,335 @@
+diff --git a/crates/intarsia-backend-metal/examples/gemm_nax.rs b/crates/intarsia-backend-metal/examples/gemm_nax.rs
+index c166517..48bd90e 100644
+--- a/crates/intarsia-backend-metal/examples/gemm_nax.rs
++++ b/crates/intarsia-backend-metal/examples/gemm_nax.rs
+@@ -25,7 +25,9 @@ fn main() {
+ #[cfg(target_os = "macos")]
+ mod imp {
+     use intarsia_backend_metal::bench::{self, stats, Rng};
+-    use intarsia_backend_metal::gemm_nax::{encode_nax, encode_nax_pair, pick_variant, NaxPairParams, NaxParams, NaxVariant, NAX_VARIANTS};
++    use intarsia_backend_metal::gemm_nax::{
++        encode_nax, encode_nax_glu, encode_nax_pair, pick_variant, NaxPairParams, NaxParams, NaxVariant, NAX_GLU_VARIANTS, NAX_VARIANTS,
++    };
+     use intarsia_backend_metal::{MetalBackend, MtlBuffer};
+     use objc2_metal::{MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue};
+ 
+@@ -228,6 +230,61 @@ mod imp {
+         }
+     }
+ 
++    /// Chain of `count` SwiGLU-epilogue dispatches of glu tile `v` (gate and up weights as the pair mode's two pools).
++    #[allow(clippy::too_many_arguments)]
++    fn glu_chain(be: &MetalBackend, v: &NaxVariant, m: usize, n: usize, k: usize, o0: &Operands, o1: &Operands, count: usize) -> f64 {
++        let cb = be.queue().commandBuffer().unwrap();
++        let enc = cb.computeCommandEncoder().unwrap();
++        let pso = be.pso(v.shader).unwrap_or_else(|| panic!("no pipeline {}", v.shader));
++        let p = NaxPairParams { m: m as u32, n0: n as u32, n1: n as u32, k: k as u32, ..Default::default() };
++        for i in 0..count {
++            let (w0, w1) = (&o0.ws[i % o0.ws.len()], &o1.ws[i % o1.ws.len()]);
++            encode_nax_glu(&enc, pso, v, (&o0.a, 0), (w0, 0), (w1, 0), (&o0.c, 0), &p);
++        }
++        enc.endEncoding();
++        be.commit(&cb);
++        MetalBackend::wait(&cb).unwrap();
++        bench::gpu_seconds(&cb)
++    }
++
++    /// gate/up pair GEMM against the SwiGLU-epilogue GEMM of the same tile, per M: `GLU` lines with microseconds per call.
++    fn glu_mode(be: &MetalBackend) {
++        let ms: Vec<usize> = env_list("NAX_M", &[256, 222, 2048]);
++        let rounds = env_usize("NAX_ROUNDS", 15);
++        let reps = env_usize("NAX_REPS", 10);
++        let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
++        let (n, k) = (12288usize, 4096usize);
++        for &m in &ms {
++            let o0 = Operands::new(be, m, n, k, pool, (0, 0, 0));
++            let o1 = Operands::new(be, m, n, k, pool, (0, 0, 0));
++            let pairs: Vec<(NaxVariant, NaxVariant)> = NAX_GLU_VARIANTS
++                .iter()
++                .map(|g| {
++                    let tail = g.shader.trim_start_matches("gemm_nax_glu_");
++                    (*g, *NAX_VARIANTS.iter().find(|v| v.shader.ends_with(tail)).expect("pair tile"))
++                })
++                .collect();
++            let mut samples: Vec<Vec<f64>> = vec![Vec::new(); 2 * pairs.len()];
++            for (g, pv) in &pairs {
++                glu_chain(be, g, m, n, k, &o0, &o1, 2);
++                pair_chain(be, pv, true, m, n, k, &o0, &o1, 2);
++            }
++            let mut order: Vec<usize> = (0..2 * pairs.len()).collect();
++            for _ in 0..rounds {
++                order.rotate_left(1);
++                for &gi in &order {
++                    let (g, pv) = &pairs[gi / 2];
++                    let secs = if gi % 2 == 0 { glu_chain(be, g, m, n, k, &o0, &o1, reps) } else { pair_chain(be, pv, true, m, n, k, &o0, &o1, reps) };
++                    samples[gi].push(secs / reps as f64 * 1e6);
++                }
++            }
++            for (gi, (g, _)) in pairs.iter().enumerate() {
++                let (a, b) = (stats(&mut samples[2 * gi]).median, stats(&mut samples[2 * gi + 1]).median);
++                println!("GLU M={m} N={n} K={k} tile={} glu_us={a:.1} pair_us={b:.1} delta_us={:.1}", g.shader.trim_start_matches("gemm_nax_glu_"), a - b);
++            }
++        }
++    }
++
+     /// The shipped pick against each fixed tile, per Qwen3-8B shape and M (single kernel).
+     fn pick_mode(be: &MetalBackend, shapes: &[&Shape]) {
+         let ms: Vec<usize> = env_list("NAX_M", &[16, 32, 64, 128, 205, 256, 512, 1024, 2048]);
+@@ -442,6 +499,7 @@ mod imp {
+             "err" => err_mode(&be, &shapes),
+             "pair" => pair_mode(&be),
+             "pick" => pick_mode(&be, &shapes),
++            "glu" => glu_mode(&be),
+             other => panic!("mode '{other}': bench or err"),
+         }
+     }
+diff --git a/crates/intarsia-backend-metal/src/gemm_nax.rs b/crates/intarsia-backend-metal/src/gemm_nax.rs
+index 765559c..36c357f 100644
+--- a/crates/intarsia-backend-metal/src/gemm_nax.rs
++++ b/crates/intarsia-backend-metal/src/gemm_nax.rs
+@@ -95,6 +95,15 @@ pub fn pick_variant(m: usize, n: usize) -> &'static NaxVariant {
+     }
+ }
+ 
++/// `gemm_nax_glu_t` instantiations (SwiGLU epilogue: `out = silu(x Wg^T) * (x Wu^T)` in one dispatch): `shader` and
++/// `pair_shader` are the same entry point.
++pub const NAX_GLU_VARIANTS: &[NaxVariant] = &[
++    NaxVariant { shader: "gemm_nax_glu_t64x64w2", pair_shader: "gemm_nax_glu_t64x64w2", bm: 64, bn: 64, sg: 2 },
++    NaxVariant { shader: "gemm_nax_glu_t64x64w4", pair_shader: "gemm_nax_glu_t64x64w4", bm: 64, bn: 64, sg: 4 },
++    NaxVariant { shader: "gemm_nax_glu_t128x64w4", pair_shader: "gemm_nax_glu_t128x64w4", bm: 128, bn: 64, sg: 4 },
++    NaxVariant { shader: "gemm_nax_glu_t32x128w2", pair_shader: "gemm_nax_glu_t32x128w2", bm: 32, bn: 128, sg: 2 },
++];
++
+ /// Kernel arguments of `gemm_nax_t` (`NaxP` in gemm_nax_bf16.metal; 32 bytes).
+ #[repr(C)]
+ #[derive(Clone, Copy, Debug, Default)]
+@@ -190,6 +199,34 @@ pub fn encode_nax_pair(
+     );
+ }
+ 
++/// Encode one `gemm_nax_glu_t` dispatch: `c = silu(a wg^T) * (a wu^T)`; `p.n0` is N (`p.n1` is ignored, `p.s_w0` / `p.s_w1`
++/// are the weights' skips and `p.s_c0` the output's).
++#[allow(clippy::too_many_arguments)]
++pub fn encode_nax_glu(
++    enc: &ProtocolObject<dyn MTLComputeCommandEncoder>,
++    pso: &ProtocolObject<dyn MTLComputePipelineState>,
++    v: &NaxVariant,
++    a: MtlBuf,
++    wg: MtlBuf,
++    wu: MtlBuf,
++    c: MtlBuf,
++    p: &NaxPairParams,
++) {
++    enc.setComputePipelineState(pso);
++    // SAFETY: as `encode_nax`.
++    unsafe {
++        enc.setBuffer_offset_atIndex(Some(a.0), a.1, 0);
++        enc.setBuffer_offset_atIndex(Some(wg.0), wg.1, 1);
++        enc.setBuffer_offset_atIndex(Some(wu.0), wu.1, 2);
++        enc.setBuffer_offset_atIndex(Some(c.0), c.1, 3);
++    }
++    set_bytes(enc, p, 4);
++    enc.dispatchThreadgroups_threadsPerThreadgroup(
++        MTLSize { width: p.n0.div_ceil(v.bn) as usize, height: p.m.div_ceil(v.bm) as usize, depth: 1 },
++        MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
++    );
++}
++
+ fn dim(v: usize, what: &str) -> Result<u32> {
+     u32::try_from(v).map_err(|_| Error::invalid(format!("metal nax: {what} = {v} exceeds u32")))
+ }
+diff --git a/crates/intarsia-backend-metal/src/kernels.rs b/crates/intarsia-backend-metal/src/kernels.rs
+index 4383f02..4b8512d 100644
+--- a/crates/intarsia-backend-metal/src/kernels.rs
++++ b/crates/intarsia-backend-metal/src/kernels.rs
+@@ -255,7 +255,8 @@ pub const EXPERIMENT_SHADERS: &[&str] = &[
+ /// `gemm_nax::NAX_VARIANTS` entry. Not part of [`shader_names`]: a failure to load them only drops the kernels in
+ /// [`requires_metal4`], never `MetalBackend::new`.
+ pub fn metal4_shaders() -> Vec<&'static str> {
+-    crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]).collect()
++    let nax = crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]);
++    nax.chain(crate::gemm_nax::NAX_GLU_VARIANTS.iter().map(|v| v.shader)).collect()
+ }
+ 
+ /// `Op::Matmul`, M >= 16, bf16 on the M5 neural accelerators (`mpp::tensor_ops::matmul2d`, gemm_nax.rs), strict
+@@ -446,7 +447,7 @@ mod tests {
+     #[test]
+     fn metal4_shaders_are_the_nax_variants_and_not_metal3_shaders() {
+         let m4 = metal4_shaders();
+-        assert_eq!(m4.len(), 2 * crate::gemm_nax::NAX_VARIANTS.len());
++        assert_eq!(m4.len(), 2 * crate::gemm_nax::NAX_VARIANTS.len() + crate::gemm_nax::NAX_GLU_VARIANTS.len());
+         assert!(!shader_names().iter().any(|n| m4.contains(n)));
+         let set: HashSet<_> = m4.iter().collect();
+         assert_eq!(set.len(), m4.len());
+diff --git a/crates/intarsia-backend-metal/tests/gemm_nax.rs b/crates/intarsia-backend-metal/tests/gemm_nax.rs
+index 8ad5f46..cc80690 100644
+--- a/crates/intarsia-backend-metal/tests/gemm_nax.rs
++++ b/crates/intarsia-backend-metal/tests/gemm_nax.rs
+@@ -9,9 +9,9 @@ mod common;
+ 
+ use common::*;
+ use intarsia_backend_metal::gemm_nax::{
+-    encode_nax, pick_variant, NaxParams, NaxVariant, NAX_MIN_M, NAX_VARIANTS,
++    encode_nax, encode_nax_glu, pick_variant, NaxPairParams, NaxParams, NaxVariant, NAX_GLU_VARIANTS, NAX_MIN_M, NAX_VARIANTS,
+ };
+-use intarsia_backend_metal::kernels::{MATMUL_BF16, MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX};
++use intarsia_backend_metal::kernels::{MATMUL_BF16, MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, SILU_GLU_BF16};
+ use intarsia_backend_metal::MetalBackend;
+ use intarsia_core::backend::{Backend, Buffer, MemKind};
+ use intarsia_core::DType;
+@@ -331,3 +331,85 @@ fn nax_launch_through_the_backend() {
+         check(&y[mi * n..(mi + 1) * n], &refs, 0..n, &format!("{MATMUL_BF16_NAX} row {mi}"));
+     }
+ }
++
++/// `gemm_nax_glu_t` (SwiGLU epilogue): bitwise `matmul_pair_bf16_nax` followed by `silu_glu_bf16`, per tile, at M tails,
++/// N edges and odd operand offsets.
++#[test]
++fn nax_glu_is_bitwise_pair_then_silu_glu() {
++    let be = backend();
++    for &(m, n, k, xo, go, uo, co) in &[
++        (205usize, 1024usize, 4096usize, 0usize, 0usize, 8usize, 0usize),
++        (256, 4096, 4096, 0, 0, 0, 0),
++        (222, 1000, 512, 2, 2, 6, 2),
++        (17, 70, 64, 2, 2, 6, 0),
++        (1024, 12288, 4096, 0, 0, 0, 0),
++        (300, 130, 100, 0, 0, 0, 2),
++    ] {
++        let x = rand_bf16(m * k, 81);
++        let scale = 1.0 / (k as f32).sqrt();
++        let wt = |seed: u64| -> Vec<u16> {
++            rand_bf16(n * k, seed)
++                .iter()
++                .map(|&b| intarsia_backend_metal::bench::f32_to_bf16(intarsia_backend_metal::bench::bf16_to_f32(b) * scale))
++                .collect()
++        };
++        let (g, u) = (wt(82), wt(83));
++        let (xb, gb, ub) = (upload_at(&be, xo, &x), upload_at(&be, go, &g), upload_at(&be, uo, &u));
++        // reference: the shipped pair, then the shipped SiluGlu
++        let gy = be.alloc(m * n * 2, MemKind::Device).unwrap();
++        let uy = be.alloc(m * n * 2, MemKind::Device).unwrap();
++        let pair = intarsia_core::OpCall::new(
++            intarsia_core::Op::MatmulPair,
++            vec![tref(&xb, xo, &[m, k]), tref(&gb, go, &[n, k]), tref(&ub, uo, &[n, k])],
++            vec![tref(&gy, 0, &[m, n]), tref(&uy, 0, &[m, n])],
++            Default::default(),
++        );
++        be.launch(MATMUL_PAIR_BF16_NAX, &pair, 0).unwrap();
++        let want_b = be.alloc(co + m * n * 2 + 16, MemKind::Device).unwrap();
++        let silu = intarsia_core::OpCall::new(
++            intarsia_core::Op::SiluGlu,
++            vec![tref(&gy, 0, &[m, n]), tref(&uy, 0, &[m, n])],
++            vec![tref(&want_b, co, &[m, n])],
++            Default::default(),
++        );
++        be.launch(SILU_GLU_BF16, &silu, 0).unwrap();
++        be.synchronize(0).unwrap();
++        let want = read_u16(&be, &want_b, co, m * n);
++        for v in NAX_GLU_VARIANTS {
++            let cb = be.alloc(co + m * n * 2 + 16, MemKind::Device).unwrap();
++            be.upload(&cb, 0, &vec![0xEEu8; co + m * n * 2 + 16], 0).unwrap();
++            let pso = be.pso(v.shader).unwrap_or_else(|| panic!("no pipeline {}", v.shader));
++            let p = NaxPairParams {
++                m: m as u32,
++                n0: n as u32,
++                n1: n as u32,
++                k: k as u32,
++                s_a: ((xo & 3) / 2) as u32,
++                s_w0: ((go & 3) / 2) as u32,
++                s_w1: ((uo & 3) / 2) as u32,
++                s_c0: ((co & 3) / 2) as u32,
++                ..Default::default()
++            };
++            fn mtl(b: &Buffer) -> &intarsia_backend_metal::MetalBuffer {
++                b.downcast::<intarsia_backend_metal::MetalBuffer>().unwrap()
++            }
++            let (xm, gm, um, cm) = (mtl(&xb), mtl(&gb), mtl(&ub), mtl(&cb));
++            be.with_encoder(|enc| {
++                encode_nax_glu(enc, pso, v, (xm.mtl(), xo & !3), (gm.mtl(), go & !3), (um.mtl(), uo & !3), (cm.mtl(), co & !3), &p)
++            })
++            .unwrap();
++            be.synchronize(0).unwrap();
++            let got = read_u16(&be, &cb, co, m * n);
++            if got != want {
++                let at = got.iter().zip(&want).position(|(a, b)| a != b).unwrap();
++                panic!("{}: m={m} n={n} k={k}: element {at} ({}, {}) differs from pair + silu_glu: {:#06x} vs {:#06x}", v.shader, at / n, at % n, got[at], want[at]);
++            }
++            let raw = read_u16(&be, &cb, 0, (co + m * n * 2 + 16) / 2);
++            assert!(
++                raw[..co / 2].iter().all(|v| *v == 0xEEEE) && raw[(co / 2 + m * n)..].iter().all(|v| *v == 0xEEEE),
++                "{}: guard bytes of the output overwritten (m={m} n={n} k={k})",
++                v.shader
++            );
++        }
++    }
++}
+diff --git a/kernels/metal/gemm_nax_bf16.metal b/kernels/metal/gemm_nax_bf16.metal
+index a60d45e..7d07970 100644
+--- a/kernels/metal/gemm_nax_bf16.metal
++++ b/kernels/metal/gemm_nax_bf16.metal
+@@ -101,3 +101,65 @@ NAX_T("gemm_nax_t128x64w4", "gemm_nax_pair_t128x64w4", 128, 64, 4)
+ NAX_T("gemm_nax_t32x32w1", "gemm_nax_pair_t32x32w1", 32, 32, 1)
+ NAX_T("gemm_nax_t32x128w2", "gemm_nax_pair_t32x128w2", 32, 128, 2)
+ NAX_T("gemm_nax_t64x64w2", "gemm_nax_pair_t64x64w2", 64, 64, 2)
++
++// ---- SwiGLU epilogue (P5): out = silu(x Wg^T) * (x Wu^T), one dispatch for gate + up + SiluGlu ----
++// Both products land in bf16 cooperative destinations (the same rounding to bf16 as the pair kernel's stores), then
++// each element becomes silu_glu_bf16's expression on the bf16 values and is stored once.
++template <typename Op, typename TA, typename TW, typename TC>
++inline void nax_glu_run(thread Op& op, TA sA, TW sWg, TW sWu, TC sC) {
++  auto cg = op.template get_destination_cooperative_tensor<TA, TW, bfloat>();
++  auto cu = op.template get_destination_cooperative_tensor<TA, TW, bfloat>();
++  op.run(sA, sWg, cg);
++  op.run(sA, sWu, cu);
++  _Pragma("clang loop unroll(full)")
++  for (ushort i = 0; i < cg.get_capacity(); ++i) {
++    if (cg.is_valid_element(i)) {
++      const float gv = float(cg[i]);
++      cg[i] = bfloat(gv / (1.0f + precise::exp(-gv)) * float(cu[i]));
++    }
++  }
++  cg.store(sC);
++}
++
++template <int BM, int BN, int NSG>
++inline void nax_glu_tile(device bfloat* A, device bfloat* Wg, device bfloat* Wu, device bfloat* C, int M, int N, int K,
++                         int m0, int n0) {
++  tensor<device bfloat, dextents<int, 2>, tensor_inline> tA(A, dextents<int, 2>(K, M));
++  tensor<device bfloat, dextents<int, 2>, tensor_inline> tG(Wg, dextents<int, 2>(K, N));
++  tensor<device bfloat, dextents<int, 2>, tensor_inline> tU(Wu, dextents<int, 2>(K, N));
++  tensor<device bfloat, dextents<int, 2>, tensor_inline> tC(C, dextents<int, 2>(N, M));
++  constexpr auto desc = matmul2d_descriptor(BM, BN, static_cast<int>(dynamic_extent), false, true, false);
++  matmul2d<desc, execution_simdgroups<NSG>> op;
++  if (m0 + BM <= M && n0 + BN <= N) {
++    auto sA = tA.template slice<dynamic_extent, BM>(0, m0);
++    auto sG = tG.template slice<dynamic_extent, BN>(0, n0);
++    auto sU = tU.template slice<dynamic_extent, BN>(0, n0);
++    auto sC = tC.template slice<BN, BM>(n0, m0);
++    nax_glu_run(op, sA, sG, sU, sC);
++  } else {
++    auto sA = tA.slice(0, m0);
++    auto sG = tG.slice(0, n0);
++    auto sU = tU.slice(0, n0);
++    auto sC = tC.slice(n0, m0);
++    nax_glu_run(op, sA, sG, sU, sC);
++  }
++}
++
++// bind: 0 A [M,K], 1 Wg [N,K], 2 Wu [N,K], 3 C [M,N], 4 NaxPairP (n0 = n1 = N; s_w0 / s_w1 the weights' skips, s_c0 C's).
++template <int BM, int BN, int NSG>
++kernel void gemm_nax_glu_t(device bfloat* A [[buffer(0)]], device bfloat* Wg [[buffer(1)]], device bfloat* Wu [[buffer(2)]],
++                           device bfloat* C [[buffer(3)]], constant NaxPairP& p [[buffer(4)]],
++                           uint2 tg [[threadgroup_position_in_grid]]) {
++  const int M = int(p.m), N = int(p.n0), K = int(p.k);
++  const int tiles_m = (M + BM - 1) / BM, tiles_n = (N + BN - 1) / BN;
++  if (int(tg.x) >= tiles_n || int(tg.y) >= tiles_m) return;
++  nax_glu_tile<BM, BN, NSG>(A + p.s_a, Wg + p.s_w0, Wu + p.s_w1, C + p.s_c0, M, N, K, int(tg.y) * BM, int(tg.x) * BN);
++}
++
++#define NAX_GLU(NAME, BM, BN, NSG) \
++  template [[host_name(NAME)]] kernel void gemm_nax_glu_t<BM, BN, NSG>( \
++      device bfloat*, device bfloat*, device bfloat*, device bfloat*, constant NaxPairP&, uint2);
++NAX_GLU("gemm_nax_glu_t64x64w2", 64, 64, 2)
++NAX_GLU("gemm_nax_glu_t64x64w4", 64, 64, 4)
++NAX_GLU("gemm_nax_glu_t128x64w4", 128, 64, 4)
++NAX_GLU("gemm_nax_glu_t32x128w2", 32, 128, 2)

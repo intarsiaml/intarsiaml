@@ -143,6 +143,9 @@ pub const KV_APPEND_BF16: &str = "kv_append_bf16";
 /// `QkNormRopeKv` (qk_rope_kv.metal): qk-norm, rope and the k / v cache appends of a layer in one dispatch, bitwise the
 /// unfused `qk_norm_bf16` (`rmsnorm_bf16_ex1` at head_dim <= 256) + `rope_bf16` + `kv_append_bf16` sequence.
 pub const QK_NORM_ROPE_KV_BF16: &str = "qk_norm_rope_kv_bf16";
+/// The prefill form of the same registry entry (T > 1, head_dim = rotary_dim = 128), chosen by the launcher: bitwise the
+/// decode form, with the 64 (cos, sin) pairs of a token computed once per threadgroup instead of per head and thread.
+pub const QK_NORM_ROPE_KV_BF16_PF: &str = "qk_norm_rope_kv_bf16_pf";
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 /// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
@@ -275,7 +278,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
-    v.push(QK_NORM_ROPE_KV_BF16);
+    v.extend([QK_NORM_ROPE_KV_BF16, QK_NORM_ROPE_KV_BF16_PF]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
     v.extend(crate::flash::FLASH_VARIANTS.iter().map(|f| f.name));
