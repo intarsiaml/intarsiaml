@@ -1,0 +1,55 @@
+diff --git a/crates/intarsia-backend-metal/src/flash_nax.rs b/crates/intarsia-backend-metal/src/flash_nax.rs
+index 0aed7a7..6728b4b 100644
+--- a/crates/intarsia-backend-metal/src/flash_nax.rs
++++ b/crates/intarsia-backend-metal/src/flash_nax.rs
+@@ -38,6 +38,10 @@ macro_rules! nv {
+ pub const NAX_FLASH_VARIANTS: &[NaxFlashVariant] = &[
+     nv!("attn_nax_d128_s4", 128, 4, 32),
+     nv!("attn_nax_d128_s8", 128, 8, 32),
++    nv!("attn_nax_d128_s16", 128, 16, 32),
++    nv!("attn_nax_d128_s32", 128, 32, 32),
++    nv!("attn_nax_d128_s4_k64", 128, 4, 64),
++    nv!("attn_nax_d128_s8_k64", 128, 8, 64),
+ ];
+ 
+ const GROUPS: [usize; 4] = [1, 2, 4, 8];
+diff --git a/docs/results/raw/2026-10-15-metal-longctx-profile/nax-flash-s16-s32-experiment.patch b/docs/results/raw/2026-10-15-metal-longctx-profile/nax-flash-s16-s32-experiment.patch
+index 93f1c46..e69de29 100644
+--- a/docs/results/raw/2026-10-15-metal-longctx-profile/nax-flash-s16-s32-experiment.patch
++++ b/docs/results/raw/2026-10-15-metal-longctx-profile/nax-flash-s16-s32-experiment.patch
+@@ -1,23 +0,0 @@
+-diff --git a/crates/intarsia-backend-metal/src/flash_nax.rs b/crates/intarsia-backend-metal/src/flash_nax.rs
+-index 0aed7a7..b8d83d5 100644
+---- a/crates/intarsia-backend-metal/src/flash_nax.rs
+-+++ b/crates/intarsia-backend-metal/src/flash_nax.rs
+-@@ -38,6 +38,8 @@ macro_rules! nv {
+- pub const NAX_FLASH_VARIANTS: &[NaxFlashVariant] = &[
+-     nv!("attn_nax_d128_s4", 128, 4, 32),
+-     nv!("attn_nax_d128_s8", 128, 8, 32),
+-+    nv!("attn_nax_d128_s16", 128, 16, 32),
+-+    nv!("attn_nax_d128_s32", 128, 32, 32),
+- ];
+- 
+- const GROUPS: [usize; 4] = [1, 2, 4, 8];
+-diff --git a/kernels/metal/attention_flash_nax.metal b/kernels/metal/attention_flash_nax.metal
+-index df29baa..2ff8111 100644
+---- a/kernels/metal/attention_flash_nax.metal
+-+++ b/kernels/metal/attention_flash_nax.metal
+-@@ -299,3 +299,5 @@ template <int D, int BK, int NSG>
+- // Keep in step with NAX_FLASH_VARIANTS in src/flash_nax.rs. NSG = 4 serves groups 1, 2, 4; NSG = 8 serves group 8.
+- NAX_FLASH_INST("attn_nax_d128_s4", 128, 32, 4)
+- NAX_FLASH_INST("attn_nax_d128_s8", 128, 32, 8)
+-+NAX_FLASH_INST("attn_nax_d128_s16", 128, 32, 16)
+-+NAX_FLASH_INST("attn_nax_d128_s32", 128, 32, 32)
+diff --git a/kernels/metal/attention_flash_nax.metal b/kernels/metal/attention_flash_nax.metal
+index df29baa..4b5f1b5 100644
+--- a/kernels/metal/attention_flash_nax.metal
++++ b/kernels/metal/attention_flash_nax.metal
+@@ -299,3 +299,7 @@ template <int D, int BK, int NSG>
+ // Keep in step with NAX_FLASH_VARIANTS in src/flash_nax.rs. NSG = 4 serves groups 1, 2, 4; NSG = 8 serves group 8.
+ NAX_FLASH_INST("attn_nax_d128_s4", 128, 32, 4)
+ NAX_FLASH_INST("attn_nax_d128_s8", 128, 32, 8)
++NAX_FLASH_INST("attn_nax_d128_s16", 128, 32, 16)
++NAX_FLASH_INST("attn_nax_d128_s32", 128, 32, 32)
++NAX_FLASH_INST("attn_nax_d128_s4_k64", 128, 64, 4)
++NAX_FLASH_INST("attn_nax_d128_s8_k64", 128, 64, 8)

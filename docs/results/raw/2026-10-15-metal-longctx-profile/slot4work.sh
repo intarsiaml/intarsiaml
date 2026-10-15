@@ -42,7 +42,7 @@ plain_gated() { # <bin> <stemprefix> <ctx> <chunk> <max-tokens> [env...]: up to 
 }
 
 echo "=== warmup"; run $BIN $D2/plain/warm2 4096 2048 8 NOENV=1
-DEADLINE=$(date -j -f "%Y-%m-%d %H:%M" "2026-10-15 14:20" +%s)
+DEADLINE=$(date -j -f "%Y-%m-%d %H:%M" "2026-10-15 14:30" +%s)
 before_deadline() { [ $(date +%s) -lt $DEADLINE ]; }
 
 micro() { # <outfile> <label> <cmd...>: short GPU microbenchmark, cooled first, clock-gated, up to 3 attempts; every attempt is kept
@@ -62,30 +62,32 @@ micro() { # <outfile> <label> <cmd...>: short GPU microbenchmark, cooled first, 
 FB=$W/target/release/examples/flash_bench
 AB=$W/target/release/examples/attn_bw
 
-echo "=== D. prefill attention (NAX flash, default s4), chunk 2048 by position, then chunk size at pos0 16384"
-for p0 in 0 8192 30720 63488 16384 38912; do
-  micro $D2/exp/flash-s4.txt flash-c2048-p$p0 $FB --chunk 2048 --reps 5 nax $p0
-done
-for ch in 512 1024 4096 2048; do
-  micro $D2/exp/flash-s4.txt flash-c$ch-p16384b $FB --chunk $ch --reps 5 nax 16384
-done
-
-echo "=== E. NAX flash NSG experiment (patched build): s4 s8 s16 s32, chunk 2048, ABBA by position"
-for p0 in 38912 8192 63488; do
-  for v in attn_nax_d128_s4 attn_nax_d128_s8 attn_nax_d128_s16 attn_nax_d128_s32 attn_nax_d128_s32 attn_nax_d128_s16 attn_nax_d128_s8 attn_nax_d128_s4; do
+echo "=== E. NAX flash NSG / BK experiment (patched build): s4 s8 s16 s32 s4_k64 s8_k64, chunk 2048, ABBA by position"
+for p0 in 38912 8192; do
+  for v in attn_nax_d128_s4 attn_nax_d128_s8 attn_nax_d128_s16 attn_nax_d128_s32 attn_nax_d128_s4_k64 attn_nax_d128_s8_k64 attn_nax_d128_s8_k64 attn_nax_d128_s4_k64 attn_nax_d128_s32 attn_nax_d128_s16 attn_nax_d128_s8 attn_nax_d128_s4; do
     before_deadline || break
     micro $D2/exp/flash-variants.txt "fv-$v-p$p0" $EXPEX/flash_bench --chunk 2048 --reps 5 $v $p0
   done
 done
 
+echo "=== D. prefill attention (NAX flash, default s4), chunk 2048 by position, then chunk size at pos0 16384"
+for p0 in 0 8192 30720 63488 16384 38912; do
+  before_deadline || break
+  micro $D2/exp/flash-s4.txt flash-c2048-p$p0 $FB --chunk 2048 --reps 5 nax $p0
+done
+for ch in 512 1024 4096 2048; do
+  before_deadline || break
+  micro $D2/exp/flash-s4.txt flash-c$ch-p16384b $FB --chunk $ch --reps 5 nax 16384
+done
+
 echo "=== G. NSG variants in the engine: plain prefill (1 token), 40k"
-for v in s4 s16 s8 s32 s32 s8 s16 s4; do
+for v in s4 s16 s4_k64 s8 s8_k64 s32 s32 s8_k64 s8 s4_k64 s16 s4; do
   before_deadline || break
   cooldown $MM "g-40000-$v"
   run $EXPBIN $D2/exp/ctx40000-$v-$RANDOM 40000 2048 1 INTARSIA_METAL_FLASH_NAX=attn_nax_d128_$v
 done
 echo "--- greedy ids at 4k, 48 tokens, per variant"
-for v in s4 s8 s16 s32; do
+for v in s4 s8 s16 s32 s4_k64 s8_k64; do
   INTARSIA_METAL_FLASH_NAX=attn_nax_d128_$v $EXPBIN generate --model $M --backend metal --max-seq 8192 --temperature 0 --max-tokens 48 --ignore-eos --show-ids --profile-every 0 --prompt "$(cat $P/prompt-4096.txt)" > $D2/exp/ids-$v.out 2> $D2/exp/ids-$v.err
 done
 
