@@ -1,0 +1,185 @@
+  RUNNING #2009 "metal longctx profile" (claude-31e10c55) running on endor exclusive 60 GB for 13m
+idle start: "Device Utilization %"=0 "Device Utilization %"=0 "Device Utilization %"=2 
+=== warmup
+warm [12:05:11]: prefill 1334 ms (3070.5 tok/s) | decode 201 ms (34.81 tok/s) clock(med p10 %<1450 W C)=[1385 120 50 65 66] clockok=1
+=== A. 32k kernel + cb traces (missed in slot 1)
+temp before kernel-32768: 65 C
+ctx32768-c2048-a1 [12:05:37]: prefill 19015 ms (1723.0 tok/s) | decode 6494 ms (9.86 tok/s) clock(med p10 %<1450 W C)=[1374 1249 75 51 77] clockok=1
+temp before kernel-32768: 64 C
+ctx32768-c2048-a2 [12:06:03]: prefill 19124 ms (1713.2 tok/s) | decode 6235 ms (10.27 tok/s) clock(med p10 %<1450 W C)=[1382 1224 88 53 79] clockok=1
+temp before cb-32768: 67 C
+ctx32768-c2048-a1 [12:06:25]: prefill 16423 ms (1995.1 tok/s) | decode 4520 ms (28.32 tok/s) clock(med p10 %<1450 W C)=[1340 1216 66 58 90] clockok=1
+temp before cb-32768: 75 C
+  cooled to 59 C after 10 s
+ctx32768-c2048-a2 [12:06:57]: prefill 17494 ms (1872.9 tok/s) | decode 4521 ms (28.32 tok/s) clock(med p10 %<1450 W C)=[1268 1206 92 49 78] clockok=1
+=== B. decode split-KV attention bandwidth, default policy (gated)
+temp before attn_bw-128-a1: 72 C
+  cooled to 58 C after 10 s
+## attn_bw-128 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+     128 attn_decode_bf16                47.9      21.9      51.7       11   (2% of 614 GB/s)
+     128 attn_decode_bf16_splitkv        16.0      15.9      16.2       33   (5% of 614 GB/s)
+temp before attn_bw-128-a2: 57 C
+ck=few-samples
+## attn_bw-128 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+     128 attn_decode_bf16                20.5      15.3      20.7       26   (4% of 614 GB/s)
+     128 attn_decode_bf16_splitkv        11.8      10.9      12.0       44   (7% of 614 GB/s)
+temp before attn_bw-128-a3: 57 C
+ck=few-samples
+## attn_bw-128 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+     128 attn_decode_bf16                17.3      15.1      24.7       30   (5% of 614 GB/s)
+     128 attn_decode_bf16_splitkv         8.1       8.1      11.6       64   (10% of 614 GB/s)
+temp before attn_bw-1024-a1: 57 C
+## attn_bw-1024 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    1024 attn_decode_bf16                32.6      32.4      36.3      129   (21% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        14.6      14.4      14.7      287   (47% of 614 GB/s)
+temp before attn_bw-1024-a2: 57 C
+ck=few-samples
+## attn_bw-1024 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    1024 attn_decode_bf16                32.4      32.3      53.7      130   (21% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        14.6      14.5      14.6      288   (47% of 614 GB/s)
+temp before attn_bw-1024-a3: 57 C
+ck=few-samples
+## attn_bw-1024 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    1024 attn_decode_bf16                32.4      32.3      41.1      129   (21% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        14.4      14.4      14.5      291   (47% of 614 GB/s)
+temp before attn_bw-4096-a1: 57 C
+## attn_bw-4096 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16               104.6     104.5     105.2      160   (26% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        36.2      36.0      36.4      464   (76% of 614 GB/s)
+temp before attn_bw-4096-a2: 57 C
+ck=few-samples
+## attn_bw-4096 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16               104.6     104.4     104.8      160   (26% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        36.4      36.0      36.9      461   (75% of 614 GB/s)
+temp before attn_bw-4096-a3: 56 C
+ck=few-samples
+## attn_bw-4096 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16               104.9     104.3     106.7      160   (26% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        38.5      38.2      39.3      435   (71% of 614 GB/s)
+temp before attn_bw-8192-a1: 56 C
+## attn_bw-8192 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    8192 attn_decode_bf16               202.6     200.9     203.6      166   (27% of 614 GB/s)
+    8192 attn_decode_bf16_splitkv        66.9      66.1      74.0      502   (82% of 614 GB/s)
+temp before attn_bw-8192-a2: 57 C
+ck=few-samples
+## attn_bw-8192 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    8192 attn_decode_bf16               204.3     202.5     205.3      164   (27% of 614 GB/s)
+    8192 attn_decode_bf16_splitkv        66.7      66.3      71.1      503   (82% of 614 GB/s)
+temp before attn_bw-8192-a3: 57 C
+ck=few-samples
+## attn_bw-8192 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    8192 attn_decode_bf16               200.5     200.3     200.6      167   (27% of 614 GB/s)
+    8192 attn_decode_bf16_splitkv        65.1      64.8      65.5      515   (84% of 614 GB/s)
+temp before attn_bw-16384-a1: 57 C
+## attn_bw-16384 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16               391.9     391.4     392.2      171   (28% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       122.0     121.7     124.4      550   (90% of 614 GB/s)
+temp before attn_bw-16384-a2: 56 C
+ck=few-samples
+## attn_bw-16384 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16               392.1     391.8     392.4      171   (28% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       122.1     121.4     123.3      550   (90% of 614 GB/s)
+temp before attn_bw-16384-a3: 55 C
+ck=few-samples
+## attn_bw-16384 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16               391.6     391.2     392.3      171   (28% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       121.8     121.3     122.7      551   (90% of 614 GB/s)
+temp before attn_bw-32768-a1: 54 C
+## attn_bw-32768 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16               780.9     778.3     784.1      172   (28% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       244.6     240.3     253.3      549   (89% of 614 GB/s)
+temp before attn_bw-32768-a2: 53 C
+ck=few-samples
+## attn_bw-32768 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16               777.0     775.9     778.1      173   (28% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       236.2     234.4     241.7      568   (93% of 614 GB/s)
+temp before attn_bw-32768-a3: 53 C
+ck=few-samples
+## attn_bw-32768 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16               775.8     775.4     776.4      173   (28% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       238.6     234.0     252.0      562   (92% of 614 GB/s)
+temp before attn_bw-40000-a1: 53 C
+## attn_bw-40000 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16               944.8     941.8     946.3      173   (28% of 614 GB/s)
+   40000 attn_decode_bf16_splitkv       284.7     284.2     285.9      575   (94% of 614 GB/s)
+temp before attn_bw-40000-a2: 52 C
+ck=few-samples
+## attn_bw-40000 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16               946.9     946.0     951.7      173   (28% of 614 GB/s)
+   40000 attn_decode_bf16_splitkv       287.0     286.1     287.4      571   (93% of 614 GB/s)
+temp before attn_bw-40000-a3: 50 C
+ck=few-samples
+## attn_bw-40000 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16               945.9     944.7     946.4      173   (28% of 614 GB/s)
+   40000 attn_decode_bf16_splitkv       285.1     284.4     286.7      575   (94% of 614 GB/s)
+temp before attn_bw-65536-a1: 52 C
+## attn_bw-65536 attempt 1 clock(med p10 %<1450 W C n)=[1617 1103 20 27 50 5] clockok=0
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   65536 attn_decode_bf16              1541.5    1539.6    1545.9      174   (28% of 614 GB/s)
+   65536 attn_decode_bf16_splitkv       468.2     460.5     473.4      573   (93% of 614 GB/s)
+=== C. plain runs, clock-gated: 3 per context, chunk 2048, 129 forced tokens
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx4096-c2048-r1-a1: 54 C
+ctx4096-c2048-r1-a1 [12:08:06]: prefill 1194 ms (3430.6 tok/s) | decode 3636 ms (35.20 tok/s) clock(med p10 %<1450 W C)=[1617 0 43 95 56] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx4096-c2048-r1-a2: 60 C
+ctx4096-c2048-r1-a2 [12:08:11]: prefill 1206 ms (3396.3 tok/s) | decode 3623 ms (35.33 tok/s) clock(med p10 %<1450 W C)=[1617 212 43 96 60] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx4096-c2048-r1-a3: 63 C
+ctx4096-c2048-r1-a3 [12:08:16]: prefill 1191 ms (3439.6 tok/s) | decode 3660 ms (34.97 tok/s) clock(med p10 %<1450 W C)=[1278 91 50 72 68] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx16384-c2048-r1-a1: 66 C
+ctx16384-c2048-r1-a1 [12:08:27]: prefill 5897 ms (2778.1 tok/s) | decode 4110 ms (31.14 tok/s) clock(med p10 %<1450 W C)=[1617 1367 21 97 87] clockok=0
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx32768-c2048-r1-a1: 75 C
+  cooled to 63 C after 10 s
+ctx32768-c2048-r1-a1 [12:08:58]: prefill 15834 ms (2069.2 tok/s) | decode 4575 ms (27.98 tok/s) clock(med p10 %<1450 W C)=[1473 1305 45 78 93] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx32768-c2048-r1-a2: 85 C
+  cooled to 69 C after 10 s
+ctx32768-c2048-r1-a2 [12:09:29]: prefill 16084 ms (2037.1 tok/s) | decode 4622 ms (27.69 tok/s) clock(med p10 %<1450 W C)=[1445 1320 52 71 95] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx32768-c2048-r1-a3: 87 C
+  cooled to 70 C after 10 s
+ctx32768-c2048-r1-a3 [12:10:00]: prefill 15816 ms (2071.6 tok/s) | decode 4570 ms (28.01 tok/s) clock(med p10 %<1450 W C)=[1450 1306 49 75 95] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx40000-c2048-r1-a1: 84 C
+  cooled to 65 C after 10 s
+ctx40000-c2048-r1-a1 [12:10:40]: prefill 24618 ms (1624.9 tok/s) | decode 4843 ms (26.43 tok/s) clock(med p10 %<1450 W C)=[1157 1052 75 40 92] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx40000-c2048-r1-a2: 74 C
+  cooled to 61 C after 10 s

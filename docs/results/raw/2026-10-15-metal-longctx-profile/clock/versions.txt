@@ -1,0 +1,12 @@
+date: 2026-10-15T11:51:09-04:00
+fleetq job: 2009
+head: c5560080b076ccaffc15c458ae896ecff130b08d
+binary: -rwxr-xr-x@ 1 josef  wheel  16562800 Oct 15 11:28 /opt/code/intarsiaml-longctx/target/release/intarsia
+f9b061ee55c7f6f5f790af6b60b373ede6ed90ad47ac971611fabdf4eae39cad  /opt/code/intarsiaml-longctx/target/release/intarsia
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
+macmon 0.7.2
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+  RUNNING #2009 "metal longctx profile" (claude-31e10c55) running on endor exclusive 60 GB for 2s

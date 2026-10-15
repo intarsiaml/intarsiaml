@@ -1,0 +1,98 @@
+fleetq: #2009 waiting (#2 in line): in line behind #2008 "metal-weight-realign: slot3 final tests" (claude-0e8026c5) on endor
+fleetq: #2009 waiting (#1 in line): endor is held exclusively by #2008 "metal-weight-realign: slot3 final tests" (claude-0e8026c5)
+fleetq job 2009 (metal longctx profile) acquired Thu Oct 15 11:51:08 EDT 2026
+  RUNNING #2009 "metal longctx profile" (claude-31e10c55) running on endor exclusive 60 GB for 2s
+  QUEUED 1. #2011 "metal spec G2G3: A: identity 24x4 + G3 20 rows x3 x off/on" (claude-31e10c55): endor is held exclusively by #2009 "metal longctx profile" (claude-31e10c55)
+idle start: "Device Utilization %"=0 "Device Utilization %"=0 "Device Utilization %"=0 
+=== warmup (page-in)
+warm [11:51:16]: prefill 1700 ms (2410.1 tok/s) | decode 202 ms (34.65 tok/s) T=70C
+=== 1. kernel mode, chunk 2048: prefill + 64 decode steps
+temp before kernel-4096: 70 C
+ctx4096-c2048 [11:51:24]: prefill 1476 ms (2775.2 tok/s) | decode 5505 ms (11.63 tok/s) T=65C
+temp before kernel-16384: 65 C
+ctx16384-c2048 [11:51:37]: prefill 6289 ms (2605.2 tok/s) | decode 6129 ms (10.44 tok/s) T=71C
+temp before kernel-32764: 71 C
+cat: /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-32764.txt: No such file or directory
+ctx32764-c2048 [11:51:37]:  T=71C
+temp before kernel-40000: 71 C
+ctx40000-c2048 [11:52:08]: prefill 24378 ms (1640.8 tok/s) | decode 5955 ms (10.75 tok/s) T=84C
+=== 2. cb mode (GPU busy and idle), 129 tokens
+temp before cb-4096: 84 C
+  cooled to 69 C after 10 s
+ctx4096-c2048 [11:52:23]: prefill 1192 ms (3436.8 tok/s) | decode 3597 ms (35.58 tok/s) T=76C
+temp before cb-16384: 76 C
+ctx16384-c2048 [11:52:33]: prefill 5841 ms (2805.0 tok/s) | decode 4019 ms (31.85 tok/s) T=84C
+temp before cb-32764: 84 C
+  cooled to 67 C after 10 s
+cat: /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-32764.txt: No such file or directory
+ctx32764-c2048 [11:52:44]:  T=67C
+temp before cb-40000: 67 C
+ctx40000-c2048 [11:53:11]: prefill 21674 ms (1845.6 tok/s) | decode 4846 ms (26.41 tok/s) T=85C
+=== 3. plain: 3 reps per context, chunk 2048, 129 forced tokens (128 decode steps)
+temp before plain-4096-r1: 85 C
+  cooled to 67 C after 10 s
+ctx4096-c2048-r1 [11:53:26]: prefill 1393 ms (2939.6 tok/s) | decode 3613 ms (35.43 tok/s) T=72C
+temp before plain-16384-r1: 72 C
+ctx16384-c2048-r1 [11:53:39]: prefill 7688 ms (2131.2 tok/s) | decode 4005 ms (31.96 tok/s) T=73C
+temp before plain-32764-r1: 73 C
+cat: /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-32764.txt: No such file or directory
+ctx32764-c2048-r1 [11:53:39]:  T=73C
+temp before plain-40000-r1: 73 C
+ctx40000-c2048-r1 [11:54:12]: prefill 27453 ms (1457.0 tok/s) | decode 4802 ms (26.65 tok/s) T=74C
+temp before plain-4096-r2: 74 C
+ctx4096-c2048-r2 [11:54:18]: prefill 1813 ms (2259.3 tok/s) | decode 3617 ms (35.39 tok/s) T=72C
+temp before plain-16384-r2: 72 C
+ctx16384-c2048-r2 [11:54:30]: prefill 7524 ms (2177.5 tok/s) | decode 3999 ms (32.01 tok/s) T=74C
+temp before plain-32764-r2: 74 C
+cat: /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-32764.txt: No such file or directory
+ctx32764-c2048-r2 [11:54:30]:  T=74C
+temp before plain-40000-r2: 74 C
+ctx40000-c2048-r2 [11:55:03]: prefill 27393 ms (1460.2 tok/s) | decode 4796 ms (26.69 tok/s) T=74C
+temp before plain-4096-r3: 74 C
+ctx4096-c2048-r3 [11:55:09]: prefill 1895 ms (2161.8 tok/s) | decode 3604 ms (35.52 tok/s) T=72C
+temp before plain-16384-r3: 72 C
+ctx16384-c2048-r3 [11:55:21]: prefill 7585 ms (2160.2 tok/s) | decode 4013 ms (31.89 tok/s) T=73C
+temp before plain-32764-r3: 73 C
+cat: /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-32764.txt: No such file or directory
+ctx32764-c2048-r3 [11:55:21]:  T=72C
+temp before plain-40000-r3: 72 C
+ctx40000-c2048-r3 [11:55:54]: prefill 27038 ms (1479.4 tok/s) | decode 4789 ms (26.73 tok/s) T=72C
+=== 4. localeval speed through intarsia serve (chunk 2048 recipe default), max-seq 40960
+server up
+localeval exit 0
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-115639-adhoc-metal-longctx/result.json
+[localeval] logged to unanimis: 22ae2679-3192-4e8e-afd1-5a1959baaca2
+=== 5. microbenchmarks, default settings
+--- flash_bench: nax prefill attention at chunk 2048 (36 layers, own KV cache each) and whole-prompt totals
+temp before flash c2048: 63 C
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 nax                              675.8     675.1     677.3    50.86
+   2048 nax                             2321.1    2030.7    3379.4    44.42
+   8192 nax                             7642.3    7327.3    7929.5    40.47
+  16384 nax                            14220.0   11916.6   16635.4    41.08
+  30720 nax                            29240.7   22832.8   31251.9    36.43
+  38912 nax                            37005.1   30210.6   41125.1    36.21
+  63488 nax                            65503.4   63209.1   68657.8    33.05
+## total 4096 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 4096 chunk 2048: nax                              3533.7 us per layer (127.2 ms over 36 layers)   38.90 TFLOPS
+## total 16384 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 16384 chunk 2048: nax                             58909.0 us per layer (2120.7 ms over 36 layers)   37.33 TFLOPS
+## total 32768 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 32768 chunk 2048: nax                            262511.3 us per layer (9450.4 ms over 36 layers)   33.51 TFLOPS
+## total 40000 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 40000 chunk 2048: nax                            356400.1 us per layer (12830.4 ms over 36 layers)   36.78 TFLOPS
+## total 65536 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS

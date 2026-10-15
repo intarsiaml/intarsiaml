@@ -1,0 +1,32 @@
+== warm2 13:40:25
+load averages: 3.22 3.61 3.63
+98.7 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 19.5 /Users/josef/bin/macmon | 7.3 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 6.1 /usr/libexec/runningboardd | 5.7 /usr/sbin/coreaudiod | 
+"Device Utilization %"=1
+== ctx32768-c2048-a1 13:40:27
+load averages: 3.44 3.65 3.64
+98.2 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 21.7 /Users/josef/Library/Application Support/Claude/claude-code/ | 17.2 /Users/josef/bin/macmon | 8.8 /System/Library/Frameworks/CoreServices.framework/Versions/A | 8.1 /usr/libexec/coreduetd | 
+"Device Utilization %"=97
+== ctx32768-c2048-a2 13:40:53
+load averages: 3.39 3.61 3.63
+88.3 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 15.9 /Users/josef/bin/macmon | 9.0 /usr/libexec/signpost_reporter | 3.6 /usr/sbin/coreaudiod | 3.6 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 
+"Device Utilization %"=84
+== ctx32768-c2048-a1 13:41:30
+load averages: 7.24 4.64 4.01
+100.0 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 16.0 /Users/josef/bin/macmon | 7.5 /Users/josef/Library/Application Support/Claude/claude-code/ | 5.4 /usr/sbin/coreaudiod | 1.5 /System/Library/PrivateFrameworks/CoreSpeech.framework/cores | 
+"Device Utilization %"=84
+== ctx40000-s4-17779 13:53:32
+load averages: 9.63 5.03 4.23
+1150.6 /opt/code/intarsiaml-spec/target/debug/deps/spec-021e67daf8f | 99.5 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 16.3 /Users/josef/bin/macmon | 3.4 /usr/sbin/coreaudiod | 3.1 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 
+"Device Utilization %"=99
+== ctx40000-s16-11637 13:54:15
+load averages: 7.65 5.27 4.36
+99.6 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 99.4 /bin/sh | 73.3 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Ve | 33.4 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 16.8 /Users/josef/bin/macmon | 
+"Device Utilization %"=99
+== ctx40000-s4_k64-2897 13:54:57
+load averages: 5.99 5.14 4.36
+99.7 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 18.6 /Users/josef/bin/macmon | 14.6 /Users/josef/Library/Application Support/Claude/claude-code/ | 5.4 /usr/sbin/coreaudiod | 4.3 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 
+"Device Utilization %"=99
+== ctx40000-s8-2852 13:55:55
+load averages: 3.85 4.66 4.23
+99.5 /System/Library/Frameworks/CoreSpotlight.framework/spotlight | 98.2 /bin/sh | 24.0 /Users/josef/Library/Application Support/Claude/claude-code/ | 16.9 /Users/josef/bin/macmon | 3.4 /usr/sbin/coreaudiod | 
+"Device Utilization %"=99

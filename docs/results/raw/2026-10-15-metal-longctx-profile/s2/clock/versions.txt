@@ -1,0 +1,12 @@
+date: 2026-10-15T12:05:04-04:00
+fleetq job: 2009
+head: c5560080b076ccaffc15c458ae896ecff130b08d
+binary: -rwxr-xr-x@ 1 josef  wheel  16562800 Oct 15 11:28 /opt/code/intarsiaml-longctx/target/release/intarsia
+f9b061ee55c7f6f5f790af6b60b373ede6ed90ad47ac971611fabdf4eae39cad  /opt/code/intarsiaml-longctx/target/release/intarsia
+1629150aa0cc3f98c0313f853dfde302996bb8e80fca2cc26a6de0af8f18ec7b  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/lc/target-exp/release/intarsia
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+macmon 0.7.2
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+ powermode            2

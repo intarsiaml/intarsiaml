@@ -1,0 +1,4 @@
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   65536 attn_decode_bf16              1541.5    1539.6    1545.9      174   (28% of 614 GB/s)
+   65536 attn_decode_bf16_splitkv       468.2     460.5     473.4      573   (93% of 614 GB/s)

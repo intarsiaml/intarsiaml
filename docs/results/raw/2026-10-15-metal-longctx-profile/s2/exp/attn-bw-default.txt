@@ -1,0 +1,110 @@
+## attn_bw-128 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+     128 attn_decode_bf16                47.9      21.9      51.7       11   (2% of 614 GB/s)
+     128 attn_decode_bf16_splitkv        16.0      15.9      16.2       33   (5% of 614 GB/s)
+## attn_bw-128 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+     128 attn_decode_bf16                20.5      15.3      20.7       26   (4% of 614 GB/s)
+     128 attn_decode_bf16_splitkv        11.8      10.9      12.0       44   (7% of 614 GB/s)
+## attn_bw-128 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+     128 attn_decode_bf16                17.3      15.1      24.7       30   (5% of 614 GB/s)
+     128 attn_decode_bf16_splitkv         8.1       8.1      11.6       64   (10% of 614 GB/s)
+## attn_bw-1024 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    1024 attn_decode_bf16                32.6      32.4      36.3      129   (21% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        14.6      14.4      14.7      287   (47% of 614 GB/s)
+## attn_bw-1024 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    1024 attn_decode_bf16                32.4      32.3      53.7      130   (21% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        14.6      14.5      14.6      288   (47% of 614 GB/s)
+## attn_bw-1024 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    1024 attn_decode_bf16                32.4      32.3      41.1      129   (21% of 614 GB/s)
+    1024 attn_decode_bf16_splitkv        14.4      14.4      14.5      291   (47% of 614 GB/s)
+## attn_bw-4096 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16               104.6     104.5     105.2      160   (26% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        36.2      36.0      36.4      464   (76% of 614 GB/s)
+## attn_bw-4096 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16               104.6     104.4     104.8      160   (26% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        36.4      36.0      36.9      461   (75% of 614 GB/s)
+## attn_bw-4096 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16               104.9     104.3     106.7      160   (26% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        38.5      38.2      39.3      435   (71% of 614 GB/s)
+## attn_bw-8192 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    8192 attn_decode_bf16               202.6     200.9     203.6      166   (27% of 614 GB/s)
+    8192 attn_decode_bf16_splitkv        66.9      66.1      74.0      502   (82% of 614 GB/s)
+## attn_bw-8192 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    8192 attn_decode_bf16               204.3     202.5     205.3      164   (27% of 614 GB/s)
+    8192 attn_decode_bf16_splitkv        66.7      66.3      71.1      503   (82% of 614 GB/s)
+## attn_bw-8192 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    8192 attn_decode_bf16               200.5     200.3     200.6      167   (27% of 614 GB/s)
+    8192 attn_decode_bf16_splitkv        65.1      64.8      65.5      515   (84% of 614 GB/s)
+## attn_bw-16384 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16               391.9     391.4     392.2      171   (28% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       122.0     121.7     124.4      550   (90% of 614 GB/s)
+## attn_bw-16384 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16               392.1     391.8     392.4      171   (28% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       122.1     121.4     123.3      550   (90% of 614 GB/s)
+## attn_bw-16384 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16               391.6     391.2     392.3      171   (28% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       121.8     121.3     122.7      551   (90% of 614 GB/s)
+## attn_bw-32768 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16               780.9     778.3     784.1      172   (28% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       244.6     240.3     253.3      549   (89% of 614 GB/s)
+## attn_bw-32768 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16               777.0     775.9     778.1      173   (28% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       236.2     234.4     241.7      568   (93% of 614 GB/s)
+## attn_bw-32768 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16               775.8     775.4     776.4      173   (28% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       238.6     234.0     252.0      562   (92% of 614 GB/s)
+## attn_bw-40000 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16               944.8     941.8     946.3      173   (28% of 614 GB/s)
+   40000 attn_decode_bf16_splitkv       284.7     284.2     285.9      575   (94% of 614 GB/s)
+## attn_bw-40000 attempt 2 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16               946.9     946.0     951.7      173   (28% of 614 GB/s)
+   40000 attn_decode_bf16_splitkv       287.0     286.1     287.4      571   (93% of 614 GB/s)
+## attn_bw-40000 attempt 3 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   40000 attn_decode_bf16               945.9     944.7     946.4      173   (28% of 614 GB/s)
+   40000 attn_decode_bf16_splitkv       285.1     284.4     286.7      575   (94% of 614 GB/s)
+## attn_bw-65536 attempt 1 clock(med p10 %<1450 W C n)=[1617 1103 20 27 50 5] clockok=0
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 12 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   65536 attn_decode_bf16              1541.5    1539.6    1545.9      174   (28% of 614 GB/s)
+   65536 attn_decode_bf16_splitkv       468.2     460.5     473.4      573   (93% of 614 GB/s)

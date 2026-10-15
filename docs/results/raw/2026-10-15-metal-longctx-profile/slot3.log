@@ -1,0 +1,59 @@
+  RUNNING #2009 "metal longctx profile" (claude-31e10c55) running on endor exclusive 60 GB for 19m
+idle start: "Device Utilization %"=0 "Device Utilization %"=2 "Device Utilization %"=0 
+=== warmup
+warm2 [12:11:05]: prefill 1475 ms (2776.4 tok/s) | decode 216 ms (32.34 tok/s) clock(med p10 %<1450 W C)=[1540 905 33 85 57] clockok=0
+=== C. plain runs, clock-gated: 3 per context, chunk 2048, 129 forced tokens
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r1-a1: 64 C
+ctx4096-c2048-r1-a1 [12:11:11]: prefill 1607 ms (2548.2 tok/s) | decode 3702 ms (34.58 tok/s) clock(med p10 %<1450 W C)=[1332 1057 75 39 67] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r1-a2: 65 C
+ctx4096-c2048-r1-a2 [12:11:16]: prefill 1453 ms (2818.5 tok/s) | decode 3679 ms (34.79 tok/s) clock(med p10 %<1450 W C)=[1364 1073 80 55 65] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r1-a3: 67 C
+ctx4096-c2048-r1-a3 [12:11:22]: prefill 1440 ms (2844.0 tok/s) | decode 3637 ms (35.19 tok/s) clock(med p10 %<1450 W C)=[1312 1164 60 50 68] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r1-a1: 68 C
+ctx16384-c2048-r1-a1 [12:11:34]: prefill 7174 ms (2283.7 tok/s) | decode 4038 ms (31.70 tok/s) clock(med p10 %<1450 W C)=[1201 1138 95 41 74] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r1-a2: 71 C
+  cooled to 59 C after 10 s
+ctx16384-c2048-r1-a2 [12:11:55]: prefill 7084 ms (2312.8 tok/s) | decode 4012 ms (31.90 tok/s) clock(med p10 %<1450 W C)=[1236 1040 92 46 74] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r1-a3: 70 C
+ctx16384-c2048-r1-a3 [12:12:07]: prefill 7139 ms (2295.1 tok/s) | decode 4079 ms (31.38 tok/s) clock(med p10 %<1450 W C)=[1202 1183 95 42 75] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r1-a1: 72 C
+  cooled to 59 C after 10 s
+ctx32768-c2048-r1-a1 [12:12:41]: prefill 18473 ms (1773.6 tok/s) | decode 4574 ms (27.99 tok/s) clock(med p10 %<1450 W C)=[1209 1079 98 44 77] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r1-a2: 74 C
+  cooled to 60 C after 10 s
+ctx32768-c2048-r1-a2 [12:13:15]: prefill 18607 ms (1760.8 tok/s) | decode 4662 ms (27.45 tok/s) clock(med p10 %<1450 W C)=[1188 1101 98 41 77] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r1-a3: 74 C
+  cooled to 60 C after 10 s
+ctx32768-c2048-r1-a3 [12:13:48]: prefill 18544 ms (1766.8 tok/s) | decode 4678 ms (27.36 tok/s) clock(med p10 %<1450 W C)=[1206 1092 98 44 77] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r1-a1: 74 C
+  cooled to 60 C after 10 s
+ctx40000-c2048-r1-a1 [12:14:29]: prefill 25499 ms (1568.7 tok/s) | decode 4928 ms (25.97 tok/s) clock(med p10 %<1450 W C)=[1204 1068 100 43 78] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r1-a2: 75 C
+  cooled to 61 C after 10 s
+ctx40000-c2048-r1-a2 [12:15:10]: prefill 25644 ms (1559.8 tok/s) | decode 4771 ms (26.83 tok/s) clock(med p10 %<1450 W C)=[1195 1089 99 42 79] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r1-a3: 76 C
+  cooled to 61 C after 10 s
+ctx40000-c2048-r1-a3 [12:15:52]: prefill 25735 ms (1554.3 tok/s) | decode 4819 ms (26.56 tok/s) clock(med p10 %<1450 W C)=[1194 1081 99 42 79] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r2-a1: 76 C
+  cooled to 60 C after 10 s
+ctx4096-c2048-r2-a1 [12:16:07]: prefill 1331 ms (3078.5 tok/s) | decode 3745 ms (34.18 tok/s) clock(med p10 %<1450 W C)=[1615 1355 17 94 60] clockok=0
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r2-a1: 68 C
+ctx16384-c2048-r2-a1 [12:16:19]: prefill 7110 ms (2304.4 tok/s) | decode 4102 ms (31.20 tok/s) clock(med p10 %<1450 W C)=[1306 1125 92 52 77] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r2-a2: 72 C
+  cooled to 59 C after 10 s
+ctx16384-c2048-r2-a2 [12:16:41]: prefill 7194 ms (2277.5 tok/s) | decode 4037 ms (31.70 tok/s) clock(med p10 %<1450 W C)=[1179 1118 90 39 71] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r2-a3: 69 C
+ctx16384-c2048-r2-a3 [12:16:52]: prefill 6901 ms (2374.2 tok/s) | decode 4119 ms (31.08 tok/s) clock(med p10 %<1450 W C)=[1242 1213 95 45 77] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r2-a1: 73 C
+  cooled to 59 C after 10 s
+ctx32768-c2048-r2-a1 [12:17:27]: prefill 18835 ms (1739.5 tok/s) | decode 4672 ms (27.40 tok/s) clock(med p10 %<1450 W C)=[1205 1094 98 42 77] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r2-a2: 74 C
+  cooled to 60 C after 10 s
+ctx32768-c2048-r2-a2 [12:18:00]: prefill 18475 ms (1773.4 tok/s) | decode 4821 ms (26.55 tok/s) clock(med p10 %<1450 W C)=[1224 1148 99 45 78] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r2-a3: 74 C
+  cooled to 59 C after 10 s
+ctx32768-c2048-r2-a3 [12:18:34]: prefill 18825 ms (1740.5 tok/s) | decode 4531 ms (28.25 tok/s) clock(med p10 %<1450 W C)=[1213 1126 98 44 78] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r2-a1: 74 C
+  cooled to 60 C after 10 s
+ctx40000-c2048-r2-a1 [12:19:15]: prefill 25541 ms (1566.1 tok/s) | decode 4805 ms (26.64 tok/s) clock(med p10 %<1450 W C)=[1205 1104 99 42 78] clockok=1
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r2-a2: 75 C
