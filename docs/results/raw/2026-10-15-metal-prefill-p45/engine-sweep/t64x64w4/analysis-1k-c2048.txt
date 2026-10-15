@@ -1,0 +1,29 @@
+### 1k chunk 2048: kernel-mode trace, 364 launches
+
+| kernel | M | n x k | calls | us/call | total ms | share | TFLOPS |
+|---|---|---|---:|---:|---:|---:|---:|
+| matmul_pair_bf16_nax | M=973 | 24576x4096 | 36 | 3362 | 121.0 | 42.7% | 58.26 |
+| matmul_bf16_nax | M=973 | 4096x12288 | 36 | 1712 | 61.6 | 21.7% | 57.22 |
+| matmul_bf16_nax | M=973 | 4096x4096 | 72 | 626 | 45.1 | 15.9% | 52.13 |
+| attn_prefill_bf16_flash |  |  | 36 | 656 | 23.6 | 8.3% | 11.84 |
+| matmul_pair_bf16_nax | M=973 | 2048x4096 | 36 | 342 | 12.3 | 4.3% | 47.75 |
+| qk_norm_rope_kv_bf16 |  |  | 36 | 295 | 10.6 | 3.8% |  |
+| silu_glu_bf16 |  |  | 36 | 111 | 4.0 | 1.4% |  |
+| rmsnorm_add_bf16 |  |  | 72 | 37 | 2.7 | 1.0% |  |
+| logits_bf16_gemv | M=1 | 151936x4096 | 1 | 2160 | 2.2 | 0.8% | 0.58 |
+| embedding_bf16 |  |  | 1 | 147 | 0.1 | 0.1% |  |
+| rmsnorm_bf16 |  |  | 1 | 60 | 0.1 | 0.0% |  |
+| argmax_f32 |  |  | 1 | 13 | 0.0 | 0.0% |  |
+
+Sum of kernel time 283.4 ms; first-start to last-end span 520.8 ms (kernel mode serialises launches, so the span includes host submit latency).
+
+| class | ms | share |
+|---|---:|---:|
+| matmul | 242.2 | 85.5% |
+| attention | 23.6 | 8.3% |
+| elementwise/row | 17.5 | 6.2% |
+
+Matmul: 13.52 TFLOP in 242.2 ms = 55.81 TFLOPS aggregate.
+Attention: 0.28 TFLOP (causal) in 23.6 ms = 11.84 TFLOPS.
+
+attention ms per chunk (36 layers): c0:24

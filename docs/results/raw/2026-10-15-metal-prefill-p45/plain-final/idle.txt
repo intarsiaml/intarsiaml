@@ -1,0 +1,6 @@
+idle start: "Device Utilization %"=62 "Device Utilization %"=2 "Device Utilization %"=0 
+idle 1k c256: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 
+idle 4k c256: "Device Utilization %"=87 "Device Utilization %"=0 "Device Utilization %"=1 
+idle 1k c2048: "Device Utilization %"=94 "Device Utilization %"=0 "Device Utilization %"=1 
+idle 4k c2048: "Device Utilization %"=93 "Device Utilization %"=0 "Device Utilization %"=0 
+idle end: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 

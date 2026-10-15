@@ -1,0 +1,33 @@
+### 4k chunk 2048: kernel-mode trace, 726 launches
+
+| kernel | M | n x k | calls | us/call | total ms | share | TFLOPS |
+|---|---|---|---:|---:|---:|---:|---:|
+| attn_prefill_bf16_flash |  |  | 72 | 4853 | 349.4 | 20.6% | 13.93 |
+| matmul_pair_bf16_nax | M=2048 | 24576x4096 | 36 | 8127 | 292.6 | 17.2% | 50.74 |
+| matmul_pair_bf16_nax | M=2014 | 24576x4096 | 36 | 8010 | 288.4 | 17.0% | 50.62 |
+| matmul_bf16_nax | M=2048 | 4096x12288 | 36 | 6313 | 227.3 | 13.4% | 32.66 |
+| matmul_bf16_nax | M=2014 | 4096x12288 | 36 | 6174 | 222.3 | 13.1% | 32.84 |
+| matmul_bf16_nax | M=2048 | 4096x4096 | 72 | 1369 | 98.5 | 5.8% | 50.21 |
+| matmul_bf16_nax | M=2014 | 4096x4096 | 72 | 1312 | 94.5 | 5.6% | 51.51 |
+| qk_norm_rope_kv_bf16 |  |  | 72 | 559 | 40.2 | 2.4% |  |
+| matmul_pair_bf16_nax | M=2048 | 2048x4096 | 36 | 710 | 25.6 | 1.5% | 48.37 |
+| matmul_pair_bf16_nax | M=2014 | 2048x4096 | 36 | 682 | 24.5 | 1.4% | 49.55 |
+| silu_glu_bf16 |  |  | 72 | 256 | 18.4 | 1.1% |  |
+| rmsnorm_add_bf16 |  |  | 144 | 97 | 13.9 | 0.8% |  |
+| logits_bf16_gemv | M=1 | 151936x4096 | 1 | 2805 | 2.8 | 0.2% | 0.44 |
+| embedding_bf16 |  |  | 2 | 178 | 0.4 | 0.0% |  |
+| rmsnorm_bf16 |  |  | 2 | 72 | 0.1 | 0.0% |  |
+| argmax_f32 |  |  | 1 | 13 | 0.0 | 0.0% |  |
+
+Sum of kernel time 1698.9 ms; first-start to last-end span 2020.1 ms (kernel mode serialises launches, so the span includes host submit latency).
+
+| class | ms | share |
+|---|---:|---:|
+| matmul | 1276.4 | 75.1% |
+| attention | 349.4 | 20.6% |
+| elementwise/row | 73.1 | 4.3% |
+
+Matmul: 56.43 TFLOP in 1276.4 ms = 44.21 TFLOPS aggregate.
+Attention: 4.87 TFLOP (causal) in 349.4 ms = 13.93 TFLOPS.
+
+attention ms per chunk (36 layers): c0:89, c1:260

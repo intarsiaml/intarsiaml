@@ -35,11 +35,13 @@ mod imp {
         k: usize,
     }
 
-    const SHAPES: [Shape; 4] = [
+    const SHAPES: [Shape; 5] = [
         Shape { label: "qo", n: 4096, k: 4096 },
         Shape { label: "kv", n: 1024, k: 4096 },
         Shape { label: "gu", n: 12288, k: 4096 },
         Shape { label: "down", n: 4096, k: 12288 },
+        // q + k + v of one projection set as one 6144-column output (the P4 triple GEMM proxy: one kernel, same FLOPs)
+        Shape { label: "qkv", n: 6144, k: 4096 },
     ];
 
     fn env_list<T: std::str::FromStr>(name: &str, default: &[T]) -> Vec<T>
@@ -201,7 +203,9 @@ mod imp {
                 let o1 = Operands::new(be, m, n, k, pool, (0, 0, 0));
                 let flop = 2.0 * m as f64 * (2 * n) as f64 * k as f64;
                 // (variant, pair?) grid
-                let grid: Vec<(NaxVariant, bool)> = NAX_VARIANTS.iter().flat_map(|v| [(*v, true), (*v, false)]).collect();
+                let pair_only = std::env::var_os("NAX_PAIR_ONLY").is_some();
+                let grid: Vec<(NaxVariant, bool)> =
+                    candidates().iter().flat_map(|v| [(*v, true), (*v, false)]).filter(|(_, pr)| *pr || !pair_only).collect();
                 let mut samples: Vec<Vec<f64>> = vec![Vec::new(); grid.len()];
                 for (v, pr) in &grid {
                     pair_chain(be, v, *pr, m, n, k, &o0, &o1, 2);
@@ -218,10 +222,65 @@ mod imp {
                 for (gi, (v, pr)) in grid.iter().enumerate() {
                     let st = stats(&mut samples[gi]);
                     println!(
-                        "PAIR shape={label} M={m} N={n} K={k} tile={}x{} mode={} median_tflops={:.2} p10={:.2} p90={:.2}",
-                        v.bm, v.bn, if *pr { "pair" } else { "2single" }, st.median, st.p10, st.p90
+                        "PAIR shape={label} M={m} N={n} K={k} tile={}x{}w{} mode={} median_tflops={:.2} p10={:.2} p90={:.2}",
+                        v.bm, v.bn, v.sg, if *pr { "pair" } else { "2single" }, st.median, st.p10, st.p90
                     );
                 }
+            }
+        }
+    }
+
+    /// The P1 tile rule (before P4/P5): 128x64 four simdgroups when it leaves enough threadgroups, else 64x64.
+    fn p1_pick(m: usize, n: usize) -> &'static NaxVariant {
+        let by = |name: &str| NAX_VARIANTS.iter().find(|v| v.shader == name).unwrap();
+        let big = by("gemm_nax_t128x64w4");
+        if m >= 128 && m.div_ceil(128) * n.div_ceil(64) >= 192 {
+            big
+        } else {
+            by("gemm_nax_t64x64w4")
+        }
+    }
+
+    /// The tile rule before P4/P5 (`p1_pick`) against the shipped `pick_variant`, per Qwen3-8B shape and M, with the kernels
+    /// the engine launches (single for q / o and down, pair for k + v and gate + up), weights from a 3 GiB rotating pool.
+    /// `PICK2` lines: TFLOPS of each, interleaved rounds.
+    fn pick2_mode(be: &MetalBackend) {
+        let ms: Vec<usize> = env_list("NAX_M", &[205, 222, 256, 973, 1024, 2014, 2048]);
+        let rounds = env_usize("NAX_ROUNDS", 15);
+        let reps = env_usize("NAX_REPS", 10);
+        let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
+        // (label, columns per matrix, k, pair)
+        for (label, n, k, pair) in [("qo", 4096usize, 4096usize, false), ("kv", 1024, 4096, true), ("gu", 12288, 4096, true), ("down", 4096, 12288, false)] {
+            for &m in &ms {
+                let o0 = Operands::new(be, m, n, k, pool, (0, 0, 0));
+                let o1 = if pair { Some(Operands::new(be, m, n, k, pool, (0, 0, 0))) } else { None };
+                let ntot = if pair { 2 * n } else { n };
+                let (old, new) = (p1_pick(m, ntot), pick_variant(m, ntot));
+                let flop = 2.0 * m as f64 * ntot as f64 * k as f64;
+                let run = |v: &NaxVariant, count: usize| match &o1 {
+                    Some(o1) => pair_chain(be, v, true, m, n, k, &o0, o1, count),
+                    None => dispatch_chain(be, v, m, n, k, 0, &o0, count),
+                };
+                run(old, 2);
+                run(new, 2);
+                let (mut so, mut sn) = (Vec::new(), Vec::new());
+                for r in 0..rounds {
+                    if r % 2 == 0 {
+                        so.push(flop * reps as f64 / run(old, reps) / 1e12);
+                        sn.push(flop * reps as f64 / run(new, reps) / 1e12);
+                    } else {
+                        sn.push(flop * reps as f64 / run(new, reps) / 1e12);
+                        so.push(flop * reps as f64 / run(old, reps) / 1e12);
+                    }
+                }
+                let (to, tn) = (stats(&mut so).median, stats(&mut sn).median);
+                println!(
+                    "PICK2 shape={label}{} M={m} N={ntot} K={k} old={} new={} old_tflops={to:.2} new_tflops={tn:.2} change={:+.1}%",
+                    if pair { "-pair" } else { "" },
+                    old.shader.trim_start_matches("gemm_nax_"),
+                    new.shader.trim_start_matches("gemm_nax_"),
+                    (tn / to - 1.0) * 100.0
+                );
             }
         }
     }
@@ -440,6 +499,7 @@ mod imp {
             "err" => err_mode(&be, &shapes),
             "pair" => pair_mode(&be),
             "pick" => pick_mode(&be, &shapes),
+            "pick2" => pick2_mode(&be),
             other => panic!("mode '{other}': bench or err"),
         }
     }

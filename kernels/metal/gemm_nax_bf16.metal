@@ -95,3 +95,9 @@ kernel void gemm_nax_pair_t(device bfloat* A [[buffer(0)]], device bfloat* W0 [[
 // Keep in step with NAX_VARIANTS in src/gemm_nax.rs.
 NAX_T("gemm_nax_t64x64w4", "gemm_nax_pair_t64x64w4", 64, 64, 4)
 NAX_T("gemm_nax_t128x64w4", "gemm_nax_pair_t128x64w4", 128, 64, 4)
+// P4/P5 tiles for the 128 <= M <= 512 chunks (docs/results/2026-10-15-metal-prefill-p45.md): 32x32 on one simdgroup for
+// the narrow k + v pair, 32 rows on two simdgroups for M tails that leave a 64-row tile mostly empty, 64x64 on two
+// simdgroups otherwise.
+NAX_T("gemm_nax_t32x32w1", "gemm_nax_pair_t32x32w1", 32, 32, 1)
+NAX_T("gemm_nax_t32x128w2", "gemm_nax_pair_t32x128w2", 32, 128, 2)
+NAX_T("gemm_nax_t64x64w2", "gemm_nax_pair_t64x64w2", 64, 64, 2)
