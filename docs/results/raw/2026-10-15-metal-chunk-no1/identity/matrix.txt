@@ -1,0 +1,6 @@
+L=257 s=1: base@256=same  base@2048=same  base@257=same  after@256=same  after@2048=same  after@257=same
+L=257 s=2: base@256=same  base@2048=same  base@257=same  after@256=same  after@2048=same  after@257=same
+L=2049 s=1: base@256=DIFF@1  base@2048=DIFF@1  base@2049=same  after@256=same  after@2048=same  after@2049=same
+L=2049 s=2: base@256=same  base@2048=same  base@2049=same  after@256=same  after@2048=same  after@2049=same
+L=4097 s=1: base@256=same  base@2048=same  base@4097=same  after@256=same  after@2048=same  after@4097=same
+L=4097 s=2: base@256=same  base@2048=same  base@4097=same  after@256=same  after@2048=same  after@4097=same
