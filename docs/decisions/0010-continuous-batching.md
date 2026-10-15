@@ -1,6 +1,6 @@
 # ADR-0010: Continuous batching on Metal is exact, N independent sequences, opt-in
 
-Status: Proposed (the operator has not yet accepted writing or adopting this ADR; design doc open question 10, `docs/research/continuous-batching-design.md` section 8). Decisions marked **[operator]** were taken in section 8.1 of the design doc on 2026-10-15; decisions marked **[proposed]** are the design's recommendation and are not yet confirmed.
+Status: Accepted (2026-10-15 19:29 EDT; the operator accepted this ADR, design doc question 10, and confirmed that MoE and recurrent models are out of scope, question 9). Decisions marked **[operator]** were taken by the operator (design doc `docs/research/continuous-batching-design.md` section 8.1). Decisions marked **[proposed]** are the design's recommendation, adopted with this ADR.
 
 Context: `intarsia serve` runs one request at a time. One worker thread holds one `SequenceState` for a whole generation (`crates/intarsia-core/src/engine.rs`, design section 1), so N concurrent clients get one stream's throughput (about 36 tok/s decode, estimate). The design (`docs/research/continuous-batching-design.md`, branch `metal-cb-design`) proposes an iteration-level scheduler over N slots. Its premise is that the row-exact multi-row GEMV kernels (G0) and multi-row attention (G0b), already merged into `spike/metal` (operator Q4, done), make every batched row bitwise equal to the solo decode step. Milestones M0 and M1 step 1 are built and measured (`docs/results/2026-10-15-metal-cb-m0.md`, `docs/results/2026-10-15-metal-cb-m1-step1.md`); the scheduler core and the identity harness exist (`docs/results/2026-10-15-metal-cb-scheduler.md`, `docs/results/2026-10-15-metal-cb-identity-harness.md`). Host: endor, M5 Max, Qwen3-8B BF16.
 
@@ -49,8 +49,8 @@ Negative.
 
 ## 6. Open items
 
-* Q9: the 35B-A3B NVFP4 MoE and recurrent models are out of scope here (batching is dense, attention-only; `BatchEngine` refuses them at load) [proposed, not confirmed]. They need their own estimate.
-* Q10: this ADR's acceptance.
+* Q9 (decided, operator 2026-10-15): the 35B-A3B NVFP4 MoE and recurrent/hybrid models are out of scope (batching is dense, attention-only; `BatchEngine` refuses them at load). Batching them would need its own estimate and decision.
+* Q10 (decided): this ADR is accepted.
 * Slot capacity layout (uniform `--max-seq` vs mixed), part of Q3.
 * 256-schedule golden baselines (M2); chunk invariance of prefill is shown on Metal only for chunks of at least 2 rows.
 
