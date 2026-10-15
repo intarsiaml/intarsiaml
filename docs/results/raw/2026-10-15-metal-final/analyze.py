@@ -54,3 +54,17 @@ for nm, g in (("SAFE", S), ("CAND", C)):
             p1, p2 = D[a][1][i]["prefill_tok_s"]["median"], D[b][1][i]["prefill_tok_s"]["median"]
             line += f"; prefill tok/s {p1:.0f}->{p2:.0f} ({100*(p2-p1)/p1:+.1f}%)"
         print(line)
+
+print()
+print("## Marginal prefill bounds (per-rep TTFT is not stored by localeval, only min/median/max, so the range is the extreme bound:")
+print("## dtok / (ttft_max[i] - ttft_min[i-1]) .. dtok / (ttft_min[i] - ttft_max[i-1]); the median column is the localeval figure)")
+print("| run | marginal 1k median (bound) | marginal 4k median (bound) |\n|---|---|---|")
+for k in order:
+    rows = D[k][1]
+    cells = []
+    for i in (1, 2):
+        dt = rows[i]["prompt_tokens"] - rows[i-1]["prompt_tokens"]
+        lo = dt / (rows[i]["ttft_s"]["max"] - rows[i-1]["ttft_s"]["min"])
+        hi = dt / (rows[i]["ttft_s"]["min"] - rows[i-1]["ttft_s"]["max"])
+        cells.append(f"{rows[i]['marginal_prefill_tok_s']:.0f} ({lo:.0f}-{hi:.0f})")
+    print(f"| final-{k} | " + " | ".join(cells) + " |")

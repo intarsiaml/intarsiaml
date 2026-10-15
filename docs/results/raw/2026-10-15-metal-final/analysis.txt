@@ -25,3 +25,14 @@ decode 4k: 35.55 = 87.6% floor, 108.8% mlx (32.7), 104.6% llama (34.0)
 drift 128: decode 36.8->36.8 (-0.0%)
 drift 1k: decode 36.4->36.6 (+0.5%); marginal prefill 3813->4353 (+14.2%); prefill tok/s 3517->3903 (+11.0%)
 drift 4k: decode 35.5->35.6 (+0.1%); marginal prefill 2436->3902 (+60.2%); prefill tok/s 2630->3904 (+48.4%)
+
+## Marginal prefill bounds (per-rep TTFT is not stored by localeval, only min/median/max, so the range is the extreme bound:
+## dtok / (ttft_max[i] - ttft_min[i-1]) .. dtok / (ttft_min[i] - ttft_max[i-1]); the median column is the localeval figure)
+| run | marginal 1k median (bound) | marginal 4k median (bound) |
+|---|---|---|
+| final-safe-1 | 4084 (4084-4262) | 2761 (2472-3386) |
+| final-cand-1 | 3813 (3698-3900) | 2436 (2424-2470) |
+| final-mlx-lm | 4309 (3977-5052) | 3244 (3132-3465) |
+| final-llamacpp | 2885 (2708-3034) | 1897 (1795-2040) |
+| final-cand-2 | 4353 (4332-4442) | 3902 (3328-3941) |
+| final-safe-2 | 4024 (4005-4121) | 3490 (3162-3506) |

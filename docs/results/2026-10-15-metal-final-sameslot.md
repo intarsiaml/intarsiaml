@@ -11,7 +11,7 @@ Both binaries: `cargo build --release -p intarsia-cli --features metal`, each fr
 
 Order SAFE, CAND, mlx-lm, llama.cpp, CAND, SAFE. `localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off`. Servers started and stopped one at a time; every port confirmed closed and pid gone before the next. GPU idle (3 samples) before each timed run: medians 0, 0, 0, 0, 1, 1 % (start limit 10 %); `pgrep -fl zoom.us` empty every time.
 
-Decode tok/s median (min-max) at 128 / 1k / 4k prompts; marginal prefill is a single figure per row (delta prompt tokens / delta TTFT versus the previous row), so it has no range; the per-row prefill tok/s range is given in the last two columns.
+Decode tok/s median (min-max) at 128 / 1k / 4k prompts. Marginal prefill is one figure per row (delta prompt tokens / delta TTFT median versus the previous row). localeval stores only min/median/max per row (no per-rep values), so the marginal range is the extreme bound below the table, and the per-row prefill tok/s range is in the last two columns.
 
 | label | localeval run id | prompt tok | decode 128 | decode 1k | decode 4k | marginal prefill 1k | marginal prefill 4k | prefill tok/s 1k (range) | prefill tok/s 4k (range) |
 |---|---|---|---|---|---|---|---|---|---|
@@ -23,6 +23,19 @@ Decode tok/s median (min-max) at 128 / 1k / 4k prompts; marginal prefill is a si
 | final-safe-2 | 20261015-025128-adhoc-final-safe-2 | 135/988/4087 | 36.7 (36.6-37.0) | 36.6 (36.6-36.6) | 35.6 (35.3-35.7) | 4024 | 3490 | 3680 (3674-3690) | 3535 (3271-3546) |
 
 There is no marginal prefill for the 128 row (first row). The 1k row has about 990 uncached tokens, under localeval's 1024 threshold, so its prefill tok/s figures are flagged `*` as overhead-influenced mid-length numbers (documented noise there is up to +-39 %); the marginal column cancels the fixed overhead. mlx-lm's decode "peak" figure (best 32-token stretch) is 41.1 / 40.9 / 38.0 tok/s, well above its median decode of 34.5 / 34.0 / 32.7; intarsia's peak equals its median within 0.3.
+
+Marginal prefill median (extreme bound from TTFT min/max of the two rows involved), tok/s:
+
+| run | marginal 1k | marginal 4k |
+|---|---|---|
+| final-safe-1 | 4084 (4084-4262) | 2761 (2472-3386) |
+| final-cand-1 | 3813 (3698-3900) | 2436 (2424-2470) |
+| final-mlx-lm | 4309 (3977-5052) | 3244 (3132-3465) |
+| final-llamacpp | 2885 (2708-3034) | 1897 (1795-2040) |
+| final-cand-2 | 4353 (4332-4442) | 3902 (3328-3941) |
+| final-safe-2 | 4024 (4005-4121) | 3490 (3162-3506) |
+
+Two notes on the references. (1) mlx-lm decode in this slot (34.5 / 34.0 / 32.7) is lower than the P3 doc's earlier same-slot mlx-lm decode (36.0 / 36.0 / 34.7); against those earlier figures intarsia would be about 102 % rather than 106-109 %, so part of the margin over mlx-lm is an mlx-lm dip. The >= 90 % verdict holds either way. (2) mlx-lm's 41.1 "peak" decode is above the 40.6 tok/s byte floor; peak is localeval's best 32-token stretch (burst delivery in the stream), not sustained decode, and must not be read as mlx-lm beating the floor.
 
 ### Percentages (SAFE and CAND = mean of their two runs)
 
@@ -105,3 +118,5 @@ SAFE versus CAND: no decode difference (within 0.2 tok/s). Serve-path prefill is
 ## 5. Not done
 
 No `qualify` run (CAND is known to FAIL acc-long prefix-reuse at 2048; unchanged from P3). No 16k serve-path speed. mlx-lm and llama.cpp were run once each (no repeat, so no drift estimate for them).
+
+Binary md5: intarsia-safe 9ead26226e096c542a4ee7ba63e9dbef, intarsia-cand 0db48d81362233c9c8c44d69d9d092bf (paths under the session scratchpad `final/`).
