@@ -1,0 +1,33 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/multirow.rs (target/release/deps/multirow-856d8fe765ca58f4)
+
+running 11 tests
+test every_instance_exists ... ok
+test serving_selection_unchanged ... FAILED
+test matmul_k_tails_and_odd_n ... ok
+test matmul_qwen3_8b_shapes_all_rows ... ok
+test matmul_a8_alignment_and_scalar_fallback ... ok
+test real_qwen3_8b_weights_bitwise ... ok
+test all_variants_matmul ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+test all_variants_pair ... ok
+test logits_qwen3_8b_shapes_all_rows ... ok
+test all_variants_logits ... ok
+
+failures:
+
+---- serving_selection_unchanged stdout ----
+
+thread 'serving_selection_unchanged' (92174318) panicked at crates/intarsia-backend-metal/tests/multirow.rs:501:9:
+assertion `left == right` failed: M=15
+  left: ["matmul_pair_bf16_nax"]
+ right: ["matmul_pair_bf16_gemv_rows", "matmul_pair_bf16_nax"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    serving_selection_unchanged
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test multirow`

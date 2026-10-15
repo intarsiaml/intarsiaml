@@ -1,0 +1,41 @@
+======================================================================
+intarsia-realign [23629]: 64-bit    Footprint: 3945 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+3817 MB        0 B       240 KB        157    IOAccelerator (graphics)
+  65 MB        0 B        52 MB         35    Malloc Small
+  57 MB        0 B          0 B         12    Malloc Large
+2628 KB        0 B          0 B          1    page table
+1264 KB        0 B       128 KB         10    Malloc Metadata
+ 592 KB        0 B          0 B        327    __DATA_CONST
+ 468 KB        0 B          0 B        287    __DATA_DIRTY
+ 286 KB        0 B          0 B        338    __DATA
+ 272 KB        0 B          0 B          1    Malloc Tiny
+ 224 KB        0 B          0 B         16    Stack
+ 208 KB        0 B          0 B         28    Untagged
+ 153 KB        0 B          0 B        979    unused dyld shared cache area
+ 128 KB        0 B          0 B          2    Dispatch Continuations
+  70 KB        0 B          0 B        170    __AUTH
+  64 KB        0 B          0 B          1    Deferred Reclaim
+  64 KB        0 B          0 B          2    IOAccelerator
+  64 KB        0 B          0 B          4    IOKit
+  48 KB        0 B          0 B          4    __TPRO_CONST
+  47 KB        0 B          0 B          1    __OBJC_RW
+  32 KB        0 B          0 B          1    Activity Tracing
+  16 KB        0 B          0 B          1    OS Alloc Once
+    0 B    7504 KB          0 B        392    __TEXT
+    0 B    4176 KB          0 B         11    mapped file
+    0 B      16 KB          0 B          2    __LINKEDIT
+    0 B        0 B          0 B          1    __CTF
+    0 B        0 B          0 B        329    __AUTH_CONST
+    0 B        0 B          0 B          1    __FONT_DATA
+    0 B        0 B          0 B          1    __OBJC_RO
+    ---        ---          ---        ---    ---
+3945 MB      11 MB        53 MB       3116    TOTAL
+
+Auxiliary data:
+    phys_footprint: 3945 MB
+    phys_footprint_peak: 6028 MB
+

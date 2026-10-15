@@ -492,7 +492,7 @@ fn serving_selection_unchanged() {
         if be.has_metal4() {
             want.push(MATMUL_PAIR_BF16_NAX);
         }
-        if std::env::var_os("INTARSIA_METAL_MULTIROW").is_some_and(|v| v != "0") {
+        if std::env::var_os("INTARSIA_METAL_MULTIROW").is_some_and(|v| v != "0") && m <= multirow::MR_MAX_REGISTERED {
             want.push(MATMUL_PAIR_BF16_GEMV_ROWS);
         }
         let mut got = pair_accepting.clone();

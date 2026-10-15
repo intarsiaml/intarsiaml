@@ -1,0 +1,41 @@
+======================================================================
+intarsia-c556008 [24232]: 64-bit    Footprint: 124 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  61 MB        0 B        52 MB         32    Malloc Small
+  57 MB        0 B          0 B         12    Malloc Large
+1712 KB        0 B       240 KB        102    IOAccelerator (graphics)
+1232 KB        0 B       128 KB         10    Malloc Metadata
+ 737 KB        0 B          0 B          1    page table
+ 592 KB        0 B          0 B        327    __DATA_CONST
+ 468 KB        0 B          0 B        287    __DATA_DIRTY
+ 286 KB        0 B          0 B        338    __DATA
+ 256 KB        0 B          0 B          1    Malloc Tiny
+ 224 KB        0 B          0 B         16    Stack
+ 208 KB        0 B          0 B         28    Untagged
+ 153 KB        0 B          0 B        979    unused dyld shared cache area
+ 128 KB        0 B          0 B          2    Dispatch Continuations
+  70 KB        0 B          0 B        170    __AUTH
+  64 KB        0 B          0 B          2    IOAccelerator
+  64 KB        0 B          0 B          1    Deferred Reclaim
+  64 KB        0 B          0 B          4    IOKit
+  48 KB        0 B          0 B          4    __TPRO_CONST
+  47 KB        0 B          0 B          1    __OBJC_RW
+  32 KB        0 B          0 B          1    Activity Tracing
+  16 KB        0 B          0 B          1    OS Alloc Once
+    0 B    6320 KB          0 B        392    __TEXT
+    0 B    2368 KB          0 B         12    mapped file
+    0 B      16 KB          0 B          2    __LINKEDIT
+    0 B        0 B          0 B          1    __CTF
+    0 B        0 B          0 B        329    __AUTH_CONST
+    0 B        0 B          0 B          1    __FONT_DATA
+    0 B        0 B          0 B          1    __OBJC_RO
+    ---        ---          ---        ---    ---
+ 124 MB    8704 KB        53 MB       3059    TOTAL
+
+Auxiliary data:
+    phys_footprint: 124 MB
+    phys_footprint_peak: 2261 MB
+
