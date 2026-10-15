@@ -5,28 +5,29 @@ Machine: endor, Apple M5 Max.
 
 ## Verdict
 
-**GO for R <= 6 rows, CONDITIONAL GO at R = 8.** Pass criteria of G0 (docs/research/metal-next-levers.md section 7): T(4)/T(1) <= 1.10 and
-T(8)/T(1) <= 1.20 summed over a layer's shapes, the multi-row kernel pinned to the 1-row serving variant, every row bitwise equal
-to the serving 1-row launch.
+**G0 as written: NO-GO at R = 8 on the model as it is served today (misses by 0.008 census-weighted, by 0.19 on the 8-mod-16 layers); PASS at R = 4.**
+The gate (docs/research/metal-next-levers.md section 7): T(4)/T(1) <= 1.10 and T(8)/T(1) <= 1.20 summed over a layer's shapes, the multi-row kernel
+pinned to the 1-row serving variant, every row bitwise equal to the serving 1-row launch. The fail clause says to stop; that call is the coordinator's, the data is below.
 
 | gate | measured (layer = 2 x q/o + down + k/v pair + gate/up pair) | limit | result |
 |---|---|---|---|
-| bitwise equal to serving 1-row launch | yes, every shape, every R, both alignments, real weights | yes | PASS |
-| T(4)/T(1), 16-byte aligned weights (28-29 of 36 layers) | **1.006** | 1.10 | PASS |
-| T(4)/T(1), 8-mod-16 shard weights (7-8 of 36 layers) | **1.006** | 1.10 | PASS |
+| bitwise equal to the serving 1-row launch | yes: every shape, every R, both alignments, real weights | yes | PASS |
+| T(4)/T(1), 16-byte aligned weights (28-29 of 36 layers per shape) | **1.006** | 1.10 | PASS |
+| T(4)/T(1), 8-mod-16 shard weights (7-8 of 36 layers per shape) | **1.006** | 1.10 | PASS |
 | T(8)/T(1), 16-byte aligned weights | **1.164** | 1.20 | PASS |
 | T(8)/T(1), 8-mod-16 shard weights | **1.386** | 1.20 | FAIL by 0.19 |
-| T(8)/T(1), census-weighted mix of the real shards | **1.208** | 1.20 | FAIL by 0.008 (within noise of the limit) |
+| T(8)/T(1), census-weighted mix of the real shards (the model as served) | **1.208** (1.210 and 1.208 in the two independent runs) | 1.20 | **FAIL by 0.008** |
 
-* R = 4 passes with a wide margin on both alignments; R = 5 (a draft of 4 tokens plus the last accepted token) is 1.011 / 1.023 and R = 6 is 1.020 / 1.068.
-* R = 8 is at the edge: it passes only for the 16-byte kernels. Shard 1 of Qwen3-8B has a header length of 8 mod 16, so 7-8 layers per shape
-  use the 8-byte-load kernels, whose multi-row form degrades earlier (R = 6: 1.07, R = 7: 1.23, R = 8: 1.39 per layer). If the loader put every
-  weight on a 16-byte boundary (a copy of the 7-8 affected tensors per shape at load, or a 16-aligned rewrite of shard 1), R = 8 would be 1.164 and pass.
-  Otherwise plan for R <= 6 (up to 5 drafted tokens), where the whole model passes with margin.
-* The per-shape worst cases at R = 8 are the small k+v pair (1.177) and down (1.204); q/o 1.104, gate/up 1.165, lm_head 1.077.
-* Against today: the tiled GEMM that serves M = 2..15 is **7x** slower than the 1-row GEMV per layer (4.5 ms vs 0.65 ms; the k+v pair is 26x because it runs as two tiled GEMMs),
-  so the premise "k rows cost about one weight pass" is true for this kernel and false for the existing path. NAX at M = 16 costs 1.81x the layer's 1-row time but is not bit-identical.
-* R = 16 with this kernel is 2.56x (ALU / cache-traffic bound as predicted in the plan); NAX is better there. R = 9..15 were not measured.
+Why R = 8 fails: the miss is confined to the 8-byte-load kernels (weights at 8 mod 16, which is every tensor of shard 1: 7-8 layers per shape), whose multi-row form degrades from R about 6 (layer 1.07 at R = 6, 1.24 at R = 7, 1.39 at R = 8)
+while the 16-byte kernels stay at 1.02 / 1.04 / 1.16. Output rows per threadgroup P = 2, 4 and a split-pass form were tried and made matmul/pair worse (section 1); the mechanism of the cliff at R = 7..8 (register pressure, instruction issue or x cache traffic) is **not identified**.
+Per shape (16-byte) at R = 8: k+v pair 1.177, down 1.204, gate+up 1.165, q/o 1.104, lm_head 1.077 (the lm_head formulation is chosen by split: 1.068).
+Adding lm_head (a per-step estimate, section 3) gives 1.197 census-weighted at R = 8; that is not a reinterpretation of the gate, which is stated per layer.
+
+Measured counterfactual (a remedy for the coordinator to choose, not a pass): if all weights sat on 16-byte boundaries (the loader copying the 7-8 tensors per shape of shard 1 to 16-aligned memory, or a 16-aligned rewrite of the shard), R = 8 is 1.164 per layer and would pass.
+
+Not part of the gate, but the curve it gives (census-weighted layer): R = 2: 1.002, 3: 1.006, 4: 1.006, 5: 1.013, 6: 1.029, 7: 1.078, 8: 1.208, 16: 2.57. If the speculation design caps the row count at 6 (5 drafted tokens), the whole model is within 3 % of a 1-token step.
+Against today: the tiled GEMM that serves M = 2..15 is **7x** slower than the 1-row GEMV per layer (4.5 ms vs 0.65 ms; the k+v pair is 26x because it runs as two tiled GEMMs), so the premise "k rows cost about one weight pass" holds for this kernel and not for the existing path.
+NAX at M = 16 costs 1.81x the layer's 1-row time but is not bit-identical to decode. This kernel at R = 16 is 2.56x; R = 9..15 were not measured.
 
 ## 1. What was built
 
@@ -67,84 +68,84 @@ the NAX GEMM at M = 16 (logits have no NAX kernel, tiled GEMM). "cfg" is the bes
 
 | shape | R | T(1) serving us | T(R) existing us (path) | existing / T(1) | T(R) prototype us | prototype / T(1) | bitwise |
 |---|---|---|---|---|---|---|---|
-| q / o (4096x4096) | 2 | 57.6 | 406.3 (tiled GEMM) | 7.06x | 57.8 (cfg 1) | **1.004** | yes |
-|  | 3 | 57.6 | 409.0 (tiled GEMM) | 7.10x | 58.4 (cfg 1) | **1.015** | yes |
-|  | 4 | 57.6 | 410.7 (tiled GEMM) | 7.13x | 58.3 (cfg 1) | **1.013** | yes |
-|  | 5 | 57.6 | 420.1 (tiled GEMM) | 7.30x | 58.9 (cfg 1) | **1.024** | yes |
-|  | 6 | 57.6 | 422.6 (tiled GEMM) | 7.34x | 60.1 (cfg 1) | **1.044** | yes |
-|  | 7 | 57.6 | 425.7 (tiled GEMM) | 7.39x | 61.4 (cfg 1) | **1.067** | yes |
-|  | 8 | 57.6 | 428.3 (tiled GEMM) | 7.44x | 63.5 (cfg 1) | **1.104** | yes |
-|  | 16 | 57.6 | 113.9 (NAX GEMM) | 1.98x | 166.3 (cfg 4) | **2.892** | yes |
-| down (K=12288, N=4096) | 2 | 169.4 | 1245.8 (tiled GEMM) | 7.35x | 169.8 (cfg 1) | **1.002** | yes |
-|  | 3 | 169.4 | 1255.1 (tiled GEMM) | 7.41x | 170.1 (cfg 1) | **1.003** | yes |
-|  | 4 | 169.4 | 1261.7 (tiled GEMM) | 7.45x | 170.2 (cfg 1) | **1.004** | yes |
-|  | 5 | 169.4 | 1309.5 (tiled GEMM) | 7.73x | 169.9 (cfg 1) | **1.004** | yes |
-|  | 6 | 169.4 | 1330.0 (tiled GEMM) | 7.85x | 170.5 (cfg 1) | **1.007** | yes |
-|  | 7 | 169.4 | 1342.6 (tiled GEMM) | 7.92x | 174.4 (cfg 1) | **1.030** | yes |
-|  | 8 | 169.4 | 1354.0 (tiled GEMM) | 7.99x | 203.8 (cfg 1) | **1.204** | yes |
-|  | 16 | 169.4 | 333.9 (NAX GEMM) | 1.97x | 358.9 (cfg 4) | **2.126** | yes |
-| k+v pair (2 x 1024x4096) | 2 | 29.5 | 765.9 (tiled GEMM) | 25.92x | 29.9 (cfg 1) | **1.009** | yes |
-|  | 3 | 29.5 | 770.0 (tiled GEMM) | 26.06x | 30.1 (cfg 1) | **1.019** | yes |
-|  | 4 | 29.5 | 772.7 (tiled GEMM) | 26.15x | 30.2 (cfg 1) | **1.021** | yes |
-|  | 5 | 29.5 | 792.9 (tiled GEMM) | 26.84x | 30.8 (cfg 1) | **1.043** | yes |
-|  | 6 | 29.5 | 796.3 (tiled GEMM) | 26.95x | 31.9 (cfg 1) | **1.078** | yes |
-|  | 7 | 29.5 | 800.2 (tiled GEMM) | 27.09x | 32.7 (cfg 1) | **1.107** | yes |
-|  | 8 | 29.5 | 802.4 (tiled GEMM) | 27.16x | 34.8 (cfg 1) | **1.177** | yes |
-|  | 16 | 29.5 | 78.4 (NAX GEMM) | 2.65x | 89.7 (cfg 4) | **3.036** | yes |
-| gate+up pair (2 x 12288x4096) | 2 | 336.8 | 1677.0 (tiled GEMM) | 4.98x | 336.9 (cfg 1) | **1.000** | yes |
-|  | 3 | 336.8 | 1687.2 (tiled GEMM) | 5.01x | 337.9 (cfg 1) | **1.003** | yes |
-|  | 4 | 336.8 | 1695.1 (tiled GEMM) | 5.03x | 338.0 (cfg 1) | **1.004** | yes |
-|  | 5 | 336.8 | 1747.9 (tiled GEMM) | 5.19x | 339.1 (cfg 1) | **1.007** | yes |
-|  | 6 | 336.8 | 1766.1 (tiled GEMM) | 5.24x | 341.0 (cfg 1) | **1.013** | yes |
-|  | 7 | 336.8 | 1779.3 (tiled GEMM) | 5.28x | 348.0 (cfg 1) | **1.036** | yes |
-|  | 8 | 336.8 | 1789.5 (tiled GEMM) | 5.31x | 391.9 (cfg 1) | **1.165** | yes |
-|  | 16 | 336.8 | 540.5 (NAX GEMM) | 1.61x | 884.8 (cfg 4) | **2.628** | yes |
-| lm_head (151936x4096, f32 out) | 2 | 2088.8 | 6394.2 (tiled GEMM) | 3.06x | 2093.0 (cfg 2) | **1.000** | yes |
-|  | 3 | 2088.8 | 6429.0 (tiled GEMM) | 3.08x | 2101.2 (cfg 2) | **1.006** | yes |
-|  | 4 | 2088.8 | 6461.1 (tiled GEMM) | 3.09x | 2105.8 (cfg 1) | **1.009** | yes |
-|  | 5 | 2088.8 | 6609.1 (tiled GEMM) | 3.16x | 2120.3 (cfg 1) | **1.011** | yes |
-|  | 6 | 2088.8 | 6681.7 (tiled GEMM) | 3.20x | 2152.8 (cfg 2) | **1.029** | yes |
-|  | 7 | 2088.8 | 6759.2 (tiled GEMM) | 3.24x | 2156.9 (cfg 2) | **1.031** | yes |
-|  | 8 | 2088.8 | 6794.8 (tiled GEMM) | 3.25x | 2242.5 (cfg 2) | **1.077** | yes |
-|  | 16 | 2088.8 | 7596.0 (tiled GEMM (no NAX logits)) | 3.64x | 5181.6 (cfg 1) | **2.487** | yes |
+| q / o (4096x4096) | 2 | 57.6 | 406.3 (tiled GEMM) | 7.06x | 57.8 (cfg 1) | **1.004** | yes (6 checks) |
+|  | 3 | 57.6 | 409.0 (tiled GEMM) | 7.10x | 58.4 (cfg 1) | **1.015** | yes (6 checks) |
+|  | 4 | 57.6 | 410.7 (tiled GEMM) | 7.13x | 58.3 (cfg 1) | **1.013** | yes (6 checks) |
+|  | 5 | 57.6 | 420.1 (tiled GEMM) | 7.30x | 58.9 (cfg 1) | **1.024** | yes (6 checks) |
+|  | 6 | 57.6 | 422.6 (tiled GEMM) | 7.34x | 60.1 (cfg 1) | **1.044** | yes (6 checks) |
+|  | 7 | 57.6 | 425.7 (tiled GEMM) | 7.39x | 61.4 (cfg 1) | **1.067** | yes (6 checks) |
+|  | 8 | 57.6 | 428.3 (tiled GEMM) | 7.44x | 63.5 (cfg 1) | **1.104** | yes (6 checks) |
+|  | 16 | 57.6 | 113.9 (NAX GEMM) | 1.98x | 166.3 (cfg 4) | **2.892** | yes (6 checks) |
+| down (K=12288, N=4096) | 2 | 169.4 | 1245.8 (tiled GEMM) | 7.35x | 169.8 (cfg 1) | **1.002** | yes (6 checks) |
+|  | 3 | 169.4 | 1255.1 (tiled GEMM) | 7.41x | 170.1 (cfg 1) | **1.003** | yes (6 checks) |
+|  | 4 | 169.4 | 1261.7 (tiled GEMM) | 7.45x | 170.2 (cfg 1) | **1.004** | yes (6 checks) |
+|  | 5 | 169.4 | 1309.5 (tiled GEMM) | 7.73x | 169.9 (cfg 1) | **1.004** | yes (6 checks) |
+|  | 6 | 169.4 | 1330.0 (tiled GEMM) | 7.85x | 170.5 (cfg 1) | **1.007** | yes (6 checks) |
+|  | 7 | 169.4 | 1342.6 (tiled GEMM) | 7.92x | 174.4 (cfg 1) | **1.030** | yes (6 checks) |
+|  | 8 | 169.4 | 1354.0 (tiled GEMM) | 7.99x | 203.8 (cfg 1) | **1.204** | yes (6 checks) |
+|  | 16 | 169.4 | 333.9 (NAX GEMM) | 1.97x | 358.9 (cfg 4) | **2.126** | yes (6 checks) |
+| k+v pair (2 x 1024x4096) | 2 | 29.5 | 765.9 (tiled GEMM) | 25.92x | 29.9 (cfg 1) | **1.009** | yes (6 checks) |
+|  | 3 | 29.5 | 770.0 (tiled GEMM) | 26.06x | 30.1 (cfg 1) | **1.019** | yes (6 checks) |
+|  | 4 | 29.5 | 772.7 (tiled GEMM) | 26.15x | 30.2 (cfg 1) | **1.021** | yes (6 checks) |
+|  | 5 | 29.5 | 792.9 (tiled GEMM) | 26.84x | 30.8 (cfg 1) | **1.043** | yes (6 checks) |
+|  | 6 | 29.5 | 796.3 (tiled GEMM) | 26.95x | 31.9 (cfg 1) | **1.078** | yes (6 checks) |
+|  | 7 | 29.5 | 800.2 (tiled GEMM) | 27.09x | 32.7 (cfg 1) | **1.107** | yes (6 checks) |
+|  | 8 | 29.5 | 802.4 (tiled GEMM) | 27.16x | 34.8 (cfg 1) | **1.177** | yes (6 checks) |
+|  | 16 | 29.5 | 78.4 (NAX GEMM) | 2.65x | 89.7 (cfg 4) | **3.036** | yes (6 checks) |
+| gate+up pair (2 x 12288x4096) | 2 | 336.8 | 1677.0 (tiled GEMM) | 4.98x | 336.9 (cfg 1) | **1.000** | yes (6 checks) |
+|  | 3 | 336.8 | 1687.2 (tiled GEMM) | 5.01x | 337.9 (cfg 1) | **1.003** | yes (6 checks) |
+|  | 4 | 336.8 | 1695.1 (tiled GEMM) | 5.03x | 338.0 (cfg 1) | **1.004** | yes (6 checks) |
+|  | 5 | 336.8 | 1747.9 (tiled GEMM) | 5.19x | 339.1 (cfg 1) | **1.007** | yes (6 checks) |
+|  | 6 | 336.8 | 1766.1 (tiled GEMM) | 5.24x | 341.0 (cfg 1) | **1.013** | yes (6 checks) |
+|  | 7 | 336.8 | 1779.3 (tiled GEMM) | 5.28x | 348.0 (cfg 1) | **1.036** | yes (6 checks) |
+|  | 8 | 336.8 | 1789.5 (tiled GEMM) | 5.31x | 391.9 (cfg 1) | **1.165** | yes (6 checks) |
+|  | 16 | 336.8 | 540.5 (NAX GEMM) | 1.61x | 884.8 (cfg 4) | **2.628** | yes (6 checks) |
+| lm_head (151936x4096, f32 out) | 2 | 2088.8 | 6394.2 (tiled GEMM) | 3.06x | 2093.0 (cfg 2) | **1.000** | yes (6 checks) |
+|  | 3 | 2088.8 | 6429.0 (tiled GEMM) | 3.08x | 2101.2 (cfg 2) | **1.006** | yes (6 checks) |
+|  | 4 | 2088.8 | 6461.1 (tiled GEMM) | 3.09x | 2105.8 (cfg 1) | **1.009** | yes (6 checks) |
+|  | 5 | 2088.8 | 6609.1 (tiled GEMM) | 3.16x | 2120.3 (cfg 1) | **1.011** | yes (6 checks) |
+|  | 6 | 2088.8 | 6681.7 (tiled GEMM) | 3.20x | 2152.8 (cfg 2) | **1.029** | yes (6 checks) |
+|  | 7 | 2088.8 | 6759.2 (tiled GEMM) | 3.24x | 2156.9 (cfg 2) | **1.031** | yes (6 checks) |
+|  | 8 | 2088.8 | 6794.8 (tiled GEMM) | 3.25x | 2242.5 (cfg 2) | **1.077** | yes (6 checks) |
+|  | 16 | 2088.8 | 7596.0 (tiled GEMM (no NAX logits)) | 3.64x | 5181.6 (cfg 1) | **2.487** | yes (6 checks) |
 
 
 ### 8-byte-aligned weights (shard 1; matmul and pairs only, lm_head is 16-byte aligned)
 
 | shape | R | T(1) serving us | T(R) existing us (path) | existing / T(1) | T(R) prototype us | prototype / T(1) | bitwise |
 |---|---|---|---|---|---|---|---|
-| q / o (4096x4096) | 2 | 58.1 | 410.0 (tiled GEMM) | 7.05x | 58.2 (cfg 1) | **1.002** | yes |
-|  | 3 | 58.1 | 412.0 (tiled GEMM) | 7.09x | 59.0 (cfg 1) | **1.011** | yes |
-|  | 4 | 58.1 | 414.0 (tiled GEMM) | 7.12x | 58.9 (cfg 1) | **1.012** | yes |
-|  | 5 | 58.1 | 420.7 (tiled GEMM) | 7.24x | 61.0 (cfg 1) | **1.046** | yes |
-|  | 6 | 58.1 | 423.2 (tiled GEMM) | 7.28x | 63.7 (cfg 1) | **1.095** | yes |
-|  | 7 | 58.1 | 426.5 (tiled GEMM) | 7.34x | 68.7 (cfg 1) | **1.179** | yes |
-|  | 8 | 58.1 | 428.8 (tiled GEMM) | 7.38x | 76.6 (cfg 1) | **1.318** | yes |
-|  | 16 | 58.1 | 114.7 (NAX GEMM) | 1.97x | 162.7 (cfg 1) | **2.807** | yes |
-| down (K=12288, N=4096) | 2 | 168.5 | 1245.3 (tiled GEMM) | 7.39x | 169.3 (cfg 1) | **1.003** | yes |
-|  | 3 | 168.5 | 1254.2 (tiled GEMM) | 7.44x | 169.6 (cfg 1) | **1.005** | yes |
-|  | 4 | 168.5 | 1261.6 (tiled GEMM) | 7.49x | 169.6 (cfg 1) | **1.004** | yes |
-|  | 5 | 168.5 | 1308.8 (tiled GEMM) | 7.77x | 170.1 (cfg 1) | **1.007** | yes |
-|  | 6 | 168.5 | 1328.8 (tiled GEMM) | 7.89x | 174.2 (cfg 1) | **1.033** | yes |
-|  | 7 | 168.5 | 1341.4 (tiled GEMM) | 7.96x | 202.8 (cfg 1) | **1.204** | yes |
-|  | 8 | 168.5 | 1354.5 (tiled GEMM) | 8.04x | 229.3 (cfg 1) | **1.361** | yes |
-|  | 16 | 168.5 | 330.7 (NAX GEMM) | 1.96x | 359.8 (cfg 4) | **2.131** | yes |
-| k+v pair (2 x 1024x4096) | 2 | 29.7 | 763.2 (tiled GEMM) | 25.73x | 30.0 (cfg 1) | **1.014** | yes |
-|  | 3 | 29.7 | 767.7 (tiled GEMM) | 25.88x | 30.4 (cfg 1) | **1.026** | yes |
-|  | 4 | 29.7 | 770.1 (tiled GEMM) | 25.96x | 30.6 (cfg 1) | **1.030** | yes |
-|  | 5 | 29.7 | 790.8 (tiled GEMM) | 26.66x | 32.2 (cfg 1) | **1.085** | yes |
-|  | 6 | 29.7 | 794.4 (tiled GEMM) | 26.78x | 33.5 (cfg 1) | **1.134** | yes |
-|  | 7 | 29.7 | 798.1 (tiled GEMM) | 26.91x | 37.5 (cfg 1) | **1.265** | yes |
-|  | 8 | 29.7 | 800.2 (tiled GEMM) | 26.98x | 42.3 (cfg 1) | **1.433** | yes |
-|  | 16 | 29.7 | 77.4 (NAX GEMM) | 2.61x | 84.3 (cfg 1) | **2.844** | yes |
-| gate+up pair (2 x 12288x4096) | 2 | 337.8 | 1676.2 (tiled GEMM) | 4.96x | 337.1 (cfg 1) | **1.001** | yes |
-|  | 3 | 337.8 | 1687.9 (tiled GEMM) | 5.00x | 338.1 (cfg 2) | **1.002** | yes |
-|  | 4 | 337.8 | 1696.6 (tiled GEMM) | 5.02x | 338.5 (cfg 1) | **1.004** | yes |
-|  | 5 | 337.8 | 1752.0 (tiled GEMM) | 5.19x | 343.0 (cfg 1) | **1.013** | yes |
-|  | 6 | 337.8 | 1771.3 (tiled GEMM) | 5.24x | 361.4 (cfg 2) | **1.070** | yes |
-|  | 7 | 337.8 | 1790.2 (tiled GEMM) | 5.30x | 422.7 (cfg 1) | **1.251** | yes |
-|  | 8 | 337.8 | 1803.6 (tiled GEMM) | 5.34x | 479.0 (cfg 1) | **1.418** | yes |
-|  | 16 | 337.8 | 537.9 (NAX GEMM) | 1.59x | 943.1 (cfg 4) | **2.796** | yes |
+| q / o (4096x4096) | 2 | 58.1 | 410.0 (tiled GEMM) | 7.05x | 58.2 (cfg 1) | **1.002** | yes (3 checks) |
+|  | 3 | 58.1 | 412.0 (tiled GEMM) | 7.09x | 59.0 (cfg 1) | **1.011** | yes (3 checks) |
+|  | 4 | 58.1 | 414.0 (tiled GEMM) | 7.12x | 58.9 (cfg 1) | **1.012** | yes (3 checks) |
+|  | 5 | 58.1 | 420.7 (tiled GEMM) | 7.24x | 61.0 (cfg 1) | **1.046** | yes (3 checks) |
+|  | 6 | 58.1 | 423.2 (tiled GEMM) | 7.28x | 63.7 (cfg 1) | **1.095** | yes (3 checks) |
+|  | 7 | 58.1 | 426.5 (tiled GEMM) | 7.34x | 68.7 (cfg 1) | **1.179** | yes (3 checks) |
+|  | 8 | 58.1 | 428.8 (tiled GEMM) | 7.38x | 76.6 (cfg 1) | **1.318** | yes (3 checks) |
+|  | 16 | 58.1 | 114.7 (NAX GEMM) | 1.97x | 162.7 (cfg 1) | **2.807** | yes (3 checks) |
+| down (K=12288, N=4096) | 2 | 168.5 | 1245.3 (tiled GEMM) | 7.39x | 169.3 (cfg 1) | **1.003** | yes (3 checks) |
+|  | 3 | 168.5 | 1254.2 (tiled GEMM) | 7.44x | 169.6 (cfg 1) | **1.005** | yes (3 checks) |
+|  | 4 | 168.5 | 1261.6 (tiled GEMM) | 7.49x | 169.6 (cfg 1) | **1.004** | yes (3 checks) |
+|  | 5 | 168.5 | 1308.8 (tiled GEMM) | 7.77x | 170.1 (cfg 1) | **1.007** | yes (3 checks) |
+|  | 6 | 168.5 | 1328.8 (tiled GEMM) | 7.89x | 174.2 (cfg 1) | **1.033** | yes (3 checks) |
+|  | 7 | 168.5 | 1341.4 (tiled GEMM) | 7.96x | 202.8 (cfg 1) | **1.204** | yes (3 checks) |
+|  | 8 | 168.5 | 1354.5 (tiled GEMM) | 8.04x | 229.3 (cfg 1) | **1.361** | yes (3 checks) |
+|  | 16 | 168.5 | 330.7 (NAX GEMM) | 1.96x | 359.8 (cfg 4) | **2.131** | yes (3 checks) |
+| k+v pair (2 x 1024x4096) | 2 | 29.7 | 763.2 (tiled GEMM) | 25.73x | 30.0 (cfg 1) | **1.014** | yes (3 checks) |
+|  | 3 | 29.7 | 767.7 (tiled GEMM) | 25.88x | 30.4 (cfg 1) | **1.026** | yes (3 checks) |
+|  | 4 | 29.7 | 770.1 (tiled GEMM) | 25.96x | 30.6 (cfg 1) | **1.030** | yes (3 checks) |
+|  | 5 | 29.7 | 790.8 (tiled GEMM) | 26.66x | 32.2 (cfg 1) | **1.085** | yes (3 checks) |
+|  | 6 | 29.7 | 794.4 (tiled GEMM) | 26.78x | 33.5 (cfg 1) | **1.134** | yes (3 checks) |
+|  | 7 | 29.7 | 798.1 (tiled GEMM) | 26.91x | 37.5 (cfg 1) | **1.265** | yes (3 checks) |
+|  | 8 | 29.7 | 800.2 (tiled GEMM) | 26.98x | 42.3 (cfg 1) | **1.433** | yes (3 checks) |
+|  | 16 | 29.7 | 77.4 (NAX GEMM) | 2.61x | 84.3 (cfg 1) | **2.844** | yes (3 checks) |
+| gate+up pair (2 x 12288x4096) | 2 | 337.8 | 1676.2 (tiled GEMM) | 4.96x | 337.1 (cfg 1) | **1.001** | yes (3 checks) |
+|  | 3 | 337.8 | 1687.9 (tiled GEMM) | 5.00x | 338.1 (cfg 2) | **1.002** | yes (3 checks) |
+|  | 4 | 337.8 | 1696.6 (tiled GEMM) | 5.02x | 338.5 (cfg 1) | **1.004** | yes (3 checks) |
+|  | 5 | 337.8 | 1752.0 (tiled GEMM) | 5.19x | 343.0 (cfg 1) | **1.013** | yes (3 checks) |
+|  | 6 | 337.8 | 1771.3 (tiled GEMM) | 5.24x | 361.4 (cfg 2) | **1.070** | yes (3 checks) |
+|  | 7 | 337.8 | 1790.2 (tiled GEMM) | 5.30x | 422.7 (cfg 1) | **1.251** | yes (3 checks) |
+|  | 8 | 337.8 | 1803.6 (tiled GEMM) | 5.34x | 479.0 (cfg 1) | **1.418** | yes (3 checks) |
+|  | 16 | 337.8 | 537.9 (NAX GEMM) | 1.59x | 943.1 (cfg 4) | **2.796** | yes (3 checks) |
 
 
 ## 3. Aggregates
@@ -196,6 +197,19 @@ the NAX GEMM at M = 16 (logits have no NAX kernel, tiled GEMM). "cfg" is the bes
 | 8 | 25.52 | 29.51 | 1.156 | 179.69 | 7.04 | 3.69 |
 | 16 | 25.52 | 65.16 | 2.553 | 50.10 | 1.96 | 4.07 |
 
+### Per verify step, GEMVs only, census-weighted layers (16-byte / 8-mod-16 mix of the real shards) + lm_head
+
+| R | step(1) (ms) | step(R) multi-row (ms) | step(R)/step(1) |
+|---|---|---|---|
+| 2 | 25.53 | 25.57 | 1.002 |
+| 3 | 25.53 | 25.68 | 1.006 |
+| 4 | 25.53 | 25.70 | 1.006 |
+| 5 | 25.53 | 25.87 | 1.013 |
+| 6 | 25.53 | 26.28 | 1.029 |
+| 7 | 25.53 | 27.43 | 1.074 |
+| 8 | 25.53 | 30.56 | 1.197 |
+| 16 | 25.53 | 65.48 | 2.565 |
+
 The per-step numbers cover the GEMVs only (36 layers + lm_head, all R rows through the head). The 1-token step also contains attention, norms, RoPE and so on (about 1.5 ms of the 27.6 ms in the overnight trace) and
 attention with q_len > 1 is **not covered** here (K2 in the plan). For R = 5 the GEMV part of a verify step costs 1.011x a decode step: five tokens' logits for 0.29 ms extra.
 
@@ -243,7 +257,8 @@ The tiled-GEMM and NAX rows come from the same rounds. Clock rejection removes 3
 
 Slots on endor (exclusive): **#1978** (granted 08:20; the run failed because my `run_slot.sh` exported an empty `DEVELOPER_DIR`, which made cargo rebuild the metallib without the toolchain; no data, released), **#1980** (all data in this report, released),
 **#1983** (bench bug in the new split dispatch: panic after the bitwise checks, released), **#1985** (split-pass data in `split/`, released). All released by `trap` on exit. #1975 and #1977 belong to other work and were not touched.
-`cargo test` and `kernels test` of the first development iterations were run outside a slot (short correctness runs, no timings reported from them).
+
+**GPU work on endor outside a slot (disclosure, please check these windows against the other agents' runs).** Short correctness runs (cargo tests, kernels test, a mutation check, `pso_info`; no timings used anywhere) ran without a slot at about: 07:23-07:27 (multirow tests plus mutation check, while #1975 was held), 08:05-08:12 (full `cargo test`, four `kernels test` runs, while #1975/#1977 were held or starting), 08:57-09:01 (multirow tests, `pso_info`), 09:28-09:30 (full `cargo test`, after #1985 was released). Each lasted well under a minute of GPU activity except the `kernels test` runs (about 45 s each). No GPU work was done outside a slot after that.
 
 ## 7. What this does not cover
 

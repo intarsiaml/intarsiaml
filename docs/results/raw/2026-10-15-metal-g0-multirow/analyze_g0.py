@@ -231,4 +231,16 @@ if lm1 and _k:
               (f"{se*1e3:.2f} | {se/s1:.2f} | " if se else "- | - | ") + (f"{sm*1e3/R:.2f} |" if sm else "- |"))
 print()
 json.dump({"summary": summ, "bitwise": bitwise, "min_mhz": MIN_MHZ}, open(os.path.join(d, "summary.json"), "w"), indent=1)
+# census-weighted per-step (36 x census-weighted layer + lm_head aligned)
+print("### Per verify step, GEMVs only, census-weighted layers (16-byte / 8-mod-16 mix of the real shards) + lm_head\n")
+print("| R | step(1) (ms) | step(R) multi-row (ms) | step(R)/step(1) |")
+print("|---|---|---|---|")
+_w1 = weighted(1, serving_fn)
+_lm1 = tmed("lm", 0, "serving1")
+if _w1 and _lm1:
+    for R in Rs[1:]:
+        wm, lmm = weighted(R, mr_fn), tmed("lm", 0, f"mr{R}")
+        if wm and lmm:
+            print(f"| {R} | {(36*_w1+_lm1)*1e3:.2f} | {(36*wm+lmm)*1e3:.2f} | {(36*wm+lmm)/(36*_w1+_lm1):.3f} |")
+print()
 print("bitwise checks in the bench:", all(b[4] for b in bitwise), f"({len(bitwise)} checks)")
