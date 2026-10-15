@@ -1,0 +1,31 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 21 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     37s] plan: PASS in 36.1s (15 ops resolved, exactness deterministic, loaded in 36.1s)
+[qualify     37s] == kernels [kernels test on the model's shapes]
+[qualify     67s] kernels: PASS in 30.3s (21 kernels, 251 cases in 30.1s)
+[qualify     67s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     79s] gate: PASS in 12.3s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     79s] == acc-short [short accuracy against a golden]
+[qualify     79s] acc-short: SKIP in 0.0s (no golden found, and 16.4 GB of weights is too large to make an fp32 HF golden quickly (limit 5 GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>)
+[qualify     79s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    111s] server up in 32s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    188s] bench: PASS in 108.5s (decode 36.1 tok/s at 128 tokens (89% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/quick-report.md
+[qualify    188s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    188s] acc-long: SKIP in 0.0s (no golden found, and 16.4 GB of weights is too large to make an fp32 HF golden quickly (limit 5 GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>)
+[qualify    188s] == envelope [noise envelope and baseline for regression gating]
+[qualify    188s] envelope: SKIP in 0.0s (no baseline can be recorded without a golden: no golden found, and 16.4 GB of weights is too large to make an fp32 HF golden quickly (limit 5 GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>)
+[qualify    188s] == bench-long [long-context bench up to 16k]
+[qualify    222s] server up in 34s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    718s] bench-long: PASS in 530.3s (decode 35.5 tok/s at 1024 tokens (88% of the byte floor))
+[qualify    718s] == ab [A/B against the reference server via localeval]
+[qualify    718s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    718s] == tp [tensor-parallel variant]
+[qualify    718s] tp: SKIP in 0.0s (--tp not given (or 1))
+FULL DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/full-report.md
+[qualify    718s] exit code 0

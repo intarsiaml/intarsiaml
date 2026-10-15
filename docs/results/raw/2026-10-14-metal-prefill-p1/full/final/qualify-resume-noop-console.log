@@ -1,0 +1,17 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] doctor: already done (PASS), not run again
+[qualify      0s] recipe: already done (PASS), not run again
+[qualify      0s] plan: already done (PASS), not run again
+[qualify      0s] kernels: already done (PASS), not run again
+[qualify      0s] gate: already done (PASS), not run again
+[qualify      0s] acc-short: already done (SKIP), not run again
+[qualify      0s] bench: already done (PASS), not run again
+QUICK DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/quick-report.md
+[qualify      0s] acc-long: already done (SKIP), not run again
+[qualify      0s] envelope: already done (SKIP), not run again
+[qualify      0s] bench-long: already done (PASS), not run again
+[qualify      0s] ab: already done (SKIP), not run again
+[qualify      0s] tp: already done (SKIP), not run again
+FULL DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/full-report.md
+[qualify      0s] exit code 0
