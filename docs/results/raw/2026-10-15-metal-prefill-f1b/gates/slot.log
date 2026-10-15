@@ -1,0 +1,103 @@
+fleetq: #1960 waiting (#1 in line): endor is held exclusively by #1959 "metal-candidate plain prefill ABBA (base vs candidate)" (claude-31e10c55)
+fleetq:   #1959 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1959 set, or it will wait for #1959 to be released.
+fleetq job 1960 (f1b final gates (tests, accuracy, ids, chunk, qualify)) acquired Thu Oct 15 02:02:04 EDT 2026
+== 1. unit tests and admission
+cargo test metal exit 0
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.98s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.92s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo test workspace exit 0
+workspace: passed 269 failed 0
+cargo check workspace exit 0
+kernels test exit 0
+attn_prefill   attn_prefill_bf16_flash        14      0    5.025e-3    2.431e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_flash_nax      7      0    5.025e-3    2.408e-3  ADMITTED
+matmul         matmul_bf16_nax                 7      0    3.185e-3    8.100e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_nax            6      0    8.633e-5    3.758e-6  ADMITTED
+23 kernels, 272 cases in 32.5s
+== 2. kernel selection in the engine (1k prompt, chunk 256)
+pre prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16_nax': 432, 'matmul_pair_bf16_nax': 288, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+new prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16_nax': 432, 'matmul_pair_bf16_nax': 288, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash_nax': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+new-nometal4 prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16': 1008, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+== 3. decode dispatches per step (364 expected)
+pre short: 27.119 26.820 0.299 364.0 (36.87 tok/s)
+new short: 27.248 26.931 0.316 364.0 (36.70 tok/s)
+pre 4k: 28.702 28.372 0.330 364.0 (34.84 tok/s)
+new 4k: 28.649 28.314 0.335 364.0 (34.90 tok/s)
+== 4. accuracy against the fp32 goldens (bf16 gate class): pre, f1, new
+gate-pre short: prefill 434 pos top-1 99.77% (433/434) KL 2.686e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.739e-04
+gate-pre long: prefill 1434 pos top-1 99.65% (1429/1434) KL 4.342e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.731e-04
+gate-f1 short: prefill 434 pos top-1 99.54% (432/434) KL 2.602e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.089e-04
+gate-f1 long: prefill 1434 pos top-1 99.58% (1428/1434) KL 3.993e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.041e-04
+gate-new short: prefill 434 pos top-1 100.00% (434/434) KL 2.832e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.496e-04
+gate-new long: prefill 1434 pos top-1 99.72% (1430/1434) KL 3.699e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.517e-04
+== 5. greedy ids, pre vs new
+short 48 tokens, pre vs new: ids identical (48 tokens)
+4k 48 tokens, pre vs new: ids identical (48 tokens)
+short 256 tokens, pre vs new: ids identical (256 tokens)
+4k 256 tokens, pre vs new: ids identical (256 tokens)
+== 6. chunk invariance (new, then pre): 4k prompt ids (48 tokens) for several --prefill-chunk, and prefill KL of the short golden
+new 4k: chunk 256 vs 128: ids identical (48 tokens)
+new 4k: chunk 256 vs 1024: ids identical (48 tokens)
+new 4k: chunk 256 vs 2048: ids identical (48 tokens)
+new 4k: chunk 256 vs 4050: ids identical (48 tokens)
+accuracy prefill new chunk 128: full-vocab KL 2.832e-4
+accuracy prefill new chunk 256: full-vocab KL 2.832e-4
+accuracy prefill new chunk 512: full-vocab KL 2.832e-4
+accuracy prefill new chunk 2048: full-vocab KL 2.832e-4
+pre 4k: chunk 256 vs 128: ids identical (48 tokens)
+pre 4k: chunk 256 vs 1024: ids identical (48 tokens)
+pre 4k: chunk 256 vs 2048: ids identical (48 tokens)
+pre 4k: chunk 256 vs 4050: ids identical (48 tokens)
+accuracy prefill pre chunk 128: full-vocab KL 2.686e-4
+accuracy prefill pre chunk 256: full-vocab KL 2.686e-4
+accuracy prefill pre chunk 512: full-vocab KL 2.686e-4
+accuracy prefill pre chunk 2048: full-vocab KL 2.686e-4
+== 7. qualify (full, fresh output dir, never --resume)
+qualify exit 0
+**Verdict: PASS** (12 stages: 10 pass, 0 fail, 0 error, 2 skipped)
+| Decode | 128 tok: **36.8** tok/s (91% of floor); 1024 tok: **36.6** tok/s (90% of floor); 4096 tok: **35.1** tok/s (86% of floor) |
+| Prefill | 128 tok: **2380** tok/s; 1024 tok: **3821** tok/s; 4096 tok: **3114** tok/s |
+| Accuracy (short golden) | **PASS** (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.50e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.72% KL 3.70e-4; decode top-1 100.00% KL 3.53e-4) |
+| Quick gate | **PASS**: perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 23 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 36s | 15 ops resolved, exactness deterministic, loaded in 35.8s |
+| 4 | `kernels` kernels test on the model's shapes | quick | PASS | 33s | 23 kernels, 272 cases in 32.6s |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 10s | perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.50e-4 |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | PASS | 72s | decode 36.8 tok/s at 128 tokens (91% of the byte floor) |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 32s | prefill top-1 99.72% KL 3.70e-4; decode top-1 100.00% KL 3.53e-4 |
+| 9 | `envelope` noise envelope and baseline for regression gating | full | PASS | 15s | baseline and envelope (chunk) written; they gate this build: PASS |
+| 10 | `bench-long` long-context bench up to 16k | full | PASS | 70s | decode 36.5 tok/s at 1024 tokens (90% of the byte floor) |
+| 11 | `ab` A/B against the reference server via localeval | full | SKIP | 0s | no --reference server given |
+| 12 | `tp` tensor-parallel variant | full | SKIP | 0s | --tp not given (or 1) |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+## Accuracy
+**Regression gating artifacts**: baseline and envelope (chunk) written; they gate this build: PASS
+- recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
+- plan: 15 ops resolved, exactness deterministic, loaded in 35.8s (PASS)
+- kernels test: 23 kernels, 272 cases in 32.6s (PASS)
+== 8. the constant-V test must fail on the F1 kernel (unrounded l sum) and pass on the new one
+constant-V test on the F1 kernel: exit 0 (non-zero expected)
+test flash_constant_v_comes_out_unchanged ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.13s
+constant-V test on the new kernel: exit 0
+done
+script exit 0 Thu Oct 15 02:10:45 EDT 2026
+#1960 "f1b final gates (tests, accuracy, ids, chunk, qualify)" (claude-31e10c55) done on endor exclusive 24 GB
+fleetq job 1960 released Thu Oct 15 02:10:45 EDT 2026

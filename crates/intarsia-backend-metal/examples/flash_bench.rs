@@ -25,7 +25,8 @@ fn main() {
 mod imp {
     use intarsia_backend_metal::bench::{f32_to_bf16, stats, Rng};
     use intarsia_backend_metal::flash::{select_variant, FLASH_VARIANTS};
-    use intarsia_backend_metal::kernels::{ATTN_PREFILL_BF16, ATTN_PREFILL_BF16_FLASH};
+    use intarsia_backend_metal::flash_nax::{select_variant as select_nax, NAX_FLASH_VARIANTS};
+    use intarsia_backend_metal::kernels::{ATTN_PREFILL_BF16, ATTN_PREFILL_BF16_FLASH, ATTN_PREFILL_BF16_FLASH_NAX};
     use intarsia_backend_metal::MetalBackend;
     use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
     use intarsia_core::{DType, Op, OpAttrs, OpCall};
@@ -48,6 +49,7 @@ mod imp {
     pub fn main() {
         let (mut heads, mut kv_heads, mut dim, mut layers, mut reps, mut chunk) = (32usize, 8usize, 128usize, 36usize, 10usize, 256usize);
         let mut kernels: Vec<(String, &'static str, Option<&'static str>)> = Vec::new();
+        let mut total = 0usize;
         let mut pos: Vec<usize> = Vec::new();
         let mut args = std::env::args().skip(1);
         while let Some(a) = args.next() {
@@ -58,6 +60,12 @@ mod imp {
                 "--layers" => layers = args.next().unwrap().parse().unwrap(),
                 "--reps" => reps = args.next().unwrap().parse().unwrap(),
                 "--chunk" => chunk = args.next().unwrap().parse().unwrap(),
+                "--total" => total = args.next().unwrap().parse().unwrap(),
+                "nax" => kernels.push(("nax".into(), ATTN_PREFILL_BF16_FLASH_NAX, None)),
+                n if n.starts_with("attn_nax_") => {
+                    let v = NAX_FLASH_VARIANTS.iter().find(|v| v.name == n).expect("unknown nax flash variant");
+                    kernels.push((n.into(), ATTN_PREFILL_BF16_FLASH_NAX, Some(v.name)));
+                }
                 "old" => kernels.push(("old".into(), ATTN_PREFILL_BF16, None)),
                 "flash" => kernels.push(("flash".into(), ATTN_PREFILL_BF16_FLASH, None)),
                 n if n.starts_with("attn_flash_") => {
@@ -68,25 +76,48 @@ mod imp {
             }
         }
         if kernels.is_empty() {
-            kernels = vec![("old".into(), ATTN_PREFILL_BF16, None), ("flash".into(), ATTN_PREFILL_BF16_FLASH, None)];
+            kernels = vec![
+                ("old".into(), ATTN_PREFILL_BF16, None),
+                ("flash".into(), ATTN_PREFILL_BF16_FLASH, None),
+                ("nax".into(), ATTN_PREFILL_BF16_FLASH_NAX, None),
+            ];
         }
-        if pos.is_empty() {
+        if total > 0 {
+            pos = (0..total).step_by(chunk).collect();
+        } else if pos.is_empty() {
             pos = vec![0, 1024, 3840, 15872];
         }
+        let mut agg: Vec<(f64, f64)> = vec![(0.0, 0.0); kernels.len()];
         let trace = std::env::temp_dir().join(format!("flash_bench-{}.jsonl", std::process::id()));
         std::env::set_var("INTARSIA_METAL_PROFILE", format!("cb:{}", trace.display()));
         let be = MetalBackend::new().expect("metal backend");
         println!("heads {heads}/{kv_heads} head_dim {dim}, chunk {chunk}, {layers} layers (one KV cache each), {reps} reps");
         println!("{:>7} {:<28} {:>9} {:>9} {:>9} {:>8}", "pos0", "kernel", "us/call", "p10", "p90", "TFLOPS");
         let mut rng = Rng(0x9e3779b97f4a7c15);
+        let t = |b: &Buffer, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: DType::Bf16, shape: shape.to_vec() };
+        // --total N: one cache set at the final capacity, every chunk of an N-token prompt in turn
+        let fixed_cap = if total > 0 { total.next_multiple_of(64) } else { 0 };
+        let mut fixed: Option<(Buffer, Vec<(Buffer, Buffer)>)> = None;
         for &p0 in &pos {
-            let cap = (p0 + chunk).next_multiple_of(64);
-            let t = |b: &Buffer, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: DType::Bf16, shape: shape.to_vec() };
-            let q = rand_buf(&be, chunk * heads * dim, &mut rng);
+            let cap = if total > 0 { fixed_cap } else { (p0 + chunk).next_multiple_of(64) };
+            let tq = if total > 0 { chunk.min(total - p0) } else { chunk };
+            let (q, caches) = match (total > 0, fixed.take()) {
+                (true, Some(f)) => {
+                    fixed = Some(f.clone());
+                    f
+                }
+                _ => {
+                    let q = rand_buf(&be, chunk * heads * dim, &mut rng);
+                    let caches: Vec<(Buffer, Buffer)> = (0..layers)
+                        .map(|_| (rand_buf(&be, kv_heads * cap * dim, &mut rng), rand_buf(&be, kv_heads * cap * dim, &mut rng)))
+                        .collect();
+                    if total > 0 {
+                        fixed = Some((q.clone(), caches.clone()));
+                    }
+                    (q, caches)
+                }
+            };
             let out = be.alloc(chunk * heads * dim * 2, MemKind::Device).unwrap();
-            let caches: Vec<(Buffer, Buffer)> = (0..layers)
-                .map(|_| (rand_buf(&be, kv_heads * cap * dim, &mut rng), rand_buf(&be, kv_heads * cap * dim, &mut rng)))
-                .collect();
             let attn = OpAttrs {
                 pos0: p0,
                 scale: 1.0 / (dim as f32).sqrt(),
@@ -101,15 +132,18 @@ mod imp {
                 .map(|(k, v)| {
                     OpCall::new(
                         Op::AttnPrefill,
-                        vec![t(&q, &[chunk, heads, dim]), t(k, &[kv_heads, cap, dim]), t(v, &[kv_heads, cap, dim])],
-                        vec![t(&out, &[chunk, heads, dim])],
+                        vec![t(&q, &[tq, heads, dim]), t(k, &[kv_heads, cap, dim]), t(v, &[kv_heads, cap, dim])],
+                        vec![t(&out, &[tq, heads, dim])],
                         attn.clone(),
                     )
                 })
                 .collect();
-            let flops = 4.0 * dim as f64 * heads as f64 * (chunk * p0) as f64 + 4.0 * dim as f64 * heads as f64 * (chunk * (chunk + 1)) as f64 / 2.0;
-            for (label, kernel, variant) in &kernels {
-                select_variant(*variant);
+            let flops = 4.0 * dim as f64 * heads as f64 * (tq * p0) as f64 + 4.0 * dim as f64 * heads as f64 * (tq * (tq + 1)) as f64 / 2.0;
+            for (ki, (label, kernel, variant)) in kernels.iter().enumerate() {
+                match *kernel {
+                    ATTN_PREFILL_BF16_FLASH_NAX => select_nax(*variant),
+                    _ => select_variant(*variant),
+                }
                 let mut samples = Vec::new();
                 let mut seen = 0usize;
                 for rep in 0..reps + 2 {
@@ -129,14 +163,29 @@ mod imp {
                     seen = lines.len();
                 }
                 let st = stats(&mut samples);
+                agg[ki].0 += flops;
+                agg[ki].1 += st.median;
+                if total == 0 {
+                    println!(
+                        "{:>7} {:<28} {:>9.1} {:>9.1} {:>9.1} {:>8.2}",
+                        p0,
+                        label,
+                        st.median,
+                        st.p10,
+                        st.p90,
+                        flops / (st.median * 1e-6) / 1e12
+                    );
+                }
+            }
+        }
+        if total > 0 {
+            for (ki, (label, _, _)) in kernels.iter().enumerate() {
                 println!(
-                    "{:>7} {:<28} {:>9.1} {:>9.1} {:>9.1} {:>8.2}",
-                    p0,
+                    "total {total} chunk {chunk}: {:<28} {:>10.1} us per layer ({:.1} ms over {layers} layers) {:>7.2} TFLOPS",
                     label,
-                    st.median,
-                    st.p10,
-                    st.p90,
-                    flops / (st.median * 1e-6) / 1e12
+                    agg[ki].1,
+                    agg[ki].1 * layers as f64 / 1e3,
+                    agg[ki].0 / (agg[ki].1 * 1e-6) / 1e12
                 );
             }
         }

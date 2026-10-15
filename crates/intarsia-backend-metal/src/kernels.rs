@@ -255,7 +255,9 @@ pub const EXPERIMENT_SHADERS: &[&str] = &[
 /// `gemm_nax::NAX_VARIANTS` entry. Not part of [`shader_names`]: a failure to load them only drops the kernels in
 /// [`requires_metal4`], never `MetalBackend::new`.
 pub fn metal4_shaders() -> Vec<&'static str> {
-    crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]).collect()
+    let mut v: Vec<&'static str> = crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]).collect();
+    v.extend(crate::flash_nax::NAX_FLASH_VARIANTS.iter().map(|f| f.name));
+    v
 }
 
 /// `Op::Matmul`, M >= 16, bf16 on the M5 neural accelerators (`mpp::tensor_ops::matmul2d`, gemm_nax.rs), strict
@@ -265,7 +267,10 @@ pub const MATMUL_BF16_NAX: &str = "matmul_bf16_nax";
 pub const MATMUL_PAIR_BF16_NAX: &str = "matmul_pair_bf16_nax";
 /// Registered kernels that run on a `metal4_shaders()` pipeline; `Backend::kernels` hides them when the metal4.0 library
 /// could not be loaded.
-pub const NAX_KERNELS: &[&str] = &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX];
+/// `AttnPrefill` on the neural accelerators (attention_flash_nax.metal, launcher flash_nax.rs): head_dim 128; ranks above
+/// the P2 flash kernel and falls back to it for operands it cannot take.
+pub const ATTN_PREFILL_BF16_FLASH_NAX: &str = "attn_prefill_bf16_flash_nax";
+pub const NAX_KERNELS: &[&str] = &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX];
 
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
@@ -311,6 +316,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ARGMAX_BF16, Op::Argmax),
     (ATTN_PREFILL_BF16, Op::AttnPrefill),
     (ATTN_PREFILL_BF16_FLASH, Op::AttnPrefill),
+    (ATTN_PREFILL_BF16_FLASH_NAX, Op::AttnPrefill),
     (ATTN_DECODE_BF16, Op::AttnDecode),
     (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
     (MATMUL_PAIR_BF16_GEMV, Op::MatmulPair),
@@ -375,6 +381,14 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(10),
+                // NAX flash-style prefill (metal4.0 library, hidden without it): P2's contract on the neural accelerators
+                ATTN_PREFILL_BF16_FLASH_NAX => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::flash_nax::nax_flash_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(12),
                 // GQA-grouped split-KV decode (each K / V row read once per step, the sequence spread over
                 // threadgroups): needs scratch for the partials; ranks above the single-pass kernel.
                 ATTN_DECODE_BF16_SPLITKV => k
@@ -446,7 +460,7 @@ mod tests {
     #[test]
     fn metal4_shaders_are_the_nax_variants_and_not_metal3_shaders() {
         let m4 = metal4_shaders();
-        assert_eq!(m4.len(), 2 * crate::gemm_nax::NAX_VARIANTS.len());
+        assert_eq!(m4.len(), 2 * crate::gemm_nax::NAX_VARIANTS.len() + crate::flash_nax::NAX_FLASH_VARIANTS.len());
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
         assert_eq!(set.len(), m4.len());
@@ -455,7 +469,7 @@ mod tests {
     #[test]
     fn attention_is_registered_for_both_ops() {
         // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 2), (Op::AttnDecode, 2)] {
+        for (op, n) in [(Op::AttnPrefill, 3), (Op::AttnDecode, 2)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));

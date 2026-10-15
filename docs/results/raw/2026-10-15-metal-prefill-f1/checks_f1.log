@@ -1,0 +1,86 @@
+fleetq: #1924 waiting (#1 in line): endor is held exclusively by #1923 "metal D1: A/B 1 short" (claude-31e10c55)
+fleetq:   #1923 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1923 set, or it will wait for #1923 to be released.
+fleetq job 1924 (metal F1: nax attn correctness gates run 2) acquired Wed Oct 14 23:32:52 EDT 2026
+== 1. unit tests and admission
+cargo test metal exit 0
+kernels test exit 0
+attn_prefill   attn_prefill_bf16_flash        14      0    5.025e-3    2.431e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_flash_nax      7      0    5.025e-3    2.413e-3  ADMITTED
+matmul         matmul_bf16_nax                 7      0    3.185e-3    8.100e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_nax            6      0    8.633e-5    3.758e-6  ADMITTED
+23 kernels, 272 cases in 33.3s
+== 2. kernel selection in the engine (1k prompt, chunk 256)
+pre prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16_nax': 432, 'matmul_pair_bf16_nax': 288, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+new prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16_nax': 432, 'matmul_pair_bf16_nax': 288, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash_nax': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+new-nometal4 prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16': 1008, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+== 3. decode dispatches per step (364 expected)
+pre short: 27.235 26.920 0.316 364.0 (36.71 tok/s)
+new short: 27.275 26.967 0.308 364.0 (36.66 tok/s)
+pre 4k: 28.195 27.893 0.302 364.0 (35.46 tok/s)
+new 4k: 28.081 27.756 0.324 364.0 (35.61 tok/s)
+== 4. accuracy against the fp32 goldens (bf16 gate class), new and pre
+accuracy new short exit 0
+accuracy new long exit 0
+new short: top-1 99.54% full-vocab KL 2.602e-4 top-1 100.00% full-vocab KL 3.089e-4 : PASS : PASS 
+new long : top-1 99.58% full-vocab KL 3.993e-4 top-1 100.00% full-vocab KL 3.041e-4 : PASS : PASS 
+accuracy pre short exit 0
+accuracy pre long exit 0
+pre short: top-1 99.77% full-vocab KL 2.686e-4 top-1 100.00% full-vocab KL 3.739e-4 : PASS : PASS 
+pre long : top-1 99.65% full-vocab KL 4.342e-4 top-1 100.00% full-vocab KL 3.731e-4 : PASS : PASS 
+== 4b. noise scale: pre binary with the other P2 variant (attn_flash_d128_s8: same maths, another threadgroup shape, so another rounding order)
+pre attn_flash_d128_s8 short: top-1 100.00% full-vocab KL 2.811e-4 top-1 100.00% full-vocab KL 2.885e-4 : PASS : PASS 
+pre attn_flash_d128_s8 long : top-1 99.65% full-vocab KL 3.177e-4 top-1 100.00% full-vocab KL 2.798e-4 : PASS : PASS 
+== 5. greedy ids, pre vs new
+short 48 tokens: ids identical (48 tokens)
+4k 48 tokens: ids identical (48 tokens)
+short 256 tokens: ids identical (256 tokens)
+4k 256 tokens: ids identical (256 tokens)
+== 6. chunk invariance (new, then pre): 4k prompt ids for several --prefill-chunk, and prefill KL of the short golden
+new 4k: chunk 256 vs 128: ids identical (48 tokens)
+new 4k: chunk 256 vs 512: ids identical (48 tokens)
+new 4k: chunk 256 vs 1024: ids identical (48 tokens)
+new 4k: chunk 256 vs 4030: ids identical (48 tokens)
+new 4k: chunk 256 vs 4050: ids identical (48 tokens)
+accuracy prefill new chunk 128: full-vocab KL 2.602e-4
+accuracy prefill new chunk 256: full-vocab KL 2.602e-4
+accuracy prefill new chunk 512: full-vocab KL 2.602e-4
+pre 4k: chunk 256 vs 128: ids identical (48 tokens)
+pre 4k: chunk 256 vs 512: ids identical (48 tokens)
+pre 4k: chunk 256 vs 1024: ids identical (48 tokens)
+pre 4k: chunk 256 vs 4030: ids identical (48 tokens)
+pre 4k: chunk 256 vs 4050: ids identical (48 tokens)
+accuracy prefill pre chunk 128: full-vocab KL 2.686e-4
+accuracy prefill pre chunk 256: full-vocab KL 2.686e-4
+accuracy prefill pre chunk 512: full-vocab KL 2.686e-4
+== 7. qualify (full, fresh output dir, never --resume)
+qualify exit 0
+**Verdict: PASS** (12 stages: 10 pass, 0 fail, 0 error, 2 skipped)
+| Decode | 128 tok: **36.8** tok/s (91% of floor); 1024 tok: **36.6** tok/s (90% of floor); 4096 tok: **35.5** tok/s (87% of floor) |
+| Prefill | 128 tok: **2364** tok/s; 1024 tok: **3458** tok/s; 4096 tok: **3048** tok/s |
+| Accuracy (short golden) | **PASS** (prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.58% KL 3.99e-4; decode top-1 99.80% KL 3.02e-4) |
+| Quick gate | **PASS**: perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 23 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 36s | 15 ops resolved, exactness deterministic, loaded in 35.7s |
+| 4 | `kernels` kernels test on the model's shapes | quick | PASS | 33s | 23 kernels, 272 cases in 32.6s |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 10s | perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 99.54% KL 2.60e-4; decode top-1 100.00% KL 3.09e-4 |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | PASS | 73s | decode 36.8 tok/s at 128 tokens (91% of the byte floor) |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 40s | prefill top-1 99.58% KL 3.99e-4; decode top-1 99.80% KL 3.02e-4 |
+| 9 | `envelope` noise envelope and baseline for regression gating | full | PASS | 15s | baseline and envelope (chunk) written; they gate this build: PASS |
+| 10 | `bench-long` long-context bench up to 16k | full | PASS | 80s | decode 35.8 tok/s at 1024 tokens (88% of the byte floor) |
+| 11 | `ab` A/B against the reference server via localeval | full | SKIP | 0s | no --reference server given |
+| 12 | `tp` tensor-parallel variant | full | SKIP | 0s | --tp not given (or 1) |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+## Accuracy
+**Regression gating artifacts**: baseline and envelope (chunk) written; they gate this build: PASS
+- recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
+- plan: 15 ops resolved, exactness deterministic, loaded in 35.7s (PASS)
+- kernels test: 23 kernels, 272 cases in 32.6s (PASS)
+done
+script exit 0 Wed Oct 14 23:41:36 EDT 2026
+#1924 "metal F1: nax attn correctness gates run 2" (claude-31e10c55) done on endor exclusive 24 GB
+fleetq job 1924 released Wed Oct 14 23:41:36 EDT 2026

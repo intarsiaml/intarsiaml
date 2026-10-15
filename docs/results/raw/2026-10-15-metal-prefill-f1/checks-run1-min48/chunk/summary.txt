@@ -1,0 +1,10 @@
+new 4k: chunk 256 vs 128: ids identical (48 tokens)
+new 4k: chunk 256 vs 512: ids identical (48 tokens)
+new 4k: chunk 256 vs 1024: ids identical (48 tokens)
+new 4k: chunk 256 vs 4030: ids identical (48 tokens)
+new 4k: chunk 256 vs 4050: ids DIFFER, first divergence at token 22 of 48/48
+pre 4k: chunk 256 vs 128: ids identical (48 tokens)
+pre 4k: chunk 256 vs 512: ids identical (48 tokens)
+pre 4k: chunk 256 vs 1024: ids identical (48 tokens)
+pre 4k: chunk 256 vs 4030: ids identical (48 tokens)
+pre 4k: chunk 256 vs 4050: ids identical (48 tokens)
