@@ -1,0 +1,6 @@
+date: 2026-10-14T22:23:37-04:00
+head: e8be1869cd819ec51335162cf8a7428a35a5ddda
+base binary: -rwxr-xr-x@ 1 josef  wheel  16372944 Oct 14 22:16 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/p3/intarsia-base
+p3 binary: -rwxr-xr-x@ 1 josef  wheel  16378528 Oct 14 22:22 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/p3/intarsia-p3
+intarsia 0.0.1
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
