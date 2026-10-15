@@ -53,6 +53,7 @@ use objc2_metal::{
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub type Device = Retained<ProtocolObject<dyn MTLDevice>>;
@@ -174,6 +175,10 @@ pub struct MetalBackend {
     metal4: bool,
     stream: Mutex<Stream>,
     hosts: Mutex<host::HostCache>,
+    /// `wrap_host` copies ranges that are not 16-byte aligned into aligned buffers (see `host.rs`).
+    realign: AtomicBool,
+    realigned_tensors: AtomicUsize,
+    realigned_bytes: AtomicUsize,
     page_size: usize,
     /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
     /// cached. Construction stays cheap; the one-off cost lands on whoever asks first (the telemetry probe).
@@ -236,6 +241,9 @@ impl MetalBackend {
                 ..Stream::default()
             }),
             hosts: Mutex::new(host::HostCache::default()),
+            realign: AtomicBool::new(std::env::var_os("INTARSIA_METAL_REALIGN").is_some_and(|v| !v.is_empty() && v != "0")),
+            realigned_tensors: AtomicUsize::new(0),
+            realigned_bytes: AtomicUsize::new(0),
             page_size,
             bandwidth: OnceLock::new(),
         })
