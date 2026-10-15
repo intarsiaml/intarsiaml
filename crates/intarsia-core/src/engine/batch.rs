@@ -92,6 +92,10 @@ impl BatchModel for SlotModel {
             o => Some(o),
         })
     }
+    fn avoid_single_row_prefill(&self) -> bool {
+        // the backend flag (Metal), except for recurrent state (never batched; mirrors `Seq::prefill_step`)
+        self.model.backend.avoid_single_row_prefill() && !self.states[0].has_recurrent()
+    }
     fn decode_step(&mut self, rows: &[Row<HeadMode>]) -> Result<Vec<Result<StepOut>>> {
         // split borrows: one `&mut SequenceState` per row, in row order, from the slot vector
         let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
