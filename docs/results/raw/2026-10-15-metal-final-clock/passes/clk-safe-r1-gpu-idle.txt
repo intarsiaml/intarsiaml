@@ -1,0 +1,7 @@
+zoom before: 
+== sample set 1792054259
+"Device Utilization %"=17
+"Device Utilization %"=1
+"Device Utilization %"=0
+median=1
+FINAL median=1 tries=0

@@ -1,24 +1,25 @@
-# Metal backend: overnight report (2026-10-14 22:38 → 2026-10-15 03:00 EDT)
+# Metal backend: overnight report (2026-10-14 22:38 → 2026-10-15 05:11 EDT)
 
 Qwen3-8B BF16 on endor (Apple M5 Max). Branch `spike/metal` at the commit that adds this report, on top of `a2102bf`. Local only, not pushed.
 
 ## Outcome
 
-Every phase B decode criterion and every prefill-track level passes, including the 85% stretch, in a single same-slot run against mlx-lm and llama.cpp.
+Every phase B decode criterion and every prefill-track level, including the 85% stretch, passes in a 3-round same-slot run against mlx-lm and llama.cpp with the GPU clock logged.
 
-- **Prefill:** about 94–96% of mlx-lm and 140–165% of llama.cpp. It started yesterday at 7%.
-- **Decode:** 90% of the byte floor at short context, and 3–5% ahead of llama.cpp.
+- **Prefill:** 95% of mlx-lm at 1k and 101% at 4k (SAFE); about 1.4x llama.cpp. It started yesterday at 7% of mlx-lm.
+- **Decode:** 90% of the byte floor at short context, 7–9% ahead of mlx-lm and 4–5% ahead of llama.cpp.
+- **Raw 1k time-to-first-token:** 0.27 s against mlx-lm's 0.43 s.
 
-## Current metrics: same slot, fleetq #1965, 02:42–02:53 EDT
+## Current metrics: clock-aware same slot, fleetq #1974, 04:50–05:11 EDT
 
-The run order was SAFE, CAND, mlx-lm, llama.cpp, CAND, SAFE. GPU idle was 0–1% before each run and Zoom was not running. Values are localeval medians of 3 reps. Detail is in [2026-10-15-metal-final-sameslot.md](2026-10-15-metal-final-sameslot.md).
+There were 3 rounds of the 4 engines, in a different order each round, with a fresh server per pass, and `macmon` logged GPU clock and power throughout. GPU idle was 0–1% before each pass, Zoom was not running, and `pmset -g therm` showed no warnings. Values are medians over the 3 passes (each a localeval median of 3 reps). Detail is in [raw/2026-10-15-metal-final-clock/summary.md](raw/2026-10-15-metal-final-clock/summary.md).
 
 | | decode 128 | decode 1k | decode 4k | prefill 1k (marginal) | prefill 4k (marginal) |
 |---|---:|---:|---:|---:|---:|
-| **intarsia SAFE** (`spike/metal`, chunk 256), mean of 2 runs | 36.7 | 36.6 | 35.6 | 4054 | 3126 |
-| intarsia CAND (+ P3, chunk 2048), mean of 2 runs | 36.8 | 36.5 | 35.6 | 4083 | 3169 |
-| mlx-lm 0.31.3 | 34.5 | 34.0 | 32.7 | 4309 | 3244 |
-| llama.cpp (build 11429) | 35.4 | 35.1 | 34.0 | 2885 | 1897 |
+| **intarsia SAFE** (`spike/metal`, chunk 256) | 36.7 | 36.6 | 35.6 | 4056 | 3494 |
+| intarsia CAND (+ P3, chunk 2048) | 36.7 | 36.5 | 35.6 | 4373 | 3719 |
+| mlx-lm 0.31.3 | 34.5 | 33.8 | 32.6 | 4268 | 3459 |
+| llama.cpp (build 11429) | 35.4 | 35.0 | 33.8 | 2963 | 2470 |
 
 All figures are in tok/s.
 
@@ -26,23 +27,25 @@ SAFE against each criterion:
 
 | Criterion | Value | Result |
 |---|---|---|
-| Decode, % of the 40.6 tok/s byte floor (128 / 1k / 4k) | 90.3 / 90.2 / 87.7 | ≥ 85% PASS |
-| Decode vs mlx-lm | 106–109% | ≥ 90% PASS |
-| Decode vs llama.cpp | +3.6 to +4.9% | not below it: PASS |
-| Prefill vs mlx-lm (1k / 4k) | 94% / 96% | committed ≥ 50%, target ≥ 65%, stretch ≥ 85%: all PASS |
+| Decode, % of the 40.6 tok/s byte floor (128 / 1k / 4k) | 90.5 / 90.1 / 87.6 | ≥ 85% PASS |
+| Decode vs mlx-lm | 106.6–109.0% | ≥ 90% PASS |
+| Decode vs llama.cpp | +3.7 to +5.1% | not below it: PASS |
+| Prefill vs mlx-lm (1k / 4k) | 95% / 101% | committed ≥ 50%, target ≥ 65%, stretch ≥ 85%: all PASS |
+
+**Why prefill numbers swung earlier in the night:** the GPU sometimes drops from about 1600 MHz / 90 W to 900–1300 MHz / 20–50 W in the middle of a prefill, for reasons not yet found (no thermal warning, and the low-power setting is already off). The serve path itself adds only 1–8 ms ([2026-10-15-metal-serve-prefill.md](2026-10-15-metal-serve-prefill.md)). In this slot it hit 1 pass of 12 (SAFE round 1: 4k at 2196 tok/s, against 3494–3501 in its other two passes). The medians above absorb it; dropping that pass moves no ratio by more than 0.2 points. The earlier 02:42 slot, where the 4k stretch held only on a mean of two runs, was this effect.
 
 **Caveats:**
-- The stretch verdict holds on the mean of two runs, not on every run. At 4k, SAFE run 1 came in at 85.1% of mlx-lm and CAND run 1 at 75%. The serve-path 4k prefill drifted +26% (SAFE) and +60% (CAND) between run 1 and run 2, while decode drifted less than 1%.
-- mlx-lm decode in this slot (34.5 / 34.0 / 32.7) was lower than in the P3 slot earlier (36.0 / 36.0 / 34.7). Part of the decode margin over mlx-lm is therefore an mlx-lm dip. Against the higher figures, intarsia decode is about 102% of mlx-lm.
-- mlx-lm and llama.cpp each ran once.
+- The thinnest margin is decode 4k at 87.6% of the floor, 2.6 points above the line.
+- The 1k marginal figure subtracts each engine's 128-token time, which hides mlx-lm's and llama.cpp's larger fixed per-request cost.
+- n = 3 passes per engine; ranges are min–max, not confidence intervals. The cause of the clock drop needs `sudo powermetrics` during a slow stretch.
 
-**Plain prefill** (`generate`, ABBA, 6 runs each). Each build ran at its own default chunk.
+**Plain prefill** (`generate`, fresh process per run, ABBA/BAAB). Each build ran at its own default chunk. 1k from the 02:42 slot (6 runs each), 4k and 16k from the 03:01 re-measure (8 runs each, fleetq #1966).
 
 | Prompt | SAFE ms (median) | CAND ms (median) | CAND speed vs SAFE |
 |---|---:|---:|---:|
 | 1k | 444 | 378 | 1.17x |
-| 4k | 1490 | 1506 | 0.99x (ranges overlap) |
-| 16k | 8600 | 7794 | 1.10x |
+| 4k | 1308 (1291–1342) | 1167 (1155–1183) | 1.12x, no overlap |
+| 16k | 7024 | 6558 | 1.07x (GPU reached 87 °C, noisier) |
 
 **Accuracy** (SAFE and CAND are identical):
 - Long golden prefill: top-1 1430/1434, KL 3.699e-4.
@@ -53,13 +56,13 @@ SAFE against each criterion:
 
 ## Change since yesterday
 
-Earlier rows are same-slot localeval runs. This morning's mlx-lm and llama.cpp runs came from a separate slot.
+All rows are same-slot localeval runs.
 
 | | decode 128 / 1k / 4k | prefill 1k / 4k |
 |---|---|---|
 | Same-slot baseline 2026-10-14 17:05 (`a296a78`) | 35.6 / 35.4 / 34.5 | 350 / 205 |
 | After P1 + P2 (`2e1fdb1`, 22:10) | 36.2 / 36.2 / 35.1 | ~3300–3550 / ~1950–2200 |
-| **Now** (`a2102bf`) | **36.7 / 36.6 / 35.6** | **4054 / 3126** |
+| **Now** (`a2102bf`, 05:00 slot) | **36.7 / 36.6 / 35.6** | **4056 / 3494** |
 
 ## What merged into `spike/metal`
 
@@ -87,12 +90,13 @@ On the F1b top-1 number, its agent notes that kernels with equal maths span 1426
 ## Held for your decision
 
 1. **P3: Metal prefill chunk 2048** (`metal-p3-chunk`; integrated as `metal-candidate2`, which is `a2102bf` plus P3).
-   - **What it buys:** plain prefill 1.17x at 1k and 1.10x at 16k, and noise at 4k. Serve-path prefill is about equal to SAFE. Accuracy and ids are identical.
+   - **What it buys:** plain prefill 1.17x at 1k, 1.12x at 4k and 1.07x at 16k. Serve-path prefill +8% at 1k (all 3 passes ahead, no overlap); at 4k +6% on the median but one of 3 passes was 10% below SAFE, so 4k is unresolved. Accuracy and greedy ids are identical.
    - **Why it's held:** fresh `qualify` FAILs `acc-long` on the prefix-reuse gate. The longest long-golden prompt is 700 tokens, and any chunk above about 350 skips every prompt, which counts as a fail. It is a coverage gap, not a regression.
    - **Options:**
      - (a) Build a Qwen3-8B fp32 golden with 4k prompts (`tools/prompts/golden_4k.jsonl` exists). This needs spark1 with vLLM taken down (`--takes-down flight,guidance,capcom`, see the incident below), or an fp32 run on endor's CPU.
      - (b) Accept 2048 with the gap.
-     - (c) Keep 256. With F1b and P4/P5 merged, P3's gain is now small. **I'd do (c) now and revisit P3 with (a).**
+     - (c) Keep 256 for now.
+   - **My recommendation:** (c) today, then (a) soon: the gain is now consistently 7–17% in plain prefill, which is worth closing the gate for. (a) on spark1 takes the vLLM roles down for the run; on endor's CPU it is slower but takes nothing down.
 2. **Push and merge to main.** `spike/metal` is local only.
 3. **CUDA/HIP no-op check.** No `intarsia-core` file changed tonight. P1, P2, P4/P5 and F1b touched only the Metal backend crate, Metal kernels and docs. The last check (`a296a78`) therefore still covers the core. A re-run is optional.
 

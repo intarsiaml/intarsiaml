@@ -1,0 +1,258 @@
+fleetq job 1974
+ROUND 1 safe cand mlx llama
+##### clk-safe-r1  2026-10-15T04:50:27-04:00  epoch 1792054227
+server up after 32s
+chunk line: prefill chunk 256 (default)
+"Device Utilization %"=0
+median=1
+FINAL median=1 tries=0
+1792054264.888	[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=8192
+1792054271.873	[localeval]    128 tok rep 1/3: prompt=114 ttft=0.05s prefill=2154 tok/s decode=36.8 tok/s peak=36.9 tok/s out=256
+1792054278.905	[localeval]    128 tok rep 2/3: prompt=113 ttft=0.05s prefill=2118 tok/s decode=36.5 tok/s peak=36.8 tok/s out=256
+1792054285.871	[localeval]    128 tok rep 3/3: prompt=113 ttft=0.05s prefill=2094 tok/s decode=36.9 tok/s peak=37.0 tok/s out=256
+1792054293.113	[localeval]   1024 tok rep 1/3: prompt=991 ttft=0.27s prefill=3686 tok/s decode=36.6 tok/s peak=36.8 tok/s out=256
+1792054300.355	[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.27s prefill=3686 tok/s decode=36.6 tok/s peak=36.7 tok/s out=256
+1792054307.630	[localeval]   1024 tok rep 3/3: prompt=986 ttft=0.27s prefill=3621 tok/s decode=36.4 tok/s peak=36.6 tok/s out=256
+1792054316.163	[localeval]   4096 tok rep 1/3: prompt=4089 ttft=1.24s prefill=3294 tok/s decode=35.0 tok/s peak=35.5 tok/s out=256
+1792054325.123	[localeval]   4096 tok rep 2/3: prompt=4091 ttft=1.68s prefill=2433 tok/s decode=35.0 tok/s peak=35.2 tok/s out=256
+1792054334.264	[localeval]   4096 tok rep 3/3: prompt=4091 ttft=1.86s prefill=2197 tok/s decode=35.0 tok/s peak=35.4 tok/s out=256
+1792054334.264	- result file: `results/20261015-045103-adhoc-clk-safe-r1/result.json`
+1792054334.264	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792054334.265	[localeval] saved /opt/code/deepeval/results/20261015-045103-adhoc-clk-safe-r1/result.json
+port 8093 closed
+pid 64816 gone
+##### clk-cand-r1  2026-10-15T04:52:21-04:00  epoch 1792054341
+server up after 33s
+chunk line: prefill chunk 2048 (recipe qwen3, metal)
+"Device Utilization %"=0
+median=1
+FINAL median=1 tries=0
+1792054379.098	[localeval] calibrated: 22.1 tokens/sentence, 48 base tokens, ctx=8192
+1792054386.154	[localeval]    128 tok rep 1/3: prompt=135 ttft=0.05s prefill=2402 tok/s decode=36.4 tok/s peak=36.8 tok/s out=256
+1792054393.127	[localeval]    128 tok rep 2/3: prompt=135 ttft=0.05s prefill=2371 tok/s decode=36.9 tok/s peak=37.0 tok/s out=256
+1792054400.122	[localeval]    128 tok rep 3/3: prompt=136 ttft=0.05s prefill=2404 tok/s decode=36.7 tok/s peak=37.0 tok/s out=256
+1792054407.384	[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.25s prefill=3913 tok/s decode=36.4 tok/s peak=36.7 tok/s out=256
+1792054414.613	[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.25s prefill=3904 tok/s decode=36.6 tok/s peak=36.7 tok/s out=256
+1792054421.845	[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.25s prefill=3905 tok/s decode=36.5 tok/s peak=36.8 tok/s out=256
+1792054430.076	[localeval]   4096 tok rep 1/3: prompt=4091 ttft=1.07s prefill=3832 tok/s decode=35.6 tok/s peak=35.8 tok/s out=256
+1792054438.373	[localeval]   4096 tok rep 2/3: prompt=4089 ttft=1.09s prefill=3763 tok/s decode=35.4 tok/s peak=35.7 tok/s out=256
+1792054446.667	[localeval]   4096 tok rep 3/3: prompt=4087 ttft=1.09s prefill=3733 tok/s decode=35.4 tok/s peak=35.6 tok/s out=256
+1792054446.668	- result file: `results/20261015-045257-adhoc-clk-cand-r1/result.json`
+1792054446.668	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792054446.668	[localeval] saved /opt/code/deepeval/results/20261015-045257-adhoc-clk-cand-r1/result.json
+port 8093 closed
+pid 65576 gone
+##### clk-mlx-lm-r1  2026-10-15T04:54:13-04:00  epoch 1792054453
+server up after 2s
+chunk line: 
+"Device Utilization %"=0
+median=0
+FINAL median=0 tries=0
+1792054460.715	[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=None
+1792054468.360	[localeval]    128 tok rep 1/3: prompt=111 ttft=0.24s prefill=440 tok/s decode=34.5 tok/s peak=41.3 tok/s out=256
+1792054475.983	[localeval]    128 tok rep 2/3: prompt=111 ttft=0.22s prefill=487 tok/s decode=34.5 tok/s peak=41.4 tok/s out=256
+1792054483.605	[localeval]    128 tok rep 3/3: prompt=117 ttft=0.22s prefill=514 tok/s decode=34.4 tok/s peak=48.4 tok/s out=256
+1792054491.569	[localeval]   1024 tok rep 1/3: prompt=991 ttft=0.43s prefill=2315 tok/s decode=33.8 tok/s peak=40.6 tok/s out=256
+1792054499.548	[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.42s prefill=2366 tok/s decode=33.7 tok/s peak=39.1 tok/s out=256
+1792054507.496	[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.43s prefill=2310 tok/s decode=33.9 tok/s peak=40.4 tok/s out=256
+1792054516.624	[localeval]   4096 tok rep 1/3: prompt=4091 ttft=1.32s prefill=3093 tok/s decode=32.7 tok/s peak=39.7 tok/s out=256
+1792054525.775	[localeval]   4096 tok rep 2/3: prompt=4087 ttft=1.34s prefill=3053 tok/s decode=32.6 tok/s peak=40.1 tok/s out=256
+1792054534.934	[localeval]   4096 tok rep 3/3: prompt=4090 ttft=1.34s prefill=3058 tok/s decode=32.6 tok/s peak=38.3 tok/s out=256
+1792054534.934	- result file: `results/20261015-045418-adhoc-clk-mlx-lm-r1/result.json`
+1792054534.934	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792054534.935	[localeval] saved /opt/code/deepeval/results/20261015-045418-adhoc-clk-mlx-lm-r1/result.json
+port 8092 closed
+pid 66050 gone
+##### clk-llamacpp-r1  2026-10-15T04:55:41-04:00  epoch 1792054541
+server up after 4s
+chunk line: 
+"Device Utilization %"=1
+median=1
+FINAL median=1 tries=0
+1792054550.490	[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=8192
+1792054557.823	[localeval]    128 tok rep 1/3: prompt=117 ttft=0.09s prefill=1317 tok/s decode=35.2 tok/s peak=35.5 tok/s out=256
+1792054565.126	[localeval]    128 tok rep 2/3: prompt=112 ttft=0.09s prefill=1264 tok/s decode=35.4 tok/s peak=35.5 tok/s out=256
+1792054572.413	[localeval]    128 tok rep 3/3: prompt=115 ttft=0.09s prefill=1232 tok/s decode=35.4 tok/s peak=35.5 tok/s out=256
+1792054580.070	[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.38s prefill=2559 tok/s decode=35.1 tok/s peak=35.2 tok/s out=256
+1792054587.720	[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.39s prefill=2557 tok/s decode=35.1 tok/s peak=35.2 tok/s out=256
+1792054595.389	[localeval]   1024 tok rep 3/3: prompt=991 ttft=0.39s prefill=2551 tok/s decode=35.0 tok/s peak=35.2 tok/s out=256
+1792054604.520	[localeval]   4096 tok rep 1/3: prompt=4087 ttft=1.64s prefill=2491 tok/s decode=34.0 tok/s peak=34.2 tok/s out=256
+1792054613.725	[localeval]   4096 tok rep 2/3: prompt=4089 ttft=1.63s prefill=2501 tok/s decode=33.7 tok/s peak=34.1 tok/s out=256
+1792054622.901	[localeval]   4096 tok rep 3/3: prompt=4088 ttft=1.64s prefill=2495 tok/s decode=33.8 tok/s peak=34.0 tok/s out=256
+1792054622.901	- result file: `results/20261015-045548-adhoc-clk-llamacpp-r1/result.json`
+1792054622.901	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792054622.901	[localeval] saved /opt/code/deepeval/results/20261015-045548-adhoc-clk-llamacpp-r1/result.json
+port 8091 closed
+pid 66576 gone
+ROUND 2 mlx llama safe cand
+##### clk-mlx-lm-r2  2026-10-15T04:57:09-04:00  epoch 1792054629
+server up after 2s
+chunk line: 
+"Device Utilization %"=1
+median=1
+FINAL median=1 tries=0
+1792054636.926	[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=None
+1792054644.566	[localeval]    128 tok rep 1/3: prompt=114 ttft=0.24s prefill=468 tok/s decode=34.4 tok/s peak=39.0 tok/s out=256
+1792054652.190	[localeval]    128 tok rep 2/3: prompt=115 ttft=0.22s prefill=503 tok/s decode=34.4 tok/s peak=43.7 tok/s out=256
+1792054659.817	[localeval]    128 tok rep 3/3: prompt=116 ttft=0.22s prefill=504 tok/s decode=34.4 tok/s peak=40.4 tok/s out=256
+1792054667.766	[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.43s prefill=2314 tok/s decode=33.9 tok/s peak=40.3 tok/s out=256
+1792054675.745	[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.43s prefill=2317 tok/s decode=33.8 tok/s peak=40.0 tok/s out=256
+1792054683.710	[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.43s prefill=2293 tok/s decode=33.8 tok/s peak=39.3 tok/s out=256
+1792054692.832	[localeval]   4096 tok rep 1/3: prompt=4086 ttft=1.31s prefill=3112 tok/s decode=32.7 tok/s peak=44.4 tok/s out=256
+1792054701.970	[localeval]   4096 tok rep 2/3: prompt=4089 ttft=1.32s prefill=3087 tok/s decode=32.6 tok/s peak=38.8 tok/s out=256
+1792054711.120	[localeval]   4096 tok rep 3/3: prompt=4090 ttft=1.32s prefill=3092 tok/s decode=32.6 tok/s peak=39.3 tok/s out=256
+1792054711.121	- result file: `results/20261015-045714-adhoc-clk-mlx-lm-r2/result.json`
+1792054711.121	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792054711.121	[localeval] saved /opt/code/deepeval/results/20261015-045714-adhoc-clk-mlx-lm-r2/result.json
+port 8092 closed
+pid 66860 gone
+##### clk-llamacpp-r2  2026-10-15T04:58:38-04:00  epoch 1792054718
+server up after 3s
+chunk line: 
+"Device Utilization %"=1
+median=1
+FINAL median=1 tries=0
+1792054725.657	[localeval] calibrated: 22.1 tokens/sentence, 55 base tokens, ctx=8192
+1792054732.981	[localeval]    128 tok rep 1/3: prompt=114 ttft=0.09s prefill=1289 tok/s decode=35.3 tok/s peak=35.5 tok/s out=256
+1792054740.353	[localeval]    128 tok rep 2/3: prompt=114 ttft=0.09s prefill=1271 tok/s decode=35.0 tok/s peak=35.4 tok/s out=256
+1792054747.643	[localeval]    128 tok rep 3/3: prompt=116 ttft=0.09s prefill=1231 tok/s decode=35.4 tok/s peak=35.5 tok/s out=256
+1792054755.306	[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.39s prefill=2560 tok/s decode=35.0 tok/s peak=35.1 tok/s out=256
+1792054762.969	[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.39s prefill=2560 tok/s decode=35.0 tok/s peak=35.2 tok/s out=256
+1792054770.634	[localeval]   1024 tok rep 3/3: prompt=991 ttft=0.39s prefill=2558 tok/s decode=35.0 tok/s peak=35.1 tok/s out=256
+1792054779.768	[localeval]   4096 tok rep 1/3: prompt=4086 ttft=1.64s prefill=2486 tok/s decode=34.0 tok/s peak=34.1 tok/s out=256
+1792054788.897	[localeval]   4096 tok rep 2/3: prompt=4089 ttft=1.64s prefill=2497 tok/s decode=34.0 tok/s peak=34.2 tok/s out=256
+1792054798.119	[localeval]   4096 tok rep 3/3: prompt=4088 ttft=1.64s prefill=2495 tok/s decode=33.6 tok/s peak=34.0 tok/s out=256
+1792054798.120	- result file: `results/20261015-045843-adhoc-clk-llamacpp-r2/result.json`
+1792054798.120	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792054798.120	[localeval] saved /opt/code/deepeval/results/20261015-045843-adhoc-clk-llamacpp-r2/result.json
+port 8091 closed
+pid 67150 gone
+##### clk-safe-r2  2026-10-15T05:00:05-04:00  epoch 1792054805
+server up after 34s
+chunk line: prefill chunk 256 (default)
+"Device Utilization %"=0
+median=1
+FINAL median=1 tries=0
+1792054844.246	[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=8192
+1792054851.236	[localeval]    128 tok rep 1/3: prompt=113 ttft=0.05s prefill=2143 tok/s decode=36.7 tok/s peak=36.9 tok/s out=256
+1792054858.295	[localeval]    128 tok rep 2/3: prompt=113 ttft=0.05s prefill=2097 tok/s decode=36.4 tok/s peak=36.8 tok/s out=256
+1792054865.277	[localeval]    128 tok rep 3/3: prompt=109 ttft=0.05s prefill=2030 tok/s decode=36.8 tok/s peak=37.0 tok/s out=256
+1792054872.510	[localeval]   1024 tok rep 1/3: prompt=986 ttft=0.27s prefill=3678 tok/s decode=36.6 tok/s peak=36.8 tok/s out=256
+1792054879.743	[localeval]   1024 tok rep 2/3: prompt=989 ttft=0.27s prefill=3679 tok/s decode=36.6 tok/s peak=36.7 tok/s out=256
+1792054886.979	[localeval]   1024 tok rep 3/3: prompt=991 ttft=0.27s prefill=3688 tok/s decode=36.6 tok/s peak=36.8 tok/s out=256
+1792054895.295	[localeval]   4096 tok rep 1/3: prompt=4087 ttft=1.15s prefill=3540 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792054903.604	[localeval]   4096 tok rep 2/3: prompt=4085 ttft=1.15s prefill=3542 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792054911.920	[localeval]   4096 tok rep 3/3: prompt=4088 ttft=1.15s prefill=3543 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792054911.921	- result file: `results/20261015-050042-adhoc-clk-safe-r2/result.json`
+1792054911.921	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792054911.921	[localeval] saved /opt/code/deepeval/results/20261015-050042-adhoc-clk-safe-r2/result.json
+port 8093 closed
+pid 67411 gone
+##### clk-cand-r2  2026-10-15T05:01:58-04:00  epoch 1792054918
+server up after 33s
+chunk line: prefill chunk 2048 (recipe qwen3, metal)
+"Device Utilization %"=0
+median=1
+FINAL median=1 tries=0
+1792054956.391	[localeval] calibrated: 22.0 tokens/sentence, 51 base tokens, ctx=8192
+1792054963.380	[localeval]    128 tok rep 1/3: prompt=112 ttft=0.05s prefill=2127 tok/s decode=36.8 tok/s peak=36.9 tok/s out=256
+1792054970.384	[localeval]    128 tok rep 2/3: prompt=115 ttft=0.05s prefill=2154 tok/s decode=36.7 tok/s peak=36.8 tok/s out=256
+1792054977.383	[localeval]    128 tok rep 3/3: prompt=112 ttft=0.05s prefill=2073 tok/s decode=36.7 tok/s peak=37.0 tok/s out=256
+1792054984.614	[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.25s prefill=3901 tok/s decode=36.5 tok/s peak=36.7 tok/s out=256
+1792054991.844	[localeval]   1024 tok rep 2/3: prompt=986 ttft=0.25s prefill=3895 tok/s decode=36.5 tok/s peak=36.8 tok/s out=256
+1792054999.099	[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.25s prefill=3899 tok/s decode=36.4 tok/s peak=36.8 tok/s out=256
+1792055007.508	[localeval]   4096 tok rep 1/3: prompt=4112 ttft=1.24s prefill=3310 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792055015.923	[localeval]   4096 tok rep 2/3: prompt=4110 ttft=1.25s prefill=3296 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792055024.341	[localeval]   4096 tok rep 3/3: prompt=4109 ttft=1.25s prefill=3280 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792055024.342	- result file: `results/20261015-050234-adhoc-clk-cand-r2/result.json`
+1792055024.342	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792055024.342	[localeval] saved /opt/code/deepeval/results/20261015-050234-adhoc-clk-cand-r2/result.json
+port 8093 closed
+pid 67785 gone
+ROUND 3 cand llama safe mlx
+##### clk-cand-r3  2026-10-15T05:03:51-04:00  epoch 1792055031
+server up after 33s
+chunk line: prefill chunk 2048 (recipe qwen3, metal)
+"Device Utilization %"=0
+median=1
+FINAL median=1 tries=0
+1792055068.873	[localeval] calibrated: 22.0 tokens/sentence, 53 base tokens, ctx=8192
+1792055075.885	[localeval]    128 tok rep 1/3: prompt=114 ttft=0.05s prefill=2020 tok/s decode=36.7 tok/s peak=36.9 tok/s out=256
+1792055082.885	[localeval]    128 tok rep 2/3: prompt=111 ttft=0.05s prefill=2058 tok/s decode=36.7 tok/s peak=37.0 tok/s out=256
+1792055089.843	[localeval]    128 tok rep 3/3: prompt=112 ttft=0.05s prefill=2081 tok/s decode=36.9 tok/s peak=37.0 tok/s out=256
+1792055097.095	[localeval]   1024 tok rep 1/3: prompt=991 ttft=0.25s prefill=3914 tok/s decode=36.4 tok/s peak=36.8 tok/s out=256
+1792055104.327	[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.25s prefill=3902 tok/s decode=36.5 tok/s peak=36.7 tok/s out=256
+1792055111.554	[localeval]   1024 tok rep 3/3: prompt=992 ttft=0.25s prefill=3912 tok/s decode=36.6 tok/s peak=36.8 tok/s out=256
+1792055119.750	[localeval]   4096 tok rep 1/3: prompt=4085 ttft=1.04s prefill=3909 tok/s decode=35.7 tok/s peak=35.7 tok/s out=256
+1792055127.976	[localeval]   4096 tok rep 2/3: prompt=4086 ttft=1.05s prefill=3880 tok/s decode=35.5 tok/s peak=35.7 tok/s out=256
+1792055136.196	[localeval]   4096 tok rep 3/3: prompt=4086 ttft=1.06s prefill=3851 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792055136.197	- result file: `results/20261015-050427-adhoc-clk-cand-r3/result.json`
+1792055136.197	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792055136.197	[localeval] saved /opt/code/deepeval/results/20261015-050427-adhoc-clk-cand-r3/result.json
+port 8093 closed
+pid 68223 gone
+##### clk-llamacpp-r3  2026-10-15T05:05:43-04:00  epoch 1792055143
+server up after 3s
+chunk line: 
+"Device Utilization %"=0
+median=0
+FINAL median=0 tries=0
+1792055150.679	[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=8192
+1792055158.004	[localeval]    128 tok rep 1/3: prompt=111 ttft=0.09s prefill=1258 tok/s decode=35.2 tok/s peak=35.5 tok/s out=256
+1792055165.309	[localeval]    128 tok rep 2/3: prompt=114 ttft=0.09s prefill=1235 tok/s decode=35.4 tok/s peak=35.5 tok/s out=256
+1792055172.601	[localeval]    128 tok rep 3/3: prompt=113 ttft=0.09s prefill=1211 tok/s decode=35.4 tok/s peak=35.5 tok/s out=256
+1792055180.266	[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.39s prefill=2552 tok/s decode=35.0 tok/s peak=35.2 tok/s out=256
+1792055187.933	[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.39s prefill=2555 tok/s decode=35.0 tok/s peak=35.2 tok/s out=256
+1792055195.616	[localeval]   1024 tok rep 3/3: prompt=993 ttft=0.39s prefill=2554 tok/s decode=35.0 tok/s peak=35.1 tok/s out=256
+1792055204.835	[localeval]   4096 tok rep 1/3: prompt=4088 ttft=1.64s prefill=2485 tok/s decode=33.7 tok/s peak=34.1 tok/s out=256
+1792055213.974	[localeval]   4096 tok rep 2/3: prompt=4091 ttft=1.64s prefill=2498 tok/s decode=34.0 tok/s peak=34.1 tok/s out=256
+1792055223.176	[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.64s prefill=2492 tok/s decode=33.7 tok/s peak=34.0 tok/s out=256
+1792055223.176	- result file: `results/20261015-050548-adhoc-clk-llamacpp-r3/result.json`
+1792055223.176	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792055223.176	[localeval] saved /opt/code/deepeval/results/20261015-050548-adhoc-clk-llamacpp-r3/result.json
+port 8091 closed
+pid 68643 gone
+##### clk-safe-r3  2026-10-15T05:07:10-04:00  epoch 1792055230
+server up after 33s
+chunk line: prefill chunk 256 (default)
+"Device Utilization %"=0
+median=0
+FINAL median=0 tries=0
+1792055267.778	[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=8192
+1792055274.772	[localeval]    128 tok rep 1/3: prompt=116 ttft=0.05s prefill=2187 tok/s decode=36.7 tok/s peak=36.9 tok/s out=256
+1792055281.811	[localeval]    128 tok rep 2/3: prompt=109 ttft=0.05s prefill=1984 tok/s decode=36.5 tok/s peak=36.8 tok/s out=256
+1792055288.766	[localeval]    128 tok rep 3/3: prompt=112 ttft=0.05s prefill=2080 tok/s decode=36.9 tok/s peak=37.0 tok/s out=256
+1792055296.004	[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.27s prefill=3685 tok/s decode=36.6 tok/s peak=36.7 tok/s out=256
+1792055303.238	[localeval]   1024 tok rep 2/3: prompt=993 ttft=0.27s prefill=3699 tok/s decode=36.6 tok/s peak=36.8 tok/s out=256
+1792055310.477	[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.27s prefill=3691 tok/s decode=36.6 tok/s peak=36.8 tok/s out=256
+1792055318.783	[localeval]   4096 tok rep 1/3: prompt=4083 ttft=1.15s prefill=3541 tok/s decode=35.7 tok/s peak=35.8 tok/s out=256
+1792055327.109	[localeval]   4096 tok rep 2/3: prompt=4085 ttft=1.15s prefill=3539 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792055335.433	[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.15s prefill=3538 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+1792055335.434	- result file: `results/20261015-050746-adhoc-clk-safe-r3/result.json`
+1792055335.434	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792055335.434	[localeval] saved /opt/code/deepeval/results/20261015-050746-adhoc-clk-safe-r3/result.json
+port 8093 closed
+pid 68920 gone
+##### clk-mlx-lm-r3  2026-10-15T05:09:02-04:00  epoch 1792055342
+server up after 2s
+chunk line: 
+"Device Utilization %"=1
+median=1
+FINAL median=1 tries=0
+1792055349.086	[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=None
+1792055356.710	[localeval]    128 tok rep 1/3: prompt=114 ttft=0.23s prefill=470 tok/s decode=34.5 tok/s peak=41.5 tok/s out=256
+1792055364.314	[localeval]    128 tok rep 2/3: prompt=115 ttft=0.22s prefill=508 tok/s decode=34.5 tok/s peak=39.7 tok/s out=256
+1792055371.929	[localeval]    128 tok rep 3/3: prompt=111 ttft=0.22s prefill=479 tok/s decode=34.5 tok/s peak=41.5 tok/s out=256
+1792055379.870	[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.43s prefill=2293 tok/s decode=34.0 tok/s peak=40.4 tok/s out=256
+1792055387.818	[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.43s prefill=2303 tok/s decode=33.9 tok/s peak=39.1 tok/s out=256
+1792055395.781	[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.42s prefill=2359 tok/s decode=33.8 tok/s peak=40.9 tok/s out=256
+1792055404.914	[localeval]   4096 tok rep 1/3: prompt=4089 ttft=1.32s prefill=3094 tok/s decode=32.6 tok/s peak=41.8 tok/s out=256
+1792055414.033	[localeval]   4096 tok rep 2/3: prompt=4087 ttft=1.32s prefill=3103 tok/s decode=32.7 tok/s peak=40.1 tok/s out=256
+1792055423.148	[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.31s prefill=3108 tok/s decode=32.7 tok/s peak=43.7 tok/s out=256
+1792055423.148	- result file: `results/20261015-050907-adhoc-clk-mlx-lm-r3/result.json`
+1792055423.148	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792055423.149	[localeval] saved /opt/code/deepeval/results/20261015-050907-adhoc-clk-mlx-lm-r3/result.json
+port 8092 closed
+pid 69355 gone
+ALLDONE 2026-10-15T05:10:30-04:00
+#1974 "metal final clock-aware 4-engine" (claude-31e10c55) done on endor exclusive 40 GB
