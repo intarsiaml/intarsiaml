@@ -503,8 +503,25 @@ def coverage(cases, ref):
     return cov
 
 
-def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None):
+def rec_chunk(rec):
+    """Prefill chunk size the server reports for a request (usage.prompt_tokens_details.prefill_chunk, sent with
+    return_token_ids); None when absent."""
+    return ((rec.get("usage") or {}).get("prompt_tokens_details") or {}).get("prefill_chunk")
+
+
+def ref_chunk(hdr):
+    """The --prefill-chunk a reference server ran with (its plan)."""
+    return ((hdr.get("server") or {}).get("plan") or {}).get("prefill_chunk")
+
+
+def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None, alts=()):
+    """`alts`: [(hdr, recs)] further solo references run with other --prefill-chunk values. A batched request ran its
+    prompt with the chunk size the scheduler picked for it (256 while others decode, the model's alone, reported in
+    usage); its solo reference is the run whose server used that chunk (docs/results/2026-10-15-metal-cb-scheduler.md)."""
     out = {"warnings": [], "runs": []}
+    by_chunk = {}
+    for h, r in [(ref_hdr, ref)] + list(alts):
+        by_chunk.setdefault(ref_chunk(h), r)
     for tf in test_files:
         th, tr = read_run(tf)
         run = {"file": str(tf), "header": {k: v for k, v in th.items() if k != "server"}, "rows": [], "mismatches": []}
@@ -519,7 +536,16 @@ def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None):
         counts = collections.Counter()
         for cid, t in tr.items():
             c = cases_by_id.get(cid, {"id": cid})
-            verdict, reasons, info = compare_case(c, ref.get(cid), t)
+            tc = rec_chunk(t)
+            rset = ref
+            if alts and tc is not None:
+                rset = by_chunk.get(tc)
+                if rset is None:
+                    out["warnings"].append(f"{tf}: {cid} ran with prefill chunk {tc}, no reference with that chunk")
+                    rset = ref
+            verdict, reasons, info = compare_case(c, rset.get(cid), t)
+            info["chunk"] = tc
+            counts[f"chunk_{tc}"] += 1
             row = {"id": cid, "verdict": verdict, "stream": t["stream"], "status": t["status"], "reasons": reasons,
                    "tags": c.get("tags", []), "cancel_case": is_cancel_case(c), **info}
             run["rows"].append(row)
@@ -598,7 +624,8 @@ def cmd_compare(args):
     cases = load_cases(args.cases) if pathlib.Path(args.cases).exists() else []
     cbi = {c["id"]: c for c in cases}
     ref_hdr, ref = read_run(args.ref)
-    rep = compare_runs(cbi, ref_hdr, ref, args.test, args.expect_cap)
+    alts = [read_run(f) for f in (getattr(args, "ref_alt", None) or [])]
+    rep = compare_runs(cbi, ref_hdr, ref, args.test, args.expect_cap, alts)
     cov = coverage([cbi.get(cid, {"id": cid}) for cid in ref], ref)
     rep["coverage"] = cov
     rep["ref"] = {"file": args.ref, "header": {k: v for k, v in ref_hdr.items() if k != "server"}}
@@ -631,6 +658,18 @@ def cmd_gate(args):
         if any(r["status"] == "error" for r in recs):
             print("reference run has errors; fix the server/case set first")
             return 2
+    alt_paths = list(getattr(args, "ref_alt_file", None) or [])
+    for i, u in enumerate(getattr(args, "ref_alt_url", None) or []):
+        ra = argparse.Namespace(**vars(args))
+        ra.url = u
+        print(f"reference (alt {i}): {len(cases)} cases alone -> {u}")
+        h, recs = run_cases(ra, cases, "solo")
+        ap = outdir / f"ref-alt{i}.jsonl"
+        write_run(ap, h, recs)
+        alt_paths.append(str(ap))
+        if any(r["status"] == "error" for r in recs):
+            print("alt reference run has errors; fix the server/case set first")
+            return 2
     tests = []
     for b in [int(x) for x in args.b.split(",")]:
         for sm in args.streams.split(","):
@@ -641,7 +680,8 @@ def cmd_gate(args):
             p = outdir / f"conc-b{b}-{sm}.jsonl"
             write_run(p, h, recs)
             tests.append(str(p))
-    ca = argparse.Namespace(cases=args.cases, ref=str(ref_path), test=tests, report=str(outdir / "report.json"), expect_cap=None)
+    ca = argparse.Namespace(cases=args.cases, ref=str(ref_path), test=tests, report=str(outdir / "report.json"), expect_cap=None,
+                            ref_alt=alt_paths)
     return cmd_compare(ca)
 
 
@@ -1142,6 +1182,9 @@ def main():
     c = sub.add_parser("compare", help="compare concurrent run(s) against a reference run; exit 1 on any mismatch")
     c.add_argument("--ref", required=True)
     c.add_argument("--test", nargs="+", required=True)
+    c.add_argument("--ref-alt", nargs="*", default=[], metavar="FILE",
+                   help="further solo reference runs made with other --prefill-chunk values; each test request is compared "
+                        "with the reference whose server chunk equals the chunk the test server reports for that request")
     c.add_argument("--cases", default=str(DEFAULT_CASES))
     c.add_argument("--report", help="JSON report path")
     c.add_argument("--expect-cap", type=int, help="perturbation self-test: the test run used --cap-max-tokens N; pass iff the mismatch set is exactly the predicted one")
@@ -1152,6 +1195,8 @@ def main():
     ga.add_argument("--url", required=True, help="server for the concurrent runs")
     ga.add_argument("--ref-url", help="server for the reference run (default: --url)")
     ga.add_argument("--ref-file", help="reuse an existing reference run instead of running one")
+    ga.add_argument("--ref-alt-url", nargs="*", default=[], help="servers for further solo references (other --prefill-chunk)")
+    ga.add_argument("--ref-alt-file", nargs="*", default=[], help="existing further reference runs")
     ga.add_argument("--b", default="2,3,4,6,8")
     ga.add_argument("--streams", default="mixed", help="comma list of on,off,mixed")
     ga.add_argument("--stream", default="on", help=argparse.SUPPRESS)
