@@ -1,0 +1,1 @@
+idle start: "Device Utilization %"=0 "Device Utilization %"=2 "Device Utilization %"=0 

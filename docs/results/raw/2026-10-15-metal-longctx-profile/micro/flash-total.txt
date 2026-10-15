@@ -1,0 +1,19 @@
+## total 4096 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 4096 chunk 2048: nax                              3533.7 us per layer (127.2 ms over 36 layers)   38.90 TFLOPS
+## total 16384 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 16384 chunk 2048: nax                             58909.0 us per layer (2120.7 ms over 36 layers)   37.33 TFLOPS
+## total 32768 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 32768 chunk 2048: nax                            262511.3 us per layer (9450.4 ms over 36 layers)   33.51 TFLOPS
+## total 40000 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 40000 chunk 2048: nax                            356400.1 us per layer (12830.4 ms over 36 layers)   36.78 TFLOPS
+## total 65536 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 4 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS

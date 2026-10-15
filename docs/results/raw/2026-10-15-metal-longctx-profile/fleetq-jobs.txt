@@ -1,0 +1,7 @@
+fleetq job 2009 (metal longctx profile) acquired Thu Oct 15 11:51:08 EDT 2026
+  RUNNING #2009 "metal longctx profile" (claude-31e10c55) running on endor exclusive 60 GB for 2s
+  QUEUED 1. #2011 "metal spec G2G3: A: identity 24x4 + G3 20 rows x3 x off/on" (claude-31e10c55): endor is held exclusively by #2009 "metal longctx profile" (claude-31e10c55)
+slot.sh killed at Thu Oct 15 12:05:04 EDT 2026 (lease kept); continuing in slot2.sh under job 2009
+slot2.sh killed at Thu Oct 15 12:10:57 EDT 2026 (lease kept); continuing in slot3 under job 2009
+slot3 loop killed at Thu Oct 15 12:19:21 EDT 2026 (lease kept); continuing in slot4 under job 2009
+slot2.sh exited 126 (slot4work.sh not executable) and released job 2009 at 12:19:22; re-acquiring Thu Oct 15 12:20:03 EDT 2026
