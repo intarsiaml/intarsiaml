@@ -1,0 +1,24 @@
+== 0. idle
+"Device Utilization %"=96 "Device Utilization %"=6 "Device Utilization %"=0 
+== 2. plain prefill (generate --max-tokens 1), chunk 256, ABBA x2 per prompt; first run discarded (page-in)
+pre 1k #1: prefill 2588 ms (376.0 tok/s)
+new 1k #2: prefill 460 ms (2116.0 tok/s)
+new 1k #3: prefill 463 ms (2100.7 tok/s)
+pre 1k #4: prefill 2566 ms (379.1 tok/s)
+pre 4k #1: prefill 10669 ms (380.7 tok/s)
+new 4k #2: prefill 1674 ms (2426.9 tok/s)
+new 4k #3: prefill 1660 ms (2447.3 tok/s)
+pre 4k #4: prefill 10689 ms (380.0 tok/s)
+== 3. kernel-mode GPU traces (one command buffer per launch), new binary, chunk 256
+== 4. localeval speed, one server at a time, pre new new pre
+idle before p1p2-pre-1: "Device Utilization %"=96 "Device Utilization %"=6 "Device Utilization %"=6 
+p1p2-pre-1 localeval exit 0
+idle before p1p2-new-1: "Device Utilization %"=99 "Device Utilization %"=6 "Device Utilization %"=6 
+p1p2-new-1 localeval exit 0
+idle before p1p2-new-2: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+p1p2-new-2 localeval exit 0
+idle before p1p2-pre-2: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=5 
+p1p2-pre-2 localeval exit 0
+== end idle
+"Device Utilization %"=99 "Device Utilization %"=6 "Device Utilization %"=6 
+done

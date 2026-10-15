@@ -1,0 +1,25 @@
+== 0. idle
+"Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+== 1. tile pick sweep with the shipped rule
+== 2. plain prefill (generate --max-tokens 1), chunk 256, ABBA x2 per prompt; first run discarded (page-in)
+pre 1k #1: prefill 2918 ms (333.4 tok/s)
+new 1k #2: prefill 806 ms (1206.6 tok/s)
+new 1k #3: prefill 786 ms (1237.2 tok/s)
+pre 1k #4: prefill 3197 ms (304.3 tok/s)
+pre 4k #1: prefill 17981 ms (225.9 tok/s)
+new 4k #2: prefill 8930 ms (454.9 tok/s)
+new 4k #3: prefill 8944 ms (454.2 tok/s)
+pre 4k #4: prefill 17946 ms (226.3 tok/s)
+== 3. kernel-mode GPU traces (one command buffer per launch), new binary, chunk 256
+== 4. localeval speed, one server at a time, pre new new pre
+idle before p1-pre-1: "Device Utilization %"=92 "Device Utilization %"=2 "Device Utilization %"=0 
+p1-pre-1 localeval exit 0
+idle before p1-new-1: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+p1-new-1 localeval exit 0
+idle before p1-new-2: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+p1-new-2 localeval exit 0
+idle before p1-pre-2: "Device Utilization %"=99 "Device Utilization %"=16 "Device Utilization %"=10 
+p1-pre-2 localeval exit 0
+== end idle
+"Device Utilization %"=99 "Device Utilization %"=2 "Device Utilization %"=2 
+done

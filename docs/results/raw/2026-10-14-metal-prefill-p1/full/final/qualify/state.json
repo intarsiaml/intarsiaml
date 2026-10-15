@@ -1,0 +1,726 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/Users/josef/Models/Qwen3-8B",
+    "backend": "metal",
+    "device": 0,
+    "reference": null
+  },
+  "created_unix": 1792024828,
+  "quick_report": "quick-report.md",
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "Apple M5 Max (applegpu_g17s), 21 kernels registered",
+      "started_unix": 1792024828,
+      "wall_s": 0.468725125,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia doctor --backend metal --device 0 --out /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/doctor.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [
+        "doctor.json"
+      ],
+      "metrics": {
+        "host": {
+          "hostname": "endor.kuepker.haus",
+          "os": "macOS 27.0",
+          "kernel": "Darwin 27.0.0",
+          "arch": "aarch64",
+          "cpu_model": "Apple M5 Max",
+          "logical_cores": 18,
+          "physical_cores": 18,
+          "ram_total_bytes": 137438953472,
+          "ram_available_bytes": 0,
+          "swap_total_bytes": 5368709120
+        },
+        "device": {
+          "name": "Apple M5 Max",
+          "backend": "metal",
+          "arch": "applegpu_g17s",
+          "total_mem": 115448725504,
+          "free_mem": 115446956032,
+          "unified": true,
+          "bandwidth_gbs": 541.9175078214276
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 68.7,
+          "device_to_host_gbs": 69.7,
+          "device_copy_gbs": 314.8,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        },
+        "failures": [],
+        "warnings": []
+      },
+      "facts": {
+        "device_name": "Apple M5 Max",
+        "device_arch": "applegpu_g17s",
+        "device_free_gb": 115.446956032,
+        "copy_gbs": 314.8
+      },
+      "notes": []
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16)",
+      "started_unix": 1792024829,
+      "wall_s": 0.0049395,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "recipe::analyse(/Users/josef/Models/Qwen3-8B)"
+        ],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [],
+      "metrics": {
+        "architectures": [
+          "Qwen3ForCausalLM"
+        ],
+        "templates_resolved": [
+          25,
+          25
+        ],
+        "quant": "bf16",
+        "notes": [
+          "config.json: architectures [\"Qwen3ForCausalLM\"], family \"qwen3\" (config.json model_type)",
+          "tensors: model.safetensors.index.json (399 tensors) + 5/5 shard headers",
+          "layer prefix model.layers.{i} (36 layers, matches num_hidden_layers)",
+          "quantisation: bf16",
+          "closest existing recipe: builtin:qwen3 (blocks {\"attn\", \"ffn\"} vs inferred {\"attn\", \"ffn\"}; 25/25 tensor templates resolve; covers this model)"
+        ],
+        "todos": []
+      },
+      "facts": {
+        "recipe": "builtin:qwen3",
+        "family": "qwen3",
+        "quant": "bf16",
+        "weights_gb": 16.38147072,
+        "active_gb": 15.136811008,
+        "moe": false,
+        "hybrid": false,
+        "quantized": false,
+        "n_layers": 36
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "15 ops resolved, exactness deterministic, loaded in 36.1s",
+      "started_unix": 1792024829,
+      "wall_s": 36.101877417,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia plan show --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --admit --json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [
+        "plan.json"
+      ],
+      "metrics": {
+        "model": "Qwen3-8B",
+        "device": "Apple M5 Max",
+        "exactness": "deterministic",
+        "act_dtype": "bf16",
+        "kv_dtype": "bf16",
+        "prefill_chunk": 256,
+        "prefill_chunk_source": "default",
+        "scratch_bytes": 1064960,
+        "reference_only": false,
+        "layers": 36,
+        "layer_blocks": [
+          "attention+dense_ffn"
+        ],
+        "ops": [
+          {
+            "op": "embedding",
+            "kernel": "embedding_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm",
+            "kernel": "rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm_add",
+            "kernel": "rmsnorm_add_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 72
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 108
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16_nax",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "logits",
+            "kernel": "logits_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "logits",
+            "kernel": "logits_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 36
+          },
+          {
+            "op": "silu_glu",
+            "kernel": "silu_glu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 36
+          },
+          {
+            "op": "argmax",
+            "kernel": "argmax_f32",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 72
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_nax",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "qk_norm_rope_kv",
+            "kernel": "qk_norm_rope_kv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 36
+          }
+        ],
+        "load_s": 36.101415667
+      },
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "21 kernels, 251 cases in 30.1s",
+      "started_unix": 1792024865,
+      "wall_s": 30.294425917,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia kernels test --backend metal --device 0 --model /Users/josef/Models/Qwen3-8B"
+        ],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [
+        "logs/kernels.out"
+      ],
+      "metrics": {
+        "summary": "21 kernels, 251 cases in 30.1s"
+      },
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows",
+      "started_unix": 1792024895,
+      "wall_s": 12.255673625,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia accuracy --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --quick --max-seq 2048"
+        ],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [
+        "logs/gate.out"
+      ],
+      "metrics": {
+        "perplexity": 1.85,
+        "perplexity_line": "1.850 over 1169 tokens (need <= 40), non-finite rows 0 ok",
+        "sanity_ok": 5,
+        "sanity_failed": 0
+      },
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "skip",
+      "reason": "no golden found, and 16.4 GB of weights is too large to make an fp32 HF golden quickly (limit 5 GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>",
+      "started_unix": 1792024907,
+      "wall_s": 0.00720225,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "decode 36.1 tok/s at 128 tokens (89% of the byte floor)",
+      "started_unix": 1792024907,
+      "wall_s": 108.466795125,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia serve --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3-8B --max-seq 4608 --profile-every 0 --no-supervisor --no-ui",
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3-8B --sizes 128,1024,4096 --gen 128 --reps 3 --warmup 1 --thinking off --label qualify-Qwen3-8B-metal-bench --out-dir /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/bench --tp 1 --fingerprint model=Qwen3-8B --fingerprint backend=metal --fingerprint build=unstamped --timeout-s 900 --gb-per-token 15.1368 --bandwidth-gbs 614 --fingerprint-file /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/doctor.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [
+        "bench/qualify-Qwen3-8B-metal-bench.json",
+        "logs/bench-bench.out",
+        "logs/bench-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 128,
+            "prompt_tokens": 128.0,
+            "ttft_s": 0.0587,
+            "prefill_tok_s": 2180.3,
+            "decode_tok_s": 36.08,
+            "decode_stdev": 0.27,
+            "floor_tok_s": 40.56,
+            "pct_of_floor": 88.9,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 1024,
+            "prompt_tokens": 1015.0,
+            "ttft_s": 0.6807,
+            "prefill_tok_s": 1502.4,
+            "decode_tok_s": 35.91,
+            "decode_stdev": 0.1,
+            "floor_tok_s": 40.56,
+            "pct_of_floor": 88.5,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4199.0,
+            "ttft_s": 9.3681,
+            "prefill_tok_s": 446.2,
+            "decode_tok_s": 34.56,
+            "decode_stdev": 0.14,
+            "floor_tok_s": 40.56,
+            "pct_of_floor": 85.2,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 15.136811008,
+        "bandwidth_gbs": 614.0,
+        "floor_inputs": "gb/token: from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: --bandwidth-gbs",
+        "server_load_s": 32.063160459,
+        "label": "qualify-Qwen3-8B-metal-bench"
+      },
+      "facts": {},
+      "notes": [
+        "bench warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)"
+      ]
+    },
+    {
+      "id": "acc-long",
+      "title": "accuracy --mode all on the long golden (prefill, decode, prefix reuse)",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "no golden found, and 16.4 GB of weights is too large to make an fp32 HF golden quickly (limit 5 GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>",
+      "started_unix": 1792025016,
+      "wall_s": 0.006566417,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "envelope",
+      "title": "noise envelope and baseline for regression gating",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "no baseline can be recorded without a golden: no golden found, and 16.4 GB of weights is too large to make an fp32 HF golden quickly (limit 5 GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>",
+      "started_unix": 1792025016,
+      "wall_s": 0.00599175,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "bench-long",
+      "title": "long-context bench up to 16k",
+      "section": "full",
+      "verdict": "pass",
+      "reason": "decode 35.5 tok/s at 1024 tokens (88% of the byte floor)",
+      "started_unix": 1792025016,
+      "wall_s": 530.281053292,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia serve --model /Users/josef/Models/Qwen3-8B --backend metal --device 0 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3-8B --max-seq 17152 --profile-every 0 --no-supervisor --no-ui",
+          "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3-8B --sizes 1024,4096,16384 --gen 64 --reps 2 --warmup 1 --thinking off --label qualify-Qwen3-8B-metal-bench-long --out-dir /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/bench --tp 1 --fingerprint model=Qwen3-8B --fingerprint backend=metal --fingerprint build=unstamped --timeout-s 900 --gb-per-token 15.1368 --bandwidth-gbs 614 --fingerprint-file /opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/docs/results/raw/2026-10-14-metal-prefill-p1/full/final/qualify/doctor.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [
+        "bench/qualify-Qwen3-8B-metal-bench-long.json",
+        "logs/bench-long-bench.out",
+        "logs/bench-long-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 1024,
+            "prompt_tokens": 985.0,
+            "ttft_s": 1.1473,
+            "prefill_tok_s": 967.6,
+            "decode_tok_s": 35.53,
+            "decode_stdev": 0.46,
+            "floor_tok_s": 40.56,
+            "pct_of_floor": 87.6,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 126,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4092.0,
+            "ttft_s": 10.0024,
+            "prefill_tok_s": 409.4,
+            "decode_tok_s": 34.83,
+            "decode_stdev": 0.16,
+            "floor_tok_s": 40.56,
+            "pct_of_floor": 85.9,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 126,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 16384,
+            "prompt_tokens": 16699.0,
+            "ttft_s": 146.5553,
+            "prefill_tok_s": 113.9,
+            "decode_tok_s": 31.45,
+            "decode_stdev": 0.23,
+            "floor_tok_s": 40.56,
+            "pct_of_floor": 77.5,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 126,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 15.136811008,
+        "bandwidth_gbs": 614.0,
+        "floor_inputs": "gb/token: from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: --bandwidth-gbs",
+        "server_load_s": 34.058642333,
+        "label": "qualify-Qwen3-8B-metal-bench-long"
+      },
+      "facts": {},
+      "notes": [
+        "bench warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)"
+      ]
+    },
+    {
+      "id": "ab",
+      "title": "A/B against the reference server via localeval",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "no --reference server given",
+      "started_unix": 1792025546,
+      "wall_s": 4.58e-7,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "tp",
+      "title": "tensor-parallel variant",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "--tp not given (or 1)",
+      "started_unix": 1792025546,
+      "wall_s": 0.000237708,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "1895",
+          "INTARSIA_CPU_FREE_MEM_GB": "60"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    }
+  ],
+  "hooks": []
+}

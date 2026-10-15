@@ -1,0 +1,8 @@
+idle pre 1k #1: "Device Utilization %"=99 "Device Utilization %"=5 "Device Utilization %"=5 
+idle new 1k #2: "Device Utilization %"=98 "Device Utilization %"=5 "Device Utilization %"=5 
+idle new 1k #3: "Device Utilization %"=85 "Device Utilization %"=5 "Device Utilization %"=5 
+idle pre 1k #4: "Device Utilization %"=89 "Device Utilization %"=5 "Device Utilization %"=5 
+idle pre 4k #1: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 
+idle new 4k #2: "Device Utilization %"=99 "Device Utilization %"=4 "Device Utilization %"=6 
+idle new 4k #3: "Device Utilization %"=96 "Device Utilization %"=0 "Device Utilization %"=5 
+idle pre 4k #4: "Device Utilization %"=97 "Device Utilization %"=5 "Device Utilization %"=0 
