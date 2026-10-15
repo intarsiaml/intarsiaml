@@ -1,0 +1,57 @@
+== 0. pre revision: 05f0b8b
+== 1. unit tests and admission on the merged tree
+cargo test exit 0
+kernels test exit 0
+attn_prefill   attn_prefill_bf16_flash        14      0    5.025e-3    2.431e-3  ADMITTED
+matmul         matmul_bf16_nax                 7      0    3.185e-3    8.100e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_nax            6      0    8.633e-5    3.758e-6  ADMITTED
+22 kernels, 265 cases in 32.6s
+== 2. kernel selection in the engine (abort if NAX or flash is not used in prefill)
+pre prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16': 1008, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+new prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16_nax': 432, 'matmul_pair_bf16_nax': 288, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+== 3. decode dispatches per step (364 expected)
+pre short: 27.602 27.296 0.306 364.0 (36.23 tok/s)
+new short: 27.537 27.231 0.306 364.0 (36.31 tok/s)
+pre 4k: 28.430 28.109 0.321 364.0 (35.17 tok/s)
+new 4k: 28.561 28.255 0.305 364.0 (35.01 tok/s)
+== 4. accuracy against the fp32 goldens (bf16 gate class), new and pre
+accuracy new short exit 0
+accuracy new long exit 0
+new short: top-1 99.77% full-vocab KL 2.686e-4 top-1 100.00% full-vocab KL 3.739e-4 : PASS : PASS 
+new long : top-1 99.65% full-vocab KL 4.342e-4 top-1 100.00% full-vocab KL 3.731e-4 : PASS : PASS 
+accuracy pre short exit 0
+accuracy pre long exit 0
+pre short: top-1 99.77% full-vocab KL 2.590e-4 top-1 100.00% full-vocab KL 3.765e-4 : PASS : PASS 
+pre long : top-1 99.65% full-vocab KL 4.119e-4 top-1 100.00% full-vocab KL 4.043e-4 : PASS : PASS 
+== 5. greedy ids, pre (P2 only) vs new (P1 + P2)
+short 48 tokens: ids identical (48 tokens)
+4k 48 tokens: ids identical (48 tokens)
+short 256 tokens: ids DIFFER, first divergence at token 49 of 256/256
+4k 256 tokens: ids identical (256 tokens)
+== 6. chunk invariance (new binary, then pre): 4k prompt ids for several --prefill-chunk, and prefill KL of the short golden
+new 4k: chunk 256 vs 128: ids identical (48 tokens)
+new 4k: chunk 256 vs 512: ids identical (48 tokens)
+new 4k: chunk 256 vs 1024: ids identical (48 tokens)
+new 4k: chunk 256 vs 4050: ids identical (48 tokens)
+accuracy prefill new chunk 128: full-vocab KL 2.686e-4
+accuracy prefill new chunk 256: full-vocab KL 2.686e-4
+accuracy prefill new chunk 512: full-vocab KL 2.686e-4
+pre 4k: chunk 256 vs 128: ids identical (48 tokens)
+pre 4k: chunk 256 vs 512: ids identical (48 tokens)
+pre 4k: chunk 256 vs 1024: ids identical (48 tokens)
+pre 4k: chunk 256 vs 4050: ids identical (48 tokens)
+accuracy prefill pre chunk 128: full-vocab KL 2.590e-4
+accuracy prefill pre chunk 256: full-vocab KL 2.590e-4
+accuracy prefill pre chunk 512: full-vocab KL 2.590e-4
+== 7. qualify (full, with goldens)
+qualify exit 0
+**Verdict: PASS** (12 stages: 10 pass, 0 fail, 0 error, 2 skipped)
+| Decode | 128 tok: **36.3** tok/s (89% of floor); 1024 tok: **36.1** tok/s (89% of floor); 4096 tok: **35.0** tok/s (86% of floor) |
+| Prefill | 128 tok: **2315** tok/s; 1024 tok: **3316** tok/s; 4096 tok: **2491** tok/s |
+| Accuracy (short golden) | **PASS** (prefill top-1 99.77% KL 2.69e-4; decode top-1 100.00% KL 3.74e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.65% KL 4.34e-4; decode top-1 99.80% KL 3.16e-4) |
+| # | Stage | Section | Verdict | Wall | Result |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+## Accuracy
+done
