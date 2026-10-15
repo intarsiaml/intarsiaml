@@ -1,0 +1,9 @@
+qualify-Qwen3-8B-metal-bench-long  model=qualify-Qwen3-8B  gen=64  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      992     0.288         3459        35.9       64       88.4
+    4096     4097     1.460         2806        34.9       64       86.0
+   16384    16698     6.680         2500        32.1       64       79.1
+bandwidth floor: 40.6 tok/s
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
