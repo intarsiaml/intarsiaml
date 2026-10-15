@@ -1,0 +1,22 @@
+prefill chunk 2048 (recipe qwen3, metal)
+model Qwen3-8B  backend metal  device Apple M5 Max (110100 MiB)  exactness deterministic
+act bf16  kv bf16  prefill chunk 2048 (recipe qwen3, metal)  scratch 1064960 B  require_admitted false  reference_only false
+
+layers (36):
+    0..35  attention+dense_ffn
+
+op             kernel                     exactness     admitted  calls/step   scratch
+embedding      embedding_bf16             exact         no        1 0
+rmsnorm        rmsnorm_bf16               deterministic no        1 0
+rmsnorm_add    rmsnorm_add_bf16           deterministic no        72 0
+matmul         matmul_bf16_gemv           deterministic no        108 0
+matmul         matmul_bf16_nax            deterministic no        0 0
+logits         logits_bf16                deterministic no        0 0
+logits         logits_bf16_gemv           deterministic no        1 0
+attn_prefill   attn_prefill_bf16_flash_nax deterministic no        0 0
+attn_decode    attn_decode_bf16_splitkv   deterministic no        36 1064960
+silu_glu       silu_glu_bf16              deterministic no        36 0
+argmax         argmax_f32                 exact         no        1 0
+matmul_pair    matmul_pair_bf16_gemv      deterministic no        72 0
+matmul_pair    matmul_pair_bf16_nax       deterministic no        0 0
+qk_norm_rope_kv qk_norm_rope_kv_bf16       deterministic no        36 0

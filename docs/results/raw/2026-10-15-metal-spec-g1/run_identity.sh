@@ -7,7 +7,7 @@ set -u
 O=$1; CASES=$2; shift 2
 P=/opt/code/intarsiaml-spec/docs/results/raw/2026-10-15-metal-spec-g1/prompts
 BASE=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/bin/intarsia-base-c556008
-NEW=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/bin/intarsia-new-5a5162d
+NEW=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/bin/intarsia-new-47e6d0d
 M=$HOME/models/Qwen3-8B
 mkdir -p $O
 while IFS='|' read -r name maxtok flags pfile; do

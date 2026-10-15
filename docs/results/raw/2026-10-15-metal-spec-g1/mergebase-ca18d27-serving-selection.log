@@ -1,0 +1,23 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/multirow.rs (target/release/deps/multirow-856d8fe765ca58f4)
+
+running 1 test
+test serving_selection_unchanged ... FAILED
+
+failures:
+
+---- serving_selection_unchanged stdout ----
+
+thread 'serving_selection_unchanged' (91723638) panicked at crates/intarsia-backend-metal/tests/multirow.rs:465:9:
+assertion `left == right` failed: M=2
+  left: "matmul_bf16_nax"
+ right: "matmul_bf16"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    serving_selection_unchanged
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test multirow`
