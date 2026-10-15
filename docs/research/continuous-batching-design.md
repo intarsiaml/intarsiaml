@@ -346,8 +346,9 @@ Core path M0-M3: **17-23 working days** (estimate). Optional M4-M6: +9-11. This 
 | 1 | **Exact only.** | Every batched row must be bitwise equal to the solo run. The batch cap is 8. The non-exact NAX mode (M6) is out of scope. |
 | 2 | **256-token prefill chunk under load.** | While other sequences are decoding, a new prompt is prefilled in 256-token chunks (about 70 ms stall per running stream instead of about 0.5 s). Solo prefill keeps the 2048 chunk from P3. The identity reference for a batched request is therefore a solo run with the same chunk schedule. Golden baselines for the 256 schedule are needed at M2. |
 | 4 | **Yes, merge first.** | `metal-g0-multirow`, `metal-g0b-attn` and `metal-spec-ngram` go into `spike/metal` before M0. The merge is handled by the owner of `spike/metal`, under its own merge bar (G2). |
+| 8 | **Shelve the alignment remedy.** (User decision relayed by the Metal spike session, 2026-10-15 14:20 EDT.) | `metal-weight-realign` (8b83805, opt-in `INTARSIA_METAL_REALIGN=1`, +3.8 GB, T(8)/T(1) 1.197 -> 1.152) stays unmerged. M4 is dropped unless batching at 8 streams becomes the common case. |
 
-Questions 3 and 5-10 are still open.
+Questions 3, 5-7, 9 and 10 are still open.
 
 ## 9. Sources and confidence
 

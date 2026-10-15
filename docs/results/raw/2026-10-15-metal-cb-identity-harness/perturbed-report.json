@@ -1,0 +1,1862 @@
+{
+ "warnings": [],
+ "runs": [
+  {
+   "file": "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/perturbed-cap12.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 4,
+    "stream": "mixed",
+    "arrival_scale": 0.25,
+    "cap_max_tokens": 12,
+    "flush": false,
+    "n_cases": 49,
+    "peak_client_inflight": 4,
+    "wall_s": 32.2,
+    "cases_sha256": "f5f2947e5c78ba41",
+    "started": "2026-10-15 15:22:03",
+    "argv": [
+     "/opt/code/intarsiaml-cb-identity/tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--b",
+     "4",
+     "--stream",
+     "mixed",
+     "--cases",
+     "/opt/code/intarsiaml-cb-identity/tools/prompts/cb_identity_cases.jsonl",
+     "--url",
+     "http://127.0.0.1:8099",
+     "--arrival-scale",
+     "0.25",
+     "--sample",
+     "48",
+     "--cap-max-tokens",
+     "12",
+     "--out",
+     "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/perturbed-cap12.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "cb000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "eos",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb001",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 23/190 (ref ' | top-1 \u2265 99.5% |\\n| deep bench (e2e swe' vs test ' | top-1 \u2265')",
+      "finish_reason stop vs length",
+      "completion_tokens 80 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb002",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 27/241 (ref '_decode_h128_gqa4_scratch_bytes(a)` | `r' vs test '_decode_h1')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb003",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 28/34 (ref 'outputs: [Fp8],\\n' vs test 'outputs: [')",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb004",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 35/377 (ref 'e a **captured graph** (for each batch b' vs test 'e a **capt')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb006",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 89/558 (ref '      post_norm: load(post, li, Some(&[d' vs test '      post')",
+      "streamed deltas differ at delta 12 (128 ref vs 12 test)",
+      "completion_tokens 128 vs 12"
+     ],
+     "tags": [
+      "cancel",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb010",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 39/42 (ref '</think>\\n\\nOK.' vs test '</think>\\n\\n')",
+      "streamed deltas differ at delta 12 (14 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 15 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb016",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 66/163 (ref '.telemetry.request_rejected();\\n         ' vs test '.telemetry')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "ignore_eos",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb017",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 43/100 (ref 'cess, `intarsia web`, that serves `/v1` ' vs test 'cess, `int')",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb028",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 63/284 (ref 'm for high-performance model inference, ' vs test 'm for high')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "chat_sampled",
+      "chat",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb033",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 27/130 (ref 'ows 16 GiB, but /proc/meminfo on the hos' vs test 'ows 16 GiB')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb036",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 33/239 (ref 'en/Qwen3-8B --port 8090 > /dev/null 2>&1' vs test 'en/Qwen3-8')",
+      "streamed deltas differ at delta 12 (96 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb040",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 62/177 (ref 'e infinity if it exists and then samples' vs test 'e infinity')",
+      "streamed deltas differ at delta 12 (35 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 36 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb042",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 39/81 (ref '</think>\\n\\nOK.</think>\\n\\nOK.</think>\\n\\nOK.<' vs test '</think>\\n\\n')",
+      "finish_reason stop vs length",
+      "completion_tokens 27 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb044",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "stop",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb046",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 35/204 (ref ' C++ (HIP) and CUDA kernels.\\n\\n## Target\\n' vs test ' C++ (HIP)')",
+      "completion_tokens 64 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb053",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "eos",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb054",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 12/16 (ref '6x16x16, 16x16' vs test '6x16x16, 1')",
+      "streamed deltas differ at delta 12 (16 ref vs 12 test)",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb060",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 55/184 (ref 'rve any\"))),\\n        }\\n    }\\n\\n    // run' vs test 'rve any\"))')",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb063",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/345 (ref 'ns, so the registry is a `HashMap<QuantI' vs test 'ns, so the')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb068",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 45/237 (ref 'sh. So the `until` loop is not needed.\\n\\n' vs test 'sh. So the')",
+      "completion_tokens 64 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb076",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/64 (ref 'oken = tok;\\n    let mut' vs test 'oken = tok')",
+      "streamed deltas differ at delta 12 (16 ref vs 12 test)",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "ignore_eos",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb078",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 24/61 (ref 'formers` | CUDA | Apache-2.0 | attention' vs test 'formers` |')",
+      "streamed deltas differ at delta 12 (23 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 24 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb084",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 21/72 (ref 'experts, 16 tokens per expert (16x16=256' vs test 'experts, 1')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb085",
+     "verdict": "pass",
+     "stream": true,
+     "status": "cancelled",
+     "reasons": [],
+     "tags": [
+      "cancel",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": null,
+     "cached_differs": false,
+     "cancelled": true,
+     "emitted_bytes": 67
+    },
+    {
+     "id": "cb089",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 41/323 (ref 'q[qc], act, &q3)],\\n            vec![self' vs test 'q[qc], act')",
+      "streamed deltas differ at delta 12 (95 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb092",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "eos",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb094",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/395 (ref 'ry usage (requires `nvidia-smi`)\\nintarsi' vs test 'ry usage (')",
+      "streamed deltas differ at delta 12 (128 ref vs 12 test)",
+      "completion_tokens 128 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb098",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 67/225 (ref 'uage model on various hardware platforms' vs test 'uage model')",
+      "finish_reason stop vs length",
+      "completion_tokens 45 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb099",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 79/357 (ref 'rk kernels across different hardware bac' vs test 'rk kernels')",
+      "finish_reason stop vs length",
+      "completion_tokens 59 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb100",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 21/108 (ref ') |\\n| `r4d_gemm_bf16_nt_m64_max_m()` | m' vs test ') |\\n| `r4d')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb110",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/230 (ref 'ker thread that processes jobs from a qu' vs test 'ker thread')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "chat_sampled",
+      "chat",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb114",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 38/387 (ref '        if let Some(cb) = req.logits_cal' vs test '        if')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb121",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 43/179 (ref 'gate is to beat the current leaders on t' vs test 'gate is to')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb130",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 65/91 (ref 'router/top-k operations and provides' vs test 'router/top')",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb133",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 55/387 (ref 'ns: plen,\\n            completion_tokens:' vs test 'ns: plen,\\n')",
+      "streamed deltas differ at delta 12 (96 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb136",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 36/96 (ref ' `--label` is required (the server is st' vs test ' `--label`')",
+      "streamed deltas differ at delta 12 (25 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 25 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb139",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 44/368 (ref 'to backend, recipe loading, basic infere' vs test 'to backend')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb140",
+     "verdict": "pass",
+     "stream": true,
+     "status": "cancelled",
+     "reasons": [],
+     "tags": [
+      "cancel",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": null,
+     "cached_differs": false,
+     "cancelled": true,
+     "emitted_bytes": 12
+    },
+    {
+     "id": "cb143",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 65/626 (ref 'nformation about the performance metrics' vs test 'nformation')",
+      "completion_tokens 128 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb149",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "finish_reason stop vs length",
+      "completion_tokens 13 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb152",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 46/119 (ref '\\n    INF[\"Inference: model loading, exec' vs test '\\n    INF[\"')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb155",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "eos",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb161",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 47/196 (ref 'avoid it.\\n- **No per-model code.** Tenso' vs test 'avoid it.\\n')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb165",
+     "verdict": "pass",
+     "stream": true,
+     "status": "cancelled",
+     "reasons": [],
+     "tags": [
+      "cancel",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": null,
+     "cached_differs": false,
+     "cancelled": true,
+     "emitted_bytes": 3
+    },
+    {
+     "id": "cb170",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 20/219 (ref 'rs`), \"r4d\" = r4d\\'s `r4d_op` (from `abi/' vs test 'rs`), \"r4d')",
+      "streamed deltas differ at delta 12 (96 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb175",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 32/288 (ref '.0.self_attn.q_proj.weight` is `H x D` f' vs test '.0.self_at')",
+      "streamed deltas differ at delta 12 (94 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb178",
+     "verdict": "pass",
+     "stream": true,
+     "status": "cancelled",
+     "reasons": [],
+     "tags": [
+      "cancel",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": null,
+     "cached_differs": false,
+     "cancelled": true,
+     "emitted_bytes": 0
+    },
+    {
+     "id": "cb191",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 46/96 (ref 'exponent (e.g., `wref = e8m0` for the we' vs test 'exponent (')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    }
+   ],
+   "mismatches": [
+    {
+     "id": "cb001",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 23/190 (ref ' | top-1 \u2265 99.5% |\\n| deep bench (e2e swe' vs test ' | top-1 \u2265')",
+      "finish_reason stop vs length",
+      "completion_tokens 80 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb002",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 27/241 (ref '_decode_h128_gqa4_scratch_bytes(a)` | `r' vs test '_decode_h1')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb003",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 28/34 (ref 'outputs: [Fp8],\\n' vs test 'outputs: [')",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb004",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 35/377 (ref 'e a **captured graph** (for each batch b' vs test 'e a **capt')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb006",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 89/558 (ref '      post_norm: load(post, li, Some(&[d' vs test '      post')",
+      "streamed deltas differ at delta 12 (128 ref vs 12 test)",
+      "completion_tokens 128 vs 12"
+     ],
+     "tags": [
+      "cancel",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb010",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 39/42 (ref '</think>\\n\\nOK.' vs test '</think>\\n\\n')",
+      "streamed deltas differ at delta 12 (14 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 15 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb016",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 66/163 (ref '.telemetry.request_rejected();\\n         ' vs test '.telemetry')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "ignore_eos",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb017",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 43/100 (ref 'cess, `intarsia web`, that serves `/v1` ' vs test 'cess, `int')",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb028",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 63/284 (ref 'm for high-performance model inference, ' vs test 'm for high')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "chat_sampled",
+      "chat",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb033",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 27/130 (ref 'ows 16 GiB, but /proc/meminfo on the hos' vs test 'ows 16 GiB')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb036",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 33/239 (ref 'en/Qwen3-8B --port 8090 > /dev/null 2>&1' vs test 'en/Qwen3-8')",
+      "streamed deltas differ at delta 12 (96 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb040",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 62/177 (ref 'e infinity if it exists and then samples' vs test 'e infinity')",
+      "streamed deltas differ at delta 12 (35 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 36 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb042",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 39/81 (ref '</think>\\n\\nOK.</think>\\n\\nOK.</think>\\n\\nOK.<' vs test '</think>\\n\\n')",
+      "finish_reason stop vs length",
+      "completion_tokens 27 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb046",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 35/204 (ref ' C++ (HIP) and CUDA kernels.\\n\\n## Target\\n' vs test ' C++ (HIP)')",
+      "completion_tokens 64 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb054",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 12/16 (ref '6x16x16, 16x16' vs test '6x16x16, 1')",
+      "streamed deltas differ at delta 12 (16 ref vs 12 test)",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb060",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 55/184 (ref 'rve any\"))),\\n        }\\n    }\\n\\n    // run' vs test 'rve any\"))')",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb063",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/345 (ref 'ns, so the registry is a `HashMap<QuantI' vs test 'ns, so the')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb068",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 45/237 (ref 'sh. So the `until` loop is not needed.\\n\\n' vs test 'sh. So the')",
+      "completion_tokens 64 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb076",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/64 (ref 'oken = tok;\\n    let mut' vs test 'oken = tok')",
+      "streamed deltas differ at delta 12 (16 ref vs 12 test)",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "ignore_eos",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb078",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 24/61 (ref 'formers` | CUDA | Apache-2.0 | attention' vs test 'formers` |')",
+      "streamed deltas differ at delta 12 (23 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 24 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb084",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 21/72 (ref 'experts, 16 tokens per expert (16x16=256' vs test 'experts, 1')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb089",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 41/323 (ref 'q[qc], act, &q3)],\\n            vec![self' vs test 'q[qc], act')",
+      "streamed deltas differ at delta 12 (95 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb094",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/395 (ref 'ry usage (requires `nvidia-smi`)\\nintarsi' vs test 'ry usage (')",
+      "streamed deltas differ at delta 12 (128 ref vs 12 test)",
+      "completion_tokens 128 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb098",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 67/225 (ref 'uage model on various hardware platforms' vs test 'uage model')",
+      "finish_reason stop vs length",
+      "completion_tokens 45 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb099",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 79/357 (ref 'rk kernels across different hardware bac' vs test 'rk kernels')",
+      "finish_reason stop vs length",
+      "completion_tokens 59 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb100",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 21/108 (ref ') |\\n| `r4d_gemm_bf16_nt_m64_max_m()` | m' vs test ') |\\n| `r4d')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb110",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 51/230 (ref 'ker thread that processes jobs from a qu' vs test 'ker thread')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "chat_sampled",
+      "chat",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb114",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 38/387 (ref '        if let Some(cb) = req.logits_cal' vs test '        if')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb121",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 43/179 (ref 'gate is to beat the current leaders on t' vs test 'gate is to')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb130",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 65/91 (ref 'router/top-k operations and provides' vs test 'router/top')",
+      "completion_tokens 16 vs 12"
+     ],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb133",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 55/387 (ref 'ns: plen,\\n            completion_tokens:' vs test 'ns: plen,\\n')",
+      "streamed deltas differ at delta 12 (96 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb136",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 36/96 (ref ' `--label` is required (the server is st' vs test ' `--label`')",
+      "streamed deltas differ at delta 12 (25 ref vs 12 test)",
+      "finish_reason stop vs length",
+      "completion_tokens 25 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb139",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 44/368 (ref 'to backend, recipe loading, basic infere' vs test 'to backend')",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb143",
+     "verdict": "mismatch",
+     "stream": false,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 65/626 (ref 'nformation about the performance metrics' vs test 'nformation')",
+      "completion_tokens 128 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb149",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "finish_reason stop vs length",
+      "completion_tokens 13 vs 12"
+     ],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb152",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 46/119 (ref '\\n    INF[\"Inference: model loading, exec' vs test '\\n    INF[\"')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb161",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 47/196 (ref 'avoid it.\\n- **No per-model code.** Tenso' vs test 'avoid it.\\n')",
+      "streamed deltas differ at delta 12 (48 ref vs 12 test)",
+      "completion_tokens 48 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb170",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 20/219 (ref 'rs`), \"r4d\" = r4d\\'s `r4d_op` (from `abi/' vs test 'rs`), \"r4d')",
+      "streamed deltas differ at delta 12 (96 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb175",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 32/288 (ref '.0.self_attn.q_proj.weight` is `H x D` f' vs test '.0.self_at')",
+      "streamed deltas differ at delta 12 (94 ref vs 12 test)",
+      "completion_tokens 96 vs 12"
+     ],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb191",
+     "verdict": "mismatch",
+     "stream": true,
+     "status": "ok",
+     "reasons": [
+      "text differs at char 46/96 (ref 'exponent (e.g., `wref = e8m0` for the we' vs test 'exponent (')",
+      "streamed deltas differ at delta 12 (32 ref vs 12 test)",
+      "completion_tokens 32 vs 12"
+     ],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    }
+   ],
+   "counts": {
+    "pass": 9,
+    "nonstream": 20,
+    "mismatch": 40,
+    "cached_differs": 4,
+    "mismatch_with_cached_diff": 3,
+    "stream": 29,
+    "cancel_case_completed_first": 1,
+    "cancelled": 4,
+    "cancelled_with_output": 3,
+    "exact_compared": 45,
+    "ref_only": 0
+   }
+  }
+ ],
+ "coverage": {
+  "cases": 49,
+  "tags": {
+   "cancel": 5,
+   "chat": 17,
+   "chat_greedy": 4,
+   "chat_sampled": 2,
+   "eos": 4,
+   "greedy": 39,
+   "ignore_eos": 2,
+   "min_tokens": 4,
+   "raw": 32,
+   "raw_greedy": 15,
+   "raw_sampled": 7,
+   "sampled": 10,
+   "stop": 6
+  },
+  "reference_finish": {
+   "stop (EOS)": 12,
+   "stop (stop string armed: stop string or EOS)": 4,
+   "length": 33
+  },
+  "prompt_tokens_histogram": {
+   "<=192": 7,
+   "193-384": 7,
+   "385-768": 10,
+   "769-1.5k": 7,
+   "1.5k-2.5k": 9,
+   "2.5k-3.5k": 4,
+   ">3.5k": 5
+  },
+  "prompt_tokens_min_max": [
+   127,
+   4025
+  ]
+ },
+ "ref": {
+  "file": "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/ref.jsonl",
+  "header": {
+   "mode": "solo",
+   "b": null,
+   "stream": "mixed",
+   "arrival_scale": 0.25,
+   "cap_max_tokens": null,
+   "flush": true,
+   "n_cases": 49,
+   "peak_client_inflight": 0,
+   "wall_s": 97.8,
+   "cases_sha256": "f5f2947e5c78ba41",
+   "started": "2026-10-15 15:15:59",
+   "argv": [
+    "/opt/code/intarsiaml-cb-identity/tools/cbidentity.py",
+    "run",
+    "--mode",
+    "solo",
+    "--cases",
+    "/opt/code/intarsiaml-cb-identity/tools/prompts/cb_identity_cases.jsonl",
+    "--url",
+    "http://127.0.0.1:8099",
+    "--arrival-scale",
+    "0.25",
+    "--sample",
+    "48",
+    "--out",
+    "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/ref.jsonl"
+   ]
+  }
+ }
+}

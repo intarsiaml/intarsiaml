@@ -1,0 +1,9 @@
+date: 2026-10-15T15:58:38-04:00
+fleetq job: 2061
+04b13d7143fac2585854aa6a006b08d711b693a6da7e3adc3126f5c444e29649  /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-c556008
+3cad59b9173f489767b3fdfacef4323fb8116c745ca9f1a2557d4e42c1424c19  /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-base-56ec2d5
+6f5208f3cf3e23084cc85429a761def195d09709d904fdd3910511ec31f98624  /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-cbm0-8254311
+macmon 0.7.2
+ProductName:		macOS
+ProductVersion:		27.0
+BuildVersion:		26A428
