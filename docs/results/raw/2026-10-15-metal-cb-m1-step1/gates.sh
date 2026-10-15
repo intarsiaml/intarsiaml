@@ -10,9 +10,9 @@ cd /opt/code/intarsiaml-cb-m1
 cargo test --workspace --release > $O/cargo-test-workspace.log 2>&1; echo "cargo test --workspace --release: exit $?"
 cargo test -p intarsia-backend-metal --release > $O/cargo-test-metal.log 2>&1; echo "cargo test -p intarsia-backend-metal --release: exit $?"
 cargo build --release -p intarsia-cli --features metal > $O/build-cli.log 2>&1; echo "build cli: exit $?"
-cmp -s ./target/release/intarsia $S/bin/intarsia-head && echo "cli binary == identity binary"
+cmp -s ./target/release/intarsia $S/bin/${HEADBIN:-intarsia-head} && echo "cli binary == identity binary"
 ./target/release/intarsia kernels test --backend metal > $O/kernels-test-metal.log 2>&1; echo "kernels test --backend metal: exit $?"
 for c in 128 1024 4096; do
-  $S/bin/batch_step-v2 --ctx $c > $O/batch-step-$c.log 2>&1; echo "batch_step ctx $c: exit $?"
+  $S/bin/${STEPBIN:-batch_step-v2} --ctx $c > $O/batch-step-$c.log 2>&1; echo "batch_step ctx $c: exit $?"
 done
-$HERE/run_id.sh $O/id-head intarsia-head base off bon4 on4 > $O/id-head.log 2>&1; echo "identity: exit $?"
+$HERE/run_id.sh $O/id-head ${HEADBIN:-intarsia-head} base off bon4 on4 > $O/id-head.log 2>&1; echo "identity: exit $?"
