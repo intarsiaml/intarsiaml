@@ -1,0 +1,24 @@
+prefill chunk 2048 (recipe qwen3, metal)
+loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 4062 tokens
+ids: [576, 56411, 7341, 8110, 279, 1293, 5636, 311, 279, 13648, 389, 1899, 220, 17, 19, 21, 13, 576, 56411, 7341, 8110, 279, 1293, 5636, 311, 279, 13648, 389, 1899, 220, 17, 19, 22, 13, 576, 56411, 7341, 8110, 279, 1293, 5636, 311, 279, 13648, 389, 1899, 220, 17]
+finish=length prompt=4062 (cached 0) completion=48 | prefill 1167 ms (3481.6 tok/s) | decode 1324 ms (35.49 tok/s)
+steps=49 graph replays=0 (captures 0) eager decode steps=47 (profiled 0) top ops: argmax=0ms/48 attn_decode=0ms/1692 attn_prefill=0ms/72 embedding=0ms/49 logits=0ms/48
+        2.86 real         0.15 user         0.43 sys
+          2343780352  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              146714  page reclaims
+                   2  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                 816  involuntary context switches
+          7121007328  instructions retired
+          2479921829  cycles elapsed
+          2577926664  peak memory footprint

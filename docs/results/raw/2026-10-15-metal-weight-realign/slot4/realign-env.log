@@ -1,0 +1,50 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/fill.rs (target/release/deps/fill-25b3ea888e58de09)
+
+running 6 tests
+test copy_and_zero_are_ordered_with_launches_and_do_not_wait ... ok
+test overlapping_copy_in_one_buffer_is_a_memmove ... ok
+test wrapped_host_memory_is_a_source_but_never_a_target ... ok
+test copy_is_byte_exact_for_every_alignment_and_tail ... ok
+test zero_covers_exactly_the_buffer ... ok
+test copy_large_aligned_buffer ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/realign.rs (target/release/deps/realign-72f978baea4453f9)
+
+running 2 tests
+test realigned_buffer_is_16_byte_aligned_with_equal_contents ... ok
+test batch1_gemv_on_realigned_weights_is_bitwise_equal ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/wrap_host.rs (target/release/deps/wrap_host-63239f81b7af9e98)
+
+running 3 tests
+test wrap_page_rounding_with_synthetic_file ... FAILED
+test wrap_real_safetensors_unaligned_and_last_tensor ... FAILED
+test gemv_on_wrapped_weights ... ok
+
+failures:
+
+---- wrap_page_rounding_with_synthetic_file stdout ----
+
+thread 'wrap_page_rounding_with_synthetic_file' (92516174) panicked at crates/intarsia-backend-metal/tests/wrap_host.rs:85:5:
+widened range leaves the MTLBuffer
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- wrap_real_safetensors_unaligned_and_last_tensor stdout ----
+model-00001-of-00003.safetensors: 10006877608 bytes (5544 mod page), 51662 tensors, 45258 start off a 16 B boundary, 51656 off a page boundary
+
+thread 'wrap_real_safetensors_unaligned_and_last_tensor' (92516175) panicked at crates/intarsia-backend-metal/tests/wrap_host.rs:85:5:
+widened range leaves the MTLBuffer
+
+
+failures:
+    wrap_page_rounding_with_synthetic_file
+    wrap_real_safetensors_unaligned_and_last_tensor
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test wrap_host`
