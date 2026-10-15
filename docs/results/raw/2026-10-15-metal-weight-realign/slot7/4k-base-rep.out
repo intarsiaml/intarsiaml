@@ -1,0 +1,4 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    99.34   2.014e-4   1.832e-4   1.167e-2   0.1011   0.1010    98.96   92/4064      0

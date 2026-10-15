@@ -1,8 +1,9 @@
 #![cfg(target_os = "macos")]
 //! `wrap_host` weight re-alignment (`MetalBackend::set_realign`): a tensor at offset 8 mod 16 of a mapped file is
 //! copied into a 16-byte aligned buffer with equal contents, aligned tensors keep their zero-copy window, the batch-1
-//! GEMV on the copy is bit-identical to the 8-byte-load kernel on the unaligned window, and the source mapping stays
-//! readable after its pages are released.
+//! GEMV on the copy agrees with the 8-byte-load kernel on the unaligned window to within one bf16 ulp (the two kernels
+//! group the f32 sums differently, `dot8` against two `dot4`s, so they are not bit-identical in general), and the
+//! source mapping stays readable after its pages are released.
 
 mod common;
 use common::*;
@@ -92,7 +93,7 @@ fn realigned_buffer_is_16_byte_aligned_with_equal_contents() {
 }
 
 #[test]
-fn batch1_gemv_on_realigned_weights_is_bitwise_equal() {
+fn batch1_gemv_on_realigned_weights_matches_the_8_byte_kernel() {
     let (mem, a, _b, a_off, _b_off) = shard("gemv");
     let be = backend();
     let len = N * K * 2;
@@ -103,9 +104,14 @@ fn batch1_gemv_on_realigned_weights_is_bitwise_equal() {
     be.set_realign(true);
     let w16 = be.try_wrap_host(mem.clone(), a_off, len).unwrap();
     let y16 = gemv(&be, &w16, &x);
-    assert_eq!(y8, y16, "aligned-kernel output differs from the 8-byte-load kernel");
-    // and both agree with the host reference
-    let gpu: Vec<u16> = y16.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+    let bf = |raw: &[u8]| -> Vec<u16> { raw.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect() };
+    let (g8, g16) = (bf(&y8), bf(&y16));
+    let differ = g8.iter().zip(&g16).filter(|(p, q)| p != q).count();
+    eprintln!("aligned vs 8-byte kernel: {differ} of {N} outputs differ");
+    for (i, (p, q)) in g8.iter().zip(&g16).enumerate() {
+        assert!(p.abs_diff(*q) <= 1, "row {i}: {p:#06x} vs {q:#06x} differ by more than one bf16 ulp");
+    }
+    // both agree with the host reference
     let refs = reference(&a, &rand_bf16(K, 77), K, N);
-    check(&gpu, &refs, 0..N, "realigned gemv");
+    check(&g16, &refs, 0..N, "realigned gemv");
 }
