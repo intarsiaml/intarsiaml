@@ -68,6 +68,9 @@ fn sample_rows(m: usize) -> Vec<usize> {
 /// (m, n, k, x offset, w offset, y offset): Qwen3-8B shapes at prefill chunk tails, N / M / K tile edges, odd and 8-byte
 /// aligned offsets (a safetensors shard with header length 8 mod 16 puts every weight at 8 mod 16).
 const CASES: &[(usize, usize, usize, usize, usize, usize)] = &[
+    (2, 4096, 4096, 0, 0, 0),
+    (11, 4096, 4096, 0, 8, 0),
+    (15, 1024, 4096, 2, 0, 2),
     (16, 64, 64, 0, 0, 0),
     (17, 4096, 4096, 0, 0, 0),
     (205, 1024, 4096, 0, 8, 0),
@@ -155,7 +158,7 @@ fn nax_rows_do_not_depend_on_the_call() {
         assert!(read_u16(&be, &y2, 0, m_big * n) == want, "{} differs from {}", v.shader, base.shader);
     }
     // calls of other sizes over row ranges of x, outputs written at odd offsets
-    for (r0, rows) in [(0usize, 5usize), (17, 17), (100, 64), (819, 205), (1019, 5), (512, 512), (3, 1021)] {
+    for (r0, rows) in [(0usize, 5usize), (7, 2), (40, 11), (1000, 15), (17, 17), (100, 64), (819, 205), (1019, 5), (512, 512), (3, 1021)] {
         for v in NAX_VARIANTS {
             let yo = 2 * (r0 % 3);
             let y2 = be.alloc(yo + rows * n * 2 + 16, MemKind::Device).unwrap();
@@ -209,7 +212,8 @@ fn nax_kernels_are_registered_for_prefill_shapes_only() {
             ..Default::default()
         };
         assert!(k.accepts(&shape(NAX_MIN_M, 4096)) && k.accepts(&shape(1024, 12288)), "{name}: prefill shapes");
-        assert!(!k.accepts(&shape(1, 4096)) && !k.accepts(&shape(NAX_MIN_M - 1, 4096)), "{name}: small M is left to the GEMV / tiled GEMM");
+        assert!(k.accepts(&shape(NAX_MIN_M, 4096)) && k.accepts(&shape(11, 4096)), "{name}: a prompt's short tail chunk");
+        assert!(!k.accepts(&shape(1, 4096)) && !k.accepts(&shape(NAX_MIN_M - 1, 4096)), "{name}: M = 1 is the decode GEMV's");
         assert!(k.priority > gemm.priority && k.priority < gemv.priority, "{name}: above the tiled GEMM, below the GEMV class");
     }
 }

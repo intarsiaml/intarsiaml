@@ -1,0 +1,55 @@
+1792064402.514 prefill chunk 2048 (--prefill-chunk)
+1792064433.827 admission on plan shapes: 15 kernel(s) checked, 0 case(s) run, 201 cached
+1792064433.921 loaded Qwen3-8B on metal (Apple M5 Max) in 31.4s, context 8192 tokens
+1792064433.924 intarsia server listening on http://127.0.0.1:8093
+1792064435.454 [prefill-trace] plen 4326 pos0 0 wall 1382 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 590/0
+1792064436.905 [prefill-trace] plen 4075 pos0 3 wall 1448 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064438.275 [prefill-trace] plen 4090 pos0 3 wall 1368 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064439.540 [prefill-trace] plen 4089 pos0 3 wall 1261 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064440.843 [prefill-trace] plen 4341 pos0 3 wall 1301 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 568/0
+1792064442.093 [prefill-trace] plen 4089 pos0 3 wall 1246 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064443.555 [prefill-trace] plen 4103 pos0 3 wall 1459 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 595/0
+1792064444.994 [prefill-trace] plen 4348 pos0 3 wall 1436 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 587/0
+1792064446.363 [prefill-trace] plen 4096 pos0 3 wall 1366 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064447.941 [prefill-trace] plen 4111 pos0 3 wall 1575 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 648/0
+1792064449.373 [prefill-trace] plen 4110 pos0 3 wall 1428 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 519/0
+1792064450.643 [prefill-trace] plen 4353 pos0 3 wall 1267 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 527/0
+1792064452.069 [prefill-trace] plen 4101 pos0 3 wall 1422 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 584/0
+1792064453.399 [prefill-trace] plen 4116 pos0 3 wall 1327 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 543/0
+1792064454.794 [prefill-trace] plen 4115 pos0 3 wall 1392 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 629/0
+1792064456.191 [prefill-trace] plen 4383 pos0 4 wall 1394 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 600/0
+1792064457.431 [prefill-trace] plen 4129 pos0 3 wall 1238 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 596/0
+1792064458.630 [prefill-trace] plen 4144 pos0 3 wall 1194 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 528/0
+1792064459.915 [prefill-trace] plen 4143 pos0 3 wall 1282 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 540/0
+1792064461.052 [prefill-trace] plen 4089 pos0 3 wall 1133 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064462.283 [prefill-trace] plen 4089 pos0 3 wall 1229 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064463.776 [prefill-trace] plen 4110 pos0 3 wall 1490 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 613/0
+1792064465.162 [prefill-trace] plen 4103 pos0 3 wall 1383 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 545/0
+1792064466.275 [prefill-trace] plen 4089 pos0 3 wall 1109 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064467.467 [prefill-trace] plen 4115 pos0 3 wall 1189 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 527/0
+1792064468.659 [prefill-trace] plen 4143 pos0 3 wall 1188 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 527/0
+1792064470.013 [prefill-trace] plen 4110 pos0 4 wall 1351 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 536/0
+1792064471.273 [prefill-trace] plen 4143 pos0 3 wall 1258 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 520/0
+1792064472.604 [prefill-trace] plen 4115 pos0 3 wall 1328 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 598/0
+1792064473.840 [prefill-trace] plen 4089 pos0 3 wall 1233 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064475.248 [prefill-trace] plen 4103 pos0 3 wall 1405 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 596/0
+1792064476.540 [prefill-trace] plen 4103 pos0 3 wall 1289 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 509/0
+1792064477.678 [prefill-trace] plen 4089 pos0 3 wall 1136 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064479.181 [prefill-trace] plen 4110 pos0 3 wall 1499 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 564/0
+1792064480.483 [prefill-trace] plen 4143 pos0 4 wall 1299 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 542/0
+1792064481.837 [prefill-trace] plen 4115 pos0 3 wall 1351 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 602/0
+1792064483.326 [prefill-trace] plen 4103 pos0 3 wall 1487 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 601/0
+1792064484.551 [prefill-trace] plen 4143 pos0 3 wall 1221 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 559/0
+1792064485.957 [prefill-trace] plen 4110 pos0 3 wall 1402 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 552/0
+1792064487.162 [prefill-trace] plen 4089 pos0 3 wall 1203 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064488.479 [prefill-trace] plen 4115 pos0 3 wall 1314 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 593/0
+1792064489.858 [prefill-trace] plen 4089 pos0 3 wall 1375 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064491.441 [prefill-trace] plen 4110 pos0 3 wall 1580 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 648/0
+1792064492.895 [prefill-trace] plen 4103 pos0 3 wall 1451 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 585/0
+1792064494.136 [prefill-trace] plen 4115 pos0 3 wall 1238 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 521/0
+1792064495.413 [prefill-trace] plen 4143 pos0 3 wall 1273 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 561/0
+1792064496.650 [prefill-trace] plen 4089 pos0 3 wall 1234 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792064498.176 [prefill-trace] plen 4103 pos0 4 wall 1523 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 593/0
+1792064499.733 [prefill-trace] plen 4110 pos0 5 wall 1555 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 615/0
+1792064501.101 [prefill-trace] plen 4143 pos0 4 wall 1365 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 591/0
+1792064502.381 [prefill-trace] plen 4115 pos0 3 wall 1276 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 604/0
