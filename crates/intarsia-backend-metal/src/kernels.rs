@@ -154,7 +154,7 @@ pub const GLU_NORM_VARIANTS: [&str; 3] = ["gemv_glu_norm_v16", "gemv_glu_norm_v8
 pub const RMSNORM_ADD_MATMUL_QKV_BF16_GEMV: &str = "rmsnorm_add_matmul_qkv_bf16_gemv";
 pub const QKV_VARIANTS: [&str; 3] = ["gemv_qkv_norm_v16", "gemv_qkv_norm_v8", "gemv_qkv_norm_v2"];
 /// Kernels of the decode-fusion phase D1 (`MatmulGlu`, `RmsNormAddMatmulGlu`, ...) that `INTARSIA_METAL_D1_OFF` (a comma
-/// list of kernel names, or `all`) leaves unregistered, so the model runs the ops they replace: a same-binary A/B switch
+/// or `+` separated list of kernel names, or `all`) leaves unregistered, so the model runs the ops they replace: a same-binary A/B switch
 /// for the interleaved speed measurements. `INTARSIA_NO_FUSION=1` turns every fused op off.
 pub const D1_KERNELS: &[&str] = &[MATMUL_GLU_BF16_GEMV, RMSNORM_ADD_MATMUL_GLU_BF16_GEMV, RMSNORM_ADD_MATMUL_QKV_BF16_GEMV];
 
@@ -162,7 +162,7 @@ pub fn d1_off() -> Vec<&'static str> {
     static OFF: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
     OFF.get_or_init(|| {
         let Ok(v) = std::env::var("INTARSIA_METAL_D1_OFF") else { return Vec::new() };
-        let want: Vec<&str> = v.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+        let want: Vec<&str> = v.split([',', '+']).map(str::trim).filter(|s| !s.is_empty()).collect();
         D1_KERNELS.iter().copied().filter(|k| want.contains(&"all") || want.contains(k)).collect()
     })
     .clone()
