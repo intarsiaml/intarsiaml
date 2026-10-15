@@ -1,0 +1,4 @@
+
+thread 'main' (91144512) panicked at crates/intarsia-backend-metal/examples/gemv_g0.rs:398:38:
+metal backend: Backend("metal: the metallib was not built (Xcode Metal toolchain missing at build time; see build.rs)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

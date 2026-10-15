@@ -4,7 +4,6 @@
 set -u
 cd /opt/code/intarsiaml-g0
 OUT=docs/results/raw/2026-10-15-metal-g0-multirow
-export DEVELOPER_DIR=${DEVELOPER_DIR:-}
 echo "start $(date)" | tee $OUT/slot.log
 cargo test -p intarsia-backend-metal --release > $OUT/cargo-test-metal.log 2>&1; echo "cargo test exit $?" | tee -a $OUT/slot.log
 ./target/release/intarsia kernels test --backend metal -m /Users/josef/models/Qwen3-8B > $OUT/kernels-test-metal-default.log 2>&1; echo "kernels test (default) exit $?" | tee -a $OUT/slot.log
