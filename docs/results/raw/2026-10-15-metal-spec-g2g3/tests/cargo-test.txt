@@ -1,0 +1,397 @@
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-backend-cuda)
+   Compiling intarsia-server v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-cli)
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-core)
+    Finished `release` profile [optimized] target(s) in 17.15s
+     Running unittests src/lib.rs (target/release/deps/intarsia_cli-747e60f5aaa501b2)
+
+running 75 tests
+test cmd::accuracy::baseline::tests::a_run_passes_its_own_baseline_and_small_noise ... ok
+test cmd::accuracy::baseline::tests::a_tiny_baseline_kl_is_not_brittle ... ok
+test cmd::accuracy::baseline::tests::fnv_known_vectors ... ok
+test cmd::accuracy::baseline::tests::one_flipped_position_does_not_fail_a_short_mode ... ok
+test cmd::accuracy::baseline::tests::each_metric_can_fail_the_gate ... ok
+test cmd::accuracy::envelope::tests::perturbation_specs ... ok
+test cmd::accuracy::baseline::tests::one_prompt_doubling_fails_although_the_overall_mean_passes ... ok
+test cmd::accuracy::envelope::tests::dense_detection ... ok
+test cmd::accuracy::envelope::tests::missing_or_mismatched_prompts_are_errors ... ok
+test cmd::accuracy::envelope::tests::without_an_envelope_the_limits_are_the_old_fixed_ones ... ok
+test cmd::accuracy::provenance::tests::a_baseline_from_somewhere_else_is_refused ... ok
+test cmd::accuracy::baseline::tests::chunk_mismatch_names_the_recipe_default ... ok
+test cmd::accuracy::baseline::tests::mismatching_golden_or_config_is_refused ... ok
+test cmd::accuracy::envelope::tests::delta_is_the_absolute_difference_of_the_prompt_numbers ... ok
+test cmd::accuracy::provenance::tests::comparing_code_with_itself_needs_an_explicit_flag ... ok
+test cmd::accuracy::envelope::tests::the_envelope_widens_the_limit_only_where_the_prompt_is_noisy ... ok
+test cmd::accuracy::envelope::tests::the_envelope_must_belong_to_the_baseline ... ok
+test cmd::accuracy::envelope::tests::dense_detection_on_the_real_configs ... ok
+test cmd::accuracy::envelope::tests::the_perturbed_run_is_checked_against_its_reference ... ok
+test cmd::accuracy::envelope::tests::several_perturbations_give_the_per_prompt_maximum ... ok
+test cmd::accuracy::provenance::tests::exec_diff_names_the_changed_kernels_and_flags ... ok
+test cmd::accuracy::provenance::tests::only_the_harness_overlay_may_be_dirty ... ok
+test cmd::accuracy::provenance::tests::parse_round_trip_and_unstamped ... ok
+test cmd::accuracy::provenance::tests::the_declared_pre_change_commit_or_an_ancestor_is_accepted ... ok
+test cmd::accuracy::provenance::tests::unstamped_artefacts_are_refused_unless_allowed ... ok
+test cmd::accuracy::selfgolden::tests::captured_rows_are_normalised_log_probs_best_first ... ok
+test cmd::accuracy::selfgolden::tests::identical_logits_pass_and_each_check_can_fail ... ok
+test cmd::accuracy::selfgolden::tests::one_flip_does_not_fail_a_short_mode ... ok
+test cmd::accuracy::tests::a_flipped_near_tie_is_rounding_but_a_moved_distribution_is_not ... ok
+test cmd::accuracy::tests::default_gates_by_class ... ok
+test cmd::accuracy::baseline::tests::baseline_json_round_trips ... ok
+test cmd::accuracy::tests::first_divergence_of_streams ... ok
+test cmd::accuracy::envelope::tests::envelope_json_round_trips ... ok
+test cmd::accuracy::tests::greedy_match_length_counts_the_leading_run ... ok
+test cmd::accuracy::tests::identical_distributions_agree ... ok
+test cmd::accuracy::tests::kv_dtype_aliases_and_warnings ... ok
+test cmd::accuracy::tests::nan_anywhere_fails_the_position ... ok
+test cmd::accuracy::tests::nan_in_the_golden_is_an_error ... ok
+test cmd::accuracy::tests::identical_distributions_have_no_tail_difference ... ok
+test cmd::accuracy::tests::reference_logprobs_summing_just_over_one_do_not_break_the_tail ... ok
+test cmd::accuracy::tests::repeat_detection ... ok
+test cmd::accuracy::tests::row_nu_looks_at_the_top_tokens_only ... ok
+test cmd::accuracy::tests::strict_top1_and_tie_reporting ... ok
+test cmd::accuracy::tests::the_21_way_kl_is_a_lower_bound_of_the_full_kl ... ok
+test cmd::accuracy::tests::top_k_orders_and_breaks_ties_low ... ok
+test cmd::accuracy::tests::topk_kl_is_zero_for_equal_and_positive_for_shifted ... ok
+test cmd::qualify::facts::tests::names_from_paths ... ok
+test cmd::qualify::report::tests::durations ... ok
+test cmd::qualify::state::tests::resume_keeps_pass_and_fail_and_reruns_skip_and_error ... ok
+test cmd::accuracy::tests::mass_leaving_the_top_k_is_invisible_to_the_renormalised_kl_but_not_to_the_tail_bucket ... ok
+test cmd::qualify::report::tests::rendered_report_follows_the_documented_template ... ok
+test cmd::qualify::report::tests::summary_and_metrics ... ok
+test cmd::qualify::tests::accuracy_failures_are_digested ... ok
+test cmd::qualify::tests::line_value_finds_prefixed_lines ... ok
+test cmd::qualify::tests::missing_kernels_are_listed_from_the_load_error ... ok
+test cmd::qualify::tests::server_context_covers_the_benchs_margin ... ok
+test cmd::qualify::tests::stage_table_is_consistent ... ok
+test cmd::qualify::tests::stamp_formats_as_utc ... ok
+test cmd::accuracy::tests::gate_fails_on_nan_even_with_perfect_other_rows ... ok
+test cmd::qualify::state::tests::state_round_trips_and_put_replaces ... ok
+test cmd::recipe::tests::header_reader_and_layer_split ... ok
+test cmd::recipe::tests::missing_config_or_tensors_is_an_error_not_a_scaffold ... ok
+test cmd::qualify::facts::tests::baselines_are_found_by_golden_stem_and_backend ... ok
+test cmd::recipe::tests::a_layer_that_differs_from_the_last_one_is_flagged ... ok
+test cmd::accuracy::tests::weight_class_from_quantization_metadata ... ok
+test cmd::recipe::tests::declared_w4a4_nvfp4_is_not_covered ... ok
+test cmd::recipe::tests::dense_qwen3_dir_is_covered_and_scaffold_equals_the_shipped_recipe ... ok
+test cmd::qualify::facts::tests::main_checkout_is_found_from_a_worktree ... ok
+test cmd::recipe::tests::llama_like_model_with_gelu_yarn_bias_and_unknown_quant_lists_every_todo ... ok
+test cmd::recipe::tests::mixed_fp8_nvfp4_moe_from_an_index_alone_is_covered_by_qwen3_5_moe ... ok
+test cmd::qualify::facts::tests::golden_discovery_prefers_fp32_and_separates_long ... ok
+test cmd::recipe::tests::unknown_architecture_with_qwen3_layout_gets_a_clean_scaffold ... ok
+test cmd::accuracy::tests::weight_class_of_the_real_checkpoints ... ok
+test cmd::recipe::tests::hybrid_dense_dir_is_covered_by_qwen3_5 ... ok
+test cmd::recipe::tests::covered_without_out_writes_nothing_and_out_is_not_overwritten_without_force ... ok
+
+test result: ok. 75 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (target/release/deps/intarsia-f8e17da75fd9e2ed)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_model.rs (target/release/deps/real_model-b93e6e738b209cb7)
+
+running 1 test
+test counts_up_on_real_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+
+     Running unittests src/lib.rs (target/release/deps/intarsia_core-746657eb946d4377)
+
+running 62 tests
+test dtype::tests::fp8_e5m2_roundtrip ... ok
+test dtype::tests::abi_header_matches ... ok
+test gdn::tests::split_and_gate ... ok
+test gdn::tests::delta_rule_first_token_is_beta_scaled_v ... ok
+test admission::plan_case_tests::unknown_ops_have_no_case ... ok
+test dtype::tests::bulk_roundtrip_bf16 ... ok
+test dtype::tests::fp8_e4m3_roundtrip_all_codes ... ok
+test memplan::tests::mem_budget_caps_kv ... ok
+test gdn::tests::conv_state_carries_across_chunks ... ok
+test ops::tests::check_matmul ... ok
+test memplan::tests::clamps_to_free_memory ... ok
+test plan::tests::fnv_is_stable ... ok
+test gdn::tests::delta_rule_state_carries_across_chunks ... ok
+test ops::tests::check_qk_norm_rope_kv ... ok
+test ops::tests::op_names_roundtrip ... ok
+test plan::tests::probe_sizes_cover_small_and_boundaries ... ok
+test plan::tests::position_diff_names_the_differing_ops ... ok
+test quant::fp8::tests::activation_snaps_to_the_fp8_grid ... ok
+test quant::fp8::tests::quantize_then_dequant ... ok
+test quant::nvfp4::tests::code_table_and_rounding ... ok
+test quant::nvfp4::tests::nibble_order_is_low_first ... ok
+test quant::nvfp4::tests::quantize_roundtrip_error_is_small ... ok
+test quant::scheme::tests::a_global_algorithm_covers_every_layer_except_the_excluded ... ok
+test quant::scheme::tests::globs ... ok
+test quant::scheme::tests::declared_and_stored_formats_must_agree ... ok
+test quant::scheme::tests::kv_cache_deviation_is_a_note ... ok
+test quant::scheme::tests::matching_formats_pass ... ok
+test quant::scheme::tests::parses_the_modelopt_layout ... ok
+test quant::scheme::tests::the_real_qwen36_scheme_accepts_what_the_loader_finds ... ok
+test quant::scheme::tests::w4a4_and_unknown_algorithms_are_rejected ... ok
+test quant::tests::detect_each_format ... ok
+test recipe::tests::legacy_config_loads ... ok
+test recipe::tests::conflicting_rope_theta_is_an_error ... ok
+test recipe::tests::missing_numbers_are_errors_not_defaults ... ok
+test recipe::tests::moe_checkpoint_has_no_dense_width ... ok
+test recipe::tests::rope_parameters_layout_and_text_config ... ok
+test registry::tests::macro_builds_impl ... ok
+test recipe::tests::unsupported_fields_are_rejected ... ok
+test registry::tests::tol_for_picks_the_f32_budget_only_for_f32_outputs ... ok
+test rng::tests::deterministic_and_in_range ... ok
+test sampler::tests::greedy_and_ties ... ok
+test sampler::tests::seeded_reproducible ... ok
+test sampler::tests::top_k_one_is_argmax ... ok
+test sampler::tests::top_p_cuts_tail ... ok
+test spec::tests::accept_longest_matching_prefix ... ok
+test spec::tests::config_parse ... ok
+test spec::tests::gate_accepted_pass_resets_the_back_off_length ... ok
+test spec::tests::gate_backs_off_exponentially_on_a_run_of_failures ... ok
+test spec::tests::gate_cost_on_open_text_is_logarithmic ... ok
+test spec::tests::accept_needs_one_row_per_draft_plus_one - should panic ... ok
+test spec::tests::gate_probe_hit_reopens_immediately ... ok
+test spec::tests::gate_starts_open_and_one_miss_does_not_close_it ... ok
+test spec::tests::gate_zero_fails_is_off ... ok
+test spec::tests::propose_falls_back_to_shorter_suffixes ... ok
+test spec::tests::propose_longest_suffix_most_recent ... ok
+test spec::tests::propose_min_skips_short_suffixes ... ok
+test spec::tests::propose_never_proposes_the_suffix_position_itself ... ok
+test spec::tests::propose_overlapping_repetition ... ok
+test telemetry::tests::counters ... ok
+test quant::cases::tests::every_case_validates ... ok
+test admission::plan_case_tests::matmul_case_keeps_k_and_clamps_rows_and_n ... ok
+test admission::sweep_dim_tests::moe_only_config_sweeps_no_zero_dim_case ... ok
+
+test result: ok. 62 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.74s
+
+     Running tests/gdn_hf.rs (target/release/deps/gdn_hf-7b6cf9799365ecda)
+
+running 2 tests
+test delta_rule_matches_hf_recurrent_and_chunked ... ok
+test conv_matches_hf_with_and_without_carried_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/release/deps/intarsia_models-82ea9cef77944b16)
+
+running 10 tests
+test recipe::tests::unknown_pattern_block_is_rejected ... ok
+test recipe::tests::prefill_chunk_resolution_order ... ok
+test recipe::tests::builtin_qwen3_parses_and_matches ... ok
+test recipe::tests::hybrid_recipes_map_blocks_by_layer_type ... ok
+test recipe::tests::qwen3_5_moe_chunk_is_2048_on_cuda_only ... ok
+test safetensors::tests::roundtrip_single_and_sharded ... ok
+test chat_template::tests::raise_exception_surfaces ... ok
+test chat_template::tests::tools_use_python_style_json ... ok
+test chat_template::tests::qwen3_assistant_history_strips_reasoning ... ok
+test chat_template::tests::qwen3_basic_and_thinking_off ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/config.rs (target/release/deps/config-b37227a24a41f688)
+
+running 2 tests
+test qwen36_multimodal_wrapper_reads_text_config ... ok
+test qwen3_checkpoints_load ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine.rs (target/release/deps/engine-74b1135beec7e26d)
+
+running 10 tests
+test bad_requests_become_error_events ... ok
+test forward_logits_all_positions ... ok
+test dropped_receiver_cancels ... ok
+test eos_min_tokens_and_ignore_eos ... ok
+test seeded_sampling_reproducible_and_telemetry_counts ... ok
+test greedy_is_deterministic_and_reports_usage ... ok
+test stop_strings_trim_and_holdback ... ok
+test scripted_replay_reproduces_a_warm_generate_bit_for_bit ... ok
+test prefix_reuse_continue_and_unaligned_restore_match_cold ... ok
+test prefix_reuse_restore_on_a_chunk_boundary_is_bit_identical_to_cold ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/engine_panic.rs (target/release/deps/engine_panic-9940b9fa5bc989cf)
+
+running 1 test
+test worker_panic_fails_the_engine ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine_robust.rs (target/release/deps/engine_robust-814a353d66b5ae1f)
+
+running 3 tests
+test cancel_flag_stops_decoding ... ok
+test cancel_before_prefill_runs_no_step_and_frees_the_worker ... ok
+test done_carries_the_matched_stop_string ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/graphs.rs (target/release/deps/graphs-6ba02838a43eee80)
+
+running 7 tests
+test the_recording_contains_the_position_dependent_ops_with_a_device_position ... ok
+test a_new_state_gets_its_own_recording_and_truncate_keeps_replaying ... ok
+test no_graphs_flag_and_failed_capture_fall_back_to_eager ... ok
+test argmax_head_matches_through_the_graph ... ok
+test profiled_steps_interleave_with_replays ... ok
+test graph_decode_is_bitwise_the_eager_decode ... ok
+test replay_after_a_mid_sequence_gdn_restore_is_bitwise_the_eager_decode ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests/head_and_scheme.rs (target/release/deps/head_and_scheme-19a4883bca11ad84)
+
+running 2 tests
+test a_missing_lm_head_is_an_error_unless_the_config_ties_the_embeddings ... ok
+test a_declared_scheme_is_checked_against_the_stored_tensors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/hybrid.rs (target/release/deps/hybrid-2d111d74a425008c)
+
+running 10 tests
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+test layer_kinds_follow_the_config ... ok
+test one_shot_prefill_matches_hf ... ok
+test argmax_decode_path_agrees ... ok
+test failed_forward_resets_recurrent_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/hybrid_real.rs (target/release/deps/hybrid_real-4dc864d46d78990b)
+
+running 1 test
+test real_35b_attention_layers_cuda_matches_cpu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/min_tokens.rs (target/release/deps/min_tokens-beef0e48196ed92e)
+
+running 3 tests
+test min_tokens_alone_masks_eos_without_ignore_eos ... ok
+test forced_length_greedy_keeps_the_on_device_argmax ... ok
+test stop_strings_wait_for_min_tokens ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/model.rs (target/release/deps/model-a24fc2b3d909659b)
+
+running 5 tests
+test recurrent_slot_is_allocated_but_inert ... ok
+test context_overflow_and_truncate ... ok
+test decoder_matches_naive_reference_f32 ... ok
+test decoder_close_to_naive_reference_bf16 ... ok
+test prefill_equals_prefill_plus_decode_and_chunking ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/plan.rs (target/release/deps/plan-e638a78a998b86a2)
+
+running 7 tests
+test missing_kernel_fails_the_load_with_a_list ... ok
+test plan_json_follows_the_contract ... ok
+test scratch_workspace_is_reserved_and_passed ... ok
+test reference_flag_forces_ref_kernels ... ok
+test teacher_forced_decode_matches_full_forward ... ok
+test bad_kernel_is_rejected_on_plan_shapes_and_replaced ... ok
+test admission_on_plan_shapes_is_cached_and_enforced ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/spec.rs (target/release/deps/spec-536fe42dc9be59b8)
+
+running 4 tests
+test spec_sampled_requests_fall_back ... ok
+test spec_identity_greedy ... ok
+test spec_stops_inside_accepted_runs ... ok
+test spec_min_tokens_and_eos_inside_runs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.34s
+
+     Running tests/tp.rs (target/release/deps/tp-3bd9d37a0f492bb2)
+
+running 5 tests
+test indivisible_degree_and_unshardable_blocks_are_refused ... ok
+test shards_hold_only_their_slice_and_the_plan_shows_per_rank_shapes ... ok
+test tp2_matches_tp1_prefill_and_decode_f32 ... ok
+test tp2_greedy_decode_follows_tp1_in_bf16_with_chunks_and_truncate ... ok
+test all_gather_concatenates_in_rank_order_and_a_failed_rank_releases_the_others ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/tp_test_bug.rs (target/release/deps/tp_test_bug-a70da33640c4aa64)
+
+running 2 tests
+test f32_tp2_vs_tp1_separates_a_one_percent_partial_scale_bug_from_summation_order ... ok
+test test_bug_moves_the_logits_and_scale_one_does_not ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running unittests src/lib.rs (target/release/deps/intarsia_server-ec1683ad390e1c83)
+
+running 4 tests
+test health::tests::progress_tracks_stalls ... ok
+test supervisor::tests::fatal_codes_are_not_retried ... ok
+test supervisor::tests::gives_up_after_max_restarts ... ok
+test supervisor::tests::restarts_until_clean_exit ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/api.rs (target/release/deps/api-6f527fdc56aa555c)
+
+running 17 tests
+test vllm_gauges_and_plan ... ok
+test cancel_flag_is_set_when_the_response_is_dropped ... ok
+test chat_stream_without_usage_has_no_usage_chunk ... ok
+test chat_non_stream ... ok
+test anthropic_stream_event_order ... ok
+test bad_requests_use_the_right_error_shape ... ok
+test count_tokens_and_thinking_flag ... ok
+test anthropic_non_stream ... ok
+test chat_stream_with_usage ... ok
+test models_health_metrics ... ok
+test default_max_tokens_is_bounded ... ok
+test completions_variants ... ok
+test anthropic_usage_excludes_cache_reads_and_reports_stop_sequence ... ok
+test full_queue_answers_429 ... ok
+test dropping_the_response_cancels_generation ... ok
+test events_stream_telemetry ... ok
+test health_503_when_failed_or_stalled ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+   Doc-tests intarsia_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests intarsia_core
+
+running 1 test
+test crates/intarsia-core/src/registry.rs - registry::register_kernel (line 206) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests intarsia_models
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests intarsia_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

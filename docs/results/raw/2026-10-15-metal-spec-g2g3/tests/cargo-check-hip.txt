@@ -1,0 +1,3 @@
+    Checking intarsia-backend-hip v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-backend-hip)
+    Checking intarsia-cli v0.0.1 (/opt/code/intarsiaml-spec/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.99s
