@@ -5,3 +5,5 @@
 [qualify      0s] == recipe [recipe resolve]
 [qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
 [qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     50s] plan: PASS in 49.7s (14 ops resolved, exactness deterministic, loaded in 49.7s)
+[qualify     50s] == kernels [kernels test on the model's shapes]

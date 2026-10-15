@@ -25,6 +25,23 @@ fn model_dir() -> PathBuf {
 
 #[test]
 fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
+    batch_case(None);
+}
+
+/// The same identity with a quantised KV cache (`--kv-dtype fp8|int8`): the batched step runs the 1-row per-sequence quantised
+/// kernels on each sequence's own cache, so rows must be bitwise the solo quantised step (docs/results/2026-10-15-metal-kv-quant.md).
+#[test]
+fn batch_bitwise_equals_solo_steps_qwen3_8b_metal_fp8_kv() {
+    batch_case(Some(intarsia_core::DType::Fp8E4m3));
+}
+
+#[test]
+fn batch_bitwise_equals_solo_steps_qwen3_8b_metal_int8_kv() {
+    std::env::set_var("INTARSIA_METAL_KV_INT8", "1"); // the int8 kernels are listed only when requested
+    batch_case(Some(intarsia_core::DType::I8));
+}
+
+fn batch_case(kv_dtype: Option<intarsia_core::DType>) {
     let dir = model_dir();
     if !dir.join("config.json").exists() {
         eprintln!("SKIP: Qwen3-8B not found at {}", dir.display());
@@ -34,7 +51,7 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(&dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, "metal").value;
-    let opts = LoadOptions { max_seq: 4352, prefill_chunk: chunk, profile_every: 0, ..Default::default() };
+    let opts = LoadOptions { max_seq: 4352, prefill_chunk: chunk, profile_every: 0, kv_dtype, ..Default::default() };
     let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
     assert!(m.batch_capable(), "the metal backend registers the row-exact kernels");
     m.enable_batch(8).unwrap();
