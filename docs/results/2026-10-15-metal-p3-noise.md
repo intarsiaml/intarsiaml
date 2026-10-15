@@ -169,3 +169,7 @@ Not run: `qualify` / the 4k golden (not in this branch; #1977 is running the CPU
 `kernel-profile/`, `identity-logits/` (stderr with top logits and ids, the exact-length prompts), `gates/`, `gates.sh`,
 `scripts/` (drivers `passes*.sh`, `exp2.py`, analysis `an*.py`), `prefill-trace-plen.patch`, `binaries-md5.txt`.
 Code: `crates/intarsia-backend-metal/src/gemm_nax.rs` (`NAX_MIN_M`), `src/kernels.rs` (comment), `tests/gemm_nax.rs`.
+
+## Contamination note (added 09:45)
+
+Another agent (G0 multirow) ran short GPU correctness jobs on endor outside a fleetq slot at 07:23–07:27 and 08:05–08:12 EDT (tests, no timings). These overlap `run2/` (07:17–07:30) and the localeval A/B `le1/` (07:56–08:14). The engine-side A/B `ab1/` (07:40–07:55) and the kernel profile are clean, and the merge relies on those plus the identity checks. Treat the `le1/` localeval marginals as indicative only.
