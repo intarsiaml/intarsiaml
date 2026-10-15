@@ -16,7 +16,7 @@ for ctx in 16384 32764; do
 done
 
 echo "== localeval speed through intarsia serve, bf16 then fp8 then bf16... (one server per dtype), sizes 4096 16384"
-for kv in bf16 fp8 int8 int8 fp8 bf16; do
+for kv in bf16 int8 int8 bf16; do
   LD=$R/localeval/$kv-$(date +%H%M%S); mkdir -p $LD
   cooldown $O/macmon-C.jsonl "localeval-$kv"
   $NEW serve --model $M --backend metal --device 0 --host 127.0.0.1 --port 8791 --served-model-name intarsia-metal --max-seq 20480 --profile-every 0 --kv-dtype $kv --no-supervisor --no-ui > $LD/server.out 2> $LD/server.err &
