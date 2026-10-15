@@ -1,0 +1,47 @@
+fleetq job 1913
+== 1. short golden: baseline, envelope (chunk=64 splits 3 of 8 prompts), self-check
+short baseline exit 0
+short envelope exit 0
+short selfcheck exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+== 2. long golden: baseline, envelope (chunk=256 splits 2 of 10 prompts), self-check
+long baseline exit 0
+long envelope exit 0
+long selfcheck exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+== 3. long golden --mode all (as qualify's acc-long) at chunk 256 and at the default 2048
+long all chunk 256 exit 0
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:count              both      skipped: split 19 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:story              both      skipped: split 19 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:code               both      skipped: split 40 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:science            both      skipped: split 39 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:chat_short         both      skipped: split 9 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:chat_system        both      skipped: split 16 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:chat_multiturn     both      skipped: split 29 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:chat_reasoning     both      skipped: split 45 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:long_prose_300     both      skipped: split 150 is below one prefill chunk (256): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:prefix-reuse gate: PASS
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.out:floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: PASS
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.err:prefill chunk 256 (--prefill-chunk)
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-c256.err:prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+long all chunk default exit 1
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:count              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:story              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:code               both      skipped: split 40 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:science            both      skipped: split 39 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:chat_short         both      skipped: split 9 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:chat_system        both      skipped: split 16 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:chat_multiturn     both      skipped: split 29 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:chat_reasoning     both      skipped: split 45 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:long_prose_300     both      skipped: split 150 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:long_prose_700     both      skipped: split 350 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk 2048); not a pass
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.out:floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: FAIL
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.err:prefill chunk 2048 (recipe qwen3, metal)
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.err:prefill chunk 2048; longest prompt 700; prompts spanning more than one chunk: 0/10
+/opt/code/intarsiaml/.claude/worktrees/agent-af7ec7dd89422c6a9/docs/results/raw/2026-10-14-metal-prefill-p3/baselines/long-all-cdefault.err:WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+== 4. warm-vs-cold prefix reuse through serve, 4k prompt, greedy 48 tokens
+default prefill chunk 2048 (recipe qwen3, metal) | turn1 {'prompt_tokens': 4070, 'completion_tokens': 16, 'total_tokens': 4086, 'prompt_tokens_details': {'cached_tokens': 0}} | warm {'prompt_tokens': 4109, 'completion_tokens': 48, 'total_tokens': 4157, 'prompt_tokens_details': {'cached_tokens': 4085}} | cold {'prompt_tokens': 4109, 'completion_tokens': 48, 'total_tokens': 4157, 'prompt_tokens_details': {'cached_tokens': 0}} | identical: True
+c256 prefill chunk 256 (--prefill-chunk) | turn1 {'prompt_tokens': 4070, 'completion_tokens': 16, 'total_tokens': 4086, 'prompt_tokens_details': {'cached_tokens': 0}} | warm {'prompt_tokens': 4109, 'completion_tokens': 48, 'total_tokens': 4157, 'prompt_tokens_details': {'cached_tokens': 4085}} | cold {'prompt_tokens': 4109, 'completion_tokens': 48, 'total_tokens': 4157, 'prompt_tokens_details': {'cached_tokens': 0}} | identical: True
+done
+#1913 "metal P3: baselines, envelope, reuse gate, warm-vs-cold serve check" (claude-31e10c55) done on endor exclusive 24 GB

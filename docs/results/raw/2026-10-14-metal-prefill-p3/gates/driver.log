@@ -1,0 +1,72 @@
+fleetq job 1911
+== 1. unit tests and admission
+cargo test metal exit 0
+kernels test exit 0
+22
+22 kernels, 265 cases in 32.1s
+== 2. the default is live (plan show, scratch per chunk)
+plan metal default: "prefill_chunk": 2048 "prefill_chunk_source": "recipe qwen3  "scratch_bytes": 1064960
+plan metal 256: "prefill_chunk": 256 "prefill_chunk_source": "--prefill-chunk"  "scratch_bytes": 1064960
+plan metal 1024: "prefill_chunk": 1024 "prefill_chunk_source": "--prefill-chunk"  "scratch_bytes": 1064960
+plan metal 2048: "prefill_chunk": 2048 "prefill_chunk_source": "--prefill-chunk"  "scratch_bytes": 1064960
+plan cpu default: "prefill_chunk": 256 "prefill_chunk_source": "default" 
+== 3. decode dispatches per step (364 expected) and tok/s, base vs p3, ABBA
+base short: 27.599 27.298 0.301 364.0 (36.23 tok/s) prefill chunk 256 (default)
+p3 short: 27.546 27.226 0.319 364.0 (36.29 tok/s) prefill chunk 2048 (recipe qwen3, metal)
+p3 short: 27.403 27.101 0.301 364.0 (36.49 tok/s) prefill chunk 2048 (recipe qwen3, metal)
+base short: 27.634 27.304 0.330 364.0 (36.18 tok/s) prefill chunk 256 (default)
+base 4k: 28.498 28.206 0.292 364.0 (35.09 tok/s) prefill chunk 256 (default)
+p3 4k: 28.582 28.260 0.322 364.0 (34.98 tok/s) prefill chunk 2048 (recipe qwen3, metal)
+p3 4k: 28.720 28.405 0.314 364.0 (34.81 tok/s) prefill chunk 2048 (recipe qwen3, metal)
+base 4k: 29.055 28.740 0.315 364.0 (34.41 tok/s) prefill chunk 256 (default)
+== 4. accuracy against the fp32 goldens (bf16 gate class)
+accuracy p3 short exit 0
+accuracy p3 long exit 0
+p3 short: prefill floor top-1 99.77% full-vocab KL 2.686e-4 => PASS top-1 100.00% full-vocab KL 3.739e-4 => PASS 
+p3 long: prefill floor top-1 99.65% full-vocab KL 4.342e-4 => PASS top-1 100.00% full-vocab KL 3.731e-4 => PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 2048 (recipe qwen3, metal)
+prefill chunk 2048; longest prompt 700; prompts spanning more than one chunk: 0/10
+prefill chunk 2048; longest prompt 90; prompts spanning more than one chunk: 0/8
+accuracy base short exit 0
+accuracy base long exit 0
+base short: prefill floor top-1 99.77% full-vocab KL 2.686e-4 => PASS top-1 100.00% full-vocab KL 3.739e-4 => PASS 
+base long: prefill floor top-1 99.65% full-vocab KL 4.342e-4 => PASS top-1 100.00% full-vocab KL 3.731e-4 => PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+p3 long prefill chunk 256: top-1 99.65% full-vocab KL 4.342e-4 => PASS 
+p3 long prefill chunk 1024: top-1 99.65% full-vocab KL 4.342e-4 => PASS 
+== 5. greedy ids, base vs p3
+short 48 tokens base vs p3: ids identical (48 tokens)
+4k 48 tokens base vs p3: ids identical (48 tokens)
+short 256 tokens base vs p3: ids identical (256 tokens)
+4k 256 tokens base vs p3: ids identical (256 tokens)
+== 6. chunk invariance (p3 binary): 4k prompt ids at several --prefill-chunk vs the default (2048), short golden prefill KL
+prefill chunk 2048 (recipe qwen3, metal)
+p3 4k: default(2048) vs chunk 64: ids identical (48 tokens)
+p3 4k: default(2048) vs chunk 128: ids identical (48 tokens)
+p3 4k: default(2048) vs chunk 256: ids identical (48 tokens)
+p3 4k: default(2048) vs chunk 512: ids identical (48 tokens)
+p3 4k: default(2048) vs chunk 1024: ids identical (48 tokens)
+p3 4k: default(2048) vs chunk 2048: ids identical (48 tokens)
+p3 4k: default(2048) vs chunk 4050: ids identical (48 tokens)
+accuracy prefill short chunk 16: full-vocab KL 2.830e-4
+accuracy prefill short chunk 64: full-vocab KL 2.682e-4
+accuracy prefill short chunk 128: full-vocab KL 2.686e-4
+accuracy prefill short chunk 2048: full-vocab KL 2.686e-4
+== 7. qualify (full, fresh, goldens)
+qualify exit 1
+**Verdict: FAIL** (12 stages: 9 pass, 1 fail, 0 error, 2 skipped)
+| Decode | 128 tok: **36.0** tok/s (89% of floor); 1024 tok: **36.0** tok/s (89% of floor); 4096 tok: **34.7** tok/s (86% of floor) |
+| Prefill | 128 tok: **2407** tok/s; 1024 tok: **3621** tok/s; 4096 tok: **2659** tok/s |
+| Accuracy (short golden) | **PASS** (prefill top-1 99.77% KL 2.69e-4; decode top-1 100.00% KL 3.74e-4) |
+| Accuracy (long golden) | **FAIL** (prefill top-1 99.65% KL 4.34e-4; decode top-1 99.80% KL 3.16e-4) |
+| # | Stage | Section | Verdict | Wall | Result |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+## Accuracy
+done
+#1911 "metal P3: gates (tests, accuracy, ids, chunk invariance, decode, qualify)" (claude-31e10c55) done on endor exclusive 24 GB
