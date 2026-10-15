@@ -56,8 +56,8 @@ kernel void qk_norm_rope_kv_bf16(device const ushort* q [[buffer(0)]],
     threadgroup ushort nb[256];  // the bf16-rounded normed head, for the rotation partner
     const uint d = p.d;
     const uint heads = p.n + 2 * p.nkv;
-    const uint t = tg / heads;
-    const uint s = tg % heads;
+    const uint t = p.t == 1 ? 0u : tg / heads;  // decode (one token): no integer division on the ramp
+    const uint s = tg - t * heads;
     const uint pos0 = p.use_dev != 0 ? (uint)posbuf[0] : p.pos0;
     const uint i = tid;
 
@@ -79,6 +79,17 @@ kernel void qk_norm_rope_kv_bf16(device const ushort* q [[buffer(0)]],
         xf = bf2f(x[i]);
         wf = bf2f(w[i]);
     }
+    // The rotation's angle depends only on the position and the lane, so it is computed while the loads and the
+    // reduction are in flight instead of after the second barrier (same expressions, same values).
+    const uint rd = p.rd;
+    const uint half_ = rd / 2;
+    const uint kk = i < half_ ? i : i - half_;
+    float sn = 0.0f, cs = 0.0f;
+    if (i < rd) {
+        const float ang = (float)(pos0 + t) * precise::pow(p.theta, -2.0f * (float)kk / (float)rd);
+        sn = precise::sin(ang);
+        cs = precise::cos(ang);
+    }
     float ss = 0.0f;
     if (i < d) ss = fma(xf, xf, ss);
     const float tot = qkr_tg_sum(ss, part, lane, sg, nsg);
@@ -88,14 +99,9 @@ kernel void qk_norm_rope_kv_bf16(device const ushort* q [[buffer(0)]],
     if (i >= d) return;
 
     ushort res;
-    const uint rd = p.rd;
     if (i >= rd) {
         res = nb[i];  // beyond the rotary dim: the normed value is copied
     } else {
-        const uint half_ = rd / 2;
-        const uint kk = i < half_ ? i : i - half_;
-        const float ang = (float)(pos0 + t) * precise::pow(p.theta, -2.0f * (float)kk / (float)rd);
-        const float sn = precise::sin(ang), cs = precise::cos(ang);
         const float x1 = bf2f(nb[kk]), x2 = bf2f(nb[kk + half_]);
         res = f2bf(i < half_ ? x1 * cs - x2 * sn : x2 * cs + x1 * sn);
     }
