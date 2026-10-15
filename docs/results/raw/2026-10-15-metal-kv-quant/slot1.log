@@ -1,0 +1,41 @@
+fleetq: #2048 waiting (#3 in line): in line behind #2046 "gemm midm: threadgroup concurrency probe" (claude-0e8026c5) on endor
+fleetq: #2048 waiting (#2 in line): in line behind #2047 "metal cb-identity harness e2e (qwen3-8b serve, 40 cases)" (claude-0e8026c5) on endor
+fleetq: #2048 waiting (#1 in line): endor is held exclusively by #2047 "metal cb-identity harness e2e (qwen3-8b serve, 40 cases)" (claude-0e8026c5)
+fleetq job 2048 (metal kv quant: fp8 kernel tests) acquired Thu Oct 15 14:41:20 EDT 2026
+kv_fp8 exit 101
+test decode_f8_matches_f64_reference_and_the_bf16_kernel_on_the_decoded_cache ... 
+thread 'decode_f8_matches_f64_reference_and_the_bf16_kernel_on_the_decoded_cache' (92886557) panicked at crates/intarsia-backend-metal/tests/kv_fp8.rs:222:17:
+test decode_matches_the_oracle_for_all_256_codes ... 
+thread 'decode_matches_the_oracle_for_all_256_codes' (92886607) panicked at crates/intarsia-backend-metal/tests/kv_fp8.rs:23:9:
+test encode_matches_the_oracle_for_every_bf16_value ... fp8 encode: 266305 values (all 65536 bf16 patterns + boundaries + random f32) identical to the oracle
+test f8_kernels_are_registered_only_for_fp8_caches_and_leave_the_bf16_ones_alone ... ok
+test kv_append_f8_is_the_oracle_encode_of_the_bf16_rows ... ok
+test prefill_f8_is_bitwise_the_bf16_flash_kernels_on_the_decoded_cache ... 
+thread 'prefill_f8_is_bitwise_the_bf16_flash_kernels_on_the_decoded_cache' (92886615) panicked at crates/intarsia-backend-metal/tests/kv_fp8.rs:277:13:
+test qk_norm_rope_kv_f8_is_the_encoded_bf16_cache_and_k_rows_equal_k_single_rows ... ok
+test rows_f8_are_bitwise_the_one_row_f8_launches ... rows f8 32/8/128 cap 4096: 92 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 8/2/64 cap 2304: 92 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 16/2/256 cap 1536: 80 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 12/4/32 cap 1024: 64 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+test result: FAILED. 5 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 30 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv        36.5      36.2      37.4      460   (75% of 614 GB/s)
+    4096 attn_decode_f8_splitkv          32.7      32.5      32.9      257   (42% of 614 GB/s)
+    4096 attn_decode_f8_splitkv          42.4      32.7      56.8      198   (32% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        37.4      36.5      39.5      449   (73% of 614 GB/s)
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 30 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       122.9     122.3     124.1      546   (89% of 614 GB/s)
+   16384 attn_decode_f8_splitkv          99.0      98.8      99.4      339   (55% of 614 GB/s)
+   16384 attn_decode_f8_splitkv         100.4      99.6     105.0      334   (54% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       130.9     125.6     133.4      512   (83% of 614 GB/s)
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 30 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16_splitkv       239.2     236.9     243.0      561   (91% of 614 GB/s)
+   32768 attn_decode_f8_splitkv         186.7     186.0     188.9      359   (59% of 614 GB/s)
+   32768 attn_decode_f8_splitkv         192.2     186.2     193.1      349   (57% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       247.7     246.0     253.7      542   (88% of 614 GB/s)
+script exit 0 Thu Oct 15 14:44:05 EDT 2026
+#2048 "metal kv quant: fp8 kernel tests" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2048 released Thu Oct 15 14:44:05 EDT 2026

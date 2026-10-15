@@ -1,0 +1,43 @@
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/kv_fp8.rs (target/release/deps/kv_fp8-b028efe60bd55141)
+
+running 8 tests
+test decode_f8_matches_f64_reference_and_the_bf16_kernel_on_the_decoded_cache ... decode f8 32/8/128 cap 4096: worst error 0.634 of tolerance; 0/45056 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+decode f8 8/8/64 cap 2304: worst error 0.635 of tolerance; 0/5632 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+decode f8 16/2/256 cap 1536: worst error 0.630 of tolerance; 0/45056 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+ok
+test decode_matches_the_oracle_for_all_256_codes ... ok
+test encode_matches_the_oracle_for_every_bf16_value ... fp8 encode: 266305 values (all 65536 bf16 patterns + boundaries + random f32) identical to the oracle
+ok
+test f8_kernels_are_registered_only_for_fp8_caches_and_leave_the_bf16_ones_alone ... ok
+test kv_append_f8_is_the_oracle_encode_of_the_bf16_rows ... ok
+test prefill_f8_is_bitwise_the_bf16_flash_kernels_on_the_decoded_cache ... ok
+test qk_norm_rope_kv_f8_is_the_encoded_bf16_cache_and_k_rows_equal_k_single_rows ... ok
+test rows_f8_are_bitwise_the_one_row_f8_launches ... rows f8 32/8/128 cap 4096: 92 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 8/2/64 cap 2304: 92 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 16/2/256 cap 1536: 80 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 12/4/32 cap 1024: 64 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.92s
+
+     Running tests/kv_i8.rs (target/release/deps/kv_i8-15ace80b1b93aa57)
+
+running 7 tests
+test decode_i8_matches_f64_reference ... decode i8 32/8/128 cap 4096: worst error 0.556 of tolerance
+decode i8 8/8/64 cap 2304: worst error 0.481 of tolerance
+decode i8 16/2/256 cap 1536: worst error 0.564 of tolerance
+ok
+test i8_kernels_are_registered_only_for_int8_caches ... ok
+test kv_append_i8_is_the_host_quantiser ... ok
+test plane_bytes_helper_is_exact_and_zero_extra_for_other_dtypes ... ok
+test prefill_i8_is_bitwise_the_bf16_flash_kernels_on_the_staged_cache ... ok
+test qk_norm_rope_kv_i8_quantises_the_bf16_cache_and_forms_agree ... ok
+test rows_i8_are_bitwise_the_one_row_i8_launches ... rows i8 32/8/128 cap 4096: 92 (k, pos0) windows bitwise equal to the 1-row int8 launches
+rows i8 8/2/64 cap 2304: 92 (k, pos0) windows bitwise equal to the 1-row int8 launches
+rows i8 16/2/256 cap 1536: 80 (k, pos0) windows bitwise equal to the 1-row int8 launches
+rows i8 12/4/32 cap 1024: 64 (k, pos0) windows bitwise equal to the 1-row int8 launches
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+

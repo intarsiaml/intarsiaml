@@ -1,0 +1,9 @@
+date: 2026-10-15T15:41:27-04:00
+fleetq job: 2059
+head: 648843d9de3a89821a7bc4fe15a2017b37bd76d4
+-rwxr-xr-x@ 1 josef  wheel  18263104 Oct 15 15:12 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-new
+752c95a9c1f9282c449ca174a5a5eb2f1ade8fd1a5af09ebd1c3d0d926e081de  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-new
+macmon 0.7.2
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded

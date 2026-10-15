@@ -1,0 +1,23 @@
+. For each batch bucket (e.g. 16x16, 32x8), capture the graph (as a `GraphHandle`), and for each batch, replay the graph in the stream.
+
+The plan is a `RecipePlan` struct with:
+- `op_graph`: the graph of ops (with kernel, args, etc.)
+- `graph_handles`: one per batch bucket
+- `tuning_db`: the tuning DB for this host
+- `quant_formats`: the quant formats used
+- `block_types`: the block types used
+- `recipe`: the recipe used
+
+The plan is stored in `plan_cache` (a `HashMap<RecipeHash, Plan>`) and reused for all requests with the same recipe and config.
+
+---
+
+## 4. Scheduler and KV manager
+
+### 4.1 Scheduler: continuous batching, chunked prefill, priorities
+
+The scheduler is a **priority queue** of requests, each with a **chunked prefill** and a **continuous decode**. The queue is ordered by:
+
+- **Priority**: user-defined (e.g. `high`, `normal`, `low`)
+- **Time to next token**: lower is better
+- **Batch size**: larger is better (for

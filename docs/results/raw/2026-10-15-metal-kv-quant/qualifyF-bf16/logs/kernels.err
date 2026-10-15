@@ -1,0 +1,7 @@
+SKIPPED: kernel kv_append_i8 ran 0 cases on backend 'metal'
+SKIPPED: kernel qk_norm_rope_kv_i8 ran 0 cases on backend 'metal'
+SKIPPED: kernel attn_decode_i8_splitkv ran 0 cases on backend 'metal'
+SKIPPED: kernel attn_prefill_i8_flash ran 0 cases on backend 'metal'
+SKIPPED: kernel attn_prefill_i8_flash_nax ran 0 cases on backend 'metal'
+SKIPPED: kernel attn_prefill_i8_splitkv_rows ran 0 cases on backend 'metal'
+Error: kernel admission failed
