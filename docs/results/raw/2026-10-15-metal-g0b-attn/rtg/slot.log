@@ -1,0 +1,9 @@
+test rtg 2 exit 0
+test rtg 3 exit 0
+test rtg 4 exit 0
+test rtg 8 exit 0
+bench rtg 1 exit 0
+bench rtg 2 exit 0
+bench rtg 3 exit 0
+bench rtg 4 exit 0
+end

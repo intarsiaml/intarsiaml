@@ -291,3 +291,207 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
     }
     out[p.s3 + head * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
 }
+
+// ===================================================================================================================
+// G0b: q_len = R (2..8) verification rows (speculative decoding), bitwise the 1-row kernels above per row.
+//
+// Row r (query r of the call, position pos0 + r) is computed by its own threadgroups, with EXACTLY the work partition the
+// 1-row launch at position pos0 + r makes: visible_r = min(pos0 + r + 1, cap), nsplit_r = ask_nsplit(visible_r), chunk_r,
+// the same simdgroup count nsg_r (host position: 8 simdgroups when Nkv * nsplit_r <= 64 else 4, the rule of
+// `launch_attn_splitkv`; device position: 4), the same key-to-(simdgroup, slot, step) assignment and the same merge
+// order. The loop body (ask_step), the slot / simdgroup merges and the combine are the 1-row code, so the bits of row r
+// are those of the 1-row call: the multi-row call is R 1-row calls in one dispatch pair (one launch, one scratch workspace
+// of R slabs), with the rows adjacent in the grid (x = kvh * R + r) so the R threadgroups that read the same K / V slice
+// run together and share it through the caches. The cache is read-only here; keys past visible_r are never read.
+//
+// Arguments as the 1-row kernels, plus s0 = R. The scratch holds R slabs of [N * max_split * (D + 2)] floats (the 1-row
+// layout each). q is [R, N, D], out [R, N, D] (s3 = leading elements skipped of out). The launch uses nsg_max =
+// max over rows of nsg_r simdgroups per threadgroup; simdgroups >= nsg_r of a row idle (they still reach the barrier).
+// stage 1 grid: (Nkv * R, max_split), stage 2 grid: (N, R).
+constant constexpr uint ASK_FEW_TGS = 64;
+
+inline uint askr_nsg(bool host_pos, uint nkv, uint nsplit, uint gp, uint d) {
+    const uint nsg = (host_pos && nkv * nsplit <= ASK_FEW_TGS) ? ASK_MAX_SG : ASK_MAX_SG / 2;
+    return min(nsg, max(ASK_TG_FLOATS / (gp * d), 1u));
+}
+
+template <uint GP>
+kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
+                                device const ushort* kc [[buffer(1)]],
+                                device const ushort* vc [[buffer(2)]],
+                                device ushort* out [[buffer(3)]],
+                                device const int* posbuf [[buffer(4)]],
+                                device float* part [[buffer(5)]],
+                                constant OpP& p [[buffer(6)]],
+                                uint2 tg [[threadgroup_position_in_grid]],
+                                uint sg [[simdgroup_index_in_threadgroup]],
+                                uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float tm[ASK_MAX_SG * GP], tl[ASK_MAX_SG * GP];
+    threadgroup float tacc[ASK_TG_FLOATS];
+
+    const uint n = p.b, nkv = p.c, d = p.d;
+    const uint cap = p.e;
+    const uint rows = p.s0;
+    const uint kvh = tg.x / rows, row = tg.x - kvh * rows;  // x = kvh * R + row: the R threadgroups of a K / V slice are adjacent
+    const int pos_raw = (p.g != 0 ? posbuf[0] : (int)p.f) + (int)row;
+    const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
+    const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
+    const uint sp = tg.y;
+    if (sp >= nsplit) return;  // uniform over the threadgroup
+    const uint nsg = askr_nsg(p.g == 0, nkv, nsplit, GP, d);
+    const uint grp = n / nkv;
+    const uint chunk = ask_chunk(visible, nsplit);
+    const uint start = sp * chunk;
+    const uint end = min(visible, start + chunk);
+    device float* part_r = part + row * (n * p.h * (d + 2));
+    device float2* ml = (device float2*)(part_r + n * p.h * d);
+    if (start >= end) {
+        if (sg == 0 && lane < grp) ml[(kvh * grp + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
+        return;
+    }
+
+    const uint lpk = d / 8, kps = 32 / lpk;
+    const uint slot = lane / lpk, c8 = lane % lpk;
+    device const uint4* kb = (device const uint4*)(kc + kvh * cap * d) + c8;
+    device const uint4* vb = (device const uint4*)(vc + kvh * cap * d) + c8;
+    float qv[GP][8], acc[GP][8], m[GP], l[GP];
+    const float qs = p.f0 * ASK_LOG2E;
+    const uint qrow = row * n;
+    for (uint g = 0; g < GP; ++g) {
+        float qf[8];
+        ask_unpack8(g < grp ? ((device const uint4*)(q + (qrow + kvh * grp + g) * d + c8 * 8))[0] : uint4(0), qf);
+        for (uint i = 0; i < 8; ++i) {
+            qv[g][i] = g < grp ? qf[i] * qs : 0.0f;
+            acc[g][i] = 0.0f;
+        }
+        m[g] = -INFINITY;
+        l[g] = 0.0f;
+    }
+
+    const uint units = (end - start + kps - 1) / kps;
+    const uint start32 = start, end32 = end;
+    if (sg < nsg) {
+        for (uint u0 = sg; u0 < units; u0 += nsg * ASK_U) {
+            const bool full = start32 + (u0 + (ASK_U - 1) * nsg + 1) * kps <= end32;
+            if (full) {
+                ask_step<GP, true>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
+            } else {
+                ask_step<GP, false>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
+            }
+        }
+
+        for (uint o = lpk; o < 32; o <<= 1) {
+            for (uint g = 0; g < GP; ++g) {
+                const float mo = simd_shuffle_xor(m[g], (ushort)o), lo = simd_shuffle_xor(l[g], (ushort)o);
+                const float mn = max(m[g], mo);
+                const float wa = m[g] == -INFINITY ? 0.0f : exp2(m[g] - mn);
+                const float wb = mo == -INFINITY ? 0.0f : exp2(mo - mn);
+                for (uint i = 0; i < 8; ++i) acc[g][i] = acc[g][i] * wa + simd_shuffle_xor(acc[g][i], (ushort)o) * wb;
+                l[g] = l[g] * wa + lo * wb;
+                m[g] = mn;
+            }
+        }
+        if (slot == 0) {
+            for (uint g = 0; g < GP; ++g) {
+                if (c8 == 0) {
+                    tm[sg * GP + g] = m[g];
+                    tl[sg * GP + g] = l[g];
+                }
+                for (uint i = 0; i < 8; ++i) tacc[(sg * GP + g) * d + c8 * 8 + i] = acc[g][i];
+            }
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    const uint tid = sg * 32 + lane;
+    const uint lgd = ctz(d);
+    // every simdgroup of the launch takes part in the final merge exactly as the 1-row kernel's nsg simdgroups do: the
+    // work items are strided by nsg * 32 over threads [0, nsg * 32); the surplus simdgroups have no items
+    if (sg < nsg) {
+        for (uint idx = tid; idx < grp * d; idx += nsg * 32) {
+            const uint g = idx >> lgd, di = idx & (d - 1);
+            float mt = -INFINITY;
+            for (uint s = 0; s < nsg; ++s) mt = max(mt, tm[s * GP + g]);
+            float lt = 0.0f, num = 0.0f;
+            for (uint s = 0; s < nsg; ++s) {
+                const float ms = tm[s * GP + g];
+                const float w = ms == -INFINITY ? 0.0f : exp2(ms - mt);
+                lt += tl[s * GP + g] * w;
+                num += tacc[(s * GP + g) * d + di] * w;
+            }
+            const uint head = kvh * grp + g;
+            if (nsplit == 1) {
+                out[p.s3 + (qrow + head) * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
+            } else {
+                part_r[(head * p.h + sp) * d + di] = num;
+                if (di == 0) ml[head * p.h + sp] = float2(mt, lt);
+            }
+        }
+    }
+}
+
+#define ASKR_INST(GP)                                                                                          \
+    template [[host_name("attn_rows_splitkv_g" #GP)]] kernel void attn_rows_splitkv_t<GP>(                     \
+        device const ushort*, device const ushort*, device const ushort*, device ushort*, device const int*, \
+        device float*, constant OpP&, uint2, uint, uint);
+ASKR_INST(1)
+ASKR_INST(2)
+ASKR_INST(4)
+ASKR_INST(8)
+#undef ASKR_INST
+
+// Stage 2 for R rows: one threadgroup per (query head, row), one thread per output dim; the 1-row combine per row.
+kernel void attn_rows_combine(device ushort* out [[buffer(0)]],
+                              device const int* posbuf [[buffer(1)]],
+                              device const float* part [[buffer(2)]],
+                              constant OpP& p [[buffer(3)]],
+                              uint2 tg [[threadgroup_position_in_grid]],
+                              uint2 tid2 [[thread_position_in_threadgroup]]) {
+    const uint n = p.b, nkv = p.c, d = p.d;
+    const uint di = tid2.x;
+    const uint head = tg.x, row = tg.y;
+    const int pos_raw = (p.g != 0 ? posbuf[0] : (int)p.f) + (int)row;
+    const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
+    const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
+    if (nsplit == 1) return;
+    device const float* part_r = part + row * (n * p.h * (d + 2));
+    device const float2* ml = (device const float2*)(part_r + n * p.h * d) + head * p.h;
+    device const float* acc = part_r + head * p.h * d + di;
+    float2 v0[ASK_COMB_U];
+    float a0[ASK_COMB_U];
+    for (uint u = 0; u < ASK_COMB_U; ++u) {
+        const bool ok = u < nsplit;
+        v0[u] = ok ? ml[u] : float2(-INFINITY, 0.0f);
+        a0[u] = ok ? acc[u * d] : 0.0f;
+    }
+    float mt = -INFINITY;
+    for (uint u = 0; u < ASK_COMB_U; ++u) mt = max(mt, v0[u].x);
+    for (uint s0 = ASK_COMB_U; s0 < nsplit; s0 += ASK_COMB_U) {
+        float2 v[ASK_COMB_U];
+        for (uint u = 0; u < ASK_COMB_U; ++u) v[u] = s0 + u < nsplit ? ml[s0 + u] : float2(-INFINITY, 0.0f);
+        for (uint u = 0; u < ASK_COMB_U; ++u) mt = max(mt, v[u].x);
+    }
+    float lt = 0.0f, num = 0.0f;
+    for (uint u = 0; u < ASK_COMB_U; ++u) {
+        if (v0[u].x == -INFINITY) continue;
+        const float w = exp2(v0[u].x - mt);
+        lt += v0[u].y * w;
+        num += a0[u] * w;
+    }
+    for (uint s0 = ASK_COMB_U; s0 < nsplit; s0 += ASK_COMB_U) {
+        float2 v[ASK_COMB_U];
+        float a[ASK_COMB_U];
+        for (uint u = 0; u < ASK_COMB_U; ++u) {
+            const bool ok = s0 + u < nsplit;
+            v[u] = ok ? ml[s0 + u] : float2(-INFINITY, 0.0f);
+            a[u] = ok ? acc[(s0 + u) * d] : 0.0f;
+        }
+        for (uint u = 0; u < ASK_COMB_U; ++u) {
+            if (v[u].x == -INFINITY) continue;
+            const float w = exp2(v[u].x - mt);
+            lt += v[u].y * w;
+            num += a[u] * w;
+        }
+    }
+    out[p.s3 + (row * n + head) * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
+}
