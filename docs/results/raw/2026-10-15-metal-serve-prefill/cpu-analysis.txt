@@ -1,0 +1,11 @@
+136 requests
+corr(prefill ms, P-cpu util % during request) = 0.04
+corr(prefill ms, E-cpu util % during request) = -0.06
+corr(prefill ms, sys power W during request) = -0.24
+corr(prefill ms, GPU power W during request) = -0.93
+corr(prefill ms, GPU MHz during request) = -0.96
+prefill-ms bin: n  mean P-cpu%  mean E-cpu%  mean sysW  mean GPU W  mean GPU MHz
+   0-1200:  56   13.9    3.4   117.0   80.9    1554
+1200-1350:  23   13.4    2.2   114.4   59.8    1432
+1350-1500:  34   14.7    2.6   114.7   43.4    1269
+1500-9999:  23   15.9    2.9    99.0   31.8    1097

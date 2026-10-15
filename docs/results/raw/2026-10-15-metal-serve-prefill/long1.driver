@@ -1,0 +1,6 @@
+fleetq job 1972
+date 2026-10-15T04:15:30-04:00 bin=/private/tmp/claude-501/sp/intarsia-base env=
+prefill chunk 256 (default)
+gpu idle: Device Utilization %"=96
+done
+#1972 "metal serve-prefill long1" (claude-31e10c55) done on endor exclusive 24 GB
