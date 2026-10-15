@@ -1,0 +1,131 @@
+fleetq: #1958 waiting (#1 in line): endor is held exclusively by #1957 "metal-candidate gates (tests, accuracy, ids, qualify)" (claude-31e10c55)
+fleetq:   #1957 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1957 set, or it will wait for #1957 to be released.
+fleetq job 1958 (f1b exp1: NAX attention P-mode variants (tests, numerics, microbench)) acquired Thu Oct 15 01:55:09 EDT 2026
+start Thu Oct 15 01:55:09 EDT 2026
+test exit 101 Thu Oct 15 01:55:23 EDT 2026
+thread 'flash_chunk_invariant' (90165920) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:301:13:
+FAILED
+thread 'flash_falls_back_on_misaligned_operands' (90166007) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+FAILED
+test flash_matches_f64_reference ... attn_nax_d128_s4: worst error 0.746 of tolerance over 17 cases
+attn_nax_d128_s8: worst error 0.746 of tolerance over 17 cases
+attn_nax_d128_s4_p1: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s8_p1: worst error 0.654 of tolerance over 17 cases
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s4_p2: FAILED the f64 reference check
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s8_p2: FAILED the f64 reference check
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s4_p3: FAILED the f64 reference check
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s8_p3: FAILED the f64 reference check
+attn_nax_d128_s4_p4: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s8_p4: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s4_p5: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s8_p5: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s4_p6: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s8_p6: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s4_p7: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s8_p7: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s4_p8: worst error 0.746 of tolerance over 17 cases
+attn_nax_d128_s8_p8: worst error 0.746 of tolerance over 17 cases
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:273:5:
+variants failing the f64 reference check: ["attn_nax_d128_s4_p2", "attn_nax_d128_s8_p2", "attn_nax_d128_s4_p3", "attn_nax_d128_s8_p3"]
+FAILED
+test flash_numerics_report ... numerics scale 0.0884 attn_nax_d128_s4: rel rms 1.8641e-3
+numerics scale 0.0884 attn_nax_d128_s8: rel rms 1.8641e-3
+numerics scale 0.0884 attn_nax_d128_s4_p1: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s8_p1: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s4_p2: rel rms 1.0947e0
+numerics scale 0.0884 attn_nax_d128_s8_p2: rel rms 1.0947e0
+numerics scale 0.0884 attn_nax_d128_s4_p3: rel rms 9.7654e-1
+numerics scale 0.0884 attn_nax_d128_s8_p3: rel rms 9.7654e-1
+numerics scale 0.0884 attn_nax_d128_s4_p4: rel rms 1.6762e-3
+numerics scale 0.0884 attn_nax_d128_s8_p4: rel rms 1.6762e-3
+numerics scale 0.0884 attn_nax_d128_s4_p5: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s8_p5: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s4_p6: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s8_p6: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s4_p7: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s8_p7: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s4_p8: rel rms 1.8637e-3
+numerics scale 0.0884 attn_nax_d128_s8_p8: rel rms 1.8637e-3
+numerics scale 0.5000 attn_nax_d128_s4: rel rms 1.7317e-3
+numerics scale 0.5000 attn_nax_d128_s8: rel rms 1.7317e-3
+numerics scale 0.5000 attn_nax_d128_s4_p1: rel rms 1.6632e-3
+numerics scale 0.5000 attn_nax_d128_s8_p1: rel rms 1.6632e-3
+numerics scale 0.5000 attn_nax_d128_s4_p2: rel rms 1.1594e0
+numerics scale 0.5000 attn_nax_d128_s8_p2: rel rms 1.1594e0
+numerics scale 0.5000 attn_nax_d128_s4_p3: rel rms 1.0974e0
+numerics scale 0.5000 attn_nax_d128_s8_p3: rel rms 1.0974e0
+numerics scale 0.5000 attn_nax_d128_s4_p4: rel rms 1.6621e-3
+numerics scale 0.5000 attn_nax_d128_s8_p4: rel rms 1.6621e-3
+numerics scale 0.5000 attn_nax_d128_s4_p5: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s8_p5: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s4_p6: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s8_p6: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s4_p7: rel rms 1.6633e-3
+numerics scale 0.5000 attn_nax_d128_s8_p7: rel rms 1.6633e-3
+numerics scale 0.5000 attn_nax_d128_s4_p8: rel rms 1.7270e-3
+numerics scale 0.5000 attn_nax_d128_s8_p8: rel rms 1.7270e-3
+numerics scale 1.0000 attn_nax_d128_s4: rel rms 1.7231e-3
+numerics scale 1.0000 attn_nax_d128_s8: rel rms 1.7231e-3
+numerics scale 1.0000 attn_nax_d128_s4_p1: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s8_p1: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s4_p2: rel rms 1.3820e0
+numerics scale 1.0000 attn_nax_d128_s8_p2: rel rms 1.3820e0
+numerics scale 1.0000 attn_nax_d128_s4_p3: rel rms 1.3455e0
+numerics scale 1.0000 attn_nax_d128_s8_p3: rel rms 1.3455e0
+numerics scale 1.0000 attn_nax_d128_s4_p4: rel rms 1.6571e-3
+numerics scale 1.0000 attn_nax_d128_s8_p4: rel rms 1.6571e-3
+numerics scale 1.0000 attn_nax_d128_s4_p5: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s8_p5: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s4_p6: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s8_p6: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s4_p7: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s8_p7: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s4_p8: rel rms 1.7140e-3
+numerics scale 1.0000 attn_nax_d128_s8_p8: rel rms 1.7140e-3
+test result: FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.10s
+    Finished `release` profile [optimized] target(s) in 0.03s
+bench s4: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4                 409.5     409.2     409.7    40.65 
+bench s4_p1: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p1              575.6     574.7     580.9    28.92 
+bench s4_p2: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p2              902.5     902.1     902.7    18.44 
+bench s4_p3: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p3              933.7     932.5     934.0    17.83 
+bench s4_p4: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p4              567.2     566.7     568.1    29.35 
+bench s4_p5: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p5              467.1     466.6     469.0    35.63 
+bench s4_p6: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p6              591.5     590.3     593.5    28.14 
+bench s4_p7: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p7              571.8     571.6     572.1    29.11 
+bench s4_p8: heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 6 reps    pos0 kernel                         us/call       p10       p90   TFLOPS    3840 attn_nax_d128_s4_p8              401.3     400.8     401.5    41.48 
+microbench done Thu Oct 15 01:55:30 EDT 2026
+base short: prefill 434 pos top-1 99.77% (433/434) KL 2.686e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.739e-04
+base long: prefill 1434 pos top-1 99.65% (1429/1434) KL 4.342e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.731e-04
+f1 short: prefill 434 pos top-1 99.54% (432/434) KL 2.602e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.089e-04
+f1 long: prefill 1434 pos top-1 99.58% (1428/1434) KL 3.993e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.041e-04
+== accuracy variant p0 Thu Oct 15 01:56:07 EDT 2026
+var-p0 short: prefill 434 pos top-1 99.54% (432/434) KL 2.602e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.089e-04
+var-p0 long: prefill 1434 pos top-1 99.58% (1428/1434) KL 3.993e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.041e-04
+== accuracy variant p8 Thu Oct 15 01:56:26 EDT 2026
+var-p8 short: prefill 434 pos top-1 100.00% (434/434) KL 2.832e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.496e-04
+var-p8 long: prefill 1434 pos top-1 99.72% (1430/1434) KL 3.699e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.517e-04
+== accuracy variant p1 Thu Oct 15 01:56:44 EDT 2026
+var-p1 short: prefill 434 pos top-1 100.00% (434/434) KL 2.996e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.741e-04
+var-p1 long: prefill 1434 pos top-1 99.72% (1430/1434) KL 4.038e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.900e-04
+== accuracy variant p7 Thu Oct 15 01:57:03 EDT 2026
+var-p7 short: prefill 434 pos top-1 99.77% (433/434) KL 2.561e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.343e-04
+var-p7 long: prefill 1434 pos top-1 99.58% (1428/1434) KL 3.692e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.447e-04
+== accuracy variant p4 Thu Oct 15 01:57:22 EDT 2026
+var-p4 short: prefill 434 pos top-1 99.77% (433/434) KL 2.785e-04 | decode 128 pos top-1 100.00% (128/128) KL 3.217e-04
+var-p4 long: prefill 1434 pos top-1 99.44% (1426/1434) KL 4.285e-04 | decode 160 pos top-1 100.00% (160/160) KL 2.894e-04
+== SKIP accuracy variant p2 (numerics broken or missing)
+== accuracy variant p5 Thu Oct 15 01:57:40 EDT 2026
+var-p5 short: prefill 434 pos top-1 99.77% (433/434) KL 2.391e-04 | decode 128 pos top-1 100.00% (128/128) KL 2.976e-04
+var-p5 long: prefill 1434 pos top-1 99.58% (1428/1434) KL 3.920e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.221e-04
+== SKIP accuracy variant p3 (numerics broken or missing)
+== accuracy variant p6 Thu Oct 15 01:57:59 EDT 2026
+var-p6 short: prefill 434 pos top-1 99.77% (433/434) KL 2.391e-04 | decode 128 pos top-1 100.00% (128/128) KL 2.976e-04
+var-p6 long: prefill 1434 pos top-1 99.58% (1428/1434) KL 3.920e-04 | decode 160 pos top-1 100.00% (160/160) KL 3.221e-04
+all done Thu Oct 15 01:58:17 EDT 2026
+script exit 0 Thu Oct 15 01:58:17 EDT 2026
+#1958 "f1b exp1: NAX attention P-mode variants (tests, numerics, microbench)" (claude-31e10c55) done on endor exclusive 24 GB
+fleetq job 1958 released Thu Oct 15 01:58:17 EDT 2026

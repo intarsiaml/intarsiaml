@@ -27,8 +27,10 @@
 // fm + 8 (element i * 4 + j is row fm + 8 i); columns 4 * cq + j with cq = (qid & 2) | (lane & 1). A row lives on the four
 // lanes that differ in bits 0 and 3 of the lane id (the xor-1 / xor-8 shuffles).
 //
-// Online softmax in float, log2 domain. P is rounded to bf16 for the P.V product (the l sum uses the unrounded float P),
-// as in attn_prefill_bf16_flash. Masking assigns -inf, so a fully masked tile leaves a row's max, sum and accumulator
+// Online softmax in float, log2 domain. P is rounded to bf16 for the P.V product, and the l sum is taken over those same
+// rounded weights, so the weights P.V applies sum to l (up to float accumulation) and the row is a proper weighted
+// average of V: a constant V comes out bitwise unchanged, which the unrounded-sum variant of F1 (and of
+// attn_prefill_bf16_flash) does not give. Masking assigns -inf, so a fully masked tile leaves a row's max, sum and accumulator
 // bitwise unchanged: block membership and extra tiles do not change a row's result (the matmul rows are independent).
 // Key tiles start at absolute key 0, never at the query offset, so how a prompt is cut into chunks does not change a
 // row's arithmetic.
@@ -230,9 +232,9 @@ template <int D, int BK, int NSG>
         for (int f = 0; f < TK; ++f) {
             FN_UNROLL
             for (int e = 0; e < 8; ++e) {
-                const float pv = fast::exp2(S[f][e] - ((e & 4) ? mu1 : mu0));
-                if (e & 4) ls1 += pv; else ls0 += pv;
-                Pf[f][e] = bfloat(pv);
+                Pf[f][e] = bfloat(fast::exp2(S[f][e] - ((e & 4) ? mu1 : mu0)));
+                const float pr = float(Pf[f][e]);  // the weight P.V applies
+                if (e & 4) ls1 += pr; else ls0 += pr;
             }
         }
         l0 = l0 * f0 + ls0;

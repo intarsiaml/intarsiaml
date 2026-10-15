@@ -241,6 +241,41 @@ fn flash_matches_f64_reference() {
     select_variant(None);
 }
 
+/// The weights P.V applies sum to the normaliser l (l is summed over the bf16-rounded P): with every visible V row equal,
+/// the output is that row, bitwise, for any scores. A normaliser summed over the unrounded P is off by the rounding of
+/// the weights, a relative ~2^-10 / sqrt(keys) per row, which flips a bf16 output element now and then.
+#[test]
+fn flash_constant_v_comes_out_unchanged() {
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let cases = [
+        c(256, 32, 8, 128, 3840, 4096), // 4k context
+        c(77, 8, 2, 128, 130, 400),     // partial block and key tiles, continuation chunk
+        c(130, 16, 2, 128, 0, 200),     // group 8
+    ];
+    for name in all_variants() {
+        select_variant(Some(name));
+        for (i, cs) in cases.iter().enumerate() {
+            let mut dt = data(cs, 1300 + i as u64);
+            let row: Vec<u16> = rand_bf16(cs.nkv * cs.d, 1400 + i as u64);
+            for h in 0..cs.nkv {
+                for j in 0..cs.pos0 + cs.t {
+                    dt.v[(h * cs.cap + j) * cs.d..][..cs.d].copy_from_slice(&row[h * cs.d..][..cs.d]);
+                }
+            }
+            let r = setup(cs, &dt, [0; 3]);
+            // peaky scores (random q . k of 128 terms, scale 1): many different, non-representable weights
+            let got = run_once(&r, cs, ATTN_PREFILL_BF16_FLASH_NAX, 1.0, 0);
+            let group = cs.n / cs.nkv;
+            for (e, g) in got.iter().enumerate() {
+                let (h, x) = ((e / cs.d) % cs.n, e % cs.d);
+                let want = row[(h / group) * cs.d + x];
+                assert!(*g == want, "{name} {cs:?}: element {e}: got {g:#06x} want {want:#06x}");
+            }
+        }
+    }
+    select_variant(None);
+}
+
 /// A row's result does not depend on how the prompt is split into calls: one call of T rows and several calls of fewer rows
 /// give the same bits (the arithmetic of a row is a function of the row and the key tiles only, which start at key 0).
 #[test]
