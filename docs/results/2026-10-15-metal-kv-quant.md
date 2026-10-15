@@ -190,10 +190,16 @@ The goldens stop at 4k. **Nothing here shows the accuracy of either mode at 16k 
 adds across more keys, though softmax also averages it), so 4k numbers are not an upper bound. What exists is a weak proxy
 (`long16k/`, bf16 vs quantised at the last prompt position of the 16 384 and 32 764 token profile prompts, top-50 logits, 129 greedy ids):
 
-@@PROXY@@
+| context | KV | last-position top-1 | common ids in top-50 | max abs logit shift | 129 greedy ids vs bf16 |
+|---|---|---|---|---|---|
+| 16384 | fp8 | same (id 220) | 49/50 | 0.44 | first divergence at token 24 |
+| 16384 | int8 | same | 48/50 | 0.25 | identical |
+| 32764 | fp8 | same | 46/50 | 0.40 | identical |
+| 32764 | int8 | same | 50/50 | 0.20 | identical |
 
-That position is near-deterministic (top-1 id 220 with probability close to 1), so the KL over the top-50 (about 1e-11) says nothing; the
-max logit shift and the greedy divergence are the only signal. Proposal to cover it properly, in order of cost:
+The top-1 token is the same in every run and the KL over the common top-50 is 5e-12 to 1e-10, i.e. the position is dominated by one token and the KL says
+nothing; the logit shift (0.2 to 0.4 on the leading logits; no bf16-vs-bf16 reference shift was measured to compare it with) and the greedy ids are the only signal, and one
+prompt, one position, 129 tokens is no accuracy measurement. Proposal to cover it properly, in order of cost:
 
 1. **Self-golden at 16k / 32k (cheap, no new reference)**: `intarsia accuracy --golden <16k prompts> --write-self-golden` with the bf16
    build, then `--self-golden` with `--kv-dtype fp8|int8`: teacher-forced KL of the quantised cache against our own bf16 over every
