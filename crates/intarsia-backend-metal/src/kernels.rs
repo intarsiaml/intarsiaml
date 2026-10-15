@@ -292,6 +292,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(RMSNORM_ADD_EX);
     v.push(ARGMAX_F32_V4);
     v.extend(EXPERIMENT_SHADERS);
+    v.extend(crate::multirow::shader_names());
     let mut seen = std::collections::HashSet::new();
     v.retain(|n| seen.insert(*n)); // the experiment list repeats the promoted variants
     v
@@ -323,6 +324,9 @@ pub const TABLE: &[(&str, Op)] = &[
     (QK_NORM_ROPE_KV_BF16, Op::QkNormRopeKv),
     (MATMUL_BF16_NAX, Op::Matmul),
     (MATMUL_PAIR_BF16_NAX, Op::MatmulPair),
+    (crate::multirow::MATMUL_BF16_GEMV_ROWS, Op::Matmul),
+    (crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS, Op::MatmulPair),
+    (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -436,6 +440,41 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(5),
+                // G0 multi-row GEMVs (bitwise the 1-row serving GEMV per row, tests/multirow.rs). Registered below the
+                // tiled GEMM / logits GEMM (priority -1) so serving never selects them; `kernels test` grades them
+                // against the cpu reference like the 1-row kernels (the harness cannot grade against the 1-row Metal
+                // launch without a core change, see the G0 report).
+                crate::multirow::MATMUL_BF16_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| {
+                        (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
+                            && s.out.is_none_or(|d| d == DType::Bf16)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1),
+                // hidden unless INTARSIA_METAL_MULTIROW=1: no other pair kernel accepts M = 2..8, so a visible entry
+                // would make the model fuse short prefill chunks with it
+                crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| {
+                        crate::multirow::pair_entry_enabled()
+                            && (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
+                            && s.k % 8 == 0
+                            && s.out == Some(DType::Bf16)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .priority(-1),
+                crate::multirow::LOGITS_BF16_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m))
+                    .exact(Exactness::Deterministic)
+                    .tol(F32_TOL)
+                    .priority(-1),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
