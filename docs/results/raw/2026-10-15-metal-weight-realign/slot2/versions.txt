@@ -1,0 +1,7 @@
+date: 2026-10-15T11:34:10-04:00
+1b61ca7ff317a1ab3dcfda45965d17eadd4c151a
+MD5 (/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/intarsia-c556008) = e6415c069e72d902c95260a08bd6b443
+MD5 (/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/intarsia-realign) = b9d237abcea0deb46165476b58f384f5
+MD5 (/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/gemv_g0) = e989fb97b83eb4faacc0e5277121874a
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
+localeval: version = "0.2.1"
