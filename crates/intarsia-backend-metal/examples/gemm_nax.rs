@@ -35,11 +35,13 @@ mod imp {
         k: usize,
     }
 
-    const SHAPES: [Shape; 4] = [
+    const SHAPES: [Shape; 5] = [
         Shape { label: "qo", n: 4096, k: 4096 },
         Shape { label: "kv", n: 1024, k: 4096 },
         Shape { label: "gu", n: 12288, k: 4096 },
         Shape { label: "down", n: 4096, k: 12288 },
+        // q + k + v of one projection set as one 6144-column output (the P4 triple GEMM proxy: one kernel, same FLOPs)
+        Shape { label: "qkv", n: 6144, k: 4096 },
     ];
 
     fn env_list<T: std::str::FromStr>(name: &str, default: &[T]) -> Vec<T>

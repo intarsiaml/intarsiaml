@@ -19,3 +19,10 @@ PICK2 shape=gu-pair M=973 N=24576 K=4096 old=t128x64w4 new=t128x64w4 old_tflops=
 PICK2 shape=gu-pair M=1024 N=24576 K=4096 old=t128x64w4 new=t128x64w4 old_tflops=64.70 new_tflops=64.71 change=+0.0%
 PICK2 shape=gu-pair M=2014 N=24576 K=4096 old=t128x64w4 new=t128x64w4 old_tflops=64.18 new_tflops=64.18 change=-0.0%
 PICK2 shape=gu-pair M=2048 N=24576 K=4096 old=t128x64w4 new=t128x64w4 old_tflops=65.03 new_tflops=65.23 change=+0.3%
+PICK2 shape=down M=205 N=4096 K=12288 old=t64x64w4 new=t32x128w2 old_tflops=40.74 new_tflops=51.71 change=+26.9%
+PICK2 shape=down M=222 N=4096 K=12288 old=t64x64w4 new=t32x128w2 old_tflops=44.29 new_tflops=55.74 change=+25.8%
+PICK2 shape=down M=256 N=4096 K=12288 old=t64x64w4 new=t64x64w2 old_tflops=51.53 new_tflops=57.26 change=+11.1%
+PICK2 shape=down M=973 N=4096 K=12288 old=t128x64w4 new=t128x64w4 old_tflops=56.91 new_tflops=56.91 change=-0.0%
+PICK2 shape=down M=1024 N=4096 K=12288 old=t128x64w4 new=t128x64w4 old_tflops=59.85 new_tflops=59.84 change=-0.0%
+PICK2 shape=down M=2014 N=4096 K=12288 old=t128x64w4 new=t128x64w4 old_tflops=52.56 new_tflops=52.87 change=+0.6%
+PICK2 shape=down M=2048 N=4096 K=12288 old=t128x64w4 new=t128x64w4 old_tflops=56.58 new_tflops=55.85 change=-1.3%

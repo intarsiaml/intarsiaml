@@ -15,7 +15,7 @@ for B in pre new new pre; do
   PORT=$((PORT+1))
   BIN=$S/intarsia-t2
   [ $B = pre ] && BIN=$S/intarsia-pre
-  N=$(ls $OUT | grep -c "^p45-$B-.*-server.err")
+  N=$(ls $OUT | grep -c "^p45-c$CHUNK-$B-.*-server.err")
   L=p45-c$CHUNK-$B-$((N+1))
   $BIN serve --model $M --backend metal --device 0 --host 127.0.0.1 --port $PORT --served-model-name intarsia-metal --max-seq 8192 \
     --prefill-chunk $CHUNK --profile-every 0 --no-supervisor --no-ui > $OUT/$L-server.out 2> $OUT/$L-server.err &
