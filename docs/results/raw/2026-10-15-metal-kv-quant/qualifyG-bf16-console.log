@@ -7,3 +7,9 @@
 [qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
 [qualify     50s] plan: PASS in 49.7s (14 ops resolved, exactness deterministic, loaded in 49.7s)
 [qualify     50s] == kernels [kernels test on the model's shapes]
+[qualify    104s] kernels: PASS in 53.8s (33 kernels, 388 cases in 53.6s)
+[qualify    104s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    114s] gate: PASS in 10.5s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    114s] == acc-short [short accuracy against a golden]
+[qualify    123s] acc-short: PASS in 8.2s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
+[qualify    123s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
