@@ -1,0 +1,79 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a6a0312aabf864646/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.45s
+     Running unittests src/lib.rs (target/release/deps/intarsia_backend_metal-a3d6d251e1457bba)
+
+running 6 tests
+test attn::tests::scratch_bounds_every_context_length ... ok
+test attn::tests::threadgroup_accumulators_fit ... ok
+test flash::tests::every_head_dim_and_group_has_a_variant ... ok
+test attn::tests::split_counts_are_bounded_and_monotone ... ok
+test kernels::tests::names_unique_and_named_after_their_op ... ok
+test kernels::tests::attention_is_registered_for_both_ops ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attention.rs (target/release/deps/attention-0c78da86620a2a14)
+
+running 10 tests
+test predicates_accept_bf16_caches_only ... ok
+test splitkv_predicate_and_scratch_declaration ... ok
+test fingerprint_names_device_and_metallib ... ok
+test decode_device_position ... ok
+test splitkv_scratch_is_required_and_checked ... ok
+test splitkv_is_deterministic_and_close_to_single_pass ... ok
+test prefill_matches_f64_reference ... ok
+test decode_matches_f64_reference ... ok
+test splitkv_device_position ... ok
+test splitkv_matches_f64_reference ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+     Running tests/dense.rs (target/release/deps/dense-45bc33a58b99cddc)
+
+running 8 tests
+test predicates_route_m1_to_gemv ... ok
+test argmax_ties_nan_and_all_neg_inf ... ok
+test upload_after_pending_launch_waits_for_it ... ok
+test elementwise_ops_with_odd_element_offsets ... ok
+test device_side_position_matches_host_position ... ok
+test dependent_launches_are_ordered_across_command_buffers ... ok
+test logits_gemm_and_gemv_match_f64_reference ... ok
+test gemm_matches_f64_reference ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/fill.rs (target/release/deps/fill-25b3ea888e58de09)
+
+running 6 tests
+test overlapping_copy_in_one_buffer_is_a_memmove ... ok
+test copy_and_zero_are_ordered_with_launches_and_do_not_wait ... ok
+test wrapped_host_memory_is_a_source_but_never_a_target ... ok
+test copy_is_byte_exact_for_every_alignment_and_tail ... ok
+test zero_covers_exactly_the_buffer ... ok
+test copy_large_aligned_buffer ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/flash_prefill.rs (target/release/deps/flash_prefill-f1a476cf4e6ff173)
+
+running 4 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+test flash_matches_f64_reference ... FAILED
+test flash_falls_back_on_misaligned_operands ... ok
+
+failures:
+
+---- flash_matches_f64_reference stdout ----
+
+thread 'flash_matches_f64_reference' (88964296) panicked at crates/intarsia-backend-metal/tests/flash_prefill.rs:200:9:
+attn_flash_d128_s4 Case { t: 5, n: 4, nkv: 2, d: 128, pos0: 0, cap: 16 }: element 524: gpu -0.0235595703125 ref -0.022867910930535806 tol 0.0005965509674710652
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_matches_f64_reference
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test flash_prefill`

@@ -22,6 +22,13 @@ for run in $runs; do
   done
 done
 unset INTARSIA_METAL_FLASH
+# chunk invariance, end to end: the same golden prompts and the 4k prompt prefilled at chunk 64 instead of 256
+mkdir -p $O/chunk
+for B in pre new; do
+  BIN=$NEW; [ $B = pre ] && BIN=$PRE
+  $BIN accuracy --model $M --backend metal --golden $G/qwen3-8b-fp32.safetensors --gate-class bf16 --max-seq 4096 --mode prefill --prefill-chunk 64 > $O/chunk/$B-short-c64.out 2> $O/chunk/$B-short-c64.err; echo "accuracy $B short chunk 64 exit $?"
+  $BIN generate --model $M --backend metal --max-seq 8192 --profile-every 0 --temperature 0 --max-tokens 256 --ignore-eos --show-ids --prefill-chunk 64 --prompt "$(cat $R/2026-10-14-metal-phase-b/prompt-4k.txt)" > $O/chunk/$B-4k-c64.out 2> $O/chunk/$B-4k-c64.err; echo "generate $B 4k chunk 64 exit $?"
+done
 for P in short 4k; do
   for run in $runs; do
     label=${run%%:*}; [ $label = pre ] && continue

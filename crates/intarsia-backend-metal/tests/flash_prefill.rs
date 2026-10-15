@@ -179,14 +179,8 @@ fn run_once(r: &Run, cs: &Case, kernel: &str, scale: f32, out_off: usize) -> Vec
     raw[out_off / 2..out_off / 2 + len].to_vec()
 }
 
-/// Relative error of a probability rounded to the operand type of the variant named `what` (11 bits for half, 8 for bfloat).
-fn p_eps(what: &str) -> f64 {
-    if what.starts_with("attn_flash_b") {
-        2f64.powi(-8)
-    } else {
-        2f64.powi(-11)
-    }
-}
+/// Relative error bound of a probability rounded to bf16 (8 bits): the kernel's P.V operand.
+const P_EPS: f64 = 1.0 / 256.0;
 
 /// Compare with the f64 reference; returns the worst |err| in units of the allowed error. Allowed: half a bf16 ulp of the
 /// result (2% slack) + 5 sigma of the probability rounding noise (independent errors of relative size eps / sqrt(3))
@@ -196,7 +190,7 @@ fn check(cs: &Case, got: &[u16], want: &(Vec<f64>, Vec<f64>), what: &str) -> f64
     for (i, g) in got.iter().enumerate() {
         let (w, nz) = (want.0[i], want.1[i]);
         let g = bf16_to_f32(*g) as f64;
-        let tol = w.abs() * 2f64.powi(-8) * 1.02 + 5.0 * p_eps(what) / 3f64.sqrt() * nz + 2e-6;
+        let tol = w.abs() * 2f64.powi(-8) * 1.02 + 5.0 * P_EPS / 3f64.sqrt() * nz + 2e-6;
         assert!(g.is_finite() && (g - w).abs() <= tol, "{what} {cs:?}: element {i}: gpu {g} ref {w} tol {tol}");
         worst = worst.max((g - w).abs() / tol);
     }
