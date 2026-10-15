@@ -201,7 +201,9 @@ mod imp {
                 let o1 = Operands::new(be, m, n, k, pool, (0, 0, 0));
                 let flop = 2.0 * m as f64 * (2 * n) as f64 * k as f64;
                 // (variant, pair?) grid
-                let grid: Vec<(NaxVariant, bool)> = NAX_VARIANTS.iter().flat_map(|v| [(*v, true), (*v, false)]).collect();
+                let pair_only = std::env::var_os("NAX_PAIR_ONLY").is_some();
+                let grid: Vec<(NaxVariant, bool)> =
+                    candidates().iter().flat_map(|v| [(*v, true), (*v, false)]).filter(|(_, pr)| *pr || !pair_only).collect();
                 let mut samples: Vec<Vec<f64>> = vec![Vec::new(); grid.len()];
                 for (v, pr) in &grid {
                     pair_chain(be, v, *pr, m, n, k, &o0, &o1, 2);
@@ -218,8 +220,8 @@ mod imp {
                 for (gi, (v, pr)) in grid.iter().enumerate() {
                     let st = stats(&mut samples[gi]);
                     println!(
-                        "PAIR shape={label} M={m} N={n} K={k} tile={}x{} mode={} median_tflops={:.2} p10={:.2} p90={:.2}",
-                        v.bm, v.bn, if *pr { "pair" } else { "2single" }, st.median, st.p10, st.p90
+                        "PAIR shape={label} M={m} N={n} K={k} tile={}x{}w{} mode={} median_tflops={:.2} p10={:.2} p90={:.2}",
+                        v.bm, v.bn, v.sg, if *pr { "pair" } else { "2single" }, st.median, st.p10, st.p90
                     );
                 }
             }

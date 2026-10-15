@@ -37,24 +37,61 @@ impl NaxVariant {
 pub const NAX_VARIANTS: &[NaxVariant] = &[
     NaxVariant { shader: "gemm_nax_t64x64w4", pair_shader: "gemm_nax_pair_t64x64w4", bm: 64, bn: 64, sg: 4 },
     NaxVariant { shader: "gemm_nax_t128x64w4", pair_shader: "gemm_nax_pair_t128x64w4", bm: 128, bn: 64, sg: 4 },
+    NaxVariant { shader: "gemm_nax_t32x32w1", pair_shader: "gemm_nax_pair_t32x32w1", bm: 32, bn: 32, sg: 1 },
+    NaxVariant { shader: "gemm_nax_t32x128w2", pair_shader: "gemm_nax_pair_t32x128w2", bm: 32, bn: 128, sg: 2 },
+    NaxVariant { shader: "gemm_nax_t64x64w2", pair_shader: "gemm_nax_pair_t64x64w2", bm: 64, bn: 64, sg: 2 },
 ];
 
 /// Smallest M the NAX kernels are registered for (below it the GEMV / tiled GEMM run).
 pub const NAX_MIN_M: usize = 16;
 /// The 128x64 tile is used for M >= `NAX_BIG_TILE_MIN_M` when it still leaves at least this many threadgroups (40 GPU
-/// cores; with fewer, the 64x64 tile's finer grid wins: k/v 1024x4096 at M = 256 and 1024, q/o at M = 256; for M < 128
-/// the second 64 rows of a 128-row tile are padding). Measured per shape and M in
-/// docs/results/raw/2026-10-14-metal-prefill-p1/full/bench-pick.txt.
+/// cores; with fewer, the 64x64 tile's finer grid wins; for M < 128 the second 64 rows of a 128-row tile are padding).
+/// Measured per shape and M in docs/results/raw/2026-10-14-metal-prefill-p1/full/bench-pick.txt.
 pub const NAX_BIG_TILE_MIN_TGS: usize = 192;
 pub const NAX_BIG_TILE_MIN_M: usize = 128;
+/// Rows up to which the chunk-sized calls (the 256-row default chunk and its tail) take the P4/P5 tiles of
+/// [`pick_variant`]; above it the P1 rule above applies again.
+pub const NAX_CHUNK_MAX_M: usize = 512;
+/// Output elements (`m * n`) below which the one-simdgroup 32x32 tile is the fastest (the k + v pair at M = 256: 2048
+/// columns, 64 x 8 tiles).
+pub const NAX_FINE_ELEMS: usize = 700_000;
+/// Calls with fewer columns than this (q / o, down: 4096) take the 32-row tile at an M tail (`m % 64` in 1..=32); the
+/// 24576-column gate + up pair does not gain from it.
+pub const NAX_TAIL_MAX_N: usize = 8192;
 
-/// The tile for an `m` by `n` output. Any choice gives the same bits; this one is the faster one measured.
+fn variant(shader: &str) -> &'static NaxVariant {
+    NAX_VARIANTS.iter().find(|v| v.shader == shader).expect("NAX variant table")
+}
+
+/// The tile for an `m` by `n` output (`n` of a pair is `n0 + n1`). Any choice gives the same bits; this rule is the faster
+/// one measured per shape and M inside the engine (docs/results/2026-10-15-metal-prefill-p45.md, raw/.../engine-sweep).
+/// M < 128 and M > `NAX_CHUNK_MAX_M`: the P1 pick (64x64 four simdgroups, or 128x64 when it leaves enough threadgroups).
+/// Chunk-sized M: the k + v pair on 32x32 / one simdgroup; q / o and down at an M tail on 32x128 / two simdgroups (a
+/// 64-row tile would be mostly padding); everything else 64x64 / two simdgroups.
 pub fn pick_variant(m: usize, n: usize) -> &'static NaxVariant {
-    let big = &NAX_VARIANTS[1];
-    if m >= NAX_BIG_TILE_MIN_M && m.div_ceil(big.bm as usize) * n.div_ceil(big.bn as usize) >= NAX_BIG_TILE_MIN_TGS {
-        big
+    // measurement knob: INTARSIA_NAX_TILE=<shader name, e.g. gemm_nax_t64x64w2> forces one tile for every call
+    static FORCED: std::sync::OnceLock<Option<&'static NaxVariant>> = std::sync::OnceLock::new();
+    if let Some(v) = FORCED.get_or_init(|| {
+        let want = std::env::var("INTARSIA_NAX_TILE").ok()?;
+        NAX_VARIANTS.iter().find(|v| v.shader == want || v.shader.ends_with(&want))
+    }) {
+        return v;
+    }
+    if (NAX_BIG_TILE_MIN_M..=NAX_CHUNK_MAX_M).contains(&m) {
+        if m * n < NAX_FINE_ELEMS {
+            variant("gemm_nax_t32x32w1")
+        } else if (1..=32).contains(&(m % 64)) && n < NAX_TAIL_MAX_N {
+            variant("gemm_nax_t32x128w2")
+        } else {
+            variant("gemm_nax_t64x64w2")
+        }
     } else {
-        &NAX_VARIANTS[0]
+        let big = variant("gemm_nax_t128x64w4");
+        if m >= NAX_BIG_TILE_MIN_M && m.div_ceil(big.bm as usize) * n.div_ceil(big.bn as usize) >= NAX_BIG_TILE_MIN_TGS {
+            big
+        } else {
+            variant("gemm_nax_t64x64w4")
+        }
     }
 }
 
