@@ -1,0 +1,10 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3-8B
+server context window: 17152 tokens
+calibration: 46 base tokens, 20.75 tokens per filler sentence
+  size   1024 rep: prompt=1000 gen=64 ttft=0.26s prefill=3867 tok/s decode=36.2 tok/s
+  size   1024 rep: prompt=997 gen=64 ttft=0.25s prefill=3958 tok/s decode=36.2 tok/s
+  size   4096 rep: prompt=4099 gen=64 ttft=1.29s prefill=3180 tok/s decode=35.1 tok/s
+  size   4096 rep: prompt=4112 gen=64 ttft=1.31s prefill=3148 tok/s decode=34.1 tok/s
+  size  16384 rep: prompt=16743 gen=64 ttft=6.94s prefill=2411 tok/s decode=31.1 tok/s
+  size  16384 rep: prompt=16816 gen=64 ttft=7.05s prefill=2384 tok/s decode=31.2 tok/s
+wrote /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/qualifyM-bf16/bench/qualify-Qwen3-8B-metal-bench-long.json

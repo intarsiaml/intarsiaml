@@ -1,0 +1,1 @@
+      - attn_decode: 2 shape(s) without a kernel, e.g. no kernel for attn_decode on metal/applegpu_g17s (m=1 n=0 k=128 act=Some(Bf16) w=Some(I8)) (heads 32/8 head_dim 128 kv_len 1); needed by Decode t=1

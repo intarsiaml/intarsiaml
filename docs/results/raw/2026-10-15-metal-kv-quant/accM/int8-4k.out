@@ -1,0 +1,30 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    98.79   7.655e-4   6.911e-4   2.971e-1   0.1011   0.1011    98.20  121/4064      0
+long_code_4k        4064  4064    99.02   6.616e-4   6.260e-4   6.290e-2   0.0264   0.0266    98.19   18/4064      0
+chat_reuse_4k       4557  4557    98.46   1.667e-3   1.557e-3    2.071e0   0.0795   0.0796    97.66  153/4557      0
+OVERALL                  12685    98.75   1.056e-3   9.812e-4    2.071e0   0.0694   0.0695    98.00      2.3%      0
+prefill floor [bf16]: top-1 98.75% (need >= 99.5) FAIL | 21-way KL 9.812e-4 (need <= 1.0e-3) ok | tail mass ours 0.0695 vs ref 0.0694, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64   100.00   4.832e-4   4.718e-4   2.716e-3   0.0857   0.0863    98.44     64/64      0
+long_code_4k        4064    64   100.00   3.619e-4   3.579e-4   7.465e-3   0.0008   0.0008    97.50     64/64      0
+chat_reuse_4k       4557    64   100.00   2.378e-3   2.378e-3   1.223e-1   0.0000   0.0000    99.06     64/64      0
+OVERALL                    192   100.00   1.074e-3   1.069e-3   1.223e-1   0.0288   0.0290    98.33    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | 21-way KL 1.069e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0290 vs ref 0.0288, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+greedy-match [prefill]: mean 2.3% of positions before the first argmax divergence, worst prompt 0.4% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4447   4573    4462      0     32/32  ok
+chat_reuse_4k      restore     4447   4557    4447      0     32/32  ok
+chat_reuse_4k      aligned     4096   4557    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL

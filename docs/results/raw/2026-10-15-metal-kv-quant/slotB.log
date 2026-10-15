@@ -1,0 +1,88 @@
+fleetq: #2059 waiting (#4 in line): in line behind #2056 "metal kv quant: fp8 decode variants microbench" (claude-31e10c55) on endor
+fleetq:   #2056 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2056 set, or it will wait for #2056 to be released.
+fleetq: #2059 waiting (#3 in line): in line behind #2057 "cb-m0 identity: min_tokens cut cases" (claude-0e8026c5) on endor
+fleetq: #2059 waiting (#2 in line): in line behind #2058 "metal kv quant: gates + accuracy + ids + qualify" (claude-31e10c55) on endor
+fleetq:   #2058 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2058 set, or it will wait for #2058 to be released.
+fleetq: #2059 waiting (#1 in line): endor is held exclusively by #2058 "metal kv quant: gates + accuracy + ids + qualify" (claude-31e10c55)
+fleetq:   #2058 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2058 set, or it will wait for #2058 to be released.
+fleetq job 2059 (metal kv quant: speed (ABBA decode/prefill) + localeval) acquired Thu Oct 15 15:41:26 EDT 2026
+INTARSIA_METAL_F8_U=4
+== PROBE: fake-quant int8 (bf16 cache holding dequant(quant(x)) per block) accuracy vs fp32 goldens
+probe 32,3 long exit 1
+prefill floor [bf16]: top-1 99.16% (need >= 99.5) FAIL | full-vocab KL 4.090e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => F
+decode (teacher-forced) floor [bf16]: top-1 99.38% (need >= 99.5) FAIL | full-vocab KL 1.640e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0218 vs ref 0.0215, excess +0.0003 (|.| <= 0.02) ok | non-finit
+probe 32,3 short exit 1
+prefill floor [bf16]: top-1 99.77% (need >= 99.5) ok | full-vocab KL 9.327e-4 (need <= 1.0e-3) ok | tail mass ours 0.0325 vs ref 0.0325, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 99.22% (need >= 99.5) FAIL | full-vocab KL 1.289e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0245 vs ref 0.0238, excess +0.0007 (|.| <= 0.02) ok | non-finit
+probe 16,3 long exit 1
+prefill floor [bf16]: top-1 99.30% (need >= 99.5) FAIL | full-vocab KL 2.416e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0189 vs ref 0.0188, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => F
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.201e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0002 (|.| <= 0.02) ok | non-finite r
+probe 16,3 short exit 0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 5.015e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 7.732e-4 (need <= 1.0e-3) ok | tail mass ours 0.0241 vs ref 0.0238, excess +0.0003 (|.| <= 0.02) ok | non-finite r
+probe 32,2 long exit 1
+prefill floor [bf16]: top-1 99.79% (need >= 99.5) ok | full-vocab KL 4.598e-4 (need <= 1.0e-3) ok | tail mass ours 0.0186 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 4.053e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite r
+probe 32,2 short exit 0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.945e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 4.425e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite r
+probe 32,1 long exit 1
+prefill floor [bf16]: top-1 99.23% (need >= 99.5) FAIL | full-vocab KL 4.459e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => F
+decode (teacher-forced) floor [bf16]: top-1 99.38% (need >= 99.5) FAIL | full-vocab KL 1.763e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0216 vs ref 0.0215, excess +0.0002 (|.| <= 0.02) ok | non-finit
+probe 32,1 short exit 1
+prefill floor [bf16]: top-1 99.54% (need >= 99.5) ok | full-vocab KL 1.009e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0325 vs ref 0.0325, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => FAI
+decode (teacher-forced) floor [bf16]: top-1 99.22% (need >= 99.5) FAIL | full-vocab KL 1.345e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0244 vs ref 0.0238, excess +0.0006 (|.| <= 0.02) ok | non-finit
+probe 0,0 long exit 1
+prefill floor [bf16]: top-1 99.72% (need >= 99.5) ok | full-vocab KL 3.699e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.371e-4 (need <= 1.0e-3) ok | tail mass ours 0.0214 vs ref 0.0215, excess -0.0000 (|.| <= 0.02) ok | non-finite r
+probe 0,0 short exit 0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.832e-4 (need <= 1.0e-3) ok | tail mass ours 0.0322 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.313e-4 (need <= 1.0e-3) ok | tail mass ours 0.0237 vs ref 0.0238, excess -0.0001 (|.| <= 0.02) ok | non-finite r
+== KV memory sizing: context that fits --mem-budget 40 (GiB) with --max-seq 4000000
+bf16: context 40960 tokens
+fp8: context 40960 tokens
+== warmup (page-in)
+warm [15:43:06]: prefill 1200 ms (3412.5 tok/s) | decode 3645 ms (35.12 tok/s) T=80C
+temp before 4096-bf16-1: 67 C (waited 10 s)
+ctx4096-1-bf16 [15:43:21]: prefill 1193 ms (3434.5 tok/s) | decode 3619 ms (35.37 tok/s) T=75C
+temp before 4096-fp8-2: 66 C (waited 10 s)
+ctx4096-2-fp8 [15:43:37]: prefill 1160 ms (3532.2 tok/s) | decode 3766 ms (33.99 tok/s) T=75C
+temp before 4096-fp8-3: 62 C (waited 10 s)
+ctx4096-3-fp8 [15:43:52]: prefill 1171 ms (3498.0 tok/s) | decode 3595 ms (35.60 tok/s) T=71C
+temp before 4096-bf16-4: 71 C (waited 0 s)
+ctx4096-4-bf16 [15:43:57]: prefill 1177 ms (3479.3 tok/s) | decode 3601 ms (35.54 tok/s) T=74C
+temp before 16384-bf16-1: 62 C (waited 10 s)
+ctx16384-1-bf16 [15:44:17]: prefill 5507 ms (2975.4 tok/s) | decode 3997 ms (32.03 tok/s) T=79C
+temp before 16384-fp8-2: 64 C (waited 10 s)
+ctx16384-2-fp8 [15:44:37]: prefill 5515 ms (2970.9 tok/s) | decode 3923 ms (32.63 tok/s) T=80C
+temp before 16384-fp8-3: 67 C (waited 10 s)
+ctx16384-3-fp8 [15:44:57]: prefill 5683 ms (2883.0 tok/s) | decode 3967 ms (32.27 tok/s) T=80C
+temp before 16384-bf16-4: 65 C (waited 10 s)
+ctx16384-4-bf16 [15:45:18]: prefill 5674 ms (2887.3 tok/s) | decode 4026 ms (31.79 tok/s) T=80C
+temp before 32764-bf16-1: 65 C (waited 10 s)
+ctx32764-1-bf16 [15:45:49]: prefill 15676 ms (2090.1 tok/s) | decode 4934 ms (25.94 tok/s) T=83C
+temp before 32764-fp8-2: 69 C (waited 10 s)
+ctx32764-2-fp8 [15:46:19]: prefill 15650 ms (2093.5 tok/s) | decode 4300 ms (29.77 tok/s) T=84C
+temp before 32764-fp8-3: 69 C (waited 20 s)
+ctx32764-3-fp8 [15:47:04]: prefill 19359 ms (1692.5 tok/s) | decode 4662 ms (27.45 tok/s) T=73C
+temp before 32764-bf16-4: 65 C (waited 10 s)
+ctx32764-4-bf16 [15:47:40]: prefill 20584 ms (1591.7 tok/s) | decode 4670 ms (27.41 tok/s) T=74C
+== kernel-mode trace: which kernels run under fp8 (4k, 33 decode steps)
+trace-kernel-fp8-4k [15:47:54]: prefill 1700 ms (2409.4 tok/s) | decode 11406 ms (11.22 tok/s) T=66C
+run                          prefill ms prefill t/s decode t/s | decode MHz  %<1450    W  maxC    n | prefill MHz  %<1450  flag
+ctx4096-1-bf16                     1193      3434.5      35.37 |       1414      92   16    79   24 |        1617      20  DECODE-CLOCK<1450
+ctx4096-2-fp8                      1160      3532.2      33.99 |       1296      96   14    80   24 |        1617       0  DECODE-CLOCK<1450
+ctx4096-3-fp8                      1171      3498.0      35.60 |       1419      92   16    74   24 |        1617       0  DECODE-CLOCK<1450
+ctx4096-4-bf16                     1177      3479.3      35.54 |       1420      96   17    79   23 |        1617       0  DECODE-CLOCK<1450
+ctx16384-1-bf16                    5507      2975.4      32.03 |       1479      15   20    92   27 |        1617       3  
+ctx16384-2-fp8                     5515      2970.9      32.63 |       1476      27   21    93   26 |        1617       0  
+ctx16384-3-fp8                     5683      2883.0      32.27 |       1438      77   20    90   26 |        1612      12  DECODE-CLOCK<1450
+ctx16384-4-bf16                    5674      2887.3      31.79 |       1445      54   19    91   26 |        1597      12  DECODE-CLOCK<1450
+ctx32764-1-bf16                   15676      2090.1      25.94 |       1334      83   17    92   30 |        1444      52  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-2-fp8                    15650      2093.5      29.77 |       1508       4   25    92   26 |        1470      48   PREFILL-CLOCK<1450
+ctx32764-3-fp8                    19359      1692.5      27.45 |       1375     100   17    77   25 |        1179      98  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-4-bf16                   20584      1591.7      27.41 |       1456      42   19    76   26 |        1000      84  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+trace-kernel-fp8-4k                1700      2409.4      11.22 |       1617      22   12    76   58 |        1375      71   PREFILL-CLOCK<1450
+script exit 0 Thu Oct 15 15:47:54 EDT 2026
+#2059 "metal kv quant: speed (ABBA decode/prefill) + localeval" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2059 released Thu Oct 15 15:47:54 EDT 2026

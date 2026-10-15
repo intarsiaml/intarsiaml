@@ -1,0 +1,15 @@
+date: 2026-10-15T15:28:00-04:00
+fleetq job: 2058
+head: 39ec46a0e67b131d21f9f0d1fbd2cfc9466df239
+F8_U=4
+ M docs/results/raw/2026-10-15-metal-kv-quant/fleetq-jobs.txt
+ M docs/results/raw/2026-10-15-metal-kv-quant/slot1c.log
+ M docs/results/raw/2026-10-15-metal-kv-quant/slot1c/attn_bw.txt
+ M docs/results/raw/2026-10-15-metal-kv-quant/slot1c/macmon.jsonl
+ M docs/results/raw/2026-10-15-metal-kv-quant/slotA.log
+ M docs/results/raw/2026-10-15-metal-kv-quant/slotB.log
+?? docs/results/raw/2026-10-15-metal-kv-quant/gates/
+-rwxr-xr-x@ 1 josef  wheel  17898208 Oct 15 14:34 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-base
+-rwxr-xr-x@ 1 josef  wheel  18263104 Oct 15 15:12 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-new
+7f25f85084b3959a24eea533acfa99c2e41246888c5d5589a5ebd91e7fe5dc42  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-base
+752c95a9c1f9282c449ca174a5a5eb2f1ade8fd1a5af09ebd1c3d0d926e081de  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-new
