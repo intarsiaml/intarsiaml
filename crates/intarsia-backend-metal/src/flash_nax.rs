@@ -35,10 +35,8 @@ macro_rules! nv {
 
 /// Every instantiation compiled into the metal4.0 library; the first with a fitting `nsg` is the default.
 pub const NAX_FLASH_VARIANTS: &[NaxFlashVariant] = &[
-    nv!("attn_nax_d128_s4_k32", 128, 4, 32),
-    nv!("attn_nax_d128_s4_k64", 128, 4, 64),
-    nv!("attn_nax_d128_s8_k32", 128, 8, 32),
-    nv!("attn_nax_d128_s8_k64", 128, 8, 64),
+    nv!("attn_nax_d128_s4", 128, 4, 32),
+    nv!("attn_nax_d128_s8", 128, 8, 32),
 ];
 
 const GROUPS: [usize; 4] = [1, 2, 4, 8];
@@ -110,10 +108,12 @@ impl MetalBackend {
             self.bind(&o[0], bf, true, "out")?,
         );
         let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
-        if q.skip != 0 || out.skip != 0 || ka % 16 != 0 || va % 16 != 0 {
+        let (qa, oa) = (self.mbuf(&i[0].buf)?.base + i[0].offset, self.mbuf(&o[0].buf)?.base + o[0].offset);
+        // q / out are read and written in 8-byte pieces, K / V tensors need 16-byte aligned rows
+        if q.skip != 0 || out.skip != 0 || qa % 16 != 0 || oa % 16 != 0 || ka % 16 != 0 || va % 16 != 0 {
             if FALLBACKS.fetch_add(1, Ordering::Relaxed) == 0 {
                 eprintln!(
-                    "metal {ATTN_PREFILL_BF16_FLASH_NAX}: misaligned operands (q skip {}, out skip {}, k cache at {ka}, v cache at {va}); \
+                    "metal {ATTN_PREFILL_BF16_FLASH_NAX}: misaligned operands (q skip {}, out skip {}, q at {qa}, out at {oa}, k cache at {ka}, v cache at {va}); \
                      running {ATTN_PREFILL_BF16_FLASH} (reported once)",
                     q.skip, out.skip
                 );

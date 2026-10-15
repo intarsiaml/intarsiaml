@@ -248,10 +248,13 @@ fn flash_chunk_invariant() {
     let cs = c(256, 32, 8, 128, 300, 556);
     let dt = data(&cs, 900);
     let scale = 1.0 / (cs.d as f32).sqrt();
+    let mut first: Option<Vec<u16>> = None;
     for name in all_variants() {
         select_variant(Some(name));
         let r = setup(&cs, &dt, [0; 3]);
         let whole = run_once(&r, &cs, ATTN_PREFILL_BF16_FLASH_NAX, scale, 0);
+        // the threadgroup shape (heads x slabs per threadgroup) does not change a row's bits either
+        assert!(first.get_or_insert_with(|| whole.clone()) == &whole, "{name}: differs from the first variant");
         for split in [vec![64, 64, 64, 64], vec![100, 156], vec![1, 255], vec![7, 13, 97, 139], vec![128, 128]] {
             let out = out_buf(&r.be, &cs, 0);
             let mut t0 = 0;
@@ -275,11 +278,11 @@ fn flash_falls_back_on_misaligned_operands() {
     let dt = data(&cs, 700);
     let scale = 1.0 / (cs.d as f32).sqrt();
     let want = reference_attn(&cs, scale, &dt);
-    for off in [[2, 0, 0], [0, 2, 0], [0, 0, 8], [4, 4, 4]] {
+    for off in [[2, 0, 0], [4, 0, 0], [8, 0, 0], [0, 2, 0], [0, 0, 8], [4, 4, 4], [16, 16, 16], [32, 0, 48]] {
         let r = setup(&cs, &dt, off);
         let before = fallbacks();
         let got = run_once(&r, &cs, ATTN_PREFILL_BF16_FLASH_NAX, scale, 0);
-        let expect_fallback = off[0] % 4 != 0 || off[1] % 16 != 0 || off[2] % 16 != 0;
+        let expect_fallback = off.iter().any(|o| o % 16 != 0);
         assert_eq!(fallbacks() - before, expect_fallback as u64, "offsets {off:?}");
         check(&cs, &got, &want, "fallback");
     }
