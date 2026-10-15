@@ -162,7 +162,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
     for s in specs {
         slots.push(match s {
             SlotSpec::AttnKv { n_kv_heads, head_dim, dtype } => {
-                let bytes = n_kv_heads * cap * head_dim * dtype.size_bytes();
+                let bytes = crate::state::kv_plane_bytes(*n_kv_heads, cap, *head_dim, *dtype);
                 StateSlot::AttnKv(AttnKvState {
                     k: Buffer::new(Phantom(bytes)),
                     v: Buffer::new(Phantom(bytes)),

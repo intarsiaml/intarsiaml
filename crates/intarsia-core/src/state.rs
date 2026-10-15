@@ -14,6 +14,17 @@ use std::sync::Arc;
 /// Recurrent-state snapshots a sequence keeps for prefix reuse (see [`SequenceState::snapshot`]).
 pub const RECURRENT_SNAPSHOTS: usize = 4;
 
+/// Elements per scale of an int8 KV cache (`DType::I8`): a block of `KV_I8_BLOCK` consecutive elements of one head row shares
+/// one bf16 scale. The scales of a K (or V) plane follow its int8 data in the same buffer, `[Nkv, cap, D / KV_I8_BLOCK]`
+/// bf16 (kernels/metal/common.h `KVQ_B`, crates/intarsia-backend-metal). Every other KV dtype has no scales.
+pub const KV_I8_BLOCK: usize = 32;
+
+/// Bytes of one K (or V) plane of `rows = n_kv_heads * positions` head rows: the elements, plus the block scales of an int8 cache.
+pub fn kv_plane_bytes(n_kv_heads: usize, positions: usize, head_dim: usize, dtype: DType) -> usize {
+    let scales = if dtype == DType::I8 { 2 * n_kv_heads * positions * (head_dim / KV_I8_BLOCK) } else { 0 };
+    n_kv_heads * positions * head_dim * dtype.size_bytes() + scales
+}
+
 #[derive(Clone, Debug)]
 pub enum SlotSpec {
     AttnKv { n_kv_heads: usize, head_dim: usize, dtype: DType },
@@ -91,7 +102,7 @@ impl SequenceState {
         for s in specs {
             slots.push(match s {
                 SlotSpec::AttnKv { n_kv_heads, head_dim, dtype } => {
-                    let bytes = n_kv_heads * cap * head_dim * dtype.size_bytes();
+                    let bytes = kv_plane_bytes(*n_kv_heads, cap, *head_dim, *dtype);
                     let k = backend.alloc(bytes, MemKind::Device)?;
                     let v = backend.alloc(bytes, MemKind::Device)?;
                     StateSlot::AttnKv(AttnKvState {
@@ -124,7 +135,7 @@ impl SequenceState {
         self.slots
             .iter()
             .map(|s| match s {
-                StateSlot::AttnKv(a) => 2 * a.n_kv_heads * a.len * a.head_dim * a.dtype.size_bytes(),
+                StateSlot::AttnKv(a) => 2 * kv_plane_bytes(a.n_kv_heads, a.len, a.head_dim, a.dtype),
                 StateSlot::Recurrent(r) => r.bytes,
             })
             .sum::<usize>()

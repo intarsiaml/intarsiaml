@@ -400,3 +400,24 @@ kernel void argmax_f32_v4(device const float4* logits [[buffer(0)]],
         out[row] = gi == 0xffffffffu ? 0 : (int)gi;
     }
 }
+
+// KvAppend into an int8 block-scaled cache (`--kv-dtype int8`): kv_append_f8's counterpart. One thread per element; head_dim
+// (p.c) must be a multiple of 32, so a simdgroup is 32 elements of one head row = one block (quantiser: common.h kvq_*).
+kernel void kv_append_i8(device const ushort* src [[buffer(0)]],
+                         device uchar* cache [[buffer(1)]],
+                         device const int* posbuf [[buffer(2)]],
+                         constant OpP& p [[buffer(3)]],
+                         uint gid [[thread_position_in_grid]],
+                         uint lane [[thread_index_in_simdgroup]]) {
+    if (gid >= p.a * p.b * p.c) return;  // the grid is a multiple of 32 threads: a whole simdgroup leaves together
+    const uint e = gid % p.c;
+    const uint h = (gid / p.c) % p.b;
+    const uint t = gid / (p.c * p.b);
+    const uint pos0 = p.e != 0 ? (uint)posbuf[0] : p.f;
+    if (pos0 + t >= p.d) return;  // uniform over the simdgroup (same t, h)
+    const float x = bf2f(src[p.s0 + gid]);
+    const float s = kvq_scale(x, KVQ_B, lane);
+    const ulong row = (ulong)h * p.d + pos0 + t;
+    cache[p.s1 + row * p.c + e] = (uchar)((int)kvq_q(x, s) & 0xff);
+    if (lane == 0) ((device ushort*)(cache + p.s1 + (ulong)p.b * p.d * p.c))[row * (p.c / KVQ_B) + e / KVQ_B] = f2bf(s);
+}

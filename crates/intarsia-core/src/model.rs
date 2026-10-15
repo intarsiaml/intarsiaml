@@ -351,6 +351,14 @@ impl Model {
         };
         // A quantised (fp8) KV cache has attention kernels on the oracle and on metal only; a recipe default or an override
         // that reaches another backend is refused here, not as a missing-kernel error deep in the plan.
+        if kv == DType::I8 && (backend.name() != "metal" || dims.head_dim % crate::state::KV_I8_BLOCK != 0) {
+            return Err(Error::invalid(format!(
+                "kv cache dtype int8 (block-scaled) needs the metal backend and a head_dim that is a multiple of {} (backend {}, head_dim {})",
+                crate::state::KV_I8_BLOCK,
+                backend.name(),
+                dims.head_dim
+            )));
+        }
         if kv == DType::Fp8E4m3 && !matches!(backend.name(), "cpu" | "metal") {
             return Err(Error::invalid(format!(
                 "kv cache dtype fp8_e4m3 is not supported by the {} backend (bf16 KV there; fp8 on metal and cpu)",
@@ -603,7 +611,7 @@ impl Model {
             .iter()
             .map(|s| match s {
                 SlotSpec::AttnKv { n_kv_heads, head_dim, dtype } => {
-                    (2 * n_kv_heads * head_dim * dtype.size_bytes()) as u64
+                    (2 * crate::state::kv_plane_bytes(*n_kv_heads, 1, *head_dim, *dtype)) as u64
                 }
                 _ => 0,
             })

@@ -656,10 +656,15 @@ impl Backend for MetalBackend {
         if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
             return self.launch_attn_rows(call);
         }
-        if kernel == kernels::ATTN_PREFILL_F8_SPLITKV_ROWS && call.op == Op::AttnPrefill {
+        if (kernel == kernels::ATTN_PREFILL_F8_SPLITKV_ROWS || kernel == kernels::ATTN_PREFILL_I8_SPLITKV_ROWS)
+            && call.op == Op::AttnPrefill
+        {
             return self.launch_attn_rows_f8(call);
         }
-        if (kernel == kernels::ATTN_PREFILL_F8_FLASH || kernel == kernels::ATTN_PREFILL_F8_FLASH_NAX)
+        if (kernel == kernels::ATTN_PREFILL_F8_FLASH
+            || kernel == kernels::ATTN_PREFILL_F8_FLASH_NAX
+            || kernel == kernels::ATTN_PREFILL_I8_FLASH
+            || kernel == kernels::ATTN_PREFILL_I8_FLASH_NAX)
             && call.op == Op::AttnPrefill
         {
             return self.launch_attn_prefill_f8(kernel, call);

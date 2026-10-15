@@ -187,7 +187,11 @@ impl MetalBackend {
         if d % 8 != 0 {
             return Err(Error::invalid(format!("{kernel}: head_dim {d} is not a multiple of 8")));
         }
-        let (ks, vs) = (self.bind(&i[1], DType::Fp8E4m3, false, "k cache")?, self.bind(&i[2], DType::Fp8E4m3, false, "v cache")?);
+        let (kvd, dq) = if i[1].dtype == DType::I8 { (DType::I8, KV_DEQUANT_I8) } else { (DType::Fp8E4m3, KV_DEQUANT_F8) };
+        if kvd == DType::I8 && d % 32 != 0 {
+            return Err(Error::invalid(format!("{kernel}: head_dim {d} is not a multiple of 32 (int8 block scales)")));
+        }
+        let (ks, vs) = (self.bind(&i[1], kvd, false, "k cache")?, self.bind(&i[2], kvd, false, "v cache")?);
         let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
         if ka % 8 != 0 || va % 8 != 0 {
             return Err(Error::invalid(format!("{kernel}: fp8 caches must be 8-byte aligned (k at {ka}, v at {va})")));
@@ -211,7 +215,7 @@ impl MetalBackend {
             dims: [u32_of(nkv, "Nkv")?, u32_of(cap, "cap")?, u32_of(d, "D")?, u32_of(kv_len, "kv_len")?, 0, 0, 0, 0],
             ..Default::default()
         };
-        let pso = self.pso(KV_DEQUANT_F8).ok_or_else(|| Error::backend(format!("metal: no pipeline '{KV_DEQUANT_F8}'")))?;
+        let pso = self.pso(dq).ok_or_else(|| Error::backend(format!("metal: no pipeline '{dq}'")))?;
         let chunks = kv_len * (d / 8);
         self.with_encoder(|enc| {
             enc.setComputePipelineState(pso);
@@ -230,7 +234,7 @@ impl MetalBackend {
         c2.scratch = call.scratch.clone();
         c2.pos = call.pos.clone();
         c2.exact_rows = call.exact_rows;
-        if kernel == ATTN_PREFILL_F8_FLASH_NAX {
+        if kernel == ATTN_PREFILL_F8_FLASH_NAX || kernel == ATTN_PREFILL_I8_FLASH_NAX {
             self.launch_attn_flash_nax(&c2)
         } else {
             self.launch_attn_flash(&c2)

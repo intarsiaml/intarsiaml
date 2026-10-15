@@ -7,3 +7,15 @@
 [qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
 [qualify     39s] plan: PASS in 38.9s (14 ops resolved, exactness deterministic, loaded in 38.9s)
 [qualify     39s] == kernels [kernels test on the model's shapes]
+[qualify     86s] kernels: PASS in 47.0s (33 kernels, 388 cases in 46.8s)
+[qualify     86s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     96s] gate: PASS in 9.6s (perplexity 1.86, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     96s] == acc-short [short accuracy against a golden]
+[qualify    103s] acc-short: FAIL in 7.5s (prefill: full-vocab KL 5.927e-3 (need <= 5.0e-3); decode: full-vocab KL 7.781e-3 (need <= 5.0e-3))
+QUICK DONE: /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/qualify-fp8/quick-report.md
+[qualify    103s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    127s] acc-long: FAIL in 23.2s (prefill: full-vocab KL 9.795e-3 (need <= 5.0e-3); decode: full-vocab KL 9.176e-3 (need <= 5.0e-3))
+[qualify    127s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    127s] acc-4k: ERROR in 0.5s (accuracy exit 1: WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run fp8_e4m3. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them)
+FULL DONE: /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/qualify-fp8/full-report.md
+[qualify    127s] exit code 2

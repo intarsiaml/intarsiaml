@@ -84,7 +84,8 @@ impl MetalBackend {
     fn launch_attn_splitkv_kv(&self, call: &OpCall, f8: bool) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let bf = DType::Bf16;
-        let kvd = if f8 { DType::Fp8E4m3 } else { bf };
+        let i8 = f8 && i[1].dtype == DType::I8;
+        let kvd = if i8 { DType::I8 } else if f8 { DType::Fp8E4m3 } else { bf };
         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
         let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
         if t * n * d == 0 {
@@ -160,7 +161,7 @@ impl MetalBackend {
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
         let nsg = if use_dev == 0 && nkv * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
         let nsg = nsg.min((TG_FLOATS / (gp * d)).max(1));
-        let stage1: &[&str] = if f8 { &ATTN_DECODE_F8_SPLITKV_SHADERS[f8_variant() * 4..][..4] } else { &ATTN_DECODE_SPLITKV_SHADERS[..4] };
+        let stage1: &[&str] = if i8 { &ATTN_DECODE_I8_SPLITKV_SHADERS[..] } else if f8 { &ATTN_DECODE_F8_SPLITKV_SHADERS[f8_variant() * 4..][..4] } else { &ATTN_DECODE_SPLITKV_SHADERS[..4] };
         let (name1, name2) = (stage1[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
@@ -241,7 +242,8 @@ impl MetalBackend {
     fn launch_attn_rows_kv(&self, call: &OpCall, f8: bool) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let bf = DType::Bf16;
-        let kvd = if f8 { DType::Fp8E4m3 } else { bf };
+        let i8 = f8 && i[1].dtype == DType::I8;
+        let kvd = if i8 { DType::I8 } else if f8 { DType::Fp8E4m3 } else { bf };
         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
         let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
         if t * n * d == 0 {
@@ -321,7 +323,7 @@ impl MetalBackend {
         // threadgroup shape: the largest simdgroup count any row's 1-row launch uses (row 0: the fewest splits)
         let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, nkv, MAX_SPLIT);
         let nsg = rows_nsg(use_dev == 0, nkv, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp, d);
-        let stage1: &[&str] = if f8 { &ATTN_ROWS_F8_SHADERS[f8_variant() * 4..][..4] } else { &ATTN_ROWS_SHADERS[..4] };
+        let stage1: &[&str] = if i8 { &ATTN_ROWS_I8_SHADERS[..] } else if f8 { &ATTN_ROWS_F8_SHADERS[f8_variant() * 4..][..4] } else { &ATTN_ROWS_SHADERS[..4] };
         let (name1, name2) = (stage1[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;

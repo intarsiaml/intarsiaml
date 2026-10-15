@@ -172,3 +172,38 @@ qualify bf16 exit 0
 - recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
 - plan: 14 ops resolved, exactness deterministic, loaded in 43.2s (PASS)
 == 7. qualify acc stages on fp8 KV (skip bench stages)
+qualify fp8 exit 2
+**Verdict: ERROR** (13 stages: 5 pass, 2 fail, 1 error, 5 skipped)
+| Accuracy (short golden) | **FAIL** (prefill top-1 97.93% KL 5.93e-3; decode top-1 96.88% KL 7.78e-3) |
+| Accuracy (long golden) | **FAIL** (prefill top-1 98.33% KL 9.79e-3; decode top-1 97.00% KL 9.18e-3) |
+| Quick gate | **PASS**: perplexity 1.86, 5/5 sanity prompts ok, no non-finite rows |
+- `acc-short` **FAIL**: prefill: full-vocab KL 5.927e-3 (need <= 5.0e-3); decode: full-vocab KL 7.781e-3 (need <= 5.0e-3)
+- `acc-long` **FAIL**: prefill: full-vocab KL 9.795e-3 (need <= 5.0e-3); decode: full-vocab KL 9.176e-3 (need <= 5.0e-3)
+- `acc-4k` **ERROR**: accuracy exit 1: WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run fp8_e4m3. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matc
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 33 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 39s | 14 ops resolved, exactness deterministic, loaded in 38.9s |
+| 4 | `kernels` kernels test on the model's shapes | quick | PASS | 47s | 33 kernels, 388 cases in 46.8s |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 10s | perplexity 1.86, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | FAIL | 8s | prefill: full-vocab KL 5.927e-3 (need <= 5.0e-3); decode: full-vocab KL 7.781e-3 (need <= 5.0e-3) |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | SKIP | 0s | skipped by --skip |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | FAIL | 23s | prefill: full-vocab KL 9.795e-3 (need <= 5.0e-3); decode: full-vocab KL 9.176e-3 (need <= 5.0e-3) |
+| 9 | `acc-4k` accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048) | full | ERROR | 0s | accuracy exit 1: WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run fp8_e4m3. Part of the
+| 10 | `envelope` noise envelope and baseline for regression gating | full | SKIP | 0s | skipped by --skip |
+| 11 | `bench-long` long-context bench up to 16k | full | SKIP | 0s | skipped by --skip |
+| 12 | `ab` A/B against the reference server via localeval | full | SKIP | 0s | skipped by --skip |
+| 13 | `tp` tensor-parallel variant | full | SKIP | 0s | skipped by --skip |
+- `acc-long`: prefix reuse is gated in acc-4k, on the 4k golden
+- `acc-4k`: gated against the recorded baseline /opt/code/intarsiaml/golden/baselines/qwen3-8b-4k-fp32-top20.metal.baseline.json (commit 9eeb96c) and its noise envelope
+**acc-short** against `/opt/code/intarsiaml/golden/qwen3-8b-fp32.safetensors` (found by model name; gate class fp8)
+| prefill | 434 | 97.93 | 95.90 | 5.93e-3 | 5.51e-3 | 6.95e-1 | 1.27e-3 | 0 | 55.3 | FAIL |
+| decode | 128 | 96.88 | 95.31 | 7.78e-3 | 6.66e-3 | 8.96e-2 | 2.38e-3 | 0 | 71.1 | FAIL |
+**acc-long** against `/opt/code/intarsiaml/golden/qwen3-8b-long-fp32.safetensors` (found by model name; gate class fp8)
+| prefill | 1434 | 98.33 | 94.27 | 9.79e-3 | 9.45e-3 | 7.28e-1 | 1.22e-3 | 0 | 37.4 | FAIL |
+| decode | 500 | 97.00 | 95.20 | 9.18e-3 | 8.74e-3 | 7.09e-1 | 1.20e-3 | 0 | 49.2 | FAIL |
+- recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
+done Thu Oct 15 15:41:23 EDT 2026
+script exit 0 Thu Oct 15 15:41:23 EDT 2026
+#2058 "metal kv quant: gates + accuracy + ids + qualify" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2058 released Thu Oct 15 15:41:23 EDT 2026

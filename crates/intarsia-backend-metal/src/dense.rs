@@ -324,8 +324,30 @@ impl MetalBackend {
                 dim(total, "T*Nkv*D")?;
                 self.dispatch(kernel, &[&src, &cache, pos.as_ref().unwrap_or(&src)], &p, Grid::Threads(total))
             }
-            QK_NORM_ROPE_KV_BF16 => self.launch_qk_norm_rope_kv(call, false),
-            QK_NORM_ROPE_KV_F8 => self.launch_qk_norm_rope_kv(call, true),
+            KV_APPEND_I8 => {
+                let (t, nkv, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+                let cap = o[0].shape[1];
+                if d % 32 != 0 {
+                    return Err(Error::invalid(format!("{KV_APPEND_I8}: head_dim {d} must be a multiple of 32")));
+                }
+                let total = t * nkv * d;
+                if total == 0 {
+                    return Ok(());
+                }
+                let (src, cache) =
+                    (self.bind(&i[0], bf, false, "new")?, self.bind(&o[0], DType::I8, true, "int8 cache")?);
+                let (pos, use_dev) = self.pos_bind(call)?;
+                let p = OpP {
+                    dims: [dim(t, "T")?, dim(nkv, "Nkv")?, dim(d, "D")?, dim(cap, "cap")?, use_dev, dim(a.pos0, "pos0")?, 0, 0],
+                    skips: [src.skip, cache.skip, 0, 0, 0],
+                    ..Default::default()
+                };
+                dim(total, "T*Nkv*D")?;
+                self.dispatch(kernel, &[&src, &cache, pos.as_ref().unwrap_or(&src)], &p, Grid::Threads(total))
+            }
+            QK_NORM_ROPE_KV_BF16 => self.launch_qk_norm_rope_kv(call, DType::Bf16),
+            QK_NORM_ROPE_KV_F8 => self.launch_qk_norm_rope_kv(call, DType::Fp8E4m3),
+            QK_NORM_ROPE_KV_I8 => self.launch_qk_norm_rope_kv(call, DType::I8),
             ARGMAX_F32 | ARGMAX_BF16 => {
                 let (r, v) = (i[0].shape[0], i[0].shape[1]);
                 if r == 0 {
@@ -466,17 +488,17 @@ impl MetalBackend {
                 })
             }
             ATTN_DECODE_BF16_SPLITKV => self.launch_attn_splitkv(call),
-            ATTN_DECODE_F8_SPLITKV => self.launch_attn_splitkv_f8(call),
+            ATTN_DECODE_F8_SPLITKV | ATTN_DECODE_I8_SPLITKV => self.launch_attn_splitkv_f8(call),
             other => Err(Error::NoKernel(format!("metal kernel '{other}' for op '{}'", call.op))),
         }
     }
 
     /// `QkNormRopeKv`: one threadgroup per (token, q head | k head | v head), `roundup32(D)` threads (element i on thread i,
     /// the layout `rmsnorm_bf16_ex1` uses for the unfused norm, so the sums are bitwise those).
-    fn launch_qk_norm_rope_kv(&self, call: &OpCall, f8: bool) -> Result<()> {
+    fn launch_qk_norm_rope_kv(&self, call: &OpCall, kvd: DType) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let bf = DType::Bf16;
-        let kvd = if f8 { DType::Fp8E4m3 } else { bf };
+        let (f8, i8) = (kvd == DType::Fp8E4m3, kvd == DType::I8);
         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
         let (nkv, cap) = (i[1].shape[1], o[1].shape[1]);
         if t * n * d == 0 {
@@ -484,6 +506,9 @@ impl MetalBackend {
         }
         if d % 2 != 0 || d > 256 {
             return Err(Error::invalid(format!("{QK_NORM_ROPE_KV_BF16}: head_dim {d} must be even and at most 256")));
+        }
+        if i8 && d % 32 != 0 {
+            return Err(Error::invalid(format!("{QK_NORM_ROPE_KV_I8}: head_dim {d} must be a multiple of 32")));
         }
         let binds = [
             self.bind(&i[0], bf, false, "q")?,
@@ -500,8 +525,10 @@ impl MetalBackend {
         // prefill rows of a 128-wide fully rotated head (Qwen3): one threadgroup of QK_PF_HEADS simdgroups per token and
         // QK_PF_HEADS heads, one simdgroup per head (bitwise the decode form, kernels/metal/qk_rope_kv.metal)
         // PROBE: INTARSIA_METAL_KV_FAKEQ=<block>,<mask> stores bf16(dequant(quant(x))) per block into the bf16 cache
-        let fakeq = if f8 { None } else { fakeq_probe() };
-        let (pf_name, dec_name) = if f8 {
+        let fakeq = if f8 || i8 { None } else { fakeq_probe() };
+        let (pf_name, dec_name) = if i8 {
+            (QK_NORM_ROPE_KV_I8_PF, QK_NORM_ROPE_KV_I8)
+        } else if f8 {
             (QK_NORM_ROPE_KV_F8_PF, QK_NORM_ROPE_KV_F8)
         } else if fakeq.is_some() {
             ("qk_norm_rope_kv_fq_pf", "qk_norm_rope_kv_fq")

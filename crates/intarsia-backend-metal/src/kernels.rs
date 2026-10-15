@@ -243,6 +243,24 @@ pub const ATTN_PREFILL_F8_FLASH_NAX: &str = "attn_prefill_f8_flash_nax";
 pub const ATTN_PREFILL_F8_FLASH: &str = "attn_prefill_f8_flash";
 pub const KV_DEQUANT_F8: &str = "kv_dequant_f8";
 /// Test-only shaders (fp8_conv.metal): the exhaustive conversion checks of tests/kv_fp8.rs.
+// ---- int8 block-scaled KV cache (`--kv-dtype int8`): the fp8 entries' counterparts for a `DType::I8` cache. One bf16 scale per 32
+// elements of a head row, stored after each plane's data (core `state::kv_plane_bytes`); quantiser in common.h (`kvq_*`).
+pub const KV_APPEND_I8: &str = "kv_append_i8";
+pub const QK_NORM_ROPE_KV_I8: &str = "qk_norm_rope_kv_i8";
+pub const QK_NORM_ROPE_KV_I8_PF: &str = "qk_norm_rope_kv_i8_pf";
+pub const ATTN_DECODE_I8_SPLITKV: &str = "attn_decode_i8_splitkv";
+pub const ATTN_DECODE_I8_SPLITKV_SHADERS: [&str; 4] = [
+    "attn_decode_i8_splitkv_g1",
+    "attn_decode_i8_splitkv_g2",
+    "attn_decode_i8_splitkv_g4",
+    "attn_decode_i8_splitkv_g8",
+];
+pub const ATTN_PREFILL_I8_SPLITKV_ROWS: &str = "attn_prefill_i8_splitkv_rows";
+pub const ATTN_ROWS_I8_SHADERS: [&str; 4] =
+    ["attn_rows_i8_splitkv_g1", "attn_rows_i8_splitkv_g2", "attn_rows_i8_splitkv_g4", "attn_rows_i8_splitkv_g8"];
+pub const ATTN_PREFILL_I8_FLASH_NAX: &str = "attn_prefill_i8_flash_nax";
+pub const ATTN_PREFILL_I8_FLASH: &str = "attn_prefill_i8_flash";
+pub const KV_DEQUANT_I8: &str = "kv_dequant_i8";
 pub const FP8_TEST_SHADERS: [&str; 2] = ["fp8_test_decode", "fp8_test_encode"];
 
 pub const COPY_U4: &str = "copy_u4";
@@ -328,7 +346,7 @@ pub const MATMUL_PAIR_BF16_NAX: &str = "matmul_pair_bf16_nax";
 /// the P2 flash kernel and falls back to it for operands it cannot take.
 pub const ATTN_PREFILL_BF16_FLASH_NAX: &str = "attn_prefill_bf16_flash_nax";
 pub const NAX_KERNELS: &[&str] =
-    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, ATTN_PREFILL_F8_FLASH_NAX];
+    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, ATTN_PREFILL_F8_FLASH_NAX, ATTN_PREFILL_I8_FLASH_NAX];
 
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
@@ -344,6 +362,9 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([QK_NORM_ROPE_KV_BF16, QK_NORM_ROPE_KV_BF16_PF]);
     v.extend([KV_APPEND_F8, QK_NORM_ROPE_KV_F8, QK_NORM_ROPE_KV_F8_PF, KV_DEQUANT_F8]);
     v.extend(["qk_norm_rope_kv_fq", "qk_norm_rope_kv_fq_pf"]);
+    v.extend([KV_APPEND_I8, QK_NORM_ROPE_KV_I8, QK_NORM_ROPE_KV_I8_PF, KV_DEQUANT_I8]);
+    v.extend(ATTN_DECODE_I8_SPLITKV_SHADERS);
+    v.extend(ATTN_ROWS_I8_SHADERS);
     v.extend(ATTN_DECODE_F8_SPLITKV_SHADERS);
     v.extend(ATTN_ROWS_F8_SHADERS);
     v.extend(FP8_TEST_SHADERS);
@@ -398,6 +419,12 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_PREFILL_F8_FLASH, Op::AttnPrefill),
     (ATTN_PREFILL_F8_FLASH_NAX, Op::AttnPrefill),
     (ATTN_PREFILL_F8_SPLITKV_ROWS, Op::AttnPrefill),
+    (KV_APPEND_I8, Op::KvAppend),
+    (QK_NORM_ROPE_KV_I8, Op::QkNormRopeKv),
+    (ATTN_DECODE_I8_SPLITKV, Op::AttnDecode),
+    (ATTN_PREFILL_I8_FLASH, Op::AttnPrefill),
+    (ATTN_PREFILL_I8_FLASH_NAX, Op::AttnPrefill),
+    (ATTN_PREFILL_I8_SPLITKV_ROWS, Op::AttnPrefill),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -605,6 +632,51 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(-1)
                     .rows_exact()
                     .scratch(crate::attn::rows_scratch),
+                // ---- int8 block-scaled KV cache (opt-in). No cpu-oracle admission cases exist for it (the oracle has no scaled
+                // cache), so these are checked by tests/kv_i8.rs against f64 references instead; tolerances are the bf16 ones.
+                KV_APPEND_I8 => k
+                    .acts(bf)
+                    .when(|s| s.out == Some(DType::I8) && s.head_dim % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL),
+                QK_NORM_ROPE_KV_I8 => k
+                    .acts(bf)
+                    .weights([DType::I8])
+                    .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 32 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                ATTN_DECODE_I8_SPLITKV => k
+                    .acts(bf)
+                    .weights([DType::I8])
+                    .when(crate::attn::splitkv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10)
+                    .scratch(crate::attn::splitkv_scratch),
+                ATTN_PREFILL_I8_FLASH => k
+                    .acts(bf)
+                    .weights([DType::I8])
+                    .when(crate::flash::flash_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                ATTN_PREFILL_I8_FLASH_NAX => k
+                    .acts(bf)
+                    .weights([DType::I8])
+                    .when(crate::flash_nax::nax_flash_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(12),
+                ATTN_PREFILL_I8_SPLITKV_ROWS => k
+                    .acts(bf)
+                    .weights([DType::I8])
+                    .when(crate::attn::rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1)
+                    .rows_exact()
+                    .scratch(crate::attn::rows_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -638,7 +710,7 @@ mod tests {
     #[test]
     fn attention_is_registered_for_both_ops() {
         // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 7), (Op::AttnDecode, 3)] {
+        for (op, n) in [(Op::AttnPrefill, 10), (Op::AttnDecode, 4)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));
