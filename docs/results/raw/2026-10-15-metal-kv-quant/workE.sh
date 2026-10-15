@@ -18,6 +18,12 @@ run() { # <label> <ctx> <kv> [env...]
   printf "%.3f\t%.3f\t%s\n" $s $EPOCHREALTIME "$lab" >> $O/runs.tsv
   echo "$lab [$(date +%H:%M:%S)]: $(grep -o 'prefill [0-9]* ms ([0-9.]* tok/s) | decode [0-9]* ms ([0-9.]* tok/s)' $O/$lab.err | tail -1) T=$(gpu_temp $O/macmon.jsonl)C"
 }
+echo "== split policy sweep for the quantised kernels (INTARSIA_METAL_SPLITKV=min_keys,target_tgs), attn_bw per-call us"
+for pol in 128,120 128,240 128,360 64,480 256,120; do
+  for ctx in 4096 16384 32768; do
+    echo "policy $pol ctx $ctx: $(INTARSIA_METAL_SPLITKV=$pol /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/attn_bw-i8 splitkv i8 f8 $ctx 2>&1 | tail -3 | awk '{printf "%s %s us | ", $2, $3}')" | tee -a $R/speed2/split_sweep.txt
+  done
+done
 echo "== KV memory sizing: context that fits --mem-budget 20 and 18 (GiB), --max-seq 4000000 (recipe cap 40960)"
 mkdir -p $R/sizing
 for mb in 20 18; do
