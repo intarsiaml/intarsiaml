@@ -231,6 +231,25 @@ fn pair_qwen3_8b_shapes_all_rows() {
     check_pair(&be, &w0, &w1, 4, 0, 2, 801, "scalar");
 }
 
+/// Mixed header parity: w0 and w1 resolve to DIFFERENT 1-row GEMV families (a safetensors pair straddling two shards
+/// whose header lengths differ mod 16). The serving 1-row pair plans each half on its own (16-byte kernel for the
+/// 16-aligned half, 8-byte kernel for the other), so the multi-row launch must too: each half bitwise equal to the
+/// 1-row serving pair launch for R = 2..=8, with 16-byte and 8-byte x as well.
+#[test]
+fn pair_mixed_family_halves_all_rows() {
+    let be = backend();
+    for (k, n0, n1) in [(4096, 1024, 1024), (4096, 12288, 4096), (4104, 33, 70), (4096, 5, 300)] {
+        for (o0, o1) in [(0usize, 8usize), (8, 0)] {
+            let (w0, w1) = (weights(&be, n0, k, o0, 151), weights(&be, n1, k, o1, 152));
+            for m in 2..=8usize {
+                for x_off in [0usize, 8] {
+                    check_pair(&be, &w0, &w1, m, x_off, 0, 1700 + m as u64, &format!("mixed w0@{o0} w1@{o1}"));
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn logits_qwen3_8b_shapes_all_rows() {
     let be = backend();

@@ -288,7 +288,8 @@ impl MetalBackend {
         self.with_encoder(|enc| encode_matmul_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo & !3), &params, per_tg))
     }
 
-    /// `MatmulPair` with `M` rows on the multi-row pair GEMV (16-byte or 8-byte operands, else per-row launches).
+    /// `MatmulPair` with `M` rows on the multi-row pair GEMV when both halves share a GEMV family (16-byte or 8-byte
+    /// operands); halves on different families run as two multi-row GEMVs, an unsupported `M` as per-row pair launches.
     pub(crate) fn launch_pair_rows(&self, call: &OpCall) -> Result<()> {
         let (x, w0, w1, y0, y1) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
             ([x, w0, w1], [y0, y1]) => (x, w0, w1, y0, y1),
@@ -319,18 +320,27 @@ impl MetalBackend {
             y0b.base + y0.offset,
             y1b.base + y1.offset,
         );
-        let v16 = k % 8 == 0 && w0o % 16 == 0 && w1o % 16 == 0 && xo % 16 == 0;
-        let a8 = k % 4 == 0 && w0o % 8 == 0 && w1o % 8 == 0 && xo % 8 == 0;
-        let set = if v16 {
-            Some(Family::Pair16)
-        } else if a8 {
-            Some(Family::PairA8)
-        } else {
-            None
+        // Each half picks its GEMV family exactly like `launch_matmul_rows` / `plan_gemv` (the 1-row serving pair plans
+        // each half separately). A pair shader is only bitwise the 1-row result when both halves resolve to the same
+        // family; a pair straddling two shards with different header parity (w0 16-byte aligned, w1 only 8-byte) takes
+        // two separate multi-row GEMVs, each on its own family.
+        let family = |wo: usize| {
+            if k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 {
+                Some(Family::Matmul16)
+            } else if k % 4 == 0 && wo % 8 == 0 && xo % 8 == 0 {
+                Some(Family::MatmulA8)
+            } else {
+                None
+            }
         };
-        let Some(set) = set.filter(|_| MR_ROWS.contains(&m)) else {
+        let set = match (family(w0o), family(w1o)) {
+            (Some(Family::Matmul16), Some(Family::Matmul16)) => Some(Family::Pair16),
+            (Some(Family::MatmulA8), Some(Family::MatmulA8)) => Some(Family::PairA8),
+            _ => None,
+        };
+        if !MR_ROWS.contains(&m) {
+            // unsupported row count: per-row serving pair launches (exactly what the model runs)
             for r in 0..m {
-                // two ordinary GEMVs per row (what the model runs when no pair kernel is available)
                 self.launch_matmul_pair(&OpCall::new(
                     Op::MatmulPair,
                     vec![x.rows(r, 1), w0.clone(), w1.clone()],
@@ -339,6 +349,14 @@ impl MetalBackend {
                 ))?;
             }
             return Ok(());
+        }
+        let Some(set) = set else {
+            // halves on different families (or both scalar): one multi-row GEMV per half, each on its own family
+            let half = |w: &TensorRef, y: &TensorRef| {
+                OpCall::new(Op::Matmul, vec![x.clone(), w.clone()], vec![y.clone()], OpAttrs::default())
+            };
+            self.launch_matmul_rows(&half(w0, y0))?;
+            return self.launch_matmul_rows(&half(w1, y1));
         };
         let per_tg = default_per_tg(set, m);
         let name = shader(set, m, per_tg).expect("compiled row count");
