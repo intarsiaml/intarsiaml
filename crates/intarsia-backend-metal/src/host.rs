@@ -76,7 +76,8 @@ fn no_copy(be: &MetalBackend, floor: usize, len: usize) -> Result<MtlBuffer> {
 /// Copy `src` (a range of mapped host memory) into a fresh page-aligned, read-only `MTLBuffer` and release the
 /// source pages. `MTLBuffer` contents are page aligned, so the copy is 16-byte aligned at `base` 0.
 fn realign(be: &MetalBackend, src: &[u8]) -> Result<Buffer> {
-    let mtl = be.new_mtl_buffer(src.len(), false)?;
+    // padded to 16 bytes (zeroed by Metal) like the page tail of a window: readers that widen a range to 16-byte multiples stay inside
+    let mtl = be.new_mtl_buffer(round_up(src.len(), 16), false)?;
     // SAFETY: `contents` points at `src.len()` writable bytes of the fresh buffer, which cannot overlap the mapping.
     unsafe { std::ptr::copy_nonoverlapping(src.as_ptr(), mtl.contents().as_ptr() as *mut u8, src.len()) };
     // Drop the whole pages that lie inside the range from the process (file-backed, clean: the next touch, if any,
