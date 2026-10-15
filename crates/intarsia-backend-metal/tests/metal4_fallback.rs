@@ -7,11 +7,13 @@
 mod common;
 
 use common::*;
-use intarsia_backend_metal::kernels::{MATMUL_BF16, MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX};
+use intarsia_backend_metal::kernels::{
+    ATTN_PREFILL_BF16_FLASH, ATTN_PREFILL_BF16_FLASH_NAX, MATMUL_BF16, MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX,
+};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, MemKind};
 use intarsia_core::registry::Registry;
-use intarsia_core::{Op, OpCall};
+use intarsia_core::{Op, OpAttrs, OpCall};
 
 /// Select the kernel for a prefill matmul (M = 205) the way the engine does (`Registry::select` over the backend's own
 /// kernel list), run it and check the result against the f64 reference. Returns the selected kernel's name.
@@ -52,6 +54,25 @@ fn pair_selected(be: &MetalBackend) -> Option<String> {
     Registry::new("metal", &be.info(), be.kernels()).select(&call).ok().map(|k| k.name.clone())
 }
 
+/// A prefill attention call of `t` rows (Qwen3-8B heads, head_dim 128) after 64 cached positions: the call, the kernel the
+/// registry selects for it, and whether launching that kernel works.
+fn attn_selected(be: &MetalBackend, t: usize) -> String {
+    let (n, nkv, d, cap) = (32usize, 8usize, 128usize, 64 + t);
+    let q = upload(be, &rand_bf16(t * n * d, 6));
+    let (k, v) = (upload(be, &rand_bf16(nkv * cap * d, 7)), upload(be, &rand_bf16(nkv * cap * d, 8)));
+    let out = be.alloc(t * n * d * 2, MemKind::Device).unwrap();
+    let call = OpCall::new(
+        Op::AttnPrefill,
+        vec![tref(&q, 0, &[t, n, d]), tref(&k, 0, &[nkv, cap, d]), tref(&v, 0, &[nkv, cap, d])],
+        vec![tref(&out, 0, &[t, n, d])],
+        OpAttrs { pos0: 64, scale: 0.088, n_heads: n, n_kv_heads: nkv, head_dim: d, kv_cap: cap, ..Default::default() },
+    );
+    let name = Registry::new("metal", &be.info(), be.kernels()).select(&call).unwrap().name.clone();
+    be.launch(&name, &call, 0).unwrap();
+    be.synchronize(0).unwrap();
+    name
+}
+
 #[test]
 fn prefill_runs_without_the_metal4_library() {
     // with the library: the NAX kernels outrank the tiled GEMM and are selected for prefill matmuls and pairs
@@ -60,6 +81,9 @@ fn prefill_runs_without_the_metal4_library() {
         assert!(be.kernels().iter().any(|k| k.name == MATMUL_BF16_NAX));
         assert_eq!(select_and_run(&be), MATMUL_BF16_NAX);
         assert_eq!(pair_selected(&be).as_deref(), Some(MATMUL_PAIR_BF16_NAX));
+        // prefill attention: the NAX kernel, short tails included
+        assert_eq!(attn_selected(&be, 256), ATTN_PREFILL_BF16_FLASH_NAX);
+        assert_eq!(attn_selected(&be, 47), ATTN_PREFILL_BF16_FLASH_NAX);
     }
     drop(be);
 
@@ -69,7 +93,12 @@ fn prefill_runs_without_the_metal4_library() {
     std::env::remove_var("INTARSIA_METAL_NO_METAL4");
     assert!(!be.has_metal4());
     let names: Vec<String> = be.kernels().into_iter().map(|k| k.name).collect();
-    assert!(!names.iter().any(|n| n == MATMUL_BF16_NAX || n == MATMUL_PAIR_BF16_NAX), "{names:?}");
+    assert!(
+        !names.iter().any(|n| n == MATMUL_BF16_NAX || n == MATMUL_PAIR_BF16_NAX || n == ATTN_PREFILL_BF16_FLASH_NAX),
+        "{names:?}"
+    );
+    assert!(be.pso("attn_nax_d128_s4").is_none());
+    assert_eq!(attn_selected(&be, 256), ATTN_PREFILL_BF16_FLASH);
     assert!(be.pso("gemm_nax_t64x64w4").is_none());
     assert!(names.iter().any(|n| n == MATMUL_BF16));
     // the existing prefill path still runs and is correct, the pair has no kernel (the model runs the two matmuls)
@@ -79,6 +108,14 @@ fn prefill_runs_without_the_metal4_library() {
     let (xb, wb, yb) = (upload(&be, &[0u16; 16 * 16]), upload(&be, &[0u16; 16 * 16]), upload(&be, &[0u16; 16 * 16]));
     let call = matmul_call(tref(&xb, 0, &[16, 16]), tref(&wb, 0, &[16, 16]), tref(&yb, 0, &[16, 16]));
     assert!(be.launch(MATMUL_BF16_NAX, &call, 0).is_err());
+    let (q, kv) = (upload(&be, &[0u16; 64 * 8 * 128]), upload(&be, &[0u16; 8 * 64 * 128]));
+    let acall = OpCall::new(
+        Op::AttnPrefill,
+        vec![tref(&q, 0, &[64, 8, 128]), tref(&kv, 0, &[1, 64, 128]), tref(&kv, 0, &[1, 64, 128])],
+        vec![tref(&q, 0, &[64, 8, 128])],
+        OpAttrs { n_heads: 8, n_kv_heads: 1, head_dim: 128, kv_cap: 64, scale: 0.1, ..Default::default() },
+    );
+    assert!(be.launch(ATTN_PREFILL_BF16_FLASH_NAX, &acall, 0).is_err());
 
     // the explicit constructor does the same
     let be = MetalBackend::new_without_metal4().unwrap();

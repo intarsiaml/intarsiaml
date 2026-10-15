@@ -1,0 +1,4 @@
+idle before f1-pre-1: "Device Utilization %"=87 "Device Utilization %"=1 "Device Utilization %"=0 
+idle before f1-new-1: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=0 
+idle before f1-new-2: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=1 
+idle before f1-pre-2: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=1 

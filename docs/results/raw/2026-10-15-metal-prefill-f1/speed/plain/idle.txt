@@ -1,0 +1,16 @@
+idle pre 4k c256 #1: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=1 
+idle new 4k c256 #2: "Device Utilization %"=97 "Device Utilization %"=2 "Device Utilization %"=0 
+idle new 4k c256 #3: "Device Utilization %"=84 "Device Utilization %"=0 "Device Utilization %"=1 
+idle pre 4k c256 #4: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=1 
+idle pre 4k c1024 #1: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=0 
+idle new 4k c1024 #2: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=1 
+idle new 4k c1024 #3: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 
+idle pre 4k c1024 #4: "Device Utilization %"=97 "Device Utilization %"=2 "Device Utilization %"=0 
+idle pre 16k c256 #1: "Device Utilization %"=98 "Device Utilization %"=5 "Device Utilization %"=0 
+idle new 16k c256 #2: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 
+idle new 16k c256 #3: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 
+idle pre 16k c256 #4: "Device Utilization %"=95 "Device Utilization %"=2 "Device Utilization %"=0 
+idle pre 16k c1024 #1: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=0 
+idle new 16k c1024 #2: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+idle new 16k c1024 #3: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+idle pre 16k c1024 #4: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=1 

@@ -1,0 +1,23 @@
+fleetq: #1928 waiting (#1 in line): endor is held exclusively by #1927 "metal D1 A/B round 2" (claude-31e10c55)
+fleetq:   #1927 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1927 set, or it will wait for #1927 to be released.
+fleetq job 1928 (metal F1: plain 4k prefill repeats) acquired Thu Oct 15 00:00:17 EDT 2026
+pre 4k chunk 256 #1: prefill 1692 ms (2401.1 tok/s)
+new 4k chunk 256 #2: prefill 1457 ms (2787.9 tok/s)
+new 4k chunk 256 #3: prefill 1433 ms (2833.8 tok/s)
+pre 4k chunk 256 #4: prefill 1804 ms (2251.9 tok/s)
+new 4k chunk 256 #5: prefill 1426 ms (2849.2 tok/s)
+pre 4k chunk 256 #6: prefill 1798 ms (2259.5 tok/s)
+pre 4k chunk 256 #7: prefill 1677 ms (2421.7 tok/s)
+new 4k chunk 256 #8: prefill 1424 ms (2852.4 tok/s)
+pre 4k chunk 1024 #1: prefill 1497 ms (2714.0 tok/s)
+new 4k chunk 1024 #2: prefill 1263 ms (3216.1 tok/s)
+new 4k chunk 1024 #3: prefill 1261 ms (3220.1 tok/s)
+pre 4k chunk 1024 #4: prefill 1483 ms (2739.9 tok/s)
+new 4k chunk 1024 #5: prefill 1295 ms (3135.8 tok/s)
+pre 4k chunk 1024 #6: prefill 1480 ms (2744.0 tok/s)
+pre 4k chunk 1024 #7: prefill 1686 ms (2409.7 tok/s)
+new 4k chunk 1024 #8: prefill 1244 ms (3264.9 tok/s)
+done
+script exit 0 Thu Oct 15 00:01:39 EDT 2026
+#1928 "metal F1: plain 4k prefill repeats" (claude-31e10c55) done on endor exclusive 24 GB
+fleetq job 1928 released Thu Oct 15 00:01:39 EDT 2026
