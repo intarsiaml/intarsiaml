@@ -112,7 +112,8 @@ pub trait BatchSeq<M: BatchModel>: Send {
     fn prompt(&self) -> &[u32];
     /// Admission into a slot with `cached` reused tokens (`< prompt.len()`) and capacity `cap`. `Err`: rejected (the
     /// scheduler calls [`BatchSeq::fail`], the slot is untouched). `Ok(false)`: nothing to generate (no room or
-    /// `max_tokens = 0`; the scheduler calls [`BatchSeq::finish`] at once). `Ok(true)`: prefill follows.
+    /// `max_tokens = 0`; the sequence sets its finish reason to `Length`, the scheduler calls [`BatchSeq::finish`]
+    /// at once). `Ok(true)`: prefill follows.
     fn admit(&mut self, cached: usize, cap: usize) -> Result<bool>;
     /// Head mode of the final prefill chunk (the step that samples generated token 1).
     fn first_mode(&self) -> M::Mode;
@@ -127,7 +128,9 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// Cancellation requested (flag set, or the client went away).
     fn cancelled(&self) -> bool;
     /// The request ended: roll back anything unaccounted in `slot` (speculative rows), send `Done`. `slot` is `None`
-    /// when it never got one (cancelled while queued). `cancelled`: ended by the scheduler's cancellation check.
+    /// when it never got one (cancelled while queued). `cancelled`: ended by the scheduler's cancellation check (the
+    /// sequence may be in any phase). With `cancelled == false` it is only called after [`BatchSeq::on_token`]
+    /// returned true or [`BatchSeq::admit`] returned `Ok(false)`, so the sequence has its finish reason set.
     fn finish(&mut self, model: &mut M, slot: Option<usize>, cancelled: bool) -> Result<()>;
     /// The request failed: send `Error`.
     fn fail(&mut self, err: &Error);

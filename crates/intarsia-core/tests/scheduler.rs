@@ -286,6 +286,9 @@ impl BatchSeq<MockModel> for MockSeq {
         }
         self.cached = cached;
         self.max_new = self.p.max_tokens.min(cap - plen);
+        if self.max_new == 0 {
+            self.reason = Some(FinishReason::Length);
+        }
         Ok(self.max_new > 0)
     }
     fn first_mode(&self) -> Mode {
@@ -333,7 +336,9 @@ impl BatchSeq<MockModel> for MockSeq {
         self.cancel.load(Ordering::SeqCst)
     }
     fn finish(&mut self, _m: &mut MockModel, _slot: Option<usize>, cancelled: bool) -> Result<()> {
-        let reason = if cancelled { FinishReason::Cancelled } else { self.reason.unwrap_or(FinishReason::Length) };
+        // the scheduler only finishes a request uncancelled once it ended on its own (as engine::Seq::finish expects)
+        let reason =
+            if cancelled { FinishReason::Cancelled } else { self.reason.expect("finish before the sequence ended") };
         let _ = self.tx.send(Ev::Done { reason, completion: self.generated, cached: self.cached });
         Ok(())
     }
