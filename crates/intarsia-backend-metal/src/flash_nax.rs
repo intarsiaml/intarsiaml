@@ -48,9 +48,17 @@ pub fn fallbacks() -> u64 {
     FALLBACKS.load(Ordering::Relaxed)
 }
 
-/// Shapes the NAX flash kernel takes: head_dim 128, query heads a multiple of the kv heads with a group in 1, 2, 4, 8.
+/// Smallest chunk (query rows) the NAX kernel is registered for. A 16-row slab costs the same per key tile whatever the
+/// rows, so a short tail chunk is slower than on the P2 kernel (8-row slabs): at 4k context T = 8..32 runs 380 us per
+/// layer against P2's 316 (about 20% more), T = 48 is level to a little faster (377 against 419), T = 64 and up 10%
+/// to 3.3x faster (docs/results/raw/2026-10-15-metal-prefill-f1/bench-small-chunk.txt). Only the last chunk of a prompt
+/// can be that short, so the cost of the wrong side of this line is a couple of milliseconds per prompt.
+pub const NAX_FLASH_MIN_M: usize = 48;
+
+/// Shapes the NAX flash kernel is registered for: at least [`NAX_FLASH_MIN_M`] query rows, head_dim 128, query heads a
+/// multiple of the kv heads with a group in 1, 2, 4, 8. (A call to `launch` by name takes any T.)
 pub fn nax_flash_ok(s: &ShapeInfo) -> bool {
-    s.m >= 1
+    s.m >= NAX_FLASH_MIN_M
         && s.head_dim == 128
         && s.n_kv_heads > 0
         && s.n_heads % s.n_kv_heads == 0
@@ -166,8 +174,10 @@ mod tests {
         for g in GROUPS {
             assert!(NAX_FLASH_VARIANTS.iter().any(|v| v.head_dim == 128 && v.nsg % g == 0), "group {g}");
         }
-        assert!(!nax_flash_ok(&ShapeInfo { m: 4, n_heads: 12, n_kv_heads: 4, head_dim: 128, ..Default::default() }));
-        assert!(!nax_flash_ok(&ShapeInfo { m: 4, n_heads: 32, n_kv_heads: 8, head_dim: 64, ..Default::default() }));
-        assert!(nax_flash_ok(&ShapeInfo { m: 4, n_heads: 32, n_kv_heads: 8, head_dim: 128, ..Default::default() }));
+        let sh = |m, n, nkv, d| ShapeInfo { m, n_heads: n, n_kv_heads: nkv, head_dim: d, ..Default::default() };
+        assert!(!nax_flash_ok(&sh(64, 12, 4, 128)));
+        assert!(!nax_flash_ok(&sh(64, 32, 8, 64)));
+        assert!(!nax_flash_ok(&sh(NAX_FLASH_MIN_M - 1, 32, 8, 128)));
+        assert!(nax_flash_ok(&sh(NAX_FLASH_MIN_M, 32, 8, 128)));
     }
 }

@@ -312,14 +312,16 @@ fn flash_predicate() {
     let f = ATTN_PREFILL_BF16_FLASH_NAX;
     assert!(be.has_metal4(), "this test needs the metal4.0 library");
     for g in [1, 2, 4, 8] {
-        assert!(accepts(f, &mk(4, 8 * g, 8, 128, DType::Bf16)), "group {g}");
+        assert!(accepts(f, &mk(256, 8 * g, 8, 128, DType::Bf16)), "group {g}");
     }
-    assert!(!accepts(f, &mk(4, 24, 8, 128, DType::Bf16)), "group 3");
-    assert!(!accepts(f, &mk(4, 16, 1, 128, DType::Bf16)), "group 16");
-    assert!(!accepts(f, &mk(4, 4, 2, 64, DType::Bf16)), "head_dim 64 stays on the P2 kernel");
-    assert!(!accepts(f, &mk(4, 4, 2, 256, DType::Bf16)), "head_dim 256 stays on the P2 kernel");
-    assert!(!accepts(f, &mk(4, 4, 2, 128, DType::F32)), "f32 cache");
-    assert!(!accepts(f, &mk(4, 4, 2, 128, DType::Fp8E4m3)), "fp8 cache");
+    assert!(accepts(f, &mk(48, 32, 8, 128, DType::Bf16)), "the smallest chunk");
+    assert!(!accepts(f, &mk(47, 32, 8, 128, DType::Bf16)), "a short tail chunk stays on the P2 kernel");
+    assert!(!accepts(f, &mk(256, 24, 8, 128, DType::Bf16)), "group 3");
+    assert!(!accepts(f, &mk(256, 16, 1, 128, DType::Bf16)), "group 16");
+    assert!(!accepts(f, &mk(256, 4, 2, 64, DType::Bf16)), "head_dim 64 stays on the P2 kernel");
+    assert!(!accepts(f, &mk(256, 4, 2, 256, DType::Bf16)), "head_dim 256 stays on the P2 kernel");
+    assert!(!accepts(f, &mk(256, 4, 2, 128, DType::F32)), "f32 cache");
+    assert!(!accepts(f, &mk(256, 4, 2, 128, DType::Fp8E4m3)), "fp8 cache");
     assert!(accepts(ATTN_PREFILL_BF16, &mk(4, 4, 2, 128, DType::Bf16)), "the old kernel stays registered");
     assert!(accepts(ATTN_PREFILL_BF16_FLASH, &mk(4, 4, 2, 64, DType::Bf16)), "the P2 kernel stays registered");
 }
