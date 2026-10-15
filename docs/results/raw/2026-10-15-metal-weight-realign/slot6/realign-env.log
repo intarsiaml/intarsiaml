@@ -1,0 +1,73 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/fill.rs (target/release/deps/fill-25b3ea888e58de09)
+
+running 6 tests
+test overlapping_copy_in_one_buffer_is_a_memmove ... ok
+test copy_and_zero_are_ordered_with_launches_and_do_not_wait ... ok
+test wrapped_host_memory_is_a_source_but_never_a_target ... ok
+test copy_is_byte_exact_for_every_alignment_and_tail ... ok
+test zero_covers_exactly_the_buffer ... ok
+test copy_large_aligned_buffer ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/gemv.rs (target/release/deps/gemv-1bf4d6f8a23a54f6)
+
+running 6 tests
+test shader_choice_follows_alignment_and_k ... ok
+test every_variant_matches_reference ... ok
+test k_not_multiple_of_8_and_odd_n ... ok
+test backend_info_and_alloc_roundtrip ... ok
+test unaligned_operand_offsets ... ok
+test qwen3_8b_shapes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+
+     Running tests/multirow.rs (target/release/deps/multirow-856d8fe765ca58f4)
+
+running 11 tests
+test serving_selection_unchanged ... ok
+test every_instance_exists ... ok
+test matmul_k_tails_and_odd_n ... ok
+test matmul_qwen3_8b_shapes_all_rows ... ok
+test matmul_a8_alignment_and_scalar_fallback ... ok
+test real_qwen3_8b_weights_bitwise ... ok
+test all_variants_matmul ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+test all_variants_pair ... ok
+test logits_qwen3_8b_shapes_all_rows ... ok
+test all_variants_logits ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s
+
+     Running tests/realign.rs (target/release/deps/realign-72f978baea4453f9)
+
+running 2 tests
+test realigned_buffer_is_16_byte_aligned_with_equal_contents ... ok
+test batch1_gemv_on_realigned_weights_is_bitwise_equal ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/wrap_host.rs (target/release/deps/wrap_host-63239f81b7af9e98)
+
+running 3 tests
+test wrap_page_rounding_with_synthetic_file ... ok
+test gemv_on_wrapped_weights ... ok
+test wrap_real_safetensors_unaligned_and_last_tensor ... FAILED
+
+failures:
+
+---- wrap_real_safetensors_unaligned_and_last_tensor stdout ----
+model-00001-of-00003.safetensors: 10006877608 bytes (5544 mod page), 51662 tensors, 45258 start off a 16 B boundary, 51656 off a page boundary
+
+thread 'wrap_real_safetensors_unaligned_and_last_tensor' (92562972) panicked at crates/intarsia-backend-metal/tests/wrap_host.rs:175:9:
+tensors of one file must share an MTLBuffer
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    wrap_real_safetensors_unaligned_and_last_tensor
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test wrap_host`
