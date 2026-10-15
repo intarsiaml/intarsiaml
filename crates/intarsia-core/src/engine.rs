@@ -661,6 +661,21 @@ fn common_prefix(a: &[u32], b: &[u32]) -> usize {
     a.iter().zip(b).take_while(|(x, y)| x == y).count()
 }
 
+/// Rows of the next prefill chunk when `remaining` prompt tokens are left to compute and one forward takes at most
+/// `max` rows. A prompt is split into the fewest chunks that fit (`ceil(remaining / max)`) of sizes as equal as
+/// possible, instead of full `max` chunks plus a short tail: a tail of a few rows takes the slow small-M GEMM path on
+/// Metal and re-streams all weights for little work. Calling it again on what is left gives the next chunk, so the
+/// sizes run `ceil` first, then `floor` (they differ by at most one). A `remaining` of at most `max` is one chunk.
+/// `remaining` is what follows the reused prefix; the chunk starts wherever the reuse ended, so no alignment is
+/// needed (the KV cache is contiguous).
+pub fn balanced_chunk_len(remaining: usize, max: usize) -> usize {
+    let max = max.max(1);
+    if remaining <= max {
+        return remaining;
+    }
+    remaining.div_ceil(remaining.div_ceil(max))
+}
+
 fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEvent>) -> Result<Outcome> {
     let Inner { model, state: st } = g;
     let plen = req.prompt.len();
@@ -747,12 +762,17 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
         });
     }
     // Prefill all but the last chunk here so a cancel is noticed between chunks.
-    let chunk = model.prefill_chunk().max(1);
+    let max_chunk = model.prefill_chunk().max(1);
+    // Attention-only states balance the chunk sizes (see `balanced_chunk_len`). A recurrent state keeps the fixed
+    // grid of full chunks: its snapshots sit on chunk boundaries, and a run restored from one must see the same
+    // chunk shapes as a from-scratch run, which only a boundary that does not depend on the prompt length gives.
+    let balance = !st.has_recurrent();
     let mut pos = p;
-    while plen - pos > chunk {
+    while plen - pos > max_chunk {
         if cancelled() {
             return Ok(cancel_outcome(cached));
         }
+        let chunk = if balance { balanced_chunk_len(plen - pos, max_chunk) } else { max_chunk };
         match model.forward(st, &req.prompt[pos..pos + chunk], HeadMode::None, None)? {
             StepOut::None => {}
             _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
@@ -840,4 +860,77 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
         prefill,
         decode: t_dec.elapsed(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::balanced_chunk_len;
+
+    /// The whole plan: chunk sizes until nothing is left, the way `generate_one` walks it.
+    fn plan(remaining: usize, max: usize) -> Vec<usize> {
+        let mut v = Vec::new();
+        let mut left = remaining;
+        while left > 0 {
+            let c = balanced_chunk_len(left, max);
+            assert!(c >= 1 && c <= max.max(1) && c <= left);
+            v.push(c);
+            left -= c;
+        }
+        v
+    }
+
+    #[test]
+    fn at_most_one_chunk_is_unchanged() {
+        assert_eq!(plan(1, 2048), [1]);
+        assert_eq!(plan(100, 2048), [100]);
+        assert_eq!(plan(2048, 2048), [2048]);
+        assert!(plan(0, 2048).is_empty());
+    }
+
+    #[test]
+    fn exact_multiples_stay_full() {
+        assert_eq!(plan(4096, 2048), [2048, 2048]);
+        assert_eq!(plan(3 * 256, 256), [256, 256, 256]);
+    }
+
+    #[test]
+    fn one_over_a_multiple_is_split_evenly() {
+        // used to be 2048 + 2048 + 1
+        assert_eq!(plan(4097, 2048), [1366, 1366, 1365]);
+        assert_eq!(plan(2049, 2048), [1025, 1024]);
+        assert_eq!(plan(257, 256), [129, 128]);
+        assert_eq!(plan(4096 + 11, 2048), [1369, 1369, 1369]);
+    }
+
+    #[test]
+    fn tiny_tails_never_appear() {
+        for max in [1usize, 2, 7, 64, 256, 1024, 2048] {
+            for rem in 1..=(5 * max).min(10_000) {
+                let p = plan(rem, max);
+                assert_eq!(p.iter().sum::<usize>(), rem);
+                assert_eq!(p.len(), rem.div_ceil(max), "fewest chunks: rem {rem} max {max}");
+                let (lo, hi) = (*p.iter().min().unwrap(), *p.iter().max().unwrap());
+                assert!(hi - lo <= 1, "equal sizes: {p:?}");
+                assert!(p.windows(2).all(|w| w[0] >= w[1]), "non-increasing: {p:?}");
+                if p.len() > 1 {
+                    // every chunk is at least half of max (rem > max): no sliver after the full chunks
+                    assert!(lo * 2 >= max, "rem {rem} max {max}: {p:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn after_prefix_reuse_only_the_rest_is_planned() {
+        // 4100-token prompt: 3 reused tokens leave 4097 rows, 1000 reused leave 3100; the plan covers exactly the rest,
+        // from wherever the reuse ended
+        let (plen, max) = (4100usize, 2048usize);
+        for reused in [0usize, 3, 1000, 2048, 2049, 4099] {
+            let p = plan(plen - reused, max);
+            assert_eq!(p.iter().sum::<usize>() + reused, plen);
+            assert!(p.len() == (plen - reused).div_ceil(max));
+        }
+        assert_eq!(plan(4100 - 1000, 2048), [1550, 1550]);
+        assert_eq!(plan(4100 - 4099, 2048), [1]);
+    }
 }

@@ -301,12 +301,14 @@ fn the_recording_contains_the_position_dependent_ops_with_a_device_position() {
     assert_eq!((snap.captures, snap.replays), (1, 2));
 }
 
-/// Prefill `prompt[pos..]` the way the engine does (`generate_one`): full chunks, a snapshot after each, a snapshot one
+/// Prefill `prompt[pos..]` the way the engine does (`generate_one`): chunks (balanced for an attention-only state), a snapshot after each, a snapshot one
 /// token before the end, then the last token through `LastLogits` (a single-token step, so it takes the graph path).
 /// Returns that last step's logits.
 fn prefill_like_the_engine(m: &Model, st: &mut SequenceState, prompt: &[u32], mut pos: usize) -> Vec<f32> {
-    let chunk = m.prefill_chunk();
-    while prompt.len() - pos > chunk {
+    let max_chunk = m.prefill_chunk();
+    let balance = !st.has_recurrent();
+    while prompt.len() - pos > max_chunk {
+        let chunk = if balance { intarsia_core::engine::balanced_chunk_len(prompt.len() - pos, max_chunk) } else { max_chunk };
         m.forward(st, &prompt[pos..pos + chunk], HeadMode::None, None).unwrap();
         pos += chunk;
         st.snapshot(&*m.backend, intarsia_core::state::RECURRENT_SNAPSHOTS).unwrap();
