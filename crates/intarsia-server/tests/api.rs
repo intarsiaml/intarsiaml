@@ -23,6 +23,8 @@ struct Mock {
     cancelled: Arc<AtomicBool>,
     /// Engine reports itself failed.
     fail: bool,
+    /// Scripted generation: token events, `completion_tokens`, finish reason (overrides the canned one).
+    script: Option<(Vec<(u32, &'static str)>, usize, FinishReason)>,
     /// Finish with this stop sequence.
     stop_seq: Option<String>,
     /// Telemetry overrides.
@@ -92,7 +94,24 @@ impl Engine for Mock {
         let slow = self.slow;
         let stop_seq = self.stop_seq.clone();
         let cancelled = self.cancelled.clone();
+        let script = self.script.clone();
         std::thread::spawn(move || {
+            if let Some((toks, completion_tokens, finish_reason)) = script {
+                for (id, text) in toks {
+                    tx.send(GenEvent::Token { id, text: text.to_string() }).ok();
+                }
+                tx.send(GenEvent::Done {
+                    finish_reason,
+                    stop_sequence: None,
+                    prompt_tokens: plen,
+                    completion_tokens,
+                    cached_tokens: 0,
+                    prefill_ms: 1.0,
+                    decode_ms: 1.0,
+                })
+                .ok();
+                return;
+            }
             if slow {
                 loop {
                     std::thread::sleep(std::time::Duration::from_millis(5));
@@ -670,4 +689,96 @@ async fn default_max_tokens_is_bounded() {
     let app = intarsia_server::router_with(mock.clone(), &cfg);
     call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
     assert_eq!(mock.reqs.lock().unwrap()[0].max_tokens, 10);
+}
+
+
+/// Engine-shaped scripted stream: an empty-text token, and a tail event that repeats the last id
+/// (text held back at the end) after three real tokens plus the uncounted-in-events EOS.
+fn scripted_mock() -> Arc<Mock> {
+    Arc::new(Mock {
+        script: Some((vec![(10, "He"), (11, ""), (12, "llo"), (12, "!")], 4, FinishReason::Stop)),
+        ..Default::default()
+    })
+}
+
+#[tokio::test]
+async fn token_ids_non_stream_and_default() {
+    let app = app_with(scripted_mock());
+    for (uri, body) in [
+        ("/v1/chat/completions", json!({"messages": [{"role": "user", "content": "hi"}]})),
+        ("/v1/completions", json!({"prompt": "hi"})),
+    ] {
+        let (_, _, plain) = call(&app, "POST", uri, Some(body.clone())).await;
+        assert!(!plain.contains("token_ids"), "{uri}: default response must not carry token_ids: {plain}");
+        let mut b = body.clone();
+        b["return_token_ids"] = json!(false);
+        let (_, _, off) = call(&app, "POST", uri, Some(b)).await;
+        assert!(!off.contains("token_ids"), "{uri}");
+        let mut b = body;
+        b["return_token_ids"] = json!(true);
+        let (st, _, on) = call(&app, "POST", uri, Some(b)).await;
+        assert_eq!(st, StatusCode::OK);
+        let v: Value = serde_json::from_str(&on).unwrap();
+        // the tail event's repeated id is dropped, the text is kept
+        assert_eq!(v["choices"][0]["token_ids"], json!([10, 11, 12]), "{uri}");
+        let text = v["choices"][0]["text"].as_str().or(v["choices"][0]["message"]["content"].as_str()).unwrap();
+        assert_eq!(text, "Hello!");
+        assert_eq!(v["usage"]["completion_tokens"], 4);
+    }
+}
+
+#[tokio::test]
+async fn token_ids_stream_and_default() {
+    let app = app_with(scripted_mock());
+    for (uri, body) in [
+        ("/v1/chat/completions", json!({"messages": [{"role": "user", "content": "hi"}], "stream": true})),
+        ("/v1/completions", json!({"prompt": "hi", "stream": true})),
+    ] {
+        let (_, _, plain) = call(&app, "POST", uri, Some(body.clone())).await;
+        assert!(!plain.contains("token_ids"), "{uri}: default stream must not carry token_ids");
+        let mut b = body;
+        b["return_token_ids"] = json!(true);
+        let (_, _, on) = call(&app, "POST", uri, Some(b)).await;
+        let data = sse_data(&on);
+        assert_eq!(data.last().unwrap(), "[DONE]");
+        let chunks: Vec<Value> = data[..data.len() - 1].iter().map(|d| serde_json::from_str(d).unwrap()).collect();
+        let mut ids = Vec::new();
+        let mut text = String::new();
+        for c in &chunks {
+            let ch = &c["choices"][0];
+            let carrier = if ch.get("delta").is_some() { &ch["delta"] } else { ch };
+            if let Some(a) = carrier["token_ids"].as_array() {
+                ids.extend(a.iter().map(|x| x.as_u64().unwrap()));
+            }
+            if let Some(t) = carrier["content"].as_str().or(carrier["text"].as_str()) {
+                text.push_str(t);
+            }
+        }
+        assert_eq!(ids, vec![10, 11, 12], "{uri}");
+        assert_eq!(text, "Hello!", "{uri}");
+        let fin = &chunks[chunks.len() - 1]["choices"][0];
+        assert_eq!(fin["finish_reason"], "stop");
+    }
+}
+
+#[tokio::test]
+async fn token_ids_length_finish_keeps_all() {
+    // no stop token, no tail: every event is a real token, even a repeated id
+    let mock = Arc::new(Mock {
+        script: Some((vec![(7, "a"), (7, "b")], 2, FinishReason::Length)),
+        ..Default::default()
+    });
+    let app = app_with(mock);
+    let (_, _, on) =
+        call(&app, "POST", "/v1/completions", Some(json!({"prompt": "hi", "return_token_ids": true}))).await;
+    let v: Value = serde_json::from_str(&on).unwrap();
+    assert_eq!(v["choices"][0]["token_ids"], json!([7, 7]));
+    let (_, _, on) = call(
+        &app,
+        "POST",
+        "/v1/completions",
+        Some(json!({"prompt": "hi", "return_token_ids": true, "stream": true})),
+    )
+    .await;
+    assert_eq!(on.matches("\"token_ids\":[7]").count(), 2);
 }
