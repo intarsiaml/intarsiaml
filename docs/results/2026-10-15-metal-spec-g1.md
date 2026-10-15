@@ -257,7 +257,7 @@ Metal backend:
 * `be4478c` raw data of identity A/B, speed, serve check, first test run
 * `47e6d0d` a min_tokens cut that emits nothing is served by the plain step right after it (before: two plain steps; identity unaffected, rerun in #1998)
 * `8c1668a` results doc, final identity data
-* the phase D additions to this report (golden 4k, EOS inside a run, two-turn serve, workspace check log) (next commit)
+* `ff2ed75` phase D additions to this report (golden 4k, EOS inside a run, two-turn serve, workspace check log)
 
 ## 10. fleetq
 
