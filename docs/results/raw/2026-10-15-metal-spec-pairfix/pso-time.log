@@ -1,0 +1,35 @@
+#2038 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+  run work inside it: prefix commands with FLEETQ_JOB=2038
+  release when finished: fleetq release 2038
+slot 2038 RUNNING (PSO timing) Thu Oct 15 14:03:06 EDT 2026: #2038 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+--- run 1 with extras
+PSOTIME extras n=175 t_ms=4.0
+PSOTIME init_ms=40.3 total_psos=false
+--- run 1 without extras
+PSOTIME extras n=0 t_ms=0.0
+PSOTIME init_ms=28.0 total_psos=false
+--- run 2 with extras
+PSOTIME extras n=175 t_ms=3.5
+PSOTIME init_ms=31.2 total_psos=false
+--- run 2 without extras
+PSOTIME extras n=0 t_ms=0.0
+PSOTIME init_ms=28.2 total_psos=false
+--- run 3 with extras
+PSOTIME extras n=175 t_ms=3.5
+PSOTIME init_ms=30.5 total_psos=false
+--- run 3 without extras
+PSOTIME extras n=0 t_ms=0.0
+PSOTIME init_ms=28.2 total_psos=false
+--- run 4 with extras
+PSOTIME extras n=175 t_ms=3.6
+PSOTIME init_ms=30.5 total_psos=false
+--- run 4 without extras
+PSOTIME extras n=0 t_ms=0.0
+PSOTIME init_ms=28.2 total_psos=false
+--- run 5 with extras
+PSOTIME extras n=175 t_ms=3.5
+PSOTIME init_ms=30.7 total_psos=false
+--- run 5 without extras
+PSOTIME extras n=0 t_ms=0.0
+PSOTIME init_ms=27.3 total_psos=false
+released 2038 Thu Oct 15 14:03:07 EDT 2026

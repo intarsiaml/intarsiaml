@@ -1,0 +1,402 @@
+{
+ "grounded-edit-docs-comments": {
+  "cat": "grounded",
+  "off": [
+   36.37,
+   35.87,
+   35.58
+  ],
+  "on": [
+   82.01,
+   77.78,
+   82.7
+  ],
+  "ratio": 2.286311681070533,
+  "pooled": 2.247360641891892,
+  "same": true,
+  "gen": 256,
+  "passes": 59,
+  "prop": 236,
+  "acc": 148
+ },
+ "grounded-edit-error-msgs": {
+  "cat": "grounded",
+  "off": [
+   35.19,
+   33.9,
+   35.87
+  ],
+  "on": [
+   137.86,
+   135.74,
+   137.6
+  ],
+  "ratio": 3.9102017618641662,
+  "pooled": 3.9193837334288784,
+  "same": true,
+  "gen": 256,
+  "passes": 56,
+  "prop": 224,
+  "acc": 192
+ },
+ "grounded-edit-field": {
+  "cat": "grounded",
+  "off": [
+   35.92,
+   36.25,
+   36.3
+  ],
+  "on": [
+   121.46,
+   124.01,
+   127.0
+  ],
+  "ratio": 3.4209655172413793,
+  "pooled": 3.433068310887555,
+  "same": true,
+  "gen": 256,
+  "passes": 68,
+  "prop": 272,
+  "acc": 188
+ },
+ "grounded-edit-refactor-model": {
+  "cat": "grounded",
+  "off": [
+   36.31,
+   36.07,
+   36.22
+  ],
+  "on": [
+   126.01,
+   121.78,
+   126.69
+  ],
+  "ratio": 3.479017117614578,
+  "pooled": 3.4465829391616376,
+  "same": true,
+  "gen": 256,
+  "passes": 69,
+  "prop": 276,
+  "acc": 188
+ },
+ "grounded-edit-rename-fn": {
+  "cat": "grounded",
+  "off": [
+   36.29,
+   35.67,
+   36.28
+  ],
+  "on": [
+   146.8,
+   145.22,
+   145.54
+  ],
+  "ratio": 4.011576626240353,
+  "pooled": 4.04232602478551,
+  "same": true,
+  "gen": 256,
+  "passes": 57,
+  "prop": 228,
+  "acc": 198
+ },
+ "grounded-extract-fields": {
+  "cat": "grounded",
+  "off": [
+   36.27,
+   36.05,
+   35.11
+  ],
+  "on": [
+   74.68,
+   74.03,
+   76.03
+  ],
+  "ratio": 2.071567267683773,
+  "pooled": 2.0921374718496035,
+  "same": true,
+  "gen": 256,
+  "passes": 62,
+  "prop": 248,
+  "acc": 137
+ },
+ "grounded-extract-ops": {
+  "cat": "grounded",
+  "off": [
+   34.85,
+   35.52,
+   35.1
+  ],
+  "on": [
+   66.51,
+   65.95,
+   67.99
+  ],
+  "ratio": 1.894871794871795,
+  "pooled": 1.9004453759496986,
+  "same": true,
+  "gen": 256,
+  "passes": 72,
+  "prop": 288,
+  "acc": 125
+ },
+ "grounded-summ-bench": {
+  "cat": "grounded",
+  "off": [
+   36.34,
+   35.62,
+   36.02
+  ],
+  "on": [
+   44.48,
+   43.87,
+   45.2
+  ],
+  "ratio": 1.2348695169350359,
+  "pooled": 1.236892638929299,
+  "same": true,
+  "gen": 256,
+  "passes": 48,
+  "prop": 192,
+  "acc": 54
+ },
+ "grounded-summ-health": {
+  "cat": "grounded",
+  "off": [
+   35.66,
+   36.04,
+   36.45
+  ],
+  "on": [
+   39.65,
+   39.66,
+   40.2
+  ],
+  "ratio": 1.1004439511653716,
+  "pooled": 1.1051398219028277,
+  "same": true,
+  "gen": 256,
+  "passes": 46,
+  "prop": 184,
+  "acc": 30
+ },
+ "grounded-summ-overview": {
+  "cat": "grounded",
+  "off": [
+   36.41,
+   36.4,
+   35.96
+  ],
+  "on": [
+   43.38,
+   43.36,
+   43.33
+  ],
+  "ratio": 1.1912087912087912,
+  "pooled": 1.1958739514849241,
+  "same": true,
+  "gen": 256,
+  "passes": 41,
+  "prop": 163,
+  "acc": 41
+ },
+ "open-brainstorm-appnames": {
+  "cat": "open",
+  "off": [
+   36.17,
+   36.17,
+   36.68
+  ],
+  "on": [
+   39.27,
+   39.2,
+   39.78
+  ],
+  "ratio": 1.085706386508156,
+  "pooled": 1.084707337180544,
+  "same": true,
+  "gen": 256,
+  "passes": 41,
+  "prop": 164,
+  "acc": 22
+ },
+ "open-brainstorm-lessons": {
+  "cat": "open",
+  "off": [
+   35.73,
+   36.22,
+   35.38
+  ],
+  "on": [
+   39.2,
+   39.88,
+   39.06
+  ],
+  "ratio": 1.0971172684019033,
+  "pooled": 1.1006227803798445,
+  "same": true,
+  "gen": 256,
+  "passes": 24,
+  "prop": 96,
+  "acc": 22
+ },
+ "open-brainstorm-weekend": {
+  "cat": "open",
+  "off": [
+   36.19,
+   36.78,
+   36.82
+  ],
+  "on": [
+   41.29,
+   41.15,
+   41.18
+  ],
+  "ratio": 1.1196302338227297,
+  "pooled": 1.1261581555699203,
+  "same": true,
+  "gen": 256,
+  "passes": 31,
+  "prop": 124,
+  "acc": 29
+ },
+ "open-explain-hashmap": {
+  "cat": "open",
+  "off": [
+   36.52,
+   36.76,
+   36.82
+  ],
+  "on": [
+   37.0,
+   37.09,
+   37.08
+  ],
+  "ratio": 1.0087051142546246,
+  "pooled": 1.0095417998643805,
+  "same": true,
+  "gen": 256,
+  "passes": 13,
+  "prop": 52,
+  "acc": 2
+ },
+ "open-explain-kvcache": {
+  "cat": "open",
+  "off": [
+   36.86,
+   36.83,
+   36.9
+  ],
+  "on": [
+   39.63,
+   39.37,
+   39.62
+  ],
+  "ratio": 1.074877916440586,
+  "pooled": 1.0726690097167666,
+  "same": true,
+  "gen": 256,
+  "passes": 18,
+  "prop": 72,
+  "acc": 18
+ },
+ "open-explain-tides": {
+  "cat": "open",
+  "off": [
+   36.83,
+   36.81,
+   36.59
+  ],
+  "on": [
+   42.19,
+   42.16,
+   42.17
+  ],
+  "ratio": 1.145612605270307,
+  "pooled": 1.1477398015435503,
+  "same": true,
+  "gen": 256,
+  "passes": 39,
+  "prop": 156,
+  "acc": 33
+ },
+ "open-story-cartographer": {
+  "cat": "open",
+  "off": [
+   36.86,
+   36.86,
+   36.85
+  ],
+  "on": [
+   37.27,
+   37.2,
+   37.25
+  ],
+  "ratio": 1.0105805751492132,
+  "pooled": 1.0103193146417446,
+  "same": true,
+  "gen": 256,
+  "passes": 18,
+  "prop": 72,
+  "acc": 3
+ },
+ "open-story-chef": {
+  "cat": "open",
+  "off": [
+   36.8,
+   36.8,
+   36.84
+  ],
+  "on": [
+   38.28,
+   38.33,
+   38.32
+  ],
+  "ratio": 1.041304347826087,
+  "pooled": 1.040665064102564,
+  "same": true,
+  "gen": 256,
+  "passes": 16,
+  "prop": 64,
+  "acc": 10
+ },
+ "open-story-lighthouse": {
+  "cat": "open",
+  "off": [
+   36.8,
+   36.65,
+   36.86
+  ],
+  "on": [
+   37.71,
+   37.67,
+   37.68
+  ],
+  "ratio": 1.0239130434782608,
+  "pooled": 1.0248288093009508,
+  "same": true,
+  "gen": 256,
+  "passes": 21,
+  "prop": 84,
+  "acc": 6
+ },
+ "open-story-robot": {
+  "cat": "open",
+  "off": [
+   36.87,
+   36.49,
+   36.85
+  ],
+  "on": [
+   37.48,
+   37.54,
+   37.33
+  ],
+  "ratio": 1.0170963364993215,
+  "pooled": 1.0193851576267867,
+  "same": true,
+  "gen": 256,
+  "passes": 20,
+  "prop": 79,
+  "acc": 5
+ }
+}

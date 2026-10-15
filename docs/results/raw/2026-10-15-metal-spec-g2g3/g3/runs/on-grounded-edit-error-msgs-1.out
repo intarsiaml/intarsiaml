@@ -1,0 +1,23 @@
+```rust
+fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEvent>) -> Result<Outcome> {
+    let Inner { model, state: st } = g;
+    let plen = req.prompt.len();
+    if plen == 0 {
+        return Err(Error::BadRequest("Empty prompt.".into()));
+    }
+    if plen >= st.cap {
+        return Err(Error::BadRequest(format!(
+            "Prompt of {plen} tokens does not fit the context window of {} tokens.",
+            st.cap
+        )));
+    }
+    let max_new = req.max_tokens.min(st.cap - plen);
+
+    // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
+    let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
+    if st.has_recurrent() {
+        // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
+        // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
+        p = st.restorable_len(p);
+    }
+    st.truncate(p

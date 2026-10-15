@@ -205,6 +205,16 @@ pub fn run(args: GenerateArgs) -> Result<()> {
             c.time_ms * 1e3 / c.timed_calls.max(1) as f64
         );
     }
+    if t.spec_steps > 0 || args.model.spec != "off" {
+        eprintln!(
+            "spec: verify passes={} proposed={} accepted={} (acceptance {:.1}%, {:.2} tokens per pass)",
+            t.spec_steps,
+            t.spec_proposed,
+            t.spec_accepted,
+            100.0 * t.spec_accepted as f64 / t.spec_proposed.max(1) as f64,
+            (t.spec_steps + t.spec_accepted) as f64 / t.spec_steps.max(1) as f64,
+        );
+    }
     eprintln!(
         "steps={} graph replays={} (captures {}) eager decode steps={} (profiled {}) top ops: {}",
         t.steps_total,

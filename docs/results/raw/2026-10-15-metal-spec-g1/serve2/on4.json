@@ -1,0 +1,27 @@
+{
+ "turn1_text": " A patient gardener counted the slow tide at dawn on day 8. The old lighthouse keeper watched the grey waves rolling in on day 9. A curious fox counted the grey waves rolling in on day 10. The harbor master counted a row of copper ",
+ "turn1_finish": "stop",
+ "turn1_usage": {
+  "prompt_tokens": 122,
+  "completion_tokens": 57,
+  "total_tokens": 179,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  }
+ },
+ "turn2_text": " patient gardener counted a stack of faded maps on day 100. The harbor master counted a stack of faded maps on day 101. The patient gardener counted a row of copper kettles on day 102. The old lighthouse keeper counted a stack of faded maps on day",
+ "turn2_finish": "length",
+ "turn2_usage": {
+  "prompt_tokens": 186,
+  "completion_tokens": 64,
+  "total_tokens": 250,
+  "prompt_tokens_details": {
+   "cached_tokens": 178
+  }
+ },
+ "metrics_spec": {
+  "intarsia_spec_steps_total": 42.0,
+  "intarsia_spec_proposed_tokens_total": 168.0,
+  "intarsia_spec_accepted_tokens_total": 79.0
+ }
+}

@@ -1,0 +1,6 @@
+short-256|256|--ignore-eos|short
+4k-256|256|--ignore-eos|4k
+grounded-512|512|--chat --no-think|grounded
+grounded-stop-topp|512|--chat --no-think --stop top_p:|grounded
+4k-stop250|256|--ignore-eos --stop 250.|4k
+4k-max44|44|--ignore-eos|4k

@@ -213,6 +213,13 @@ pub struct Model {
     test_bug: Option<(usize, f32)>,
     /// Ranks 1.. of the group, each a full shard with its own backend, weights, workspace and KV (rank 0 only).
     peers: Vec<Model>,
+    /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
+    /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
+    exact_rows: std::sync::atomic::AtomicBool,
+    /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
+    verify_tok: Option<Buffer>,
+    /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
+    verify_rows: usize,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -632,6 +639,9 @@ impl Model {
             no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
             test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
             peers: Vec::new(),
+            exact_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_tok: None,
+            verify_rows: 0,
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
@@ -669,8 +679,15 @@ impl Model {
         let st = crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, pos0);
         *self.recorder.lock().unwrap() = Some(crate::plan::Recorder { phase: Some(phase), t, pos0, ..Default::default() });
         let ids = vec![0u32; t];
+        let verify = phase == crate::plan::Phase::Verify;
+        if verify {
+            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         let run = (|| -> Result<()> {
             let hn = self.run_chunk(&st, &ids, false)?;
+            if verify {
+                return self.verify_head(&hn, t, false);
+            }
             // the heads generation and accuracy use: argmax of the last row, logits of up to LOGIT_ROWS rows
             if self.lm_head.is_some() {
                 self.head_argmax(&hn, t - 1, false)?;
@@ -681,9 +698,76 @@ impl Model {
             }
             Ok(())
         })();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         let rec = self.recorder.lock().unwrap().take().unwrap_or_default();
         run?;
         Ok(rec)
+    }
+
+    /// Most rows a verify pass ([`Model::forward_verify`]) takes: one logits buffer of rows.
+    pub const VERIFY_MAX_ROWS: usize = LOGIT_ROWS;
+
+    /// Enable speculative verify passes of up to `max_rows` rows (2..=[`Model::VERIFY_MAX_ROWS`]). Call before
+    /// [`Model::configure_plan`]: plan resolution then also dry-runs [`crate::plan::Phase::Verify`] passes (every row
+    /// count, at the start and the end of the context), so a verify op without a row-exact kernel fails the load,
+    /// admission covers the verify kernels and the scratch workspace is sized for them. Single-rank models only.
+    pub fn enable_verify(&mut self, max_rows: usize) -> Result<()> {
+        if !self.peers.is_empty() || self.tp.world > 1 || self.lm_head.is_none() {
+            return Err(Error::Unsupported("speculative verify needs a single-rank model".into()));
+        }
+        let most = Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens);
+        if !(2..=most).contains(&max_rows) {
+            return Err(Error::invalid(format!("verify rows {max_rows} outside 2..={most}")));
+        }
+        if self.verify_tok.is_none() {
+            self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 4, MemKind::Device)?);
+        }
+        self.verify_rows = max_rows;
+        Ok(())
+    }
+
+    /// Most rows a verify pass may have (0: speculative verify not enabled).
+    pub fn verify_rows(&self) -> usize {
+        self.verify_rows
+    }
+
+    /// Speculative verify pass: run `ids` (`[last token, drafts...]`, 2..=rows given to
+    /// [`Model::enable_verify`]) as one forward with every op on its row-exact kernel, and return the greedy
+    /// token of every row. Row `t`'s logits are bitwise those a single-token decode step at position
+    /// `st.len + t` would compute, so its argmax is the token sequential greedy decode would pick there. All rows
+    /// are committed; the caller truncates the rejected ones (attention reads keys `<= st.len + t` only, so rows
+    /// past the accepted length are never seen and are overwritten by the next append).
+    pub fn forward_verify(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
+        Self::check_forward(st, ids, HeadMode::LastArgmax, false)?;
+        let q = ids.len();
+        let Some(tok) = &self.verify_tok else {
+            return Err(Error::invalid("forward_verify before enable_verify"));
+        };
+        if !(2..=self.verify_rows).contains(&q) {
+            return Err(Error::invalid(format!("forward_verify of {q} rows (enabled for 2..={})", self.verify_rows)));
+        }
+        let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        let run = (|| -> Result<()> {
+            let hn = self.run_chunk(st, ids, profile)?;
+            self.verify_head(&hn, q, profile)
+        })();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        run?;
+        let mut b = vec![0u8; q * 4];
+        self.backend.download(tok, 0, &mut b, 0)?;
+        st.commit(ids);
+        self.telemetry.step();
+        Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
+    }
+
+    /// lm_head of rows `[0, q)` into `ws.logits` (`[q, V]` f32) and their argmax into `verify_tok` (`i32 [q]`).
+    fn verify_head(&self, hn: &TensorRef, q: usize, profile: bool) -> Result<()> {
+        let v = self.dims.vocab;
+        let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
+        let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
+        self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
+        self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[q])], OpAttrs::default(), profile)
     }
 
     /// Make sure the scratch workspace holds at least `bytes` (0 = none needed).
@@ -1045,6 +1129,7 @@ impl Model {
     ) -> Result<()> {
         let mut call = OpCall::new(op, inputs, outputs, attrs);
         call.pos = pos.cloned();
+        call.exact_rows = self.verifying();
         call.check()?;
         {
             let mut rec = self.recorder.lock().unwrap();
@@ -1214,7 +1299,17 @@ impl Model {
         if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
             return false;
         }
+        if self.verifying() {
+            let mut c = call.clone();
+            c.exact_rows = true;
+            return c.check().is_ok() && self.registry.select(&c).is_ok();
+        }
         call.check().is_ok() && self.registry.select(call).is_ok()
+    }
+
+    /// Inside [`Model::forward_verify`].
+    fn verifying(&self) -> bool {
+        self.exact_rows.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// `out = x @ W^T` for a linear layer in any supported weight format.

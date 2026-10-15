@@ -188,6 +188,11 @@ pub const ATTN_DECODE_SPLITKV_SHADERS: [&str; 5] = [
     "attn_decode_bf16_splitkv_g8",
     "attn_decode_bf16_combine",
 ];
+/// `AttnPrefill` with 2..=8 query rows (speculative-decoding verification), bitwise the 1-row `attn_decode_bf16_splitkv`
+/// call per row (attention_splitkv.metal, launcher `attn.rs`, G0b). Registered below the prefill kernels (priority -1).
+pub const ATTN_PREFILL_BF16_SPLITKV_ROWS: &str = "attn_prefill_bf16_splitkv_rows";
+pub const ATTN_ROWS_SHADERS: [&str; 5] =
+    ["attn_rows_splitkv_g1", "attn_rows_splitkv_g2", "attn_rows_splitkv_g4", "attn_rows_splitkv_g8", "attn_rows_combine"];
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
 /// `Backend::zero` / `Backend::copy` kernels (copy.metal): 16-byte vector forms plus byte forms for the unaligned rest.
@@ -286,12 +291,14 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([QK_NORM_ROPE_KV_BF16, QK_NORM_ROPE_KV_BF16_PF]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
+    v.extend(ATTN_ROWS_SHADERS);
     v.extend(crate::flash::FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
     v.push(ARGMAX_F32_V4);
     v.extend(EXPERIMENT_SHADERS);
+    v.extend(crate::multirow::shader_names());
     let mut seen = std::collections::HashSet::new();
     v.retain(|n| seen.insert(*n)); // the experiment list repeats the promoted variants
     v
@@ -323,6 +330,10 @@ pub const TABLE: &[(&str, Op)] = &[
     (QK_NORM_ROPE_KV_BF16, Op::QkNormRopeKv),
     (MATMUL_BF16_NAX, Op::Matmul),
     (MATMUL_PAIR_BF16_NAX, Op::MatmulPair),
+    (crate::multirow::MATMUL_BF16_GEMV_ROWS, Op::Matmul),
+    (crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS, Op::MatmulPair),
+    (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
+    (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -438,6 +449,53 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(5),
+                // G0 multi-row GEMVs (bitwise the 1-row serving GEMV per row, tests/multirow.rs). `rows_exact`: only
+                // speculative verify calls (`OpCall::exact_rows`) select them, ordinary calls never do (priority -1 is
+                // kept but no longer matters); `kernels test` grades them against the cpu reference like the 1-row
+                // kernels (the harness cannot grade against the 1-row Metal launch, see the G0 report).
+                crate::multirow::MATMUL_BF16_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| {
+                        (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
+                            && s.out.is_none_or(|d| d == DType::Bf16)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                // the only pair kernel accepting M = 2..8: being `rows_exact`, ordinary prefill chunks never fuse with it
+                crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| {
+                        (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
+                            && s.k % 8 == 0
+                            && s.out == Some(DType::Bf16)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                crate::multirow::LOGITS_BF16_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m))
+                    .exact(Exactness::Deterministic)
+                    .tol(F32_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                // G0b: 2..=8 verification rows, bitwise the 1-row split-KV decode (host position) per row. `rows_exact`:
+                // only verify calls select it; `kernels test` grades it against the cpu reference.
+                ATTN_PREFILL_BF16_SPLITKV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::attn::rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1)
+                    .rows_exact()
+                    .scratch(crate::attn::rows_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -471,7 +529,7 @@ mod tests {
     #[test]
     fn attention_is_registered_for_both_ops() {
         // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 3), (Op::AttnDecode, 2)] {
+        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 2)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));

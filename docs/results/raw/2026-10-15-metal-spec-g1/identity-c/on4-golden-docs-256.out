@@ -1,0 +1,17 @@
+. For each batch bucket (e.g. 16x128 tokens), capture the graph (as a `GraphHandle`), and store it in the tuning DB for future use.
+
+The plan is a `GraphHandle` per batch bucket, and the scheduler uses these to batch decode steps. The plan is not a graph in the traditional sense; it's a **static list of kernel calls** with their arguments and memory layout, and the scheduler is responsible for ordering and grouping them.
+
+---
+
+## 4. Scheduler and KV manager
+
+### 4.1 Scheduler: continuous batching, chunked prefill, priorities
+
+The scheduler is a **priority queue** of decode steps, each with a **chunked prefill** and a **decode stream**. The queue is ordered by:
+
+- **Priority**: user-defined (e.g. `--priority high`), or based on model size (larger models get lower priority).
+- **Time to next token**: estimated from the current step's token count and the model's throughput.
+- **Batch size**: larger batches are prioritized to reduce the number of graph captures.
+
+Each decode step is a **stream** of tokens, and the scheduler manages the **chunked prefill** by dividing the initial

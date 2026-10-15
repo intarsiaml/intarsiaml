@@ -1,0 +1,25 @@
+#2004 "metal spec G2G3: g3 ids (spec off) for gate sim" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+  run work inside it: prefix commands with FLEETQ_JOB=2004
+  release when finished: fleetq release 2004
+slot 2004 RUNNING (g3 ids (spec off) for gate sim) Thu Oct 15 11:29:54 EDT 2026: #2004 "metal spec G2G3: g3 ids (spec off) for gate sim" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+grounded-edit-docs-comments 1 off finish=length prompt=855 (cached 0) completion=256 decode 8053 ms (31.67 tok/s)
+grounded-edit-error-msgs 1 off finish=length prompt=1161 (cached 0) completion=256 decode 7910 ms (32.24 tok/s)
+grounded-edit-field 1 off finish=length prompt=847 (cached 0) completion=256 decode 7671 ms (33.24 tok/s)
+grounded-edit-refactor-model 1 off finish=length prompt=1014 (cached 0) completion=256 decode 7374 ms (34.58 tok/s)
+grounded-edit-rename-fn 1 off finish=length prompt=1038 (cached 0) completion=256 decode 7333 ms (34.78 tok/s)
+grounded-extract-fields 1 off finish=length prompt=930 (cached 0) completion=256 decode 7336 ms (34.76 tok/s)
+grounded-extract-ops 1 off finish=length prompt=2263 (cached 0) completion=256 decode 7924 ms (32.18 tok/s)
+grounded-summ-bench 1 off finish=length prompt=1388 (cached 0) completion=256 decode 7796 ms (32.71 tok/s)
+grounded-summ-health 1 off finish=length prompt=1042 (cached 0) completion=256 decode 7719 ms (33.04 tok/s)
+grounded-summ-overview 1 off finish=length prompt=586 (cached 0) completion=256 decode 7779 ms (32.78 tok/s)
+open-brainstorm-appnames 1 off finish=length prompt=35 (cached 0) completion=256 decode 7255 ms (35.15 tok/s)
+open-brainstorm-lessons 1 off finish=length prompt=27 (cached 0) completion=256 decode 7249 ms (35.18 tok/s)
+open-brainstorm-weekend 1 off finish=length prompt=34 (cached 0) completion=256 decode 7872 ms (32.39 tok/s)
+open-explain-hashmap 1 off finish=length prompt=34 (cached 0) completion=256 decode 8084 ms (31.54 tok/s)
+open-explain-kvcache 1 off finish=length prompt=32 (cached 0) completion=256 decode 7229 ms (35.27 tok/s)
+open-explain-tides 1 off finish=length prompt=35 (cached 0) completion=256 decode 7161 ms (35.61 tok/s)
+open-story-cartographer 1 off finish=length prompt=32 (cached 0) completion=256 decode 7275 ms (35.05 tok/s)
+open-story-chef 1 off finish=length prompt=32 (cached 0) completion=256 decode 7294 ms (34.96 tok/s)
+open-story-lighthouse 1 off finish=length prompt=31 (cached 0) completion=256 decode 7206 ms (35.39 tok/s)
+open-story-robot 1 off finish=length prompt=34 (cached 0) completion=256 decode 7183 ms (35.50 tok/s)
+released 2004 Thu Oct 15 11:32:42 EDT 2026

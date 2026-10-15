@@ -53,6 +53,8 @@ pub struct PlanOptions {
 pub enum Phase {
     Decode,
     Prefill,
+    /// Speculative verify pass (`Model::forward_verify`, only when `Model::enable_verify` was called).
+    Verify,
 }
 
 /// One op call of the plan with the kernel the registry selected for it.
@@ -200,6 +202,13 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
     // the last full chunk of a context-filling prompt
     if cap > chunk {
         probes.push((Phase::Prefill, chunk, cap - chunk));
+    }
+    // speculative verify passes (spec on only): every row count, at both ends of the context
+    for t in 2..=model.verify_rows() {
+        if t < cap {
+            probes.push((Phase::Verify, t, 0));
+            probes.push((Phase::Verify, t, cap - t));
+        }
     }
     let mut calls = Vec::new();
     let mut comm_decode = (0usize, 0usize);

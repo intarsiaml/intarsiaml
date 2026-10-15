@@ -211,6 +211,27 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
         "Eager decode steps that ran with per-op profiling (synchronises around every op).",
         snap.decode_profiled_steps,
     );
+    metric(
+        &mut o,
+        "intarsia_spec_steps_total",
+        "counter",
+        "Speculative decoding verify passes (--spec).",
+        snap.spec_steps,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_proposed_tokens_total",
+        "counter",
+        "Draft tokens proposed to speculative verify passes.",
+        snap.spec_proposed,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_accepted_tokens_total",
+        "counter",
+        "Draft tokens accepted by speculative verify passes.",
+        snap.spec_accepted,
+    );
     metric(&mut o, "intarsia_uptime_seconds", "gauge", "Seconds since engine start.", snap.uptime_s);
     metric(
         &mut o,

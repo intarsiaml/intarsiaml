@@ -84,6 +84,10 @@ pub struct KernelImpl {
     pub priority: i32,
     /// Scratch bytes needed for a shape; `None` = the kernel uses no scratch.
     pub scratch: Option<ScratchFn>,
+    /// Speculative-decoding verify kernel: every row of a multi-row call is bitwise the backend's single-row
+    /// decode launch at that row's position. Selected only for calls with `OpCall::exact_rows` set (and then
+    /// exclusively, for the ops that have one); ordinary calls never pick it.
+    pub rows_exact: bool,
 }
 
 fn always(_: &ShapeInfo) -> bool {
@@ -106,6 +110,7 @@ impl KernelImpl {
             is_reference: false,
             priority: 0,
             scratch: None,
+            rows_exact: false,
         }
     }
 
@@ -153,6 +158,11 @@ impl KernelImpl {
     }
     pub fn reference(mut self, r: bool) -> Self {
         self.is_reference = r;
+        self
+    }
+    /// Mark as a verify-row kernel (see `KernelImpl::rows_exact`).
+    pub fn rows_exact(mut self) -> Self {
+        self.rows_exact = true;
         self
     }
     pub fn priority(mut self, p: i32) -> Self {
@@ -291,9 +301,15 @@ impl Registry {
     /// rejected; highest priority wins (ties: registration order).
     pub fn select(&self, call: &OpCall) -> Result<&KernelImpl> {
         let s = ShapeInfo::from_call(call);
+        // Verify calls (`exact_rows`) of an op that has row-exact kernels may only take one of those; ops without
+        // any (row-parallel norms, embedding, argmax, ...) keep the ordinary choice. Ordinary calls skip them.
+        let rows_only = call.exact_rows && self.entries.iter().any(|(k, _)| k.op == call.op && k.rows_exact);
         let mut best: Option<&KernelImpl> = None;
         for (k, adm) in &self.entries {
             if k.op != call.op || !k.arch_matches(&self.arch) || !k.accepts(&s) {
+                continue;
+            }
+            if k.rows_exact != rows_only {
                 continue;
             }
             if self.reference_only && !k.is_reference {
@@ -310,7 +326,7 @@ impl Registry {
         }
         best.ok_or_else(|| {
             Error::NoKernel(format!(
-                "{} on {}/{} (m={} n={} k={} act={:?} w={:?}){}{}",
+                "{} on {}/{} (m={} n={} k={} act={:?} w={:?}){}{}{}",
                 call.op,
                 self.backend,
                 self.arch,
@@ -321,6 +337,7 @@ impl Registry {
                 s.weight,
                 if self.reference_only { " [reference kernels only]" } else { "" },
                 if self.require_admitted { " [admitted kernels only]" } else { "" },
+                if rows_only { " [row-exact verify kernels only]" } else { "" },
             ))
         })
     }

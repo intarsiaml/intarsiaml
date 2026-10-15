@@ -33,6 +33,7 @@ mod fused;
 pub mod gemm_nax;
 mod host;
 pub mod kernels;
+pub mod multirow;
 pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
@@ -599,6 +600,8 @@ impl Backend for MetalBackend {
         if !self.metal4 {
             ks.retain(|k| !kernels::requires_metal4(&k.name));
         }
+        // The multi-row entries (GEMVs, pair, logits, split-KV attention rows) are `rows_exact`: `Registry::select`
+        // gives them only to speculative verify calls (`OpCall::exact_rows`), so listing them changes no ordinary pick.
         ks
     }
 
@@ -645,6 +648,18 @@ impl Backend for MetalBackend {
         }
         if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
             return self.launch_matmul_pair(call);
+        }
+        if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
+            return self.launch_attn_rows(call);
+        }
+        if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
+            return self.launch_matmul_rows(call);
+        }
+        if kernel == multirow::MATMUL_PAIR_BF16_GEMV_ROWS && call.op == Op::MatmulPair {
+            return self.launch_pair_rows(call);
+        }
+        if kernel == multirow::LOGITS_BF16_GEMV_ROWS && call.op == Op::Logits {
+            return self.launch_logits_rows(call);
         }
         self.launch_dense(kernel, call)
     }

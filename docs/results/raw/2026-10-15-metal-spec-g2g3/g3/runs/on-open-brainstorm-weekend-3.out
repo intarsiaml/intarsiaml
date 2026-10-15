@@ -1,0 +1,21 @@
+Absolutely! Here are **10 unusual weekend projects** that combine a **soldering iron**, a **Raspberry Pi**, and a **free Saturday**. These are creative, fun, and can range from quirky to practical — perfect for a tech-savvy weekend adventure:
+
+---
+
+### 1. **DIY Smart Plant Watering System with Sensors**
+- **What it does**: Automatically waters your plants based on soil moisture.
+- **How it works**: Use a soil moisture sensor connected to the Raspberry Pi, which triggers a water pump when the soil is dry.
+- **Bonus**: Add a web interface to monitor plant health remotely.
+
+---
+
+### 2. **Raspberry Pi-Based "Smart" Mirror**
+- **What it does**: A mirror that displays useful information like weather, calendar, or even a camera feed.
+- **How it works**: Use a Raspberry Pi with a touchscreen or a camera module, and run a custom web app or script to display data.
+- **Bonus**: Add voice control with a microphone and speaker.
+
+---
+
+### 3. **Custom LED Light Show with Motion Detection**
+- **What it does**: Create a dynamic light show that reacts to movement.
+- **How it works**: Use a motion sensor (like a PIR

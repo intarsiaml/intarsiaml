@@ -30,6 +30,8 @@ pub struct EngineOptions {
     pub model_id: Option<String>,
     /// Plan resolution: `--reference`, admission on the plan's shapes, `require_admitted`.
     pub plan: PlanOptions,
+    /// Speculative decoding (`--spec`, `--spec-k`); default off. Metal only (milestone G1).
+    pub spec: intarsia_core::spec::SpecConfig,
 }
 
 fn read_json(p: &Path) -> Result<Value> {
@@ -147,7 +149,35 @@ pub fn load_engine_tp(
     }
     // the admission oracle is always the cpu backend (its `ref_*` kernels)
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
+    if opts.spec.enabled() {
+        // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only
+        if model.backend.name() != "metal" || model.tp_world() > 1 {
+            return Err(Error::Unsupported(format!(
+                "--spec {:?} needs the Metal backend without tensor parallelism (backend {}, tp {})",
+                opts.spec.mode,
+                model.backend.name(),
+                model.tp_world()
+            )));
+        }
+        model.enable_verify(opts.spec.verify_rows())?;
+    }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
+    if opts.spec.enabled() {
+        let rec = model.dry_run(intarsia_core::plan::Phase::Verify, opts.spec.verify_rows(), 0)?;
+        let mut picks: Vec<String> = Vec::new();
+        for c in &rec.calls {
+            let p = format!("{}={}", c.call.op, c.kernel);
+            if !picks.contains(&p) {
+                picks.push(p);
+            }
+        }
+        eprintln!(
+            "speculative decoding: {:?}, up to {} drafts per verify pass; verify kernels: {}",
+            opts.spec.mode,
+            opts.spec.k,
+            picks.join(" ")
+        );
+    }
     if opts.plan.admit {
         eprintln!(
             "admission on plan shapes: {} kernel(s) checked, {} case(s) run, {} cached{}",
@@ -171,6 +201,7 @@ pub fn load_engine_tp(
         )
     });
     let meta = EngineMeta {
+        spec: opts.spec,
         id,
         eos_ids: eos_ids(dir, &cfg),
         reasoning_parser: recipe.model.reasoning_parser.clone(),

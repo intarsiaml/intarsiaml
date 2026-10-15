@@ -1,0 +1,50 @@
+Document:
+
+## 2. System overview
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    TOK["Tokenizer + chat template + parsers (tools, reasoning)"]
+    SCH["Scheduler: continuous batching, chunked prefill, priorities"]
+    KV["KV manager: paged blocks, radix prefix cache, host tier"]
+    SPEC["Speculation: MTP, DFlash-style drafter, n-gram"]
+    SMP["Sampler + structured output (llguidance)"]
+    PLAN["Plan compiler: recipe → op graph → kernel selection → captured graphs per batch bucket"]
+  end
+  subgraph Pieces["Pieces (plugins)"]
+    REC["Recipes (TOML)"]
+    BLK["Block library: attention (GQA/MLA/SWA/GDN), FFN (dense/MoE), norms, rope"]
+    QF["Quant formats: BF16, FP8, NVFP4, MXFP4, GGUF k-quants, EXL3, AWQ/GPTQ"]
+    KR["Kernel registry: (op, backend, arch, dtype/quant, shape class) → impl + reference + autotune DB"]
+    BEN["Bench plugins: micro, e2e, localeval"]
+  end
+  subgraph HW["Backends (crate: intarsia-backend-*)"]
+    CPU["cpu-ref (always on: the oracle)"]
+    CUDA["cuda (GB10 sm_121)"]
+    HIP["hip (R9700 gfx1201)"]
+    COMM["Comm: NCCL/RCCL, P2P one-shot all-reduce"]
+  end
+  OAI & ANT & UI --> TOK --> SCH
+  SCH <--> KV
+  SCH --> SPEC --> PLAN
+  SCH --> PLAN --> KR --> CUDA & HIP & CPU
+  PLAN --> SMP
+  REC --> PLAN
+  BLK --> PLAN
+  QF --> KR
+  PLAN --> COMM
+  Core -. events .-> MET
+  MET --> UI
+```
+
+---
+
+
+Summarise this document section in about 200 words. Quote at least six key sentences or phrases verbatim, in quotation marks, and say what each one means.

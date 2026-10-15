@@ -1,0 +1,4 @@
+test slow exit 0
+bench default exit 0
+bench slow exit 0
+end

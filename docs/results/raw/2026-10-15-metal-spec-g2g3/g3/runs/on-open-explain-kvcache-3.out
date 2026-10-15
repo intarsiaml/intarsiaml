@@ -1,0 +1,24 @@
+In transformer-based language models, **key-value (KV) caching** is a crucial optimization technique used during **inference (decoding)** to speed up the process of generating text. Let's break down how it works and why it makes decoding faster.
+
+---
+
+## 🔍 What is Key-Value Caching?
+
+In the transformer architecture, each **attention head** computes three sets of vectors for each token in the sequence:
+
+- **Query (Q)**
+- **Key (K)**
+- **Value (V)**
+
+These are used in the **self-attention mechanism** to compute the relevance of each token to others in the sequence.
+
+During **training**, the model processes the entire input sequence at once. But during **inference**, the model generates one token at a time, and the input sequence grows incrementally.
+
+Without caching, the model would recompute the **K and V vectors** for all previous tokens at every step, which is computationally expensive.
+
+---
+
+## 🚀 How Key-Value Caching Works
+
+### 1. **Caching Keys and Values**
+As the model generates each new token, it computes the **K and V vectors** for that token and stores them in a **cache** (a list or tensor). These cached

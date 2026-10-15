@@ -1,0 +1,14 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/g0b_attn.rs (target/release/deps/g0b_attn-79f8493902b8acd6)
+
+running 7 tests
+test rows_bitwise_other_shapes ... ok
+test rows_bitwise_qwen3_8b_all_k ... ok
+test rows_bitwise_qwen3_8b_long_context ... ok
+test rows_bitwise_with_cache_and_q_offsets ... ok
+test rows_device_position_is_the_device_position_one_row_launch ... ok
+test rows_misaligned_operands_fall_back_to_the_single_pass_rows ... ok
+test rows_registration_is_below_serving ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.25s
+

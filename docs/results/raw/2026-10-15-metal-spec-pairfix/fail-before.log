@@ -1,0 +1,28 @@
+fleetq: #2036 waiting (#1 in line): endor is held exclusively by #2035 "metal-weight-realign: slot8 final tests" (claude-0e8026c5)
+#2036 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 3s
+  run work inside it: prefix commands with FLEETQ_JOB=2036
+  release when finished: fleetq release 2036
+slot 2036 RUNNING (failing test on unfixed code) Thu Oct 15 14:02:10 EDT 2026: #2036 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 3s
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/multirow.rs (target/release/deps/multirow-856d8fe765ca58f4)
+
+running 2 tests
+test pair_mixed_family_halves_all_rows ... FAILED
+test pair_qwen3_8b_shapes_all_rows ... ok
+
+failures:
+
+---- pair_mixed_family_halves_all_rows stdout ----
+
+thread 'pair_mixed_family_halves_all_rows' (92668314) panicked at crates/intarsia-backend-metal/tests/multirow.rs:62:9:
+pair y0 mixed w0@0 w1@8 M=6 K=4096 N=(1024,1024) x_off=0 y_off=0: first differing byte 1228 of 12304 (serial 0xb6, multi-row 0xb7)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pair_mixed_family_halves_all_rows
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.60s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test multirow`
+released 2036 Thu Oct 15 14:02:10 EDT 2026

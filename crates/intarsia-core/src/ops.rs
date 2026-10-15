@@ -253,11 +253,16 @@ pub struct OpCall {
     /// replays at every position. `attrs.pos0` then only bounds the call (validation, shape predicates); results
     /// are bit-identical to a launch whose host `pos0` equals the tensor's value. `None` = use `attrs.pos0`.
     pub pos: Option<TensorRef>,
+    /// Speculative-decoding verify call: row `t` of a multi-row call must equal, bit for bit, the single-row
+    /// decode launch at position `pos0 + t`. `Registry::select` then picks among the kernels registered
+    /// `rows_exact` for this op (and fails if none fits) instead of the ordinary priority order. `false` (every
+    /// ordinary call) leaves selection as it was, except that `rows_exact` kernels are never picked.
+    pub exact_rows: bool,
 }
 
 impl OpCall {
     pub fn new(op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> OpCall {
-        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None }
+        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false }
     }
 
     /// Validate arity, ranks, shapes, dtypes and bounds. Backends and the
