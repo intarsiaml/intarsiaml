@@ -1,0 +1,7 @@
+short-48|48|--ignore-eos|short
+short-256|256|--ignore-eos|short
+4k-48|48|--ignore-eos|4k
+4k-256|256|--ignore-eos|4k
+grounded-256|256|--chat --no-think|grounded
+grounded-512|512|--chat --no-think|grounded
+open-256|256|--chat --no-think|open
