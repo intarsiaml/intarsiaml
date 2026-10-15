@@ -1,0 +1,21 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml-weight-realign/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 2.84s
+     Running unittests src/lib.rs (target/release/deps/intarsia_backend_metal-a3d6d251e1457bba)
+
+running 8 tests
+test attn::tests::scratch_bounds_every_context_length ... ok
+test attn::tests::split_counts_are_bounded_and_monotone ... ok
+test flash::tests::every_head_dim_and_group_has_a_variant ... ok
+test flash_nax::tests::every_group_has_a_variant ... ok
+test attn::tests::threadgroup_accumulators_fit ... ok
+test kernels::tests::names_unique_and_named_after_their_op ... ok
+test kernels::tests::metal4_shaders_are_the_nax_variants_and_not_metal3_shaders ... ok
+test kernels::tests::attention_is_registered_for_both_ops ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attention.rs (target/release/deps/attention-0c78da86620a2a14)
+
+running 10 tests
+test predicates_accept_bf16_caches_only ... ok
+test splitkv_predicate_and_scratch_declaration ... ok
