@@ -51,7 +51,7 @@ pub struct ModelArgs {
     /// KV cache dtype override (bf16, f16, f32, fp8_e4m3); default from the recipe.
     #[arg(long)]
     pub kv_dtype: Option<String>,
-    /// Time every Nth step per op (default: every step on cpu, every 16th on GPUs; 0 = never).
+    /// Time every Nth step per op (default: every step on cpu, every 16th on GPUs, never for `serve` on metal; 0 = never).
     #[arg(long)]
     pub profile_every: Option<u32>,
     /// Run the single-token decode step eagerly instead of replaying a captured CUDA graph (A/B and debugging).
@@ -260,6 +260,11 @@ impl ModelArgs {
     pub fn for_serving(mut self) -> Self {
         self.admit = true;
         self.require_admitted = true;
+        // Metal has no decode graphs, so a profiled step synchronises around every op: at the default N = 16 that
+        // costs about 12% of served decode. CUDA/HIP keep their default (graph decode profiles far less often).
+        if self.profile_every.is_none() && self.backend == "metal" {
+            self.profile_every = Some(0);
+        }
         self
     }
 
@@ -276,5 +281,34 @@ impl ModelArgs {
         intarsia_models::load_engine(&self.model, backend, &opts)
             .map_err(|e| anyhow::anyhow!("{e}"))
             .with_context(|| format!("loading {}", self.model.display()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ModelArgs;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct Cli {
+        #[command(flatten)]
+        model: ModelArgs,
+    }
+
+    fn profile_every(args: &[&str], serving: bool) -> u32 {
+        let mut a = Cli::parse_from([&["t", "-m", "/m"], args].concat()).model;
+        if serving {
+            a = a.for_serving();
+        }
+        a.engine_options().unwrap().load.profile_every
+    }
+
+    #[test]
+    fn serve_on_metal_does_not_profile_by_default() {
+        assert_eq!(profile_every(&["--backend", "metal"], true), 0);
+        assert_eq!(profile_every(&["--backend", "metal", "--profile-every", "16"], true), 16);
+        assert_eq!(profile_every(&["--backend", "metal"], false), 16);
+        assert_eq!(profile_every(&["--backend", "cuda"], true), 16);
+        assert_eq!(profile_every(&["--backend", "cpu"], true), 1);
     }
 }

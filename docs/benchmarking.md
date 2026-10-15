@@ -81,7 +81,7 @@ reads them before and after the measured reps of each size (warmup excluded) and
 * `--require-graphs`: exit non-zero (after saving) if the server does not export the counters or any measured size replayed
   zero graphs. The acceptance procedure passes it for our server. 0 replays means the run measured the Phase 1a eager path.
 
-**Profiled steps bias the number.** With `--profile-every N` (default 16 on GPU, 1 on cpu) every Nth decode step runs eagerly
+**Profiled steps bias the number.** With `--profile-every N` (default 16 on GPU, 1 on cpu, 0 for `serve` on metal) every Nth decode step runs eagerly
 with per-op synchronisation: about 6% of the steps at N = 16, each far slower than a replay. A throughput measurement runs the
 server with `--profile-every 0` so that no step is profiled, on every arm. vLLM has no such steps, so profiling only ever
 penalises our side. The as-shipped default can be reported as an extra, separately labelled arm, never as the A/B number.
