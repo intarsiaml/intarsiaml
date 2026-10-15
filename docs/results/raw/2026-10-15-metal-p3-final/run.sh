@@ -18,7 +18,7 @@ echo "fleetq job $J" | tee $R/fleetq-job.txt
 trap "fleetq release $J" EXIT
 export FLEETQ_JOB=$J
 cd $W
-H0=$(git rev-parse --short=7 HEAD); echo "tip before baselines: $H0"; git status --short | head -3
+H0=9eeb96c; echo "tip before baselines: $H0"; git status --short | head -3
 echo "== 1. cargo test (intarsia-cli, intarsia-models)"
 cargo test -p intarsia-cli -p intarsia-models > $R/tests/cargo-test.txt 2>&1; echo "cargo test exit $?"; grep -E "^test result|FAILED" $R/tests/cargo-test.txt
 echo "== 2. cargo test -p intarsia-backend-metal --release"
