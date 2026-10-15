@@ -57,3 +57,9 @@ temp before 16384-fp8-2: 64 C (waited 10 s)
 ctx16384-2-fp8 [15:44:37]: prefill 5515 ms (2970.9 tok/s) | decode 3923 ms (32.63 tok/s) T=80C
 temp before 16384-fp8-3: 67 C (waited 10 s)
 ctx16384-3-fp8 [15:44:57]: prefill 5683 ms (2883.0 tok/s) | decode 3967 ms (32.27 tok/s) T=80C
+temp before 16384-bf16-4: 65 C (waited 10 s)
+ctx16384-4-bf16 [15:45:18]: prefill 5674 ms (2887.3 tok/s) | decode 4026 ms (31.79 tok/s) T=80C
+temp before 32764-bf16-1: 65 C (waited 10 s)
+ctx32764-1-bf16 [15:45:49]: prefill 15676 ms (2090.1 tok/s) | decode 4934 ms (25.94 tok/s) T=83C
+temp before 32764-fp8-2: 69 C (waited 10 s)
+ctx32764-2-fp8 [15:46:19]: prefill 15650 ms (2093.5 tok/s) | decode 4300 ms (29.77 tok/s) T=84C

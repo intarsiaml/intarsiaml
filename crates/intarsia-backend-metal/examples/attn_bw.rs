@@ -24,7 +24,7 @@ fn main() {
 #[cfg(target_os = "macos")]
 mod imp {
     use intarsia_backend_metal::bench::{f32_to_bf16, stats, Rng};
-    use intarsia_backend_metal::kernels::{ATTN_DECODE_BF16, ATTN_DECODE_BF16_SPLITKV, ATTN_DECODE_F8_SPLITKV};
+    use intarsia_backend_metal::kernels::{ATTN_DECODE_BF16, ATTN_DECODE_BF16_SPLITKV, ATTN_DECODE_F8_SPLITKV, ATTN_DECODE_I8_SPLITKV};
     use intarsia_backend_metal::MetalBackend;
     use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
     use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
@@ -78,6 +78,7 @@ mod imp {
                 "single" => kernels.push(ATTN_DECODE_BF16),
                 "splitkv" => kernels.push(ATTN_DECODE_BF16_SPLITKV),
                 "f8" => kernels.push(ATTN_DECODE_F8_SPLITKV),
+                "i8" => kernels.push(ATTN_DECODE_I8_SPLITKV),
                 n => ctxs.push(n.parse().expect("context length")),
             }
         }
@@ -124,6 +125,37 @@ mod imp {
                     )
                 })
                 .collect();
+            // int8 planes: the data then the [Nkv, cap, D/32] bf16 scales (core state::kv_plane_bytes)
+            let caches_i8: Vec<(Buffer, Buffer)> = if kernels.contains(&ATTN_DECODE_I8_SPLITKV) {
+                (0..layers)
+                    .map(|_| {
+                        let mk = |rng: &mut Rng| {
+                            let n = kv_heads * cap * dim;
+                            let b = be.alloc(n + n / 16, MemKind::Device).unwrap();
+                            let data: Vec<u8> = (0..n).map(|_| (rng.unit() * 127.0) as i8 as u8).collect();
+                            be.upload(&b, 0, &data, 0).unwrap();
+                            let sc: Vec<u8> = (0..n / 32).flat_map(|_| f32_to_bf16(0.01).to_le_bytes()).collect();
+                            be.upload(&b, n, &sc, 0).unwrap();
+                            b
+                        };
+                        (mk(&mut rng), mk(&mut rng))
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            let calls_i8: Vec<OpCall> = caches_i8
+                .iter()
+                .map(|(k, v)| {
+                    let t8 = |b: &Buffer, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: DType::I8, shape: shape.to_vec() };
+                    OpCall::new(
+                        Op::AttnDecode,
+                        vec![t(&q, &[1, heads, dim]), t8(k, &[kv_heads, cap, dim]), t8(v, &[kv_heads, cap, dim])],
+                        vec![t(&out, &[1, heads, dim])],
+                        attn.clone(),
+                    )
+                })
+                .collect();
             let caches8: Vec<(Buffer, Buffer)> = if kernels.contains(&ATTN_DECODE_F8_SPLITKV) {
                 (0..layers).map(|_| (rand_buf8(&be, kv_heads * cap * dim, &mut rng), rand_buf8(&be, kv_heads * cap * dim, &mut rng))).collect()
             } else {
@@ -143,8 +175,13 @@ mod imp {
                 .collect();
             for &kernel in &kernels {
                 let is8 = kernel == ATTN_DECODE_F8_SPLITKV;
-                let calls = if is8 { &calls8 } else { &calls };
-                let bytes = (2 * kv_heads * ctx * dim * if is8 { 1 } else { 2 }) as f64;
+                let isi8 = kernel == ATTN_DECODE_I8_SPLITKV;
+                let calls = if isi8 { &calls_i8 } else if is8 { &calls8 } else { &calls };
+                let bytes = if isi8 {
+                    (2 * kv_heads * ctx * (dim + dim / 16)) as f64
+                } else {
+                    (2 * kv_heads * ctx * dim * if is8 { 1 } else { 2 }) as f64
+                };
                 let need = be
                     .kernels()
                     .iter()
