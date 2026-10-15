@@ -21,10 +21,15 @@ Standard library only (`http.client` + threads). `gen-cases` needs the `tokenize
     uv run tools/cbidentity.py selftest        # offline: mock server, injected bug, synthetic records
 
 `compare` exits 1 on any mismatch. What is compared: the response text, the list of streamed deltas (stream
-runs against a stream reference), finish_reason, completion_tokens, prompt_tokens. The server exposes no token ids
-(crates/intarsia-server/src/openai.rs: no logprobs, no ids extension), so ids are NOT compared; each non-empty
-streamed delta is one token's released text, which is the closest stand-in. cached_tokens is recorded and reported
-next to every mismatch, because a different KV prefix reuse shifts the prefill chunk boundaries.
+runs against a stream reference), finish_reason, completion_tokens, prompt_tokens, and, as the primary criterion,
+the generated token ids. `intarsia serve` returns ids when the request carries the extension field
+`"return_token_ids": true` (`choices[0].token_ids` non-streaming; `delta.token_ids` per chunk for chat and
+`choices[0].token_ids` per chunk for completions; the stop/EOS token is not included). `--token-ids auto|on|off`
+(default auto) probes the server once with a 1-token request: auto requests ids only if the probe returns them, on
+fails when it does not, off never asks. Against a server without the extension the ids are simply absent and the
+text/deltas/usage criteria apply as before (a ref/test pair compares ids only when both runs have them).
+cached_tokens is recorded and reported next to every mismatch, because a different KV prefix reuse shifts the
+prefill chunk boundaries.
 """
 import argparse
 import collections
@@ -141,7 +146,8 @@ def one_request(url, path, body, stream, timeout, cancel_ms=None, cancel_chunks=
     """Run one request. Returns a record dict. Streams are read event by event; a cancel closes the socket."""
     host, port = split_url(url)
     rec = {"stream": stream, "status": "ok", "text": "", "deltas": [] if stream else None, "finish_reason": None,
-           "usage": None, "http_status": None, "error": None, "cancel": None}
+           "usage": None, "http_status": None, "error": None, "cancel": None, "ids": None}
+    want_ids = bool(body.get("return_token_ids"))
     t_send = time.monotonic()
     rec["t_send"] = time.time()
     deadline = t_send + cancel_ms / 1000.0 if cancel_ms is not None else None
@@ -175,6 +181,8 @@ def one_request(url, path, body, stream, timeout, cancel_ms=None, cancel_chunks=
             rec["text"] = ch["message"]["content"] if "message" in ch else ch["text"]
             rec["finish_reason"] = ch.get("finish_reason")
             rec["usage"] = obj.get("usage")
+            if want_ids and isinstance(ch.get("token_ids"), list):
+                rec["ids"] = ch["token_ids"]
         else:
             while True:
                 arm()
@@ -196,6 +204,11 @@ def one_request(url, path, body, stream, timeout, cancel_ms=None, cancel_chunks=
                 if obj.get("usage"):
                     rec["usage"] = obj["usage"]
                 for ch in obj.get("choices") or []:
+                    tid = (ch["delta"] if "delta" in ch else ch).get("token_ids")
+                    if want_ids and isinstance(tid, list):
+                        if rec["ids"] is None:
+                            rec["ids"] = []
+                        rec["ids"].extend(tid)
                     d = ch["delta"].get("content") if "delta" in ch else ch.get("text")
                     if d:
                         rec["deltas"].append(d)
@@ -276,9 +289,23 @@ def model_name(info):
         return "intarsia"
 
 
+def probe_token_ids(url, model, timeout=60):
+    """True when the server honours `return_token_ids` (1-token greedy completion carries `token_ids`)."""
+    rec = one_request(url, "/v1/completions", {"model": model, "prompt": "Hello", "max_tokens": 1, "temperature": 0,
+                                               "return_token_ids": True}, False, timeout)
+    return rec["status"] == "ok" and bool(rec["ids"])
+
+
 def run_cases(args, cases, mode):
     info = server_info(args.url)
     model = model_name(info)
+    tmode = getattr(args, "token_ids", "auto")
+    use_ids = False
+    if tmode != "off":
+        use_ids = probe_token_ids(args.url, model)
+        if tmode == "on" and not use_ids:
+            raise SystemExit(f"--token-ids on: {args.url} did not return token_ids for return_token_ids (server without the extension?)")
+    print(f"token ids: {'requested' if use_ids else 'not available/not requested'} ({args.url})", flush=True)
     cap = getattr(args, "cap_max_tokens", None)
     solo = mode == "solo"
     flush = args.flush == "on" or (args.flush == "auto" and solo)
@@ -290,6 +317,8 @@ def run_cases(args, cases, mode):
     def work(c):
         stream = want_stream(c, args.stream, force=True if (solo and args.stream != "off") else None)
         path, body = build_body(c, stream, model, cap)
+        if use_ids:
+            body["return_token_ids"] = True
         if solo:
             if flush:  # drop the KV prefix so no case is prefilled from a reused prefix
                 one_request(args.url, "/v1/completions", {"model": model, "prompt": [args.flush_id], "max_tokens": 1,
@@ -337,7 +366,7 @@ def run_cases(args, cases, mode):
         for th in threads:
             th.join()
     header = {"mode": mode, "b": None if solo else args.b, "stream": args.stream, "arrival_scale": args.arrival_scale,
-              "cap_max_tokens": cap, "flush": flush, "n_cases": len(cases), "peak_client_inflight": inflight[1],
+              "cap_max_tokens": cap, "token_ids": use_ids, "flush": flush, "n_cases": len(cases), "peak_client_inflight": inflight[1],
               "wall_s": round(time.monotonic() - t0, 1), "cases_sha256": getattr(args, "cases_sha", None),
               "server": info, "started": time.strftime("%Y-%m-%d %H:%M:%S"), "argv": sys.argv}
     return header, [records[c["id"]] for c in cases if c["id"] in records]
@@ -409,11 +438,22 @@ def compare_case(c, r, t):
         if not r["text"].startswith(t["text"]):
             i = first_diff(r["text"], t["text"])
             reasons.append(f"cancelled prefix is not a prefix of the reference text (first diff at char {i}: ref {r['text'][i:i + 30]!r} vs {t['text'][i:i + 30]!r})")
+        ri, ti = r.get("ids"), t.get("ids")
+        if ri is not None and ti is not None:
+            info["ids_compared"] = True
+            if ri[: len(ti)] != ti:
+                reasons.append(f"cancelled token ids are not a prefix of the reference ids (first diff at token {first_diff(ri, ti)})")
         rd, td = r.get("deltas"), t.get("deltas")
         if rd is not None and td is not None and rd[: len(td)] != td:
             reasons.append(f"cancelled deltas are not a prefix of the reference deltas (first diff at delta {first_diff(rd, td)})")
         return ("mismatch" if reasons else "pass"), reasons, info
-    # completed: exact comparison
+    # completed: exact comparison; token ids first, they are the primary criterion
+    ri, ti = r.get("ids"), t.get("ids")
+    if ri is not None and ti is not None:
+        info["ids_compared"] = True
+        if ri != ti:
+            i = first_diff(ri, ti)
+            reasons.append(f"TOKEN IDS differ at token {i}/{len(ri)} (ref {ri[max(0, i - 2):i + 4]} vs test {ti[max(0, i - 2):i + 4]}; {len(ri)} ref vs {len(ti)} test)")
     if r["text"].encode() != t["text"].encode():
         i = first_diff(r["text"], t["text"])
         reasons.append(f"text differs at char {i}/{len(r['text'])} (ref {r['text'][max(0, i - 10):i + 30]!r} vs test {t['text'][max(0, i - 10):i + 30]!r})")
@@ -492,10 +532,14 @@ def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None):
                 counts["cancelled_with_output"] += 1 if info.get("emitted_bytes") else 0
             elif is_cancel_case(c):
                 counts["cancel_case_completed_first"] += 1
+            if info.get("ids_compared"):
+                counts["ids_compared"] += 1
             if info.get("cached_differs"):
                 counts["cached_differs"] += 1
                 if verdict != "pass":
                     counts["mismatch_with_cached_diff"] += 1
+        if counts["ids_compared"] == 0:
+            out["warnings"].append(f"{tf}: token ids were NOT compared (reference ids: {bool(ref_hdr.get('token_ids'))}, test ids: {bool(th.get('token_ids'))}); text/deltas/usage criteria only")
         counts["exact_compared"] = sum(1 for r in run["rows"] if r["status"] == "ok")
         counts["ref_only"] = len(set(ref) - set(tr))
         run["counts"] = dict(counts)
@@ -525,14 +569,14 @@ def print_report(rep, cov, ref_hdr):
     for w in rep["warnings"]:
         print("WARNING:", w)
     print("\n== identity vs reference ==")
-    cols = ["run", "cases", "pass", "mismatch", "ref_err", "stream/non", "cancel(out>0)/cases", "cached!=", "mism+cached!="]
+    cols = ["run", "cases", "pass", "mismatch", "ref_err", "stream/non", "cancel(out>0)/cases", "ids cmp", "cached!=", "mism+cached!="]
     rows = []
     for run in rep["runs"]:
         c = run["counts"]
         ncancel_cases = sum(1 for r in run["rows"] if r["cancel_case"])
         rows.append([fmt_run_label(run), len(run["rows"]), c.get("pass", 0), c.get("mismatch", 0),
                      c.get("ref_error", 0) + c.get("missing", 0), f"{c.get('stream', 0)}/{c.get('nonstream', 0)}",
-                     f"{c.get('cancelled', 0)}({c.get('cancelled_with_output', 0)})/{ncancel_cases}", c.get("cached_differs", 0),
+                     f"{c.get('cancelled', 0)}({c.get('cancelled_with_output', 0)})/{ncancel_cases}", c.get("ids_compared", 0), c.get("cached_differs", 0),
                      c.get("mismatch_with_cached_diff", 0)])
     w = [max(len(str(x)) for x in [cols[i]] + [r[i] for r in rows]) for i in range(len(cols))]
     print("  ".join(cols[i].ljust(w[i]) for i in range(len(cols))))
@@ -753,7 +797,7 @@ def cmd_gen_cases(args):
 # mock server (offline self-test): deterministic fake model with the real server's response shapes
 # ----------------------------------------------------------------------------------------------------------------------
 
-def make_mock(bug=None, serial=False, delay=0.002):
+def make_mock(bug=None, serial=False, delay=0.002, ids=True):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     state = {"inflight": 0, "lock": threading.Lock(), "serial": threading.Lock(), "bug_fired": 0}
@@ -761,6 +805,9 @@ def make_mock(bug=None, serial=False, delay=0.002):
     def token(key, seed, pos):
         h = hashlib.sha256(f"{key}|{seed}|{pos}".encode()).hexdigest()
         return " " + ["alpha", "beta", "gamma", "delta", "eps", "zeta", "eta", "theta"][int(h[:2], 16) % 8] + h[2:4]
+
+    def token_id(key, seed, pos):
+        return int(hashlib.sha256(f"id|{key}|{seed}|{pos}".encode()).hexdigest()[:6], 16)
 
     class H(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -810,6 +857,8 @@ def make_mock(bug=None, serial=False, delay=0.002):
                 stops = [stops]
             ptoks = len(text) // 4
             out, deltas, finish, n = "", [], "length", 0
+            want_ids = ids and bool(req.get("return_token_ids"))
+            tids = []
             if stream:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
@@ -820,9 +869,10 @@ def make_mock(bug=None, serial=False, delay=0.002):
                 self.wfile.write(b"data: " + (obj if isinstance(obj, bytes) else json.dumps(obj).encode()) + b"\n\n")
                 self.wfile.flush()
 
-            def chunk(d, fin=None):
+            def chunk(d, fin=None, tid=None):
+                extra = {"token_ids": [tid]} if tid is not None else {}
                 return {"id": "x", "object": "chat.completion.chunk" if chat else "text_completion",
-                        "choices": [{"index": 0, **({"delta": {"content": d}} if chat else {"text": d}), "finish_reason": fin}]}
+                        "choices": [{"index": 0, **({"delta": {"content": d, **extra}} if chat else {"text": d, **extra}), "finish_reason": fin}]}
 
             try:
                 for pos in range(max_t):
@@ -831,11 +881,17 @@ def make_mock(bug=None, serial=False, delay=0.002):
                         n += 1  # EOS counts, is not emitted
                         break
                     tk = token(key, seed, pos)
+                    tid = token_id(key, seed, pos)
                     if bug == "inflight" and state["inflight"] >= 2 and pos == 3:
                         tk = " BUG"
+                        tid = 999999
+                        state["bug_fired"] += 1
+                    elif bug == "inflight-id" and state["inflight"] >= 2 and pos == 3:
+                        tid = 999999
                         state["bug_fired"] += 1
                     time.sleep(delay)
                     n += 1
+                    tids.append(tid)
                     cand = out + tk
                     hit = [s for s in stops if s in cand]
                     if hit:
@@ -843,14 +899,15 @@ def make_mock(bug=None, serial=False, delay=0.002):
                         tk = cand[len(out):cut] if cut > len(out) else ""
                         out = cand[:cut]
                         finish = "stop"
-                        if stream and tk:
-                            send(chunk(tk))
-                            deltas.append(tk)
+                        if stream and (tk or want_ids):
+                            send(chunk(tk, tid=tid if want_ids else None))
+                            if tk:
+                                deltas.append(tk)
                         break
                     out = cand
                     deltas.append(tk)
                     if stream:
-                        send(chunk(tk))
+                        send(chunk(tk, tid=tid if want_ids else None))
                 usage = {"prompt_tokens": ptoks, "completion_tokens": n, "total_tokens": ptoks + n, "prompt_tokens_details": {"cached_tokens": 0}}
                 if stream:
                     send(chunk("", finish))
@@ -859,7 +916,8 @@ def make_mock(bug=None, serial=False, delay=0.002):
                     self.wfile.write(b"data: [DONE]\n\n")
                     self.wfile.flush()
                 else:
-                    ch = {"index": 0, "finish_reason": finish, **({"message": {"role": "assistant", "content": out}} if chat else {"text": out})}
+                    ch = {"index": 0, "finish_reason": finish, **({"message": {"role": "assistant", "content": out}} if chat else {"text": out}),
+                          **({"token_ids": tids} if want_ids else {})}
                     self._json(200, {"id": "x", "choices": [ch], "usage": usage})
             except (BrokenPipeError, ConnectionResetError, OSError):
                 pass
@@ -872,7 +930,7 @@ def make_mock(bug=None, serial=False, delay=0.002):
 
 
 def cmd_mock(args):
-    srv, url = make_mock(args.bug, args.serial)
+    srv, url = make_mock(args.bug, args.serial, ids=not args.no_ids)
     print("mock server on", url, flush=True)
     threading.Event().wait()
 
@@ -926,8 +984,8 @@ def cmd_selftest(_args):
     cbi = {c["id"]: c for c in load_cases(cp)}
 
     # 1. compare_case on synthetic records
-    def rec(text="abc def", deltas=("abc", " def"), finish="length", ct=2, status="ok", stream=True, cached=0):
-        return {"id": "x", "status": status, "stream": stream, "text": text, "deltas": list(deltas) if stream else None,
+    def rec(text="abc def", deltas=("abc", " def"), finish="length", ct=2, status="ok", stream=True, cached=0, ids=None):
+        return {"id": "x", "status": status, "stream": stream, "text": text, "deltas": list(deltas) if stream else None, "ids": ids,
                 "finish_reason": finish, "usage": {"prompt_tokens": 5, "completion_tokens": ct, "prompt_tokens_details": {"cached_tokens": cached}}}
 
     ref = rec()
@@ -948,6 +1006,18 @@ def cmd_selftest(_args):
     v, _, info = compare_case(cc, ref, rec(cached=3))
     check("synthetic: cached_tokens difference reported, not a mismatch", v == "pass" and info["cached_differs"])
 
+    # token ids: primary criterion, compared only when both records have them
+    rid = rec(ids=[1, 2])
+    check("synthetic ids: identical ids pass and are compared", compare_case(cc, rid, rec(ids=[1, 2]))[0] == "pass" and compare_case(cc, rid, rec(ids=[1, 2]))[2].get("ids_compared"))
+    v, why, _ = compare_case(cc, rid, rec(ids=[1, 3]))
+    check("synthetic ids: id diff with identical text caught, reported first", v == "mismatch" and why[0].startswith("TOKEN IDS differ"), str(why))
+    check("synthetic ids: id count diff caught", compare_case(cc, rid, rec(ids=[1]))[0] == "mismatch")
+    v, _, info = compare_case(cc, rid, rec())
+    check("synthetic ids: test without ids falls back to text criteria", v == "pass" and not info.get("ids_compared"))
+    check("synthetic ids: ref without ids falls back to text criteria", compare_case(cc, rec(), rec(ids=[1, 2]))[0] == "pass")
+    check("synthetic ids: valid cancelled id prefix passes", compare_case(cc, rid, rec(text="abc", deltas=("abc",), status="cancelled", finish=None, ids=[1]))[0] == "pass")
+    check("synthetic ids: cancelled id prefix violation caught", compare_case(cc, rid, rec(text="abc", deltas=("abc",), status="cancelled", finish=None, ids=[2]))[0] == "mismatch")
+
     # 2. end to end on the mock server: clean => identical
     ref_srv, ref_url = make_mock(serial=True)
     srv, url = make_mock()
@@ -967,6 +1037,10 @@ def cmd_selftest(_args):
     for run in rep["runs"]:
         check(f"clean mock, {run['file'][-8:]}: 0 mismatches", not run["mismatches"], str([m["id"] + ":" + "; ".join(m["reasons"]) for m in run["mismatches"]][:3]))
         check(f"clean mock, {run['file'][-8:]}: every case compared", len(run["rows"]) == len(cases))
+    check("mock: reference and concurrent runs carried token ids", rh.get("token_ids") and all(r["ids"] is not None for r in rr.values()))
+    check("mock: ids compared on every completed case", all(run["counts"].get("ids_compared", 0) >= len(cases) - 2 * len([c for c in cases if is_cancel_case(c)]) for run in rep["runs"]), str([run["counts"] for run in rep["runs"]]))
+    check("mock: ids count == completion_tokens minus EOS", all(len(r["ids"]) == r["usage"]["completion_tokens"] - (1 if r["finish_reason"] == "stop" and not cbi[r["id"]].get("stop") else 0)
+                                                                for r in rr.values() if cbi[r["id"]].get("stop") is None))
     cancels = [r for r in rep["runs"][0]["rows"] if r["cancel_case"]]
     check("mock: cancelled cases observed with emitted output", any(r.get("cancelled") and r.get("emitted_bytes") for r in cancels), str(cancels[:2]))
 
@@ -978,6 +1052,34 @@ def cmd_selftest(_args):
     rep = compare_runs(cbi, rh, rr, [str(tmp / "bug.jsonl")])
     nb = len(rep["runs"][0]["mismatches"])
     check("injected concurrency bug detected", nb > 0 and nb <= bug_srv.state["bug_fired"], f"{nb} mismatches, bug fired {bug_srv.state['bug_fired']}")
+
+    # 3b. a bug that changes only the id (text identical) is caught by the id criterion alone
+    idbug_srv, idbug_url = make_mock(bug="inflight-id")
+    ns.url, ns.stream, ns.cap_max_tokens = idbug_url, "on", None
+    h, recs = run_cases(ns, load_cases(cp), "concurrent")
+    write_run(tmp / "idbug.jsonl", h, recs)
+    rep = compare_runs(cbi, rh, rr, [str(tmp / "idbug.jsonl")])
+    nb = len(rep["runs"][0]["mismatches"])
+    check("id-only concurrency bug detected (text identical)", nb > 0 and all(r["reasons"][0].startswith("TOKEN IDS") for r in rep["runs"][0]["mismatches"]) and nb <= idbug_srv.state["bug_fired"], f"{nb} mismatches, fired {idbug_srv.state['bug_fired']}")
+
+    # 3c. server without the extension: probe says no, runs still work, text criteria apply, a warning says ids were skipped
+    old_srv, old_url = make_mock(ids=False)
+    ns.url, ns.stream = old_url, "mixed"
+    h, recs = run_cases(ns, load_cases(cp), "concurrent")
+    write_run(tmp / "noids.jsonl", h, recs)
+    check("no-extension server: probe finds no ids, nothing requested", h["token_ids"] is False and all(r["ids"] is None for r in recs))
+    rep = compare_runs(cbi, rh, rr, [str(tmp / "noids.jsonl")])
+    check("no-extension server: text criteria still pass, ids-not-compared warning", not rep["runs"][0]["mismatches"] and any("NOT compared" in w for w in rep["warnings"]), str(rep["warnings"]))
+    ns.token_ids = "on"
+    try:
+        run_cases(ns, load_cases(cp), "concurrent")
+        check("--token-ids on against a server without ids fails", False)
+    except SystemExit:
+        check("--token-ids on against a server without ids fails", True)
+    ns.token_ids = "off"
+    h, recs = run_cases(ns, load_cases(cp), "concurrent")
+    check("--token-ids off never requests ids", h["token_ids"] is False)
+    ns.token_ids = "auto"
 
     # 4. perturbation (max_tokens cap) => predicted mismatch set exactly
     ns.url, ns.stream, ns.cap_max_tokens = url, "mixed", 5
@@ -995,7 +1097,7 @@ def cmd_selftest(_args):
         check("case without explicit temperature rejected", False)
     except SystemExit:
         check("case without explicit temperature rejected", True)
-    for s in (ref_srv, srv, bug_srv):
+    for s in (ref_srv, srv, bug_srv, idbug_srv, old_srv):
         s.shutdown()
     print(f"\nselftest: {'FAILED ' + str(fails) if fails else 'all checks passed'} (scratch: {tmp})")
     return 1 if fails else 0
@@ -1016,6 +1118,8 @@ def main():
                        help="solo runs: send a 1-token request with an unrelated prompt before each case so no KV prefix is reused (auto: on for solo)")
         p.add_argument("--flush-id", type=int, default=FLUSH_ID, help="token id used for the flush prompt (default Qwen <|endoftext|>)")
         p.add_argument("--arrival-scale", type=float, default=1.0, help="multiply every arrival_ms (0 = all at once, bounded by B)")
+        p.add_argument("--token-ids", choices=["auto", "on", "off"], default="auto",
+                       help="request generated token ids (return_token_ids) and compare them: auto = only if a probe shows the server supports it")
         p.add_argument("--cap-max-tokens", type=int, help="perturbation: cap every case's max_tokens (self-test of the detector)")
 
     g = sub.add_parser("gen-cases", help="write the default case set (needs tokenizers)")
@@ -1055,8 +1159,9 @@ def main():
     ga.set_defaults(fn=cmd_gate)
 
     m = sub.add_parser("mock", help="run the mock server (offline testing)")
-    m.add_argument("--bug", choices=["inflight"])
+    m.add_argument("--bug", choices=["inflight", "inflight-id"])
     m.add_argument("--serial", action="store_true")
+    m.add_argument("--no-ids", action="store_true", help="behave like a server without the return_token_ids extension")
     m.set_defaults(fn=cmd_mock)
 
     s = sub.add_parser("selftest", help="offline self-test (mock server + synthetic records)")
