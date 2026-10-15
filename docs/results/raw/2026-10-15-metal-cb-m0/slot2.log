@@ -1,0 +1,23 @@
+fleetq: #2061 waiting (#3 in line): in line behind #2059 "metal kv quant: speed (ABBA decode/prefill) + localeval" (claude-31e10c55) on endor
+fleetq: #2061 waiting (#2 in line): in line behind #2060 "gemm midm: 128x64 vs 64x64w2 vs 32x128 at multiples of 128" (claude-0e8026c5) on endor
+fleetq:   #2060 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2060 set, or it will wait for #2060 to be released.
+fleetq: #2061 waiting (#1 in line): endor is held exclusively by #2060 "gemm midm: 128x64 vs 64x64w2 vs 32x128 at multiples of 128" (claude-0e8026c5)
+fleetq:   #2060 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2060 set, or it will wait for #2060 to be released.
+fleetq: #2061 running on endor: /opt/code/intarsiaml-cb-m0/docs/results/raw/2026-10-15-metal-cb-m0/slot2.sh
+qualify exit 0
+acc new short exit 0
+acc new long exit 1
+acc new 4k exit 0
+acc base short exit 0
+acc base long exit 1
+acc base 4k exit 0
+16:00:08 o1-56ec done
+SERVER FAILED a1-c556
+16:02:08 a2-56ec done
+16:04:06 a3-cbm0 done
+16:06:03 a4-cbm0 done
+16:08:00 a5-56ec done
+SERVER FAILED a6-c556
+16:09:29 o2-56ec done
+ALLDONE
+fleetq: #2061 done (exit 0)
