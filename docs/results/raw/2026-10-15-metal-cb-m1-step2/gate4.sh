@@ -3,6 +3,7 @@
 # localeval 0.3.0 (feat/decode-aggregate): speed at ctx 1k, --gen 256, N = 1 (the sweep) and 2,4,8 streams, server --profile-every 0,
 # --max-batch 1 (LocalEngine) vs --max-batch 8. Inside the slot: FLEETQ_JOB is inherited by localeval.
 set -u
+setopt shwordsplit
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a slot" >&2; exit 2; }
 O=$1; REV=$2; mkdir -p $O
 HERE=${0:A:h}
