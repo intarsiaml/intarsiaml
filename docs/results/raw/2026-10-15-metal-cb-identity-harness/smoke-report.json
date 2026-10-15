@@ -1,0 +1,414 @@
+{
+ "warnings": [],
+ "runs": [
+  {
+   "file": "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/smoke-b2.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 2,
+    "stream": "mixed",
+    "arrival_scale": 0.25,
+    "cap_max_tokens": null,
+    "flush": false,
+    "n_cases": 18,
+    "peak_client_inflight": 2,
+    "wall_s": 31.8,
+    "cases_sha256": "f5f2947e5c78ba41",
+    "started": "2026-10-15 15:14:21",
+    "argv": [
+     "/opt/code/intarsiaml-cb-identity/tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--b",
+     "2",
+     "--stream",
+     "mixed",
+     "--cases",
+     "/opt/code/intarsiaml-cb-identity/tools/prompts/cb_identity_cases.jsonl",
+     "--url",
+     "http://127.0.0.1:8099",
+     "--arrival-scale",
+     "0.25",
+     "--sample",
+     "4",
+     "--out",
+     "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/smoke-b2.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "cb000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "eos",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb001",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb002",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "cancelled",
+     "reasons": [],
+     "tags": [
+      "cancel",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": null,
+     "cached_differs": false,
+     "cancelled": true,
+     "emitted_bytes": 0
+    },
+    {
+     "id": "cb010",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "ignore_eos",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb028",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chat_sampled",
+      "chat",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb076",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "ignore_eos",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb083",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "raw_sampled",
+      "raw",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb089",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "stop",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb092",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "eos",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb098",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "min_tokens",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb099",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chat_greedy",
+      "chat",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb110",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chat_sampled",
+      "chat",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 17,
+     "cached_differs": true
+    },
+    {
+     "id": "cb116",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "raw_greedy",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false
+    },
+    {
+     "id": "cb153",
+     "verdict": "pass",
+     "stream": true,
+     "status": "cancelled",
+     "reasons": [],
+     "tags": [
+      "cancel",
+      "raw",
+      "greedy"
+     ],
+     "cancel_case": true,
+     "cached_ref": 0,
+     "cached_test": null,
+     "cached_differs": false,
+     "cancelled": true,
+     "emitted_bytes": 34
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "pass": 18,
+    "nonstream": 7,
+    "stream": 11,
+    "cancelled": 2,
+    "cancelled_with_output": 1,
+    "cached_differs": 3,
+    "exact_compared": 16,
+    "ref_only": 0
+   }
+  }
+ ],
+ "coverage": {
+  "cases": 18,
+  "tags": {
+   "cancel": 2,
+   "chat": 8,
+   "chat_greedy": 2,
+   "chat_sampled": 2,
+   "eos": 2,
+   "greedy": 14,
+   "ignore_eos": 2,
+   "min_tokens": 2,
+   "raw": 10,
+   "raw_greedy": 2,
+   "raw_sampled": 2,
+   "sampled": 4,
+   "stop": 2
+  },
+  "reference_finish": {
+   "stop (EOS)": 5,
+   "stop (stop string armed: stop string or EOS)": 1,
+   "length": 12
+  },
+  "prompt_tokens_histogram": {
+   "<=192": 2,
+   "193-384": 2,
+   "385-768": 2,
+   "769-1.5k": 3,
+   "1.5k-2.5k": 4,
+   "2.5k-3.5k": 3,
+   ">3.5k": 2
+  },
+  "prompt_tokens_min_max": [
+   127,
+   4025
+  ]
+ },
+ "ref": {
+  "file": "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/smoke-ref.jsonl",
+  "header": {
+   "mode": "solo",
+   "b": null,
+   "stream": "mixed",
+   "arrival_scale": 0.25,
+   "cap_max_tokens": null,
+   "flush": true,
+   "n_cases": 18,
+   "peak_client_inflight": 0,
+   "wall_s": 39.3,
+   "cases_sha256": "f5f2947e5c78ba41",
+   "started": "2026-10-15 15:13:49",
+   "argv": [
+    "/opt/code/intarsiaml-cb-identity/tools/cbidentity.py",
+    "run",
+    "--mode",
+    "solo",
+    "--cases",
+    "/opt/code/intarsiaml-cb-identity/tools/prompts/cb_identity_cases.jsonl",
+    "--url",
+    "http://127.0.0.1:8099",
+    "--arrival-scale",
+    "0.25",
+    "--sample",
+    "4",
+    "--out",
+    "/opt/code/intarsiaml-cb-identity/docs/results/raw/2026-10-15-metal-cb-identity-harness/smoke-ref.jsonl"
+   ]
+  }
+ }
+}

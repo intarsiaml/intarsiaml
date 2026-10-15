@@ -1,0 +1,7 @@
+intarsia_requests_running 0
+intarsia_requests_waiting 0
+intarsia_requests_total 397
+intarsia_requests_rejected_total 0
+intarsia_requests_finished_total{reason="cancelled"} 25
+intarsia_requests_finished_total{reason="length"} 283
+intarsia_requests_finished_total{reason="stop"} 89
