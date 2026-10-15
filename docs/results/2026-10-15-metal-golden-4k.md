@@ -31,8 +31,7 @@ Qwen3-8B BF16 on endor (Apple M5 Max, macOS 27.0). Branch `metal-golden-4k` = `m
 
 Top-20 follows `docs/accuracy.md` ("HF (8B), top-20 only"). Consequence: the gated KL on this golden is the 21-way KL (a lower bound
 of the full-vocabulary KL, doc "How a top-k golden is compared"), with the tail-mass check; it is not the exact full-vocabulary KL
-that the guardrails on the 8 short / 10 long full-vocabulary goldens use. For scale: on the short and long full-vocabulary goldens
-the 21-way and the full KL differ by a few percent. The file is outside git like every other golden. It lives in this worktree's
+that the guardrails on the 8 short / 10 long full-vocabulary goldens use. The file is outside git like every other golden. It lives in this worktree's
 ignored `golden/`; `qualify` finds it by name only from there, from `--golden-dir`, or from the main checkout's `golden/` (which
 I was told not to touch). Copy it to `/opt/code/intarsiaml/golden/` to make it the default; removing the worktree deletes it.
 Also reproducible: the command above is deterministic CPU fp32 (not re-run to confirm bit-identity).
@@ -59,7 +58,7 @@ there to `--mode both`, with the reuse gate moving to `acc-4k` (where it also ru
 
 | build, chunk | prefill top-1 | prefill KL(21) | decode top-1 | decode KL(21) | reuse gate | class floor (99.5 / 1e-3) |
 |---|---|---|---|---|---|---|
-| SAFE (tail-fix + wiring), 256 (default) | 99.28% | 2.274e-4 | 98.96% | 2.548e-4 | PASS (9 cases, `chat_reuse_4k` only at 256 and 2048; raw prompts print "skipped" at 2048, split 2000) | top-1 FAIL, KL ok |
+| SAFE (tail-fix + wiring), 256 (default) | 99.28% | 2.274e-4 | 98.96% | 2.548e-4 | PASS (9 cases: all three prompts at 256; at 2048 only `chat_reuse_4k` runs, the raw prompts print "skipped", split 2000 < 2048) | top-1 FAIL, KL ok |
 | SAFE, `--prefill-chunk 2048` | 99.28% | 2.274e-4 | 98.96% | 2.548e-4 | PASS | same |
 | P3, 2048 (default) | 99.28% | 2.274e-4 | 98.96% | 2.548e-4 | PASS | same |
 | P3, `--prefill-chunk 256` | 99.28% | 2.274e-4 | 98.96% | 2.548e-4 | PASS | same |
@@ -94,7 +93,7 @@ self-check with `--pre-change <head>`; `run.sh`):
 | file | build / chunk | contents |
 |---|---|---|
 | `golden/baselines/qwen3-8b-4k-fp32-top20.metal.baseline.json` | SAFE, 256 (tracked, head=f67c379 code-tree=b7b7b80a8f67) | prefill top-1 99.283%, KL21 2.2737e-4; decode 98.958%, 2.5475e-4 |
-| `golden/baselines/qwen3-8b-4k-fp32-top20.metal.envelope.json` | perturbation chunk 256 -> 2048 | all deltas zero (4e-20 at most): "perturbation not quiet" warning is the usual "moved nothing" |
+| `golden/baselines/qwen3-8b-4k-fp32-top20.metal.envelope.json` | perturbation chunk 256 -> 2048 | nothing moved: every per-prompt delta is 0 to 1e-19, and the tool warns that the perturbation did not touch the prompts, so the fixed margins (KL x1.75 +1e-5, top-1 -1 pt) apply |
 | `docs/results/raw/2026-10-15-metal-golden-4k/p3-baselines/*.json` | P3, 2048 (head=0af824d), perturbation 2048 -> 256 | same numbers; for P3 to adopt on its branch (a second file with the same name would conflict) |
 
 Self-checks: `baseline verdict ... PASS` for both, while the floor verdict is FAIL (top-1 only), as in section 3. The baselines
