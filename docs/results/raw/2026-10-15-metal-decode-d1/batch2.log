@@ -1,0 +1,9 @@
+fleetq: #1921 waiting (#1 in line): endor is held exclusively by #1920 "metal F1: nax attn correctness gates" (claude-31e10c55)
+fleetq:   #1920 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1920 set, or it will wait for #1920 to be released.
+fleetq: #1921 running on endor: /opt/code/intarsiaml/.claude/worktrees/agent-a492fe7bd7af6756c/docs/results/raw/2026-10-15-metal-decode-d1/batch2.sh /Users/josef/.local/state/claude-watch/d1bin/intarsia-d1b /Users/josef/.local/state/claude-watch/d1bin/glu-test-2 d1b
+base trace exit 0
+d1b trace exit 0
+glu tests exit 0
+identity short 48: stdout identical
+identity 4k 48: stdout identical
+fleetq: #1921 done (exit 0)
