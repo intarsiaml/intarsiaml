@@ -1,0 +1,39 @@
+prefill chunk 2048 (recipe qwen3, metal)
+accuracy: Qwen3-8B on Apple M5 Max (vocab 151936, weights/act/kv bf16/bf16)
+golden: /opt/code/intarsiaml/golden/qwen3-8b-4k-fp32-top20.safetensors (3 prompts, 12685 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.19.0, torch 2.14.1 | model /Users/josef/Models/Qwen3-8B | revision not in the model path | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden_4k.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (weights: bf16 (no quantization metadata), kv cache: bf16); top-1 >= 0%, 21-way KL <= 1.0e-3, |tail excess| <= 0.02
+prefill chunk 2048; longest prompt 4557; prompts spanning more than one chunk: 3/3
+this build: head 8254311 code-tree f2cc8867e6c9 clean
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    99.34   2.014e-4   1.832e-4   1.167e-2   0.1011   0.1010    98.96   92/4064      0
+long_code_4k        4064  4064    99.53   1.910e-4   1.827e-4   7.145e-2   0.0264   0.0264    99.05   18/4064      0
+chat_reuse_4k       4557  4557    99.01   3.294e-4   3.066e-4   2.779e-1   0.0795   0.0794    98.81  153/4557      0
+OVERALL                  12685    99.28   2.441e-4   2.274e-4   2.779e-1   0.0694   0.0694    98.94      2.1%      0
+prefill floor [bf16]: top-1 99.28% (need >= 0) ok | 21-way KL 2.274e-4 (need <= 1.0e-3) ok | tail mass ours 0.0694 vs ref 0.0694, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    98.44   1.773e-4   1.708e-4   1.136e-3   0.0857   0.0861    98.44     29/64      0
+long_code_4k        4064    64   100.00   1.701e-4   1.690e-4   4.748e-3   0.0008   0.0007    98.44     64/64      0
+chat_reuse_4k       4557    64    98.44   4.244e-4   4.244e-4   8.047e-3   0.0000   0.0000   100.00     45/64      0
+OVERALL                    192    98.96   2.573e-4   2.548e-4   8.047e-3   0.0288   0.0289    98.96     71.9%      0
+decode (teacher-forced) floor [bf16]: top-1 98.96% (need >= 0) ok | 21-way KL 2.548e-4 (need <= 1.0e-3) ok | tail mass ours 0.0289 vs ref 0.0288, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 2.0% of positions before the first argmax divergence, worst prompt 0.4% (informational)
+greedy-match [decode (teacher-forced)]: mean 71.9% of positions before the first argmax divergence, worst prompt 45.3% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4447   4573    4462      0     24/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 24: warm took 432 cold took 279; shared rows differ by 0.662 (before) / 0.165 (here) nats of log-probability, KL up to 9.2e-3; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.153, cold margin 0.119; legacy criterion (>= 16 leading tokens): ok)
+chat_reuse_4k      restore     4447   4557    4447      0     32/32  ok
+chat_reuse_4k      aligned     4096   4557    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: PASS

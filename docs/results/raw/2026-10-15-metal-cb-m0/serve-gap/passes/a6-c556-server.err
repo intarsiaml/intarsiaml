@@ -1,0 +1,5 @@
+error: unexpected argument '--spec' found
+
+Usage: intarsia-c556008 serve --model <MODEL> --backend <BACKEND> --device <DEVICE> --host <HOST> --port <PORT> --served-model-name <SERVED_MODEL_NAME> --max-seq <MAX_SEQ> --profile-every <PROFILE_EVERY> --no-supervisor --no-ui
+
+For more information, try '--help'.

@@ -1,0 +1,181 @@
+fleetq: #2045 waiting (#1 in line): endor is held exclusively by #2044 "gemm midm: interleaved sweep tiles x M" (claude-0e8026c5)
+fleetq:   #2044 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2044 set, or it will wait for #2044 to be released.
+fleetq: #2045 running on endor: docs/results/raw/2026-10-15-metal-cb-m0/identity_slot.sh
+14:29:41 short-48 base
+  exit 0 finish=length prompt=122 (cached 0) completion=48 | prefill 1828 ms (66.7 tok/s) | decode 1280 ms (36.72 tok/s)
+14:29:44 short-48 off
+  exit 0 finish=length prompt=122 (cached 0) completion=48 | prefill 235 ms (519.1 tok/s) | decode 1286 ms (36.55 tok/s)
+14:29:46 short-48 on4
+  exit 0 finish=length prompt=122 (cached 0) completion=48 | prefill 218 ms (558.5 tok/s) | decode 658 ms (71.39 tok/s)
+14:29:48 short-256 base
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 221 ms (551.8 tok/s) | decode 6969 ms (36.59 tok/s)
+14:29:55 short-256 off
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 221 ms (553.0 tok/s) | decode 7085 ms (35.99 tok/s)
+14:30:03 short-256 on4
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 241 ms (506.4 tok/s) | decode 3315 ms (76.93 tok/s)
+14:30:07 4k-48 base
+  exit 0 finish=length prompt=4062 (cached 0) completion=48 | prefill 1643 ms (2472.8 tok/s) | decode 1333 ms (35.27 tok/s)
+14:30:10 4k-48 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=48 | prefill 1317 ms (3083.5 tok/s) | decode 1328 ms (35.39 tok/s)
+14:30:13 4k-48 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=48 | prefill 1252 ms (3244.9 tok/s) | decode 413 ms (113.69 tok/s)
+14:30:15 4k-256 base
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1307 ms (3107.5 tok/s) | decode 7367 ms (34.61 tok/s)
+14:30:25 4k-256 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1350 ms (3008.1 tok/s) | decode 7349 ms (34.70 tok/s)
+14:30:34 4k-256 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1365 ms (2975.8 tok/s) | decode 2204 ms (115.71 tok/s)
+14:30:38 grounded-256 base
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 234 ms (1587.5 tok/s) | decode 7103 ms (35.90 tok/s)
+14:30:45 grounded-256 off
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 244 ms (1522.9 tok/s) | decode 6967 ms (36.60 tok/s)
+14:30:53 grounded-256 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 241 ms (1538.7 tok/s) | decode 1883 ms (135.45 tok/s)
+14:30:56 grounded-512 base
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 241 ms (1540.8 tok/s) | decode 9188 ms (35.70 tok/s)
+14:31:05 grounded-512 off
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 244 ms (1517.9 tok/s) | decode 9151 ms (35.84 tok/s)
+14:31:15 grounded-512 on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 263 ms (1408.5 tok/s) | decode 2434 ms (134.78 tok/s)
+14:31:18 open-256 base
+  exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 218 ms (183.8 tok/s) | decode 6973 ms (36.57 tok/s)
+14:31:26 open-256 off
+  exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 236 ms (169.2 tok/s) | decode 7066 ms (36.09 tok/s)
+14:31:33 open-256 on4
+  exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 223 ms (179.2 tok/s) | decode 6784 ms (37.59 tok/s)
+14:31:41 grounded-max102 base
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 257 ms (1446.2 tok/s) | decode 2887 ms (34.98 tok/s)
+14:31:44 grounded-max102 off
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 261 ms (1422.5 tok/s) | decode 2842 ms (35.53 tok/s)
+14:31:48 grounded-max102 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 247 ms (1503.2 tok/s) | decode 731 ms (138.20 tok/s)
+14:31:49 grounded-max188 base
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 241 ms (1541.0 tok/s) | decode 5162 ms (36.23 tok/s)
+14:31:55 grounded-max188 off
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 254 ms (1463.4 tok/s) | decode 5228 ms (35.77 tok/s)
+14:32:01 grounded-max188 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 245 ms (1515.7 tok/s) | decode 1403 ms (133.28 tok/s)
+14:32:03 grounded-stop-topp base
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 242 ms (1534.3 tok/s) | decode 3122 ms (36.51 tok/s)
+14:32:07 grounded-stop-topp off
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 250 ms (1484.7 tok/s) | decode 3110 ms (36.66 tok/s)
+14:32:10 grounded-stop-topp on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 234 ms (1587.7 tok/s) | decode 898 ms (126.98 tok/s)
+14:32:12 grounded-stop-vecstring base
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 234 ms (1583.7 tok/s) | decode 5077 ms (36.44 tok/s)
+14:32:17 grounded-stop-vecstring off
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 265 ms (1401.8 tok/s) | decode 5156 ms (35.88 tok/s)
+14:32:23 grounded-stop-vecstring on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 243 ms (1524.6 tok/s) | decode 1476 ms (125.36 tok/s)
+14:32:25 grounded-stop-atomic base
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 250 ms (1484.3 tok/s) | decode 6118 ms (36.45 tok/s)
+14:32:32 grounded-stop-atomic off
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 242 ms (1531.5 tok/s) | decode 6114 ms (36.47 tok/s)
+14:32:39 grounded-stop-atomic on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 242 ms (1532.0 tok/s) | decode 1610 ms (138.54 tok/s)
+14:32:41 grounded-min331 base
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 233 ms (1594.7 tok/s) | decode 11093 ms (35.97 tok/s)
+14:32:53 grounded-min331 off
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 243 ms (1526.0 tok/s) | decode 11014 ms (36.23 tok/s)
+14:33:04 grounded-min331 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 231 ms (1603.3 tok/s) | decode 2882 ms (138.44 tok/s)
+14:33:08 grounded-min335 base
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 234 ms (1588.1 tok/s) | decode 11000 ms (36.27 tok/s)
+14:33:19 grounded-min335 off
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 244 ms (1520.9 tok/s) | decode 11048 ms (36.12 tok/s)
+14:33:31 grounded-min335 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 242 ms (1533.3 tok/s) | decode 2952 ms (135.18 tok/s)
+14:33:35 grounded-min320-stopfence base
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 256 ms (1448.8 tok/s) | decode 9061 ms (36.09 tok/s)
+14:33:44 grounded-min320-stopfence off
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 272 ms (1362.9 tok/s) | decode 9384 ms (34.85 tok/s)
+14:33:54 grounded-min320-stopfence on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 253 ms (1466.8 tok/s) | decode 2617 ms (124.96 tok/s)
+14:33:58 4k-max9 base
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1393 ms (2915.8 tok/s) | decode 237 ms (33.70 tok/s)
+14:34:00 4k-max9 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1262 ms (3217.5 tok/s) | decode 228 ms (35.11 tok/s)
+14:34:02 4k-max9 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1277 ms (3181.3 tok/s) | decode 130 ms (61.75 tok/s)
+14:34:04 4k-max44 base
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1332 ms (3048.9 tok/s) | decode 1216 ms (35.37 tok/s)
+14:34:06 4k-max44 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1301 ms (3122.8 tok/s) | decode 1230 ms (34.97 tok/s)
+14:34:09 4k-max44 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1242 ms (3269.9 tok/s) | decode 402 ms (106.90 tok/s)
+14:34:11 4k-stop250 base
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1426 ms (2848.2 tok/s) | decode 2483 ms (33.83 tok/s)
+14:34:16 4k-stop250 off
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1444 ms (2813.4 tok/s) | decode 2379 ms (35.30 tok/s)
+14:34:20 4k-stop250 on4
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1255 ms (3236.5 tok/s) | decode 774 ms (108.52 tok/s)
+14:34:22 short-stopkettles base
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 210 ms (580.5 tok/s) | decode 1525 ms (36.72 tok/s)
+14:34:24 short-stopkettles off
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 230 ms (530.9 tok/s) | decode 1548 ms (36.17 tok/s)
+14:34:27 short-stopkettles on4
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 258 ms (472.5 tok/s) | decode 817 ms (68.55 tok/s)
+14:34:28 golden-docs-48 base
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1271 ms (3402.6 tok/s) | decode 1336 ms (35.18 tok/s)
+14:34:31 golden-docs-48 off
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1346 ms (3214.8 tok/s) | decode 1350 ms (34.83 tok/s)
+14:34:34 golden-docs-48 on4
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1283 ms (3371.8 tok/s) | decode 1233 ms (38.11 tok/s)
+14:34:37 golden-docs-256 base
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1351 ms (3202.9 tok/s) | decode 7228 ms (35.28 tok/s)
+14:34:46 golden-docs-256 off
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1407 ms (3074.3 tok/s) | decode 7332 ms (34.78 tok/s)
+14:34:55 golden-docs-256 on4
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1356 ms (3190.6 tok/s) | decode 6537 ms (39.01 tok/s)
+14:35:04 golden-code-48 base
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1227 ms (2930.7 tok/s) | decode 1329 ms (35.36 tok/s)
+14:35:07 golden-code-48 off
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1224 ms (2937.2 tok/s) | decode 1350 ms (34.81 tok/s)
+14:35:10 golden-code-48 on4
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1211 ms (2969.8 tok/s) | decode 1207 ms (38.93 tok/s)
+14:35:12 golden-code-256 base
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1099 ms (3271.7 tok/s) | decode 7210 ms (35.37 tok/s)
+14:35:21 golden-code-256 off
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1089 ms (3302.6 tok/s) | decode 7320 ms (34.84 tok/s)
+14:35:30 golden-code-256 on4
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1097 ms (3277.6 tok/s) | decode 4089 ms (62.36 tok/s)
+14:35:36 repeat-eos base
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 223 ms (157.1 tok/s) | decode 412 ms (36.44 tok/s)
+14:35:37 repeat-eos off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 216 ms (162.4 tok/s) | decode 411 ms (36.48 tok/s)
+14:35:38 repeat-eos on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 220 ms (158.8 tok/s) | decode 139 ms (107.73 tok/s)
+14:35:38 sampled-short-128 base
+  exit 0 finish=length prompt=122 (cached 0) completion=128 | prefill 226 ms (539.5 tok/s) | decode 3607 ms (35.21 tok/s)
+14:35:43 sampled-short-128 off
+  exit 0 finish=length prompt=122 (cached 0) completion=128 | prefill 226 ms (540.0 tok/s) | decode 3611 ms (35.17 tok/s)
+14:35:47 sampled-short-128 on4
+  exit 0 finish=length prompt=122 (cached 0) completion=128 | prefill 223 ms (546.7 tok/s) | decode 3596 ms (35.31 tok/s)
+14:35:51 sampled-grounded-256 base
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 246 ms (1510.5 tok/s) | decode 9691 ms (26.31 tok/s)
+14:36:01 sampled-grounded-256 off
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 243 ms (1529.6 tok/s) | decode 9685 ms (26.33 tok/s)
+14:36:12 sampled-grounded-256 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 246 ms (1506.4 tok/s) | decode 9726 ms (26.22 tok/s)
+14:36:22 sampled-open-min50-stop base
+  exit 0 finish=stop prompt=40 (cached 0) completion=51 | prefill 221 ms (181.3 tok/s) | decode 1919 ms (26.06 tok/s)
+14:36:24 sampled-open-min50-stop off
+  exit 0 finish=stop prompt=40 (cached 0) completion=51 | prefill 223 ms (179.4 tok/s) | decode 1935 ms (25.84 tok/s)
+14:36:27 sampled-open-min50-stop on4
+  exit 0 finish=stop prompt=40 (cached 0) completion=51 | prefill 251 ms (159.5 tok/s) | decode 1897 ms (26.36 tok/s)
+14:36:30 sampled-4k-64 base
+  exit 0 finish=length prompt=4062 (cached 0) completion=64 | prefill 1363 ms (2979.9 tok/s) | decode 1852 ms (34.01 tok/s)
+14:36:33 sampled-4k-64 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=64 | prefill 1266 ms (3209.2 tok/s) | decode 1860 ms (33.87 tok/s)
+14:36:37 sampled-4k-64 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=64 | prefill 1351 ms (3005.9 tok/s) | decode 1854 ms (33.97 tok/s)
+14:36:40 sampled-repeat-eos base
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 232 ms (150.9 tok/s) | decode 571 ms (26.28 tok/s)
+14:36:42 sampled-repeat-eos off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 257 ms (136.3 tok/s) | decode 596 ms (25.16 tok/s)
+14:36:43 sampled-repeat-eos on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 228 ms (153.5 tok/s) | decode 569 ms (26.37 tok/s)
+/opt/code/intarsiaml-cb-m0/docs/results/raw/2026-10-15-metal-cb-m0/serve/base.json {'turn1': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 0}}), 'turn2_stream': ('length', {'prompt_tokens': 186, 'completion_tokens': 64, 'total_tokens': 250, 'prompt_tokens_details': {'cached_tokens': 178}}), 'turn1_again': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 121}}), 'sampled_a': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 0}}), 'sampled_b': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 359}}), 'sampled_stop_min': ('stop', {'prompt_tokens': 122, 'completion_tokens': 50, 'total_tokens': 172, 'prompt_tokens_details': {'cached_tokens': 0}}), 'after_disconnect': ('length', {'prompt_tokens': 122, 'completion_tokens': 32, 'total_tokens': 154, 'prompt_tokens_details': {'cached_tokens': 0}})}
+/opt/code/intarsiaml-cb-m0/docs/results/raw/2026-10-15-metal-cb-m0/serve/off.json {'turn1': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 0}}), 'turn2_stream': ('length', {'prompt_tokens': 186, 'completion_tokens': 64, 'total_tokens': 250, 'prompt_tokens_details': {'cached_tokens': 178}}), 'turn1_again': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 121}}), 'sampled_a': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 0}}), 'sampled_b': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 359}}), 'sampled_stop_min': ('stop', {'prompt_tokens': 122, 'completion_tokens': 50, 'total_tokens': 172, 'prompt_tokens_details': {'cached_tokens': 0}}), 'after_disconnect': ('length', {'prompt_tokens': 122, 'completion_tokens': 32, 'total_tokens': 154, 'prompt_tokens_details': {'cached_tokens': 0}})}
+/opt/code/intarsiaml-cb-m0/docs/results/raw/2026-10-15-metal-cb-m0/serve/on4.json {'turn1': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 0}}), 'turn2_stream': ('length', {'prompt_tokens': 186, 'completion_tokens': 64, 'total_tokens': 250, 'prompt_tokens_details': {'cached_tokens': 178}}), 'turn1_again': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 121}}), 'sampled_a': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 0}}), 'sampled_b': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 359}}), 'sampled_stop_min': ('stop', {'prompt_tokens': 122, 'completion_tokens': 50, 'total_tokens': 172, 'prompt_tokens_details': {'cached_tokens': 0}}), 'after_disconnect': ('length', {'prompt_tokens': 122, 'completion_tokens': 32, 'total_tokens': 154, 'prompt_tokens_details': {'cached_tokens': 0}})}
+fleetq: #2045 done (exit 0)

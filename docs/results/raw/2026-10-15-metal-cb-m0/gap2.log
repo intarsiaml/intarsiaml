@@ -1,0 +1,19 @@
+fleetq: #2072 waiting (#5 in line): in line behind #2065 "cb-m1 step1: attn_block split identity subset (vs 8254311)" (claude-0e8026c5) on endor
+fleetq:   #2065 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2065 set, or it will wait for #2065 to be released.
+fleetq: #2072 waiting (#4 in line): in line behind #2067 "cb-m1 step1: forward_batch bitwise gate Qwen3-8B (B=2..8)" (claude-0e8026c5) on endor
+fleetq:   #2067 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2067 set, or it will wait for #2067 to be released.
+fleetq: #2072 waiting (#3 in line): in line behind #2069 "gemm midm: gates (cargo test metal, kernels test, ids, accuracy, qualify)" (claude-0e8026c5) on endor
+fleetq:   #2069 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2069 set, or it will wait for #2069 to be released.
+fleetq: #2072 waiting (#2 in line): in line behind #2070 "gemm midm: threadgroup swizzle at M=256/512, streamed vs cached weights" (claude-0e8026c5) on endor
+fleetq:   #2070 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2070 set, or it will wait for #2070 to be released.
+fleetq: #2072 waiting (#1 in line): endor is held exclusively by #2070 "gemm midm: threadgroup swizzle at M=256/512, streamed vs cached weights" (claude-0e8026c5)
+fleetq:   #2070 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2070 set, or it will wait for #2070 to be released.
+fleetq: #2072 running on endor: docs/results/raw/2026-10-15-metal-cb-m0/serve-gap/gap_run2.sh
+16:31:47 b1-c556 done
+16:33:45 b2-56ec done
+16:35:44 b3-c556 done
+16:37:42 b4-56ec done
+16:39:40 b5-c556 done
+16:41:38 b6-56ec done
+ALLDONE
+fleetq: #2072 done (exit 0)

@@ -1,0 +1,41 @@
+[localeval] calibrated: 22.0 tokens/sentence, 52 base tokens, ctx=None
+[localeval]    128 tok rep 1/3: prompt=112 ttft=0.05s prefill=2134 tok/s decode=32.2 tok/s peak=32.6 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=111 ttft=0.05s prefill=2095 tok/s decode=32.4 tok/s peak=32.5 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=112 ttft=0.05s prefill=2117 tok/s decode=32.6 tok/s peak=32.7 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.25s prefill=3906 tok/s decode=32.4 tok/s peak=32.5 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.25s prefill=3912 tok/s decode=32.4 tok/s peak=32.6 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=986 ttft=0.25s prefill=3883 tok/s decode=32.2 tok/s peak=32.3 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=1.05s prefill=3895 tok/s decode=31.5 tok/s peak=31.6 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4087 ttft=1.07s prefill=3802 tok/s decode=31.3 tok/s peak=31.5 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.10s prefill=3723 tok/s decode=31.1 tok/s peak=31.8 tok/s out=128
+# localeval: adhoc — 2026-10-15T15:07
+
+- model: `qwen3-8b` on ? (?), url `http://127.0.0.1:8098/v1`
+- thinking: off; run kind: speed; label: cb-m0-new-r3
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8098/v1 --model qwen3-8b --thinking off --sizes 128,1024,4096 --gen 128 --reps 3 --label cb-m0-new-r3`
+- result file: `results/20261015-150747-adhoc-cb-m0-new-r3/result.json`
+
+## Speed sweep
+
+served `Qwen3-8B`, fingerprint `None`, ctx ?, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.05 | 2117 (2095–2134) * | - | 32.4 (32.2–32.6) | 32.6 (32.5–32.7) | - | - | 128 |
+| 990 | 0.25 | 3906 (3883–3912) * | 4368 | 32.4 (32.2–32.4) | 32.5 (32.3–32.6) | - | - | 128 |
+| 4088 | 1.07 | 3802 (3723–3895) | 3769 | 31.3 (31.1–31.5) | 31.6 (31.5–31.8) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-150747-adhoc-cb-m0-new-r3/result.json
+[localeval] logged to unanimis: 20da4bd7-e441-4654-8215-c1975dc85555
