@@ -1,0 +1,6 @@
+date: 2026-10-15T02:37:17-04:00
+cand head: a65664d286ae73b151dc4dcbfc82229a24014c71
+safe head: a2102bf3ce2ac7f6ff7357e229ea0a0670087c87
+cand binary: -rwxr-xr-x@ 1 josef  wheel  16547904 Oct 15 02:36 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/final/intarsia-cand
+safe binary: -rwxr-xr-x@ 1 josef  wheel  16547904 Oct 15 02:36 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/final/intarsia-safe
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
