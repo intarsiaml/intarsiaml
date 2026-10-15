@@ -1,0 +1,19 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded Qwen3-8B on Apple M5 Max in 0.9s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 40 tokens
+spec: token 3 pos 41 drafted 4 accepted 0 emits 1
+spec: token 6 pos 44 drafted 4 accepted 1 emits 2
+spec: token 10 pos 48 drafted 4 accepted 1 emits 2
+spec: token 19 pos 57 drafted 4 accepted 0 emits 1
+spec: token 24 pos 62 drafted 4 accepted 0 emits 1
+spec: token 31 pos 69 drafted 4 accepted 0 emits 1
+spec: token 42 pos 80 drafted 4 accepted 0 emits 1
+spec: token 64 pos 102 drafted 4 accepted 0 emits 1
+spec: token 97 pos 135 drafted 4 accepted 0 emits 1
+spec: token 162 pos 200 drafted 4 accepted 0 emits 1
+spec: token 227 pos 265 drafted 4 accepted 0 emits 1
+ids: [1925, 264, 13458, 88, 12406, 3729, 11, 279, 326, 57909, 518, 5126, 48693, 28347, 12336, 7469, 398, 11, 1181, 23418, 19962, 2348, 279, 1246, 2718, 9956, 13, 85656, 23736, 11, 279, 326, 57909, 53416, 11, 1030, 1012, 7484, 369, 1635, 11, 806, 1172, 2813, 279, 9396, 323, 279, 27861, 65491, 2603, 13, 1988, 17913, 11, 2494, 572, 2155, 382, 2121, 566, 23368, 279, 27962, 11, 264, 37578, 17486, 273, 10199, 279, 3720, 13, 85656, 89009, 13, 1260, 1030, 2581, 6617, 4113, 1075, 432, 13, 576, 8286, 572, 7469, 11, 4558, 1075, 264, 34855, 11, 323, 432, 3697, 504, 264, 5106, 902, 8284, 1030, 3512, 1012, 3881, 311, 5821, 382, 16704, 1223, 11, 566, 6519, 389, 279, 2310, 8887, 11, 1181, 27860, 272, 1108, 287, 438, 566, 23368, 432, 13, 576, 8286, 13938, 16245, 11, 323, 1221, 2293, 5761, 13, 2806, 304, 894, 4128, 566, 14975, 11, 714, 807, 11691, 264, 14888, 36290, 11, 4558, 17795, 13, 1084, 572, 438, 421, 279, 9396, 5086, 572, 12094, 382, 36, 71829, 7578, 304, 806, 272, 1108, 287, 10496, 11, 4746, 69527, 13, 1260, 6679, 311, 1618, 1182, 11, 714, 279, 8286, 572, 8048, 13, 1260, 6679, 1549, 11, 323, 1549, 11, 714, 279, 1099, 5927, 11, 323, 448, 432, 11, 264, 501, 1943, 25, 353, 2073, 28851, 311, 279, 30184, 1987, 21518, 785, 1790, 6556, 11, 279, 13458, 1030, 5823, 11, 9380, 279, 9396, 43272, 1541, 19300, 13, 85656, 19375, 264, 2613, 8968, 323, 738, 700, 389, 4478, 11, 2701, 279, 8286, 748, 5106, 13, 1260, 8643, 264, 88015]
+finish=length prompt=40 (cached 0) completion=256 | prefill 337 ms (118.7 tok/s) | decode 8451 ms (30.17 tok/s)
+spec: verify passes=11 proposed=44 accepted=2 (acceptance 4.5%, 1.18 tokens per pass)
+steps=254 graph replays=0 (captures 0) eager decode steps=242 (profiled 0) top ops: argmax=0ms/254 attn_decode=0ms/8712 attn_prefill=0ms/432 embedding=0ms/254 logits=0ms/254

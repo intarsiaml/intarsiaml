@@ -1,0 +1,107 @@
+Here is a Rust source file excerpt.
+
+```rust
+                job.req.prompt.len(),
+                0,
+                0,
+                t_total.elapsed(),
+                Duration::ZERO,
+                t_total.elapsed(),
+            );
+            let _ = job.tx.send(GenEvent::Error { message: e.to_string() });
+        }
+    }
+}
+
+fn common_prefix(a: &[u32], b: &[u32]) -> usize {
+    a.iter().zip(b).take_while(|(x, y)| x == y).count()
+}
+
+fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEvent>) -> Result<Outcome> {
+    let Inner { model, state: st } = g;
+    let plen = req.prompt.len();
+    if plen == 0 {
+        return Err(Error::BadRequest("empty prompt".into()));
+    }
+    if plen >= st.cap {
+        return Err(Error::BadRequest(format!(
+            "prompt of {plen} tokens does not fit the context window of {} tokens",
+            st.cap
+        )));
+    }
+    let max_new = req.max_tokens.min(st.cap - plen);
+
+    // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
+    let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
+    if st.has_recurrent() {
+        // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
+        // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
+        p = st.restorable_len(p);
+    }
+    st.truncate(p, &*model.backend)?;
+    let cached = p;
+
+    let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
+    let greedy = req.temperature <= 0.0;
+    let mut sampler = Sampler::new(params, req.seed);
+    let mut stop_ids: Vec<u32> = req.stop_ids.clone();
+    if !req.ignore_eos {
+        stop_ids.extend_from_slice(&sh.eos);
+    }
+
+    // choose how to get the next token: argmax on device when nothing needs the logits
+    let pick = |model: &Model, st: &mut SequenceState, ids: &[u32], k: usize, sampler: &mut Sampler| -> Result<u32> {
+        // The logits only travel to the host when something uses them: sampling, or the min_tokens
+        // mask on stop ids. With `ignore_eos` (no stop ids) a forced-length greedy run keeps the
+        // on-device argmax, so forced-length speed benchmarks measure the real decode path.
+        let masks_stop_ids = k <= req.min_tokens && !stop_ids.is_empty();
+        let need_logits = !greedy || masks_stop_ids;
+        if !need_logits {
+            return match model.forward(st, ids, HeadMode::LastArgmax, None)? {
+                StepOut::Token(t) => Ok(t),
+                _ => Err(Error::Other("backend returned no token".into())),
+            };
+        }
+        match model.forward(st, ids, HeadMode::LastLogits, None)? {
+            StepOut::Logits(mut l) => {
+                if k <= req.min_tokens {
+                    for &s in &stop_ids {
+                        if let Some(x) = l.get_mut(s as usize) {
+                            *x = f32::NEG_INFINITY;
+                        }
+                    }
+                }
+                Ok(sampler.sample(&l) as u32)
+            }
+            _ => Err(Error::Other("backend returned no logits".into())),
+        }
+    };
+
+    let cancelled = || req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed));
+    let t0 = Instant::now();
+    let cancel_outcome = |p: usize| Outcome {
+        reason: FinishReason::Cancelled,
+        stop_sequence: None,
+        prompt_tokens: plen,
+        completion_tokens: 0,
+        cached_tokens: p,
+        prefill: t0.elapsed(),
+        decode: Duration::ZERO,
+    };
+    if max_new == 0 {
+        return Ok(Outcome {
+            reason: FinishReason::Length,
+            stop_sequence: None,
+            prompt_tokens: plen,
+            completion_tokens: 0,
+            cached_tokens: cached,
+            prefill: Duration::ZERO,
+            decode: Duration::ZERO,
+        });
+    }
+    // Prefill all but the last chunk here so a cancel is noticed between chunks.
+    let chunk = model.prefill_chunk().max(1);
+    let mut pos = p;
+```
+
+Rename the function `common_prefix` to `shared_prefix_len` and update every call in this file. Output the complete modified code in one Rust code block and nothing else.

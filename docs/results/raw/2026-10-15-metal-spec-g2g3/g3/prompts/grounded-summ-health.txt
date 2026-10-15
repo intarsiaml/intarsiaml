@@ -1,0 +1,64 @@
+Document:
+
+## Health, watchdog and supervisor
+
+`GET /health` answers 200 `{"status":"ok"}`, or 503 with `"status":"failed"` (the engine worker
+panicked; every new request is refused with 503 too) or `"status":"stalled"` (work is queued or
+running but the engine step counter has not moved for `--watchdog-s`, default 60). A hung kernel
+keeps `/metrics` and `/health` answering at the HTTP layer, which is why the heartbeat is the step
+counter and not the socket. The body also carries `no_progress_s`, `running`, `waiting`, `max_queue`.
+
+`intarsia serve` is a supervisor by default: it starts `intarsia serve --child ...` and restarts it
+with doubling backoff (`--restart-backoff-s`, up to 30 s; reset after 60 s of healthy running) when
+the child dies. The child exits by itself with a distinct code when its watchdog trips:
+
+| exit code | meaning | supervisor |
+|---|---|---|
+| 0 | clean shutdown (SIGTERM/Ctrl-C) | exits 0 |
+| 2, 78 | bad command line, model or recipe did not load | exits, no restart |
+| 86 | watchdog: no engine step for `--watchdog-s` with work queued | restart |
+| 87 | engine worker failed (panic) | restart |
+| 88 | the supervisor vanished | (child gone) |
+| other / signal | crash, OOM kill | restart |
+
+A wedged CUDA context has sticky errors, so a fresh process is the only recovery. SIGTERM to the
+supervisor is forwarded to the child (30 s grace, then SIGKILL). `--no-supervisor` runs the server in
+the foreground without restarts, for debugging: the watchdog then only turns `/health` to 503.
+
+Debug hooks (worker thread, any build): `INTARSIA_DEBUG_STALL_S=n` sleeps n seconds at the start of
+every request (forces a stall); `INTARSIA_DEBUG_PANIC=1` panics there. For testing the watchdog only.
+
+Overload: at most one request runs and `--max-queue` (default 64) wait; the next gets HTTP 429 with
+`Retry-After: 1` (`rate_limit_error` in both dialects). A client that disconnects cancels its request:
+the engine checks the flag while queued, between prefill chunks and between decode steps, so a
+cancelled 16k-token prefill frees the worker after the current chunk. `max_tokens` defaults to what is
+left of the context, at most `--default-max-tokens` (4096; 0 = context only).
+
+`GET /v1/intarsia/plan` returns the engine's execution plan (`Engine::plan()`): model, backend,
+device, exactness, `layers[]` (index, kind, blocks) and `ops[]` (op, kernel, backend, exactness,
+admitted, `calls_per_decode_step`). `null` when the engine has no plan. The `op` strings match the
+keys of `ops` in the telemetry snapshot.
+
+Scrape setup. The existing Prometheus in `/opt/code/missioncntrl_/deploy/monitoring/prometheus.yml`
+has global `scrape_interval: 15s` and one job, `missioncntrl`, that uses a bearer token and
+`metrics_path: /api/prometheus`. `intarsia serve` has no auth in Phase 0 and serves the default
+`/metrics` path, so add a separate job (also in `deploy/grafana/prometheus-scrape.yml`):
+
+```yaml
+scrape_configs:
+  # ... existing missioncntrl job unchanged ...
+  - job_name: intarsia
+    metrics_path: /metrics
+    scrape_interval: 5s          # per-job override; the 15s global default also works
+    static_configs:
+      - targets: ["spark-4e77:8090"]
+        labels: { host: spark1 }
+```
+
+The Prometheus container must be able to reach spark1:8090 and the server must listen on a
+reachable interface (`intarsia serve --host 0.0.0.0`; the default is loopback). It is unauthenticated,
+so keep it on the LAN or the tailnet. Check with `curl -s spark-4e77:8090/metrics | head` and, in
+Prometheus, `up{job="intarsia"}`.
+
+
+Summarise this document section in about 200 words. Quote at least six key sentences or phrases verbatim, in quotation marks, and say what each one means.

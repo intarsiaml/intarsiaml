@@ -1,0 +1,110 @@
+Here is a Rust source file excerpt.
+
+```rust
+pub struct IncrementalDecoder {
+    ids: Vec<u32>,
+    prefix: usize,
+    read: usize,
+}
+
+impl Default for IncrementalDecoder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl IncrementalDecoder {
+    pub fn new() -> Self {
+        IncrementalDecoder { ids: Vec::new(), prefix: 0, read: 0 }
+    }
+
+    pub fn push(&mut self, codec: &dyn TextCodec, id: u32) -> Result<String> {
+        self.ids.push(id);
+        let prefix_text = codec.decode(&self.ids[self.prefix..self.read], true)?;
+        let new_text = codec.decode(&self.ids[self.prefix..], true)?;
+        if new_text.len() > prefix_text.len() && !new_text.ends_with('\u{FFFD}') {
+            if let Some(delta) = new_text.get(prefix_text.len()..) {
+                let delta = delta.to_string();
+                self.prefix = self.read;
+                self.read = self.ids.len();
+                return Ok(delta);
+            }
+        }
+        Ok(String::new())
+    }
+
+    /// Remaining text (lossy) at the end of the stream.
+    pub fn flush(&mut self, codec: &dyn TextCodec) -> Result<String> {
+        let prefix_text = codec.decode(&self.ids[self.prefix..self.read], true)?;
+        let new_text = codec.decode(&self.ids[self.prefix..], true)?;
+        self.prefix = self.ids.len();
+        self.read = self.ids.len();
+        Ok(new_text.get(prefix_text.len()..).unwrap_or("").to_string())
+    }
+}
+
+/// Holds back text that could still become a stop string.
+pub struct StopMatcher {
+    stops: Vec<String>,
+    pending: String,
+    matched: Option<String>,
+}
+
+impl StopMatcher {
+    pub fn new(stops: &[String]) -> Self {
+        StopMatcher { stops: stops.iter().filter(|s| !s.is_empty()).cloned().collect(), pending: String::new(), matched: None }
+    }
+
+    /// The stop string that triggered the last `push` (if it stopped).
+    pub fn matched(&self) -> Option<&str> {
+        self.matched.as_deref()
+    }
+
+    /// Returns (text safe to release, stopped).
+    pub fn push(&mut self, text: &str) -> (String, bool) {
+        if self.stops.is_empty() {
+            return (text.to_string(), false);
+        }
+        self.pending.push_str(text);
+        let hit = self.stops.iter().filter_map(|s| self.pending.find(s.as_str()).map(|i| (i, s))).min_by_key(|h| h.0);
+        if let Some((i, s)) = hit {
+            self.matched = Some(s.clone());
+            let out = self.pending[..i].to_string();
+            self.pending.clear();
+            return (out, true);
+        }
+        let mut keep = 0usize;
+        for s in &self.stops {
+            for k in (1..s.len()).rev() {
+                if k <= keep {
+                    break;
+                }
+                if s.is_char_boundary(k) && self.pending.ends_with(&s[..k]) {
+                    keep = k;
+                    break;
+                }
+            }
+        }
+        let rel = self.pending.len() - keep;
+        let out: String = self.pending.drain(..rel).collect();
+        (out, false)
+    }
+
+    pub fn flush(&mut self) -> String {
+        std::mem::take(&mut self.pending)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// LocalEngine
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Default)]
+pub struct EngineMeta {
+    pub id: String,
+    pub eos_ids: Vec<u32>,
+    pub reasoning_parser: Option<String>,
+    pub tool_parser: Option<String>,
+```
+
+Add a `///` doc comment to every function, struct and impl in this file that lacks one. Output the complete modified code in one Rust code block and nothing else.

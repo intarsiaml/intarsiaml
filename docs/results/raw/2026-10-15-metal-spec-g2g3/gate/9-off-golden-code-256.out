@@ -1,0 +1,28 @@
+.clone(),
+            failed: Mutex::new(None),
+        });
+
+        let (tx, rx) = channel();
+        let worker = std::thread::spawn(move || {
+            debug_hooks();
+            while let Ok(job) = rx.recv() {
+                let shared = shared.clone();
+                let job = job.clone();
+                let mut inner = shared.inner.lock().unwrap();
+                let mut state = inner.state.clone();
+                let model = inner.model.clone();
+                let mut seq = model.new_sequence()?;
+                let mut seq_state = state.get_mut(&seq.id).unwrap();
+                let mut seq_state = seq_state.lock().unwrap();
+                let mut seq_state = seq_state.state.lock().unwrap();
+                let mut seq_state = seq_state.state;
+                let mut seq_state = seq_state.lock().unwrap();
+                let mut seq_state = seq_state.state;
+                let mut seq_state = seq_state.lock().unwrap();
+                let mut seq_state = seq_state.state;
+                let mut seq_state = seq_state.lock().unwrap();
+                let mut seq_state = seq_state.state;
+                let mut seq_state = seq_state.lock().unwrap();
+                let mut seq_state = seq_state.state;
+                let mut seq_state = seq_state.lock().unwrap();
+                let mut seq_state =

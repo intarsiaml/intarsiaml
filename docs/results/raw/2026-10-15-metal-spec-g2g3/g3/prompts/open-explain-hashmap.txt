@@ -1,0 +1,1 @@
+Explain how a hash map works internally, including collisions and resizing, to someone who has only used arrays.

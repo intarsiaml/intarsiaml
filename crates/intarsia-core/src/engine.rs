@@ -855,6 +855,8 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
     let mut plain_next = false;
     // prompt + tokens so far: the drafter's lookup context
     let mut ctx: Vec<u32> = if spec_on { req.prompt.clone() } else { Vec::new() };
+    // stops drafting where it does not pay (open-ended text), see `spec::GateParams`
+    let mut gate = crate::spec::SpecGate::new(crate::spec::GateParams::from_env());
     loop {
         generated += 1;
         if spec_on {
@@ -891,14 +893,15 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
             tok = t;
             continue;
         }
-        if spec_on && !std::mem::take(&mut plain_next) {
+        if spec_on && !std::mem::take(&mut plain_next) && gate.allow() {
             // verify feeds 1 + d tokens: keep them inside the context window
             let room = st.cap.saturating_sub(st.len + 1);
-            let drafts = crate::spec::propose(&ctx, spec_k.min(room));
+            let drafts = crate::spec::propose_min(&ctx, spec_k.min(room), gate.min_n());
             if !drafts.is_empty() {
                 let pos = st.len;
                 let step = spec_verify(model, st, tok, &drafts, generated, req.min_tokens, &stop_ids)?;
                 sh.telemetry.spec_step(drafts.len(), step.accepted);
+                gate.record(step.accepted);
                 if crate::spec::trace_enabled() {
                     eprintln!(
                         "spec: token {} pos {} drafted {} accepted {} emits {}{}",

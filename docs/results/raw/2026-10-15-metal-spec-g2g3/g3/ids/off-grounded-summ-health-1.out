@@ -1,0 +1,8 @@
+The document explains the health monitoring, supervision, and metrics setup for the `intarsia serve` system. It outlines how the `/health` endpoint responds with different status codes, such as "ok", "failed", or "stalled", depending on the system's state. The system uses a supervisor to manage child processes, restarting them with backoff if they fail. Key exit codes are defined, such as "86" for watchdog timeouts and "87" for worker panics, which trigger restarts. The watchdog mechanism ensures the system remains responsive, and a fresh process is required to recover from a wedged CUDA context.
+
+The `/v1/intarsia/plan` endpoint provides detailed execution plans, including model and backend information. The document also covers Prometheus scraping setup, including a new job for `intarsia` metrics and the need for proper network configuration. It emphasizes the importance of the `--host` flag to ensure the server is accessible.
+
+Key quotes and their meanings:
+
+- "GET /health answers 200 `{"status":"ok"}`" – The health endpoint returns a 200 status with "ok" if the system is functioning normally.
+- "the engine step counter has not moved for `--watchdog
