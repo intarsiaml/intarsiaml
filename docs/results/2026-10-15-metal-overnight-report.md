@@ -32,7 +32,7 @@ SAFE against each criterion:
 | Decode vs llama.cpp | +3.7 to +5.1% | not below it: PASS |
 | Prefill vs mlx-lm (1k / 4k) | 95% / 101% | committed ≥ 50%, target ≥ 65%, stretch ≥ 85%: all PASS |
 
-**Why prefill numbers swung earlier in the night:** the GPU sometimes drops from about 1600 MHz / 90 W to 900–1300 MHz / 20–50 W in the middle of a prefill, for reasons not yet found (no thermal warning, and the low-power setting is already off). The serve path itself adds only 1–8 ms ([2026-10-15-metal-serve-prefill.md](2026-10-15-metal-serve-prefill.md)). In this slot it hit 1 pass of 12 (SAFE round 1: 4k at 2196 tok/s, against 3494–3501 in its other two passes). The medians above absorb it; dropping that pass moves no ratio by more than 0.2 points. The earlier 02:42 slot, where the 4k stretch held only on a mean of two runs, was this effect.
+**Why prefill numbers swung earlier in the night:** the GPU sometimes drops from about 1600 MHz / 90 W to 900–1300 MHz / 20–50 W in the middle of a prefill, for reasons not yet found (no thermal warning, and the low-power setting is already off). The serve path itself adds only 1–8 ms ([2026-10-15-metal-serve-prefill.md](2026-10-15-metal-serve-prefill.md)). In this slot it hit 1 pass of 12 (SAFE round 1: 4k at 2196 tok/s, against 3494–3501 in its other two passes). The medians above absorb it; dropping that pass moves no ratio by more than 0.2 points. The earlier 02:42 slot, where the 4k stretch held only on a mean of two runs, had no clock logging; its SAFE dip is consistent with this effect. CAND's 4k also varies by about 20% at full clock (3143–3869 tok/s at 1533–1606 MHz), cause unknown, so its 75% run then may be that instead.
 
 **Caveats:**
 - The thinnest margin is decode 4k at 87.6% of the floor, 2.6 points above the line.
@@ -56,7 +56,7 @@ SAFE against each criterion:
 
 ## Change since yesterday
 
-All rows are same-slot localeval runs.
+Each row is its own same-slot localeval run; rows come from different slots and machine states.
 
 | | decode 128 / 1k / 4k | prefill 1k / 4k |
 |---|---|---|
@@ -90,13 +90,13 @@ On the F1b top-1 number, its agent notes that kernels with equal maths span 1426
 ## Held for your decision
 
 1. **P3: Metal prefill chunk 2048** (`metal-p3-chunk`; integrated as `metal-candidate2`, which is `a2102bf` plus P3).
-   - **What it buys:** plain prefill 1.17x at 1k, 1.12x at 4k and 1.07x at 16k. Serve-path prefill +8% at 1k (all 3 passes ahead, no overlap); at 4k +6% on the median but one of 3 passes was 10% below SAFE, so 4k is unresolved. Accuracy and greedy ids are identical.
+   - **What it buys:** plain prefill 1.17x at 1k, 1.12x at 4k and 1.07x at 16k. Serve-path prefill +8% at 1k (all 3 passes ahead, no overlap); at 4k +6% on the median but one of 3 passes was 10% below SAFE, because CAND 4k varies 3143–3869 tok/s even at full GPU clock, for a reason not found. 4k serve is unresolved. Accuracy and greedy ids are identical.
    - **Why it's held:** fresh `qualify` FAILs `acc-long` on the prefix-reuse gate. The longest long-golden prompt is 700 tokens, and any chunk above about 350 skips every prompt, which counts as a fail. It is a coverage gap, not a regression.
    - **Options:**
      - (a) Build a Qwen3-8B fp32 golden with 4k prompts (`tools/prompts/golden_4k.jsonl` exists). This needs spark1 with vLLM taken down (`--takes-down flight,guidance,capcom`, see the incident below), or an fp32 run on endor's CPU.
      - (b) Accept 2048 with the gap.
      - (c) Keep 256 for now.
-   - **My recommendation:** (c) today, then (a) soon: the gain is now consistently 7–17% in plain prefill, which is worth closing the gate for. (a) on spark1 takes the vLLM roles down for the run; on endor's CPU it is slower but takes nothing down.
+   - **My recommendation:** (c) today, then (a) soon: the gain is 7–17% in plain prefill and +8% at 1k serve, which is worth closing the gate for. (a) on spark1 takes the vLLM roles down for the run; on endor's CPU it is slower but takes nothing down.
 2. **Push and merge to main.** `spike/metal` is local only.
 3. **CUDA/HIP no-op check.** No `intarsia-core` file changed tonight. P1, P2, P4/P5 and F1b touched only the Metal backend crate, Metal kernels and docs. The last check (`a296a78`) therefore still covers the core. A re-run is optional.
 
