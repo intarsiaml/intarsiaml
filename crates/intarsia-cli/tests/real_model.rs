@@ -1,7 +1,7 @@
 //! End-to-end check on a real checkpoint. Skipped unless a model directory is
 //! available: set INTARSIA_TEST_MODEL, or have the Qwen3-Reranker-0.6B snapshot in the HF cache.
 
-use intarsia_core::{Engine, GenEvent, GenRequest};
+use intarsia_core::{GenEvent, GenRequest};
 use std::path::PathBuf;
 
 fn model_dir() -> Option<PathBuf> {

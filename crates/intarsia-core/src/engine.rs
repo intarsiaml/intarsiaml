@@ -116,6 +116,10 @@ pub enum GenEvent {
         prefill_ms: f64,
         /// Time spent producing tokens after the first.
         decode_ms: f64,
+        /// Prefill chunk size the prompt was processed with (the batched engine picks 256 or the model's chunk per
+        /// request, see `scheduler::SchedulerConfig`; the single-sequence engine always uses the model's). `None`:
+        /// not known.
+        prefill_chunk: Option<usize>,
     },
     /// The request failed (bad request, backend error); no `Done` follows.
     Error { message: String },
@@ -234,6 +238,11 @@ pub trait Engine: Send + Sync {
         None
     }
 
+    /// Scheduler metrics of a batching engine (`None` for the single-sequence engine).
+    fn batch_metrics(&self) -> Option<crate::scheduler::BatchMetrics> {
+        None
+    }
+
     /// The execution plan (served at `GET /v1/intarsia/plan`); `Null` when the engine has none.
     fn plan(&self) -> Value {
         Value::Null
@@ -340,6 +349,9 @@ impl StopMatcher {
     }
 }
 
+mod batch;
+pub use batch::{BatchedEngine, BatchedOptions};
+
 // ---------------------------------------------------------------------------
 // LocalEngine
 // ---------------------------------------------------------------------------
@@ -374,6 +386,24 @@ impl Shared {
     fn failure(&self) -> Option<String> {
         self.failed.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
+
+    fn env(&self) -> SeqEnv {
+        SeqEnv {
+            codec: self.codec.clone(),
+            telemetry: self.telemetry.clone(),
+            eos: self.eos.clone(),
+            spec: self.spec,
+        }
+    }
+}
+
+/// What a [`Seq`] needs from its engine besides the model: shared by the single-sequence engine and the batched one.
+#[derive(Clone)]
+pub(crate) struct SeqEnv {
+    pub(crate) codec: Arc<dyn TextCodec>,
+    pub(crate) telemetry: Arc<Telemetry>,
+    pub(crate) eos: Vec<u32>,
+    pub(crate) spec: crate::spec::SpecConfig,
 }
 
 /// Debug aid: `INTARSIA_DEBUG_STALL_S=n` makes the worker sleep n seconds at the start of every
@@ -398,6 +428,43 @@ fn panic_message(p: &(dyn std::any::Any + Send)) -> String {
 struct Job {
     req: GenRequest,
     tx: Sender<GenEvent>,
+}
+
+/// The [`ModelInfo`] an engine over `model` reports; `context_len` is the token capacity of one sequence.
+pub(crate) fn build_info(
+    model: &Model,
+    dinfo: &crate::backend::DeviceInfo,
+    meta: &EngineMeta,
+    codec: &dyn TextCodec,
+    context_len: usize,
+) -> ModelInfo {
+    ModelInfo {
+        id: meta.id.clone(),
+        family: model.recipe.model.family.clone(),
+        backend: dinfo.backend.clone(),
+        device: if model.tp_world() > 1 {
+            format!("{} x{} (tp={}, {} comm)", dinfo.name, model.tp_world(), model.tp_world(), model.comm_name().unwrap_or_default())
+        } else {
+            dinfo.name.clone()
+        },
+        arch: dinfo.arch.clone(),
+        n_layers: model.dims.n_layers,
+        hidden: model.dims.hidden,
+        vocab: model.dims.vocab,
+        n_heads: model.dims.n_heads,
+        n_kv_heads: model.dims.n_kv_heads,
+        head_dim: model.dims.head_dim,
+        max_position_embeddings: model.dims.max_positions,
+        context_len,
+        act_dtype: model.act.name().into(),
+        kv_dtype: model.kv.name().into(),
+        weights_bytes: model.weights_bytes,
+        eos_ids: meta.eos_ids.clone(),
+        has_chat_template: codec.has_chat_template(),
+        reasoning_parser: meta.reasoning_parser.clone(),
+        tool_parser: meta.tool_parser.clone(),
+        memory_plan: model.plan.clone(),
+    }
 }
 
 /// Single-sequence engine: a worker thread draining a FIFO queue.
@@ -432,33 +499,7 @@ impl LocalEngine {
             }
         }
         let dinfo = model.backend.info();
-        let info = ModelInfo {
-            id: meta.id.clone(),
-            family: model.recipe.model.family.clone(),
-            backend: dinfo.backend.clone(),
-            device: if model.tp_world() > 1 {
-                format!("{} x{} (tp={}, {} comm)", dinfo.name, model.tp_world(), model.tp_world(), model.comm_name().unwrap_or_default())
-            } else {
-                dinfo.name.clone()
-            },
-            arch: dinfo.arch.clone(),
-            n_layers: model.dims.n_layers,
-            hidden: model.dims.hidden,
-            vocab: model.dims.vocab,
-            n_heads: model.dims.n_heads,
-            n_kv_heads: model.dims.n_kv_heads,
-            head_dim: model.dims.head_dim,
-            max_position_embeddings: model.dims.max_positions,
-            context_len: state.cap,
-            act_dtype: model.act.name().into(),
-            kv_dtype: model.kv.name().into(),
-            weights_bytes: model.weights_bytes,
-            eos_ids: meta.eos_ids.clone(),
-            has_chat_template: codec.has_chat_template(),
-            reasoning_parser: meta.reasoning_parser.clone(),
-            tool_parser: meta.tool_parser.clone(),
-            memory_plan: model.plan.clone(),
-        };
+        let info = build_info(&model, &dinfo, &meta, &*codec, state.cap);
         let plan = crate::plan::plan_json(&model, &meta.id);
         telemetry.set_model(&meta.id, dinfo, model.weights_bytes);
         let backend = model.backend.clone();
@@ -631,6 +672,36 @@ pub(crate) struct Outcome {
     decode: Duration,
 }
 
+/// Report a finished request: telemetry, then the `Done` event. Shared by the single-sequence worker and the batched
+/// engine so the two cannot drift. `chunk` is the prefill chunk size the request's prompt was processed with.
+pub(crate) fn report_done(telemetry: &Telemetry, tx: &Sender<GenEvent>, o: Outcome, chunk: usize) {
+    telemetry.request_finished(
+        o.reason.as_str(),
+        o.prompt_tokens,
+        o.completion_tokens,
+        o.cached_tokens,
+        o.prefill,
+        o.decode,
+        o.prefill,
+    );
+    let _ = tx.send(GenEvent::Done {
+        finish_reason: o.reason,
+        prompt_tokens: o.prompt_tokens,
+        completion_tokens: o.completion_tokens,
+        cached_tokens: o.cached_tokens,
+        stop_sequence: o.stop_sequence,
+        prefill_ms: o.prefill.as_secs_f64() * 1e3,
+        decode_ms: o.decode.as_secs_f64() * 1e3,
+        prefill_chunk: Some(chunk),
+    });
+}
+
+/// Report a failed request (one that had started): telemetry, then the `Error` event.
+pub(crate) fn report_error(telemetry: &Telemetry, tx: &Sender<GenEvent>, plen: usize, elapsed: Duration, e: &Error) {
+    telemetry.request_finished("error", plen, 0, 0, elapsed, Duration::ZERO, elapsed);
+    let _ = tx.send(GenEvent::Error { message: e.to_string() });
+}
+
 fn run_job(sh: &Shared, job: Job) {
     sh.telemetry.request_started();
     let t_total = Instant::now();
@@ -640,41 +711,12 @@ fn run_job(sh: &Shared, job: Job) {
     let mut g = sh.inner.lock().unwrap();
     let res = generate_one(sh, &mut g, req, tx.clone());
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
+    let chunk = g.model.prefill_chunk();
     drop(g);
     sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
     match res {
-        Ok(o) => {
-            sh.telemetry.request_finished(
-                o.reason.as_str(),
-                o.prompt_tokens,
-                o.completion_tokens,
-                o.cached_tokens,
-                o.prefill,
-                o.decode,
-                o.prefill,
-            );
-            let _ = tx.send(GenEvent::Done {
-                finish_reason: o.reason,
-                prompt_tokens: o.prompt_tokens,
-                completion_tokens: o.completion_tokens,
-                cached_tokens: o.cached_tokens,
-                stop_sequence: o.stop_sequence,
-                prefill_ms: o.prefill.as_secs_f64() * 1e3,
-                decode_ms: o.decode.as_secs_f64() * 1e3,
-            });
-        }
-        Err(e) => {
-            sh.telemetry.request_finished(
-                "error",
-                plen,
-                0,
-                0,
-                t_total.elapsed(),
-                Duration::ZERO,
-                t_total.elapsed(),
-            );
-            let _ = tx.send(GenEvent::Error { message: e.to_string() });
-        }
+        Ok(o) => report_done(&sh.telemetry, &tx, o, chunk),
+        Err(e) => report_error(&sh.telemetry, &tx, plen, t_total.elapsed(), &e),
     }
 }
 
@@ -693,10 +735,10 @@ struct SpecStep {
     plain_next: bool,
 }
 
-/// Most sequences `--max-batch` may ask for: `LocalEngine` decodes one sequence at a time. The batching scheduler
-/// (docs/research/continuous-batching-design.md, M1) raises it; the model side (`Model::enable_batch`) is ready for
-/// up to `Model::BATCH_MAX_ROWS`.
-pub const SERVE_MAX_BATCH: usize = 1;
+/// Most sequences `--max-batch` may ask for: the batching scheduler (docs/research/continuous-batching-design.md, M1)
+/// decodes up to `Model::BATCH_MAX_ROWS` together on backends with row-exact multi-row kernels (Metal); `--max-batch 1`
+/// keeps the single-sequence `LocalEngine`.
+pub const SERVE_MAX_BATCH: usize = crate::scheduler::MAX_BATCH_CAP;
 
 /// One verify pass over `[last, drafts...]` at `st.len` (token `generated + 1` is row 0's), greedy acceptance, KV
 /// rollback of the rejected rows. Inside the `min_tokens` window the sequential path masks the stop ids before its
@@ -788,6 +830,8 @@ pub(crate) struct Seq {
     // tokens, so EOS / stop ids, stop strings, min_tokens and max_tokens act on them exactly the same way.
     spec_on: bool,
     spec_k: usize,
+    /// The batching scheduler withholds drafting (batch too large); set per step by [`Seq::set_spec_allowed`].
+    spec_paused: bool,
     pending: std::collections::VecDeque<u32>,
     /// The next token must come from a plain step (a verify row inside the min_tokens mask chose a stop id).
     plain_next: bool,
@@ -797,20 +841,24 @@ pub(crate) struct Seq {
     gate: crate::spec::SpecGate,
 }
 
+/// Reject prompts a sequence of capacity `cap` cannot take.
+fn check_prompt(plen: usize, cap: usize) -> Result<()> {
+    if plen == 0 {
+        return Err(Error::BadRequest("empty prompt".into()));
+    }
+    if plen >= cap {
+        return Err(Error::BadRequest(format!(
+            "prompt of {plen} tokens does not fit the context window of {cap} tokens"
+        )));
+    }
+    Ok(())
+}
+
 impl Seq {
     /// Validate the request and reuse the KV prefix `st` holds (truncating it to what is reused).
     fn new(sh: &Shared, model: &Model, st: &mut SequenceState, req: GenRequest, tx: Sender<GenEvent>) -> Result<Seq> {
         let plen = req.prompt.len();
-        if plen == 0 {
-            return Err(Error::BadRequest("empty prompt".into()));
-        }
-        if plen >= st.cap {
-            return Err(Error::BadRequest(format!(
-                "prompt of {plen} tokens does not fit the context window of {} tokens",
-                st.cap
-            )));
-        }
-        let max_new = req.max_tokens.min(st.cap - plen);
+        check_prompt(plen, st.cap)?;
 
         // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
         let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
@@ -821,29 +869,38 @@ impl Seq {
         }
         st.truncate(p, &*model.backend)?;
 
+        let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), st.has_recurrent());
+        seq.admit(p, st.cap)?;
+        Ok(seq)
+    }
+
+    /// Construct the per-request machinery (sampler, stop ids, stop matcher, speculation switches) without touching
+    /// any KV state. `verify_rows` and `recurrent` describe the model and state the sequence will run on. Pair with
+    /// [`Seq::admit`] once the slot and its reusable prefix are known.
+    pub(crate) fn build(env: &SeqEnv, req: GenRequest, tx: Sender<GenEvent>, verify_rows: usize, recurrent: bool) -> Seq {
+        let plen = req.prompt.len();
         let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
         let greedy = req.temperature <= 0.0;
         let sampler = Sampler::new(params, req.seed);
         let mut stop_ids: Vec<u32> = req.stop_ids.clone();
         if !req.ignore_eos {
-            stop_ids.extend_from_slice(&sh.eos);
+            stop_ids.extend_from_slice(&env.eos);
         }
         // Like vLLM, stop strings are not checked until `min_tokens` tokens exist.
         let stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
-        let spec_on =
-            sh.spec.enabled() && greedy && req.trace_logits.is_none() && !st.has_recurrent() && model.verify_rows() >= 2;
-        let spec_k = sh.spec.k.min(model.verify_rows().saturating_sub(1));
+        let spec_on = env.spec.enabled() && greedy && req.trace_logits.is_none() && !recurrent && verify_rows >= 2;
+        let spec_k = env.spec.k.min(verify_rows.saturating_sub(1));
         let ctx: Vec<u32> = if spec_on { req.prompt.clone() } else { Vec::new() };
         let now = Instant::now();
-        Ok(Seq {
+        Seq {
             plen,
-            cached: p,
-            max_new,
+            cached: 0,
+            max_new: 0,
             greedy,
             sampler,
             stop_ids,
             t0: now,
-            pos: p,
+            pos: 0,
             prefill: Duration::ZERO,
             t_dec: now,
             tok: 0,
@@ -855,15 +912,71 @@ impl Seq {
             stops,
             spec_on,
             spec_k,
+            spec_paused: false,
             pending: std::collections::VecDeque::new(),
             plain_next: false,
             ctx,
             gate: crate::spec::SpecGate::new(crate::spec::GateParams::from_env()),
-            codec: sh.codec.clone(),
-            telemetry: sh.telemetry.clone(),
+            codec: env.codec.clone(),
+            telemetry: env.telemetry.clone(),
             req,
             tx,
-        })
+        }
+    }
+
+    /// Take a slot of capacity `cap` whose KV holds `cached` reusable prompt tokens (`< prompt.len()`): validate the
+    /// prompt against `cap`, set what `max_tokens` leaves room for. `Ok(false)`: nothing to generate (`max_tokens = 0`
+    /// or no room), the finish reason is set to `Length` and no prefill is needed. Errors reject the request.
+    pub(crate) fn admit(&mut self, cached: usize, cap: usize) -> Result<bool> {
+        check_prompt(self.plen, cap)?;
+        debug_assert!(cached < self.plen);
+        self.max_new = self.req.max_tokens.min(cap - self.plen);
+        self.cached = cached;
+        self.pos = cached;
+        let now = Instant::now();
+        self.t0 = now;
+        self.t_dec = now;
+        if self.max_new == 0 {
+            self.reason = Some(FinishReason::Length);
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    /// End the sequence as cancelled (the scheduler's cancellation check). [`Seq::finish`] then reports it.
+    pub(crate) fn cancel(&mut self) {
+        self.reason = Some(FinishReason::Cancelled);
+    }
+
+    /// Whether speculation may draft on the next step (the batching scheduler turns it off at larger batch sizes).
+    pub(crate) fn set_spec_allowed(&mut self, allowed: bool) {
+        self.spec_paused = !allowed;
+    }
+
+    /// The outcome of a request that ended before it held any state (cancelled while queued).
+    pub(crate) fn queued_outcome(&self, reason: FinishReason) -> Outcome {
+        Outcome {
+            reason,
+            stop_sequence: None,
+            prompt_tokens: self.plen,
+            completion_tokens: 0,
+            cached_tokens: 0,
+            prefill: Duration::ZERO,
+            decode: Duration::ZERO,
+        }
+    }
+
+    /// Whether the next token to take is the first (it comes out of the final prefill chunk).
+    pub(crate) fn awaiting_first(&self) -> bool {
+        self.generated == 0
+    }
+
+    /// The final prefill chunk's output: generated token 1. Starts the decode clock.
+    pub(crate) fn accept_first(&mut self, out: StepOut) -> Result<()> {
+        self.tok = self.token_from(out, 1)?;
+        self.prefill = self.t0.elapsed();
+        self.t_dec = Instant::now();
+        Ok(())
     }
 
     fn cancelled(&self) -> bool {
@@ -1002,7 +1115,7 @@ impl Seq {
         if let Some(t) = self.pending.pop_front() {
             return Next::Emit(t);
         }
-        if self.spec_on && !std::mem::take(&mut self.plain_next) && self.gate.allow() {
+        if self.spec_on && !self.spec_paused && !std::mem::take(&mut self.plain_next) && self.gate.allow() {
             // verify feeds 1 + d tokens: keep them inside the context window
             let room = st.cap.saturating_sub(st.len + 1);
             let drafts = crate::spec::propose_min(&self.ctx, self.spec_k.min(room), self.gate.min_n());

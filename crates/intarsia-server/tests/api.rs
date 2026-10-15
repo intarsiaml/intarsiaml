@@ -108,6 +108,7 @@ impl Engine for Mock {
                     cached_tokens: 0,
                     prefill_ms: 1.0,
                     decode_ms: 1.0,
+                    prefill_chunk: None,
                 })
                 .ok();
                 return;
@@ -136,6 +137,7 @@ impl Engine for Mock {
                 cached_tokens: 3,
                 prefill_ms: 20.0,
                 decode_ms: 10.0,
+                prefill_chunk: None,
             })
             .ok();
         });

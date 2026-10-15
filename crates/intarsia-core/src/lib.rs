@@ -31,7 +31,7 @@ pub mod weights;
 pub use backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId, TensorRef};
 pub use comm::{Comm, CommStats, HostCommGroup};
 pub use dtype::DType;
-pub use engine::{ChatOpts, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, LocalEngine, ModelInfo, ScriptStep, TextCodec};
+pub use engine::{BatchedEngine, BatchedOptions, ChatOpts, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, LocalEngine, ModelInfo, ScriptStep, TextCodec};
 pub use error::{Error, Result};
 pub use ops::{Op, OpAttrs, OpCall, ShapeInfo};
 pub use registry::{Admission, Exactness, KernelImpl, Registry, Tol};

@@ -111,6 +111,27 @@ fn metric(out: &mut String, name: &str, kind: &str, help: &str, value: impl std:
     let _ = writeln!(out, "# HELP {name} {help}\n# TYPE {name} {kind}\n{name} {value}");
 }
 
+/// Scheduler metrics of a batching engine (`--max-batch N`): batch-size histogram of the decode passes, queue depth,
+/// prefill work, latencies.
+pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
+    let mut o = String::with_capacity(2048);
+    metric(&mut o, "intarsia_batch_iterations_total", "counter", "Scheduler iterations.", b.iterations);
+    metric(&mut o, "intarsia_batch_decode_steps_total", "counter", "Batched decode passes.", b.decode_steps);
+    let _ = writeln!(o, "# HELP intarsia_batch_decode_rows_total Decode passes by number of rows.");
+    let _ = writeln!(o, "# TYPE intarsia_batch_decode_rows_total counter");
+    for (rows, n) in b.batch_hist.iter().enumerate().skip(1) {
+        let _ = writeln!(o, "intarsia_batch_decode_rows_total{{rows=\"{rows}\"}} {n}");
+    }
+    metric(&mut o, "intarsia_batch_prefill_chunks_total", "counter", "Prefill chunks run.", b.prefill_chunks);
+    metric(&mut o, "intarsia_batch_prefill_tokens_total", "counter", "Prompt tokens prefilled.", b.prefill_tokens);
+    metric(&mut o, "intarsia_batch_running", "gauge", "Requests holding a slot.", b.running);
+    metric(&mut o, "intarsia_batch_queue_depth", "gauge", "Requests waiting for a slot.", b.queue_depth);
+    metric(&mut o, "intarsia_batch_queue_depth_max", "gauge", "Most requests that waited at once.", b.queue_depth_max);
+    metric(&mut o, "intarsia_batch_cached_tokens_total", "counter", "Prompt tokens served from reused KV.", b.cached_tokens);
+    metric(&mut o, "intarsia_batch_step_ewma_ms", "gauge", "EWMA of an iteration with a decode step.", b.step_ewma_ms);
+    o
+}
+
 pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String {
     let mut o = String::with_capacity(4096);
     metric(

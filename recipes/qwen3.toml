@@ -43,7 +43,9 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
 # Phase 0 CPU/CUDA support bf16 KV. fp8_e4m3 KV is accepted by the cpu oracle and the registry
 # but not yet by the GPU kernels.
 kv_dtype = "bf16"
-max_batch = 1
+# Most sequences `--max-batch` may decode together (continuous batching, Metal only, exact kernels: 8 rows). Batching
+# is opt-in: without `--max-batch` the engine serves one sequence at a time.
+max_batch = 8
 
 # Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CUDA/HIP/CPU are unchanged).
 # 2048 on Metal: plain prefill on Qwen3-8B BF16 / M5 Max goes 459 -> 386 ms at 1k (973 tokens), 1725 -> 1448 ms at 4k

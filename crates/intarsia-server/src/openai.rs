@@ -59,6 +59,16 @@ impl CommonParams {
     }
 }
 
+/// `return_token_ids` (the opt-in intarsia extension) also reports the prefill chunk size the prompt was processed
+/// with under `prompt_tokens_details.prefill_chunk`: with continuous batching it depends on what else was decoding
+/// (the concurrent-identity harness picks the matching solo reference by it).
+fn with_chunk(mut u: Value, rid: bool, chunk: Option<usize>) -> Value {
+    if let (true, Some(c)) = (rid, chunk) {
+        u["prompt_tokens_details"]["prefill_chunk"] = json!(c);
+    }
+    u
+}
+
 fn usage(prompt: usize, completion: usize, cached: usize) -> Value {
     json!({
         "prompt_tokens": prompt,
@@ -167,7 +177,7 @@ async fn chat_inner(
             "id": chunk(json!({}), None, false)["id"].clone(), "object": "chat.completion", "created": created, "model": st.model_name,
             "choices": [{"index": 0, "message": {"role": "assistant", "content": c.text},
                          "finish_reason": finish_str(c.finish)}],
-            "usage": usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens),
+            "usage": with_chunk(usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens), rid, c.prefill_chunk),
         });
         let mut v = v;
         if rid {
@@ -199,7 +209,7 @@ async fn chat_inner(
                 vec![sse_json(None, &chunk(json!({"content": text}), None, inc))]
             }
         }
-        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. }) => {
+        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, prefill_chunk, .. }) => {
             done = true;
             let mut out = Vec::new();
             if let Some((i, t)) = hold.finish(finish_reason, stop_sequence.is_some(), completion_tokens) {
@@ -210,7 +220,7 @@ async fn chat_inner(
                 out.push(sse_json(
                     None,
                     &json!({"id": id2, "object": "chat.completion.chunk", "created": created, "model": model2,
-                            "choices": [], "usage": usage(prompt_tokens, completion_tokens, cached_tokens)}),
+                            "choices": [], "usage": with_chunk(usage(prompt_tokens, completion_tokens, cached_tokens), rid, prefill_chunk)}),
                 ));
             }
             out
@@ -317,7 +327,7 @@ async fn completions_inner(
         if rid {
             v["choices"][0]["token_ids"] = json!(c.ids);
         }
-        v["usage"] = usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens);
+        v["usage"] = with_chunk(usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens), rid, c.prefill_chunk);
         return Ok(Json(v).into_response());
     }
 
@@ -349,7 +359,7 @@ async fn completions_inner(
                 vec![sse_json(None, &chunk(&text, None, inc))]
             }
         }
-        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. }) => {
+        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, prefill_chunk, .. }) => {
             done = true;
             let mut out = Vec::new();
             if let Some((i, t)) = hold.finish(finish_reason, stop_sequence.is_some(), completion_tokens) {
@@ -360,7 +370,7 @@ async fn completions_inner(
                 out.push(sse_json(
                     None,
                     &json!({"id": id2, "object": "text_completion", "created": created, "model": model2,
-                            "choices": [], "usage": usage(prompt_tokens, completion_tokens, cached_tokens)}),
+                            "choices": [], "usage": with_chunk(usage(prompt_tokens, completion_tokens, cached_tokens), rid, prefill_chunk)}),
                 ));
             }
             out
