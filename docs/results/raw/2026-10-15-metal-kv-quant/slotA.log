@@ -1,0 +1,3 @@
+fleetq: #2058 waiting (#3 in line): in line behind #2056 "metal kv quant: fp8 decode variants microbench" (claude-31e10c55) on endor
+fleetq:   #2056 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2056 set, or it will wait for #2056 to be released.
+fleetq: #2058 waiting (#2 in line): in line behind #2057 "cb-m0 identity: min_tokens cut cases" (claude-0e8026c5) on endor

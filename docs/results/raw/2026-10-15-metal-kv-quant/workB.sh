@@ -30,6 +30,15 @@ echo "== kernel-mode trace: which kernels run under fp8 (4k, 33 decode steps)"
 run trace-kernel-fp8-4k 4096 fp8 INTARSIA_METAL_PROFILE=kernel:$O/trace-kernel-fp8-4k.jsonl
 python3 $R/summ.py $O $O/macmon.jsonl | tee $O/summary.txt
 
+echo "== 16k+ proxy (no fp32 golden exists): last-position top-50 logits and 128 greedy ids, bf16 vs fp8 KV"
+mkdir -p $R/long16k
+for ctx in 16384 32764; do
+  for kv in bf16 fp8; do
+    $NEW generate --model $M --backend metal --max-seq 40960 --temperature 0 --max-tokens 129 --ignore-eos --profile-every 0 --prefill-chunk 2048 --show-logits 50 --show-ids --kv-dtype $kv --prompt "$(cat $PL/prompt-$ctx.txt)" > $R/long16k/$kv-$ctx.out 2> $R/long16k/$kv-$ctx.err
+  done
+  python3 -I $R/long_cmp.py $R/long16k/bf16-$ctx.err $R/long16k/fp8-$ctx.err $ctx | tee -a $R/long16k/summary.txt
+done
+
 echo "== localeval speed through intarsia serve, bf16 then fp8 then bf16... (one server per dtype), sizes 4096 16384"
 for kv in bf16 fp8 bf16 fp8; do
   LD=$R/localeval/$kv-$(date +%H%M%S); mkdir -p $LD

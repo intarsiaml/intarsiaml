@@ -6,6 +6,15 @@ mkdir -p $R/gates $R/acc $R/ids
 cd $W
 { echo "date: $(date -Iseconds)"; echo "fleetq job: $FLEETQ_JOB"; echo "head: $(git rev-parse HEAD)"; echo "F8_U=$INTARSIA_METAL_F8_U"; git status --short | head; ls -l $BASE $NEW; shasum -a 256 $BASE $NEW; } > $R/gates/versions.txt 2>&1
 
+echo "== 0. KV memory sizing: tokens that fit a 40 GiB budget, bf16 vs fp8 (plan lines)"
+mkdir -p $R/sizing
+for kv in bf16 fp8; do
+  $NEW generate --model $M --backend metal --mem-budget 40 --kv-dtype $kv --profile-every 0 --temperature 0 --max-tokens 1 --prompt "hi" < /dev/null > $R/sizing/$kv.out 2> $R/sizing/$kv.err
+  echo "$kv: $(grep -iE 'kv' $R/sizing/$kv.err | head -4 | tr '\n' '|' | cut -c1-400)"
+done
+$NEW plan show --model $M --backend metal --mem-budget 40 --kv-dtype fp8 --json > $R/sizing/plan-fp8.json 2>&1; $NEW plan show --model $M --backend metal --mem-budget 40 --json > $R/sizing/plan-bf16.json 2>&1
+grep -iE "kv" $R/sizing/plan-*.json | head -10 | cut -c1-220
+
 echo "== 1. cargo test -p intarsia-backend-metal --release (all, incl. kv_fp8)"
 cargo test -p intarsia-backend-metal --release -- --test-threads=1 --nocapture > $R/gates/cargo-test-metal.txt 2>&1; echo "exit $?"
 grep -E "^test result|FAILED|panicked" $R/gates/cargo-test-metal.txt | sort | uniq -c | head -40
