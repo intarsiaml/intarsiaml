@@ -918,6 +918,8 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
                 }
             }
         }
+        // a plain step now, so a pending "plain next" (a min_tokens cut that emitted nothing) is served by this one
+        plain_next = false;
         tok = pick(model, st, &[tok], generated + 1, &mut sampler)?;
     }
     if spec_on {
