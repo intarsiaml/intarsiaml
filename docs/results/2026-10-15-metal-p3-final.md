@@ -38,8 +38,7 @@ Items 1-3 ran on the tip before the baseline commit (head 9eeb96c); the later co
 | 4k | decode (64) | 98.96% | 2.548e-4 | PASS |
 | 4k | prefix reuse (chat_reuse_4k, 2048) | | | PASS (`prefix-reuse verdict: PASS`) |
 
-The short decode KL 3.313e-4 and long decode 3.538e-4 match the tail-fix numbers the coordinator gave (3.313e-4 short; long 3.371e-4 was
-the decode figure of another window). "Prompts spanning more than one chunk" at 2048: short 0/8, long 0/10, **4k 3/3**.
+Short decode KL 3.313e-4 matches the tail-fix figure the coordinator gave. For the long golden the coordinator gave decode KL 3.371e-4; I measure 3.538e-4 at `--decode-positions 64` (3.54e-4 in qualify), so that figure is not reproduced here (probably another decode window; not investigated). "Prompts spanning more than one chunk" at 2048: short 0/8, long 0/10, **4k 3/3**.
 Control for the baseline gate (`accuracy/4k-control`): a copy of the 4k baseline made better than this build by 1.5 top-1 points and half the
 KL makes `baseline verdict` **FAIL** (exit 1), so the gate is not vacuous. The recorded-baseline gates themselves pass.
 
