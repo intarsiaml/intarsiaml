@@ -1,0 +1,8 @@
+#2039 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+  run work inside it: prefix commands with FLEETQ_JOB=2039
+  release when finished: fleetq release 2039
+slot 2039 RUNNING (tests + kernels test + identity subset) Thu Oct 15 14:03:46 EDT 2026: #2039 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+cargo test metal exit 0
+kernels test exit 0
+identity exit 0
+released 2039 Thu Oct 15 14:06:02 EDT 2026

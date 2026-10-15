@@ -1,0 +1,36 @@
+14:04:49 short-256 off
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 1736 ms (70.3 tok/s) | decode 7004 ms (36.41 tok/s)
+14:04:59 short-256 on4
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 287 ms (424.9 tok/s) | decode 3077 ms (82.88 tok/s)
+14:05:02 short-256 on6
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 258 ms (472.0 tok/s) | decode 3134 ms (81.38 tok/s)
+14:05:06 4k-256 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1183 ms (3432.6 tok/s) | decode 7263 ms (35.11 tok/s)
+14:05:15 4k-256 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1244 ms (3265.7 tok/s) | decode 2106 ms (121.10 tok/s)
+14:05:19 4k-256 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1335 ms (3043.3 tok/s) | decode 1938 ms (131.58 tok/s)
+14:05:22 grounded-512 off
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 277 ms (1341.2 tok/s) | decode 9188 ms (35.70 tok/s)
+14:05:32 grounded-512 on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 284 ms (1304.7 tok/s) | decode 2602 ms (126.05 tok/s)
+14:05:35 grounded-512 on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 294 ms (1262.0 tok/s) | decode 2736 ms (119.88 tok/s)
+14:05:39 grounded-stop-topp off
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 281 ms (1322.1 tok/s) | decode 3172 ms (35.94 tok/s)
+14:05:43 grounded-stop-topp on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 268 ms (1385.4 tok/s) | decode 912 ms (125.01 tok/s)
+14:05:44 grounded-stop-topp on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 284 ms (1308.0 tok/s) | decode 861 ms (132.39 tok/s)
+14:05:46 4k-stop250 off
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1454 ms (2793.0 tok/s) | decode 2421 ms (34.69 tok/s)
+14:05:50 4k-stop250 on4
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1386 ms (2929.9 tok/s) | decode 771 ms (108.95 tok/s)
+14:05:52 4k-stop250 on6
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1364 ms (2978.4 tok/s) | decode 753 ms (111.50 tok/s)
+14:05:55 4k-max44 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1370 ms (2964.8 tok/s) | decode 1234 ms (34.83 tok/s)
+14:05:58 4k-max44 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1376 ms (2952.0 tok/s) | decode 388 ms (110.93 tok/s)
+14:06:00 4k-max44 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1341 ms (3028.4 tok/s) | decode 406 ms (105.92 tok/s)
