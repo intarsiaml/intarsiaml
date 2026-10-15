@@ -1,0 +1,62 @@
+1792085193.051 [localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=20480
+1792085194.553 [localeval]   4096 tok rep 1/6: prompt=4091 ttft=1.08s prefill=3793 tok/s decode=35.4 tok/s peak=0.0 tok/s out=16
+1792085196.116 [localeval]   4096 tok rep 2/6: prompt=4090 ttft=1.14s prefill=3596 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085197.650 [localeval]   4096 tok rep 3/6: prompt=4086 ttft=1.11s prefill=3690 tok/s decode=35.1 tok/s peak=0.0 tok/s out=16
+1792085199.130 [localeval]   4096 tok rep 4/6: prompt=4087 ttft=1.05s prefill=3880 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085200.608 [localeval]   4096 tok rep 5/6: prompt=4088 ttft=1.05s prefill=3888 tok/s decode=35.1 tok/s peak=0.0 tok/s out=16
+1792085202.083 [localeval]   4096 tok rep 6/6: prompt=4090 ttft=1.05s prefill=3896 tok/s decode=35.3 tok/s peak=0.0 tok/s out=16
+1792085203.599 [localeval]   4108 tok rep 1/6: prompt=4108 ttft=1.09s prefill=3776 tok/s decode=35.0 tok/s peak=0.0 tok/s out=16
+1792085205.175 [localeval]   4108 tok rep 2/6: prompt=4113 ttft=1.15s prefill=3580 tok/s decode=35.1 tok/s peak=0.0 tok/s out=16
+1792085206.761 [localeval]   4108 tok rep 3/6: prompt=4112 ttft=1.16s prefill=3548 tok/s decode=35.1 tok/s peak=0.0 tok/s out=16
+1792085208.311 [localeval]   4108 tok rep 4/6: prompt=4112 ttft=1.12s prefill=3657 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085209.846 [localeval]   4108 tok rep 5/6: prompt=4112 ttft=1.11s prefill=3702 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085211.392 [localeval]   4108 tok rep 6/6: prompt=4112 ttft=1.12s prefill=3676 tok/s decode=35.1 tok/s peak=0.0 tok/s out=16
+1792085212.938 [localeval]   4140 tok rep 1/6: prompt=4120 ttft=1.12s prefill=3667 tok/s decode=35.5 tok/s peak=0.0 tok/s out=16
+1792085214.587 [localeval]   4140 tok rep 2/6: prompt=4122 ttft=1.23s prefill=3360 tok/s decode=35.5 tok/s peak=0.0 tok/s out=16
+1792085216.229 [localeval]   4140 tok rep 3/6: prompt=4120 ttft=1.22s prefill=3386 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085217.789 [localeval]   4140 tok rep 4/6: prompt=4122 ttft=1.13s prefill=3635 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085219.351 [localeval]   4140 tok rep 5/6: prompt=4118 ttft=1.14s prefill=3617 tok/s decode=35.3 tok/s peak=0.0 tok/s out=16
+1792085220.918 [localeval]   4140 tok rep 6/6: prompt=4119 ttft=1.14s prefill=3607 tok/s decode=35.3 tok/s peak=0.0 tok/s out=16
+1792085222.640 [localeval]   4300 tok rep 1/6: prompt=4277 ttft=1.30s prefill=3288 tok/s decode=35.5 tok/s peak=0.0 tok/s out=16
+1792085224.392 [localeval]   4300 tok rep 2/6: prompt=4276 ttft=1.33s prefill=3213 tok/s decode=35.6 tok/s peak=0.0 tok/s out=16
+1792085226.140 [localeval]   4300 tok rep 3/6: prompt=4273 ttft=1.32s prefill=3234 tok/s decode=35.1 tok/s peak=0.0 tok/s out=16
+1792085227.781 [localeval]   4300 tok rep 4/6: prompt=4275 ttft=1.21s prefill=3515 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085229.455 [localeval]   4300 tok rep 5/6: prompt=4277 ttft=1.25s prefill=3431 tok/s decode=35.1 tok/s peak=0.0 tok/s out=16
+1792085231.109 [localeval]   4300 tok rep 6/6: prompt=4275 ttft=1.23s prefill=3478 tok/s decode=35.2 tok/s peak=0.0 tok/s out=16
+1792085238.023 [localeval]  16384 tok rep 1/6: prompt=16657 ttft=6.44s prefill=2587 tok/s decode=31.5 tok/s peak=0.0 tok/s out=16
+1792085244.957 [localeval]  16384 tok rep 2/6: prompt=16652 ttft=6.46s prefill=2577 tok/s decode=31.7 tok/s peak=0.0 tok/s out=16
+1792085251.811 [localeval]  16384 tok rep 3/6: prompt=16657 ttft=6.38s prefill=2610 tok/s decode=31.7 tok/s peak=0.0 tok/s out=16
+1792085258.542 [localeval]  16384 tok rep 4/6: prompt=16652 ttft=6.26s prefill=2659 tok/s decode=31.8 tok/s peak=0.0 tok/s out=16
+1792085265.456 [localeval]  16384 tok rep 5/6: prompt=16654 ttft=6.44s prefill=2586 tok/s decode=31.6 tok/s peak=0.0 tok/s out=16
+1792085272.472 [localeval]  16384 tok rep 6/6: prompt=16652 ttft=6.55s prefill=2543 tok/s decode=31.9 tok/s peak=0.0 tok/s out=16
+1792085272.473 # localeval: adhoc — 2026-10-15T13:26
+1792085272.473 
+1792085272.473 - model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+1792085272.473 - thinking: off; run kind: speed; label: prefillbal-p8-new
+1792085272.473 - harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+1792085272.473 - command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 4096,4108,4140,4300,16384 --gen 16 --reps 6 --thinking off --label prefillbal-p8-new`
+1792085272.473 - result file: `results/20261015-132631-adhoc-prefillbal-p8-new/result.json`
+1792085272.473 
+1792085272.473 ## Speed sweep
+1792085272.473 
+1792085272.473 served `intarsia-metal`, fingerprint `None`, ctx 20480, 6 reps, 16 forced output tokens
+1792085272.473 
+1792085272.473 | prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792085272.473 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
+1792085272.473 | 4089 | 1.06 | 3836 (3596–3896) | - | 35.2 (35.1–35.4) | - | - | - | 16 |
+1792085272.473 | 4112 | 1.12 | 3667 (3548–3776) | 418 | 35.1 (35.0–35.2) | - | - | - | 16 |
+1792085272.473 | 4120 | 1.14 | 3612 (3360–3667) | 421 | 35.3 (35.2–35.5) | - | - | - | 16 |
+1792085272.473 | 4275 | 1.27 | 3359 (3213–3515) | 1157 | 35.2 (35.1–35.6) | - | - | - | 16 |
+1792085272.473 | 16653 | 6.44 | 2586 (2543–2659) | 2397 | 31.7 (31.5–31.9) | - | - | - | 16 |
+1792085272.473 
+1792085272.473 Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+1792085272.473 
+1792085272.473 Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+1792085272.473 
+1792085272.473 
+1792085272.473 ## Method
+1792085272.473 
+1792085272.473 Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+1792085272.473 
+1792085272.473 [localeval] saved /opt/code/deepeval/results/20261015-132631-adhoc-prefillbal-p8-new/result.json
+1792085273.151 [localeval] logged to unanimis: 2c746793-4830-404f-bdf1-9a42ace430b9

@@ -1,0 +1,4 @@
+1792083527.238 prefill chunk 2048 (recipe qwen3, metal)
+1792083570.464 admission on plan shapes: 14 kernel(s) checked, 201 case(s) run, 0 cached
+1792083570.571 loaded Qwen3-8B on metal (Apple M5 Max) in 43.4s, context 20480 tokens
+1792083570.573 intarsia server listening on http://127.0.0.1:8093

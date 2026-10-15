@@ -1,0 +1,1082 @@
+[
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 1024,
+  "rep": 1,
+  "plen": 989,
+  "ttft": 0.32,
+  "mhz": 1338.0
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 1024,
+  "rep": 2,
+  "plen": 991,
+  "ttft": 0.25,
+  "mhz": 1444.0
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 1024,
+  "rep": 3,
+  "plen": 992,
+  "ttft": 0.25,
+  "mhz": 1472.5
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2048,
+  "ttft": 0.5,
+  "mhz": 1516.0
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2053,
+  "ttft": 0.52,
+  "mhz": 1476.6666666666667
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2050,
+  "ttft": 0.5,
+  "mhz": 1501.6666666666667
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4090,
+  "ttft": 1.04,
+  "mhz": 1569.5
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4087,
+  "ttft": 1.04,
+  "mhz": 1563.0
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4090,
+  "ttft": 1.04,
+  "mhz": 1603.8333333333333
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4108,
+  "ttft": 1.1,
+  "mhz": 1601.3333333333333
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4112,
+  "ttft": 1.1,
+  "mhz": 1573.4285714285713
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4110,
+  "ttft": 1.11,
+  "mhz": 1591.5
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16655,
+  "ttft": 5.85,
+  "mhz": 1509.0
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16654,
+  "ttft": 6.36,
+  "mhz": 1386.7027027027027
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16657,
+  "ttft": 6.57,
+  "mhz": 1342.421052631579
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 1024,
+  "rep": 1,
+  "plen": 989,
+  "ttft": 0.3,
+  "mhz": 1337.0
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 1024,
+  "rep": 2,
+  "plen": 991,
+  "ttft": 0.25,
+  "mhz": 1461.0
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 1024,
+  "rep": 3,
+  "plen": 994,
+  "ttft": 0.25,
+  "mhz": 1519.0
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2049,
+  "ttft": 0.52,
+  "mhz": 1511.6666666666667
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2050,
+  "ttft": 0.54,
+  "mhz": 1490.6666666666667
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2048,
+  "ttft": 0.56,
+  "mhz": 1458.3333333333333
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4090,
+  "ttft": 1.22,
+  "mhz": 1359.5714285714287
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4085,
+  "ttft": 1.16,
+  "mhz": 1440.7142857142858
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4088,
+  "ttft": 1.16,
+  "mhz": 1451.1666666666667
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4113,
+  "ttft": 1.34,
+  "mhz": 1316.625
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4113,
+  "ttft": 1.31,
+  "mhz": 1333.375
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4110,
+  "ttft": 1.2,
+  "mhz": 1450.857142857143
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16677,
+  "ttft": 6.81,
+  "mhz": 1316.6666666666667
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16677,
+  "ttft": 6.76,
+  "mhz": 1334.076923076923
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16679,
+  "ttft": 6.81,
+  "mhz": 1320.275
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 1024,
+  "rep": 1,
+  "plen": 988,
+  "ttft": 0.29,
+  "mhz": 1369.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 1024,
+  "rep": 2,
+  "plen": 992,
+  "ttft": 0.25,
+  "mhz": 1436.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 1024,
+  "rep": 3,
+  "plen": 989,
+  "ttft": 0.25,
+  "mhz": 1478.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2049,
+  "ttft": 0.55,
+  "mhz": 1483.3333333333333
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2051,
+  "ttft": 0.56,
+  "mhz": 1455.6666666666667
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2049,
+  "ttft": 0.52,
+  "mhz": 1500.6666666666667
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4087,
+  "ttft": 1.16,
+  "mhz": 1454.5
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4090,
+  "ttft": 1.23,
+  "mhz": 1361.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4085,
+  "ttft": 1.24,
+  "mhz": 1355.625
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4112,
+  "ttft": 1.19,
+  "mhz": 1456.5714285714287
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4114,
+  "ttft": 1.14,
+  "mhz": 1533.8333333333333
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4111,
+  "ttft": 1.22,
+  "mhz": 1441.857142857143
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16654,
+  "ttft": 6.33,
+  "mhz": 1419.1666666666667
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16657,
+  "ttft": 6.46,
+  "mhz": 1389.7027027027027
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16654,
+  "ttft": 6.71,
+  "mhz": 1340.5263157894738
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 1024,
+  "rep": 1,
+  "plen": 992,
+  "ttft": 0.33,
+  "mhz": 1164.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 1024,
+  "rep": 2,
+  "plen": 992,
+  "ttft": 0.25,
+  "mhz": 1400.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 1024,
+  "rep": 3,
+  "plen": 992,
+  "ttft": 0.25,
+  "mhz": 1459.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2053,
+  "ttft": 0.51,
+  "mhz": 1546.3333333333333
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2053,
+  "ttft": 0.51,
+  "mhz": 1551.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2051,
+  "ttft": 0.51,
+  "mhz": 1556.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4091,
+  "ttft": 1.17,
+  "mhz": 1447.8333333333333
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4088,
+  "ttft": 1.22,
+  "mhz": 1371.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4087,
+  "ttft": 1.19,
+  "mhz": 1406.7142857142858
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4114,
+  "ttft": 1.17,
+  "mhz": 1494.2857142857142
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4114,
+  "ttft": 1.19,
+  "mhz": 1465.4285714285713
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4109,
+  "ttft": 1.29,
+  "mhz": 1363.857142857143
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16655,
+  "ttft": 6.39,
+  "mhz": 1380.9473684210527
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16656,
+  "ttft": 6.61,
+  "mhz": 1335.9736842105262
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16651,
+  "ttft": 6.49,
+  "mhz": 1360.4054054054054
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 1024,
+  "rep": 1,
+  "plen": 991,
+  "ttft": 0.33,
+  "mhz": 1173.5
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 1024,
+  "rep": 2,
+  "plen": 989,
+  "ttft": 0.25,
+  "mhz": 1481.5
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 1024,
+  "rep": 3,
+  "plen": 987,
+  "ttft": 0.25,
+  "mhz": 1431.0
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2051,
+  "ttft": 0.5,
+  "mhz": 1552.3333333333333
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2050,
+  "ttft": 0.5,
+  "mhz": 1570.0
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2049,
+  "ttft": 0.5,
+  "mhz": 1510.3333333333333
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4089,
+  "ttft": 1.2,
+  "mhz": 1387.5714285714287
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4088,
+  "ttft": 1.22,
+  "mhz": 1377.4285714285713
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4086,
+  "ttft": 1.11,
+  "mhz": 1519.1666666666667
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4114,
+  "ttft": 1.16,
+  "mhz": 1471.2857142857142
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4111,
+  "ttft": 1.25,
+  "mhz": 1395.4285714285713
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4114,
+  "ttft": 1.25,
+  "mhz": 1387.25
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16653,
+  "ttft": 6.63,
+  "mhz": 1352.9473684210527
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16652,
+  "ttft": 6.47,
+  "mhz": 1389.6315789473683
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16653,
+  "ttft": 6.6,
+  "mhz": 1359.2631578947369
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 1024,
+  "rep": 1,
+  "plen": 991,
+  "ttft": 0.29,
+  "mhz": 1400.5
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 1024,
+  "rep": 2,
+  "plen": 988,
+  "ttft": 0.25,
+  "mhz": 1441.0
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 1024,
+  "rep": 3,
+  "plen": 986,
+  "ttft": 0.25,
+  "mhz": 1449.0
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2052,
+  "ttft": 0.5,
+  "mhz": 1561.6666666666667
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2050,
+  "ttft": 0.5,
+  "mhz": 1551.3333333333333
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2044,
+  "ttft": 0.52,
+  "mhz": 1527.3333333333333
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4087,
+  "ttft": 1.22,
+  "mhz": 1366.7142857142858
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4088,
+  "ttft": 1.11,
+  "mhz": 1507.6666666666667
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4081,
+  "ttft": 1.11,
+  "mhz": 1494.142857142857
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4112,
+  "ttft": 1.26,
+  "mhz": 1390.4285714285713
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4113,
+  "ttft": 1.27,
+  "mhz": 1389.0
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4115,
+  "ttft": 1.19,
+  "mhz": 1487.2857142857142
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16652,
+  "ttft": 6.49,
+  "mhz": 1363.1891891891892
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16654,
+  "ttft": 6.42,
+  "mhz": 1378.8108108108108
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16654,
+  "ttft": 6.39,
+  "mhz": 1384.0
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 1024,
+  "rep": 1,
+  "plen": 990,
+  "ttft": 0.29,
+  "mhz": 1394.5
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 1024,
+  "rep": 2,
+  "plen": 993,
+  "ttft": 0.25,
+  "mhz": 1434.0
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 1024,
+  "rep": 3,
+  "plen": 992,
+  "ttft": 0.25,
+  "mhz": 1450.0
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2050,
+  "ttft": 0.5,
+  "mhz": 1555.3333333333333
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2052,
+  "ttft": 0.51,
+  "mhz": 1574.6666666666667
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2050,
+  "ttft": 0.52,
+  "mhz": 1536.3333333333333
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4087,
+  "ttft": 1.13,
+  "mhz": 1458.7142857142858
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4088,
+  "ttft": 1.11,
+  "mhz": 1482.857142857143
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4089,
+  "ttft": 1.11,
+  "mhz": 1517.8333333333333
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4110,
+  "ttft": 1.29,
+  "mhz": 1365.375
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4114,
+  "ttft": 1.28,
+  "mhz": 1383.142857142857
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4111,
+  "ttft": 1.16,
+  "mhz": 1508.142857142857
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16679,
+  "ttft": 6.49,
+  "mhz": 1359.9473684210527
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16678,
+  "ttft": 6.4,
+  "mhz": 1384.054054054054
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16678,
+  "ttft": 6.32,
+  "mhz": 1402.3243243243244
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 1024,
+  "rep": 1,
+  "plen": 991,
+  "ttft": 0.29,
+  "mhz": 1396.0
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 1024,
+  "rep": 2,
+  "plen": 989,
+  "ttft": 0.25,
+  "mhz": 1437.5
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 1024,
+  "rep": 3,
+  "plen": 991,
+  "ttft": 0.25,
+  "mhz": 1461.5
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 2112,
+  "rep": 1,
+  "plen": 2051,
+  "ttft": 0.5,
+  "mhz": 1481.3333333333333
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 2112,
+  "rep": 2,
+  "plen": 2048,
+  "ttft": 0.51,
+  "mhz": 1568.6666666666667
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 2112,
+  "rep": 3,
+  "plen": 2050,
+  "ttft": 0.51,
+  "mhz": 1554.3333333333333
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4090,
+  "ttft": 1.12,
+  "mhz": 1507.5
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4090,
+  "ttft": 1.1,
+  "mhz": 1496.857142857143
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4087,
+  "ttft": 1.19,
+  "mhz": 1408.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4112,
+  "ttft": 1.24,
+  "mhz": 1410.2857142857142
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4110,
+  "ttft": 1.15,
+  "mhz": 1505.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4112,
+  "ttft": 1.15,
+  "mhz": 1508.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16656,
+  "ttft": 6.57,
+  "mhz": 1365.4358974358975
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16654,
+  "ttft": 6.59,
+  "mhz": 1364.921052631579
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16652,
+  "ttft": 6.45,
+  "mhz": 1396.054054054054
+ }
+]

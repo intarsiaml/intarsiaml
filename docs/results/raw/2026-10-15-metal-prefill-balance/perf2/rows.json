@@ -1,0 +1,2162 @@
+[
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4091,
+  "ttft": 1.04,
+  "mhz": 1616.5
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4089,
+  "ttft": 1.04,
+  "mhz": 1587.5
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4084,
+  "ttft": 1.04,
+  "mhz": 1570.2857142857142
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4089,
+  "ttft": 1.04,
+  "mhz": 1571.3333333333333
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4090,
+  "ttft": 1.09,
+  "mhz": 1530.5
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4086,
+  "ttft": 1.14,
+  "mhz": 1486.1666666666667
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4114,
+  "ttft": 1.17,
+  "mhz": 1521.1666666666667
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4114,
+  "ttft": 1.16,
+  "mhz": 1506.4285714285713
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4115,
+  "ttft": 1.11,
+  "mhz": 1555.857142857143
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4109,
+  "ttft": 1.14,
+  "mhz": 1531.2857142857142
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4115,
+  "ttft": 1.15,
+  "mhz": 1531.8333333333333
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4115,
+  "ttft": 1.18,
+  "mhz": 1489.142857142857
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4121,
+  "ttft": 1.21,
+  "mhz": 1446.857142857143
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4121,
+  "ttft": 1.23,
+  "mhz": 1420.2857142857142
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4121,
+  "ttft": 1.26,
+  "mhz": 1387.375
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4120,
+  "ttft": 1.28,
+  "mhz": 1366.125
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4117,
+  "ttft": 1.29,
+  "mhz": 1354.375
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4122,
+  "ttft": 1.31,
+  "mhz": 1327.5
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4297,
+  "ttft": 1.36,
+  "mhz": 1305.125
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4298,
+  "ttft": 1.38,
+  "mhz": 1290.2222222222222
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4298,
+  "ttft": 1.38,
+  "mhz": 1298.0
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4300,
+  "ttft": 1.38,
+  "mhz": 1287.75
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4300,
+  "ttft": 1.39,
+  "mhz": 1277.125
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4299,
+  "ttft": 1.39,
+  "mhz": 1277.375
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16675,
+  "ttft": 7.02,
+  "mhz": 1245.4878048780488
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16676,
+  "ttft": 7.02,
+  "mhz": 1250.8292682926829
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16677,
+  "ttft": 6.96,
+  "mhz": 1258.3658536585365
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16676,
+  "ttft": 7.02,
+  "mhz": 1253.0487804878048
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16676,
+  "ttft": 6.63,
+  "mhz": 1325.8947368421052
+ },
+ {
+  "pass_": "p1",
+  "build": "base",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16676,
+  "ttft": 6.5,
+  "mhz": 1356.0526315789473
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4088,
+  "ttft": 1.23,
+  "mhz": 1350.4285714285713
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4091,
+  "ttft": 1.18,
+  "mhz": 1431.7142857142858
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4086,
+  "ttft": 1.28,
+  "mhz": 1314.125
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4089,
+  "ttft": 1.28,
+  "mhz": 1315.625
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4087,
+  "ttft": 1.21,
+  "mhz": 1373.7142857142858
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4087,
+  "ttft": 1.16,
+  "mhz": 1429.857142857143
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4110,
+  "ttft": 1.23,
+  "mhz": 1407.4285714285713
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4110,
+  "ttft": 1.28,
+  "mhz": 1376.2857142857142
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4115,
+  "ttft": 1.34,
+  "mhz": 1297.0
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4111,
+  "ttft": 1.32,
+  "mhz": 1305.25
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4114,
+  "ttft": 1.18,
+  "mhz": 1457.4285714285713
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4113,
+  "ttft": 1.2,
+  "mhz": 1445.0
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4121,
+  "ttft": 1.24,
+  "mhz": 1395.5
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4117,
+  "ttft": 1.35,
+  "mhz": 1295.25
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4123,
+  "ttft": 1.33,
+  "mhz": 1314.875
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4122,
+  "ttft": 1.21,
+  "mhz": 1442.7142857142858
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4122,
+  "ttft": 1.21,
+  "mhz": 1437.2857142857142
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4119,
+  "ttft": 1.22,
+  "mhz": 1428.7142857142858
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4276,
+  "ttft": 1.45,
+  "mhz": 1301.3333333333333
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4276,
+  "ttft": 1.44,
+  "mhz": 1309.3333333333333
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4276,
+  "ttft": 1.37,
+  "mhz": 1372.5
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4275,
+  "ttft": 1.29,
+  "mhz": 1463.2857142857142
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4278,
+  "ttft": 1.32,
+  "mhz": 1421.0
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4277,
+  "ttft": 1.42,
+  "mhz": 1328.625
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16654,
+  "ttft": 6.73,
+  "mhz": 1336.7692307692307
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16656,
+  "ttft": 6.82,
+  "mhz": 1311.5641025641025
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16654,
+  "ttft": 6.87,
+  "mhz": 1302.3
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16656,
+  "ttft": 6.69,
+  "mhz": 1342.051282051282
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16653,
+  "ttft": 6.59,
+  "mhz": 1367.2702702702702
+ },
+ {
+  "pass_": "p2",
+  "build": "new",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16657,
+  "ttft": 6.75,
+  "mhz": 1328.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4091,
+  "ttft": 1.28,
+  "mhz": 1265.857142857143
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4086,
+  "ttft": 1.12,
+  "mhz": 1505.3333333333333
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4089,
+  "ttft": 1.14,
+  "mhz": 1454.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4088,
+  "ttft": 1.26,
+  "mhz": 1335.4285714285713
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4086,
+  "ttft": 1.23,
+  "mhz": 1357.142857142857
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4087,
+  "ttft": 1.19,
+  "mhz": 1390.7142857142858
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4111,
+  "ttft": 1.12,
+  "mhz": 1514.7142857142858
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4115,
+  "ttft": 1.12,
+  "mhz": 1514.7142857142858
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4111,
+  "ttft": 1.11,
+  "mhz": 1525.142857142857
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4114,
+  "ttft": 1.18,
+  "mhz": 1461.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4113,
+  "ttft": 1.17,
+  "mhz": 1487.142857142857
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4113,
+  "ttft": 1.13,
+  "mhz": 1504.0
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4121,
+  "ttft": 1.11,
+  "mhz": 1543.5714285714287
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4116,
+  "ttft": 1.12,
+  "mhz": 1537.2857142857142
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4115,
+  "ttft": 1.14,
+  "mhz": 1504.7142857142858
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4117,
+  "ttft": 1.22,
+  "mhz": 1439.5714285714287
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4119,
+  "ttft": 1.22,
+  "mhz": 1430.5714285714287
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4119,
+  "ttft": 1.14,
+  "mhz": 1507.2857142857142
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4300,
+  "ttft": 1.24,
+  "mhz": 1498.5714285714287
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4298,
+  "ttft": 1.23,
+  "mhz": 1512.7142857142858
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4300,
+  "ttft": 1.33,
+  "mhz": 1419.625
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4295,
+  "ttft": 1.35,
+  "mhz": 1386.625
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4298,
+  "ttft": 1.31,
+  "mhz": 1411.2857142857142
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4298,
+  "ttft": 1.22,
+  "mhz": 1521.4285714285713
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16656,
+  "ttft": 6.44,
+  "mhz": 1392.4473684210527
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16654,
+  "ttft": 6.29,
+  "mhz": 1432.1351351351352
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16654,
+  "ttft": 6.37,
+  "mhz": 1411.837837837838
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16653,
+  "ttft": 6.54,
+  "mhz": 1370.842105263158
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16656,
+  "ttft": 6.63,
+  "mhz": 1355.948717948718
+ },
+ {
+  "pass_": "p3",
+  "build": "new",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16654,
+  "ttft": 6.41,
+  "mhz": 1404.6216216216217
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4091,
+  "ttft": 1.16,
+  "mhz": 1442.857142857143
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4090,
+  "ttft": 1.19,
+  "mhz": 1432.8333333333333
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4089,
+  "ttft": 1.2,
+  "mhz": 1387.5714285714287
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4086,
+  "ttft": 1.2,
+  "mhz": 1397.142857142857
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4090,
+  "ttft": 1.09,
+  "mhz": 1528.5
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4092,
+  "ttft": 1.1,
+  "mhz": 1519.1666666666667
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4108,
+  "ttft": 1.17,
+  "mhz": 1481.857142857143
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4112,
+  "ttft": 1.27,
+  "mhz": 1383.2857142857142
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4114,
+  "ttft": 1.25,
+  "mhz": 1387.875
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4113,
+  "ttft": 1.22,
+  "mhz": 1419.5714285714287
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4110,
+  "ttft": 1.15,
+  "mhz": 1529.7142857142858
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4114,
+  "ttft": 1.15,
+  "mhz": 1509.4285714285713
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4120,
+  "ttft": 1.15,
+  "mhz": 1537.6666666666667
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4115,
+  "ttft": 1.25,
+  "mhz": 1407.2857142857142
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4122,
+  "ttft": 1.24,
+  "mhz": 1408.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4121,
+  "ttft": 1.15,
+  "mhz": 1521.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4123,
+  "ttft": 1.17,
+  "mhz": 1491.142857142857
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4119,
+  "ttft": 1.15,
+  "mhz": 1537.6666666666667
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4278,
+  "ttft": 1.25,
+  "mhz": 1433.4285714285713
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4277,
+  "ttft": 1.25,
+  "mhz": 1429.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4276,
+  "ttft": 1.26,
+  "mhz": 1409.5
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4279,
+  "ttft": 1.16,
+  "mhz": 1527.7142857142858
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4275,
+  "ttft": 1.17,
+  "mhz": 1531.0
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4274,
+  "ttft": 1.18,
+  "mhz": 1502.2857142857142
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16653,
+  "ttft": 6.33,
+  "mhz": 1393.1351351351352
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16654,
+  "ttft": 6.42,
+  "mhz": 1375.081081081081
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16654,
+  "ttft": 6.26,
+  "mhz": 1416.2222222222222
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16654,
+  "ttft": 6.22,
+  "mhz": 1420.388888888889
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16655,
+  "ttft": 6.42,
+  "mhz": 1372.837837837838
+ },
+ {
+  "pass_": "p4",
+  "build": "base",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16654,
+  "ttft": 6.51,
+  "mhz": 1355.0526315789473
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4088,
+  "ttft": 1.3,
+  "mhz": 1261.625
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4091,
+  "ttft": 1.16,
+  "mhz": 1440.4285714285713
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4089,
+  "ttft": 1.08,
+  "mhz": 1523.0
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4087,
+  "ttft": 1.12,
+  "mhz": 1475.4285714285713
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4087,
+  "ttft": 1.09,
+  "mhz": 1505.7142857142858
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4090,
+  "ttft": 1.19,
+  "mhz": 1411.142857142857
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4112,
+  "ttft": 1.23,
+  "mhz": 1413.5714285714287
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4115,
+  "ttft": 1.22,
+  "mhz": 1417.857142857143
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4113,
+  "ttft": 1.13,
+  "mhz": 1521.0
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4109,
+  "ttft": 1.13,
+  "mhz": 1510.5714285714287
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4112,
+  "ttft": 1.13,
+  "mhz": 1507.857142857143
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4109,
+  "ttft": 1.24,
+  "mhz": 1382.75
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4119,
+  "ttft": 1.23,
+  "mhz": 1407.4285714285713
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4121,
+  "ttft": 1.17,
+  "mhz": 1475.0
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4123,
+  "ttft": 1.13,
+  "mhz": 1524.7142857142858
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4121,
+  "ttft": 1.14,
+  "mhz": 1515.0
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4121,
+  "ttft": 1.15,
+  "mhz": 1509.0
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4121,
+  "ttft": 1.25,
+  "mhz": 1383.5
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4297,
+  "ttft": 1.34,
+  "mhz": 1399.75
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4298,
+  "ttft": 1.23,
+  "mhz": 1523.7142857142858
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4297,
+  "ttft": 1.24,
+  "mhz": 1502.857142857143
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4298,
+  "ttft": 1.24,
+  "mhz": 1520.5714285714287
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4299,
+  "ttft": 1.35,
+  "mhz": 1391.375
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4296,
+  "ttft": 1.34,
+  "mhz": 1406.875
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16655,
+  "ttft": 6.29,
+  "mhz": 1428.6756756756756
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16654,
+  "ttft": 6.72,
+  "mhz": 1332.6153846153845
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16654,
+  "ttft": 6.51,
+  "mhz": 1379.421052631579
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16658,
+  "ttft": 6.57,
+  "mhz": 1366.578947368421
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16651,
+  "ttft": 6.39,
+  "mhz": 1409.7777777777778
+ },
+ {
+  "pass_": "p5",
+  "build": "new",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16651,
+  "ttft": 6.41,
+  "mhz": 1407.4324324324325
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4088,
+  "ttft": 1.19,
+  "mhz": 1389.857142857143
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4089,
+  "ttft": 1.09,
+  "mhz": 1505.5
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4090,
+  "ttft": 1.08,
+  "mhz": 1540.3333333333333
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4091,
+  "ttft": 1.17,
+  "mhz": 1427.4285714285713
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4089,
+  "ttft": 1.16,
+  "mhz": 1435.2857142857142
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4090,
+  "ttft": 1.15,
+  "mhz": 1447.7142857142858
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4115,
+  "ttft": 1.14,
+  "mhz": 1544.5
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4112,
+  "ttft": 1.16,
+  "mhz": 1543.1666666666667
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4111,
+  "ttft": 1.16,
+  "mhz": 1494.142857142857
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4112,
+  "ttft": 1.21,
+  "mhz": 1441.0
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4112,
+  "ttft": 1.22,
+  "mhz": 1442.7142857142858
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4112,
+  "ttft": 1.17,
+  "mhz": 1492.7142857142858
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4120,
+  "ttft": 1.15,
+  "mhz": 1524.7142857142858
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4119,
+  "ttft": 1.15,
+  "mhz": 1516.7142857142858
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4122,
+  "ttft": 1.18,
+  "mhz": 1495.0
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4122,
+  "ttft": 1.26,
+  "mhz": 1410.4285714285713
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4122,
+  "ttft": 1.24,
+  "mhz": 1422.4285714285713
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4121,
+  "ttft": 1.15,
+  "mhz": 1538.8333333333333
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4295,
+  "ttft": 1.18,
+  "mhz": 1519.142857142857
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4295,
+  "ttft": 1.19,
+  "mhz": 1501.2857142857142
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4299,
+  "ttft": 1.29,
+  "mhz": 1405.5714285714287
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4299,
+  "ttft": 1.28,
+  "mhz": 1413.5714285714287
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4298,
+  "ttft": 1.26,
+  "mhz": 1419.857142857143
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4297,
+  "ttft": 1.17,
+  "mhz": 1526.4285714285713
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16652,
+  "ttft": 6.35,
+  "mhz": 1389.3783783783783
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16657,
+  "ttft": 6.19,
+  "mhz": 1433.5277777777778
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16656,
+  "ttft": 6.22,
+  "mhz": 1421.25
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16652,
+  "ttft": 6.47,
+  "mhz": 1361.157894736842
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16656,
+  "ttft": 6.42,
+  "mhz": 1373.972972972973
+ },
+ {
+  "pass_": "p6",
+  "build": "base",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16651,
+  "ttft": 6.21,
+  "mhz": 1427.861111111111
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4087,
+  "ttft": 1.11,
+  "mhz": 1520.8333333333333
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4088,
+  "ttft": 1.07,
+  "mhz": 1565.5
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4085,
+  "ttft": 1.14,
+  "mhz": 1449.7142857142858
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4090,
+  "ttft": 1.13,
+  "mhz": 1458.0
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4085,
+  "ttft": 1.14,
+  "mhz": 1446.2857142857142
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4087,
+  "ttft": 1.06,
+  "mhz": 1541.4285714285713
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4110,
+  "ttft": 1.12,
+  "mhz": 1537.4285714285713
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4113,
+  "ttft": 1.14,
+  "mhz": 1515.5714285714287
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4115,
+  "ttft": 1.19,
+  "mhz": 1473.857142857143
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4115,
+  "ttft": 1.19,
+  "mhz": 1466.7142857142858
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4111,
+  "ttft": 1.16,
+  "mhz": 1509.8333333333333
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4113,
+  "ttft": 1.13,
+  "mhz": 1542.7142857142858
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4118,
+  "ttft": 1.14,
+  "mhz": 1532.0
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4119,
+  "ttft": 1.15,
+  "mhz": 1526.5714285714287
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4119,
+  "ttft": 1.25,
+  "mhz": 1404.375
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4122,
+  "ttft": 1.24,
+  "mhz": 1423.0
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4120,
+  "ttft": 1.15,
+  "mhz": 1538.6666666666667
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4120,
+  "ttft": 1.16,
+  "mhz": 1522.7142857142858
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4295,
+  "ttft": 1.19,
+  "mhz": 1501.7142857142858
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4297,
+  "ttft": 1.27,
+  "mhz": 1425.4285714285713
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4296,
+  "ttft": 1.27,
+  "mhz": 1404.75
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4298,
+  "ttft": 1.27,
+  "mhz": 1404.875
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4302,
+  "ttft": 1.17,
+  "mhz": 1525.0
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4298,
+  "ttft": 1.19,
+  "mhz": 1510.857142857143
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16655,
+  "ttft": 6.36,
+  "mhz": 1387.1351351351352
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16652,
+  "ttft": 6.3,
+  "mhz": 1404.361111111111
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16653,
+  "ttft": 6.22,
+  "mhz": 1423.2777777777778
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16654,
+  "ttft": 6.33,
+  "mhz": 1392.4444444444443
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16652,
+  "ttft": 6.5,
+  "mhz": 1356.1052631578948
+ },
+ {
+  "pass_": "p7",
+  "build": "base",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16657,
+  "ttft": 6.39,
+  "mhz": 1382.5675675675675
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 1,
+  "plen": 4091,
+  "ttft": 1.08,
+  "mhz": 1568.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 2,
+  "plen": 4090,
+  "ttft": 1.14,
+  "mhz": 1463.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 3,
+  "plen": 4086,
+  "ttft": 1.11,
+  "mhz": 1493.2857142857142
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 4,
+  "plen": 4087,
+  "ttft": 1.05,
+  "mhz": 1559.8333333333333
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 5,
+  "plen": 4088,
+  "ttft": 1.05,
+  "mhz": 1586.5
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4096,
+  "rep": 6,
+  "plen": 4090,
+  "ttft": 1.05,
+  "mhz": 1551.142857142857
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 1,
+  "plen": 4108,
+  "ttft": 1.09,
+  "mhz": 1566.6666666666667
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 2,
+  "plen": 4113,
+  "ttft": 1.15,
+  "mhz": 1519.3333333333333
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 3,
+  "plen": 4112,
+  "ttft": 1.16,
+  "mhz": 1510.1666666666667
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 4,
+  "plen": 4112,
+  "ttft": 1.12,
+  "mhz": 1523.4285714285713
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 5,
+  "plen": 4112,
+  "ttft": 1.11,
+  "mhz": 1549.857142857143
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4108,
+  "rep": 6,
+  "plen": 4112,
+  "ttft": 1.12,
+  "mhz": 1526.0
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4140,
+  "rep": 1,
+  "plen": 4120,
+  "ttft": 1.12,
+  "mhz": 1529.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4140,
+  "rep": 2,
+  "plen": 4122,
+  "ttft": 1.23,
+  "mhz": 1427.2857142857142
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4140,
+  "rep": 3,
+  "plen": 4120,
+  "ttft": 1.22,
+  "mhz": 1439.4285714285713
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4140,
+  "rep": 4,
+  "plen": 4122,
+  "ttft": 1.13,
+  "mhz": 1513.0
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4140,
+  "rep": 5,
+  "plen": 4118,
+  "ttft": 1.14,
+  "mhz": 1511.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4140,
+  "rep": 6,
+  "plen": 4119,
+  "ttft": 1.14,
+  "mhz": 1533.0
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4300,
+  "rep": 1,
+  "plen": 4277,
+  "ttft": 1.3,
+  "mhz": 1466.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4300,
+  "rep": 2,
+  "plen": 4276,
+  "ttft": 1.33,
+  "mhz": 1418.5714285714287
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4300,
+  "rep": 3,
+  "plen": 4273,
+  "ttft": 1.32,
+  "mhz": 1435.2857142857142
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4300,
+  "rep": 4,
+  "plen": 4275,
+  "ttft": 1.21,
+  "mhz": 1534.0
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4300,
+  "rep": 5,
+  "plen": 4277,
+  "ttft": 1.25,
+  "mhz": 1486.875
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 4300,
+  "rep": 6,
+  "plen": 4275,
+  "ttft": 1.23,
+  "mhz": 1517.0
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 1,
+  "plen": 16657,
+  "ttft": 6.44,
+  "mhz": 1392.1351351351352
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 2,
+  "plen": 16652,
+  "ttft": 6.46,
+  "mhz": 1386.945945945946
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 3,
+  "plen": 16657,
+  "ttft": 6.38,
+  "mhz": 1411.2162162162163
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 4,
+  "plen": 16652,
+  "ttft": 6.26,
+  "mhz": 1436.8333333333333
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 5,
+  "plen": 16654,
+  "ttft": 6.44,
+  "mhz": 1394.2432432432433
+ },
+ {
+  "pass_": "p8",
+  "build": "new",
+  "size": 16384,
+  "rep": 6,
+  "plen": 16652,
+  "ttft": 6.55,
+  "mhz": 1370.0263157894738
+ }
+]

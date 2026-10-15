@@ -1,0 +1,2 @@
+MD5 (intarsia-base) = 0ae23ea0525df42c570ba9a4247f8798
+MD5 (intarsia-new) = d293df8de949cf1673420d613d8538c9
