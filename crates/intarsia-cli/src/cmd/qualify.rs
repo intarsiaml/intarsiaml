@@ -55,6 +55,11 @@ pub struct QualifyArgs {
     /// Golden file with the longer prompt set for the in-depth stages (default: found by name, else made).
     #[arg(long)]
     pub golden_long: Option<PathBuf>,
+    /// Golden file with ~4k-token prompts for the `acc-4k` stage (default: `<model>-4k...` found by name, built from
+    /// tools/prompts/golden_4k.jsonl; none is made). Its prompts are long enough for the prefix-reuse gate at a
+    /// prefill chunk of 2048, which the long golden's 700-token prompts are not.
+    #[arg(long)]
+    pub golden_4k: Option<PathBuf>,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
@@ -131,7 +136,7 @@ pub struct QualifyArgs {
     /// Pass --no-unim to localeval (no unanimis record for the A/B runs).
     #[arg(long)]
     pub no_unim: bool,
-    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, bench, acc-long,
+    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, bench, acc-long, acc-4k,
     /// envelope, bench-long, ab, tp.
     #[arg(long)]
     pub skip: Vec<String>,
@@ -258,6 +263,13 @@ const STAGES: &[StageDef] = &[
         section: "full",
         needs: &["plan"],
         run: st_acc_long,
+    },
+    StageDef {
+        id: "acc-4k",
+        title: "accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)",
+        section: "full",
+        needs: &["plan"],
+        run: st_acc_4k,
     },
     StageDef {
         id: "envelope",
@@ -1215,6 +1227,32 @@ impl Ctx {
         })
     }
 
+    /// The ~4k-token golden, if there is one: `--golden-4k`, or `<model>-4k...` in the golden directories. Never made
+    /// here (the HF fp32 run over its 12.6k positions takes much longer than a stage).
+    fn golden_4k(&mut self) -> Result<Golden> {
+        let key = "golden_4k";
+        if let Some(p) = self.fact_str(key) {
+            if Path::new(&p).exists() {
+                return Ok(Golden::Have(PathBuf::from(p), self.fact_str(&format!("{key}_how")).unwrap_or_default()));
+            }
+        }
+        if let Some(g) = self.a.golden_4k.clone() {
+            if !g.exists() {
+                return Ok(Golden::None(format!("--golden-4k {} does not exist", g.display())));
+            }
+            return Ok(self.have_golden(key, g, "given with --golden-4k".into()));
+        }
+        let dirs = default_golden_dirs(&self.a);
+        if let Some(g) = facts::find_golden_4k(&self.name, &dirs) {
+            return Ok(self.have_golden(key, g, "found by model name".into()));
+        }
+        Ok(Golden::None(format!(
+            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl)",
+            self.name,
+            dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "),
+        )))
+    }
+
     fn have_golden(&mut self, key: &str, p: PathBuf, how: String) -> Golden {
         self.facts.insert(key.to_string(), json!(p.display().to_string()));
         self.facts.insert(format!("{key}_how"), json!(how));
@@ -1674,8 +1712,31 @@ fn st_acc_long(c: &mut Ctx) -> Result<Out> {
         Golden::Have(g, h) => (g, h),
         Golden::None(why) => return Ok(Out::skip(why)),
     };
-    let a = c.accuracy("acc-long", &g, "all", true, 1, &[])?;
-    Ok(c.acc_out(a, &g, &how, "long"))
+    // With a 4k golden the prefix-reuse gate runs there (`acc-4k`): the long golden's longest prompt is 700 tokens, so at
+    // a prefill chunk above ~350 its reuse gate has nothing to run on, prints SKIPPED, and that counts as a fail. Without
+    // one (every other model today) this stage is unchanged.
+    let reuse_in_4k = matches!(c.golden_4k()?, Golden::Have(g4, _) if g4 != g);
+    let a = c.accuracy("acc-long", &g, if reuse_in_4k { "both" } else { "all" }, true, 1, &[])?;
+    let mut o = c.acc_out(a, &g, &how, "long");
+    if reuse_in_4k {
+        o.notes.push("prefix reuse is gated in acc-4k, on the 4k golden".into());
+    }
+    Ok(o)
+}
+
+fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
+    let (g, how) = match c.golden_4k()? {
+        Golden::Have(g, h) => (g, h),
+        Golden::None(why) => return Ok(Out::skip(why)),
+    };
+    // a model whose long golden is the 4k one (no `-long` file) already ran it, reuse gate included, in acc-long
+    if let Golden::Have(gl, _) = c.golden(true)? {
+        if gl == g {
+            return Ok(Out::skip("the 4k golden is the long golden: covered by acc-long"));
+        }
+    }
+    let a = c.accuracy("acc-4k", &g, "all", true, 1, &[])?;
+    Ok(c.acc_out(a, &g, &how, "4k"))
 }
 
 fn st_envelope(c: &mut Ctx) -> Result<Out> {
