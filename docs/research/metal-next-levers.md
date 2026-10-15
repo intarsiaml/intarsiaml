@@ -18,7 +18,7 @@ kernel capability, which today does not exist in a bandwidth-efficient and bit-e
 
 1. **Shared prerequisite plus n-gram (prompt-lookup) speculation, greedy.** Build bit-exact multi-row kernels (rows = 2..16 activations per weight
    pass, per-row reduction order identical to the batch-1 GEMV, per-row split-KV attention). Put prompt-lookup drafting on top. No new weights, no
-   second model, no regression when nothing matches (the step falls back to a plain M=1 decode). About 8-10 working days. Expected 1.0x on novel
+   second model, no regression when nothing matches (the step falls back to a plain M=1 decode). About 9-12 working days (shared kernels 6-8, engine loop and drafter 3-4). Expected 1.0x on novel
    prose, 1.3-2.2x on input-grounded work (summarise, quote, edit code, RAG). Details in section 4.
 2. **Continuous batching for the serve path, decode-first.** Reuses the same kernels with rows from different sequences. Aggregate decode
    throughput is the largest available gain (upper bound about 7x at 8 concurrent streams and 1k context, realistic 5-6x; estimate), but only when requests actually overlap, and
@@ -85,10 +85,10 @@ Three findings follow, and they drive the plan:
 1. **The M = 2..15 matmul path is untuned and unmeasured.** No file in `docs/results/` reports T(M)/T(1) for M below 16. The existing kernel there is
    the Phase-A tiled GEMM, written before the GEMV work. Whether it is 1.5x or 5x a GEMV pass at M = 4 is **unknown**. Do not plan on it.
 2. **The measured M >= 16 path is not a free lunch either.** `docs/results/raw/2026-10-14-metal-prefill-p1/full/bench-pick.txt` (TFLOPS per shape):
-   qo (4096x4096) M=16: 4.80 TFLOPS = 112 us for 33.5 MB (about 300 GB/s); M=32: 9.53 (same 112 us); M=64: 18.9 (113 us); M=128: 37.9 (113 us).
-   gate/up single matrix M=16: 5.64 TFLOPS = 286 us for 100.7 MB (about 350 GB/s); the batch-1 GEMV moves the same bytes at about 580 GB/s (58 us and 174 us).
-   So NAX at M = 16..128 costs a flat **1.65-1.9x** of the GEMV time per matmul (a latency floor, not a bandwidth limit), and is padded to 16 rows. Padding a
-   k = 5 verify to M = 16 would make the matmul part of a step about 1.7x: roughly 24 ms -> 41 ms, a verify of about 43 ms (estimate). That is a usable
+   q/o (4096x4096) M=16: 4.80 TFLOPS, about 300 GB/s effective; M=32: 9.53 TFLOPS, M=64: 18.9, M=128: 37.9, i.e. the same time for 2x, 4x, 8x the rows (a latency floor, not a bandwidth limit).
+   Effective bandwidth at M=16 (weight bytes / time; TFLOPS from `bench-pick.txt`): down (K=12288) about 306 GB/s, gate/up about 350 GB/s, k/v about 120 GB/s; the batch-1 GEMV moves weights at about 580 GB/s.
+   So NAX at M = 16..128 costs a flat **1.65-1.9x** of the GEMV time for the big matmuls (about 4.8x for the small k/v pair), and is padded to 16 rows. Padding a
+   k = 5 verify to M = 16 would make the matmul part of a step about 1.9x (bytes-weighted over a layer): roughly 24 ms -> 45 ms, and `Logits` at M > 1 takes the unmeasured tiled f32 GEMM, so a verify is **at least about 48 ms** (lower bound, estimate). That is a usable
    *stop-gap* for first measurements, not the end state.
 3. **Rows currently take different kernels from decode, so outputs are not bit-identical.** A verify pass would use tiled GEMM or NAX instead of
    GEMV, flash prefill attention instead of split-KV decode attention, and the tiled f32 GEMM instead of the f32-out GEMV for logits. Near-ties can flip
@@ -102,16 +102,18 @@ Both features reduce to "run R rows through the model, where each row has its ow
 | ID | Kernel | What | Why this form | Effort |
 |---|---|---|---|---|
 | K1 | `gemv_bf16` with R rows (R = 2..16, template parameter), also `MatmulPair` and f32-out `Logits` forms | each lane loads a 16-byte weight chunk once and accumulates it against R activation rows. Each row keeps exactly the M = 1 variant's reduction order (same variant picked from `(k, n)`, never from R) | weight bytes unchanged, FMAs x R. At 580 GB/s a GEMV consumes about 290 G bf16 weights/s, i.e. 0.6 TFLOP/s of FMA per row: fine for R <= 4-8, but at R = 16 it is about 9 TFLOP/s of scalar fp32 FMA plus bf16 converts, which may be ALU-bound (ALU peak not measured here). G0 therefore tests R up to 8; R = 9..16 may need a `simdgroup_matrix` formulation (which then needs its own bit-exactness argument). **Row r is bit-identical to a batch-1 decode of that row**, so verify rows and batched rows equal serial decode by construction | 3-4 days (template + 3 launchers + `Exact` admission tests vs M = 1 + `gemv_b3`-style bench) |
-| K2 | `attn_decode_bf16_splitkv` for q_len R | one launch, row r uses `visible = pos0 + r + 1` keys and the split count the M = 1 kernel would pick for that count; K/V of the new rows are already appended | per-row split choice is what keeps bits equal to decode (the R9700 lesson: do not fall through to prefill attention for a handful of query rows at 4k keys, where few threadgroups each read all keys; `splitkv_ok` requires `m == 1` today, so a verify pass lands on the flash prefill kernel) | v0: R sequential M = 1 launches per layer (0.5 day, costs about R x 21 us x 36 = 0.8 ms per extra row at 128 ctx; per-row attention at 4k is larger); v1: fused multi-row kernel (2 days) |
+| K2 | `attn_decode_bf16_splitkv` for q_len R | one launch, row r uses `visible = pos0 + r + 1` keys and the split count the M = 1 kernel would pick for that count; K/V of the new rows are already appended | per-row split choice is what keeps bits equal to decode (the R9700 lesson: do not fall through to prefill attention for a handful of query rows at 4k keys, where few threadgroups each read all keys; `splitkv_ok` requires `m == 1` today, so a verify pass lands on the flash prefill kernel) | reference = the serving decode step's exact launch configuration (see below). v0: R sequential M = 1 launches per layer, each with the same position source and simdgroup count the serving step uses (0.5 day, costs about R x 21 us x 36 = 0.8 ms per extra row at 128 ctx; per-row attention at 4k is larger); v1: fused multi-row kernel (2 days) |
 | K3 | row-wise argmax over `[R, vocab]` and a `[R, vocab]` logits workspace | `Op::Argmax` currently takes one row and `ws.logits` is `[1, V]` | on-device greedy for all verify rows; 4R bytes back instead of R x 608 KB | 1 day |
 | K4 | per-row positions | `Rope` / `KvAppend` / attention take `pos0 + row` for speculation, and a `(seq_slot, pos)` table for batching | design K1-K3 with a row descriptor now so batching later is only scheduling | included above |
 
-Governance: register K1-K3 as `Exactness::Exact` and extend the admission harness so each case compares R-row output to R separate M = 1 launches
+**What "bit-identical to decode" means.** The reference is the serving decode step's exact launch configuration, not any M = 1 launch: the same GEMV variant chosen from `(k, n)` (including the 8-byte-aligned `a8` variants), the same position source and simdgroup count for attention (`attn.rs` documents that a host `pos0` launch and a device-side `OpCall::pos` launch may use different simdgroups per threadgroup and then agree only up to rounding order), the same row-norm form. K1/K2 pin to those choices; a faster variant at R = 8 that reorders accumulation does not qualify.
+
+Governance: register K1-K3 as `Exactness::Exact` and extend the admission harness so each case compares R-row output to the serving decode step's launches
 **bitwise**, not to the CPU reference with a tolerance. Add the per-kernel batch-invariance flag that decision 0007 lists as open. CPU reference
 backend gets composition fallbacks (R x the M = 1 op), the same pattern D1 used, so CUDA/HIP keep building and the fallback is correct (slow).
 
-Gate G0 (go/no-go before anything else is built): K1 at R = 4 and R = 8 reaches **T(R)/T(1) <= 1.15** on the Qwen3-8B shapes in the `gemv_b3` harness
-(interleaved rounds, inside a fleetq slot). If it does not, speculation on Metal is not worth building, because the "one weight pass" premise fails here.
+Gate G0 (go/no-go for the kernel build; the criteria are in section 7): K1 at R = 4 and R = 8 stays within the T(R)/T(1) limits there on the Qwen3-8B shapes in the `gemv_b3` harness
+(interleaved rounds, inside a fleetq slot), with the variant pinned to the M = 1 choice. If it does not, speculation on Metal is not worth building, because the "one weight pass" premise fails here.
 The mlx-lm numbers in section 4.6 say that risk is real.
 
 ## 4. Speculative decoding
@@ -152,8 +154,8 @@ after the greedy path.
   k = 4-8 tokens after it. Microseconds on CPU; no memory; no model; `TextCodec` untouched. New file `intarsia-core/src/spec.rs` (trait `Drafter { fn propose(&mut self, ctx: &[u32], k: usize) -> Vec<u32> }`).
 * No match -> the step is a plain M = 1 decode (graph/GEMV path unchanged), so the worst case is zero overhead beyond the lookup. Matches cost one R-row step.
 * Changes: section 4.1 + `spec.rs` + K1-K4. Shared vs backend: only K1-K3 are Metal-specific; CUDA/HIP take the composition fallback until someone ports.
-* Effort: 1 day for the drafter on top of the 4.1 engine work (2 days) and the shared kernels (6-8 days, section 3). Functional prototype using existing paths (`AllLogits`, tiled GEMM, no
-  exactness) is 2-3 days and answers the questions that decide everything else: acceptance and token-flip rate on real workloads. Do this first.
+* Effort: 1 day for the drafter on top of the 4.1 engine work (2 days) and the shared kernels (6-8 days, section 3). Total 9-11 days. A functional prototype using existing paths (`AllLogits`, tiled GEMM, no
+  exactness) is 2-3 days and runs **in parallel with G0**: G0 decides whether the kernel build happens, the prototype measures match rate p, mean accepted m and the token-flip rate on real text (it is not a speed result, the tiled GEMM is slow).
 * Expected gain (estimate). Per step, with probability p a match exists and k = 4 drafts are verified, yielding 1 + m tokens on average; otherwise a plain step.
   Speedup = (p(1+m) + 1 - p) / (p(1 + 4 delta) + 1 - p), where delta is the cost of an extra verify row relative to a step (K1/K2 target 0.04, pessimistic 0.10):
 
@@ -192,7 +194,7 @@ after the greedy path.
   | 0.6B | 4 | 40.6 (1.11x) | 48.4 (1.32x) | 58.2 (1.59x) | |
   | 1.7B (7.5 ms), alpha 0.6 / 0.7 / 0.8 | 3 | 41.0 (1.12x) | 47.7 (1.30x) | 55.6 (1.52x) | |
 
-  With delta = 0.10 the 0.6B gamma = 3 row becomes 39.5 / 45.8 / 53.3 tok/s (1.08x / 1.25x / 1.46x). With the NAX stop-gap verify (about 43 ms) 0.6B gamma = 3 is 39.6 / 46.1 tok/s at alpha 0.6 / 0.7 (1.08x / 1.26x).
+  With delta = 0.10 the 0.6B gamma = 3 row becomes 39.5 / 45.8 / 53.3 tok/s (1.08x / 1.25x / 1.46x). With the NAX stop-gap verify (at least 48 ms, so these are upper bounds) 0.6B gamma = 3 is at most 36.3 / 42.2 tok/s at alpha 0.6 / 0.7 (0.99x / 1.15x): the stop-gap is for first measurements only.
   A draft costs about 15 % of a step per proposed token (0.6B), so alpha near 0.5 or below is roughly break-even and only larger alpha pays.
 * Acceptance anchor: vLLM PR #24322 measured Qwen3-1.7B drafting for Qwen3-32B on MT-Bench: acceptance length 2.79 at k = 3 and 3.12 at k = 4 (temperature 0), batch-1 TPOT 46.1 -> 22.6 ms, **on CUDA** (<https://github.com/vllm-project/vllm/pull/24322>,
   medium confidence). 2.79 at k = 3 corresponds to alpha of about 0.76 (solving E; derived here). For the 8B target with a 0.6B draft I found **no measurement**; the alpha range above is a guess.
@@ -226,7 +228,7 @@ accuracy sense and gives the repo its first `Exact`-class Metal kernels.
 |---|---|---|
 | Draft model | Yes. `--draft-model`, `--num-draft-tokens` (CLI default 3). Draft and target caches both trimmed on rejection. Acceptance rule: draft token equals the target's own sampled token (exact-match, chain only, no tree). Read locally in installed 0.31.3 `mlx_lm/generate.py` (speculative loop, `_rewind_cache`) | Yes. Local build b11429 has `--spec-draft-model`, `--spec-draft-n-max/-n-min`, `--spec-draft-p-min`, `--spec-draft-device/-ngl` (read from the binary's strings; current docs: <https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md>, high confidence) |
 | n-gram / lookup | Not in 0.31.3 or 0.32.0 (no "lookup"/"ngram" in `generate.py`; checked locally) | Yes: `--spec-type` includes `ngram-simple`, `ngram-map-k`, `ngram-map-k4v`, `ngram-mod`, `ngram-cache` (defaults n = 12, m = 48 for simple/map-k), plus `--lookup-cache-static/-dynamic` in b11429 |
-| EAGLE-3 / MTP | Prototype discussion only (#890) | `draft-eagle3`, `draft-mtp`, `draft-dflash`, `draft-dspark` types in current docs (not verified in b11429) |
+| EAGLE-3 / MTP | Prototype discussion only (#890) | `draft-eagle3`, `draft-mtp`, `draft-dflash`, `draft-dspark` types in current docs (not found in b11429's strings, only the ngram implementations were) |
 | Metal evidence | EAGLE-3 prototype 1.05x (M3 Ultra, Llama-3.1-8B 4-bit, low confidence) | MTP on M1 Max, Qwen3.5-9B Q4_K_M, temperature 0: baseline 25.3 tok/s; n-max 0: 22.4; n-max 2: 21.9 (76 % accept); n-max 6: 19.3 (44 % accept), i.e. slower than baseline everywhere, root cause not established (<https://github.com/ggml-org/llama.cpp/issues/23752>, high confidence on the numbers, closed "not a bug"). Few-row Metal matmul kernels aimed at verification are described in secondary blog posts only (low confidence) |
 | Batching in the server | `mlx_lm/server.py` `BatchGenerator` (`--decode-concurrency`, `--prompt-concurrency`). Local code: `is_batchable = draft_model is None and all(c has merge)`, so **a loaded draft model turns batching off** | `llama-server --parallel N` / `--cont-batching` present in b11429. I found no published Metal aggregate-throughput numbers (`llama-batched-bench`); third-party mlx numbers (vllm-mlx: Qwen3-0.6B-8bit 328 -> 1112 tok/s at 5 requests, M4 Max, self-reported, <https://vllm-mlx.is-a.dev/guides/continuous-batching/>) are low confidence |
 | Greedy identity | Not claimed; acceptance by equality with the verify pass's own token | Not claimed |
@@ -250,7 +252,7 @@ One worker, one `SequenceState`, FIFO. A second client waits for the first to fi
 | Sequence state | N `SequenceState`s (one per slot) instead of one; prefix reuse becomes "pick the slot with the longest common prefix, else the LRU free slot" | `engine.rs` `Inner`, `state.rs` | shared |
 | KV layout | v1: one arena buffer per layer `[slots, nkv, cap, d]` so the batched attention kernel gets `(arena, slot)` per row; memory is `slots x cap x 144 KiB` (4096-token slots: 590 MB each, 8 slots = 4.7 GB). v2: paged blocks + block table (needed only for long, uneven contexts) | `state.rs` `SlotSpec::AttnKv`, `memplan.rs` (`max_batch` finally read) | shared + K2 kernel |
 | Forward API | `Model::forward_batch(rows: &[Row { slot, pos, token }], head)`; `Workspace` already holds `[max_tokens, hidden]` rows so B decode rows fit | `model.rs` | shared |
-| Row-wise ops | Rope / KvAppend take per-row `(slot, pos)`; embedding gather per row; K1 multi-row matmuls take B rows (B up to 16 with K1; above 16 the NAX GEMM is the measured path, 1.65-1.9x of GEMV time up to M = 128, section 2.2) | K1-K4 | Metal; core composition fallback for CUDA/HIP |
+| Row-wise ops | Rope / KvAppend take per-row `(slot, pos)`; embedding gather per row; K1 multi-row matmuls take B rows (B up to 16 with K1; above 16 the NAX GEMM is the measured path, 1.65-1.9x of GEMV time up to M = 128 for the big matmuls, section 2.2) | K1-K4 | Metal; core composition fallback for CUDA/HIP |
 | Attention | one launch for all B rows, each row bound to its slot's K/V and visible length (K2 with a `(slot, pos)` table) | `attention_splitkv.metal`, `attn.rs` | Metal |
 | Head | `[B, vocab]` logits workspace, row-wise argmax (K3); sampling rows on the host from the same readback | `model.rs` | Metal + shared |
 | Chunked prefill interleaved with decode | a 4k prefill takes about 1.2 s (measured 4k at about 3500 tok/s) and stalls every decode stream if not interleaved; with `prefill_chunk` 256 rows, one chunk is about 70 ms. Mixed steps (decode rows + one chunk) are the standard fix; the flash NAX prefill attention already runs the chunk, K2 runs the decode rows, in the same step | `engine.rs` scheduler | shared |
@@ -267,8 +269,8 @@ Step time model: weights 15.1 GB read once (27.3 ms measured) plus B x ctx x 144
 | 4k | 28.4 ms, 35 | 31.7 ms, 126 | 36.0 ms, 222 | 44.8 ms, 357 |
 
 (aggregate tok/s). This is an upper bound: it assumes bandwidth-class kernels at every R, one attention launch per layer for all rows, and no scheduling gaps. Realistic target: 70-85 % of it. The 4k column is KV-bound (B = 8 reads 4.7 GB of KV per
-step, +29 % bytes over weights alone), which is the case for paged/fp8 KV later. If K1 stops at R = 16 and larger batches go through NAX, the matmul part rises to about 1.7x (24 ms -> 41 ms) and aggregate throughput still keeps growing: B = 32 at 128 context is
-about 32 / 0.046 s = 700 tok/s (estimate).
+step, +29 % bytes over weights alone), which is the case for paged/fp8 KV later. If K1 stops at R = 16 and larger batches go through NAX, the matmul part rises to about 1.9x (24 ms -> 45 ms, step at least 48 ms) and aggregate throughput still keeps growing: B = 32 at 128 context is
+about 32 / 0.048 s = 650 tok/s (estimate, upper bound).
 
 * Effort: scheduler and multi-state engine (5-6 days), `forward_batch` and row-wise ops (3-4), batched attention and arena KV (3-4, partly in K2), chunked-prefill mixing (3-4), server and telemetry (2), exactness and concurrency tests (3). **About 15-25 days** on top of K1-K4.
 * Risks: only helps when requests overlap (single-user chat sees nothing); fairness and TTFT under load; memory = slots x cap; prefix-cache semantics change; scheduler bugs are harder to reproduce than kernel bugs; the Metal command-buffer model has one stream (`synchronize` takes the stream lock), so concurrent encode and GPU work needs a deliberate design;
@@ -280,7 +282,7 @@ about 32 / 0.046 s = 700 tok/s (estimate).
 | Rank | Item | Days (estimate) | Gain (estimate) | Needs | Main risk |
 |---|---|---|---|---|---|
 | 0 | K1-K4 shared exact multi-row kernels | 6-8 | enabling; also removes the dispatch/encode cost per token for rows 2..R | none | G0 fails (T(R)/T(1) > 1.15) |
-| 1 | n-gram speculation | 3-4 on top of K1-K4 (2-3 for a prototype using existing paths, first) | 1.0x prose, 1.3-2.2x input-grounded | K1-K4 | real acceptance unknown |
+| 1 | n-gram speculation | 3-4 on top of K1-K4 (K2 v1 included in row 0); 2-3 more for the parallel prototype | 1.0x prose, 1.3-2.2x input-grounded | K1-K4 | real acceptance unknown |
 | 2 | Continuous batching, decode-first | 15-25 on top of K1-K4 | 4-8x aggregate at 4-8 streams, 1k ctx; 0x for a single user | K1-K4 | needs concurrent clients; scope |
 | 3 | Draft model 0.6B (then 1.7B) | 4-5 on top of 1 | 1.2-1.6x on all text if alpha >= 0.6 | download weights (user approval); 4.1 | alpha unmeasured, draft cost on Metal |
 | 4 | EAGLE-3 chain | 15-20 | below 3 | hidden taps, head loader, probably tree attention | thinking-off training, no tree |
@@ -290,10 +292,10 @@ caps near 1.6x. If the product is strictly single-user, swap ranks 2 and 3.
 
 ## 7. First milestone: n-gram speculation, greedy, bit-exact, measured with localeval
 
-Scope: `intarsia serve|generate --spec ngram [--spec-k 4]` on Metal, attention-only models (Qwen3-8B BF16), default off. Four gates, each a separate commit so a failure stops cleanly. Run benchmarking inside a fleetq slot; localeval queues itself.
+Scope: `intarsia serve|generate --spec ngram [--spec-k 4]` on Metal, attention-only models (Qwen3-8B BF16), default off. Four gates, each a separate commit so a failure stops cleanly. The day counts on the gates are **verification and measurement time only**; the build (K1-K4 6-8 days, engine loop and drafter 3-4 days) comes on top, for the 9-12 days total in section 0. Gate order: G0 runs first and in parallel with the functional prototype (section 4.2); G1-G3 follow the kernel build. Run benchmarking inside a fleetq slot; localeval queues itself.
 
 * **G0 (go/no-go, 3 days): multi-row GEMV micro-benchmark.** K1 (Matmul, MatmulPair, f32-out Logits) at R = 2, 4, 8 against the M = 1 variants on the Qwen3-8B shapes (q/o 4096x4096, k/v 1024 pair, gate/up 12288 pair, down K = 12288, lm_head 151936x4096) in the `gemv_b3` harness style: interleaved rounds, rotating 3 GiB weight pool, GPU-idle check.
-  Pass: T(4)/T(1) <= 1.10 and T(8)/T(1) <= 1.20 summed over a layer's shapes, and R-row output **bitwise equal** to R separate M = 1 launches (`Exactness::Exact` admission case). Also record, once, the unmeasured status quo: tiled GEMM at M = 2..15 and NAX at M = 16 for the same shapes, so section 2.2's gap becomes a number.
+  Pass: T(4)/T(1) <= 1.10 and T(8)/T(1) <= 1.20 summed over a layer's shapes, measured with the variant pinned to the M = 1 choice (a faster variant that reorders accumulation does not count), and R-row output **bitwise equal** to the serving decode step's launches (`Exactness::Exact` admission case). Also record, once, the unmeasured status quo: tiled GEMM at M = 2..15 and NAX at M = 16 for the same shapes, so section 2.2's gap becomes a number.
   Fail: stop; speculation on Metal is not justified at this precision, write the T(R) curve into this document.
 * **G1 (identity, 2 days).** `intarsia generate --show-ids` with `--spec off` and `--spec ngram`, temperature 0, short prompt and `tools/prompts/golden_4k.jsonl` prompts, 48 and 256 new tokens (the D1 identity-gate procedure, `docs/results/raw/2026-10-15-metal-decode-d1/gates/identity/`), stdout byte-identical, plus chat-template prompts that
   hit `min_tokens`, `stop`, a stop string landing mid-run, and `max_tokens` landing mid-run. Spec off must be byte-identical to the current `spike/metal` binary (M = 1 bits unchanged). `intarsia accuracy` decode KL unchanged (3.5e-4 class), `cargo test --workspace`, `kernels test --backend metal` all admitted.
