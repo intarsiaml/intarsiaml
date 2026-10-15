@@ -1,0 +1,25 @@
+72 launches per command buffer, 400 reps
+op                                  us/call      p10      p90
+norm_add                               2.27     2.24     2.32
+qkrope                                 2.60     2.59     2.65
+silu                                   1.21     1.21     1.22
+argmax                                11.96    11.90    13.87
+fingerprints (FNV-1a of every output buffer, guards included)
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+qkrope t2 8/2 d256 pos61 cap63           1108cc5205d6e7f7
+qkrope t4 12/3 d96 rd64 pos30 off1       7aae7bd10b938b2a
+silu 12288 off0                          4db0a5b97986107d
+silu 12289 off1                          d0168e2b0a89cd9f
+argmax 1x151936                          d6620d6e9ebcadb5
+argmax 3x1000                            b585af037f80fe60
+argmax 2x1001                            7523707f1c906b5d

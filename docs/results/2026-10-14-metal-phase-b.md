@@ -744,3 +744,101 @@ Figures marked (console) were read from the terminal during the work and are not
 * **The same ramp audit on the other decode kernels.** Attention lost 9 us per call to 64-bit division, scalar loads, 64-bit index math and dependent loads; the other 328 launches per token (`rmsnorm_add`, `silu_glu`, `qk_norm_rope_kv`, the GEMV prologues) have not been checked for the same thing, and each microsecond of ramp there is 0.33 ms/token at every context. What to look for: integer division or modulo by a runtime value, 64-bit math on per-thread addresses, runs of scalar loads before the first use.
 * Fold `qk_norm_rope_kv` into attention stage 1 to drop that dispatch boundary (part 4 measured 2.5-3.6 us per removed dispatch); the `q` norm and rope would overlap the K/V load ramp.
 * Stage 1 epilogue (about 2.4 us): compute the simdgroup-merge weights once per head instead of once per output element.
+
+## Phase B part 6: the part 5 ramp patterns in the other decode kernels
+
+Branch `metal-b6-audit` (from `spike/metal` `495a447`, part 5 merged), code in `d28b43d`. Host endor (Apple M5 Max), Qwen3-8B BF16. Raw logs and scripts: `docs/results/raw/2026-10-14-metal-phase-b/b6/`. fleetq: #1890 (microbench, tests, checks, stream A/B, traces), #1896 and #1901 (localeval pairs), #1897 (plain-norm fingerprints). #1893 was a localeval attempt that wrote no results (relative output path) and was stopped.
+
+**Outcome.** One kernel had most of the remaining fixed cost: `rmsnorm_add_bf16` (72 calls per token) drops from **9.3 to 4.7 us per call in a real decode**, saving about 0.33 ms/token. The other changes are small: `qk_norm_rope_kv` 8.0 to 7.8 us, the final `rmsnorm_bf16` 5.0 to 4.0 us, `argmax_f32` 14.1 to 12.9 us. Stream time per token (interleaved A/B, 5 pairs) falls **0.36 ms at 4k (28.48 to 28.12 ms, every pair -0.33 to -0.39) and 0.31 ms at 128 context (27.62 to 27.31 ms)**. All outputs are bitwise unchanged: op fingerprints, greedy ids at 48 and 256 tokens, and the accuracy digits.
+
+localeval agrees in both pairs, at every size: +0.5 tok/s each at 128 / 1k / 4k (mean of the pair medians: 36.2 / 35.9 / 34.8 to 36.7 / 36.4 / 35.3). Decode at 4k is **35.3 tok/s, 86.8 percent of the 40.6 tok/s floor** (pre 85.6). With two pairs this is a sanity check; the stream A/B is the measurement.
+
+### What the audit found, per kernel
+
+The part 5 patterns: integer division or modulo by a runtime value, 64-bit math on per-thread addresses, and runs of scalar loads before their first use.
+
+| Kernel (decode calls/token) | Finding | Change |
+|---|---|---|
+| `rmsnorm_add_bf16_ex16` (72) | each of the 5 x 16 accesses formed `skip + (ulong)row * h + i`, and each sat behind an `i < h` select | row pointers computed once; `_f` forms for H == NIT x threads (4096 = 16 x 256) without the bounds selects |
+| `rmsnorm_bf16_ex16` (1, final norm) | same | same, through the same template |
+| `qk_norm_rope_kv_bf16` (36) | `t = tg / heads`, `s = tg % heads` with runtime `heads` on the ramp; the angle's `pow`/`sin`/`cos` computed after the second barrier, on the critical path | `t = 0` without division when T == 1 (`s = tg - t * heads` otherwise); angle computed between the loads and the reduction (same expressions, so same values) |
+| `argmax_f32_v4` (1) | one 16-byte load in flight per thread per loop iteration (38 iterations over 151936 logits) | 8 loads in flight, visited in the same order, so the same first-maximum tie-break |
+| `silu_glu_bf16` (36) | one element per thread, two independent loads, 32-bit index, no division | none: 1.24 us, at the empty-kernel floor of the microbench (1.3 us) |
+| GEMV / pair, `*_rt_u2s8` (180) | divisions only by constexpr powers of two (`k / 8`, `k8 / block`); 32-bit loop index; 16-byte x and W loads; one 64-bit row-base multiply per thread, outside the loop; the pair's second-matrix select is a compare | none |
+
+### Per-call time, small-op microbench (`examples/small_ops`, interleaved, 5 pairs, medians)
+
+72 dependent launches per command buffer, a separate operand set per launch, 400 reps after a warm-up pass. The same binary also prints an FNV-1a fingerprint of every output buffer (guards included) over 18 shapes: H 100 / 128 / 4096 / 4097 / 5120 / 8192 / 12288 with odd offsets, qk-rope T 1 to 5 with partial rotary dims and a full cache, and argmax with odd V. Every build matches pre on all 18 (`ops*.sum`). `nof` is the pointer hoist alone, without the `_f` forms (`ops4`).
+
+| Op | pre | pointer hoist only | shipped |
+|---|---:|---:|---:|
+| `rmsnorm_add` H 4096 | 2.95 | 2.62 | **2.35** |
+| `qk_norm_rope_kv` T 1, 32/8 heads | 2.85 | | **2.63** |
+| `silu_glu` 12288 | 1.24 | | 1.24 |
+| `argmax_f32` 151936 | 12.7 | | **11.9** |
+
+An empty `rmsnorm_add` (diagnostic build `d0`, return before any load) takes 1.3 to 1.5 us in this harness, so about 1 us of real work remains in the shipped norm.
+
+### Kernel-mode GPU time in a real decode (`INTARSIA_METAL_PROFILE=kernel`, 4k prompt, 128 steps, `trace/opdiff-4k.txt`)
+
+| Op | calls/token | pre us | new us | ms/token saved |
+|---|---:|---:|---:|---:|
+| `rmsnorm_add_bf16` | 72 | 9.3 | 4.7 | 0.33 |
+| `qk_norm_rope_kv_bf16` | 36 | 8.0 | 7.8 | 0.007 |
+| `rmsnorm_bf16` (final) | 1 | 5.0 | 4.0 | 0.001 |
+| `argmax_f32` | 1 | 14.1 | 12.9 | 0.001 |
+
+A second trace pair (`trace/opdiff-4k-2.txt`, order new then pre) reproduces the norm (9.4 to 4.7 us). Its per-step sums are higher in the new run (+1.2 ms), but the per-call medians match pre (GEMVs 334.9 vs 335.6, 58.5 vs 58.5, 170.0 vs 170.1 us). The excess is a few outlier launches, interference in that one run, not a slower kernel; the GEMV kernels are unchanged. The in-stream norm gain (4.6 us) is far larger than in the microbench (0.6 us). Probable cause, not isolated: in the microbench the 72 small operand sets stay in the system cache, while in a decode the residual and the GEMV output arrive cold, so more loads in flight per thread is worth more.
+
+### Interleaved A/B of the decode stream (`exp.sh`, 129-token forced decode, 128 steps, order alternating)
+
+Period per step in ms (mean of the 128 steps; `ab-4k.log`, `ab-short.log`):
+
+| Context | pair | pre | new | diff |
+|---|---|---:|---:|---:|
+| 4k | 1 | 28.542 | 28.149 | -0.393 |
+| 4k | 2 | 28.543 | 28.157 | -0.386 |
+| 4k | 3 | 28.435 | 28.091 | -0.344 |
+| 4k | 4 | 28.416 | 28.073 | -0.343 |
+| 4k | 5 | 28.438 | 28.105 | -0.333 |
+| 4k | mean | **28.475** | **28.115** | **-0.360** |
+| 128 | 1 | 27.500 | 27.175 | -0.325 |
+| 128 | 2 | 27.603 | 27.381 | -0.222 |
+| 128 | 3 | 27.603 | 27.492 | -0.111 |
+| 128 | 4 | 27.811 | 27.297 | -0.514 |
+| 128 | 5 | 27.578 | 27.227 | -0.351 |
+| 128 | mean | **27.619** | **27.314** | **-0.305** |
+
+Engine tok/s (same runs): 4k 35.11 to 35.56, 128 36.20 to 36.61. At 4k the new 28.12 ms is 87.7 percent of the 24.65 ms byte floor (pre 86.6).
+
+### localeval (2 pairs, `leval6.sh`, the arguments of the earlier phases)
+
+`localeval speed --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off` against `intarsia serve --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`. Each binary is served and measured back to back in one slot, with order alternating between the pairs. GPU idle 2 to 4 percent before each server, and Zoom not running. Decode tok/s, median (min-max) of 3 reps:
+
+| Prompt tokens | pre (pair 1) | new (pair 1) | new (pair 2) | pre (pair 2) | pre mean | new mean | new, % of floor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ~128 | 36.2 (35.9-36.3) | 36.8 (36.6-36.9) | 36.6 (36.4-36.9) | 36.2 (35.9-36.2) | 36.2 | **36.7** | 90.4% |
+| ~1k | 35.8 (35.6-35.8) | 36.5 (36.4-36.5) | 36.3 (36.1-36.5) | 36.0 (36.0-36.0) | 35.9 | **36.4** | 89.7% |
+| ~4k | 34.8 (34.1-35.0) | 35.3 (35.2-35.6) | 35.2 (34.1-35.4) | 34.7 (34.5-34.9) | 34.8 | **35.3** | 86.8% |
+
+Run ids (`/opt/code/deepeval/results/`): `20261014-205321-adhoc-b6pre`, `20261014-205649-adhoc-b6new`, `20261014-211311-adhoc-b6new-r2`, `20261014-211616-adhoc-b6pre-r2`. unanimis, in the same order: `9f87d9f9-0411-4512-9a65-815c6cb6d537`, `2ebb1331-1181-4ce2-a4c0-4752f565906c`, `d5420f0a-4b48-49b1-b8a8-b12b57c87995`, `cc8ff712-5bd6-4b30-9ba7-1489d2707558`. Per-run output: `b6/localeval-p{1,2}/`.
+
+### Dead ends
+
+* **16-byte vector loads in `rmsnorm_add` (H 4096, aligned operands):** two `uint4` loads per operand per lane, redistributed to the `tid + 256 j` owners through a per-simdgroup threadgroup slice with simdgroup barriers only. Bitwise the same, but **slower**: 2.62 vs 2.35 us (`ops3`). The threadgroup round trip costs more than the 16 scalar loads it replaces once they are hoisted and unconditional. Removed.
+* **32-bit `[T, heads, D]` offsets in `qk_norm_rope_kv`** (host check `T*N*D < 2^32`): 2.63 vs 2.63 us (`ops5`). No change, reverted. The kernel's remaining 64-bit math is the cache-row store, which is off the ramp.
+* Timing-only stage diagnostics of `rmsnorm_add` (wrong results: loads plus sum without the reduction, `d1`; reduction without its threadgroup barrier, `d2`) gave no result. They ran only in `ops1`, the first harness version without a warm-up pass, where even the empty kernel measured 2.6 to 3.3 us and runs spread from 1.8 to 4.9 us. They were not rerun, so it is not known which stage holds the remaining 1 us.
+
+### Correctness
+
+* `cargo test -p intarsia-backend-metal --release` (#1890, `cargo-test-metal.log`): 53 passed, 0 failed. The workspace tests outside the Metal crate were not rerun: this change touches only Metal shaders and the Metal crate.
+* `intarsia kernels test --backend metal`: 19 kernels, 238 cases, all ADMITTED (`kernels-test.out`).
+* `intarsia accuracy --gate-class bf16`: PASS. Short prefill KL **2.608e-4**, decode **4.042e-4**; long prefill **3.738e-4**, decode **4.071e-4**. Every figure matches part 5 to the last digit (`accuracy/`).
+* Greedy ids, 48 and 256 tokens, `prompt-short.txt` and `prompt-4k.txt`, against the `spike/metal` `495a447` binary: stdout byte-identical and `ids:` identical in all four (`identity/`, `checks6.log`).
+* `examples/small_ops` fingerprints: 18 of 18 shapes identical to pre, for every build measured. A later pass (#1897, `fp-pre.txt`, `fp-new.txt`) adds 7 plain `RmsNorm` shapes (H 100, 128, 4096 with offsets 0 and 1, 4097, 5120, 8192), since the `_f` forms also serve the final norm: 25 of 25 identical.
+
+### Limits and not done
+
+* Of the requested list, only `rmsnorm_add` had a sizable cost. With part 5 included, the decode's small ops now cost about 0.7 ms/token in kernel mode: 72 x 4.7 (norms), 36 x 7.8 (qk rope), 36 x 2.5 (silu). Part of that is per-dispatch floor, which kernel-body changes cannot remove: an empty dispatch took 1.3 to 1.5 us back to back in `small_ops`.
+* The `_f` norm forms apply only when H is exactly 16 x 256 or 32 x 256 (or a multiple of 32 up to 256 for `ex1`). Other hidden sizes keep the selects but get the pointer hoist.
+* Not looked at: the prefill kernels, `embedding_bf16` (3 us, once per token), and `logits_bf16_gemv` (2.08 ms, bandwidth-bound at about 600 GB/s).

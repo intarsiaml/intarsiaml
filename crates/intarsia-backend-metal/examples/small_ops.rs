@@ -22,7 +22,9 @@ fn main() {
 #[cfg(target_os = "macos")]
 mod imp {
     use intarsia_backend_metal::bench::{f32_to_bf16, stats, Rng};
-    use intarsia_backend_metal::kernels::{ARGMAX_F32, QK_NORM_ROPE_KV_BF16, RMSNORM_ADD_BF16, SILU_GLU_BF16};
+    use intarsia_backend_metal::kernels::{
+        ARGMAX_F32, QK_NORM_ROPE_KV_BF16, RMSNORM_ADD_BF16, RMSNORM_BF16, SILU_GLU_BF16,
+    };
     use intarsia_backend_metal::MetalBackend;
     use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
     use intarsia_core::{DType, Op, OpAttrs, OpCall};
@@ -74,6 +76,18 @@ mod imp {
             OpAttrs { eps: 1e-6, w_offset: 0.0, ..Default::default() },
         );
         Case { kernel: RMSNORM_ADD_BF16, call, outs: vec![(n, (off + rows * h) * 2), (s, (off + rows * h) * 2)] }
+    }
+
+    fn norm(be: &MetalBackend, rng: &mut Rng, rows: usize, h: usize, off: usize) -> Case {
+        let (x, w, o) = (bf_buf(be, off, rows * h, rng), bf_buf(be, off, h, rng), bf_buf(be, off, rows * h, rng));
+        let bf = DType::Bf16;
+        let call = OpCall::new(
+            Op::RmsNorm,
+            vec![t(&x, off, bf, &[rows, h]), t(&w, off, bf, &[h])],
+            vec![t(&o, off, bf, &[rows, h])],
+            OpAttrs { eps: 1e-6, w_offset: 1.0, ..Default::default() },
+        );
+        Case { kernel: RMSNORM_BF16, call, outs: vec![(o, (off + rows * h) * 2)] }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -237,6 +251,14 @@ mod imp {
             ("argmax 1x151936".into(), Box::new(|b, r| argmax(b, r, 1, 151936))),
             ("argmax 3x1000".into(), Box::new(|b, r| argmax(b, r, 3, 1000))),
             ("argmax 2x1001".into(), Box::new(|b, r| argmax(b, r, 2, 1001))),
+            // appended (the seeds go by index, so the cases above keep their fingerprints)
+            ("norm 1x4096 off0".into(), Box::new(|b, r| norm(b, r, 1, 4096, 0))),
+            ("norm 3x4096 off1".into(), Box::new(|b, r| norm(b, r, 3, 4096, 1))),
+            ("norm 2x128 off0".into(), Box::new(|b, r| norm(b, r, 2, 128, 0))),
+            ("norm 1x100 off1".into(), Box::new(|b, r| norm(b, r, 1, 100, 1))),
+            ("norm 2x8192 off0".into(), Box::new(|b, r| norm(b, r, 2, 8192, 0))),
+            ("norm 1x4097 off1".into(), Box::new(|b, r| norm(b, r, 1, 4097, 1))),
+            ("norm 2x5120 off0".into(), Box::new(|b, r| norm(b, r, 2, 5120, 0))),
         ];
         for (i, (name, mk)) in shapes.iter().enumerate() {
             let mut r = Rng(0x51ed270b + i as u64 * 7919);

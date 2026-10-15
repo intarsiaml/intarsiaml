@@ -1,0 +1,12 @@
+kernels test exit 0
+identity short 48 tokens: stdout byte-identical
+identity short 48 tokens: ids identical
+identity 4k 48 tokens: stdout byte-identical
+identity 4k 48 tokens: ids identical
+identity short 256 tokens: stdout byte-identical
+identity short 256 tokens: ids identical
+identity 4k 256 tokens: stdout byte-identical
+identity 4k 256 tokens: ids identical
+accuracy short exit 0
+accuracy long exit 0
+done
