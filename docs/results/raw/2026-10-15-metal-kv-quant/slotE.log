@@ -1,0 +1,4 @@
+fleetq: #2075 waiting (#8 in line): in line behind #2065 "cb-m1 step1: attn_block split identity subset (vs 8254311)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#7 in line): in line behind #2067 "cb-m1 step1: forward_batch bitwise gate Qwen3-8B (B=2..8)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#6 in line): in line behind #2069 "gemm midm: gates (cargo test metal, kernels test, ids, accuracy, qualify)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#5 in line): in line behind #2070 "gemm midm: threadgroup swizzle at M=256/512, streamed vs cached weights" (claude-0e8026c5) on endor

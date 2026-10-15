@@ -7,4 +7,4 @@ WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. 
 gates: class bf16 (--gate-class); top-1 >= 99.5%, 21-way KL <= 1.0e-3, |tail excess| <= 0.02
 prefill chunk 2048; longest prompt 4557; prompts spanning more than one chunk: 3/3
 this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
-Error: this binary was built without INTARSIA_BUILD_STAMP, so it cannot say which code it is; build through scripts/phase1b-acceptance.sh (or set the variable to the output of scripts/tree-stamp.sh)
+Error: accuracy gate FAILED
