@@ -1,0 +1,5 @@
+[
+  {
+    "kernel": "r4d_attn_paged_h128_gqa4.hip",
+    "purpose": "paged split-KV decode, head_dim 128, 4 q heads per KV head = exactly Qwen3-8B (32 q / 8 kv, hd 128); sliding-window bit available (R4DArgs.window, 0 = none)",
+    "notes": "q bf16, kv bf16 or fp8 e4m3 (+k_descale/v_descale), out bf16; q_len*gqa <= 64 (B_MAX_DECODE_ROWS); block_size 16; no prefill instantiation (file header says decode only on purpose); grid (splits, kv_heads, num_seqs); splits=0 lets the split law pick; scratch = f16 partials, size from *scratch_bytes; attn_decode -> ik_attn_decode_bf16_splitkv (exactly the scratch-taking variant); fill R4DArgs (q,kv,block_table,seqused_k,out,scratch,num_seqs=1,q_len,q_heads=32,kv_heads=8,head_dim=128,block

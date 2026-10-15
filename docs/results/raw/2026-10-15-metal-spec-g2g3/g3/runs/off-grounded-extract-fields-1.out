@@ -1,0 +1,30 @@
+[
+  {
+    "name": "steps_total",
+    "type": "counter",
+    "description": "Monotonic count of engine steps. One step is one forward pass: a prefill chunk or a decode step. A watchdog treats \"running + waiting > 0\" and \"steps_total\" not advancing for N seconds\" as a wedge (vLLM's cuDNN FP8 hang kept /metrics alive while dead)."
+  },
+  {
+    "name": "last_step_ms",
+    "type": "gauge",
+    "description": "Unix ms of the latest step, 0 before the first."
+  },
+  {
+    "name": "requests_total",
+    "type": "counter",
+    "description": "Requests accepted by Engine::submit (counted at submit)."
+  },
+  {
+    "name": "running",
+    "type": "gauge",
+    "description": "Requests executing now (0 or 1 in Phase 0)."
+  },
+  {
+    "name": "waiting",
+    "type": "gauge",
+    "description": "Requests queued behind the running one."
+  },
+  {
+    "name": "finished",
+    "type": "counter",
+    "

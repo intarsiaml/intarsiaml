@@ -1,0 +1,1 @@
+simulator vs real runs: 42 of 42 (config, case) pairs reproduce the measured verify-pass and accepted-draft counts exactly

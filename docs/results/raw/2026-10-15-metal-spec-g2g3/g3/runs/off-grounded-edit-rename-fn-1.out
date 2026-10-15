@@ -1,0 +1,32 @@
+```rust
+                job.req.prompt.len(),
+                0,
+                0,
+                t_total.elapsed(),
+                Duration::ZERO,
+                t_total.elapsed(),
+            );
+            let _ = job.tx.send(GenEvent::Error { message: e.to_string() });
+        }
+    }
+}
+
+fn shared_prefix_len(a: &[u32], b: &[u32]) -> usize {
+    a.iter().zip(b).take_while(|(x, y)| x == y).count()
+}
+
+fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEvent>) -> Result<Outcome> {
+    let Inner { model, state: st } = g;
+    let plen = req.prompt.len();
+    if plen == 0 {
+        return Err(Error::BadRequest("empty prompt".into()));
+    }
+    if plen >= st.cap {
+        return Err(Error::BadRequest(format!(
+            "prompt of {plen} tokens does not fit the context window of {} tokens",
+            st.cap
+        )));
+    }
+    let max_new = req.max_tokens.min(st.cap - plen);
+
+    // KV prefix reuse (contiguous cache of the previous request; always keep >= 

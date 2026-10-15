@@ -1,0 +1,36 @@
+```rust
+impl Default for LoadOptions {
+    fn default() -> Self {
+        LoadOptions {
+            max_seq: None,
+            kv_fraction: None,
+            prefill_chunk: None,
+            act_dtype: None,
+            kv_dtype: None,
+            profile_every: None,
+            mem_budget: None,
+            fp8_act: None,
+        }
+    }
+}
+
+struct AttnBlock {
+    pre_norm: TensorRef,
+    /// `[n_heads * head_dim * (1 + gated), hidden]`: with `gated` each head's rows are `q` then its output gate.
+    wq: QTensor,
+    wk: QTensor,
+    wv: QTensor,
+    wo: QTensor,
+    q_norm: Option<TensorRef>,
+    k_norm: Option<TensorRef>,
+    slot: usize,
+    /// `q` carries a per-head output gate (`attn_out * sigmoid(gate)` before `wo`).
+    gated: bool,
+    /// Leading values of each head that rotate (`partial_rotary_factor * head_dim`); 0 = the whole head.
+    rotary_dim: usize,
+}
+
+struct FfnBlock {
+    pre_norm: TensorRef,
+    gate: TensorRef,
+    up: Tensor

@@ -1,0 +1,8 @@
+date: 2026-10-15T12:24:17-04:00
+fleetq job: 2011
+branch head: 9e2fcab37fb4cd9fea87474e5a12bb73455fc042
+-rwxr-xr-x@ 1 josef  wheel  17893856 Oct 15 11:40 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/bin/intarsia-gate-stamped
+e80dd83efc3f84ff45b9d3101e70bf43ab1e20611222e91d3c87105b24835eeb  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/bin/intarsia-gate-stamped
+localeval: version = "0.2.1" deepeval head 69c7a848bba836b70782aced73d278ee4b4d2fa6
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
+macmon 0.7.2

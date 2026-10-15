@@ -1,0 +1,32 @@
+Sure! Let's break down how a **hash map** works, using only the knowledge of **arrays** that you already have.
+
+---
+
+### 🧠 What is a Hash Map?
+
+A **hash map** (also called a **dictionary** or **associative array**) is a data structure that stores **key-value pairs**. It allows you to **quickly look up** a value based on a **key**.
+
+For example:
+```python
+my_map = {"name": "Alice", "age": 30}
+```
+Here, `"name"` and `"age"` are **keys**, and `"Alice"` and `30` are the **values**.
+
+---
+
+## 🔐 How Hash Maps Work (Using Arrays)
+
+### 1. **Hashing the Key**
+
+The key is **converted into an index** using a **hash function**. This is the most important part.
+
+- A **hash function** takes a key (like a string or number) and returns a **number**.
+- This number is used to determine where the value should be stored in an **array**.
+
+Example:
+```python
+hash("name") → 123
+hash("age") → 456
+```
+
+So, the

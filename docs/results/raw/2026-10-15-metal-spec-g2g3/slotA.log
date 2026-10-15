@@ -1,0 +1,435 @@
+fleetq: #2011 waiting (#4 in line): in line behind #2008 "metal-weight-realign: slot3 final tests" (claude-0e8026c5) on endor
+fleetq: #2011 waiting (#2 in line): in line behind #2009 "metal longctx profile" (claude-31e10c55) on endor
+fleetq:   #2009 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2009 set, or it will wait for #2009 to be released.
+fleetq: #2011 waiting (#1 in line): endor is held exclusively by #2009 "metal longctx profile" (claude-31e10c55)
+fleetq:   #2009 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2009 set, or it will wait for #2009 to be released.
+#2011 "metal spec G2G3: A: identity 24x4 + G3 20 rows x3 x off/on" (claude-31e10c55) running on endor exclusive 20 GB for 3s
+  run work inside it: prefix commands with FLEETQ_JOB=2011
+  release when finished: fleetq release 2011
+slot 2011 RUNNING (A: identity 24x4 + G3 20 rows x3 x off/on) Thu Oct 15 12:19:25 EDT 2026: #2011 "metal spec G2G3: A: identity 24x4 + G3 20 rows x3 x off/on" (claude-31e10c55) running on endor exclusive 20 GB for 3s
+== identity 12:19:25
+12:19:25 short-48 off
+  exit 0 finish=length prompt=122 (cached 0) completion=48 | prefill 246 ms (495.6 tok/s) | decode 1308 ms (35.93 tok/s)
+12:19:27 short-48 on4
+  exit 0 finish=length prompt=122 (cached 0) completion=48 | prefill 230 ms (529.4 tok/s) | decode 671 ms (70.09 tok/s)
+12:19:29 short-48 on6
+  exit 0 finish=length prompt=122 (cached 0) completion=48 | prefill 227 ms (537.0 tok/s) | decode 641 ms (73.31 tok/s)
+12:19:30 short-256 off
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 243 ms (502.5 tok/s) | decode 7071 ms (36.06 tok/s)
+12:19:38 short-256 on4
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 229 ms (533.0 tok/s) | decode 3146 ms (81.05 tok/s)
+12:19:41 short-256 on6
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 217 ms (561.8 tok/s) | decode 3530 ms (72.24 tok/s)
+12:19:46 4k-48 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=48 | prefill 1425 ms (2850.0 tok/s) | decode 1332 ms (35.29 tok/s)
+12:19:49 4k-48 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=48 | prefill 1346 ms (3018.4 tok/s) | decode 421 ms (111.75 tok/s)
+12:19:51 4k-48 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=48 | prefill 1359 ms (2987.9 tok/s) | decode 428 ms (109.83 tok/s)
+12:19:53 4k-256 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1340 ms (3031.0 tok/s) | decode 7292 ms (34.97 tok/s)
+12:20:02 4k-256 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1321 ms (3075.1 tok/s) | decode 2186 ms (116.68 tok/s)
+12:20:06 4k-256 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1535 ms (2645.6 tok/s) | decode 2276 ms (112.02 tok/s)
+12:20:10 grounded-256 off
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 242 ms (1535.9 tok/s) | decode 7132 ms (35.76 tok/s)
+12:20:18 grounded-256 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 260 ms (1426.9 tok/s) | decode 1922 ms (132.71 tok/s)
+12:20:21 grounded-256 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 252 ms (1470.1 tok/s) | decode 1843 ms (138.39 tok/s)
+12:20:23 grounded-512 off
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 249 ms (1490.5 tok/s) | decode 9097 ms (36.06 tok/s)
+12:20:33 grounded-512 on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 263 ms (1408.8 tok/s) | decode 2580 ms (127.14 tok/s)
+12:20:36 grounded-512 on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 256 ms (1450.7 tok/s) | decode 2677 ms (122.54 tok/s)
+12:20:40 open-256 off
+  exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 223 ms (179.6 tok/s) | decode 6999 ms (36.44 tok/s)
+12:20:47 open-256 on4
+  exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 226 ms (177.2 tok/s) | decode 6823 ms (37.37 tok/s)
+12:20:55 open-256 on6
+  exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 230 ms (173.6 tok/s) | decode 6913 ms (36.89 tok/s)
+12:21:02 grounded-max102 off
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 266 ms (1395.3 tok/s) | decode 2789 ms (36.22 tok/s)
+12:21:06 grounded-max102 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 264 ms (1405.8 tok/s) | decode 762 ms (132.48 tok/s)
+12:21:07 grounded-max102 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 248 ms (1495.8 tok/s) | decode 705 ms (143.36 tok/s)
+12:21:08 grounded-max188 off
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 245 ms (1516.9 tok/s) | decode 5250 ms (35.62 tok/s)
+12:21:14 grounded-max188 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 239 ms (1555.6 tok/s) | decode 1431 ms (130.67 tok/s)
+12:21:16 grounded-max188 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 248 ms (1498.9 tok/s) | decode 1367 ms (136.83 tok/s)
+12:21:18 grounded-stop-topp off
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 249 ms (1488.4 tok/s) | decode 3106 ms (36.70 tok/s)
+12:21:22 grounded-stop-topp on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 238 ms (1557.1 tok/s) | decode 916 ms (124.47 tok/s)
+12:21:24 grounded-stop-topp on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 240 ms (1543.6 tok/s) | decode 869 ms (131.25 tok/s)
+12:21:25 grounded-stop-vecstring off
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 234 ms (1584.5 tok/s) | decode 5153 ms (35.90 tok/s)
+12:21:31 grounded-stop-vecstring on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 241 ms (1538.4 tok/s) | decode 1414 ms (130.82 tok/s)
+12:21:33 grounded-stop-vecstring on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 240 ms (1544.0 tok/s) | decode 1304 ms (141.88 tok/s)
+12:21:35 grounded-stop-atomic off
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 250 ms (1483.3 tok/s) | decode 6201 ms (35.96 tok/s)
+12:21:42 grounded-stop-atomic on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 248 ms (1495.0 tok/s) | decode 1675 ms (133.13 tok/s)
+12:21:44 grounded-stop-atomic on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 255 ms (1457.2 tok/s) | decode 1597 ms (139.66 tok/s)
+12:21:46 grounded-min331 off
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 255 ms (1455.6 tok/s) | decode 11050 ms (36.11 tok/s)
+12:21:58 grounded-min331 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 237 ms (1564.3 tok/s) | decode 3102 ms (128.64 tok/s)
+12:22:02 grounded-min331 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 255 ms (1456.9 tok/s) | decode 2989 ms (133.48 tok/s)
+12:22:05 grounded-min335 off
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 257 ms (1446.2 tok/s) | decode 10971 ms (36.37 tok/s)
+12:22:17 grounded-min335 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 248 ms (1498.8 tok/s) | decode 3005 ms (132.77 tok/s)
+12:22:21 grounded-min335 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 235 ms (1579.4 tok/s) | decode 3022 ms (132.02 tok/s)
+12:22:24 grounded-min320-stopfence off
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 262 ms (1417.1 tok/s) | decode 9020 ms (36.25 tok/s)
+12:22:34 grounded-min320-stopfence on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 251 ms (1479.3 tok/s) | decode 2494 ms (131.12 tok/s)
+12:22:37 grounded-min320-stopfence on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 246 ms (1508.5 tok/s) | decode 2367 ms (138.15 tok/s)
+12:22:40 4k-max9 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1457 ms (2788.0 tok/s) | decode 228 ms (35.12 tok/s)
+12:22:42 4k-max9 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1536 ms (2644.2 tok/s) | decode 141 ms (56.82 tok/s)
+12:22:44 4k-max9 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1325 ms (3066.5 tok/s) | decode 151 ms (53.02 tok/s)
+12:22:46 4k-max44 off
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1292 ms (3143.2 tok/s) | decode 1212 ms (35.47 tok/s)
+12:22:49 4k-max44 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1254 ms (3238.0 tok/s) | decode 379 ms (113.45 tok/s)
+12:22:51 4k-max44 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1378 ms (2947.2 tok/s) | decode 426 ms (100.87 tok/s)
+12:22:53 4k-stop250 off
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1319 ms (3080.2 tok/s) | decode 2362 ms (35.56 tok/s)
+12:22:57 4k-stop250 on4
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1233 ms (3295.3 tok/s) | decode 757 ms (111.01 tok/s)
+12:23:00 4k-stop250 on6
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1383 ms (2936.4 tok/s) | decode 801 ms (104.81 tok/s)
+12:23:02 short-stopkettles off
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 218 ms (560.2 tok/s) | decode 1521 ms (36.82 tok/s)
+12:23:04 short-stopkettles on4
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 226 ms (540.4 tok/s) | decode 767 ms (72.96 tok/s)
+12:23:06 short-stopkettles on6
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 234 ms (520.9 tok/s) | decode 731 ms (76.59 tok/s)
+12:23:07 golden-docs-48 off
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1306 ms (3312.4 tok/s) | decode 1328 ms (35.38 tok/s)
+12:23:10 golden-docs-48 on4
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1440 ms (3003.3 tok/s) | decode 1232 ms (38.15 tok/s)
+12:23:13 golden-docs-48 on6
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1371 ms (3155.4 tok/s) | decode 1277 ms (36.80 tok/s)
+12:23:16 golden-docs-256 off
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1371 ms (3155.7 tok/s) | decode 7438 ms (34.28 tok/s)
+12:23:25 golden-docs-256 on4
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1464 ms (2953.9 tok/s) | decode 6615 ms (38.55 tok/s)
+12:23:34 golden-docs-256 on6
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1598 ms (2706.9 tok/s) | decode 6889 ms (37.02 tok/s)
+12:23:43 golden-code-48 off
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1359 ms (2646.1 tok/s) | decode 1395 ms (33.70 tok/s)
+12:23:46 golden-code-48 on4
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1414 ms (2544.0 tok/s) | decode 1231 ms (38.18 tok/s)
+12:23:49 golden-code-48 on6
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1188 ms (3027.3 tok/s) | decode 1301 ms (36.12 tok/s)
+12:23:52 golden-code-256 off
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1418 ms (2536.7 tok/s) | decode 7513 ms (33.94 tok/s)
+12:24:01 golden-code-256 on4
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1540 ms (2334.8 tok/s) | decode 4482 ms (56.89 tok/s)
+12:24:08 golden-code-256 on6
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1502 ms (2394.3 tok/s) | decode 4542 ms (56.14 tok/s)
+12:24:15 repeat-eos off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 214 ms (163.4 tok/s) | decode 409 ms (36.70 tok/s)
+12:24:16 repeat-eos on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 233 ms (150.0 tok/s) | decode 138 ms (108.83 tok/s)
+12:24:16 repeat-eos on6
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 228 ms (153.3 tok/s) | decode 114 ms (131.75 tok/s)
+== g2 12:24:17
+##### p1-off spec=off 2026-10-15T12:24:17-04:00 epoch 1792081457
+server up after 45s; prefill chunk 2048 (recipe qwen3, metal);
+FINAL median=4 tries=0
+1792081514.791	[localeval]    128 tok rep 1/3: prompt=112 ttft=0.06s prefill=1928 tok/s decode=36.0 tok/s peak=36.5 tok/s out=256
+1792081521.938	[localeval]    128 tok rep 2/3: prompt=113 ttft=0.05s prefill=2054 tok/s decode=36.0 tok/s peak=36.6 tok/s out=256
+1792081529.177	[localeval]    128 tok rep 3/3: prompt=112 ttft=0.05s prefill=2072 tok/s decode=35.5 tok/s peak=36.4 tok/s out=256
+1792081536.493	[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.25s prefill=3888 tok/s decode=36.1 tok/s peak=36.4 tok/s out=256
+1792081543.843	[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.25s prefill=3893 tok/s decode=35.9 tok/s peak=36.5 tok/s out=256
+1792081551.130	[localeval]   1024 tok rep 3/3: prompt=988 ttft=0.26s prefill=3785 tok/s decode=36.3 tok/s peak=36.5 tok/s out=256
+1792081559.466	[localeval]   4096 tok rep 1/3: prompt=4092 ttft=1.04s prefill=3925 tok/s decode=35.0 tok/s peak=35.6 tok/s out=256
+1792081567.751	[localeval]   4096 tok rep 2/3: prompt=4087 ttft=1.05s prefill=3875 tok/s decode=35.3 tok/s peak=35.6 tok/s out=256
+1792081576.051	[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.08s prefill=3788 tok/s decode=35.3 tok/s peak=35.5 tok/s out=256
+1792081576.052	- result file: `results/20261015-122505-adhoc-p1-off/result.json`
+1792081576.052	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792081576.052	[localeval] saved /opt/code/deepeval/results/20261015-122505-adhoc-p1-off/result.json
+port 8093 closed
+##### p2-on spec=ngram 2026-10-15T12:26:22-04:00 epoch 1792081582
+server up after 50s; prefill chunk 2048 (recipe qwen3, metal);speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf;
+FINAL median=1 tries=1
+1792081657.866	[localeval]    128 tok rep 1/3: prompt=135 ttft=0.05s prefill=2401 tok/s decode=36.4 tok/s peak=38.7 tok/s out=256
+1792081664.621	[localeval]    128 tok rep 2/3: prompt=137 ttft=0.06s prefill=2416 tok/s decode=38.1 tok/s peak=46.0 tok/s out=256
+1792081671.438	[localeval]    128 tok rep 3/3: prompt=137 ttft=0.06s prefill=2309 tok/s decode=37.7 tok/s peak=42.9 tok/s out=256
+1792081678.355	[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.25s prefill=3876 tok/s decode=38.3 tok/s peak=44.3 tok/s out=256
+1792081685.227	[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.25s prefill=3905 tok/s decode=38.5 tok/s peak=43.8 tok/s out=256
+1792081692.031	[localeval]   1024 tok rep 3/3: prompt=991 ttft=0.25s prefill=3905 tok/s decode=38.9 tok/s peak=45.3 tok/s out=256
+1792081699.742	[localeval]   4096 tok rep 1/3: prompt=4088 ttft=1.11s prefill=3685 tok/s decode=38.6 tok/s peak=46.3 tok/s out=256
+1792081707.385	[localeval]   4096 tok rep 2/3: prompt=4090 ttft=1.15s prefill=3546 tok/s decode=39.3 tok/s peak=46.6 tok/s out=256
+1792081715.013	[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.17s prefill=3483 tok/s decode=39.5 tok/s peak=46.4 tok/s out=256
+1792081715.014	- result file: `results/20261015-122729-adhoc-p2-on/result.json`
+1792081715.014	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792081715.014	[localeval] saved /opt/code/deepeval/results/20261015-122729-adhoc-p2-on/result.json
+port 8093 closed
+##### p3-on spec=ngram 2026-10-15T12:28:41-04:00 epoch 1792081721
+server up after 48s; prefill chunk 2048 (recipe qwen3, metal);speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf;
+FINAL median=1 tries=0
+1792081781.564	[localeval]    128 tok rep 1/3: prompt=113 ttft=0.05s prefill=2143 tok/s decode=37.8 tok/s peak=42.8 tok/s out=256
+1792081788.566	[localeval]    128 tok rep 2/3: prompt=112 ttft=0.05s prefill=2075 tok/s decode=36.7 tok/s peak=39.0 tok/s out=256
+1792081795.406	[localeval]    128 tok rep 3/3: prompt=112 ttft=0.05s prefill=2100 tok/s decode=37.6 tok/s peak=39.3 tok/s out=256
+1792081802.327	[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.25s prefill=3905 tok/s decode=38.2 tok/s peak=44.4 tok/s out=256
+1792081809.195	[localeval]   1024 tok rep 2/3: prompt=993 ttft=0.25s prefill=3906 tok/s decode=38.6 tok/s peak=49.1 tok/s out=256
+1792081815.802	[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.25s prefill=3881 tok/s decode=40.1 tok/s peak=54.0 tok/s out=256
+1792081823.221	[localeval]   4096 tok rep 1/3: prompt=4086 ttft=1.09s prefill=3738 tok/s decode=40.3 tok/s peak=54.9 tok/s out=256
+1792081830.833	[localeval]   4096 tok rep 2/3: prompt=4087 ttft=1.11s prefill=3665 tok/s decode=39.2 tok/s peak=46.5 tok/s out=256
+1792081838.647	[localeval]   4096 tok rep 3/3: prompt=4084 ttft=1.30s prefill=3145 tok/s decode=39.1 tok/s peak=48.1 tok/s out=256
+1792081838.648	- result file: `results/20261015-122933-adhoc-p3-on/result.json`
+1792081838.648	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792081838.649	[localeval] saved /opt/code/deepeval/results/20261015-122933-adhoc-p3-on/result.json
+port 8093 closed
+##### p4-off spec=off 2026-10-15T12:30:45-04:00 epoch 1792081845
+server up after 39s; prefill chunk 2048 (recipe qwen3, metal);
+FINAL median=2 tries=0
+1792081896.341	[localeval]    128 tok rep 1/3: prompt=114 ttft=0.05s prefill=2149 tok/s decode=35.9 tok/s peak=36.6 tok/s out=256
+1792081903.395	[localeval]    128 tok rep 2/3: prompt=114 ttft=0.05s prefill=2065 tok/s decode=36.4 tok/s peak=36.8 tok/s out=256
+1792081910.453	[localeval]    128 tok rep 3/3: prompt=113 ttft=0.05s prefill=2115 tok/s decode=36.4 tok/s peak=36.9 tok/s out=256
+1792081917.715	[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.25s prefill=3895 tok/s decode=36.4 tok/s peak=36.7 tok/s out=256
+1792081925.054	[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.25s prefill=3904 tok/s decode=36.0 tok/s peak=36.6 tok/s out=256
+1792081932.453	[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.26s prefill=3863 tok/s decode=35.7 tok/s peak=36.2 tok/s out=256
+1792081940.847	[localeval]   4096 tok rep 1/3: prompt=4090 ttft=1.06s prefill=3867 tok/s decode=34.8 tok/s peak=35.5 tok/s out=256
+1792081949.164	[localeval]   4096 tok rep 2/3: prompt=4083 ttft=1.06s prefill=3848 tok/s decode=35.1 tok/s peak=35.5 tok/s out=256
+1792081957.586	[localeval]   4096 tok rep 3/3: prompt=4090 ttft=1.08s prefill=3798 tok/s decode=34.7 tok/s peak=35.5 tok/s out=256
+1792081957.587	- result file: `results/20261015-123127-adhoc-p4-off/result.json`
+1792081957.587	| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1792081957.587	[localeval] saved /opt/code/deepeval/results/20261015-123127-adhoc-p4-off/result.json
+port 8093 closed
+ALLDONE
+== g3 12:32:44
+grounded-edit-docs-comments 1 off finish=length prompt=855 (cached 0) completion=256 decode 7012 ms (36.37 tok/s)
+grounded-edit-docs-comments 1 on finish=length prompt=855 (cached 0) completion=256 decode 3109 ms (82.01 tok/s)
+grounded-edit-docs-comments 2 on finish=length prompt=855 (cached 0) completion=256 decode 3279 ms (77.78 tok/s)
+grounded-edit-docs-comments 2 off finish=length prompt=855 (cached 0) completion=256 decode 7108 ms (35.87 tok/s)
+grounded-edit-docs-comments 3 off finish=length prompt=855 (cached 0) completion=256 decode 7167 ms (35.58 tok/s)
+grounded-edit-docs-comments 3 on finish=length prompt=855 (cached 0) completion=256 decode 3084 ms (82.70 tok/s)
+grounded-edit-error-msgs 1 off finish=length prompt=1161 (cached 0) completion=256 decode 7247 ms (35.19 tok/s)
+grounded-edit-error-msgs 1 on finish=length prompt=1161 (cached 0) completion=256 decode 1850 ms (137.86 tok/s)
+grounded-edit-error-msgs 2 on finish=length prompt=1161 (cached 0) completion=256 decode 1879 ms (135.74 tok/s)
+grounded-edit-error-msgs 2 off finish=length prompt=1161 (cached 0) completion=256 decode 7522 ms (33.90 tok/s)
+grounded-edit-error-msgs 3 off finish=length prompt=1161 (cached 0) completion=256 decode 7109 ms (35.87 tok/s)
+grounded-edit-error-msgs 3 on finish=length prompt=1161 (cached 0) completion=256 decode 1853 ms (137.60 tok/s)
+grounded-edit-field 1 off finish=length prompt=847 (cached 0) completion=256 decode 7098 ms (35.92 tok/s)
+grounded-edit-field 1 on finish=length prompt=847 (cached 0) completion=256 decode 2099 ms (121.46 tok/s)
+grounded-edit-field 2 on finish=length prompt=847 (cached 0) completion=256 decode 2056 ms (124.01 tok/s)
+grounded-edit-field 2 off finish=length prompt=847 (cached 0) completion=256 decode 7035 ms (36.25 tok/s)
+grounded-edit-field 3 off finish=length prompt=847 (cached 0) completion=256 decode 7025 ms (36.30 tok/s)
+grounded-edit-field 3 on finish=length prompt=847 (cached 0) completion=256 decode 2008 ms (127.00 tok/s)
+grounded-edit-refactor-model 1 off finish=length prompt=1014 (cached 0) completion=256 decode 7022 ms (36.31 tok/s)
+grounded-edit-refactor-model 1 on finish=length prompt=1014 (cached 0) completion=256 decode 2024 ms (126.01 tok/s)
+grounded-edit-refactor-model 2 on finish=length prompt=1014 (cached 0) completion=256 decode 2094 ms (121.78 tok/s)
+grounded-edit-refactor-model 2 off finish=length prompt=1014 (cached 0) completion=256 decode 7069 ms (36.07 tok/s)
+grounded-edit-refactor-model 3 off finish=length prompt=1014 (cached 0) completion=256 decode 7040 ms (36.22 tok/s)
+grounded-edit-refactor-model 3 on finish=length prompt=1014 (cached 0) completion=256 decode 2013 ms (126.69 tok/s)
+grounded-edit-rename-fn 1 off finish=length prompt=1038 (cached 0) completion=256 decode 7026 ms (36.29 tok/s)
+grounded-edit-rename-fn 1 on finish=length prompt=1038 (cached 0) completion=256 decode 1737 ms (146.80 tok/s)
+grounded-edit-rename-fn 2 on finish=length prompt=1038 (cached 0) completion=256 decode 1756 ms (145.22 tok/s)
+grounded-edit-rename-fn 2 off finish=length prompt=1038 (cached 0) completion=256 decode 7148 ms (35.67 tok/s)
+grounded-edit-rename-fn 3 off finish=length prompt=1038 (cached 0) completion=256 decode 7028 ms (36.28 tok/s)
+grounded-edit-rename-fn 3 on finish=length prompt=1038 (cached 0) completion=256 decode 1752 ms (145.54 tok/s)
+grounded-extract-fields 1 off finish=length prompt=930 (cached 0) completion=256 decode 7031 ms (36.27 tok/s)
+grounded-extract-fields 1 on finish=length prompt=930 (cached 0) completion=256 decode 3415 ms (74.68 tok/s)
+grounded-extract-fields 2 on finish=length prompt=930 (cached 0) completion=256 decode 3444 ms (74.03 tok/s)
+grounded-extract-fields 2 off finish=length prompt=930 (cached 0) completion=256 decode 7074 ms (36.05 tok/s)
+grounded-extract-fields 3 off finish=length prompt=930 (cached 0) completion=256 decode 7262 ms (35.11 tok/s)
+grounded-extract-fields 3 on finish=length prompt=930 (cached 0) completion=256 decode 3354 ms (76.03 tok/s)
+grounded-extract-ops 1 off finish=length prompt=2263 (cached 0) completion=256 decode 7317 ms (34.85 tok/s)
+grounded-extract-ops 1 on finish=length prompt=2263 (cached 0) completion=256 decode 3834 ms (66.51 tok/s)
+grounded-extract-ops 2 on finish=length prompt=2263 (cached 0) completion=256 decode 3867 ms (65.95 tok/s)
+grounded-extract-ops 2 off finish=length prompt=2263 (cached 0) completion=256 decode 7179 ms (35.52 tok/s)
+grounded-extract-ops 3 off finish=length prompt=2263 (cached 0) completion=256 decode 7266 ms (35.10 tok/s)
+grounded-extract-ops 3 on finish=length prompt=2263 (cached 0) completion=256 decode 3750 ms (67.99 tok/s)
+grounded-summ-bench 1 off finish=length prompt=1388 (cached 0) completion=256 decode 7017 ms (36.34 tok/s)
+grounded-summ-bench 1 on finish=length prompt=1388 (cached 0) completion=256 decode 5732 ms (44.48 tok/s)
+grounded-summ-bench 2 on finish=length prompt=1388 (cached 0) completion=256 decode 5812 ms (43.87 tok/s)
+grounded-summ-bench 2 off finish=length prompt=1388 (cached 0) completion=256 decode 7159 ms (35.62 tok/s)
+grounded-summ-bench 3 off finish=length prompt=1388 (cached 0) completion=256 decode 7080 ms (36.02 tok/s)
+grounded-summ-bench 3 on finish=length prompt=1388 (cached 0) completion=256 decode 5641 ms (45.20 tok/s)
+grounded-summ-health 1 off finish=length prompt=1042 (cached 0) completion=256 decode 7152 ms (35.66 tok/s)
+grounded-summ-health 1 on finish=length prompt=1042 (cached 0) completion=256 decode 6430 ms (39.65 tok/s)
+grounded-summ-health 2 on finish=length prompt=1042 (cached 0) completion=256 decode 6430 ms (39.66 tok/s)
+grounded-summ-health 2 off finish=length prompt=1042 (cached 0) completion=256 decode 7075 ms (36.04 tok/s)
+grounded-summ-health 3 off finish=length prompt=1042 (cached 0) completion=256 decode 6995 ms (36.45 tok/s)
+grounded-summ-health 3 on finish=length prompt=1042 (cached 0) completion=256 decode 6343 ms (40.20 tok/s)
+grounded-summ-overview 1 off finish=length prompt=586 (cached 0) completion=256 decode 7003 ms (36.41 tok/s)
+grounded-summ-overview 1 on finish=length prompt=586 (cached 0) completion=256 decode 5878 ms (43.38 tok/s)
+grounded-summ-overview 2 on finish=length prompt=586 (cached 0) completion=256 decode 5881 ms (43.36 tok/s)
+grounded-summ-overview 2 off finish=length prompt=586 (cached 0) completion=256 decode 7005 ms (36.40 tok/s)
+grounded-summ-overview 3 off finish=length prompt=586 (cached 0) completion=256 decode 7092 ms (35.96 tok/s)
+grounded-summ-overview 3 on finish=length prompt=586 (cached 0) completion=256 decode 5885 ms (43.33 tok/s)
+open-brainstorm-appnames 1 off finish=length prompt=35 (cached 0) completion=256 decode 7051 ms (36.17 tok/s)
+open-brainstorm-appnames 1 on finish=length prompt=35 (cached 0) completion=256 decode 6494 ms (39.27 tok/s)
+open-brainstorm-appnames 2 on finish=length prompt=35 (cached 0) completion=256 decode 6504 ms (39.20 tok/s)
+open-brainstorm-appnames 2 off finish=length prompt=35 (cached 0) completion=256 decode 7050 ms (36.17 tok/s)
+open-brainstorm-appnames 3 off finish=length prompt=35 (cached 0) completion=256 decode 6951 ms (36.68 tok/s)
+open-brainstorm-appnames 3 on finish=length prompt=35 (cached 0) completion=256 decode 6410 ms (39.78 tok/s)
+open-brainstorm-lessons 1 off finish=length prompt=27 (cached 0) completion=256 decode 7137 ms (35.73 tok/s)
+open-brainstorm-lessons 1 on finish=length prompt=27 (cached 0) completion=256 decode 6506 ms (39.20 tok/s)
+open-brainstorm-lessons 2 on finish=length prompt=27 (cached 0) completion=256 decode 6395 ms (39.88 tok/s)
+open-brainstorm-lessons 2 off finish=length prompt=27 (cached 0) completion=256 decode 7040 ms (36.22 tok/s)
+open-brainstorm-lessons 3 off finish=length prompt=27 (cached 0) completion=256 decode 7207 ms (35.38 tok/s)
+open-brainstorm-lessons 3 on finish=length prompt=27 (cached 0) completion=256 decode 6528 ms (39.06 tok/s)
+open-brainstorm-weekend 1 off finish=length prompt=34 (cached 0) completion=256 decode 7047 ms (36.19 tok/s)
+open-brainstorm-weekend 1 on finish=length prompt=34 (cached 0) completion=256 decode 6175 ms (41.29 tok/s)
+open-brainstorm-weekend 2 on finish=length prompt=34 (cached 0) completion=256 decode 6197 ms (41.15 tok/s)
+open-brainstorm-weekend 2 off finish=length prompt=34 (cached 0) completion=256 decode 6934 ms (36.78 tok/s)
+open-brainstorm-weekend 3 off finish=length prompt=34 (cached 0) completion=256 decode 6925 ms (36.82 tok/s)
+open-brainstorm-weekend 3 on finish=length prompt=34 (cached 0) completion=256 decode 6192 ms (41.18 tok/s)
+open-explain-hashmap 1 off finish=length prompt=34 (cached 0) completion=256 decode 6982 ms (36.52 tok/s)
+open-explain-hashmap 1 on finish=length prompt=34 (cached 0) completion=256 decode 6893 ms (37.00 tok/s)
+open-explain-hashmap 2 on finish=length prompt=34 (cached 0) completion=256 decode 6876 ms (37.09 tok/s)
+open-explain-hashmap 2 off finish=length prompt=34 (cached 0) completion=256 decode 6936 ms (36.76 tok/s)
+open-explain-hashmap 3 off finish=length prompt=34 (cached 0) completion=256 decode 6925 ms (36.82 tok/s)
+open-explain-hashmap 3 on finish=length prompt=34 (cached 0) completion=256 decode 6877 ms (37.08 tok/s)
+open-explain-kvcache 1 off finish=length prompt=32 (cached 0) completion=256 decode 6918 ms (36.86 tok/s)
+open-explain-kvcache 1 on finish=length prompt=32 (cached 0) completion=256 decode 6434 ms (39.63 tok/s)
+open-explain-kvcache 2 on finish=length prompt=32 (cached 0) completion=256 decode 6477 ms (39.37 tok/s)
+open-explain-kvcache 2 off finish=length prompt=32 (cached 0) completion=256 decode 6925 ms (36.83 tok/s)
+open-explain-kvcache 3 off finish=length prompt=32 (cached 0) completion=256 decode 6911 ms (36.90 tok/s)
+open-explain-kvcache 3 on finish=length prompt=32 (cached 0) completion=256 decode 6437 ms (39.62 tok/s)
+open-explain-tides 1 off finish=length prompt=35 (cached 0) completion=256 decode 6923 ms (36.83 tok/s)
+open-explain-tides 1 on finish=length prompt=35 (cached 0) completion=256 decode 6045 ms (42.19 tok/s)
+open-explain-tides 2 on finish=length prompt=35 (cached 0) completion=256 decode 6049 ms (42.16 tok/s)
+open-explain-tides 2 off finish=length prompt=35 (cached 0) completion=256 decode 6928 ms (36.81 tok/s)
+open-explain-tides 3 off finish=length prompt=35 (cached 0) completion=256 decode 6969 ms (36.59 tok/s)
+open-explain-tides 3 on finish=length prompt=35 (cached 0) completion=256 decode 6046 ms (42.17 tok/s)
+open-story-cartographer 1 off finish=length prompt=32 (cached 0) completion=256 decode 6918 ms (36.86 tok/s)
+open-story-cartographer 1 on finish=length prompt=32 (cached 0) completion=256 decode 6842 ms (37.27 tok/s)
+open-story-cartographer 2 on finish=length prompt=32 (cached 0) completion=256 decode 6856 ms (37.20 tok/s)
+open-story-cartographer 2 off finish=length prompt=32 (cached 0) completion=256 decode 6918 ms (36.86 tok/s)
+open-story-cartographer 3 off finish=length prompt=32 (cached 0) completion=256 decode 6920 ms (36.85 tok/s)
+open-story-cartographer 3 on finish=length prompt=32 (cached 0) completion=256 decode 6846 ms (37.25 tok/s)
+open-story-chef 1 off finish=length prompt=32 (cached 0) completion=256 decode 6929 ms (36.80 tok/s)
+open-story-chef 1 on finish=length prompt=32 (cached 0) completion=256 decode 6661 ms (38.28 tok/s)
+open-story-chef 2 on finish=length prompt=32 (cached 0) completion=256 decode 6652 ms (38.33 tok/s)
+open-story-chef 2 off finish=length prompt=32 (cached 0) completion=256 decode 6929 ms (36.80 tok/s)
+open-story-chef 3 off finish=length prompt=32 (cached 0) completion=256 decode 6922 ms (36.84 tok/s)
+open-story-chef 3 on finish=length prompt=32 (cached 0) completion=256 decode 6655 ms (38.32 tok/s)
+open-story-lighthouse 1 off finish=length prompt=31 (cached 0) completion=256 decode 6928 ms (36.80 tok/s)
+open-story-lighthouse 1 on finish=length prompt=31 (cached 0) completion=256 decode 6763 ms (37.71 tok/s)
+open-story-lighthouse 2 on finish=length prompt=31 (cached 0) completion=256 decode 6769 ms (37.67 tok/s)
+open-story-lighthouse 2 off finish=length prompt=31 (cached 0) completion=256 decode 6957 ms (36.65 tok/s)
+open-story-lighthouse 3 off finish=length prompt=31 (cached 0) completion=256 decode 6918 ms (36.86 tok/s)
+open-story-lighthouse 3 on finish=length prompt=31 (cached 0) completion=256 decode 6767 ms (37.68 tok/s)
+open-story-robot 1 off finish=length prompt=34 (cached 0) completion=256 decode 6915 ms (36.87 tok/s)
+open-story-robot 1 on finish=length prompt=34 (cached 0) completion=256 decode 6804 ms (37.48 tok/s)
+open-story-robot 2 on finish=length prompt=34 (cached 0) completion=256 decode 6792 ms (37.54 tok/s)
+open-story-robot 2 off finish=length prompt=34 (cached 0) completion=256 decode 6988 ms (36.49 tok/s)
+open-story-robot 3 off finish=length prompt=34 (cached 0) completion=256 decode 6921 ms (36.85 tok/s)
+open-story-robot 3 on finish=length prompt=34 (cached 0) completion=256 decode 6832 ms (37.33 tok/s)
+== merge bar 12:46:15
+stamp: head=9e2fcab code-tree=df134da7f169 dirty=no
+9e2fcab37fb4cd9fea87474e5a12bb73455fc042
+== 2. cargo test -p intarsia-backend-metal --release
+exit 0
+metal tests passed 101 failed 0
+== 3. kernels test
+/opt/code/intarsiaml-spec/docs/results/raw/2026-10-15-metal-spec-g2g3/merge/kernels/kernels-test exit 0 12:47:32
+logits         logits_bf16_gemv_rows           2      0    1.077e-7    8.987e-8  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv_rows      9      0    1.208e-3    3.634e-5  ADMITTED
+27 kernels, 321 cases in 42.3s
+== 4. accuracy (spec off, default), baseline-gated
+/opt/code/intarsiaml-spec/docs/results/raw/2026-10-15-metal-spec-g2g3/merge/accuracy/short exit 0 12:47:40
+/opt/code/intarsiaml-spec/docs/results/raw/2026-10-15-metal-spec-g2g3/merge/accuracy/long exit 0 12:48:02
+/opt/code/intarsiaml-spec/docs/results/raw/2026-10-15-metal-spec-g2g3/merge/accuracy/4k exit 0 12:49:01
+== 5. greedy ids, spike/metal c556008 vs tip with --spec off (short, 4k, w4107 x 48, 256)
+short 48 tokens spike/metal vs tip --spec off: ids identical (48 tokens)
+4k 48 tokens spike/metal vs tip --spec off: ids identical (48 tokens)
+w4107 48 tokens spike/metal vs tip --spec off: ids identical (48 tokens)
+short 256 tokens spike/metal vs tip --spec off: ids identical (256 tokens)
+4k 256 tokens spike/metal vs tip --spec off: ids identical (256 tokens)
+w4107 256 tokens spike/metal vs tip --spec off: ids identical (256 tokens)
+== 5b. cut-path coverage: the same stop / max / min_tokens / EOS cases with the gate off (INTARSIA_SPEC_GATE=0,4,64,1 = fails 0, min suffix 1: the G1 drafter), on4 + on6, vs base
+12:50:10 grounded-max102 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 266 ms (1394.1 tok/s) | decode 716 ms (141.00 tok/s)
+12:50:11 grounded-max102 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 239 ms (1551.9 tok/s) | decode 705 ms (143.20 tok/s)
+12:50:13 grounded-max188 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 233 ms (1595.3 tok/s) | decode 1418 ms (131.84 tok/s)
+12:50:15 grounded-max188 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 233 ms (1591.6 tok/s) | decode 1602 ms (116.76 tok/s)
+12:50:17 grounded-stop-topp on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 240 ms (1546.0 tok/s) | decode 909 ms (125.47 tok/s)
+12:50:18 grounded-stop-topp on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 237 ms (1566.6 tok/s) | decode 870 ms (130.99 tok/s)
+12:50:20 grounded-stop-vecstring on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 239 ms (1549.2 tok/s) | decode 1362 ms (135.79 tok/s)
+12:50:22 grounded-stop-vecstring on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 243 ms (1528.6 tok/s) | decode 1396 ms (132.48 tok/s)
+12:50:24 grounded-stop-atomic on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 233 ms (1591.6 tok/s) | decode 1716 ms (129.97 tok/s)
+12:50:26 grounded-stop-atomic on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 243 ms (1524.9 tok/s) | decode 1591 ms (140.20 tok/s)
+12:50:28 grounded-min331 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 240 ms (1547.3 tok/s) | decode 3013 ms (132.43 tok/s)
+12:50:32 grounded-min331 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 238 ms (1556.1 tok/s) | decode 3406 ms (117.16 tok/s)
+12:50:36 grounded-min335 on4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 240 ms (1542.9 tok/s) | decode 3008 ms (132.64 tok/s)
+12:50:39 grounded-min335 on6
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 239 ms (1551.5 tok/s) | decode 3409 ms (117.03 tok/s)
+12:50:43 grounded-min320-stopfence on4
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 238 ms (1560.0 tok/s) | decode 2485 ms (131.58 tok/s)
+12:50:47 grounded-min320-stopfence on6
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 240 ms (1544.2 tok/s) | decode 2623 ms (124.68 tok/s)
+12:50:50 4k-max9 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1583 ms (2565.7 tok/s) | decode 137 ms (58.20 tok/s)
+12:50:52 4k-max9 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1372 ms (2961.4 tok/s) | decode 158 ms (50.52 tok/s)
+12:50:54 4k-max44 on4
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1316 ms (3086.5 tok/s) | decode 386 ms (111.37 tok/s)
+12:50:56 4k-max44 on6
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1325 ms (3065.9 tok/s) | decode 421 ms (102.09 tok/s)
+12:50:58 4k-stop250 on4
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1377 ms (2949.2 tok/s) | decode 784 ms (107.09 tok/s)
+12:51:01 4k-stop250 on6
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1400 ms (2901.8 tok/s) | decode 765 ms (109.81 tok/s)
+12:51:03 short-stopkettles on4
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 215 ms (567.5 tok/s) | decode 662 ms (84.64 tok/s)
+12:51:04 short-stopkettles on6
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 217 ms (562.5 tok/s) | decode 625 ms (89.61 tok/s)
+12:51:06 repeat-eos on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 215 ms (162.6 tok/s) | decode 109 ms (137.43 tok/s)
+12:51:06 repeat-eos on6
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 227 ms (154.0 tok/s) | decode 86 ms (174.46 tok/s)
+ALL IDENTICAL
+== 6. qualify (full, fresh)
+qualify exit 0
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 27 kernels registered)
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify     38s] plan: PASS in 38.0s (14 ops resolved, exactness deterministic, loaded in 38.0s)
+[qualify     81s] kernels: PASS in 42.3s (27 kernels, 321 cases in 42.1s)
+[qualify     90s] gate: PASS in 9.6s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     97s] acc-short: PASS in 7.0s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
+[qualify    175s] bench: PASS in 77.2s (decode 36.6 tok/s at 128 tokens (90% of the byte floor))
+[qualify    198s] acc-long: PASS in 23.3s (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4)
+[qualify    259s] acc-4k: PASS in 61.3s (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4)
+[qualify    273s] envelope: PASS in 13.8s (baseline and envelope (chunk) written; they gate this build: PASS)
+[qualify    351s] bench-long: PASS in 78.5s (decode 36.4 tok/s at 1024 tokens (90% of the byte floor))
+[qualify    351s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    351s] tp: SKIP in 0.0s (--tp not given (or 1))
+done
+== done 12:56:59
+released 2011 Thu Oct 15 12:56:59 EDT 2026

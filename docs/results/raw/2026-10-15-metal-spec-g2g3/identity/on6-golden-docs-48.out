@@ -1,0 +1,3 @@
+. For each batch bucket (e.g. 16x128 tokens), capture the graph (as a `GraphHandle`), and store it in the tuning DB for future use.
+
+The plan is a `GraphHandle`

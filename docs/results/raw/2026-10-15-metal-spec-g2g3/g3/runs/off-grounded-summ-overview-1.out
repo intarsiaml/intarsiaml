@@ -1,0 +1,8 @@
+The **System Overview** section of the document provides a high-level architecture of the Intarsia system, divided into four main subgraphs: **Front**, **Core**, **Pieces**, and **HW**. Each subgraph represents a component of the system, with detailed descriptions of their roles and interactions.
+
+- **"Front door (crate: intarsia-server)"** includes interfaces for external services like OpenAI and Anthropic, as well as a web UI and metrics endpoints. This section highlights the system's accessibility and monitoring capabilities.
+- **"Engine core (crate: intarsia-core)"** is the central processing unit, handling tokenization, scheduling, key-value management, and more. It's the backbone of the system's functionality.
+- **"Pieces (plugins)"** refers to modular components like recipes, block libraries, and quantization formats, emphasizing the system's extensibility and customization.
+- **"Backends (crate: intarsia-backend-*)"** includes hardware-specific implementations such as CPU, CUDA, and HIP, showing the system's support for diverse hardware.
+
+Key components like **"Tokenizer + chat template + parsers (tools, reasoning)"** and **"Scheduler: continuous batching, chunked prefill, priorities"** illustrate

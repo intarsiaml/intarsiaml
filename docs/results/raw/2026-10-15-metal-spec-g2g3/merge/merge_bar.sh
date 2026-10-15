@@ -37,6 +37,12 @@ for N in 48 256; do
     python3 -I $R/first_divergence.py $R/identity/base-$P-$N.err $R/identity/off-$P-$N.err "$P $N tokens spike/metal vs tip --spec off" | tee -a $R/identity/summary.txt
   done
 done
+echo "== 5b. cut-path coverage: the same stop / max / min_tokens / EOS cases with the gate off (INTARSIA_SPEC_GATE=0,4,64,1 = fails 0, min suffix 1: the G1 drafter), on4 + on6, vs base"
+RR=$W/docs/results/raw/2026-10-15-metal-spec-g2g3
+mkdir -p $RR/identity-nogate
+for f in $RR/identity/base-*.err; do n=${f:t}; c=${n#base-}; c=${c%.err}; grep -q "^$c|" $RR/cases-cut.txt && cp ${f%.err}.* $RR/identity-nogate/; done
+INTARSIA_SPEC_GATE=0,4,64,1 $RR/run_identity.sh $RR/identity-nogate $RR/cases-cut.txt on4 on6
+python3 $W/docs/results/raw/2026-10-15-metal-spec-g1/compare.py $RR/identity-nogate base > $RR/identity-nogate-vs-base.md; tail -1 $RR/identity-nogate-vs-base.md
 echo "== 6. qualify (full, fresh)"
 $FIN qualify --model $M --backend metal --bandwidth-gbs 614 --golden-dir $G --out $R/qualify > $R/qualify-console.log 2>&1; echo "qualify exit $?"
 grep -E "^\[qualify.*(PASS|FAIL|SKIP|ERROR)" $R/qualify-console.log | cut -c1-260

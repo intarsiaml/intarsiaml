@@ -4,3 +4,5 @@ slot 2001 RUNNING (gate sweep) Thu Oct 15 11:22:00 EDT 2026: #2001 "metal spec G
 released 2001 Thu Oct 15 11:28:58 EDT 2026
 slot 2004 RUNNING (g3 ids (spec off) for gate sim) Thu Oct 15 11:29:54 EDT 2026: #2004 "metal spec G2G3: g3 ids (spec off) for gate sim" (claude-31e10c55) running on endor exclusive 20 GB for 0s
 released 2004 Thu Oct 15 11:32:42 EDT 2026
+slot 2011 RUNNING (A: identity 24x4 + G3 20 rows x3 x off/on) Thu Oct 15 12:19:25 EDT 2026: #2011 "metal spec G2G3: A: identity 24x4 + G3 20 rows x3 x off/on" (claude-31e10c55) running on endor exclusive 20 GB for 3s
+released 2011 Thu Oct 15 12:56:59 EDT 2026
