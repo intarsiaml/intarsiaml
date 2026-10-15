@@ -31,10 +31,13 @@ struct Tensor {
 fn model_dir() -> PathBuf {
     std::env::var_os("INTARSIA_METAL_TEST_MODEL")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/Users/josef/models/Qwen3.6-35B-A3B-NVFP4"))
+        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("models/Qwen3.6-35B-A3B-NVFP4"))
 }
 
 fn shards() -> Vec<PathBuf> {
+    if !real_model_enabled() {
+        return vec![];
+    }
     let mut v: Vec<PathBuf> = match std::fs::read_dir(model_dir()) {
         Ok(rd) => rd
             .filter_map(|e| e.ok())

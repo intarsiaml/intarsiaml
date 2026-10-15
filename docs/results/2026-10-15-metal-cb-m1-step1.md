@@ -120,8 +120,9 @@ tables: `raw/2026-10-15-metal-cb-m1-step1/out/batch-step-*.log`.
   have no row-exact kernels and fail the load.
 * CUDA / HIP: compile-checked only; their plans are unchanged (nothing is batched), the unfused attention projections moved earlier
   inside `attn_rows`' caller as described in section 3.
-* `cargo test -p intarsia-models` now includes `batch_metal.rs`, which loads Qwen3-8B on the GPU when `~/models/Qwen3-8B` (or
-  `INTARSIA_METAL_TEST_MODEL`) exists, so it needs an endor slot like the other Metal tests.
+* `cargo test -p intarsia-models` now includes `batch_metal.rs`, which loads Qwen3-8B on the GPU. It is opt-in: it only runs with
+  `INTARSIA_TEST_REAL_MODEL=1` (model `~/models/Qwen3-8B`, or `INTARSIA_METAL_TEST_MODEL`), and on endor it needs an exclusive
+  fleetq slot like the other Metal tests.
 * The test allocates 16 states (8 solo reference + 8 batch) against a plan budgeted for 8: intended.
 * Commits carry the Sonnet 5.5 attribution of the session, not the Opus 5.5 line of the brief.
 * The `Seq` is still `pub(crate)`; a driver must live in `engine.rs`.
