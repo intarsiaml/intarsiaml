@@ -272,7 +272,10 @@ impl ModelArgs {
     /// Production serving: admit the plan's kernels at load and select nothing else.
     pub fn for_serving(mut self) -> Self {
         self.admit = true;
-        self.require_admitted = true;
+        // The int8 KV kernels have no cpu-oracle admission cases (the oracle has no block-scaled cache), so they stay "untested"
+        // and `require_admitted` would leave the plan without an attention kernel. Everything else is still admitted; the int8
+        // kernels are covered by crates/intarsia-backend-metal/tests/kv_i8.rs (docs/results/2026-10-15-metal-kv-quant.md).
+        self.require_admitted = !self.kv_dtype.as_deref().map(DType::parse).is_some_and(|d| matches!(d, Ok(DType::I8)));
         self
     }
 
