@@ -146,6 +146,6 @@ fn max_batch_resolution() {
     assert!(q35.resolve_max_batch(Some(2), 1).is_err());
     assert_eq!(q35.resolve_max_batch(Some(8), 8).unwrap().value, 8);
     assert!(q35.resolve_max_batch(Some(33), 64).is_err());
-    // what serving implements today
-    assert_eq!(intarsia_core::engine::SERVE_MAX_BATCH, 1);
+    // what serving implements: the batching scheduler (Metal), up to the model's row-exact kernel rows
+    assert_eq!(intarsia_core::engine::SERVE_MAX_BATCH, 8);
 }
