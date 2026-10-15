@@ -152,6 +152,7 @@ number of prompts and generated tokens, not with the model.
 | quick | `bench` | `serve` + `bench speed` at 128 / 1024 / 4096, byte floor | every size measured | 80 s |
 | | | **quick section** | | **3 min 8 s** |
 | full | `acc-long` | `accuracy --mode all` on the long golden: prefill, decode, prefix reuse | floor gate + reuse gate | 29 s |
+| full | `acc-4k` | `accuracy --mode all` on the 4k golden (`<name>-4k...`, if there is one): prefill across chunks, decode, prefix reuse past 2 chunks of 2048; with it `acc-long` runs `--mode both` | KL floor + reuse gate + recorded baseline/envelope (no absolute top-1 floor) | skipped without a 4k golden |
 | full | `envelope` | noise envelope (`chunk`, plus `attn-simt` on GPUs) and the baseline; then a self-check gate | the pair gates its own build | 24 s |
 | full | `bench-long` | `serve` + `bench speed` at 1024 / 4096 / 16384 | every size measured | 83 s |
 | full | `ab` | `localeval speed` against `--reference` and against our server | both ran | skipped (no `--reference`) |
@@ -166,7 +167,7 @@ pipeline (`docs/results/2026-10-13-qualify/mac-cpu-smoke/`).
 
 What each stage needs and how it decides:
 
-* **Goldens** (`acc-short`, `acc-long`, `envelope`, `tp`): `--golden` / `--golden-long`, else found by model name
+* **Goldens** (`acc-short`, `acc-long`, `acc-4k`, `envelope`, `tp`): `--golden` / `--golden-long` / `--golden-4k`, else found by model name
   in `--golden-dir` (default `./golden`, `/models/golden`, `$INTARSIA_GOLDEN_DIR`; an fp32 file is preferred
   over others, `<name>-long...` is the long set), else made: from `--reference http://...` (a vLLM-style server:
   `tools/golden_vllm.py`, top-20 `prompt_logprobs`) or, for a small dense bf16 model (at most `--make-golden-max-gb`
@@ -174,7 +175,11 @@ What each stage needs and how it decides:
   python with torch and transformers). Otherwise the stage is **skipped with the reason**; a model that no one can
   make a golden for needs `--golden` or `--reference`. The short golden cannot exercise prefix reuse (the reuse
   gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt
-  (`long_prose_700`, continue and restore) is long enough to exercise it: a thin check. A stress run with
+  (`long_prose_700`, continue and restore) is long enough to exercise it: a thin check, and none at all at a prefill
+  chunk above ~350 (the long golden's gate prints SKIPPED, which fails). A **4k golden** (`<name>-4k...`, built with
+  `tools/golden.py --prompts tools/prompts/golden_4k.jsonl`, never made by `qualify`; its `chat_reuse_4k` prompt splits at
+  4447 tokens) takes the reuse gate over in `acc-4k`; when one is found, `acc-long` runs `--mode both` and `acc-4k` runs
+  `--mode all`, which keeps a prefill chunk of 2048 (Metal) qualifiable. `acc-4k` has **no absolute top-1 floor** (no build reaches 99.5% on 4k prompts: the misses are near-ties of the fp32 reference); it gates KL (class floor), tail mass, non-finite rows, prefix reuse, and top-1 / KL against the backend's recorded baseline and noise envelope (`golden/baselines/<golden>.<backend>.baseline.json` / `.envelope.json`, recorded at the chunk the run uses), and with no matching baseline it is KL-only with a note. Without a 4k golden nothing changes. A stress run with
   `--prefill-chunk 16` on the short golden of Qwen3-8B (hip) failed the old stream-agreement criterion once
   (`science`, `continue`: the streams diverged at token 9, 9/32 agreeing;
   `docs/results/2026-10-13-qualify/run2-prefix-reuse-fail/`). It was investigated in
