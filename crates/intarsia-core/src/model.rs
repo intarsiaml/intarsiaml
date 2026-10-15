@@ -349,6 +349,14 @@ impl Model {
             Some(d) => d,
             None => recipe.kv_dtype()?,
         };
+        // A quantised (fp8) KV cache has attention kernels on the oracle and on metal only; a recipe default or an override
+        // that reaches another backend is refused here, not as a missing-kernel error deep in the plan.
+        if kv == DType::Fp8E4m3 && !matches!(backend.name(), "cpu" | "metal") {
+            return Err(Error::invalid(format!(
+                "kv cache dtype fp8_e4m3 is not supported by the {} backend (bf16 KV there; fp8 on metal and cpu)",
+                backend.name()
+            )));
+        }
         let final_norm = load(&recipe.top.final_norm, 0, Some(&[dims.hidden]))?;
 
         // lm_head: own tensor, or tied to the embedding table.

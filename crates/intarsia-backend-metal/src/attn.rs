@@ -160,7 +160,7 @@ impl MetalBackend {
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
         let nsg = if use_dev == 0 && nkv * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
         let nsg = nsg.min((TG_FLOATS / (gp * d)).max(1));
-        let stage1: &[&str] = if f8 { &ATTN_DECODE_F8_SPLITKV_SHADERS[..] } else { &ATTN_DECODE_SPLITKV_SHADERS[..4] };
+        let stage1: &[&str] = if f8 { &ATTN_DECODE_F8_SPLITKV_SHADERS[f8_variant() * 4..][..4] } else { &ATTN_DECODE_SPLITKV_SHADERS[..4] };
         let (name1, name2) = (stage1[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
@@ -321,7 +321,7 @@ impl MetalBackend {
         // threadgroup shape: the largest simdgroup count any row's 1-row launch uses (row 0: the fewest splits)
         let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, nkv, MAX_SPLIT);
         let nsg = rows_nsg(use_dev == 0, nkv, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp, d);
-        let stage1: &[&str] = if f8 { &ATTN_ROWS_F8_SHADERS[..] } else { &ATTN_ROWS_SHADERS[..4] };
+        let stage1: &[&str] = if f8 { &ATTN_ROWS_F8_SHADERS[f8_variant() * 4..][..4] } else { &ATTN_ROWS_SHADERS[..4] };
         let (name1, name2) = (stage1[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
@@ -396,4 +396,16 @@ mod tests {
             }
         }
     }
+}
+
+/// Units in flight per step of the fp8 split-KV kernels: 0 = 4 (default), 1 = 2, 2 = 8 (`INTARSIA_METAL_F8_U=2|4|8`, a
+/// tuning knob; decode and rows kernels always take the same one, so the rows == 1-row identity holds for each).
+fn f8_variant() -> usize {
+    use std::sync::OnceLock;
+    static V: OnceLock<usize> = OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_METAL_F8_U").as_deref() {
+        Ok("2") => 1,
+        Ok("8") => 2,
+        _ => 0,
+    })
 }

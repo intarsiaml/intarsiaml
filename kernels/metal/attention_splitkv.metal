@@ -117,23 +117,23 @@ inline void ask_step(device const uint4* kb, device const uint4* vb, uint start3
 // simdgroup still works on KPS keys at once; every value is decoded exactly to f32 (`unpack8_e4m3`) and then goes through
 // the same arithmetic as `ask_step` in the same order, so the result is bit for bit the bf16 kernel's on the decoded
 // cache. Half the bytes per key, so twice the keys per step (ASK_U8 units in flight) keep the bytes in flight.
-constant constexpr uint ASK_U8 = 4;
+constant constexpr uint ASK_U8 = 4;  // default units in flight; the `u2` / `u8` instances are tuning variants
 
-template <uint GP, bool FULL>
+template <uint GP, bool FULL, uint UN>
 inline void ask_step_f8(device const uint2* kb, device const uint2* vb, uint start32, uint end32, uint u0, uint nsg, uint kps,
                         uint slot, uint lpk, thread float (&qv)[GP][8], thread float (&acc)[GP][8], thread float (&m)[GP],
                         thread float (&l)[GP]) {
     const uint row2 = lpk;  // uint2 per row
-    uint2 kr[ASK_U8], vr[ASK_U8];
-    bool ok[ASK_U8];
-    for (uint u = 0; u < ASK_U8; ++u) {
+    uint2 kr[UN], vr[UN];
+    bool ok[UN];
+    for (uint u = 0; u < UN; ++u) {
         const uint j = start32 + (u0 + u * nsg) * kps + slot;
         ok[u] = FULL || j < end32;
         kr[u] = ok[u] ? kb[j * row2] : uint2(0);
         vr[u] = ok[u] ? vb[j * row2] : uint2(0);
     }
-    float sc[ASK_U8][GP];
-    for (uint u = 0; u < ASK_U8; ++u) {
+    float sc[UN][GP];
+    for (uint u = 0; u < UN; ++u) {
         float kf[8];
         unpack8_e4m3_s8(kr[u], kf);
         for (uint g = 0; g < GP; ++g) {
@@ -142,16 +142,16 @@ inline void ask_step_f8(device const uint2* kb, device const uint2* vb, uint sta
             sc[u][g] = dot;
         }
     }
-    for (uint u = 0; u < ASK_U8; ++u)
+    for (uint u = 0; u < UN; ++u)
         for (uint g = 0; g < GP; ++g)
             for (uint o = 1; o < lpk; o <<= 1) sc[u][g] += simd_shuffle_xor(sc[u][g], (ushort)o);
-    float pr[ASK_U8][GP];
+    float pr[UN][GP];
     for (uint g = 0; g < GP; ++g) {
         float m_new = m[g];
-        for (uint u = 0; u < ASK_U8; ++u) m_new = max(m_new, ok[u] ? sc[u][g] : -INFINITY);
+        for (uint u = 0; u < UN; ++u) m_new = max(m_new, ok[u] ? sc[u][g] : -INFINITY);
         const float corr = m_new == -INFINITY ? 1.0f : exp2(m[g] - m_new);
         float psum = 0.0f;
-        for (uint u = 0; u < ASK_U8; ++u) {
+        for (uint u = 0; u < UN; ++u) {
             pr[u][g] = (ok[u] && m_new != -INFINITY) ? exp2(sc[u][g] - m_new) : 0.0f;
             psum += pr[u][g];
         }
@@ -159,7 +159,7 @@ inline void ask_step_f8(device const uint2* kb, device const uint2* vb, uint sta
         m[g] = m_new;
         for (uint i = 0; i < 8; ++i) acc[g][i] *= corr;
     }
-    for (uint u = 0; u < ASK_U8; ++u) {
+    for (uint u = 0; u < UN; ++u) {
         float vf[8];
         unpack8_e4m3_s8(vr[u], vf);
         for (uint g = 0; g < GP; ++g)
@@ -167,7 +167,7 @@ inline void ask_step_f8(device const uint2* kb, device const uint2* vb, uint sta
     }
 }
 
-template <uint GP, bool F8 = false>
+template <uint GP, bool F8 = false, uint UN = 4>
 kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
                                   device const ushort* kc [[buffer(1)]],
                                   device const ushort* vc [[buffer(2)]],
@@ -207,7 +207,7 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
     // fp8 caches: one byte per element, a lane's 8 elements are one 8-byte load (the same launcher alignment guarantee)
     device const uint2* kb8 = (device const uint2*)((device const uchar*)kc + kvh * cap * d) + c8;
     device const uint2* vb8 = (device const uint2*)((device const uchar*)vc + kvh * cap * d) + c8;
-    constexpr uint UK = F8 ? ASK_U8 : ASK_U;
+    constexpr uint UK = F8 ? UN : ASK_U;
     // fp8: the decode returns value * 2^-8; q carries the 2^8 (exact scaling), the accumulator gets it back below
     constexpr float QSC = F8 ? 256.0f : 1.0f;
     float qv[GP][8], acc[GP][8], m[GP], l[GP];
@@ -232,10 +232,10 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
         // (a step is "full" when every slot of every unit has a key; only the last step of a split can be partial)
         const bool full = start32 + (u0 + (UK - 1) * nsg + 1) * kps <= end32;
         if (full) {
-            if constexpr (F8) ask_step_f8<GP, true>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
+            if constexpr (F8) ask_step_f8<GP, true, UN>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
             else ask_step<GP, true>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
         } else {
-            if constexpr (F8) ask_step_f8<GP, false>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
+            if constexpr (F8) ask_step_f8<GP, false, UN>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
             else ask_step<GP, false>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
         }
     }
@@ -302,14 +302,15 @@ ASK_INST(4)
 ASK_INST(8)
 #undef ASK_INST
 
-#define ASK_INST_F8(GP)                                                                                        \
-    template [[host_name("attn_decode_f8_splitkv_g" #GP)]] kernel void attn_decode_splitkv_t<GP, true>(        \
+#define ASK_INST_F8(GP, UN, TAG)                                                                               \
+    template [[host_name("attn_decode_f8" TAG "_splitkv_g" #GP)]] kernel void attn_decode_splitkv_t<GP, true, UN>(  \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device const int*, \
         device float*, constant OpP&, uint2, uint, uint, uint);
-ASK_INST_F8(1)
-ASK_INST_F8(2)
-ASK_INST_F8(4)
-ASK_INST_F8(8)
+#define ASK_INST_F8_ALL(UN, TAG) ASK_INST_F8(1, UN, TAG) ASK_INST_F8(2, UN, TAG) ASK_INST_F8(4, UN, TAG) ASK_INST_F8(8, UN, TAG)
+ASK_INST_F8_ALL(4, "")
+ASK_INST_F8_ALL(2, "u2")
+ASK_INST_F8_ALL(8, "u8")
+#undef ASK_INST_F8_ALL
 #undef ASK_INST_F8
 
 // Stage 2: one threadgroup per query head, one thread per output dim (threads == D). Combines the nsplit partials in
@@ -393,7 +394,7 @@ inline uint askr_nsg(bool host_pos, uint nkv, uint nsplit, uint gp, uint d) {
     return min(nsg, max(ASK_TG_FLOATS / (gp * d), 1u));
 }
 
-template <uint GP, bool F8 = false>
+template <uint GP, bool F8 = false, uint UN = 4>
 kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
                                 device const ushort* kc [[buffer(1)]],
                                 device const ushort* vc [[buffer(2)]],
@@ -434,7 +435,7 @@ kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
     device const uint4* vb = (device const uint4*)(vc + kvh * cap * d) + c8;
     device const uint2* kb8 = (device const uint2*)((device const uchar*)kc + kvh * cap * d) + c8;
     device const uint2* vb8 = (device const uint2*)((device const uchar*)vc + kvh * cap * d) + c8;
-    constexpr uint UK = F8 ? ASK_U8 : ASK_U;
+    constexpr uint UK = F8 ? UN : ASK_U;
     // fp8: the decode returns value * 2^-8; q carries the 2^8 (exact scaling), the accumulator gets it back below
     constexpr float QSC = F8 ? 256.0f : 1.0f;
     float qv[GP][8], acc[GP][8], m[GP], l[GP];
@@ -457,10 +458,10 @@ kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
         for (uint u0 = sg; u0 < units; u0 += nsg * UK) {
             const bool full = start32 + (u0 + (UK - 1) * nsg + 1) * kps <= end32;
             if (full) {
-                if constexpr (F8) ask_step_f8<GP, true>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
+                if constexpr (F8) ask_step_f8<GP, true, UN>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
                 else ask_step<GP, true>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
             } else {
-                if constexpr (F8) ask_step_f8<GP, false>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
+                if constexpr (F8) ask_step_f8<GP, false, UN>(kb8, vb8, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
                 else ask_step<GP, false>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l);
             }
         }
@@ -530,14 +531,15 @@ ASKR_INST(4)
 ASKR_INST(8)
 #undef ASKR_INST
 
-#define ASKR_INST_F8(GP)                                                                                       \
-    template [[host_name("attn_rows_f8_splitkv_g" #GP)]] kernel void attn_rows_splitkv_t<GP, true>(            \
+#define ASKR_INST_F8(GP, UN, TAG)                                                                              \
+    template [[host_name("attn_rows_f8" TAG "_splitkv_g" #GP)]] kernel void attn_rows_splitkv_t<GP, true, UN>( \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device const int*, \
         device float*, constant OpP&, uint2, uint, uint);
-ASKR_INST_F8(1)
-ASKR_INST_F8(2)
-ASKR_INST_F8(4)
-ASKR_INST_F8(8)
+#define ASKR_INST_F8_ALL(UN, TAG) ASKR_INST_F8(1, UN, TAG) ASKR_INST_F8(2, UN, TAG) ASKR_INST_F8(4, UN, TAG) ASKR_INST_F8(8, UN, TAG)
+ASKR_INST_F8_ALL(4, "")
+ASKR_INST_F8_ALL(2, "u2")
+ASKR_INST_F8_ALL(8, "u8")
+#undef ASKR_INST_F8_ALL
 #undef ASKR_INST_F8
 
 // Stage 2 for R rows: one threadgroup per (query head, row), one thread per output dim; the 1-row combine per row.

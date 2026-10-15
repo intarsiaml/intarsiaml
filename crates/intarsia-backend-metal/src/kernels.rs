@@ -207,19 +207,35 @@ pub const QK_NORM_ROPE_KV_F8_PF: &str = "qk_norm_rope_kv_f8_pf";
 /// `AttnDecode` split-KV over an fp8 cache (attention_splitkv.metal): stage 1 `attn_decode_f8_splitkv_g{GP}`; the combine
 /// pass is the bf16 one (it never reads the cache).
 pub const ATTN_DECODE_F8_SPLITKV: &str = "attn_decode_f8_splitkv";
-pub const ATTN_DECODE_F8_SPLITKV_SHADERS: [&str; 4] = [
+pub const ATTN_DECODE_F8_SPLITKV_SHADERS: [&str; 12] = [
     "attn_decode_f8_splitkv_g1",
     "attn_decode_f8_splitkv_g2",
     "attn_decode_f8_splitkv_g4",
     "attn_decode_f8_splitkv_g8",
+    "attn_decode_f8u2_splitkv_g1",
+    "attn_decode_f8u2_splitkv_g2",
+    "attn_decode_f8u2_splitkv_g4",
+    "attn_decode_f8u2_splitkv_g8",
+    "attn_decode_f8u8_splitkv_g1",
+    "attn_decode_f8u8_splitkv_g2",
+    "attn_decode_f8u8_splitkv_g4",
+    "attn_decode_f8u8_splitkv_g8",
 ];
 /// `AttnPrefill` 2..=8 rows over an fp8 cache: bitwise the 1-row `attn_decode_f8_splitkv` per row (`rows_exact`).
 pub const ATTN_PREFILL_F8_SPLITKV_ROWS: &str = "attn_prefill_f8_splitkv_rows";
-pub const ATTN_ROWS_F8_SHADERS: [&str; 4] = [
+pub const ATTN_ROWS_F8_SHADERS: [&str; 12] = [
     "attn_rows_f8_splitkv_g1",
     "attn_rows_f8_splitkv_g2",
     "attn_rows_f8_splitkv_g4",
     "attn_rows_f8_splitkv_g8",
+    "attn_rows_f8u2_splitkv_g1",
+    "attn_rows_f8u2_splitkv_g2",
+    "attn_rows_f8u2_splitkv_g4",
+    "attn_rows_f8u2_splitkv_g8",
+    "attn_rows_f8u8_splitkv_g1",
+    "attn_rows_f8u8_splitkv_g2",
+    "attn_rows_f8u8_splitkv_g4",
+    "attn_rows_f8u8_splitkv_g8",
 ];
 /// `AttnPrefill` over an fp8 cache: the cache is decoded to a bf16 staging buffer (`kv_dequant_f8`, exact: every e4m3 value
 /// is a bf16 value) and the bf16 flash kernel (the NAX one, or the P2 one without metal4.0) runs on it. See flash_nax.rs.

@@ -192,6 +192,17 @@ impl ModelArgs {
 
     pub fn engine_options(&self) -> Result<EngineOptions> {
         let kv_dtype = self.kv_dtype.as_deref().map(DType::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?;
+        if matches!(kv_dtype, Some(DType::Fp8E4m3 | DType::F16 | DType::F32)) && !matches!(self.backend.as_str(), "cpu" | "metal") {
+            bail!(
+                "--kv-dtype {}: the {} backend has no attention kernels for a non-bf16 KV cache (supported: bf16 everywhere; \
+                 fp8 on metal and cpu)",
+                self.kv_dtype.as_deref().unwrap_or(""),
+                self.backend
+            );
+        }
+        if matches!(kv_dtype, Some(DType::F16 | DType::F32)) && self.backend == "metal" {
+            bail!("--kv-dtype {}: the metal backend takes bf16 or fp8 KV caches only", self.kv_dtype.as_deref().unwrap_or(""));
+        }
         if matches!(kv_dtype, Some(DType::I8 | DType::U8 | DType::I32 | DType::Fp8E5m2)) {
             bail!(
                 "--kv-dtype {}: not a KV cache dtype here (bf16, f16, f32, fp8 / fp8_e4m3); an int8 KV cache would need \

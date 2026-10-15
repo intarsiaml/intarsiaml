@@ -1,0 +1,18 @@
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 30 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv        36.5      36.2      37.4      460   (75% of 614 GB/s)
+    4096 attn_decode_f8_splitkv          32.7      32.5      32.9      257   (42% of 614 GB/s)
+    4096 attn_decode_f8_splitkv          42.4      32.7      56.8      198   (32% of 614 GB/s)
+    4096 attn_decode_bf16_splitkv        37.4      36.5      39.5      449   (73% of 614 GB/s)
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 30 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   16384 attn_decode_bf16_splitkv       122.9     122.3     124.1      546   (89% of 614 GB/s)
+   16384 attn_decode_f8_splitkv          99.0      98.8      99.4      339   (55% of 614 GB/s)
+   16384 attn_decode_f8_splitkv         100.4      99.6     105.0      334   (54% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       130.9     125.6     133.4      512   (83% of 614 GB/s)
+heads 32/8 head_dim 128, 36 layers (one KV cache each), 30 reps; split policy default
+ visible kernel                       us/call       p10       p90     GB/s
+   32768 attn_decode_bf16_splitkv       239.2     236.9     243.0      561   (91% of 614 GB/s)
+   32768 attn_decode_f8_splitkv         186.7     186.0     188.9      359   (59% of 614 GB/s)
+   32768 attn_decode_f8_splitkv         192.2     186.2     193.1      349   (57% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       247.7     246.0     253.7      542   (88% of 614 GB/s)

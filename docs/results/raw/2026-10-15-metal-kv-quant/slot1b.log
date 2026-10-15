@@ -1,0 +1,3 @@
+fleetq: #2052 waiting (#3 in line): in line behind #2050 "gemm midm: pad-aware pick A/B (pick3)" (claude-0e8026c5) on endor
+fleetq: #2052 waiting (#2 in line): in line behind #2051 "metal cb-identity harness e2e (qwen3-8b serve, 40 cases)" (claude-0e8026c5) on endor
+fleetq: #2052 waiting (#1 in line): endor is held exclusively by #2051 "metal cb-identity harness e2e (qwen3-8b serve, 40 cases)" (claude-0e8026c5)
