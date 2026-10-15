@@ -10,3 +10,12 @@ prefill floor [bf16]: top-1 99.28% (need >= 0) ok | 21-way KL 2.274e-4 (need <= 
 == mode: decode (teacher-forced) ==
 prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
 long_docs_4k        4064    64    98.44   1.773e-4   1.708e-4   1.136e-3   0.0857   0.0861    98.44     29/64      0
+long_code_4k        4064    64   100.00   1.701e-4   1.690e-4   4.748e-3   0.0008   0.0007    98.44     64/64      0
+chat_reuse_4k       4557    64    98.44   4.244e-4   4.244e-4   8.047e-3   0.0000   0.0000   100.00     45/64      0
+OVERALL                    192    98.96   2.573e-4   2.548e-4   8.047e-3   0.0288   0.0289    98.96     71.9%      0
+decode (teacher-forced) floor [bf16]: top-1 98.96% (need >= 0) ok | 21-way KL 2.548e-4 (need <= 1.0e-3) ok | tail mass ours 0.0289 vs ref 0.0288, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 2.0% of positions before the first argmax divergence, worst prompt 0.4% (informational)
+greedy-match [decode (teacher-forced)]: mean 71.9% of positions before the first argmax divergence, worst prompt 45.3% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

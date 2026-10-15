@@ -1,0 +1,11 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/realign.rs (target/release/deps/realign-72f978baea4453f9)
+
+running 2 tests
+test realigned_buffer_is_16_byte_aligned_with_equal_contents ... ok
+aligned vs 8-byte kernel: 0 of 512 outputs differ
+realigned gemv: 512 rows, worst error 0.912 of tolerance
+test batch1_gemv_on_realigned_weights_matches_the_8_byte_kernel ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
