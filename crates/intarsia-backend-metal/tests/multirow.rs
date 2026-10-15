@@ -3,7 +3,8 @@
 //! for every activation row, BITWISE the output of the serving 1-row decode launch (`matmul_bf16_gemv`,
 //! `matmul_pair_bf16_gemv`, `logits_bf16_gemv`) for that row: random data at the Qwen3-8B shapes, K tails, odd N, every
 //! compiled row count, 16-byte and 8-byte operand alignment (and the scalar fallback), and the real Qwen3-8B weights
-//! mmap'd the way the model loader maps them.
+//! mmap'd the way the model loader maps them (opt-in: `INTARSIA_TEST_REAL_MODEL=1`, model dir `INTARSIA_METAL_G0_MODEL`, else
+//! `~/models/Qwen3-8B`; the synthetic tests need no model but still use the GPU, so take an exclusive fleetq slot on endor).
 
 mod common;
 use common::*;
@@ -531,7 +532,7 @@ impl HostMemory for MmapHost {
 fn model_dir() -> PathBuf {
     std::env::var_os("INTARSIA_METAL_G0_MODEL")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/Users/josef/models/Qwen3-8B"))
+        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("models/Qwen3-8B"))
 }
 
 /// (mmap, tensor name -> (begin, end, shape)) of one shard.
@@ -555,6 +556,9 @@ fn tensor(be: &MetalBackend, shard: &(Arc<MmapHost>, serde_json::Value, usize), 
 
 #[test]
 fn real_qwen3_8b_weights_bitwise() {
+    if !real_model_enabled() {
+        return;
+    }
     let be = backend();
     let Some(s1) = open_shard("model-00001-of-00005.safetensors") else {
         eprintln!("SKIP: Qwen3-8B not found at {}", model_dir().display());

@@ -1,0 +1,33 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   2.687e-4   2.210e-4   1.278e-3   0.0324   0.0325    96.32     38/38      0
+story                 39    39   100.00   3.453e-3   3.134e-3   4.880e-2   0.0400   0.0391    95.38     39/39      0
+code                  80    80    98.75   8.995e-4   8.349e-4   2.177e-2   0.0142   0.0142    98.00     15/80      0
+science               79    79   100.00   2.031e-3   1.957e-3   1.532e-2   0.0168   0.0165    96.46     79/79      0
+chat_short            18    18    94.44   8.040e-3   7.280e-3   3.774e-2   0.1108   0.1117    93.33      3/18      0
+chat_system           32    32    93.75   1.069e-2   7.480e-3   1.716e-1   0.0841   0.0800    93.12     10/32      0
+chat_multiturn        58    58    96.55   2.112e-2   2.073e-2   6.959e-1   0.0340   0.0351    94.14     25/58      0
+chat_reasoning        90    90    96.67   5.367e-3   5.206e-3   7.089e-2   0.0243   0.0252    96.22     31/90      0
+OVERALL                    434    97.93   5.927e-3   5.514e-3   6.959e-1   0.0325   0.0324    95.90     55.3%      0
+prefill floor [fp8]: top-1 97.93% (not gated for this class) ok | full-vocab KL 5.927e-3 (need <= 5.0e-3) FAIL | tail mass ours 0.0324 vs ref 0.0325, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.352e-4   1.162e-4   7.626e-4   0.0029   0.0029    96.25     16/16      0
+story                 39    16   100.00   5.796e-3   5.515e-3   4.810e-2   0.0237   0.0242    95.00     16/16      0
+code                  80    16   100.00   2.247e-4   2.246e-4   1.474e-3   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   2.171e-3   2.089e-3   8.181e-3   0.0104   0.0105    95.00     16/16      0
+chat_short            18    16    93.75   9.033e-3   8.247e-3   3.902e-2   0.0621   0.0633    96.25      1/16      0
+chat_system           32    16    93.75   2.176e-2   1.513e-2   1.908e-1   0.0736   0.0656    93.75      3/16      0
+chat_multiturn        58    16    93.75   7.653e-3   7.146e-3   5.758e-2   0.0076   0.0096    95.00     13/16      0
+chat_reasoning        90    16    93.75   1.547e-2   1.479e-2   9.117e-2   0.0099   0.0122    92.50     10/16      0
+OVERALL                    128    96.88   7.781e-3   6.657e-3   1.908e-1   0.0238   0.0235    95.31     71.1%      0
+decode (teacher-forced) floor [fp8]: top-1 96.88% (not gated for this class) ok | full-vocab KL 7.781e-3 (need <= 5.0e-3) FAIL | tail mass ours 0.0235 vs ref 0.0238, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+greedy-match [prefill]: mean 55.5% of positions before the first argmax divergence, worst prompt 16.7% (informational)
+greedy-match [decode (teacher-forced)]: mean 71.1% of positions before the first argmax divergence, worst prompt 6.2% (informational)
+
+wrote baseline /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/qualify-fp8/baselines/acc-short.baseline.json (2 mode(s); absolute floor FAILED in this run: the baseline records it)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL

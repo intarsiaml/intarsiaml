@@ -1,0 +1,2 @@
+warning: --kv-dtype int8: serving without kernel admission (no oracle for a block-scaled KV cache)
+loaded Qwen3-8B on metal (Apple M5 Max) in 0.3s, context 20480 tokens

@@ -1,10 +1,22 @@
-//! End-to-end check on a real checkpoint. Skipped unless a model directory is
-//! available: set INTARSIA_TEST_MODEL, or have the Qwen3-Reranker-0.6B snapshot in the HF cache.
+//! End-to-end check on a real checkpoint. Opt-in: skipped unless INTARSIA_TEST_REAL_MODEL=1 and a
+//! model directory is available: set INTARSIA_TEST_MODEL, or have the Qwen3-Reranker-0.6B snapshot in the HF cache.
 
 use intarsia_core::{GenEvent, GenRequest};
 use std::path::PathBuf;
 
+/// Real-model tests are opt-in (INTARSIA_TEST_REAL_MODEL=1).
+fn real_model_enabled() -> bool {
+    if std::env::var("INTARSIA_TEST_REAL_MODEL").is_ok_and(|v| v == "1") {
+        return true;
+    }
+    eprintln!("SKIP: real-model test (set INTARSIA_TEST_REAL_MODEL=1; on endor run inside an exclusive fleetq slot)");
+    false
+}
+
 fn model_dir() -> Option<PathBuf> {
+    if !real_model_enabled() {
+        return None;
+    }
     if let Ok(p) = std::env::var("INTARSIA_TEST_MODEL") {
         return Some(PathBuf::from(p));
     }

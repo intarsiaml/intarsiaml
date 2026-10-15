@@ -1,0 +1,97 @@
+fleetq: #2064 waiting (#4 in line): in line behind #2060 "gemm midm: 128x64 vs 64x64w2 vs 32x128 at multiples of 128" (claude-0e8026c5) on endor
+fleetq: #2064 waiting (#3 in line): in line behind #2061 "cb-m0 qualify + accuracy + serve-gap speed (c556008/56ec2d5/8254311)" (claude-0e8026c5) on endor
+fleetq: #2064 waiting (#2 in line): in line behind #2063 "metal cb-identity harness e2e (qwen3-8b serve, 20 cases)" (claude-0e8026c5) on endor
+fleetq: #2064 waiting (#1 in line): endor is held exclusively by #2063 "metal cb-identity harness e2e (qwen3-8b serve, 20 cases)" (claude-0e8026c5)
+fleetq job 2064 (metal kv quant: int8 tests + probe + accuracy + ids) acquired Thu Oct 15 16:09:38 EDT 2026
+== 1. kv_i8 + kv_fp8 tests
+exit 0
+test decode_f8_matches_f64_reference_and_the_bf16_kernel_on_the_decoded_cache ... decode f8 32/8/128 cap 4096: worst error 0.634 of tolerance; 0/45056 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+decode f8 8/8/64 cap 2304: worst error 0.635 of tolerance; 0/5632 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+decode f8 16/2/256 cap 1536: worst error 0.630 of tolerance; 0/45056 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+test decode_matches_the_oracle_for_all_256_codes ... ok
+test encode_matches_the_oracle_for_every_bf16_value ... fp8 encode: 266305 values (all 65536 bf16 patterns + boundaries + random f32) identical to the oracle
+test f8_kernels_are_registered_only_for_fp8_caches_and_leave_the_bf16_ones_alone ... ok
+test kv_append_f8_is_the_oracle_encode_of_the_bf16_rows ... ok
+test prefill_f8_is_bitwise_the_bf16_flash_kernels_on_the_decoded_cache ... ok
+test qk_norm_rope_kv_f8_is_the_encoded_bf16_cache_and_k_rows_equal_k_single_rows ... ok
+test rows_f8_are_bitwise_the_one_row_f8_launches ... rows f8 32/8/128 cap 4096: 92 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.92s
+test decode_i8_matches_f64_reference ... decode i8 32/8/128 cap 4096: worst error 0.556 of tolerance
+decode i8 8/8/64 cap 2304: worst error 0.481 of tolerance
+decode i8 16/2/256 cap 1536: worst error 0.564 of tolerance
+test i8_kernels_are_registered_only_for_int8_caches ... ok
+test kv_append_i8_is_the_host_quantiser ... ok
+test plane_bytes_helper_is_exact_and_zero_extra_for_other_dtypes ... ok
+test prefill_i8_is_bitwise_the_bf16_flash_kernels_on_the_staged_cache ... ok
+test qk_norm_rope_kv_i8_quantises_the_bf16_cache_and_forms_agree ... ok
+test rows_i8_are_bitwise_the_one_row_i8_launches ... rows i8 32/8/128 cap 4096: 92 (k, pos0) windows bitwise equal to the 1-row int8 launches
+rows i8 8/2/64 cap 2304: 92 (k, pos0) windows bitwise equal to the 1-row int8 launches
+rows i8 16/2/256 cap 1536: 80 (k, pos0) windows bitwise equal to the 1-row int8 launches
+rows i8 12/4/32 cap 1024: 64 (k, pos0) windows bitwise equal to the 1-row int8 launches
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+== 2. more fake-quant probe configs (block,mask): K-only 8/16, K+V 8, V-only 8/128
+probe 8,1 long exit 1
+probe 8,1 short exit 0
+probe 8,3 long exit 1
+probe 8,3 short exit 0
+probe 16,1 long exit 1
+probe 16,1 short exit 0
+probe 4,1 long exit 1
+probe 4,1 short exit 0
+probe 128,2 long exit 1
+probe 128,2 short exit 0
+== 3. attn_bw int8 vs bf16 vs fp8
+    4096 attn_decode_bf16_splitkv        36.2      36.0      37.3      464   (76% of 614 GB/s)
+    4096 attn_decode_i8_splitkv          30.9      30.9      31.1      288   (47% of 614 GB/s)
+    4096 attn_decode_f8_splitkv          30.7      30.6      30.8      274   (45% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       121.5     121.3     123.1      552   (90% of 614 GB/s)
+   16384 attn_decode_i8_splitkv          92.1      92.0      92.2      387   (63% of 614 GB/s)
+   16384 attn_decode_f8_splitkv          91.7      91.5      92.0      366   (60% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       234.0     233.5     234.9      574   (93% of 614 GB/s)
+   32768 attn_decode_i8_splitkv         172.2     171.8     172.4      414   (67% of 614 GB/s)
+   32768 attn_decode_f8_splitkv         172.1     171.7     172.3      390   (64% of 614 GB/s)
+== 4. real int8 accuracy vs fp32 goldens (bf16 gate class); 4k for bf16, fp8, int8 without baseline files (unstamped build)
+int8 short exit 1
+int8 long exit 1
+bf16 4k exit 1
+fp8 4k exit 1
+int8 4k exit 1
+kv     golden mode      top-1 %         KL   verdict
+bf16   4k     verdict  FAIL
+bf16   long   prefill     99.72   3.699e-4
+bf16   long   decode     100.00   3.371e-4
+bf16   long   verdict  FAIL
+bf16   short  prefill    100.00   2.832e-4
+bf16   short  decode     100.00   3.313e-4
+bf16   short  verdict  PASS
+fp8    4k     verdict  FAIL
+fp8    long   prefill     98.33   9.795e-3
+fp8    long   decode      96.88   8.196e-3
+fp8    long   verdict  FAIL
+fp8    short  prefill     97.93   5.927e-3
+fp8    short  decode      96.88   7.781e-3
+fp8    short  verdict  FAIL
+int8   4k     verdict  FAIL
+int8   long   prefill     99.16   4.090e-3
+int8   long   decode     100.00   1.858e-3
+int8   long   verdict  FAIL
+int8   short  prefill     99.77   9.327e-4
+int8   short  decode     100.00   1.502e-3
+int8   short  verdict  FAIL
+== 5. int8 greedy ids vs bf16, spec ngram vs off
+int8 KV vs bf16 KV, short-256: ids DIFFER, first divergence at token 49 of 256/256
+int8 KV: spec ngram vs off, short-256: ids identical (256 tokens)
+int8 KV vs bf16 KV, 4k-256: ids identical (256 tokens)
+int8 KV: spec ngram vs off, 4k-256: ids identical (256 tokens)
+int8 KV vs bf16 KV, open-256: ids DIFFER, first divergence at token 243 of 256/256
+int8 KV: spec ngram vs off, open-256: ids identical (256 tokens)
+int8 KV vs bf16 KV, grounded-256: ids identical (256 tokens)
+int8 KV: spec ngram vs off, grounded-256: ids identical (256 tokens)
+int8 KV vs bf16 KV, golden-docs-256: ids DIFFER, first divergence at token 58 of 256/256
+int8 KV: spec ngram vs off, golden-docs-256: ids identical (256 tokens)
+int8 KV vs bf16 KV, golden-code-256: ids identical (256 tokens)
+int8 KV: spec ngram vs off, golden-code-256: ids identical (256 tokens)
+done Thu Oct 15 16:17:08 EDT 2026
+script exit 0 Thu Oct 15 16:17:08 EDT 2026
+#2064 "metal kv quant: int8 tests + probe + accuracy + ids" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2064 released Thu Oct 15 16:17:09 EDT 2026

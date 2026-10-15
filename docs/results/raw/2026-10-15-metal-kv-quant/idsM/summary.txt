@@ -1,0 +1,6 @@
+bf16 KV, merged vs 912f3f8 binary, short-256: ids identical (256 tokens)
+bf16 KV, merged vs 912f3f8 binary, 4k-256: ids identical (256 tokens)
+bf16 KV, merged vs 912f3f8 binary, open-256: ids identical (256 tokens)
+bf16 KV, merged vs 912f3f8 binary, grounded-256: ids identical (256 tokens)
+bf16 KV, merged vs 912f3f8 binary, golden-docs-256: ids identical (256 tokens)
+bf16 KV, merged vs 912f3f8 binary, golden-code-256: ids identical (256 tokens)

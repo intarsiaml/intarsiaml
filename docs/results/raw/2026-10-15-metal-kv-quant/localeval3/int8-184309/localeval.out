@@ -1,0 +1,35 @@
+[localeval] calibrated: 22.0 tokens/sentence, 51 base tokens, ctx=20480
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=1.22s prefill=3361 tok/s decode=35.6 tok/s peak=35.8 tok/s out=256
+[localeval]   4096 tok rep 2/3: prompt=4088 ttft=1.15s prefill=3545 tok/s decode=35.6 tok/s peak=35.7 tok/s out=256
+[localeval]   4096 tok rep 3/3: prompt=4088 ttft=1.05s prefill=3898 tok/s decode=35.7 tok/s peak=35.8 tok/s out=256
+[localeval]  16384 tok rep 1/3: prompt=16677 ttft=6.15s prefill=2709 tok/s decode=32.7 tok/s peak=32.8 tok/s out=256
+[localeval]  16384 tok rep 2/3: prompt=16678 ttft=6.08s prefill=2741 tok/s decode=32.3 tok/s peak=32.7 tok/s out=256
+[localeval]  16384 tok rep 3/3: prompt=16679 ttft=6.33s prefill=2635 tok/s decode=32.4 tok/s peak=32.7 tok/s out=256
+# localeval: adhoc — 2026-10-15T18:43
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8791/v1`
+- thinking: off; run kind: speed; label: metal-kvq-int8
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8791/v1 --model intarsia-metal --sizes 4096,16384 --gen 256 --reps 3 --thinking off --label metal-kvq-int8`
+- result file: `results/20261015-184332-adhoc-metal-kvq-int8/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 20480, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4088 | 1.15 | 3545 (3361–3898) | - | 35.6 (35.6–35.7) | 35.8 (35.7–35.8) | - | - | 256 |
+| 16678 | 6.15 | 2709 (2635–2741) | 2517 | 32.4 (32.3–32.7) | 32.7 (32.7–32.8) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-184332-adhoc-metal-kvq-int8/result.json
+[localeval] logged to unanimis: 5001dd31-fb5e-4f79-8463-b87a2f5b021e

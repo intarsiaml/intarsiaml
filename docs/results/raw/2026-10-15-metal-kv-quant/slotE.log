@@ -1,0 +1,286 @@
+fleetq: #2075 waiting (#8 in line): in line behind #2065 "cb-m1 step1: attn_block split identity subset (vs 8254311)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#7 in line): in line behind #2067 "cb-m1 step1: forward_batch bitwise gate Qwen3-8B (B=2..8)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#6 in line): in line behind #2069 "gemm midm: gates (cargo test metal, kernels test, ids, accuracy, qualify)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#5 in line): in line behind #2070 "gemm midm: threadgroup swizzle at M=256/512, streamed vs cached weights" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#4 in line): in line behind #2072 "cb-m0 serve-gap: c556008 vs 56ec2d5 (G2 args), macmon" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#3 in line): in line behind #2073 "metal cb-identity harness e2e (qwen3-8b serve, 20 cases)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#2 in line): in line behind #2074 "cb-m1 step1: workspace+metal tests, kernels test, batch bench, identity (head)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#1 in line): endor is held exclusively by #2074 "cb-m1 step1: workspace+metal tests, kernels test, batch bench, identity (head)" (claude-0e8026c5)
+fleetq job 2075 (metal kv quant: speed ABBA bf16/fp8/int8 + sizing + split sweep) acquired Thu Oct 15 16:57:27 EDT 2026
+######## part F: final gates Thu Oct 15 16:57:28 EDT 2026
+INTARSIA_METAL_F8_U=4
+== 0. KV memory sizing: tokens that fit a 40 GiB budget, bf16 vs fp8 (plan lines)
+bf16: loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+fp8: loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv fp8_e4m3, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "attn_decode_bf16_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "qk_norm_rope_kv_bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:  "kv_dtype": "bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "attn_decode_f8_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "qk_norm_rope_kv_f8",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:  "kv_dtype": "fp8_e4m3",
+== 1. cargo test -p intarsia-backend-metal --release (all, incl. kv_fp8)
+exit 0
+   1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+   1 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.18s
+   1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s
+   1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.70s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.06s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.33s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.26s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s
+== 2. kernels test --backend metal
+exit 1
+33
+kv_append      kv_append_i8                    0      0     0.000e0     0.000e0  NO CASES (untested)
+qk_norm_rope_kv qk_norm_rope_kv_i8              0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_decode    attn_decode_i8_splitkv          0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_prefill   attn_prefill_i8_flash           0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_prefill   attn_prefill_i8_flash_nax       0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_prefill   attn_prefill_i8_splitkv_rows      0      0     0.000e0     0.000e0  NO CASES (untested)
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 Nkv=8 D=128 cap=6 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=9 Nkv=8 D=128 cap=15 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=0 Nkv=8 D=128 cap=11 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=9 Nkv=8 D=128 cap=20 new=bf16 cache=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=2.228e-7 rel_l2=6.702e-9 T=5 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.619e-4 rel_l2=6.819e-6 T=5 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=8.084e-7 rel_l2=3.782e-8 T=5 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=5.174e-5 rel_l2=2.671e-6 T=32 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=6.158e-4 rel_l2=1.643e-5 T=32 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.374e-3 rel_l2=2.385e-5 T=32 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=7.062e-4 rel_l2=1.453e-5 T=32 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=3.613e-4 rel_l2=8.683e-6 T=32 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.490e-8 rel_l2=3.715e-8 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=3.130e-6 rel_l2=2.297e-7 T=1 pos0=7 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.277e-5 rel_l2=9.203e-7 T=1 pos0=40 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+== 3. default-path greedy ids, base vs new (bf16 KV), 256 tokens
+bf16 KV, new vs base binary, short-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, 4k-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, open-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, grounded-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-docs-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-code-256: ids identical (256 tokens)
+== 6. qualify, fresh full run on the default (bf16 KV)
+qualify bf16 exit 1
+**Verdict: FAIL** (13 stages: 10 pass, 1 fail, 0 error, 2 skipped)
+| Accuracy (short golden) | **PASS** (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4) |
+| Accuracy (4k golden) | **PASS** (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4) |
+| Quick gate | **PASS**: perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+- `kernels` **FAIL**: Error: kernel admission failed 
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 39 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 43s | 14 ops resolved, exactness deterministic, loaded in 43.4s |
+| 4 | `kernels` kernels test on the model's shapes | quick | FAIL | 50s | Error: kernel admission failed  |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 9s | perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4 |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | PASS | 80s | decode 36.2 tok/s at 128 tokens (89% of the byte floor) |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 24s | prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4 |
+| 9 | `acc-4k` accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048) | full | PASS | 68s | prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4 |
+| 10 | `envelope` noise envelope and baseline for regression gating | full | PASS | 14s | baseline and envelope (chunk) written; they gate this build: PASS |
+| 11 | `bench-long` long-context bench up to 16k | full | PASS | 84s | decode 36.2 tok/s at 1024 tokens (89% of the byte floor) |
+**Regression gating artifacts**: baseline and envelope (chunk) written; they gate this build: PASS
+- recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
+done Thu Oct 15 17:07:04 EDT 2026
+######## part E: speed Thu Oct 15 17:07:04 EDT 2026
+INTARSIA_METAL_F8_U=4
+== split policy sweep for the quantised kernels (INTARSIA_METAL_SPLITKV=min_keys,target_tgs), attn_bw per-call us
+policy 128,120 ctx 4096: attn_decode_bf16_splitkv 36.2 us | attn_decode_i8_splitkv 30.9 us | attn_decode_f8_splitkv 30.8 us | 
+policy 128,120 ctx 16384: attn_decode_bf16_splitkv 122.5 us | attn_decode_i8_splitkv 92.1 us | attn_decode_f8_splitkv 91.9 us | 
+policy 128,120 ctx 32768: attn_decode_bf16_splitkv 235.4 us | attn_decode_i8_splitkv 172.5 us | attn_decode_f8_splitkv 172.1 us | 
+policy 128,240 ctx 4096: attn_decode_bf16_splitkv 44.8 us | attn_decode_i8_splitkv 37.4 us | attn_decode_f8_splitkv 36.3 us | 
+policy 128,240 ctx 16384: attn_decode_bf16_splitkv 136.4 us | attn_decode_i8_splitkv 98.6 us | attn_decode_f8_splitkv 97.1 us | 
+policy 128,240 ctx 32768: attn_decode_bf16_splitkv 260.9 us | attn_decode_i8_splitkv 179.8 us | attn_decode_f8_splitkv 176.4 us | 
+policy 128,360 ctx 4096: attn_decode_bf16_splitkv 43.1 us | attn_decode_i8_splitkv 35.9 us | attn_decode_f8_splitkv 35.0 us | 
+policy 128,360 ctx 16384: attn_decode_bf16_splitkv 142.4 us | attn_decode_i8_splitkv 99.2 us | attn_decode_f8_splitkv 96.6 us | 
+policy 128,360 ctx 32768: attn_decode_bf16_splitkv 267.3 us | attn_decode_i8_splitkv 177.9 us | attn_decode_f8_splitkv 174.8 us | 
+policy 64,480 ctx 4096: attn_decode_bf16_splitkv 46.5 us | attn_decode_i8_splitkv 40.4 us | attn_decode_f8_splitkv 39.2 us | 
+policy 64,480 ctx 16384: attn_decode_bf16_splitkv 144.3 us | attn_decode_i8_splitkv 104.4 us | attn_decode_f8_splitkv 101.7 us | 
+policy 64,480 ctx 32768: attn_decode_bf16_splitkv 275.6 us | attn_decode_i8_splitkv 183.9 us | attn_decode_f8_splitkv 179.9 us | 
+policy 256,120 ctx 4096: attn_decode_bf16_splitkv 36.2 us | attn_decode_i8_splitkv 30.9 us | attn_decode_f8_splitkv 30.7 us | 
+policy 256,120 ctx 16384: attn_decode_bf16_splitkv 122.2 us | attn_decode_i8_splitkv 92.4 us | attn_decode_f8_splitkv 92.0 us | 
+policy 256,120 ctx 32768: attn_decode_bf16_splitkv 235.9 us | attn_decode_i8_splitkv 172.6 us | attn_decode_f8_splitkv 172.2 us | 
+== KV memory sizing: context that fits --mem-budget 20 and 18 (GiB), --max-seq 4000000 (recipe cap 40960)
+budget 20 GiB bf16: context 32683 tokens 
+budget 20 GiB fp8: context 40960 tokens 
+budget 20 GiB int8: context 40960 tokens 
+budget 18 GiB bf16: context 18120 tokens 
+budget 18 GiB fp8: context 36240 tokens 
+budget 18 GiB int8: context 34108 tokens 
+== warmup (page-in)
+warm [17:14:24]: prefill 1194 ms (3430.5 tok/s) | decode 3643 ms (35.13 tok/s) T=69C
+temp before 4096-bf16-1: 61 C (waited 10 s)
+ctx4096-1-bf16 [17:14:39]: prefill 1195 ms (3428.7 tok/s) | decode 3631 ms (35.25 tok/s) T=70C
+temp before 4096-fp8-2: 62 C (waited 10 s)
+ctx4096-2-fp8 [17:14:55]: prefill 1177 ms (3480.7 tok/s) | decode 3629 ms (35.27 tok/s) T=72C
+temp before 4096-int8-3: 60 C (waited 20 s)
+ctx4096-3-int8 [17:15:20]: prefill 1173 ms (3490.8 tok/s) | decode 3621 ms (35.35 tok/s) T=71C
+temp before 4096-int8-4: 62 C (waited 10 s)
+ctx4096-4-int8 [17:15:35]: prefill 1179 ms (3473.7 tok/s) | decode 3612 ms (35.44 tok/s) T=72C
+temp before 4096-fp8-5: 61 C (waited 20 s)
+ctx4096-5-fp8 [17:16:01]: prefill 1200 ms (3414.5 tok/s) | decode 3617 ms (35.39 tok/s) T=71C
+temp before 4096-bf16-6: 60 C (waited 20 s)
+ctx4096-6-bf16 [17:16:26]: prefill 1198 ms (3419.2 tok/s) | decode 3624 ms (35.32 tok/s) T=71C
+temp before 16384-bf16-1: 62 C (waited 10 s)
+ctx16384-1-bf16 [17:16:46]: prefill 5632 ms (2909.0 tok/s) | decode 4011 ms (31.91 tok/s) T=82C
+temp before 16384-fp8-2: 60 C (waited 40 s)
+ctx16384-2-fp8 [17:17:36]: prefill 5541 ms (2956.6 tok/s) | decode 3904 ms (32.78 tok/s) T=81C
+temp before 16384-int8-3: 60 C (waited 30 s)
+ctx16384-3-int8 [17:18:16]: prefill 5704 ms (2872.2 tok/s) | decode 3923 ms (32.63 tok/s) T=80C
+temp before 16384-int8-4: 62 C (waited 30 s)
+ctx16384-4-int8 [17:18:56]: prefill 5652 ms (2898.7 tok/s) | decode 3910 ms (32.74 tok/s) T=80C
+temp before 16384-fp8-5: 62 C (waited 20 s)
+ctx16384-5-fp8 [17:19:26]: prefill 5534 ms (2960.6 tok/s) | decode 3897 ms (32.85 tok/s) T=81C
+temp before 16384-bf16-6: 60 C (waited 20 s)
+ctx16384-6-bf16 [17:19:56]: prefill 5534 ms (2960.8 tok/s) | decode 4009 ms (31.93 tok/s) T=79C
+temp before 32764-bf16-1: 60 C (waited 20 s)
+ctx32764-1-bf16 [17:20:37]: prefill 15819 ms (2071.2 tok/s) | decode 4572 ms (28.00 tok/s) T=84C
+temp before 32764-fp8-2: 61 C (waited 20 s)
+ctx32764-2-fp8 [17:21:25]: prefill 22476 ms (1457.7 tok/s) | decode 5017 ms (25.51 tok/s) T=66C
+temp before 32764-int8-3: 58 C (waited 10 s)
+ctx32764-3-int8 [17:22:07]: prefill 26130 ms (1253.9 tok/s) | decode 4756 ms (26.92 tok/s) T=68C
+temp before 32764-int8-4: 59 C (waited 10 s)
+ctx32764-4-int8 [17:22:45]: prefill 22901 ms (1430.7 tok/s) | decode 4921 ms (26.01 tok/s) T=68C
+temp before 32764-fp8-5: 61 C (waited 20 s)
+ctx32764-5-fp8 [17:23:40]: prefill 28583 ms (1146.3 tok/s) | decode 5086 ms (25.17 tok/s) T=68C
+temp before 32764-bf16-6: 61 C (waited 10 s)
+ctx32764-6-bf16 [17:24:24]: prefill 28271 ms (1158.9 tok/s) | decode 5203 ms (24.60 tok/s) T=68C
+temp before 40000-bf16-1: 62 C (waited 10 s)
+ctx40000-1-bf16 [17:25:10]: prefill 30193 ms (1324.8 tok/s) | decode 5172 ms (24.75 tok/s) T=68C
+temp before 40000-fp8-2: 62 C (waited 10 s)
+ctx40000-2-fp8 [17:25:55]: prefill 30334 ms (1318.7 tok/s) | decode 4815 ms (26.58 tok/s) T=68C
+temp before 40000-int8-3: 57 C (waited 10 s)
+ctx40000-3-int8 [17:26:41]: prefill 30402 ms (1315.7 tok/s) | decode 4834 ms (26.48 tok/s) T=67C
+temp before 40000-int8-4: 56 C (waited 10 s)
+ctx40000-4-int8 [17:27:26]: prefill 29387 ms (1361.2 tok/s) | decode 4668 ms (27.42 tok/s) T=68C
+temp before 40000-fp8-5: 56 C (waited 10 s)
+ctx40000-5-fp8 [17:28:10]: prefill 29489 ms (1356.4 tok/s) | decode 4689 ms (27.30 tok/s) T=68C
+temp before 40000-bf16-6: 57 C (waited 10 s)
+ctx40000-6-bf16 [17:28:56]: prefill 29487 ms (1356.6 tok/s) | decode 5252 ms (24.37 tok/s) T=67C
+== kernel-mode trace: which kernels run under int8 (4k, 33 decode steps)
+trace-kernel-i8-4k [17:29:08]: prefill 1705 ms (2401.7 tok/s) | decode 10665 ms (12.00 tok/s) T=64C
+run                          prefill ms prefill t/s decode t/s | decode MHz  %<1450    W  maxC    n | prefill MHz  %<1450  flag
+ctx4096-1-bf16                     1195      3428.7      35.25 |       1328      92   14    73   24 |        1617      20  DECODE-CLOCK<1450
+ctx4096-2-fp8                      1177      3480.7      35.27 |       1372      96   15    77   23 |        1617      17  DECODE-CLOCK<1450
+ctx4096-3-int8                     1173      3490.8      35.35 |       1352      92   15    73   24 |        1617      20  DECODE-CLOCK<1450
+ctx4096-4-int8                     1179      3473.7      35.44 |       1376      92   15    75   24 |        1617      17  DECODE-CLOCK<1450
+ctx4096-5-fp8                      1200      3414.5      35.39 |       1346      92   15    75   24 |        1617      20  DECODE-CLOCK<1450
+ctx4096-6-bf16                     1198      3419.2      35.32 |       1335      96   14    75   24 |        1617       0  DECODE-CLOCK<1450
+ctx16384-1-bf16                    5632      2909.0      31.91 |       1465      24   20    92   25 |        1608       3  
+ctx16384-2-fp8                     5541      2956.6      32.78 |       1482      12   21    92   24 |        1617       0  
+ctx16384-3-int8                    5704      2872.2      32.63 |       1461      38   21    91   24 |        1617      13  
+ctx16384-4-int8                    5652      2898.7      32.74 |       1483      17   21    91   24 |        1617       7  
+ctx16384-5-fp8                     5534      2960.6      32.85 |       1484      13   21    92   23 |        1617       3  
+ctx16384-6-bf16                    5534      2960.8      31.93 |       1472      12   20    92   24 |        1617       3  
+ctx32764-1-bf16                   15819      2071.2      28.00 |       1474      25   22    91   28 |        1428      52   PREFILL-CLOCK<1450
+ctx32764-2-fp8                    22476      1457.7      25.51 |       1109      67   14    71   27 |         984      98  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-3-int8                   26130      1253.9      26.92 |       1011     100   11    70   31 |         855      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-4-int8                   22901      1430.7      26.01 |        935     100   11    71   31 |         963      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-5-fp8                    28583      1146.3      25.17 |        873     100    9    70   31 |         777      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-6-bf16                   28271      1158.9      24.60 |        792     100    8    70   31 |         786      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-1-bf16                   30193      1324.8      24.75 |       1072      73   12    71   33 |         988      94  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-2-fp8                    30334      1318.7      26.58 |       1081     100   12    70   31 |         976      91  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-3-int8                   30402      1315.7      26.48 |       1047      87   12    69   31 |        1006      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-4-int8                   29387      1361.2      27.42 |       1282      87   17    70   30 |        1047      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-5-fp8                    29489      1356.4      27.30 |       1202      77   16    70   30 |        1028      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-6-bf16                   29487      1356.6      24.37 |       1197      81   14    71   32 |        1029      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+trace-kernel-i8-4k                 1705      2401.7      12.00 |       1617      25   11    70   69 |        1314      88   PREFILL-CLOCK<1450
+######## part C: 16k proxy + localeval Thu Oct 15 17:29:09 EDT 2026
+== 16k+ proxy (no fp32 golden exists): last-position top-50 logits and 128 greedy ids, bf16 vs fp8 KV
+ctx fp8 16384: top-1 same (220/220); 49/50 common ids; KL(bf16||fp8) over the common top-k 2.368e-11; max |dlogit| 0.437; greedy ids (129): first divergence at token 24
+ctx int8 16384: top-1 same (220/220); 48/50 common ids; KL(bf16||fp8) over the common top-k 1.704e-11; max |dlogit| 0.253; greedy ids (129): identical
+ctx fp8 32764: top-1 same (220/220); 46/50 common ids; KL(bf16||fp8) over the common top-k 9.579e-11; max |dlogit| 0.396; greedy ids (129): identical
+ctx int8 32764: top-1 same (220/220); 50/50 common ids; KL(bf16||fp8) over the common top-k 4.690e-12; max |dlogit| 0.197; greedy ids (129): identical
+== localeval speed through intarsia serve, bf16 then fp8 then bf16... (one server per dtype), sizes 4096 16384
+temp before localeval-bf16: 67 C (waited 0 s)
+localeval bf16 exit 0
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-173333-adhoc-metal-kvq-bf16/result.json
+[localeval] logged to unanimis: d27384e6-1965-49ea-82d4-737ba4218ee9
+temp before localeval-int8: 68 C (waited 10 s)
+server died
+localeval int8 exit 2
+- result file: `results/20261015-173533-adhoc-metal-kvq-int8/result.json`
+
+## Warnings
+
+- INCOMPLETE: RuntimeError: adhoc: /models unreachable ({'reachable': False, 'http_status': 0, 'error': 'URLError: <urlopen error [Errno 61] Connection refused>'})
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-173533-adhoc-metal-kvq-int8/result.json
+[localeval] not logged to unanimis (nothing measured)
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workC.sh:kill:28: kill 98313 failed: no such process
+temp before localeval-int8: 55 C (waited 0 s)
+server died
+localeval int8 exit 2
+- result file: `results/20261015-173612-adhoc-metal-kvq-int8/result.json`
+
+## Warnings
+
+- INCOMPLETE: RuntimeError: adhoc: /models unreachable ({'reachable': False, 'http_status': 0, 'error': 'URLError: <urlopen error [Errno 61] Connection refused>'})
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-173612-adhoc-metal-kvq-int8/result.json
+[localeval] not logged to unanimis (nothing measured)
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workC.sh:kill:28: kill 98654 failed: no such process
+temp before localeval-bf16: 52 C (waited 0 s)
+localeval bf16 exit 0
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-173651-adhoc-metal-kvq-bf16/result.json
+[localeval] logged to unanimis: 0bfefb52-e852-4882-8658-927ea88efa50
+######## all parts done Thu Oct 15 17:38:04 EDT 2026
+script exit 0 Thu Oct 15 17:38:04 EDT 2026
+#2075 "metal kv quant: speed ABBA bf16/fp8/int8 + sizing + split sweep" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2075 released Thu Oct 15 17:38:04 EDT 2026
