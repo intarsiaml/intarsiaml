@@ -251,7 +251,29 @@ What would close the gap: a wider load per lane for fp8 (16 bytes = 16 elements 
 Prefill (same runs): 16k, tok/s bf16 2909 / 2961, fp8 2957 / 2961, int8 2872 / 2899: **no change beyond noise (+/- 2 %)**; the staging
 decode is invisible. 32k and 40k prefill are clock-confounded (bf16 32k: 15.8 s at 1428 MHz vs 28.3 s throttled).
 
-@@LOCALEVAL@@
+### localeval speed (`local-model-bench`, `localeval speed --sizes 4096,16384 --gen 256 --reps 3`, through `intarsia serve`, merged binary)
+
+localeval supports the 16k size. One server per KV dtype, `--max-seq 20480`, order bf16, fp8, int8 (x2, failed to start, see below), fp8, bf16, one slot
+(#2081), decode tok/s median (min to max of 3 reps); raw `localeval2/` (`result.json` paths in each `localeval.out`):
+
+| prompt tokens | bf16 run 1 | fp8 run 1 | fp8 run 2 | bf16 run 2 |
+|---|---|---|---|---|
+| 4088 decode | 35.1 (34.8 to 35.3) | 35.2 (35.1 to 35.6) | 35.5 (35.3 to 35.5) | 35.4 (35.3 to 35.5) |
+| 16654 decode | 31.7 (31.6 to 31.8) | 32.6 (32.6 to 32.8) | 32.1 (32.0 to 32.1) | 31.6 (31.2 to 31.9) |
+| 16654 TTFT s | 6.28 | 5.86 | 7.33 | 6.19 |
+
+fp8 decode at 16k is +1.5 to +3 % over bf16 (32.6 and 32.1 against 31.7 and 31.6), at 4k +0.3 % to +1.1 %: the same as the engine-side numbers.
+The 16k TTFT of the second fp8 run (7.33 s) is a throttled run (prefill 2271 tok/s), not a regression; the first fp8 run's 5.86 s
+is faster than both bf16 runs, so prefill is a wash within the clock noise, as in section 6. `fp8` through `serve` loaded and admitted
+cleanly (`--kv-dtype fp8` under `require_admitted`: the fp8 kernels are admitted against the oracle).
+
+**int8 through `serve`: found broken, fixed, NOT verified on the GPU.** Both int8 server starts in that run died at load with "no kernel for
+attn_decode ... w=I8". Cause: `serve` loads with admission on, `plan::admit` builds its cases from the model's own calls and the cpu oracle cannot
+run a block-scaled cache, so the int8 kernels are Rejected. The fix (`ModelArgs::for_serving`, commit below) serves an int8 cache without
+admission and prints a warning; it builds and the rest of the suite is unaffected, but a slot to run `serve --kv-dtype int8` was still queued
+at the deadline (fleetq #2093, cancelled unrun if it is not listed as done below), so **there is no int8 localeval number**. Engine-side
+`generate` with int8 (section 6) is measured and fine; `serve` + int8 is untested.
+
 
 ## 7. Gates of the default path
 
