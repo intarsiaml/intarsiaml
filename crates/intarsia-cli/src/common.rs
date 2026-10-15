@@ -54,7 +54,7 @@ pub struct ModelArgs {
     /// Backends that have no kernels for the dtype refuse it at start.
     #[arg(long)]
     pub kv_dtype: Option<String>,
-    /// Time every Nth step per op (default: every step on cpu, every 16th on GPUs; 0 = never).
+    /// Time every Nth step per op (default: every step on cpu, every 16th on GPUs, never for `serve` on metal; 0 = never).
     #[arg(long)]
     pub profile_every: Option<u32>,
     /// Run the single-token decode step eagerly instead of replaying a captured CUDA graph (A/B and debugging).
@@ -97,6 +97,11 @@ pub struct ModelArgs {
     /// Most draft tokens per verify pass with `--spec ngram` (1..=6).
     #[arg(long, default_value_t = intarsia_core::spec::SPEC_K_DEFAULT)]
     pub spec_k: usize,
+    /// Concurrent sequences the engine decodes together (continuous batching). Default: the recipe's `max_batch`.
+    /// Only 1 is implemented so far; larger values are rejected until the batching scheduler lands
+    /// (docs/research/continuous-batching-design.md, M1).
+    #[arg(long)]
+    pub max_batch: Option<usize>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -245,6 +250,7 @@ impl ModelArgs {
                 no_cache: self.no_admission_cache,
             },
             spec: intarsia_core::spec::SpecConfig::parse(&self.spec, self.spec_k).map_err(|e| anyhow::anyhow!("{e}"))?,
+            max_batch: self.max_batch,
         })
     }
 
@@ -276,6 +282,11 @@ impl ModelArgs {
         // and `require_admitted` would leave the plan without an attention kernel. Everything else is still admitted; the int8
         // kernels are covered by crates/intarsia-backend-metal/tests/kv_i8.rs (docs/results/2026-10-15-metal-kv-quant.md).
         self.require_admitted = !self.kv_dtype.as_deref().map(DType::parse).is_some_and(|d| matches!(d, Ok(DType::I8)));
+        // Metal has no decode graphs, so a profiled step synchronises around every op: at the default N = 16 that
+        // costs about 12% of served decode. CUDA/HIP keep their default (graph decode profiles far less often).
+        if self.profile_every.is_none() && self.backend == "metal" {
+            self.profile_every = Some(0);
+        }
         self
     }
 
@@ -292,5 +303,34 @@ impl ModelArgs {
         intarsia_models::load_engine(&self.model, backend, &opts)
             .map_err(|e| anyhow::anyhow!("{e}"))
             .with_context(|| format!("loading {}", self.model.display()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ModelArgs;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct Cli {
+        #[command(flatten)]
+        model: ModelArgs,
+    }
+
+    fn profile_every(args: &[&str], serving: bool) -> u32 {
+        let mut a = Cli::parse_from([&["t", "-m", "/m"], args].concat()).model;
+        if serving {
+            a = a.for_serving();
+        }
+        a.engine_options().unwrap().load.profile_every
+    }
+
+    #[test]
+    fn serve_on_metal_does_not_profile_by_default() {
+        assert_eq!(profile_every(&["--backend", "metal"], true), 0);
+        assert_eq!(profile_every(&["--backend", "metal", "--profile-every", "16"], true), 16);
+        assert_eq!(profile_every(&["--backend", "metal"], false), 16);
+        assert_eq!(profile_every(&["--backend", "cuda"], true), 16);
+        assert_eq!(profile_every(&["--backend", "cpu"], true), 1);
     }
 }

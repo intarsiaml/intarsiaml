@@ -32,6 +32,9 @@ pub struct CommonParams {
     n: Option<u32>,
     stream: bool,
     stream_options: Option<StreamOptions>,
+    /// intarsia extension (named as in vLLM): return the generated token ids as `token_ids`
+    /// (choice when not streaming, delta/choice per chunk when streaming). Off by default.
+    return_token_ids: bool,
 }
 
 impl CommonParams {
@@ -157,6 +160,7 @@ async fn chat_inner(
         v
     };
 
+    let rid = req.common.return_token_ids;
     if !req.common.stream {
         let c = collect(rx, F).await?;
         let v = json!({
@@ -165,6 +169,10 @@ async fn chat_inner(
                          "finish_reason": finish_str(c.finish)}],
             "usage": usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens),
         });
+        let mut v = v;
+        if rid {
+            v["choices"][0]["token_ids"] = json!(c.ids);
+        }
         return Ok(Json(v).into_response());
     }
 
@@ -173,17 +181,31 @@ async fn chat_inner(
     let mut done = false;
     let model2 = st.model_name.clone();
     let id2 = chunk(json!({}), None, false)["id"].clone();
+    let mut hold = IdHold::default();
+    let delta_of = |id: Option<u32>, text: String| match id {
+        Some(id) => json!({"content": text, "token_ids": [id]}),
+        None => json!({"content": text}),
+    };
     let sse = sse_from(rx, vec![first], move |ev| match ev {
-        Some(GenEvent::Token { text, .. }) => {
-            if text.is_empty() {
+        Some(GenEvent::Token { id: tid, text }) => {
+            if rid {
+                hold.push(tid, text)
+                    .map(|(i, t)| sse_json(None, &chunk(delta_of(Some(i), t), None, inc)))
+                    .into_iter()
+                    .collect()
+            } else if text.is_empty() {
                 vec![]
             } else {
                 vec![sse_json(None, &chunk(json!({"content": text}), None, inc))]
             }
         }
-        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, .. }) => {
+        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. }) => {
             done = true;
-            let mut out = vec![sse_json(None, &chunk(json!({}), Some(finish_str(finish_reason)), inc))];
+            let mut out = Vec::new();
+            if let Some((i, t)) = hold.finish(finish_reason, stop_sequence.is_some(), completion_tokens) {
+                out.push(sse_json(None, &chunk(delta_of(i, t), None, inc)));
+            }
+            out.push(sse_json(None, &chunk(json!({}), Some(finish_str(finish_reason)), inc)));
             if inc {
                 out.push(sse_json(
                     None,
@@ -288,9 +310,13 @@ async fn completions_inner(
         v
     };
 
+    let rid = req.common.return_token_ids;
     if !req.common.stream {
         let c = collect(rx, F).await?;
         let mut v = chunk(&format!("{prefix}{}", c.text), Some(finish_str(c.finish)), false);
+        if rid {
+            v["choices"][0]["token_ids"] = json!(c.ids);
+        }
         v["usage"] = usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens);
         return Ok(Json(v).into_response());
     }
@@ -302,17 +328,34 @@ async fn completions_inner(
     }
     let mut done = false;
     let (model2, id2) = (st.model_name.clone(), chunk("", None, false)["id"].clone());
+    let mut hold = IdHold::default();
+    let chunk_of = move |chunk: &dyn Fn(&str, Option<&str>, bool) -> Value, id: Option<u32>, text: &str, inc: bool| {
+        let mut v = chunk(text, None, inc);
+        if let Some(id) = id {
+            v["choices"][0]["token_ids"] = json!([id]);
+        }
+        v
+    };
     let sse = sse_from(rx, pre, move |ev| match ev {
-        Some(GenEvent::Token { text, .. }) => {
-            if text.is_empty() {
+        Some(GenEvent::Token { id: tid, text }) => {
+            if rid {
+                hold.push(tid, text)
+                    .map(|(i, t)| sse_json(None, &chunk_of(&chunk, Some(i), &t, inc)))
+                    .into_iter()
+                    .collect()
+            } else if text.is_empty() {
                 vec![]
             } else {
                 vec![sse_json(None, &chunk(&text, None, inc))]
             }
         }
-        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, .. }) => {
+        Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. }) => {
             done = true;
-            let mut out = vec![sse_json(None, &chunk("", Some(finish_str(finish_reason)), inc))];
+            let mut out = Vec::new();
+            if let Some((i, t)) = hold.finish(finish_reason, stop_sequence.is_some(), completion_tokens) {
+                out.push(sse_json(None, &chunk_of(&chunk, i, &t, inc)));
+            }
+            out.push(sse_json(None, &chunk("", Some(finish_str(finish_reason)), inc)));
             if inc {
                 out.push(sse_json(
                     None,

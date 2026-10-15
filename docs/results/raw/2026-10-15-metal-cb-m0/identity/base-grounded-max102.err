@@ -1,0 +1,6 @@
+prefill chunk 2048 (recipe qwen3, metal)
+loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 371 tokens
+ids: [73594, 35788, 198, 13353, 27098, 65297, 11, 11091, 5563, 9585, 2036, 9316, 1900, 341, 262, 1048, 59501, 3950, 14151, 320, 45484, 3950, 1506, 608, 67530, 657, 553, 279, 19865, 4292, 262, 6675, 9934, 25, 11312, 34837, 18, 17, 12520, 262, 6675, 1932, 5921, 28838, 25, 22301, 345, 262, 1048, 48901, 320, 437, 1565, 9495, 8077, 32881, 525, 54989, 3080, 419, 1657, 11211, 3000, 624, 262, 6675, 1308, 28838, 25, 22301, 345, 262, 1048, 13655, 23163, 3267, 279, 1614, 594, 48901, 11211, 320, 24246, 29325, 62019, 4292, 262, 6675, 10034, 2204, 436, 25, 1807, 345, 262, 1048, 2651, 220, 15, 3363, 55980, 624]
+finish=length prompt=371 (cached 0) completion=102 | prefill 257 ms (1446.2 tok/s) | decode 2887 ms (34.98 tok/s)
+steps=102 graph replays=0 (captures 0) eager decode steps=101 (profiled 0) top ops: argmax=0ms/102 attn_decode=0ms/3636 attn_prefill=0ms/36 embedding=0ms/102 logits=0ms/102

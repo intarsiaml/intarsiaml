@@ -257,15 +257,58 @@ pub struct Collected {
     pub completion_tokens: usize,
     pub cached_tokens: usize,
     pub stop_sequence: Option<String>,
+    /// Generated token ids (the stop/EOS token is not included), see `real_id_count`.
+    pub ids: Vec<u32>,
+}
+
+/// How many of the `Token` events of a generation carry a real token. The engine counts the stop/EOS
+/// token in `completion_tokens` without emitting it, and may append one extra `Token` that repeats the
+/// last id to release held-back text; that tail always comes last, so truncating to this count drops it.
+pub fn real_id_count(finish: intarsia_core::engine::FinishReason, string_stop: bool, completion_tokens: usize) -> usize {
+    let stop_id = finish == intarsia_core::engine::FinishReason::Stop && !string_stop;
+    completion_tokens - usize::from(stop_id && completion_tokens > 0)
+}
+
+/// Streaming side of `return_token_ids`: holds back the newest `Token` so the engine's text-only tail
+/// event (which repeats the last id) can be told apart once `Done` arrives.
+#[derive(Default)]
+pub struct IdHold {
+    held: Option<(u32, String)>,
+    seen: usize,
+}
+
+impl IdHold {
+    /// Take a token; returns the previously held one, which is certainly a real token.
+    pub fn push(&mut self, id: u32, text: String) -> Option<(u32, String)> {
+        self.seen += 1;
+        self.held.replace((id, text))
+    }
+    /// At `Done`: the held event, with its id unless it is the text-only tail.
+    pub fn finish(
+        &mut self,
+        finish: intarsia_core::engine::FinishReason,
+        string_stop: bool,
+        completion_tokens: usize,
+    ) -> Option<(Option<u32>, String)> {
+        let (id, text) = self.held.take()?;
+        let tail = self.seen > real_id_count(finish, string_stop, completion_tokens);
+        Some(((!tail).then_some(id), text))
+    }
 }
 
 pub async fn collect(mut rx: GenRx, flavor: Flavor) -> Result<Collected, ApiError> {
     let mut text = String::new();
+    let mut ids = Vec::new();
     while let Some(ev) = rx.recv().await {
         match ev {
-            GenEvent::Token { text: t, .. } => text.push_str(&t),
+            GenEvent::Token { id, text: t } => {
+                text.push_str(&t);
+                ids.push(id);
+            }
             GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. } => {
+                ids.truncate(real_id_count(finish_reason, stop_sequence.is_some(), completion_tokens));
                 return Ok(Collected {
+                    ids,
                     text,
                     finish: finish_reason,
                     prompt_tokens,

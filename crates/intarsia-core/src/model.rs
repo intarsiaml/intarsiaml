@@ -28,6 +28,7 @@ use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+mod batch;
 mod gdn_block;
 mod graph_step;
 use gdn_block::{ExtraWs, GdnBlock};
@@ -172,6 +173,32 @@ pub enum StepOut {
 
 pub type RowCallback<'a> = &'a mut dyn FnMut(usize, &[f32]) -> Result<()>;
 
+/// Views of the attention scratch for some rows: the two ping-pong q buffers `[t, n_heads, head_dim]`, the two k
+/// buffers and the v buffer `[t, n_kv_heads, head_dim]` (see [`Model::attn_rows`]).
+struct AttnBufs {
+    q: [TensorRef; 2],
+    k: [TensorRef; 2],
+    v: TensorRef,
+}
+
+/// What a layer pass runs on: one sequence's next `t` tokens, or one decode token of each of several sequences.
+#[derive(Clone, Copy)]
+enum Seqs<'a> {
+    One(&'a SequenceState),
+    Batch(&'a [&'a SequenceState]),
+}
+
+impl AttnBufs {
+    /// Row `r` of every buffer, as a one-row set.
+    fn row(&self, r: usize) -> AttnBufs {
+        AttnBufs {
+            q: [self.q[0].rows(r, 1), self.q[1].rows(r, 1)],
+            k: [self.k[0].rows(r, 1), self.k[1].rows(r, 1)],
+            v: self.v.rows(r, 1),
+        }
+    }
+}
+
 pub struct Model {
     pub backend: Arc<dyn Backend>,
     pub registry: Registry,
@@ -220,6 +247,10 @@ pub struct Model {
     verify_tok: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
     verify_rows: usize,
+    /// Most sequences of a batched decode step ([`Model::forward_batch`]); 0 = batching off (the default).
+    batch_rows: usize,
+    /// `i32 [BATCH_MAX_ROWS]` argmax output of a batched step; allocated by [`Model::enable_batch`].
+    batch_tok: Option<Buffer>,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -658,6 +689,8 @@ impl Model {
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
+            batch_rows: 0,
+            batch_tok: None,
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
@@ -696,10 +729,15 @@ impl Model {
         *self.recorder.lock().unwrap() = Some(crate::plan::Recorder { phase: Some(phase), t, pos0, ..Default::default() });
         let ids = vec![0u32; t];
         let verify = phase == crate::plan::Phase::Verify;
-        if verify {
+        let batch = phase == crate::plan::Phase::Batch;
+        if verify || batch {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
         let run = (|| -> Result<()> {
+            if batch {
+                // `t` sequences, each `pos0` tokens long: the real batched pass, recorded
+                return self.batch_probe(t, pos0);
+            }
             let hn = self.run_chunk(&st, &ids, false)?;
             if verify {
                 return self.verify_head(&hn, t, false);
@@ -1209,11 +1247,28 @@ impl Model {
         dpos: Option<&TensorRef>,
         upload_ids: bool,
     ) -> Result<TensorRef> {
+        self.run_layers(Seqs::One(st), ids, profile, dpos, upload_ids)
+    }
+
+    /// The layer loop behind [`Model::run_chunk_at`]: `ids` are the `t` tokens of one sequence (`Seqs::One`) or the
+    /// next token of each of `t` sequences (`Seqs::Batch`, a batched decode step: attention runs per row on the row's
+    /// own cache, see `model/batch.rs`).
+    fn run_layers(
+        &self,
+        seqs: Seqs<'_>,
+        ids: &[u32],
+        profile: bool,
+        dpos: Option<&TensorRef>,
+        upload_ids: bool,
+    ) -> Result<TensorRef> {
         let t = ids.len();
         let d = &self.dims;
         let act = self.act;
         let h = d.hidden;
-        let pos0 = if dpos.is_some() { 0 } else { st.len };
+        let pos0 = match seqs {
+            Seqs::One(st) if dpos.is_none() => st.len,
+            _ => 0,
+        };
         let ws = &self.ws;
 
         if upload_ids && !self.recorder.lock().unwrap().is_some() {
@@ -1263,10 +1318,16 @@ impl Model {
                 match block {
                     Block::Attn(a) => {
                         norm_in(&a.pre_norm, pending, &mut cur)?;
-                        self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, profile)?;
+                        match seqs {
+                            Seqs::One(st) => self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, profile)?,
+                            Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, profile)?,
+                        }
                     }
                     Block::Gdn(g) => {
                         norm_in(&g.pre_norm, pending, &mut cur)?;
+                        let Seqs::One(st) = seqs else {
+                            return Err(Error::Unsupported("batched decode of a recurrent block".into()));
+                        };
                         self.gdn_block(g, st, &nv, &blkv, t, profile)?;
                     }
                     Block::Ffn(f) => {
@@ -1275,6 +1336,9 @@ impl Model {
                     }
                     Block::Moe(m) => {
                         norm_in(&m.pre_norm, pending, &mut cur)?;
+                        if matches!(seqs, Seqs::Batch(_)) {
+                            return Err(Error::Unsupported("batched decode of a mixture-of-experts block".into()));
+                        }
                         let ws = self.ws.moe.as_ref().ok_or_else(|| Error::invalid("moe block without workspace"))?;
                         m.w.forward(&ExecRunner { m: self, profile }, ws, &nv, &blkv)?;
                     }
@@ -1356,17 +1420,17 @@ impl Model {
         }
     }
 
-    /// The attention prologue as one op (`Op::QkNormRopeKv`): the k and v projections, then q-norm, rope and the k / v
-    /// cache appends together. `ws.q[*qc]` holds the projected q; on `true` the normed and roped q is in
-    /// `ws.q[1 - *qc]` (`qc` flipped once, as the unfused norm + rope pair leaves it) and both caches have the new rows.
-    /// On `false` nothing was emitted, so the caller runs the unfused sequence unchanged: the backend has no kernel for
-    /// this exact call (CUDA / HIP never register one; a cache that is not bf16 on Metal; admission), the block has no
-    /// q or k norm, or fusion is off. The decision is taken before the k / v projections so the fallback keeps its order.
+    /// The attention prologue as one op (`Op::QkNormRopeKv`): q-norm, rope and the k / v cache appends together, on
+    /// the projected q / k / v in `bufs`. The projected q is `bufs.q[*qc]`; on `true` the normed and roped q is in
+    /// `bufs.q[1 - *qc]` (`qc` flipped once, as the unfused norm + rope pair leaves it) and both caches have the new
+    /// rows. On `false` nothing was emitted, so the caller runs the unfused sequence unchanged: the backend has no
+    /// kernel for this exact call (CUDA / HIP never register one; a cache that is not bf16 on Metal; admission), the
+    /// block has no q or k norm, or fusion is off. The decision depends on the call's shape (`t` rows of `bufs`) only.
     #[allow(clippy::too_many_arguments)]
     fn qkv_fold(
         &self,
         a: &AttnBlock,
-        n: &TensorRef,
+        bufs: &AttnBufs,
         qc: &mut usize,
         t: usize,
         pos0: usize,
@@ -1377,9 +1441,8 @@ impl Model {
         profile: bool,
     ) -> Result<bool> {
         let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) else { return Ok(false) };
-        let (d, act, ws) = (&self.ldims, self.act, &self.ws);
+        let d = &self.ldims;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
-        let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
         let attrs = OpAttrs {
             eps: d.rms_eps,
             w_offset: self.recipe.model.norm_offset,
@@ -1392,137 +1455,128 @@ impl Model {
             kv_cap: cap,
             ..Default::default()
         };
+        debug_assert_eq!(bufs.q[0].shape, [t, nh, hd]);
         let mut call = OpCall::new(
             Op::QkNormRopeKv,
-            vec![
-                self.view(&ws.q[*qc], act, &[t, nh, hd]),
-                k_out.reshaped(&[t, nkv, hd]),
-                v_out.reshaped(&[t, nkv, hd]),
-                qw.clone(),
-                kw.clone(),
-            ],
-            vec![self.view(&ws.q[1 - *qc], act, &[t, nh, hd]), kcache.clone(), vcache.clone()],
+            vec![bufs.q[*qc].clone(), bufs.k[0].clone(), bufs.v.clone(), qw.clone(), kw.clone()],
+            vec![bufs.q[1 - *qc].clone(), kcache.clone(), vcache.clone()],
             attrs,
         );
         call.pos = dpos.cloned();
         if !self.fused_ok(&call) {
             return Ok(false);
         }
-        if !self.kv_pair(a, n, &k_out, &v_out, profile)? {
-            self.proj(n, &a.wk, &k_out, profile)?;
-            self.proj(n, &a.wv, &v_out, profile)?;
-        }
         self.exec_pos(call.op, call.inputs, call.outputs, call.attrs, dpos, profile)?;
         *qc = 1 - *qc;
         Ok(true)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn attn_block(
-        &self,
-        a: &AttnBlock,
-        st: &SequenceState,
-        n: &TensorRef,
-        out: &TensorRef,
-        t: usize,
-        pos0: usize,
-        dpos: Option<&TensorRef>,
-        profile: bool,
-    ) -> Result<()> {
+    /// The q, k and v projections of an attention block for the `t` rows of `n`: q into `ws.q[0]` (with the output
+    /// gate split off when the block has one), k into `ws.k[0]`, v into `ws.v`. Returns the index of the buffer
+    /// holding q (always 0) and the gate.
+    fn attn_project(&self, a: &AttnBlock, n: &TensorRef, t: usize, profile: bool) -> Result<(usize, Option<TensorRef>)> {
         let d = &self.ldims;
         let act = self.act;
         let ws = &self.ws;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
-        let qshape = [t, nh * hd];
-        let kshape = [t, nkv * hd];
-        let q3 = [t, nh, hd];
-        let k3 = [t, nkv, hd];
-        let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
-        let rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
-
-        // q: matmul [-> split off the output gate] -> [norm] -> rope ; result tracked by `qc`
-        let mut qc = 0usize;
+        let qc = 0usize;
         let gate = if a.gated {
             let (qg, gate) = self.gated_q_buffers(t);
             self.proj(n, &a.wq, &qg, profile)?;
             self.exec(
                 Op::GateSplit,
                 vec![qg.reshaped(&[t, nh, 2 * hd])],
-                vec![self.view(&ws.q[qc], act, &q3), gate.clone()],
+                vec![self.view(&ws.q[qc], act, &[t, nh, hd]), gate.clone()],
                 OpAttrs::default(),
                 profile,
             )?;
             Some(gate)
         } else {
-            self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &qshape), profile)?;
+            self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &[t, nh * hd]), profile)?;
             None
         };
-        let slot = match &st.slots[a.slot] {
-            StateSlot::AttnKv(s) => s,
-            StateSlot::Recurrent(_) => return Err(Error::invalid("attention block bound to a recurrent state slot")),
-        };
+        // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
+        let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
+        if !self.kv_pair(a, n, &k_out, &v_out, profile)? {
+            self.proj(n, &a.wk, &k_out, profile)?;
+            self.proj(n, &a.wv, &v_out, profile)?;
+        }
+        Ok((qc, gate))
+    }
+
+    /// Views of the attention scratch for `t` rows.
+    fn attn_bufs(&self, t: usize) -> AttnBufs {
+        let (d, act, ws) = (&self.ldims, self.act, &self.ws);
+        let q3 = [t, d.n_heads, d.head_dim];
+        let k3 = [t, d.n_kv_heads, d.head_dim];
+        AttnBufs {
+            q: [self.view(&ws.q[0], act, &q3), self.view(&ws.q[1], act, &q3)],
+            k: [self.view(&ws.k[0], act, &k3), self.view(&ws.k[1], act, &k3)],
+            v: self.view(&ws.v, act, &k3),
+        }
+    }
+
+    /// Everything between the projections and the output projection, for the `t` rows in `bufs` against one
+    /// sequence's cache `slot` (rows at `pos0..pos0 + t`): q-norm, rope, k-norm, rope, KV append (one fused op when
+    /// the backend has it), then attention (`AttnDecode` for one row, `AttnPrefill` for more). Returns the attention
+    /// output (`bufs.q[1 - qc]`) and the final `qc`. Plain decode, verify and prefill run it on all `t` rows of the
+    /// block; a batch step runs it once per row on that row's slice of the scratch and that row's own cache, which is
+    /// why a batched row is the solo step's row.
+    #[allow(clippy::too_many_arguments)]
+    fn attn_rows(
+        &self,
+        a: &AttnBlock,
+        slot: &crate::state::AttnKvState,
+        bufs: &AttnBufs,
+        mut qc: usize,
+        t: usize,
+        pos0: usize,
+        dpos: Option<&TensorRef>,
+        profile: bool,
+    ) -> Result<(TensorRef, usize)> {
+        let d = &self.ldims;
+        let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
+        let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
+        let rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
         let cache_shape = [nkv, slot.cap, hd];
         let kcache = self.view(&slot.k, slot.dtype, &cache_shape);
         let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
         let append = OpAttrs { pos0, kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
         // qk-norm + rope + kv-append as one op when the backend has it (needs both norms); else the ops one by one
-        let folded = self.qkv_fold(a, n, &mut qc, t, pos0, dpos, &kcache, &vcache, slot.cap, profile)?;
+        let folded = self.qkv_fold(a, bufs, &mut qc, t, pos0, dpos, &kcache, &vcache, slot.cap, profile)?;
         if !folded {
             if let Some(w) = &a.q_norm {
                 self.exec(
                     Op::QkNorm,
-                    vec![self.view(&ws.q[qc], act, &q3), w.clone()],
-                    vec![self.view(&ws.q[1 - qc], act, &q3)],
+                    vec![bufs.q[qc].clone(), w.clone()],
+                    vec![bufs.q[1 - qc].clone()],
                     eps.clone(),
                     profile,
                 )?;
                 qc = 1 - qc;
             }
-            self.exec_pos(
-                Op::Rope,
-                vec![self.view(&ws.q[qc], act, &q3)],
-                vec![self.view(&ws.q[1 - qc], act, &q3)],
-                rope.clone(),
-                dpos,
-                profile,
-            )?;
+            self.exec_pos(Op::Rope, vec![bufs.q[qc].clone()], vec![bufs.q[1 - qc].clone()], rope.clone(), dpos, profile)?;
             qc = 1 - qc;
 
             let mut kc = 0usize;
-            // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
-            let kv_fused = self.kv_pair(a, n, &self.view(&ws.k[kc], act, &kshape), &self.view(&ws.v, act, &kshape), profile)?;
-            if !kv_fused {
-                self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
-            }
             if let Some(w) = &a.k_norm {
                 self.exec(
                     Op::QkNorm,
-                    vec![self.view(&ws.k[kc], act, &k3), w.clone()],
-                    vec![self.view(&ws.k[1 - kc], act, &k3)],
+                    vec![bufs.k[kc].clone(), w.clone()],
+                    vec![bufs.k[1 - kc].clone()],
                     eps.clone(),
                     profile,
                 )?;
                 kc = 1 - kc;
             }
-            self.exec_pos(
-                Op::Rope,
-                vec![self.view(&ws.k[kc], act, &k3)],
-                vec![self.view(&ws.k[1 - kc], act, &k3)],
-                rope.clone(),
-                dpos,
-                profile,
-            )?;
+            self.exec_pos(Op::Rope, vec![bufs.k[kc].clone()], vec![bufs.k[1 - kc].clone()], rope.clone(), dpos, profile)?;
             kc = 1 - kc;
 
-            if !kv_fused {
-                self.proj(n, &a.wv, &self.view(&ws.v, act, &kshape), profile)?;
-            }
-
-            self.exec_pos(Op::KvAppend, vec![self.view(&ws.k[kc], act, &k3)], vec![kcache.clone()], append.clone(), dpos, profile)?;
-            self.exec_pos(Op::KvAppend, vec![self.view(&ws.v, act, &k3)], vec![vcache.clone()], append, dpos, profile)?;
+            self.exec_pos(Op::KvAppend, vec![bufs.k[kc].clone()], vec![kcache.clone()], append.clone(), dpos, profile)?;
+            self.exec_pos(Op::KvAppend, vec![bufs.v.clone()], vec![vcache.clone()], append, dpos, profile)?;
         }
 
-        let attn_out = self.view(&ws.q[1 - qc], act, &q3);
+        let attn_out = bufs.q[1 - qc].clone();
         let attrs = OpAttrs {
             pos0,
             scale: 1.0 / (hd as f32).sqrt(),
@@ -1534,16 +1588,34 @@ impl Model {
         };
         self.exec_pos(
             if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
-            vec![self.view(&ws.q[qc], act, &q3), kcache, vcache],
+            vec![bufs.q[qc].clone(), kcache, vcache],
             vec![attn_out.clone()],
             attrs,
             if t == 1 { dpos } else { None },
             profile,
         )?;
+        Ok((attn_out, qc))
+    }
+
+    /// The attention block's output projection for `t` rows: the output gate (when the block has one), `wo`, and the
+    /// tensor-parallel sum.
+    #[allow(clippy::too_many_arguments)]
+    fn attn_out_proj(
+        &self,
+        a: &AttnBlock,
+        attn_out: &TensorRef,
+        gate: Option<TensorRef>,
+        qc: usize,
+        out: &TensorRef,
+        t: usize,
+        profile: bool,
+    ) -> Result<()> {
+        let d = &self.ldims;
+        let qshape = [t, d.n_heads * d.head_dim];
         let o_in = match gate {
             // output gate: attn_out * sigmoid(gate), into the (now free) roped-q buffer
             Some(g) => {
-                let gated = self.view(&ws.q[qc], act, &qshape);
+                let gated = self.view(&self.ws.q[qc], self.act, &qshape);
                 self.exec(
                     Op::SigmoidMul,
                     vec![attn_out.reshaped(&qshape), g.reshaped(&qshape)],
@@ -1565,6 +1637,33 @@ impl Model {
                 self.proj(&o_in, &a.wo, out, profile)?;
                 self.all_reduce(out, out, profile)
             }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn attn_block(
+        &self,
+        a: &AttnBlock,
+        st: &SequenceState,
+        n: &TensorRef,
+        out: &TensorRef,
+        t: usize,
+        pos0: usize,
+        dpos: Option<&TensorRef>,
+        profile: bool,
+    ) -> Result<()> {
+        let (qc, gate) = self.attn_project(a, n, t, profile)?;
+        let slot = Self::attn_slot(st, a)?;
+        let bufs = self.attn_bufs(t);
+        let (attn_out, qc) = self.attn_rows(a, slot, &bufs, qc, t, pos0, dpos, profile)?;
+        self.attn_out_proj(a, &attn_out, gate, qc, out, t, profile)
+    }
+
+    /// The KV cache slot attention block `a` reads and writes in `st`.
+    fn attn_slot<'s>(st: &'s SequenceState, a: &AttnBlock) -> Result<&'s crate::state::AttnKvState> {
+        match &st.slots[a.slot] {
+            StateSlot::AttnKv(s) => Ok(s),
+            StateSlot::Recurrent(_) => Err(Error::invalid("attention block bound to a recurrent state slot")),
         }
     }
 
