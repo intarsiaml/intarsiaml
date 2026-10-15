@@ -1,0 +1,4 @@
+idle before p45-c2048-pre-1: "Device Utilization %"=98 "Device Utilization %"=1 "Device Utilization %"=0 
+idle before p45-c2048-new-1: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=1 
+idle before p45-c2048-new-2: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=1 
+idle before p45-c2048-pre-2: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=1 

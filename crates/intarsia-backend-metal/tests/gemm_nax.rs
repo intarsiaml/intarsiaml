@@ -215,18 +215,29 @@ fn nax_kernels_are_registered_for_prefill_shapes_only() {
 }
 
 #[test]
-fn nax_tile_pick_is_by_shape_and_covers_both_tiles() {
-    // k/v at the 256-row chunk: the 64x64 grid; gate/up at 1024: the 128x64 grid
-    assert_eq!(pick_variant(256, 1024).bm, 64);
-    assert_eq!(pick_variant(256, 4096).bm, 64);
-    assert_eq!(pick_variant(1024, 1024).bm, 64);
-    assert_eq!(pick_variant(1024, 12288).bm, 128);
-    assert_eq!(pick_variant(2048, 1024).bm, 128);
-    assert_eq!(pick_variant(16, 12288).bm, 64); // 192 groups, but 16 rows
-    assert_eq!(pick_variant(64, 12288).bm, 64);
-    assert_eq!(pick_variant(128, 12288).bm, 128);
-    assert_eq!(pick_variant(205, 4096).bm, 64);
-    assert_eq!(pick_variant(512, 4096).bm, 128);
+fn nax_tile_pick_is_by_shape() {
+    let name = |m: usize, n: usize| pick_variant(m, n).shader;
+    // P1 rule outside 128..=512 rows: 64x64 / four simdgroups, or 128x64 when it leaves enough threadgroups
+    assert_eq!(name(16, 12288), "gemm_nax_t64x64w4");
+    assert_eq!(name(64, 12288), "gemm_nax_t64x64w4");
+    assert_eq!(name(127, 24576), "gemm_nax_t64x64w4");
+    assert_eq!(name(1024, 24576), "gemm_nax_t128x64w4");
+    assert_eq!(name(2048, 4096), "gemm_nax_t128x64w4");
+    assert_eq!(name(973, 4096), "gemm_nax_t128x64w4");
+    assert_eq!(name(1024, 1024), "gemm_nax_t64x64w4");
+    // chunk-sized rows: k + v pair on 32x32 / one simdgroup
+    assert_eq!(name(256, 2048), "gemm_nax_t32x32w1");
+    assert_eq!(name(222, 2048), "gemm_nax_t32x32w1");
+    assert_eq!(name(128, 4096), "gemm_nax_t32x32w1");
+    // q / o, down, gate + up at a multiple of 64 rows: 64x64 / two simdgroups
+    assert_eq!(name(256, 4096), "gemm_nax_t64x64w2");
+    assert_eq!(name(256, 24576), "gemm_nax_t64x64w2");
+    assert_eq!(name(512, 4096), "gemm_nax_t64x64w2");
+    // M tails that leave a 64-row tile mostly empty: 32x128 / two simdgroups, except for the wide gate + up pair
+    assert_eq!(name(205, 4096), "gemm_nax_t32x128w2");
+    assert_eq!(name(222, 4096), "gemm_nax_t32x128w2");
+    assert_eq!(name(222, 24576), "gemm_nax_t64x64w2");
+    assert_eq!(name(250, 4096), "gemm_nax_t64x64w2"); // 250 % 64 = 58: nearly full tiles
 }
 
 /// Through `Backend::launch` (the registry path, tile picked by shape): a call's output columns do not depend on how
@@ -246,7 +257,7 @@ fn nax_launch_picks_tiles_without_changing_bits() {
         read_u16(&be, &yb, 0, m * n)
     };
     let big = run(1024, 12288, 0); // 128x64 tile
-    for (m, n, r0) in [(256usize, 1024usize, 300usize), (205, 256, 0), (17, 12288, 1007), (1024, 1024, 0)] {
+    for (m, n, r0) in [(256usize, 1024usize, 300usize), (205, 256, 0), (17, 12288, 1007), (1024, 1024, 0), (222, 4096, 300), (256, 4096, 5)] {
         let got = run(m, n, r0);
         for r in 0..m {
             assert!(

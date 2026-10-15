@@ -1,0 +1,17 @@
+gpu idle (ioreg Device Utilization %, 3 samples): [Some(96), Some(0), Some(0)]
+rounds 15, reps 10, pool 3072 MiB, swizzles [0]
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=54.11 p10=53.97 p90=54.31 us_per_call=238.1
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=56.67 p10=56.35 p90=56.77 us_per_call=227.4
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=53.29 p10=53.04 p90=53.41 us_per_call=241.8
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=51.72 p10=51.63 p90=51.89 us_per_call=249.1
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=53.65 p10=53.46 p90=53.78 us_per_call=240.1
+RESULT shape=qkv M=222 N=6144 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=47.26 p10=47.10 p90=47.38 us_per_call=236.4
+RESULT shape=qkv M=222 N=6144 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=48.72 p10=48.53 p90=48.91 us_per_call=229.3
+RESULT shape=qkv M=222 N=6144 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=44.43 p10=44.32 p90=44.56 us_per_call=251.5
+RESULT shape=qkv M=222 N=6144 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=46.99 p10=46.93 p90=47.11 us_per_call=237.8
+RESULT shape=qkv M=222 N=6144 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=46.62 p10=46.45 p90=46.77 us_per_call=239.7
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=47.43 p10=45.14 p90=63.44 us_per_call=2173.1
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=48.56 p10=46.47 p90=64.60 us_per_call=2122.5
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=41.60 p10=40.22 p90=52.80 us_per_call=2477.7
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=48.39 p10=47.14 p90=64.54 us_per_call=2130.4
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=47.71 p10=46.39 p90=63.41 us_per_call=2160.7

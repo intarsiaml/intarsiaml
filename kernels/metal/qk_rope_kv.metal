@@ -111,3 +111,79 @@ kernel void qk_norm_rope_kv_bf16(device const ushort* q [[buffer(0)]],
         kc[p.s_kc + ((ulong)h * p.cap + pos0 + t) * d + i] = res;
     }
 }
+
+// Prefill form (T > 1, head_dim = rotary_dim = 128): bitwise `qk_norm_rope_kv_bf16`, built for T * (N + 2 Nkv) heads. The
+// decode form spends most of its time in precise::pow / sin / cos, which every one of its 128 threads evaluates for
+// every (token, head) although the angle depends only on the position and the rotation pair: 4096 sincos per token, 64
+// distinct. Here one threadgroup is PF_HPT simdgroups = PF_HPT heads of one token, a table of the 64 (cos, sin) pairs is
+// built once per threadgroup (the same expressions, so the same values), and a simdgroup owns one head: lane l holds
+// elements l, 32 + l, 64 + l, 96 + l, so the four 32-element partial sums are four simd_sums (the sums of the decode
+// form's four simdgroups), added serially in the same order, and the rotation partner of element i (i +- 64) sits in
+// the same lane: no threadgroup memory and no barrier per head.
+constant constexpr uint PF_HPT = 12;
+
+kernel void qk_norm_rope_kv_bf16_pf(device const ushort* q [[buffer(0)]],
+                                    device const ushort* k [[buffer(1)]],
+                                    device const ushort* v [[buffer(2)]],
+                                    device const ushort* wq [[buffer(3)]],
+                                    device const ushort* wk [[buffer(4)]],
+                                    device ushort* qo [[buffer(5)]],
+                                    device ushort* kc [[buffer(6)]],
+                                    device ushort* vc [[buffer(7)]],
+                                    device const int* posbuf [[buffer(8)]],
+                                    constant QkRopeKvP& p [[buffer(9)]],
+                                    uint tg [[threadgroup_position_in_grid]],
+                                    uint tid [[thread_position_in_threadgroup]],
+                                    uint lane [[thread_index_in_simdgroup]],
+                                    uint sg [[simdgroup_index_in_threadgroup]]) {
+    threadgroup float2 cs_sn[64];
+    const uint d = 128;
+    const uint heads = p.n + 2 * p.nkv;
+    const uint groups = (heads + PF_HPT - 1) / PF_HPT;
+    const uint t = tg / groups;
+    const uint s = (tg - t * groups) * PF_HPT + sg;
+    const uint pos0 = p.use_dev != 0 ? (uint)posbuf[0] : p.pos0;
+    if (tid < 64) {
+        const float ang = (float)(pos0 + t) * precise::pow(p.theta, -2.0f * (float)tid / (float)p.rd);
+        cs_sn[tid] = float2(precise::cos(ang), precise::sin(ang));
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (s >= heads) return;
+
+    if (s >= p.n + p.nkv) {  // v head
+        if (pos0 + t >= p.cap) return;
+        const uint h = s - p.n - p.nkv;
+        for (uint g = 0; g < 4; ++g) {
+            vc[p.s_vc + ((ulong)h * p.cap + pos0 + t) * d + g * 32 + lane] = v[p.s_v + ((ulong)t * p.nkv + h) * d + g * 32 + lane];
+        }
+        return;
+    }
+    const bool isq = s < p.n;
+    const uint h = isq ? s : s - p.n;
+    if (!isq && pos0 + t >= p.cap) return;
+    device const ushort* x = isq ? q + p.s_q + ((ulong)t * p.n + h) * d : k + p.s_k + ((ulong)t * p.nkv + h) * d;
+    device const ushort* w = isq ? wq + p.s_wq : wk + p.s_wk;
+
+    float xf[4], wf[4];
+    float tot = 0.0f;
+    for (uint g = 0; g < 4; ++g) {
+        xf[g] = bf2f(x[g * 32 + lane]);
+        wf[g] = bf2f(w[g * 32 + lane]);
+        tot += simd_sum(fma(xf[g], xf[g], 0.0f));
+    }
+    const float r = 1.0f / precise::sqrt(tot / (float)d + p.eps);
+    ushort nb[4];
+    for (uint g = 0; g < 4; ++g) nb[g] = f2bf(xf[g] * r * (wf[g] + p.w_offset));
+    ushort res[4];
+    for (uint g = 0; g < 2; ++g) {
+        const float cs = cs_sn[g * 32 + lane].x, sn = cs_sn[g * 32 + lane].y;
+        const float x1 = bf2f(nb[g]), x2 = bf2f(nb[g + 2]);
+        res[g] = f2bf(x1 * cs - x2 * sn);
+        res[g + 2] = f2bf(x2 * cs + x1 * sn);
+    }
+    if (isq) {
+        for (uint g = 0; g < 4; ++g) qo[p.s_qo + ((ulong)t * p.n + h) * d + g * 32 + lane] = res[g];
+    } else {
+        for (uint g = 0; g < 4; ++g) kc[p.s_kc + ((ulong)h * p.cap + pos0 + t) * d + g * 32 + lane] = res[g];
+    }
+}

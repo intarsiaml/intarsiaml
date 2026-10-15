@@ -1,0 +1,15 @@
+
+running 10 tests
+test eight_byte_aligned_weights_take_the_8_byte_loads_bitwise ... ok
+test norm_hidden_sizes_are_bitwise ... ok
+test norm_qwen3_8b_is_bitwise_the_unfused_sequence ... ok
+test plain_k_tails_are_bitwise ... ok
+test plain_qwen3_8b_is_bitwise_the_unfused_sequence ... ok
+test prefill_rows_are_not_accepted ... ok
+test qkv_hidden_sizes_and_8_byte_weights ... ok
+test qkv_qwen3_8b_is_bitwise_the_unfused_sequence ... ok
+test qkv_two_byte_offsets_and_odd_k_stay_within_tolerance ... ok
+test two_byte_offsets_and_odd_k_stay_within_tolerance ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s
+

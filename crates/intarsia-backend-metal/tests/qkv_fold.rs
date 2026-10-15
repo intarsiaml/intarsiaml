@@ -204,3 +204,16 @@ fn a_device_position_past_the_cache_is_dropped_not_written() {
     check_bitwise(Cfg { t: 4, pos0: 62, cap: 64, dev_pos: true, ..DEC }, 500);
     check_bitwise(Cfg { t: 1, pos0: 64, cap: 64, dev_pos: true, ..DEC }, 501);
 }
+
+#[test]
+fn prefill_form_head_counts_off_the_threadgroup_group() {
+    // `qk_norm_rope_kv_bf16_pf` runs 12 heads (simdgroups) per threadgroup: head totals N + 2 Nkv of 8, 18, 24, 15, 7, 3 leave
+    // partial last groups (and a v / k / q boundary inside a group); full rotation, D 128, T > 1
+    for (n, nkv) in [(4, 2), (14, 2), (16, 4), (9, 3), (5, 1), (1, 1)] {
+        for w_offset in [0.0, 1.0] {
+            check_bitwise(Cfg { n, nkv, t: 9, pos0: 30_000, cap: 40_000, w_offset, ..DEC }, 600 + (n * 10 + nkv) as u64);
+        }
+    }
+    // a device-resident position and the cache end inside the token block
+    check_bitwise(Cfg { n: 14, nkv: 2, t: 6, pos0: 61, cap: 64, dev_pos: true, ..DEC }, 650);
+}

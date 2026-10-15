@@ -45,6 +45,15 @@ struct QkRopeKvP {
     pad: u32,
 }
 
+/// Simdgroups (= heads) per threadgroup of `qk_norm_rope_kv_bf16_pf` (`PF_HPT` in qk_rope_kv.metal).
+const QK_PF_HEADS: usize = 12;
+
+/// `INTARSIA_METAL_NO_QK_PF=1`: run the decode form of `qk_norm_rope_kv_bf16` for prefill rows too (A/B measurements).
+fn qk_pf_disabled() -> bool {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("INTARSIA_METAL_NO_QK_PF").is_some_and(|v| v != "0"))
+}
+
 /// One tensor bound to a shader argument: the MTLBuffer, the 4-byte aligned byte offset, the leftover elements.
 pub(crate) struct Bind {
     pub(crate) mtl: MtlBuffer,
@@ -466,13 +475,19 @@ impl MetalBackend {
             self.bind(&o[2], bf, true, "v cache")?,
         ];
         let (pos, use_dev) = self.pos_bind(call)?;
-        let threads = d.next_multiple_of(32);
-        let pso = self.pso(QK_NORM_ROPE_KV_BF16)
-            .ok_or_else(|| Error::backend(format!("metal: no pipeline '{QK_NORM_ROPE_KV_BF16}'")))?;
+        let rd = if a.rotary_dim == 0 { d } else { a.rotary_dim };
+        // prefill rows of a 128-wide fully rotated head (Qwen3): one threadgroup of QK_PF_HEADS simdgroups per token and
+        // QK_PF_HEADS heads, one simdgroup per head (bitwise the decode form, kernels/metal/qk_rope_kv.metal)
+        let pf = t > 1 && d == 128 && rd == 128 && self.pso(QK_NORM_ROPE_KV_BF16_PF).is_some() && !qk_pf_disabled();
+        let (name, threads, groups) = if pf {
+            (QK_NORM_ROPE_KV_BF16_PF, QK_PF_HEADS * 32, t * (n + 2 * nkv).div_ceil(QK_PF_HEADS))
+        } else {
+            (QK_NORM_ROPE_KV_BF16, d.next_multiple_of(32), t * (n + 2 * nkv))
+        };
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         if pso.maxTotalThreadsPerThreadgroup() < threads {
-            return Err(Error::backend(format!("{QK_NORM_ROPE_KV_BF16}: {threads} threads exceed the pipeline limit")));
+            return Err(Error::backend(format!("{name}: {threads} threads exceed the pipeline limit")));
         }
-        let groups = t * (n + 2 * nkv);
         dim(groups, "T*(N+2*Nkv)")?;
         let mut skips = [0u32; 8];
         for (s, b) in skips.iter_mut().zip(&binds) {
@@ -483,7 +498,7 @@ impl MetalBackend {
             n: dim(n, "N")?,
             nkv: dim(nkv, "Nkv")?,
             d: dim(d, "D")?,
-            rd: dim(if a.rotary_dim == 0 { d } else { a.rotary_dim }, "rotary_dim")?,
+            rd: dim(rd, "rotary_dim")?,
             cap: dim(cap, "cap")?,
             use_dev,
             pos0: dim(a.pos0, "pos0")?,
