@@ -1,0 +1,34 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    99.34   2.014e-4   1.832e-4   1.167e-2   0.1011   0.1010    98.96   92/4064      0
+long_code_4k        4064  4064    99.53   1.910e-4   1.827e-4   7.145e-2   0.0264   0.0264    99.05   18/4064      0
+chat_reuse_4k       4557  4557    99.01   3.294e-4   3.066e-4   2.779e-1   0.0795   0.0794    98.81  153/4557      0
+OVERALL                  12685    99.28   2.441e-4   2.274e-4   2.779e-1   0.0694   0.0694    98.94      2.1%      0
+prefill floor [bf16]: top-1 99.28% (need >= 99.5) FAIL | 21-way KL 2.274e-4 (need <= 1.0e-3) ok | tail mass ours 0.0694 vs ref 0.0694, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    98.44   1.773e-4   1.708e-4   1.136e-3   0.0857   0.0861    98.44     29/64      0
+long_code_4k        4064    64   100.00   1.701e-4   1.690e-4   4.748e-3   0.0008   0.0007    98.44     64/64      0
+chat_reuse_4k       4557    64    98.44   4.244e-4   4.244e-4   8.047e-3   0.0000   0.0000   100.00     45/64      0
+OVERALL                    192    98.96   2.573e-4   2.548e-4   8.047e-3   0.0288   0.0289    98.96     71.9%      0
+decode (teacher-forced) floor [bf16]: top-1 98.96% (need >= 99.5) FAIL | 21-way KL 2.548e-4 (need <= 1.0e-3) ok | tail mass ours 0.0289 vs ref 0.0288, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+greedy-match [prefill]: mean 2.0% of positions before the first argmax divergence, worst prompt 0.4% (informational)
+greedy-match [decode (teacher-forced)]: mean 71.9% of positions before the first argmax divergence, worst prompt 45.3% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       continue    2000   4080    2015      0     32/32  ok
+long_docs_4k       restore     2000   4064    2000      0     32/32  ok
+long_docs_4k       aligned     1792   4064    1792      0     32/32  ok
+long_code_4k       continue    2000   4080    2015      0     32/32  ok
+long_code_4k       restore     2000   4064    2000      0     32/32  ok
+long_code_4k       aligned     1792   4064    1792      0     32/32  ok
+chat_reuse_4k      continue    4447   4573    4462      0     24/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 24: warm took 432 cold took 279; shared rows differ by 0.662 (before) / 0.165 (here) nats of log-probability, KL up to 9.2e-3; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.153, cold margin 0.119; legacy criterion (>= 16 leading tokens): ok)
+chat_reuse_4k      restore     4447   4557    4447      0     32/32  ok
+chat_reuse_4k      aligned     4352   4557    4352      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL

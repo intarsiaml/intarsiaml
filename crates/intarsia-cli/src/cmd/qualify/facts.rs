@@ -49,6 +49,21 @@ fn key(s: &str) -> String {
 /// Find the golden file of `name` in `dirs`. `long` asks for the longer prompt set (`<name>-long...`, then `...-4k...`);
 /// otherwise the short one. A full-vocabulary fp32 reference outranks other sources.
 pub fn find_golden(name: &str, dirs: &[PathBuf], long: bool) -> Option<PathBuf> {
+    find_scored(name, dirs, |is_long, is_4k| match (long, is_long, is_4k) {
+        (false, false, false) => Some(100),
+        (true, true, _) => Some(100),
+        (true, false, true) => Some(60),
+        _ => None,
+    })
+}
+
+/// Find the ~4k-token golden of `name` (`<name>-4k...`, built from `tools/prompts/golden_4k.jsonl`): the one golden whose
+/// prompts are long enough for the prefix-reuse gate at a prefill chunk of 2048 (the long golden's longest is 700 tokens).
+pub fn find_golden_4k(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
+    find_scored(name, dirs, |_, is_4k| is_4k.then_some(100))
+}
+
+fn find_scored(name: &str, dirs: &[PathBuf], base: impl Fn(bool, bool) -> Option<i32>) -> Option<PathBuf> {
     let k = key(name);
     let mut best: Option<(i32, PathBuf)> = None;
     for d in dirs {
@@ -65,12 +80,7 @@ pub fn find_golden(name: &str, dirs: &[PathBuf], long: bool) -> Option<PathBuf> 
             }
             let is_long = rest.contains("-long");
             let is_4k = rest.contains("-4k");
-            let mut score = match (long, is_long, is_4k) {
-                (false, false, false) => 100,
-                (true, true, _) => 100,
-                (true, false, true) => 60,
-                _ => continue,
-            };
+            let Some(mut score) = base(is_long, is_4k) else { continue };
             if rest.contains("fp32") {
                 score += 10;
             } else if rest.contains("vllm") {
@@ -82,6 +92,20 @@ pub fn find_golden(name: &str, dirs: &[PathBuf], long: bool) -> Option<PathBuf> 
         }
     }
     best.map(|(_, p)| p)
+}
+
+/// The recorded baseline (and noise envelope, if there is one) of a golden for a backend: `<golden stem>.<backend>.baseline.json`
+/// / `.envelope.json` in the first of `dirs` that has the baseline (`golden/baselines/`, see `docs/accuracy.md`).
+pub fn find_baseline(golden: &Path, backend: &str, dirs: &[PathBuf]) -> Option<(PathBuf, Option<PathBuf>)> {
+    let stem = golden.file_stem()?.to_str()?;
+    for d in dirs {
+        let b = d.join(format!("{stem}.{backend}.baseline.json"));
+        if b.is_file() {
+            let e = d.join(format!("{stem}.{backend}.envelope.json"));
+            return Some((b, e.is_file().then_some(e)));
+        }
+    }
+    None
 }
 
 /// Root of the repository checkout (the directory with `tools/golden.py`): `INTARSIA_REPO`, the working directory or
@@ -236,6 +260,7 @@ mod tests {
             "qwen3-8b-long.safetensors",
             "qwen3-8b-long-fp32.safetensors",
             "qwen3-8b-4k-top20.safetensors",
+            "qwen3-8b-4k-fp32.safetensors",
             "qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
             "qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors",
         ] {
@@ -251,6 +276,31 @@ mod tests {
         );
         assert_eq!(n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, true)), None);
         assert_eq!(n(find_golden("Llama-3", &dirs, false)), None);
+        // the 4k golden is found on its own, fp32 first; it is not the short or the long golden
+        assert_eq!(n(find_golden_4k("Qwen3-8B", &dirs)).as_deref(), Some("qwen3-8b-4k-fp32.safetensors"));
+        assert_eq!(n(find_golden_4k("Qwen3.6-35B-A3B-NVFP4", &dirs)), None);
+        assert_eq!(n(find_golden_4k("Llama-3", &dirs)), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn baselines_are_found_by_golden_stem_and_backend() {
+        let d = std::env::temp_dir().join(format!("qualify-base-{}", std::process::id()));
+        let (a, b) = (d.join("a"), d.join("b"));
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        for f in ["g.metal.baseline.json", "g.metal.envelope.json"] {
+            std::fs::write(b.join(f), b"{}").unwrap();
+        }
+        std::fs::write(a.join("g.cuda.baseline.json"), b"{}").unwrap();
+        let dirs = vec![a.clone(), b.clone()];
+        let g = Path::new("/x/g.safetensors");
+        let (bp, ep) = find_baseline(g, "metal", &dirs).unwrap();
+        assert_eq!(bp, b.join("g.metal.baseline.json"));
+        assert_eq!(ep, Some(b.join("g.metal.envelope.json")));
+        let (bp, ep) = find_baseline(g, "cuda", &dirs).unwrap();
+        assert_eq!((bp, ep), (a.join("g.cuda.baseline.json"), None));
+        assert!(find_baseline(g, "hip", &dirs).is_none());
         let _ = std::fs::remove_dir_all(&d);
     }
 

@@ -1,0 +1,4 @@
+prefill chunk 256 (default)
+admission on plan shapes: 15 kernel(s) checked, 0 case(s) run, 201 cached
+loaded Qwen3-8B on metal (Apple M5 Max) in 31.7s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:8093

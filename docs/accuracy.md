@@ -134,6 +134,17 @@ python3 tools/golden_vllm.py --base-url http://spark-4e77:8000/v1 --model guidan
 docker run ... golden.py --model <8B> --device cuda --topk 20 --prompts prompts/golden_4k.jsonl --out ...
 ```
 
+**The 8B 4k golden and how it is gated.** `qwen3-8b-4k-fp32-top20.safetensors` (HF fp32, CPU, `--topk 20`, 3 prompts, 12685 positions;
+`docs/results/2026-10-15-metal-golden-4k.md`) is the golden whose prompts are long enough for the prefix-reuse gate at a prefill chunk
+of 2048 (`chat_reuse_4k` splits at 4447 tokens; the 700-token long golden has nothing to run it on above a chunk of ~350). Against it
+the class floor top-1 >= 99.5% fails for every build, the CPU engine included (99.45% prefill; 91 of 12685 positions flip, 90% of them
+where the reference's top-2 gap is under 0.1 nats), while KL(21-way) is 2.3e-4. So `qualify`'s `acc-4k` stage runs it with
+`--min-top1 0` (no absolute top-1 floor) and gates KL (class floor), tail mass, non-finite rows, prefix reuse, and, when the backend has
+a baseline for it (`golden/baselines/qwen3-8b-4k-fp32-top20.<backend>.baseline.json` + `.envelope.json`, recorded at the chunk the run
+uses), no worse than that baseline beyond its noise envelope. With no matching baseline the stage is KL-only and says so.
+Record one with `--mode both --decode-positions 64 --max-seq 8192 --write-baseline`, then the envelope with `--noise-ref ...
+--noise-perturb chunk=N --write-noise-envelope` (the other chunk).
+
 ## `intarsia accuracy`
 
 ```
@@ -641,6 +652,7 @@ with `cpu` on the same golden file.
   vocabulary, HF bf16, with metadata, 435 MB), `qwen3-8b-long.safetensors` / `qwen3-8b.safetensors` (older, no
   metadata), and, to be built there, the 8B long golden `qwen3-8b-4k-top20.safetensors` (`golden.py --topk 20 --prompts
   prompts/golden_4k.jsonl` in the `vllm/vllm-openai:v0.28.0-aarch64-cu129` image; `run8b.sh` in that directory has the command;
-  NOT built yet: spark1 went offline during that run).
+  NOT built yet: spark1 went offline during that run). The Mac has its own, built on CPU: `qwen3-8b-4k-fp32-top20.safetensors`
+  (HF fp32, top-20, 3 prompts, 2.1 MB; `docs/results/2026-10-15-metal-golden-4k.md`).
   Pass them with `--golden`.
 * `golden/baselines/*.json` (tracked): recorded runs, named after golden and model; see the baseline section.

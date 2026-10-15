@@ -1,0 +1,14 @@
+fleetq: #1982 waiting (#2 in line): in line behind #1981 "intarsia cpu accuracy on 4k golden (calibration)" (claude-31e10c55) on endor
+fleetq:   #1981 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1981 set, or it will wait for #1981 to be released.
+fleetq: #1982 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-a accuracy --model /Users/josef/models/Qwen3-8B --backend metal --golden golden/qwen3-8b-4k-fp32-top20.safetensors --mode both --decode-positions 64 --max-seq 8192
+prefill chunk 256 (default)
+accuracy: Qwen3-8B on Apple M5 Max (vocab 151936, weights/act/kv bf16/bf16)
+golden: golden/qwen3-8b-4k-fp32-top20.safetensors (3 prompts, 12685 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.19.0, torch 2.14.1 | model /Users/josef/Models/Qwen3-8B | revision not in the model path | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden_4k.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (weights: bf16 (no quantization metadata), kv cache: bf16); top-1 >= 99.5%, 21-way KL <= 1.0e-3, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 4557; prompts spanning more than one chunk: 3/3
+this build: head f67c379 code-tree b7b7b80a8f67 clean
+Error: accuracy gate FAILED
+fleetq: #1982 done (exit 1)

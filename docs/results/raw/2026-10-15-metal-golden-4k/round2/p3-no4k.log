@@ -1,0 +1,16 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/round2/p3-no4k
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 23 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     44s] plan: PASS in 43.5s (14 ops resolved, exactness deterministic, loaded in 43.5s)
+[qualify     44s] == acc-short [short accuracy against a golden]
+[qualify     51s] acc-short: PASS in 7.0s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
+QUICK DONE: /opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/round2/p3-no4k/quick-report.md
+[qualify     51s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify     74s] acc-long: FAIL in 23.2s (prefix reuse differs from a cold run)
+[qualify     74s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify     74s] acc-4k: SKIP in 0.0s (no 4k golden for 'Qwen3-8B' in /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/gold-no4k (give --golden-4k FILE or --golden-dir DIR; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl))
+FULL DONE: /opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/round2/p3-no4k/full-report.md
+[qualify     74s] exit code 1
