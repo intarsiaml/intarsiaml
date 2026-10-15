@@ -1,0 +1,208 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling syn v2.0.119
+   Compiling serde v1.0.229
+   Compiling indexmap v2.14.2
+   Compiling bitflags v2.13.2
+   Compiling smallvec v1.16.3
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling onig v6.5.3
+   Compiling dary_heap v0.3.9
+   Compiling serde_json v1.0.154
+   Compiling spm_precompiled v0.1.4
+   Compiling compact_str v0.9.1
+   Compiling serde_spanned v1.1.2
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling minijinja v2.24.0
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling darling_core v0.20.11
+   Compiling zerocopy-derive v0.8.62
+   Compiling darling_macro v0.20.11
+   Compiling monostate-impl v0.1.18
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+   Compiling minijinja-contrib v2.24.0
+   Compiling monostate v0.1.18
+   Compiling zerocopy v0.8.62
+   Compiling derive_builder_macro v0.20.2
+   Compiling derive_builder v0.20.2
+   Compiling ppv-lite86 v0.2.21
+   Compiling half v2.7.1
+   Compiling ahash v0.8.12
+   Compiling rand_chacha v0.9.0
+   Compiling intarsia-core v0.0.1 (/tmp/cnc/B/crates/intarsia-core)
+   Compiling rand v0.9.5
+   Compiling tokenizers v0.22.2
+   Compiling intarsia-backend-cpu v0.0.1 (/tmp/cnc/B/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-cuda v0.0.1 (/tmp/cnc/B/crates/intarsia-backend-cuda)
+   Compiling intarsia-models v0.0.1 (/tmp/cnc/B/crates/intarsia-models)
+    Finished `release` profile [optimized] target(s) in 21.00s
+     Running unittests src/lib.rs (/tmp/cnc/B-target/release/deps/intarsia_models-db48ba6e43f8274b)
+
+running 10 tests
+test chat_template::tests::qwen3_assistant_history_strips_reasoning ... ok
+test chat_template::tests::raise_exception_surfaces ... ok
+test chat_template::tests::tools_use_python_style_json ... ok
+test recipe::tests::hybrid_recipes_map_blocks_by_layer_type ... ok
+test recipe::tests::qwen3_5_moe_chunk_is_2048_on_cuda_only ... ok
+test recipe::tests::builtin_qwen3_parses_and_matches ... ok
+test recipe::tests::prefill_chunk_resolution_order ... ok
+test chat_template::tests::qwen3_basic_and_thinking_off ... ok
+test safetensors::tests::roundtrip_single_and_sharded ... ok
+test recipe::tests::unknown_pattern_block_is_rejected ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/config.rs (/tmp/cnc/B-target/release/deps/config-c71b59cd4bda481a)
+
+running 2 tests
+test qwen36_multimodal_wrapper_reads_text_config ... ok
+test qwen3_checkpoints_load ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine.rs (/tmp/cnc/B-target/release/deps/engine-4c0339265203a70f)
+
+running 10 tests
+test bad_requests_become_error_events ... ok
+test forward_logits_all_positions ... ok
+test dropped_receiver_cancels ... ok
+test eos_min_tokens_and_ignore_eos ... ok
+test seeded_sampling_reproducible_and_telemetry_counts ... ok
+test greedy_is_deterministic_and_reports_usage ... ok
+test scripted_replay_reproduces_a_warm_generate_bit_for_bit ... ok
+test stop_strings_trim_and_holdback ... ok
+test prefix_reuse_continue_and_unaligned_restore_match_cold ... ok
+test prefix_reuse_restore_on_a_chunk_boundary_is_bit_identical_to_cold ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/engine_panic.rs (/tmp/cnc/B-target/release/deps/engine_panic-60a039379776fc90)
+
+running 1 test
+test worker_panic_fails_the_engine ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine_robust.rs (/tmp/cnc/B-target/release/deps/engine_robust-a5f09d2ef6d525e7)
+
+running 3 tests
+test cancel_flag_stops_decoding ... ok
+test cancel_before_prefill_runs_no_step_and_frees_the_worker ... ok
+test done_carries_the_matched_stop_string ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/graphs.rs (/tmp/cnc/B-target/release/deps/graphs-e032b974defb67d5)
+
+running 7 tests
+test the_recording_contains_the_position_dependent_ops_with_a_device_position ... ok
+test a_new_state_gets_its_own_recording_and_truncate_keeps_replaying ... ok
+test no_graphs_flag_and_failed_capture_fall_back_to_eager ... ok
+test argmax_head_matches_through_the_graph ... ok
+test graph_decode_is_bitwise_the_eager_decode ... ok
+test profiled_steps_interleave_with_replays ... ok
+test replay_after_a_mid_sequence_gdn_restore_is_bitwise_the_eager_decode ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/head_and_scheme.rs (/tmp/cnc/B-target/release/deps/head_and_scheme-57ed33e77a35d45f)
+
+running 2 tests
+test a_missing_lm_head_is_an_error_unless_the_config_ties_the_embeddings ... ok
+test a_declared_scheme_is_checked_against_the_stored_tensors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/hybrid.rs (/tmp/cnc/B-target/release/deps/hybrid-3488e1c68f5e9e1a)
+
+running 10 tests
+test layer_kinds_follow_the_config ... ok
+test one_shot_prefill_matches_hf ... ok
+test argmax_decode_path_agrees ... ok
+test failed_forward_resets_recurrent_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+     Running tests/hybrid_real.rs (/tmp/cnc/B-target/release/deps/hybrid_real-dca69e931d6d02f1)
+
+running 1 test
+test real_35b_attention_layers_cuda_matches_cpu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/min_tokens.rs (/tmp/cnc/B-target/release/deps/min_tokens-16f33a485d8ceadc)
+
+running 3 tests
+test min_tokens_alone_masks_eos_without_ignore_eos ... ok
+test forced_length_greedy_keeps_the_on_device_argmax ... ok
+test stop_strings_wait_for_min_tokens ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/model.rs (/tmp/cnc/B-target/release/deps/model-230665ad0a6eb6e1)
+
+running 5 tests
+test recurrent_slot_is_allocated_but_inert ... ok
+test context_overflow_and_truncate ... ok
+test decoder_close_to_naive_reference_bf16 ... ok
+test decoder_matches_naive_reference_f32 ... ok
+test prefill_equals_prefill_plus_decode_and_chunking ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/plan.rs (/tmp/cnc/B-target/release/deps/plan-a2748cae8f5c3119)
+
+running 7 tests
+test missing_kernel_fails_the_load_with_a_list ... ok
+test plan_json_follows_the_contract ... ok
+test scratch_workspace_is_reserved_and_passed ... ok
+test reference_flag_forces_ref_kernels ... ok
+test teacher_forced_decode_matches_full_forward ... ok
+test bad_kernel_is_rejected_on_plan_shapes_and_replaced ... ok
+test admission_on_plan_shapes_is_cached_and_enforced ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/spec.rs (/tmp/cnc/B-target/release/deps/spec-c3f01dd1a07539c6)
+
+running 4 tests
+test spec_sampled_requests_fall_back ... ok
+test spec_stops_inside_accepted_runs ... ok
+test spec_identity_greedy ... ok
+test spec_min_tokens_and_eos_inside_runs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.03s
+
+     Running tests/tp.rs (/tmp/cnc/B-target/release/deps/tp-7781ed0d3c3895c9)
+
+running 5 tests
+test indivisible_degree_and_unshardable_blocks_are_refused ... ok
+test shards_hold_only_their_slice_and_the_plan_shows_per_rank_shapes ... ok
+test tp2_matches_tp1_prefill_and_decode_f32 ... ok
+test tp2_greedy_decode_follows_tp1_in_bf16_with_chunks_and_truncate ... ok
+test all_gather_concatenates_in_rank_order_and_a_failed_rank_releases_the_others ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/tp_test_bug.rs (/tmp/cnc/B-target/release/deps/tp_test_bug-cde993a678383168)
+
+running 2 tests
+test test_bug_moves_the_logits_and_scale_one_does_not ... ok
+test f32_tp2_vs_tp1_separates_a_one_percent_partial_scale_bug_from_summation_order ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+   Doc-tests intarsia_models
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT 0
