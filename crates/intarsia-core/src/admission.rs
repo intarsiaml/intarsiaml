@@ -300,6 +300,80 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::MatmulGlu | Op::RmsNormAddMatmulGlu => {
+            // (N, K): small and odd ones, then the model's gate / up (K = hidden, N = intermediate; absent for MoE-only
+            // checkpoints, which have no dense FFN)
+            let mut nk: Vec<(usize, usize)> = vec![(64, 64), (33, 70)];
+            if !quick && cfg.intermediate > 0 {
+                nk.push((cfg.intermediate, cfg.hidden));
+            }
+            let ms: &[usize] = if quick { &[1, 3] } else { &[1, 3, 32] };
+            for &m in ms {
+                for &(n, k) in &nk {
+                    for dt in act_dtypes() {
+                        let w = |rng: &mut SplitMix64| rand_t(rng, dt, &[n, k], 1.0 / (k as f32).sqrt());
+                        let (inputs, outputs, woffs): (Vec<HostTensor>, Vec<OutSpec>, &[f32]) = if op == Op::MatmulGlu {
+                            let x = rand_t(&mut rng, dt, &[m, k], 1.0);
+                            (vec![x, w(&mut rng), w(&mut rng)], vec![OutSpec::new(dt, &[m, n])], &[0.0])
+                        } else {
+                            let x = rand_t(&mut rng, dt, &[m, k], 1.0);
+                            let res = rand_t(&mut rng, dt, &[m, k], 2.0);
+                            let nw = norm_w(&mut rng, dt, k);
+                            (
+                                vec![x, res, nw, w(&mut rng), w(&mut rng)],
+                                vec![OutSpec::new(dt, &[m, n]), OutSpec::new(dt, &[m, k])],
+                                &[0.0, 1.0],
+                            )
+                        };
+                        for &woff in woffs {
+                            push(
+                                format!("M={m} N={n} K={k} {dt}{}", if woff != 0.0 { " w_offset=1" } else { "" }),
+                                HostCall {
+                                    op,
+                                    inputs: inputs.clone(),
+                                    outputs: outputs.clone(),
+                                    attrs: OpAttrs { eps: 1e-6, w_offset: woff, ..attrs() },
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Op::RmsNormAddMatmulQkv => {
+            // (Nq, Nk, Nv, H): small odd ones, then the model's q / k / v
+            let mut dims: Vec<(usize, usize, usize, usize)> = vec![(64, 16, 16, 64), (33, 9, 5, 70)];
+            if !quick {
+                dims.push((cfg.n_heads * cfg.head_dim, cfg.n_kv_heads * cfg.head_dim, cfg.n_kv_heads * cfg.head_dim, cfg.hidden));
+            }
+            for &m in if quick { &[1usize, 3][..] } else { &[1usize, 3, 32][..] } {
+                for &(nq, nk, nv, h) in &dims {
+                    for dt in act_dtypes() {
+                        for woff in [0.0f32, 1.0] {
+                            let w = |rng: &mut SplitMix64, n: usize| rand_t(rng, dt, &[n, h], 1.0 / (h as f32).sqrt());
+                            let inputs = vec![
+                                rand_t(&mut rng, dt, &[m, h], 1.0),
+                                rand_t(&mut rng, dt, &[m, h], 2.0),
+                                norm_w(&mut rng, dt, h),
+                                w(&mut rng, nq),
+                                w(&mut rng, nk),
+                                w(&mut rng, nv),
+                            ];
+                            let outputs = vec![
+                                OutSpec::new(dt, &[m, nq]),
+                                OutSpec::new(dt, &[m, nk]),
+                                OutSpec::new(dt, &[m, nv]),
+                                OutSpec::new(dt, &[m, h]),
+                            ];
+                            push(
+                                format!("M={m} Nq={nq} Nk={nk} Nv={nv} H={h} {dt}{}", if woff != 0.0 { " w_offset=1" } else { "" }),
+                                HostCall { op, inputs, outputs, attrs: OpAttrs { eps: 1e-6, w_offset: woff, ..attrs() } },
+                            );
+                        }
+                    }
+                }
+            }
+        }
         Op::AttnPrefill | Op::AttnDecode => {
             let heads: Vec<(usize, usize, usize)> =
                 if quick { vec![(4, 2, 32)] } else { vec![(4, 2, 32), (cfg.n_heads, cfg.n_kv_heads, cfg.head_dim), (16, 2, 256)] };

@@ -33,6 +33,9 @@
 //! | `MatmulNvfp4Glu` | x `[M,K]`, gate (w, block scales, global), up (w, block scales, global), nvfp4 `[N,K]` each | `[M,N]` (= `SiluGlu(MatmulNvfp4(gate), MatmulNvfp4(up))`) | fused, see `quant::fused` |
 //! | `GatedRmsnorm` | x `[R,D]`, z `[R,D]`, w `[D]` | `[R,D]` (= `SiluGlu(z, RmsNorm(x, w))`) | eps, w_offset; fused, see `quant::fused` |
 //! | `QkNormRopeKv` | q `[T,N,D]`, k `[T,Nkv,D]`, v `[T,Nkv,D]`, q_w `[D]`, k_w `[D]` (all one float dtype) | q_out `[T,N,D]`, k cache, v cache `[Nkv,cap,D]` (**in place**) | eps, w_offset, theta, rotary_dim, pos0 (or `OpCall::pos`); fused attention prologue, see below |
+//! | `MatmulGlu` | x `[M,K]`, w_gate `[N,K]`, w_up `[N,K]` (dense) | `[M,N]` (= `SiluGlu(Matmul(x, w_gate), Matmul(x, w_up))`, both products rounded to the activation dtype first) | fused decode GEMV pair with a GLU epilogue, see below |
+//! | `RmsNormAddMatmulGlu` | x `[R,H]`, res `[R,H]`, w `[H]`, w_gate `[N,H]`, w_up `[N,H]` | a `[R,N]`, sum `[R,H]` (= `RmsNormAdd(x, res, w)` then `MatmulGlu(normed, w_gate, w_up)`; the normed tensor is not an output) | eps, w_offset; fused decode FFN prologue + epilogue, see below |
+//! | `RmsNormAddMatmulQkv` | x `[R,H]`, res `[R,H]`, w `[H]`, wq `[Nq,H]`, wk `[Nk,H]`, wv `[Nv,H]` | q `[R,Nq]`, k `[R,Nk]`, v `[R,Nv]`, sum `[R,H]` (= `RmsNormAdd(x, res, w)` then three `Matmul`s of the normed tensor, which is not an output) | eps, w_offset; fused decode attention input, see below |
 //!
 //! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The five
 //! fused ops above are optional: a backend registers kernels for them only when it has a fast path, and the model
@@ -47,6 +50,13 @@
 //! `KvAppend(v, v cache)` in one op (six launches become one). It is defined as exactly that composition, including
 //! the rounding of every intermediate to the input dtype (`intarsia-backend-cpu`'s `fused_ref`), and it needs both
 //! norms, so models without q/k norms keep the unfused ops. Like the other fused ops it is optional.
+//!
+//! `MatmulGlu` and `RmsNormAddMatmulGlu` are the dense FFN's gate / up half as one op: `MatmulGlu` is the two projections
+//! of one `x` and `SiluGlu` on them (the products are rounded to the activation dtype before the GLU, as the unfused
+//! tensors are), `RmsNormAddMatmulGlu` additionally starts from the residual add and the pre-norm (`RmsNormAdd`), so
+//! a decode step's `rmsnorm_add`, `matmul_pair` and `silu_glu` launches become one. Both are defined as exactly that
+//! composition (`intarsia-backend-cpu`'s `fused_ref`); optional like the other fused ops. `RmsNormAddMatmulQkv` is the
+//! same prologue in front of the three attention input projections (q, k and v of one normed row).
 
 use crate::backend::TensorRef;
 use crate::dtype::DType;
@@ -83,10 +93,13 @@ pub enum Op {
     MatmulNvfp4Glu,
     GatedRmsnorm,
     QkNormRopeKv,
+    MatmulGlu,
+    RmsNormAddMatmulGlu,
+    RmsNormAddMatmulQkv,
 }
 
 impl Op {
-    pub const ALL: [Op; 28] = [
+    pub const ALL: [Op; 31] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -115,6 +128,9 @@ impl Op {
         Op::MatmulNvfp4Glu,
         Op::GatedRmsnorm,
         Op::QkNormRopeKv,
+        Op::MatmulGlu,
+        Op::RmsNormAddMatmulGlu,
+        Op::RmsNormAddMatmulQkv,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -148,6 +164,9 @@ impl Op {
             Op::MatmulNvfp4Glu => "matmul_nvfp4_glu",
             Op::GatedRmsnorm => "gated_rmsnorm",
             Op::QkNormRopeKv => "qk_norm_rope_kv",
+            Op::MatmulGlu => "matmul_glu",
+            Op::RmsNormAddMatmulGlu => "rmsnorm_add_matmul_glu",
+            Op::RmsNormAddMatmulQkv => "rmsnorm_add_matmul_qkv",
         }
     }
 
@@ -184,6 +203,9 @@ impl Op {
             Op::MatmulNvfp4Glu => (7, 1),
             Op::GatedRmsnorm => (3, 1),
             Op::QkNormRopeKv => (5, 3),
+            Op::MatmulGlu => (3, 1),
+            Op::RmsNormAddMatmulGlu => (5, 2),
+            Op::RmsNormAddMatmulQkv => (6, 4),
         }
     }
 }
@@ -421,6 +443,70 @@ impl OpCall {
                     }
                 }
             }
+            Op::MatmulGlu => {
+                rank(&i[0], 2, "x")?;
+                rank(&i[1], 2, "w_gate")?;
+                rank(&i[2], 2, "w_up")?;
+                let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
+                if i[1].shape != [n, k] || i[2].shape != [n, k] || o[0].shape != [m, n] {
+                    return bad(format!("x {:?} w_gate {:?} w_up {:?} out {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape));
+                }
+                for (t, what) in [(&i[0], "x"), (&i[1], "w_gate"), (&i[2], "w_up"), (&o[0], "out")] {
+                    float(t, what)?;
+                    if t.dtype != i[0].dtype {
+                        return bad(format!("{what} is {}, x is {}: one dtype", t.dtype, i[0].dtype));
+                    }
+                }
+            }
+            Op::RmsNormAddMatmulGlu => {
+                rank(&i[0], 2, "x")?;
+                rank(&i[3], 2, "w_gate")?;
+                rank(&i[4], 2, "w_up")?;
+                let (r, h, n) = (i[0].shape[0], i[0].shape[1], i[3].shape[0]);
+                if i[1].shape != [r, h]
+                    || i[2].shape != [h]
+                    || i[3].shape != [n, h]
+                    || i[4].shape != [n, h]
+                    || o[0].shape != [r, n]
+                    || o[1].shape != [r, h]
+                {
+                    return bad(format!(
+                        "x {:?} res {:?} w {:?} w_gate {:?} w_up {:?} a {:?} sum {:?}",
+                        i[0].shape, i[1].shape, i[2].shape, i[3].shape, i[4].shape, o[0].shape, o[1].shape
+                    ));
+                }
+                for (t, what) in [(&i[0], "x"), (&i[1], "res"), (&i[2], "w"), (&i[3], "w_gate"), (&i[4], "w_up"), (&o[0], "a"), (&o[1], "sum")] {
+                    float(t, what)?;
+                    if t.dtype != i[0].dtype {
+                        return bad(format!("{what} is {}, x is {}: one dtype", t.dtype, i[0].dtype));
+                    }
+                }
+            }
+            Op::RmsNormAddMatmulQkv => {
+                rank(&i[0], 2, "x")?;
+                for (t, what) in [(&i[3], "wq"), (&i[4], "wk"), (&i[5], "wv")] {
+                    rank(t, 2, what)?;
+                }
+                let (r, h) = (i[0].shape[0], i[0].shape[1]);
+                if i[1].shape != [r, h]
+                    || i[2].shape != [h]
+                    || i[3].shape[1] != h
+                    || i[4].shape[1] != h
+                    || i[5].shape[1] != h
+                    || o[0].shape != [r, i[3].shape[0]]
+                    || o[1].shape != [r, i[4].shape[0]]
+                    || o[2].shape != [r, i[5].shape[0]]
+                    || o[3].shape != [r, h]
+                {
+                    return bad("shape mismatch".into());
+                }
+                for (t, what) in i.iter().chain(o.iter()).zip(["x", "res", "w", "wq", "wk", "wv", "q", "k", "v", "sum"]) {
+                    float(t, what)?;
+                    if t.dtype != i[0].dtype {
+                        return bad(format!("{what} is {}, x is {}: one dtype", t.dtype, i[0].dtype));
+                    }
+                }
+            }
             Op::Argmax => {
                 rank(&i[0], 2, "logits")?;
                 if o[0].dtype != DType::I32 || o[0].shape != [i[0].shape[0]] {
@@ -523,6 +609,24 @@ impl ShapeInfo {
                 s.n_kv_heads = i[1].shape[0];
                 s.kv_len = call.attrs.pos0 + s.m;
                 s.weight = Some(i[1].dtype); // kv dtype
+            }
+            Op::MatmulGlu => {
+                s.m = i[0].shape[0];
+                s.k = i[0].shape[1];
+                s.n = i[1].shape[0];
+                s.weight = Some(i[1].dtype);
+            }
+            Op::RmsNormAddMatmulGlu => {
+                s.m = i[0].shape[0];
+                s.k = i[0].shape[1];
+                s.n = i[3].shape[0];
+                s.weight = Some(i[3].dtype);
+            }
+            Op::RmsNormAddMatmulQkv => {
+                s.m = i[0].shape[0];
+                s.k = i[0].shape[1];
+                s.n = i[3].shape[0];
+                s.weight = Some(i[3].dtype);
             }
             Op::Argmax | Op::Sample => {
                 s.m = i[0].shape[0];

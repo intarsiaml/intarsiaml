@@ -34,6 +34,7 @@ const LAUNCHER_SOURCES: &[&str] = &[
     "src/fill.rs",
     "src/attn.rs",
     "src/fused.rs",
+    "src/glu.rs",
     "src/flash.rs",
     "src/gemm_nax.rs",
 ];

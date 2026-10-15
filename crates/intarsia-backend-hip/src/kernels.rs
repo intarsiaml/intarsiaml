@@ -64,9 +64,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("argmax_bf16", Op::Argmax),
 ];
 
-/// Ops this backend does not implement (sampling stays on the cpu; `QkNormRopeKv` is an optional fused op only the Metal
-/// backend registers, the model runs the unfused qk-norm, rope and kv-append ops here).
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::QkNormRopeKv];
+/// Ops this backend does not implement (sampling stays on the cpu; `QkNormRopeKv`, `MatmulGlu` and `RmsNormAddMatmulGlu` are
+/// optional fused ops only the Metal backend registers, the model runs the unfused ops they replace here).
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::QkNormRopeKv, Op::MatmulGlu, Op::RmsNormAddMatmulGlu, Op::RmsNormAddMatmulQkv];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (same budget as the cpu backend).
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);

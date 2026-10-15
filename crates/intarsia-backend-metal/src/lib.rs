@@ -29,6 +29,7 @@ mod dense;
 mod fill;
 pub mod flash;
 mod fused;
+mod glu;
 pub mod gemm_nax;
 mod host;
 pub mod kernels;
@@ -535,12 +536,13 @@ impl Backend for MetalBackend {
     /// `INTARSIA_METAL_PROFILE` only log), so none is folded.
     fn fingerprint(&self) -> String {
         format!(
-            "metal|{}|{}|metallib:{:016x}|metal4:{}|launch:{}",
+            "metal|{}|{}|metallib:{:016x}|metal4:{}|launch:{}|d1off:{}",
             self.device.name(),
             self.device.architecture().name(),
             metallib_hash(),
             self.metal4 as u8,
-            LAUNCHER_HASH
+            LAUNCHER_HASH,
+            kernels::d1_off().join("+")
         )
     }
 
@@ -598,6 +600,8 @@ impl Backend for MetalBackend {
         if !self.metal4 {
             ks.retain(|k| !kernels::requires_metal4(&k.name));
         }
+        let off = kernels::d1_off();
+        ks.retain(|k| !off.contains(&k.name.as_str()));
         ks
     }
 
@@ -641,6 +645,15 @@ impl Backend for MetalBackend {
         }
         if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
             return self.launch_matmul_pair(call);
+        }
+        if kernel == kernels::MATMUL_GLU_BF16_GEMV && call.op == Op::MatmulGlu {
+            return self.launch_matmul_glu(call, false);
+        }
+        if kernel == kernels::RMSNORM_ADD_MATMUL_QKV_BF16_GEMV && call.op == Op::RmsNormAddMatmulQkv {
+            return self.launch_norm_qkv(call);
+        }
+        if kernel == kernels::RMSNORM_ADD_MATMUL_GLU_BF16_GEMV && call.op == Op::RmsNormAddMatmulGlu {
+            return self.launch_matmul_glu(call, true);
         }
         self.launch_dense(kernel, call)
     }

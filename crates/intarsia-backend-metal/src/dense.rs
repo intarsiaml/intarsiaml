@@ -67,7 +67,7 @@ const ATTN_THREADS: usize = 256;
 /// threadgroup arrays are sized by it).
 const ATTN_DEC_SG: usize = 16;
 
-enum Grid {
+pub(crate) enum Grid {
     /// `n` threads in a line (`dispatchThreads`: the last threadgroup may be partial).
     Threads(usize),
     /// `x` by `y` threadgroups of `threads` threads.
@@ -111,7 +111,7 @@ impl MetalBackend {
     }
 
     /// Encode one dispatch of shader `name`: `binds` at indices 0.., then `p` as inline constants.
-    fn dispatch(&self, name: &str, binds: &[&Bind], p: &OpP, grid: Grid) -> Result<()> {
+    pub(crate) fn dispatch<P: Copy>(&self, name: &str, binds: &[&Bind], p: &P, grid: Grid) -> Result<()> {
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         self.with_encoder(|enc| {
             enc.setComputePipelineState(pso);

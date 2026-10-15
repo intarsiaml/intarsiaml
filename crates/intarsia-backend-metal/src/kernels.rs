@@ -143,6 +143,30 @@ pub const KV_APPEND_BF16: &str = "kv_append_bf16";
 /// `QkNormRopeKv` (qk_rope_kv.metal): qk-norm, rope and the k / v cache appends of a layer in one dispatch, bitwise the
 /// unfused `qk_norm_bf16` (`rmsnorm_bf16_ex1` at head_dim <= 256) + `rope_bf16` + `kv_append_bf16` sequence.
 pub const QK_NORM_ROPE_KV_BF16: &str = "qk_norm_rope_kv_bf16";
+/// `MatmulGlu` / `RmsNormAddMatmulGlu` (gemv_glu.metal, launcher glu.rs): the dense FFN's gate / up GEMVs with the GLU as the
+/// epilogue and, for the second, the residual add + pre-norm as the prologue. Bitwise the unfused sequence.
+pub const MATMUL_GLU_BF16_GEMV: &str = "matmul_glu_bf16_gemv";
+pub const RMSNORM_ADD_MATMUL_GLU_BF16_GEMV: &str = "rmsnorm_add_matmul_glu_bf16_gemv";
+/// Shader per operand class: 16-byte loads, 8-byte loads, 2-byte loads (any alignment).
+pub const GLU_VARIANTS: [&str; 3] = ["gemv_glu_v16", "gemv_glu_v8", "gemv_glu_v2"];
+pub const GLU_NORM_VARIANTS: [&str; 3] = ["gemv_glu_norm_v16", "gemv_glu_norm_v8", "gemv_glu_norm_v2"];
+/// `RmsNormAddMatmulQkv`: the attention input norm in front of the q, k and v GEMVs (same shader classes).
+pub const RMSNORM_ADD_MATMUL_QKV_BF16_GEMV: &str = "rmsnorm_add_matmul_qkv_bf16_gemv";
+pub const QKV_VARIANTS: [&str; 3] = ["gemv_qkv_norm_v16", "gemv_qkv_norm_v8", "gemv_qkv_norm_v2"];
+/// Kernels of the decode-fusion phase D1 (`MatmulGlu`, `RmsNormAddMatmulGlu`, ...) that `INTARSIA_METAL_D1_OFF` (a comma
+/// list of kernel names, or `all`) leaves unregistered, so the model runs the ops they replace: a same-binary A/B switch
+/// for the interleaved speed measurements. `INTARSIA_NO_FUSION=1` turns every fused op off.
+pub const D1_KERNELS: &[&str] = &[MATMUL_GLU_BF16_GEMV, RMSNORM_ADD_MATMUL_GLU_BF16_GEMV, RMSNORM_ADD_MATMUL_QKV_BF16_GEMV];
+
+pub fn d1_off() -> Vec<&'static str> {
+    static OFF: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    OFF.get_or_init(|| {
+        let Ok(v) = std::env::var("INTARSIA_METAL_D1_OFF") else { return Vec::new() };
+        let want: Vec<&str> = v.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+        D1_KERNELS.iter().copied().filter(|k| want.contains(&"all") || want.contains(k)).collect()
+    })
+    .clone()
+}
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 /// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
@@ -276,6 +300,9 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.push(QK_NORM_ROPE_KV_BF16);
+    v.extend(GLU_VARIANTS);
+    v.extend(GLU_NORM_VARIANTS);
+    v.extend(QKV_VARIANTS);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
     v.extend(crate::flash::FLASH_VARIANTS.iter().map(|f| f.name));
@@ -312,6 +339,9 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
     (MATMUL_PAIR_BF16_GEMV, Op::MatmulPair),
     (QK_NORM_ROPE_KV_BF16, Op::QkNormRopeKv),
+    (MATMUL_GLU_BF16_GEMV, Op::MatmulGlu),
+    (RMSNORM_ADD_MATMUL_GLU_BF16_GEMV, Op::RmsNormAddMatmulGlu),
+    (RMSNORM_ADD_MATMUL_QKV_BF16_GEMV, Op::RmsNormAddMatmulQkv),
     (MATMUL_BF16_NAX, Op::Matmul),
     (MATMUL_PAIR_BF16_NAX, Op::MatmulPair),
 ];
@@ -397,6 +427,29 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights(bf)
                     .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                // decode FFN gate / up with the GLU epilogue (and the norm prologue): batch-1 only, bitwise the unfused sequence;
+                // the norm form keeps the normed row in threadgroup memory (K <= GLU_NORM_MAX_K)
+                MATMUL_GLU_BF16_GEMV => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                RMSNORM_ADD_MATMUL_GLU_BF16_GEMV => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.k <= crate::glu::GLU_NORM_MAX_K && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
+                RMSNORM_ADD_MATMUL_QKV_BF16_GEMV => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.k <= crate::glu::GLU_NORM_MAX_K && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(10),

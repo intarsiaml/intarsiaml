@@ -1,5 +1,5 @@
 //! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
-//! `QkNormRopeKv`).
+//! `QkNormRopeKv`, `MatmulGlu`, `RmsNormAddMatmulGlu`, `RmsNormAddMatmulQkv`).
 //! Each is defined as the composition of the ops it replaces, so the oracle of a fused kernel is exactly "the
 //! unfused path, including the output rounding of every intermediate tensor". `sub` is the executor of the
 //! constituent ops: the f64 reference for `ref_*`, the f32 kernels for `cpu_f32_*`.
@@ -52,6 +52,31 @@ pub fn run(call: &OpCall, sub: fn(&OpCall) -> Result<()>) -> Result<()> {
             step(sub, Op::Rope, vec![kn], vec![kr.clone()], a.clone())?;
             step(sub, Op::KvAppend, vec![kr], vec![o[1].clone()], a.clone())?;
             step(sub, Op::KvAppend, vec![i[2].clone()], vec![o[2].clone()], a.clone())
+        }
+        Op::MatmulGlu => {
+            // g and u are rounded to the activation dtype, as the unfused tensors are
+            let shape = o[0].shape.clone();
+            let (g, u) = (tmp(&o[0], &shape), tmp(&o[0], &shape));
+            step(sub, Op::Matmul, vec![i[0].clone(), i[1].clone()], vec![g.clone()], d())?;
+            step(sub, Op::Matmul, vec![i[0].clone(), i[2].clone()], vec![u.clone()], d())?;
+            step(sub, Op::SiluGlu, vec![g, u], vec![o[0].clone()], d())
+        }
+        Op::RmsNormAddMatmulGlu => {
+            let normed = tmp(&i[0], &i[0].shape);
+            step(sub, Op::RmsNormAdd, vec![i[0].clone(), i[1].clone(), i[2].clone()], vec![normed.clone(), o[1].clone()], a.clone())?;
+            let shape = o[0].shape.clone();
+            let (g, u) = (tmp(&o[0], &shape), tmp(&o[0], &shape));
+            step(sub, Op::Matmul, vec![normed.clone(), i[3].clone()], vec![g.clone()], d())?;
+            step(sub, Op::Matmul, vec![normed, i[4].clone()], vec![u.clone()], d())?;
+            step(sub, Op::SiluGlu, vec![g, u], vec![o[0].clone()], d())
+        }
+        Op::RmsNormAddMatmulQkv => {
+            let normed = tmp(&i[0], &i[0].shape);
+            step(sub, Op::RmsNormAdd, vec![i[0].clone(), i[1].clone(), i[2].clone()], vec![normed.clone(), o[3].clone()], a.clone())?;
+            for j in 0..3 {
+                step(sub, Op::Matmul, vec![normed.clone(), i[3 + j].clone()], vec![o[j].clone()], d())?;
+            }
+            Ok(())
         }
         other => Err(Error::invalid(format!("fused_ref cannot run {other}"))),
     }

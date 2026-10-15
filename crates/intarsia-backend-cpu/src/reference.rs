@@ -56,7 +56,7 @@ pub fn run(call: &OpCall) -> Result<()> {
     match call.op {
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn_ref::run(call),
         Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
-        Op::MatmulPair | Op::MatmulFp8Pair | Op::MatmulNvfp4Glu | Op::GatedRmsnorm | Op::QkNormRopeKv => crate::fused_ref::run(call, run),
+        Op::MatmulPair | Op::MatmulFp8Pair | Op::MatmulNvfp4Glu | Op::GatedRmsnorm | Op::QkNormRopeKv | Op::MatmulGlu | Op::RmsNormAddMatmulGlu | Op::RmsNormAddMatmulQkv => crate::fused_ref::run(call, run),
         Op::Embedding => {
             let ids = {
                 let b = crate::mem::bytes(&i[0])?;
