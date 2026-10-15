@@ -450,20 +450,27 @@ fn all_variants_logits() {
     }
 }
 
-/// Ordinary calls (`exact_rows` false) still get the tiled GEMM / old logits kernels for M = 2..15 and no pair
-/// kernel below the NAX threshold, through `Registry::select` itself; verify calls (`exact_rows`) of M = 2..8 get
-/// the multi-row GEMVs and nothing else, and M > 8 verify calls fail instead of landing on another kernel.
+/// Ordinary calls (`exact_rows` false) get what serving picked before the rows kernels were listed, through
+/// `Registry::select` itself: NAX GEMM / NAX pair for M = 2..15 (`NAX_MIN_M` = 2 since the tail-chunk fix; tiled GEMM
+/// and no pair kernel without the metal4 library) and the tiled logits GEMM. Verify calls (`exact_rows`) of M = 2..8
+/// get the multi-row GEMVs and nothing else, and M > 8 verify calls fail instead of landing on another kernel.
 #[test]
 fn serving_selection_unchanged() {
     let be = backend();
     let reg = intarsia_core::Registry::new(be.name(), &be.info(), be.kernels());
     let pick = |c: &OpCall| reg.select(c).map(|k| k.name.clone());
+    let nax = be.kernels().iter().any(|k| k.name == intarsia_backend_metal::kernels::MATMUL_BF16_NAX);
+    let (mm, pair) = if nax {
+        (intarsia_backend_metal::kernels::MATMUL_BF16_NAX, Some(intarsia_backend_metal::kernels::MATMUL_PAIR_BF16_NAX))
+    } else {
+        (MATMUL_BF16, None)
+    };
     for m in [2usize, 3, 8, 15] {
         let w = weights(&be, 64, 64, 0, 1);
         let xb = padded(&be, 0, &rand_rows(m, 64, 2), 16);
         let yb = out_buffer(&be, 0, m * 64 * 2);
         let mut call = matmul_call(tref(&xb, 0, &[m, 64]), w.clone(), tref(&yb, 0, &[m, 64]));
-        assert_eq!(pick(&call).unwrap(), MATMUL_BF16, "M={m}");
+        assert_eq!(pick(&call).unwrap(), mm, "M={m}");
         let yf = out_buffer(&be, 0, m * 64 * 4);
         let mut lcall = OpCall::new(
             Op::Logits,
@@ -479,7 +486,7 @@ fn serving_selection_unchanged() {
             tref(&yb, 0, &[m, 64]),
             tref(&yb, 0, &[m, 64]),
         );
-        assert!(pick(&pcall).is_err(), "M={m}: ordinary pair call got {:?}", pick(&pcall));
+        assert_eq!(pick(&pcall).ok().as_deref(), pair, "M={m}");
         call.exact_rows = true;
         lcall.exact_rows = true;
         pcall.exact_rows = true;
