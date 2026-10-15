@@ -1,0 +1,90 @@
+fleetq: #1962 waiting (#2 in line): in line behind #1961 "metal-candidate extras (c256 selfcheck, decode cross-check)" (claude-31e10c55) on endor
+fleetq:   #1961 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1961 set, or it will wait for #1961 to be released.
+fleetq: #1962 waiting (#1 in line): endor is held exclusively by #1961 "metal-candidate extras (c256 selfcheck, decode cross-check)" (claude-31e10c55)
+fleetq:   #1961 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1961 set, or it will wait for #1961 to be released.
+fleetq job 1962 (f1b speed burst (microbench, GPU traces, plain prefill ABBA, decode)) acquired Thu Oct 15 02:12:16 EDT 2026
+== 0. idle, zoom
+"Device Utilization %"=95 "Device Utilization %"=1 "Device Utilization %"=0 
+zoom check done
+== 1. attention microbench (GPU time per call, one KV cache per layer, 36 layers); P2 = flash, F1 = flash-bench of 5c30da0, F1b = final
+-- f1 chunk 256
+heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 flash                             53.1      53.0      63.5    10.14
+      0 nax                               26.1      25.9      26.2    20.64
+   1024 flash                            402.0     401.5     402.4    12.02
+   1024 nax                              129.0     128.8     129.4    37.46
+   3840 flash                           1352.4    1352.2    1353.3    12.31
+   3840 nax                              403.8     402.8     404.4    41.22
+  15872 flash                           5424.5    5423.6    5426.4    12.37
+  15872 nax                             1596.1    1591.5    1601.7    42.05
+-- f1 chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 flash                           2461.4    2461.0    2462.1    13.97
+      0 nax                              722.4     717.4     725.8    47.59
+   2048 flash                           7394.6    7387.4    7401.5    13.94
+   2048 nax                             2770.9    2669.1    2834.1    37.21
+   4096 flash                          12327.2   12319.3   12340.9    13.94
+   4096 nax                             3860.5    3844.1    3884.8    44.51
+  14336 flash                          37154.5   37032.7   37314.7    13.87
+  14336 nax                            14056.2   13199.7   14444.9    36.67
+f1 total 4096 chunk 256: flash                           11262.7 us per layer (405.5 ms over 36 layers)   12.21 TFLOPS
+f1 total 4096 chunk 256: nax                              3512.8 us per layer (126.5 ms over 36 layers)   39.13 TFLOPS
+f1 total 4096 chunk 2048: flash                            9840.0 us per layer (354.2 ms over 36 layers)   13.97 TFLOPS
+f1 total 4096 chunk 2048: nax                              3154.2 us per layer (113.6 ms over 36 layers)   43.58 TFLOPS
+f1 total 16384 chunk 256: flash                          178101.6 us per layer (6411.7 ms over 36 layers)   12.35 TFLOPS
+f1 total 16384 chunk 256: nax                             53679.9 us per layer (1932.5 ms over 36 layers)   40.97 TFLOPS
+f1 total 16384 chunk 2048: flash                          158180.2 us per layer (5694.5 ms over 36 layers)   13.90 TFLOPS
+f1 total 16384 chunk 2048: nax                             56455.2 us per layer (2032.4 ms over 36 layers)   38.95 TFLOPS
+-- final chunk 256
+heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 flash                             53.3      53.0      59.7    10.11
+      0 nax                               25.6      25.5      25.8    21.06
+   1024 flash                            401.8     401.4     402.0    12.03
+   1024 nax                              129.2     129.0     129.5    37.41
+   3840 flash                           1352.8    1352.1    1354.0    12.30
+   3840 nax                              404.1     404.0     404.3    41.19
+  15872 flash                           5424.8    5423.8    5427.3    12.37
+  15872 nax                             1591.5    1583.4    1595.2    42.17
+-- final chunk 2048
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 flash                           2461.4    2460.9    2462.0    13.97
+      0 nax                              695.7     685.7     704.4    49.42
+   2048 flash                           7397.5    7388.4    7400.9    13.94
+   2048 nax                             2246.4    2226.1    2253.7    45.89
+   4096 flash                          12323.9   12318.4   12341.7    13.94
+   4096 nax                             3633.1    3626.6    3658.2    47.29
+  14336 flash                          37025.4   36989.0   37075.4    13.92
+  14336 nax                            11348.6   11262.9   11420.1    45.42
+final total 4096 chunk 256: flash                           11287.9 us per layer (406.4 ms over 36 layers)   12.18 TFLOPS
+final total 4096 chunk 256: nax                              3455.2 us per layer (124.4 ms over 36 layers)   39.79 TFLOPS
+final total 4096 chunk 2048: flash                            9855.2 us per layer (354.8 ms over 36 layers)   13.95 TFLOPS
+final total 4096 chunk 2048: nax                              2881.2 us per layer (103.7 ms over 36 layers)   47.71 TFLOPS
+final total 16384 chunk 256: flash                          178094.4 us per layer (6411.4 ms over 36 layers)   12.35 TFLOPS
+final total 16384 chunk 256: nax                             52648.2 us per layer (1895.3 ms over 36 layers)   41.77 TFLOPS
+final total 16384 chunk 2048: flash                          158195.4 us per layer (5695.0 ms over 36 layers)   13.90 TFLOPS
+final total 16384 chunk 2048: nax                             51181.2 us per layer (1842.5 ms over 36 layers)   42.97 TFLOPS
+== 2. kernel-mode GPU traces (TFLOPS per kernel class)
+./speed.sh:22: permission denied: /opt/code/intarsiaml/.claude/worktrees/agent-afe24a73270ed0c31/docs/results/raw/2026-10-15-metal-prefill-f1b/trace.sh
+== 3. plain prefill ABBA (8 runs per binary and config), pre vs new, chunk 256 and 2048, 4k and 16k
+./speed.sh:25: permission denied: /opt/code/intarsiaml/.claude/worktrees/agent-afe24a73270ed0c31/docs/results/raw/2026-10-15-metal-prefill-f1b/plain-abba.sh
+== 3b. plain prefill ABBA, f1 vs new (4k and 16k, chunk 256 and 2048, 2 rounds)
+./speed.sh:27: permission denied: /opt/code/intarsiaml/.claude/worktrees/agent-afe24a73270ed0c31/docs/results/raw/2026-10-15-metal-prefill-f1b/plain-abba.sh
+== 4. decode unchanged: tok/s and step period (cb trace, 129 tokens)
+pre short: 27.520 27.211 0.308 364.0 (36.33 tok/s)
+new short: 27.202 26.876 0.326 364.0 (36.76 tok/s)
+new short: 27.189 26.889 0.301 364.0 (36.77 tok/s)
+pre short: 27.253 26.914 0.339 364.0 (36.69 tok/s)
+pre 4k: 28.169 27.859 0.310 364.0 (35.49 tok/s)
+new 4k: 28.218 27.889 0.329 364.0 (35.43 tok/s)
+new 4k: 28.066 27.742 0.324 364.0 (35.63 tok/s)
+pre 4k: 28.062 27.762 0.300 364.0 (35.63 tok/s)
+== end idle
+"Device Utilization %"=98 "Device Utilization %"=2 "Device Utilization %"=0 
+done
+script exit 0 Thu Oct 15 02:18:30 EDT 2026
+#1962 "f1b speed burst (microbench, GPU traces, plain prefill ABBA, decode)" (claude-31e10c55) done on endor exclusive 24 GB
+fleetq job 1962 released Thu Oct 15 02:18:30 EDT 2026

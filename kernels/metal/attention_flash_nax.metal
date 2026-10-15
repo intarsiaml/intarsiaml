@@ -28,9 +28,9 @@
 // lanes that differ in bits 0 and 3 of the lane id (the xor-1 / xor-8 shuffles).
 //
 // Online softmax in float, log2 domain. P is rounded to bf16 for the P.V product, and the l sum is taken over those same
-// rounded weights, so the weights P.V applies sum to l (up to float accumulation) and the row is a proper weighted
-// average of V: a constant V comes out bitwise unchanged, which the unrounded-sum variant of F1 (and of
-// attn_prefill_bf16_flash) does not give. Masking assigns -inf, so a fully masked tile leaves a row's max, sum and accumulator
+// rounded weights (F1 and attn_prefill_bf16_flash sum the unrounded ones). The weights P.V applies then sum to l up to
+// float accumulation, so a row is an exact weighted average of V rows and the rounding error of P no longer moves the
+// whole row along the mean of V (docs/results/2026-10-15-metal-prefill-f1b-numerics.md). Masking assigns -inf, so a fully masked tile leaves a row's max, sum and accumulator
 // bitwise unchanged: block membership and extra tiles do not change a row's result (the matmul rows are independent).
 // Key tiles start at absolute key 0, never at the query offset, so how a prompt is cut into chunks does not change a
 // row's arithmetic.

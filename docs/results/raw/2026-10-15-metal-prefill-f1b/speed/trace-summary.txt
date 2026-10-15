@@ -1,0 +1,14 @@
+| binary | prompt | chunk | attention kernel | calls | attention ms | attention TFLOPS | kernel sum ms | matmul TFLOPS |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| pre | 4k | 256 | attn_prefill_bf16_flash | 576 | 402.3 | 12.10 | 1433.3 | 56.53 |
+| f1 | 4k | 256 | attn_prefill_bf16_flash_nax | 576 | 129.4 | 37.60 | 1164.6 | 56.29 |
+| new | 4k | 256 | attn_prefill_bf16_flash_nax | 576 | 126.8 | 38.39 | 1180.3 | 55.32 |
+| pre | 4k | 2048 | attn_prefill_bf16_flash | 72 | 350.7 | 13.88 | 1297.8 | 62.24 |
+| f1 | 4k | 2048 | attn_prefill_bf16_flash_nax | 72 | 107.2 | 45.39 | 1061.3 | 61.71 |
+| new | 4k | 2048 | attn_prefill_bf16_flash_nax | 72 | 96.3 | 50.53 | 1043.1 | 62.17 |
+| pre | 16k | 256 | attn_prefill_bf16_flash | 2340 | 6595.7 | 12.29 | 10747.3 | 57.29 |
+| f1 | 16k | 256 | attn_prefill_bf16_flash_nax | 2340 | 1989.5 | 40.74 | 6134.6 | 57.39 |
+| new | 16k | 256 | attn_prefill_bf16_flash_nax | 2340 | 1957.8 | 41.40 | 6126.2 | 57.06 |
+| pre | 16k | 2048 | attn_prefill_bf16_flash | 324 | 6047.2 | 13.40 | 10014.5 | 60.49 |
+| f1 | 16k | 2048 | attn_prefill_bf16_flash_nax | 324 | 2038.5 | 39.76 | 6260.6 | 56.70 |
+| new | 16k | 2048 | attn_prefill_bf16_flash_nax | 324 | 1867.5 | 43.40 | 6017.4 | 57.70 |

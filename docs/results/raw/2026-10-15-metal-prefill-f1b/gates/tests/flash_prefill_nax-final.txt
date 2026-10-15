@@ -1,0 +1,16 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/flash_prefill_nax.rs (target/release/deps/flash_prefill_nax-638d80717ff1c8f0)
+
+running 5 tests
+test flash_chunk_invariant ... ok
+test flash_falls_back_on_misaligned_operands ... metal attn_prefill_bf16_flash_nax: misaligned operands (q skip 1, out skip 0, q at 2, out at 0, k cache at 0, v cache at 0); running attn_prefill_bf16_flash (reported once)
+metal attn_prefill_bf16_flash: misaligned operands (q skip 1, out skip 0, k cache at 0, v cache at 0); running attn_prefill_bf16 (reported once)
+ok
+test flash_matches_f64_reference ... attn_nax_d128_s4: worst error 0.746 of tolerance over 17 cases
+attn_nax_d128_s8: worst error 0.746 of tolerance over 17 cases
+ok
+test flash_predicate ... ok
+test registry_splits_are_bitwise_the_single_call ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s
+

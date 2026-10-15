@@ -1,0 +1,33 @@
+### 16k chunk 256: kernel-mode trace, 23532 launches
+
+| kernel | M | n x k | calls | us/call | total ms | share | TFLOPS |
+|---|---|---|---:|---:|---:|---:|---:|
+| matmul_pair_bf16_nax | M=256 | 24576x4096 | 2304 | 853 | 1964.8 | 32.1% | 60.44 |
+| attn_prefill_bf16_flash_nax |  |  | 2340 | 837 | 1957.8 | 32.0% | 41.40 |
+| matmul_bf16_nax | M=256 | 4096x12288 | 2304 | 465 | 1071.5 | 17.5% | 55.41 |
+| matmul_bf16_nax | M=256 | 4096x4096 | 4608 | 159 | 730.7 | 11.9% | 54.17 |
+| matmul_pair_bf16_nax | M=256 | 2048x4096 | 2304 | 90 | 206.6 | 3.4% | 47.90 |
+| silu_glu_bf16 |  |  | 2340 | 23 | 54.4 | 0.9% |  |
+| rmsnorm_add_bf16 |  |  | 4680 | 8 | 39.4 | 0.6% |  |
+| qk_norm_rope_kv_bf16 |  |  | 2340 | 16 | 37.5 | 0.6% |  |
+| matmul_pair_bf16_nax | M=194 | 24576x4096 | 36 | 838 | 30.2 | 0.5% | 46.60 |
+| matmul_bf16_nax | M=194 | 4096x12288 | 36 | 445 | 16.0 | 0.3% | 43.88 |
+| matmul_bf16_nax | M=194 | 4096x4096 | 72 | 151 | 10.9 | 0.2% | 43.01 |
+| matmul_pair_bf16_nax | M=194 | 2048x4096 | 36 | 86 | 3.1 | 0.1% | 37.71 |
+| logits_bf16_gemv | M=1 | 151936x4096 | 1 | 2196 | 2.2 | 0.0% | 0.57 |
+| embedding_bf16 |  |  | 65 | 11 | 0.7 | 0.0% |  |
+| rmsnorm_bf16 |  |  | 65 | 6 | 0.4 | 0.0% |  |
+| argmax_f32 |  |  | 1 | 15 | 0.0 | 0.0% |  |
+
+Sum of kernel time 6126.2 ms; first-start to last-end span 10043.2 ms (kernel mode serialises launches, so the span includes host submit latency).
+
+| class | ms | share |
+|---|---:|---:|
+| matmul | 4036.0 | 65.9% |
+| attention | 1957.8 | 32.0% |
+| elementwise/row | 132.4 | 2.2% |
+
+Matmul: 230.30 TFLOP in 4036.0 ms = 57.06 TFLOPS aggregate.
+Attention: 81.06 TFLOP (causal) in 1957.8 ms = 41.40 TFLOPS.
+
+attention ms per chunk (36 layers): c0:2, c1:2, c2:3, c3:4, c4:5, c5:6, c6:7, c7:7, c8:8, c9:9, c10:10, c11:11, c12:12, c13:13, c14:14, c15:15, c16:16, c17:16, c18:17, c19:18, c20:19, c21:20, c22:21, c23:22, c24:23, c25:24, c26:25, c27:26, c28:26, c29:28, c30:28, c31:30, c32:30, c33:31, c34:32, c35:33, c36:34, c37:35, c38:36, c39:36, c40:37, c41:38, c42:39, c43:40, c44:41, c45:42, c46:43, c47:44, c48:45, c49:46, c50:47, c51:47, c52:48, c53:49, c54:50, c55:51, c56:52, c57:53, c58:54, c59:55, c60:55, c61:56, c62:57, c63:58, c64:58

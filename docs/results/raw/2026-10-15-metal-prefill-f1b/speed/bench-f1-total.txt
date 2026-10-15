@@ -1,0 +1,8 @@
+f1 total 4096 chunk 256: flash                           11262.7 us per layer (405.5 ms over 36 layers)   12.21 TFLOPS
+f1 total 4096 chunk 256: nax                              3512.8 us per layer (126.5 ms over 36 layers)   39.13 TFLOPS
+f1 total 4096 chunk 2048: flash                            9840.0 us per layer (354.2 ms over 36 layers)   13.97 TFLOPS
+f1 total 4096 chunk 2048: nax                              3154.2 us per layer (113.6 ms over 36 layers)   43.58 TFLOPS
+f1 total 16384 chunk 256: flash                          178101.6 us per layer (6411.7 ms over 36 layers)   12.35 TFLOPS
+f1 total 16384 chunk 256: nax                             53679.9 us per layer (1932.5 ms over 36 layers)   40.97 TFLOPS
+f1 total 16384 chunk 2048: flash                          158180.2 us per layer (5694.5 ms over 36 layers)   13.90 TFLOPS
+f1 total 16384 chunk 2048: nax                             56455.2 us per layer (2032.4 ms over 36 layers)   38.95 TFLOPS
