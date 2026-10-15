@@ -28,38 +28,38 @@ One cache with random data **everywhere** (also past `pos0 + r`, so reading a ke
 * Serving attention unchanged: `examples/attn_hash` output is identical to the B5 reference `raw/2026-10-14-metal-phase-b/b5/attn_hash-new3.txt` (`final/attn_hash.diff` empty).
 
 ### Timing (`examples/g0b_bench`, 30 rounds, slot #1993)
-Method as G0/gemv_b3: one command buffer with a serial chain of N >= 20 ms of dispatches walking a pool of **distinct** per-layer KV caches (>= 1.5 GiB, so K/V come from DRAM as in a decode step), GPU start/end of the buffer / N, candidates interleaved in rotated order within a round, ratios taken within the round; macmon at 100 ms, rounds whose window shows a GPU clock below 1450 MHz dropped (329 of 330 rounds kept, mean clock 1605-1617 MHz). Context = visible keys of row 0 (`pos0 = ctx - 1`); row r sees ctx + r keys. The sequential column is k back-to-back 1-row launches (cache-warm after the first). "Today's AttnPrefill" is what the registry runs for T = 2..8 now (the flash prefill kernel).
+Method as G0/gemv_b3: one command buffer with a serial chain of N >= 20 ms of dispatches walking a pool of **distinct** per-layer KV caches (>= 1.5 GiB, so K/V come from DRAM as in a decode step), GPU start/end of the buffer / N, candidates interleaved in rotated order within a round, ratios taken within the round; macmon at 100 ms, rounds whose window shows a GPU clock below 1450 MHz dropped (329 of 330 rounds kept, mean clock 1605-1617 MHz). Context = visible keys of row 0 (`pos0 = ctx - 1`); row r sees ctx + r keys. The sequential column is k back-to-back 1-row launches on the same layer's cache (cache-warm after the first launch, so the rows kernel's advantage over sequential launches in a real step is, if anything, understated). "Today's registry pick" is the NAX flash prefill kernel (`attn_prefill_bf16_flash_nax`, priority 12, accepts T >= 2 at head_dim 128), measured in a separate attention-only run (`nax/`, slot #1994, same method); the P2 flash kernel (priority 10) is a little faster than it here (9.2x vs 10.9x T(1) at 4k) and equally flat in k.
 
-| ctx | k | T(1) serving (us) | T(k) rows kernel (us) | T(k)/T(1) [p10-p90] | k sequential 1-row launches / T(1) | today's AttnPrefill (flash) / T(1) |
+| ctx | k | T(1) serving (us) | T(k) rows kernel (us) | T(k)/T(1) [p10-p90] | k sequential 1-row launches / T(1) | today's registry pick (NAX flash prefill) / T(1) |
 |---|---|---|---|---|---|---|
-| 128 | 2 | 8.6 | 10.6 | **1.23** [1.23-1.24] | 2.18 | 1.6 |
+| 128 | 2 | 8.6 | 10.6 | **1.23** [1.23-1.24] | 2.18 | 2.1 |
 | 128 | 3 | 8.6 | 11.4 | **1.33** [1.32-1.34] | - | - |
-| 128 | 4 | 8.6 | 11.7 | **1.36** [1.36-1.37] | 4.32 | 1.7 |
+| 128 | 4 | 8.6 | 11.7 | **1.36** [1.36-1.37] | 4.32 | 2.1 |
 | 128 | 5 | 8.6 | 11.8 | **1.37** [1.37-1.37] | - | - |
 | 128 | 6 | 8.6 | 15.6 | **1.82** [1.81-1.83] | 6.43 | - |
 | 128 | 7 | 8.6 | 15.5 | **1.80** [1.80-1.81] | - | - |
-| 128 | 8 | 8.6 | 17.8 | **2.07** [2.06-2.07] | 8.56 | 1.7 |
-| 1024 | 2 | 14.5 | 25.3 | **1.75** [1.73-1.76] | 2.03 | 6.0 |
+| 128 | 8 | 8.6 | 17.8 | **2.07** [2.06-2.07] | 8.56 | 2.1 |
+| 1024 | 2 | 14.5 | 25.3 | **1.75** [1.73-1.76] | 2.03 | 7.1 |
 | 1024 | 3 | 14.5 | 33.4 | **2.31** [2.29-2.32] | - | - |
-| 1024 | 4 | 14.5 | 36.0 | **2.49** [2.47-2.50] | 4.05 | 6.0 |
+| 1024 | 4 | 14.5 | 36.0 | **2.49** [2.47-2.50] | 4.05 | 7.1 |
 | 1024 | 5 | 14.5 | 39.8 | **2.75** [2.72-2.76] | - | - |
 | 1024 | 6 | 14.5 | 43.2 | **2.98** [2.95-3.00] | 6.05 | - |
 | 1024 | 7 | 14.5 | 48.9 | **3.38** [3.35-3.39] | - | - |
-| 1024 | 8 | 14.5 | 52.6 | **3.63** [3.59-3.66] | 8.07 | 6.0 |
-| 4096 | 2 | 36.4 | 52.1 | **1.44** [1.42-1.46] | 1.78 | 9.2 |
+| 1024 | 8 | 14.5 | 52.6 | **3.63** [3.59-3.66] | 8.07 | 7.1 |
+| 4096 | 2 | 36.4 | 52.1 | **1.44** [1.42-1.46] | 1.78 | 10.9 |
 | 4096 | 3 | 36.4 | 64.9 | **1.79** [1.78-1.80] | - | - |
-| 4096 | 4 | 36.4 | 81.2 | **2.23** [2.22-2.24] | 3.34 | 9.2 |
+| 4096 | 4 | 36.4 | 81.2 | **2.23** [2.22-2.24] | 3.34 | 10.9 |
 | 4096 | 5 | 36.4 | 96.1 | **2.64** [2.62-2.66] | - | - |
 | 4096 | 6 | 36.4 | 113.2 | **3.11** [3.09-3.13] | 4.89 | - |
 | 4096 | 7 | 36.4 | 128.2 | **3.53** [3.50-3.55] | - | - |
-| 4096 | 8 | 36.4 | 145.4 | **4.01** [3.97-4.03] | 6.44 | 9.2 |
-| 16384 | 2 | 122.2 | 178.0 | **1.46** [1.44-1.46] | 1.94 | 10.9 |
+| 4096 | 8 | 36.4 | 145.4 | **4.01** [3.97-4.03] | 6.44 | 10.9 |
+| 16384 | 2 | 122.2 | 178.0 | **1.46** [1.44-1.46] | 1.94 | 13.0 |
 | 16384 | 3 | 122.2 | 240.3 | **1.97** [1.95-1.98] | - | - |
-| 16384 | 4 | 122.2 | 308.9 | **2.52** [2.50-2.54] | 3.80 | 10.9 |
+| 16384 | 4 | 122.2 | 308.9 | **2.52** [2.50-2.54] | 3.80 | 13.0 |
 | 16384 | 5 | 122.2 | 343.1 | **2.80** [2.78-2.82] | - | - |
 | 16384 | 6 | 122.2 | 412.5 | **3.38** [3.35-3.48] | 5.67 | - |
 | 16384 | 7 | 122.2 | 477.6 | **3.92** [3.87-4.07] | - | - |
-| 16384 | 8 | 122.2 | 535.8 | **4.40** [4.34-4.64] | 7.52 | 10.9 |
+| 16384 | 8 | 122.2 | 535.8 | **4.40** [4.34-4.64] | 7.52 | 13.0 |
 
 Reading: the cost of an extra row is about constant, 4.6 us (1k), 15.6 us (4k), 60 us (16k) per layer, i.e. 32 / 43 / 49 percent of T(1). Because T(k) grows almost linearly in k beyond k = 3, I read the kernel as limited by per-row instruction work (online-softmax exp2, the 4-stage shuffle reduction and the accumulator updates are per row and head, and the arithmetic order is fixed by the bitwise requirement) rather than by K/V bytes; this is an inference from the scaling and the two negative experiments below, not a measured profile. Per layer-step the extra cost vs the 1-row call is (T(k) - T(1)) x 36.
 
@@ -162,4 +162,4 @@ At k = 6 and 4k context the attention is already 2.8 of the 3.5 ms added, at 16k
 
 ## 8. fleetq and slot disclosure
 
-Slots (endor, exclusive, 20 GB): #1990 (first full run), #1991 (grid order), #1992 (rows per threadgroup), #1993 (final run: tests, kernels test, bench, align_copy); all released by trap. #1989 was queued behind #1988 (another job of the same owner) and cancelled by me; **cancelling it made the waiting `fleetq acquire --wait` return and my wrapper script ran the 7 attention tests (12 s of small GPU kernels, 09:54:33-09:54:48 EDT) outside a slot while #1988 held endor exclusively**. Nothing was timed in that run and all its results were repeated inside #1990 and #1993, but #1988's own timings in that window may carry a small disturbance. The wrapper now checks that the job is running before it executes anything. DEVELOPER_DIR was exported and asserted in every slot script.
+Slots (endor, exclusive, 20 GB): #1990 (first full run), #1991 (grid order), #1992 (rows per threadgroup), #1993 (final run: tests, kernels test, bench, align_copy), #1994 (attention bench with the NAX flash column); all released by trap. #1989 was queued behind #1988 (another job of the same owner) and cancelled by me; **cancelling it made the waiting `fleetq acquire --wait` return and my wrapper script ran the 7 attention tests (12 s of small GPU kernels, 09:54:33-09:54:48 EDT) outside a slot while #1988 held endor exclusively**. Nothing was timed in that run and all its results were repeated inside #1990 and #1993, but #1988's own timings in that window may carry a small disturbance. The wrapper now checks that the job is running before it executes anything. DEVELOPER_DIR was exported and asserted in every slot script.

@@ -205,6 +205,10 @@ mod imp {
                     for k in [2, 4, 8] {
                         mk(&format!("flash{k}"), k, ATTN_PREFILL_BF16_FLASH, Op::AttnPrefill, 1);
                     }
+                    // what the registry picks for AttnPrefill T = 2..8 today (priority 12, head_dim 128)
+                    for k in [2, 4, 8] {
+                        mk(&format!("nax{k}"), k, ATTN_PREFILL_BF16_FLASH_NAX, Op::AttnPrefill, 1);
+                    }
                     run_set(&be, "attn", ctx, cands, &mut csv);
                 }
             } else {
