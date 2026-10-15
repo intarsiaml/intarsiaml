@@ -8,9 +8,8 @@ under `crates/` and `kernels/` on `metal-d1-fuse` is byte-identical to `spike/me
 history only (a18b8e1 .. 0bc548e) and reverted in 01157c0. **Merge-ready: no (nothing to merge; the branch only adds this doc and raw logs).**
 
 Host endor (Apple M5 Max, 614 GB/s), `/Users/josef/models/Qwen3-8B` BF16, base binary = spike/metal 766c723.
-Raw logs: `docs/results/raw/2026-10-15-metal-decode-d1/`. fleetq: #1921 (traces, unit tests, 48-token identity), #1923 (A/B 1), #1925
-(kernel traces d1c), #1927 or so (A/B 2), #1929 (A/B 3), #1930 (gates), #1931 (base accuracy), #1932 (cargo test metal);
-the exact ids are in the `fleetq: #N` lines of the logs.
+Raw logs: `docs/results/raw/2026-10-15-metal-decode-d1/`. fleetq: #1921 (op traces, unit tests, 48-token identity), #1923 (A/B 1), #1929 (A/B 3), #1930 (gates), #1931 (base accuracy),
+#1932 (cargo test metal); the kernel-trace and A/B 2 slots (between #1923 and #1929) were also taken under label "metal D1".
 
 ## 1. Decode op list (kernel-mode GPU trace, `trace/base-kernel.jsonl.gz`, `trace_sum.py`)
 
