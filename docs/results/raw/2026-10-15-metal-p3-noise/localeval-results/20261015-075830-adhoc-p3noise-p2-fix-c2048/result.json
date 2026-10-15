@@ -1,0 +1,256 @@
+{
+ "run_id": "20261015-075830-adhoc-p3noise-p2-fix-c2048",
+ "kind": "speed",
+ "label": "p3noise-p2-fix-c2048",
+ "started_at": "2026-10-15T07:58:30-04:00",
+ "finished_at": "2026-10-15T08:00:04-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://127.0.0.1:8093/v1",
+  "model": "intarsia-metal",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.2.1",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096,4108 --gen 256 --reps 3 --thinking off --label p3noise-p2-fix-c2048",
+  "git": "69c7a84"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia-metal"
+   ],
+   "root": "Qwen3-8B",
+   "owned_by": "intarsia",
+   "max_model_len": 8192
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 112,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.051,
+     "min": 0.051,
+     "max": 0.051,
+     "n": 3,
+     "spread_pct": 1.9
+    },
+    "prefill_tok_s": {
+     "median": 2097.189,
+     "min": 2061.725,
+     "max": 2136.974,
+     "n": 3,
+     "spread_pct": 3.6
+    },
+    "decode_tok_s": {
+     "median": 36.843,
+     "min": 36.522,
+     "max": 36.861,
+     "n": 3,
+     "spread_pct": 0.9
+    },
+    "peak_decode_tok_s": {
+     "median": 37.0,
+     "min": 36.9,
+     "max": 37.1,
+     "n": 3,
+     "spread_pct": 0.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 992,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.253,
+     "min": 0.252,
+     "max": 0.253,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "prefill_tok_s": {
+     "median": 3908.6,
+     "min": 3905.176,
+     "max": 3911.125,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "decode_tok_s": {
+     "median": 36.497,
+     "min": 36.39,
+     "max": 36.594,
+     "n": 3,
+     "spread_pct": 0.6
+    },
+    "peak_decode_tok_s": {
+     "median": 36.7,
+     "min": 36.6,
+     "max": 36.7,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 5,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 4356.4,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4088,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 1.092,
+     "min": 1.074,
+     "max": 1.098,
+     "n": 3,
+     "spread_pct": 2.1
+    },
+    "prefill_tok_s": {
+     "median": 3739.244,
+     "min": 3720.245,
+     "max": 3799.283,
+     "n": 3,
+     "spread_pct": 2.1
+    },
+    "decode_tok_s": {
+     "median": 35.487,
+     "min": 35.414,
+     "max": 35.532,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "peak_decode_tok_s": {
+     "median": 35.7,
+     "min": 35.6,
+     "max": 35.7,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 5,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3690.1
+   },
+   {
+    "target_prompt_tokens": 4108,
+    "prompt_tokens": 4113,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 1.142,
+     "min": 1.129,
+     "max": 1.147,
+     "n": 3,
+     "spread_pct": 1.6
+    },
+    "prefill_tok_s": {
+     "median": 3595.095,
+     "min": 3582.28,
+     "max": 3639.766,
+     "n": 3,
+     "spread_pct": 1.6
+    },
+    "decode_tok_s": {
+     "median": 35.464,
+     "min": 35.416,
+     "max": 35.474,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 35.6,
+     "min": 35.6,
+     "max": 35.6,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 5,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 500.0
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia-metal",
+  "activity_checks": {
+   "idle": 13,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

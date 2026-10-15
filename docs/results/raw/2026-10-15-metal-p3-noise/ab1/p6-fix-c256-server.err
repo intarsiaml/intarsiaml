@@ -1,0 +1,55 @@
+1792064965.490 prefill chunk 256 (--prefill-chunk)
+1792065003.424 admission on plan shapes: 14 kernel(s) checked, 0 case(s) run, 201 cached
+1792065003.515 loaded Qwen3-8B on metal (Apple M5 Max) in 38.1s, context 8192 tokens
+1792065003.515 intarsia server listening on http://127.0.0.1:8093
+1792065005.578 [prefill-trace] plen 4326 pos0 0 wall 1536 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 1/1 198/0 65/0 66/0 67/0 68/0 69/0 69/0 70/0 71/0 72/0 74/0 93/0 105/0 112/0 113/0
+1792065007.035 [prefill-trace] plen 4075 pos0 3 wall 1454 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 87/0 86/0 87/0 87/0 87/0 88/0 89/0 90/0 91/0 91/0 93/0 94/0 94/0 96/0
+1792065008.304 [prefill-trace] plen 4090 pos0 3 wall 1266 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 80/0 81/0 81/0 73/0 73/0 74/0 75/0 76/0 77/0 78/0 79/0 81/0 82/0 83/0
+1792065009.597 [prefill-trace] plen 4089 pos0 3 wall 1290 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 72/0 81/0 87/0 78/0 77/0 78/0 78/0 80/0 80/0 82/0 83/0 84/0 85/0
+1792065010.986 [prefill-trace] plen 4341 pos0 3 wall 1386 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 73/0 73/0 74/0 77/0 77/0 78/0 79/0 80/0 81/0 82/0 84/0 85/0 86/0 87/0 88/0
+1792065012.336 [prefill-trace] plen 4089 pos0 3 wall 1346 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 75/0 74/0 75/0 77/0 78/0 79/0 80/0 83/0 95/0 85/0 84/0 84/0 85/0 89/0
+1792065013.854 [prefill-trace] plen 4103 pos0 3 wall 1515 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 85/0 86/0 86/0 87/0 87/0 88/0 89/0 90/0 91/0 91/0 92/0 94/0 94/0 95/0 96/0
+1792065015.344 [prefill-trace] plen 4348 pos0 3 wall 1487 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 76/0 77/0 79/0 81/0 82/0 84/0 86/0 87/0 89/0 89/0 90/0 92/0 93/0 93/0 95/0
+1792065016.661 [prefill-trace] plen 4096 pos0 3 wall 1313 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 79/0 79/0 81/0 82/0 83/0 84/0 85/0 86/0 87/0 81/0 78/0 79/0 80/0 81/0
+1792065017.988 [prefill-trace] plen 4111 pos0 3 wall 1324 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 71/0 72/0 73/0 74/0 76/0 77/0 78/0 79/0 80/0 82/0 83/0 84/0 86/0 87/0
+1792065019.362 [prefill-trace] plen 4110 pos0 3 wall 1371 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 71/0 72/0 74/0 76/0 77/0 79/0 84/0 94/0 90/0 84/0 85/0 85/0 86/0 87/0
+1792065020.891 [prefill-trace] plen 4353 pos0 3 wall 1525 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 71/0 74/0 84/0 87/0 90/0 91/0 92/0 93/0 94/0 94/0 95/0 96/0 97/0 98/0
+1792065022.378 [prefill-trace] plen 4101 pos0 3 wall 1483 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 81/0 81/0 83/0 83/0 85/0 86/0 87/0 88/0 89/0 90/0 91/0 92/0 94/0 94/0 95/0
+1792065023.834 [prefill-trace] plen 4116 pos0 3 wall 1454 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 76/0 77/0 79/0 81/0 82/0 84/0 85/0 87/0 88/0 90/0 91/0 92/0 93/0 93/0 95/0
+1792065025.230 [prefill-trace] plen 4115 pos0 3 wall 1393 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 75/0 76/0 79/0 80/0 81/0 83/0 84/0 86/0 88/0 88/0 90/0 90/0 85/0 81/0 82/0
+1792065026.619 [prefill-trace] plen 4383 pos0 4 wall 1387 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 68/0 68/0 70/0 71/0 73/0 74/0 75/0 77/0 78/0 80/0 80/0 82/0 83/0 84/0 85/0 87/0
+1792065027.955 [prefill-trace] plen 4129 pos0 3 wall 1332 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 71/0 72/0 73/0 75/0 77/0 78/0 80/0 80/0 82/0 83/0 84/0 85/0 86/0 87/0
+1792065029.314 [prefill-trace] plen 4144 pos0 3 wall 1355 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 71/0 72/0 74/0 75/0 77/0 78/0 80/0 80/0 90/0 96/0 88/0 84/0 85/0 86/0
+1792065030.760 [prefill-trace] plen 4143 pos0 3 wall 1442 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 70/0 72/0 73/0 74/0 84/0 88/0 91/0 92/0 93/0 93/0 94/0 94/0 95/0 96/0
+1792065032.127 [prefill-trace] plen 4089 pos0 3 wall 1364 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 75/0 76/0 78/0 79/0 82/0 83/0 85/0 85/0 87/0 88/0 89/0 89/0 90/0 91/0
+1792065033.486 [prefill-trace] plen 4089 pos0 3 wall 1356 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 77/0 78/0 79/0 80/0 81/0 82/0 83/0 84/0 85/0 86/0 87/0 88/0 90/0 90/0
+1792065034.779 [prefill-trace] plen 4110 pos0 3 wall 1290 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 77/0 77/0 72/0 70/0 71/0 72/0 73/0 75/0 76/0 77/0 78/0 79/0 81/0 82/0 83/0
+1792065036.087 [prefill-trace] plen 4103 pos0 3 wall 1304 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 69/0 69/0 70/0 71/0 73/0 75/0 76/0 77/0 78/0 80/0 81/0 82/0 83/0 84/0 86/0
+1792065037.367 [prefill-trace] plen 4089 pos0 3 wall 1276 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 70/0 72/0 73/0 75/0 76/0 77/0 79/0 80/0 81/0 82/0 83/0 85/0 86/0
+1792065038.734 [prefill-trace] plen 4115 pos0 3 wall 1365 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 76/0 73/0 74/0 75/0 75/0 77/0 78/0 79/0 80/0 81/0 82/0 83/0 84/0 85/0 93/0
+1792065040.218 [prefill-trace] plen 4143 pos0 3 wall 1480 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 80/0 81/0 82/0 84/0 85/0 86/0 87/0 89/0 89/0 90/0 91/0 92/0 93/0 94/0 95/0
+1792065041.655 [prefill-trace] plen 4110 pos0 4 wall 1435 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 75/0 76/0 78/0 80/0 81/0 83/0 84/0 86/0 87/0 88/0 89/0 90/0 91/0 92/0 93/0
+1792065043.016 [prefill-trace] plen 4143 pos0 3 wall 1358 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 74/0 75/0 77/0 78/0 80/0 82/0 83/0 85/0 86/0 87/0 80/0 79/0 80/0 81/0 82/0
+1792065044.331 [prefill-trace] plen 4115 pos0 3 wall 1312 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 69/0 69/0 71/0 72/0 73/0 74/0 76/0 78/0 79/0 80/0 82/0 83/0 84/0 85/0 86/0
+1792065045.627 [prefill-trace] plen 4089 pos0 3 wall 1292 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 71/0 72/0 74/0 76/0 77/0 79/0 81/0 82/0 83/0 84/0 86/0 87/0 88/0
+1792065047.012 [prefill-trace] plen 4103 pos0 3 wall 1382 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 75/0 75/0 76/0 77/0 78/0 79/0 81/0 81/0 82/0 84/0 88/0 86/0 87/0 87/0 89/0
+1792065048.513 [prefill-trace] plen 4103 pos0 3 wall 1497 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 72/0 73/0 76/0 88/0 90/0 93/0 94/0 94/0 95/0 95/0 96/0 97/0 98/0 98/0
+1792065049.935 [prefill-trace] plen 4089 pos0 3 wall 1419 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 77/0 79/0 81/0 83/0 85/0 86/0 88/0 89/0 90/0 91/0 92/0 93/0 94/0 95/0
+1792065051.406 [prefill-trace] plen 4110 pos0 3 wall 1469 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 81/0 81/0 82/0 83/0 85/0 86/0 86/0 88/0 89/0 90/0 91/0 92/0 93/0 94/0 95/0
+1792065052.756 [prefill-trace] plen 4143 pos0 4 wall 1345 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 68/0 68/0 70/0 71/0 73/0 74/0 75/0 77/0 78/0 80/0 81/0 82/0 84/0 93/0 100/0
+1792065054.096 [prefill-trace] plen 4115 pos0 3 wall 1337 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 74/0 71/0 72/0 73/0 74/0 76/0 77/0 78/0 81/0 82/0 83/0 84/0 86/0 86/0 88/0
+1792065055.484 [prefill-trace] plen 4103 pos0 3 wall 1385 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 71/0 73/0 75/0 77/0 78/0 79/0 82/0 82/0 84/0 85/0 86/0 87/0 88/0 95/0
+1792065056.972 [prefill-trace] plen 4143 pos0 3 wall 1485 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 72/0 74/0 76/0 77/0 79/0 81/0 82/0 94/0 100/0 101/0 102/0 101/0 101/0 101/0
+1792065058.480 [prefill-trace] plen 4110 pos0 3 wall 1505 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 80/0 81/0 83/0 84/0 86/0 89/0 89/0 90/0 91/0 92/0 93/0 94/0 95/0 96/0 97/0
+1792065059.890 [prefill-trace] plen 4089 pos0 3 wall 1407 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 77/0 78/0 80/0 82/0 83/0 86/0 87/0 88/0 89/0 91/0 92/0 93/0 94/0 95/0
+1792065061.223 [prefill-trace] plen 4115 pos0 3 wall 1330 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 80/0 81/0 75/0 72/0 73/0 74/0 75/0 77/0 78/0 79/0 81/0 82/0 83/0 85/0 85/0
+1792065062.512 [prefill-trace] plen 4089 pos0 3 wall 1285 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 71/0 72/0 74/0 76/0 77/0 78/0 80/0 81/0 83/0 84/0 85/0 87/0 87/0
+1792065063.940 [prefill-trace] plen 4110 pos0 3 wall 1425 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 74/0 75/0 76/0 77/0 78/0 81/0 93/0 96/0 97/0 97/0 89/0 84/0 85/0 85/0 87/0
+1792065065.359 [prefill-trace] plen 4103 pos0 3 wall 1415 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 70/0 71/0 73/0 74/0 77/0 77/0 79/0 80/0 82/0 83/0 84/0 89/0 97/0 102/0 103/0
+1792065066.871 [prefill-trace] plen 4115 pos0 3 wall 1509 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 81/0 81/0 84/0 85/0 86/0 88/0 89/0 90/0 91/0 92/0 93/0 94/0 95/0 96/0 97/0
+1792065068.348 [prefill-trace] plen 4143 pos0 3 wall 1474 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 77/0 78/0 80/0 82/0 84/0 85/0 87/0 88/0 90/0 90/0 91/0 92/0 94/0 95/0 96/0
+1792065069.664 [prefill-trace] plen 4089 pos0 3 wall 1313 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 76/0 77/0 79/0 81/0 83/0 84/0 84/0 76/0 82/0 89/0 86/0 80/0 81/0 82/0
+1792065071.004 [prefill-trace] plen 4103 pos0 4 wall 1337 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 71/0 72/0 74/0 75/0 76/0 78/0 79/0 80/0 82/0 83/0 84/0 85/0 86/0 87/0
+1792065072.373 [prefill-trace] plen 4110 pos0 5 wall 1365 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 71/0 71/0 74/0 75/0 76/0 78/0 80/0 81/0 83/0 84/0 85/0 86/0 87/0 88/0 89/0
+1792065073.784 [prefill-trace] plen 4143 pos0 4 wall 1406 ms, engine-thread cpu 5 ms; per-chunk wall/cpu ms: 0/0 72/0 72/0 74/0 76/0 77/0 79/0 81/0 82/0 83/0 85/0 85/0 97/0 101/0 88/0 89/0
+1792065075.312 [prefill-trace] plen 4115 pos0 3 wall 1525 ms, engine-thread cpu 4 ms; per-chunk wall/cpu ms: 0/0 82/0 83/0 85/0 87/0 88/0 89/0 90/0 91/0 92/0 93/0 94/0 95/0 96/0 97/0 98/0
