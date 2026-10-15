@@ -1,0 +1,15 @@
+1792062284.519 prefill chunk 2048 (--prefill-chunk)
+1792062320.654 admission on plan shapes: 15 kernel(s) checked, 201 case(s) run, 0 cached
+1792062320.771 loaded Qwen3-8B on metal (Apple M5 Max) in 36.3s, context 8192 tokens
+1792062320.772 intarsia server listening on http://127.0.0.1:8093
+1792062323.129 [prefill-trace] wall 1354 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 
+1792062324.297 [prefill-trace] wall 1162 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0 493/0
+1792062324.349 [prefill-trace] wall 51 ms, engine-thread cpu 0 ms; per-chunk wall/cpu ms: 
+1792062331.487 [prefill-trace] wall 55 ms, engine-thread cpu 0 ms; per-chunk wall/cpu ms: 
+1792062338.596 [prefill-trace] wall 55 ms, engine-thread cpu 0 ms; per-chunk wall/cpu ms: 
+1792062345.928 [prefill-trace] wall 261 ms, engine-thread cpu 0 ms; per-chunk wall/cpu ms: 
+1792062353.335 [prefill-trace] wall 270 ms, engine-thread cpu 0 ms; per-chunk wall/cpu ms: 
+1792062360.938 [prefill-trace] wall 289 ms, engine-thread cpu 0 ms; per-chunk wall/cpu ms: 
+1792062369.668 [prefill-trace] wall 1510 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792062378.584 [prefill-trace] wall 1439 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0
+1792062387.501 [prefill-trace] wall 1502 ms, engine-thread cpu 1 ms; per-chunk wall/cpu ms: 0/0

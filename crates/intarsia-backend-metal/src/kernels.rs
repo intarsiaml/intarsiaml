@@ -417,7 +417,9 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(10),
-                // NAX GEMM (metal4.0 library): M >= NAX_MIN_M so the 16-row accelerator tiles are not mostly padding; any K
+                // NAX GEMM (metal4.0 library): M >= NAX_MIN_M (2: M = 1 is the decode GEMV's). A prompt's short tail chunk (2..15 rows)
+                // runs here too, not on the tiled GEMM (181 ms against 21 + 20 ms per 4k prompt tail of 11 rows, and a row then
+                // gets the same bits whatever chunk it lands in: docs/results/2026-10-15-metal-p3-noise.md); any K
                 // (the primitive zero-fills a K tail, tests/gemm_nax.rs `nax_k_tails`). Priority 5: above the tiled GEMM
                 // (0) and below the GEMV-class kernels (10, which only take M == 1). Hidden when the metal4.0 library did
                 // not load, then the tiled GEMM runs.

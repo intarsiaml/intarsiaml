@@ -42,8 +42,10 @@ pub const NAX_VARIANTS: &[NaxVariant] = &[
     NaxVariant { shader: "gemm_nax_t64x64w2", pair_shader: "gemm_nax_pair_t64x64w2", bm: 64, bn: 64, sg: 2 },
 ];
 
-/// Smallest M the NAX kernels are registered for (below it the GEMV / tiled GEMM run).
-pub const NAX_MIN_M: usize = 16;
+/// Smallest M the NAX kernels are registered for (M = 1 is the decode GEMV's). Tails of 2..15 rows are mostly padding in a
+/// 16-row accelerator tile but the call is weight-bandwidth bound, so it is far cheaper than the tiled GEMM (which streams
+/// the weights at about a tenth of the bandwidth) and keeps a row's bits independent of the chunk it lands in.
+pub const NAX_MIN_M: usize = 2;
 /// The 128x64 tile is used for M >= `NAX_BIG_TILE_MIN_M` when it still leaves at least this many threadgroups (40 GPU
 /// cores; with fewer, the 64x64 tile's finer grid wins; for M < 128 the second 64 rows of a 128-row tile are padding).
 /// Measured per shape and M in docs/results/raw/2026-10-14-metal-prefill-p1/full/bench-pick.txt.

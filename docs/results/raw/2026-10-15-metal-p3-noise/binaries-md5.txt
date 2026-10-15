@@ -1,0 +1,4 @@
+MD5 (/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-fix) = 548bc7305b1ec8dd6961189d291ee932
+MD5 (/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/final/intarsia-cand) = 0db48d81362233c9c8c44d69d9d092bf
+MD5 (/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-trace2) = b722de6e24b13cebc5e7fbbd02a5fb43
+MD5 (/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-fix-trace) = 1f5f999d76b808f74557c89e4aec64f6
