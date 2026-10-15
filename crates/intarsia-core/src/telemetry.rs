@@ -80,6 +80,11 @@ pub struct TelemetrySnapshot {
     pub decode_eager_steps: u64,
     /// The subset of `decode_eager_steps` that ran with per-op profiling, which synchronises around every op.
     pub decode_profiled_steps: u64,
+    /// Speculative decoding (`--spec`): verify passes run, draft tokens proposed to them, and drafts accepted.
+    /// Acceptance rate = accepted / proposed; tokens per verify pass = (steps + accepted) / steps.
+    pub spec_steps: u64,
+    pub spec_proposed: u64,
+    pub spec_accepted: u64,
 
     /// Per-op cumulative time and call counts, keyed by op id (`rmsnorm`, `matmul`, ...).
     pub ops: BTreeMap<String, OpStat>,
@@ -115,6 +120,9 @@ pub struct Telemetry {
     graph_captures: AtomicU64,
     decode_eager: AtomicU64,
     decode_profiled: AtomicU64,
+    spec_steps: AtomicU64,
+    spec_proposed: AtomicU64,
+    spec_accepted: AtomicU64,
     inner: Mutex<Inner>,
     /// Tensor-parallel all-reduces (reported in the snapshot's `ops` under `all_reduce`).
     comm: Mutex<OpStat>,
@@ -153,6 +161,9 @@ impl Telemetry {
             graph_captures: AtomicU64::new(0),
             decode_eager: AtomicU64::new(0),
             decode_profiled: AtomicU64::new(0),
+            spec_steps: AtomicU64::new(0),
+            spec_proposed: AtomicU64::new(0),
+            spec_accepted: AtomicU64::new(0),
             inner: Mutex::new(Inner {
                 model: String::new(),
                 device: None,
@@ -195,6 +206,13 @@ impl Telemetry {
         if profiled {
             self.decode_profiled.fetch_add(1, Ordering::Relaxed);
         }
+    }
+
+    /// One speculative verify pass: `proposed` drafts verified, `accepted` of them taken.
+    pub fn spec_step(&self, proposed: usize, accepted: usize) {
+        self.spec_steps.fetch_add(1, Ordering::Relaxed);
+        self.spec_proposed.fetch_add(proposed as u64, Ordering::Relaxed);
+        self.spec_accepted.fetch_add(accepted as u64, Ordering::Relaxed);
     }
 
     pub fn steps_total(&self) -> u64 {
@@ -316,6 +334,9 @@ impl Telemetry {
             graph_captures: self.graph_captures.load(Ordering::Relaxed),
             decode_eager_steps: self.decode_eager.load(Ordering::Relaxed),
             decode_profiled_steps: self.decode_profiled.load(Ordering::Relaxed),
+            spec_steps: self.spec_steps.load(Ordering::Relaxed),
+            spec_proposed: self.spec_proposed.load(Ordering::Relaxed),
+            spec_accepted: self.spec_accepted.load(Ordering::Relaxed),
             ops: {
                 let mut ops: BTreeMap<String, OpStat> = g.ops.iter().map(|(k, v)| (k.as_str().to_string(), v.clone())).collect();
                 let c = self.comm.lock().unwrap().clone();

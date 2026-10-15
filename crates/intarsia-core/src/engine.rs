@@ -350,6 +350,9 @@ pub struct EngineMeta {
     pub eos_ids: Vec<u32>,
     pub reasoning_parser: Option<String>,
     pub tool_parser: Option<String>,
+    /// Speculative decoding (`--spec`; default off). On needs `Model::enable_verify` before the plan is configured
+    /// (`intarsia_models::load_engine` does both, and only on the Metal backend).
+    pub spec: crate::spec::SpecConfig,
 }
 
 struct Inner {
@@ -362,6 +365,7 @@ struct Shared {
     telemetry: Arc<Telemetry>,
     codec: Arc<dyn TextCodec>,
     eos: Vec<u32>,
+    spec: crate::spec::SpecConfig,
     /// Set when the worker panicked: the engine accepts no more work.
     failed: Mutex<Option<String>>,
 }
@@ -413,6 +417,20 @@ impl LocalEngine {
         telemetry: Arc<Telemetry>,
     ) -> Result<LocalEngine> {
         let state = model.new_state()?;
+        if meta.spec.enabled() {
+            if model.verify_rows() < meta.spec.verify_rows() {
+                return Err(Error::invalid(format!(
+                    "speculative decoding with k = {} needs verify passes of {} rows; the model was prepared for {} \
+                     (Model::enable_verify before configure_plan)",
+                    meta.spec.k,
+                    meta.spec.verify_rows(),
+                    model.verify_rows()
+                )));
+            }
+            if state.has_recurrent() {
+                return Err(Error::Unsupported("speculative decoding on a model with recurrent state".into()));
+            }
+        }
         let dinfo = model.backend.info();
         let info = ModelInfo {
             id: meta.id.clone(),
@@ -452,6 +470,7 @@ impl LocalEngine {
             telemetry,
             codec,
             eos: meta.eos_ids,
+            spec: meta.spec,
             failed: Mutex::new(None),
         });
         let (tx, rx) = channel::<Job>();
@@ -661,6 +680,49 @@ fn common_prefix(a: &[u32], b: &[u32]) -> usize {
     a.iter().zip(b).take_while(|(x, y)| x == y).count()
 }
 
+/// What one speculative verify pass yields.
+struct SpecStep {
+    /// Tokens to emit, in order (`d_1..d_j` and the token greedy decode picks after them, or only `d_1..d_j` when
+    /// `plain_next`).
+    emit: Vec<u32>,
+    /// Drafts accepted.
+    accepted: usize,
+    /// The token after `emit` must come from a plain (masked) step.
+    plain_next: bool,
+}
+
+/// One verify pass over `[last, drafts...]` at `st.len` (token `generated + 1` is row 0's), greedy acceptance, KV
+/// rollback of the rejected rows. Inside the `min_tokens` window the sequential path masks the stop ids before its
+/// (host) argmax; a row there whose device argmax is not a stop id has the same argmax under the mask (both take the
+/// lowest index of the maximum), one whose argmax is a stop id ends the pass before that row and leaves its token to
+/// a plain step.
+fn spec_verify(
+    model: &Model,
+    st: &mut SequenceState,
+    last: u32,
+    drafts: &[u32],
+    generated: usize,
+    min_tokens: usize,
+    stop_ids: &[u32],
+) -> Result<SpecStep> {
+    let len0 = st.len;
+    let mut ids = Vec::with_capacity(1 + drafts.len());
+    ids.push(last);
+    ids.extend_from_slice(drafts);
+    let out = model.forward_verify(st, &ids)?;
+    let j = crate::spec::accept(drafts, &out);
+    let masked_stop =
+        (0..=j).find(|&i| generated + 1 + i <= min_tokens && !stop_ids.is_empty() && stop_ids.contains(&out[i]));
+    let step = match masked_stop {
+        // rows 0..i emitted d_1..d_i; row i (fed d_i) is recomputed by the plain step, so its KV row goes too
+        Some(i) => SpecStep { emit: out[..i].to_vec(), accepted: i, plain_next: true },
+        None => SpecStep { emit: out[..=j].to_vec(), accepted: j, plain_next: false },
+    };
+    let keep = len0 + if step.plain_next { step.accepted } else { step.accepted + 1 };
+    st.truncate(keep, &*model.backend)?;
+    Ok(step)
+}
+
 fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEvent>) -> Result<Outcome> {
     let Inner { model, state: st } = g;
     let plen = req.prompt.len();
@@ -782,8 +844,22 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
     let mut reason;
     let mut string_stop = false;
     let mut last_id = tok;
+    // Speculative decoding (greedy only: sampled requests, logit tracing and recurrent state take plain steps). A
+    // verify pass yields several tokens; they wait in `pending` and go through the same per-token checks below, so
+    // EOS / stop ids, stop strings, min_tokens and max_tokens act on them exactly as on sequential tokens.
+    let spec = sh.spec;
+    let spec_on = spec.enabled() && greedy && req.trace_logits.is_none() && !st.has_recurrent() && model.verify_rows() >= 2;
+    let spec_k = spec.k.min(model.verify_rows().saturating_sub(1));
+    let mut pending: std::collections::VecDeque<u32> = std::collections::VecDeque::new();
+    // the next token must come from a plain step (a verify row inside the min_tokens mask chose a stop id)
+    let mut plain_next = false;
+    // prompt + tokens so far: the drafter's lookup context
+    let mut ctx: Vec<u32> = if spec_on { req.prompt.clone() } else { Vec::new() };
     loop {
         generated += 1;
+        if spec_on {
+            ctx.push(tok);
+        }
         if stop_ids.contains(&tok) {
             reason = FinishReason::Stop;
             break;
@@ -811,7 +887,54 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
             reason = FinishReason::Cancelled;
             break;
         }
+        if let Some(t) = pending.pop_front() {
+            tok = t;
+            continue;
+        }
+        if spec_on && !std::mem::take(&mut plain_next) {
+            // verify feeds 1 + d tokens: keep them inside the context window
+            let room = st.cap.saturating_sub(st.len + 1);
+            let drafts = crate::spec::propose(&ctx, spec_k.min(room));
+            if !drafts.is_empty() {
+                let pos = st.len;
+                let step = spec_verify(model, st, tok, &drafts, generated, req.min_tokens, &stop_ids)?;
+                sh.telemetry.spec_step(drafts.len(), step.accepted);
+                if crate::spec::trace_enabled() {
+                    eprintln!(
+                        "spec: token {} pos {} drafted {} accepted {} emits {}{}",
+                        generated + 1,
+                        pos,
+                        drafts.len(),
+                        step.accepted,
+                        step.emit.len(),
+                        if step.plain_next { " (min_tokens cut: next token by a plain step)" } else { "" }
+                    );
+                }
+                pending.extend(step.emit);
+                plain_next = step.plain_next;
+                if let Some(t) = pending.pop_front() {
+                    tok = t;
+                    continue;
+                }
+            }
+        }
         tok = pick(model, st, &[tok], generated + 1, &mut sampler)?;
+    }
+    if spec_on {
+        // A stop inside an accepted run leaves KV rows of tokens that were never emitted: roll back to what sequential
+        // decode holds at this point (every emitted token but the last fed), so a following request reuses the same
+        // prefix and prefills the same chunks.
+        let want = plen + generated - 1;
+        if crate::spec::trace_enabled() && (!pending.is_empty() || st.len > want) {
+            eprintln!(
+                "spec: finished at token {generated} with {} verified tokens unemitted; KV {} -> {want}",
+                pending.len(),
+                st.len
+            );
+        }
+        if st.len > want {
+            st.truncate(want, &*model.backend)?;
+        }
     }
     if reason != FinishReason::Cancelled && !string_stop {
         // release anything still held back: partial UTF-8 and possible stop-string prefixes

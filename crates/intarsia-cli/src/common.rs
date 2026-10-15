@@ -86,6 +86,14 @@ pub struct ModelArgs {
     /// Only admitted kernels are selectable (set by `serve`).
     #[arg(skip)]
     pub require_admitted: bool,
+    /// Speculative decoding: `off` (default) or `ngram` (prompt lookup over prompt + generated ids, verified in one
+    /// multi-row pass whose rows are bitwise the sequential decode steps). Metal only; greedy requests only (sampled
+    /// requests fall back to plain decode).
+    #[arg(long, default_value = "off")]
+    pub spec: String,
+    /// Most draft tokens per verify pass with `--spec ngram` (1..=6).
+    #[arg(long, default_value_t = intarsia_core::spec::SPEC_K_DEFAULT)]
+    pub spec_k: usize,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -213,6 +221,7 @@ impl ModelArgs {
                 cache_dir: None,
                 no_cache: self.no_admission_cache,
             },
+            spec: intarsia_core::spec::SpecConfig::parse(&self.spec, self.spec_k).map_err(|e| anyhow::anyhow!("{e}"))?,
         })
     }
 
