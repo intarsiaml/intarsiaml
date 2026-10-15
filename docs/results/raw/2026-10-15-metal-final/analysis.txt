@@ -1,0 +1,38 @@
+| run | run id | prompt tok (128/1k/4k) | decode 128 | decode 1k | decode 4k | marginal prefill 1k | marginal prefill 4k | prefill tok/s 1k | prefill tok/s 4k |
+|---|---|---|---|---|---|---|---|---|---|
+| final-safe-1 | 20261015-024254-adhoc-final-safe-1 | 113/991/4089 | 36.7 (36.7-36.9) | 36.6 (36.4-36.6) | 35.6 (35.6-35.7) | 4084 | 2761 | 3697 (3684-3700) | 2939 (2686-3455) |
+| final-cand-1 | 20261015-024446-adhoc-final-cand-1 | 132/990/4088 | 36.8 (36.7-37.0) | 36.4 (36.3-36.6) | 35.5 (35.5-35.6) | 3813 | 2436 | 3517 (3468-3567) | 2630 (2629-2655) |
+| final-mlx-lm | 20261015-024608-adhoc-final-mlx-lm | 112/991/4089 | 34.5 (34.4-34.5) | 34.0 (33.9-34.0) | 32.7 (32.7-32.7) | 4309 | 3244 | 2319 (2238-2319) | 2958 (2886-3062) |
+| final-llamacpp | 20261015-024739-adhoc-final-llamacpp | 110/990/4091 | 35.4 (35.3-35.4) | 35.1 (35.1-35.1) | 34.0 (33.9-34.0) | 2885 | 1897 | 2503 (2382-2530) | 2013 (1930-2115) |
+| final-cand-2 | 20261015-024937-adhoc-final-cand-2 | 115/990/4088 | 36.8 (36.7-36.9) | 36.6 (36.6-36.6) | 35.6 (35.4-35.7) | 4353 | 3902 | 3903 (3896-3909) | 3904 (3451-3927) |
+| final-safe-2 | 20261015-025128-adhoc-final-safe-2 | 135/988/4087 | 36.7 (36.6-37.0) | 36.6 (36.6-36.6) | 35.6 (35.3-35.7) | 4024 | 3490 | 3680 (3674-3690) | 3535 (3271-3546) |
+
+## SAFE (mean of two runs)
+prefill 1k: marginal 4054 = 94.1% mlx-lm (4309), 140.5% llama.cpp (2885); prefill tok/s 3688 = 159.1% mlx (2319), 147.4% llama (2503)
+prefill 4k: marginal 3126 = 96.3% mlx-lm (3244), 164.8% llama.cpp (1897); prefill tok/s 3237 = 109.5% mlx (2958), 160.8% llama (2013)
+decode 128: 36.68 = 90.3% floor, 106.3% mlx (34.5), 103.6% llama (35.4)
+decode 1k: 36.61 = 90.2% floor, 107.8% mlx (34.0), 104.3% llama (35.1)
+decode 4k: 35.63 = 87.7% floor, 109.0% mlx (32.7), 104.9% llama (34.0)
+drift 128: decode 36.7->36.7 (-0.1%)
+drift 1k: decode 36.6->36.6 (-0.0%); marginal prefill 4084->4024 (-1.5%); prefill tok/s 3697->3680 (-0.5%)
+drift 4k: decode 35.6->35.6 (-0.0%); marginal prefill 2761->3490 (+26.4%); prefill tok/s 2939->3535 (+20.3%)
+## CAND (mean of two runs)
+prefill 1k: marginal 4083 = 94.8% mlx-lm (4309), 141.5% llama.cpp (2885); prefill tok/s 3710 = 160.0% mlx (2319), 148.2% llama (2503)
+prefill 4k: marginal 3169 = 97.7% mlx-lm (3244), 167.1% llama.cpp (1897); prefill tok/s 3267 = 110.5% mlx (2958), 162.3% llama (2013)
+decode 128: 36.79 = 90.6% floor, 106.6% mlx (34.5), 103.9% llama (35.4)
+decode 1k: 36.54 = 90.0% floor, 107.6% mlx (34.0), 104.1% llama (35.1)
+decode 4k: 35.55 = 87.6% floor, 108.8% mlx (32.7), 104.6% llama (34.0)
+drift 128: decode 36.8->36.8 (-0.0%)
+drift 1k: decode 36.4->36.6 (+0.5%); marginal prefill 3813->4353 (+14.2%); prefill tok/s 3517->3903 (+11.0%)
+drift 4k: decode 35.5->35.6 (+0.1%); marginal prefill 2436->3902 (+60.2%); prefill tok/s 2630->3904 (+48.4%)
+
+## Marginal prefill bounds (per-rep TTFT is not stored by localeval, only min/median/max, so the range is the extreme bound:
+## dtok / (ttft_max[i] - ttft_min[i-1]) .. dtok / (ttft_min[i] - ttft_max[i-1]); the median column is the localeval figure)
+| run | marginal 1k median (bound) | marginal 4k median (bound) |
+|---|---|---|
+| final-safe-1 | 4084 (4084-4262) | 2761 (2472-3386) |
+| final-cand-1 | 3813 (3698-3900) | 2436 (2424-2470) |
+| final-mlx-lm | 4309 (3977-5052) | 3244 (3132-3465) |
+| final-llamacpp | 2885 (2708-3034) | 1897 (1795-2040) |
+| final-cand-2 | 4353 (4332-4442) | 3902 (3328-3941) |
+| final-safe-2 | 4024 (4005-4121) | 3490 (3162-3506) |

@@ -1,0 +1,85 @@
+fleetq job 1964
+idle start: "Device Utilization %"=5 "Device Utilization %"=0 "Device Utilization %"=0 
+== 1. unit tests and admission (CAND)
+cargo test metal exit 0
+   1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+   1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+   1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.79s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.99s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+kernels test exit 0
+ADMITTED lines: 23
+23 kernels, 272 cases in 32.9s
+== 2. accuracy against the fp32 goldens (bf16 gate class), CAND then SAFE
+accuracy cand short exit 0
+accuracy cand long exit 0
+cand short: prefill floor top-1 100.00% full-vocab KL 2.832e-4 => PASS top-1 100.00% full-vocab KL 3.496e-4 => PASS 
+cand long: prefill floor top-1 99.72% full-vocab KL 3.699e-4 => PASS top-1 100.00% full-vocab KL 3.517e-4 => PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 2048 (recipe qwen3, metal)
+prefill chunk 2048; longest prompt 700; prompts spanning more than one chunk: 0/10
+prefill chunk 2048; longest prompt 90; prompts spanning more than one chunk: 0/8
+accuracy safe short exit 0
+accuracy safe long exit 0
+safe short: prefill floor top-1 100.00% full-vocab KL 2.832e-4 => PASS top-1 100.00% full-vocab KL 3.496e-4 => PASS 
+safe long: prefill floor top-1 99.72% full-vocab KL 3.699e-4 => PASS top-1 100.00% full-vocab KL 3.517e-4 => PASS 
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+== 3. greedy ids CAND vs SAFE (48 and 256 tokens, short and 4k prompts)
+short 48 tokens safe vs cand: ids identical (48 tokens)
+4k 48 tokens safe vs cand: ids identical (48 tokens)
+short 256 tokens safe vs cand: ids identical (256 tokens)
+4k 256 tokens safe vs cand: ids identical (256 tokens)
+== 4. plain prefill (generate --max-tokens 1) ABBA: A=SAFE B=CAND, each binary at its own default chunk
+warm 4k #0: prefill 1781 ms (2281.1 tok/s) prefill chunk 256
+safe 1k #1a: prefill 445 ms (2187.0 tok/s) prefill chunk 256
+cand 1k #1b: prefill 374 ms (2604.8 tok/s) prefill chunk 2048
+cand 1k #1c: prefill 379 ms (2565.8 tok/s) prefill chunk 2048
+safe 1k #1d: prefill 444 ms (2191.0 tok/s) prefill chunk 256
+safe 1k #2a: prefill 430 ms (2262.9 tok/s) prefill chunk 256
+cand 1k #2b: prefill 386 ms (2523.3 tok/s) prefill chunk 2048
+cand 1k #2c: prefill 378 ms (2573.9 tok/s) prefill chunk 2048
+safe 1k #2d: prefill 435 ms (2237.9 tok/s) prefill chunk 256
+safe 1k #3a: prefill 448 ms (2173.1 tok/s) prefill chunk 256
+cand 1k #3b: prefill 372 ms (2616.5 tok/s) prefill chunk 2048
+cand 1k #3c: prefill 388 ms (2505.2 tok/s) prefill chunk 2048
+safe 1k #3d: prefill 443 ms (2197.0 tok/s) prefill chunk 256
+safe 4k #1a: prefill 1329 ms (3057.1 tok/s) prefill chunk 256
+cand 4k #1b: prefill 1209 ms (3359.0 tok/s) prefill chunk 2048
+cand 4k #1c: prefill 1215 ms (3342.2 tok/s) prefill chunk 2048
+safe 4k #1d: prefill 1358 ms (2992.1 tok/s) prefill chunk 256
+safe 4k #2a: prefill 1716 ms (2366.9 tok/s) prefill chunk 256
+cand 4k #2b: prefill 1685 ms (2411.1 tok/s) prefill chunk 2048
+cand 4k #2c: prefill 1454 ms (2794.6 tok/s) prefill chunk 2048
+safe 4k #2d: prefill 1480 ms (2745.0 tok/s) prefill chunk 256
+safe 4k #3a: prefill 1590 ms (2554.1 tok/s) prefill chunk 256
+cand 4k #3b: prefill 1615 ms (2514.8 tok/s) prefill chunk 2048
+cand 4k #3c: prefill 1558 ms (2607.4 tok/s) prefill chunk 2048
+safe 4k #3d: prefill 1499 ms (2709.7 tok/s) prefill chunk 256
+safe 16k #1a: prefill 7519 ms (2204.8 tok/s) prefill chunk 256
+cand 16k #1b: prefill 8041 ms (2061.6 tok/s) prefill chunk 2048
+cand 16k #1c: prefill 7821 ms (2119.7 tok/s) prefill chunk 2048
+safe 16k #1d: prefill 8627 ms (1921.7 tok/s) prefill chunk 256
+safe 16k #2a: prefill 8607 ms (1926.0 tok/s) prefill chunk 256
+cand 16k #2b: prefill 7773 ms (2132.8 tok/s) prefill chunk 2048
+cand 16k #2c: prefill 7771 ms (2133.2 tok/s) prefill chunk 2048
+safe 16k #2d: prefill 8593 ms (1929.2 tok/s) prefill chunk 256
+safe 16k #3a: prefill 8800 ms (1883.9 tok/s) prefill chunk 256
+cand 16k #3b: prefill 7816 ms (2121.1 tok/s) prefill chunk 2048
+cand 16k #3c: prefill 7727 ms (2145.4 tok/s) prefill chunk 2048
+safe 16k #3d: prefill 8579 ms (1932.3 tok/s) prefill chunk 256
+idle end: "Device Utilization %"=99 "Device Utilization %"=8 "Device Utilization %"=1 
+GATES_DONE
+#1964 "metal final: gates (tests, kernels, accuracy, ids, plain prefill)" (claude-31e10c55) done on endor exclusive 24 GB
