@@ -18,6 +18,12 @@ promptof() { [ $1 = 4k ] && echo $P4K || echo $P16K; }
 
 echo "== 0. idle, zoom"; sleep 5; idle3 | tee $R/gpu-idle-start.txt; pgrep -fl zoom.us | tee $R/zoom.txt; echo "zoom check done"
 
+echo "== 0b. attention microbench (examples/flash_bench: per-call GPU time, one KV cache per layer, 36 layers)"
+FB=$S/flash_bench
+$FB --reps 8 flash nax 0 1024 3840 15872 > $R/bench-pos0-c256.txt 2>&1; cat $R/bench-pos0-c256.txt
+$FB --reps 8 --chunk 1024 flash nax 0 1024 3840 15360 > $R/bench-pos0-c1024.txt 2>&1; cat $R/bench-pos0-c1024.txt
+for T in 4096 16384; do for C in 256 1024; do $FB --reps 5 --total $T --chunk $C flash nax 2>&1 | grep -E "^total"; done; done | tee $R/bench-total.txt
+
 echo "== 1. plain prefill (generate --max-tokens 1), ABBA, chunk 256 and 1024; first run discarded"
 $PRE generate --model $M --backend metal --max-seq 20480 --temperature 0 --max-tokens 1 --profile-every 0 --prompt "$(cat $P4K)" > $R/plain/warm.out 2> $R/plain/warm.err
 for P in 4k 16k; do
