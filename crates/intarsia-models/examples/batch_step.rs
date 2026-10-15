@@ -56,7 +56,7 @@ mod imp {
         let weights = SchemedSource::open(&dir).unwrap();
         let chunk = recipe.resolve_prefill_chunk(None, "metal").value;
         let max_seq = ctx + (rounds + 1) * steps * batches.len() + 64;
-        let opts = LoadOptions { max_seq, prefill_chunk: chunk, ..Default::default() };
+        let opts = LoadOptions { max_seq, prefill_chunk: chunk, profile_every: 0, ..Default::default() };
         let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
         let top = *batches.iter().max().unwrap();
         if top > 1 {

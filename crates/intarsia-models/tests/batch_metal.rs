@@ -34,7 +34,7 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(&dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, "metal").value;
-    let opts = LoadOptions { max_seq: 4352, prefill_chunk: chunk, ..Default::default() };
+    let opts = LoadOptions { max_seq: 4352, prefill_chunk: chunk, profile_every: 0, ..Default::default() };
     let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
     assert!(m.batch_capable(), "the metal backend registers the row-exact kernels");
     m.enable_batch(8).unwrap();
@@ -46,20 +46,21 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     // the batched pass runs the row-exact multi-row kernels for the projections, and the serving one-row kernels for
     // the per-row attention
     let rec = m.dry_run(Phase::Batch, 8, 1000).unwrap();
-    let pick = |op: Op| -> Vec<String> {
+    let dec = m.dry_run(Phase::Decode, 1, 1000).unwrap();
+    let pick = |rec: &intarsia_core::plan::Recorder, op: Op| -> Vec<String> {
         let mut v: Vec<String> = rec.calls.iter().filter(|c| c.call.op == op).map(|c| c.kernel.clone()).collect();
         v.sort();
         v.dedup();
         v
     };
-    eprintln!(
-        "batch kernels: matmul {:?} pair {:?} logits {:?} qkv_fold {:?} attn {:?}",
-        pick(Op::Matmul),
-        pick(Op::MatmulPair),
-        pick(Op::Logits),
-        pick(Op::QkNormRopeKv),
-        pick(Op::AttnDecode)
-    );
+    for op in [Op::Matmul, Op::MatmulPair, Op::Logits, Op::QkNormRopeKv, Op::AttnDecode] {
+        eprintln!("kernels {op}: decode {:?} | batch {:?}", pick(&dec, op), pick(&rec, op));
+    }
+    // per-row attention and the fold are the decode step's own kernels
+    for op in [Op::QkNormRopeKv, Op::AttnDecode] {
+        assert_eq!(pick(&dec, op), pick(&rec, op), "{op}");
+    }
+    let pick = |op: Op| pick(&rec, op);
     assert!(pick(Op::Matmul).iter().all(|k| k.contains("rows")), "{:?}", pick(Op::Matmul));
     assert!(pick(Op::Logits).iter().all(|k| k.contains("rows")));
     assert!(pick(Op::AttnDecode).iter().all(|k| !k.contains("rows")));

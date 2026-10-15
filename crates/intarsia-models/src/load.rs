@@ -165,14 +165,7 @@ pub fn load_engine_tp(
         model.enable_verify(opts.spec.verify_rows())?;
     }
     if max_batch.value > 1 {
-        // batched decode needs row-exact kernels for the projections (Metal); the cpu backend is exact by construction
-        if !model.batch_capable() && model.backend.name() != "cpu" {
-            return Err(Error::Unsupported(format!(
-                "--max-batch {} needs a backend with row-exact multi-row kernels (Metal); {} registers none",
-                max_batch.value,
-                model.backend.name()
-            )));
-        }
+        // refuses a backend without row-exact multi-row kernels, a tensor-parallel or non-dense model
         model.enable_batch(max_batch.value)?;
     }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;

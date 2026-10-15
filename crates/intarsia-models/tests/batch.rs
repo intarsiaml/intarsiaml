@@ -104,10 +104,10 @@ fn kv_budget_is_shared_by_the_sequences() {
     let before = m.plan.kv_cap_tokens;
     m.enable_batch(8).unwrap();
     let cap = m.plan.kv_cap_tokens;
-    assert!(cap < before.min(160) || before < 160, "{cap} vs {before}");
+    assert!(cap < before, "{cap} vs {before}");
     assert_eq!(cap, (m.plan.kv_budget_bytes / (8 * bpt)).min(before as u64) as usize);
     assert_eq!(m.plan.kv_total_bytes, 8 * cap as u64 * bpt);
-    assert!(m.plan.notes.iter().any(|n| n.contains("share the KV budget")) || cap == before);
+    assert!(m.plan.notes.iter().any(|n| n.contains("share the KV budget")));
     assert_eq!(m.new_state().unwrap().cap, cap);
     // a budget too small for 16 tokens each is refused
     let mut tight = model(&LoadOptions { max_seq: 160, mem_budget: Some(full.plan.weights_bytes + full.plan.workspace_bytes + 40 * bpt), ..Default::default() });

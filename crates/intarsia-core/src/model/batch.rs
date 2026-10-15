@@ -52,6 +52,13 @@ impl Model {
                 "batched decode supports dense attention-only models (no recurrent, mixture-of-experts or gated-attention blocks)".into(),
             ));
         }
+        // without row-exact kernels `exact_rows` would silently pick the ordinary ones, whose bits depend on the row count
+        if !self.batch_capable() && self.backend.name() != "cpu" {
+            return Err(Error::Unsupported(format!(
+                "batched decode needs row-exact multi-row kernels (Metal); the {} backend registers none",
+                self.backend.name()
+            )));
+        }
         let most = Self::BATCH_MAX_ROWS.min(LOGIT_ROWS).min(self.ws.max_tokens);
         if !(2..=most).contains(&max_rows) {
             return Err(Error::invalid(format!("batch rows {max_rows} outside 2..={most}")));
