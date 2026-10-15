@@ -1,0 +1,22 @@
+72 launches per command buffer, 400 reps
+op                                  us/call      p10      p90
+norm_add                               3.80     2.33     9.44
+qkrope                                 2.85     2.81     3.04
+silu                                   1.24     1.21     1.25
+argmax                                12.92    12.83    13.16
+fingerprints (FNV-1a of every output buffer, guards included)
+norm_add 1x4096 off0                     92cafc7525cc0c8a
+norm_add 3x4096 off1                     414036df807b30fe
+norm_add 2x128 off0                      e140df082ef16cc9
+norm_add 1x100 off1                      ab21b3135f4b1801
+norm_add 2x5120 off0                     83553344564fd0aa
+norm_add 1x4097 off1                     93dd79e1bbfe2ed3
+norm_add 2x8192 off0                     09495c4b7af2723b
+norm_add 1x12288 off0                    41db123a3d742aaa
+qkrope t1 32/8 d128 pos4000              a5f771db84bceddc
+qkrope t5 32/8 d128 pos7 off1            382692290550ee11
+qkrope t3 16/4 d64 rd32 pos0             9096ad4fd8dd34a2
+
+thread 'main' (88893164) panicked at crates/intarsia-backend-metal/examples/small_ops.rs:237:45:
+called `Result::unwrap()` on an `Err` value: InvalidCall("qk_norm_rope_kv: append 2 rows at 62 into cache [2, 63, 256]")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

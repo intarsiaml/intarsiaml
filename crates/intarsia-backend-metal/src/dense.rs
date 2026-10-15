@@ -82,13 +82,15 @@ impl MetalBackend {
     /// The low-latency row-norm kernel for rows of `h` elements as (pipeline, threads per threadgroup): it keeps the
     /// 256-thread kernel's element-to-thread assignment, so results are bitwise those of `rmsnorm_bf16` /
     /// `rmsnorm_add_bf16`. Rows of up to 8192 elements; `None` (the 256-thread kernel) for wider ones.
-    fn norm_ex(&self, h: usize, names: &[&'static str; 3]) -> Option<(&'static str, usize)> {
-        let (name, threads) = match h {
-            0..=ROW_THREADS => (names[0], h.next_multiple_of(32)),
-            ..=4096 => (names[1], ROW_THREADS),
-            ..=8192 => (names[2], ROW_THREADS),
+    fn norm_ex(&self, h: usize, names: &[&'static str; 6]) -> Option<(&'static str, usize)> {
+        let (idx, threads, nit) = match h {
+            0..=ROW_THREADS => (0, h.next_multiple_of(32), 1),
+            ..=4096 => (1, ROW_THREADS, 16),
+            ..=8192 => (2, ROW_THREADS, 32),
             _ => return None,
         };
+        // every thread owns exactly NIT elements: the `_f` form without bounds selects
+        let name = if h == nit * threads { names[idx + 3] } else { names[idx] };
         (self.pso(name)?.maxTotalThreadsPerThreadgroup() >= threads).then_some((name, threads))
     }
 

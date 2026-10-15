@@ -1,0 +1,7 @@
+norm_add: f 2.35 2.27 2.33 2.35 2.35  nof 2.63 2.59 2.63 2.58 2.62  pre 2.95 2.88 2.89 2.95 2.95
+qkrope: f 2.64 2.60 2.63 2.63 2.63  nof 2.63 2.63 2.64 2.63 2.56  pre 2.85 2.77 2.77 2.86 2.85
+silu: f 1.24 1.21 1.24 1.21 1.23  nof 1.24 1.23 1.24 1.24 1.19  pre 1.24 1.19 1.19 1.24 1.24
+argmax: f 11.87 11.96 11.94 11.92 11.93  nof 11.93 11.96 11.93 11.90 11.96  pre 12.70 13.25 13.42 12.85 12.70
+fingerprints f: 18 cases, differ from pre: none
+fingerprints nof: 18 cases, differ from pre: none
+fingerprints pre: 18 cases, differ from pre: none
