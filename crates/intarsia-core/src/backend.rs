@@ -166,6 +166,13 @@ pub trait Backend: Send + Sync {
     /// Backend id: "cpu", "cuda", "hip".
     fn name(&self) -> &str;
 
+    /// True when a 1-row prefill chunk is not bitwise equal to the same row inside a bigger chunk (the backend routes
+    /// `m == 1` to a decode kernel), so prefill chunking should avoid ending in a 1-row tail where it can
+    /// ([`crate::scheduler::next_prefill_chunk`]). Default false: the chunking is then exactly `chunk, chunk, .., rest`.
+    fn avoid_single_row_prefill(&self) -> bool {
+        false
+    }
+
     /// Device description with memory figures measured at call time.
     fn info(&self) -> DeviceInfo;
 

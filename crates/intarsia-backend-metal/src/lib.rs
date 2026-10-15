@@ -511,6 +511,12 @@ impl Backend for MetalBackend {
         "metal"
     }
 
+    /// `m == 1` matmuls go to the decode GEMV (`NAX_MIN_M = 2`) and `t == 1` attention to `AttnDecode`; rows of chunks
+    /// of >= 2 rows are bitwise chunk-invariant, so a 1-row tail is the one schedule-dependent case.
+    fn avoid_single_row_prefill(&self) -> bool {
+        true
+    }
+
     fn info(&self) -> DeviceInfo {
         let total = self.device.recommendedMaxWorkingSetSize();
         let used = self.device.currentAllocatedSize() as u64;
