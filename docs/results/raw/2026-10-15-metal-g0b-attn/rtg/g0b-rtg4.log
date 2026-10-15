@@ -1,0 +1,4 @@
+attn ctx 128: 15 candidates x 10 rounds, chain of 543 dispatches (T(1) probe 36.9 us)
+attn ctx 1024: 15 candidates x 10 rounds, chain of 368 dispatches (T(1) probe 54.3 us)
+attn ctx 4096: 15 candidates x 10 rounds, chain of 531 dispatches (T(1) probe 37.7 us)
+attn ctx 16384: 15 candidates x 10 rounds, chain of 164 dispatches (T(1) probe 122.5 us)

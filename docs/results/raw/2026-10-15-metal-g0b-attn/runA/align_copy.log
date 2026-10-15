@@ -1,0 +1,2 @@
+tensors at 8 mod 16: 81, 3.996 GB total, 2.752 GB without the embedding table (streamed by decode GEMVs)
+alloc 0.7 ms, copy (upload) 152.8 ms = 18.0 GB/s, source page-in 90.1 ms
