@@ -315,8 +315,8 @@ fn flash_predicate() {
     for g in [1, 2, 4, 8] {
         assert!(accepts(f, &mk(256, 8 * g, 8, 128, DType::Bf16)), "group {g}");
     }
-    assert!(accepts(f, &mk(48, 32, 8, 128, DType::Bf16)), "the smallest chunk");
-    assert!(!accepts(f, &mk(47, 32, 8, 128, DType::Bf16)), "a short tail chunk stays on the P2 kernel");
+    assert!(accepts(f, &mk(2, 32, 8, 128, DType::Bf16)), "the smallest chunk");
+    assert!(accepts(f, &mk(47, 32, 8, 128, DType::Bf16)), "a short tail chunk takes the NAX kernel too");
     assert!(!accepts(f, &mk(256, 24, 8, 128, DType::Bf16)), "group 3");
     assert!(!accepts(f, &mk(256, 16, 1, 128, DType::Bf16)), "group 16");
     assert!(!accepts(f, &mk(256, 4, 2, 64, DType::Bf16)), "head_dim 64 stays on the P2 kernel");
@@ -327,11 +327,10 @@ fn flash_predicate() {
     assert!(accepts(ATTN_PREFILL_BF16_FLASH, &mk(4, 4, 2, 64, DType::Bf16)), "the P2 kernel stays registered");
 }
 
-/// Chunks through the registry, the way the engine launches them: a chunk of at least 48 rows runs the NAX kernel, a short
-/// tail the P2 kernel. Each split gives results within the f64-reference tolerance (the tail's bits differ from a single
-/// call's, its accuracy does not), and splits whose chunks all take the NAX kernel are bitwise the single call.
+/// Chunks through the registry, the way the engine launches them: every chunk, short tails included, runs the NAX kernel,
+/// so every split gives the same bits as the single call (which is within the f64-reference tolerance).
 #[test]
-fn registry_split_with_a_short_tail_matches_the_reference() {
+fn registry_splits_are_bitwise_the_single_call() {
     let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     select_variant(None);
     let cs = c(300, 32, 8, 128, 100, 400);
@@ -341,24 +340,19 @@ fn registry_split_with_a_short_tail_matches_the_reference() {
     let r = setup(&cs, &dt, [0; 3]);
     let reg = Registry::new("metal", &r.be.info(), r.be.kernels());
     let whole = run_once(&r, &cs, ATTN_PREFILL_BF16_FLASH_NAX, scale, 0);
-    for (split, nax_only) in [(vec![256, 44], false), (vec![300], true), (vec![150, 150], true), (vec![100, 200], true), (vec![253, 47], false)] {
+    check(&cs, &whole, &want, "single call");
+    for split in [vec![256, 44], vec![300], vec![150, 150], vec![100, 200], vec![253, 47], vec![288, 12], vec![298, 2], vec![7, 293]] {
         let out = out_buf(&r.be, &cs, 0);
         let mut t0 = 0;
-        let mut names = Vec::new();
         for &nt in &split {
             let call = call_rows(&r, &cs, &out, 0, t0, nt, scale);
             let name = reg.select(&call).unwrap().name.clone();
+            assert_eq!(name, ATTN_PREFILL_BF16_FLASH_NAX, "split {split:?}");
             r.be.launch(&name, &call, 0).unwrap();
-            names.push(name);
             t0 += nt;
         }
         r.be.synchronize(0).unwrap();
         let got = read_u16(&r.be, &out, 0, cs.t * cs.n * cs.d);
-        check(&cs, &got, &want, &format!("split {split:?} via {names:?}"));
-        let all_nax = names.iter().all(|n| n == ATTN_PREFILL_BF16_FLASH_NAX);
-        assert_eq!(all_nax, nax_only, "split {split:?}: {names:?}");
-        if nax_only {
-            assert!(got == whole, "split {split:?}: all chunks on the NAX kernel must be bitwise the single call");
-        }
+        assert!(got == whole, "split {split:?} differs from the single call");
     }
 }

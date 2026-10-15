@@ -3,13 +3,11 @@
 //! in the shader header). One threadgroup per (block of query positions, kv head); a simdgroup owns 16 query rows of one
 //! query head, Q stays in registers and K / V fragments are read from device memory by the lanes.
 //!
-//! Same op contract as `attn_prefill_bf16_flash` (flash.rs): any T and pos0. Registered for chunks of at least
-//! [`NAX_FLASH_MIN_M`] rows, where it is faster than the P2 kernel, so a prompt's last chunk can be a short tail that runs
-//! on the P2 kernel: how a prompt is cut into chunks changes the bits of the rows of such a tail (not their meaning: both
-//! kernels are within the same bf16 error of the f64 reference), as P1's `NAX_MIN_M` does for the matmuls of a tail of
-//! under 16 rows. Calls that all take this kernel are bitwise chunk invariant. Served: head_dim 128 and a group size
-//! (query heads per kv head) of 1, 2, 4 or 8; other head dims stay on the P2 kernel. Operands it cannot take (a leading element skip on q / out, K / V caches not
-//! 16-byte aligned) run the P2 flash kernel (or `attn_prefill_bf16` where that cannot either); counted in `fallbacks`.
+//! Same op contract as `attn_prefill_bf16_flash` (flash.rs): any T and pos0, so how a prompt is cut into chunks never
+//! changes which kernel a row goes through and the attention of a row is bitwise chunk invariant. Served: head_dim 128 and
+//! a group size (query heads per kv head) of 1, 2, 4 or 8; other head dims stay on the P2 kernel. Operands it cannot take
+//! (a leading element skip on q / out, q / out / K / V not 16-byte aligned) run the P2 flash kernel (or `attn_prefill_bf16`
+//! where that cannot either); counted in `fallbacks`.
 
 use crate::dense::OpP;
 use crate::kernels::*;
@@ -51,12 +49,14 @@ pub fn fallbacks() -> u64 {
     FALLBACKS.load(Ordering::Relaxed)
 }
 
-/// Smallest chunk (query rows) the NAX kernel is registered for. A 16-row slab costs the same per key tile whatever the
-/// rows, so a short tail chunk is slower than on the P2 kernel (8-row slabs): at 4k context T = 8..32 runs 380 us per
-/// layer against P2's 316 (about 20% more), T = 48 is level to a little faster (377 against 419), T = 64 and up 10%
-/// to 3.3x faster (docs/results/raw/2026-10-15-metal-prefill-f1/bench-small-chunk.txt). Only the last chunk of a prompt
-/// can be that short, so the cost of the wrong side of this line is a couple of milliseconds per prompt.
-pub const NAX_FLASH_MIN_M: usize = 48;
+/// Smallest chunk (query rows) the NAX kernel is registered for: every prefill chunk (T = 1 is the decode op). A short
+/// tail chunk is slower here than on the P2 kernel (8-row slabs instead of 16: at 4k context T = 8..32 runs 380 us per
+/// layer against P2's 316; level at T = 48, faster from T = 64, docs/results/raw/2026-10-15-metal-prefill-f1/
+/// bench-small-chunk.txt), about 2 ms per prompt at 4k, 9 ms at 16k. It is registered anyway so that how a prompt is cut
+/// into chunks never changes which attention kernel a row goes through: with the kernel switching at 48 rows, a 4050-token
+/// chunk with a 12-row tail flipped a greedy token (position 22 of 48) on the 4062-token prompt that every chunking
+/// gave identically before.
+pub const NAX_FLASH_MIN_M: usize = 2;
 
 /// Shapes the NAX flash kernel is registered for: at least [`NAX_FLASH_MIN_M`] query rows, head_dim 128, query heads a
 /// multiple of the kv heads with a group in 1, 2, 4, 8. (A call to `launch` by name takes any T.)
@@ -180,7 +180,8 @@ mod tests {
         let sh = |m, n, nkv, d| ShapeInfo { m, n_heads: n, n_kv_heads: nkv, head_dim: d, ..Default::default() };
         assert!(!nax_flash_ok(&sh(64, 12, 4, 128)));
         assert!(!nax_flash_ok(&sh(64, 32, 8, 64)));
-        assert!(!nax_flash_ok(&sh(NAX_FLASH_MIN_M - 1, 32, 8, 128)));
+        assert!(!nax_flash_ok(&sh(1, 32, 8, 128)), "T = 1 is the decode op");
         assert!(nax_flash_ok(&sh(NAX_FLASH_MIN_M, 32, 8, 128)));
+        assert!(nax_flash_ok(&sh(47, 32, 8, 128)));
     }
 }

@@ -55,6 +55,14 @@ for B in new pre; do
   echo "$B long : $(grep -oE 'top-1 [0-9.]+%|full-vocab KL [0-9.e-]+|: (PASS|FAIL)' $R/accuracy/$B-long.out | tr '\n' ' ')"
 done
 
+echo "== 4b. noise scale: pre binary with the other P2 variant (attn_flash_d128_s8: same maths, another threadgroup shape, so another rounding order)"
+for V in attn_flash_d128_s8; do
+  INTARSIA_METAL_FLASH=$V $PRE accuracy --model $M --backend metal --golden $G/qwen3-8b-fp32.safetensors --gate-class bf16 --max-seq 4096 > $R/accuracy/pre-$V-short.out 2> $R/accuracy/pre-$V-short.err
+  INTARSIA_METAL_FLASH=$V $PRE accuracy --model $M --backend metal --golden $G/qwen3-8b-long-fp32.safetensors --gate-class bf16 --max-seq 8192 > $R/accuracy/pre-$V-long.out 2> $R/accuracy/pre-$V-long.err
+  echo "pre $V short: $(grep -oE 'top-1 [0-9.]+%|full-vocab KL [0-9.e-]+|: (PASS|FAIL)' $R/accuracy/pre-$V-short.out | tr '\n' ' ')"
+  echo "pre $V long : $(grep -oE 'top-1 [0-9.]+%|full-vocab KL [0-9.e-]+|: (PASS|FAIL)' $R/accuracy/pre-$V-long.out | tr '\n' ' ')"
+done
+
 echo "== 5. greedy ids, pre vs new"
 for N in 48 256; do
   for P in short 4k; do

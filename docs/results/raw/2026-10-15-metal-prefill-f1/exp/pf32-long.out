@@ -1,0 +1,35 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   1.787e-4   9.908e-5   5.530e-3   0.0324   0.0318    98.42     38/38      0
+story                 39    39   100.00   3.912e-4   2.147e-4   1.042e-2   0.0400   0.0392    97.95     39/39      0
+code                  80    80     1.25    1.322e1    1.316e1    2.399e1   0.0142   0.9908     0.50      0/80      0
+science               79    79     0.00    1.450e1    1.436e1    2.221e1   0.0168   0.9980     0.00      0/79      0
+chat_short            18    18   100.00   5.326e-4   4.876e-4   2.194e-3   0.1108   0.1108    98.89     18/18      0
+chat_system           32    32   100.00   2.875e-4   1.660e-4   4.926e-3   0.0841   0.0838    98.75     32/32      0
+chat_multiturn        58    58     0.00    1.387e1    1.360e1    2.499e1   0.0340   0.9987     0.00      0/58      0
+chat_reasoning        90    90     0.00    1.277e1    1.260e1    2.768e1   0.0243   0.9826     1.78      0/90      0
+long_prose_300       300   300    12.00    1.214e1    1.204e1    2.297e1   0.0126   0.8655     7.47     0/300      0
+long_prose_700       700   700     0.00    1.575e1    1.563e1    2.917e1   0.0129   0.9995     0.03     0/700      0
+OVERALL                   1434    11.44    1.313e1    1.301e1    2.917e1   0.0188   0.8864    10.43      8.9%      0
+prefill floor [bf16]: top-1 11.44% (need >= 99.5) FAIL | full-vocab KL 1.313e1 (need <= 1.0e-3) FAIL | tail mass ours 0.8864 vs ref 0.0188, excess +0.8676 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.068e-5   9.656e-6   8.265e-5   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.366e-4   2.283e-4   1.118e-3   0.0237   0.0234   100.00     16/16      0
+code                  80    16    75.00    1.109e0    1.109e0    6.537e0   0.0000   0.0686    61.25      0/16      0
+science               79    16    43.75    1.646e0    1.632e0    5.485e0   0.0104   0.2379    56.25      0/16      0
+chat_short            18    16   100.00   6.562e-4   6.270e-4   7.949e-3   0.0621   0.0615   100.00     16/16      0
+chat_system           32    16   100.00   6.317e-4   3.887e-4   5.288e-3   0.0736   0.0737    97.50     16/16      0
+chat_multiturn        58    16   100.00   4.330e-4   4.226e-4   3.940e-3   0.0076   0.0076   100.00     16/16      0
+chat_reasoning        90    16    50.00    2.414e0    2.372e0    8.203e0   0.0099   0.2607    42.50      0/16      0
+long_prose_300       300    16   100.00   3.969e-2   3.969e-2   1.502e-1   0.0000   0.0142    60.00     16/16      0
+long_prose_700       700    16    31.25    3.959e0    3.848e0    8.896e0   0.0244   0.5865    16.25      0/16      0
+OVERALL                    160    80.00   9.169e-1   9.002e-1    8.896e0   0.0215   0.1337    73.12     60.0%      0
+decode (teacher-forced) floor [bf16]: top-1 80.00% (need >= 99.5) FAIL | full-vocab KL 9.169e-1 (need <= 1.0e-3) FAIL | tail mass ours 0.1337 vs ref 0.0215, excess +0.1122 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+greedy-match [prefill]: mean 40.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 60.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL

@@ -81,9 +81,9 @@ fn prefill_runs_without_the_metal4_library() {
         assert!(be.kernels().iter().any(|k| k.name == MATMUL_BF16_NAX));
         assert_eq!(select_and_run(&be), MATMUL_BF16_NAX);
         assert_eq!(pair_selected(&be).as_deref(), Some(MATMUL_PAIR_BF16_NAX));
-        // prefill attention: the NAX kernel for a chunk, the P2 kernel for a short tail
+        // prefill attention: the NAX kernel, short tails included
         assert_eq!(attn_selected(&be, 256), ATTN_PREFILL_BF16_FLASH_NAX);
-        assert_eq!(attn_selected(&be, 47), ATTN_PREFILL_BF16_FLASH);
+        assert_eq!(attn_selected(&be, 47), ATTN_PREFILL_BF16_FLASH_NAX);
     }
     drop(be);
 
