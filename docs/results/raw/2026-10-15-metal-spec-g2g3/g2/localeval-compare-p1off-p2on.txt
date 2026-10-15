@@ -1,0 +1,20 @@
+# compare: 20261015-122505-adhoc-p1-off → 20261015-122729-adhoc-p2-on
+
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+
+| prompt tok | metric | A | B | Δ | verdict |
+|---:|---|---:|---:|---:|---|
+| 112 | prefill_tok_s | 2054.0 | 2401.3 | +16.9% | overhead-dominated |
+| 112 | decode_tok_s | 36.0 | 37.7 | +4.9% | noise |
+| 112 | peak_decode_tok_s | 36.5 | 42.9 | +17.5% | faster |
+| 989 | prefill_tok_s | 3888.1 | 3904.5 | +0.4% | overhead-dominated |
+| 989 | marginal_prefill_tok_s | 4385.0 | 4318.2 | -1.5% | noise |
+| 989 | decode_tok_s | 36.1 | 38.5 | +6.7% | noise |
+| 989 | peak_decode_tok_s | 36.5 | 44.3 | +21.4% | faster |
+| 4089 | prefill_tok_s | 3874.9 | 3546.4 | -8.5% | noise |
+| 4089 | marginal_prefill_tok_s | 3875.0 | 3444.9 | -11.1% | slower |
+| 4089 | decode_tok_s | 35.3 | 39.3 | +11.4% | faster |
+| 4089 | peak_decode_tok_s | 35.6 | 46.4 | +30.3% | faster |
+
+- A: `intarsia-metal` @ http://127.0.0.1:8093/v1 thinking=off (2026-10-15T12:25:05-04:00)
+- B: `intarsia-metal` @ http://127.0.0.1:8093/v1 thinking=off (2026-10-15T12:27:29-04:00)

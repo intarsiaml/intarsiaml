@@ -11,6 +11,7 @@ with three of ten grounded rows below 1.3x; identity holds everywhere; the merge
 | item | result |
 |---|---|
 | Gate rule | drafts only from suffixes of 2 or 3 tokens (was 1..3), and 6 consecutive verify passes without an accepted draft back off 2, 4, .. 32 plain steps before the next probe (section 1) |
+| Gate criteria (G1's two prompts) | open-ended story **1.03x** (37.4 vs 36.4 tok/s, was 0.93-0.99x), input-grounded prompt **3.7x** (132.7 vs 35.8 tok/s, was 3.3x). Both are traced single runs from the identity matrix (tracing slows spec-on a little, so they are conservative); the 3-rep G3 rows back them: story rows 1.01-1.04x, edit rows 3.42x mean |
 | Identity re-run | 24 cases x off / on4 / on6 vs `spike/metal` c556008: **72 of 72 byte-identical** (stdout, ids, finish, completion tokens); plus 13 cut-path cases with the gate off: 26 of 26 (section 2) |
 | G2 speed (ABBA, fresh server per pass) | spec off 36.0 / 36.0 / 35.0 tok/s (128 / 1k / 4k), spec on **1.05x / 1.07x / 1.12x**, no row below spec off, all four passes above 1450 MHz (section 3) |
 | G3 per row | grounded **2.46x** mean (2.21x geomean, 1.10x to 4.01x), open-ended **1.06x** mean (1.01x to 1.15x), ids identical on all 20 rows x 3 reps x 2 modes (section 4) |
@@ -32,6 +33,11 @@ for itself (2 tokens for about 1.24 steps).
    for **2** plain steps, then probe with one pass; every further failed probe doubles the skip (2, 4, 8, 16, 32 = `skip_max`);
    any accepted draft resets the streak and the skip length. A request where nothing is ever accepted costs 16 wasted passes in 256 tokens (6, then probes at steps 8, 13, 22, 39, 72, 105, ..)
    instead of one per matching step, and a request that never gets a match pays nothing.
+
+**Which part matters.** The simplest rule that meets the two targets is the minimum suffix 2 alone: in the replay (section 1, "How it was chosen") it already gives the story rows 0.99-1.02x and keeps the grounded rows at 3.1x-3.4x.
+I added the back-off as a safety net for long open-ended outputs, which the 256-token replay streams cannot show: that benefit is argued, not measured. `GATE_FAILS = 0` removes it (the knob `INTARSIA_SPEC_GATE=0,2,32,2` does the same at run time). The
+minimum-suffix-2-only configuration was run on the GPU only in the sweep below (config 6: 27 passes / 7 accepted on the story); identity, G2, G3 and the merge bar ran with the shipped combination (min suffix 2 + back-off), not with min suffix 2 alone.
+It is a one-constant choice for the reviewer.
 
 Constants `GATE_MIN_N = 2`, `GATE_FAILS = 6`, `GATE_SKIP0 = 2`, `GATE_SKIP_MAX = 32`. `INTARSIA_SPEC_GATE=fails,skip0,skip_max,min_n`
 overrides them for experiments (`0,4,64,1` = no gate, one-token suffixes allowed = the G1 drafter). The gate only decides *whether a step
@@ -121,16 +127,18 @@ all 2-gram matches and no hits, for which minimum suffix 2 alone pays one reject
 
 ## 2. Identity re-run (final code)
 
-Binary built from `df6d543`, the code tip (stamp `head=df6d543 code-tree=ddce5e644b9e dirty=no`; `git diff df6d543 HEAD -- crates kernels recipes tools scripts` is
-empty). 24 cases of the G1 matrix (`cases-24.txt` = G1's `cases-all` 19 + `cases-c` 5: max_tokens, stop strings, min_tokens, EOS inside a run,
+Two binaries, both built from `df6d543`, the code tip, and differing only in the embedded build-stamp string: `intarsia-gate-final` (sha256 `6f3e66fd95900a2b513472d835501241ad39c8e7d3d6793c825089ae1faa6c0e`, unstamped; used for the identity matrix and the G3 `generate` runs) and
+`intarsia-gate-stamped` (sha256 `e80dd83efc3f84ff45b9d3101e70bf43ab1e20611222e91d3c87105b24835eeb`, stamp `head=df6d543 code-tree=ddce5e644b9e dirty=no`; used for G2, the G3 localeval runs and the merge bar). `git diff df6d543 HEAD -- crates kernels recipes tools scripts` is
+empty. 24 cases of the G1 matrix (`cases-24.txt` = G1's `cases-all` 19 + `cases-c` 5: max_tokens, stop strings, min_tokens, EOS inside a run,
 4k filler, natural 4k docs and code, input-grounded and open-ended prompts), each as `--spec off`, `--spec ngram` (k = 4, `on4`) and `--spec ngram --spec-k 6` (`on6`),
 `--show-ids`, compared with the `spike/metal` c556008 binary (`base`). **The base outputs are the G1 run's** (same binary sha256
 `ffb54608..61bb888e6`, same prompts, deterministic greedy), copied from `raw/2026-10-15-metal-spec-g1/identity-final` and `identity-c`, not re-run.
 
 **Result: all 72 variant runs (24 x off / on4 / on6) are byte-identical to base in stdout and ids line, with the same finish reason and completion tokens
-(`identity-vs-base.md`); off vs base and on vs off are also ALL IDENTICAL (`identity-vs-off.md`).** Drafts: on4 1046 passes / 4183 proposed /
-2584 accepted (61.8%), on6 906 / 5433 / 2735 (50.3%) (G1, ungated: 1001 / 4003 / 2446 over 19 cases). 28 of the 48 spec-on runs ended inside an
-accepted run (KV rolled back), same as before.
+(`identity-vs-base.md`); off vs base and on vs off are also ALL IDENTICAL (`identity-vs-off.md`).** Drafts over the 24 cases: on4 1046 passes / 4183 proposed /
+2584 accepted (61.8%), on6 906 / 5433 / 2735 (50.3%). The same 24 cases ungated in G1 (its 19-case totals plus its 5-case phase-D totals: 1001 + 335 passes, 4003 + 1340 proposed, 2446 + 213 accepted for k = 4; 866 + 327, 5193 + 1962, 2590 + 222 for k = 6) were
+1336 / 5343 / 2659 (k = 4) and 1193 / 7155 / 2812 (k = 6). **The gate removes 22% (k = 4) and 24% (k = 6) of the verify passes and keeps 97% of the accepted drafts** (2584 of 2659, 2735 of 2812). 28 of the 48 spec-on runs ended inside an
+accepted run (KV rolled back).
 
 The gate makes `min_tokens` cuts rare (the cut needs a verify row whose argmax is a stop id inside the window: 0 of 48 runs here), so the cut path would
 have gone untested by this matrix. So the 13 stop / max / min_tokens / EOS cases were run once more with the gate **off**
@@ -192,10 +200,13 @@ All four passes are above 1450 MHz at 4k prefill (1453 to 1617), so none is drop
 | 4096 | 35.0 (n=6, 34.7-35.3) | 39.2 (n=6, 38.6-40.3) | **1.12x** | -1.5% | p1-off,p2-on,p3-on,p4-off |
 
 
+**Reading.** localeval's own rule (fleet finding 6a7efe40) calls speed differences under 10% noise; `localeval compare` of p1-off vs p2-on (`g2/localeval-compare-p1off-p2on.txt`) marks decode +4.9% (128) and +6.7% (1k) as noise and +11.4% (4k) as faster; p4-off vs p3-on: +7.1% / +12.9%. So the honest reading of the sweep is
+"spec on is not below spec off at any size, and clearly faster at 4k only"; 1.05x and 1.07x are not claimed as speedups. Its marginal-prefill column shows spec-on 4k prefill 6% to 11% below off, which tracks the lower 4k-prefill clock of the spec-on passes (1453 and 1494 MHz vs 1617 and 1576 for the off passes); the spec
+code does not touch prefill and I did not look further. The four localeval runs are logged to unanimis as `26d01aa2-a5ad-4bb7-bb51-f5909709297d` (p1-off), `242cf760-1b79-4c7a-82cf-499d33f530f3` (p2-on), `faa98abc-ffe8-4747-b1d6-0e6885fb7797` (p3-on), `40a1a11f-9837-444f-be55-609d5d31cd82` (p4-off).
+
 **Criteria.** Spec off stays within noise of 36.7 / 36.6 / 35.6: 36.0 / 36.0 / 35.0 (-1.9% / -1.5% / -1.5%; the two off passes agree within 0.4 tok/s, and
 localeval's decode noise is about +/-5%). No spec-on row falls below spec off (1.05x, 1.07x, 1.12x; the lowest spec-on rep, 36.4, is at the level of the off medians). Per-rep decode of
-the two spec-on passes is 36.4 to 38.1 at 128, 38.2 to 40.1 at 1k, 38.6 to 40.3 at 4k, the off passes 35.5 to 36.4, 35.7 to 36.4, 34.7 to 35.3. See the control pass in section 6 for off vs the
-spike/metal binary.
+the two spec-on passes is 36.4 to 38.1 at 128, 38.2 to 40.1 at 1k, 38.6 to 40.3 at 4k, the off passes 35.5 to 36.4, 35.7 to 36.4, 34.7 to 35.3. Spec off against the spike/metal binary was not measured on its own (section 6); qualify's own bench on the same slot, spec off, gives 36.6 / 36.5 / 35.5 tok/s at 128 / 1k / 4k (qualify output, not benchmark data), at the 36.7 / 36.6 / 35.6 baseline.
 
 ### spec counters from /metrics (spec-on passes, per prompt size: 3 reps x 256 tokens)
 
@@ -233,6 +244,9 @@ All rows: chat template with thinking off (`--chat --no-think`), greedy, 256 new
 Per row: `intarsia generate ... --max-tokens 256 --chat --no-think --show-ids [--spec off | --spec ngram]`, 3 reps per mode, mode order alternating by rep (off,on / on,off / off,on) in the same
 exclusive slot (#2011), one fresh process per run, same binary for both modes. Decode tok/s is `generate`'s own `decode ... ms (X tok/s)` (prefill excluded). The dataset file is ready for
 `localeval quality --dataset g3/g3-realistic.jsonl --judge none --max-tokens 256` against a spec-on and a spec-off server; I did not run it.
+
+**In-sample caveat.** The gate parameters were ranked in the replay over the 6 sweep prompts *and* these 20 rows, so G3 is not an independent test of the gate choice. Minimum suffix 2 is already justified by the 6 non-G3 sweep prompts (open 106 to 27 passes, golden-docs 166 to 59,
+nothing lost on grounded 4k), and the G3 targets clear by a wide margin (open-ended min 1.01x vs 0.97x, grounded mean 2.46x vs 1.3x).
 
 ### Results (`g3/g3-analysis.md`; per-run files in `g3/runs/`)
 
@@ -289,9 +303,11 @@ The cargo test and cuda / hip checks ran on the CPU outside the slot (nothing in
 (`git diff df6d543 HEAD -- crates kernels recipes tools scripts deploy Cargo.toml Cargo.lock` is empty at the tip), so the slot binary, the tests and the checks are all on the same code.
 `cargo check` for CUDA and HIP compile the cuda / hip crates and the CLI with those features; the gate touches no backend code and no kernel.
 
-## 6. G2 control: spike/metal vs this branch with `--spec off`
+## 6. G2 control (spike/metal vs `--spec off`): not run
 
-Not run: the control slot (#2030) was still queued behind other sessions' jobs at the deadline, and was cancelled. Spec off vs spike/metal rests on the byte-identical ids (section 2, section 5) and on the code path: with `--spec off` the verify buffers and kernels are not allocated and `generate_one` takes the plain branch (`spec_on` false, no drafter, no gate call).
+Not run. I queued a base / off / off / base control (#2030) and cancelled it because four other sessions' jobs were ahead of it (about an hour of waiting) and it only adds a secondary check. Spec off vs spike/metal rests on the byte-identical ids (sections 2 and 5), qualify's decode figures
+(36.6 / 36.5 / 35.5 tok/s, section 3) and the code path: with `--spec off` the verify buffers and kernels are not allocated and `generate_one` takes the plain branch (`spec_on` false: no drafter, no gate call). The -1.5% to -1.9% of the off passes against the 36.7 / 36.6 / 35.6 overnight
+figures is therefore a measurement-day offset (decode clock 1285-1398 MHz in these passes), not a measured regression.
 
 ## 7. Commits, slots, files
 
