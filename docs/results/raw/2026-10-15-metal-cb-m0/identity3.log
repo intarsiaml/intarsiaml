@@ -1,0 +1,70 @@
+fleetq: #2057 waiting (#3 in line): in line behind #2055 "metal cb-identity harness e2e (qwen3-8b serve, 48 cases)" (claude-0e8026c5) on endor
+fleetq:   #2055 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2055 set, or it will wait for #2055 to be released.
+fleetq: #2057 waiting (#2 in line): in line behind #2056 "metal kv quant: fp8 decode variants microbench" (claude-31e10c55) on endor
+fleetq: #2057 waiting (#1 in line): endor is held exclusively by #2056 "metal kv quant: fp8 decode variants microbench" (claude-31e10c55)
+fleetq: #2057 running on endor: docs/results/raw/2026-10-15-metal-cb-m0/identity_slot3.sh
+15:27:22 repeat-min10 base
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 228 ms (153.5 tok/s) | decode 408 ms (36.75 tok/s)
+15:27:23 repeat-min10 off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 200 ms (175.3 tok/s) | decode 409 ms (36.70 tok/s)
+15:27:24 repeat-min10 bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 204 ms (171.9 tok/s) | decode 136 ms (109.96 tok/s)
+15:27:25 repeat-min10 on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 217 ms (161.2 tok/s) | decode 139 ms (108.28 tok/s)
+15:27:26 repeat-min14 base
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 209 ms (167.7 tok/s) | decode 408 ms (36.77 tok/s)
+15:27:27 repeat-min14 off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 205 ms (170.9 tok/s) | decode 409 ms (36.65 tok/s)
+15:27:28 repeat-min14 bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 196 ms (178.2 tok/s) | decode 136 ms (110.11 tok/s)
+15:27:28 repeat-min14 on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 200 ms (175.2 tok/s) | decode 137 ms (109.88 tok/s)
+15:27:29 repeat-min15 base
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 202 ms (173.1 tok/s) | decode 408 ms (36.74 tok/s)
+15:27:30 repeat-min15 off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 202 ms (173.7 tok/s) | decode 408 ms (36.80 tok/s)
+15:27:31 repeat-min15 bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 203 ms (172.6 tok/s) | decode 136 ms (109.89 tok/s)
+15:27:32 repeat-min15 on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 197 ms (177.9 tok/s) | decode 138 ms (109.07 tok/s)
+15:27:32 repeat-min16 base
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 202 ms (173.6 tok/s) | decode 882 ms (36.29 tok/s)
+15:27:34 repeat-min16 off
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 209 ms (167.3 tok/s) | decode 874 ms (36.59 tok/s)
+15:27:35 repeat-min16 bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 212 ms (165.2 tok/s) | decode 302 ms (105.87 tok/s)
+15:27:36 repeat-min16 on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 199 ms (175.7 tok/s) | decode 300 ms (106.57 tok/s)
+15:27:37 repeat-min17 base
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 204 ms (171.4 tok/s) | decode 871 ms (36.76 tok/s)
+15:27:39 repeat-min17 off
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 209 ms (167.6 tok/s) | decode 873 ms (36.64 tok/s)
+15:27:40 repeat-min17 bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 200 ms (174.9 tok/s) | decode 301 ms (106.34 tok/s)
+15:27:41 repeat-min17 on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 208 ms (168.3 tok/s) | decode 301 ms (106.39 tok/s)
+15:27:42 repeat-min20 base
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 201 ms (174.3 tok/s) | decode 873 ms (36.64 tok/s)
+15:27:43 repeat-min20 off
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 205 ms (170.8 tok/s) | decode 870 ms (36.77 tok/s)
+15:27:45 repeat-min20 bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 206 ms (169.7 tok/s) | decode 301 ms (106.27 tok/s)
+15:27:45 repeat-min20 on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 203 ms (172.2 tok/s) | decode 302 ms (105.92 tok/s)
+15:27:46 repeat-min12-stop base
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 204 ms (171.4 tok/s) | decode 410 ms (36.61 tok/s)
+15:27:47 repeat-min12-stop off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 204 ms (171.3 tok/s) | decode 410 ms (36.61 tok/s)
+15:27:48 repeat-min12-stop bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 204 ms (171.8 tok/s) | decode 138 ms (108.98 tok/s)
+15:27:49 repeat-min12-stop on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 203 ms (172.1 tok/s) | decode 137 ms (109.57 tok/s)
+15:27:50 sampled-repeat-min17 base
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 208 ms (168.3 tok/s) | decode 1209 ms (26.47 tok/s)
+15:27:52 sampled-repeat-min17 off
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 213 ms (164.1 tok/s) | decode 1203 ms (26.61 tok/s)
+15:27:53 sampled-repeat-min17 bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 218 ms (160.2 tok/s) | decode 1199 ms (26.69 tok/s)
+15:27:55 sampled-repeat-min17 on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=33 | prefill 217 ms (161.2 tok/s) | decode 1213 ms (26.38 tok/s)
+fleetq: #2057 done (exit 0)

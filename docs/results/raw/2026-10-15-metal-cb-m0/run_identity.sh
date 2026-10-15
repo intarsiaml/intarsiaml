@@ -1,6 +1,6 @@
 #!/bin/zsh
 # usage: run_identity.sh <outdir> <cases file> <variants...>   (inside an exclusive endor slot: FLEETQ_JOB set)
-# variants: base (spike/metal 56ec2d5 binary), off (cb-m0, --max-batch 1 --spec off), on4 (--spec ngram), on6 (--spec ngram --spec-k 6)
+# variants: base (spike/metal 56ec2d5 binary), bon4 (same, --spec ngram), off (cb-m0, --max-batch 1 --spec off), on4 (--spec ngram), on6 (--spec ngram --spec-k 6)
 # cases: name|max_tokens|flags|prompt file|[sampling flags, default --temperature 0]
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a slot" >&2; exit 2; }
@@ -19,6 +19,7 @@ while IFS='|' read -r name maxtok flags pfile samp; do
   for v in "$@"; do
     case $v in
       base) BIN=$BASE; SPEC=();;
+      bon4) BIN=$BASE; SPEC=(--spec ngram);;
       off) BIN=$NEW; SPEC=(--max-batch 1 --spec off);;
       on4) BIN=$NEW; SPEC=(--max-batch 1 --spec ngram);;
       on6) BIN=$NEW; SPEC=(--max-batch 1 --spec ngram --spec-k 6);;

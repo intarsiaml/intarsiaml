@@ -11,6 +11,7 @@ mkdir -p $O
 for v in "$@"; do
   case $v in
     base) BIN=$BIN_DIR/intarsia-base-56ec2d5; SPEC=();;
+    bon4) BIN=$BIN_DIR/intarsia-base-56ec2d5; SPEC=(--spec ngram);;
     off) BIN=$BIN_DIR/intarsia-new-${NEW_REV:?}; SPEC=(--max-batch 1 --spec off);;
     on4) BIN=$BIN_DIR/intarsia-new-${NEW_REV:?}; SPEC=(--max-batch 1 --spec ngram);;
   esac

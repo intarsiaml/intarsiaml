@@ -1,0 +1,12 @@
+fleetq: #2053 waiting (#3 in line): in line behind #2051 "metal cb-identity harness e2e (qwen3-8b serve, 40 cases)" (claude-0e8026c5) on endor
+fleetq:   #2051 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2051 set, or it will wait for #2051 to be released.
+fleetq: #2053 waiting (#2 in line): in line behind #2052 "metal kv quant: fp8 kernel tests v2" (claude-31e10c55) on endor
+fleetq: #2053 waiting (#1 in line): endor is held exclusively by #2052 "metal kv quant: fp8 kernel tests v2" (claude-31e10c55)
+fleetq: #2053 running on endor: docs/results/raw/2026-10-15-metal-cb-m0/speed.sh docs/results/raw/2026-10-15-metal-cb-m0/speed 3
+15:01:18 base r1: exit 0
+15:02:44 new r1: exit 0
+15:04:10 base r2: exit 0
+15:05:36 new r2: exit 0
+15:07:03 base r3: exit 0
+15:08:29 new r3: exit 0
+fleetq: #2053 done (exit 0)

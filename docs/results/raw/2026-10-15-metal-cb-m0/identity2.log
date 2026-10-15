@@ -1,0 +1,63 @@
+fleetq: #2049 waiting (#2 in line): in line behind #2048 "metal kv quant: fp8 kernel tests" (claude-31e10c55) on endor
+fleetq: #2049 waiting (#1 in line): endor is held exclusively by #2048 "metal kv quant: fp8 kernel tests" (claude-31e10c55)
+fleetq: #2049 running on endor: docs/results/raw/2026-10-15-metal-cb-m0/identity_slot2.sh
+14:44:06 short-48 bon4
+  exit 0 finish=length prompt=122 (cached 0) completion=48 | prefill 228 ms (534.5 tok/s) | decode 688 ms (68.30 tok/s)
+14:44:08 short-256 bon4
+  exit 0 finish=length prompt=122 (cached 0) completion=256 | prefill 214 ms (569.6 tok/s) | decode 3077 ms (82.86 tok/s)
+14:44:11 4k-48 bon4
+  exit 0 finish=length prompt=4062 (cached 0) completion=48 | prefill 1144 ms (3549.3 tok/s) | decode 402 ms (116.91 tok/s)
+14:44:13 4k-256 bon4
+  exit 0 finish=length prompt=4062 (cached 0) completion=256 | prefill 1165 ms (3486.0 tok/s) | decode 2081 ms (122.54 tok/s)
+14:44:17 grounded-256 bon4
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 234 ms (1587.2 tok/s) | decode 1855 ms (137.49 tok/s)
+14:44:19 grounded-512 bon4
+  exit 0 finish=stop prompt=371 (cached 0) completion=329 | prefill 238 ms (1558.6 tok/s) | decode 2433 ms (134.81 tok/s)
+14:44:22 open-256 bon4
+  exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 210 ms (190.3 tok/s) | decode 6816 ms (37.41 tok/s)
+14:44:30 grounded-max102 bon4
+  exit 0 finish=length prompt=371 (cached 0) completion=102 | prefill 241 ms (1537.6 tok/s) | decode 734 ms (137.69 tok/s)
+14:44:31 grounded-max188 bon4
+  exit 0 finish=length prompt=371 (cached 0) completion=188 | prefill 253 ms (1468.9 tok/s) | decode 1387 ms (134.84 tok/s)
+14:44:33 grounded-stop-topp bon4
+  exit 0 finish=stop prompt=371 (cached 0) completion=115 | prefill 251 ms (1480.8 tok/s) | decode 902 ms (126.42 tok/s)
+14:44:35 grounded-stop-vecstring bon4
+  exit 0 finish=stop prompt=371 (cached 0) completion=186 | prefill 244 ms (1520.2 tok/s) | decode 1393 ms (132.82 tok/s)
+14:44:37 grounded-stop-atomic bon4
+  exit 0 finish=stop prompt=371 (cached 0) completion=224 | prefill 257 ms (1444.0 tok/s) | decode 1626 ms (137.18 tok/s)
+14:44:39 grounded-min331 bon4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 257 ms (1444.9 tok/s) | decode 3001 ms (132.97 tok/s)
+14:44:43 grounded-min335 bon4
+  exit 0 finish=length prompt=371 (cached 0) completion=400 | prefill 253 ms (1464.5 tok/s) | decode 3026 ms (131.86 tok/s)
+14:44:46 grounded-min320-stopfence bon4
+  exit 0 finish=stop prompt=371 (cached 0) completion=328 | prefill 262 ms (1415.5 tok/s) | decode 2482 ms (131.75 tok/s)
+14:44:50 4k-max9 bon4
+  exit 0 finish=length prompt=4062 (cached 0) completion=9 | prefill 1411 ms (2878.3 tok/s) | decode 126 ms (63.59 tok/s)
+14:44:51 4k-max44 bon4
+  exit 0 finish=length prompt=4062 (cached 0) completion=44 | prefill 1394 ms (2912.9 tok/s) | decode 375 ms (114.60 tok/s)
+14:44:54 4k-stop250 bon4
+  exit 0 finish=stop prompt=4062 (cached 0) completion=85 | prefill 1395 ms (2912.1 tok/s) | decode 754 ms (111.43 tok/s)
+14:44:56 short-stopkettles bon4
+  exit 0 finish=stop prompt=122 (cached 0) completion=57 | prefill 224 ms (544.8 tok/s) | decode 800 ms (70.02 tok/s)
+14:44:58 golden-docs-48 bon4
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1472 ms (2938.9 tok/s) | decode 1246 ms (37.73 tok/s)
+14:45:01 golden-docs-256 bon4
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1457 ms (2968.2 tok/s) | decode 6632 ms (38.45 tok/s)
+14:45:09 golden-code-48 bon4
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1209 ms (2974.1 tok/s) | decode 1206 ms (38.98 tok/s)
+14:45:12 golden-code-256 bon4
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1208 ms (2976.6 tok/s) | decode 4054 ms (62.91 tok/s)
+14:45:18 repeat-eos bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 233 ms (150.5 tok/s) | decode 139 ms (108.21 tok/s)
+14:45:19 sampled-short-128 bon4
+  exit 0 finish=length prompt=122 (cached 0) completion=128 | prefill 225 ms (541.0 tok/s) | decode 3644 ms (34.85 tok/s)
+14:45:23 sampled-grounded-256 bon4
+  exit 0 finish=length prompt=371 (cached 0) completion=256 | prefill 252 ms (1472.9 tok/s) | decode 9789 ms (26.05 tok/s)
+14:45:33 sampled-open-min50-stop bon4
+  exit 0 finish=stop prompt=40 (cached 0) completion=51 | prefill 232 ms (172.1 tok/s) | decode 1896 ms (26.37 tok/s)
+14:45:36 sampled-4k-64 bon4
+  exit 0 finish=length prompt=4062 (cached 0) completion=64 | prefill 1185 ms (3428.6 tok/s) | decode 1857 ms (33.92 tok/s)
+14:45:39 sampled-repeat-eos bon4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 237 ms (147.4 tok/s) | decode 562 ms (26.69 tok/s)
+/opt/code/intarsiaml-cb-m0/docs/results/raw/2026-10-15-metal-cb-m0/serve/bon4.json {'turn1': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 0}}), 'turn2_stream': ('length', {'prompt_tokens': 186, 'completion_tokens': 64, 'total_tokens': 250, 'prompt_tokens_details': {'cached_tokens': 178}}), 'turn1_again': ('stop', {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 121}}), 'sampled_a': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 0}}), 'sampled_b': ('length', {'prompt_tokens': 360, 'completion_tokens': 120, 'total_tokens': 480, 'prompt_tokens_details': {'cached_tokens': 359}}), 'sampled_stop_min': ('stop', {'prompt_tokens': 122, 'completion_tokens': 50, 'total_tokens': 172, 'prompt_tokens_details': {'cached_tokens': 0}}), 'after_disconnect': ('length', {'prompt_tokens': 122, 'completion_tokens': 32, 'total_tokens': 154, 'prompt_tokens_details': {'cached_tokens': 0}})}
+fleetq: #2049 done (exit 0)

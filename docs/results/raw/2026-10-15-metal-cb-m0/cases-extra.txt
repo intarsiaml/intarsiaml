@@ -1,0 +1,8 @@
+repeat-min10|64|--chat --no-think --min-tokens 10|repeat
+repeat-min14|64|--chat --no-think --min-tokens 14|repeat
+repeat-min15|64|--chat --no-think --min-tokens 15|repeat
+repeat-min16|64|--chat --no-think --min-tokens 16|repeat
+repeat-min17|64|--chat --no-think --min-tokens 17|repeat
+repeat-min20|64|--chat --no-think --min-tokens 20|repeat
+repeat-min12-stop|64|--chat --no-think --min-tokens 12 --stop the|repeat
+sampled-repeat-min17|64|--chat --no-think --min-tokens 17|repeat|--temperature 0.5 --seed 5
