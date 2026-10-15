@@ -1,3 +1,6 @@
 fleetq job 2048 (metal kv quant: fp8 kernel tests) acquired Thu Oct 15 14:41:20 EDT 2026
   RUNNING #2048 "metal kv quant: fp8 kernel tests" (claude-31e10c55) running on endor exclusive 60 GB for 3s
 fleetq job 2048 released Thu Oct 15 14:44:05 EDT 2026
+fleetq job 2052 (metal kv quant: fp8 kernel tests v2) acquired Thu Oct 15 14:57:04 EDT 2026
+  RUNNING #2052 "metal kv quant: fp8 kernel tests v2" (claude-31e10c55) running on endor exclusive 60 GB for 4s
+fleetq job 2052 released Thu Oct 15 14:59:47 EDT 2026

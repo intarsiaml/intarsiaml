@@ -27,3 +27,21 @@ cooldown() { # $1 = macmon jsonl, $2 = label: wait until the GPU is below ${COOL
   while [ $t -gt ${COOL:-75} ] && [ $n -lt ${COOLN:-9} ]; do sleep 10; t=$(gpu_temp $1); n=$((n+1)); done
   echo "temp before $2: ${t} C (waited $((n*10)) s)"
 }
+# units-in-flight of the fp8 split-KV kernels: the winner of the slot-1c microbench (default 4 if there is none)
+pickU() {
+  python3 - <<'PY'
+import re, os, collections
+f = "/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/slot1c/attn_bw.txt"
+if not os.path.exists(f): print(4); raise SystemExit
+tot = collections.defaultdict(list); U = None
+for l in open(f):
+    m = re.match(r"U=(\d+)", l)
+    if m: U = int(m[1]); continue
+    m = re.match(r"\s*(\d+) attn_decode_f8_splitkv\s+([\d.]+)", l)
+    if m and U and int(m[1]) >= 16384: tot[U].append(float(m[2]))
+best = min(tot, key=lambda u: sum(tot[u]) / len(tot[u]))
+base = sum(tot[4]) / len(tot[4])
+# only move off the default for a clear (>2 percent) win
+print(best if sum(tot[best]) / len(tot[best]) < 0.98 * base else 4)
+PY
+}
