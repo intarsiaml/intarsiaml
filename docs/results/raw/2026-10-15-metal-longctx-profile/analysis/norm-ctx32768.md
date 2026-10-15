@@ -2,8 +2,8 @@ matmul best 62.2 TFLOPS (reference clock state)
 
 | pos0 | matmul ms | matmul TFLOPS | attention ms | attention TFLOPS raw | attention TFLOPS at reference clock |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 457 | 62.2 | 25 | 49.4 | 49.4 |
-| 2048 | 471 | 60.4 | 76 | 48.7 | 50.2 |
+| 0 | 457 | 62.2 | 25 | 49.4 (clock >= 1450 proxy) | 49.4 |
+| 2048 | 471 | 60.4 | 76 | 48.7 (clock >= 1450 proxy) | 50.2 |
 | 4096 | 524 | 54.3 | 143 | 43.4 | 49.7 |
 | 6144 | 514 | 55.3 | 197 | 44.0 | 49.5 |
 | 8192 | 521 | 54.6 | 258 | 43.2 | 49.2 |
@@ -11,12 +11,13 @@ matmul best 62.2 TFLOPS (reference clock state)
 | 12288 | 579 | 49.1 | 413 | 38.9 | 49.3 |
 | 14336 | 560 | 50.8 | 465 | 39.9 | 48.9 |
 | 16384 | 553 | 51.4 | 523 | 40.2 | 48.6 |
-| 18432 | 491 | 58.0 | 524 | 44.9 | 48.1 |
+| 18432 | 491 | 58.0 | 524 | 44.9 (clock >= 1450 proxy) | 48.1 |
 | 20480 | 507 | 56.1 | 601 | 43.2 | 47.9 |
 | 22528 | 514 | 55.4 | 672 | 42.4 | 47.6 |
 | 24576 | 526 | 54.0 | 751 | 41.2 | 47.4 |
 | 26624 | 565 | 50.3 | 856 | 39.0 | 48.2 |
 | 28672 | 590 | 48.2 | 956 | 37.5 | 48.4 |
-| 30720 | 502 | 56.6 | 901 | 42.5 | 46.7 |
+| 30720 | 502 | 56.6 | 901 | 42.5 (clock >= 1450 proxy) | 46.7 |
 
 Totals: attention 7691 ms raw, 6574 ms at the reference clock (48.2 TFLOPS); matmul 8424 ms raw, 7319 ms at the reference clock.
+Admissible chunks (matmul rate >= 56.4 TFLOPS, the proxy for a GPU clock >= 1450 MHz): 4 of 16; attention there 43.7 TFLOPS raw (no rescaling).

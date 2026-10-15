@@ -25,10 +25,14 @@ full = [r for r in rows if r[1] == chunk]
 best = min(r[2] / r[3] for r in rows)  # s per FLOP of the fastest chunk
 print(f"matmul best {1/best/1e12:.1f} TFLOPS (reference clock state)\n")
 print("| pos0 | matmul ms | matmul TFLOPS | attention ms | attention TFLOPS raw | attention TFLOPS at reference clock |\n|---:|---:|---:|---:|---:|---:|")
-tn = 0.0; ta = 0.0; tm = 0.0; tmn = 0.0; tfl = 0.0
+sa = sf = 0.0; na = 0; tn = 0.0; ta = 0.0; tm = 0.0; tmn = 0.0; tfl = 0.0
 for pos0, T, mm, mmfl, at, ot, fl in rows:
     f = (mm / mmfl) / best  # slowdown vs reference (>= 1)
     an = at / f
-    print(f"| {pos0} | {mm*1e3:.0f} | {mmfl/mm/1e12:.1f} | {at*1e3:.0f} | {fl/at/1e12:.1f} | {fl/an/1e12:.1f} |")
+    adm = (mmfl / mm / 1e12) >= 56.4
+    print(f"| {pos0} | {mm*1e3:.0f} | {mmfl/mm/1e12:.1f} | {at*1e3:.0f} | {fl/at/1e12:.1f}{' (clock >= 1450 proxy)' if adm else ''} | {fl/an/1e12:.1f} |")
+    if adm: sa += at; sf += fl; na += 1
     ta += at; tn += an; tm += mm; tmn += mm / f; tfl += fl
 print(f"\nTotals: attention {ta*1e3:.0f} ms raw, {tn*1e3:.0f} ms at the reference clock ({tfl/tn/1e12:.1f} TFLOPS); matmul {tm*1e3:.0f} ms raw, {tmn*1e3:.0f} ms at the reference clock.")
+
+print(f"Admissible chunks (matmul rate >= 56.4 TFLOPS, the proxy for a GPU clock >= 1450 MHz): {na} of {len(rows)}; attention there {sf/sa/1e12:.1f} TFLOPS raw (no rescaling)." if na else "No admissible chunk.")
