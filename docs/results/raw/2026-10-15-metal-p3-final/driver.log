@@ -1,0 +1,18 @@
+fleetq job 1988
+tip before baselines: 9eeb96c
+?? docs/results/raw/2026-10-15-metal-p3-final/driver.log
+?? docs/results/raw/2026-10-15-metal-p3-final/fleetq-job.txt
+== 4. re-record Metal baselines + envelopes at chunk 2048 on this tip (9eeb96c)
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/short-baseline exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/short-envelope exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/short-selfcheck exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/long-baseline exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/long-envelope exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/long-selfcheck exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/4k-baseline exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/4k-envelope exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/4k-selfcheck exit 1
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+== 5. commit baselines, build the final binary

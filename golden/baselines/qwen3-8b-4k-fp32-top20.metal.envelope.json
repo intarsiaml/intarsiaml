@@ -21,50 +21,50 @@
     "kv_dtype": "bf16",
     "act_dtype": "bf16",
     "fp8_act": "recipe default",
-    "prefill_chunk": 256,
-    "prefill_chunk_source": "default",
+    "prefill_chunk": 2048,
+    "prefill_chunk_source": "recipe qwen3, metal",
     "decode_positions": 64,
     "gate_class": "bf16"
   },
   "base_code": {
-    "head": "f67c379",
-    "code_tree": "b7b7b80a8f67",
+    "head": "9eeb96c",
+    "code_tree": "1e0dfabdf84a",
     "dirty": false,
     "overlay": []
   },
   "perturbations": [
     {
-      "declared": "prefill chunk 256 -> 2048",
-      "created_unix": 1792067352,
+      "declared": "prefill chunk 2048 -> 256",
+      "created_unix": 1792072182,
       "tool_version": "0.0.1",
       "code": {
-        "head": "f67c379",
-        "code_tree": "b7b7b80a8f67",
+        "head": "9eeb96c",
+        "code_tree": "1e0dfabdf84a",
         "dirty": false,
         "overlay": []
       },
       "exec": {
         "cmdline": [
-          "/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-a",
+          "/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/g4k/intarsia-final0",
           "accuracy",
           "--model",
           "/Users/josef/models/Qwen3-8B",
           "--backend",
           "metal",
           "--golden",
-          "/opt/code/intarsiaml-golden-4k/golden/qwen3-8b-4k-fp32-top20.safetensors",
+          "/opt/code/intarsiaml/golden/qwen3-8b-4k-fp32-top20.safetensors",
+          "--mode",
+          "both",
           "--decode-positions",
           "64",
           "--max-seq",
           "8192",
-          "--mode",
-          "both",
           "--noise-ref",
-          "/opt/code/intarsiaml-golden-4k/golden/baselines/qwen3-8b-4k-fp32-top20.metal.baseline.json",
+          "/opt/code/intarsiaml-p3-final/golden/baselines/qwen3-8b-4k-fp32-top20.metal.baseline.json",
           "--noise-perturb",
-          "chunk=2048",
+          "chunk=256",
           "--write-noise-envelope",
-          "/opt/code/intarsiaml-golden-4k/golden/baselines/qwen3-8b-4k-fp32-top20.metal.envelope.json",
+          "/opt/code/intarsiaml-p3-final/golden/baselines/qwen3-8b-4k-fp32-top20.metal.envelope.json",
           "--allow-same-code"
         ],
         "disable_list": "",
@@ -90,15 +90,15 @@
         "kv_dtype": "bf16",
         "act_dtype": "bf16",
         "fp8_act": "recipe default",
-        "prefill_chunk": 2048,
+        "prefill_chunk": 256,
         "prefill_chunk_source": "--prefill-chunk",
         "decode_positions": 64,
         "gate_class": "bf16"
       },
       "reference": {
         "file": "qwen3-8b-4k-fp32-top20.metal.baseline.json",
-        "fnv1a64": "4e0d6226c3c6ae6a",
-        "created_unix": 1792067322
+        "fnv1a64": "9adb92b6cf3124ae",
+        "created_unix": 1792072149
       },
       "modes": [
         {
