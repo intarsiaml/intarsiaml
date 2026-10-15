@@ -1,0 +1,8 @@
+start Thu Oct 15 10:09:19 EDT 2026 job 1993 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+g0b tests exit 0 Thu Oct 15 10:09:27 EDT 2026
+attn_hash vs b5 reference: diff exit 0 Thu Oct 15 10:09:27 EDT 2026
+cargo test metal exit 0 Thu Oct 15 10:09:47 EDT 2026
+kernels test exit 0 Thu Oct 15 10:10:29 EDT 2026
+bench exit 0 Thu Oct 15 10:12:21 EDT 2026
+align_copy exit 0 Thu Oct 15 10:12:22 EDT 2026
+end Thu Oct 15 10:12:22 EDT 2026

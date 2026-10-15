@@ -1,0 +1,36 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/g0b_attn.rs (target/release/deps/g0b_attn-79f8493902b8acd6)
+
+running 7 tests
+test rows_bitwise_other_shapes ... g0b attn: 8/8/64 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 8/2/64 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 16/2/256 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 12/4/32 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 6/2/128 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 8/1/16 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_qwen3_8b_all_k ... g0b attn: 32/8/128 cap 4096: 1218 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_qwen3_8b_long_context ... g0b attn: 32/8/128 cap 16384: 812 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_with_cache_and_q_offsets ... g0b attn: 32/8/128 cap 2048: 102 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_device_position_is_the_device_position_one_row_launch ... ok
+test rows_misaligned_operands_fall_back_to_the_single_pass_rows ... ok
+test rows_registration_is_below_serving ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.48s
+
+     Running tests/g0b_small.rs (target/release/deps/g0b_small-39a5193a495e0cb1)
+
+running 7 tests
+test add_and_silu_glu_rows ... ok
+test argmax_rows ... ok
+test embedding_rows ... ok
+test kv_append_rows ... ok
+test qk_norm_rope_kv_rows ... ok
+test rmsnorm_add_rows ... ok
+test rmsnorm_rows ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+

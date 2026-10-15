@@ -184,6 +184,147 @@ impl MetalBackend {
     }
 }
 
+/// Most verification rows `launch_attn_rows` takes (G0b).
+pub const ROWS_MAX: usize = 8;
+
+/// Shapes `attn_prefill_bf16_splitkv_rows` takes: 2..=8 query rows, the split-KV decode shapes otherwise.
+pub fn rows_ok(s: &ShapeInfo) -> bool {
+    (2..=ROWS_MAX).contains(&s.m) && splitkv_ok(&ShapeInfo { m: 1, ..s.clone() })
+}
+
+/// Scratch of the multi-row kernels: one `splitkv_scratch` slab per row.
+pub fn rows_scratch(s: &ShapeInfo) -> usize {
+    splitkv_scratch(s) * s.m.clamp(1, ROWS_MAX)
+}
+
+/// Simdgroups per threadgroup of the 1-row launch (`launch_attn_splitkv`) that holds `nsplit` splits: the multi-row
+/// kernel uses the same rule per row (`askr_nsg`), the host picks the maximum over the rows (row 0, the rule is
+/// non-increasing in `nsplit`).
+fn rows_nsg(host_pos: bool, nkv: usize, nsplit: usize, gp: usize, d: usize) -> usize {
+    let nsg = if host_pos && nkv * nsplit <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
+    nsg.min((TG_FLOATS / (gp * d)).max(1))
+}
+
+impl MetalBackend {
+    /// `attn_prefill_bf16_splitkv_rows`: `AttnPrefill` with `T = 2..=8` query rows (row `r` at position `pos0 + r`, causal),
+    /// bitwise the 1-row `launch_attn_splitkv` call at position `pos0 + r` on the same cache, per row (G0b,
+    /// kernels/metal/attention_splitkv.metal). Operands the split-KV kernels cannot take run `T` single-pass 1-row launches
+    /// (what the 1-row launcher does for them).
+    #[doc(hidden)]
+    pub fn launch_attn_rows(&self, call: &OpCall) -> Result<()> {
+        let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
+        let bf = DType::Bf16;
+        let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+        let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
+        if t * n * d == 0 {
+            return Ok(());
+        }
+        let shape_ok = (2..=ROWS_MAX).contains(&t)
+            && nkv > 0
+            && n % nkv == 0
+            && n / nkv <= MAX_GROUP
+            && matches!(d, 8 | 16 | 32 | 64 | 128 | 256);
+        let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
+        let qa = self.mbuf(&i[0].buf)?.base + i[0].offset;
+        if !shape_ok || ka % 16 != 0 || va % 16 != 0 || qa % 16 != 0 {
+            for r in 0..t {
+                let mut at = a.clone();
+                at.pos0 = a.pos0 + r;
+                let mut c = OpCall::new(
+                    intarsia_core::Op::AttnDecode,
+                    vec![i[0].rows(r, 1), i[1].clone(), i[2].clone()],
+                    vec![o[0].rows(r, 1)],
+                    at,
+                );
+                c.pos = None;
+                self.launch_dense(ATTN_DECODE_BF16, &c)?;
+            }
+            return Ok(());
+        }
+        let (q, kc, vc, out) = (
+            self.bind(&i[0], bf, false, "q")?,
+            self.bind(&i[1], bf, false, "k cache")?,
+            self.bind(&i[2], bf, false, "v cache")?,
+            self.bind(&o[0], bf, true, "out")?,
+        );
+        let (pos, use_dev) = self.pos_bind(call)?;
+        let grp = n / nkv;
+        let last = if use_dev == 1 { cap } else { (a.pos0 + t).min(cap) };
+        let max_split = decode_splits(last, nkv, MAX_SPLIT);
+        let need = t * n * max_split * (d + 2) * 4;
+        let scratch = call.scratch.as_ref().ok_or_else(|| {
+            Error::invalid("metal attn_prefill_bf16_splitkv_rows: the scratch workspace (OpCall::scratch) is missing")
+        })?;
+        if scratch.numel() * scratch.dtype.size_bytes() < need {
+            return Err(Error::invalid(format!(
+                "metal attn_prefill_bf16_splitkv_rows: scratch of {} bytes, need {need}",
+                scratch.numel() * scratch.dtype.size_bytes()
+            )));
+        }
+        let sc = self.bind(scratch, DType::U8, true, "scratch")?;
+        if sc.skip != 0 || (self.mbuf(&scratch.buf)?.base + scratch.offset) % 16 != 0 {
+            return Err(Error::invalid("metal attn_prefill_bf16_splitkv_rows: scratch must be 16-byte aligned"));
+        }
+        let (min_keys, target) = policy();
+        let p = OpP {
+            dims: [
+                u32_of(target, "target")?,
+                u32_of(n, "N")?,
+                u32_of(nkv, "Nkv")?,
+                u32_of(d, "D")?,
+                u32_of(cap, "cap")?,
+                u32_of(a.pos0, "pos0")?,
+                use_dev,
+                u32_of(max_split, "max_split")?,
+            ],
+            skips: [u32_of(t, "rows")?, 0, 0, out.skip, 0],
+            f0: a.scale,
+            f1: 0.0,
+            pad: u32_of(min_keys, "min_keys")?,
+        };
+        u32_of(nkv * cap * d, "Nkv*cap*D")?;
+        u32_of(t * n * max_split * (d + 2), "R*N*max_split*(D+2)")?;
+        let gp = grp.next_power_of_two();
+        // threadgroup shape: the largest simdgroup count any row's 1-row launch uses (row 0: the fewest splits)
+        let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, nkv, MAX_SPLIT);
+        let nsg = rows_nsg(use_dev == 0, nkv, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp, d);
+        let (name1, name2) = (ATTN_ROWS_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
+        let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
+        let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
+        let combine = use_dev == 1 || max_split > 1;
+        let pos_b = pos.as_ref().unwrap_or(&q);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`; the scratch
+            // size above).
+            unsafe {
+                enc.setComputePipelineState(pso1);
+                for (idx, b) in [&q, &kc, &vc, &out, pos_b, &sc].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx);
+                }
+            }
+            set_bytes(enc, &p, 6);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: nkv * t, height: max_split, depth: 1 },
+                MTLSize { width: nsg * 32, height: 1, depth: 1 },
+            );
+            if combine {
+                // SAFETY: as above.
+                unsafe {
+                    enc.setComputePipelineState(pso2);
+                    for (idx, b) in [&out, pos_b, &sc].into_iter().enumerate() {
+                        enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx);
+                    }
+                }
+                set_bytes(enc, &p, 3);
+                enc.dispatchThreadgroups_threadsPerThreadgroup(
+                    MTLSize { width: n, height: t, depth: 1 },
+                    MTLSize { width: d, height: 1, depth: 1 },
+                );
+            }
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

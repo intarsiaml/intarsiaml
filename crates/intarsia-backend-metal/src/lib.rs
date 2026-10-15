@@ -651,6 +651,9 @@ impl Backend for MetalBackend {
         if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
             return self.launch_matmul_pair(call);
         }
+        if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
+            return self.launch_attn_rows(call);
+        }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
             return self.launch_matmul_rows(call);
         }

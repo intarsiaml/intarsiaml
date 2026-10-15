@@ -188,6 +188,11 @@ pub const ATTN_DECODE_SPLITKV_SHADERS: [&str; 5] = [
     "attn_decode_bf16_splitkv_g8",
     "attn_decode_bf16_combine",
 ];
+/// `AttnPrefill` with 2..=8 query rows (speculative-decoding verification), bitwise the 1-row `attn_decode_bf16_splitkv`
+/// call per row (attention_splitkv.metal, launcher `attn.rs`, G0b). Registered below the prefill kernels (priority -1).
+pub const ATTN_PREFILL_BF16_SPLITKV_ROWS: &str = "attn_prefill_bf16_splitkv_rows";
+pub const ATTN_ROWS_SHADERS: [&str; 5] =
+    ["attn_rows_splitkv_g1", "attn_rows_splitkv_g2", "attn_rows_splitkv_g4", "attn_rows_splitkv_g8", "attn_rows_combine"];
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
 /// `Backend::zero` / `Backend::copy` kernels (copy.metal): 16-byte vector forms plus byte forms for the unaligned rest.
@@ -286,6 +291,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([QK_NORM_ROPE_KV_BF16, QK_NORM_ROPE_KV_BF16_PF]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
+    v.extend(ATTN_ROWS_SHADERS);
     v.extend(crate::flash::FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
@@ -327,6 +333,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::MATMUL_BF16_GEMV_ROWS, Op::Matmul),
     (crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS, Op::MatmulPair),
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
+    (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -474,6 +481,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(F32_TOL)
                     .priority(-1),
+                // G0b: 2..=8 verification rows, bitwise the 1-row split-KV decode per row. Below attn_prefill_bf16 (0), which
+                // takes any T, so serving never selects it; `kernels test` grades it against the cpu reference.
+                ATTN_PREFILL_BF16_SPLITKV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::attn::rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1)
+                    .scratch(crate::attn::rows_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -507,7 +524,7 @@ mod tests {
     #[test]
     fn attention_is_registered_for_both_ops() {
         // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 3), (Op::AttnDecode, 2)] {
+        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 2)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));
