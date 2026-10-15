@@ -1073,9 +1073,25 @@ impl Model {
         out
     }
 
+    /// `ids` cut into forward passes of at most `max_tokens` rows, by the engine's prefill rule
+    /// ([`crate::scheduler::next_prefill_chunk`]): on a backend that avoids a 1-row tail (Metal) a `max_tokens + 1`
+    /// remainder runs as `(max_tokens - 1, 2)`, so accuracy tooling scores the bits serving produces. Recurrent states keep
+    /// the plain split, as in the engine.
+    fn forward_chunks<'a>(&self, st: &SequenceState, ids: &'a [u32]) -> Vec<&'a [u32]> {
+        let avoid = self.backend.avoid_single_row_prefill() && !st.has_recurrent();
+        let mut out = Vec::with_capacity(ids.len().div_ceil(self.ws.max_tokens));
+        let mut pos = 0;
+        while pos < ids.len() {
+            let n = crate::scheduler::next_prefill_chunk(ids.len() - pos, self.ws.max_tokens, avoid);
+            out.push(&ids[pos..pos + n]);
+            pos += n;
+        }
+        out
+    }
+
     /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head).
     fn run_peer(&self, ps: &mut SequenceState, ids: &[u32]) -> Result<()> {
-        for chunk in ids.chunks(self.ws.max_tokens) {
+        for chunk in self.forward_chunks(ps, ids) {
             self.run_chunk(ps, chunk, false)?;
             ps.commit(chunk);
         }
@@ -1102,9 +1118,10 @@ impl Model {
                 }
             }
         }
-        let nchunks = ids.len().div_ceil(self.ws.max_tokens);
+        let chunks = self.forward_chunks(st, ids);
+        let nchunks = chunks.len();
         let mut out = StepOut::None;
-        for (ci, chunk) in ids.chunks(self.ws.max_tokens).enumerate() {
+        for (ci, chunk) in chunks.into_iter().enumerate() {
             let last = ci + 1 == nchunks;
             let base = st.len;
             let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
