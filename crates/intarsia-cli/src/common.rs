@@ -167,6 +167,10 @@ pub fn open_group(name: &str, ordinals: &[usize], comm: &str) -> Result<(Vec<Arc
 
 impl ModelArgs {
     pub fn open_backend(&self) -> Result<Arc<dyn Backend>> {
+        // the metal backend lists its int8-KV kernels only when an int8 cache is requested (see its `kernels()`)
+        if self.backend == "metal" && self.kv_dtype.as_deref().map(DType::parse).is_some_and(|d| matches!(d, Ok(DType::I8))) {
+            std::env::set_var("INTARSIA_METAL_KV_INT8", "1");
+        }
         open_backend(&self.backend, self.device)
     }
 

@@ -16,3 +16,5 @@ fleetq job 2059 released Thu Oct 15 15:47:54 EDT 2026
 fleetq job 2064 (metal kv quant: int8 tests + probe + accuracy + ids) acquired Thu Oct 15 16:09:38 EDT 2026
   RUNNING #2064 "metal kv quant: int8 tests + probe + accuracy + ids" (claude-31e10c55) running on endor exclusive 60 GB for 4s
 fleetq job 2064 released Thu Oct 15 16:17:09 EDT 2026
+fleetq job 2075 (metal kv quant: speed ABBA bf16/fp8/int8 + sizing + split sweep) acquired Thu Oct 15 16:57:27 EDT 2026
+  RUNNING #2075 "metal kv quant: speed ABBA bf16/fp8/int8 + sizing + split sweep" (claude-31e10c55) running on endor exclusive 60 GB for 4s

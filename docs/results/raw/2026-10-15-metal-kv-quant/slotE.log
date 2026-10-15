@@ -2,3 +2,118 @@ fleetq: #2075 waiting (#8 in line): in line behind #2065 "cb-m1 step1: attn_bloc
 fleetq: #2075 waiting (#7 in line): in line behind #2067 "cb-m1 step1: forward_batch bitwise gate Qwen3-8B (B=2..8)" (claude-0e8026c5) on endor
 fleetq: #2075 waiting (#6 in line): in line behind #2069 "gemm midm: gates (cargo test metal, kernels test, ids, accuracy, qualify)" (claude-0e8026c5) on endor
 fleetq: #2075 waiting (#5 in line): in line behind #2070 "gemm midm: threadgroup swizzle at M=256/512, streamed vs cached weights" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#4 in line): in line behind #2072 "cb-m0 serve-gap: c556008 vs 56ec2d5 (G2 args), macmon" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#3 in line): in line behind #2073 "metal cb-identity harness e2e (qwen3-8b serve, 20 cases)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#2 in line): in line behind #2074 "cb-m1 step1: workspace+metal tests, kernels test, batch bench, identity (head)" (claude-0e8026c5) on endor
+fleetq: #2075 waiting (#1 in line): endor is held exclusively by #2074 "cb-m1 step1: workspace+metal tests, kernels test, batch bench, identity (head)" (claude-0e8026c5)
+fleetq job 2075 (metal kv quant: speed ABBA bf16/fp8/int8 + sizing + split sweep) acquired Thu Oct 15 16:57:27 EDT 2026
+######## part F: final gates Thu Oct 15 16:57:28 EDT 2026
+INTARSIA_METAL_F8_U=4
+== 0. KV memory sizing: tokens that fit a 40 GiB budget, bf16 vs fp8 (plan lines)
+bf16: loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+fp8: loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv fp8_e4m3, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "attn_decode_bf16_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "qk_norm_rope_kv_bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:  "kv_dtype": "bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "attn_decode_f8_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "qk_norm_rope_kv_f8",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:  "kv_dtype": "fp8_e4m3",
+== 1. cargo test -p intarsia-backend-metal --release (all, incl. kv_fp8)
+exit 0
+   1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+   1 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.18s
+   1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s
+   1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.70s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.06s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.33s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.26s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s
+== 2. kernels test --backend metal
+exit 1
+33
+kv_append      kv_append_i8                    0      0     0.000e0     0.000e0  NO CASES (untested)
+qk_norm_rope_kv qk_norm_rope_kv_i8              0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_decode    attn_decode_i8_splitkv          0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_prefill   attn_prefill_i8_flash           0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_prefill   attn_prefill_i8_flash_nax       0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_prefill   attn_prefill_i8_splitkv_rows      0      0     0.000e0     0.000e0  NO CASES (untested)
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 Nkv=8 D=128 cap=6 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=9 Nkv=8 D=128 cap=15 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=0 Nkv=8 D=128 cap=11 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=9 Nkv=8 D=128 cap=20 new=bf16 cache=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=2.228e-7 rel_l2=6.702e-9 T=5 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.619e-4 rel_l2=6.819e-6 T=5 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=8.084e-7 rel_l2=3.782e-8 T=5 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=5.174e-5 rel_l2=2.671e-6 T=32 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=6.158e-4 rel_l2=1.643e-5 T=32 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.374e-3 rel_l2=2.385e-5 T=32 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=7.062e-4 rel_l2=1.453e-5 T=32 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=3.613e-4 rel_l2=8.683e-6 T=32 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.490e-8 rel_l2=3.715e-8 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=3.130e-6 rel_l2=2.297e-7 T=1 pos0=7 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.277e-5 rel_l2=9.203e-7 T=1 pos0=40 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+== 3. default-path greedy ids, base vs new (bf16 KV), 256 tokens
+bf16 KV, new vs base binary, short-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, 4k-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, open-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, grounded-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-docs-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-code-256: ids identical (256 tokens)
+== 6. qualify, fresh full run on the default (bf16 KV)
+qualify bf16 exit 1
+**Verdict: FAIL** (13 stages: 10 pass, 1 fail, 0 error, 2 skipped)
+| Accuracy (short golden) | **PASS** (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4) |
+| Accuracy (4k golden) | **PASS** (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4) |
+| Quick gate | **PASS**: perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+- `kernels` **FAIL**: Error: kernel admission failed 
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 39 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 43s | 14 ops resolved, exactness deterministic, loaded in 43.4s |
+| 4 | `kernels` kernels test on the model's shapes | quick | FAIL | 50s | Error: kernel admission failed  |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 9s | perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 7s | prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4 |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | PASS | 80s | decode 36.2 tok/s at 128 tokens (89% of the byte floor) |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 24s | prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4 |
+| 9 | `acc-4k` accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048) | full | PASS | 68s | prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4 |
+| 10 | `envelope` noise envelope and baseline for regression gating | full | PASS | 14s | baseline and envelope (chunk) written; they gate this build: PASS |
+| 11 | `bench-long` long-context bench up to 16k | full | PASS | 84s | decode 36.2 tok/s at 1024 tokens (89% of the byte floor) |
+**Regression gating artifacts**: baseline and envelope (chunk) written; they gate this build: PASS
+- recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
+done Thu Oct 15 17:07:04 EDT 2026
+######## part E: speed Thu Oct 15 17:07:04 EDT 2026
+INTARSIA_METAL_F8_U=4
+== split policy sweep for the quantised kernels (INTARSIA_METAL_SPLITKV=min_keys,target_tgs), attn_bw per-call us
+policy 128,120 ctx 4096: attn_decode_bf16_splitkv 36.2 us | attn_decode_i8_splitkv 30.9 us | attn_decode_f8_splitkv 30.8 us | 
+policy 128,120 ctx 16384: attn_decode_bf16_splitkv 122.5 us | attn_decode_i8_splitkv 92.1 us | attn_decode_f8_splitkv 91.9 us | 
+policy 128,120 ctx 32768: attn_decode_bf16_splitkv 235.4 us | attn_decode_i8_splitkv 172.5 us | attn_decode_f8_splitkv 172.1 us | 
+policy 128,240 ctx 4096: attn_decode_bf16_splitkv 44.8 us | attn_decode_i8_splitkv 37.4 us | attn_decode_f8_splitkv 36.3 us | 

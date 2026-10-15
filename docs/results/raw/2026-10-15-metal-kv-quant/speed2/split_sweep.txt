@@ -1,0 +1,4 @@
+policy 128,120 ctx 4096: attn_decode_bf16_splitkv 36.2 us | attn_decode_i8_splitkv 30.9 us | attn_decode_f8_splitkv 30.8 us | 
+policy 128,120 ctx 16384: attn_decode_bf16_splitkv 122.5 us | attn_decode_i8_splitkv 92.1 us | attn_decode_f8_splitkv 91.9 us | 
+policy 128,120 ctx 32768: attn_decode_bf16_splitkv 235.4 us | attn_decode_i8_splitkv 172.5 us | attn_decode_f8_splitkv 172.1 us | 
+policy 128,240 ctx 4096: attn_decode_bf16_splitkv 44.8 us | attn_decode_i8_splitkv 37.4 us | attn_decode_f8_splitkv 36.3 us | 

@@ -604,6 +604,12 @@ impl Backend for MetalBackend {
         if !self.metal4 {
             ks.retain(|k| !kernels::requires_metal4(&k.name));
         }
+        // The int8 KV kernels are listed only when an int8 cache is requested (`INTARSIA_METAL_KV_INT8=1`, set by the cli for
+        // `--kv-dtype int8`): the cpu oracle has no block-scaled cache, so `kernels test` has no cases for them and would
+        // report them untested (a failed admission). They are checked by tests/kv_i8.rs against host references instead.
+        if !kernels::int8_kv_enabled() {
+            ks.retain(|k| !kernels::is_int8_kv_kernel(&k.name));
+        }
         // The multi-row entries (GEMVs, pair, logits, split-KV attention rows) are `rows_exact`: `Registry::select`
         // gives them only to speculative verify calls (`OpCall::exact_rows`), so listing them changes no ordinary pick.
         ks

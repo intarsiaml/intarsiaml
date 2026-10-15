@@ -261,6 +261,23 @@ pub const ATTN_ROWS_I8_SHADERS: [&str; 4] =
 pub const ATTN_PREFILL_I8_FLASH_NAX: &str = "attn_prefill_i8_flash_nax";
 pub const ATTN_PREFILL_I8_FLASH: &str = "attn_prefill_i8_flash";
 pub const KV_DEQUANT_I8: &str = "kv_dequant_i8";
+/// The registered int8-KV kernels (`kernels()` lists them only with `INTARSIA_METAL_KV_INT8` set).
+pub fn is_int8_kv_kernel(name: &str) -> bool {
+    matches!(
+        name,
+        KV_APPEND_I8
+            | QK_NORM_ROPE_KV_I8
+            | ATTN_DECODE_I8_SPLITKV
+            | ATTN_PREFILL_I8_FLASH
+            | ATTN_PREFILL_I8_FLASH_NAX
+            | ATTN_PREFILL_I8_SPLITKV_ROWS
+    )
+}
+
+pub fn int8_kv_enabled() -> bool {
+    std::env::var("INTARSIA_METAL_KV_INT8").is_ok_and(|v| !v.is_empty() && v != "0")
+}
+
 pub const FP8_TEST_SHADERS: [&str; 2] = ["fp8_test_decode", "fp8_test_encode"];
 
 pub const COPY_U4: &str = "copy_u4";

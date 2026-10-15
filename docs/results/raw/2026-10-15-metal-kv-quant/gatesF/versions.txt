@@ -1,0 +1,12 @@
+date: 2026-10-15T16:57:28-04:00
+fleetq job: 2075
+head: 9c8b310ec98ff7ba46e369db692bf0ff73172a1d
+F8_U=4
+ M docs/results/raw/2026-10-15-metal-kv-quant/fleetq-jobs.txt
+ M docs/results/raw/2026-10-15-metal-kv-quant/slotE.log
+?? docs/results/2026-10-15-metal-kv-quant.md
+?? docs/results/raw/2026-10-15-metal-kv-quant/gatesF/
+-rwxr-xr-x@ 1 josef  wheel  17898208 Oct 15 14:34 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-base
+-rwxr-xr-x@ 1 josef  wheel  18429936 Oct 15 15:45 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-i8
+7f25f85084b3959a24eea533acfa99c2e41246888c5d5589a5ebd91e7fe5dc42  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-base
+6e10b0b4838eb6f82f187a218e97f4a27f52244678cf146f125b7465555bfeae  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-i8

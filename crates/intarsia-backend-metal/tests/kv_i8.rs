@@ -345,6 +345,9 @@ fn prefill_i8_is_bitwise_the_bf16_flash_kernels_on_the_staged_cache() {
 
 #[test]
 fn i8_kernels_are_registered_only_for_int8_caches() {
+    // not listed by default (the cpu oracle cannot admit them), listed once an int8 cache is requested
+    assert!(backend().kernels().iter().all(|k| !is_int8_kv_kernel(&k.name)));
+    std::env::set_var("INTARSIA_METAL_KV_INT8", "1");
     let be = backend();
     let ks = be.kernels();
     let s = |m: usize, kv: DType, out: DType| ShapeInfo {
