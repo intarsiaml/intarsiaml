@@ -3,8 +3,8 @@
 //! `Model::forward_batch` must return for every row the bits of that sequence's solo decode step (logits compared bit
 //! for bit, the on-device argmax token for token) and leave identical state. See `common/batch_identity.rs`.
 //!
-//! Model: `INTARSIA_METAL_TEST_MODEL`, else `~/models/Qwen3-8B`; the test skips when it is not there. Runs on the GPU:
-//! take an exclusive fleetq slot on endor first.
+//! Opt-in: set `INTARSIA_TEST_REAL_MODEL=1`, else the test prints SKIP and returns. Model: `INTARSIA_METAL_TEST_MODEL`,
+//! else `~/models/Qwen3-8B`; it skips when that is not there. Runs on the GPU: take an exclusive fleetq slot on endor first.
 #![cfg(target_os = "macos")]
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::plan::Phase;
@@ -17,6 +17,15 @@ use std::sync::Arc;
 #[path = "common/batch_identity.rs"]
 mod batch_identity;
 
+/// Real-model tests are opt-in: they load ~16 GB onto the shared GPU, so run them inside an exclusive fleetq slot.
+fn real_model_enabled() -> bool {
+    if std::env::var("INTARSIA_TEST_REAL_MODEL").is_ok_and(|v| v == "1") {
+        return true;
+    }
+    eprintln!("SKIP: real-model test (set INTARSIA_TEST_REAL_MODEL=1; on endor run inside an exclusive fleetq slot)");
+    false
+}
+
 fn model_dir() -> PathBuf {
     std::env::var_os("INTARSIA_METAL_TEST_MODEL")
         .map(PathBuf::from)
@@ -25,6 +34,9 @@ fn model_dir() -> PathBuf {
 
 #[test]
 fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
+    if !real_model_enabled() {
+        return;
+    }
     let dir = model_dir();
     if !dir.join("config.json").exists() {
         eprintln!("SKIP: Qwen3-8B not found at {}", dir.display());

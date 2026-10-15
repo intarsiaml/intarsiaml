@@ -73,3 +73,13 @@ pub fn check(gpu: &[u16], refs: &[(f64, f64)], rows: impl Iterator<Item = usize>
     eprintln!("{what}: {n} rows, worst error {:.3} of tolerance", worst);
     n
 }
+
+/// Real-model tests are opt-in: they load multi-GB checkpoints (on endor, onto the shared GPU) and so must run inside
+/// an exclusive fleetq slot. Prints a SKIP line and returns false unless INTARSIA_TEST_REAL_MODEL=1.
+pub fn real_model_enabled() -> bool {
+    if std::env::var("INTARSIA_TEST_REAL_MODEL").is_ok_and(|v| v == "1") {
+        return true;
+    }
+    eprintln!("SKIP: real-model test (set INTARSIA_TEST_REAL_MODEL=1; on endor run inside an exclusive fleetq slot)");
+    false
+}

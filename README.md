@@ -37,6 +37,12 @@ cargo build --release --features cuda      # with the CUDA backend (run on the G
 cargo test                                 # whole workspace
 ```
 
+Tests that load a real checkpoint (`intarsia-models` `batch_metal`, `intarsia-backend-metal` `multirow` and `wrap_host`,
+`intarsia-cli` `real_model`) are opt-in: without `INTARSIA_TEST_REAL_MODEL=1` they print a `SKIP` line and return. Model
+directories come from `INTARSIA_METAL_TEST_MODEL`, `INTARSIA_METAL_G0_MODEL` and `INTARSIA_TEST_MODEL` (defaults under `$HOME`).
+The Metal tests use the GPU: on endor run them inside an exclusive fleetq slot, e.g.
+`fleetq run --host endor --exclusive --label "metal tests" -- env INTARSIA_TEST_REAL_MODEL=1 cargo test --release -p intarsia-models --test batch_metal`.
+
 The binary is `target/release/intarsia`. `MODEL` below is a Hugging Face model directory (config.json,
 tokenizer.json, safetensors) of a supported model (Qwen3, Qwen3.5/3.6 dense and MoE; the recipe is matched by the
 `architectures` entry of config.json, see `recipes/`).
