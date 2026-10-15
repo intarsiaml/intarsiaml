@@ -1724,9 +1724,6 @@ fn st_acc_long(c: &mut Ctx) -> Result<Out> {
     Ok(o)
 }
 
-/// Top-1 floor (percent) of the `acc-4k` stage; the bf16 class floor is 99.5.
-const ACC_4K_MIN_TOP1: f64 = 98.0;
-
 fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
     let (g, how) = match c.golden_4k()? {
         Golden::Have(g, h) => (g, h),
@@ -1738,11 +1735,7 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
             return Ok(Out::skip("the 4k golden is the long golden: covered by acc-long"));
         }
     }
-    // The class floor asks top-1 >= 99.5%, which no build reaches on these prompts: the fp32 reference's top-2 gap is under
-    // 0.1 nats at 4% of the 12.7k positions and 90% of the misses sit there, so the miss rate is bf16 noise, not a bug.
-    // Measured on Qwen3-8B (docs/results/2026-10-15-metal-golden-4k.md): the cpu engine 99.45%, Metal 99.28% (prefill).
-    // The 4k golden keeps the class KL / tail / non-finite gates and a top-1 floor 1.5 points lower.
-    let a = c.accuracy("acc-4k", &g, "all", true, 1, &["--min-top1".to_string(), ACC_4K_MIN_TOP1.to_string()])?;
+    let a = c.accuracy("acc-4k", &g, "all", true, 1, &[])?;
     Ok(c.acc_out(a, &g, &how, "4k"))
 }
 
