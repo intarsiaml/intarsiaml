@@ -1,0 +1,12 @@
+perplexity: 1.847 over 1169 tokens (need <= 40), non-finite rows 0 ok
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10," -> " 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,"
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "Once upon a time, in a small village at the edge of a great forest, there lived an old clockmaker who" -> " had a peculiar habit. Every morning, he would take a walk through the forest, and every evening, he would return home, always at the same time. The villagers were curious about this routine, but no one dared to ask him why"
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "The three primary colors are red, yellow, and" -> " blue. When you mix two primary colors, you get a secondary color. What are the three secondary colors? Also, what happens when you mix a primary color with its complementary color? What is the term for the color that results from mixing"
+sanity ok  : 48 tokens, max 4-gram repeat 7: non-empty, answers the fact ("paris"): yes
+    "The capital of France is" -> " Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. The capital of Portugal is Lisbon. The capital of"
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty, answers the fact ("oxygen"): yes
+    "Water is a molecule made of two hydrogen atoms and one" -> " oxygen atom. The chemical formula for water is H2O. Water is a colorless, odorless, and tasteless liquid at room temperature. It is essential for life and is found in abundance on Earth. Water can exist in three"
+quick gate: PASS

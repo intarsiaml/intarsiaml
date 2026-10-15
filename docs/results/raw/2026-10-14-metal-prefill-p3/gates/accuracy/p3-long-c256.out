@@ -1,0 +1,19 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   1.787e-4   9.908e-5   5.530e-3   0.0324   0.0318    98.42     38/38      0
+story                 39    39   100.00   3.912e-4   2.147e-4   1.042e-2   0.0400   0.0392    97.95     39/39      0
+code                  80    80   100.00   1.161e-4   6.262e-5   5.629e-3   0.0142   0.0140    99.25     80/80      0
+science               79    79    98.73   2.547e-4   1.691e-4   1.229e-2   0.0168   0.0162    98.99     29/79      0
+chat_short            18    18   100.00   5.326e-4   4.876e-4   2.194e-3   0.1108   0.1108    98.89     18/18      0
+chat_system           32    32   100.00   2.875e-4   1.660e-4   4.926e-3   0.0841   0.0838    98.75     32/32      0
+chat_multiturn        58    58   100.00   4.377e-4   4.147e-4   3.477e-3   0.0340   0.0339    98.97     58/58      0
+chat_reasoning        90    90   100.00   2.330e-4   2.208e-4   3.667e-3   0.0243   0.0241    98.44     90/90      0
+long_prose_300       300   300    99.33   6.962e-4   6.697e-4   3.374e-2   0.0126   0.0126    98.47     0/300      0
+long_prose_700       700   700    99.71   4.245e-4   4.071e-4   4.271e-2   0.0129   0.0128    98.57    55/700      0
+OVERALL                   1434    99.65   4.342e-4   4.005e-4   4.271e-2   0.0188   0.0186    98.61     30.6%      0
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.342e-4 (need <= 1.0e-3) ok | tail mass ours 0.0186 vs ref 0.0188, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 74.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
