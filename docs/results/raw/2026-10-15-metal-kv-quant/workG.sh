@@ -41,5 +41,5 @@ mkdir -p $R/qualifyG-bf16
 $NEW qualify --model $M --backend metal --bandwidth-gbs 614 --golden-dir $G --out $R/qualifyG-bf16 > $R/qualifyG-bf16-console.log 2>&1; echo "qualify bf16 exit $?"
 grep -E "Verdict|verdict|PASS|FAIL" $R/qualifyG-bf16/full-report.md | head -20 | cut -c1-240
 echo "done $(date)"
-echo "######## localeval Thu Oct 15 17:39:37 EDT 2026"; zsh /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workL.sh
-echo "######## all done Thu Oct 15 17:39:37 EDT 2026"
+echo "######## localeval $(date)"; zsh /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workL.sh
+echo "######## all done $(date)"
