@@ -16,3 +16,39 @@ floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse th
 /opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/4k-selfcheck exit 1
 floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
 == 5. commit baselines, build the final binary
+final stamp: head=da8f69a code-tree=5096c3c96c53 dirty=no
+final commit: da8f69a
+    Finished `release` profile [optimized] target(s) in 4.04s
+== 6. accuracy at chunk 2048 (default), baseline-gated
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/short exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/long exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/4k exit 0
+== 6b. control: the 4k baseline gate must FAIL a baseline that is better than this build (top-1 +1.5 pt, KL x0.5)
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/4k-control exit 1
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): FAIL
+== 7. greedy ids, spike/metal 98f506e (chunk 256) vs final (2048)
+short 48 tokens spike/metal vs final: ids identical (48 tokens)
+4k 48 tokens spike/metal vs final: ids identical (48 tokens)
+w4107 48 tokens spike/metal vs final: ids identical (48 tokens)
+short 256 tokens spike/metal vs final: ids identical (256 tokens)
+4k 256 tokens spike/metal vs final: ids identical (256 tokens)
+w4107 256 tokens spike/metal vs final: ids identical (256 tokens)
+prefill chunk 2048 (recipe qwen3, metal)
+prefill chunk 256 (default)
+== 8. qualify (full, fresh)
+qualify exit 0
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 23 kernels registered)
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify     44s] plan: PASS in 43.3s (14 ops resolved, exactness deterministic, loaded in 43.3s)
+[qualify     77s] kernels: PASS in 33.2s (23 kernels, 291 cases in 33.0s)
+[qualify     86s] gate: PASS in 9.5s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     93s] acc-short: PASS in 7.0s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
+[qualify    171s] bench: PASS in 77.9s (decode 36.4 tok/s at 128 tokens (90% of the byte floor))
+[qualify    195s] acc-long: PASS in 23.6s (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4)
+[qualify    256s] acc-4k: PASS in 60.9s (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4)
+[qualify    270s] envelope: PASS in 14.1s (baseline and envelope (chunk) written; they gate this build: PASS)
+[qualify    349s] bench-long: PASS in 78.9s (decode 36.4 tok/s at 1024 tokens (90% of the byte floor))
+[qualify    349s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    349s] tp: SKIP in 0.0s (--tp not given (or 1))
+done
+#1988 "metal-p3-final: merge bar (tests, kernels, baselines, accuracy, ids, qualify)" (claude-31e10c55) done on endor exclusive 24 GB
