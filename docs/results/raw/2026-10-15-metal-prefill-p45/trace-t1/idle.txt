@@ -1,0 +1,2 @@
+idle: "Device Utilization %"=56 "Device Utilization %"=0 "Device Utilization %"=1 
+idle end: "Device Utilization %"=78 "Device Utilization %"=0 "Device Utilization %"=0 
