@@ -1,3 +1,18 @@
 fleetq: #2058 waiting (#3 in line): in line behind #2056 "metal kv quant: fp8 decode variants microbench" (claude-31e10c55) on endor
 fleetq:   #2056 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2056 set, or it will wait for #2056 to be released.
 fleetq: #2058 waiting (#2 in line): in line behind #2057 "cb-m0 identity: min_tokens cut cases" (claude-0e8026c5) on endor
+fleetq: #2058 waiting (#1 in line): endor is held exclusively by #2057 "cb-m0 identity: min_tokens cut cases" (claude-0e8026c5)
+fleetq job 2058 (metal kv quant: gates + accuracy + ids + qualify) acquired Thu Oct 15 15:27:59 EDT 2026
+INTARSIA_METAL_F8_U=4
+== 0. KV memory sizing: tokens that fit a 40 GiB budget, bf16 vs fp8 (plan lines)
+bf16: loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+fp8: loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv fp8_e4m3, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)|
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "attn_decode_bf16_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:      "kernel": "qk_norm_rope_kv_bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-bf16.json:  "kv_dtype": "bf16",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "attn_decode_f8_splitkv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "op": "qk_norm_rope_kv",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "qk_norm_rope_kv_f8",
+/opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:  "kv_dtype": "fp8_e4m3",
+== 1. cargo test -p intarsia-backend-metal --release (all, incl. kv_fp8)

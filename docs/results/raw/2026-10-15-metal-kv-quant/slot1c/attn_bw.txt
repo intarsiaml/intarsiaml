@@ -12,3 +12,16 @@ U=4
 U=2
    16384 attn_decode_f8_splitkv          96.0      95.8      96.4      350   (57% of 614 GB/s)
 U=8
+   16384 attn_decode_f8_splitkv         126.6     126.3     126.8      265   (43% of 614 GB/s)
+U=4
+   16384 attn_decode_f8_splitkv          91.7      91.5      92.0      366   (60% of 614 GB/s)
+   16384 attn_decode_bf16_splitkv       121.6     121.3     122.6      552   (90% of 614 GB/s)
+U=4
+   32768 attn_decode_f8_splitkv         171.8     171.4     172.0      391   (64% of 614 GB/s)
+U=2
+   32768 attn_decode_f8_splitkv         181.5     181.3     181.7      370   (60% of 614 GB/s)
+U=8
+   32768 attn_decode_f8_splitkv         232.4     232.3     232.7      289   (47% of 614 GB/s)
+U=4
+   32768 attn_decode_f8_splitkv         171.9     171.6     172.3      390   (64% of 614 GB/s)
+   32768 attn_decode_bf16_splitkv       234.5     233.7     235.9      572   (93% of 614 GB/s)

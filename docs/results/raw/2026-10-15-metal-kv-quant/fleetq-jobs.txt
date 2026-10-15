@@ -6,3 +6,6 @@ fleetq job 2052 (metal kv quant: fp8 kernel tests v2) acquired Thu Oct 15 14:57:
 fleetq job 2052 released Thu Oct 15 14:59:47 EDT 2026
 fleetq job 2056 (metal kv quant: fp8 decode variants microbench) acquired Thu Oct 15 15:22:03 EDT 2026
   RUNNING #2056 "metal kv quant: fp8 decode variants microbench" (claude-31e10c55) running on endor exclusive 60 GB for 0s
+fleetq job 2056 released Thu Oct 15 15:27:18 EDT 2026
+fleetq job 2058 (metal kv quant: gates + accuracy + ids + qualify) acquired Thu Oct 15 15:27:59 EDT 2026
+  RUNNING #2058 "metal kv quant: gates + accuracy + ids + qualify" (claude-31e10c55) running on endor exclusive 60 GB for 2s

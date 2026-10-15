@@ -17,6 +17,12 @@ run() { # <label> <ctx> <kv> [env...]
   printf "%.3f\t%.3f\t%s\n" $s $EPOCHREALTIME "$lab" >> $O/runs.tsv
   echo "$lab [$(date +%H:%M:%S)]: $(grep -o 'prefill [0-9]* ms ([0-9.]* tok/s) | decode [0-9]* ms ([0-9.]* tok/s)' $O/$lab.err | tail -1) T=$(gpu_temp $O/macmon.jsonl)C"
 }
+echo "== KV memory sizing: context that fits --mem-budget 40 (GiB) with --max-seq 4000000"
+mkdir -p $R/sizing
+for kv in bf16 fp8; do
+  $NEW generate --model $M --backend metal --max-seq 4000000 --mem-budget 40 --kv-dtype $kv --profile-every 0 --temperature 0 --max-tokens 1 --prompt "hi" < /dev/null > $R/sizing/budget40-$kv.out 2> $R/sizing/budget40-$kv.err
+  echo "$kv: $(grep -o 'context [0-9]* tokens' $R/sizing/budget40-$kv.err | head -1)"
+done
 echo "== warmup (page-in)"; run warm 4096 bf16 NOENV=1
 : > $O/runs.tsv
 for ctx in 4096 16384 32764 40000; do
