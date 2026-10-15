@@ -1,0 +1,11 @@
+short-48|48|--ignore-eos|short
+4k-48|48|--ignore-eos|4k
+grounded-256|256|--chat --no-think|grounded
+grounded-stop-topp|512|--chat --no-think --stop top_p:|grounded
+grounded-min335|400|--chat --no-think --min-tokens 335|grounded
+4k-stop250|256|--ignore-eos --stop 250.|4k
+golden-docs-48|48|--ignore-eos|golden-docs
+repeat-eos|64|--chat --no-think|repeat
+sampled-short-128|128|--ignore-eos|short|--temperature 0.8 --top-p 0.9 --top-k 40 --seed 42
+sampled-open-min50-stop|300|--chat --no-think --min-tokens 50 --stop the|open|--temperature 0.9 --seed 3
+sampled-4k-64|64|--ignore-eos|4k|--temperature 1.0 --top-k 20 --seed 11

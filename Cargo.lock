@@ -1045,6 +1045,7 @@ version = "0.0.1"
 dependencies = [
  "intarsia-backend-cpu",
  "intarsia-backend-cuda",
+ "intarsia-backend-metal",
  "intarsia-core",
  "memmap2",
  "minijinja",

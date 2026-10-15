@@ -32,6 +32,8 @@ pub struct EngineOptions {
     pub plan: PlanOptions,
     /// Speculative decoding (`--spec`, `--spec-k`); default off. Metal only (milestone G1).
     pub spec: intarsia_core::spec::SpecConfig,
+    /// Concurrent sequences (`--max-batch`). `None`: the recipe's `max_batch`, clamped to what the engine implements.
+    pub max_batch: Option<usize>,
 }
 
 fn read_json(p: &Path) -> Result<Value> {
@@ -133,6 +135,7 @@ pub fn load_engine_tp(
     opts: &EngineOptions,
 ) -> Result<Loaded> {
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
+    let max_batch = recipe.resolve_max_batch(opts.max_batch, intarsia_core::engine::SERVE_MAX_BATCH)?;
     let weights = SchemedSource::open(dir)?;
     let telemetry = Arc::new(Telemetry::new());
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
@@ -160,6 +163,10 @@ pub fn load_engine_tp(
             )));
         }
         model.enable_verify(opts.spec.verify_rows())?;
+    }
+    if max_batch.value > 1 {
+        // refuses a backend without row-exact multi-row kernels, a tensor-parallel or non-dense model
+        model.enable_batch(max_batch.value)?;
     }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
     if opts.spec.enabled() {

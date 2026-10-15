@@ -693,6 +693,11 @@ struct SpecStep {
     plain_next: bool,
 }
 
+/// Most sequences `--max-batch` may ask for: `LocalEngine` decodes one sequence at a time. The batching scheduler
+/// (docs/research/continuous-batching-design.md, M1) raises it; the model side (`Model::enable_batch`) is ready for
+/// up to `Model::BATCH_MAX_ROWS`.
+pub const SERVE_MAX_BATCH: usize = 1;
+
 /// One verify pass over `[last, drafts...]` at `st.len` (token `generated + 1` is row 0's), greedy acceptance, KV
 /// rollback of the rejected rows. Inside the `min_tokens` window the sequential path masks the stop ids before its
 /// (host) argmax; a row there whose device argmax is not a stop id has the same argmax under the mask (both take the
@@ -1030,28 +1035,48 @@ impl Seq {
         Ok(())
     }
 
-    /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).
-    pub(crate) fn advance(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
+    /// The input of a plain decode step: the token to feed and how the head of that step must run
+    /// ([`Seq::head_mode`] for the token the step samples). Marks the sequence as taking a plain step now, so a pending
+    /// "plain next" (a min_tokens cut that emitted nothing) is served by this one. Pair with [`Seq::accept_plain`]; a
+    /// solo step ([`Seq::advance`]) and a batched step run exactly this pair around their forward pass.
+    pub(crate) fn plain_input(&mut self) -> (u32, HeadMode) {
+        self.plain_next = false;
+        (self.tok, self.head_mode(self.generated + 1))
+    }
+
+    /// Take the output of the plain step started with [`Seq::plain_input`] as the next `self.tok`.
+    pub(crate) fn accept_plain(&mut self, out: StepOut) -> Result<()> {
+        self.tok = self.token_from(out, self.generated + 1)?;
+        Ok(())
+    }
+
+    /// Everything of [`Seq::advance`] up to the forward pass of a plain step: a token that is already known (a verified
+    /// speculative run) becomes `self.tok`, a verify pass runs; `Some((token, mode))` when a plain step is still needed
+    /// ([`Seq::plain_input`]), which the caller runs alone or inside a batch and hands to [`Seq::accept_plain`].
+    pub(crate) fn prepare(&mut self, model: &Model, st: &mut SequenceState) -> Result<Option<(u32, HeadMode)>> {
         match self.plan_step(st) {
             Next::Emit(t) => {
                 self.tok = t;
-                return Ok(());
+                return Ok(None);
             }
             Next::Verify(drafts) => {
                 self.verify(model, st, &drafts)?;
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
-                    return Ok(());
+                    return Ok(None);
                 }
             }
             Next::Plain => {}
         }
-        // a plain step now, so a pending "plain next" (a min_tokens cut that emitted nothing) is served by this one
-        self.plain_next = false;
-        let k = self.generated + 1;
-        let mode = self.head_mode(k);
-        let out = model.forward(st, &[self.tok], mode, None)?;
-        self.tok = self.token_from(out, k)?;
+        Ok(Some(self.plain_input()))
+    }
+
+    /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).
+    pub(crate) fn advance(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
+        if let Some((tok, mode)) = self.prepare(model, st)? {
+            let out = model.forward(st, &[tok], mode, None)?;
+            self.accept_plain(out)?;
+        }
         Ok(())
     }
 
