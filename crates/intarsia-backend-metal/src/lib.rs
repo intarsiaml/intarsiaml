@@ -600,6 +600,10 @@ impl Backend for MetalBackend {
         if !self.metal4 {
             ks.retain(|k| !kernels::requires_metal4(&k.name));
         }
+        // the multi-row pair would be the only pair kernel accepting M = 2..8 (see multirow.rs): not listed by default
+        if !multirow::pair_entry_enabled() {
+            ks.retain(|k| k.name != multirow::MATMUL_PAIR_BF16_GEMV_ROWS);
+        }
         ks
     }
 

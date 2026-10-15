@@ -30,49 +30,71 @@ pub const LOGITS_BF16_GEMV_ROWS: &str = "logits_bf16_gemv_rows";
 
 /// Row counts compiled into the metallib (8 is the largest the registry accepts; 16 is for the benchmark only).
 pub const MR_ROWS: [usize; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 16];
+/// Output rows per threadgroup (rt kernels) / per simdgroup (f32-out kernel) compiled into the metallib.
+pub const MR_PER_TG: [usize; 3] = [1, 2, 4];
 /// Largest `M` the registry entries accept.
 pub const MR_MAX_REGISTERED: usize = 8;
 
-macro_rules! names {
-    ($p:literal) => {
-        [
-            concat!($p, "1"),
-            concat!($p, "2"),
-            concat!($p, "3"),
-            concat!($p, "4"),
-            concat!($p, "5"),
-            concat!($p, "6"),
-            concat!($p, "7"),
-            concat!($p, "8"),
-            concat!($p, "16"),
-        ]
-    };
+/// The five multi-row shader families (`<base>_mr<R>x<P>`), each mirroring one serving 1-row kernel.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Family {
+    /// `Matmul`, 16-byte loads: `gemv_bf16_rt_u2s8`.
+    Matmul16,
+    /// `Matmul`, 8-byte loads: `gemv_bf16_rt_a8u4s8`.
+    MatmulA8,
+    /// `MatmulPair`, 16-byte loads: `gemv_pair_bf16_rt_u2s8`.
+    Pair16,
+    /// `MatmulPair`, 8-byte loads: `gemv_pair_bf16_rt_a8u4s8`.
+    PairA8,
+    /// `Logits` (f32 out): `gemv_f32o_v`.
+    Logits,
 }
 
-pub const MATMUL_V16: [&str; 9] = names!("gemv_bf16_rt_u2s8_mr");
-pub const MATMUL_A8: [&str; 9] = names!("gemv_bf16_rt_a8u4s8_mr");
-pub const PAIR_V16: [&str; 9] = names!("gemv_pair_bf16_rt_u2s8_mr");
-pub const PAIR_A8: [&str; 9] = names!("gemv_pair_bf16_rt_a8u4s8_mr");
-pub const LOGITS_V16: [&str; 9] = names!("gemv_f32o_v_mr");
+impl Family {
+    pub const ALL: [Family; 5] = [Family::Matmul16, Family::MatmulA8, Family::Pair16, Family::PairA8, Family::Logits];
+    fn base(self) -> &'static str {
+        match self {
+            Family::Matmul16 => "gemv_bf16_rt_u2s8",
+            Family::MatmulA8 => "gemv_bf16_rt_a8u4s8",
+            Family::Pair16 => "gemv_pair_bf16_rt_u2s8",
+            Family::PairA8 => "gemv_pair_bf16_rt_a8u4s8",
+            Family::Logits => "gemv_f32o_v",
+        }
+    }
+}
 
-/// Threadgroup size of the rt shaders (8 simdgroups, one output row per threadgroup).
-pub const RT_THREADS: u32 = 256;
-/// Output rows per threadgroup and threads of the f32-out logits shaders.
-pub const LOGITS_ROWS_PER_TG: u32 = 4;
-pub const LOGITS_THREADS: u32 = 128;
+fn name_table() -> &'static std::collections::HashMap<(Family, usize, usize), &'static str> {
+    static T: std::sync::OnceLock<std::collections::HashMap<(Family, usize, usize), &'static str>> =
+        std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        let mut m = std::collections::HashMap::new();
+        for f in Family::ALL {
+            for &r in &MR_ROWS {
+                for &p in &MR_PER_TG {
+                    let n: &'static str = Box::leak(format!("{}_mr{r}x{p}", f.base()).into_boxed_str());
+                    m.insert((f, r, p), n);
+                }
+            }
+        }
+        m
+    })
+}
+
+/// Host name of the shader of `family` for `rows` activation rows and `per_tg` output rows per threadgroup.
+pub fn shader(family: Family, rows: usize, per_tg: usize) -> Option<&'static str> {
+    name_table().get(&(family, rows, per_tg)).copied()
+}
+
+/// Output rows per threadgroup the launchers use for `rows` activation rows (chosen from the G0 sweep).
+pub fn default_per_tg(_family: Family, _rows: usize) -> usize {
+    1
+}
 
 /// Host names of every multi-row shader (for the pipeline table).
 pub fn shader_names() -> Vec<&'static str> {
-    let mut v = Vec::new();
-    for set in [&MATMUL_V16, &MATMUL_A8, &PAIR_V16, &PAIR_A8, &LOGITS_V16] {
-        v.extend(set.iter().copied());
-    }
+    let mut v: Vec<&'static str> = name_table().values().copied().collect();
+    v.sort();
     v
-}
-
-/// The shader of `set` for `rows` activation rows.
-pub fn shader(set: &'static [&'static str; 9], rows: usize) -> Option<&'static str> {
-    MR_ROWS.iter().position(|&r| r == rows).map(|i| set[i])
 }
 
 /// Whether the (default-off) `MatmulPair` registry entry is visible: `INTARSIA_METAL_MULTIROW=1`.
@@ -80,6 +102,12 @@ pub fn pair_entry_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var_os("INTARSIA_METAL_MULTIROW").is_some_and(|v| v != "0"))
 }
+
+/// Threadgroup size of the rt shaders (8 simdgroups, one output row per threadgroup).
+pub const RT_THREADS: u32 = 256;
+/// Output rows per threadgroup and threads of the f32-out logits shaders.
+pub const LOGITS_ROWS_PER_TG: u32 = 4;
+pub const LOGITS_THREADS: u32 = 128;
 
 /// Kernel arguments of the pair shaders (`PairParams` in the shader; 32 bytes).
 #[repr(C)]
@@ -103,8 +131,9 @@ pub fn encode_matmul_rows(
     x: Buf,
     y: Buf,
     p: &GemvParams,
+    per_tg: usize,
 ) {
-    encode_gemv(enc, pso, w, x, y, p, p.n, RT_THREADS);
+    encode_gemv(enc, pso, w, x, y, p, p.n.div_ceil(per_tg as u32), RT_THREADS);
 }
 
 /// Encode a multi-row `Logits` GEMV (f32 out).
@@ -115,8 +144,9 @@ pub fn encode_logits_rows(
     x: Buf,
     y: Buf,
     p: &GemvParams,
+    per_sg: usize,
 ) {
-    encode_gemv(enc, pso, w, x, y, p, p.n.div_ceil(LOGITS_ROWS_PER_TG), LOGITS_THREADS);
+    encode_gemv(enc, pso, w, x, y, p, p.n.div_ceil(LOGITS_ROWS_PER_TG * per_sg as u32), LOGITS_THREADS);
 }
 
 /// Encode a multi-row `MatmulPair` GEMV (one dispatch over `n0 + n1` threadgroups).
@@ -130,6 +160,7 @@ pub fn encode_pair_rows(
     y0: Buf,
     y1: Buf,
     p: &PairParams,
+    per_tg: usize,
 ) {
     enc.setComputePipelineState(pso);
     // SAFETY: the caller keeps the buffers alive and the offsets inside them.
@@ -142,7 +173,7 @@ pub fn encode_pair_rows(
     }
     set_bytes(enc, p, 5);
     enc.dispatchThreadgroups_threadsPerThreadgroup(
-        MTLSize { width: (p.n0 + p.n1) as usize, height: 1, depth: 1 },
+        MTLSize { width: (p.n0 as usize).div_ceil(per_tg) + (p.n1 as usize).div_ceil(per_tg), height: 1, depth: 1 },
         MTLSize { width: RT_THREADS as usize, height: 1, depth: 1 },
     );
 }
@@ -180,10 +211,6 @@ fn single(x: &TensorRef, w: &TensorRef, y: &TensorRef) -> OpCall {
 }
 
 impl MetalBackend {
-    fn rows_shader(&self, set: &'static [&'static str; 9], rows: usize, what: &str) -> Result<&'static str> {
-        shader(set, rows).ok_or_else(|| Error::invalid(format!("{what}: {rows} rows (compiled: {MR_ROWS:?})")))
-    }
-
     /// `Matmul` with `M = 1..=16` rows (see [`MR_ROWS`]) on the multi-row GEMV.
     pub(crate) fn launch_matmul_rows(&self, call: &OpCall) -> Result<()> {
         let (x, w, y) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
@@ -212,13 +239,13 @@ impl MetalBackend {
             return Err(Error::backend("metal: output buffer is read-only (wrapped host memory)"));
         }
         let set = if k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 {
-            Some(&MATMUL_V16)
+            Some(Family::Matmul16)
         } else if k % 4 == 0 && wo % 8 == 0 && xo % 8 == 0 {
-            Some(&MATMUL_A8)
+            Some(Family::MatmulA8)
         } else {
             None
         };
-        let Some(set) = set.filter(|_| shader(&MATMUL_V16, m).is_some()) else {
+        let Some(set) = set.filter(|_| MR_ROWS.contains(&m)) else {
             // scalar kernels / unsupported row count: R ordinary 1-row launches (bit-exact by construction)
             for r in 0..m {
                 let plan = self.plan_gemv(&single(&x.rows(r, 1), w, &y.rows(r, 1)))?;
@@ -239,10 +266,11 @@ impl MetalBackend {
             }
             return Ok(());
         };
-        let name = self.rows_shader(set, m, "matmul_bf16_gemv_rows")?;
+        let per_tg = default_per_tg(set, m);
+        let name = shader(set, m, per_tg).expect("compiled row count");
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         let params = GemvParams { k: k as u32, n: n as u32, y_skip: ((yo & 3) / 2) as u32, ..Default::default() };
-        self.with_encoder(|enc| encode_matmul_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo & !3), &params))
+        self.with_encoder(|enc| encode_matmul_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo & !3), &params, per_tg))
     }
 
     /// `MatmulPair` with `M` rows on the multi-row pair GEMV (16-byte or 8-byte operands, else per-row launches).
@@ -279,13 +307,13 @@ impl MetalBackend {
         let v16 = k % 8 == 0 && w0o % 16 == 0 && w1o % 16 == 0 && xo % 16 == 0;
         let a8 = k % 4 == 0 && w0o % 8 == 0 && w1o % 8 == 0 && xo % 8 == 0;
         let set = if v16 {
-            Some(&PAIR_V16)
+            Some(Family::Pair16)
         } else if a8 {
-            Some(&PAIR_A8)
+            Some(Family::PairA8)
         } else {
             None
         };
-        let Some(set) = set.filter(|_| shader(&PAIR_V16, m).is_some()) else {
+        let Some(set) = set.filter(|_| MR_ROWS.contains(&m)) else {
             for r in 0..m {
                 // two ordinary GEMVs per row (what the model runs when no pair kernel is available)
                 self.launch_matmul_pair(&OpCall::new(
@@ -297,7 +325,8 @@ impl MetalBackend {
             }
             return Ok(());
         };
-        let name = self.rows_shader(set, m, "matmul_pair_bf16_gemv_rows")?;
+        let per_tg = default_per_tg(set, m);
+        let name = shader(set, m, per_tg).expect("compiled row count");
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         let p = PairParams {
             k: k as u32,
@@ -317,6 +346,7 @@ impl MetalBackend {
                 (&y0b.mtl, y0o & !3),
                 (&y1b.mtl, y1o & !3),
                 &p,
+                per_tg,
             )
         })
     }
@@ -342,7 +372,7 @@ impl MetalBackend {
             return Err(Error::backend("metal: output buffer is read-only (wrapped host memory)"));
         }
         let (wo, xo, yo) = (wb.base + w.offset, xb.base + x.offset, yb.base + y.offset);
-        if !(k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 && yo % 4 == 0) || shader(&LOGITS_V16, m).is_none() {
+        if !(k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 && yo % 4 == 0) || !MR_ROWS.contains(&m) {
             for r in 0..m {
                 self.launch_dense(
                     crate::kernels::LOGITS_BF16_GEMV,
@@ -351,9 +381,10 @@ impl MetalBackend {
             }
             return Ok(());
         }
-        let name = self.rows_shader(&LOGITS_V16, m, "logits_bf16_gemv_rows")?;
+        let per_sg = default_per_tg(Family::Logits, m);
+        let name = shader(Family::Logits, m, per_sg).expect("compiled row count");
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
-        self.with_encoder(|enc| encode_logits_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo), &params))
+        self.with_encoder(|enc| encode_logits_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo), &params, per_sg))
     }
 }

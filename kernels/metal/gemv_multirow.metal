@@ -6,11 +6,17 @@
 // kernel it mirrors, the weights are streamed once per threadgroup and used against all R rows, and R only adds independent
 // accumulators. Nothing here may be retuned per R (SG, UNROLL, lane->chunk mapping are those of the mirrored kernel).
 //
-//   gemv_bf16_rt_u2s8_mr<R>        == gemv_bf16_rt_u2s8        (kernels.rs DEFAULT_GEMV: 16-byte loads, K % 8 == 0)
+//   gemv_bf16_rt_u2s8_mr<R,P>      == gemv_bf16_rt_u2s8        (kernels.rs DEFAULT_GEMV: 16-byte loads, K % 8 == 0)
 //   gemv_bf16_rt_a8u4s8_mr<R>      == gemv_bf16_rt_a8u4s8      (DEFAULT_GEMV_A8: 8-byte loads, K % 4 == 0)
 //   gemv_pair_bf16_rt_u2s8_mr<R>   == gemv_pair_bf16_rt_u2s8   (MatmulPair, 16-byte)
 //   gemv_pair_bf16_rt_a8u4s8_mr<R> == gemv_pair_bf16_rt_a8u4s8 (MatmulPair, 8-byte)
 //   gemv_f32o_v_mr<R>              == gemv_f32o_v             (Logits, f32 out, 16-byte)
+//
+// Template parameters: R activation rows, P output rows per threadgroup (rt kernels) or per simdgroup (f32-out kernel).
+// P > 1 shares each loaded x chunk between P weight rows (x is re-read from cache by every threadgroup, so its traffic
+// is R*K*2 bytes per threadgroup, i.e. R times the 1-row kernel's per weight byte at P = 1); every (weight row, activation
+// row) accumulator still follows the 1-row kernel's lane mapping and reduction order, so P does not change any bit.
+// Host names: <kernel>_mr<R>x<P>.
 //
 // Layouts: X [R, K] (row stride K), Y [R, N] (row stride N, element offset y_skip), W [N, K] as in the 1-row kernels.
 // R rows of X are read at stride K*2 bytes, so a row has the alignment of row 0 whenever K % 8 == 0 (K % 4 == 0 for the
@@ -67,78 +73,95 @@ inline float dot4(uint2 w, uint2 x) {
 
 inline ushort to_bf16(float v) { return as_type<ushort>(bfloat(v)); }
 
-// One row's worth of the rt kernels' body, R activation rows at once. `part` is threadgroup float[R * SG].
+// Shared body of the rt kernels: P output rows (first = row0, clamped to nvalid-1 for the loads) x R activation rows.
 // 16-byte: lane L of the SG*32-lane threadgroup reads chunk (step*UNROLL + u)*lanes + L of the weight row.
-template <int R, int UNROLL, int SG>
-inline void rt_row16(device const uint4* wr, device const uint4* X, uint k8, uint sg, uint lane,
-                     threadgroup float* part, thread float* out) {
+// `part` is threadgroup float[P * R * SG]; `out[p][r]` is valid on the thread with sg == 0 && lane == 0.
+template <int R, int P, int UNROLL, int SG>
+inline void rt_rows16(device const uint4* W, uint row0, uint nvalid, device const uint4* X, uint k8, uint sg, uint lane,
+                      threadgroup float* part, thread float* out) {
     constexpr uint lanes = 32 * SG;
     constexpr uint block = lanes * UNROLL;
+    device const uint4* wr[P];
+    for (int p = 0; p < P; ++p) wr[p] = W + (ulong)min(row0 + p, nvalid - 1) * k8;
     const uint nblk = k8 / block;
     uint i = sg * 32 + lane;
-    float acc[R];
-    for (int r = 0; r < R; ++r) acc[r] = 0.0f;
+    float acc[P * R];
+    for (int j = 0; j < P * R; ++j) acc[j] = 0.0f;
     for (uint b = 0; b < nblk; ++b, i += block) {
-        uint4 wv[UNROLL];
-        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        uint4 wv[P][UNROLL];
+        for (int p = 0; p < P; ++p)
+            for (int u = 0; u < UNROLL; ++u) wv[p][u] = wr[p][i + lanes * u];
         for (int r = 0; r < R; ++r) {
             uint4 xv[UNROLL];
             for (int u = 0; u < UNROLL; ++u) xv[u] = X[(ulong)r * k8 + i + lanes * u];
-            for (int u = 0; u < UNROLL; ++u) acc[r] += dot8(wv[u], xv[u]);
+            for (int p = 0; p < P; ++p)
+                for (int u = 0; u < UNROLL; ++u) acc[p * R + r] += dot8(wv[p][u], xv[u]);
         }
     }
     for (i = nblk * block + sg * 32 + lane; i < k8; i += lanes) {
-        const uint4 wv = wr[i];
-        for (int r = 0; r < R; ++r) acc[r] += dot8(wv, X[(ulong)r * k8 + i]);
+        uint4 wv[P];
+        for (int p = 0; p < P; ++p) wv[p] = wr[p][i];
+        for (int r = 0; r < R; ++r) {
+            const uint4 xv = X[(ulong)r * k8 + i];
+            for (int p = 0; p < P; ++p) acc[p * R + r] += dot8(wv[p], xv);
+        }
     }
-    for (int r = 0; r < R; ++r) {
-        const float s = simd_sum(acc[r]);
-        if (lane == 0) part[r * SG + sg] = s;
+    for (int j = 0; j < P * R; ++j) {
+        const float s = simd_sum(acc[j]);
+        if (lane == 0) part[j * SG + sg] = s;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (int r = 0; r < R; ++r) {
-        float t = part[r * SG];
-        for (int j = 1; j < SG; ++j) t += part[r * SG + j];
-        out[r] = t;
+    for (int j = 0; j < P * R; ++j) {
+        float t = part[j * SG];
+        for (int q = 1; q < SG; ++q) t += part[j * SG + q];
+        out[j] = t;
     }
 }
 
-template <int R, int UNROLL, int SG>
-inline void rt_row8(device const uint2* wr, device const uint2* X, uint k4, uint sg, uint lane,
-                    threadgroup float* part, thread float* out) {
+template <int R, int P, int UNROLL, int SG>
+inline void rt_rows8(device const uint2* W, uint row0, uint nvalid, device const uint2* X, uint k4, uint sg, uint lane,
+                     threadgroup float* part, thread float* out) {
     constexpr uint lanes = 32 * SG;
     constexpr uint block = lanes * UNROLL;
+    device const uint2* wr[P];
+    for (int p = 0; p < P; ++p) wr[p] = W + (ulong)min(row0 + p, nvalid - 1) * k4;
     const uint nblk = k4 / block;
     uint i = sg * 32 + lane;
-    float acc[R];
-    for (int r = 0; r < R; ++r) acc[r] = 0.0f;
+    float acc[P * R];
+    for (int j = 0; j < P * R; ++j) acc[j] = 0.0f;
     for (uint b = 0; b < nblk; ++b, i += block) {
-        uint2 wv[UNROLL];
-        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        uint2 wv[P][UNROLL];
+        for (int p = 0; p < P; ++p)
+            for (int u = 0; u < UNROLL; ++u) wv[p][u] = wr[p][i + lanes * u];
         for (int r = 0; r < R; ++r) {
             uint2 xv[UNROLL];
             for (int u = 0; u < UNROLL; ++u) xv[u] = X[(ulong)r * k4 + i + lanes * u];
-            for (int u = 0; u < UNROLL; ++u) acc[r] += dot4(wv[u], xv[u]);
+            for (int p = 0; p < P; ++p)
+                for (int u = 0; u < UNROLL; ++u) acc[p * R + r] += dot4(wv[p][u], xv[u]);
         }
     }
     for (i = nblk * block + sg * 32 + lane; i < k4; i += lanes) {
-        const uint2 wv = wr[i];
-        for (int r = 0; r < R; ++r) acc[r] += dot4(wv, X[(ulong)r * k4 + i]);
+        uint2 wv[P];
+        for (int p = 0; p < P; ++p) wv[p] = wr[p][i];
+        for (int r = 0; r < R; ++r) {
+            const uint2 xv = X[(ulong)r * k4 + i];
+            for (int p = 0; p < P; ++p) acc[p * R + r] += dot4(wv[p], xv);
+        }
     }
-    for (int r = 0; r < R; ++r) {
-        const float s = simd_sum(acc[r]);
-        if (lane == 0) part[r * SG + sg] = s;
+    for (int j = 0; j < P * R; ++j) {
+        const float s = simd_sum(acc[j]);
+        if (lane == 0) part[j * SG + sg] = s;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (int r = 0; r < R; ++r) {
-        float t = part[r * SG];
-        for (int j = 1; j < SG; ++j) t += part[r * SG + j];
-        out[r] = t;
+    for (int j = 0; j < P * R; ++j) {
+        float t = part[j * SG];
+        for (int q = 1; q < SG; ++q) t += part[j * SG + q];
+        out[j] = t;
     }
 }
 
 // ---- Matmul ---------------------------------------------------------------------------------------------------------
-template <int R>
+template <int R, int P>
 kernel void gemv_bf16_rt_u2s8_mr(device const uint4* W [[buffer(0)]],
                                  device const uint4* X [[buffer(1)]],
                                  device ushort* Y [[buffer(2)]],
@@ -146,16 +169,19 @@ kernel void gemv_bf16_rt_u2s8_mr(device const uint4* W [[buffer(0)]],
                                  uint tg [[threadgroup_position_in_grid]],
                                  uint sg [[simdgroup_index_in_threadgroup]],
                                  uint lane [[thread_index_in_simdgroup]]) {
-    threadgroup float part[R * 8];
+    threadgroup float part[P * R * 8];
     const uint k8 = p.k / 8;
-    float t[R];
-    rt_row16<R, 2, 8>(W + (ulong)tg * k8, X, k8, sg, lane, part, t);
+    float t[P * R];
+    const uint row0 = tg * P;
+    rt_rows16<R, P, 2, 8>(W, row0, p.n, X, k8, sg, lane, part, t);
     if (sg == 0 && lane == 0) {
-        for (int r = 0; r < R; ++r) Y[p.y_skip + (ulong)r * p.n + tg] = to_bf16(t[r]);
+        for (int q = 0; q < P; ++q)
+            if (row0 + q < p.n)
+                for (int r = 0; r < R; ++r) Y[p.y_skip + (ulong)r * p.n + row0 + q] = to_bf16(t[q * R + r]);
     }
 }
 
-template <int R>
+template <int R, int P>
 kernel void gemv_bf16_rt_a8u4s8_mr(device const uint2* W [[buffer(0)]],
                                    device const uint2* X [[buffer(1)]],
                                    device ushort* Y [[buffer(2)]],
@@ -163,17 +189,20 @@ kernel void gemv_bf16_rt_a8u4s8_mr(device const uint2* W [[buffer(0)]],
                                    uint tg [[threadgroup_position_in_grid]],
                                    uint sg [[simdgroup_index_in_threadgroup]],
                                    uint lane [[thread_index_in_simdgroup]]) {
-    threadgroup float part[R * 8];
+    threadgroup float part[P * R * 8];
     const uint k4 = p.k / 4;
-    float t[R];
-    rt_row8<R, 4, 8>(W + (ulong)tg * k4, X, k4, sg, lane, part, t);
+    float t[P * R];
+    const uint row0 = tg * P;
+    rt_rows8<R, P, 4, 8>(W, row0, p.n, X, k4, sg, lane, part, t);
     if (sg == 0 && lane == 0) {
-        for (int r = 0; r < R; ++r) Y[p.y_skip + (ulong)r * p.n + tg] = to_bf16(t[r]);
+        for (int q = 0; q < P; ++q)
+            if (row0 + q < p.n)
+                for (int r = 0; r < R; ++r) Y[p.y_skip + (ulong)r * p.n + row0 + q] = to_bf16(t[q * R + r]);
     }
 }
 
-// ---- MatmulPair (threadgroups [0, n0) work on W0, the rest on W1) ----------------------------------------------------
-template <int R>
+// ---- MatmulPair (the first ceil(n0/P) threadgroups work on W0, the next ceil(n1/P) on W1) -----------------------------
+template <int R, int P>
 kernel void gemv_pair_bf16_rt_u2s8_mr(device const uint4* W0 [[buffer(0)]],
                                       device const uint4* W1 [[buffer(1)]],
                                       device const uint4* X [[buffer(2)]],
@@ -183,21 +212,24 @@ kernel void gemv_pair_bf16_rt_u2s8_mr(device const uint4* W0 [[buffer(0)]],
                                       uint tg [[threadgroup_position_in_grid]],
                                       uint sg [[simdgroup_index_in_threadgroup]],
                                       uint lane [[thread_index_in_simdgroup]]) {
-    threadgroup float part[R * 8];
-    const bool second = tg >= p.n0;
+    threadgroup float part[P * R * 8];
+    const uint groups0 = (p.n0 + P - 1) / P;
+    const bool second = tg >= groups0;
     device const uint4* W = second ? W1 : W0;
     device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
     const uint n = second ? p.n1 : p.n0;
-    const uint row = second ? tg - p.n0 : tg;
+    const uint row0 = (second ? tg - groups0 : tg) * P;
     const uint k8 = p.k / 8;
-    float t[R];
-    rt_row16<R, 2, 8>(W + (ulong)row * k8, X, k8, sg, lane, part, t);
+    float t[P * R];
+    rt_rows16<R, P, 2, 8>(W, row0, n, X, k8, sg, lane, part, t);
     if (sg == 0 && lane == 0) {
-        for (int r = 0; r < R; ++r) Y[(ulong)r * n + row] = to_bf16(t[r]);
+        for (int q = 0; q < P; ++q)
+            if (row0 + q < n)
+                for (int r = 0; r < R; ++r) Y[(ulong)r * n + row0 + q] = to_bf16(t[q * R + r]);
     }
 }
 
-template <int R>
+template <int R, int P>
 kernel void gemv_pair_bf16_rt_a8u4s8_mr(device const uint2* W0 [[buffer(0)]],
                                         device const uint2* W1 [[buffer(1)]],
                                         device const uint2* X [[buffer(2)]],
@@ -207,22 +239,25 @@ kernel void gemv_pair_bf16_rt_a8u4s8_mr(device const uint2* W0 [[buffer(0)]],
                                         uint tg [[threadgroup_position_in_grid]],
                                         uint sg [[simdgroup_index_in_threadgroup]],
                                         uint lane [[thread_index_in_simdgroup]]) {
-    threadgroup float part[R * 8];
-    const bool second = tg >= p.n0;
+    threadgroup float part[P * R * 8];
+    const uint groups0 = (p.n0 + P - 1) / P;
+    const bool second = tg >= groups0;
     device const uint2* W = second ? W1 : W0;
     device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
     const uint n = second ? p.n1 : p.n0;
-    const uint row = second ? tg - p.n0 : tg;
+    const uint row0 = (second ? tg - groups0 : tg) * P;
     const uint k4 = p.k / 4;
-    float t[R];
-    rt_row8<R, 4, 8>(W + (ulong)row * k4, X, k4, sg, lane, part, t);
+    float t[P * R];
+    rt_rows8<R, P, 4, 8>(W, row0, n, X, k4, sg, lane, part, t);
     if (sg == 0 && lane == 0) {
-        for (int r = 0; r < R; ++r) Y[(ulong)r * n + row] = to_bf16(t[r]);
+        for (int q = 0; q < P; ++q)
+            if (row0 + q < n)
+                for (int r = 0; r < R; ++r) Y[(ulong)r * n + row0 + q] = to_bf16(t[q * R + r]);
     }
 }
 
-// ---- Logits, f32 out (one simdgroup per row, 4 rows per threadgroup, UNROLL 4, simd_sum only) ------------------------
-template <int R>
+// ---- Logits, f32 out (one simdgroup per P rows, 4 simdgroups per threadgroup, UNROLL 4, simd_sum only) ----------------
+template <int R, int P>
 kernel void gemv_f32o_v_mr(device const uint4* W [[buffer(0)]],
                            device const uint4* X [[buffer(1)]],
                            device float* Y [[buffer(2)]],
@@ -231,39 +266,51 @@ kernel void gemv_f32o_v_mr(device const uint4* W [[buffer(0)]],
                            uint sg [[simdgroup_index_in_threadgroup]],
                            uint lane [[thread_index_in_simdgroup]]) {
     const uint k8 = p.k / 8;
-    const uint row = tg * 4 + sg;
-    device const uint4* wr = W + (ulong)min(row, p.n - 1) * k8;  // rows past N read a valid row and are not stored
-    float acc[R];
-    for (int r = 0; r < R; ++r) acc[r] = 0.0f;
+    const uint row0 = (tg * 4 + sg) * P;
+    device const uint4* wr[P];
+    for (int q = 0; q < P; ++q) wr[q] = W + (ulong)min(row0 + q, p.n - 1) * k8;  // rows past N read a valid row, not stored
+    float acc[P * R];
+    for (int j = 0; j < P * R; ++j) acc[j] = 0.0f;
     const uint block = 32 * 4;
     const uint nblk = k8 / block;
     uint i = lane;
     for (uint b = 0; b < nblk; ++b, i += block) {
-        uint4 wv[4];
-        for (int u = 0; u < 4; ++u) wv[u] = wr[i + 32 * u];
+        uint4 wv[P][4];
+        for (int q = 0; q < P; ++q)
+            for (int u = 0; u < 4; ++u) wv[q][u] = wr[q][i + 32 * u];
         for (int r = 0; r < R; ++r) {
             uint4 xv[4];
             for (int u = 0; u < 4; ++u) xv[u] = X[(ulong)r * k8 + i + 32 * u];
-            for (int u = 0; u < 4; ++u) acc[r] += dot8(wv[u], xv[u]);
+            for (int q = 0; q < P; ++q)
+                for (int u = 0; u < 4; ++u) acc[q * R + r] += dot8(wv[q][u], xv[u]);
         }
     }
     for (i = nblk * block + lane; i < k8; i += 32) {
-        const uint4 wv = wr[i];
-        for (int r = 0; r < R; ++r) acc[r] += dot8(wv, X[(ulong)r * k8 + i]);
+        uint4 wv[P];
+        for (int q = 0; q < P; ++q) wv[q] = wr[q][i];
+        for (int r = 0; r < R; ++r) {
+            const uint4 xv = X[(ulong)r * k8 + i];
+            for (int q = 0; q < P; ++q) acc[q * R + r] += dot8(wv[q], xv);
+        }
     }
-    for (int r = 0; r < R; ++r) {
-        const float s = simd_sum(acc[r]);
-        if (lane == 0 && row < p.n) Y[p.y_skip + (ulong)r * p.n + row] = s;
+    for (int q = 0; q < P; ++q) {
+        for (int r = 0; r < R; ++r) {
+            const float s = simd_sum(acc[q * R + r]);
+            if (lane == 0 && row0 + q < p.n) Y[p.y_skip + (ulong)r * p.n + row0 + q] = s;
+        }
     }
 }
 
-#define INST_MR(KERNEL, R, ...)                                                                                       \
-    template [[host_name(#KERNEL "_mr" #R)]] kernel void KERNEL##_mr<R>(__VA_ARGS__);
+#define INST_RP(KERNEL, R, P, ...)                                                                                    \
+    template [[host_name(#KERNEL "_mr" #R "x" #P)]] kernel void KERNEL##_mr<R, P>(__VA_ARGS__);
 
-#define INST_MR_ALL(KERNEL, ...)  \
-    INST_MR(KERNEL, 1, __VA_ARGS__) INST_MR(KERNEL, 2, __VA_ARGS__) INST_MR(KERNEL, 3, __VA_ARGS__)   \
-    INST_MR(KERNEL, 4, __VA_ARGS__) INST_MR(KERNEL, 5, __VA_ARGS__) INST_MR(KERNEL, 6, __VA_ARGS__)   \
-    INST_MR(KERNEL, 7, __VA_ARGS__) INST_MR(KERNEL, 8, __VA_ARGS__) INST_MR(KERNEL, 16, __VA_ARGS__)
+#define INST_R(KERNEL, R, ...) \
+    INST_RP(KERNEL, R, 1, __VA_ARGS__) INST_RP(KERNEL, R, 2, __VA_ARGS__) INST_RP(KERNEL, R, 4, __VA_ARGS__)
+
+#define INST_MR_ALL(KERNEL, ...)                                                                                      \
+    INST_R(KERNEL, 1, __VA_ARGS__) INST_R(KERNEL, 2, __VA_ARGS__) INST_R(KERNEL, 3, __VA_ARGS__)                      \
+    INST_R(KERNEL, 4, __VA_ARGS__) INST_R(KERNEL, 5, __VA_ARGS__) INST_R(KERNEL, 6, __VA_ARGS__)                      \
+    INST_R(KERNEL, 7, __VA_ARGS__) INST_R(KERNEL, 8, __VA_ARGS__) INST_R(KERNEL, 16, __VA_ARGS__)
 
 INST_MR_ALL(gemv_bf16_rt_u2s8, device const uint4*, device const uint4*, device ushort*, constant GemvParams&, uint, uint, uint)
 INST_MR_ALL(gemv_bf16_rt_a8u4s8, device const uint2*, device const uint2*, device ushort*, constant GemvParams&, uint, uint, uint)

@@ -12,9 +12,9 @@ use intarsia_backend_metal::kernels::{
     LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV, MATMUL_PAIR_BF16_GEMV,
 };
 use intarsia_backend_metal::multirow::{
-    shader, LOGITS_BF16_GEMV_ROWS, LOGITS_V16, MATMUL_BF16_GEMV_ROWS, MATMUL_PAIR_BF16_GEMV_ROWS, MR_ROWS,
+    self, shader, Family, LOGITS_BF16_GEMV_ROWS, MATMUL_BF16_GEMV_ROWS, MATMUL_PAIR_BF16_GEMV_ROWS, MR_PER_TG, MR_ROWS,
 };
-use intarsia_backend_metal::MetalBackend;
+use intarsia_backend_metal::{GemvParams, MetalBackend, MetalBuffer};
 use intarsia_core::backend::{Backend, Buffer, HostMemory, MemKind, TensorRef};
 use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
 use memmap2::Mmap;
@@ -248,24 +248,175 @@ fn logits_qwen3_8b_shapes_all_rows() {
     }
 }
 
-/// Row 0 of the multi-row launch is also bitwise the 1-row launch when `R = 1` (codegen sanity: the R = 1 instance is the
-/// 1-row kernel), and the compiled row counts are exactly what the host table promises.
+/// Every (family, R, P) instance exists as a pipeline.
 #[test]
 fn every_instance_exists() {
     let be = backend();
-    for set in [
-        &intarsia_backend_metal::multirow::MATMUL_V16,
-        &intarsia_backend_metal::multirow::MATMUL_A8,
-        &intarsia_backend_metal::multirow::PAIR_V16,
-        &intarsia_backend_metal::multirow::PAIR_A8,
-        &intarsia_backend_metal::multirow::LOGITS_V16,
-    ] {
+    for f in Family::ALL {
         for &r in &MR_ROWS {
-            let name = shader(set, r).unwrap();
-            assert!(be.pso(name).is_some(), "no pipeline {name}");
+            for &p in &MR_PER_TG {
+                let name = shader(f, r, p).unwrap();
+                assert!(be.pso(name).is_some(), "no pipeline {name}");
+            }
         }
     }
-    assert_eq!(shader(&LOGITS_V16, 9), None);
+    assert_eq!(shader(Family::Logits, 9, 1), None);
+    assert_eq!(shader(Family::Logits, 4, 3), None);
+}
+
+fn mtl_of(t: &TensorRef) -> (&objc2::runtime::ProtocolObject<dyn objc2_metal::MTLBuffer>, usize) {
+    let mb = t.buf.downcast::<MetalBuffer>().unwrap();
+    (mb.mtl(), mb.base() + t.offset)
+}
+
+const MAXR: usize = 16;
+
+/// Direct encode of every (R, P) instance of the matmul families against R serial serving 1-row launches (computed once
+/// for 16 rows; output rows do not depend on R).
+fn check_matmul_variants(be: &MetalBackend, k: usize, n: usize, w_off: usize) {
+    let w = weights(be, n, k, w_off, 1234 + k as u64);
+    let a8 = w_off % 16 != 0;
+    let x = rand_rows(MAXR, k, 99);
+    let xb = padded(be, 0, &x, 16);
+    let xt = tref(&xb, 0, &[MAXR, k]);
+    let ys = out_buffer(be, 0, MAXR * n * 2);
+    let yst = tref(&ys, 0, &[MAXR, n]);
+    for r in 0..MAXR {
+        be.launch(MATMUL_BF16_GEMV, &matmul_call(xt.rows(r, 1), w.clone(), yst.rows(r, 1)), 0).unwrap();
+    }
+    be.synchronize(0).unwrap();
+    let reference = dl(be, &ys, MAXR * n * 2);
+    let fam = if a8 { Family::MatmulA8 } else { Family::Matmul16 };
+    let (wm, wo) = mtl_of(&w);
+    let (xm, xo) = mtl_of(&xt);
+    for &r in &MR_ROWS {
+        for &p in &MR_PER_TG {
+            let ym = out_buffer(be, 0, MAXR * n * 2);
+            let ymt = tref(&ym, 0, &[MAXR, n]);
+            let (ymm, yo) = mtl_of(&ymt);
+            let pso = be.pso(shader(fam, r, p).unwrap()).unwrap();
+            let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
+            let cb = be
+                .encode_and_commit(|enc| {
+                    multirow::encode_matmul_rows(enc, pso, (wm, wo), (xm, xo), (ymm, yo), &params, p)
+                })
+                .unwrap();
+            MetalBackend::wait(&cb).unwrap();
+            let got = dl(be, &ym, MAXR * n * 2);
+            same(&reference[..r * n * 2], &got[..r * n * 2], &format!("{fam:?} R={r} P={p} K={k} N={n} w_off={w_off}"));
+            assert!(got[r * n * 2..].iter().all(|b| *b == 0xEE), "{fam:?} R={r} P={p}: stray store past row R");
+        }
+    }
+}
+
+#[test]
+fn all_variants_matmul() {
+    let be = backend();
+    for (k, n) in [(4096, 4096), (12288, 4096), (4104, 1031), (520, 5), (8, 3), (1032, 100)] {
+        check_matmul_variants(&be, k, n, 0);
+    }
+    for (k, n) in [(4096, 4096), (12288, 4096), (4100, 33), (28, 7)] {
+        check_matmul_variants(&be, k, n, 8);
+    }
+}
+
+fn check_pair_variants(be: &MetalBackend, k: usize, n0: usize, n1: usize, w_off: usize) {
+    let (w0, w1) = (weights(be, n0, k, w_off, 7 + k as u64), weights(be, n1, k, w_off, 8 + k as u64));
+    let a8 = w_off % 16 != 0;
+    let x = rand_rows(MAXR, k, 98);
+    let xb = padded(be, 0, &x, 16);
+    let xt = tref(&xb, 0, &[MAXR, k]);
+    let (ys0, ys1) = (out_buffer(be, 0, MAXR * n0 * 2), out_buffer(be, 0, MAXR * n1 * 2));
+    let (s0, s1) = (tref(&ys0, 0, &[MAXR, n0]), tref(&ys1, 0, &[MAXR, n1]));
+    for r in 0..MAXR {
+        let call = pair_call(xt.rows(r, 1), w0.clone(), w1.clone(), s0.rows(r, 1), s1.rows(r, 1));
+        be.launch(MATMUL_PAIR_BF16_GEMV, &call, 0).unwrap();
+    }
+    be.synchronize(0).unwrap();
+    let (ref0, ref1) = (dl(be, &ys0, MAXR * n0 * 2), dl(be, &ys1, MAXR * n1 * 2));
+    let fam = if a8 { Family::PairA8 } else { Family::Pair16 };
+    let ((w0m, w0o), (w1m, w1o), (xm, xo)) = (mtl_of(&w0), mtl_of(&w1), mtl_of(&xt));
+    for &r in &MR_ROWS {
+        for &p in &MR_PER_TG {
+            let (y0, y1) = (out_buffer(be, 0, MAXR * n0 * 2), out_buffer(be, 0, MAXR * n1 * 2));
+            let (y0t, y1t) = (tref(&y0, 0, &[MAXR, n0]), tref(&y1, 0, &[MAXR, n1]));
+            let ((y0m, y0o), (y1m, y1o)) = (mtl_of(&y0t), mtl_of(&y1t));
+            let pso = be.pso(shader(fam, r, p).unwrap()).unwrap();
+            let pp = multirow::PairParams { k: k as u32, n0: n0 as u32, n1: n1 as u32, ..Default::default() };
+            let cb = be
+                .encode_and_commit(|enc| {
+                    multirow::encode_pair_rows(
+                        enc,
+                        pso,
+                        (w0m, w0o),
+                        (w1m, w1o),
+                        (xm, xo),
+                        (y0m, y0o),
+                        (y1m, y1o),
+                        &pp,
+                        p,
+                    )
+                })
+                .unwrap();
+            MetalBackend::wait(&cb).unwrap();
+            let (g0, g1) = (dl(be, &y0, MAXR * n0 * 2), dl(be, &y1, MAXR * n1 * 2));
+            let what = format!("{fam:?} R={r} P={p} K={k} N=({n0},{n1}) w_off={w_off}");
+            same(&ref0[..r * n0 * 2], &g0[..r * n0 * 2], &format!("{what} y0"));
+            same(&ref1[..r * n1 * 2], &g1[..r * n1 * 2], &format!("{what} y1"));
+            assert!(g0[r * n0 * 2..].iter().all(|b| *b == 0xEE) && g1[r * n1 * 2..].iter().all(|b| *b == 0xEE), "{what}: stray store");
+        }
+    }
+}
+
+#[test]
+fn all_variants_pair() {
+    let be = backend();
+    for (k, n0, n1) in [(4096, 1024, 1024), (4096, 12288, 12288), (4104, 33, 70), (4096, 5, 4096), (8, 1, 1)] {
+        check_pair_variants(&be, k, n0, n1, 0);
+    }
+    for (k, n0, n1) in [(4096, 1024, 1024), (4096, 12288, 12288), (4100, 33, 70)] {
+        check_pair_variants(&be, k, n0, n1, 8);
+    }
+}
+
+fn check_logits_variants(be: &MetalBackend, k: usize, n: usize) {
+    let w = weights(be, n, k, 0, 55 + k as u64);
+    let x = rand_rows(MAXR, k, 97);
+    let xb = padded(be, 0, &x, 16);
+    let xt = tref(&xb, 0, &[MAXR, k]);
+    let ys = out_buffer(be, 0, MAXR * n * 4);
+    let yst = tref_dt(&ys, 0, DType::F32, &[MAXR, n]);
+    for r in 0..MAXR {
+        let call = OpCall::new(Op::Logits, vec![xt.rows(r, 1), w.clone()], vec![yst.rows(r, 1)], OpAttrs::default());
+        be.launch(LOGITS_BF16_GEMV, &call, 0).unwrap();
+    }
+    be.synchronize(0).unwrap();
+    let reference = dl(be, &ys, MAXR * n * 4);
+    let ((wm, wo), (xm, xo)) = (mtl_of(&w), mtl_of(&xt));
+    for &r in &MR_ROWS {
+        for &p in &MR_PER_TG {
+            let ym = out_buffer(be, 0, MAXR * n * 4);
+            let ymt = tref_dt(&ym, 0, DType::F32, &[MAXR, n]);
+            let (ymm, yo) = mtl_of(&ymt);
+            let pso = be.pso(shader(Family::Logits, r, p).unwrap()).unwrap();
+            let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
+            let cb = be
+                .encode_and_commit(|enc| multirow::encode_logits_rows(enc, pso, (wm, wo), (xm, xo), (ymm, yo), &params, p))
+                .unwrap();
+            MetalBackend::wait(&cb).unwrap();
+            let got = dl(be, &ym, MAXR * n * 4);
+            same(&reference[..r * n * 4], &got[..r * n * 4], &format!("logits R={r} P={p} K={k} N={n}"));
+            assert!(got[r * n * 4..].iter().all(|b| *b == 0xEE), "logits R={r} P={p}: stray store");
+        }
+    }
+}
+
+#[test]
+fn all_variants_logits() {
+    let be = backend();
+    for (k, n) in [(4096, 151936), (4104, 1031), (256, 2049), (8, 3)] {
+        check_logits_variants(&be, k, n);
+    }
 }
 
 /// The tiled GEMM / old logits kernels are still what the registry picks for M = 2..15 (the multi-row entries rank below).

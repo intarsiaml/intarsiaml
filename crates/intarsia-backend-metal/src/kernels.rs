@@ -454,14 +454,13 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(-1),
-                // hidden unless INTARSIA_METAL_MULTIROW=1: no other pair kernel accepts M = 2..8, so a visible entry
-                // would make the model fuse short prefill chunks with it
+                // not listed by `Backend::kernels` unless INTARSIA_METAL_MULTIROW=1: no other pair kernel accepts
+                // M = 2..8, so a listed entry would make the model fuse short prefill chunks with it
                 crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS => k
                     .acts(bf)
                     .weights(bf)
                     .when(|s| {
-                        crate::multirow::pair_entry_enabled()
-                            && (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
+                        (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
                             && s.k % 8 == 0
                             && s.out == Some(DType::Bf16)
                     })

@@ -88,6 +88,12 @@ for k2, cands in by.items():
         ratios = [t / t1[(run, case, a8, rd)] for run, rd, t in lst if (run, case, a8, rd) in t1]
         s[cand] = dict(n=len(ts), t_med=statistics.median(ts), t_p10=q(ts, .1), t_p90=q(ts, .9),
                        ratio_med=statistics.median(ratios), ratio_p10=q(ratios, .1), ratio_p90=q(ratios, .9))
+    # best output-rows-per-threadgroup P per R (lowest median time); the R = 1 sanity instance is mr1x1
+    for R in (1, 2, 3, 4, 5, 6, 7, 8, 16):
+        opts = [(v["t_med"], c) for c, v in s.items() if c.startswith(f"mr{R}x")]
+        if opts:
+            _, c = min(opts)
+            s[f"mr{R}"] = dict(s[c], best_p=int(c.split("x")[1]))
     summ[f"{case}/{a8}"] = s
 
 # ---- print
@@ -122,11 +128,15 @@ for a8 in (0, 1):
                     exname = "tiled GEMM (no NAX logits)"
             if not m and not ex:
                 continue
-            ms = f"{m['t_med']*1e6:.1f}" if m else "-"
+            ms = f"{m['t_med']*1e6:.1f} (P={m['best_p']})" if m else "-"
             mr = f"{m['ratio_med']:.3f} [{m['ratio_p10']:.3f}-{m['ratio_p90']:.3f}]" if m else "-"
             es = f"{ex['t_med']*1e6:.1f}" if ex else "-"
             er = f"{ex['ratio_med']:.2f}" if ex else "-"
             print(f"| {R} | {T1*1e6:.1f} | {ms} | {mr} | {es} | {er} | {exname} |")
+        # P sweep
+        print("P sweep (output rows per threadgroup; ratio to T(1)): " + "; ".join(
+            f"R={R}: " + ", ".join(f"P{c.split('x')[1]}={s[c]['ratio_med']:.2f}" for c in sorted(s) if c.startswith(f"mr{R}x"))
+            for R in Rs if R > 1))
         # extra tiled sizes
         extra = [c for c in s if c.startswith("tiled") and int(c[5:]) not in Rs]
         if extra:

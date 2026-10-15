@@ -31,7 +31,7 @@ mod imp {
     use intarsia_backend_metal::bench;
     use intarsia_backend_metal::gemm_nax::{self, NaxPairParams, NaxParams};
     use intarsia_backend_metal::kernels::{GEMM_O_BF16, GEMM_O_F32};
-    use intarsia_backend_metal::multirow::{self as mr, PairParams};
+    use intarsia_backend_metal::multirow::{self as mr, Family, PairParams};
     use intarsia_backend_metal::{encode_gemv, GemvParams, MetalBackend, MtlBuffer};
     use objc2_metal::{MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue};
     use std::io::Write;
@@ -64,7 +64,7 @@ mod imp {
         /// The serving 1-row kernel (what a decode step launches).
         Serving,
         /// Multi-row bit-exact prototype with R rows.
-        Mr(usize),
+        Mr(usize, usize),
         /// The tiled GEMM that serves M = 2..15 (and logits for any M >= 2) today.
         Tiled(usize),
         /// The NAX GEMM (M >= 16).
@@ -75,7 +75,7 @@ mod imp {
         fn label(&self) -> String {
             match self {
                 Cand::Serving => "serving1".into(),
-                Cand::Mr(r) => format!("mr{r}"),
+                Cand::Mr(r, p) => format!("mr{r}x{p}"),
                 Cand::Tiled(m) => format!("tiled{m}"),
                 Cand::Nax(m) => format!("nax{m}"),
             }
@@ -84,7 +84,7 @@ mod imp {
         fn rows(&self) -> usize {
             match self {
                 Cand::Serving => 1,
-                Cand::Mr(r) | Cand::Tiled(r) | Cand::Nax(r) => *r,
+                Cand::Mr(r, _) | Cand::Tiled(r) | Cand::Nax(r) => *r,
             }
         }
     }
@@ -142,15 +142,18 @@ mod imp {
         }
     }
 
-    fn mr_name(kind: Kind, a8: bool, r: usize) -> &'static str {
+    fn family(kind: Kind, a8: bool) -> Family {
         match (kind, a8) {
-            (Kind::Matmul, false) => mr::shader(&mr::MATMUL_V16, r),
-            (Kind::Matmul, true) => mr::shader(&mr::MATMUL_A8, r),
-            (Kind::Pair, false) => mr::shader(&mr::PAIR_V16, r),
-            (Kind::Pair, true) => mr::shader(&mr::PAIR_A8, r),
-            (Kind::Logits, _) => mr::shader(&mr::LOGITS_V16, r),
+            (Kind::Matmul, false) => Family::Matmul16,
+            (Kind::Matmul, true) => Family::MatmulA8,
+            (Kind::Pair, false) => Family::Pair16,
+            (Kind::Pair, true) => Family::PairA8,
+            (Kind::Logits, _) => Family::Logits,
         }
-        .unwrap_or_else(|| panic!("no multi-row shader for {r} rows"))
+    }
+
+    fn mr_name(kind: Kind, a8: bool, r: usize, p: usize) -> &'static str {
+        mr::shader(family(kind, a8), r, p).unwrap_or_else(|| panic!("no multi-row shader for {r} rows x {p}"))
     }
 
     fn serving_name(kind: Kind, a8: bool) -> &'static str {
@@ -191,8 +194,8 @@ mod imp {
                 c.n0 as u32,
                 mr::RT_THREADS,
             ),
-            (Cand::Mr(r), Kind::Matmul) => {
-                mr::encode_matmul_rows(enc, pso(mr_name(c.kind, a8, r)), (w0, off), (x, 0), (y0, 0), &gp)
+            (Cand::Mr(r, p), Kind::Matmul) => {
+                mr::encode_matmul_rows(enc, pso(mr_name(c.kind, a8, r, p)), (w0, off), (x, 0), (y0, 0), &gp, p)
             }
             (Cand::Serving, Kind::Pair) => mr::encode_pair_rows(
                 enc,
@@ -203,22 +206,24 @@ mod imp {
                 (y0, 0),
                 (y1, 0),
                 &pp,
+                1,
             ),
-            (Cand::Mr(r), Kind::Pair) => mr::encode_pair_rows(
+            (Cand::Mr(r, p), Kind::Pair) => mr::encode_pair_rows(
                 enc,
-                pso(mr_name(c.kind, a8, r)),
+                pso(mr_name(c.kind, a8, r, p)),
                 (w0, off),
                 (w1.unwrap(), off),
                 (x, 0),
                 (y0, 0),
                 (y1, 0),
                 &pp,
+                p,
             ),
             (Cand::Serving, Kind::Logits) => {
-                mr::encode_logits_rows(enc, pso(serving_name(c.kind, a8)), (w0, off), (x, 0), (y0, 0), &gp)
+                mr::encode_logits_rows(enc, pso(serving_name(c.kind, a8)), (w0, off), (x, 0), (y0, 0), &gp, 1)
             }
-            (Cand::Mr(r), Kind::Logits) => {
-                mr::encode_logits_rows(enc, pso(mr_name(c.kind, a8, r)), (w0, off), (x, 0), (y0, 0), &gp)
+            (Cand::Mr(r, p), Kind::Logits) => {
+                mr::encode_logits_rows(enc, pso(mr_name(c.kind, a8, r, p)), (w0, off), (x, 0), (y0, 0), &gp, p)
             }
             (Cand::Tiled(m), Kind::Matmul) => mr::encode_tiled_gemm(
                 enc,
@@ -320,7 +325,7 @@ mod imp {
     }
 
     /// Bitwise check of the multi-row kernel `r` against `r` serving 1-row launches (entry 0 of the pool, distinct rows of x).
-    fn bit_check(be: &MetalBackend, c: &Case, a8: bool, pool: &Pool, r: usize) -> (bool, usize) {
+    fn bit_check(be: &MetalBackend, c: &Case, a8: bool, pool: &Pool, r: usize, per: usize) -> (bool, usize) {
         let esz = if c.kind == Kind::Logits { 4 } else { 2 };
         let zero = |b: &MtlBuffer| unsafe { std::ptr::write_bytes(b.contents().as_ptr() as *mut u8, 0xEE, b.length()) };
         for b in [&pool.y0, &pool.y1, &pool.r0, &pool.r1] {
@@ -357,6 +362,7 @@ mod imp {
                     (&pool.r0, y0o),
                     (&pool.r1, y1o),
                     &pp,
+                    1,
                 ),
                 Kind::Logits => mr::encode_logits_rows(
                     &enc,
@@ -365,6 +371,7 @@ mod imp {
                     (&pool.x, xo),
                     (&pool.r0, y0o),
                     &gp,
+                    1,
                 ),
             }
         }
@@ -374,7 +381,7 @@ mod imp {
         // multi-row
         let cb = be.queue().commandBuffer().unwrap();
         let enc = cb.computeCommandEncoder().unwrap();
-        dispatch(be, &enc, c, a8, Cand::Mr(r), pool, 0, (&pool.y0, &pool.y1));
+        dispatch(be, &enc, c, a8, Cand::Mr(r, per), pool, 0, (&pool.y0, &pool.y1));
         enc.endEncoding();
         be.commit(&cb);
         MetalBackend::wait(&cb).unwrap();
@@ -396,6 +403,8 @@ mod imp {
         let off = if a8 { 8 } else { 0 };
         let rows_filter: Option<Vec<usize>> =
             std::env::var("G0_ROWS").ok().map(|v| v.split(',').filter_map(|t| t.trim().parse().ok()).collect());
+        let per_filter: Option<Vec<usize>> =
+            std::env::var("G0_P").ok().map(|v| v.split(',').filter_map(|t| t.trim().parse().ok()).collect());
         let mut csv: Box<dyn Write> = match std::env::var("G0_OUT") {
             Ok(p) => Box::new(std::fs::File::create(p).unwrap()),
             Err(_) => Box::new(std::io::sink()),
@@ -438,7 +447,19 @@ mod imp {
                 .into_iter()
                 .filter(|r| rows_filter.as_ref().is_none_or(|f| f.contains(r) || *r == 1))
                 .collect();
-            cands.extend(mr_rows.iter().map(|&r| Cand::Mr(r)));
+            let pers: Vec<usize> = mr::MR_PER_TG
+                .iter()
+                .copied()
+                .filter(|p| per_filter.as_ref().is_none_or(|f| f.contains(p)))
+                .collect();
+            for &r in &mr_rows {
+                for &p in &pers {
+                    // R = 1 is the sanity instance (same kernel as serving); only the P = 1 form is timed
+                    if r > 1 || p == 1 {
+                        cands.push(Cand::Mr(r, p));
+                    }
+                }
+            }
             for m in [2usize, 3, 4, 5, 6, 7, 8, 12, 15, 16] {
                 if rows_filter.as_ref().is_none_or(|f| f.contains(&m) || m == 15 || m == 16) {
                     cands.push(Cand::Tiled(m));
@@ -450,13 +471,15 @@ mod imp {
 
             // bitwise check first
             for &r in &mr_rows {
-                let (ok, n) = bit_check(&be, c, a8, &pool, r);
-                eprintln!(
-                    "  bitwise vs {r} serving 1-row launches: {} ({n} output bytes of y0 compared)",
-                    if ok { "IDENTICAL" } else { "DIFFERENT" }
-                );
-                writeln!(csv, "{},{},{},bitwise,{},0,{},0", epoch_ms(), c.label, a8 as u8, r, ok as u8).unwrap();
-                assert!(ok, "multi-row output differs from the serving 1-row kernel");
+                for &p in &mr::MR_PER_TG {
+                    let (ok, n) = bit_check(&be, c, a8, &pool, r, p);
+                    eprintln!(
+                        "  bitwise R={r} P={p} vs {r} serving 1-row launches: {} ({n} output bytes of y0 compared)",
+                        if ok { "IDENTICAL" } else { "DIFFERENT" }
+                    );
+                    writeln!(csv, "{},{},{},bitwise,{},{},{},0", epoch_ms(), c.label, a8 as u8, r, p, ok as u8).unwrap();
+                    assert!(ok, "multi-row output differs from the serving 1-row kernel");
+                }
             }
 
             // warm-up: ramp the clock and fault the pool in
