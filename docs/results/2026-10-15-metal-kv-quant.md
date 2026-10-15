@@ -255,7 +255,32 @@ decode is invisible. 32k and 40k prefill are clock-confounded (bf16 32k: 15.8 s 
 
 ## 7. Gates of the default path
 
-@@GATES@@
+All on the **merged tree** (branch merged with `spike/metal` `912f3f8`, cb-m1 batching; one conflict, `common.rs` `for_serving`, resolved
+by keeping both changes), slot #2081, binary `intarsia-merged`; raw `gatesM/ idsM/ accM/ qualifyM-bf16/`. The same gates ran
+earlier on the pre-merge branch (`gatesF/ gatesG/ idsG/ qualifyG-bf16/ acc/`) with identical numbers.
+
+| gate | result |
+|---|---|
+| `cargo test -p intarsia-core -p intarsia-cli -p intarsia-server --release` | pass (no GPU) |
+| `cargo test -p intarsia-backend-metal -p intarsia-models --release -- --test-threads=1`, in the slot | **pass, 198 tests, 0 failed**. Includes `kv_fp8` (8), `kv_i8` (7), the existing g0b / multirow / wrap_host suites, and the batch bitwise identity on real Qwen3-8B (below) |
+| `intarsia kernels test --backend metal` | **exit 0, 33 kernels, 388 cases, all ADMITTED.** The fp8 kernels are admitted against the f64/cpu oracle (`kv_append_f8`, `qk_norm_rope_kv_f8`, `attn_decode_f8_splitkv` 15 cases max_abs 1.5e-5, `attn_prefill_f8_flash` 14 cases 5.2e-3, `_flash_nax` 7 cases 4.8e-3, `attn_prefill_f8_splitkv_rows` 9 cases 1.0e-3: all inside the bf16 tolerance). The int8 kernels are not listed here by design (section 3) |
+| greedy ids, bf16 KV, merged binary vs the `912f3f8` binary, 256 tokens | **identical on all 6 prompts** (short, 4k, open, grounded, golden-docs, golden-code). Pre-merge branch vs the `56ec2d5` binary: also identical on all 6 |
+| `qualify --backend metal` (fresh, full, default KV) | **PASS**, 13 stages: 11 pass, 2 skip (`ab`, `tp`: no reference server / tp 1). acc-short 100.00 % / KL 2.83e-4; acc-long 99.72 % / 3.70e-4; acc-4k 99.28 % / 2.44e-4 (identical to the baseline); bench 36.2 tok/s at 128 tokens (89 % of the byte floor) |
+| `cargo check --workspace --all-targets` | clean |
+| `cargo check -p intarsia-cli --features cuda` / `--features hip` | clean |
+
+The one early failure is worth recording: the first `qualify` run (pre-merge, before the int8 listing fix) **failed at stage 4**
+(kernels test: "NO CASES (untested)" for the int8 kernels, which the oracle cannot admit). Fixed by listing them only when
+`--kv-dtype int8` is requested; the rerun above passes. A matching serve-side find: `serve` loads with `require_admitted`, so
+`--kv-dtype int8` found no attention kernel; `for_serving` now relaxes `require_admitted` for int8 only.
+
+**Batching (cb-m1) with a quantised cache.** The batched step runs the 1-row quantising prologue and the 1-row decode kernel
+per sequence on that sequence's own cache (`attn_rows` takes the cache dtype from the slot like `attn_block` did), and
+`plan::check_batch_ops` counts ops, not dtypes, so no new case was needed. Checked, not assumed: `batch_metal.rs` gained fp8 and int8 variants
+(`batch_bitwise_equals_solo_steps_qwen3_8b_metal_{fp8,int8}_kv`): **138 (row, step) pairs for B = 2, 3, 4, 6, 8 at mixed lengths up to 4000,
+and 48 decode rows beside 256-token prefill chunks, bitwise identical to the solo steps, for fp8 and for int8** (12.6 to 13.5 s each).
+So batching with a quantised cache is supported and exact; there is nothing to refuse.
+
 
 ## 8. Shared-code changes (everything outside the new files)
 

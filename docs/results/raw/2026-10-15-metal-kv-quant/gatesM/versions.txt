@@ -1,0 +1,12 @@
+date: 2026-10-15T18:00:17-04:00
+fleetq job: 2081
+head: 8d44325cbffe739f18a09820f85a03180697c183
+ M docs/results/raw/2026-10-15-metal-kv-quant/qualifyG-bf16-console.log
+ M docs/results/raw/2026-10-15-metal-kv-quant/qualifyG-bf16/logs/bench-server.err
+ M docs/results/raw/2026-10-15-metal-kv-quant/qualifyG-bf16/state.json
+ M docs/results/raw/2026-10-15-metal-kv-quant/slotG.log
+ M docs/results/raw/2026-10-15-metal-kv-quant/workL.sh
+-rwxr-xr-x@ 1 josef  wheel  17953856 Oct 15 17:55 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-base2
+-rwxr-xr-x@ 1 josef  wheel  18525488 Oct 15 17:56 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-merged
+b1095642782279bc58f03f2fd29b26f609f1b6c6d65ffd3f80e55bfeea7d8bc4  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-base2
+c0df42a7cf87b53759204f4f0d4eff6aa25582ae0e10e6171dd0c4b674b52da3  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-merged

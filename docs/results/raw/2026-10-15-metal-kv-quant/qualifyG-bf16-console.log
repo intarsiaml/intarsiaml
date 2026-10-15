@@ -13,3 +13,21 @@
 [qualify    114s] == acc-short [short accuracy against a golden]
 [qualify    123s] acc-short: PASS in 8.2s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
 [qualify    123s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    163s] server up in 40s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    203s] bench: PASS in 80.0s (decode 36.2 tok/s at 128 tokens (89% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/qualifyG-bf16/quick-report.md
+[qualify    203s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    226s] acc-long: PASS in 23.5s (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4)
+[qualify    226s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    284s] acc-4k: PASS in 57.9s (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4)
+[qualify    284s] == envelope [noise envelope and baseline for regression gating]
+[qualify    298s] envelope: PASS in 14.1s (baseline and envelope (chunk) written; they gate this build: PASS)
+[qualify    298s] == bench-long [long-context bench up to 16k]
+[qualify    338s] server up in 40s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    379s] bench-long: PASS in 80.6s (decode 36.2 tok/s at 1024 tokens (89% of the byte floor))
+[qualify    379s] == ab [A/B against the reference server via localeval]
+[qualify    379s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    379s] == tp [tensor-parallel variant]
+[qualify    379s] tp: SKIP in 0.0s (--tp not given (or 1))
+FULL DONE: /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/qualifyG-bf16/full-report.md
+[qualify    379s] exit code 0

@@ -1,7 +1,9 @@
 #!/bin/zsh
 # localeval speed (sizes 4096 and 16384) through intarsia serve, one server per KV dtype, order bf16 fp8 int8 int8 fp8 bf16
 source /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/common.sh
-NEW=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-final3
+echo "######## merged-tree gates (workM) $(date)"; zsh /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workM.sh
+echo "######## localeval on merged binary $(date)"
+NEW=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-merged
 O=$R/speed4; mkdir -p $O $R/localeval2
 export INTARSIA_METAL_F8_U=4
 macmon_start $O/macmon-L.jsonl
