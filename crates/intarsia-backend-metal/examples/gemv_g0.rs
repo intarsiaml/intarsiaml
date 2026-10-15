@@ -65,6 +65,8 @@ mod imp {
         Serving,
         /// Multi-row bit-exact prototype with R rows.
         Mr(usize, usize),
+        /// Multi-row split into passes of `rb` rows.
+        MrS(usize, usize, usize),
         /// The tiled GEMM that serves M = 2..15 (and logits for any M >= 2) today.
         Tiled(usize),
         /// The NAX GEMM (M >= 16).
@@ -76,6 +78,7 @@ mod imp {
             match self {
                 Cand::Serving => "serving1".into(),
                 Cand::Mr(r, p) => format!("mr{r}x{p}"),
+                Cand::MrS(r, p, rb) => format!("mr{r}x{p}s{rb}"),
                 Cand::Tiled(m) => format!("tiled{m}"),
                 Cand::Nax(m) => format!("nax{m}"),
             }
@@ -84,7 +87,7 @@ mod imp {
         fn rows(&self) -> usize {
             match self {
                 Cand::Serving => 1,
-                Cand::Mr(r, _) | Cand::Tiled(r) | Cand::Nax(r) => *r,
+                Cand::Mr(r, _) | Cand::MrS(r, _, _) | Cand::Tiled(r) | Cand::Nax(r) => *r,
             }
         }
     }
@@ -154,6 +157,10 @@ mod imp {
 
     fn mr_name(kind: Kind, a8: bool, r: usize, p: usize) -> &'static str {
         mr::shader(family(kind, a8), r, p).unwrap_or_else(|| panic!("no multi-row shader for {r} rows x {p}"))
+    }
+
+    fn mrs_name(kind: Kind, a8: bool, r: usize, p: usize, rb: usize) -> &'static str {
+        mr::shader_split(family(kind, a8), r, p, rb).unwrap()
     }
 
     fn serving_name(kind: Kind, a8: bool) -> &'static str {
@@ -294,6 +301,7 @@ mod imp {
                     &p,
                 )
             }
+            (Cand::MrS(..), _) => unreachable!(),
             (Cand::Nax(_), Kind::Logits) => unreachable!("no NAX logits kernel"),
         }
     }
@@ -325,7 +333,7 @@ mod imp {
     }
 
     /// Bitwise check of the multi-row kernel `r` against `r` serving 1-row launches (entry 0 of the pool, distinct rows of x).
-    fn bit_check(be: &MetalBackend, c: &Case, a8: bool, pool: &Pool, r: usize, per: usize) -> (bool, usize) {
+    fn bit_check(be: &MetalBackend, c: &Case, a8: bool, pool: &Pool, r: usize, cand: Cand) -> (bool, usize) {
         let esz = if c.kind == Kind::Logits { 4 } else { 2 };
         let zero = |b: &MtlBuffer| unsafe { std::ptr::write_bytes(b.contents().as_ptr() as *mut u8, 0xEE, b.length()) };
         for b in [&pool.y0, &pool.y1, &pool.r0, &pool.r1] {
@@ -381,7 +389,7 @@ mod imp {
         // multi-row
         let cb = be.queue().commandBuffer().unwrap();
         let enc = cb.computeCommandEncoder().unwrap();
-        dispatch(be, &enc, c, a8, Cand::Mr(r, per), pool, 0, (&pool.y0, &pool.y1));
+        dispatch(be, &enc, c, a8, cand, pool, 0, (&pool.y0, &pool.y1));
         enc.endEncoding();
         be.commit(&cb);
         MetalBackend::wait(&cb).unwrap();
@@ -403,6 +411,7 @@ mod imp {
         let off = if a8 { 8 } else { 0 };
         let rows_filter: Option<Vec<usize>> =
             std::env::var("G0_ROWS").ok().map(|v| v.split(',').filter_map(|t| t.trim().parse().ok()).collect());
+        let only_split = std::env::var("G0_ONLY_SPLIT").is_ok();
         let per_filter: Option<Vec<usize>> =
             std::env::var("G0_P").ok().map(|v| v.split(',').filter_map(|t| t.trim().parse().ok()).collect());
         let mut csv: Box<dyn Write> = match std::env::var("G0_OUT") {
@@ -460,26 +469,49 @@ mod imp {
                     }
                 }
             }
+            for &(r, p, rb) in &mr::MR_SPLITS {
+                if rows_filter.as_ref().is_none_or(|f| f.contains(&r)) {
+                    cands.push(Cand::MrS(r, p, rb));
+                }
+            }
+            if only_split {
+                cands.retain(|c| match c {
+                    Cand::Serving | Cand::MrS(..) => true,
+                    Cand::Mr(r, p) => *p == 1 && (4..=8).contains(r),
+                    _ => false,
+                });
+            }
             for m in [2usize, 3, 4, 5, 6, 7, 8, 12, 15, 16] {
+                if only_split {
+                    break;
+                }
                 if rows_filter.as_ref().is_none_or(|f| f.contains(&m) || m == 15 || m == 16) {
                     cands.push(Cand::Tiled(m));
                 }
             }
-            if has_nax && c.kind != Kind::Logits {
+            if has_nax && c.kind != Kind::Logits && !only_split {
                 cands.push(Cand::Nax(16));
             }
 
             // bitwise check first
+            let mut bit_cands: Vec<Cand> = Vec::new();
             for &r in &mr_rows {
                 for &p in &mr::MR_PER_TG {
-                    let (ok, n) = bit_check(&be, c, a8, &pool, r, p);
-                    eprintln!(
-                        "  bitwise R={r} P={p} vs {r} serving 1-row launches: {} ({n} output bytes of y0 compared)",
-                        if ok { "IDENTICAL" } else { "DIFFERENT" }
-                    );
-                    writeln!(csv, "{},{},{},bitwise,{},{},{},0", epoch_ms(), c.label, a8 as u8, r, p, ok as u8).unwrap();
-                    assert!(ok, "multi-row output differs from the serving 1-row kernel");
+                    bit_cands.push(Cand::Mr(r, p));
                 }
+            }
+            bit_cands.extend(mr::MR_SPLITS.iter().map(|&(r, p, rb)| Cand::MrS(r, p, rb)));
+            for bc in bit_cands {
+                let r = bc.rows();
+                let (ok, n) = bit_check(&be, c, a8, &pool, r, bc);
+                eprintln!(
+                    "  bitwise {} vs {r} serving 1-row launches: {} ({n} output bytes of y0 compared)",
+                    bc.label(),
+                    if ok { "IDENTICAL" } else { "DIFFERENT" }
+                );
+                writeln!(csv, "{},{},{},bitwise,{},{},{},0", epoch_ms(), c.label, a8 as u8, r, bc.label(), ok as u8)
+                    .unwrap();
+                assert!(ok, "multi-row output differs from the serving 1-row kernel");
             }
 
             // warm-up: ramp the clock and fault the pool in

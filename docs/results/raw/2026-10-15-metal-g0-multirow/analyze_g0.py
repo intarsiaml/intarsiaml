@@ -93,7 +93,7 @@ for k2, cands in by.items():
         opts = [(v["t_med"], c) for c, v in s.items() if c.startswith(f"mr{R}x")]
         if opts:
             _, c = min(opts)
-            s[f"mr{R}"] = dict(s[c], best_p=int(c.split("x")[1]))
+            s[f"mr{R}"] = dict(s[c], best_p=c.split("x",1)[1])
     summ[f"{case}/{a8}"] = s
 
 # ---- print
@@ -128,7 +128,7 @@ for a8 in (0, 1):
                     exname = "tiled GEMM (no NAX logits)"
             if not m and not ex:
                 continue
-            ms = f"{m['t_med']*1e6:.1f} (P={m['best_p']})" if m else "-"
+            ms = f"{m['t_med']*1e6:.1f} (cfg {m["best_p"]})" if m else "-"
             mr = f"{m['ratio_med']:.3f} [{m['ratio_p10']:.3f}-{m['ratio_p90']:.3f}]" if m else "-"
             es = f"{ex['t_med']*1e6:.1f}" if ex else "-"
             er = f"{ex['ratio_med']:.2f}" if ex else "-"

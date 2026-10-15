@@ -12,7 +12,7 @@ use intarsia_backend_metal::kernels::{
     LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV, MATMUL_PAIR_BF16_GEMV,
 };
 use intarsia_backend_metal::multirow::{
-    self, shader, Family, LOGITS_BF16_GEMV_ROWS, MATMUL_BF16_GEMV_ROWS, MATMUL_PAIR_BF16_GEMV_ROWS, MR_PER_TG, MR_ROWS,
+    self, shader, shader_split, MR_SPLITS, Family, LOGITS_BF16_GEMV_ROWS, MATMUL_BF16_GEMV_ROWS, MATMUL_PAIR_BF16_GEMV_ROWS, MR_PER_TG, MR_ROWS,
 };
 use intarsia_backend_metal::{GemvParams, MetalBackend, MetalBuffer};
 use intarsia_core::backend::{Backend, Buffer, HostMemory, MemKind, TensorRef};
@@ -259,6 +259,10 @@ fn every_instance_exists() {
                 assert!(be.pso(name).is_some(), "no pipeline {name}");
             }
         }
+        for &(r, p, rb) in &MR_SPLITS {
+            let name = shader_split(f, r, p, rb).unwrap();
+            assert!(be.pso(name).is_some(), "no pipeline {name}");
+        }
     }
     assert_eq!(shader(Family::Logits, 9, 1), None);
     assert_eq!(shader(Family::Logits, 4, 3), None);
@@ -289,12 +293,21 @@ fn check_matmul_variants(be: &MetalBackend, k: usize, n: usize, w_off: usize) {
     let fam = if a8 { Family::MatmulA8 } else { Family::Matmul16 };
     let (wm, wo) = mtl_of(&w);
     let (xm, xo) = mtl_of(&xt);
+    let mut variants: Vec<(usize, usize, &str)> = vec![];
     for &r in &MR_ROWS {
         for &p in &MR_PER_TG {
+            variants.push((r, p, shader(fam, r, p).unwrap()));
+        }
+    }
+    for &(r, p, rb) in &MR_SPLITS {
+        variants.push((r, p, shader_split(fam, r, p, rb).unwrap()));
+    }
+    for (r, p, name) in variants {
+        {
             let ym = out_buffer(be, 0, MAXR * n * 2);
             let ymt = tref(&ym, 0, &[MAXR, n]);
             let (ymm, yo) = mtl_of(&ymt);
-            let pso = be.pso(shader(fam, r, p).unwrap()).unwrap();
+            let pso = be.pso(name).unwrap();
             let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
             let cb = be
                 .encode_and_commit(|enc| {
@@ -336,12 +349,21 @@ fn check_pair_variants(be: &MetalBackend, k: usize, n0: usize, n1: usize, w_off:
     let (ref0, ref1) = (dl(be, &ys0, MAXR * n0 * 2), dl(be, &ys1, MAXR * n1 * 2));
     let fam = if a8 { Family::PairA8 } else { Family::Pair16 };
     let ((w0m, w0o), (w1m, w1o), (xm, xo)) = (mtl_of(&w0), mtl_of(&w1), mtl_of(&xt));
+    let mut variants: Vec<(usize, usize, &str)> = vec![];
     for &r in &MR_ROWS {
         for &p in &MR_PER_TG {
+            variants.push((r, p, shader(fam, r, p).unwrap()));
+        }
+    }
+    for &(r, p, rb) in &MR_SPLITS {
+        variants.push((r, p, shader_split(fam, r, p, rb).unwrap()));
+    }
+    for (r, p, name) in variants {
+        {
             let (y0, y1) = (out_buffer(be, 0, MAXR * n0 * 2), out_buffer(be, 0, MAXR * n1 * 2));
             let (y0t, y1t) = (tref(&y0, 0, &[MAXR, n0]), tref(&y1, 0, &[MAXR, n1]));
             let ((y0m, y0o), (y1m, y1o)) = (mtl_of(&y0t), mtl_of(&y1t));
-            let pso = be.pso(shader(fam, r, p).unwrap()).unwrap();
+            let pso = be.pso(name).unwrap();
             let pp = multirow::PairParams { k: k as u32, n0: n0 as u32, n1: n1 as u32, ..Default::default() };
             let cb = be
                 .encode_and_commit(|enc| {
@@ -393,12 +415,21 @@ fn check_logits_variants(be: &MetalBackend, k: usize, n: usize) {
     be.synchronize(0).unwrap();
     let reference = dl(be, &ys, MAXR * n * 4);
     let ((wm, wo), (xm, xo)) = (mtl_of(&w), mtl_of(&xt));
+    let mut variants: Vec<(usize, usize, &str)> = vec![];
     for &r in &MR_ROWS {
         for &p in &MR_PER_TG {
+            variants.push((r, p, shader(Family::Logits, r, p).unwrap()));
+        }
+    }
+    for &(r, p, rb) in &MR_SPLITS {
+        variants.push((r, p, shader_split(Family::Logits, r, p, rb).unwrap()));
+    }
+    for (r, p, name) in variants {
+        {
             let ym = out_buffer(be, 0, MAXR * n * 4);
             let ymt = tref_dt(&ym, 0, DType::F32, &[MAXR, n]);
             let (ymm, yo) = mtl_of(&ymt);
-            let pso = be.pso(shader(Family::Logits, r, p).unwrap()).unwrap();
+            let pso = be.pso(name).unwrap();
             let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
             let cb = be
                 .encode_and_commit(|enc| multirow::encode_logits_rows(enc, pso, (wm, wo), (xm, xo), (ymm, yo), &params, p))

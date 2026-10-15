@@ -63,8 +63,13 @@ impl Family {
     }
 }
 
-fn name_table() -> &'static std::collections::HashMap<(Family, usize, usize), &'static str> {
-    static T: std::sync::OnceLock<std::collections::HashMap<(Family, usize, usize), &'static str>> =
+/// Split-pass instances `(R, P, RB)`: the threadgroup runs the R rows as `R / RB` sequential passes of `RB` rows (the weights are
+/// loaded again from cache in each pass) to bound register pressure. Same bits as the single-pass form.
+pub const MR_SPLITS: [(usize, usize, usize); 7] =
+    [(6, 1, 3), (6, 1, 2), (8, 1, 4), (8, 1, 2), (8, 2, 4), (16, 1, 8), (16, 1, 4)];
+
+fn name_table() -> &'static std::collections::HashMap<(Family, usize, usize, usize), &'static str> {
+    static T: std::sync::OnceLock<std::collections::HashMap<(Family, usize, usize, usize), &'static str>> =
         std::sync::OnceLock::new();
     T.get_or_init(|| {
         let mut m = std::collections::HashMap::new();
@@ -72,8 +77,12 @@ fn name_table() -> &'static std::collections::HashMap<(Family, usize, usize), &'
             for &r in &MR_ROWS {
                 for &p in &MR_PER_TG {
                     let n: &'static str = Box::leak(format!("{}_mr{r}x{p}", f.base()).into_boxed_str());
-                    m.insert((f, r, p), n);
+                    m.insert((f, r, p, r), n);
                 }
+            }
+            for &(r, p, rb) in &MR_SPLITS {
+                let n: &'static str = Box::leak(format!("{}_mr{r}x{p}s{rb}", f.base()).into_boxed_str());
+                m.insert((f, r, p, rb), n);
             }
         }
         m
@@ -82,7 +91,12 @@ fn name_table() -> &'static std::collections::HashMap<(Family, usize, usize), &'
 
 /// Host name of the shader of `family` for `rows` activation rows and `per_tg` output rows per threadgroup.
 pub fn shader(family: Family, rows: usize, per_tg: usize) -> Option<&'static str> {
-    name_table().get(&(family, rows, per_tg)).copied()
+    name_table().get(&(family, rows, per_tg, rows)).copied()
+}
+
+/// Host name of a split-pass instance (`rows` activation rows in passes of `pass_rows`), see [`MR_SPLITS`].
+pub fn shader_split(family: Family, rows: usize, per_tg: usize, pass_rows: usize) -> Option<&'static str> {
+    name_table().get(&(family, rows, per_tg, pass_rows)).copied()
 }
 
 /// Output rows per threadgroup the launchers use for `rows` activation rows (chosen from the G0 sweep).
