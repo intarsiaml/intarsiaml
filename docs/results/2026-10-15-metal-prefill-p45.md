@@ -25,7 +25,7 @@ Speed, plain prefill (`generate --max-tokens 1`, ABBA, pre = 766c723 binary, med
 | 4k | 1842 -> 1719 | **0.933** | 1515 -> 1545 | 1.020 (mean 0.990) |
 | 16k | 12150 -> 11667 | 0.960 | 10943 -> 10910 | 0.997 |
 
-localeval speed (`local-model-bench`, prefill tok/s, 3 reps, pre new new pre, medians; decode unchanged 36.6 tok/s at 128 and 1k, 35.5 at 4k):
+localeval speed (`local-model-bench`, prefill tok/s, 3 reps per server, pre new new pre, medians of the reps; chunk-256 pre uses the second pre server, see the caveat in the method notes; decode unchanged 36.6 tok/s at 128 and 1k, 35.5 at 4k):
 
 | prompt | chunk 256 pre -> new | | chunk 2048 pre -> new | |
 |---|---|---|---|---|
@@ -67,7 +67,7 @@ Tile rule shipped (`gemm_nax::pick_variant`, any choice gives the same bits):
 | 128..512 | < 8192 and `m % 64` in 1..=32 | 32x128w2 |
 | 128..512 | otherwise | 64x64w2 |
 
-Model of the 4k chunk-256 matmul time from the microbench sweep: P1 rule 1045 ms, shipped rule 990 ms (-5.3%), per-case oracle 979 ms. Measured in-engine GPU busy (cb mode): -82 ms of 1497 (-5.5%) at chunk 256.
+Model of the 4k chunk-256 matmul time from the microbench sweep (`sweep/rule_model.txt`, the shipped rule applied to the measured per-tile times): P1 rule 1045 ms, shipped rule 991 ms (-5.1%), per-case oracle 979 ms. Measured in-engine GPU busy (cb mode): -82 ms of 1497 (-5.5%) at chunk 256.
 
 ## Prefill kernels, 4k prompt
 
@@ -92,7 +92,7 @@ Elementwise after the change at chunk 256: 32.9 ms = `qk_norm_rope_kv_pf` 9 ms (
 
 **(b) q+k+v triple GEMM: not built.** Proxy: one 6144-column kernel (`gemm_nax bench qkv`, `qkv/bench-qkv.txt`) reaches 56.7 TFLOPS at M=256 (128x64w4) against ~53 for q/o + k+v issued separately. q + k/v pair are 252 us per layer-chunk at chunk 256: the best case saves 14 us x 540 = 7.7 ms, **0.5% of a 4k prefill**, and needs a new core op, CPU reference and model wiring. At chunk 2048 q/o runs 58 and k+v 54 TFLOPS vs 65 peak: <= 1.5 ms per 4k prompt. Below the 3% bar by a factor of six; stopped without building.
 
-**(c) SwiGLU epilogue: dropped.** Prototype `gemm_nax_glu_t*` (both products into bf16 cooperative destinations, `silu(g)*u` in registers, one store; `glu/swiglu-epilogue-prototype.diff`). `glu/bench-glu.txt`: slower than the pair kernel alone at every tile and M tried, +68 us (64x64w2, M=256), +74 us (M=222), +928 us (M=2048, +11%); the standalone `silu_glu` dispatch it replaces costs 23 us per call at chunk 256 and 255 us at 2048 rows, so the epilogue costs more than the dispatch it removes at both chunk sizes. The epilogue also came out wrong (element 0: 0x33bd vs 0x3d35; not diagnosed, most likely the two cooperative destinations do not share an element mapping, or the in-register read-after-`run` ordering) so it failed the bitwise test against pair + `silu_glu`. One attempt, plus the bound (`silu_glu` is 13 ms of 1.6 s, 0.9%, even if its fusion were free), is enough to stop. **Residual-add into the o/down epilogue** has the same bound: all `rmsnorm_add` dispatches are 10 ms (0.7%), the add being fused into the rmsnorm already (B-phase). Not built.
+**(c) SwiGLU epilogue: dropped.** Prototype `gemm_nax_glu_t*` (both products into bf16 cooperative destinations, `silu(g)*u` in registers, one store; `glu/swiglu-epilogue-prototype.diff`). `glu/bench-glu.txt`, against the shipped pair tile (64x64w2) plus the `silu_glu` dispatch it replaces: M=256 glu 882 us vs 814 + 23 = 837 us, M=222 1038 vs 964 + ~21, M=2048 9059 vs 8131 + 255 = 8386 us (+8%); it loses at every M measured. (Against the pair kernel alone, the 64x64w4 glu tile at M=256 is 17 us faster, 895 vs 913 us, but that pair tile is not the shipped one and the saving is below the 23 us dispatch.) The epilogue also came out wrong (element 0: 0x33bd vs 0x3d35; not diagnosed, most likely the two cooperative destinations do not share an element mapping, or the in-register read-after-`run` ordering) so it failed the bitwise test against pair + `silu_glu`. One attempt, plus the bound (`silu_glu` is 13 ms of 1.6 s, 0.9%, even if its fusion were free), is enough to stop. **Residual-add into the o/down epilogue** has the same bound: all `rmsnorm_add` dispatches are 10 ms (0.7%), the add being fused into the rmsnorm already (B-phase). Not built.
 
 **(d) lm_head at T>1: already last-row only.** The prefill trace shows exactly one `logits_bf16_gemv` M=1 (151936 x 4096) call per prompt, 2.2 ms (0.15% of 4k prefill), at 0.58 TFLOPS = 577 GB/s, i.e. bandwidth bound on one row. The model's `LastLogits` / `LastArgmax` head modes skip the other rows; nothing to do.
 
@@ -106,7 +106,7 @@ Elementwise after the change at chunk 256: 32.9 ms = `qk_norm_rope_kv_pf` 9 ms (
 | `cargo check --workspace` | exit 0 (`gates/cargo-check-workspace.txt`) |
 | `intarsia accuracy` prefill KL / top-1, short | 2.686e-4, 99.77% (= pre) |
 | prefill, long | 4.342e-4, 99.65% = 1429/1434 (= pre) |
-| decode KL, short / long golden | 3.739e-4 / 3.731e-4, top-1 100% (identical to the 766c723 binary; the brief's 4.042e-4 / 4.071e-4 are not what `accuracy --gate-class bf16 --max-seq 4096/8192` prints for either binary here, so those are from another invocation) |
+| decode KL, short / long golden | 3.739e-4 / 3.731e-4, top-1 100% (identical to the 766c723 binary). The brief's 4.042e-4 / 4.071e-4 are the pre-P1 values (`2026-10-14-metal-prefill-p1.md` table: decode 4.042e-4 -> 3.737e-4 and 4.071e-4 -> 3.708e-4 when the NAX GEMM landed); the current baseline is the 3.7e-4 pair, and this branch moves nothing |
 | prefill accuracy at chunks 128 / 512 / 2048 (short) | all 2.686e-4, 99.77% (chunk invariant) |
 | greedy ids, short and 4k prompts, 48 and 256 tokens, vs 766c723 | **identical** in all four (no token-49 near-tie difference either) |
 | chunk invariance, 4k prompt, ids at chunks 128/256/512/1024/2048 | identical across chunks for both binaries, and identical between binaries at each chunk |
@@ -127,7 +127,7 @@ New env knobs (measurement only): `INTARSIA_NAX_TILE=<shader name or suffix>` fo
 
 - fleetq slots on endor, all owner claude-31e10c55 and all released: #1933, #1934, #1935 (tile microbench sweeps), #1938 and #1942 (NAX and qkv_fold tests), #1940 and #1943 (kernel traces; #1939 and #1944 were released unused after the client went to background / a script path typo), #1941 (in-engine tile sweep), #1945 (first plain ABBA), #1946 (SwiGLU prototype), #1947 (cb traces, qk isolation), #1948 (the 512 < M <= 1536 rule), #1949 (correctness gates), #1950 (final speed burst and localeval), #1951 (cargo test, kernels test, qualify), #1952 (chunk 512/384/128 tile check), #1953 (qkv_fold, failed on a bad test config, fixed), #1954 (qkv_fold + qkv proxy), #1955 (localeval chunk 256 rerun). endor-kev and endor-tensorfold untouched.
 - GPU idle sampled (3 `ioreg` samples) before each timed phase: the first sample is the previous process's tail (up to 98%), the next two read 0 to 2%; `pgrep -fl zoom.us` empty (`zoom.txt`).
-- The first localeval pass at chunk 256 (`localeval-c256/`) overwrote its own run labels (script bug, fixed in `localeval-abba.sh`); the numbers in the table come from the rerun `localeval-c256b/` (pre new new pre). One pre run there (`pre-1`) dropped to 1921 to 2497 tok/s at 4k, the scatter the brief warned about; medians exclude it by construction.
+- The first localeval pass at chunk 256 (`localeval-c256/`) overwrote its own run labels (script bug, fixed in `localeval-abba.sh`); the numbers in the table come from the rerun `localeval-c256b/` (pre new new pre). The first server of the pair, `pre-1`, ran 4k at 2497 / 1921 / 2102 tok/s (the scatter the brief warned about) while `pre-2`, and all three 4k reps of the first pass, ran 2681 to 2694; the table uses the `pre-2` server (conservative: the six-rep median over both servers would be 2589 and the gain +9.5%; over all nine pre reps 2684, +5.7%). The new servers are tight (2804 to 2852 over six reps, median 2836).
 - 4k chunk 2048 ABBA (6 runs): median 1.020, mean 0.990; localeval +2.5%; cb-mode GPU busy -2.6%. The honest reading is a 1 to 3% gain, not distinguishable from zero in 6 plain runs.
 - One burst of `plain-t2-broken-script` is kept in the raw dir for the record: its first version of `plain-abba.sh` did not split the chunk list and ran nothing useful.
 - Everything here is the Qwen3-8B dense shape set (4096 hidden, 12288 FFN, GQA 32/8, head_dim 128). The qk_pf kernel only fires at head_dim = rotary_dim = 128; other models take the old kernel.

@@ -256,7 +256,7 @@ fn nax_launch_picks_tiles_without_changing_bits() {
         be.synchronize(0).unwrap();
         read_u16(&be, &yb, 0, m * n)
     };
-    let big = run(1024, 12288, 0); // 256x64 tile
+    let big = run(1024, 12288, 0); // 128x64 tile
     for (m, n, r0) in [(256usize, 1024usize, 300usize), (205, 256, 0), (17, 12288, 1007), (1024, 1024, 0), (222, 4096, 300), (256, 4096, 5)] {
         let got = run(m, n, r0);
         for r in 0..m {
