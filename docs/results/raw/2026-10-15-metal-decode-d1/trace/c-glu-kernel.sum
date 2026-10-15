@@ -1,0 +1,15 @@
+129 decode steps; dispatches per step: [328, 364]
+one step, first 2 layers + tail:
+  ['embedding_bf16', 'rmsnorm_bf16', 'matmul_bf16_gemv', 'matmul_pair_bf16_gemv', 'qk_norm_rope_kv_bf16', 'attn_decode_bf16_splitkv', 'matmul_bf16_gemv', 'rmsnorm_add_bf16', 'matmul_glu_bf16_gemv', 'matmul_bf16_gemv', 'rmsnorm_add_bf16', 'matmul_bf16_gemv', 'matmul_pair_bf16_gemv', 'qk_norm_rope_kv_bf16', 'attn_decode_bf16_splitkv', 'matmul_bf16_gemv', 'rmsnorm_add_bf16', 'matmul_glu_bf16_gemv', 'matmul_bf16_gemv', 'rmsnorm_add_bf16', 'matmul_bf16_gemv', 'matmul_pair_bf16_gemv', 'qk_norm_rope_kv_bf16', 'attn_decode_bf16_splitkv']
+  ['rmsnorm_add_bf16', 'matmul_glu_bf16_gemv', 'matmul_bf16_gemv', 'rmsnorm_add_bf16', 'logits_bf16_gemv', 'argmax_f32']
+op                                           calls/step   mean us  ms/step
+matmul_glu_bf16_gemv                               36.0     368.0   13.246
+matmul_bf16_gemv                                  108.0     101.5   10.963
+logits_bf16_gemv                                    1.0    2123.0    2.123
+matmul_pair_bf16_gemv                              36.0      33.2    1.196
+attn_decode_bf16_splitkv                           36.0      24.6    0.886
+rmsnorm_add_bf16                                   72.0       5.7    0.411
+qk_norm_rope_kv_bf16                               36.0       9.1    0.329
+argmax_f32                                          1.0      16.6    0.017
+rmsnorm_bf16                                        1.0       4.8    0.005
+embedding_bf16                                      1.0       3.4    0.003
