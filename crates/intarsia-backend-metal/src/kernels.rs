@@ -168,6 +168,9 @@ pub const RMSNORM_ADD_EX: [&str; 6] = [
 pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
 
 pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
+/// `AttnPrefill`, flash-style on `simdgroup_matrix` with GQA-shared K / V tiles (attention_flash.metal, launcher flash.rs);
+/// ranks above `attn_prefill_bf16`, which it falls back to for misaligned operands.
+pub const ATTN_PREFILL_BF16_FLASH: &str = "attn_prefill_bf16_flash";
 pub const ATTN_DECODE_BF16: &str = "attn_decode_bf16";
 /// `AttnDecode` with 16-byte loads (head_dim a power of two in 8..=256, 16-byte aligned K / V caches); the launcher of
 /// `attn_decode_bf16` picks it, it is not a separate registry entry.
@@ -275,6 +278,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.push(QK_NORM_ROPE_KV_BF16);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
+    v.extend(crate::flash::FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
@@ -303,6 +307,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ARGMAX_F32, Op::Argmax),
     (ARGMAX_BF16, Op::Argmax),
     (ATTN_PREFILL_BF16, Op::AttnPrefill),
+    (ATTN_PREFILL_BF16_FLASH, Op::AttnPrefill),
     (ATTN_DECODE_BF16, Op::AttnDecode),
     (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
     (MATMUL_PAIR_BF16_GEMV, Op::MatmulPair),
@@ -358,6 +363,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL),
+                // flash-style prefill on simdgroup matrices (half operands, float accumulate and softmax); the cache dtype
+                // (`weights`) is bf16 only, so fp8 / f32 caches stay on `attn_prefill_bf16`
+                ATTN_PREFILL_BF16_FLASH => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::flash::flash_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(10),
                 // GQA-grouped split-KV decode (each K / V row read once per step, the sequence spread over
                 // threadgroups): needs scratch for the partials; ranks above the single-pass kernel.
                 ATTN_DECODE_BF16_SPLITKV => k
@@ -438,7 +452,7 @@ mod tests {
     #[test]
     fn attention_is_registered_for_both_ops() {
         // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 1), (Op::AttnDecode, 2)] {
+        for (op, n) in [(Op::AttnPrefill, 2), (Op::AttnDecode, 2)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));
