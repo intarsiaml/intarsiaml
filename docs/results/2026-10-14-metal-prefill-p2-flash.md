@@ -204,6 +204,6 @@ Exploration sweeps at pos0 3840, chunk 256 (TFLOPS; raw in `explore1`..`explore4
 
 #1874 (first microbench), #1876 (ablation), #1881/#1882/#1883/#1885 (exploration sweeps), #1884 and #1891 (kernel microbench,
 tests), #1886 (first accuracy/identity, half vs bf16), #1894 (final tests, accuracy, identity, chunk invariance), #1898 (traces),
-#1899 (localeval, mis-parsed pair order, new-only), #1902 (localeval pre new new pre), #1904 (merged-tree tests). The GPU-idle
+#1899 (localeval, mis-parsed pair order, new-only), #1902 (localeval pre new new pre), #1904 (merged-tree tests), #1905 (tests again after the second spike/metal merge, b6 decode trims: cargo test metal and kernels test pass). The GPU-idle
 samples are in each job's `gpu-idle-before.txt`; the first sample was repeatedly high (94-99%) right after a job handoff, the next
 two 0-4%. Timed runs followed after server start-up / warm-up, but no per-run idle sample was taken after the first three.
