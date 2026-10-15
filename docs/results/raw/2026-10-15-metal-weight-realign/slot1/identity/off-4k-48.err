@@ -1,0 +1,19 @@
+Error: this binary was built without the Metal backend (macOS only: cargo build -p intarsia-cli --features metal)
+        0.00 real         0.00 user         0.00 sys
+             8585216  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                 781  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                  15  involuntary context switches
+            39583157  instructions retired
+            14793803  cycles elapsed
+             3326456  peak memory footprint

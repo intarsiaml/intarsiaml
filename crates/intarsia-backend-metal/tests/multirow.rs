@@ -9,7 +9,8 @@ mod common;
 use common::*;
 use intarsia_backend_metal::bench::{f32_to_bf16, Rng};
 use intarsia_backend_metal::kernels::{
-    LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV, MATMUL_PAIR_BF16_GEMV,
+    LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV, MATMUL_BF16_NAX, MATMUL_PAIR_BF16_GEMV,
+    MATMUL_PAIR_BF16_NAX,
 };
 use intarsia_backend_metal::multirow::{
     self, shader, shader_split, MR_SPLITS, Family, LOGITS_BF16_GEMV_ROWS, MATMUL_BF16_GEMV_ROWS, MATMUL_PAIR_BF16_GEMV_ROWS, MR_PER_TG, MR_ROWS,
@@ -450,7 +451,9 @@ fn all_variants_logits() {
     }
 }
 
-/// The tiled GEMM / old logits kernels are still what the registry picks for M = 2..15 (the multi-row entries rank below).
+/// The registry's M = 2..15 pick is unchanged by the multi-row entries (they rank below): the NAX GEMM since the tail fix
+/// lowered `NAX_MIN_M` to 2 (metal4.0 library loaded), else the tiled GEMM; the old logits kernel. (Merge fixup on
+/// metal-weight-realign: the G0 version of this test predates `NAX_MIN_M = 2` and expected the tiled GEMM always.)
 #[test]
 fn serving_selection_unchanged() {
     let be = backend();
@@ -462,7 +465,7 @@ fn serving_selection_unchanged() {
         let call = matmul_call(tref(&xb, 0, &[m, 64]), w.clone(), tref(&yb, 0, &[m, 64]));
         let s = ShapeInfo::from_call(&call);
         let best = ks.iter().filter(|k| k.op == Op::Matmul && k.accepts(&s)).max_by_key(|k| k.priority).unwrap();
-        assert_eq!(best.name, MATMUL_BF16, "M={m}");
+        assert_eq!(best.name, if be.has_metal4() { MATMUL_BF16_NAX } else { MATMUL_BF16 }, "M={m}");
         let yf = out_buffer(&be, 0, m * 64 * 4);
         let lcall = OpCall::new(
             Op::Logits,
@@ -473,7 +476,8 @@ fn serving_selection_unchanged() {
         let s = ShapeInfo::from_call(&lcall);
         let best = ks.iter().filter(|k| k.op == Op::Logits && k.accepts(&s)).max_by_key(|k| k.priority).unwrap();
         assert_eq!(best.name, LOGITS_BF16, "M={m}");
-        // the pair entry is hidden unless INTARSIA_METAL_MULTIROW=1, so no pair kernel accepts M >= 2 below the NAX threshold
+        // the multi-row pair entry is hidden unless INTARSIA_METAL_MULTIROW=1; the only other pair kernel accepting M >= 2
+        // is the NAX one (metal4.0 library)
         let pcall = pair_call(
             tref(&xb, 0, &[m, 64]),
             weights(&be, 64, 64, 0, 3),
@@ -484,11 +488,17 @@ fn serving_selection_unchanged() {
         let s = ShapeInfo::from_call(&pcall);
         let pair_accepting: Vec<&str> =
             ks.iter().filter(|k| k.op == Op::MatmulPair && k.accepts(&s)).map(|k| k.name.as_str()).collect();
-        if std::env::var_os("INTARSIA_METAL_MULTIROW").is_some_and(|v| v != "0") {
-            assert_eq!(pair_accepting, [MATMUL_PAIR_BF16_GEMV_ROWS], "M={m}");
-        } else {
-            assert!(pair_accepting.is_empty(), "M={m}: {pair_accepting:?}");
+        let mut want: Vec<&str> = Vec::new();
+        if be.has_metal4() {
+            want.push(MATMUL_PAIR_BF16_NAX);
         }
+        if std::env::var_os("INTARSIA_METAL_MULTIROW").is_some_and(|v| v != "0") {
+            want.push(MATMUL_PAIR_BF16_GEMV_ROWS);
+        }
+        let mut got = pair_accepting.clone();
+        got.sort();
+        want.sort();
+        assert_eq!(got, want, "M={m}");
     }
 }
 

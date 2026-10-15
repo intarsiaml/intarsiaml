@@ -1,0 +1,405 @@
+warning: value assigned to `s` is never read
+   --> crates/intarsia-backend-hip/src/kernels.rs:208:21
+    |
+208 |                     s.kv_len = kv;
+    |                     ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-backend-hip` (lib test) generated 1 warning
+warning: value assigned to `s` is never read
+   --> crates/intarsia-backend-cuda/src/kernels.rs:209:21
+    |
+209 |                     s.kv_len = kv;
+    |                     ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-backend-cuda` (lib test) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.08s
+     Running unittests src/lib.rs (target/release/deps/intarsia_backend_cpu-7801cbe90cd6cc04)
+
+running 5 tests
+test fault::tests::mutation_scales_every_element ... ok
+test freemem_tests::available_memory_is_positive_and_not_below_sysinfo ... ok
+test reference::zero_dim_tests::rmsnorm_with_zero_width_is_an_error_not_a_panic ... ok
+test reference::zero_dim_tests::matmul_with_zero_output_dim_is_an_error_not_a_panic ... ok
+test fault::tests::flip_rate_to_rel_l2 ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/admission.rs (target/release/deps/admission-d785448a39da48f4)
+
+running 2 tests
+test broken_kernel_is_rejected ... ok
+test cpu_fast_kernels_pass_admission_quick_sweep ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/admission_budgets.rs (target/release/deps/admission_budgets-b9759c7e4aa27c60)
+
+running 3 tests
+test unperturbed_kernels_are_admitted_at_the_tight_budgets ... ok
+test f32_error_between_f32_budget_and_bf16_budget_is_refused_only_with_tol_f32 ... ok
+test bf16_error_between_new_and_old_budget_is_refused_by_new_and_admitted_by_old ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/gdn.rs (target/release/deps/gdn-2620eb84f4dff067)
+
+running 2 tests
+test partial_rope_leaves_the_tail_untouched_and_offset_norm_scales_by_one_plus_w ... ok
+test gdn_ops_and_variants_agree_between_ref_and_fast ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+     Running tests/ops.rs (target/release/deps/ops-566cf80b16adf906)
+
+running 13 tests
+test argmax_lowest_index_on_ties ... ok
+test kv_append_writes_only_new_rows ... ok
+test rmsnorm_matches_formula ... ok
+test qk_norm_is_per_head_rmsnorm ... ok
+test add_works ... ok
+test matmul_is_x_times_w_transposed ... ok
+test rmsnorm_add_returns_sum_and_norm ... ok
+test embedding_gathers_rows ... ok
+test silu_glu_matches_formula ... ok
+test attention_causal_gqa_matches_naive ... ok
+test sample_greedy_and_seeded_agree_between_impls ... ok
+test rope_neox_known_angles ... ok
+test fast_matches_reference_on_random_bf16 ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/quant_hf.rs (target/release/deps/quant_hf-6653e1b1909ba65a)
+
+running 6 tests
+test topk_matches_hf_router ... ok
+test nvfp4_dequant_and_matmul_match_numpy ... ok
+test plan_time_cases_are_built_for_every_new_op ... ok
+test fp8_w8a16_and_w8a8_match_torch ... ok
+test moe_block_matches_hf ... ok
+test kernels_pass_admission_sweep_and_are_registered ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/release/deps/intarsia_backend_cuda-ab3456e3a1c0155a)
+
+running 5 tests
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admission.rs (target/release/deps/admission-4edba96bd06159be)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attention.rs (target/release/deps/attention-3b5d9a2501436403)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fused_decode.rs (target/release/deps/fused_decode-9732168ebb0e0ff6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gdn_lanes.rs (target/release/deps/gdn_lanes-9aeefad31f05121d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gdn_timing.rs (target/release/deps/gdn_timing-08a94d2edaef9374)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gpu_skipped_report.rs (target/release/deps/gpu_skipped_report-37ae17af78766594)
+
+running 1 test
+test gpu_tests_were_not_built ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/graph_pos.rs (target/release/deps/graph_pos-0428f475042a9376)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/quantmoe.rs (target/release/deps/quantmoe-44a83074206426fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/intarsia_backend_hip-18ce8962b8126768)
+
+running 6 tests
+test kernels::tests::arch_is_a_gfx12_target ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admission.rs (target/release/deps/admission-d4d8657cdb5aa015)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attention.rs (target/release/deps/attention-f203d14532f4ffd2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/comm.rs (target/release/deps/comm-d13457d0af4e6cfe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/decode_v2.rs (target/release/deps/decode_v2-a523b47ec80a5514)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/device_pos.rs (target/release/deps/device_pos-65384852998ca538)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fused_decode.rs (target/release/deps/fused_decode-2a807e12caa7caa0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gdn_timing.rs (target/release/deps/gdn_timing-7f986fb065090733)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/matmul_bench.rs (target/release/deps/matmul_bench-45f3b4074cbfc1f3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/quantmoe.rs (target/release/deps/quantmoe-379b788051cd98da)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/intarsia_backend_metal-05f826e2833b2fc8)
+
+running 8 tests
+test attn::tests::scratch_bounds_every_context_length ... ok
+test attn::tests::threadgroup_accumulators_fit ... ok
+test flash::tests::every_head_dim_and_group_has_a_variant ... ok
+test flash_nax::tests::every_group_has_a_variant ... ok
+test attn::tests::split_counts_are_bounded_and_monotone ... ok
+test kernels::tests::names_unique_and_named_after_their_op ... ok
+test kernels::tests::metal4_shaders_are_the_nax_variants_and_not_metal3_shaders ... ok
+test kernels::tests::attention_is_registered_for_both_ops ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attention.rs (target/release/deps/attention-33a4516038b9aaa3)
+
+running 10 tests
+test predicates_accept_bf16_caches_only ... ok
+test splitkv_predicate_and_scratch_declaration ... ok
+test fingerprint_names_device_and_metallib ... ok
+test splitkv_scratch_is_required_and_checked ... ok
+test decode_device_position ... ok
+test splitkv_is_deterministic_and_close_to_single_pass ... ok
+test prefill_matches_f64_reference ... ok
+test splitkv_device_position ... ok
+test decode_matches_f64_reference ... ok
+test splitkv_matches_f64_reference ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+
+     Running tests/dense.rs (target/release/deps/dense-8e7082affd29b026)
+
+running 8 tests
+test predicates_route_m1_to_gemv ... ok
+test upload_after_pending_launch_waits_for_it ... ok
+test argmax_ties_nan_and_all_neg_inf ... ok
+test elementwise_ops_with_odd_element_offsets ... ok
+test device_side_position_matches_host_position ... ok
+test dependent_launches_are_ordered_across_command_buffers ... ok
+test logits_gemm_and_gemv_match_f64_reference ... ok
+test gemm_matches_f64_reference ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/fill.rs (target/release/deps/fill-3ef0c7af91754baf)
+
+running 6 tests
+test copy_and_zero_are_ordered_with_launches_and_do_not_wait ... ok
+test overlapping_copy_in_one_buffer_is_a_memmove ... ok
+test wrapped_host_memory_is_a_source_but_never_a_target ... ok
+test copy_is_byte_exact_for_every_alignment_and_tail ... ok
+test zero_covers_exactly_the_buffer ... ok
+test copy_large_aligned_buffer ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/flash_prefill.rs (target/release/deps/flash_prefill-027ae076da2a3099)
+
+running 4 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+test flash_matches_f64_reference ... ok
+test flash_falls_back_on_misaligned_operands ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.64s
+
+     Running tests/flash_prefill_nax.rs (target/release/deps/flash_prefill_nax-b0136323e425fa64)
+
+running 5 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+test flash_matches_f64_reference ... ok
+test flash_falls_back_on_misaligned_operands ... ok
+test registry_splits_are_bitwise_the_single_call ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+
+     Running tests/fused.rs (target/release/deps/fused-113e47b47756d91d)
+
+running 5 tests
+test output_offsets_with_a_leftover_element ... ok
+test other_alignments_fall_back_to_two_dispatches ... ok
+test odd_sizes_and_unequal_halves ... ok
+test qwen3_8b_shapes_are_bitwise_two_gemvs_in_one_dispatch ... ok
+test eight_byte_aligned_weights_are_one_dispatch_of_the_a8_pair ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running tests/g0b_attn.rs (target/release/deps/g0b_attn-7f6bb66598f179ce)
+
+running 7 tests
+test rows_registration_is_below_serving ... ok
+test rows_misaligned_operands_fall_back_to_the_single_pass_rows ... ok
+test rows_device_position_is_the_device_position_one_row_launch ... ok
+test rows_bitwise_with_cache_and_q_offsets ... ok
+test rows_bitwise_other_shapes ... ok
+test rows_bitwise_qwen3_8b_long_context ... ok
+test rows_bitwise_qwen3_8b_all_k ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.38s
+
+     Running tests/g0b_small.rs (target/release/deps/g0b_small-d85050ed272a2bb0)
+
+running 7 tests
+test embedding_rows ... ok
+test add_and_silu_glu_rows ... ok
+test rmsnorm_add_rows ... ok
+test rmsnorm_rows ... ok
+test argmax_rows ... ok
+test kv_append_rows ... ok
+test qk_norm_rope_kv_rows ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+
+     Running tests/gemm_nax.rs (target/release/deps/gemm_nax-172a9b73318b94ce)
+
+running 9 tests
+test nax_tile_pick_is_by_shape ... ok
+test nax_kernels_are_registered_for_prefill_shapes_only ... ok
+test nax_is_run_to_run_deterministic ... ok
+test nax_k_tails ... ok
+test nax_launch_through_the_backend ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_launch_picks_tiles_without_changing_bits ... ok
+test nax_pair_is_bitwise_two_singles ... ok
+test nax_matches_f64_reference ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/gemv.rs (target/release/deps/gemv-6194d7a3e551ed29)
+
+running 6 tests
+test shader_choice_follows_alignment_and_k ... ok
+test every_variant_matches_reference ... ok
+test k_not_multiple_of_8_and_odd_n ... ok
+test backend_info_and_alloc_roundtrip ... ok
+test unaligned_operand_offsets ... ok
+test qwen3_8b_shapes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+
+     Running tests/lowlat.rs (target/release/deps/lowlat-355a111fe68309f4)
+
+running 5 tests
+test argmax_vector_path_matches_host ... ok
+test low_latency_norms_are_bitwise_the_256_thread_kernels ... ok
+test qk_norm_vector_path_matches_reference ... ok
+test rmsnorm_add_vector_and_scalar_paths_match_reference ... ok
+test rmsnorm_vector_and_scalar_paths_match_reference ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests/metal4_fallback.rs (target/release/deps/metal4_fallback-8f88c2163ec402ec)
+
+running 1 test
+test prefill_runs_without_the_metal4_library ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+     Running tests/multirow.rs (target/release/deps/multirow-f74df4c3d1a4a4f6)
+
+running 11 tests
+test every_instance_exists ... ok
+test serving_selection_unchanged ... FAILED
+test matmul_k_tails_and_odd_n ... ok
+test matmul_qwen3_8b_shapes_all_rows ... ok
+test matmul_a8_alignment_and_scalar_fallback ... ok
+test real_qwen3_8b_weights_bitwise ... ok
+test all_variants_matmul ... ok
+test all_variants_pair ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+test logits_qwen3_8b_shapes_all_rows ... ok
+test all_variants_logits ... ok
+
+failures:
+
+---- serving_selection_unchanged stdout ----
+
+thread 'serving_selection_unchanged' (92047223) panicked at crates/intarsia-backend-metal/tests/multirow.rs:465:9:
+assertion `left == right` failed: M=2
+  left: "matmul_bf16_nax"
+ right: "matmul_bf16"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    serving_selection_unchanged
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test multirow`
