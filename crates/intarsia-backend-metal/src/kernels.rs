@@ -149,6 +149,8 @@ pub const MATMUL_GLU_BF16_GEMV: &str = "matmul_glu_bf16_gemv";
 pub const RMSNORM_ADD_MATMUL_GLU_BF16_GEMV: &str = "rmsnorm_add_matmul_glu_bf16_gemv";
 /// Shader per operand class: 16-byte loads, 8-byte loads, 2-byte loads (any alignment).
 pub const GLU_VARIANTS: [&str; 3] = ["gemv_glu_v16", "gemv_glu_v8", "gemv_glu_v2"];
+/// 512-thread form of the plain `MatmulGlu` (gate row on simdgroups 0..7, up row on 8..15).
+pub const GLU2_VARIANTS: [&str; 3] = ["gemv_glu2_v16", "gemv_glu2_v8", "gemv_glu2_v2"];
 pub const GLU_NORM_VARIANTS: [&str; 3] = ["gemv_glu_norm_v16", "gemv_glu_norm_v8", "gemv_glu_norm_v2"];
 /// `RmsNormAddMatmulQkv`: the attention input norm in front of the q, k and v GEMVs (same shader classes).
 pub const RMSNORM_ADD_MATMUL_QKV_BF16_GEMV: &str = "rmsnorm_add_matmul_qkv_bf16_gemv";
@@ -301,6 +303,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.push(QK_NORM_ROPE_KV_BF16);
     v.extend(GLU_VARIANTS);
+    v.extend(GLU2_VARIANTS);
     v.extend(GLU_NORM_VARIANTS);
     v.extend(QKV_VARIANTS);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);

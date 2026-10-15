@@ -5,7 +5,7 @@
 //! tolerance of the unfused sequence, not bitwise).
 
 use crate::dense::{Bind, Grid};
-use crate::kernels::{GLU_NORM_VARIANTS, GLU_VARIANTS, QKV_VARIANTS};
+use crate::kernels::{GLU2_VARIANTS, GLU_NORM_VARIANTS, GLU_VARIANTS, QKV_VARIANTS};
 use crate::MetalBackend;
 use intarsia_core::{DType, Error, OpCall, Result};
 
@@ -31,6 +31,13 @@ pub(crate) struct GluP {
 pub(crate) const GLU_THREADS: usize = 256;
 /// Most hidden elements the norm prologue keeps in threadgroup memory (`xt` in gemv_glu.metal).
 pub const GLU_NORM_MAX_K: usize = 4096;
+
+/// Plain `MatmulGlu` on 512 threads (gate and up rows on separate halves of a threadgroup); `INTARSIA_METAL_GLU256=1`
+/// selects the one-thread-per-row-pair 256-thread form instead (an A/B switch).
+fn glu_two_halves() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var_os("INTARSIA_METAL_GLU256").is_none_or(|v| v == "0"))
+}
 
 fn addr(b: &Bind) -> usize {
     b.off + 2 * b.skip as usize
@@ -73,7 +80,14 @@ impl MetalBackend {
         } else {
             (2, true)
         };
-        let names = if norm { GLU_NORM_VARIANTS } else { GLU_VARIANTS };
+        let names = if norm {
+            GLU_NORM_VARIANTS
+        } else if glu_two_halves() {
+            GLU2_VARIANTS
+        } else {
+            GLU_VARIANTS
+        };
+        let threads = if !norm && glu_two_halves() { 2 * GLU_THREADS } else { GLU_THREADS };
         let mut p = GluP {
             k: k as u32,
             n: n as u32,
@@ -114,7 +128,7 @@ impl MetalBackend {
         }
         let xb2 = if wskip { Bind { mtl: xb.mtl.clone(), off: xb.off, skip: xb.skip } } else { Bind { mtl: xb.mtl.clone(), off: addr(&xb), skip: 0 } };
         p.x_skip = if wskip { xb.skip } else { 0 };
-        self.dispatch(names[idx], &[&wgb2, &wub2, &xb2, &ab, &ab, &ab, &ab], &p, Grid::Groups { x: n, y: 1, threads: GLU_THREADS })
+        self.dispatch(names[idx], &[&wgb2, &wub2, &xb2, &ab, &ab, &ab, &ab], &p, Grid::Groups { x: n, y: 1, threads })
     }
 
     /// `RmsNormAddMatmulQkv`: inputs x, res, w, wq, wk, wv; outputs q, k, v, sum.

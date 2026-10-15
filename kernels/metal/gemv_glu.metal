@@ -115,19 +115,12 @@ kernel void gemv_glu_t(device const V* Wg [[buffer(0)]],
         device const ushort* xr = (device const ushort*)X + p.x_skip;
         device const ushort* rr = RES + p.res_skip;
         device const ushort* wr = NW + p.nw_skip;
-        float xf[NIT], rf[NIT], wf[NIT], sb[NIT];
+        float sb[NIT];
+        float ss = 0.0f;
         for (int j = 0; j < NIT; ++j) {
             const uint i = tid + (uint)j * lanes;
             if (i < h) {
-                xf[j] = bf2f(xr[i]);
-                rf[j] = bf2f(rr[i]);
-                wf[j] = bf2f(wr[i]);
-            }
-        }
-        float ss = 0.0f;
-        for (int j = 0; j < NIT; ++j) {
-            if (tid + (uint)j * lanes < h) {
-                sb[j] = bf2f(f2bf(xf[j] + rf[j]));
+                sb[j] = bf2f(f2bf(bf2f(xr[i]) + bf2f(rr[i])));
                 ss = fma(sb[j], sb[j], ss);
             }
         }
@@ -141,7 +134,7 @@ kernel void gemv_glu_t(device const V* Wg [[buffer(0)]],
         for (int j = 0; j < NIT; ++j) {
             const uint i = tid + (uint)j * lanes;
             if (i < h) {
-                xs16[i] = f2bf(sb[j] * r * (wf[j] + p.w_off));
+                xs16[i] = f2bf(sb[j] * r * (bf2f(wr[i]) + p.w_off));
                 if (tg == 0) SUM[p.sum_skip + i] = f2bf(sb[j]);
             }
         }
@@ -268,19 +261,12 @@ kernel void gemv_qkv_norm_t(device const V* Wq [[buffer(0)]],
     device const ushort* xr = (device const ushort*)X + p.x_skip;
     device const ushort* rr = RES + p.res_skip;
     device const ushort* wn = NW + p.nw_skip;
-    float xf[NIT], rf[NIT], wf[NIT], sb[NIT];
+    float sb[NIT];
+    float ss = 0.0f;
     for (int j = 0; j < NIT; ++j) {
         const uint i = tid + (uint)j * lanes;
         if (i < h) {
-            xf[j] = bf2f(xr[i]);
-            rf[j] = bf2f(rr[i]);
-            wf[j] = bf2f(wn[i]);
-        }
-    }
-    float ss = 0.0f;
-    for (int j = 0; j < NIT; ++j) {
-        if (tid + (uint)j * lanes < h) {
-            sb[j] = bf2f(f2bf(xf[j] + rf[j]));
+            sb[j] = bf2f(f2bf(bf2f(xr[i]) + bf2f(rr[i])));
             ss = fma(sb[j], sb[j], ss);
         }
     }
@@ -294,7 +280,7 @@ kernel void gemv_qkv_norm_t(device const V* Wq [[buffer(0)]],
     for (int j = 0; j < NIT; ++j) {
         const uint i = tid + (uint)j * lanes;
         if (i < h) {
-            xs16[i] = f2bf(sb[j] * r * (wf[j] + p.w_off));
+            xs16[i] = f2bf(sb[j] * r * (bf2f(wn[i]) + p.w_off));
             if (tg == 0) SUM[p.sum_skip + i] = f2bf(sb[j]);
         }
     }
@@ -332,3 +318,63 @@ kernel void gemv_qkv_norm_t(device const V* Wq [[buffer(0)]],
 INST_QKV("gemv_qkv_norm_v16", uint4, 8, 2)
 INST_QKV("gemv_qkv_norm_v8", uint2, 4, 4)
 INST_QKV("gemv_qkv_norm_v2", ushort, 1, 8)
+
+// ---- MatmulGlu, 512-thread form: the gate row on simdgroups 0..7 and the up row on 8..15 --------------------------------
+// Each half is exactly the 256-thread row kernel of the unfused sequence (same lanes, steps and simd_sum / serial order),
+// so the per-thread load structure and register footprint are those of `gemv_pair_bf16_rt_*` and the two partial sums meet
+// in threadgroup memory for the GLU epilogue. bind as `gemv_glu_t` (X is the GEMV x, the norm buffers are unused).
+template <typename V, int VEL, int UNROLL>
+kernel void gemv_glu2_t(device const V* Wg [[buffer(0)]],
+                        device const V* Wu [[buffer(1)]],
+                        device const V* X [[buffer(2)]],
+                        device const ushort* RES [[buffer(3)]],
+                        device const ushort* NW [[buffer(4)]],
+                        device ushort* Y [[buffer(5)]],
+                        device ushort* SUM [[buffer(6)]],
+                        constant GluP& p [[buffer(7)]],
+                        uint tg [[threadgroup_position_in_grid]],
+                        uint tid [[thread_position_in_threadgroup]],
+                        uint sg [[simdgroup_index_in_threadgroup]],
+                        uint lane [[thread_index_in_simdgroup]]) {
+    constexpr uint lanes = 256;
+    constexpr uint block = lanes * UNROLL;
+    threadgroup float part[16];
+    const bool up = tid >= lanes;
+    const uint t = tid & (lanes - 1);
+    const uint kv = p.k / VEL;
+    device const V* wr = (up ? g_adv(Wu, p.wu_skip) : g_adv(Wg, p.wg_skip)) + (ulong)tg * kv;
+    device const V* xd = g_adv(X, p.x_skip);
+    const uint nblk = kv / block;
+    float acc = 0.0f;
+    uint i = t;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        V xv[UNROLL];
+        V wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = xd[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) acc += gdot(wv[u], xv[u]);
+    }
+    for (i = nblk * block + t; i < kv; i += lanes) acc += gdot(wr[i], xd[i]);
+    const float s = simd_sum(acc);
+    if (lane == 0) part[sg] = s;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid == 0) {
+        float tgg = part[0], tgu = part[8];
+        for (uint j = 1; j < 8; ++j) {
+            tgg += part[j];
+            tgu += part[8 + j];
+        }
+        const float gv = bf2f(g_bf16(tgg));
+        const float uv = bf2f(g_bf16(tgu));
+        Y[p.y_skip + tg] = f2bf(gv / (1.0f + precise::exp(-gv)) * uv);
+    }
+}
+
+#define INST_GLU2(NAME, V, VEL, UNROLL)                                                                               \
+    template [[host_name(NAME)]] kernel void gemv_glu2_t<V, VEL, UNROLL>(                                             \
+        device const V*, device const V*, device const V*, device const ushort*, device const ushort*,               \
+        device ushort*, device ushort*, constant GluP&, uint, uint, uint, uint);
+
+INST_GLU2("gemv_glu2_v16", uint4, 8, 2)
+INST_GLU2("gemv_glu2_v8", uint2, 4, 4)
+INST_GLU2("gemv_glu2_v2", ushort, 1, 8)
