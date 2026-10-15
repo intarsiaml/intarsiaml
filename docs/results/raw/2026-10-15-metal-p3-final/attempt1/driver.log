@@ -1,0 +1,71 @@
+fleetq job 1987
+tip before baselines: 9eeb96c
+?? docs/results/raw/2026-10-15-metal-p3-final/driver.log
+?? docs/results/raw/2026-10-15-metal-p3-final/fleetq-job.txt
+== 1. cargo test (intarsia-cli, intarsia-models)
+cargo test exit 0
+test result: ok. 75 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.24s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== 2. cargo test -p intarsia-backend-metal --release
+metal tests exit 0
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.84s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.71s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== 3. kernels test
+kernels exit 0
+23
+matmul         matmul_bf16_nax                14      0    3.185e-3    8.100e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_nax           18      0    8.633e-5    3.758e-6  ADMITTED
+23 kernels, 291 cases in 32.9s
+== 4. re-record Metal baselines + envelopes at chunk 2048 on this tip (9eeb96c)
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/short-baseline exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/short-envelope exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/short-selfcheck exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/long-baseline exit 0
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/long-envelope exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/long-selfcheck exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/4k-baseline exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/4k-envelope exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/baselines/4k-selfcheck exit 1
+== 5. commit baselines, build the final binary
+final stamp: head=0d4370b code-tree=b47acea5d93a dirty=no
+final commit: 0d4370b
+    Finished `release` profile [optimized] target(s) in 4.54s
+== 6. accuracy at chunk 2048 (default), baseline-gated
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/short exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/long exit 1
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/4k exit 1
+== 6b. control: the 4k baseline gate must FAIL a baseline that is better than this build (top-1 +1.5 pt, KL x0.5)
+/opt/code/intarsiaml-p3-final/docs/results/raw/2026-10-15-metal-p3-final/accuracy/4k-control exit 1
+== 7. greedy ids, spike/metal 98f506e (chunk 256) vs final (2048)
+short 48 tokens spike/metal vs final: ids identical (48 tokens)
+4k 48 tokens spike/metal vs final: ids identical (48 tokens)
+w4107 48 tokens spike/metal vs final: ids identical (48 tokens)

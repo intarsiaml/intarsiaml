@@ -19,25 +19,21 @@ trap "fleetq release $J" EXIT
 export FLEETQ_JOB=$J
 cd $W
 H0=9eeb96c; echo "tip before baselines: $H0"; git status --short | head -3
-echo "== 1. cargo test (intarsia-cli, intarsia-models)"
-cargo test -p intarsia-cli -p intarsia-models > $R/tests/cargo-test.txt 2>&1; echo "cargo test exit $?"; grep -E "^test result|FAILED" $R/tests/cargo-test.txt
-echo "== 2. cargo test -p intarsia-backend-metal --release"
-cargo test -p intarsia-backend-metal --release -- --test-threads=1 > $R/tests/cargo-test-metal.txt 2>&1; echo "metal tests exit $?"; grep -E "^test result|FAILED" $R/tests/cargo-test-metal.txt
-echo "== 3. kernels test"
-$F0 kernels test --model $M --backend metal --device 0 -v > $R/kernels/kernels-test.txt 2>&1; echo "kernels exit $?"; grep -cE "ADMITTED" $R/kernels/kernels-test.txt; grep -E "FAIL|REJECT" $R/kernels/kernels-test.txt | head -5; tail -3 $R/kernels/kernels-test.txt | cut -c1-200
+# sections 1-3 (cargo test -p intarsia-cli -p intarsia-models, cargo test -p intarsia-backend-metal --release, kernels test) ran in attempt 1
+# on the same code (tests/, kernels/): attempt 1 was stopped at section 7 because sections 4 and 6 had script bugs (see attempt1/).
 run() { local n=$1; shift; "$@" > $n.out 2> $n.err; echo "$n exit $?"; }
 echo "== 4. re-record Metal baselines + envelopes at chunk 2048 on this tip ($H0)"
-SF=(--mode both --decode-positions 16 --max-seq 4096)
-LF=(--mode both --decode-positions 64 --max-seq 8192)
-KF=(--mode both --decode-positions 64 --max-seq 8192)
-for spec in "short:qwen3-8b-fp32:$G/qwen3-8b-fp32.safetensors:chunk=64:SF" "long:qwen3-8b-long-fp32:$G/qwen3-8b-long-fp32.safetensors:chunk=256:LF" "4k:qwen3-8b-4k-fp32-top20:$G4:chunk=256:KF"; do
-  IFS=: read tag stem gold pert flags <<< "$spec"
-  eval "FL=(\${${flags}[@]})"
-  run $R/baselines/$tag-baseline $F0 accuracy --model $M --backend metal --golden $gold $FL --write-baseline $SB/$stem.metal.baseline.json
-  run $R/baselines/$tag-envelope $F0 accuracy --model $M --backend metal --golden $gold $FL --noise-ref $SB/$stem.metal.baseline.json --noise-perturb $pert --write-noise-envelope $SB/$stem.metal.envelope.json --allow-same-code
-  run $R/baselines/$tag-selfcheck $F0 accuracy --model $M --backend metal --golden $gold $FL --baseline $SB/$stem.metal.baseline.json --noise-envelope $SB/$stem.metal.envelope.json --allow-same-code --pre-change $H0
+record() {   # tag stem golden perturbation mode-args...
+  local tag=$1 stem=$2 gold=$3 pert=$4; shift 4
+  rm -f $SB/$stem.metal.envelope.json
+  run $R/baselines/$tag-baseline $F0 accuracy --model $M --backend metal --golden $gold "$@" --write-baseline $SB/$stem.metal.baseline.json
+  run $R/baselines/$tag-envelope $F0 accuracy --model $M --backend metal --golden $gold "$@" --noise-ref $SB/$stem.metal.baseline.json --noise-perturb $pert --write-noise-envelope $SB/$stem.metal.envelope.json --allow-same-code
+  run $R/baselines/$tag-selfcheck $F0 accuracy --model $M --backend metal --golden $gold "$@" --baseline $SB/$stem.metal.baseline.json --noise-envelope $SB/$stem.metal.envelope.json --allow-same-code --pre-change $H0
   grep -E "verdict" $R/baselines/$tag-selfcheck.out | cut -c1-300
-done
+}
+record short qwen3-8b-fp32 ${G}/qwen3-8b-fp32.safetensors chunk=64 --mode both --decode-positions 16 --max-seq 4096
+record long qwen3-8b-long-fp32 ${G}/qwen3-8b-long-fp32.safetensors chunk=256 --mode both --decode-positions 64 --max-seq 8192
+record 4k qwen3-8b-4k-fp32-top20 ${G4} chunk=256 --mode both --decode-positions 64 --max-seq 8192
 echo "== 5. commit baselines, build the final binary"
 git add golden/baselines docs/results/raw/2026-10-15-metal-p3-final
 git -c core.hooksPath=/dev/null commit -q -m "metal-p3-final: re-record Metal baselines and envelopes (short, long, 4k) at chunk 2048 on spike/metal 98f506e + golden-4k + p3-chunk
