@@ -1,2 +1,19 @@
 fleetq: #2093 waiting (#4 in line): in line behind #2085 "gemm midm: in-engine tile sweep, mid M (kernel traces)" (claude-0e8026c5) on endor
 fleetq: #2093 waiting (#3 in line): in line behind #2089 "cb-m1 step2 gates 1+2: workspace tests, metal tests, solo identity (cb-wire 825b46f)" (claude-0e8026c5) on endor
+fleetq: #2093 waiting (#2 in line): in line behind #2092 "test-gpu-gate: skip + opt-in checks" (claude-0e8026c5) on endor
+fleetq: #2093 waiting (#1 in line): endor is held exclusively by #2092 "test-gpu-gate: skip + opt-in checks" (claude-0e8026c5)
+fleetq job 2093 (metal kv quant: serve int8 + localeval check) acquired Thu Oct 15 18:39:43 EDT 2026
+temp before localeval-int8: 0 C (waited 0 s)
+localeval int8 exit 0 (72 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval3/int8-183944
+warning: --kv-dtype int8: serving without kernel admission (no oracle for a block-scaled KV cache)
+loaded Qwen3-8B on metal (Apple M5 Max) in 0.4s, context 20480 tokens
+temp before localeval-bf16: 58 C (waited 10 s)
+localeval bf16 exit 0 (70 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval3/bf16-184101
+loaded Qwen3-8B on metal (Apple M5 Max) in 43.1s, context 20480 tokens
+temp before localeval-int8: 59 C (waited 20 s)
+localeval int8 exit 0 (70 s) /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/localeval3/int8-184309
+warning: --kv-dtype int8: serving without kernel admission (no oracle for a block-scaled KV cache)
+loaded Qwen3-8B on metal (Apple M5 Max) in 0.3s, context 20480 tokens
+script exit 0 Thu Oct 15 18:44:44 EDT 2026
+#2093 "metal kv quant: serve int8 + localeval check" (claude-31e10c55) done on endor exclusive 60 GB
+fleetq job 2093 released Thu Oct 15 18:44:44 EDT 2026

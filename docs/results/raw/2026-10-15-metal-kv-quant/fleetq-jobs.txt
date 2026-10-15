@@ -22,3 +22,6 @@ fleetq job 2075 released Thu Oct 15 17:38:04 EDT 2026
 fleetq job 2081 (metal kv quant: final default-path gates (cargo test, kernels test, ids, qualify)) acquired Thu Oct 15 17:50:59 EDT 2026
   RUNNING #2081 "metal kv quant: final default-path gates (cargo test, kernels test, ids, qualify)" (claude-31e10c55) running on endor exclusive 60 GB for 1s
 fleetq job 2081 released Thu Oct 15 18:22:18 EDT 2026
+fleetq job 2093 (metal kv quant: serve int8 + localeval check) acquired Thu Oct 15 18:39:43 EDT 2026
+  RUNNING #2093 "metal kv quant: serve int8 + localeval check" (claude-31e10c55) running on endor exclusive 60 GB for 4s
+fleetq job 2093 released Thu Oct 15 18:44:44 EDT 2026

@@ -138,6 +138,11 @@ KL <= 1e-3), Metal, `--prefill-chunk` recipe default 2048. Raw: `acc/`, table sc
 | fp8 | 4k | 96.42 | 7.41e-3 | 96.35 | 5.92e-3 | **FAIL** (continue) |
 | int8 | 4k | 98.75 | 9.81e-4 | 100.00 | 1.07e-3 | PASS |
 
+`qualify --kv-dtype fp8` (acc stages only, #2058, `qualify-fp8/`): `qualify` picks a looser gate class for an fp8 KV cache (KL <= 5e-3) and
+**fp8 still fails it**: acc-short FAIL (KL 5.93e-3 / 7.78e-3), acc-long FAIL (9.80e-3 / 9.18e-3), acc-4k ERROR (the accuracy subcommand exits 1,
+for the gate failures in the table above). `qualify --kv-dtype int8` was not run (the stage table is the same `accuracy` command; the
+`accuracy` runs above are its content).
+
 Bar: KL <= 1e-3 on all three, long top-1 >= 99.5. **fp8: fails every cell. int8: passes KL only on short and 4k prefill (by 7 and 2
 percent), fails long (4.1x over, top-1 99.16) and decode KL on all three.** The decode windows are 128 / 192 positions, so their top-1
 is coarse (one position is 0.5 to 0.8 points).
@@ -267,12 +272,22 @@ The 16k TTFT of the second fp8 run (7.33 s) is a throttled run (prefill 2271 tok
 is faster than both bf16 runs, so prefill is a wash within the clock noise, as in section 6. `fp8` through `serve` loaded and admitted
 cleanly (`--kv-dtype fp8` under `require_admitted`: the fp8 kernels are admitted against the oracle).
 
-**int8 through `serve`: found broken, fixed, NOT verified on the GPU.** Both int8 server starts in that run died at load with "no kernel for
-attn_decode ... w=I8". Cause: `serve` loads with admission on, `plan::admit` builds its cases from the model's own calls and the cpu oracle cannot
-run a block-scaled cache, so the int8 kernels are Rejected. The fix (`ModelArgs::for_serving`, commit below) serves an int8 cache without
-admission and prints a warning; it builds and the rest of the suite is unaffected, but a slot to run `serve --kv-dtype int8` was still queued
-at the deadline (fleetq #2093, cancelled unrun if it is not listed as done below), so **there is no int8 localeval number**. Engine-side
-`generate` with int8 (section 6) is measured and fine; `serve` + int8 is untested.
+**int8 through `serve`: found broken, fixed, verified.** Both int8 server starts in the run above died at load with "no kernel for
+attn_decode ... w=I8". Cause: `serve` loads with admission on, `plan::admit` builds its cases from the model's own calls and the cpu oracle
+cannot run a block-scaled cache, so the int8 kernels are Rejected. Fix (`ModelArgs::for_serving`): an int8 cache is served without
+admission, with a warning on stderr. Rerun in a short slot (#2093, `localeval3/`, merged binary + the fix, order int8, bf16, int8):
+
+| prompt tokens | bf16 | int8 run 1 | int8 run 2 |
+|---|---|---|---|
+| 4088 decode | 35.3 (35.2 to 35.6) | 35.3 (33.5 to 35.5) | 35.6 (35.6 to 35.7) |
+| 16654 decode | 31.8 (31.0 to 32.0) | 32.6 (31.9 to 32.6) | 32.4 (32.3 to 32.7) |
+| 16654 TTFT s (prefill tok/s) | 6.01 (2772) | 6.61 (2522) | 6.15 (2709) |
+| 4088 prefill tok/s | 3923 | 3093 | 3545 |
+
+int8 decode at 16k is +1.9 to +2.5 % over bf16 (engine-side +2.4 %: agrees). The int8 servers' **prefill looks 0 to 10 % slower** here (first
+server of the slot, the 4k prefill figure carries ranges down to 2853 tok/s): not reproduced engine-side (16k prefill 2872 / 2899 tok/s int8 against
+2909 / 2961 bf16, 4k 3491 / 3474 against 3429 / 3419, section 6), so I read it as warm-up and clock noise, but a dedicated
+A/B of int8 prefill (the staging decode is the only extra work) was not run.
 
 
 ## 7. Gates of the default path
@@ -336,4 +351,42 @@ So batching with a quantised cache is supported and exact; there is nothing to r
 
 ## 10. Commits and fleetq slots
 
-@@COMMITS@@
+Branch `metal-kv-quant`, first-parent history from `spike/metal` `56ec2d5` (the final docs commit that contains this file is the
+branch head; `912f3f8` merged in at `b3799f2`):
+
+* `17f94ccc` metal: fp8 e4m3 KV cache kernels (KvAppend, QkNormRopeKv, split-KV decode + rows, prefill via exact staging decode) + CLI --kv-dtype guard
+* `ef35bcde` metal fp8 KV: half-based exact e4m3 decode, units-in-flight tuning variants, backend refusal for fp8 KV outside cpu/metal
+* `964b0ed3` kv-quant: slot scripts
+* `39ec46a0` kv-quant: long-context proxy script
+* `f6ab8fb2` kv-quant: sizing step
+* `8a70b3fa` kv-quant: fake-quant int8 accuracy probe (INTARSIA_METAL_KV_FAKEQ), probe slot script
+* `648843d9` kv-quant: trim slot B, slot C template
+* `227fdb46` metal: int8 block-scaled KV cache (core sizing, append/prologue/decode/rows/prefill-staging kernels, tests)
+* `98b6f04f` kv-quant: slot D script, int8 attn_bw
+* `c2d7edcb` kv-quant: slot E (speed ABBA bf16/fp8/int8)
+* `38fbc6f7` kv-quant: slot C for 3 modes
+* `a1260c41` kv-quant: split policy sweep in slot E
+* `9c8b310e` kv-quant: one slot F+E+C, int8 results
+* `5ac06eda` metal: list the int8 KV kernels only when an int8 cache is requested (cpu oracle has no block-scaled cache; keeps kernels test green)
+* `69bfbe2f` kv-quant: slot G (final gates rerun), trim C
+* `9fe810ac` docs: kv-quant results draft
+* `1c4ef307` cli: serve with --kv-dtype int8 does not require admission (int8 kernels have no oracle cases)
+* `3d9cfb90` kv-quant: slot G uses final binary, localeval part
+* `6e7889b9` kv-quant: fix timestamps
+* `9fbf4f04` docs: kv-quant proxy table
+* `8f2d748d` tests: kv_i8 requests the int8 kernels explicitly
+* `b3799f26` Merge spike/metal 912f3f8 into metal-kv-quant (cb-m1 batching); resolve common.rs for_serving
+* `33549d27` tests: batch bitwise identity with fp8 / int8 KV caches
+* `8d44325c` kv-quant: slot M (merged-tree gates)
+* `1446ace4` docs: kv-quant gates on merged tree
+* `8006242a` cli: serve with --kv-dtype int8 runs without admission (oracle fails the model-shaped cases); slot I script
+* `bc963092` docs: kv-quant localeval + int8 serve status
+
+fleetq slots (all `--host endor --exclusive --mem 60`, all released, none forced; label prefix "metal kv quant"):
+#2048 (first fp8 kernel tests; failed on the f32 denormal flush, led to the half-based decode), #2052 (fp8 kernel tests pass), #2056 (decode
+variants microbench), #2058 (default-path gates, fp8 accuracy, ids, qualify bf16 PASS and fp8 acc stages), #2059 (speed ABBA bf16/fp8,
+fake-quant probe, sizing), #2064 (int8 tests, more probe configs, int8 accuracy and ids), #2075 (final-ish gates incl. the qualify that
+failed on the int8 listing, speed ABBA bf16/fp8/int8, sizing, split sweep, 16k / 32k proxy, first localeval where int8 serve failed),
+#2081 (gates on the merged tree, localeval), #2093 (serve int8 check).
+#2088 was queued for the merged-tree gates and cancelled before it ran (the same work went into #2081). Not run for lack of slot time:
+the 32k ABBA re-run with a stricter thermal gate (`workH.sh`).
