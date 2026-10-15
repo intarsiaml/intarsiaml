@@ -499,8 +499,15 @@ impl MetalBackend {
         let rd = if a.rotary_dim == 0 { d } else { a.rotary_dim };
         // prefill rows of a 128-wide fully rotated head (Qwen3): one threadgroup of QK_PF_HEADS simdgroups per token and
         // QK_PF_HEADS heads, one simdgroup per head (bitwise the decode form, kernels/metal/qk_rope_kv.metal)
-        let (pf_name, dec_name) =
-            if f8 { (QK_NORM_ROPE_KV_F8_PF, QK_NORM_ROPE_KV_F8) } else { (QK_NORM_ROPE_KV_BF16_PF, QK_NORM_ROPE_KV_BF16) };
+        // PROBE: INTARSIA_METAL_KV_FAKEQ=<block>,<mask> stores bf16(dequant(quant(x))) per block into the bf16 cache
+        let fakeq = if f8 { None } else { fakeq_probe() };
+        let (pf_name, dec_name) = if f8 {
+            (QK_NORM_ROPE_KV_F8_PF, QK_NORM_ROPE_KV_F8)
+        } else if fakeq.is_some() {
+            ("qk_norm_rope_kv_fq_pf", "qk_norm_rope_kv_fq")
+        } else {
+            (QK_NORM_ROPE_KV_BF16_PF, QK_NORM_ROPE_KV_BF16)
+        };
         let pf = t > 1 && d == 128 && rd == 128 && self.pso(pf_name).is_some() && !qk_pf_disabled();
         let (name, threads, groups) = if pf {
             (pf_name, QK_PF_HEADS * 32, t * (n + 2 * nkv).div_ceil(QK_PF_HEADS))
@@ -529,7 +536,7 @@ impl MetalBackend {
             eps: a.eps,
             w_offset: a.w_offset,
             theta: a.theta,
-            pad: 0,
+            pad: fakeq.unwrap_or(0),
         };
         self.with_encoder(|enc| {
             enc.setComputePipelineState(pso);
@@ -555,4 +562,16 @@ impl MetalBackend {
             None => Ok((None, 0)),
         }
     }
+}
+
+/// `INTARSIA_METAL_KV_FAKEQ=<block>,<mask>` (probe, not a serving option): block 16 / 32, mask bit0 = K, bit1 = V.
+fn fakeq_probe() -> Option<u32> {
+    use std::sync::OnceLock;
+    static V: OnceLock<Option<u32>> = OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_METAL_KV_FAKEQ").ok()?;
+        let (b, m) = v.split_once(',')?;
+        let (b, m): (u32, u32) = (b.parse().ok()?, m.parse().ok()?);
+        Some(b | ((m & 1) << 8) | (((m >> 1) & 1) << 9))
+    })
 }

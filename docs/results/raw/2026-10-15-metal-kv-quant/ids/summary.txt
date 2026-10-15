@@ -1,0 +1,18 @@
+bf16 KV, new vs base binary, short-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, 4k-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, open-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, grounded-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-docs-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-code-256: ids identical (256 tokens)
+fp8 KV vs bf16 KV, short-256: ids DIFFER, first divergence at token 1 of 256/256
+fp8 KV: spec ngram vs off, short-256: ids identical (256 tokens)
+fp8 KV vs bf16 KV, 4k-256: ids DIFFER, first divergence at token 1 of 256/256
+fp8 KV: spec ngram vs off, 4k-256: ids identical (256 tokens)
+fp8 KV vs bf16 KV, open-256: ids DIFFER, first divergence at token 98 of 256/256
+fp8 KV: spec ngram vs off, open-256: ids identical (256 tokens)
+fp8 KV vs bf16 KV, grounded-256: ids identical (256 tokens)
+fp8 KV: spec ngram vs off, grounded-256: ids identical (256 tokens)
+fp8 KV vs bf16 KV, golden-docs-256: ids DIFFER, first divergence at token 14 of 256/256
+fp8 KV: spec ngram vs off, golden-docs-256: ids identical (256 tokens)
+fp8 KV vs bf16 KV, golden-code-256: ids DIFFER, first divergence at token 85 of 256/256
+fp8 KV: spec ngram vs off, golden-code-256: ids identical (256 tokens)

@@ -16,3 +16,159 @@ fp8: loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, 
 /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:      "kernel": "qk_norm_rope_kv_f8",
 /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/sizing/plan-fp8.json:  "kv_dtype": "fp8_e4m3",
 == 1. cargo test -p intarsia-backend-metal --release (all, incl. kv_fp8)
+exit 0
+   1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+   1 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.53s
+   1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.83s
+   1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.50s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+   1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.18s
+   1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.29s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+== 2. kernels test --backend metal
+exit 0
+33
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 Nkv=8 D=128 cap=6 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=9 Nkv=8 D=128 cap=15 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=0 Nkv=8 D=128 cap=11 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_f8           ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=9 Nkv=8 D=128 cap=20 new=bf16 cache=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=2.228e-7 rel_l2=6.702e-9 T=5 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.619e-4 rel_l2=6.819e-6 T=5 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=8.084e-7 rel_l2=3.782e-8 T=5 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 pos0=0 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=5.174e-5 rel_l2=2.671e-6 T=32 pos0=37 N=4 Nkv=2 D=64 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=6.158e-4 rel_l2=1.643e-5 T=32 pos0=0 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=1.374e-3 rel_l2=2.385e-5 T=32 pos0=37 N=32 Nkv=8 D=128 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=7.062e-4 rel_l2=1.453e-5 T=32 pos0=0 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  qk_norm_rope_kv qk_norm_rope_kv_f8     ok    max_abs=3.613e-4 rel_l2=8.683e-6 T=32 pos0=37 N=8 Nkv=2 D=256 bf16 rot=0 off=0 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.490e-8 rel_l2=3.715e-8 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=3.130e-6 rel_l2=2.297e-7 T=1 pos0=7 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8_splitkv ok    max_abs=1.277e-5 rel_l2=9.203e-7 T=1 pos0=40 N=32 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+== 3. default-path greedy ids, base vs new (bf16 KV), 256 tokens
+bf16 KV, new vs base binary, short-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, 4k-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, open-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, grounded-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-docs-256: ids identical (256 tokens)
+bf16 KV, new vs base binary, golden-code-256: ids identical (256 tokens)
+== 4. fp8 KV vs bf16 KV greedy ids (256 tokens), spec off and spec ngram vs off under fp8
+fp8 KV vs bf16 KV, short-256: ids DIFFER, first divergence at token 1 of 256/256
+fp8 KV: spec ngram vs off, short-256: ids identical (256 tokens)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_r
+spec: verify passes=61 proposed=244 accepted=176 (acceptance 72.1%, 3.89 tokens per pass)
+fp8 KV vs bf16 KV, 4k-256: ids DIFFER, first divergence at token 1 of 256/256
+fp8 KV: spec ngram vs off, 4k-256: ids identical (256 tokens)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_r
+spec: verify passes=81 proposed=324 accepted=177 (acceptance 54.6%, 3.19 tokens per pass)
+fp8 KV vs bf16 KV, open-256: ids DIFFER, first divergence at token 98 of 256/256
+fp8 KV: spec ngram vs off, open-256: ids identical (256 tokens)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_r
+spec: verify passes=24 proposed=95 accepted=7 (acceptance 7.4%, 1.29 tokens per pass)
+fp8 KV vs bf16 KV, grounded-256: ids identical (256 tokens)
+fp8 KV: spec ngram vs off, grounded-256: ids identical (256 tokens)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_r
+spec: verify passes=64 proposed=256 accepted=189 (acceptance 73.8%, 3.95 tokens per pass)
+fp8 KV vs bf16 KV, golden-docs-256: ids DIFFER, first divergence at token 14 of 256/256
+fp8 KV: spec ngram vs off, golden-docs-256: ids identical (256 tokens)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_r
+spec: verify passes=27 proposed=108 accepted=6 (acceptance 5.6%, 1.22 tokens per pass)
+fp8 KV vs bf16 KV, golden-code-256: ids DIFFER, first divergence at token 85 of 256/256
+fp8 KV: spec ngram vs off, golden-code-256: ids identical (256 tokens)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_r
+spec: verify passes=70 proposed=280 accepted=126 (acceptance 45.0%, 2.80 tokens per pass)
+== 5. fp8 accuracy vs fp32 goldens (bf16 gate class: KL 1e-3, top-1 99.5), and bf16 for reference
+bf16 short exit 0
+bf16 long exit 1
+bf16 4k exit 1
+fp8 short exit 1
+fp8 long exit 1
+fp8 4k exit 1
+--- /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/acc/bf16-4k.out
+--- /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/acc/bf16-long.out
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [bf16]: top-1 99.72% (need >= 99.5) ok | full-vocab KL 3.699e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.371e-4 (need <= 1.0e-3) ok | tail mass ours 0.0214 vs ref 0.0215, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+count              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+story              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+code               both      skipped: split 40 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+science            both      skipped: split 39 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_short         both      skipped: split 9 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_system        both      skipped: split 16 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_multiturn     both      skipped: split 29 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+--- /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/acc/bf16-short.out
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.832e-4 (need <= 1.0e-3) ok | tail mass ours 0.0322 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.313e-4 (need <= 1.0e-3) ok | tail mass ours 0.0237 vs ref 0.0238, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/acc/fp8-4k.out
+--- /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/acc/fp8-long.out
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [bf16]: top-1 98.33% (need >= 99.5) FAIL | full-vocab KL 9.795e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0191 vs ref 0.0188, excess +0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [bf16]: top-1 96.88% (need >= 99.5) FAIL | full-vocab KL 8.196e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0211 vs ref 0.0215, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+count              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+story              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+code               both      skipped: split 40 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+science            both      skipped: split 39 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_short         both      skipped: split 9 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_system        both      skipped: split 16 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_multiturn     both      skipped: split 29 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+--- /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/acc/fp8-short.out
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [bf16]: top-1 97.93% (need >= 99.5) FAIL | full-vocab KL 5.927e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0324 vs ref 0.0325, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [bf16]: top-1 96.88% (need >= 99.5) FAIL | full-vocab KL 7.781e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0235 vs ref 0.0238, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+== 6. qualify, fresh full run on the default (bf16 KV)
+qualify bf16 exit 0
+**Verdict: PASS** (13 stages: 11 pass, 0 fail, 0 error, 2 skipped)
+| Accuracy (short golden) | **PASS** (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4) |
+| Accuracy (long golden) | **PASS** (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4) |
+| Accuracy (4k golden) | **PASS** (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4) |
+| Quick gate | **PASS**: perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| # | Stage | Section | Verdict | Wall | Result |
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | Apple M5 Max (applegpu_g17s), 33 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 43s | 14 ops resolved, exactness deterministic, loaded in 43.2s |
+| 4 | `kernels` kernels test on the model's shapes | quick | PASS | 47s | 33 kernels, 388 cases in 47.2s |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 10s | perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-short` short accuracy against a golden | quick | PASS | 8s | prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4 |
+| 7 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | PASS | 86s | decode 36.0 tok/s at 128 tokens (89% of the byte floor) |
+| 8 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | PASS | 24s | prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4 |
+| 9 | `acc-4k` accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048) | full | PASS | 57s | prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4 |
+| 10 | `envelope` noise envelope and baseline for regression gating | full | PASS | 14s | baseline and envelope (chunk) written; they gate this build: PASS |
+| 11 | `bench-long` long-context bench up to 16k | full | PASS | 81s | decode 31.4 tok/s at 1024 tokens (77% of the byte floor) |
+**Regression gating artifacts**: baseline and envelope (chunk) written; they gate this build: PASS
+- recipe: builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16) (PASS)
+- plan: 14 ops resolved, exactness deterministic, loaded in 43.2s (PASS)
+== 7. qualify acc stages on fp8 KV (skip bench stages)

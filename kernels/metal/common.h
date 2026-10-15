@@ -81,3 +81,17 @@ inline void unpack8_e4m3(uint2 w, thread float* f) {
     unpack8_e4m3_s8(w, f);
     for (uint i = 0; i < 8; ++i) f[i] *= 256.0f;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// int8 KV cache quantiser (block scales), shared by every append kernel: a block of KVQ_B consecutive elements of one head
+// row holds q = clamp(rint(x / s), -127, 127) with s = bf16(absmax / 127) (the bf16-ROUNDED scale is the one used to
+// quantise and to dequantise). The block is KVQ_B lanes of a simdgroup (element i of the head row on lane i % 32).
+// ---------------------------------------------------------------------------------------------------------------------
+constant constexpr uint KVQ_B = 32;
+
+inline float kvq_scale(float x, uint blk, uint lane) {
+    float a = fabs(x);
+    for (uint m = 1; m < blk; m <<= 1) a = max(a, simd_shuffle_xor(a, (ushort)m));
+    return bf2f(f2bf(a / 127.0f));
+}
+inline float kvq_q(float x, float s) { return s == 0.0f ? 0.0f : clamp(rint(x / s), -127.0f, 127.0f); }

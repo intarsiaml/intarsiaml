@@ -590,4 +590,917 @@ test add_and_silu_glu_rows ... ok
 test argmax_rows ... ok
 test embedding_rows ... ok
 test kv_append_rows ... ok
-test qk_norm_rope_kv_rows ... 
+test qk_norm_rope_kv_rows ... ok
+test rmsnorm_add_rows ... ok
+test rmsnorm_rows ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+
+     Running tests/gemm_nax.rs (target/release/deps/gemm_nax-437184b2b116056c)
+
+running 9 tests
+test nax_is_run_to_run_deterministic ... ok
+test nax_k_tails ... k tail m=40 n=48 k=70 row 0: 48 rows, worst error 0.852 of tolerance
+k tail m=40 n=48 k=70 row 1: 48 rows, worst error 0.790 of tolerance
+k tail m=40 n=48 k=70 row 2: 48 rows, worst error 0.760 of tolerance
+k tail m=40 n=48 k=70 row 3: 48 rows, worst error 0.925 of tolerance
+k tail m=40 n=48 k=70 row 4: 48 rows, worst error 0.730 of tolerance
+k tail m=40 n=48 k=70 row 5: 48 rows, worst error 0.846 of tolerance
+k tail m=40 n=48 k=70 row 6: 48 rows, worst error 0.795 of tolerance
+k tail m=40 n=48 k=70 row 7: 48 rows, worst error 0.761 of tolerance
+k tail m=40 n=48 k=70 row 8: 48 rows, worst error 0.802 of tolerance
+k tail m=40 n=48 k=70 row 9: 48 rows, worst error 0.866 of tolerance
+k tail m=40 n=48 k=70 row 10: 48 rows, worst error 0.754 of tolerance
+k tail m=40 n=48 k=70 row 11: 48 rows, worst error 0.806 of tolerance
+k tail m=40 n=48 k=70 row 12: 48 rows, worst error 0.822 of tolerance
+k tail m=40 n=48 k=70 row 13: 48 rows, worst error 0.961 of tolerance
+k tail m=40 n=48 k=70 row 14: 48 rows, worst error 0.851 of tolerance
+k tail m=40 n=48 k=70 row 15: 48 rows, worst error 0.894 of tolerance
+k tail m=40 n=48 k=70 row 16: 48 rows, worst error 0.807 of tolerance
+k tail m=40 n=48 k=70 row 17: 48 rows, worst error 0.868 of tolerance
+k tail m=40 n=48 k=70 row 18: 48 rows, worst error 0.844 of tolerance
+k tail m=40 n=48 k=70 row 19: 48 rows, worst error 0.847 of tolerance
+k tail m=40 n=48 k=70 row 20: 48 rows, worst error 0.754 of tolerance
+k tail m=40 n=48 k=70 row 21: 48 rows, worst error 0.765 of tolerance
+k tail m=40 n=48 k=70 row 22: 48 rows, worst error 0.757 of tolerance
+k tail m=40 n=48 k=70 row 23: 48 rows, worst error 0.852 of tolerance
+k tail m=40 n=48 k=70 row 24: 48 rows, worst error 0.789 of tolerance
+k tail m=40 n=48 k=70 row 25: 48 rows, worst error 0.888 of tolerance
+k tail m=40 n=48 k=70 row 26: 48 rows, worst error 0.804 of tolerance
+k tail m=40 n=48 k=70 row 27: 48 rows, worst error 0.793 of tolerance
+k tail m=40 n=48 k=70 row 28: 48 rows, worst error 0.725 of tolerance
+k tail m=40 n=48 k=70 row 29: 48 rows, worst error 0.894 of tolerance
+k tail m=40 n=48 k=70 row 30: 48 rows, worst error 0.827 of tolerance
+k tail m=40 n=48 k=70 row 31: 48 rows, worst error 0.714 of tolerance
+k tail m=40 n=48 k=70 row 32: 48 rows, worst error 0.834 of tolerance
+k tail m=40 n=48 k=70 row 33: 48 rows, worst error 0.817 of tolerance
+k tail m=40 n=48 k=70 row 34: 48 rows, worst error 0.693 of tolerance
+k tail m=40 n=48 k=70 row 35: 48 rows, worst error 0.672 of tolerance
+k tail m=40 n=48 k=70 row 36: 48 rows, worst error 0.874 of tolerance
+k tail m=40 n=48 k=70 row 37: 48 rows, worst error 0.842 of tolerance
+k tail m=40 n=48 k=70 row 38: 48 rows, worst error 0.806 of tolerance
+k tail m=40 n=48 k=70 row 39: 48 rows, worst error 0.912 of tolerance
+k tail m=40 n=48 k=33 row 0: 48 rows, worst error 0.764 of tolerance
+k tail m=40 n=48 k=33 row 1: 48 rows, worst error 0.778 of tolerance
+k tail m=40 n=48 k=33 row 2: 48 rows, worst error 0.817 of tolerance
+k tail m=40 n=48 k=33 row 3: 48 rows, worst error 0.866 of tolerance
+k tail m=40 n=48 k=33 row 4: 48 rows, worst error 0.840 of tolerance
+k tail m=40 n=48 k=33 row 5: 48 rows, worst error 0.739 of tolerance
+k tail m=40 n=48 k=33 row 6: 48 rows, worst error 0.841 of tolerance
+k tail m=40 n=48 k=33 row 7: 48 rows, worst error 0.902 of tolerance
+k tail m=40 n=48 k=33 row 8: 48 rows, worst error 0.750 of tolerance
+k tail m=40 n=48 k=33 row 9: 48 rows, worst error 0.942 of tolerance
+k tail m=40 n=48 k=33 row 10: 48 rows, worst error 0.752 of tolerance
+k tail m=40 n=48 k=33 row 11: 48 rows, worst error 0.732 of tolerance
+k tail m=40 n=48 k=33 row 12: 48 rows, worst error 0.782 of tolerance
+k tail m=40 n=48 k=33 row 13: 48 rows, worst error 0.818 of tolerance
+k tail m=40 n=48 k=33 row 14: 48 rows, worst error 0.778 of tolerance
+k tail m=40 n=48 k=33 row 15: 48 rows, worst error 0.843 of tolerance
+k tail m=40 n=48 k=33 row 16: 48 rows, worst error 0.857 of tolerance
+k tail m=40 n=48 k=33 row 17: 48 rows, worst error 0.866 of tolerance
+k tail m=40 n=48 k=33 row 18: 48 rows, worst error 0.877 of tolerance
+k tail m=40 n=48 k=33 row 19: 48 rows, worst error 0.748 of tolerance
+k tail m=40 n=48 k=33 row 20: 48 rows, worst error 0.804 of tolerance
+k tail m=40 n=48 k=33 row 21: 48 rows, worst error 0.862 of tolerance
+k tail m=40 n=48 k=33 row 22: 48 rows, worst error 0.902 of tolerance
+k tail m=40 n=48 k=33 row 23: 48 rows, worst error 0.942 of tolerance
+k tail m=40 n=48 k=33 row 24: 48 rows, worst error 0.804 of tolerance
+k tail m=40 n=48 k=33 row 25: 48 rows, worst error 0.739 of tolerance
+k tail m=40 n=48 k=33 row 26: 48 rows, worst error 0.802 of tolerance
+k tail m=40 n=48 k=33 row 27: 48 rows, worst error 0.771 of tolerance
+k tail m=40 n=48 k=33 row 28: 48 rows, worst error 0.791 of tolerance
+k tail m=40 n=48 k=33 row 29: 48 rows, worst error 0.803 of tolerance
+k tail m=40 n=48 k=33 row 30: 48 rows, worst error 0.841 of tolerance
+k tail m=40 n=48 k=33 row 31: 48 rows, worst error 0.823 of tolerance
+k tail m=40 n=48 k=33 row 32: 48 rows, worst error 0.780 of tolerance
+k tail m=40 n=48 k=33 row 33: 48 rows, worst error 0.755 of tolerance
+k tail m=40 n=48 k=33 row 34: 48 rows, worst error 0.756 of tolerance
+k tail m=40 n=48 k=33 row 35: 48 rows, worst error 0.840 of tolerance
+k tail m=40 n=48 k=33 row 36: 48 rows, worst error 0.852 of tolerance
+k tail m=40 n=48 k=33 row 37: 48 rows, worst error 0.768 of tolerance
+k tail m=40 n=48 k=33 row 38: 48 rows, worst error 0.771 of tolerance
+k tail m=40 n=48 k=33 row 39: 48 rows, worst error 0.818 of tolerance
+k tail m=20 n=130 k=100 row 0: 130 rows, worst error 0.941 of tolerance
+k tail m=20 n=130 k=100 row 1: 130 rows, worst error 0.834 of tolerance
+k tail m=20 n=130 k=100 row 2: 130 rows, worst error 0.888 of tolerance
+k tail m=20 n=130 k=100 row 3: 130 rows, worst error 0.920 of tolerance
+k tail m=20 n=130 k=100 row 4: 130 rows, worst error 0.829 of tolerance
+k tail m=20 n=130 k=100 row 5: 130 rows, worst error 0.948 of tolerance
+k tail m=20 n=130 k=100 row 6: 130 rows, worst error 0.946 of tolerance
+k tail m=20 n=130 k=100 row 7: 130 rows, worst error 0.863 of tolerance
+k tail m=20 n=130 k=100 row 8: 130 rows, worst error 0.897 of tolerance
+k tail m=20 n=130 k=100 row 9: 130 rows, worst error 0.807 of tolerance
+k tail m=20 n=130 k=100 row 10: 130 rows, worst error 0.914 of tolerance
+k tail m=20 n=130 k=100 row 11: 130 rows, worst error 0.922 of tolerance
+k tail m=20 n=130 k=100 row 12: 130 rows, worst error 0.913 of tolerance
+k tail m=20 n=130 k=100 row 13: 130 rows, worst error 0.877 of tolerance
+k tail m=20 n=130 k=100 row 14: 130 rows, worst error 0.941 of tolerance
+k tail m=20 n=130 k=100 row 15: 130 rows, worst error 0.852 of tolerance
+k tail m=20 n=130 k=100 row 16: 130 rows, worst error 0.943 of tolerance
+k tail m=20 n=130 k=100 row 17: 130 rows, worst error 0.897 of tolerance
+k tail m=20 n=130 k=100 row 18: 130 rows, worst error 0.936 of tolerance
+k tail m=20 n=130 k=100 row 19: 130 rows, worst error 0.940 of tolerance
+k tail m=64 n=64 k=18 row 0: 64 rows, worst error 0.872 of tolerance
+k tail m=64 n=64 k=18 row 1: 64 rows, worst error 0.798 of tolerance
+k tail m=64 n=64 k=18 row 2: 64 rows, worst error 0.953 of tolerance
+k tail m=64 n=64 k=18 row 3: 64 rows, worst error 0.783 of tolerance
+k tail m=64 n=64 k=18 row 4: 64 rows, worst error 0.816 of tolerance
+k tail m=64 n=64 k=18 row 5: 64 rows, worst error 0.902 of tolerance
+k tail m=64 n=64 k=18 row 6: 64 rows, worst error 0.824 of tolerance
+k tail m=64 n=64 k=18 row 7: 64 rows, worst error 0.904 of tolerance
+k tail m=64 n=64 k=18 row 8: 64 rows, worst error 0.697 of tolerance
+k tail m=64 n=64 k=18 row 9: 64 rows, worst error 0.763 of tolerance
+k tail m=64 n=64 k=18 row 10: 64 rows, worst error 0.909 of tolerance
+k tail m=64 n=64 k=18 row 11: 64 rows, worst error 0.887 of tolerance
+k tail m=64 n=64 k=18 row 12: 64 rows, worst error 0.898 of tolerance
+k tail m=64 n=64 k=18 row 13: 64 rows, worst error 0.842 of tolerance
+k tail m=64 n=64 k=18 row 14: 64 rows, worst error 0.879 of tolerance
+k tail m=64 n=64 k=18 row 15: 64 rows, worst error 0.898 of tolerance
+k tail m=64 n=64 k=18 row 16: 64 rows, worst error 0.855 of tolerance
+k tail m=64 n=64 k=18 row 17: 64 rows, worst error 0.900 of tolerance
+k tail m=64 n=64 k=18 row 18: 64 rows, worst error 0.861 of tolerance
+k tail m=64 n=64 k=18 row 19: 64 rows, worst error 0.899 of tolerance
+k tail m=64 n=64 k=18 row 20: 64 rows, worst error 0.902 of tolerance
+k tail m=64 n=64 k=18 row 21: 64 rows, worst error 0.824 of tolerance
+k tail m=64 n=64 k=18 row 22: 64 rows, worst error 0.807 of tolerance
+k tail m=64 n=64 k=18 row 23: 64 rows, worst error 0.904 of tolerance
+k tail m=64 n=64 k=18 row 24: 64 rows, worst error 0.887 of tolerance
+k tail m=64 n=64 k=18 row 25: 64 rows, worst error 0.907 of tolerance
+k tail m=64 n=64 k=18 row 26: 64 rows, worst error 0.825 of tolerance
+k tail m=64 n=64 k=18 row 27: 64 rows, worst error 0.847 of tolerance
+k tail m=64 n=64 k=18 row 28: 64 rows, worst error 0.944 of tolerance
+k tail m=64 n=64 k=18 row 29: 64 rows, worst error 0.958 of tolerance
+k tail m=64 n=64 k=18 row 30: 64 rows, worst error 0.810 of tolerance
+k tail m=64 n=64 k=18 row 31: 64 rows, worst error 0.901 of tolerance
+k tail m=64 n=64 k=18 row 32: 64 rows, worst error 0.841 of tolerance
+k tail m=64 n=64 k=18 row 33: 64 rows, worst error 0.922 of tolerance
+k tail m=64 n=64 k=18 row 34: 64 rows, worst error 0.785 of tolerance
+k tail m=64 n=64 k=18 row 35: 64 rows, worst error 0.848 of tolerance
+k tail m=64 n=64 k=18 row 36: 64 rows, worst error 0.941 of tolerance
+k tail m=64 n=64 k=18 row 37: 64 rows, worst error 0.962 of tolerance
+k tail m=64 n=64 k=18 row 38: 64 rows, worst error 0.742 of tolerance
+k tail m=64 n=64 k=18 row 39: 64 rows, worst error 0.878 of tolerance
+k tail m=64 n=64 k=18 row 40: 64 rows, worst error 0.847 of tolerance
+k tail m=64 n=64 k=18 row 41: 64 rows, worst error 0.895 of tolerance
+k tail m=64 n=64 k=18 row 42: 64 rows, worst error 0.851 of tolerance
+k tail m=64 n=64 k=18 row 43: 64 rows, worst error 0.779 of tolerance
+k tail m=64 n=64 k=18 row 44: 64 rows, worst error 0.915 of tolerance
+k tail m=64 n=64 k=18 row 45: 64 rows, worst error 0.756 of tolerance
+k tail m=64 n=64 k=18 row 46: 64 rows, worst error 0.799 of tolerance
+k tail m=64 n=64 k=18 row 47: 64 rows, worst error 0.832 of tolerance
+k tail m=64 n=64 k=18 row 48: 64 rows, worst error 0.867 of tolerance
+k tail m=64 n=64 k=18 row 49: 64 rows, worst error 0.943 of tolerance
+k tail m=64 n=64 k=18 row 50: 64 rows, worst error 0.896 of tolerance
+k tail m=64 n=64 k=18 row 51: 64 rows, worst error 0.869 of tolerance
+k tail m=64 n=64 k=18 row 52: 64 rows, worst error 0.810 of tolerance
+k tail m=64 n=64 k=18 row 53: 64 rows, worst error 0.901 of tolerance
+k tail m=64 n=64 k=18 row 54: 64 rows, worst error 0.906 of tolerance
+k tail m=64 n=64 k=18 row 55: 64 rows, worst error 0.818 of tolerance
+k tail m=64 n=64 k=18 row 56: 64 rows, worst error 0.901 of tolerance
+k tail m=64 n=64 k=18 row 57: 64 rows, worst error 0.899 of tolerance
+k tail m=64 n=64 k=18 row 58: 64 rows, worst error 0.916 of tolerance
+k tail m=64 n=64 k=18 row 59: 64 rows, worst error 0.890 of tolerance
+k tail m=64 n=64 k=18 row 60: 64 rows, worst error 0.855 of tolerance
+k tail m=64 n=64 k=18 row 61: 64 rows, worst error 0.825 of tolerance
+k tail m=64 n=64 k=18 row 62: 64 rows, worst error 0.806 of tolerance
+k tail m=64 n=64 k=18 row 63: 64 rows, worst error 0.842 of tolerance
+k tail m=17 n=31 k=17 row 0: 31 rows, worst error 0.944 of tolerance
+k tail m=17 n=31 k=17 row 1: 31 rows, worst error 0.860 of tolerance
+k tail m=17 n=31 k=17 row 2: 31 rows, worst error 0.743 of tolerance
+k tail m=17 n=31 k=17 row 3: 31 rows, worst error 0.925 of tolerance
+k tail m=17 n=31 k=17 row 4: 31 rows, worst error 0.775 of tolerance
+k tail m=17 n=31 k=17 row 5: 31 rows, worst error 0.717 of tolerance
+k tail m=17 n=31 k=17 row 6: 31 rows, worst error 0.893 of tolerance
+k tail m=17 n=31 k=17 row 7: 31 rows, worst error 0.843 of tolerance
+k tail m=17 n=31 k=17 row 8: 31 rows, worst error 0.708 of tolerance
+k tail m=17 n=31 k=17 row 9: 31 rows, worst error 0.786 of tolerance
+k tail m=17 n=31 k=17 row 10: 31 rows, worst error 0.966 of tolerance
+k tail m=17 n=31 k=17 row 11: 31 rows, worst error 0.733 of tolerance
+k tail m=17 n=31 k=17 row 12: 31 rows, worst error 0.829 of tolerance
+k tail m=17 n=31 k=17 row 13: 31 rows, worst error 0.925 of tolerance
+k tail m=17 n=31 k=17 row 14: 31 rows, worst error 0.796 of tolerance
+k tail m=17 n=31 k=17 row 15: 31 rows, worst error 0.966 of tolerance
+k tail m=17 n=31 k=17 row 16: 31 rows, worst error 0.945 of tolerance
+ok
+test nax_kernels_are_registered_for_prefill_shapes_only ... ok
+test nax_launch_picks_tiles_without_changing_bits ... ok
+test nax_launch_through_the_backend ... matmul_bf16_nax row 0: 4096 rows, worst error 0.943 of tolerance
+matmul_bf16_nax row 77: 4096 rows, worst error 0.937 of tolerance
+matmul_bf16_nax row 204: 4096 rows, worst error 0.930 of tolerance
+ok
+test nax_matches_f64_reference ... gemm_nax_t64x64w4 m=2 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.932 of tolerance
+gemm_nax_t64x64w4 m=2 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t128x64w4 m=2 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.932 of tolerance
+gemm_nax_t128x64w4 m=2 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t32x32w1 m=2 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.932 of tolerance
+gemm_nax_t32x32w1 m=2 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t32x128w2 m=2 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.932 of tolerance
+gemm_nax_t32x128w2 m=2 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w2 m=2 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.932 of tolerance
+gemm_nax_t64x64w2 m=2 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w4 m=11 n=4096 k=4096 off=0,8,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t64x64w4 m=11 n=4096 k=4096 off=0,8,0 row 1: 4096 rows, worst error 0.945 of tolerance
+gemm_nax_t64x64w4 m=11 n=4096 k=4096 off=0,8,0 row 3: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t64x64w4 m=11 n=4096 k=4096 off=0,8,0 row 5: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w4 m=11 n=4096 k=4096 off=0,8,0 row 9: 4096 rows, worst error 0.947 of tolerance
+gemm_nax_t64x64w4 m=11 n=4096 k=4096 off=0,8,0 row 10: 4096 rows, worst error 0.942 of tolerance
+gemm_nax_t128x64w4 m=11 n=4096 k=4096 off=0,8,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t128x64w4 m=11 n=4096 k=4096 off=0,8,0 row 1: 4096 rows, worst error 0.945 of tolerance
+gemm_nax_t128x64w4 m=11 n=4096 k=4096 off=0,8,0 row 3: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t128x64w4 m=11 n=4096 k=4096 off=0,8,0 row 5: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t128x64w4 m=11 n=4096 k=4096 off=0,8,0 row 9: 4096 rows, worst error 0.947 of tolerance
+gemm_nax_t128x64w4 m=11 n=4096 k=4096 off=0,8,0 row 10: 4096 rows, worst error 0.942 of tolerance
+gemm_nax_t32x32w1 m=11 n=4096 k=4096 off=0,8,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t32x32w1 m=11 n=4096 k=4096 off=0,8,0 row 1: 4096 rows, worst error 0.945 of tolerance
+gemm_nax_t32x32w1 m=11 n=4096 k=4096 off=0,8,0 row 3: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t32x32w1 m=11 n=4096 k=4096 off=0,8,0 row 5: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t32x32w1 m=11 n=4096 k=4096 off=0,8,0 row 9: 4096 rows, worst error 0.947 of tolerance
+gemm_nax_t32x32w1 m=11 n=4096 k=4096 off=0,8,0 row 10: 4096 rows, worst error 0.942 of tolerance
+gemm_nax_t32x128w2 m=11 n=4096 k=4096 off=0,8,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t32x128w2 m=11 n=4096 k=4096 off=0,8,0 row 1: 4096 rows, worst error 0.945 of tolerance
+gemm_nax_t32x128w2 m=11 n=4096 k=4096 off=0,8,0 row 3: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t32x128w2 m=11 n=4096 k=4096 off=0,8,0 row 5: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t32x128w2 m=11 n=4096 k=4096 off=0,8,0 row 9: 4096 rows, worst error 0.947 of tolerance
+gemm_nax_t32x128w2 m=11 n=4096 k=4096 off=0,8,0 row 10: 4096 rows, worst error 0.942 of tolerance
+gemm_nax_t64x64w2 m=11 n=4096 k=4096 off=0,8,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t64x64w2 m=11 n=4096 k=4096 off=0,8,0 row 1: 4096 rows, worst error 0.945 of tolerance
+gemm_nax_t64x64w2 m=11 n=4096 k=4096 off=0,8,0 row 3: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t64x64w2 m=11 n=4096 k=4096 off=0,8,0 row 5: 4096 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w2 m=11 n=4096 k=4096 off=0,8,0 row 9: 4096 rows, worst error 0.947 of tolerance
+gemm_nax_t64x64w2 m=11 n=4096 k=4096 off=0,8,0 row 10: 4096 rows, worst error 0.942 of tolerance
+gemm_nax_t64x64w4 m=15 n=1024 k=4096 off=2,0,2 row 0: 1024 rows, worst error 0.886 of tolerance
+gemm_nax_t64x64w4 m=15 n=1024 k=4096 off=2,0,2 row 1: 1024 rows, worst error 0.898 of tolerance
+gemm_nax_t64x64w4 m=15 n=1024 k=4096 off=2,0,2 row 5: 1024 rows, worst error 0.912 of tolerance
+gemm_nax_t64x64w4 m=15 n=1024 k=4096 off=2,0,2 row 7: 1024 rows, worst error 0.930 of tolerance
+gemm_nax_t64x64w4 m=15 n=1024 k=4096 off=2,0,2 row 13: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t64x64w4 m=15 n=1024 k=4096 off=2,0,2 row 14: 1024 rows, worst error 0.928 of tolerance
+gemm_nax_t128x64w4 m=15 n=1024 k=4096 off=2,0,2 row 0: 1024 rows, worst error 0.886 of tolerance
+gemm_nax_t128x64w4 m=15 n=1024 k=4096 off=2,0,2 row 1: 1024 rows, worst error 0.898 of tolerance
+gemm_nax_t128x64w4 m=15 n=1024 k=4096 off=2,0,2 row 5: 1024 rows, worst error 0.912 of tolerance
+gemm_nax_t128x64w4 m=15 n=1024 k=4096 off=2,0,2 row 7: 1024 rows, worst error 0.930 of tolerance
+gemm_nax_t128x64w4 m=15 n=1024 k=4096 off=2,0,2 row 13: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t128x64w4 m=15 n=1024 k=4096 off=2,0,2 row 14: 1024 rows, worst error 0.928 of tolerance
+gemm_nax_t32x32w1 m=15 n=1024 k=4096 off=2,0,2 row 0: 1024 rows, worst error 0.886 of tolerance
+gemm_nax_t32x32w1 m=15 n=1024 k=4096 off=2,0,2 row 1: 1024 rows, worst error 0.898 of tolerance
+gemm_nax_t32x32w1 m=15 n=1024 k=4096 off=2,0,2 row 5: 1024 rows, worst error 0.912 of tolerance
+gemm_nax_t32x32w1 m=15 n=1024 k=4096 off=2,0,2 row 7: 1024 rows, worst error 0.930 of tolerance
+gemm_nax_t32x32w1 m=15 n=1024 k=4096 off=2,0,2 row 13: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t32x32w1 m=15 n=1024 k=4096 off=2,0,2 row 14: 1024 rows, worst error 0.928 of tolerance
+gemm_nax_t32x128w2 m=15 n=1024 k=4096 off=2,0,2 row 0: 1024 rows, worst error 0.886 of tolerance
+gemm_nax_t32x128w2 m=15 n=1024 k=4096 off=2,0,2 row 1: 1024 rows, worst error 0.898 of tolerance
+gemm_nax_t32x128w2 m=15 n=1024 k=4096 off=2,0,2 row 5: 1024 rows, worst error 0.912 of tolerance
+gemm_nax_t32x128w2 m=15 n=1024 k=4096 off=2,0,2 row 7: 1024 rows, worst error 0.930 of tolerance
+gemm_nax_t32x128w2 m=15 n=1024 k=4096 off=2,0,2 row 13: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t32x128w2 m=15 n=1024 k=4096 off=2,0,2 row 14: 1024 rows, worst error 0.928 of tolerance
+gemm_nax_t64x64w2 m=15 n=1024 k=4096 off=2,0,2 row 0: 1024 rows, worst error 0.886 of tolerance
+gemm_nax_t64x64w2 m=15 n=1024 k=4096 off=2,0,2 row 1: 1024 rows, worst error 0.898 of tolerance
+gemm_nax_t64x64w2 m=15 n=1024 k=4096 off=2,0,2 row 5: 1024 rows, worst error 0.912 of tolerance
+gemm_nax_t64x64w2 m=15 n=1024 k=4096 off=2,0,2 row 7: 1024 rows, worst error 0.930 of tolerance
+gemm_nax_t64x64w2 m=15 n=1024 k=4096 off=2,0,2 row 13: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t64x64w2 m=15 n=1024 k=4096 off=2,0,2 row 14: 1024 rows, worst error 0.928 of tolerance
+gemm_nax_t64x64w4 m=16 n=64 k=64 off=0,0,0 row 0: 64 rows, worst error 0.809 of tolerance
+gemm_nax_t64x64w4 m=16 n=64 k=64 off=0,0,0 row 1: 64 rows, worst error 0.841 of tolerance
+gemm_nax_t64x64w4 m=16 n=64 k=64 off=0,0,0 row 5: 64 rows, worst error 0.864 of tolerance
+gemm_nax_t64x64w4 m=16 n=64 k=64 off=0,0,0 row 8: 64 rows, worst error 0.893 of tolerance
+gemm_nax_t64x64w4 m=16 n=64 k=64 off=0,0,0 row 14: 64 rows, worst error 0.921 of tolerance
+gemm_nax_t64x64w4 m=16 n=64 k=64 off=0,0,0 row 15: 64 rows, worst error 0.704 of tolerance
+gemm_nax_t128x64w4 m=16 n=64 k=64 off=0,0,0 row 0: 64 rows, worst error 0.809 of tolerance
+gemm_nax_t128x64w4 m=16 n=64 k=64 off=0,0,0 row 1: 64 rows, worst error 0.841 of tolerance
+gemm_nax_t128x64w4 m=16 n=64 k=64 off=0,0,0 row 5: 64 rows, worst error 0.864 of tolerance
+gemm_nax_t128x64w4 m=16 n=64 k=64 off=0,0,0 row 8: 64 rows, worst error 0.893 of tolerance
+gemm_nax_t128x64w4 m=16 n=64 k=64 off=0,0,0 row 14: 64 rows, worst error 0.921 of tolerance
+gemm_nax_t128x64w4 m=16 n=64 k=64 off=0,0,0 row 15: 64 rows, worst error 0.704 of tolerance
+gemm_nax_t32x32w1 m=16 n=64 k=64 off=0,0,0 row 0: 64 rows, worst error 0.809 of tolerance
+gemm_nax_t32x32w1 m=16 n=64 k=64 off=0,0,0 row 1: 64 rows, worst error 0.841 of tolerance
+gemm_nax_t32x32w1 m=16 n=64 k=64 off=0,0,0 row 5: 64 rows, worst error 0.864 of tolerance
+gemm_nax_t32x32w1 m=16 n=64 k=64 off=0,0,0 row 8: 64 rows, worst error 0.893 of tolerance
+gemm_nax_t32x32w1 m=16 n=64 k=64 off=0,0,0 row 14: 64 rows, worst error 0.921 of tolerance
+gemm_nax_t32x32w1 m=16 n=64 k=64 off=0,0,0 row 15: 64 rows, worst error 0.704 of tolerance
+gemm_nax_t32x128w2 m=16 n=64 k=64 off=0,0,0 row 0: 64 rows, worst error 0.809 of tolerance
+gemm_nax_t32x128w2 m=16 n=64 k=64 off=0,0,0 row 1: 64 rows, worst error 0.841 of tolerance
+gemm_nax_t32x128w2 m=16 n=64 k=64 off=0,0,0 row 5: 64 rows, worst error 0.864 of tolerance
+gemm_nax_t32x128w2 m=16 n=64 k=64 off=0,0,0 row 8: 64 rows, worst error 0.893 of tolerance
+gemm_nax_t32x128w2 m=16 n=64 k=64 off=0,0,0 row 14: 64 rows, worst error 0.921 of tolerance
+gemm_nax_t32x128w2 m=16 n=64 k=64 off=0,0,0 row 15: 64 rows, worst error 0.704 of tolerance
+gemm_nax_t64x64w2 m=16 n=64 k=64 off=0,0,0 row 0: 64 rows, worst error 0.809 of tolerance
+gemm_nax_t64x64w2 m=16 n=64 k=64 off=0,0,0 row 1: 64 rows, worst error 0.841 of tolerance
+gemm_nax_t64x64w2 m=16 n=64 k=64 off=0,0,0 row 5: 64 rows, worst error 0.864 of tolerance
+gemm_nax_t64x64w2 m=16 n=64 k=64 off=0,0,0 row 8: 64 rows, worst error 0.893 of tolerance
+gemm_nax_t64x64w2 m=16 n=64 k=64 off=0,0,0 row 14: 64 rows, worst error 0.921 of tolerance
+gemm_nax_t64x64w2 m=16 n=64 k=64 off=0,0,0 row 15: 64 rows, worst error 0.704 of tolerance
+gemm_nax_t64x64w4 m=17 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.916 of tolerance
+gemm_nax_t64x64w4 m=17 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t64x64w4 m=17 n=4096 k=4096 off=0,0,0 row 5: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t64x64w4 m=17 n=4096 k=4096 off=0,0,0 row 8: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t64x64w4 m=17 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w4 m=17 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.957 of tolerance
+gemm_nax_t128x64w4 m=17 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.916 of tolerance
+gemm_nax_t128x64w4 m=17 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t128x64w4 m=17 n=4096 k=4096 off=0,0,0 row 5: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t128x64w4 m=17 n=4096 k=4096 off=0,0,0 row 8: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t128x64w4 m=17 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.938 of tolerance
+gemm_nax_t128x64w4 m=17 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.957 of tolerance
+gemm_nax_t32x32w1 m=17 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.916 of tolerance
+gemm_nax_t32x32w1 m=17 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t32x32w1 m=17 n=4096 k=4096 off=0,0,0 row 5: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t32x32w1 m=17 n=4096 k=4096 off=0,0,0 row 8: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t32x32w1 m=17 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.938 of tolerance
+gemm_nax_t32x32w1 m=17 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.957 of tolerance
+gemm_nax_t32x128w2 m=17 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.916 of tolerance
+gemm_nax_t32x128w2 m=17 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t32x128w2 m=17 n=4096 k=4096 off=0,0,0 row 5: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t32x128w2 m=17 n=4096 k=4096 off=0,0,0 row 8: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t32x128w2 m=17 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.938 of tolerance
+gemm_nax_t32x128w2 m=17 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.957 of tolerance
+gemm_nax_t64x64w2 m=17 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.916 of tolerance
+gemm_nax_t64x64w2 m=17 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t64x64w2 m=17 n=4096 k=4096 off=0,0,0 row 5: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t64x64w2 m=17 n=4096 k=4096 off=0,0,0 row 8: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t64x64w2 m=17 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w2 m=17 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.957 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 0: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 1: 1024 rows, worst error 0.882 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 15: 1024 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 16: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 68: 1024 rows, worst error 0.902 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 102: 1024 rows, worst error 0.941 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 188: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 203: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w4 m=205 n=1024 k=4096 off=0,8,0 row 204: 1024 rows, worst error 0.919 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 0: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 1: 1024 rows, worst error 0.882 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 15: 1024 rows, worst error 0.925 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 16: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 68: 1024 rows, worst error 0.902 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 102: 1024 rows, worst error 0.941 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 188: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 203: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t128x64w4 m=205 n=1024 k=4096 off=0,8,0 row 204: 1024 rows, worst error 0.919 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 0: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 1: 1024 rows, worst error 0.882 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 15: 1024 rows, worst error 0.925 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 16: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 68: 1024 rows, worst error 0.902 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 102: 1024 rows, worst error 0.941 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 188: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 203: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t32x32w1 m=205 n=1024 k=4096 off=0,8,0 row 204: 1024 rows, worst error 0.919 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 0: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 1: 1024 rows, worst error 0.882 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 15: 1024 rows, worst error 0.925 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 16: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 68: 1024 rows, worst error 0.902 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 102: 1024 rows, worst error 0.941 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 188: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 203: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t32x128w2 m=205 n=1024 k=4096 off=0,8,0 row 204: 1024 rows, worst error 0.919 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 0: 1024 rows, worst error 0.916 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 1: 1024 rows, worst error 0.882 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 15: 1024 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 16: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 68: 1024 rows, worst error 0.902 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 102: 1024 rows, worst error 0.941 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 188: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 203: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w2 m=205 n=1024 k=4096 off=0,8,0 row 204: 1024 rows, worst error 0.919 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.955 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.924 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 74: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 111: 4096 rows, worst error 0.940 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 205: 4096 rows, worst error 0.941 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 220: 4096 rows, worst error 0.934 of tolerance
+gemm_nax_t64x64w4 m=222 n=4096 k=4096 off=0,0,0 row 221: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.955 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.924 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 74: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 111: 4096 rows, worst error 0.940 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 205: 4096 rows, worst error 0.941 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 220: 4096 rows, worst error 0.934 of tolerance
+gemm_nax_t128x64w4 m=222 n=4096 k=4096 off=0,0,0 row 221: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.955 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.924 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 74: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 111: 4096 rows, worst error 0.940 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 205: 4096 rows, worst error 0.941 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 220: 4096 rows, worst error 0.934 of tolerance
+gemm_nax_t32x32w1 m=222 n=4096 k=4096 off=0,0,0 row 221: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.955 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.924 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 74: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 111: 4096 rows, worst error 0.940 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 205: 4096 rows, worst error 0.941 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 220: 4096 rows, worst error 0.934 of tolerance
+gemm_nax_t32x128w2 m=222 n=4096 k=4096 off=0,0,0 row 221: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 0: 4096 rows, worst error 0.943 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 1: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 15: 4096 rows, worst error 0.955 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 16: 4096 rows, worst error 0.924 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 74: 4096 rows, worst error 0.946 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 111: 4096 rows, worst error 0.940 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 205: 4096 rows, worst error 0.941 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 220: 4096 rows, worst error 0.934 of tolerance
+gemm_nax_t64x64w2 m=222 n=4096 k=4096 off=0,0,0 row 221: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 1: 4096 rows, worst error 0.913 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 15: 4096 rows, worst error 0.911 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 16: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 85: 4096 rows, worst error 0.929 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 128: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 239: 4096 rows, worst error 0.933 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 254: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t64x64w4 m=256 n=4096 k=12288 off=0,0,0 row 255: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 1: 4096 rows, worst error 0.913 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 15: 4096 rows, worst error 0.911 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 16: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 85: 4096 rows, worst error 0.929 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 128: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 239: 4096 rows, worst error 0.933 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 254: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t128x64w4 m=256 n=4096 k=12288 off=0,0,0 row 255: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 1: 4096 rows, worst error 0.913 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 15: 4096 rows, worst error 0.911 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 16: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 85: 4096 rows, worst error 0.929 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 128: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 239: 4096 rows, worst error 0.933 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 254: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t32x32w1 m=256 n=4096 k=12288 off=0,0,0 row 255: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 1: 4096 rows, worst error 0.913 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 15: 4096 rows, worst error 0.911 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 16: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 85: 4096 rows, worst error 0.929 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 128: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 239: 4096 rows, worst error 0.933 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 254: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t32x128w2 m=256 n=4096 k=12288 off=0,0,0 row 255: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 0: 4096 rows, worst error 0.931 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 1: 4096 rows, worst error 0.913 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 15: 4096 rows, worst error 0.911 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 16: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 85: 4096 rows, worst error 0.929 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 128: 4096 rows, worst error 0.937 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 239: 4096 rows, worst error 0.933 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 254: 4096 rows, worst error 0.936 of tolerance
+gemm_nax_t64x64w2 m=256 n=4096 k=12288 off=0,0,0 row 255: 4096 rows, worst error 0.919 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 0: 1024 rows, worst error 0.918 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 1: 1024 rows, worst error 0.949 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 15: 1024 rows, worst error 0.942 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 16: 1024 rows, worst error 0.934 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 324: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 486: 1024 rows, worst error 0.899 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 956: 1024 rows, worst error 0.884 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 971: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w4 m=973 n=1024 k=4096 off=0,6,2 row 972: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 0: 1024 rows, worst error 0.918 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 1: 1024 rows, worst error 0.949 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 15: 1024 rows, worst error 0.942 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 16: 1024 rows, worst error 0.934 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 324: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 486: 1024 rows, worst error 0.899 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 956: 1024 rows, worst error 0.884 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 971: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t128x64w4 m=973 n=1024 k=4096 off=0,6,2 row 972: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 0: 1024 rows, worst error 0.918 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 1: 1024 rows, worst error 0.949 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 15: 1024 rows, worst error 0.942 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 16: 1024 rows, worst error 0.934 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 324: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 486: 1024 rows, worst error 0.899 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 956: 1024 rows, worst error 0.884 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 971: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t32x32w1 m=973 n=1024 k=4096 off=0,6,2 row 972: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 0: 1024 rows, worst error 0.918 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 1: 1024 rows, worst error 0.949 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 15: 1024 rows, worst error 0.942 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 16: 1024 rows, worst error 0.934 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 324: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 486: 1024 rows, worst error 0.899 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 956: 1024 rows, worst error 0.884 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 971: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t32x128w2 m=973 n=1024 k=4096 off=0,6,2 row 972: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 0: 1024 rows, worst error 0.918 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 1: 1024 rows, worst error 0.949 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 15: 1024 rows, worst error 0.942 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 16: 1024 rows, worst error 0.934 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 324: 1024 rows, worst error 0.907 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 486: 1024 rows, worst error 0.899 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 956: 1024 rows, worst error 0.884 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 971: 1024 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w2 m=973 n=1024 k=4096 off=0,6,2 row 972: 1024 rows, worst error 0.922 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 0: 12288 rows, worst error 0.950 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1: 12288 rows, worst error 0.954 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 15: 12288 rows, worst error 0.948 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 16: 12288 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 341: 12288 rows, worst error 0.958 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 512: 12288 rows, worst error 0.944 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1007: 12288 rows, worst error 0.945 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1022: 12288 rows, worst error 0.957 of tolerance
+gemm_nax_t64x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1023: 12288 rows, worst error 0.932 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 0: 12288 rows, worst error 0.950 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1: 12288 rows, worst error 0.954 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 15: 12288 rows, worst error 0.948 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 16: 12288 rows, worst error 0.938 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 341: 12288 rows, worst error 0.958 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 512: 12288 rows, worst error 0.944 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1007: 12288 rows, worst error 0.945 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1022: 12288 rows, worst error 0.957 of tolerance
+gemm_nax_t128x64w4 m=1024 n=12288 k=4096 off=0,8,0 row 1023: 12288 rows, worst error 0.932 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 0: 12288 rows, worst error 0.950 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 1: 12288 rows, worst error 0.954 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 15: 12288 rows, worst error 0.948 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 16: 12288 rows, worst error 0.938 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 341: 12288 rows, worst error 0.958 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 512: 12288 rows, worst error 0.944 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 1007: 12288 rows, worst error 0.945 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 1022: 12288 rows, worst error 0.957 of tolerance
+gemm_nax_t32x32w1 m=1024 n=12288 k=4096 off=0,8,0 row 1023: 12288 rows, worst error 0.932 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 0: 12288 rows, worst error 0.950 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 1: 12288 rows, worst error 0.954 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 15: 12288 rows, worst error 0.948 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 16: 12288 rows, worst error 0.938 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 341: 12288 rows, worst error 0.958 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 512: 12288 rows, worst error 0.944 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 1007: 12288 rows, worst error 0.945 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 1022: 12288 rows, worst error 0.957 of tolerance
+gemm_nax_t32x128w2 m=1024 n=12288 k=4096 off=0,8,0 row 1023: 12288 rows, worst error 0.932 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 0: 12288 rows, worst error 0.950 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 1: 12288 rows, worst error 0.954 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 15: 12288 rows, worst error 0.948 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 16: 12288 rows, worst error 0.938 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 341: 12288 rows, worst error 0.958 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 512: 12288 rows, worst error 0.944 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 1007: 12288 rows, worst error 0.945 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 1022: 12288 rows, worst error 0.957 of tolerance
+gemm_nax_t64x64w2 m=1024 n=12288 k=4096 off=0,8,0 row 1023: 12288 rows, worst error 0.932 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 0: 100 rows, worst error 0.920 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 1: 100 rows, worst error 0.879 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 15: 100 rows, worst error 0.825 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 16: 100 rows, worst error 0.794 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 43: 100 rows, worst error 0.791 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 65: 100 rows, worst error 0.904 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 113: 100 rows, worst error 0.884 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 128: 100 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w4 m=130 n=100 k=4096 off=2,2,2 row 129: 100 rows, worst error 0.901 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 0: 100 rows, worst error 0.920 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 1: 100 rows, worst error 0.879 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 15: 100 rows, worst error 0.825 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 16: 100 rows, worst error 0.794 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 43: 100 rows, worst error 0.791 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 65: 100 rows, worst error 0.904 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 113: 100 rows, worst error 0.884 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 128: 100 rows, worst error 0.925 of tolerance
+gemm_nax_t128x64w4 m=130 n=100 k=4096 off=2,2,2 row 129: 100 rows, worst error 0.901 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 0: 100 rows, worst error 0.920 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 1: 100 rows, worst error 0.879 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 15: 100 rows, worst error 0.825 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 16: 100 rows, worst error 0.794 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 43: 100 rows, worst error 0.791 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 65: 100 rows, worst error 0.904 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 113: 100 rows, worst error 0.884 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 128: 100 rows, worst error 0.925 of tolerance
+gemm_nax_t32x32w1 m=130 n=100 k=4096 off=2,2,2 row 129: 100 rows, worst error 0.901 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 0: 100 rows, worst error 0.920 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 1: 100 rows, worst error 0.879 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 15: 100 rows, worst error 0.825 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 16: 100 rows, worst error 0.794 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 43: 100 rows, worst error 0.791 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 65: 100 rows, worst error 0.904 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 113: 100 rows, worst error 0.884 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 128: 100 rows, worst error 0.925 of tolerance
+gemm_nax_t32x128w2 m=130 n=100 k=4096 off=2,2,2 row 129: 100 rows, worst error 0.901 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 0: 100 rows, worst error 0.920 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 1: 100 rows, worst error 0.879 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 15: 100 rows, worst error 0.825 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 16: 100 rows, worst error 0.794 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 43: 100 rows, worst error 0.791 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 65: 100 rows, worst error 0.904 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 113: 100 rows, worst error 0.884 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 128: 100 rows, worst error 0.925 of tolerance
+gemm_nax_t64x64w2 m=130 n=100 k=4096 off=2,2,2 row 129: 100 rows, worst error 0.901 of tolerance
+gemm_nax_t64x64w4 m=33 n=65 k=128 off=0,2,0 row 0: 65 rows, worst error 0.922 of tolerance
+gemm_nax_t64x64w4 m=33 n=65 k=128 off=0,2,0 row 1: 65 rows, worst error 0.901 of tolerance
+gemm_nax_t64x64w4 m=33 n=65 k=128 off=0,2,0 row 11: 65 rows, worst error 0.832 of tolerance
+gemm_nax_t64x64w4 m=33 n=65 k=128 off=0,2,0 row 15: 65 rows, worst error 0.948 of tolerance
+gemm_nax_t64x64w4 m=33 n=65 k=128 off=0,2,0 row 16: 65 rows, worst error 0.906 of tolerance
+gemm_nax_t64x64w4 m=33 n=65 k=128 off=0,2,0 row 31: 65 rows, worst error 0.809 of tolerance
+gemm_nax_t64x64w4 m=33 n=65 k=128 off=0,2,0 row 32: 65 rows, worst error 0.846 of tolerance
+gemm_nax_t128x64w4 m=33 n=65 k=128 off=0,2,0 row 0: 65 rows, worst error 0.922 of tolerance
+gemm_nax_t128x64w4 m=33 n=65 k=128 off=0,2,0 row 1: 65 rows, worst error 0.901 of tolerance
+gemm_nax_t128x64w4 m=33 n=65 k=128 off=0,2,0 row 11: 65 rows, worst error 0.832 of tolerance
+gemm_nax_t128x64w4 m=33 n=65 k=128 off=0,2,0 row 15: 65 rows, worst error 0.948 of tolerance
+gemm_nax_t128x64w4 m=33 n=65 k=128 off=0,2,0 row 16: 65 rows, worst error 0.906 of tolerance
+gemm_nax_t128x64w4 m=33 n=65 k=128 off=0,2,0 row 31: 65 rows, worst error 0.809 of tolerance
+gemm_nax_t128x64w4 m=33 n=65 k=128 off=0,2,0 row 32: 65 rows, worst error 0.846 of tolerance
+gemm_nax_t32x32w1 m=33 n=65 k=128 off=0,2,0 row 0: 65 rows, worst error 0.922 of tolerance
+gemm_nax_t32x32w1 m=33 n=65 k=128 off=0,2,0 row 1: 65 rows, worst error 0.901 of tolerance
+gemm_nax_t32x32w1 m=33 n=65 k=128 off=0,2,0 row 11: 65 rows, worst error 0.832 of tolerance
+gemm_nax_t32x32w1 m=33 n=65 k=128 off=0,2,0 row 15: 65 rows, worst error 0.948 of tolerance
+gemm_nax_t32x32w1 m=33 n=65 k=128 off=0,2,0 row 16: 65 rows, worst error 0.906 of tolerance
+gemm_nax_t32x32w1 m=33 n=65 k=128 off=0,2,0 row 31: 65 rows, worst error 0.809 of tolerance
+gemm_nax_t32x32w1 m=33 n=65 k=128 off=0,2,0 row 32: 65 rows, worst error 0.846 of tolerance
+gemm_nax_t32x128w2 m=33 n=65 k=128 off=0,2,0 row 0: 65 rows, worst error 0.922 of tolerance
+gemm_nax_t32x128w2 m=33 n=65 k=128 off=0,2,0 row 1: 65 rows, worst error 0.901 of tolerance
+gemm_nax_t32x128w2 m=33 n=65 k=128 off=0,2,0 row 11: 65 rows, worst error 0.832 of tolerance
+gemm_nax_t32x128w2 m=33 n=65 k=128 off=0,2,0 row 15: 65 rows, worst error 0.948 of tolerance
+gemm_nax_t32x128w2 m=33 n=65 k=128 off=0,2,0 row 16: 65 rows, worst error 0.906 of tolerance
+gemm_nax_t32x128w2 m=33 n=65 k=128 off=0,2,0 row 31: 65 rows, worst error 0.809 of tolerance
+gemm_nax_t32x128w2 m=33 n=65 k=128 off=0,2,0 row 32: 65 rows, worst error 0.846 of tolerance
+gemm_nax_t64x64w2 m=33 n=65 k=128 off=0,2,0 row 0: 65 rows, worst error 0.922 of tolerance
+gemm_nax_t64x64w2 m=33 n=65 k=128 off=0,2,0 row 1: 65 rows, worst error 0.901 of tolerance
+gemm_nax_t64x64w2 m=33 n=65 k=128 off=0,2,0 row 11: 65 rows, worst error 0.832 of tolerance
+gemm_nax_t64x64w2 m=33 n=65 k=128 off=0,2,0 row 15: 65 rows, worst error 0.948 of tolerance
+gemm_nax_t64x64w2 m=33 n=65 k=128 off=0,2,0 row 16: 65 rows, worst error 0.906 of tolerance
+gemm_nax_t64x64w2 m=33 n=65 k=128 off=0,2,0 row 31: 65 rows, worst error 0.809 of tolerance
+gemm_nax_t64x64w2 m=33 n=65 k=128 off=0,2,0 row 32: 65 rows, worst error 0.846 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 0: 130 rows, worst error 0.866 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 1: 130 rows, worst error 0.833 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 15: 130 rows, worst error 0.893 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 16: 130 rows, worst error 0.907 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 66: 130 rows, worst error 0.851 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 100: 130 rows, worst error 0.880 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 183: 130 rows, worst error 0.951 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 198: 130 rows, worst error 0.852 of tolerance
+gemm_nax_t64x64w4 m=200 n=130 k=1024 off=2,0,2 row 199: 130 rows, worst error 0.802 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 0: 130 rows, worst error 0.866 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 1: 130 rows, worst error 0.833 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 15: 130 rows, worst error 0.893 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 16: 130 rows, worst error 0.907 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 66: 130 rows, worst error 0.851 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 100: 130 rows, worst error 0.880 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 183: 130 rows, worst error 0.951 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 198: 130 rows, worst error 0.852 of tolerance
+gemm_nax_t128x64w4 m=200 n=130 k=1024 off=2,0,2 row 199: 130 rows, worst error 0.802 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 0: 130 rows, worst error 0.866 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 1: 130 rows, worst error 0.833 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 15: 130 rows, worst error 0.893 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 16: 130 rows, worst error 0.907 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 66: 130 rows, worst error 0.851 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 100: 130 rows, worst error 0.880 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 183: 130 rows, worst error 0.951 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 198: 130 rows, worst error 0.852 of tolerance
+gemm_nax_t32x32w1 m=200 n=130 k=1024 off=2,0,2 row 199: 130 rows, worst error 0.802 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 0: 130 rows, worst error 0.866 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 1: 130 rows, worst error 0.833 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 15: 130 rows, worst error 0.893 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 16: 130 rows, worst error 0.907 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 66: 130 rows, worst error 0.851 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 100: 130 rows, worst error 0.880 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 183: 130 rows, worst error 0.951 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 198: 130 rows, worst error 0.852 of tolerance
+gemm_nax_t32x128w2 m=200 n=130 k=1024 off=2,0,2 row 199: 130 rows, worst error 0.802 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 0: 130 rows, worst error 0.866 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 1: 130 rows, worst error 0.833 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 15: 130 rows, worst error 0.893 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 16: 130 rows, worst error 0.907 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 66: 130 rows, worst error 0.851 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 100: 130 rows, worst error 0.880 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 183: 130 rows, worst error 0.951 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 198: 130 rows, worst error 0.852 of tolerance
+gemm_nax_t64x64w2 m=200 n=130 k=1024 off=2,0,2 row 199: 130 rows, worst error 0.802 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 0: 33 rows, worst error 0.905 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 1: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 15: 33 rows, worst error 0.695 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 16: 33 rows, worst error 0.731 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 21: 33 rows, worst error 0.896 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 32: 33 rows, worst error 0.862 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 47: 33 rows, worst error 0.920 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 62: 33 rows, worst error 0.767 of tolerance
+gemm_nax_t64x64w4 m=64 n=33 k=64 off=0,0,0 row 63: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 0: 33 rows, worst error 0.905 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 1: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 15: 33 rows, worst error 0.695 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 16: 33 rows, worst error 0.731 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 21: 33 rows, worst error 0.896 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 32: 33 rows, worst error 0.862 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 47: 33 rows, worst error 0.920 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 62: 33 rows, worst error 0.767 of tolerance
+gemm_nax_t128x64w4 m=64 n=33 k=64 off=0,0,0 row 63: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 0: 33 rows, worst error 0.905 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 1: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 15: 33 rows, worst error 0.695 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 16: 33 rows, worst error 0.731 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 21: 33 rows, worst error 0.896 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 32: 33 rows, worst error 0.862 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 47: 33 rows, worst error 0.920 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 62: 33 rows, worst error 0.767 of tolerance
+gemm_nax_t32x32w1 m=64 n=33 k=64 off=0,0,0 row 63: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 0: 33 rows, worst error 0.905 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 1: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 15: 33 rows, worst error 0.695 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 16: 33 rows, worst error 0.731 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 21: 33 rows, worst error 0.896 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 32: 33 rows, worst error 0.862 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 47: 33 rows, worst error 0.920 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 62: 33 rows, worst error 0.767 of tolerance
+gemm_nax_t32x128w2 m=64 n=33 k=64 off=0,0,0 row 63: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 0: 33 rows, worst error 0.905 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 1: 33 rows, worst error 0.785 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 15: 33 rows, worst error 0.695 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 16: 33 rows, worst error 0.731 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 21: 33 rows, worst error 0.896 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 32: 33 rows, worst error 0.862 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 47: 33 rows, worst error 0.920 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 62: 33 rows, worst error 0.767 of tolerance
+gemm_nax_t64x64w2 m=64 n=33 k=64 off=0,0,0 row 63: 33 rows, worst error 0.785 of tolerance
+ok
+test nax_pair_is_bitwise_two_singles ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_tile_pick_is_by_shape ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+
+     Running tests/gemv.rs (target/release/deps/gemv-1bf4d6f8a23a54f6)
+
+running 6 tests
+test backend_info_and_alloc_roundtrip ... DeviceInfo { name: "Apple M5 Max", backend: "metal", arch: "applegpu_g17s", total_mem: 115448725504, free_mem: 115442761728, unified: true, bandwidth_gbs: Some(536.1169779971177) }
+ok
+test every_variant_matches_reference ... gemv_bf16_r1u1s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u2s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u4s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u4s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u4s16: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u8s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r2u1s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r2u2s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r2u4s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r4u1s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r4u2s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r8u1s2: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r8u2s2: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_rt_u2s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_rt_u4s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_rt_u2s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_rt_u1s16: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_a8u4s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_a8u8s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_a8u8s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_rt_a8u4s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_rt_a8u8s4: 1031 rows, worst error 0.885 of tolerance
+ok
+test k_not_multiple_of_8_and_odd_n ... K=1 N=1 offs=(0,0,0): 1 rows, worst error 0.188 of tolerance
+K=7 N=3 offs=(0,0,0): 3 rows, worst error 0.283 of tolerance
+K=13 N=17 offs=(0,0,0): 17 rows, worst error 0.846 of tolerance
+K=4100 N=33 offs=(0,0,0): 33 rows, worst error 0.904 of tolerance
+K=4097 N=1025 offs=(0,0,0): 1025 rows, worst error 0.928 of tolerance
+K=1000 N=5 offs=(0,0,0): 5 rows, worst error 0.523 of tolerance
+K=8 N=1 offs=(0,0,0): 1 rows, worst error 0.453 of tolerance
+K=16 N=5 offs=(0,0,0): 5 rows, worst error 0.618 of tolerance
+K=264 N=7 offs=(0,0,0): 7 rows, worst error 0.478 of tolerance
+K=4104 N=129 offs=(0,0,0): 129 rows, worst error 0.821 of tolerance
+K=8200 N=2049 offs=(0,0,0): 2049 rows, worst error 0.939 of tolerance
+ok
+test qwen3_8b_shapes ... K=4096 N=4096 offs=(0,0,0): 4096 rows, worst error 0.928 of tolerance
+K=4096 N=12288 offs=(0,0,0): 12288 rows, worst error 0.946 of tolerance
+K=12288 N=4096 offs=(0,0,0): 4096 rows, worst error 0.935 of tolerance
+K=4096 N=151936 offs=(0,0,0): 151936 rows, worst error 0.962 of tolerance
+ok
+test shader_choice_follows_alignment_and_k ... ok
+test unaligned_operand_offsets ... K=4096 N=130 offs=(2,0,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(2,0,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(2,0,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(0,2,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(0,2,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(0,2,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(0,0,2): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(0,0,2): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(0,0,2): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(4,6,2): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(4,6,2): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(4,6,2): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(16,32,16): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(16,32,16): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(16,32,16): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(18,16,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(18,16,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(18,16,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(6,10,14): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(6,10,14): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(6,10,14): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(8,0,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(8,0,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(8,0,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(8,8,8): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(8,8,8): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(8,8,8): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(24,16,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(24,16,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(24,16,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(8,8,6): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(8,8,6): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(8,8,6): 9 rows, worst error 0.617 of tolerance
+ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
+
+     Running tests/kv_fp8.rs (target/release/deps/kv_fp8-b028efe60bd55141)
+
+running 8 tests
+test decode_f8_matches_f64_reference_and_the_bf16_kernel_on_the_decoded_cache ... decode f8 32/8/128 cap 4096: worst error 0.634 of tolerance; 0/45056 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+decode f8 8/8/64 cap 2304: worst error 0.635 of tolerance; 0/5632 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+decode f8 16/2/256 cap 1536: worst error 0.630 of tolerance; 0/45056 outputs differ from the bf16 kernel on the decoded cache (summation order of the 4-unit step)
+ok
+test decode_matches_the_oracle_for_all_256_codes ... ok
+test encode_matches_the_oracle_for_every_bf16_value ... fp8 encode: 266305 values (all 65536 bf16 patterns + boundaries + random f32) identical to the oracle
+ok
+test f8_kernels_are_registered_only_for_fp8_caches_and_leave_the_bf16_ones_alone ... ok
+test kv_append_f8_is_the_oracle_encode_of_the_bf16_rows ... ok
+test prefill_f8_is_bitwise_the_bf16_flash_kernels_on_the_decoded_cache ... ok
+test qk_norm_rope_kv_f8_is_the_encoded_bf16_cache_and_k_rows_equal_k_single_rows ... ok
+test rows_f8_are_bitwise_the_one_row_f8_launches ... rows f8 32/8/128 cap 4096: 92 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 8/2/64 cap 2304: 92 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 16/2/256 cap 1536: 80 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+rows f8 12/4/32 cap 1024: 64 (k, pos0) windows bitwise equal to the 1-row fp8 launches
+ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s
+
+     Running tests/lowlat.rs (target/release/deps/lowlat-4d5db086d9b3f54d)
+
+running 5 tests
+test argmax_vector_path_matches_host ... ok
+test low_latency_norms_are_bitwise_the_256_thread_kernels ... ok
+test qk_norm_vector_path_matches_reference ... ok
+test rmsnorm_add_vector_and_scalar_paths_match_reference ... ok
+test rmsnorm_vector_and_scalar_paths_match_reference ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/metal4_fallback.rs (target/release/deps/metal4_fallback-806f0824b033a168)
+
+running 1 test
+test prefill_runs_without_the_metal4_library ... matmul_bf16_nax row 0: 256 rows, worst error 0.927 of tolerance
+matmul_bf16_nax row 100: 256 rows, worst error 0.819 of tolerance
+matmul_bf16_nax row 204: 256 rows, worst error 0.897 of tolerance
+matmul_bf16 row 0: 256 rows, worst error 0.927 of tolerance
+matmul_bf16 row 100: 256 rows, worst error 0.819 of tolerance
+matmul_bf16 row 204: 256 rows, worst error 0.897 of tolerance
+matmul_bf16 row 0: 256 rows, worst error 0.927 of tolerance
+matmul_bf16 row 100: 256 rows, worst error 0.819 of tolerance
+matmul_bf16 row 204: 256 rows, worst error 0.897 of tolerance
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+
+     Running tests/multirow.rs (target/release/deps/multirow-856d8fe765ca58f4)
+
+running 12 tests
+test all_variants_logits ... ok
+test all_variants_matmul ... ok
+test all_variants_pair ... ok
+test every_instance_exists ... ok
+test logits_qwen3_8b_shapes_all_rows ... ok
+test matmul_a8_alignment_and_scalar_fallback ... ok
+test matmul_k_tails_and_odd_n ... ok
+test matmul_qwen3_8b_shapes_all_rows ... ok
+test pair_mixed_family_halves_all_rows ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+test real_qwen3_8b_weights_bitwise ... ok
+test serving_selection_unchanged ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.53s
+
+     Running tests/qkv_fold.rs (target/release/deps/qkv_fold-b222873799747e1e)
+
+running 6 tests
+test a_device_position_past_the_cache_is_dropped_not_written ... ok
+test decode_qwen3_8b_is_bitwise_the_unfused_sequence ... ok
+test head_dims_and_partial_rotary ... ok
+test operands_at_two_byte_offsets ... ok
+test prefill_form_head_counts_off_the_threadgroup_group ... ok
+test prefill_rows_are_bitwise ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.18s
+
+     Running tests/wrap_host.rs (target/release/deps/wrap_host-63239f81b7af9e98)
+
+running 3 tests
+test gemv_on_wrapped_weights ... GEMV on mtp.layers.0.self_attn.q_proj.weight [8192,2048] at file offset 1658667520 (mod 16 = 0, mod page = 512)
+wrapped mtp.layers.0.self_attn.q_proj.weight rows 0..: 8192 rows, worst error 0.968 of tolerance
+wrapped mtp.layers.0.self_attn.q_proj.weight rows 4096..: 4096 rows, worst error 0.927 of tolerance
+ok
+test wrap_page_rounding_with_synthetic_file ... ok
+test wrap_real_safetensors_unaligned_and_last_tensor ... model-00001-of-00003.safetensors: 10006877608 bytes (5544 mod page), 51662 tensors, 45258 start off a 16 B boundary, 51656 off a page boundary
+model-00002-of-00003.safetensors: 10003595752 bytes (488 mod page), 63484 tensors, 55563 start off a 16 B boundary, 63476 off a page boundary
+model-00003-of-00003.safetensors: 3413864960 bytes (12800 mod page), 9322 tensors, 3483 start off a 16 B boundary, 9318 off a page boundary
+verified 150 tensors across 3 shards
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.83s
+
+   Doc-tests intarsia_backend_metal
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

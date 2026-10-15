@@ -343,6 +343,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.extend([QK_NORM_ROPE_KV_BF16, QK_NORM_ROPE_KV_BF16_PF]);
     v.extend([KV_APPEND_F8, QK_NORM_ROPE_KV_F8, QK_NORM_ROPE_KV_F8_PF, KV_DEQUANT_F8]);
+    v.extend(["qk_norm_rope_kv_fq", "qk_norm_rope_kv_fq_pf"]);
     v.extend(ATTN_DECODE_F8_SPLITKV_SHADERS);
     v.extend(ATTN_ROWS_F8_SHADERS);
     v.extend(FP8_TEST_SHADERS);

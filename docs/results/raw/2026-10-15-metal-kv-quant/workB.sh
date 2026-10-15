@@ -17,6 +17,18 @@ run() { # <label> <ctx> <kv> [env...]
   printf "%.3f\t%.3f\t%s\n" $s $EPOCHREALTIME "$lab" >> $O/runs.tsv
   echo "$lab [$(date +%H:%M:%S)]: $(grep -o 'prefill [0-9]* ms ([0-9.]* tok/s) | decode [0-9]* ms ([0-9.]* tok/s)' $O/$lab.err | tail -1) T=$(gpu_temp $O/macmon.jsonl)C"
 }
+echo "== PROBE: fake-quant int8 (bf16 cache holding dequant(quant(x)) per block) accuracy vs fp32 goldens"
+PROBE=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-probe
+mkdir -p $R/probe
+for cfg in "32,3" "16,3" "32,2" "32,1" "0,0"; do
+  tag=${cfg//,/_}
+  if [ $cfg = "0,0" ]; then E=NOENV=1; else E=INTARSIA_METAL_KV_FAKEQ=$cfg; fi
+  env $E $PROBE accuracy --model $M --backend metal --kv-dtype bf16 --golden $G/qwen3-8b-long-fp32.safetensors --gate-class bf16 --mode all --max-seq 8192 > $R/probe/long-$tag.out 2> $R/probe/long-$tag.err; echo "probe $cfg long exit $?"
+  grep -E "floor \[bf16\]" $R/probe/long-$tag.out | cut -c1-200
+  env $E $PROBE accuracy --model $M --backend metal --kv-dtype bf16 --golden $G/qwen3-8b-fp32.safetensors --gate-class bf16 --max-seq 4096 > $R/probe/short-$tag.out 2> $R/probe/short-$tag.err; echo "probe $cfg short exit $?"
+  grep -E "floor \[bf16\]" $R/probe/short-$tag.out | cut -c1-200
+done
+
 echo "== KV memory sizing: context that fits --mem-budget 40 (GiB) with --max-seq 4000000"
 mkdir -p $R/sizing
 for kv in bf16 fp8; do
