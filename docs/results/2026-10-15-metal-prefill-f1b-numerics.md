@@ -2,19 +2,20 @@
 
 ## Outcome
 
-**Merge-ready: YES.** Branch `metal-f1b-nax-attn` = F1 (`metal-f1-nax-attn` 08426ff) + `git merge spike/metal` (6271eec, no conflicts) + one kernel change: the softmax normaliser `l` is now summed over the **bf16-rounded P that the P.V product applies** (F1, and the P2 kernel, sum the unrounded float P). No type change, no extra matmul, no new register state.
+**Merge-ready: YES.** Branch `metal-f1b-nax-attn` = F1 (`metal-f1-nax-attn` 08426ff) + `git merge spike/metal` (6271eec, no conflicts; the merge commit is 94afdd3, re-created with the Co-Authored-By trailer, its tree identical to the 5c30da0 that the F1 comparison binary and the raw scripts name) + one kernel change: the softmax normaliser `l` is now summed over the **bf16-rounded P that the P.V product applies** (F1, and the P2 kernel, sum the unrounded float P). No type change, no extra matmul, no new register state.
 
-| | spike/metal 6271eec (P2) | F1 + merge (5c30da0) | **F1b (this branch)** | guardrail |
+| | spike/metal 6271eec (P2) | F1 + merge (94afdd3) | **F1b (this branch)** | guardrail |
 |---|---:|---:|---:|---:|
 | long golden, prefill top-1 | 99.65% (1429/1434) | 99.58% (1428/1434) | **99.72% (1430/1434)** | >= 99.6% |
 | long golden, prefill KL | 4.342e-4 | 3.993e-4 | **3.699e-4** | <= 4.34e-4 (and <= 5e-4) |
 | short golden, prefill top-1 / KL | 99.77% (433/434) / 2.686e-4 | 99.54% (432/434) / 2.602e-4 | **100.00% (434/434) / 2.832e-4** | KL <= 5e-4 |
+| decode (teacher forced) top-1, short / long | 100% (128/128) / 100% (160/160) | 100% / 100% | 100% (128/128) / 100% (160/160) | >= 99.5% |
 | decode (teacher forced) KL, short / long | 3.739e-4 / 3.731e-4 | 3.089e-4 / 3.041e-4 | 3.496e-4 / 3.517e-4 | <= 5e-4 |
 | attention kernel TFLOPS in the engine, 4k, chunk 256 (GPU trace) | 12.1 | 37.6 | **38.4** | >= 30 |
 | 4k, chunk 2048 | 13.9 | 45.4 | **50.5** | |
 | 16k, chunk 256 / 2048 | 12.3 / 13.4 | 40.7 / 39.8 | **41.4 / 43.4** | |
-| plain prefill 4k, chunk 256 / 2048 (median of 8 ABBA runs) | 1603 / 1414 ms | 1353 / 1182 ms | **1331 / 1182 ms** (-17.0% / -16.4% vs 6271eec) | |
-| plain prefill 16k, chunk 256 / 2048 | 11273 / 10354 ms | 7053 / 6467 ms | **6786 / 6150 ms** (-39.8% / -40.6% vs 6271eec) | |
+| plain prefill 4k, chunk 256 / 2048 (median of 8 ABBA runs; the F1 cells come from a separate 4-run ABBA against F1b, section 3) | 1603 / 1414 ms | 1353 / 1182 ms | **1331 / 1182 ms** (-17.0% / -16.4% vs 6271eec) | |
+| plain prefill 16k, chunk 256 / 2048 (same note) | 11273 / 10354 ms | 7053 / 6467 ms | **6786 / 6150 ms** (-39.8% / -40.6% vs 6271eec) | |
 
 Read the accuracy row with this caveat: **the top-1 count is noise at this sample size, and the P rounding is not what drives it.** The experiments below replace bf16 P by half, by float (relaxed matmul), and by a bf16 hi + lo split, all of which carry far less P rounding error, and the long top-1 lands at 1426, 1428 and 1428 of 1434. Equivalent-maths variants spread over 1426-1430 (P2's two threadgroup shapes, F1, and every variant of the sweep). The hypothesis in the F1 and P2 docs (the bf16 rounding of P is the likely source of the one-position gap) is **not supported**: removing the rounding does not move top-1 up. What I ship is the variant that (a) removes a real, if small, inconsistency (numerator weights rounded, denominator not), (b) costs nothing (it is slightly faster, section 3), and (c) lands at 1430. Choosing among variants by their measured count is a selection on noise, and I say so; the principled part is (a). The guardrail margin is two positions, which a different but equally correct rounding order could take back.
 
@@ -22,18 +23,18 @@ Read the accuracy row with this caveat: **the top-1 count is noise at this sampl
 
 `INTARSIA_METAL_FLASH_NAX=<variant>` selects an instantiation; the sweep kernel, launcher and test are kept in `docs/results/raw/2026-10-15-metal-prefill-f1b/experiments/` (`attention_flash_nax_pmodes.metal`, `flash_nax_pmodes.rs`, `flash_prefill_nax_pmodes.rs`). One fleetq slot (#1958), script `exp1.sh`, logs `exp1/`, accuracy runs `acc/` (`acc.sh`: `intarsia accuracy --gate-class bf16` on both fp32 goldens, default chunk 256, prefill + decode teacher forced). The accuracy run takes ~10 s per golden.
 
-| mode | P (A operand) | V (B operand) | l summed over | f64 check (worst, of tolerance) | rel. rms error, scale 1.0 | microbench TFLOPS (chunk 256, pos0 3840) | long top-1 | long KL | short top-1 | short KL |
-|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| P2 (spike/metal) | bf16 | bf16 | unrounded P | | | 12.3 | 1429 | 4.342e-4 | 433 | 2.686e-4 |
-| p0 = F1 | bf16 | bf16 | unrounded P | 0.746 | 1.723e-3 | 40.65 | 1428 | 3.993e-4 | 432 | 2.602e-4 |
-| **p8 = F1b** | bf16 | bf16 | **bf16-rounded P** | 0.746 | 1.714e-3 | **41.48** | **1430** | **3.699e-4** | **434** | 2.832e-4 |
-| p1 | half | half (converted from bf16) | unrounded P | 0.654 | 1.658e-3 | 28.92 | 1430 | 4.038e-4 | 434 | 2.996e-4 |
-| p7 | half, P and l scaled by 2^12 | half | scaled P | 0.654 | 1.658e-3 | 29.11 | 1428 | 3.692e-4 | 433 | 2.561e-4 |
-| p4 | bf16 hi + bf16 lo (two P.V products) | bf16 | unrounded P | 0.654 | 1.657e-3 | 29.35 | 1426 | 4.285e-4 | 433 | 2.785e-4 |
-| p5 | float, `relaxed_precision = true` | bf16 | unrounded P | 0.685 | 1.664e-3 | 35.63 | 1428 | 3.920e-4 | 433 | 2.391e-4 |
-| p6 | float, relaxed | float (converted) | unrounded P | 0.685 | 1.664e-3 | 28.14 | 1428 | 3.920e-4 | 433 | 2.391e-4 |
-| p2 (strict float) | float | bf16 | | fails | 1.38 | 18.44 | not run (garbage) | | | |
-| p3 (strict float) | float | float | | fails | 1.35 | 17.83 | not run (garbage) | | | |
+| mode | P (A operand) | V (B operand) | l summed over | f64 check (worst, of tolerance) | rel. rms error, scale 1.0 | microbench TFLOPS (chunk 256, pos0 3840) | long top-1 | long KL | short top-1 | short KL | decode KL short / long (top-1 100% in all: 128/128, 160/160) |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| P2 (spike/metal) | bf16 | bf16 | unrounded P | | | 12.3 | 1429 | 4.342e-4 | 433 | 2.686e-4 | 3.739e-4 / 3.731e-4 |
+| p0 = F1 | bf16 | bf16 | unrounded P | 0.746 | 1.723e-3 | 40.65 | 1428 | 3.993e-4 | 432 | 2.602e-4 | 3.089e-4 / 3.041e-4 |
+| **p8 = F1b** | bf16 | bf16 | **bf16-rounded P** | 0.746 | 1.714e-3 | **41.48** | **1430** | **3.699e-4** | **434** | 2.832e-4 | 3.496e-4 / 3.517e-4 |
+| p1 | half | half (converted from bf16) | unrounded P | 0.654 | 1.658e-3 | 28.92 | 1430 | 4.038e-4 | 434 | 2.996e-4 | 3.741e-4 / 3.900e-4 |
+| p7 | half, P and l scaled by 2^12 | half | scaled P | 0.654 | 1.658e-3 | 29.11 | 1428 | 3.692e-4 | 433 | 2.561e-4 | 3.343e-4 / 3.447e-4 |
+| p4 | bf16 hi + bf16 lo (two P.V products) | bf16 | unrounded P | 0.654 | 1.657e-3 | 29.35 | 1426 | 4.285e-4 | 433 | 2.785e-4 | 3.217e-4 / 2.894e-4 |
+| p5 | float, `relaxed_precision = true` | bf16 | unrounded P | 0.685 | 1.664e-3 | 35.63 | 1428 | 3.920e-4 | 433 | 2.391e-4 | 2.976e-4 / 3.221e-4 |
+| p6 | float, relaxed | float (converted) | unrounded P | 0.685 | 1.664e-3 | 28.14 | 1428 | 3.920e-4 | 433 | 2.391e-4 | 2.976e-4 / 3.221e-4 |
+| p2 (strict float) | float | bf16 | | fails | 1.38 | 18.44 | not run (garbage) | | | | |
+| p3 (strict float) | float | float | | fails | 1.35 | 17.83 | not run (garbage) | | | | |
 
 * Rel. rms error = `sqrt(sum (got - ref)^2 / sum ref^2)` against the f64 reference on the 4k-context chunk (T 256, pos0 3840, 32/8 heads, uniform random q, k, v, `flash_numerics_report`); the bf16 rounding of the output alone puts a floor near 1.657e-3 (p4 sits on it). p0 is 0.47e-3 above the floor in quadrature, p8 0.44e-3, p1 / p5 / p7 / p4 within 0.1e-3 of it. So rounding P to bf16 costs about 0.5e-3 of relative error on a 1.66e-3 floor, and the F1b normaliser takes about 7% of that. On this uniformly random data the whole effect is small; real attention is peakier and has a mean-V component, which is where the common-mode normaliser error would act, but I have no measurement beyond the two goldens.
 * Top-1 counts vs the spread: P2 1429 and 1429 (two threadgroup shapes), F1 1428, p4 1426, p5 / p6 1428, p7 1428, p1 1430, p8 1430. The most precise variants (p4, p5, p6) are not better than the least precise (p0). KL is a smoother metric and moves in the same noise band (3.69e-4 to 4.34e-4 on the long golden).
@@ -42,13 +43,13 @@ Read the accuracy row with this caveat: **the top-1 count is noise at this sampl
 
 ## 2. What shipped
 
-`kernels/metal/attention_flash_nax.metal`: in the P loop, `Pf[f][e] = bfloat(exp2(S - m))` and `ls += float(Pf[f][e])` instead of `ls += pv`; header comment updated. Nothing else in the kernel, launcher, registry, tests (other than the cleanups below) or any other kernel changed. Chunk-split bitwise invariance is untouched (the arithmetic of a row is the same function of that row and the key tiles from key 0) and verified by the existing tests and the engine ids (section 4). The final tree's metallib is bit-identical to the one the gates ran on (`intarsia` binary sha1 93f47cc4339b both for the gated tree and for the commit tip: the last commit only removed a test and edited comments).
+`kernels/metal/attention_flash_nax.metal`: in the P loop, `Pf[f][e] = bfloat(exp2(S - m))` and `ls += float(Pf[f][e])` instead of `ls += pv`; header comment updated. Nothing else in the kernel, launcher, registry, tests (other than the cleanups below) or any other kernel changed. Chunk-split bitwise invariance is untouched (the arithmetic of a row is the same function of that row and the key tiles from key 0) and verified by the existing tests and the engine ids (section 4). The shipped single-mode kernel reproduces the sweep's p8 numbers exactly (gated binary: long 1430/1434, 3.699e-4; short 434/434, 2.832e-4; decode 3.496e-4 / 3.517e-4), so collapsing the template changed nothing. The final tree's metallib is bit-identical to the one the gates ran on (`intarsia` binary sha1 93f47cc4339b both for the gated tree and for the commit tip: the last commit only removed a test and edited comments).
 
 Tests: `tests/flash_prefill_nax.rs` gains `flash_numerics_report` (informational, prints the relative rms error per variant at three sharpnesses, asserts finiteness only). I also wrote a "constant V comes out unchanged" test meant to pin the new normaliser; it passes on the F1 kernel too (an unrounded-l row deviates by well under half a bf16 ulp of the output, so bf16 output rounding hides the difference) and was therefore removed. The F1b kernel is pinned by the unchanged f64-reference tests, which it passes with the same worst error as F1 (0.746 of tolerance).
 
 ## 3. Speed (fleetq #1962 microbench and decode, #1963 traces and plain prefill; `speed/`, `speed.sh`, `speed2.sh`, `trace.sh`, `plain-abba.sh`)
 
-pre = binary of 6271eec, f1 = binary of 5c30da0, new = branch tip. Endor idle 0-2% before each run, no `zoom.us`. All inside exclusive slots.
+pre = binary of 6271eec, f1 = binary of 94afdd3, new = branch tip. Endor idle 0-2% before each run, no `zoom.us`. All inside exclusive slots.
 
 Attention kernel TFLOPS, kernel-mode GPU trace (`speed/trace/`, `trace-summary.txt`, FLOP convention of `analyze_prefill.py`; attention ms in brackets):
 
@@ -70,7 +71,7 @@ Plain prefill, `generate --max-tokens 1 --prefill-chunk C`, ABBA, 4 rounds = 8 r
 | 16k | 256 | 11294, 11273 | 6802, 6786 | -39.8% |
 | 16k | 2048 | 10338, 10354 | 6161, 6150 | -40.6% |
 
-F1 vs F1b, 4 runs per binary (`speed/plain-f1/`): 4k 256 +0.1%, 4k 2048 +1.4% (within the 1-2% scatter), 16k 256 -3.6%, 16k 2048 -2.1% (F1b faster).
+F1 vs F1b measured within one run, 4 runs per binary (`speed/plain-f1/`; use these deltas, not a subtraction against the outcome table's pre and F1b cells, which come from the 8-run burst: F1b itself moved by up to 3% between the two bursts): 4k 256 +0.1%, 4k 2048 +1.4% (within the 1-2% scatter), 16k 256 -3.6%, 16k 2048 -2.1% (F1b faster).
 
 Decode is unchanged: 364 dispatches per step for both binaries; step period (cb trace, 129 tokens) pre short 27.52 / 27.25 ms, new 27.20 / 27.19 (36.3-36.8 tok/s both); 4k pre 28.17 / 28.06, new 28.22 / 28.07 (35.5-35.6 tok/s) (`speed/slot-part1.log` section 4; `gates/slot.log` section 3 agrees: 27.12 vs 27.25 short, 28.70 vs 28.65 4k).
 
@@ -102,6 +103,6 @@ Guardrail: all KL <= 5e-4 (yes), long top-1 >= 99.6% (99.72%), no greedy-id diff
 ## 6. Reproduce / files
 
 * fleetq jobs: #1958 (sweep: tests, numerics, microbench, accuracy of every variant), #1960 (gates), #1962 (speed burst part 1: microbench and decode; its trace and plain-prefill sections did not run, helper scripts were not executable), #1963 (part 2: alternating microbench, GPU traces, plain prefill ABBA, final-tree tests). All exclusive endor slots, released.
-* Binaries for the comparison: `git archive 6271eec` / `5c30da0` built with `cargo build --release -p intarsia-cli --features metal`; branch tip built the same way.
+* Binaries for the comparison: `git archive 6271eec` / `94afdd3` built with `cargo build --release -p intarsia-cli --features metal`; branch tip built the same way.
 * Kernel-level: `cargo test -p intarsia-backend-metal --release --test flash_prefill_nax -- --nocapture`; sweep: `docs/results/raw/2026-10-15-metal-prefill-f1b/exp1.sh` against the experiments sources.
 * Raw logs and scripts: `docs/results/raw/2026-10-15-metal-prefill-f1b/` (`exp1/`, `acc/`, `gates/`, `speed/`, `experiments/`, `*.sh`, `summarize_plain.py`).
