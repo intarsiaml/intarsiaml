@@ -1,6 +1,6 @@
-start Thu Oct 15 09:09:39 EDT 2026
+start Thu Oct 15 09:25:15 EDT 2026
 cargo test multirow exit 0
-bench aligned run1 exit 101
-bench aligned run2 exit 101
-bench a8 exit 101
-end Thu Oct 15 09:10:01 EDT 2026
+bench aligned run1 exit 0
+bench aligned run2 exit 0
+bench a8 exit 0
+end Thu Oct 15 09:27:36 EDT 2026

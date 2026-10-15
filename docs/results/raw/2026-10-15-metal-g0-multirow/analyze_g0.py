@@ -184,6 +184,8 @@ for a8 in (0, 1):
     for R in Rs[1:]:
         m = layer_time(a8, mr_fn, R)
         e = layer_time(a8, existing_fn, R)
+        if m is None:
+            continue
         res[(a8, R)] = (base, m, e)
         print(f"| {R} | {'8-byte' if a8 else '16-byte'} | {base*1e6:.1f} | {m*1e6:.1f} | {m/base:.3f} | " +
               (f"{e*1e6:.1f} | {e/base:.2f} |" if e else "- | - |") if m else f"| {R} | - |")
@@ -213,8 +215,9 @@ print("### Per verify step, GEMVs only: 36 x layer + lm_head (all R rows through
 print("| R | step(1) (ms) | step(R) multi-row (ms) | step(R)/step(1) | step(R) existing (ms) | existing/step(1) | per-token cost multi-row (ms/row) |")
 print("|---|---|---|---|---|---|---|")
 lm1 = tmed("lm", 0, "serving1")
-if lm1 and res.get((0, 2)):
-    base = res[(0, 2)][0]
+_k = [k for k in res if k[0] == 0]
+if lm1 and _k:
+    base = res[_k[0]][0]
     s1 = 36 * base + lm1
     for R in Rs[1:]:
         if (0, R) not in res:
