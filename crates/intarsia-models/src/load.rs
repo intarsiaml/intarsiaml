@@ -146,6 +146,16 @@ pub fn load_engine_tp(
         opts.max_batch,
         if opts.max_batch.is_some() { intarsia_core::engine::SERVE_MAX_BATCH } else { 1 },
     )?;
+    if max_batch.value > 1 {
+        // fail before reading any weights: continuous batching is Metal only (row-exact multi-row kernels)
+        let b = backends.first().map_or("cpu", |b| b.name());
+        if b != "metal" {
+            return Err(Error::Unsupported(format!(
+                "--max-batch {} needs the Metal backend (row-exact multi-row kernels; backend is {b}); use --max-batch 1",
+                max_batch.value
+            )));
+        }
+    }
     let weights = SchemedSource::open(dir)?;
     let telemetry = Arc::new(Telemetry::new());
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
