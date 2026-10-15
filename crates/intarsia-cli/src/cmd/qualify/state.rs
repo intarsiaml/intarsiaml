@@ -1,5 +1,5 @@
 //! The qualify state file (`state.json` in the report directory): one record per stage, written after every stage so
-//! `--resume` skips what is done. The same records feed the reports.
+//! `--resume` skips what is finished. The same records feed the reports.
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -30,9 +30,10 @@ impl Verdict {
             Verdict::Error => "ERROR",
         }
     }
-    /// A finished stage is not run again by `--resume`; an ERROR is (the tool may have been fixed).
+    /// A finished stage (PASS or FAIL: the gate ran) is not run again by `--resume`. SKIP and ERROR are: the input a
+    /// SKIP was missing (a golden, a reference server, `--skip`) may be there now, and the tool an ERROR hit may be fixed.
     pub fn is_done(self) -> bool {
-        self != Verdict::Error
+        matches!(self, Verdict::Pass | Verdict::Fail)
     }
 }
 
@@ -107,6 +108,11 @@ impl State {
         self.stages.iter().find(|s| s.id == id)
     }
 
+    /// The record `--resume` keeps for this stage instead of running it again.
+    pub fn finished(&self, id: &str) -> Option<&StageRecord> {
+        self.get(id).filter(|r| r.verdict.is_done())
+    }
+
     pub fn put(&mut self, rec: StageRecord) {
         match self.stages.iter().position(|s| s.id == rec.id) {
             Some(i) => self.stages[i] = rec,
@@ -123,13 +129,10 @@ pub fn now() -> u64 {
 mod tests {
     use super::*;
 
-    #[test]
-    fn state_round_trips_and_put_replaces() {
-        let dir = std::env::temp_dir().join(format!("qualify-state-{}", std::process::id()));
-        let mut s = State::new(serde_json::json!({"model": "m"}));
-        let rec = |v| StageRecord {
-            id: "doctor".into(),
-            title: "doctor".into(),
+    fn rec(id: &str, v: Verdict) -> StageRecord {
+        StageRecord {
+            id: id.into(),
+            title: id.into(),
             section: "quick".into(),
             verdict: v,
             reason: String::new(),
@@ -140,16 +143,42 @@ mod tests {
             metrics: Value::Null,
             facts: Map::new(),
             notes: vec![],
-        };
-        s.put(rec(Verdict::Error));
-        s.put(rec(Verdict::Pass));
+        }
+    }
+
+    #[test]
+    fn state_round_trips_and_put_replaces() {
+        let dir = std::env::temp_dir().join(format!("qualify-state-{}", std::process::id()));
+        let mut s = State::new(serde_json::json!({"model": "m"}));
+        s.put(rec("doctor", Verdict::Error));
+        s.put(rec("doctor", Verdict::Pass));
         assert_eq!(s.stages.len(), 1);
         s.save(&dir).unwrap();
         let back = State::load(&dir).unwrap().unwrap();
         assert_eq!(back.get("doctor").unwrap().verdict, Verdict::Pass);
-        assert!(
-            Verdict::Pass.is_done() && Verdict::Skip.is_done() && Verdict::Fail.is_done() && !Verdict::Error.is_done()
-        );
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resume_keeps_pass_and_fail_and_reruns_skip_and_error() {
+        let mut s = State::new(serde_json::json!({"model": "m"}));
+        for (id, v) in [
+            ("doctor", Verdict::Pass),
+            ("gate", Verdict::Fail),
+            ("acc-short", Verdict::Skip),
+            ("bench", Verdict::Error),
+        ] {
+            s.put(rec(id, v));
+        }
+        assert_eq!(s.finished("doctor").unwrap().verdict, Verdict::Pass);
+        assert_eq!(s.finished("gate").unwrap().verdict, Verdict::Fail);
+        // a stage skipped for a missing golden runs again once the golden is supplied
+        assert!(s.finished("acc-short").is_none());
+        assert!(s.finished("bench").is_none());
+        assert!(s.finished("acc-long").is_none());
+        // the re-run's record replaces the SKIP
+        s.put(rec("acc-short", Verdict::Pass));
+        assert_eq!(s.finished("acc-short").unwrap().verdict, Verdict::Pass);
+        assert_eq!(s.stages.len(), 4);
     }
 }

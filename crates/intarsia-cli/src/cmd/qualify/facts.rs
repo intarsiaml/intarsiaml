@@ -111,6 +111,16 @@ pub fn repo_root() -> Option<PathBuf> {
     None
 }
 
+/// The main checkout of the repository when `root` is a linked git worktree (`git worktree add`), whose `.git` is a
+/// file `gitdir: <main>/.git/worktrees/<name>` and whose `commondir` leads back to `<main>/.git`. None otherwise.
+pub fn main_checkout(root: &Path) -> Option<PathBuf> {
+    let t = std::fs::read_to_string(root.join(".git")).ok()?;
+    let gitdir = root.join(t.trim().strip_prefix("gitdir:")?.trim());
+    let common = std::fs::read_to_string(gitdir.join("commondir")).ok()?;
+    let main = std::fs::canonicalize(gitdir.join(common.trim())).ok()?.parent()?.to_path_buf();
+    (Some(&main) != std::fs::canonicalize(root).ok().as_ref()).then_some(main)
+}
+
 pub fn fnv1a64(bytes: &[u8]) -> u64 {
     let mut h = 0xcbf29ce484222325u64;
     for b in bytes {
@@ -241,6 +251,23 @@ mod tests {
         );
         assert_eq!(n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, true)), None);
         assert_eq!(n(find_golden("Llama-3", &dirs, false)), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn main_checkout_is_found_from_a_worktree() {
+        let d = std::env::temp_dir().join(format!("qualify-wt-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let (main, wt) = (d.join("main"), d.join("wt"));
+        let wtgit = main.join(".git/worktrees/wt");
+        std::fs::create_dir_all(&wtgit).unwrap();
+        std::fs::create_dir_all(&wt).unwrap();
+        std::fs::write(wt.join(".git"), format!("gitdir: {}\n", wtgit.display())).unwrap();
+        std::fs::write(wtgit.join("commondir"), "../..\n").unwrap();
+        assert_eq!(main_checkout(&wt), Some(std::fs::canonicalize(&main).unwrap()));
+        // the main checkout itself (.git is a directory) and a plain directory have none
+        assert_eq!(main_checkout(&main), None);
+        assert_eq!(main_checkout(&d), None);
         let _ = std::fs::remove_dir_all(&d);
     }
 }

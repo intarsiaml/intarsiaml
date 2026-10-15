@@ -3,7 +3,8 @@
 //! A pipeline of stages. The QUICK section finishes in minutes to an hour and publishes its numbers (report, JSON,
 //! `--on-quick-done`, `--push-metrics`); the IN-DEPTH section follows in the same run unless `--quick-only`. Every stage
 //! runs this same binary as a subprocess (so a stage cannot leak GPU memory into the next one), records its wall time,
-//! verdict, provenance and artifacts in `state.json` after it ends, and `--resume` skips the stages already done.
+//! verdict, provenance and artifacts in `state.json` after it ends, and `--resume` skips the stages that finished (PASS or
+//! FAIL; a SKIP or ERROR stage is run again).
 //!
 //! Exit code: 0 every gate passed, 1 a gate failed, 2 the pipeline itself failed (a tool crashed or timed out, bad
 //! arguments, an unreadable report directory, or the `--max-minutes` budget ran out before the end).
@@ -54,7 +55,8 @@ pub struct QualifyArgs {
     /// Golden file with the longer prompt set for the in-depth stages (default: found by name, else made).
     #[arg(long)]
     pub golden_long: Option<PathBuf>,
-    /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR).
+    /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
+    /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
     pub golden_dir: Vec<PathBuf>,
     /// Do not make a golden from the model itself with tools/golden.py above this many GB of weights.
@@ -66,7 +68,8 @@ pub struct QualifyArgs {
     /// Run the quick section only.
     #[arg(long)]
     pub quick_only: bool,
-    /// Continue an earlier run in --out (or the newest reports/<model>/ directory): stages that finished are skipped.
+    /// Continue an earlier run in --out (or the newest reports/<model>/ directory): stages that finished (PASS or FAIL)
+    /// are kept, SKIP and ERROR stages run again (e.g. after supplying the missing golden).
     #[arg(long)]
     pub resume: bool,
     /// Do not start the in-depth section when a quick gate failed.
@@ -320,6 +323,10 @@ fn default_golden_dirs(a: &QualifyArgs) -> Vec<PathBuf> {
         }
         if let Some(r) = facts::repo_root() {
             d.push(r.join("golden"));
+            // golden/ is untracked: a git worktree does not have it, its main checkout does
+            if let Some(m) = facts::main_checkout(&r) {
+                d.push(m.join("golden"));
+            }
         }
     }
     d
@@ -471,7 +478,7 @@ impl Ctx {
 
     fn run_stage(&mut self, def: &StageDef) -> Result<Flow> {
         if self.a.resume {
-            if let Some(r) = self.state.get(def.id).filter(|r| r.verdict.is_done()).cloned() {
+            if let Some(r) = self.state.finished(def.id).cloned() {
                 self.say(&format!("{}: already done ({}), not run again", def.id, r.verdict.label()));
                 for (k, v) in &r.facts {
                     self.facts.insert(k.clone(), v.clone());
@@ -1196,7 +1203,16 @@ impl Ctx {
         if let Some(g) = facts::find_golden(&self.name, &dirs, long) {
             return Ok(self.have_golden(key, g, "found by model name".into()));
         }
-        self.make_golden(long)
+        Ok(match self.make_golden(long)? {
+            Golden::None(why) => Golden::None(format!(
+                "{why}; no {} golden for '{}' in {} (give --golden{} FILE or --golden-dir DIR, then --resume)",
+                if long { "long" } else { "short" },
+                self.name,
+                dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "),
+                if long { "-long" } else { "" },
+            )),
+            g => g,
+        })
     }
 
     fn have_golden(&mut self, key: &str, p: PathBuf, how: String) -> Golden {

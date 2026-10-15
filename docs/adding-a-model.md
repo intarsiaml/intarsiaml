@@ -117,7 +117,8 @@ intarsia qualify --model <dir> --backend <cpu|cuda|hip|metal> [--tp N] [--refere
 
 One run, two sections, back to back. Every stage runs this same binary as a subprocess (a stage cannot leak GPU
 memory into the next), records its wall time, verdict, provenance stamp and artifacts in
-`<out>/state.json`, and `--resume` skips the stages that finished (a stage that ended in `ERROR` is run again).
+`<out>/state.json`, and `--resume` skips the stages that finished (`PASS` or `FAIL`); a stage that ended in `SKIP`
+or `ERROR` is run again, so a run that skipped the golden stages can be completed with `--resume --golden-dir DIR`.
 
 **Exit code**: `0` every gate passed, `1` a gate failed, `2` the pipeline itself failed (a tool crashed or timed
 out, bad arguments, or `--max-minutes` ran out before the end). A stage has one of four verdicts: `PASS`,
