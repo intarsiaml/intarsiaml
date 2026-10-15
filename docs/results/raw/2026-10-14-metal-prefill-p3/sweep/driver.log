@@ -1,0 +1,44 @@
+fleetq job 1910
+zoom: 
+idle start: "Device Utilization %"=5 "Device Utilization %"=6 "Device Utilization %"=6 
+warm: prefill 1683 ms (2413.0 tok/s) |  2335932416 maximum resident set size; 2543028744 peak memory footprint;
+1k-c256-r1: prefill 459 ms (2118.3 tok/s) |  2335948800 maximum resident set size; 2442234400 peak memory footprint;
+1k-c512-r1: prefill 409 ms (2381.1 tok/s) |  2336374784 maximum resident set size; 2542635552 peak memory footprint;
+1k-c1024-r1: prefill 388 ms (2508.3 tok/s) |  2341437440 maximum resident set size; 2552875528 peak memory footprint;
+1k-c2048-r1: prefill 388 ms (2506.1 tok/s) |  2337095680 maximum resident set size; 2543421984 peak memory footprint;
+1k-c2048-r2: prefill 383 ms (2539.0 tok/s) |  2337144832 maximum resident set size; 2443414024 peak memory footprint;
+1k-c1024-r2: prefill 372 ms (2615.9 tok/s) |  2336489472 maximum resident set size; 2442758664 peak memory footprint;
+1k-c512-r2: prefill 412 ms (2360.8 tok/s) |  2341076992 maximum resident set size; 2552515080 peak memory footprint;
+1k-c256-r2: prefill 485 ms (2005.1 tok/s) |  2335965184 maximum resident set size; 2542275080 peak memory footprint;
+1k-c256-r3: prefill 457 ms (2129.9 tok/s) |  2335866880 maximum resident set size; 2442136072 peak memory footprint;
+1k-c512-r3: prefill 408 ms (2386.2 tok/s) |  2341093376 maximum resident set size; 2552531464 peak memory footprint;
+1k-c1024-r3: prefill 387 ms (2514.7 tok/s) |  2341437440 maximum resident set size; 2552891936 peak memory footprint;
+1k-c2048-r3: prefill 386 ms (2522.1 tok/s) |  2341781504 maximum resident set size; 2553252408 peak memory footprint;
+4k-c256-r1: prefill 1661 ms (2445.2 tok/s) |  2269216768 maximum resident set size; 2400241344 peak memory footprint;
+4k-c512-r1: prefill 1501 ms (2706.4 tok/s) |  2208858112 maximum resident set size; 2322597520 peak memory footprint;
+4k-c1024-r1: prefill 1478 ms (2748.7 tok/s) |  2334375936 maximum resident set size; 2543634976 peak memory footprint;
+4k-c2048-r1: prefill 1447 ms (2806.3 tok/s) |  2339782656 maximum resident set size; 2443201008 peak memory footprint;
+4k-c2048-r2: prefill 1448 ms (2804.5 tok/s) |  2342174720 maximum resident set size; 2553645624 peak memory footprint;
+4k-c1024-r2: prefill 1499 ms (2710.5 tok/s) |  2336882688 maximum resident set size; 2543815200 peak memory footprint;
+4k-c512-r2: prefill 1560 ms (2604.4 tok/s) |  2269872128 maximum resident set size; 2394064576 peak memory footprint;
+4k-c256-r2: prefill 1751 ms (2320.3 tok/s) |  2341666816 maximum resident set size; 2553154104 peak memory footprint;
+4k-c256-r3: prefill 1725 ms (2355.2 tok/s) |  2341388288 maximum resident set size; 2552875576 peak memory footprint;
+4k-c512-r3: prefill 1637 ms (2481.3 tok/s) |  2341797888 maximum resident set size; 2553252360 peak memory footprint;
+4k-c1024-r3: prefill 1635 ms (2484.0 tok/s) |  2342174720 maximum resident set size; 2553662008 peak memory footprint;
+4k-c2048-r3: prefill 1664 ms (2441.0 tok/s) |  2342551552 maximum resident set size; 2554006048 peak memory footprint;
+16k-c256-r1: prefill 12611 ms (1314.6 tok/s) |  2267676672 maximum resident set size; 3017032712 peak memory footprint;
+16k-c512-r1: prefill 12481 ms (1328.3 tok/s) |  2338373632 maximum resident set size; 3040429160 peak memory footprint;
+16k-c1024-r1: prefill 12627 ms (1312.9 tok/s) |  2347302912 maximum resident set size; 3115500576 peak memory footprint;
+16k-c2048-r1: prefill 12539 ms (1322.1 tok/s) |  2338832384 maximum resident set size; 3251438648 peak memory footprint;
+16k-c2048-r2: prefill 11556 ms (1434.6 tok/s) |  2339127296 maximum resident set size; 3251602488 peak memory footprint;
+16k-c1024-r2: prefill 12752 ms (1300.0 tok/s) |  2338504704 maximum resident set size; 3116778552 peak memory footprint;
+16k-c512-r2: prefill 12769 ms (1298.3 tok/s) |  2346860544 maximum resident set size; 3050046520 peak memory footprint;
+16k-c256-r2: prefill 13812 ms (1200.3 tok/s) |  2337882112 maximum resident set size; 3017245776 peak memory footprint;
+16k-c256-r3: prefill 12998 ms (1275.4 tok/s) |  2346598400 maximum resident set size; 3017278472 peak memory footprint;
+16k-c512-r3: prefill 12686 ms (1306.8 tok/s) |  2276917248 maximum resident set size; 3050128464 peak memory footprint;
+16k-c1024-r3: prefill 12471 ms (1329.3 tok/s) |  2338537472 maximum resident set size; 3118662688 peak memory footprint;
+16k-c2048-r3: prefill 12532 ms (1322.9 tok/s) |  2338930688 maximum resident set size; 3251569720 peak memory footprint;
+4k-ms18432-c256: prefill 1875 ms (2166.7 tok/s) |  2341093376 maximum resident set size; 3013526560 peak memory footprint;
+4k-ms18432-c2048: prefill 1802 ms (2254.5 tok/s) |  2337079296 maximum resident set size; 3232662560 peak memory footprint;
+idle end: "Device Utilization %"=99 "Device Utilization %"=5 "Device Utilization %"=0 
+#1910 "metal P3: chunk sweep (plain prefill 256/512/1024/2048)" (claude-31e10c55) done on endor exclusive 24 GB

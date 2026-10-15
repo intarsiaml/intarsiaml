@@ -1,0 +1,212 @@
+fleetq job 1914
+##### p3speed-pre-1
+server up after 37s; chunk line: prefill chunk 256 (default)
+== sample set 2026-10-14T22:42:24-04:00
+"Device Utilization %"=94
+"Device Utilization %"=6
+"Device Utilization %"=0
+median=6
+zoom: 
+FINAL median=6 tries=0
+localeval exit 0
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label p3speed-pre-1`
+- result file: `results/20261014-224228-adhoc-p3speed-pre-1/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.06 | 1919 (1753–2000) * | - | 31.7 (30.0–33.6) | 33.4 (32.4–36.4) | - | - | 256 |
+| 990 | 0.33 | 2972 (2865–3055) * | 3204 | 34.6 (33.4–35.1) | 35.7 (35.3–35.9) | - | - | 256 |
+| 4086 | 1.93 | 2114 (2083–2143) | 1936 | 33.8 (33.8–34.2) | 35.1 (34.9–35.1) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 11.3% at 128 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-224228-adhoc-p3speed-pre-1/result.json
+[localeval] logged to unanimis: 931029e8-f62a-4976-b976-18e4baeb87f2
+##### p3speed-new-1
+server up after 33s; chunk line: prefill chunk 2048 (recipe qwen3, metal)
+== sample set 2026-10-14T22:44:28-04:00
+"Device Utilization %"=96
+"Device Utilization %"=22
+"Device Utilization %"=24
+median=24
+zoom: 
+idle util 24 > 10, waiting 10s (try 0)
+== sample set 2026-10-14T22:44:41-04:00
+"Device Utilization %"=27
+"Device Utilization %"=4
+"Device Utilization %"=23
+median=23
+zoom: 
+idle util 23 > 10, waiting 10s (try 1)
+== sample set 2026-10-14T22:44:54-04:00
+"Device Utilization %"=22
+"Device Utilization %"=25
+"Device Utilization %"=21
+median=22
+zoom: 
+idle util 22 > 10, waiting 10s (try 2)
+== sample set 2026-10-14T22:45:07-04:00
+"Device Utilization %"=21
+"Device Utilization %"=3
+"Device Utilization %"=5
+median=5
+zoom: 
+FINAL median=5 tries=3
+localeval exit 0
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: speed; label: p3speed-new-1
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label p3speed-new-1`
+- result file: `results/20261014-224511-adhoc-p3speed-new-1/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 113 | 0.05 | 2095 (2076–2106) * | - | 36.0 (35.6–36.0) | 36.5 (36.4–36.8) | - | - | 256 |
+| 992 | 0.28 | 3564 (3520–3571) * | 3924 | 35.8 (35.0–35.9) | 36.2 (36.0–36.5) | - | - | 256 |
+| 4090 | 1.36 | 3005 (2919–3014) | 2858 | 34.3 (33.1–34.6) | 34.9 (34.3–35.2) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-224511-adhoc-p3speed-new-1/result.json
+[localeval] logged to unanimis: 0e10eee0-523d-4122-85aa-fead2eb6df1b
+##### p3speed-new-2
+server up after 33s; chunk line: prefill chunk 2048 (recipe qwen3, metal)
+== sample set 2026-10-14T22:47:02-04:00
+"Device Utilization %"=97
+"Device Utilization %"=0
+"Device Utilization %"=11
+median=11
+zoom: 
+idle util 11 > 10, waiting 10s (try 0)
+== sample set 2026-10-14T22:47:15-04:00
+"Device Utilization %"=18
+"Device Utilization %"=3
+"Device Utilization %"=22
+median=18
+zoom: 
+idle util 18 > 10, waiting 10s (try 1)
+== sample set 2026-10-14T22:47:29-04:00
+"Device Utilization %"=14
+"Device Utilization %"=0
+"Device Utilization %"=12
+median=12
+zoom: 
+idle util 12 > 10, waiting 10s (try 2)
+== sample set 2026-10-14T22:47:42-04:00
+"Device Utilization %"=10
+"Device Utilization %"=0
+"Device Utilization %"=11
+median=10
+zoom: 
+FINAL median=10 tries=3
+localeval exit 0
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: speed; label: p3speed-new-2
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label p3speed-new-2`
+- result file: `results/20261014-224745-adhoc-p3speed-new-2/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 133 | 0.05 | 2389 (1994–2413) * | - | 36.2 (36.0–36.2) | 36.5 (36.4–36.5) | - | - | 256 |
+| 990 | 0.28 | 3557 (3552–3558) * | 3826 | 36.0 (35.9–36.0) | 36.2 (36.1–36.2) | - | - | 256 |
+| 4088 | 1.35 | 3032 (3018–3046) | 2893 | 35.0 (34.9–35.0) | 35.2 (35.1–35.2) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-224745-adhoc-p3speed-new-2/result.json
+[localeval] logged to unanimis: 7c1fe818-36db-4b2a-a34e-ce7877dc8b46
+##### p3speed-pre-2
+server up after 33s; chunk line: prefill chunk 256 (default)
+== sample set 2026-10-14T22:49:36-04:00
+"Device Utilization %"=98
+"Device Utilization %"=0
+"Device Utilization %"=13
+median=13
+zoom: 
+idle util 13 > 10, waiting 10s (try 0)
+== sample set 2026-10-14T22:49:49-04:00
+"Device Utilization %"=18
+"Device Utilization %"=0
+"Device Utilization %"=2
+median=2
+zoom: 
+FINAL median=2 tries=1
+localeval exit 0
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: speed; label: p3speed-pre-2
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label p3speed-pre-2`
+- result file: `results/20261014-224953-adhoc-p3speed-pre-2/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 115 | 0.05 | 2117 (2018–2127) * | - | 34.9 (34.5–36.2) | 36.6 (35.9–36.7) | - | - | 256 |
+| 989 | 0.31 | 3210 (3188–3218) * | 3428 | 36.0 (35.8–36.0) | 36.1 (36.1–36.2) | - | - | 256 |
+| 4088 | 1.64 | 2493 (2275–2679) | 2328 | 35.0 (34.3–35.1) | 35.2 (35.0–35.5) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261014-224953-adhoc-p3speed-pre-2/result.json
+[localeval] logged to unanimis: d8f5630b-bba2-4feb-b40a-490a797cd269
+ALLDONE
+#1914 "metal P3: localeval speed pre/new (ABBA)" (claude-31e10c55) done on endor exclusive 24 GB

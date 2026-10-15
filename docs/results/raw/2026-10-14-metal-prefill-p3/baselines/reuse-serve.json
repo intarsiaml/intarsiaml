@@ -1,0 +1,62 @@
+{
+ "default": {
+  "chunk_line": "prefill chunk 2048 (recipe qwen3, metal)",
+  "turn1_usage": {
+   "prompt_tokens": 4070,
+   "completion_tokens": 16,
+   "total_tokens": 4086,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   }
+  },
+  "warm_usage": {
+   "prompt_tokens": 4109,
+   "completion_tokens": 48,
+   "total_tokens": 4157,
+   "prompt_tokens_details": {
+    "cached_tokens": 4085
+   }
+  },
+  "cold_usage": {
+   "prompt_tokens": 4109,
+   "completion_tokens": 48,
+   "total_tokens": 4157,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   }
+  },
+  "warm_text": "<think>\nOkay, let's see. The user provided a long list of events, each with a subject, action, and day number. They asked for the first topic in one short sentence.\n\nFirst, I need to identify the first entry",
+  "cold_text": "<think>\nOkay, let's see. The user provided a long list of events, each with a subject, action, and day number. They asked for the first topic in one short sentence.\n\nFirst, I need to identify the first entry",
+  "identical": true
+ },
+ "c256": {
+  "chunk_line": "prefill chunk 256 (--prefill-chunk)",
+  "turn1_usage": {
+   "prompt_tokens": 4070,
+   "completion_tokens": 16,
+   "total_tokens": 4086,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   }
+  },
+  "warm_usage": {
+   "prompt_tokens": 4109,
+   "completion_tokens": 48,
+   "total_tokens": 4157,
+   "prompt_tokens_details": {
+    "cached_tokens": 4085
+   }
+  },
+  "cold_usage": {
+   "prompt_tokens": 4109,
+   "completion_tokens": 48,
+   "total_tokens": 4157,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   }
+  },
+  "warm_text": "<think>\nOkay, let's see. The user provided a long list of events, each with a subject, action, and day number. They asked for the first topic in one short sentence.\n\nFirst, I need to identify the first entry",
+  "cold_text": "<think>\nOkay, let's see. The user provided a long list of events, each with a subject, action, and day number. They asked for the first topic in one short sentence.\n\nFirst, I need to identify the first entry",
+  "identical": true
+ }
+}
