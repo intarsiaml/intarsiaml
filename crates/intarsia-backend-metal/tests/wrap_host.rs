@@ -12,6 +12,14 @@ use objc2_metal::MTLBuffer;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// These tests pin the zero-copy window layout, so re-alignment (`INTARSIA_METAL_REALIGN`) is off for them; see
+/// `tests/realign.rs` for the copy path.
+fn backend() -> MetalBackend {
+    let be = common::backend();
+    be.set_realign(false);
+    be
+}
+
 struct MmapHost(Mmap);
 impl HostMemory for MmapHost {
     fn as_slice(&self) -> &[u8] {
