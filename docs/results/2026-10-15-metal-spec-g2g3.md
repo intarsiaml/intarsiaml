@@ -62,21 +62,24 @@ real runs exactly:
 simulator vs real runs: 42 of 42 (config, case) pairs reproduce the measured verify-pass and accepted-draft counts exactly
 ```
 
-(7 gate configurations x 6 prompts = 42 pairs.) Real sweep (slot #2001, `gate/sweep.log`), one
-`generate` per cell, decode tok/s, verify passes (p), accepted drafts (a), 256 tokens. The tok/s of the plain rows moves 30.7 to 35.5 between
-repeats of the same case (single runs, clock), so only p and a are used to rank the rules; the two `off` rows are the references.
+(7 gate configurations x 6 prompts = 42 pairs.) Real sweep (slot #2001, `gate/sweep.log`), one `generate` per cell, 256 tokens, cells are verify passes (p) and accepted drafts (a); the two `off` rows are the plain references (p0 a0).
+
+**Timing contamination, dropped.** The coordinator reports that another session ran `cargo test --workspace` (which includes the Metal GPU tests) on endor without a slot four times between about 11:20 and 11:35 EDT, which overlaps this sweep (11:22 to 11:29)
+and the G3 spec-off id runs (#2004, 11:30 to 11:33). Every decode tok/s from those two slots is therefore treated as contaminated and is **not used or shown here** (the raw `.err` files keep them; the plain rows did vary 30.7 to 35.5 tok/s between repeats of the same case, which fits).
+The pass and accepted counts do not depend on timing (greedy streams are deterministic and the replay reproduces them exactly), and the gate was ranked on those counts and the replay cost model, not on the sweep's speeds. All speed claims in this document come from #2011
+(12:19 to 12:57), which is outside the window; the identity results are timing-independent. I did not rerun the sweep.
 
 | cfg | open-256 | grounded-256 | golden-docs-256 | golden-code-256 | 4k-256 | short-256 |
 |---|---|---|---|---|---|---|
-| 1-off | 35.4 p0 a0 | 35.5 p0 a0 | 33.0 p0 a0 | 32.6 p0 a0 | 31.1 p0 a0 | 31.1 p0 a0 |
-| 2-ngram_0_4_64_1 | 31.3 p106 a12 | 105.7 p65 a190 | 30.4 p166 a41 | 54.0 p106 a138 | 98.5 p67 a188 | 70.6 p95 a158 |
-| 3-ngram_2_4_64_1 | 30.2 p11 a2 | 106.9 p64 a187 | 31.4 p13 a4 | 45.3 p37 a87 | 94.4 p67 a184 | 53.9 p77 a108 |
-| 4-ngram_3_4_64_1 | 33.2 p16 a3 | 115.6 p65 a190 | 31.5 p14 a4 | 46.8 p52 a99 | 100.2 p67 a188 | 75.0 p95 a158 |
-| 5-ngram_2_8_64_1 | 33.5 p13 a3 | 111.9 p62 a185 | 32.6 p12 a4 | 47.8 p44 a94 | 94.8 p66 a181 | 53.4 p71 a103 |
-| 6-ngram_0_4_64_2 | 31.4 p27 a7 | 112.6 p64 a189 | 32.4 p59 a31 | 53.2 p69 a121 | 94.5 p67 a188 | 70.6 p87 a144 |
-| 7-ngram_2_4_64_2 | 33.4 p19 a6 | 106.8 p62 a183 | 32.9 p28 a19 | 42.3 p31 a66 | 98.4 p67 a184 | 64.1 p79 a133 |
-| 8-ngram_1_4_64_1 | 32.5 p12 a2 | 89.7 p54 a165 | 32.2 p14 a3 | 40.8 p30 a66 | 87.8 p61 a172 | 46.9 p58 a89 |
-| 9-off | 34.6 p0 a0 | 32.5 p0 a0 | 33.1 p0 a0 | 30.7 p0 a0 | 31.0 p0 a0 | 33.2 p0 a0 |
+| 1-off | p0 a0 | p0 a0 | p0 a0 | p0 a0 | p0 a0 | p0 a0 |
+| 2-ngram_0_4_64_1 | p106 a12 | p65 a190 | p166 a41 | p106 a138 | p67 a188 | p95 a158 |
+| 3-ngram_2_4_64_1 | p11 a2 | p64 a187 | p13 a4 | p37 a87 | p67 a184 | p77 a108 |
+| 4-ngram_3_4_64_1 | p16 a3 | p65 a190 | p14 a4 | p52 a99 | p67 a188 | p95 a158 |
+| 5-ngram_2_8_64_1 | p13 a3 | p62 a185 | p12 a4 | p44 a94 | p66 a181 | p71 a103 |
+| 6-ngram_0_4_64_2 | p27 a7 | p64 a189 | p59 a31 | p69 a121 | p67 a188 | p87 a144 |
+| 7-ngram_2_4_64_2 | p19 a6 | p62 a183 | p28 a19 | p31 a66 | p67 a184 | p79 a133 |
+| 8-ngram_1_4_64_1 | p12 a2 | p54 a165 | p14 a3 | p30 a66 | p61 a172 | p58 a89 |
+| 9-off | p0 a0 | p0 a0 | p0 a0 | p0 a0 | p0 a0 | p0 a0 |
 
 Configs: 2 = G1 drafter (no gate, 1-token suffixes), 3 = back off after 2 failures (skip 4, x2 up to 64), 4 = after 3, 5 = after 2 with skip 8, 6 = minimum
 suffix 2 only, 7 = minimum suffix 2 + back off after 2, 8 = back off after 1. A back-off on 1-token matches alone (3, 4, 5, 8) hurts exactly the
@@ -241,6 +244,7 @@ All rows: chat template with thinking off (`--chat --no-think`), greedy, 256 new
 
 **Why `generate` and not `localeval quality`.** localeval makes one call per row, records one speed figure per row and the text, no ids; it cannot give
 3 runs per row or an ids comparison, and a spec-on and a spec-off pass would be two servers at different times. `generate` timings and `--show-ids` give all three.
+**The localeval path was queued but not run.** I queued a `localeval quality` pass over this dataset (spec off, on, on, off, fresh server each, `g3/g3_localeval.sh`, #2031) and cancelled it at 13:45 because a 75-minute job of another session (#2022) had just started ahead of it, so it could not have finished before the deadline. So the primary harness path for G3 was not run; the 3-rep `generate` data above is the evidence, and it is the stronger one for the reasons above (3 reps, ids).
 Per row: `intarsia generate ... --max-tokens 256 --chat --no-think --show-ids [--spec off | --spec ngram]`, 3 reps per mode, mode order alternating by rep (off,on / on,off / off,on) in the same
 exclusive slot (#2011), one fresh process per run, same binary for both modes. Decode tok/s is `generate`'s own `decode ... ms (X tok/s)` (prefill excluded). The dataset file is ready for
 `localeval quality --dataset g3/g3-realistic.jsonl --judge none --max-tokens 256` against a spec-on and a spec-off server; I did not run it.
@@ -319,7 +323,7 @@ Commits on `metal-spec-ngram` (not merged, not pushed), after G1's `44c4a91`:
 
 fleetq (all released, `fleetq status` shows none of mine running or queued): #2000 (the first sweep binary was built without the Metal backend: every `generate` failed at once, no data, released), #2001 gate sweep (11:22 to 11:29),
 #2004 spec-off ids of the 20 G3 rows for the replay (11:30 to 11:33), #2011 identity + G2 + G3 + merge bar in one exclusive slot (12:19:25 to 12:56:59), #2010, #2014, #2015 cancelled while queued
-(superseded by #2011), #2030 cancelled while queued.
+(superseded by #2011), #2030 and #2031 (the unrun localeval G3 pass) cancelled while queued.
 
 Raw data and scripts: `docs/results/raw/2026-10-15-metal-spec-g2g3/`: `gate/` (sweep logs and per-run `.err`/`.out`, `table.py`, simulator `sim.py` `grid.py` `grid2.py` `grid3.py`, `sim-results.md`,
 `sim_vs_real.py`), `identity/` + `identity-nogate/` + `identity-vs-*.md`, `g2/` (`g2_run.sh`, `passes/`, `macmon.jsonl`, `localeval/` result.json, `g2-analysis.md`), `g3/` (`make_dataset.py`,
