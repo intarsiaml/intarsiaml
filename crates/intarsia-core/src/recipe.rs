@@ -181,6 +181,14 @@ pub struct Tuning {
     pub backends: BTreeMap<String, BackendTuning>,
 }
 
+/// A resolved `--max-batch` and where it came from.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct MaxBatch {
+    pub value: usize,
+    /// `--max-batch` or `recipe <family>` (clamped: `recipe <family>, clamped to N`).
+    pub source: String,
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct BackendTuning {
     pub prefill_chunk: Option<usize>,
@@ -216,6 +224,31 @@ impl Recipe {
             return PrefillChunk { value, source: format!("recipe {family}, base") };
         }
         PrefillChunk { value: DEFAULT_PREFILL_CHUNK, source: "default".into() }
+    }
+}
+
+impl Recipe {
+    /// Concurrent sequences to decode together. `supported` is the most the serving engine implements. An explicit
+    /// `flag` must be in `1..=min(recipe max_batch, supported)`; without one the recipe's `[defaults] max_batch` is
+    /// used, clamped to `supported` (a recipe may declare more than the engine can do yet: the qwen3_5 ones say 32).
+    pub fn resolve_max_batch(&self, flag: Option<usize>, supported: usize) -> Result<MaxBatch> {
+        let family = &self.model.family;
+        let cap = self.defaults.max_batch.max(1);
+        match flag {
+            Some(0) => Err(Error::invalid("--max-batch must be at least 1")),
+            Some(n) if n > supported => Err(Error::Unsupported(format!(
+                "--max-batch {n} is not implemented yet (the engine decodes {supported} sequence(s) at a time; \
+                 continuous batching is milestone M1 of docs/research/continuous-batching-design.md); use --max-batch {supported}"
+            ))),
+            Some(n) if n > cap => {
+                Err(Error::invalid(format!("--max-batch {n} exceeds the max_batch {cap} of recipe {family}")))
+            }
+            Some(n) => Ok(MaxBatch { value: n, source: "--max-batch".into() }),
+            None if cap > supported => {
+                Ok(MaxBatch { value: supported, source: format!("recipe {family}, clamped to {supported}") })
+            }
+            None => Ok(MaxBatch { value: cap, source: format!("recipe {family}") }),
+        }
     }
 }
 

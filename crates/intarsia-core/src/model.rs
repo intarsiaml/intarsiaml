@@ -28,6 +28,7 @@ use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+mod batch;
 mod gdn_block;
 mod graph_step;
 use gdn_block::{ExtraWs, GdnBlock};
@@ -180,6 +181,13 @@ struct AttnBufs {
     v: TensorRef,
 }
 
+/// What a layer pass runs on: one sequence's next `t` tokens, or one decode token of each of several sequences.
+#[derive(Clone, Copy)]
+enum Seqs<'a> {
+    One(&'a SequenceState),
+    Batch(&'a [&'a SequenceState]),
+}
+
 impl AttnBufs {
     /// Row `r` of every buffer, as a one-row set.
     fn row(&self, r: usize) -> AttnBufs {
@@ -239,6 +247,10 @@ pub struct Model {
     verify_tok: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
     verify_rows: usize,
+    /// Most sequences of a batched decode step ([`Model::forward_batch`]); 0 = batching off (the default).
+    batch_rows: usize,
+    /// `i32 [BATCH_MAX_ROWS]` argmax output of a batched step; allocated by [`Model::enable_batch`].
+    batch_tok: Option<Buffer>,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -661,6 +673,8 @@ impl Model {
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
+            batch_rows: 0,
+            batch_tok: None,
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
@@ -699,10 +713,15 @@ impl Model {
         *self.recorder.lock().unwrap() = Some(crate::plan::Recorder { phase: Some(phase), t, pos0, ..Default::default() });
         let ids = vec![0u32; t];
         let verify = phase == crate::plan::Phase::Verify;
-        if verify {
+        let batch = phase == crate::plan::Phase::Batch;
+        if verify || batch {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
         let run = (|| -> Result<()> {
+            if batch {
+                // `t` sequences, each `pos0` tokens long: the real batched pass, recorded
+                return self.batch_probe(t, pos0);
+            }
             let hn = self.run_chunk(&st, &ids, false)?;
             if verify {
                 return self.verify_head(&hn, t, false);
@@ -1212,11 +1231,28 @@ impl Model {
         dpos: Option<&TensorRef>,
         upload_ids: bool,
     ) -> Result<TensorRef> {
+        self.run_layers(Seqs::One(st), ids, profile, dpos, upload_ids)
+    }
+
+    /// The layer loop behind [`Model::run_chunk_at`]: `ids` are the `t` tokens of one sequence (`Seqs::One`) or the
+    /// next token of each of `t` sequences (`Seqs::Batch`, a batched decode step: attention runs per row on the row's
+    /// own cache, see `model/batch.rs`).
+    fn run_layers(
+        &self,
+        seqs: Seqs<'_>,
+        ids: &[u32],
+        profile: bool,
+        dpos: Option<&TensorRef>,
+        upload_ids: bool,
+    ) -> Result<TensorRef> {
         let t = ids.len();
         let d = &self.dims;
         let act = self.act;
         let h = d.hidden;
-        let pos0 = if dpos.is_some() { 0 } else { st.len };
+        let pos0 = match seqs {
+            Seqs::One(st) if dpos.is_none() => st.len,
+            _ => 0,
+        };
         let ws = &self.ws;
 
         if upload_ids && !self.recorder.lock().unwrap().is_some() {
@@ -1266,10 +1302,16 @@ impl Model {
                 match block {
                     Block::Attn(a) => {
                         norm_in(&a.pre_norm, pending, &mut cur)?;
-                        self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, profile)?;
+                        match seqs {
+                            Seqs::One(st) => self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, profile)?,
+                            Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, profile)?,
+                        }
                     }
                     Block::Gdn(g) => {
                         norm_in(&g.pre_norm, pending, &mut cur)?;
+                        let Seqs::One(st) = seqs else {
+                            return Err(Error::Unsupported("batched decode of a recurrent block".into()));
+                        };
                         self.gdn_block(g, st, &nv, &blkv, t, profile)?;
                     }
                     Block::Ffn(f) => {
@@ -1278,6 +1320,9 @@ impl Model {
                     }
                     Block::Moe(m) => {
                         norm_in(&m.pre_norm, pending, &mut cur)?;
+                        if matches!(seqs, Seqs::Batch(_)) {
+                            return Err(Error::Unsupported("batched decode of a mixture-of-experts block".into()));
+                        }
                         let ws = self.ws.moe.as_ref().ok_or_else(|| Error::invalid("moe block without workspace"))?;
                         m.w.forward(&ExecRunner { m: self, profile }, ws, &nv, &blkv)?;
                     }

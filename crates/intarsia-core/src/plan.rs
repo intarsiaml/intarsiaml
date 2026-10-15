@@ -55,6 +55,9 @@ pub enum Phase {
     Prefill,
     /// Speculative verify pass (`Model::forward_verify`, only when `Model::enable_verify` was called).
     Verify,
+    /// Batched decode step (`Model::forward_batch`, only when `Model::enable_batch` was called): `t` is the number of
+    /// sequences, `pos0` the length of each.
+    Batch,
 }
 
 /// One op call of the plan with the kernel the registry selected for it.
@@ -210,15 +213,29 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
             probes.push((Phase::Verify, t, cap - t));
         }
     }
+    // batched decode steps (batching on only): every row count, all sequences at the start and at the end of the context
+    for t in 2..=model.batch_rows() {
+        probes.push((Phase::Batch, t, 0));
+        probes.push((Phase::Batch, t, cap - 1));
+    }
     let mut calls = Vec::new();
     let mut comm_decode = (0usize, 0usize);
+    let mut decode0: Vec<Op> = Vec::new();
     // op -> (shapes without a kernel, first description, where it is needed)
     let mut missing: BTreeMap<Op, (BTreeSet<String>, String, BTreeSet<String>)> = BTreeMap::new();
     for (phase, t, pos0) in probes {
-        if pos0 + t > cap {
+        // a batch step appends one token to each of its sequences
+        if pos0 + if phase == Phase::Batch { 1 } else { t } > cap {
             continue;
         }
         let rec = model.dry_run(phase, t, pos0)?;
+        if phase == Phase::Decode && pos0 == 0 {
+            decode0 = rec.calls.iter().filter(|c| !c.extra).map(|c| c.call.op).collect();
+        }
+        if phase == Phase::Batch && pos0 == 0 && rec.missing.is_empty() {
+            let batch: Vec<Op> = rec.calls.iter().filter(|c| !c.extra).map(|c| c.call.op).collect();
+            check_batch_ops(&decode0, &batch, t)?;
+        }
         for (op, m) in rec.missing {
             let e = missing.entry(op).or_insert_with(|| (BTreeSet::new(), m.clone(), BTreeSet::new()));
             e.0.insert(m);
@@ -253,6 +270,31 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
         return Err(Error::NoKernel(msg));
     }
     Ok((calls, sizes, comm_decode))
+}
+
+/// Ops a batched step runs once per sequence (the attention core on that sequence's own cache); every other op runs once
+/// for all rows.
+const PER_ROW_OPS: [Op; 5] = [Op::QkNormRopeKv, Op::QkNorm, Op::Rope, Op::KvAppend, Op::AttnDecode];
+
+/// A batched step must be the solo decode step with its row-parallel ops widened: the same op multiset, the per-row
+/// attention ops `rows` times. A different fusion choice (a fused pair in the solo step, two projections in the batch)
+/// would change the arithmetic and with it the bits, so it fails the load rather than the identity.
+fn check_batch_ops(decode: &[Op], batch: &[Op], rows: usize) -> Result<()> {
+    let count = |v: &[Op], op: Op| v.iter().filter(|&&o| o == op).count();
+    let mut all: Vec<Op> = decode.iter().chain(batch).copied().collect();
+    all.sort();
+    all.dedup();
+    for op in all {
+        let (d, b) = (count(decode, op), count(batch, op));
+        let want = if PER_ROW_OPS.contains(&op) { d * rows } else { d };
+        if b != want {
+            return Err(Error::Unsupported(format!(
+                "a {rows}-row batched step runs {op} {b} times where {want} follow from the solo decode step ({d}): \
+                 the two would fuse differently, so rows would not be bitwise the solo step"
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Case key shared by dedupe and the admission cache: kernel + clamped host case label.
