@@ -1,0 +1,8 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 40 tokens
+ids: [1925, 264, 13458, 88, 12406, 3729, 11, 979, 279, 9396, 926, 1605, 1075, 264, 31136, 323, 279, 9956, 1246, 832, 1526, 279, 15026, 9798, 14285, 315, 279, 326, 57909, 11, 85656, 22954, 7578, 305, 10653, 916, 279, 2310, 8887, 304, 279, 53416, 748, 31473, 13, 576, 13458, 1030, 31985, 700, 279]
+finish=stop prompt=40 (cached 0) completion=51 | prefill 251 ms (159.1 tok/s) | decode 1892 ms (26.43 tok/s)
+spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+steps=51 graph replays=0 (captures 0) eager decode steps=50 (profiled 0) top ops: attn_decode=0ms/1800 attn_prefill=0ms/36 embedding=0ms/51 logits=0ms/51 matmul=0ms/5508

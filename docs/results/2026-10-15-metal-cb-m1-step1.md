@@ -1,6 +1,6 @@
 # Metal continuous batching, M1 step 1: exact batched decode step (no scheduler)
 
-Date 2026-10-15. Branch `metal-cb-m1` off `metal-cb-m0` 8254311, merged with `spike/metal` b300b3e (M0 included) before the final gates.
+Date 2026-10-15. Branch `metal-cb-m1` off `metal-cb-m0` 8254311, merged with `spike/metal` b300b3e (M0 included) before the final gates. `Seq::prefill_step` is untouched (another branch edits its chunk sizes).
 Machine endor (Apple M5 Max), Qwen3-8B BF16. Plan: `docs/research/continuous-batching-design.md`, milestone M1, operator
 decisions 8.1 (exact only: every batched row bitwise equal to the solo decode step; batch cap 8).
 
@@ -76,11 +76,12 @@ reachable until the scheduler raises `SERVE_MAX_BATCH`).
 |---|---|---|
 | bitwise, tiny cpu model, B = 2, 3, 4, 6, 8, 5, 8 x 6 steps, 8 sequences 3..90 tokens (`tests/batch.rs`) | pass (mutation checked: a wrong row index fails it) | local |
 | bitwise, Qwen3-8B Metal, B = 2, 3, 4, 6, 8 x 6 steps, 8 sequences 5/37/130/500/1100/2000/3000/4000 tokens, greedy (logits and argmax steps alternate) and seeded top-p/top-k rows (`tests/batch_metal.rs`) | **138 (row, step) pairs identical**, 12.5 s | slot #2067 |
+| batched decode beside prefill chunks of another sequence (`run_with_prefill`: 4 decoding sequences, a 1300-token prompt in 256-token chunks, batched step before / after each chunk alternately): decode rows bitwise solo, prefill chunk logits and three later decode steps bitwise equal the prompt prefilled alone; cpu version too | pass | in the workspace run |
 | `cargo check --workspace --all-targets` | pass | local |
-| `cargo test --workspace --release` | 396 passed, 0 failed, 1 ignored (79 suites) | `raw/2026-10-15-metal-cb-m1-step1/out/` |
+| `cargo test --workspace --release` | 401 passed, 0 failed, 1 ignored (79 suites) | `raw/2026-10-15-metal-cb-m1-step1/out/` |
 | `cargo test -p intarsia-backend-metal --release` | 102 passed, 0 failed | same |
 | `intarsia kernels test --backend metal` | 27 kernels, 321 cases, all ADMITTED | same |
-| M0 identity subset (11 cases x spec off / on4 vs the 8254311 binary, `--spec ngram` against the same binary with it) | all identical (stdout, ids, finish) | `out/id-head`, slot final |
+| M0 identity subset (11 cases; new binary spec off and `--spec ngram` vs the 8254311 binary spec off and `--spec ngram`) | all identical (stdout, ids, finish), 44 runs; also on the pre-merge tree | `id-table.md`, `id-premerge-table.md` |
 | the same after the split alone (`f73beae`) | all identical | slot #2065 |
 | `cargo check -p intarsia-cli --features cuda --tests` / `--features hip --tests` on spark1 | EXIT=0 both | `#2068`, scratch dir created and removed |
 
@@ -95,20 +96,20 @@ Median per-step time, ms; design estimate from section 4.6 in the last column (1
 
 | ctx | B | B solo steps | 1 batched step | speedup | batched tok/s | design est. ms |
 |---:|---:|---:|---:|---:|---:|---:|
-| 128 | 2 | 55.68 | 28.24 | 1.97x | 70.8 | 28.0 (128: 27.6) |
-| 128 | 4 | 109.16 | 29.19 | 3.74x | 137.0 | 29.3 (28.6) |
-| 128 | 8 | 218.44 | 37.03 | 5.90x | 216.0 | 36.6 (35.1) |
-| 1024 | 1 | 27.63 | 27.64 | 1.00x | 36.2 | 27.3 |
-| 1024 | 2 | 55.71 | 28.39 | 1.96x | 70.5 | 28.0 |
-| 1024 | 4 | 110.44 | 29.99 | 3.68x | 133.4 | 29.3 |
-| 1024 | 8 | 221.19 | 38.96 | 5.68x | 205.3 | 36.6 |
-| 4096 | 2 | 56.66 | 29.65 | 1.91x | 67.5 | 29.5 |
-| 4096 | 4 | 113.41 | 33.38 | 3.40x | 119.8 | 32.5 |
-| 4096 | 8 | 225.90 | 48.38 | 4.67x | 165.4 | 43.0 |
+| 128 | 2 | 54.76 | 27.81 | 1.97x | 71.9 | 27.6 |
+| 128 | 4 | 109.10 | 29.16 | 3.74x | 137.2 | 28.6 |
+| 128 | 8 | 220.03 | 37.17 | 5.92x | 215.2 | 35.1 |
+| 1024 | 1 | 27.62 | 27.67 | 1.00x | 36.1 | 27.3 |
+| 1024 | 2 | 55.53 | 28.28 | 1.96x | 70.7 | 28.0 |
+| 1024 | 4 | 110.32 | 30.04 | 3.67x | 133.2 | 29.3 |
+| 1024 | 8 | 220.68 | 38.78 | 5.69x | 206.3 | 36.6 |
+| 4096 | 2 | 56.44 | 29.59 | 1.91x | 67.6 | 29.5 |
+| 4096 | 4 | 113.93 | 33.45 | 3.41x | 119.6 | 32.5 |
+| 4096 | 8 | 227.46 | 45.00 | 5.06x | 177.8 | 43.0 |
 
-The measurement is within 1-5 percent of the estimate up to B = 4 and 6-12 percent above it at B = 8 (38.96 vs 36.6 ms at 1k, 48.4
+The measurement is within 1-5 percent of the estimate up to B = 4 and 5-6 percent above it at B = 8 (38.8 vs 36.6 ms at 1k, 45.0
 vs 43.0 ms at 4k): the 3 dispatches per row-layer of the per-row attention that the design priced at the G0b upper bound. The
-decode-window target of M1 (N = 8 >= 175 tok/s at 1k) is met by the step itself (205 tok/s) before scheduler and prefill losses. Full
+decode-window target of M1 (N = 8 >= 175 tok/s at 1k) is met by the step itself (206 tok/s) before scheduler and prefill losses. Full
 tables: `raw/2026-10-15-metal-cb-m1-step1/out/batch-step-*.log`.
 
 ## 7. Limits and not done
@@ -128,6 +129,5 @@ tables: `raw/2026-10-15-metal-cb-m1-step1/out/batch-step-*.log`.
 ## 8. Slots
 
 #2065 (split identity), #2067 (Qwen3-8B bitwise gate), #2068 (spark1 build check, no GPU), #2074 (gates before the merge of b300b3e,
-`out-premerge/`), #2080 (final gates on the merged tree, `out/`). The merges of de8fe5b and b300b3e changed nothing under `crates/` that
-this branch edits except what they brought (server tests, `for_serving` in `common.rs`); `cargo check --workspace --all-targets` passed after the
-merge and the final gates ran on the merged tree.
+`out-premerge/`), #2080 (final gates on the tree merged with b300b3e, `out/`; same numbers within noise). The merges were clean (no conflict, `common.rs` merged
+automatically around `for_serving`); `common.rs` edits of this branch are the `--max-batch` option and its `engine_options` line only.
