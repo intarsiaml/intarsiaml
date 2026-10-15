@@ -1,0 +1,4 @@
+ctx fp8 16384: top-1 same (220/220); 49/50 common ids; KL(bf16||fp8) over the common top-k 2.368e-11; max |dlogit| 0.437; greedy ids (129): first divergence at token 24
+ctx int8 16384: top-1 same (220/220); 48/50 common ids; KL(bf16||fp8) over the common top-k 1.704e-11; max |dlogit| 0.253; greedy ids (129): identical
+ctx fp8 32764: top-1 same (220/220); 46/50 common ids; KL(bf16||fp8) over the common top-k 9.579e-11; max |dlogit| 0.396; greedy ids (129): identical
+ctx int8 32764: top-1 same (220/220); 50/50 common ids; KL(bf16||fp8) over the common top-k 4.690e-12; max |dlogit| 0.197; greedy ids (129): identical

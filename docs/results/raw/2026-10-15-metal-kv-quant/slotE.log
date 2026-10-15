@@ -117,3 +117,107 @@ policy 128,120 ctx 4096: attn_decode_bf16_splitkv 36.2 us | attn_decode_i8_split
 policy 128,120 ctx 16384: attn_decode_bf16_splitkv 122.5 us | attn_decode_i8_splitkv 92.1 us | attn_decode_f8_splitkv 91.9 us | 
 policy 128,120 ctx 32768: attn_decode_bf16_splitkv 235.4 us | attn_decode_i8_splitkv 172.5 us | attn_decode_f8_splitkv 172.1 us | 
 policy 128,240 ctx 4096: attn_decode_bf16_splitkv 44.8 us | attn_decode_i8_splitkv 37.4 us | attn_decode_f8_splitkv 36.3 us | 
+policy 128,240 ctx 16384: attn_decode_bf16_splitkv 136.4 us | attn_decode_i8_splitkv 98.6 us | attn_decode_f8_splitkv 97.1 us | 
+policy 128,240 ctx 32768: attn_decode_bf16_splitkv 260.9 us | attn_decode_i8_splitkv 179.8 us | attn_decode_f8_splitkv 176.4 us | 
+policy 128,360 ctx 4096: attn_decode_bf16_splitkv 43.1 us | attn_decode_i8_splitkv 35.9 us | attn_decode_f8_splitkv 35.0 us | 
+policy 128,360 ctx 16384: attn_decode_bf16_splitkv 142.4 us | attn_decode_i8_splitkv 99.2 us | attn_decode_f8_splitkv 96.6 us | 
+policy 128,360 ctx 32768: attn_decode_bf16_splitkv 267.3 us | attn_decode_i8_splitkv 177.9 us | attn_decode_f8_splitkv 174.8 us | 
+policy 64,480 ctx 4096: attn_decode_bf16_splitkv 46.5 us | attn_decode_i8_splitkv 40.4 us | attn_decode_f8_splitkv 39.2 us | 
+policy 64,480 ctx 16384: attn_decode_bf16_splitkv 144.3 us | attn_decode_i8_splitkv 104.4 us | attn_decode_f8_splitkv 101.7 us | 
+policy 64,480 ctx 32768: attn_decode_bf16_splitkv 275.6 us | attn_decode_i8_splitkv 183.9 us | attn_decode_f8_splitkv 179.9 us | 
+policy 256,120 ctx 4096: attn_decode_bf16_splitkv 36.2 us | attn_decode_i8_splitkv 30.9 us | attn_decode_f8_splitkv 30.7 us | 
+policy 256,120 ctx 16384: attn_decode_bf16_splitkv 122.2 us | attn_decode_i8_splitkv 92.4 us | attn_decode_f8_splitkv 92.0 us | 
+policy 256,120 ctx 32768: attn_decode_bf16_splitkv 235.9 us | attn_decode_i8_splitkv 172.6 us | attn_decode_f8_splitkv 172.2 us | 
+== KV memory sizing: context that fits --mem-budget 20 and 18 (GiB), --max-seq 4000000 (recipe cap 40960)
+budget 20 GiB bf16: context 32683 tokens 
+budget 20 GiB fp8: context 40960 tokens 
+budget 20 GiB int8: context 40960 tokens 
+budget 18 GiB bf16: context 18120 tokens 
+budget 18 GiB fp8: context 36240 tokens 
+budget 18 GiB int8: context 34108 tokens 
+== warmup (page-in)
+warm [17:14:24]: prefill 1194 ms (3430.5 tok/s) | decode 3643 ms (35.13 tok/s) T=69C
+temp before 4096-bf16-1: 61 C (waited 10 s)
+ctx4096-1-bf16 [17:14:39]: prefill 1195 ms (3428.7 tok/s) | decode 3631 ms (35.25 tok/s) T=70C
+temp before 4096-fp8-2: 62 C (waited 10 s)
+ctx4096-2-fp8 [17:14:55]: prefill 1177 ms (3480.7 tok/s) | decode 3629 ms (35.27 tok/s) T=72C
+temp before 4096-int8-3: 60 C (waited 20 s)
+ctx4096-3-int8 [17:15:20]: prefill 1173 ms (3490.8 tok/s) | decode 3621 ms (35.35 tok/s) T=71C
+temp before 4096-int8-4: 62 C (waited 10 s)
+ctx4096-4-int8 [17:15:35]: prefill 1179 ms (3473.7 tok/s) | decode 3612 ms (35.44 tok/s) T=72C
+temp before 4096-fp8-5: 61 C (waited 20 s)
+ctx4096-5-fp8 [17:16:01]: prefill 1200 ms (3414.5 tok/s) | decode 3617 ms (35.39 tok/s) T=71C
+temp before 4096-bf16-6: 60 C (waited 20 s)
+ctx4096-6-bf16 [17:16:26]: prefill 1198 ms (3419.2 tok/s) | decode 3624 ms (35.32 tok/s) T=71C
+temp before 16384-bf16-1: 62 C (waited 10 s)
+ctx16384-1-bf16 [17:16:46]: prefill 5632 ms (2909.0 tok/s) | decode 4011 ms (31.91 tok/s) T=82C
+temp before 16384-fp8-2: 60 C (waited 40 s)
+ctx16384-2-fp8 [17:17:36]: prefill 5541 ms (2956.6 tok/s) | decode 3904 ms (32.78 tok/s) T=81C
+temp before 16384-int8-3: 60 C (waited 30 s)
+ctx16384-3-int8 [17:18:16]: prefill 5704 ms (2872.2 tok/s) | decode 3923 ms (32.63 tok/s) T=80C
+temp before 16384-int8-4: 62 C (waited 30 s)
+ctx16384-4-int8 [17:18:56]: prefill 5652 ms (2898.7 tok/s) | decode 3910 ms (32.74 tok/s) T=80C
+temp before 16384-fp8-5: 62 C (waited 20 s)
+ctx16384-5-fp8 [17:19:26]: prefill 5534 ms (2960.6 tok/s) | decode 3897 ms (32.85 tok/s) T=81C
+temp before 16384-bf16-6: 60 C (waited 20 s)
+ctx16384-6-bf16 [17:19:56]: prefill 5534 ms (2960.8 tok/s) | decode 4009 ms (31.93 tok/s) T=79C
+temp before 32764-bf16-1: 60 C (waited 20 s)
+ctx32764-1-bf16 [17:20:37]: prefill 15819 ms (2071.2 tok/s) | decode 4572 ms (28.00 tok/s) T=84C
+temp before 32764-fp8-2: 61 C (waited 20 s)
+ctx32764-2-fp8 [17:21:25]: prefill 22476 ms (1457.7 tok/s) | decode 5017 ms (25.51 tok/s) T=66C
+temp before 32764-int8-3: 58 C (waited 10 s)
+ctx32764-3-int8 [17:22:07]: prefill 26130 ms (1253.9 tok/s) | decode 4756 ms (26.92 tok/s) T=68C
+temp before 32764-int8-4: 59 C (waited 10 s)
+ctx32764-4-int8 [17:22:45]: prefill 22901 ms (1430.7 tok/s) | decode 4921 ms (26.01 tok/s) T=68C
+temp before 32764-fp8-5: 61 C (waited 20 s)
+ctx32764-5-fp8 [17:23:40]: prefill 28583 ms (1146.3 tok/s) | decode 5086 ms (25.17 tok/s) T=68C
+temp before 32764-bf16-6: 61 C (waited 10 s)
+ctx32764-6-bf16 [17:24:24]: prefill 28271 ms (1158.9 tok/s) | decode 5203 ms (24.60 tok/s) T=68C
+temp before 40000-bf16-1: 62 C (waited 10 s)
+ctx40000-1-bf16 [17:25:10]: prefill 30193 ms (1324.8 tok/s) | decode 5172 ms (24.75 tok/s) T=68C
+temp before 40000-fp8-2: 62 C (waited 10 s)
+ctx40000-2-fp8 [17:25:55]: prefill 30334 ms (1318.7 tok/s) | decode 4815 ms (26.58 tok/s) T=68C
+temp before 40000-int8-3: 57 C (waited 10 s)
+ctx40000-3-int8 [17:26:41]: prefill 30402 ms (1315.7 tok/s) | decode 4834 ms (26.48 tok/s) T=67C
+temp before 40000-int8-4: 56 C (waited 10 s)
+ctx40000-4-int8 [17:27:26]: prefill 29387 ms (1361.2 tok/s) | decode 4668 ms (27.42 tok/s) T=68C
+temp before 40000-fp8-5: 56 C (waited 10 s)
+ctx40000-5-fp8 [17:28:10]: prefill 29489 ms (1356.4 tok/s) | decode 4689 ms (27.30 tok/s) T=68C
+temp before 40000-bf16-6: 57 C (waited 10 s)
+ctx40000-6-bf16 [17:28:56]: prefill 29487 ms (1356.6 tok/s) | decode 5252 ms (24.37 tok/s) T=67C
+== kernel-mode trace: which kernels run under int8 (4k, 33 decode steps)
+trace-kernel-i8-4k [17:29:08]: prefill 1705 ms (2401.7 tok/s) | decode 10665 ms (12.00 tok/s) T=64C
+run                          prefill ms prefill t/s decode t/s | decode MHz  %<1450    W  maxC    n | prefill MHz  %<1450  flag
+ctx4096-1-bf16                     1195      3428.7      35.25 |       1328      92   14    73   24 |        1617      20  DECODE-CLOCK<1450
+ctx4096-2-fp8                      1177      3480.7      35.27 |       1372      96   15    77   23 |        1617      17  DECODE-CLOCK<1450
+ctx4096-3-int8                     1173      3490.8      35.35 |       1352      92   15    73   24 |        1617      20  DECODE-CLOCK<1450
+ctx4096-4-int8                     1179      3473.7      35.44 |       1376      92   15    75   24 |        1617      17  DECODE-CLOCK<1450
+ctx4096-5-fp8                      1200      3414.5      35.39 |       1346      92   15    75   24 |        1617      20  DECODE-CLOCK<1450
+ctx4096-6-bf16                     1198      3419.2      35.32 |       1335      96   14    75   24 |        1617       0  DECODE-CLOCK<1450
+ctx16384-1-bf16                    5632      2909.0      31.91 |       1465      24   20    92   25 |        1608       3  
+ctx16384-2-fp8                     5541      2956.6      32.78 |       1482      12   21    92   24 |        1617       0  
+ctx16384-3-int8                    5704      2872.2      32.63 |       1461      38   21    91   24 |        1617      13  
+ctx16384-4-int8                    5652      2898.7      32.74 |       1483      17   21    91   24 |        1617       7  
+ctx16384-5-fp8                     5534      2960.6      32.85 |       1484      13   21    92   23 |        1617       3  
+ctx16384-6-bf16                    5534      2960.8      31.93 |       1472      12   20    92   24 |        1617       3  
+ctx32764-1-bf16                   15819      2071.2      28.00 |       1474      25   22    91   28 |        1428      52   PREFILL-CLOCK<1450
+ctx32764-2-fp8                    22476      1457.7      25.51 |       1109      67   14    71   27 |         984      98  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-3-int8                   26130      1253.9      26.92 |       1011     100   11    70   31 |         855      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-4-int8                   22901      1430.7      26.01 |        935     100   11    71   31 |         963      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-5-fp8                    28583      1146.3      25.17 |        873     100    9    70   31 |         777      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx32764-6-bf16                   28271      1158.9      24.60 |        792     100    8    70   31 |         786      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-1-bf16                   30193      1324.8      24.75 |       1072      73   12    71   33 |         988      94  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-2-fp8                    30334      1318.7      26.58 |       1081     100   12    70   31 |         976      91  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-3-int8                   30402      1315.7      26.48 |       1047      87   12    69   31 |        1006      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-4-int8                   29387      1361.2      27.42 |       1282      87   17    70   30 |        1047      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-5-fp8                    29489      1356.4      27.30 |       1202      77   16    70   30 |        1028      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+ctx40000-6-bf16                   29487      1356.6      24.37 |       1197      81   14    71   32 |        1029      99  DECODE-CLOCK<1450 PREFILL-CLOCK<1450
+trace-kernel-i8-4k                 1705      2401.7      12.00 |       1617      25   11    70   69 |        1314      88   PREFILL-CLOCK<1450
+######## part C: 16k proxy + localeval Thu Oct 15 17:29:09 EDT 2026
+== 16k+ proxy (no fp32 golden exists): last-position top-50 logits and 128 greedy ids, bf16 vs fp8 KV
+ctx fp8 16384: top-1 same (220/220); 49/50 common ids; KL(bf16||fp8) over the common top-k 2.368e-11; max |dlogit| 0.437; greedy ids (129): first divergence at token 24
+ctx int8 16384: top-1 same (220/220); 48/50 common ids; KL(bf16||fp8) over the common top-k 1.704e-11; max |dlogit| 0.253; greedy ids (129): identical
+ctx fp8 32764: top-1 same (220/220); 46/50 common ids; KL(bf16||fp8) over the common top-k 9.579e-11; max |dlogit| 0.396; greedy ids (129): identical
+ctx int8 32764: top-1 same (220/220); 50/50 common ids; KL(bf16||fp8) over the common top-k 4.690e-12; max |dlogit| 0.197; greedy ids (129): identical
+== localeval speed through intarsia serve, bf16 then fp8 then bf16... (one server per dtype), sizes 4096 16384
+temp before localeval-bf16: 67 C (waited 0 s)
