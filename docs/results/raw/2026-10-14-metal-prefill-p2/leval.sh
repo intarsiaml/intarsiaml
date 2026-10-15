@@ -3,6 +3,7 @@
 # usage: leval.sh <outdir> <pre-binary> <new-binary> [pair-order ...]   default order: "pre new new pre"
 OUT=$1; PRE=$2; NEW=$3; shift 3
 ORDER=(${@:-pre new new pre})
+[ $# -eq 0 ] && ORDER=(pre new new pre)
 mkdir -p $OUT
 JSON=$(fleetq acquire --host endor --exclusive --mem 24 --label "metal P2 flash prefill localeval ${ORDER}" --expect 40 --wait --json)
 echo "$JSON" > $OUT/fleetq.json
