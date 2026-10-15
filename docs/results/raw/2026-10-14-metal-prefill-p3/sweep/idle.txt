@@ -1,0 +1,11 @@
+idle start: "Device Utilization %"=5 "Device Utilization %"=6 "Device Utilization %"=6 
+idle 1k rep1: "Device Utilization %"=97 "Device Utilization %"=4 "Device Utilization %"=6 
+idle 1k rep2: "Device Utilization %"=91 "Device Utilization %"=0 "Device Utilization %"=0 
+idle 1k rep3: "Device Utilization %"=92 "Device Utilization %"=5 "Device Utilization %"=6 
+idle 4k rep1: "Device Utilization %"=91 "Device Utilization %"=5 "Device Utilization %"=6 
+idle 4k rep2: "Device Utilization %"=97 "Device Utilization %"=5 "Device Utilization %"=5 
+idle 4k rep3: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=0 
+idle 16k rep1: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=5 
+idle 16k rep2: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=5 
+idle 16k rep3: "Device Utilization %"=99 "Device Utilization %"=5 "Device Utilization %"=0 
+idle end: "Device Utilization %"=99 "Device Utilization %"=5 "Device Utilization %"=0 

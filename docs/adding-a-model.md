@@ -79,7 +79,7 @@ kv_dtype = "bf16"                             # bf16 | f16 | f32 | fp8_e4m3 (fp8
 
 [tuning]                                      # optional: per-backend performance defaults
 prefill_chunk = 256                           # base value, every backend (omit: 256)
-[tuning.cuda]                                 # override for one backend (cpu | cuda | hip)
+[tuning.cuda]                                 # override for one backend (cpu | cuda | hip | metal)
 prefill_chunk = 2048
 ```
 
