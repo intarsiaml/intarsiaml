@@ -337,7 +337,17 @@ Core path M0-M3: **17-23 working days** (estimate). Optional M4-M6: +9-11. This 
 7. **Speculation default under load.** Auto-disable at B >= 4 as proposed, or keep `--spec` as a strict opt-in that also turns batching down?
 8. **Alignment remedy.** +2.75 GB resident and +3% at B = 8 (M4): wanted?
 9. **Scope of models.** Batching is dense, attention-only Qwen3-8B BF16 on Metal. The 35B-A3B NVFP4 MoE (phase C) changes the weight-read model (experts) and needs its own estimate; confirm it is out of scope here.
-10. **Decision record.** On acceptance, write `docs/decisions/0010-continuous-batching.md` (ADR numbering continues from `0009-native-metal-backend.md`) with: exact-only, N-states v0, chunk policy, `max_batch` default.
+10. **Decision record.** When the design is accepted, write `docs/decisions/0010-continuous-batching.md` (ADR numbering continues from `0009-native-metal-backend.md`) with: exact-only, N-states v0, chunk policy, `max_batch` default.
+
+### 8.1 Operator decisions (2026-10-15 11:56 EDT)
+
+| Q | Decision | Consequence |
+|---|---|---|
+| 1 | **Exact only.** | Every batched row must be bitwise equal to the solo run. The batch cap is 8. The non-exact NAX mode (M6) is out of scope. |
+| 2 | **256-token prefill chunk under load.** | While other sequences are decoding, a new prompt is prefilled in 256-token chunks (about 70 ms stall per running stream instead of about 0.5 s). Solo prefill keeps the 2048 chunk from P3. The identity reference for a batched request is therefore a solo run with the same chunk schedule. Golden baselines for the 256 schedule are needed at M2. |
+| 4 | **Yes, merge first.** | `metal-g0-multirow`, `metal-g0b-attn` and `metal-spec-ngram` go into `spike/metal` before M0. The merge is handled by the owner of `spike/metal`, under its own merge bar (G2). |
+
+Questions 3 and 5-10 are still open.
 
 ## 9. Sources and confidence
 
