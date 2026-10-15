@@ -128,7 +128,7 @@ for a8 in (0, 1):
                     exname = "tiled GEMM (no NAX logits)"
             if not m and not ex:
                 continue
-            ms = f"{m['t_med']*1e6:.1f} (cfg {m["best_p"]})" if m else "-"
+            ms = f"{m['t_med']*1e6:.1f} (cfg {m['best_p']})" if m else "-"
             mr = f"{m['ratio_med']:.3f} [{m['ratio_p10']:.3f}-{m['ratio_p90']:.3f}]" if m else "-"
             es = f"{ex['t_med']*1e6:.1f}" if ex else "-"
             er = f"{ex['ratio_med']:.2f}" if ex else "-"

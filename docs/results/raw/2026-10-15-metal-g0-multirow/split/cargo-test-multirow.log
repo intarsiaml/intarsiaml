@@ -1,0 +1,18 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/multirow.rs (target/release/deps/multirow-856d8fe765ca58f4)
+
+running 11 tests
+test serving_selection_unchanged ... ok
+test every_instance_exists ... ok
+test matmul_k_tails_and_odd_n ... ok
+test matmul_qwen3_8b_shapes_all_rows ... ok
+test matmul_a8_alignment_and_scalar_fallback ... ok
+test real_qwen3_8b_weights_bitwise ... ok
+test all_variants_matmul ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+test all_variants_pair ... ok
+test logits_qwen3_8b_shapes_all_rows ... ok
+test all_variants_logits ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+

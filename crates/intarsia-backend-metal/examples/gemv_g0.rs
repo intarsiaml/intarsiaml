@@ -190,6 +190,25 @@ mod imp {
         let gp = GemvParams { k: c.k as u32, n: c.n0 as u32, ..Default::default() };
         let pp = PairParams { k: c.k as u32, n0: c.n0 as u32, n1: c.n1 as u32, ..Default::default() };
         let pso = |name: &str| be.pso(name).unwrap_or_else(|| panic!("no pso {name}"));
+        if let Cand::MrS(r, p, rb) = cand {
+            let name = mrs_name(c.kind, a8, r, p, rb);
+            match c.kind {
+                Kind::Matmul => mr::encode_matmul_rows(enc, pso(name), (w0, off), (x, 0), (y0, 0), &gp, p),
+                Kind::Pair => mr::encode_pair_rows(
+                    enc,
+                    pso(name),
+                    (w0, off),
+                    (w1.unwrap(), off),
+                    (x, 0),
+                    (y0, 0),
+                    (y1, 0),
+                    &pp,
+                    p,
+                ),
+                Kind::Logits => mr::encode_logits_rows(enc, pso(name), (w0, off), (x, 0), (y0, 0), &gp, p),
+            }
+            return;
+        }
         match (cand, c.kind) {
             (Cand::Serving, Kind::Matmul) => encode_gemv(
                 enc,
