@@ -16,10 +16,27 @@ use std::time::Duration;
 
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
-    chunk_schedule, BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
+    chunk_schedule, next_prefill_chunk, BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
     TraceEvent,
 };
 use intarsia_core::{Error, FinishReason, Result};
+
+thread_local! {
+    /// `BatchModel::avoid_single_row_prefill` of every `MockModel` created on this test thread (tests run one thread each).
+    static AVOID: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn avoid() -> bool {
+    AVOID.with(|a| a.get())
+}
+
+/// Run `f` with the mock models' flag set to `v`.
+fn with_avoid<R>(v: bool, f: impl FnOnce() -> R) -> R {
+    let old = AVOID.with(|a| a.replace(v));
+    let r = f();
+    AVOID.with(|a| a.set(old));
+    r
+}
 
 const V: u64 = 50;
 const EOS: u32 = 2;
@@ -76,6 +93,8 @@ struct MockModel {
     /// Negative control: the output depends on the number of rows.
     leak: bool,
     rec: Arc<Mutex<Rec>>,
+    /// `BatchModel::avoid_single_row_prefill`.
+    avoid: bool,
 }
 
 impl MockModel {
@@ -93,6 +112,7 @@ impl MockModel {
             steps: 0,
             leak: false,
             rec: Arc::new(Mutex::new(Rec::default())),
+            avoid: avoid(),
         }
     }
     fn preload(&mut self, slot: usize, entries: Vec<Entry>) {
@@ -129,6 +149,9 @@ impl BatchModel for MockModel {
     }
     fn slot_cap(&self) -> usize {
         self.cap
+    }
+    fn avoid_single_row_prefill(&self) -> bool {
+        self.avoid
     }
     fn slot_tokens(&self, slot: usize) -> &[u32] {
         &self.toks[slot]
@@ -365,12 +388,20 @@ fn run_to_end(s: &mut Scheduler<MockModel, MockSeq>) {
 }
 
 /// Independent statement of the schedule rule (not `chunk_schedule`): from `cached`, chunks of `c` while more than `c`
-/// tokens remain, then the rest.
-fn expected_chunks(cached: usize, plen: usize, c: usize) -> Vec<(usize, usize)> {
-    let n_full = (plen - cached - 1) / c; // the final chunk holds 1..=c tokens
+/// tokens remain, then the rest; with `avoid` (and `c >= 3`) a `k * c + 1` remainder with `k >= 1` ends `c - 1, 2`.
+fn expected_chunks(cached: usize, plen: usize, c: usize, avoid: bool) -> Vec<(usize, usize)> {
+    let rem = plen - cached;
+    let n_full = (rem - 1) / c; // the final chunk holds 1..=c tokens
+    let split = avoid && c >= 3 && n_full >= 1 && rem - n_full * c == 1;
+    let n_full = if split { n_full - 1 } else { n_full };
     let mut v: Vec<(usize, usize)> = (0..n_full).map(|i| (cached + i * c, c)).collect();
     let start = cached + n_full * c;
-    v.push((start, plen - start));
+    if split {
+        v.push((start, c - 1));
+        v.push((start + c - 1, 2));
+    } else {
+        v.push((start, plen - start));
+    }
     v
 }
 
@@ -572,7 +603,7 @@ fn check_identity_cov(run: &BatchRun, reqs: &[Req], cfg: &SchedulerConfig, cap: 
             }
         } else {
             if r.max_tokens_nonzero() && !r.fail_prefill && plen < cap && plen > 0 {
-                assert_eq!(chunks, expected_chunks(cached, plen, c), "request {id}: chunk schedule vs the rule");
+                assert_eq!(chunks, expected_chunks(cached, plen, c, avoid()), "request {id}: chunk schedule vs the rule");
             }
             cov.exact += 1;
             if *got != reference.events || chunks != reference.chunks {
@@ -608,7 +639,9 @@ fn check_trace(run: &BatchRun, cfg: &SchedulerConfig) {
             TraceEvent::Chunk { iter, id, len, last, .. } => {
                 *prefill_tokens_in_iter.entry(*iter).or_default() += len;
                 if !last {
-                    assert_eq!(*len, chunk_of[id], "only the final chunk may be short");
+                    // only the final chunk may be short, except the (C - 1, 2) split before a 2-row final chunk
+                    let c = chunk_of[id];
+                    assert!(*len == c || (avoid() && c >= 3 && *len == c - 1), "only the final chunk may be short");
                 }
             }
             TraceEvent::Decode { iter, ids, spec_allowed } => {
@@ -713,18 +746,90 @@ fn random_reqs(rng: &mut SplitMix64, n: usize, cap: usize) -> Vec<Req> {
 
 #[test]
 fn chunk_schedule_rule() {
-    assert_eq!(chunk_schedule(0, 1, 2048), vec![(0, 1)]);
-    assert_eq!(chunk_schedule(0, 2048, 2048), vec![(0, 2048)]);
-    assert_eq!(chunk_schedule(0, 2049, 2048), vec![(0, 2048), (2048, 1)]);
-    assert_eq!(chunk_schedule(100, 700, 256), vec![(100, 256), (356, 256), (612, 88)]);
-    assert_eq!(chunk_schedule(99, 100, 256), vec![(99, 1)]);
+    // flag off: today's schedule, bit for bit
+    assert_eq!(chunk_schedule(0, 1, 2048, false), vec![(0, 1)]);
+    assert_eq!(chunk_schedule(0, 2048, 2048, false), vec![(0, 2048)]);
+    assert_eq!(chunk_schedule(0, 2049, 2048, false), vec![(0, 2048), (2048, 1)]);
+    assert_eq!(chunk_schedule(100, 700, 256, false), vec![(100, 256), (356, 256), (612, 88)]);
+    assert_eq!(chunk_schedule(99, 100, 256, false), vec![(99, 1)]);
     for cached in [0, 1, 7, 300] {
-        for plen in [cached + 1, cached + 255, cached + 256, cached + 257, cached + 3000] {
-            for c in [1, 3, 256, 2048] {
-                assert_eq!(chunk_schedule(cached, plen, c), expected_chunks(cached, plen, c));
+        for plen in [cached + 1, cached + 2, cached + 3, cached + 255, cached + 256, cached + 257, cached + 258, cached + 3000] {
+            for c in [1, 2, 3, 4, 256, 2048] {
+                let plain = {
+                    let mut v = Vec::new();
+                    let mut pos = cached;
+                    while plen - pos > c {
+                        v.push((pos, c));
+                        pos += c;
+                    }
+                    v.push((pos, plen - pos));
+                    v
+                };
+                assert_eq!(chunk_schedule(cached, plen, c, false), plain, "flag off, {cached} {plen} {c}");
+                assert_eq!(chunk_schedule(cached, plen, c, false), expected_chunks(cached, plen, c, false));
+                let on = chunk_schedule(cached, plen, c, true);
+                assert_eq!(on, expected_chunks(cached, plen, c, true), "flag on, {cached} {plen} {c}");
+                // always a partition of cached..plen with chunks <= c
+                let mut pos = cached;
+                for &(s, l) in &on {
+                    assert!(s == pos && l >= 1 && l <= c);
+                    pos += l;
+                }
+                assert_eq!(pos, plen);
+                // a 1-row chunk only where unavoidable: c <= 2, or the whole remainder is one row
+                let ones = on.iter().filter(|x| x.1 == 1).count();
+                if c >= 3 && plen - cached > 1 {
+                    assert_eq!(ones, 0, "flag on, {cached} {plen} {c}: {on:?}");
+                }
             }
         }
     }
+}
+
+#[test]
+fn next_prefill_chunk_rule() {
+    // (remaining, chunk) -> flag off, flag on
+    let cases: &[(usize, usize, usize, usize)] = &[
+        (1, 256, 1, 1),         // whole remainder is one row: unavoidable
+        (256, 256, 256, 256),   // exactly one chunk
+        (257, 256, 256, 255),   // L = C + 1
+        (258, 256, 256, 256),   // 2-row tail is fine
+        (513, 256, 256, 256),   // 2C + 1: first chunk is a plain C, the split happens one step later
+        (2049, 2048, 2048, 2047),
+        (2049, 256, 256, 256),  // 2049 @ 256: eight full chunks, then 257 left
+        (257, 2048, 257, 257),  // fits one chunk
+        (3, 2, 2, 2),           // C = 2: (1, 2) would itself be a 1-row chunk, keep (2, 1)
+        (2, 2, 2, 2),
+        (4, 3, 3, 2),           // C = 3: 4 -> (2, 2)
+        (5, 1, 1, 1),           // C = 1: unavoidable
+        (1, 1, 1, 1),
+    ];
+    for &(rem, c, off, on) in cases {
+        assert_eq!(next_prefill_chunk(rem, c, false), off, "off {rem} {c}");
+        assert_eq!(next_prefill_chunk(rem, c, true), on, "on {rem} {c}");
+    }
+    // the named schedules
+    let sch = |cached, plen, c| chunk_schedule(cached, plen, c, true);
+    assert_eq!(sch(0, 257, 256), vec![(0, 255), (255, 2)]);
+    assert_eq!(sch(0, 513, 256), vec![(0, 256), (256, 255), (511, 2)]);
+    assert_eq!(sch(0, 2049, 2048), vec![(0, 2047), (2047, 2)]);
+    assert_eq!(sch(0, 4097, 2048), vec![(0, 2048), (2048, 2047), (4095, 2)]);
+    assert_eq!(sch(0, 2049, 256), {
+        let mut v: Vec<_> = (0..7).map(|i| (i * 256, 256)).collect();
+        v.push((1792, 255));
+        v.push((2047, 2));
+        v
+    });
+    // cached offset: 257 rows left after 100 cached
+    assert_eq!(sch(100, 357, 256), vec![(100, 255), (355, 2)]);
+    assert_eq!(chunk_schedule(100, 357, 256, false), vec![(100, 256), (356, 1)]);
+    // prefix hit capped at prompt_len - 1 leaves one row: unavoidable
+    assert_eq!(sch(99, 100, 256), vec![(99, 1)]);
+    // C = 2 and C = 1
+    assert_eq!(sch(0, 3, 2), vec![(0, 2), (2, 1)]);
+    assert_eq!(sch(0, 5, 2), vec![(0, 2), (2, 2), (4, 1)]);
+    assert_eq!(sch(0, 3, 1), vec![(0, 1), (1, 1), (2, 1)]);
+    assert_eq!(sch(0, 4, 3), vec![(0, 2), (2, 2)]);
 }
 
 #[test]
@@ -745,6 +850,12 @@ fn config_limits() {
 /// equals its solo reference (cancelled ones: a prefix of it), for B in {1, 2, 3, 4, 6, 8}.
 #[test]
 fn batched_equals_solo_randomized() {
+    for flag in [false, true] {
+        with_avoid(flag, batched_equals_solo_randomized_body);
+    }
+}
+
+fn batched_equals_solo_randomized_body() {
     let cap = 4096;
     let mut total = 0;
     let mut cov = Cov::default();
@@ -773,6 +884,12 @@ fn batched_equals_solo_randomized() {
 /// Same with two chunks per iteration under load and a small busy chunk (budget 2 x 64).
 #[test]
 fn batched_equals_solo_other_budget() {
+    for flag in [false, true] {
+        with_avoid(flag, batched_equals_solo_other_budget_body);
+    }
+}
+
+fn batched_equals_solo_other_budget_body() {
     let cap = 4096;
     for &b in &[2usize, 4, 8] {
         let mut rng = SplitMix64::new(77 + b as u64);
@@ -881,7 +998,7 @@ fn busy_chunk_is_sticky() {
             }
         })
         .collect();
-    assert_eq!(b_chunks, chunk_schedule(0, 1000, 256));
+    assert_eq!(b_chunks, chunk_schedule(0, 1000, 256, false));
     // A ended (3 tokens) while B was still prefilling: B's later chunks stay 256
     let a_end = tr
         .iter()

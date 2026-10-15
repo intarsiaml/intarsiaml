@@ -17,8 +17,11 @@
 //! 1. A sequence only ever sees its own rows: [`BatchSeq::accept`] gets exactly the output of the row (or final
 //!    chunk) that fed that sequence's own input, and nothing else about the batch (not `B`, not the row index).
 //! 2. Its slot is truncated to `cached` at admission and is written by nobody else while the sequence runs.
-//! 3. Its prefill chunk schedule is a function of `(cached, prompt_len, C)` only, where `C` is chosen once, when its
-//!    first chunk runs (see [`chunk_schedule`] and [`SchedulerConfig::busy_chunk`]), and never changes afterwards.
+//! 3. Its prefill chunk schedule is a function of `(cached, prompt_len, C)` and the backend's
+//!    `avoid_single_row_prefill` flag only, where `C` is chosen once, when its first chunk runs (see [`chunk_schedule`]
+//!    and [`SchedulerConfig::busy_chunk`]), and never changes afterwards. The flag (Metal: true) only turns a
+//!    `.., C, 1` tail into `.., C - 1, 2` ([`next_prefill_chunk`]), so that a request's last row, which picks the first
+//!    token, is never computed as a 1-row chunk (decode kernels) in one schedule and inside a bigger chunk in another.
 //!    Decode rows and prefill chunks never share a forward pass (design 2.4, 4.5 item 3).
 //!
 //! The model's half ([`BatchModel`] docs): the output of row `r` of [`BatchModel::decode_step`] is a function of slot
@@ -88,6 +91,12 @@ pub trait BatchModel {
     /// is unusable, so every in-flight request must fail (default: backend errors).
     fn is_fatal(&self, e: &Error) -> bool {
         matches!(e, Error::Backend(_))
+    }
+    /// Whether prefill chunking avoids a 1-row tail ([`next_prefill_chunk`]); default false (plain `C, C, .., rest`).
+    /// The real adapter returns `Backend::avoid_single_row_prefill()` and false for models with recurrent state (their
+    /// last token deliberately runs alone, see `engine::Seq::prefill_step`).
+    fn avoid_single_row_prefill(&self) -> bool {
+        false
     }
     /// Trace hook: request `id` was admitted to `slot`, which now holds `cached` reused tokens. No effect on outputs.
     fn on_admit(&mut self, _slot: usize, _id: RequestId, _cached: usize) {}
@@ -185,18 +194,39 @@ impl SchedulerConfig {
     }
 }
 
+/// Length of the next prefill chunk when `remaining` (>= 1) prompt tokens are left and chunks are at most `chunk`.
+///
+/// The rule: `chunk` while more than `chunk` tokens remain, then the rest (1..=`chunk`) as the final chunk. With
+/// `avoid_one_row` (backends where a 1-row chunk is not bitwise equal to the same row inside a bigger chunk, see
+/// `Backend::avoid_single_row_prefill`) one exception: when exactly `chunk + 1` tokens remain, take `chunk - 1` so the
+/// final chunk has 2 rows instead of 1, i.e. a prompt of `k * chunk + 1` tokens (`k >= 1`) ends `.., chunk - 1, 2`
+/// instead of `.., chunk, 1`. Every chunk stays <= `chunk` (workspace is sized for it). Unavoidable cases keep the
+/// plain rule: `chunk <= 2` (the split would itself make a 1-row chunk) and a whole remainder of 1 row (nothing precedes
+/// it, e.g. a prefix hit capped at `prompt_len - 1`). With `avoid_one_row == false` the result is the plain rule.
+///
+/// Shared by `engine::Seq::prefill_step` and [`chunk_schedule`] so solo and batched schedules cannot drift.
+pub fn next_prefill_chunk(remaining: usize, chunk: usize, avoid_one_row: bool) -> usize {
+    debug_assert!(remaining >= 1 && chunk >= 1);
+    if remaining <= chunk {
+        remaining
+    } else if avoid_one_row && chunk >= 3 && remaining == chunk + 1 {
+        chunk - 1
+    } else {
+        chunk
+    }
+}
+
 /// The prefill chunk schedule of a request: `(start, len)` of every forward pass, the last one carrying the head.
-/// Same rule as `engine::Seq::prefill_step`: from `cached`, full chunks of `chunk` while more than `chunk` tokens
-/// remain, then the rest (1..=`chunk` tokens) as the final chunk.
-pub fn chunk_schedule(cached: usize, prompt_len: usize, chunk: usize) -> Vec<(usize, usize)> {
+/// Same rule as `engine::Seq::prefill_step` ([`next_prefill_chunk`]): from `cached`, full chunks of `chunk` while more
+/// than `chunk` tokens remain, then the rest (1..=`chunk` tokens) as the final chunk; with `avoid_one_row` a
+/// `chunk + 1` remainder is split `(chunk - 1, 2)` instead of `(chunk, 1)`.
+pub fn chunk_schedule(cached: usize, prompt_len: usize, chunk: usize, avoid_one_row: bool) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     let mut pos = cached;
-    while prompt_len - pos > chunk {
-        out.push((pos, chunk));
-        pos += chunk;
-    }
-    if prompt_len > pos {
-        out.push((pos, prompt_len - pos));
+    while pos < prompt_len {
+        let n = next_prefill_chunk(prompt_len - pos, chunk, avoid_one_row);
+        out.push((pos, n));
+        pos += n;
     }
     out
 }
@@ -760,8 +790,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         };
         let plen = self.active[i].seq.prompt().len();
-        let last = plen - pos <= chunk;
-        let len = if last { plen - pos } else { chunk };
+        let len = next_prefill_chunk(plen - pos, chunk, self.model.avoid_single_row_prefill());
+        let last = len == plen - pos;
         let mode = if last { Some(self.active[i].seq.first_mode()) } else { None };
         let slot = self.active[i].slot;
         let id = self.active[i].id;

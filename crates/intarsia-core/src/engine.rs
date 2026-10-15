@@ -935,12 +935,19 @@ impl Seq {
         if self.cancelled() {
             return Ok(PrefillStep::Finished(self.cancel_outcome()));
         }
-        if self.plen - self.pos > chunk {
-            match model.forward(st, &self.req.prompt[self.pos..self.pos + chunk], HeadMode::None, None)? {
+        // recurrent states keep the plain chunking (their last token runs alone below, for the snapshot rule)
+        let remaining = self.plen - self.pos;
+        let n = if st.has_recurrent() {
+            remaining.min(chunk)
+        } else {
+            crate::scheduler::next_prefill_chunk(remaining, chunk, model.backend.avoid_single_row_prefill())
+        };
+        if n < remaining {
+            match model.forward(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None)? {
                 StepOut::None => {}
                 _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
             }
-            self.pos += chunk;
+            self.pos += n;
             st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
             return Ok(PrefillStep::Chunk);
         }
