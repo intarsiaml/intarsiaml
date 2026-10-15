@@ -2,21 +2,26 @@
 
 Date 2026-10-15. Branch `metal-spec-ngram`: `spike/metal` c556008 with `metal-g0b-attn` cf735e9 merged in (ca18d27), which also brings `metal-g0-multirow`. Machine endor (Apple M5 Max), Qwen3-8B BF16. Plan: `docs/research/metal-next-levers.md` (on `metal-next-levers`) section 7, gate G1. Kernels: `docs/results/2026-10-15-metal-g0-multirow.md`, `docs/results/2026-10-15-metal-g0b-attn.md`.
 
-**Verdict: G1 is met.** I ran 19 cases (short and ~4k prompts at 48 and 256 tokens, an input-grounded code prompt, an open-ended prompt, and the max_tokens, stop-string and min_tokens cases). In every case `generate --show-ids` gives byte-identical stdout, ids and finish/completion counts across four variants:
+**Verdict: G1 is met.** I ran 24 cases:
+* short and ~4k prompts at 48 and 256 tokens: the D1 gate's synthetic 4k filler, plus natural 4k text and code from the files `tools/prompts/golden_4k.jsonl` names;
+* an input-grounded code prompt and an open-ended prompt;
+* the max_tokens, stop-string, min_tokens and EOS-inside-a-run cases. In every case `generate --show-ids` gives byte-identical stdout, ids and finish/completion counts across four variants:
 * `spike/metal` (c556008);
 * this branch with `--spec off`;
 * this branch with `--spec ngram` (k = 4);
 * this branch with `--spec ngram --spec-k 6`.
 
-That is 76 runs with the final binary 47e6d0d.
+That is 96 runs, all with the final code binary 47e6d0d (later commits are docs and data only).
 
 * A `max_tokens`, stop-string or EOS-masked ending lands inside an accepted run in 22 of the 38 spec-on runs. In those runs 1 to 6 verified tokens were dropped and the KV cache was rolled back.
 * The `min_tokens` boundary lands inside an accepted run. A masked EOS inside the window also goes through the cut path.
-* Streaming through `serve` emits the same text with spec on and off. `/metrics` carries the counters.
-* Acceptance over all 19 cases is 61.1 % at k = 4 and 49.9 % at k = 6.
+* An EOS accepted as a draft, with drafts after it, ends the request as without spec.
+* Streaming through `serve` emits the same text with spec on and off. A second request reusing the KV prefix that a mid-run stop left behind matches too. `/metrics` carries the counters.
+* Acceptance over the first 19 cases is 61.1 % at k = 4 and 49.9 % at k = 6.
   * Input-grounded code prompt: 72-78 %, 3.9-4.1 tokens per verify pass.
   * Repetitive 4k prompt: 65-70 %.
   * Open-ended story: 3 %.
+  * Natural 4k text: 6-7 %. Natural 4k code: 12-33 %.
 * Rough speed, one `generate` each at 256 tokens:
   * Grounded prompt: 3.3-3.4x faster (35.0 -> 114.7 / 120.9 tok/s).
   * Open-ended prompt: 0.99-1.01x in the clean speed runs, 0.93-0.95x in the traced identity runs.
@@ -69,8 +74,8 @@ With spec off the probe list, the plan and the scratch are unchanged: `plan show
 * **What a verify row reads.** Row t of `attn_prefill_bf16_splitkv_rows` reads keys `[0, pos0 + t]` only. Its visible length is `pos0 + t + 1`, and the split partition is that of the 1-row launch at that position. G0b's `g0b_attn` test fills the cache with random data beyond `pos0 + r` and still gets the 1-row bits, so nothing past the visible length is read.
 * **What a verify pass writes.** It appends K/V for its q rows at `pos0..pos0+q-1` (fused `QkNormRopeKv`) before the attention of the same layer, so every key a row sees was written by this pass or committed earlier.
 * **Rollback.** Rollback is `SequenceState::truncate`, which for attention-only state sets `len`. The stale rows beyond `len` are never visible to a later decode row (visible = len + 1) or verify row: the next pass writes position `len` onward before its attention reads them.
-* **Stale data and ordinary prefill.** Stale rows exist without spec too: a shorter request after a longer one leaves them. Prefill kernels mask positions beyond the causal bound. Spec only changes which finite values sit there, and the follow-up-request tests (section 7) show identical results.
-* **End of a request.** When a request ends inside an accepted run, the KV is truncated to what sequential decode holds: every emitted token but the last. A following serve request therefore reuses the same prefix and prefills the same chunks. In the serve check both runs report `cached_tokens 371` on the second request.
+* **Stale data and ordinary prefill.** Stale rows exist without spec too: a shorter request after a longer one leaves them. Prefill kernels mask positions beyond the causal bound. Spec only changes which finite values sit there. The follow-up-request tests (section 7, cpu) and the two-turn serve check on Metal (section 4) show identical results.
+* **End of a request.** When a request ends inside an accepted run, the KV is truncated to what sequential decode holds: every emitted token but the last. A following serve request therefore reuses the same prefix and prefills the same chunks. In the two-turn serve check (section 4), turn 1 stops with 4 verified tokens dropped (KV 182 -> 178), and turn 2 reports `cached_tokens 178` and identical text in both modes.
 
 ## 4. Identity results (G1 acceptance)
 
@@ -117,9 +122,28 @@ The prompts are in `raw/.../prompts/`:
   * In min320-stopfence the boundary (321) lies inside the run 320..324, and the stop string then matches the closing fence at token 328.
 * The "0" entries in the dropped column are cases where the stop fell on the last token of a pass, or on a plain step.
 
-**Spec off is byte-identical to spike/metal** on all 19 cases (column "off == base"), and `plan show` output is identical too.
+**Natural 4k prompts and EOS inside a run** (slot #1999, `raw/.../identity-c/`, `identity-c-table.md`).
+* The D1 4k prompt above is synthetic filler, close to best case for n-gram lookup. These rows use the first 15,000 characters of the two files `tools/prompts/golden_4k.jsonl` names (`corpus_docs.txt`, `corpus_code.txt`), as raw completions with `--ignore-eos`.
+* `repeat` is a chat prompt that asks for one sentence back verbatim.
+* Binary: new 47e6d0d code (same code as at HEAD 8c1668a), same base binary.
 
-**Totals:**
+| case | prompt tok | finish / tokens | off == base | on4 == base | on6 == base | acceptance on4 / on6 | tokens per pass on4 / on6 | verified tokens dropped at the stop, on4 / on6 | min_tokens cuts on4 / on6 | decode tok/s base / off / on4 / on6 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| golden-docs-48 | 4326 | length / 48 | yes | yes | yes | 7% / 5% | 1.27 / 1.27 | 1 / 1 | 0 / 0 | 34.2 / 34.4 / 38.5 / 35.3 |
+| golden-docs-256 | 4326 | length / 256 | yes | yes | yes | 6% / 4% | 1.25 / 1.25 | 0 / 0 | 0 / 0 | 34.0 / 33.7 / 36.1 / 31.8 |
+| golden-code-48 | 3596 | length / 48 | yes | yes | yes | 12% / 8% | 1.48 / 1.48 | 0 / 0 | 0 / 0 | 33.4 / 33.2 / 43.4 / 39.7 |
+| golden-code-256 | 3596 | length / 256 | yes | yes | yes | 33% / 25% | 2.30 / 2.48 | 1 / 3 | 0 / 0 | 33.6 / 33.4 / 66.1 / 54.5 |
+| repeat-eos (`--chat --no-think`, max 64) | 35 | stop / 16 | yes | yes | yes | 100% / 100% | 5.00 / 7.00 | 1 / 0 | 0 / 0 | 34.6 / 34.4 / 131.2 / 162.8 |
+
+* **EOS inside an accepted run.** In repeat-eos on4, the pass at token 13 accepted 4 drafts. The fourth draft, token 16, is the EOS (`<|im_end|>`, proposed from the chat template's own `<|im_end|>` in the prompt).
+  * The trace then shows "finished at token 16 with 1 verified tokens unemitted; KV 51 -> 50": the bonus token after the EOS is dropped.
+  * Result: finish `stop`, completion 16, the same ids as base.
+  * In on6 the EOS was the bonus token of the second pass, so it did not land mid-run.
+* Over these 5 cases: k = 4 ran 335 verify passes, 1340 proposed, 213 accepted (15.9 %); k = 6 ran 327 passes, 1962 proposed, 222 accepted (11.3 %).
+
+**Spec off is byte-identical to spike/metal** on all 24 cases (column "off == base"), and `plan show` output is identical too.
+
+**Totals of the first 19 cases:**
 
 | k | verify passes | drafts proposed | drafts accepted | acceptance |
 |---|---|---|---|---|
@@ -130,6 +154,18 @@ The prompts are in `raw/.../prompts/`:
 * the streamed text (328 deltas) and the non-streamed text are identical between spec off and spec on, and equal to `generate`'s grounded-512 stdout (1303 bytes);
 * finish `stop`, completion 329 in both;
 * `/metrics` with spec on: `intarsia_spec_steps_total 164`, `intarsia_spec_proposed_tokens_total 656`, `intarsia_spec_accepted_tokens_total 490` (two requests); with spec off all three are 0.
+
+**Two-turn serve check: prefix reuse after a mid-run stop** (`raw/.../serve2/`, `serve_check2.py`, binary 47e6d0d, slot #1999). Each mode runs one server:
+* Turn 1: raw `/v1/completions` on the short prompt with `stop: ["kettles"]`. With spec on, the trace shows "finished at token 57 with 4 verified tokens unemitted; KV 182 -> 178".
+* Turn 2 (streamed): the turn-1 prompt + turn-1 text + "kettles on day 99. The", 64 tokens. Its prefill reuses the 178-token prefix, and the positions past it held rejected-draft K/V in the spec-on run.
+
+| | turn 1 | turn 2 |
+|---|---|---|
+| text, spec off vs spec on | identical | identical |
+| finish, spec off and spec on | `stop` | `length` |
+| usage | 57 completion tokens | prompt 186, cached 178, completion 64 (identical) |
+
+Spec on counted 42 verify passes, 168 proposed, 79 accepted.
 
 ## 5. Rough speed check (not the G2 benchmark)
 
@@ -143,6 +179,8 @@ Single `generate --max-tokens 256 --chat --no-think` runs, no trace, two repetit
 | open-ended | ngram k=4 | 7299 / 7072 | 34.9 / 36.1 | **0.99x / 1.01x** |
 
 The traced identity runs agree on the grounded side, 3.0-3.5x. On the open-ended side they were slower than the clean runs: 0.95x (k = 4) and 0.89x (k = 6) in slot #1998, and 0.93x / 0.81x in #1995 (single runs with per-pass stderr tracing, so noisier).
+
+On natural 4k text (golden docs file, traced identity runs) spec is 1.07x at k = 4 and 0.94x at k = 6 (6 % acceptance); on the natural 4k code file it is 2.0x / 1.6x (33 % / 25 %).
 
 The open-ended prompt gets a draft at almost every step: 106 passes for 256 tokens, but only 3 % acceptance. Each pass costs a few percent over a 1-token step (G0b estimate 1.01-1.04x at k = 4 up to 1k context), so the drafter needs a gate before G2. Options: a minimum match length of 2, or turning drafting off after repeated zero-acceptance passes. That is G2 work and is not changed here, since the task fixed the 3..1 suffix rule.
 
@@ -181,7 +219,7 @@ Metal backend:
 * comments updated.
 
 **Builds.**
-* `cargo check --workspace --all-targets` (default features) passes. It covers `intarsia-backend-cuda` and `intarsia-backend-hip` as crates, including their tests.
+* `cargo check --workspace --all-targets` (default features) passes; re-run at HEAD 8c1668a, `raw/.../cargo-check-workspace.log`. It covers `intarsia-backend-cuda` and `intarsia-backend-hip` as crates, including their tests.
 * `cargo check -p intarsia-cli --features cuda` and `--features hip` both pass.
 * Not built here: a linking CUDA or HIP build, and their GPU tests. macOS has no nvcc/hipcc and no NVIDIA/AMD device.
 
@@ -218,7 +256,8 @@ Metal backend:
 * `e5bc3a1` `serving_selection_unchanged` expects the NAX picks for M = 2..15
 * `be4478c` raw data of identity A/B, speed, serve check, first test run
 * `47e6d0d` a min_tokens cut that emits nothing is served by the plain step right after it (before: two plain steps; identity unaffected, rerun in #1998)
-* this report and the final raw data (next commit)
+* `8c1668a` results doc, final identity data
+* the phase D additions to this report (golden 4k, EOS inside a run, two-turn serve, workspace check log) (next commit)
 
 ## 10. fleetq
 
@@ -232,18 +271,20 @@ Every GPU run (generate, serve, cargo test of the Metal crate, kernels test, pla
 | #1996 | identity B (mid-run cases), speed, serve check, metal cargo test, kernels test | 10:50:33 | 10:58:02 |
 | #1997 | metal cargo test after the test fix, merge-base selection test, plan show | 10:59:23 | 10:59:46 |
 | #1998 | final identity rerun, 19 cases x off/on4/on6 with 47e6d0d | 11:01:17 | 11:05:19 |
+| #1999 | golden 4k files, EOS inside a run (5 cases x base/off/on4/on6), two-turn serve check | 11:13:16 | 11:16:37 |
 
-All four were released; `fleetq status` afterwards shows endor with 0 jobs. Nothing ran unslotted on the GPU. The CPU-only work ran outside slots: builds, `cargo check`, and the cpu-backend tests.
+All five were released; `fleetq status` afterwards shows endor with 0 jobs. Nothing ran unslotted on the GPU. The CPU-only work ran outside slots: builds, `cargo check`, and the cpu-backend tests.
 
 ## 11. Files
 
 Code: section 6. Raw data `docs/results/raw/2026-10-15-metal-spec-g1/`:
 * scripts: `slot.sh`, `run_identity.sh`, `phase_b.sh`, `phase_c.sh`, `serve_check.py`, `compare.py`, `make_doc_table.py`;
-* case lists: `cases-a.txt`, `cases-b.txt`, `cases-all.txt`;
+* case lists: `cases-a.txt`, `cases-b.txt`, `cases-all.txt`, `cases-c.txt` (phase D, plus `phase_d.sh`, `serve_check2.py`);
 * `prompts/`;
 * run outputs:
   * `identity/` (A, binary 5a5162d), `identity-b/` (B, 5a5162d), `identity-final/` (all cases, 47e6d0d, plus the base runs);
   * `identity-final-table.md`, `identity-final-vs-base.md`, `identity-final-vs-off.md`;
-  * `speed/`, `serve/`, `plan/`;
-* test logs: `cargo-test-metal.log` (first run), `cargo-test-metal-final.log`, `mergebase-ca18d27-serving-selection.log`, `kernels-test-metal.log`;
+  * `identity-c/` with `identity-c-table.md` (phase D);
+  * `speed/`, `serve/`, `serve2/`, `plan/`;
+* test logs: `cargo-check-workspace.log`, `cargo-test-metal.log` (first run), `cargo-test-metal-final.log`, `mergebase-ca18d27-serving-selection.log`, `kernels-test-metal.log`;
 * `slots.log`.

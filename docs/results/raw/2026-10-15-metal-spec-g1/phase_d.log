@@ -1,0 +1,47 @@
+#1999 "metal spec G1: phase D: golden 4k, EOS mid-run, two-turn serve" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+  run work inside it: prefix commands with FLEETQ_JOB=1999
+  release when finished: fleetq release 1999
+slot 1999 RUNNING (phase D: golden 4k, EOS mid-run, two-turn serve) Thu Oct 15 11:13:16 EDT 2026: #1999 "metal spec G1: phase D: golden 4k, EOS mid-run, two-turn serve" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+11:13:16 golden-docs-48 base
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1222 ms (3539.7 tok/s) | decode 1373 ms (34.23 tok/s)
+11:13:19 golden-docs-48 off
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1239 ms (3491.5 tok/s) | decode 1367 ms (34.38 tok/s)
+11:13:22 golden-docs-48 on4
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1229 ms (3521.1 tok/s) | decode 1222 ms (38.46 tok/s)
+11:13:25 golden-docs-48 on6
+  exit 0 finish=length prompt=4326 (cached 0) completion=48 | prefill 1244 ms (3476.4 tok/s) | decode 1332 ms (35.28 tok/s)
+11:13:28 golden-docs-256 base
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1383 ms (3128.1 tok/s) | decode 7499 ms (34.00 tok/s)
+11:13:38 golden-docs-256 off
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1423 ms (3040.7 tok/s) | decode 7566 ms (33.70 tok/s)
+11:13:47 golden-docs-256 on4
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1456 ms (2971.6 tok/s) | decode 7072 ms (36.06 tok/s)
+11:13:56 golden-docs-256 on6
+  exit 0 finish=length prompt=4326 (cached 0) completion=256 | prefill 1598 ms (2707.8 tok/s) | decode 8021 ms (31.79 tok/s)
+11:14:06 golden-code-48 base
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1400 ms (2568.8 tok/s) | decode 1409 ms (33.35 tok/s)
+11:14:09 golden-code-48 off
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1343 ms (2677.0 tok/s) | decode 1416 ms (33.19 tok/s)
+11:14:13 golden-code-48 on4
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1319 ms (2727.2 tok/s) | decode 1084 ms (43.35 tok/s)
+11:14:15 golden-code-48 on6
+  exit 0 finish=length prompt=3596 (cached 0) completion=48 | prefill 1296 ms (2775.1 tok/s) | decode 1185 ms (39.67 tok/s)
+11:14:18 golden-code-256 base
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1315 ms (2735.3 tok/s) | decode 7594 ms (33.58 tok/s)
+11:14:28 golden-code-256 off
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1256 ms (2862.2 tok/s) | decode 7633 ms (33.41 tok/s)
+11:14:37 golden-code-256 on4
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1236 ms (2908.8 tok/s) | decode 3859 ms (66.07 tok/s)
+11:14:43 golden-code-256 on6
+  exit 0 finish=length prompt=3596 (cached 0) completion=256 | prefill 1392 ms (2582.6 tok/s) | decode 4681 ms (54.47 tok/s)
+11:14:49 repeat-eos base
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 228 ms (153.7 tok/s) | decode 434 ms (34.58 tok/s)
+11:14:50 repeat-eos off
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 254 ms (137.7 tok/s) | decode 436 ms (34.39 tok/s)
+11:14:52 repeat-eos on4
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 225 ms (155.7 tok/s) | decode 114 ms (131.16 tok/s)
+11:14:52 repeat-eos on6
+  exit 0 finish=stop prompt=35 (cached 0) completion=16 | prefill 241 ms (145.3 tok/s) | decode 92 ms (162.85 tok/s)
+/opt/code/intarsiaml-spec/docs/results/raw/2026-10-15-metal-spec-g1/serve2/off.json stop {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 0}} length {'prompt_tokens': 186, 'completion_tokens': 64, 'total_tokens': 250, 'prompt_tokens_details': {'cached_tokens': 178}} {'intarsia_spec_steps_total': 0.0, 'intarsia_spec_proposed_tokens_total': 0.0, 'intarsia_spec_accepted_tokens_total': 0.0}
+/opt/code/intarsiaml-spec/docs/results/raw/2026-10-15-metal-spec-g1/serve2/on4.json stop {'prompt_tokens': 122, 'completion_tokens': 57, 'total_tokens': 179, 'prompt_tokens_details': {'cached_tokens': 0}} length {'prompt_tokens': 186, 'completion_tokens': 64, 'total_tokens': 250, 'prompt_tokens_details': {'cached_tokens': 178}} {'intarsia_spec_steps_total': 42.0, 'intarsia_spec_proposed_tokens_total': 168.0, 'intarsia_spec_accepted_tokens_total': 79.0}
+released 1999 Thu Oct 15 11:16:37 EDT 2026

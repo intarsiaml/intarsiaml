@@ -16,7 +16,7 @@ def info(p):
     cuts = len(re.findall(r'min_tokens cut', err))
     return dict(key=(out, ids, fin), fin=fin, tps=tps, sp=tuple(map(int, sp.groups())) if sp else None,
                 mid=int(fin_tr.group(2)) if fin_tr else 0, cuts=cuts)
-order = ['short-48', 'short-256', '4k-48', '4k-256', 'grounded-256', 'grounded-512', 'open-256', 'grounded-max102',
+order = sys.argv[2].split(',') if len(sys.argv) > 2 else ['short-48', 'short-256', '4k-48', '4k-256', 'grounded-256', 'grounded-512', 'open-256', 'grounded-max102',
          'grounded-max188', '4k-max9', '4k-max44', 'grounded-stop-topp', 'grounded-stop-vecstring', 'grounded-stop-atomic',
          '4k-stop250', 'short-stopkettles', 'grounded-min331', 'grounded-min335', 'grounded-min320-stopfence']
 print('| case | prompt tok | finish / tokens | off == base | on4 == base | on6 == base | acceptance on4 / on6 | tokens per pass on4 / on6 | verified tokens dropped at the stop, on4 / on6 | min_tokens cuts on4 / on6 | decode tok/s base / off / on4 / on6 |')

@@ -1,0 +1,5 @@
+golden-docs-48|48|--ignore-eos|golden-docs
+golden-docs-256|256|--ignore-eos|golden-docs
+golden-code-48|48|--ignore-eos|golden-code
+golden-code-256|256|--ignore-eos|golden-code
+repeat-eos|64|--chat --no-think|repeat
