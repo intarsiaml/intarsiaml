@@ -1,0 +1,14 @@
+total us/step (sum of per-launch kernel-mode durations): A 28540  B 29728  diff +1188
+op                                      n      k  calls     A us     B us  A ms/st  B ms/st  diff ms
+matmul_pair_bf16_gemv               24576   4096     36    334.9    335.6   12.178   12.896   +0.718
+rmsnorm_add_bf16                        0      0     72      9.4      4.7    0.688    0.391   -0.297
+attn_decode_bf16_splitkv                0      0     36     45.2     45.1    1.655    1.877   +0.223
+matmul_bf16_gemv                     4096   4096     72     58.5     58.5    4.247    4.467   +0.221
+matmul_bf16_gemv                     4096  12288     36    170.0    170.1    6.165    6.341   +0.176
+matmul_pair_bf16_gemv                2048   4096     36     30.8     30.9    1.120    1.184   +0.064
+logits_bf16_gemv                   151936   4096      1   2068.9   2071.9    2.076    2.117   +0.040
+qk_norm_rope_kv_bf16                    0      0     36      8.0      7.8    0.295    0.323   +0.028
+silu_glu_bf16                           0      0     36      2.5      2.5    0.094    0.108   +0.014
+argmax_f32                              0      0      1     14.1     12.9    0.015    0.016   +0.001
+rmsnorm_bf16                            0      0      1      5.2      4.1    0.005    0.005   -0.001
+embedding_bf16                          0      0      1      2.9      3.0    0.003    0.003   +0.000
