@@ -1,7 +1,7 @@
 #!/bin/zsh
 # slot G: final gates of the default path on the FINAL binary: cargo test (metal), kernels test, ids vs base, fresh qualify. One exclusive slot (slot.sh sets FLEETQ_JOB).
 source /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/common.sh
-NEW=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-final2
+NEW=/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-final3
 export INTARSIA_METAL_F8_U=$(pickU); echo "INTARSIA_METAL_F8_U=$INTARSIA_METAL_F8_U"
 mkdir -p $R/gatesG $R/idsG
 cd $W
@@ -41,3 +41,5 @@ mkdir -p $R/qualifyG-bf16
 $NEW qualify --model $M --backend metal --bandwidth-gbs 614 --golden-dir $G --out $R/qualifyG-bf16 > $R/qualifyG-bf16-console.log 2>&1; echo "qualify bf16 exit $?"
 grep -E "Verdict|verdict|PASS|FAIL" $R/qualifyG-bf16/full-report.md | head -20 | cut -c1-240
 echo "done $(date)"
+echo "######## localeval Thu Oct 15 17:39:37 EDT 2026"; zsh /opt/code/intarsiaml-kvq/docs/results/raw/2026-10-15-metal-kv-quant/workL.sh
+echo "######## all done Thu Oct 15 17:39:37 EDT 2026"
