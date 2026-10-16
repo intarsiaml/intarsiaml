@@ -100,6 +100,17 @@ def cmd_gen(args):
             if len(ids) >= n:
                 return ids[:n]
 
+    def copy_task_ids():
+        """Input-grounded cold prompt (as tools/cbspec_cases.py `copy`): '--spec ngram' drafts from the text in the prompt."""
+        f = rng.choice(["corpus_docs.txt", "corpus_code.txt"])
+        text = corp[f]
+        clen = rng.randint(500, 1000)
+        start = rng.randrange(0, len(text) - clen - 1)
+        nl = text.find("\n", start)
+        start = nl + 1 if 0 <= nl < start + 200 else start
+        sl = text[start:start + clen]
+        return tok.encode("Repeat the following text word for word.\n\nTEXT:\n" + sl + "\n\nREPEATED TEXT:\n", add_special_tokens=False).ids
+
     def sampling(st):
         if rng.random() < 0.30:
             st.update(temperature=rng.choice([0.6, 0.8, 1.0]), top_p=rng.choice([1.0, 0.95, 0.9]),
@@ -124,13 +135,18 @@ def cmd_gen(args):
         kind = rng.choices([k for k, _ in KINDS], [w for _, w in KINDS])[0]
         depth = 3 if kind == "ext2" else 2
         # decode-written token ranges (indices into the step's prompt) that the reference history put into the KV
-        prompt = nonce_ids() + slice_ids(prompt_len())
+        copy_chain = args.copy_frac > 0 and rng.random() < args.copy_frac
+        prompt = nonce_ids() + (copy_task_ids() if copy_chain else slice_ids(prompt_len()))
         dec = []
         flush(args.url, model, args.timeout)
         for k in range(depth):
             st = {"id": f"c{n:03d}s{k}", "chain": n, "step": k, "kind": kind, "prompt": prompt, "dec_ranges": dec,
                   "max_tokens": rng.randint(24, 120) if k == 0 else rng.randint(24, 100), "stream": rng.random() < 0.5}
             sampling(st)
+            if copy_chain and k == 0:  # greedy (only greedy requests speculate) and long enough to draft
+                for key in ("top_p", "top_k", "seed"):
+                    st.pop(key, None)
+                st.update(temperature=0, max_tokens=rng.choice([96, 160, 224]))
             rec = cb.one_request(args.url, "/v1/completions", body_of(st, model), st["stream"], args.timeout)
             rec["id"], rec["chain"], rec["step"] = st["id"], n, k
             chains_f.write(json.dumps(st) + "\n")
@@ -339,6 +355,7 @@ def main():
     g.add_argument("--tokenizer", default=str(DEFAULT_TOKENIZER))
     g.add_argument("--timeout", type=int, default=900)
     g.add_argument("--max-seq", type=int, default=8192)
+    g.add_argument("--copy-frac", type=float, default=0.0, help="share of chains whose cold prompt is an input-grounded copy task (for --spec ngram runs)")
     r = sub.add_parser("run")
     r.add_argument("--url", required=True)
     r.add_argument("--chains", required=True)

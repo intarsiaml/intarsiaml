@@ -340,6 +340,7 @@ def stream_request(url, path, body, timeout, cancel_ms=None, total_timeout=None)
         rec["http_status"] = resp.status
         if resp.status != 200:
             rec["status"] = "shed" if resp.status in SHED_STATUSES else "error"
+            rec["retry_after"] = resp.getheader("Retry-After")
             rec["error"] = f"HTTP {resp.status}: {resp.read(300).decode(errors='replace')}"
         else:
             while True:
@@ -735,6 +736,9 @@ def build_report(raw, window_s=30.0, mem_warmup_s=None, slo=None):
     stall_gaps, n_long = itl_during_long_prefill(reqs)
     rates["itl_during_long_prefill_ms"] = summarize(stall_gaps)
     rates["long_prefill_arrivals"] = n_long
+    cold, warm = cold_start_ttft(reqs)
+    rates["ttft_cold_start_ms"] = summarize(cold)
+    rates["ttft_warm_ms"] = summarize(warm)
     # per prompt-length bucket
     buckets = []
     for b in sorted({r["bucket"] for r in reqs}):
@@ -863,6 +867,8 @@ def render_md(rep):
     sg = r["itl_during_long_prefill_ms"]
     L += ["", f"ITL of running streams during the prefill of an arriving >= 3000-token prompt ({r['long_prefill_arrivals']} such prompts): n {sg['n']}, "
           f"p50 {f(sg['p50'])}, p95 {f(sg['p95'])}, p99 {f(sg['p99'])}, max {f(sg['max'])} ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there)."]
+    cs, wm = r["ttft_cold_start_ms"], r["ttft_warm_ms"]
+    L += ["", f"TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n {cs['n']}, p50 {f(cs['p50'])}, p95 {f(cs['p95'])}, max {f(cs['max'])} ms; all other requests: n {wm['n']}, p50 {f(wm['p50'])}, p95 {f(wm['p95'])} ms."]
     L += ["", "## By prompt length", "", "solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).", "", "| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for b in rep["buckets"]:
         L.append(f"| {b['bucket_tokens']} | {f(b['prompt_tokens_mean'], 0)} | {b['n']} | {b['ok']} | {b['shed']} | {b['error']} | "
@@ -970,6 +976,355 @@ def cmd_report(args):
     return emit(rep, args.out or pathlib.Path(args.raw).parent)
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+# scripted scenario (M2 gate): N streams decoding at ~1k context, a ~4k prompt arrives at t = long_at; repeated
+# ----------------------------------------------------------------------------------------------------------------------
+
+def cold_start_ttft(reqs, idle_s=3.0):
+    """Split TTFTs into requests that arrived after > idle_s with no request open on the client (the server re-wires its
+    weights after ~3 s idle, ~170 ms on the next request) and the rest. -> (cold_ttfts, warm_ttfts)."""
+    rs = sorted((r for r in reqs if r.get("t_send") is not None and r.get("status") in ("ok", "cancelled", "shed", "error")), key=lambda r: r["t_send"])
+    cold, warm, maxend = [], [], None
+    for r in rs:
+        if r.get("ttft_ms") is not None:
+            (cold if (maxend is None or r["t_send"] - maxend > idle_s) else warm).append(r["ttft_ms"])
+        end = r["t_send"] + (r.get("t_total_ms") or 0.0) / 1000.0
+        maxend = end if maxend is None else max(maxend, end)
+    return cold, warm
+
+
+def _chunk_abs(rec, t_ref):
+    """Absolute chunk times (s, relative to t_ref) of a stream_request record that has rec['t_send'] (relative to t_ref)."""
+    if rec.get("ttft_ms") is None:
+        return []
+    t = rec["t_send"] + rec["ttft_ms"] / 1000.0
+    out = [t]
+    for g in rec.get("itl_ms") or []:
+        t += g / 1000.0
+        out.append(t)
+    return out
+
+
+def _plain_prompt(src, tokens, tag, rng):
+    """Corpus slice of ~tokens tokens, with a unique nonce at the very start (defeats prefix reuse, which is on by default)."""
+    name = "docs" if "docs" in src.text else next(iter(src.text))
+    text = src.text[name]
+    chars = min(int(tokens * src.cpt[name]), len(text) - 1)
+    start = rng.randrange(0, len(text) - chars + 1)
+    return f"[scn {tag}] " + text[start : start + chars]
+
+
+def _post_body(prompt, max_tokens, model):
+    return {"model": model, "prompt": prompt, "max_tokens": max_tokens, "temperature": 0.0, "stream": True,
+            "stream_options": {"include_usage": True}, "ignore_eos": True}
+
+
+def analyse_scenario_rep(stream_recs, long_rec, after_s, settle_s=1.0):
+    """One repetition. stream_recs/long_rec: stream_request records with t_send (s, relative to the rep start).
+    before = gaps of the streams that lie between the moment the last stream got its first token and the long request's send;
+    during = gaps overlapping [long send, long first token]; after = gaps in [long first token + settle_s, + after_s]
+    (the long request is still decoding then: rows = streams + 1). Returns the dict with the gap arrays and validity flags."""
+    flags, reasons = {}, []
+    times = [_chunk_abs(r, 0.0) for r in stream_recs]
+    ok_streams = all(r.get("status") == "ok" and t for r, t in zip(stream_recs, times))
+    lt = _chunk_abs(long_rec, 0.0)
+    long_ok = long_rec.get("status") == "ok" and bool(lt)
+    out = {"flags": flags, "invalid": reasons, "before": [], "during": [], "after": []}
+    if not ok_streams:
+        reasons.append("a stream did not finish ok: " + ",".join(sorted({str(r.get("status")) + ":" + str(r.get("error"))[:60] for r in stream_recs if r.get("status") != "ok"})))
+    if not long_ok:
+        reasons.append(f"long request {long_rec.get('status')}: {str(long_rec.get('error'))[:80]}")
+    if reasons:
+        return out
+    p0 = long_rec["t_send"]
+    p1 = p0 + long_rec["ttft_ms"] / 1000.0
+    ready = max(t[0] for t in times)
+    a0, a1 = p1 + settle_s, p1 + settle_s + after_s
+    flags["streams_ready_before_arrival"] = ready < p0
+    flags["streams_alive_through_after"] = min(t[-1] for t in times) >= a1
+    flags["long_decoding_through_after"] = lt[-1] >= a1
+    for k, v in flags.items():
+        if not v:
+            reasons.append(k + " is false")
+    for ts in times:
+        for a, b in zip(ts, ts[1:]):
+            g = (b - a) * 1000.0
+            if a >= ready and b <= p0:
+                out["before"].append(g)
+            if b > p0 and a < p1:
+                out["during"].append(g)
+            if a >= a0 and b <= a1:
+                out["after"].append(g)
+    out.update({"long_send_s": p0, "long_first_token_s": p1, "long_ttft_ms": long_rec["ttft_ms"], "streams_ready_s": ready,
+                "stream_first_tokens_s": [round(t[0], 3) for t in times], "stream_last_s": [round(t[-1], 3) for t in times],
+                "stream_chunks": [r["n_chunks"] for r in stream_recs],
+                "stream_completion_tokens": [(r.get("usage") or {}).get("completion_tokens") for r in stream_recs],
+                "long_prompt_tokens": (long_rec.get("usage") or {}).get("prompt_tokens"),
+                "stream_prompt_tokens": [(r.get("usage") or {}).get("prompt_tokens") for r in stream_recs]})
+    return out
+
+
+def run_scenario(args, log=print):
+    url = args.url.rstrip("/")
+    st, _ = http_get(url, "/health")
+    if st is None:
+        raise SystemExit(f"server {url} unreachable (/health)")
+    models = get_json(url, "/v1/models") or {}
+    model = ((models.get("data") or [{}])[0]).get("id", "intarsia")
+    src = PromptSource(args.prompts_dir, "docs:1")
+    src.calibrate(url, model)
+    pid = args.pid
+    if pid == "auto":
+        pid = pid_from_port(url)
+    pid = int(pid) if pid else None
+    mem0 = sample_process(pid, True) if pid else None
+
+    def metrics():
+        st2, data = http_get(url, "/metrics", timeout=5)
+        return parse_prom(data.decode(errors="replace")) if st2 == 200 else None
+
+    def warm_request():  # re-wires the weights if the server went idle; keeps that cost out of the measured request
+        stream_request(url, "/v1/completions", _post_body("Hello", 1, model), args.timeout, None, args.request_timeout)
+
+    rng = random.Random(f"scenario|{args.seed}")
+    m_before = metrics()
+    solo = []
+    for k in range(args.solo_reps):
+        warm_request()
+        p = _plain_prompt(src, args.long_prompt, f"solo{args.seed}-{k}", rng)
+        rec = stream_request(url, "/v1/completions", _post_body(p, 8, model), args.timeout, None, args.request_timeout)
+        solo.append({"ttft_ms": rec["ttft_ms"], "prompt_tokens": (rec.get("usage") or {}).get("prompt_tokens"), "status": rec["status"]})
+        log(f"scenario: solo {args.long_prompt}-token request {k}: {rec['status']} ttft={rec['ttft_ms'] and round(rec['ttft_ms'])} ms prompt_tokens={solo[-1]['prompt_tokens']}")
+        time.sleep(args.rep_gap_s)
+    reps = []
+    for rep in range(args.reps):
+        prompts = [_plain_prompt(src, args.stream_prompt, f"s{args.seed}-{rep}-{i}", rng) for i in range(args.streams)]
+        lprompt = _plain_prompt(src, args.long_prompt, f"L{args.seed}-{rep}", rng)
+        warm_request()
+        recs = {}
+        t0 = time.monotonic()
+
+        def go(key, prompt, max_tokens, at):
+            wait = t0 + at - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            ts = time.monotonic() - t0
+            r = stream_request(url, "/v1/completions", _post_body(prompt, max_tokens, model), args.timeout, None, args.request_timeout)
+            r["t_send"] = ts
+            recs[key] = r
+
+        ths = [threading.Thread(target=go, args=(i, prompts[i], args.stream_max_tokens, 0.0), daemon=True) for i in range(args.streams)]
+        ths.append(threading.Thread(target=go, args=("long", lprompt, args.long_max_tokens, args.long_at), daemon=True))
+        for t in ths:
+            t.start()
+        for t in ths:
+            t.join(timeout=args.request_timeout + 30)
+        if len(recs) < len(ths):
+            log(f"scenario: rep {rep}: {len(ths) - len(recs)} request threads did not finish")
+            continue
+        res = analyse_scenario_rep([recs[i] for i in range(args.streams)], recs["long"], args.after_s)
+        res["rep"] = rep
+        reps.append(res)
+        d = summarize(res["during"])
+        log(f"scenario: rep {rep}: valid={not res['invalid']} long ttft={res.get('long_ttft_ms') and round(res['long_ttft_ms'])} ms; "
+            f"gaps before/during/after = {len(res['before'])}/{len(res['during'])}/{len(res['after'])}; during p50/p95/max = "
+            f"{f(d['p50'])}/{f(d['p95'])}/{f(d['max'])} ms; invalid={res['invalid']}")
+        time.sleep(args.rep_gap_s)
+    m_after = metrics()
+    mem1 = sample_process(pid, True) if pid else None
+    valid = [r for r in reps if not r["invalid"]]
+    pooled = {k: [g for r in valid for g in r[k]] for k in ("before", "during", "after")}
+    solo_ttft = [s["ttft_ms"] for s in solo if s["ttft_ms"] is not None and s["status"] == "ok"]
+    long_ttft = [r["long_ttft_ms"] for r in valid]
+    rows = {}
+    if m_before is not None and m_after is not None:
+        for k in m_after:
+            if k.startswith("batch_rows:"):
+                rows[int(k.split(":")[1])] = m_after[k] - m_before.get(k, 0.0)
+    out = {"meta": {"url": url, "model": model, "started_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+                    "streams": args.streams, "stream_prompt_tokens": args.stream_prompt, "long_prompt_tokens": args.long_prompt, "long_at_s": args.long_at,
+                    "stream_max_tokens": args.stream_max_tokens, "long_max_tokens": args.long_max_tokens, "after_s": args.after_s, "reps": args.reps,
+                    "solo_reps": args.solo_reps, "seed": args.seed, "pid": pid, "mem_start_mb": mem0 and mem0.get("footprint_mb"), "mem_end_mb": mem1 and mem1.get("footprint_mb")},
+           "reps": [{k: (v if not isinstance(v, list) or k in ("invalid",) else [round(x, 2) if isinstance(x, float) else x for x in v]) for k, v in r.items()} for r in reps],
+           "valid_reps": len(valid), "pooled": {k: summarize(v) for k, v in pooled.items()},
+           "per_rep_during_p95": [summarize(r["during"])["p95"] for r in valid],
+           "long_ttft_ms": summarize(long_ttft), "solo_long_ttft_ms": summarize(solo_ttft), "solo": solo,
+           "long_ttft_x_solo": (percentile(long_ttft, 50) / percentile(solo_ttft, 50)) if long_ttft and solo_ttft else None,
+           "batch_rows_delta": {str(k): v for k, v in sorted(rows.items())}}
+    return out
+
+
+def render_scenario_md(o):
+    m = o["meta"]
+    L = ["# cbsoak scenario", "",
+         f"{m['url']} model `{m['model']}` started {m['started_at']}: {m['streams']} streams x ~{m['stream_prompt_tokens']}-token prompts decoding (max_tokens {m['stream_max_tokens']}), one ~{m['long_prompt_tokens']}-token prompt "
+         f"(max_tokens {m['long_max_tokens']}) sent at t = {m['long_at_s']} s, {m['reps']} repetitions ({o['valid_reps']} valid), fresh nonce per prompt, warm-up request right before each repetition. "
+         f"after window = [long first token + 1 s, + {m['after_s']} s] with the long request still decoding (rows = streams + 1).", "",
+         "| window | n gaps | p50 ms | p95 ms | p99 ms | max ms |", "|---|---|---|---|---|---|"]
+    for k, nm in (("before", "steady before (streams only)"), ("during", "during the long prefill"), ("after", "steady after")):
+        s = o["pooled"][k]
+        L.append(f"| {nm} | {s['n']} | {f(s['p50'])} | {f(s['p95'])} | {f(s['p99'])} | {f(s['max'])} |")
+    lt, so = o["long_ttft_ms"], o["solo_long_ttft_ms"]
+    L += ["", f"long request TTFT under load: p50 {f(lt['p50'])}, max {f(lt['max'])} ms (n {lt['n']}); solo (warm, alone) TTFT: p50 {f(so['p50'])} ms (n {so['n']}); ratio of medians {f(o['long_ttft_x_solo'], 2)}x (design bound 2.5x).",
+          f"per-repetition p95 during the prefill (ms): {', '.join(f(x) for x in o['per_rep_during_p95'])}.",
+          f"server decode passes by rows over the whole scenario run (delta of /metrics): {o['batch_rows_delta'] or 'unavailable'}.", "",
+          "| rep | valid | long TTFT ms | gaps b/d/a | during p50 | during p95 | during max | before p50 | after p50 | notes |", "|---|---|---|---|---|---|---|---|---|---|"]
+    for r in o["reps"]:
+        d, b, a = summarize(r["during"]), summarize(r["before"]), summarize(r["after"])
+        L.append(f"| {r['rep']} | {'yes' if not r['invalid'] else 'NO'} | {f(r.get('long_ttft_ms'))} | {len(r['before'])}/{len(r['during'])}/{len(r['after'])} | {f(d['p50'])} | {f(d['p95'])} | {f(d['max'])} | {f(b['p50'])} | {f(a['p50'])} | {'; '.join(r['invalid'])} |")
+    return "\n".join(L) + "\n"
+
+
+def cmd_scenario(args):
+    try:
+        o = run_scenario(args)
+    except SystemExit as e:
+        print(e, file=sys.stderr)
+        return 2
+    viol = []
+    if args.max_itl_prefill_p95_ms is not None:
+        v = o["pooled"]["during"]["p95"]
+        if v is None or v > args.max_itl_prefill_p95_ms:
+            viol.append(f"ITL p95 during the long prefill {f(v)} ms > {args.max_itl_prefill_p95_ms}")
+    if args.max_steady_itl_p95_ms is not None:
+        for k in ("before", "after"):
+            v = o["pooled"][k]["p95"]
+            if v is None or v > args.max_steady_itl_p95_ms:
+                viol.append(f"steady ITL p95 ({k}) {f(v)} ms > {args.max_steady_itl_p95_ms}")
+    if args.max_long_ttft_x_solo is not None:
+        v = o["long_ttft_x_solo"]
+        if v is None or v > args.max_long_ttft_x_solo:
+            viol.append(f"long TTFT / solo {f(v, 2)} > {args.max_long_ttft_x_solo}")
+    if o["valid_reps"] < args.reps:
+        viol.append(f"only {o['valid_reps']} of {args.reps} repetitions valid")
+    o["violations"] = viol
+    md = render_scenario_md(o)
+    if viol:
+        md += "\nVIOLATIONS: " + "; ".join(viol) + "\n"
+    print(md)
+    if args.out:
+        d = pathlib.Path(args.out)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "scenario.json").write_text(json.dumps(o))
+        (d / "scenario.md").write_text(md)
+    return 1 if viol else 0
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# shedding burst: more simultaneous requests than max_batch + max_queue; expects 429 + Retry-After, nothing else
+# ----------------------------------------------------------------------------------------------------------------------
+
+def run_burst(args, log=print):
+    url = args.url.rstrip("/")
+    st, _ = http_get(url, "/health")
+    if st is None:
+        raise SystemExit(f"server {url} unreachable (/health)")
+    models = get_json(url, "/v1/models") or {}
+    model = ((models.get("data") or [{}])[0]).get("id", "intarsia")
+    src = PromptSource(args.prompts_dir, "docs:1")
+    src.calibrate(url, model)
+    rng = random.Random(f"burst|{args.seed}")
+    health0 = get_json(url, "/health") or {}
+
+    def metrics():
+        st2, data = http_get(url, "/metrics", timeout=5)
+        return parse_prom(data.decode(errors="replace")) if st2 == 200 else None
+
+    m0 = metrics()
+    seen = {"queue_max": 0.0, "running_max": 0.0, "waiting_max": 0.0}
+
+    def scrape():
+        m = metrics()
+        if m:
+            seen["queue_max"] = max(seen["queue_max"], m.get("intarsia_batch_queue_depth", 0.0))
+            seen["running_max"] = max(seen["running_max"], m.get("intarsia_batch_running", m.get("intarsia_requests_running", 0.0)))
+            seen["waiting_max"] = max(seen["waiting_max"], m.get("intarsia_requests_waiting", 0.0))
+        return None
+
+    t0 = time.monotonic()
+    sam = Sampler(scrape, 0.25, t0)
+    sam.start()
+    stream_request(url, "/v1/completions", _post_body("Hello", 1, model), args.timeout, None, args.request_timeout)  # warm
+    prompts = [_plain_prompt(src, args.prompt_tokens, f"b{args.seed}-{i}", rng) for i in range(args.n)]
+    barrier = threading.Barrier(args.n)
+    recs = [None] * args.n
+
+    def go(i):
+        barrier.wait()
+        r = stream_request(url, "/v1/completions", _post_body(prompts[i], args.max_tokens, model), args.timeout, None, args.request_timeout)
+        recs[i] = r
+
+    ths = [threading.Thread(target=go, args=(i,), daemon=True) for i in range(args.n)]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join(timeout=args.request_timeout + 30)
+    # recovery: server drains, then a normal request succeeds
+    deadline = time.monotonic() + 60
+    h = {}
+    while time.monotonic() < deadline:
+        h = get_json(url, "/health") or {}
+        if h.get("running", 0) == 0 and h.get("waiting", 0) == 0:
+            break
+        time.sleep(1)
+    follow = stream_request(url, "/v1/completions", _post_body(_plain_prompt(src, 256, f"bf{args.seed}", rng), 16, model), args.timeout, None, args.request_timeout)
+    sam.finish()
+    m1 = metrics()
+    done = [r for r in recs if r]
+    by = collections.Counter(r["status"] for r in done)
+    http = collections.Counter(r.get("http_status") for r in done)
+    shed = [r for r in done if r["status"] == "shed"]
+    ok = [r for r in done if r["status"] == "ok"]
+    rej = (m1.get("intarsia_requests_rejected_total", 0.0) - m0.get("intarsia_requests_rejected_total", 0.0)) if m0 and m1 else None
+    o = {"n": args.n, "returned": len(done), "status": dict(by), "http": {str(k): v for k, v in http.items()}, "max_queue": health0.get("max_queue"),
+         "retry_after": dict(collections.Counter(str(r.get("retry_after")) for r in shed)), "shed_bodies": sorted({(r.get("error") or "")[:120] for r in shed})[:3],
+         "rejected_metric_delta": rej, "ok_ttft_ms": summarize([r["ttft_ms"] for r in ok if r["ttft_ms"] is not None]),
+         "admitted_itl_ms": summarize([g for r in ok for g in r["itl_ms"]]), "metrics_peak": seen,
+         "health_after": {k: h.get(k) for k in ("status", "running", "waiting")}, "followup": {"status": follow["status"], "ttft_ms": follow["ttft_ms"]},
+         "requests": [{k: r.get(k) for k in ("status", "http_status", "retry_after", "ttft_ms", "n_chunks", "t_total_ms")} for r in done]}
+    return o
+
+
+def cmd_burst(args):
+    try:
+        o = run_burst(args)
+    except SystemExit as e:
+        print(e, file=sys.stderr)
+        return 2
+    n429, n503 = o["http"].get("429", 0), o["http"].get("503", 0)
+    viol = []
+    if n429 < 1:
+        viol.append("no 429 seen")
+    if n503:
+        viol.append(f"{n503} x 503")
+    if o["status"].get("error", 0):
+        viol.append(f"{o['status']['error']} errors")
+    if o["returned"] < o["n"]:
+        viol.append("some requests never returned")
+    if any(k in ("None", "") for k in o["retry_after"]):
+        viol.append(f"Retry-After missing on some 429: {o['retry_after']}")
+    if o["rejected_metric_delta"] is None or int(round(o["rejected_metric_delta"])) != n429:
+        viol.append(f"client 429 count {n429} != intarsia_requests_rejected_total delta {o['rejected_metric_delta']}")
+    if o["followup"]["status"] != "ok":
+        viol.append(f"follow-up request {o['followup']['status']}")
+    if o["health_after"].get("running") not in (0, None) or o["health_after"].get("waiting") not in (0, None):
+        viol.append(f"server did not drain: {o['health_after']}")
+    o["violations"] = viol
+    L = ["# cbsoak burst", "", f"{o['n']} simultaneous requests (max_queue {o['max_queue']}): status {o['status']}, http {o['http']}, Retry-After on the 429s {o['retry_after']}, "
+         f"`intarsia_requests_rejected_total` delta {o['rejected_metric_delta']}; /metrics peaks {o['metrics_peak']}; admitted TTFT p50 {f(o['ok_ttft_ms']['p50'])} p95 {f(o['ok_ttft_ms']['p95'])} max {f(o['ok_ttft_ms']['max'])} ms, "
+         f"admitted ITL p50 {f(o['admitted_itl_ms']['p50'])} p95 {f(o['admitted_itl_ms']['p95'])} max {f(o['admitted_itl_ms']['max'])} ms; after: health {o['health_after']}, follow-up {o['followup']}.",
+         f"429 body: {o['shed_bodies']}", "", "VIOLATIONS: " + ("; ".join(viol) if viol else "none")]
+    md = "\n".join(L) + "\n"
+    print(md)
+    if args.out:
+        d = pathlib.Path(args.out)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "burst.json").write_text(json.dumps(o))
+        (d / "burst.md").write_text(md)
+    return 1 if viol else 0
+
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1009,7 +1364,42 @@ def main():
     rp.add_argument("--out")
     add_slo_args(rp)
     rp.set_defaults(func=cmd_report)
+    sc = sub.add_parser("scenario", help="scripted M2 scenario: N streams decoding at ~1k context, a ~4k prompt arrives at t = --long-at; repeated")
+    sc.add_argument("--url", required=True)
+    sc.add_argument("--streams", type=int, default=7)
+    sc.add_argument("--stream-prompt", type=int, default=1000, help="tokens per stream prompt")
+    sc.add_argument("--long-prompt", type=int, default=4000, help="tokens of the arriving prompt")
+    sc.add_argument("--long-at", type=float, default=5.0, help="seconds after the streams start")
+    sc.add_argument("--stream-max-tokens", type=int, default=800, help="must outlast the long prefill plus the after window")
+    sc.add_argument("--long-max-tokens", type=int, default=400, help="keeps the long request decoding through the after window")
+    sc.add_argument("--after-s", type=float, default=8.0)
+    sc.add_argument("--reps", type=int, default=5)
+    sc.add_argument("--solo-reps", type=int, default=3, help="warm, alone, same-length reference TTFT requests")
+    sc.add_argument("--rep-gap-s", type=float, default=2.0)
+    sc.add_argument("--seed", type=int, default=1)
+    sc.add_argument("--prompts-dir", default=str(PROMPTS))
+    sc.add_argument("--timeout", type=float, default=300.0)
+    sc.add_argument("--request-timeout", type=float, default=600.0)
+    sc.add_argument("--pid", default=None)
+    sc.add_argument("--out")
+    sc.add_argument("--max-itl-prefill-p95-ms", type=float, help="pooled p95 of the streams' gaps overlapping the long prompt's prefill")
+    sc.add_argument("--max-steady-itl-p95-ms", type=float, help="pooled p95 of the before and after windows")
+    sc.add_argument("--max-long-ttft-x-solo", type=float, help="median long TTFT / median solo TTFT")
+    sc.set_defaults(func=cmd_scenario)
+    bu = sub.add_parser("burst", help="shedding test: --n simultaneous requests (set above --max-batch + --max-queue); expects 429 + Retry-After only")
+    bu.add_argument("--url", required=True)
+    bu.add_argument("--n", type=int, required=True)
+    bu.add_argument("--prompt-tokens", type=int, default=512)
+    bu.add_argument("--max-tokens", type=int, default=300, help="long enough that the admitted requests are still running when the rest arrive")
+    bu.add_argument("--seed", type=int, default=1)
+    bu.add_argument("--prompts-dir", default=str(PROMPTS))
+    bu.add_argument("--timeout", type=float, default=300.0)
+    bu.add_argument("--request-timeout", type=float, default=600.0)
+    bu.add_argument("--pid", default=None, help="accepted for cbsoak_serve.sh, unused")
+    bu.add_argument("--out")
+    bu.set_defaults(func=cmd_burst)
     st = sub.add_parser("selftest", help="offline: in-process mock server")
+    st.add_argument("--only", choices=["scenario"], help="run just the scenario/burst checks")
     st.set_defaults(func=lambda a: cmd_selftest(a))
     args = ap.parse_args()
     sys.exit(args.func(args))
@@ -1019,11 +1409,14 @@ def main():
 # mock server (offline self-test): streaming completions with configurable timing, concurrency cap and shedding
 # ----------------------------------------------------------------------------------------------------------------------
 
-def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=True, slow_after=None, dev_leak_mb_per_tok=0.0):
-    """slow_after: seconds after server start from which every token takes 4x longer (a degradation to detect)."""
+def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=True, slow_after=None, dev_leak_mb_per_tok=0.0,
+              long_ptoks=None, long_prefill_ms=0.0, stall_itl_ms=None):
+    """slow_after: seconds after server start from which every token takes 4x longer (a degradation to detect).
+    long_ptoks/long_prefill_ms/stall_itl_ms: a prompt of >= long_ptoks tokens takes long_prefill_ms to its first token and, while it
+    prefills, every other stream's tokens take stall_itl_ms (a chunked-prefill stall to detect)."""
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-    st = {"inflight": 0, "lock": threading.Lock(), "shed": 0, "served": 0, "disconnects": 0, "peak": 0, "t0": time.monotonic(), "tokens": 0}
+    st = {"inflight": 0, "lock": threading.Lock(), "shed": 0, "served": 0, "disconnects": 0, "peak": 0, "t0": time.monotonic(), "tokens": 0, "prefill_until": 0.0}
 
     class H(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -1064,6 +1457,12 @@ def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=T
             req = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             text = req.get("prompt") if "prompt" in req else json.dumps(req.get("messages"))
             ptoks = max(1, len(text) // 4)
+            is_long = long_ptoks is not None and ptoks >= long_ptoks
+            first_s = first_ms / 1000.0
+            if is_long:
+                first_s += long_prefill_ms / 1000.0
+                with st["lock"]:
+                    st["prefill_until"] = time.monotonic() + first_s
             with st["lock"]:
                 if max_conc is not None and st["inflight"] >= max_conc:
                     st["shed"] += 1
@@ -1080,11 +1479,12 @@ def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=T
                 chat = self.path.endswith("chat/completions")
                 n = req.get("max_tokens", 16)
                 try:
-                    time.sleep(first_ms / 1000.0)
+                    time.sleep(first_s)
                     for k in range(n):
                         if k:
                             slow = slow_after is not None and time.monotonic() - st["t0"] >= slow_after
-                            time.sleep(itl_ms * (4.0 if slow else 1.0) / 1000.0)
+                            stalled = stall_itl_ms is not None and not is_long and time.monotonic() < st["prefill_until"]
+                            time.sleep((stall_itl_ms if stalled else itl_ms * (4.0 if slow else 1.0)) / 1000.0)
                         ch = {"index": 0, "finish_reason": None, **({"delta": {"content": " w"}} if chat else {"text": " w"})}
                         self.wfile.write(b"data: " + json.dumps({"choices": [ch]}).encode() + b"\n\n")
                         self.wfile.flush()
@@ -1104,11 +1504,66 @@ def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=T
                 with st["lock"]:
                     st["inflight"] -= 1
 
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+    class Srv(ThreadingHTTPServer):
+        request_queue_size = 256  # default backlog 5 resets bursts of simultaneous connects
+
+    srv = Srv(("127.0.0.1", 0), H)
     srv.daemon_threads = True
     srv.state = st
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv, f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+def selftest_scenario(check):
+    import tempfile
+    base = dict(streams=3, stream_prompt=1000, long_prompt=4000, long_at=1.0, stream_max_tokens=700, long_max_tokens=300, after_s=2.0, reps=2, solo_reps=2,
+                rep_gap_s=0.2, seed=3, prompts_dir=str(PROMPTS), timeout=20.0, request_timeout=60.0, pid=None, out=None,
+                max_itl_prefill_p95_ms=None, max_steady_itl_p95_ms=None, max_long_ttft_x_solo=None)
+    quiet = lambda *a, **k: None  # noqa: E731
+    # (a) a mock whose other streams stall (60 ms/token instead of 10) while a >= 3000-token prompt prefills (1.5 s)
+    srv, url = make_mock(first_ms=20, itl_ms=10, long_ptoks=3000, long_prefill_ms=1500, stall_itl_ms=60)
+    o = run_scenario(argparse.Namespace(url=url, **base), quiet)
+    srv.shutdown()
+    pb, pd, pa = o["pooled"]["before"], o["pooled"]["during"], o["pooled"]["after"]
+    check("scenario: both repetitions valid (streams ready before the arrival, alive through the after window)", o["valid_reps"] == 2, str([r["invalid"] for r in o["reps"]]))
+    check("scenario: stall detected in the prefill window (p50 >= 50 ms, ~60 injected)", pd["p50"] is not None and pd["p50"] >= 50 and pd["n"] >= 3 * 15, str(pd))
+    check("scenario: before/after windows are the steady rate (p95 < 30 ms, ~10 injected) and not polluted by the stall", pb["p95"] is not None and pb["p95"] < 30 and pa["p95"] is not None and pa["p95"] < 30 and pb["n"] > 50 and pa["n"] > 100, f"{pb} {pa}")
+    check("scenario: long TTFT ~1.5 s under load and the solo reference measured (ratio ~1)", 1400 <= o["long_ttft_ms"]["p50"] <= 2200 and o["solo_long_ttft_ms"]["n"] == 2 and 0.8 <= o["long_ttft_x_solo"] <= 1.3, str((o["long_ttft_ms"], o["solo_long_ttft_ms"])))
+    md = render_scenario_md(o)
+    check("scenario: markdown renders the per-repetition table", "| rep | valid |" in md and "ratio of medians" in md)
+    # (b) streams that end before the long prefill is over are flagged, not averaged in
+    srv, url = make_mock(first_ms=20, itl_ms=10, long_ptoks=3000, long_prefill_ms=1500, stall_itl_ms=60)
+    o2 = run_scenario(argparse.Namespace(url=url, **{**base, "stream_max_tokens": 40, "reps": 1}), quiet)
+    srv.shutdown()
+    check("scenario: streams that die early make the repetition invalid with the reason", o2["valid_reps"] == 0 and any("alive" in x or "finish" in x for x in o2["reps"][0]["invalid"]), str(o2["reps"][0]["invalid"]))
+    # (c) CLI exit codes with SLO thresholds, files written
+    me = pathlib.Path(__file__).resolve()
+    with tempfile.TemporaryDirectory() as td:
+        srv, url = make_mock(first_ms=20, itl_ms=10, long_ptoks=3000, long_prefill_ms=1500, stall_itl_ms=60)
+        argv = [sys.executable, str(me), "scenario", "--url", url, "--streams", "3", "--long-at", "1", "--stream-max-tokens", "700", "--long-max-tokens", "300", "--after-s", "2", "--reps", "1", "--solo-reps", "1", "--rep-gap-s", "0.2", "--out", td]
+        r1 = subprocess.run(argv + ["--max-itl-prefill-p95-ms", "500"], capture_output=True, text=True)
+        r2 = subprocess.run(argv + ["--max-itl-prefill-p95-ms", "30"], capture_output=True, text=True)
+        srv.shutdown()
+        check("scenario cli: SLO satisfied -> exit 0, violated (stall 60 ms > 30) -> exit 1", r1.returncode == 0 and r2.returncode == 1, f"{r1.returncode} {r2.returncode} {r1.stderr[-300:]}")
+        check("scenario cli: scenario.json and scenario.md written", (pathlib.Path(td) / "scenario.json").exists() and (pathlib.Path(td) / "scenario.md").exists())
+    # (d) burst: mock admits 4, sheds the rest with 429 + Retry-After; client 429 count == server's rejected counter
+    bb = dict(n=12, prompt_tokens=100, max_tokens=40, seed=2, prompts_dir=str(PROMPTS), timeout=20.0, request_timeout=60.0, pid=None, out=None)
+    srv, url = make_mock(first_ms=100, itl_ms=20, max_conc=5)  # 5 = the burst's 4 admitted + the follow-up/warm request slot
+    o = run_burst(argparse.Namespace(url=url, **bb), quiet)
+    srv.shutdown()
+    n429 = o["http"].get("429", 0)
+    check("burst: 429s seen, all with Retry-After, no 503 and no errors, every request returned", n429 >= 6 and o["retry_after"] == {"1": n429} and o["http"].get("503", 0) == 0 and o["status"].get("error", 0) == 0 and o["returned"] == 12, str(o["status"]) + str(o["retry_after"]))
+    check("burst: client 429 count equals the server's rejected counter and the follow-up succeeds", int(round(o["rejected_metric_delta"])) == n429 and o["followup"]["status"] == "ok", str((o["rejected_metric_delta"], n429, o["followup"])))
+    with tempfile.TemporaryDirectory() as td:
+        srv, url = make_mock(first_ms=100, itl_ms=20, max_conc=5, shed_code=503)
+        r = subprocess.run([sys.executable, str(me), "burst", "--url", url, "--n", "12", "--prompt-tokens", "100", "--max-tokens", "40", "--out", td], capture_output=True, text=True)
+        srv.shutdown()
+        check("burst cli: 503 instead of 429 is a violation (exit 1)", r.returncode == 1 and "503" in r.stdout, f"{r.returncode} {r.stdout[-300:]}")
+    # (e) cold-start accounting: a request after > 3 s idle is split out
+    reqs = [{"t_send": 0.0, "t_total_ms": 1000.0, "ttft_ms": 300.0, "status": "ok"}, {"t_send": 0.5, "t_total_ms": 1000.0, "ttft_ms": 100.0, "status": "ok"},
+            {"t_send": 6.0, "t_total_ms": 500.0, "ttft_ms": 400.0, "status": "ok"}]
+    cold, warm = cold_start_ttft(reqs)
+    check("cold start: first request and the one after a 4.5 s idle gap are cold, the overlapping one is warm", cold == [300.0, 400.0] and warm == [100.0], str((cold, warm)))
 
 
 def cmd_selftest(_args):
@@ -1121,6 +1576,11 @@ def cmd_selftest(_args):
 
     def near(a, b, rel):
         return a is not None and abs(a - b) <= rel * abs(b)
+
+    if getattr(_args, "only", None) == "scenario":
+        selftest_scenario(check)
+        print(f"\nselftest(scenario): {'FAILED ' + str(len(fails)) + ': ' + ', '.join(fails) if fails else 'all checks passed'}")
+        return 1 if fails else 0
 
     # --- percentile math -------------------------------------------------------------------------------------------
     xs = list(range(1, 101))
@@ -1324,6 +1784,8 @@ def cmd_selftest(_args):
         check("files: raw.json, requests.jsonl, report.json, report.md written", all((pathlib.Path(td) / n).exists() for n in ("raw.json", "requests.jsonl", "report.json", "report.md")))
     unreachable = subprocess.run([sys.executable, str(pathlib.Path(__file__).resolve()), "run", "--url", "http://127.0.0.1:1", "--rate", "1", "--duration", "1"], capture_output=True, text=True)
     check("cli: unreachable server exits 2", unreachable.returncode == 2, unreachable.stderr[-200:])
+
+    selftest_scenario(check)
 
     print(f"\nselftest: {'FAILED ' + str(len(fails)) + ': ' + ', '.join(fails) if fails else 'all checks passed'}")
     return 1 if fails else 0
