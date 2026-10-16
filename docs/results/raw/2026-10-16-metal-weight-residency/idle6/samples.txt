@@ -2,3 +2,17 @@ base r1 done
 kwb r1 done
 rs r1 done
 kwb r2 done
+rs r2 done
+base r2 done
+rs r3 done
+base r3 done
+kwb r3 done
+base r4 done
+kwb r4 done
+rs r4 done
+kwb r5 done
+rs r5 done
+base r5 done
+rs r6 done
+base r6 done
+kwb r6 done

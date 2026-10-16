@@ -1,5 +1,8 @@
 # Metal prefill: where the "idle between command buffers" at chunk 256 comes from (2026-10-16)
 
+> Follow-up `2026-10-16-metal-weight-residency.md`: the pre-wire described here was replaced by a keep-warm thread (residency set re-requested every 400 ms) that
+> removes the idle-gap stall for `serve`; `set_prewire` and `INTARSIA_METAL_PREWIRE` no longer exist.
+
 Branch `metal-prefill-cbgap`, trimmed and rebased onto `spike/metal` 00abb36 (first version was off 70b15eb; the staged-upload
 experiment was removed at the coordinator's request, see Trim). Qwen3-8B BF16, endor (M5 Max), `--backend metal`.
 Raw logs and scripts: `docs/results/raw/2026-10-16-metal-prefill-cbgap/` (per-run traces of the first round are in

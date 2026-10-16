@@ -1,0 +1,8 @@
+A-1.macmon.jsonl             n=185 gpu_power mW mean 36.5 median 31.1 max 220  gpu_usage% mean 0.82
+A-2.macmon.jsonl             n=177 gpu_power mW mean 27.0 median 24.1 max 94  gpu_usage% mean 0.57
+B-1.macmon.jsonl             n=194 gpu_power mW mean 74.9 median 49.9 max 413  gpu_usage% mean 1.45
+B-2.macmon.jsonl             n=183 gpu_power mW mean 60.6 median 27.5 max 989  gpu_usage% mean 1.08
+C-1.macmon.jsonl             n=191 gpu_power mW mean 119.1 median 96.2 max 609  gpu_usage% mean 1.69
+C-2.macmon.jsonl             n=180 gpu_power mW mean 45.7 median 28.8 max 458  gpu_usage% mean 1.02
+D-1.macmon.jsonl             n=189 gpu_power mW mean 68.4 median 48.7 max 354  gpu_usage% mean 1.14
+D-2.macmon.jsonl             n=190 gpu_power mW mean 112.5 median 81.1 max 768  gpu_usage% mean 2.24
