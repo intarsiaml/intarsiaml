@@ -1,0 +1,22 @@
+fleetq: #2141 waiting (#3 in line): in line behind #2139 "cb-fix metal tests" (claude-0e8026c5) on endor
+fleetq:   #2139 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2139 set, or it will wait for #2139 to be released.
+fleetq: #2141 waiting (#2 in line): in line behind #2140 "cb gate A: concurrent identity with prefix reuse on, 150 chains B=8 (metal-cb-gates)" (claude-0e8026c5) on endor
+fleetq:   #2140 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2140 set, or it will wait for #2140 to be released.
+fleetq: #2141 waiting (#1 in line): endor is held exclusively by #2140 "cb gate A: concurrent identity with prefix reuse on, 150 chains B=8 (metal-cb-gates)" (claude-0e8026c5)
+fleetq:   #2140 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2140 set, or it will wait for #2140 to be released.
+fleetq: #2141 running on endor: /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/gateB.sh /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B
+fleetq job 2141; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-gates2 (2f3d4855efa24581); git 75ecb17; cases sha 076e62084611595e
+server ref2048 pid 46962 ready on 8101
+ref 2048: exit 0
+server ref256 pid 53648 ready on 8101
+ref 256: exit 0
+server batched pid 59941 ready on 8101
+conc B=2: exit 0
+conc B=3: exit 0
+conc B=4: exit 0
+conc B=6: exit 0
+conc B=8: exit 0
+compare: exit 0
+spectrace: exit 0
+no intarsia serve left
+fleetq: #2141 done (exit 0)

@@ -1,0 +1,5 @@
+b2: requests admitted+finished in window: 49; decoded in a drafting-off phase: 0; of those, drafting allowed again before they finished (off -> on while alive): 0
+b3: requests admitted+finished in window: 49; decoded in a drafting-off phase: 0; of those, drafting allowed again before they finished (off -> on while alive): 0
+b4: requests admitted+finished in window: 49; decoded in a drafting-off phase: 42; of those, drafting allowed again before they finished (off -> on while alive): 19
+b6: requests admitted+finished in window: 49; decoded in a drafting-off phase: 43; of those, drafting allowed again before they finished (off -> on while alive): 21
+b8: requests admitted+finished in window: 49; decoded in a drafting-off phase: 43; of those, drafting allowed again before they finished (off -> on while alive): 21
