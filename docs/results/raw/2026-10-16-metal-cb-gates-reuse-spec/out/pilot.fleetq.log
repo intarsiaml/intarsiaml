@@ -1,0 +1,23 @@
+fleetq: #2135 running on endor: /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/pilot.sh /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot
+fleetq job 2135; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-gates2 (2f3d4855efa24581); git 75ecb17
+server ref256 pid 19217 ready on 8101
+gen: exit 0
+server batched256 pid 20416 ready on 8101
+run c256 b8: exit 0
+compare c256: exit 0
+server batcheddef pid 27920 ready on 8101
+run def b8: exit 0
+compare def: exit 0
+no intarsia serve left
+fleetq job 2135; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-gates2 (2f3d4855efa24581); git 75ecb17; cases sha 076e62084611595e
+server ref2048 pid 32395 ready on 8101
+ref 2048: exit 0
+server ref256 pid 36881 ready on 8101
+ref 256: exit 0
+server batched pid 41498 ready on 8101
+conc B=3: exit 0
+conc B=8: exit 0
+compare: exit 0
+spectrace: exit 0
+no intarsia serve left
+fleetq: #2135 done (exit 0)

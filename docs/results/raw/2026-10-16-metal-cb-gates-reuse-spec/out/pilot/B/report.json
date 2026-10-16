@@ -1,0 +1,753 @@
+{
+ "warnings": [
+  "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/conc-b3.jsonl: server plan differs from the reference server on ['max_batch']",
+  "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/conc-b8.jsonl: server plan differs from the reference server on ['max_batch']"
+ ],
+ "runs": [
+  {
+   "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/conc-b3.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 3,
+    "stream": "mixed",
+    "arrival_scale": 0.1,
+    "cap_max_tokens": null,
+    "token_ids": true,
+    "flush": false,
+    "n_cases": 17,
+    "peak_client_inflight": 3,
+    "wall_s": 54.6,
+    "cases_sha256": "076e62084611595e",
+    "started": "2026-10-15 23:50:37",
+    "argv": [
+     "tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--url",
+     "http://127.0.0.1:8101",
+     "--cases",
+     "tools/prompts/cb_spec_cases.jsonl",
+     "--ids",
+     "s000,s001,s002,s003,s004,s005,s006,s007,s008,s009,s010,s011,s012,s013,s014,s015,s016",
+     "--token-ids",
+     "on",
+     "--b",
+     "3",
+     "--stream",
+     "mixed",
+     "--arrival-scale",
+     "0.1",
+     "--out",
+     "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/conc-b3.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "s000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s001",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s002",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s005",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s007",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s008",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s009",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s010",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s011",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s012",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s013",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s014",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s015",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "chunk_256": 16,
+    "pass": 17,
+    "nonstream": 8,
+    "ids_compared": 17,
+    "stream": 9,
+    "chunk_2048": 1,
+    "exact_compared": 17,
+    "ref_only": 0
+   }
+  },
+  {
+   "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/conc-b8.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 8,
+    "stream": "mixed",
+    "arrival_scale": 0.3,
+    "cap_max_tokens": null,
+    "token_ids": true,
+    "flush": false,
+    "n_cases": 17,
+    "peak_client_inflight": 8,
+    "wall_s": 27.8,
+    "cases_sha256": "076e62084611595e",
+    "started": "2026-10-15 23:51:05",
+    "argv": [
+     "tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--url",
+     "http://127.0.0.1:8101",
+     "--cases",
+     "tools/prompts/cb_spec_cases.jsonl",
+     "--ids",
+     "s000,s001,s002,s003,s004,s005,s006,s007,s008,s009,s010,s011,s012,s013,s014,s015,s016",
+     "--token-ids",
+     "on",
+     "--b",
+     "8",
+     "--stream",
+     "mixed",
+     "--arrival-scale",
+     "0.3",
+     "--out",
+     "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/conc-b8.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "s000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s001",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s002",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s005",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s007",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s008",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s009",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s010",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s011",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s012",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s013",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s014",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s015",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "chunk_256": 16,
+    "pass": 17,
+    "nonstream": 8,
+    "ids_compared": 17,
+    "stream": 9,
+    "chunk_2048": 1,
+    "exact_compared": 17,
+    "ref_only": 0
+   }
+  }
+ ],
+ "coverage": {
+  "cases": 17,
+  "tags": {
+   "chatcopy": 3,
+   "code": 4,
+   "copy": 10,
+   "greedy": 14,
+   "min_tokens": 1,
+   "sampled": 1,
+   "stop": 1
+  },
+  "reference_finish": {
+   "length": 15,
+   "stop (EOS)": 1,
+   "stop (stop string armed: stop string or EOS)": 1
+  },
+  "prompt_tokens_histogram": {
+   "<=192": 4,
+   "193-384": 13,
+   "385-768": 0,
+   "769-1.5k": 0,
+   "1.5k-2.5k": 0,
+   "2.5k-3.5k": 0,
+   ">3.5k": 0
+  },
+  "prompt_tokens_min_max": [
+   152,
+   336
+  ]
+ },
+ "ref": {
+  "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/ref2048.jsonl",
+  "header": {
+   "mode": "solo",
+   "b": null,
+   "stream": "mixed",
+   "arrival_scale": 1.0,
+   "cap_max_tokens": null,
+   "token_ids": true,
+   "flush": true,
+   "n_cases": 17,
+   "peak_client_inflight": 0,
+   "wall_s": 71.6,
+   "cases_sha256": "076e62084611595e",
+   "started": "2026-10-15 23:46:40",
+   "argv": [
+    "tools/cbidentity.py",
+    "run",
+    "--mode",
+    "solo",
+    "--url",
+    "http://127.0.0.1:8101",
+    "--cases",
+    "tools/prompts/cb_spec_cases.jsonl",
+    "--ids",
+    "s000,s001,s002,s003,s004,s005,s006,s007,s008,s009,s010,s011,s012,s013,s014,s015,s016",
+    "--token-ids",
+    "on",
+    "--out",
+    "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/ref2048.jsonl"
+   ]
+  }
+ }
+}

@@ -1,0 +1,20 @@
+concurrent: 17 cases -> http://127.0.0.1:8101, B=8, stream=mixed
+token ids: requested (http://127.0.0.1:8101)
+  [  1/17] s002 S length 48 3.5s
+  [  2/17] s004 N length 48 3.5s
+  [  3/17] s000 N length 96 6.2s
+  [  4/17] s006 S length 48 2.6s
+  [  5/17] s008 N length 64 3.3s
+  [  6/17] s015 S length 64 4.7s
+  [  7/17] s003 N length 224 13.4s
+  [  8/17] s001 S stop 226 13.5s
+  [  9/17] s007 S length 160 9.8s
+  [ 10/17] s013 S stop 10 1.0s
+  [ 11/17] s009 N length 96 7.1s
+  [ 12/17] s011 N length 48 2.6s
+  [ 13/17] s005 N length 288 17.2s
+  [ 14/17] s010 N length 160 9.9s
+  [ 15/17] s014 S length 224 13.2s
+  [ 16/17] s016 S length 288 14.4s
+  [ 17/17] s012 S length 288 14.2s
+wrote /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/conc-b8.jsonl: 17 records, 0 errors, wall 27.8s, peak client in-flight 8

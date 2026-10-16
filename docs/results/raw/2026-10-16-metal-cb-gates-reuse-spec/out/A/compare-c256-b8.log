@@ -1,0 +1,10 @@
+requests 328  comparable 322  pass 322  MISMATCH 0  errors ref/test 0/0  not comparable 6
+comparable requests that started from reused KV: 172 (53%); from reused DECODE-WRITTEN KV: 172 (53%), 12305 decode-written tokens reused
+  not_comparable_cached_differs: 6
+  kind branch  not_comparable  1
+  kind branch  pass            85
+  kind exact   pass            38
+  kind ext     not_comparable  1
+  kind ext     pass            119
+  kind ext2    not_comparable  4
+  kind ext2    pass            80

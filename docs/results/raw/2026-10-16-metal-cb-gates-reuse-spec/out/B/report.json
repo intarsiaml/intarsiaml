@@ -1,0 +1,4402 @@
+{
+ "warnings": [
+  "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b2.jsonl: server plan differs from the reference server on ['max_batch']",
+  "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b3.jsonl: server plan differs from the reference server on ['max_batch']",
+  "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b4.jsonl: server plan differs from the reference server on ['max_batch']",
+  "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b6.jsonl: server plan differs from the reference server on ['max_batch']",
+  "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b8.jsonl: server plan differs from the reference server on ['max_batch']"
+ ],
+ "runs": [
+  {
+   "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b2.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 2,
+    "stream": "mixed",
+    "arrival_scale": 0.1,
+    "cap_max_tokens": null,
+    "token_ids": true,
+    "flush": false,
+    "n_cases": 48,
+    "peak_client_inflight": 2,
+    "wall_s": 92.8,
+    "cases_sha256": "076e62084611595e",
+    "started": "2026-10-16 00:23:22",
+    "argv": [
+     "tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--url",
+     "http://127.0.0.1:8101",
+     "--cases",
+     "tools/prompts/cb_spec_cases.jsonl",
+     "--token-ids",
+     "on",
+     "--b",
+     "2",
+     "--stream",
+     "mixed",
+     "--arrival-scale",
+     "0.1",
+     "--out",
+     "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b2.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "s000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s001",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s002",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s005",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s007",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s008",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s009",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s010",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s011",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s012",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s013",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s014",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s015",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s017",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s018",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s019",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s020",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s021",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s022",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s023",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s024",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s025",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s026",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s027",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s028",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s029",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s030",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s031",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s032",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s033",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s034",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s035",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s036",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s037",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s038",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s039",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s040",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s041",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s042",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s043",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s044",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s045",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s046",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s047",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "chunk_256": 47,
+    "pass": 48,
+    "nonstream": 21,
+    "ids_compared": 48,
+    "stream": 27,
+    "chunk_2048": 1,
+    "exact_compared": 48,
+    "ref_only": 0
+   }
+  },
+  {
+   "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b3.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 3,
+    "stream": "mixed",
+    "arrival_scale": 0.1,
+    "cap_max_tokens": null,
+    "token_ids": true,
+    "flush": false,
+    "n_cases": 48,
+    "peak_client_inflight": 3,
+    "wall_s": 85.3,
+    "cases_sha256": "076e62084611595e",
+    "started": "2026-10-16 00:24:47",
+    "argv": [
+     "tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--url",
+     "http://127.0.0.1:8101",
+     "--cases",
+     "tools/prompts/cb_spec_cases.jsonl",
+     "--token-ids",
+     "on",
+     "--b",
+     "3",
+     "--stream",
+     "mixed",
+     "--arrival-scale",
+     "0.1",
+     "--out",
+     "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b3.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "s000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s001",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s002",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s005",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s007",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s008",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s009",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s010",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s011",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s012",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s013",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s014",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s015",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s017",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s018",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s019",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s020",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s021",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s022",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s023",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s024",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s025",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s026",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s027",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s028",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s029",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s030",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s031",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s032",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s033",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s034",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s035",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s036",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s037",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s038",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s039",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s040",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s041",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s042",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s043",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s044",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s045",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s046",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s047",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "chunk_256": 47,
+    "pass": 48,
+    "nonstream": 21,
+    "ids_compared": 48,
+    "stream": 27,
+    "chunk_2048": 1,
+    "exact_compared": 48,
+    "ref_only": 0
+   }
+  },
+  {
+   "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b4.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 4,
+    "stream": "mixed",
+    "arrival_scale": 1.0,
+    "cap_max_tokens": null,
+    "token_ids": true,
+    "flush": false,
+    "n_cases": 48,
+    "peak_client_inflight": 4,
+    "wall_s": 121.2,
+    "cases_sha256": "076e62084611595e",
+    "started": "2026-10-16 00:26:49",
+    "argv": [
+     "tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--url",
+     "http://127.0.0.1:8101",
+     "--cases",
+     "tools/prompts/cb_spec_cases.jsonl",
+     "--token-ids",
+     "on",
+     "--b",
+     "4",
+     "--stream",
+     "mixed",
+     "--arrival-scale",
+     "1.0",
+     "--out",
+     "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b4.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "s000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s001",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s002",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s005",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s007",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s008",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s009",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s010",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s011",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s012",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s013",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s014",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s015",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s017",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s018",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s019",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s020",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s021",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s022",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s023",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s024",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s025",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s026",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s027",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s028",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s029",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s030",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s031",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s032",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s033",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s034",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s035",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s036",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s037",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s038",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s039",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s040",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s041",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s042",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s043",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s044",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s045",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s046",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s047",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "chunk_256": 40,
+    "pass": 48,
+    "nonstream": 21,
+    "ids_compared": 48,
+    "stream": 27,
+    "chunk_2048": 8,
+    "exact_compared": 48,
+    "ref_only": 0
+   }
+  },
+  {
+   "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b6.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 6,
+    "stream": "mixed",
+    "arrival_scale": 1.0,
+    "cap_max_tokens": null,
+    "token_ids": true,
+    "flush": false,
+    "n_cases": 48,
+    "peak_client_inflight": 6,
+    "wall_s": 119.8,
+    "cases_sha256": "076e62084611595e",
+    "started": "2026-10-16 00:28:49",
+    "argv": [
+     "tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--url",
+     "http://127.0.0.1:8101",
+     "--cases",
+     "tools/prompts/cb_spec_cases.jsonl",
+     "--token-ids",
+     "on",
+     "--b",
+     "6",
+     "--stream",
+     "mixed",
+     "--arrival-scale",
+     "1.0",
+     "--out",
+     "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b6.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "s000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s001",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s002",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s005",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s007",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s008",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s009",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s010",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s011",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s012",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s013",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s014",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s015",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s017",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s018",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s019",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s020",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s021",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s022",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s023",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s024",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s025",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s026",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s027",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s028",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s029",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s030",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s031",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s032",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s033",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s034",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s035",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s036",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s037",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s038",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s039",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s040",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s041",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s042",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s043",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s044",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s045",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s046",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s047",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "chunk_256": 39,
+    "pass": 48,
+    "nonstream": 21,
+    "ids_compared": 48,
+    "stream": 27,
+    "chunk_2048": 9,
+    "exact_compared": 48,
+    "ref_only": 0
+   }
+  },
+  {
+   "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b8.jsonl",
+   "header": {
+    "mode": "concurrent",
+    "b": 8,
+    "stream": "mixed",
+    "arrival_scale": 1.0,
+    "cap_max_tokens": null,
+    "token_ids": true,
+    "flush": false,
+    "n_cases": 48,
+    "peak_client_inflight": 8,
+    "wall_s": 119.9,
+    "cases_sha256": "076e62084611595e",
+    "started": "2026-10-16 00:30:49",
+    "argv": [
+     "tools/cbidentity.py",
+     "run",
+     "--mode",
+     "concurrent",
+     "--url",
+     "http://127.0.0.1:8101",
+     "--cases",
+     "tools/prompts/cb_spec_cases.jsonl",
+     "--token-ids",
+     "on",
+     "--b",
+     "8",
+     "--stream",
+     "mixed",
+     "--arrival-scale",
+     "1.0",
+     "--out",
+     "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/conc-b8.jsonl"
+    ]
+   },
+   "rows": [
+    {
+     "id": "s000",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s001",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s002",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s003",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s004",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s005",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s006",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s007",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s008",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s009",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s010",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s011",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s012",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s013",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s014",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s015",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s016",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s017",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s018",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s019",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s020",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s021",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s022",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s023",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s024",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s025",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s026",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s027",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s028",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s029",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s030",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s031",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s032",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s033",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s034",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s035",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s036",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s037",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "sampled"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s038",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s039",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s040",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "min_tokens"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s041",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "stop"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s042",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s043",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "chatcopy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s044",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 2048
+    },
+    {
+     "id": "s045",
+     "verdict": "pass",
+     "stream": false,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s046",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "code",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    },
+    {
+     "id": "s047",
+     "verdict": "pass",
+     "stream": true,
+     "status": "ok",
+     "reasons": [],
+     "tags": [
+      "copy",
+      "greedy"
+     ],
+     "cancel_case": false,
+     "cached_ref": 0,
+     "cached_test": 0,
+     "cached_differs": false,
+     "ids_compared": true,
+     "chunk": 256
+    }
+   ],
+   "mismatches": [],
+   "counts": {
+    "chunk_256": 39,
+    "pass": 48,
+    "nonstream": 21,
+    "ids_compared": 48,
+    "stream": 27,
+    "chunk_2048": 9,
+    "exact_compared": 48,
+    "ref_only": 0
+   }
+  }
+ ],
+ "coverage": {
+  "cases": 48,
+  "tags": {
+   "chatcopy": 13,
+   "code": 15,
+   "copy": 20,
+   "greedy": 35,
+   "min_tokens": 4,
+   "sampled": 5,
+   "stop": 4
+  },
+  "reference_finish": {
+   "length": 44,
+   "stop (EOS)": 1,
+   "stop (stop string armed: stop string or EOS)": 3
+  },
+  "prompt_tokens_histogram": {
+   "<=192": 13,
+   "193-384": 35,
+   "385-768": 0,
+   "769-1.5k": 0,
+   "1.5k-2.5k": 0,
+   "2.5k-3.5k": 0,
+   ">3.5k": 0
+  },
+  "prompt_tokens_min_max": [
+   121,
+   365
+  ]
+ },
+ "ref": {
+  "file": "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/ref2048.jsonl",
+  "header": {
+   "mode": "solo",
+   "b": null,
+   "stream": "mixed",
+   "arrival_scale": 1.0,
+   "cap_max_tokens": null,
+   "token_ids": true,
+   "flush": true,
+   "n_cases": 48,
+   "peak_client_inflight": 0,
+   "wall_s": 104.3,
+   "cases_sha256": "076e62084611595e",
+   "started": "2026-10-16 00:18:24",
+   "argv": [
+    "tools/cbidentity.py",
+    "run",
+    "--mode",
+    "solo",
+    "--url",
+    "http://127.0.0.1:8101",
+    "--cases",
+    "tools/prompts/cb_spec_cases.jsonl",
+    "--token-ids",
+    "on",
+    "--out",
+    "/opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/B/ref2048.jsonl"
+   ]
+  }
+ }
+}

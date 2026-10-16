@@ -1,7 +1,7 @@
 # sourced: start_server <name> <port> <args...>  -> sets SPID; stop_server kills only the PID we started
-# BIN: a private copy of the binary built from branch metal-cb-gates (70b15eb + the INTARSIA_CB_TRACE stderr hook 0bd5db7)
+# BIN: a private copy of the binary built from branch metal-cb-gates (70b15eb + scheduler trace hook 0bd5db7, 75ecb17)
 S=/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad
-BIN=${BIN:-$S/bin/intarsia-gates1}
+BIN=${BIN:-$S/bin/intarsia-gates2}
 M=$HOME/models/Qwen3-8B
 SPID=""
 start_server() {

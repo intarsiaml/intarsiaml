@@ -1,0 +1,329 @@
+  [  1] c007s0 branch cached 0 gen 49 chunk 256 ok length
+  [  2] c000s0 ext    cached 0 gen 80 chunk 256 ok length
+  [  3] c002s0 ext    cached 0 gen 84 chunk 256 ok length
+  [  4] c003s0 ext2   cached 0 gen 84 chunk 256 ok length
+  [  5] c001s0 branch cached 0 gen 96 chunk 256 ok length
+  [  6] c006s0 ext2   cached 0 gen 85 chunk 256 ok length
+  [  7] c005s0 ext    cached 0 gen 101 chunk 256 ok length
+  [  8] c004s0 ext    cached 0 gen 111 chunk 256 ok length
+  [  9] c007s1 branch cached 297 gen 56 chunk 256 ok length
+  [ 10] c002s1 ext    cached 1163 gen 41 chunk 256 ok length
+  [ 11] c006s1 ext2   cached 1159 gen 49 chunk 256 ok length
+  [ 12] c003s1 ext2   cached 1265 gen 63 chunk 256 ok length
+  [ 13] c004s1 ext    cached 211 gen 38 chunk 256 ok length
+  [ 14] c000s1 ext    cached 357 gen 91 chunk 256 ok length
+  [ 15] c008s0 branch cached 0 gen 41 chunk 256 ok length
+  [ 16] c001s1 branch cached 1067 gen 83 chunk 256 ok length
+  [ 17] c003s2 ext2   cached 0 gen 30 chunk 256 ok length
+  [ 18] c005s1 ext    cached 232 gen 86 chunk 256 ok length
+  [ 19] c012s0 ext2   cached 0 gen 24 chunk 256 ok length
+  [ 20] c011s0 exact  cached 0 gen 36 chunk 256 ok length
+  [ 21] c008s1 branch cached 2135 gen 37 chunk 256 ok length
+  [ 22] c009s0 branch cached 0 gen 109 chunk 256 ok length
+  [ 23] c006s2 ext2   cached 1267 gen 91 chunk 256 ok length
+  [ 24] c012s1 ext2   cached 173 gen 46 chunk 256 ok length
+  [ 25] c010s0 ext    cached 0 gen 91 chunk 256 ok length
+  [ 26] c015s0 ext    cached 0 gen 51 chunk 256 ok length
+  [ 27] c013s0 branch cached 0 gen 74 chunk 256 ok length
+  [ 28] c014s0 branch cached 0 gen 77 chunk 256 ok length
+  [ 29] c011s1 exact  cached 706 gen 78 chunk 256 ok length
+  [ 30] c010s1 ext    cached 398 gen 42 chunk 256 ok length
+  [ 31] c013s1 branch cached 283 gen 29 chunk 256 ok length
+  [ 32] c009s1 branch cached 0 gen 71 chunk 256 ok length
+  [ 33] c012s2 ext2   cached 231 gen 83 chunk 256 ok length
+  [ 34] c014s1 branch cached 324 gen 63 chunk 256 ok length
+  [ 35] c016s0 ext    cached 0 gen 103 chunk 256 ok length
+  [ 36] c015s1 ext    cached 254 gen 91 chunk 256 ok length
+  [ 37] c017s0 ext    cached 0 gen 69 chunk 256 ok length
+  [ 38] c018s0 ext    cached 0 gen 63 chunk 256 ok length
+  [ 39] c019s0 ext2   cached 0 gen 69 chunk 256 ok length
+  [ 40] c023s0 ext2   cached 0 gen 51 chunk 256 ok length
+  [ 41] c018s1 ext    cached 145 gen 51 chunk 256 ok length
+  [ 42] c020s0 branch cached 0 gen 91 chunk 256 ok length
+  [ 43] c016s1 ext    cached 260 gen 68 chunk 256 ok length
+  [ 44] c022s0 ext    cached 0 gen 83 chunk 256 ok length
+  [ 45] c021s0 ext    cached 0 gen 96 chunk 256 ok length
+  [ 46] c024s0 ext    cached 0 gen 28 chunk 256 ok length
+  [ 47] c019s1 ext2   cached 421 gen 62 chunk 256 ok length
+  [ 48] c017s1 ext    cached 160 gen 91 chunk 256 ok length
+  [ 49] c023s1 ext2   cached 301 gen 39 chunk 256 ok length
+  [ 50] c022s1 ext    cached 477 gen 49 chunk 256 ok length
+  [ 51] c020s1 branch cached 304 gen 72 chunk 256 ok length
+  [ 52] c021s1 ext    cached 229 gen 53 chunk 256 ok length
+  [ 53] c024s1 ext    cached 411 gen 62 chunk 256 ok length
+  [ 54] c019s2 ext2   cached 0 gen 54 chunk 256 ok length
+  [ 55] c025s0 ext    cached 0 gen 113 chunk 256 ok length
+  [ 56] c029s0 ext2   cached 0 gen 43 chunk 256 ok length
+  [ 57] c023s2 ext2   cached 450 gen 97 chunk 256 ok length
+  [ 58] c027s0 branch cached 0 gen 86 chunk 256 ok length
+  [ 59] c026s0 ext2   cached 0 gen 114 chunk 256 ok length
+  [ 60] c025s1 ext    cached 402 gen 43 chunk 256 ok length
+  [ 61] c028s0 branch cached 0 gen 95 chunk 256 ok length
+  [ 62] c026s1 ext2   cached 1284 gen 36 chunk 256 ok length
+  [ 63] c029s1 ext2   cached 1158 gen 68 chunk 256 ok length
+  [ 64] c030s0 branch cached 0 gen 109 chunk 256 ok length
+  [ 65] c033s0 exact  cached 0 gen 49 chunk 256 ok length
+  [ 66] c031s0 ext2   cached 0 gen 119 chunk 256 ok length
+  [ 67] c032s0 ext2   cached 0 gen 103 chunk 256 ok length
+  [ 68] c027s1 branch cached 252 gen 93 chunk 256 ok length
+  [ 69] c028s1 branch cached 248 gen 84 chunk 256 ok length
+  [ 70] c029s2 ext2   cached 1297 gen 64 chunk 256 ok length
+  [ 71] c026s2 ext2   cached 1374 gen 92 chunk 256 ok length
+  [ 72] c030s1 branch cached 216 gen 84 chunk 256 ok length
+  [ 73] c032s1 ext2   cached 201 gen 63 chunk 256 ok length
+  [ 74] c031s1 ext2   cached 461 gen 95 chunk 256 ok length
+  [ 75] c033s1 exact  cached 411 gen 95 chunk 256 ok length
+  [ 76] c036s0 branch cached 0 gen 71 chunk 256 ok length
+  [ 77] c035s0 ext2   cached 0 gen 77 chunk 256 ok length
+  [ 78] c034s0 branch cached 0 gen 110 chunk 256 ok length
+  [ 79] c032s2 ext2   cached 288 gen 58 chunk 256 ok length
+  [ 80] c031s2 ext2   cached 672 gen 51 chunk 256 ok length
+  [ 81] c038s0 ext    cached 0 gen 80 chunk 256 ok length
+  [ 82] c037s0 ext    cached 0 gen 120 chunk 256 ok length
+  [ 83] c038s1 ext    cached 434 gen 40 chunk 256 ok length
+  [ 84] c035s1 ext2   cached 376 gen 84 chunk 256 ok length
+  [ 85] c034s1 branch cached 204 gen 61 chunk 256 ok length
+  [ 86] c039s0 branch cached 0 gen 96 chunk 256 ok length
+  [ 87] c040s0 ext    cached 0 gen 54 chunk 256 ok length
+  [ 88] c036s1 branch cached 273 gen 98 chunk 256 ok length
+  [ 89] c041s0 branch cached 0 gen 79 chunk 256 ok length
+  [ 90] c043s0 ext    cached 0 gen 53 chunk 256 ok length
+  [ 91] c035s2 ext2   cached 552 gen 58 chunk 256 ok length
+  [ 92] c040s1 ext    cached 734 gen 55 chunk 256 ok length
+  [ 93] c041s1 branch cached 331 gen 38 chunk 256 ok length
+  [ 94] c042s0 ext    cached 0 gen 76 chunk 256 ok length
+  [ 95] c037s1 ext    cached 1054 gen 81 chunk 256 ok length
+  [ 96] c039s1 branch cached 308 gen 81 chunk 256 ok length
+  [ 97] c044s0 ext    cached 0 gen 86 chunk 256 ok length
+  [ 98] c043s1 ext    cached 0 gen 65 chunk 256 ok length
+  [ 99] c042s1 ext    cached 401 gen 69 chunk 256 ok length
+  [100] c044s1 ext    cached 962 gen 42 chunk 256 ok length
+  [101] c048s0 ext2   cached 0 gen 79 chunk 256 ok length
+  [102] c046s0 branch cached 0 gen 93 chunk 256 ok length
+  [103] c047s0 exact  cached 0 gen 99 chunk 256 ok length
+  [104] c045s0 ext    cached 0 gen 118 chunk 256 ok length
+  [105] c050s0 ext    cached 0 gen 46 chunk 256 ok length
+  [106] c049s0 ext2   cached 0 gen 104 chunk 256 ok length
+  [107] c047s1 exact  cached 216 gen 35 chunk 256 ok length
+  [108] c045s1 ext    cached 639 gen 32 chunk 256 ok length
+  [109] c052s0 branch cached 0 gen 71 chunk 256 ok length
+  [110] c049s1 ext2   cached 441 gen 30 chunk 256 ok length
+  [111] c046s1 branch cached 1074 gen 60 chunk 256 ok length
+  [112] c048s1 ext2   cached 947 gen 80 chunk 256 ok length
+  [113] c051s0 ext    cached 0 gen 108 chunk 256 ok length
+  [114] c053s0 ext    cached 0 gen 53 chunk 256 ok length
+  [115] c054s0 ext    cached 0 gen 50 chunk 256 ok length
+  [116] c050s1 ext    cached 1033 gen 100 chunk 256 ok length
+  [117] c052s1 branch cached 87 gen 68 chunk 256 ok length
+  [118] c049s2 ext2   cached 535 gen 62 chunk 256 ok length
+  [119] c051s1 ext    cached 353 gen 29 chunk 256 ok length
+  [120] c048s2 ext2   cached 1047 gen 65 chunk 256 ok length
+  [121] c055s0 ext    cached 0 gen 112 chunk 256 ok length
+  [122] c057s0 branch cached 0 gen 60 chunk 256 ok length
+  [123] c056s0 ext    cached 0 gen 68 chunk 256 ok length
+  [124] c054s1 ext    cached 224 gen 92 chunk 256 ok length
+  [125] c053s1 ext    cached 212 gen 97 chunk 256 ok length
+  [126] c055s1 ext    cached 419 gen 35 chunk 256 ok length
+  [127] c058s0 exact  cached 0 gen 90 chunk 256 ok length
+  [128] c056s1 ext    cached 319 gen 41 chunk 256 ok length
+  [129] c059s0 ext    cached 0 gen 105 chunk 256 ok length
+  [130] c063s0 ext    cached 0 gen 26 chunk 256 ok length
+  [131] c062s0 branch cached 0 gen 52 chunk 256 ok length
+  [132] c060s0 ext    cached 0 gen 110 chunk 256 ok length
+  [133] c057s1 branch cached 723 gen 69 chunk 256 ok length
+  [134] c061s0 ext2   cached 0 gen 71 chunk 256 ok length
+  [135] c059s1 ext    cached 594 gen 51 chunk 256 ok length
+  [136] c062s1 branch cached 120 gen 49 chunk 256 ok length
+  [137] c063s1 ext    cached 615 gen 61 chunk 256 ok length
+  [138] c058s1 exact  cached 924 gen 87 chunk 256 ok length
+  [139] c064s0 exact  cached 0 gen 75 chunk 256 ok length
+  [140] c065s0 ext2   cached 0 gen 65 chunk 256 ok length
+  [141] c060s1 ext    cached 534 gen 78 chunk 256 ok length
+  [142] c067s0 branch cached 0 gen 33 chunk 256 ok length
+  [143] c066s0 branch cached 0 gen 51 chunk 256 ok length
+  [144] c061s1 ext2   cached 403 gen 91 chunk 256 ok length
+  [145] c064s1 exact  cached 313 gen 50 chunk 256 ok length
+  [146] c067s1 branch cached 1049 gen 35 chunk 256 ok length
+  [147] c066s1 branch cached 892 gen 47 chunk 256 ok length
+  [148] c069s0 branch cached 0 gen 89 chunk 256 ok length
+  [149] c068s0 branch cached 0 gen 103 chunk 256 ok length
+  [150] c065s1 ext2   cached 367 gen 93 chunk 256 ok length
+  [151] c061s2 ext2   cached 548 gen 61 chunk 256 ok length
+  [152] c073s0 ext    cached 0 gen 26 chunk 256 ok length
+  [153] c070s0 ext    cached 0 gen 91 chunk 256 ok length
+  [154] c069s1 branch cached 356 gen 33 chunk 256 ok length
+  [155] c070s1 ext    cached 472 gen 27 chunk 256 ok length
+  [156] c068s1 branch cached 259 gen 51 chunk 256 ok length
+  [157] c071s0 ext    cached 0 gen 99 chunk 256 ok length
+  [158] c073s1 ext    cached 486 gen 55 chunk 256 ok length
+  [159] c072s0 exact  cached 0 gen 111 chunk 256 ok length
+  [160] c076s0 ext    cached 0 gen 43 chunk 256 ok length
+  [161] c065s2 ext2   cached 495 gen 89 chunk 256 ok length
+  [162] c074s0 branch cached 0 gen 95 chunk 256 ok length
+  [163] c078s0 ext2   cached 0 gen 52 chunk 256 ok length
+  [164] c071s1 ext    cached 316 gen 73 chunk 256 ok length
+  [165] c076s1 ext    cached 1226 gen 38 chunk 256 ok length
+  [166] c075s0 ext    cached 0 gen 107 chunk 256 ok length
+  [167] c077s0 branch cached 0 gen 90 chunk 256 ok length
+  [168] c072s1 exact  cached 193 gen 82 chunk 256 ok length
+  [169] c081s0 ext    cached 0 gen 25 chunk 256 ok length
+  [170] c078s1 ext2   cached 131 gen 39 chunk 256 ok length
+  [171] c079s0 ext    cached 0 gen 81 chunk 256 ok length
+  [172] c074s1 branch cached 1458 gen 74 chunk 256 ok length
+  [173] c077s1 branch cached 204 gen 64 chunk 256 ok length
+  [174] c075s1 ext    cached 192 gen 67 chunk 256 ok length
+  [175] c078s2 ext2   cached 191 gen 41 chunk 256 ok length
+  [176] c081s1 ext    cached 422 gen 65 chunk 256 ok length
+  [177] c080s0 ext2   cached 0 gen 97 chunk 256 ok length
+  [178] c082s0 ext    cached 0 gen 73 chunk 256 ok length
+  [179] c079s1 ext    cached 762 gen 67 chunk 256 ok length
+  [180] c083s0 ext    cached 0 gen 72 chunk 256 ok length
+  [181] c084s0 ext    cached 0 gen 66 chunk 256 ok length
+  [182] c082s1 ext    cached 794 gen 61 chunk 256 ok length
+  [183] c085s0 ext    cached 0 gen 90 chunk 256 ok length
+  [184] c080s1 ext2   cached 2207 gen 72 chunk 256 ok length
+  [185] c088s0 ext2   cached 0 gen 56 chunk 256 ok length
+  [186] c086s0 branch cached 0 gen 103 chunk 256 ok length
+  [187] c087s0 branch cached 0 gen 91 chunk 256 ok length
+  [188] c089s0 ext    cached 0 gen 30 chunk 256 ok length
+  [189] c088s1 ext2   cached 299 gen 27 chunk 256 ok length
+  [190] c084s1 ext    cached 218 gen 72 chunk 256 ok length
+  [191] c083s1 ext    cached 586 gen 84 chunk 256 ok length
+  [192] c086s1 branch cached 772 gen 40 chunk 256 ok length
+  [193] c085s1 ext    cached 361 gen 66 chunk 256 ok length
+  [194] c087s1 branch cached 176 gen 55 chunk 256 ok length
+  [195] c089s1 ext    cached 407 gen 51 chunk 256 ok length
+  [196] c091s0 ext    cached 0 gen 37 chunk 256 ok length
+  [197] c090s0 exact  cached 0 gen 40 chunk 256 ok length
+  [198] c080s2 ext2   cached 2361 gen 94 chunk 256 ok length
+  [199] c088s2 ext2   cached 443 gen 69 chunk 256 ok length
+  [200] c090s1 exact  cached 508 gen 36 chunk 256 ok length
+  [201] c093s0 ext2   cached 0 gen 64 chunk 256 ok length
+  [202] c095s0 exact  cached 0 gen 58 chunk 256 ok length
+  [203] c097s0 ext2   cached 0 gen 34 chunk 256 ok length
+  [204] c091s1 ext    cached 421 gen 77 chunk 256 ok length
+  [205] c094s0 ext    cached 0 gen 90 chunk 256 ok length
+  [206] c092s0 ext2   cached 0 gen 119 chunk 256 ok length
+  [207] c095s1 exact  cached 827 gen 32 chunk 256 ok length
+  [208] c093s1 ext2   cached 773 gen 48 chunk 256 ok length
+  [209] c096s0 ext    cached 0 gen 82 chunk 256 ok length
+  [210] c097s1 ext2   cached 415 gen 48 chunk 256 ok length
+  [211] c098s0 branch cached 0 gen 73 chunk 256 ok length
+  [212] c099s0 ext    cached 0 gen 53 chunk 256 ok length
+  [213] c096s1 ext    cached 1889 gen 40 chunk 256 ok length
+  [214] c092s1 ext2   cached 324 gen 59 chunk 256 ok length
+  [215] c094s1 ext    cached 445 gen 78 chunk 256 ok length
+  [216] c093s2 ext2   cached 886 gen 75 chunk 256 ok length
+  [217] c098s1 branch cached 396 gen 69 chunk 256 ok length
+  [218] c100s0 branch cached 0 gen 91 chunk 256 ok length
+  [219] c097s2 ext2   cached 529 gen 77 chunk 256 ok length
+  [220] c102s0 exact  cached 0 gen 41 chunk 256 ok length
+  [221] c099s1 ext    cached 223 gen 88 chunk 256 ok length
+  [222] c104s0 branch cached 0 gen 34 chunk 256 ok length
+  [223] c092s2 ext2   cached 499 gen 71 chunk 256 ok length
+  [224] c101s0 exact  cached 0 gen 81 chunk 256 ok length
+  [225] c103s0 branch cached 0 gen 60 chunk 256 ok length
+  [226] c104s1 branch cached 930 gen 34 chunk 256 ok length
+  [227] c100s1 branch cached 1073 gen 82 chunk 256 ok length
+  [228] c105s0 ext    cached 0 gen 83 chunk 256 ok length
+  [229] c102s1 exact  cached 495 gen 86 chunk 256 ok length
+  [230] c108s0 ext2   cached 0 gen 48 chunk 256 ok length
+  [231] c106s0 exact  cached 0 gen 104 chunk 256 ok length
+  [232] c101s1 exact  cached 861 gen 95 chunk 256 ok length
+  [233] c107s0 branch cached 0 gen 108 chunk 256 ok length
+  [234] c103s1 branch cached 562 gen 100 chunk 256 ok length
+  [235] c109s0 branch cached 0 gen 74 chunk 256 ok length
+  [236] c110s0 branch cached 0 gen 71 chunk 256 ok length
+  [237] c105s1 ext    cached 750 gen 90 chunk 256 ok length
+  [238] c108s1 ext2   cached 258 gen 65 chunk 256 ok length
+  [239] c109s1 branch cached 658 gen 37 chunk 256 ok length
+  [240] c107s1 branch cached 280 gen 55 chunk 256 ok length
+  [241] c112s0 branch cached 0 gen 55 chunk 256 ok length
+  [242] c106s1 exact  cached 429 gen 70 chunk 256 ok length
+  [243] c110s1 branch cached 303 gen 37 chunk 256 ok length
+  [244] c114s0 branch cached 0 gen 26 chunk 256 ok length
+  [245] c113s0 ext2   cached 0 gen 64 chunk 256 ok length
+  [246] c108s2 ext2   cached 338 gen 78 chunk 256 ok length
+  [247] c112s1 branch cached 216 gen 57 chunk 256 ok length
+  [248] c111s0 ext    cached 0 gen 119 chunk 256 ok length
+  [249] c115s0 ext    cached 0 gen 63 chunk 256 ok length
+  [250] c113s1 ext2   cached 331 gen 47 chunk 256 ok length
+  [251] c114s1 branch cached 659 gen 76 chunk 256 ok length
+  [252] c111s1 ext    cached 1227 gen 38 chunk 256 ok length
+  [253] c116s0 exact  cached 0 gen 94 chunk 256 ok length
+  [254] c119s0 ext2   cached 0 gen 41 chunk 256 ok length
+  [255] c117s0 ext    cached 0 gen 112 chunk 256 ok length
+  [256] c115s1 ext    cached 465 gen 66 chunk 256 ok length
+  [257] c121s0 ext2   cached 0 gen 32 chunk 256 ok length
+  [258] c118s0 branch cached 0 gen 92 chunk 256 ok length
+  [259] c120s0 exact  cached 0 gen 56 chunk 256 ok length
+  [260] c116s1 exact  cached 278 gen 56 chunk 256 ok length
+  [261] c119s1 ext2   cached 119 gen 59 chunk 256 ok length
+  [262] c117s1 ext    cached 478 gen 37 chunk 256 ok length
+  [263] c113s2 ext2   cached 472 gen 90 chunk 256 ok length
+  [264] c118s1 branch cached 138 gen 34 chunk 256 ok length
+  [265] c120s1 exact  cached 456 gen 33 chunk 256 ok length
+  [266] c121s1 ext2   cached 179 gen 66 chunk 256 ok length
+  [267] c126s0 branch cached 0 gen 27 chunk 256 ok length
+  [268] c127s0 branch cached 0 gen 33 chunk 256 ok length
+  [269] c119s2 ext2   cached 290 gen 80 chunk 256 ok length
+  [270] c122s0 ext    cached 0 gen 112 chunk 256 ok length
+  [271] c124s0 branch cached 0 gen 101 chunk 256 ok length
+  [272] c123s0 ext    cached 0 gen 109 chunk 256 ok length
+  [273] c125s0 ext    cached 0 gen 84 chunk 256 ok length
+  [274] c121s2 ext2   cached 343 gen 67 chunk 256 ok length
+  [275] c122s1 ext    cached 1300 gen 26 chunk 256 ok length
+  [276] c126s1 branch cached 415 gen 70 chunk 256 ok length
+  [277] c127s1 branch cached 244 gen 74 chunk 256 ok length
+  [278] c125s1 ext    cached 1246 gen 31 chunk 256 ok length
+  [279] c123s1 ext    cached 355 gen 45 chunk 256 ok length
+  [280] c129s0 exact  cached 0 gen 40 chunk 256 ok length
+  [281] c130s0 branch cached 0 gen 67 chunk 256 ok length
+  [282] c124s1 branch cached 379 gen 82 chunk 256 ok length
+  [283] c128s0 branch cached 0 gen 114 chunk 256 ok length
+  [284] c132s0 ext2   cached 0 gen 58 chunk 256 ok length
+  [285] c131s0 ext2   cached 0 gen 89 chunk 256 ok length
+  [286] c134s0 ext    cached 0 gen 82 chunk 256 ok length
+  [287] c129s1 exact  cached 948 gen 89 chunk 256 ok length
+  [288] c132s1 ext2   cached 1834 gen 48 chunk 256 ok length
+  [289] c133s0 ext    cached 0 gen 115 chunk 256 ok length
+  [290] c136s0 exact  cached 0 gen 27 chunk 256 ok length
+  [291] c130s1 branch cached 377 gen 98 chunk 256 ok length
+  [292] c128s1 branch cached 438 gen 100 chunk 256 ok length
+  [293] c135s0 ext    cached 0 gen 114 chunk 256 ok length
+  [294] c132s2 ext2   cached 1923 gen 55 chunk 256 ok length
+  [295] c134s1 ext    cached 911 gen 73 chunk 256 ok length
+  [296] c137s0 ext2   cached 0 gen 24 chunk 256 ok length
+  [297] c136s1 exact  cached 717 gen 42 chunk 256 ok length
+  [298] c131s1 ext2   cached 835 gen 100 chunk 256 ok length
+  [299] c135s1 ext    cached 953 gen 40 chunk 256 ok length
+  [300] c139s0 branch cached 0 gen 38 chunk 256 ok length
+  [301] c140s0 ext2   cached 0 gen 33 chunk 256 ok length
+  [302] c133s1 ext    cached 1890 gen 92 chunk 256 ok length
+  [303] c138s0 exact  cached 0 gen 65 chunk 256 ok length
+  [304] c131s2 ext2   cached 960 gen 49 chunk 256 ok length
+  [305] c140s1 ext2   cached 673 gen 39 chunk 256 ok length
+  [306] c138s1 exact  cached 281 gen 25 chunk 256 ok length
+  [307] c141s0 ext    cached 0 gen 69 chunk 256 ok length
+  [308] c137s1 ext2   cached 0 gen 89 chunk 256 ok length
+  [309] c139s1 branch cached 226 gen 62 chunk 256 ok length
+  [310] c142s0 exact  cached 0 gen 84 chunk 256 ok length
+  [311] c137s2 ext2   cached 956 gen 33 chunk 256 ok length
+  [312] c143s0 branch cached 0 gen 97 chunk 256 ok length
+  [313] c140s2 ext2   cached 733 gen 68 chunk 256 ok length
+  [314] c142s1 exact  cached 817 gen 26 chunk 256 ok length
+  [315] c145s0 ext    cached 0 gen 73 chunk 256 ok length
+  [316] c144s0 exact  cached 0 gen 104 chunk 256 ok length
+  [317] c141s1 ext    cached 1166 gen 80 chunk 256 ok length
+  [318] c149s0 ext    cached 0 gen 27 chunk 256 ok length
+  [319] c146s0 ext    cached 0 gen 81 chunk 256 ok length
+  [320] c147s0 exact  cached 0 gen 57 chunk 256 ok length
+  [321] c143s1 branch cached 249 gen 48 chunk 256 ok length
+  [322] c148s0 ext    cached 0 gen 72 chunk 256 ok length
+  [323] c144s1 exact  cached 233 gen 56 chunk 256 ok length
+  [324] c145s1 ext    cached 2187 gen 65 chunk 256 ok length
+  [325] c148s1 ext    cached 842 gen 42 chunk 256 ok length
+  [326] c146s1 ext    cached 185 gen 88 chunk 256 ok length
+  [327] c149s1 ext    cached 112 gen 99 chunk 256 ok length
+  [328] c147s1 exact  cached 259 gen 93 chunk 256 ok length
+wrote /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/A/conc-c256-b8.jsonl: 328 requests, 0 errors, wall 252.8s, peak in-flight 8
