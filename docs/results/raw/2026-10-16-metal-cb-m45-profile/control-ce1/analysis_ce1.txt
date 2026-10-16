@@ -1,0 +1,48 @@
+
+### ctx 1024 B=8: wall median 41.64 ms, GPU span 41.06 ms, 868 launches/step, 40 steps
+| class | launches | serial GPU ms | gap-before ms | own (kernel+cb) ms | share of span (serial+gap) |
+|---|---:|---:|---:|---:|---:|
+| gate+up | 36 | 15.05 | 0.00 | 15.05 | 36.7% |
+| down | 36 | 7.80 | 0.00 | 7.80 | 19.0% |
+| attn_decode (per row) | 288 | 6.68 | 0.01 | 6.69 | 16.3% |
+| q/o | 72 | 5.13 | 0.00 | 5.13 | 12.5% |
+| head (lm_head GEMV) | 1 | 2.54 | 0.00 | 2.54 | 6.2% |
+| qk_norm_rope_kv (per row) | 288 | 1.87 | 0.00 | 1.89 | 4.6% |
+| k+v | 36 | 1.49 | 0.00 | 1.49 | 3.6% |
+| norm/elementwise | 111 | 0.48 | 0.02 | 0.48 | 1.2% |
+
+### ctx 1024 B=1: wall median 28.20 ms, GPU span 27.85 ms, 364 launches/step, 40 steps
+| class | launches | serial GPU ms | gap-before ms | own (kernel+cb) ms | share of span (serial+gap) |
+|---|---:|---:|---:|---:|---:|
+| gate+up | 36 | 12.26 | 0.00 | 12.26 | 44.0% |
+| down | 36 | 6.22 | 0.00 | 6.22 | 22.3% |
+| q/o | 72 | 4.30 | 0.00 | 4.31 | 15.5% |
+| head (lm_head GEMV) | 1 | 2.09 | 0.00 | 2.09 | 7.5% |
+| k+v | 36 | 1.13 | 0.00 | 1.14 | 4.1% |
+| attn_decode (per row) | 36 | 1.03 | 0.00 | 1.03 | 3.7% |
+| norm/elementwise | 111 | 0.49 | 0.02 | 0.50 | 1.8% |
+| qk_norm_rope_kv (per row) | 36 | 0.29 | 0.00 | 0.30 | 1.0% |
+
+### ctx 4096 B=8: wall median 47.44 ms, GPU span 46.86 ms, 868 launches/step, 40 steps
+| class | launches | serial GPU ms | gap-before ms | own (kernel+cb) ms | share of span (serial+gap) |
+|---|---:|---:|---:|---:|---:|
+| gate+up | 36 | 15.04 | 0.00 | 15.04 | 32.1% |
+| attn_decode (per row) | 288 | 12.39 | 0.01 | 12.40 | 26.4% |
+| down | 36 | 7.82 | 0.00 | 7.83 | 16.7% |
+| q/o | 72 | 5.13 | 0.00 | 5.13 | 10.9% |
+| head (lm_head GEMV) | 1 | 2.53 | 0.00 | 2.53 | 5.4% |
+| qk_norm_rope_kv (per row) | 288 | 1.89 | 0.00 | 1.91 | 4.0% |
+| k+v | 36 | 1.49 | 0.00 | 1.49 | 3.2% |
+| norm/elementwise | 111 | 0.48 | 0.02 | 0.49 | 1.1% |
+
+### ctx 4096 B=1: wall median 28.93 ms, GPU span 28.58 ms, 364 launches/step, 40 steps
+| class | launches | serial GPU ms | gap-before ms | own (kernel+cb) ms | share of span (serial+gap) |
+|---|---:|---:|---:|---:|---:|
+| gate+up | 36 | 12.28 | 0.00 | 12.28 | 43.0% |
+| down | 36 | 6.23 | 0.00 | 6.23 | 21.8% |
+| q/o | 72 | 4.31 | 0.00 | 4.31 | 15.1% |
+| head (lm_head GEMV) | 1 | 2.10 | 0.00 | 2.10 | 7.3% |
+| attn_decode (per row) | 36 | 1.73 | 0.00 | 1.73 | 6.0% |
+| k+v | 36 | 1.13 | 0.00 | 1.14 | 4.0% |
+| norm/elementwise | 111 | 0.49 | 0.02 | 0.50 | 1.8% |
+| qk_norm_rope_kv (per row) | 36 | 0.29 | 0.00 | 0.30 | 1.0% |
