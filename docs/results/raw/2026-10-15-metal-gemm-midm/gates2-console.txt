@@ -1,0 +1,26 @@
+fleetq: #2105 waiting (#3 in line): in line behind #2103 "cb-m1 step2 gate 4: localeval throughput max-batch 1 vs 8 (cb-wire 1bdcbca, retry: script fix)" (claude-0e8026c5) on endor
+fleetq:   #2103 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2103 set, or it will wait for #2103 to be released.
+fleetq: #2105 waiting (#2 in line): in line behind #2104 "metal forward-no1: 1-row tail probe + short/long/4k accuracy (retry, metal build)" (claude-31e10c55) on endor
+fleetq: #2105 waiting (#1 in line): endor is held exclusively by #2104 "metal forward-no1: 1-row tail probe + short/long/4k accuracy (retry, metal build)" (claude-31e10c55)
+fleetq: #2105 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/gates2.sh
+cargo test metal exit 0
+size 1000 done
+size 585 done
+size 663 done
+size 745 done
+size 830 done
+size 930 done
+size 1075 done
+size 1130 done
+size 1230 done
+size 1330 done
+size 1400 done
+size 1470 done
+size 1580 done
+size 1650 done
+size 1760 done
+size 1900 done
+size 2048 done
+size 1024 done
+size 640 done
+fleetq: #2105 done (exit 0)

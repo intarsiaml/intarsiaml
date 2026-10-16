@@ -1,0 +1,9 @@
+class | c256 ms (n=4) | c2048 ms (n=4) | c256/c2048 | TFLOPS c256 / c2048
+GEMM gate+up(pair) | 568.0 | 461.9 | 1.23 | 51.8 / 63.7
+GEMM down | 310.6 | 243.2 | 1.28 | 47.4 / 60.5
+GEMM qo | 211.7 | 161.3 | 1.31 | 46.3 / 60.8
+attention | 144.4 | 96.7 | 1.49 | 
+GEMM kv(pair) | 58.9 | 43.1 | 1.37 | 41.7 / 56.9
+other (norms, rope, glu, logits) | 42.6 | 41.3 | 1.03 | 
+total kernel ms | 1336.2 [1252..1625] | 1048.1 [1045..1050] | 1.275
+GPU MHz (busy samples) | 1414 (n=21) | 1617 (n=4)

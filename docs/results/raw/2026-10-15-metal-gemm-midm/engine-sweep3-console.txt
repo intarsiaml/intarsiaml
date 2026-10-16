@@ -1,0 +1,33 @@
+fleetq: #2099 waiting (#3 in line): in line behind #2096 "cb-m1 step2 gate 3: concurrent identity B=2,4,8 vs solo refs (cb-wire 1bdcbca)" (claude-0e8026c5) on endor
+fleetq:   #2096 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2096 set, or it will wait for #2096 to be released.
+fleetq: #2099 waiting (#2 in line): in line behind #2097 "cb-m1 step2 gate 4: localeval throughput max-batch 1 vs 8 (cb-wire 1bdcbca)" (claude-0e8026c5) on endor
+fleetq:   #2097 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2097 set, or it will wait for #2097 to be released.
+fleetq: #2099 waiting (#1 in line): endor is held exclusively by #2097 "cb-m1 step2 gate 4: localeval throughput max-batch 1 vs 8 (cb-wire 1bdcbca)" (claude-0e8026c5)
+fleetq:   #2097 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2097 set, or it will wait for #2097 to be released.
+fleetq: #2099 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/engine-sweep3.sh 2 2048 1024 1536 1792 640 1280 768 1920 1700 1167 1437 1366 897 1100 1250 700 800 850 960 1200 1300 1500 1600 1850 2000
+size 2048 done
+size 1024 done
+size 1536 done
+size 1792 done
+size 640 done
+size 1280 done
+size 768 done
+size 1920 done
+size 1700 done
+size 1167 done
+size 1437 done
+size 1366 done
+size 897 done
+size 1100 done
+size 1250 done
+size 700 done
+size 800 done
+size 850 done
+size 960 done
+size 1200 done
+size 1300 done
+size 1500 done
+size 1600 done
+size 1850 done
+size 2000 done
+fleetq: #2099 done (exit 0)

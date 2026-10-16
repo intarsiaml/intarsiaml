@@ -1,0 +1,33 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml-gemm-midm/docs/results/raw/2026-10-15-metal-gemm-midm/gates/qualify
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 27 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     44s] plan: PASS in 43.4s (14 ops resolved, exactness deterministic, loaded in 43.4s)
+[qualify     44s] == kernels [kernels test on the model's shapes]
+[qualify     87s] kernels: PASS in 42.9s (27 kernels, 321 cases in 42.8s)
+[qualify     87s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     96s] gate: PASS in 9.5s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     96s] == acc-short [short accuracy against a golden]
+[qualify    103s] acc-short: PASS in 7.2s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
+[qualify    103s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    144s] server up in 40s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    184s] bench: PASS in 80.7s (decode 35.8 tok/s at 128 tokens (88% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml-gemm-midm/docs/results/raw/2026-10-15-metal-gemm-midm/gates/qualify/quick-report.md
+[qualify    184s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    208s] acc-long: PASS in 23.8s (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4)
+[qualify    208s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    276s] acc-4k: PASS in 68.5s (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4)
+[qualify    276s] == envelope [noise envelope and baseline for regression gating]
+[qualify    292s] envelope: PASS in 15.4s (baseline and envelope (chunk) written; they gate this build: PASS)
+[qualify    292s] == bench-long [long-context bench up to 16k]
+[qualify    332s] server up in 40s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    373s] bench-long: PASS in 81.4s (decode 35.5 tok/s at 1024 tokens (88% of the byte floor))
+[qualify    373s] == ab [A/B against the reference server via localeval]
+[qualify    373s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    373s] == tp [tensor-parallel variant]
+[qualify    373s] tp: SKIP in 0.0s (--tp not given (or 1))
+FULL DONE: /opt/code/intarsiaml-gemm-midm/docs/results/raw/2026-10-15-metal-gemm-midm/gates/qualify/full-report.md
+[qualify    373s] exit code 0

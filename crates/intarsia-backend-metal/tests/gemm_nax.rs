@@ -221,14 +221,31 @@ fn nax_kernels_are_registered_for_prefill_shapes_only() {
 #[test]
 fn nax_tile_pick_is_by_shape() {
     let name = |m: usize, n: usize| pick_variant(m, n).shader;
-    // P1 rule outside 128..=512 rows: 64x64 / four simdgroups, or 128x64 when it leaves enough threadgroups
+    // P1 rule below 128 rows: 64x64 / four simdgroups
     assert_eq!(name(16, 12288), "gemm_nax_t64x64w4");
     assert_eq!(name(64, 12288), "gemm_nax_t64x64w4");
     assert_eq!(name(127, 24576), "gemm_nax_t64x64w4");
-    assert_eq!(name(1024, 24576), "gemm_nax_t128x64w4");
-    assert_eq!(name(2048, 4096), "gemm_nax_t128x64w4");
-    assert_eq!(name(973, 4096), "gemm_nax_t128x64w4");
+    // chunk range up to 640 rows, then the mid table by 64-row steps (mid_tile), then the P1 pick
+    assert_eq!(name(513, 4096), "gemm_nax_t32x128w2");
+    assert_eq!(name(577, 4096), "gemm_nax_t32x128w2");
+    assert_eq!(name(577, 12288), "gemm_nax_t64x64w2"); // the wide gate + up pair does not take the 32-row tile
+    assert_eq!(name(619, 4096), "gemm_nax_t64x64w2");
+    assert_eq!(name(640, 4096), "gemm_nax_t64x64w2");
+    assert_eq!(name(641, 4096), "gemm_nax_t64x64w4");
+    assert_eq!(name(700, 12288), "gemm_nax_t64x64w4");
+    assert_eq!(name(800, 4096), "gemm_nax_t64x64w2");
+    assert_eq!(name(960, 24576), "gemm_nax_t64x64w4");
+    assert_eq!(name(1100, 4096), "gemm_nax_t128x64w4"); // 18 steps: the P1 pick
+    assert_eq!(name(1200, 4096), "gemm_nax_t64x64w4");
+    assert_eq!(name(1280, 4096), "gemm_nax_t64x64w2");
+    assert_eq!(name(1344, 24576), "gemm_nax_t64x64w4");
+    assert_eq!(name(1366, 4096), "gemm_nax_t128x64w4");
+    assert_eq!(name(1536, 4096), "gemm_nax_t128x64w4");
+    assert_eq!(name(1024, 24576), "gemm_nax_t64x64w4");
     assert_eq!(name(1024, 1024), "gemm_nax_t64x64w4");
+    assert_eq!(name(2048, 4096), "gemm_nax_t128x64w4");
+    assert_eq!(name(2048, 24576), "gemm_nax_t128x64w4");
+    assert_eq!(name(973, 4096), "gemm_nax_t64x64w4");
     // chunk-sized rows: k + v pair on 32x32 / one simdgroup
     assert_eq!(name(256, 2048), "gemm_nax_t32x32w1");
     assert_eq!(name(222, 2048), "gemm_nax_t32x32w1");
@@ -242,6 +259,52 @@ fn nax_tile_pick_is_by_shape() {
     assert_eq!(name(222, 4096), "gemm_nax_t32x128w2");
     assert_eq!(name(222, 24576), "gemm_nax_t64x64w2");
     assert_eq!(name(250, 4096), "gemm_nax_t64x64w2"); // 250 % 64 = 58: nearly full tiles
+}
+
+/// Chunk invariance of the shipped pick at mid-size chunks (the pad-aware rule): rows of a 2048-row call on the 128x64
+/// tile equal the same rows computed through `Backend::launch` in calls of 513..2048 rows at other row offsets (the
+/// 32x128 / 64x64 tiles the pick chooses there), for a single GEMM and for the pair kernel.
+#[test]
+fn nax_mid_size_chunks_keep_row_bits() {
+    let be = backend();
+    let (n, k) = (1024usize, 4096usize);
+    let rows_total = 2048usize;
+    let x = rand_bf16(rows_total * k, 81);
+    let w = rand_bf16(n * k, 82);
+    let w1 = rand_bf16(n * k, 83);
+    let (xb, wb, w1b) = (upload_at(&be, 0, &x), upload_at(&be, 0, &w), upload_at(&be, 0, &w1));
+    let big = &NAX_VARIANTS[1]; // 128x64 / four simdgroups
+    let want: Vec<Vec<u16>> = [&wb, &w1b]
+        .iter()
+        .map(|wbuf| {
+            let yb = be.alloc(rows_total * n * 2, MemKind::Device).unwrap();
+            run_variant(&be, big, (&xb, 0), (wbuf, 0), (&yb, 0), (rows_total, n, k));
+            read_u16(&be, &yb, 0, rows_total * n)
+        })
+        .collect();
+    // (rows, first row): from just past the chunk-sized range to the 2048-row chunk, multiples of 64 and of 128 included
+    for (rows, r0) in [(513usize, 7usize), (600, 1448), (640, 100), (700, 20), (800, 3), (952, 1096), (1100, 948), (1200, 9), (1280, 50), (1344, 700), (1366, 682), (1433, 615), (1536, 512), (1850, 198), (2047, 1), (2048, 0)] {
+        let m = rows;
+        let tile = pick_variant(m, n);
+        let ys: Vec<_> = (0..3).map(|_| be.alloc(m * n * 2, MemKind::Device).unwrap()).collect();
+        let call = matmul_call(tref(&xb, r0 * k * 2, &[m, k]), tref(&wb, 0, &[n, k]), tref(&ys[2], 0, &[m, n]));
+        be.launch(MATMUL_BF16_NAX, &call, 0).unwrap();
+        let pair = intarsia_core::OpCall::new(
+            intarsia_core::Op::MatmulPair,
+            vec![tref(&xb, r0 * k * 2, &[m, k]), tref(&wb, 0, &[n, k]), tref(&w1b, 0, &[n, k])],
+            vec![tref(&ys[0], 0, &[m, n]), tref(&ys[1], 0, &[m, n])],
+            Default::default(),
+        );
+        be.launch(MATMUL_PAIR_BF16_NAX, &pair, 0).unwrap();
+        be.synchronize(0).unwrap();
+        for (i, y) in ys.iter().enumerate() {
+            assert!(
+                read_u16(&be, y, 0, m * n) == want[i % 2][r0 * n..(r0 + m) * n],
+                "m={m} r0={r0} (tile {}) output {i} (2 = the single GEMM): rows differ from the 2048-row 128x64 call",
+                tile.shader
+            );
+        }
+    }
 }
 
 /// Through `Backend::launch` (the registry path, tile picked by shape): a call's output columns do not depend on how
@@ -260,7 +323,7 @@ fn nax_launch_picks_tiles_without_changing_bits() {
         be.synchronize(0).unwrap();
         read_u16(&be, &yb, 0, m * n)
     };
-    let big = run(1024, 12288, 0); // 128x64 tile
+    let big = run(1024, 12288, 0); // 64x64 / two simdgroups
     for (m, n, r0) in [(256usize, 1024usize, 300usize), (205, 256, 0), (17, 12288, 1007), (1024, 1024, 0), (222, 4096, 300), (256, 4096, 5)] {
         let got = run(m, n, r0);
         for r in 0..m {

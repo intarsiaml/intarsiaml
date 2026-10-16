@@ -1,0 +1,2 @@
+short 256 tokens, base vs new: ids identical (256 tokens)
+4k 256 tokens, base vs new: ids identical (256 tokens)
