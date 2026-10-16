@@ -1,0 +1,44 @@
+slot job 2181 Fri Oct 16 08:52:35 EDT 2026; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/intarsia-chunk320 sha256 650d6c264d482493; arms 256 320 rounds 10
+=== round 1 arm 256 (position 1) 08:52:36
+round 1 arm 256: errors=none warmup_errors=none prompt_tokens=[1128, 1122, 1210, 1042, 1095, 851, 972, 4305] big ttft=2118.0520057678223 ms
+=== round 1 arm 320 (position 2) 08:54:04
+round 1 arm 320: errors=none warmup_errors=none prompt_tokens=[1128, 1122, 1210, 1042, 1095, 851, 972, 4305] big ttft=2086.9932174682617 ms
+=== round 2 arm 320 (position 1) 08:55:34
+round 2 arm 320: errors=none warmup_errors=none prompt_tokens=[1104, 1089, 1021, 1032, 1067, 1001, 1047, 4117] big ttft=2286.6837978363037 ms
+=== round 2 arm 256 (position 2) 08:57:08
+round 2 arm 256: errors=none warmup_errors=none prompt_tokens=[1104, 1089, 1021, 1032, 1067, 1001, 1047, 4117] big ttft=2268.0349349975586 ms
+=== round 3 arm 256 (position 1) 08:58:38
+round 3 arm 256: errors=none warmup_errors=none prompt_tokens=[1088, 1009, 1035, 984, 1201, 1049, 1140, 5082] big ttft=2689.89896774292 ms
+=== round 3 arm 320 (position 2) 09:00:12
+round 3 arm 320: errors=none warmup_errors=none prompt_tokens=[1088, 1009, 1035, 984, 1201, 1049, 1140, 5082] big ttft=2550.1341819763184 ms
+=== round 4 arm 320 (position 1) 09:01:43
+round 4 arm 320: errors=none warmup_errors=none prompt_tokens=[1138, 963, 1006, 1133, 1041, 1073, 992, 4021] big ttft=1851.377010345459 ms
+=== round 4 arm 256 (position 2) 09:03:11
+round 4 arm 256: errors=none warmup_errors=none prompt_tokens=[1138, 963, 1006, 1133, 1041, 1073, 992, 4021] big ttft=2001.7800331115723 ms
+=== round 5 arm 256 (position 1) 09:04:40
+round 5 arm 256: errors=none warmup_errors=none prompt_tokens=[1079, 1215, 1020, 1196, 998, 974, 1095, 4326] big ttft=2091.019868850708 ms
+=== round 5 arm 320 (position 2) 09:06:08
+round 5 arm 320: errors=none warmup_errors=none prompt_tokens=[1079, 1215, 1020, 1196, 998, 974, 1095, 4326] big ttft=2028.0587673187256 ms
+=== round 6 arm 320 (position 1) 09:07:37
+round 6 arm 320: errors=none warmup_errors=none prompt_tokens=[1082, 990, 997, 1401, 966, 1112, 1366, 4095] big ttft=1927.1700382232666 ms
+=== round 6 arm 256 (position 2) 09:09:05
+round 6 arm 256: errors=none warmup_errors=none prompt_tokens=[1082, 990, 997, 1401, 966, 1112, 1366, 4095] big ttft=1983.5810661315918 ms
+=== round 7 arm 256 (position 1) 09:10:34
+round 7 arm 256: errors=none warmup_errors=none prompt_tokens=[961, 1040, 1058, 1094, 988, 902, 991, 4041] big ttft=1902.400016784668 ms
+=== round 7 arm 320 (position 2) 09:12:02
+round 7 arm 320: errors=none warmup_errors=none prompt_tokens=[961, 1040, 1058, 1094, 988, 902, 991, 4041] big ttft=1887.9971504211426 ms
+=== round 8 arm 320 (position 1) 09:13:30
+round 8 arm 320: errors=none warmup_errors=none prompt_tokens=[1180, 1098, 852, 1039, 1072, 1077, 1149, 3803] big ttft=1736.388921737671 ms
+=== round 8 arm 256 (position 2) 09:14:58
+round 8 arm 256: errors=none warmup_errors=none prompt_tokens=[1180, 1098, 852, 1039, 1072, 1077, 1149, 3803] big ttft=1805.328130722046 ms
+=== round 9 arm 256 (position 1) 09:16:26
+round 9 arm 256: errors=none warmup_errors=none prompt_tokens=[1100, 1056, 1059, 992, 951, 1106, 1361, 4048] big ttft=1888.0839347839355 ms
+=== round 9 arm 320 (position 2) 09:17:54
+round 9 arm 320: errors=none warmup_errors=none prompt_tokens=[1100, 1056, 1059, 992, 951, 1106, 1361, 4048] big ttft=1908.1017971038818 ms
+=== round 10 arm 320 (position 1) 09:19:22
+round 10 arm 320: errors=none warmup_errors=none prompt_tokens=[1100, 1113, 993, 1059, 1125, 1075, 1019, 3865] big ttft=1849.5509624481201 ms
+=== round 10 arm 256 (position 2) 09:20:50
+round 10 arm 256: errors=none warmup_errors=none prompt_tokens=[1100, 1113, 993, 1059, 1125, 1075, 1019, 3865] big ttft=1878.8809776306152 ms
+analyze rc=0
+no intarsia serve left
+done Fri Oct 16 09:22:18 EDT 2026
