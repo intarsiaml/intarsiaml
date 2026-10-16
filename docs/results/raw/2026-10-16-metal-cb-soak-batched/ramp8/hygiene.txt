@@ -1,0 +1,15 @@
+--- start (before macmon/server) 07:18:42
+10099 113.0 953408    10:46:50 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd
+  485  25.8 418032 19-13:25:50 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+13580  24.1 2079152       00:44 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.
+25718  13.0   9312    11:14:51 macmon
+17303   9.6 297424 11-14:37:06 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.We
+  576   7.6  41520 19-13:25:49 /usr/libexec/syspolicyd
+74425   6.8  17488 18-16:24:30 /usr/libexec/trustd
+92562   6.5 1054320    19:58:43 /Users/josef/Library/Application Support/Claude/claude-code/2.1.295/9d6405864fdc/claude.app/Contents/MacOS/claude
+17285   5.3 493552 11-14:37:07 /System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari
+19493   5.2 308608 01-08:27:46 /Users/josef/Library/Application Support/Claude/claude-code/2.1.295/9d6405864fdc/claude.app/Contents/MacOS/claude
+  631   5.0  51728 19-13:25:49 /usr/sbin/coreaudiod
+87301   4.8 230560 01-13:21:19 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+vm.swapusage: total = 11264.00M  used = 10448.50M  free = 815.50M  (encrypted)
+tracked ps: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;
