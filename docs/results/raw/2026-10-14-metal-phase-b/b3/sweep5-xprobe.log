@@ -1,0 +1,18 @@
+rounds 16, pool 3072 MiB, a8 false
+
+== case qo K=4096 N=4096+0 : 32.0 MiB per dispatch x 96 dispatches per chain ==
+idle utilization readings per round: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0]; waited-for-idle polls (reading >10%): 17
+RESULT case=qo cand=gemv_bf16_r1u4s4 median=505.3 p10=414.8 p90=571.6 pct_peak=82.3 us_per_dispatch=66.44 vs_first=+0.0% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=qo cand=gemv_bf16_rt_u2s8 median=532.4 p10=361.3 p90=578.3 pct_peak=86.7 us_per_dispatch=63.05 vs_first=+5.4% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=qo cand=gemv_bf16_rtx_u2s8 median=540.5 p10=365.0 p90=568.5 pct_peak=88.0 us_per_dispatch=62.11 vs_first=+7.0% diff_elems=4093 max_abs_diff=1.639e2
+
+== case down K=12288 N=4096+0 : 96.0 MiB per dispatch x 32 dispatches per chain ==
+idle utilization readings per round: [5, 0, 0, 9, 0, 10, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0]; waited-for-idle polls (reading >10%): 24
+RESULT case=down cand=gemv_bf16_r1u4s4 median=513.1 p10=422.8 p90=570.3 pct_peak=83.6 us_per_dispatch=196.26 vs_first=+0.0% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=down cand=gemv_bf16_rt_u2s8 median=511.8 p10=429.8 p90=571.6 pct_peak=83.4 us_per_dispatch=196.74 vs_first=-0.2% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=down cand=gemv_bf16_rtx_u2s8 median=534.6 p10=492.7 p90=582.5 pct_peak=87.1 us_per_dispatch=188.37 vs_first=+4.2% diff_elems=4093 max_abs_diff=3.190e2
+
+== case kv K=4096 N=1024+1024 : 16.0 MiB per dispatch x 192 dispatches per chain ==
+idle utilization readings per round: [9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; waited-for-idle polls (reading >10%): 16
+RESULT case=kv cand=gemv_pair_bf16 median=408.9 p10=325.2 p90=509.4 pct_peak=66.6 us_per_dispatch=41.06 vs_first=+0.0% diff_elems=0 max_abs_diff=0.000e0
+RESULT case=kv cand=gemv_pair_bf16_rt_u2s8 median=434.7 p10=346.8 p90=540.0 pct_peak=70.8 us_per_dispatch=38.62 vs_first=+6.3% diff_elems=0 max_abs_diff=0.000e0

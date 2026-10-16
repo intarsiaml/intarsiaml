@@ -1,0 +1,15 @@
+mapped and wrapped 5 shards in 0.8 ms (mode residencycpu, sleep 0 ms, gap 40000 ms)
+residencycpu: prepared 5 buffers in 0.0 ms
+residency set requested+added in 170.6 ms
+touch pass ms: 4.0 / 0.2 / 0.2 / 0.2 / 0.1
+requestResidency x7 (CPU only, every 5000 ms): mean 196.999 ms, max 208.498 ms per call
+use 0 model-00001-of-00005.safetensors (4.00 GB): 209.68 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 0.19 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 0.16 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 0.17 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 0.20 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.13 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.13 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.14 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.14 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.13 ms

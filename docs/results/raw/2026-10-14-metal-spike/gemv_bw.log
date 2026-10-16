@@ -1,0 +1,202 @@
+fleetq: #1767 running on endor: ./target/release/examples/gemv_bw
+device: Apple M5 Max
+page size 16384 B, maxBufferLength 86586540032 B, recommendedMaxWorkingSetSize 115448725504 B, peak assumed 614 GB/s
+warm-up 5, reps 100, weight pool >= 4 GiB per shape, GB/s = 1e9 bytes/s
+
+== copy kernel (copy_u4: 16 B loads/stores, 4 per thread); GB/s = (read+write bytes)/time ==
+copy 1 GiB: median   546.0  p10   533.8  p90   549.9  (88.9% of 614)
+copy 2 GiB: median   546.5  p10   540.7  p90   549.7  (89.0% of 614)
+-- read-only ceiling (read_xor_u4, writes 4 B per 64 B read); GB/s = read bytes/time --
+read 1 GiB: median   567.6  p10   520.7  p90   579.2  (92.4% of 614)
+read 4 GiB: median   552.4  p10   537.2  p90   565.6  (90.0% of 614)
+
+== GEMV variants; GB/s = (weight + x + y bytes)/GPU time; copy reference = 546.0 GB/s ==
+modes: solo = 1 dispatch per command buffer (includes launch overhead); chain-serial = whole pool in one command buffer, serial dispatch; chain-conc = same, concurrent dispatch
+
+-- K=4096 N=4096: 32.0 MiB weights x 128 buffers = 4.00 GiB per chain rep --
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u1s8 mode=solo median=541.6 p10=520.1 p90=548.1 pct_peak=88.2 pct_copy=99.2
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u1s8 mode=chain-serial median=543.1 p10=535.3 p90=546.5 pct_peak=88.5 pct_copy=99.5
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u1s8 mode=chain-conc median=592.4 p10=584.2 p90=595.0 pct_peak=96.5 pct_copy=108.5
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u2s8 mode=solo median=546.1 p10=533.2 p90=555.3 pct_peak=88.9 pct_copy=100.0
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u2s8 mode=chain-serial median=516.3 p10=399.5 p90=537.0 pct_peak=84.1 pct_copy=94.6
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u2s8 mode=chain-conc median=586.6 p10=563.4 p90=597.5 pct_peak=95.5 pct_copy=107.4
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s4 mode=solo median=539.3 p10=517.5 p90=550.3 pct_peak=87.8 pct_copy=98.8
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s4 mode=chain-serial median=556.7 p10=538.3 p90=562.8 pct_peak=90.7 pct_copy=102.0
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s4 mode=chain-conc median=590.9 p10=575.5 p90=594.2 pct_peak=96.2 pct_copy=108.2
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s8 mode=solo median=558.4 p10=550.3 p90=563.5 pct_peak=90.9 pct_copy=102.3
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s8 mode=chain-serial median=556.0 p10=541.1 p90=560.5 pct_peak=90.6 pct_copy=101.8
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s8 mode=chain-conc median=591.9 p10=579.0 p90=595.1 pct_peak=96.4 pct_copy=108.4
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s16 mode=solo median=549.4 p10=538.8 p90=555.7 pct_peak=89.5 pct_copy=100.6
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s16 mode=chain-serial median=560.6 p10=545.6 p90=565.1 pct_peak=91.3 pct_copy=102.7
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u4s16 mode=chain-conc median=593.4 p10=582.7 p90=596.5 pct_peak=96.6 pct_copy=108.7
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u8s8 mode=solo median=565.4 p10=558.7 p90=570.2 pct_peak=92.1 pct_copy=103.6
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u8s8 mode=chain-serial median=555.1 p10=522.2 p90=568.2 pct_peak=90.4 pct_copy=101.7
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r1u8s8 mode=chain-conc median=584.5 p10=573.8 p90=589.9 pct_peak=95.2 pct_copy=107.1
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u1s4 mode=solo median=541.5 p10=527.9 p90=549.2 pct_peak=88.2 pct_copy=99.2
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u1s4 mode=chain-serial median=521.8 p10=501.4 p90=537.5 pct_peak=85.0 pct_copy=95.6
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u1s4 mode=chain-conc median=591.0 p10=562.7 p90=599.4 pct_peak=96.3 pct_copy=108.2
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u2s4 mode=solo median=532.5 p10=506.5 p90=543.7 pct_peak=86.7 pct_copy=97.5
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u2s4 mode=chain-serial median=510.9 p10=386.7 p90=529.4 pct_peak=83.2 pct_copy=93.6
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u2s4 mode=chain-conc median=570.7 p10=559.6 p90=579.1 pct_peak=92.9 pct_copy=104.5
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u4s4 mode=solo median=541.3 p10=507.6 p90=553.9 pct_peak=88.2 pct_copy=99.1
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u4s4 mode=chain-serial median=557.9 p10=543.0 p90=566.2 pct_peak=90.9 pct_copy=102.2
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r2u4s4 mode=chain-conc median=580.4 p10=564.9 p90=583.8 pct_peak=94.5 pct_copy=106.3
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r4u1s4 mode=solo median=512.5 p10=492.8 p90=525.6 pct_peak=83.5 pct_copy=93.9
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r4u1s4 mode=chain-serial median=531.3 p10=515.7 p90=542.1 pct_peak=86.5 pct_copy=97.3
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r4u1s4 mode=chain-conc median=567.0 p10=543.8 p90=576.9 pct_peak=92.3 pct_copy=103.9
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r4u2s4 mode=solo median=549.6 p10=537.1 p90=557.2 pct_peak=89.5 pct_copy=100.7
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r4u2s4 mode=chain-serial median=524.3 p10=478.7 p90=537.3 pct_peak=85.4 pct_copy=96.0
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r4u2s4 mode=chain-conc median=560.0 p10=544.7 p90=573.5 pct_peak=91.2 pct_copy=102.6
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r8u1s2 mode=solo median=548.1 p10=535.3 p90=554.2 pct_peak=89.3 pct_copy=100.4
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r8u1s2 mode=chain-serial median=529.2 p10=504.7 p90=547.6 pct_peak=86.2 pct_copy=96.9
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r8u1s2 mode=chain-conc median=565.4 p10=546.8 p90=570.9 pct_peak=92.1 pct_copy=103.6
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r8u2s2 mode=solo median=551.5 p10=542.9 p90=558.4 pct_peak=89.8 pct_copy=101.0
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r8u2s2 mode=chain-serial median=535.2 p10=503.6 p90=540.9 pct_peak=87.2 pct_copy=98.0
+RESULT gemv K=4096 N=4096 variant=gemv_bf16_r8u2s2 mode=chain-conc median=567.2 p10=554.5 p90=571.1 pct_peak=92.4 pct_copy=103.9
+
+-- K=4096 N=12288: 96.0 MiB weights x 43 buffers = 4.03 GiB per chain rep --
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u1s8 mode=solo median=584.1 p10=580.8 p90=586.3 pct_peak=95.1 pct_copy=107.0
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u1s8 mode=chain-serial median=577.1 p10=571.0 p90=580.3 pct_peak=94.0 pct_copy=105.7
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u1s8 mode=chain-conc median=598.3 p10=589.5 p90=601.8 pct_peak=97.5 pct_copy=109.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u2s8 mode=solo median=583.7 p10=578.1 p90=586.7 pct_peak=95.1 pct_copy=106.9
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u2s8 mode=chain-serial median=576.1 p10=555.3 p90=582.4 pct_peak=93.8 pct_copy=105.5
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u2s8 mode=chain-conc median=595.5 p10=571.3 p90=602.3 pct_peak=97.0 pct_copy=109.1
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s4 mode=solo median=584.4 p10=576.5 p90=588.3 pct_peak=95.2 pct_copy=107.0
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s4 mode=chain-serial median=588.9 p10=582.7 p90=591.0 pct_peak=95.9 pct_copy=107.9
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s4 mode=chain-conc median=598.0 p10=591.1 p90=600.3 pct_peak=97.4 pct_copy=109.5
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s8 mode=solo median=587.4 p10=579.1 p90=590.2 pct_peak=95.7 pct_copy=107.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s8 mode=chain-serial median=587.4 p10=573.7 p90=590.9 pct_peak=95.7 pct_copy=107.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s8 mode=chain-conc median=597.4 p10=593.0 p90=599.9 pct_peak=97.3 pct_copy=109.4
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s16 mode=solo median=586.0 p10=582.1 p90=588.4 pct_peak=95.4 pct_copy=107.3
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s16 mode=chain-serial median=578.2 p10=563.4 p90=583.7 pct_peak=94.2 pct_copy=105.9
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u4s16 mode=chain-conc median=590.9 p10=584.4 p90=594.5 pct_peak=96.2 pct_copy=108.2
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u8s8 mode=solo median=579.2 p10=564.9 p90=584.9 pct_peak=94.3 pct_copy=106.1
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u8s8 mode=chain-serial median=582.3 p10=573.6 p90=587.6 pct_peak=94.8 pct_copy=106.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r1u8s8 mode=chain-conc median=587.9 p10=581.8 p90=591.6 pct_peak=95.7 pct_copy=107.7
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u1s4 mode=solo median=577.1 p10=569.7 p90=582.5 pct_peak=94.0 pct_copy=105.7
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u1s4 mode=chain-serial median=563.2 p10=545.5 p90=574.2 pct_peak=91.7 pct_copy=103.2
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u1s4 mode=chain-conc median=593.4 p10=562.0 p90=599.9 pct_peak=96.6 pct_copy=108.7
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u2s4 mode=solo median=580.5 p10=574.6 p90=583.9 pct_peak=94.5 pct_copy=106.3
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u2s4 mode=chain-serial median=526.6 p10=466.6 p90=561.3 pct_peak=85.8 pct_copy=96.5
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u2s4 mode=chain-conc median=574.0 p10=547.2 p90=584.1 pct_peak=93.5 pct_copy=105.1
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u4s4 mode=solo median=580.9 p10=574.2 p90=585.9 pct_peak=94.6 pct_copy=106.4
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u4s4 mode=chain-serial median=585.1 p10=579.7 p90=587.3 pct_peak=95.3 pct_copy=107.2
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r2u4s4 mode=chain-conc median=582.2 p10=569.4 p90=585.0 pct_peak=94.8 pct_copy=106.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r4u1s4 mode=solo median=568.1 p10=551.9 p90=575.0 pct_peak=92.5 pct_copy=104.1
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r4u1s4 mode=chain-serial median=548.8 p10=514.6 p90=559.4 pct_peak=89.4 pct_copy=100.5
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r4u1s4 mode=chain-conc median=573.4 p10=559.1 p90=579.4 pct_peak=93.4 pct_copy=105.0
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r4u2s4 mode=solo median=571.1 p10=557.4 p90=578.3 pct_peak=93.0 pct_copy=104.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r4u2s4 mode=chain-serial median=544.7 p10=462.9 p90=554.0 pct_peak=88.7 pct_copy=99.8
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r4u2s4 mode=chain-conc median=562.7 p10=530.3 p90=568.4 pct_peak=91.7 pct_copy=103.1
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r8u1s2 mode=solo median=569.7 p10=559.7 p90=574.6 pct_peak=92.8 pct_copy=104.4
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r8u1s2 mode=chain-serial median=544.5 p10=509.2 p90=559.0 pct_peak=88.7 pct_copy=99.7
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r8u1s2 mode=chain-conc median=560.2 p10=537.8 p90=566.6 pct_peak=91.2 pct_copy=102.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r8u2s2 mode=solo median=565.4 p10=552.7 p90=570.5 pct_peak=92.1 pct_copy=103.6
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r8u2s2 mode=chain-serial median=525.0 p10=442.8 p90=543.2 pct_peak=85.5 pct_copy=96.2
+RESULT gemv K=4096 N=12288 variant=gemv_bf16_r8u2s2 mode=chain-conc median=554.2 p10=530.7 p90=561.6 pct_peak=90.3 pct_copy=101.5
+
+-- K=12288 N=4096: 96.0 MiB weights x 43 buffers = 4.03 GiB per chain rep --
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u1s8 mode=solo median=561.8 p10=554.8 p90=566.9 pct_peak=91.5 pct_copy=102.9
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u1s8 mode=chain-serial median=556.0 p10=544.8 p90=559.1 pct_peak=90.5 pct_copy=101.8
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u1s8 mode=chain-conc median=591.0 p10=581.9 p90=594.4 pct_peak=96.3 pct_copy=108.3
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u2s8 mode=solo median=565.3 p10=552.2 p90=571.5 pct_peak=92.1 pct_copy=103.5
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u2s8 mode=chain-serial median=555.1 p10=539.8 p90=563.2 pct_peak=90.4 pct_copy=101.7
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u2s8 mode=chain-conc median=586.1 p10=557.6 p90=595.9 pct_peak=95.4 pct_copy=107.3
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s4 mode=solo median=573.4 p10=563.8 p90=578.3 pct_peak=93.4 pct_copy=105.0
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s4 mode=chain-serial median=576.0 p10=567.2 p90=578.4 pct_peak=93.8 pct_copy=105.5
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s4 mode=chain-conc median=590.9 p10=581.2 p90=593.6 pct_peak=96.2 pct_copy=108.2
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s8 mode=solo median=571.0 p10=558.7 p90=577.5 pct_peak=93.0 pct_copy=104.6
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s8 mode=chain-serial median=574.7 p10=565.6 p90=577.6 pct_peak=93.6 pct_copy=105.3
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s8 mode=chain-conc median=590.4 p10=579.4 p90=593.0 pct_peak=96.2 pct_copy=108.1
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s16 mode=solo median=570.2 p10=562.1 p90=575.4 pct_peak=92.9 pct_copy=104.4
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s16 mode=chain-serial median=572.7 p10=563.1 p90=575.2 pct_peak=93.3 pct_copy=104.9
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u4s16 mode=chain-conc median=589.4 p10=578.4 p90=592.1 pct_peak=96.0 pct_copy=108.0
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u8s8 mode=solo median=571.0 p10=559.0 p90=577.5 pct_peak=93.0 pct_copy=104.6
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u8s8 mode=chain-serial median=576.7 p10=562.1 p90=579.4 pct_peak=93.9 pct_copy=105.6
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r1u8s8 mode=chain-conc median=576.8 p10=569.8 p90=579.8 pct_peak=93.9 pct_copy=105.7
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u1s4 mode=solo median=546.5 p10=536.6 p90=554.1 pct_peak=89.0 pct_copy=100.1
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u1s4 mode=chain-serial median=530.7 p10=519.9 p90=537.2 pct_peak=86.4 pct_copy=97.2
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u1s4 mode=chain-conc median=578.1 p10=551.6 p90=589.5 pct_peak=94.1 pct_copy=105.9
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u2s4 mode=solo median=560.7 p10=548.5 p90=566.1 pct_peak=91.3 pct_copy=102.7
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u2s4 mode=chain-serial median=507.2 p10=426.3 p90=537.1 pct_peak=82.6 pct_copy=92.9
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u2s4 mode=chain-conc median=564.0 p10=537.5 p90=572.8 pct_peak=91.9 pct_copy=103.3
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u4s4 mode=solo median=568.5 p10=560.8 p90=572.7 pct_peak=92.6 pct_copy=104.1
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u4s4 mode=chain-serial median=569.9 p10=561.1 p90=572.6 pct_peak=92.8 pct_copy=104.4
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r2u4s4 mode=chain-conc median=572.2 p10=562.9 p90=575.4 pct_peak=93.2 pct_copy=104.8
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r4u1s4 mode=solo median=557.6 p10=550.6 p90=564.1 pct_peak=90.8 pct_copy=102.1
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r4u1s4 mode=chain-serial median=541.2 p10=521.9 p90=546.2 pct_peak=88.2 pct_copy=99.1
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r4u1s4 mode=chain-conc median=565.3 p10=555.3 p90=569.7 pct_peak=92.1 pct_copy=103.5
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r4u2s4 mode=solo median=564.4 p10=556.7 p90=569.5 pct_peak=91.9 pct_copy=103.4
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r4u2s4 mode=chain-serial median=540.3 p10=519.6 p90=550.0 pct_peak=88.0 pct_copy=99.0
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r4u2s4 mode=chain-conc median=552.2 p10=532.6 p90=561.3 pct_peak=89.9 pct_copy=101.1
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r8u1s2 mode=solo median=553.3 p10=542.0 p90=561.4 pct_peak=90.1 pct_copy=101.3
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r8u1s2 mode=chain-serial median=520.6 p10=393.2 p90=539.5 pct_peak=84.8 pct_copy=95.3
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r8u1s2 mode=chain-conc median=549.6 p10=525.0 p90=555.6 pct_peak=89.5 pct_copy=100.7
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r8u2s2 mode=solo median=556.1 p10=543.6 p90=565.3 pct_peak=90.6 pct_copy=101.9
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r8u2s2 mode=chain-serial median=497.6 p10=393.2 p90=533.3 pct_peak=81.0 pct_copy=91.1
+RESULT gemv K=12288 N=4096 variant=gemv_bf16_r8u2s2 mode=chain-conc median=547.6 p10=517.6 p90=555.0 pct_peak=89.2 pct_copy=100.3
+
+-- K=4096 N=151936: 1187.0 MiB weights x 4 buffers = 4.64 GiB per chain rep --
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u1s8 mode=solo median=590.7 p10=581.5 p90=594.9 pct_peak=96.2 pct_copy=108.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u1s8 mode=chain-serial median=589.0 p10=574.8 p90=593.3 pct_peak=95.9 pct_copy=107.9
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u1s8 mode=chain-conc median=592.5 p10=580.4 p90=595.8 pct_peak=96.5 pct_copy=108.5
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u2s8 mode=solo median=580.8 p10=539.8 p90=596.2 pct_peak=94.6 pct_copy=106.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u2s8 mode=chain-serial median=588.3 p10=570.1 p90=597.1 pct_peak=95.8 pct_copy=107.8
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u2s8 mode=chain-conc median=589.8 p10=569.9 p90=598.8 pct_peak=96.1 pct_copy=108.0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s4 mode=solo median=593.3 p10=587.5 p90=596.0 pct_peak=96.6 pct_copy=108.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s4 mode=chain-serial median=589.6 p10=575.3 p90=594.5 pct_peak=96.0 pct_copy=108.0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s4 mode=chain-conc median=591.5 p10=579.6 p90=594.5 pct_peak=96.3 pct_copy=108.3
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s8 mode=solo median=588.5 p10=572.9 p90=595.0 pct_peak=95.9 pct_copy=107.8
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s8 mode=chain-serial median=590.1 p10=570.9 p90=593.6 pct_peak=96.1 pct_copy=108.1
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s8 mode=chain-conc median=590.4 p10=577.8 p90=594.0 pct_peak=96.1 pct_copy=108.1
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s16 mode=solo median=588.7 p10=582.5 p90=593.0 pct_peak=95.9 pct_copy=107.8
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s16 mode=chain-serial median=590.8 p10=577.0 p90=593.3 pct_peak=96.2 pct_copy=108.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u4s16 mode=chain-conc median=589.0 p10=576.1 p90=593.0 pct_peak=95.9 pct_copy=107.9
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u8s8 mode=solo median=592.4 p10=585.1 p90=595.9 pct_peak=96.5 pct_copy=108.5
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u8s8 mode=chain-serial median=591.0 p10=573.1 p90=594.2 pct_peak=96.2 pct_copy=108.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r1u8s8 mode=chain-conc median=584.4 p10=573.8 p90=587.7 pct_peak=95.2 pct_copy=107.0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u1s4 mode=solo median=580.6 p10=528.7 p90=593.6 pct_peak=94.6 pct_copy=106.3
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u1s4 mode=chain-serial median=576.8 p10=547.6 p90=592.4 pct_peak=93.9 pct_copy=105.6
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u1s4 mode=chain-conc median=585.4 p10=564.1 p90=595.5 pct_peak=95.3 pct_copy=107.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u2s4 mode=solo median=573.9 p10=469.8 p90=590.6 pct_peak=93.5 pct_copy=105.1
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u2s4 mode=chain-serial median=563.5 p10=539.6 p90=578.4 pct_peak=91.8 pct_copy=103.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u2s4 mode=chain-conc median=574.9 p10=563.1 p90=581.6 pct_peak=93.6 pct_copy=105.3
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u4s4 mode=solo median=588.4 p10=578.9 p90=592.3 pct_peak=95.8 pct_copy=107.8
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u4s4 mode=chain-serial median=587.5 p10=573.4 p90=591.3 pct_peak=95.7 pct_copy=107.6
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u4s4 mode=chain-conc median=580.6 p10=573.6 p90=583.0 pct_peak=94.6 pct_copy=106.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u1s4 mode=solo median=576.8 p10=468.5 p90=587.2 pct_peak=93.9 pct_copy=105.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u1s4 mode=chain-serial median=554.4 p10=517.1 p90=571.7 pct_peak=90.3 pct_copy=101.6
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u1s4 mode=chain-conc median=559.3 p10=548.8 p90=569.9 pct_peak=91.1 pct_copy=102.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u2s4 mode=solo median=536.7 p10=516.3 p90=549.7 pct_peak=87.4 pct_copy=98.3
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u2s4 mode=chain-serial median=562.0 p10=549.3 p90=569.4 pct_peak=91.5 pct_copy=102.9
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u2s4 mode=chain-conc median=570.0 p10=560.0 p90=575.2 pct_peak=92.8 pct_copy=104.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u1s2 mode=solo median=574.5 p10=465.2 p90=581.3 pct_peak=93.6 pct_copy=105.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u1s2 mode=chain-serial median=562.6 p10=534.5 p90=573.0 pct_peak=91.6 pct_copy=103.0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u1s2 mode=chain-conc median=567.3 p10=554.8 p90=572.4 pct_peak=92.4 pct_copy=103.9
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u2s2 mode=solo median=571.4 p10=536.7 p90=577.2 pct_peak=93.1 pct_copy=104.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u2s2 mode=chain-serial median=560.4 p10=522.3 p90=567.5 pct_peak=91.3 pct_copy=102.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u2s2 mode=chain-conc median=555.8 p10=536.8 p90=562.1 pct_peak=90.5 pct_copy=101.8
+
+== Qwen3-8B decode-shaped GEMV sweep: 36 x (q,k,v,o,gate,up,down) + lm_head, one command buffer, serial dispatch ==
+253 GEMVs, weights 15.14 GB (14.10 GiB), step bytes 15.14 GB; copy ceiling 541.4 GB/s, read ceiling 550.8 GB/s, peak 614
+dims: hidden 4096, kv 1024, ffn 12288, vocab 151936
+best variant for K=4096 N=4096: gemv_bf16_r1u8s8
+best variant for K=4096 N=1024: gemv_bf16_r2u4s4
+best variant for K=4096 N=12288: gemv_bf16_r1u4s4
+best variant for K=12288 N=4096: gemv_bf16_r1u8s8
+best variant for K=4096 N=151936: gemv_bf16_r1u8s8
+RESULT decode config=gemv_bf16_r1u1s8 gpu_ms median=26.910 p10=26.779 p90=27.151 | tok_s median=37.2 (p10 36.8, p90 37.3) | GB/s median=562.7 (91.6% of 614, 103.9% of copy, 102.2% of read) | wall_ms median=27.272 | encode+commit_ms median=0.087
+RESULT decode config=gemv_bf16_r1u2s8 gpu_ms median=27.427 p10=26.787 p90=28.638 | tok_s median=36.5 (p10 34.9, p90 37.3) | GB/s median=552.1 (89.9% of 614, 102.0% of copy, 100.2% of read) | wall_ms median=27.809 | encode+commit_ms median=0.091
+RESULT decode config=gemv_bf16_r1u4s4 gpu_ms median=26.071 p10=25.994 p90=26.457 | tok_s median=38.4 (p10 37.8, p90 38.5) | GB/s median=580.8 (94.6% of 614, 107.3% of copy, 105.4% of read) | wall_ms median=26.414 | encode+commit_ms median=0.077
+RESULT decode config=gemv_bf16_r1u4s8 gpu_ms median=26.618 p10=26.117 p90=27.511 | tok_s median=37.6 (p10 36.3, p90 38.3) | GB/s median=568.9 (92.6% of 614, 105.1% of copy, 103.3% of read) | wall_ms median=27.004 | encode+commit_ms median=0.082
+RESULT decode config=gemv_bf16_r1u4s16 gpu_ms median=26.168 p10=26.081 p90=26.431 | tok_s median=38.2 (p10 37.8, p90 38.3) | GB/s median=578.6 (94.2% of 614, 106.9% of copy, 105.0% of read) | wall_ms median=26.512 | encode+commit_ms median=0.074
+RESULT decode config=gemv_bf16_r1u8s8 gpu_ms median=26.162 p10=26.005 p90=26.834 | tok_s median=38.2 (p10 37.3, p90 38.5) | GB/s median=578.8 (94.3% of 614, 106.9% of copy, 105.1% of read) | wall_ms median=26.572 | encode+commit_ms median=0.088
+RESULT decode config=gemv_bf16_r2u1s4 gpu_ms median=28.006 p10=27.511 p90=28.806 | tok_s median=35.7 (p10 34.7, p90 36.3) | GB/s median=540.7 (88.1% of 614, 99.9% of copy, 98.2% of read) | wall_ms median=28.438 | encode+commit_ms median=0.088
+RESULT decode config=gemv_bf16_r2u2s4 gpu_ms median=28.281 p10=27.932 p90=28.913 | tok_s median=35.4 (p10 34.6, p90 35.8) | GB/s median=535.4 (87.2% of 614, 98.9% of copy, 97.2% of read) | wall_ms median=28.715 | encode+commit_ms median=0.086
+RESULT decode config=gemv_bf16_r2u4s4 gpu_ms median=26.305 p10=26.095 p90=26.934 | tok_s median=38.0 (p10 37.1, p90 38.3) | GB/s median=575.6 (93.8% of 614, 106.3% of copy, 104.5% of read) | wall_ms median=26.687 | encode+commit_ms median=0.079
+RESULT decode config=gemv_bf16_r4u1s4 gpu_ms median=27.689 p10=27.310 p90=28.216 | tok_s median=36.1 (p10 35.4, p90 36.6) | GB/s median=546.9 (89.1% of 614, 101.0% of copy, 99.3% of read) | wall_ms median=28.081 | encode+commit_ms median=0.084
+RESULT decode config=gemv_bf16_r4u2s4 gpu_ms median=28.150 p10=27.582 p90=30.207 | tok_s median=35.5 (p10 33.1, p90 36.3) | GB/s median=537.9 (87.6% of 614, 99.3% of copy, 97.6% of read) | wall_ms median=28.540 | encode+commit_ms median=0.092
+RESULT decode config=gemv_bf16_r8u1s2 gpu_ms median=27.683 p10=27.213 p90=28.551 | tok_s median=36.1 (p10 35.0, p90 36.7) | GB/s median=547.0 (89.1% of 614, 101.0% of copy, 99.3% of read) | wall_ms median=28.080 | encode+commit_ms median=0.087
+RESULT decode config=gemv_bf16_r8u2s2 gpu_ms median=28.106 p10=27.623 p90=29.001 | tok_s median=35.6 (p10 34.5, p90 36.2) | GB/s median=538.8 (87.7% of 614, 99.5% of copy, 97.8% of read) | wall_ms median=28.535 | encode+commit_ms median=0.089
+RESULT decode config=best-per-shape gpu_ms median=26.841 p10=25.998 p90=27.700 | tok_s median=37.3 (p10 36.1, p90 38.5) | GB/s median=564.1 (91.9% of 614, 104.2% of copy, 102.4% of read) | wall_ms median=27.261 | encode+commit_ms median=0.091
+fleetq: #1767 done (exit 0)

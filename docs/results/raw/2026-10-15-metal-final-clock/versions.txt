@@ -1,0 +1,15 @@
+date: 2026-10-15T04:50:27-04:00
+fleetq job: 1974
+safe head: a2102bf3ce2ac7f6ff7357e229ea0a0670087c87
+cand head: d93127b738541e63e5a4fdf41c1820bb595cba2b
+safe binary: -rwxr-xr-x@ 1 josef  wheel  16547904 Oct 15 02:36 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/final/intarsia-safe
+cand binary: -rwxr-xr-x@ 1 josef  wheel  16547904 Oct 15 02:36 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/final/intarsia-cand
+9276a0453168c41201f62a6340938ea7d4f50c29ef76829dbe9bc6762f570c86  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/final/intarsia-safe
+7f034b4587741ef21dc8f5467ac2b10e054d6918eca71d8b40a7651b7cc27e92  /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/final/intarsia-cand
+{'mlx': '0.32.1', 'mlx-lm': '0.31.3', 'mlx-metal': '0.32.1'}
+version: 0.6.0 (build 11429, commit d81235049)
+built with AppleClang 21.0.0.21000334 for Darwin arm64
+localeval: version = "0.2.1"
+deepeval head: 69c7a848bba836b70782aced73d278ee4b4d2fa6
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
+macmon 0.7.2

@@ -1,0 +1,2 @@
+{"name": "long_docs_12k", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 3000, "max_tokens": 12000, "continue": 64}
+{"name": "long_code_12k", "kind": "raw", "file": "corpus_code.txt", "skip_tokens": 0, "max_tokens": 12000, "continue": 64}

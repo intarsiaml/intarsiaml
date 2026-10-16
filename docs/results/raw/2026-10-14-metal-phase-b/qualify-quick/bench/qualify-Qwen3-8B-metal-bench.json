@@ -1,0 +1,232 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "qualify-Qwen3-8B-metal-bench",
+  "timestamp_unix": 1791986424,
+  "url": "http://127.0.0.1:8090",
+  "model": "qualify-Qwen3-8B",
+  "config": {
+    "sizes": [
+      128,
+      1024,
+      4096
+    ],
+    "gen": 128,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 15.1368,
+    "bandwidth_gbs": 614.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 49.0,
+    "tokens_per_filler_sentence": 20.27
+  },
+  "fingerprint": {
+    "host": {
+      "kind": "intarsia-doctor",
+      "schema_version": 1,
+      "timestamp_unix": 1791986176,
+      "intarsia_version": "0.0.1",
+      "cuda_feature": false,
+      "hip_feature": false,
+      "metal_feature": true,
+      "host": {
+        "hostname": "endor.kuepker.haus",
+        "os": "macOS 27.0",
+        "kernel": "Darwin 27.0.0",
+        "arch": "aarch64",
+        "cpu_model": "Apple M5 Max",
+        "logical_cores": 18,
+        "physical_cores": 18,
+        "ram_total_bytes": 137438953472,
+        "ram_available_bytes": 0,
+        "swap_total_bytes": 5368709120
+      },
+      "gpu": {
+        "nvidia_smi": null,
+        "proc_driver_nvidia": null,
+        "nvcc": null,
+        "cuda_toolkit_version": null,
+        "rocm_version": null,
+        "hipcc": null
+      },
+      "backend": {
+        "requested": "metal",
+        "name": "metal",
+        "device": {
+          "name": "Apple M5 Max",
+          "backend": "metal",
+          "arch": "applegpu_g17s",
+          "total_mem": 115448725504,
+          "free_mem": 115448004608,
+          "unified": true,
+          "bandwidth_gbs": 551.5148069058359
+        },
+        "kernel_count": 16,
+        "kernels_by_arch": {
+          "any": 16
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 71.6,
+          "device_to_host_gbs": 71.5,
+          "device_copy_gbs": 206.6,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        }
+      },
+      "checks": [
+        {
+          "id": "sm_121_target",
+          "status": "info",
+          "detail": "no NVIDIA GPU visible (nvidia-smi missing or failing)",
+          "fix": null
+        },
+        {
+          "id": "metal_device",
+          "status": "info",
+          "detail": "Apple M5 Max (applegpu_g17s), unified memory, 115.4 GB recommended working set, 115.4 GB free, bandwidth 552 GB/s measured copy",
+          "fix": null
+        },
+        {
+          "id": "transparent_hugepages",
+          "status": "info",
+          "detail": "THP setting not readable on this OS",
+          "fix": null
+        },
+        {
+          "id": "disk_free:.",
+          "status": "ok",
+          "detail": "1985.6 GB free of 3996 GB (50% free)",
+          "fix": null
+        },
+        {
+          "id": "disk_free:/Users/josef",
+          "status": "ok",
+          "detail": "1985.6 GB free of 3996 GB (50% free)",
+          "fix": null
+        },
+        {
+          "id": "hip_gpu_max_hw_queues",
+          "status": "info",
+          "detail": "GPU_MAX_HW_QUEUES=unset (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)",
+          "fix": null
+        },
+        {
+          "id": "serve_port",
+          "status": "ok",
+          "detail": "port 8090 is free",
+          "fix": null
+        },
+        {
+          "id": "bandwidth",
+          "status": "info",
+          "detail": "host->device 71.6 GB/s, device->host 71.5 GB/s, device copy 206.6 GB/s (read+write)",
+          "fix": null
+        }
+      ]
+    },
+    "model": "Qwen3-8B",
+    "backend": "metal",
+    "build": "unstamped"
+  },
+  "graph": {
+    "available": true,
+    "replays": 0,
+    "captures": 0,
+    "eager_steps": 1143,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 126.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.4033,
+      "prefill_tok_s": 312.4,
+      "decode_tok_s": 33.54,
+      "decode_tok_s_reps": [
+        33.54,
+        33.74,
+        33.24
+      ],
+      "decode_tok_s_min": 33.24,
+      "decode_tok_s_max": 33.74,
+      "decode_tok_s_stdev": 0.25,
+      "bandwidth_floor_tok_s": 40.56,
+      "pct_of_floor": 82.7,
+      "reps_ok": 3,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 0,
+        "captures": 0,
+        "eager_steps": 381,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 1014.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 2.9589,
+      "prefill_tok_s": 346.1,
+      "decode_tok_s": 32.21,
+      "decode_tok_s_reps": [
+        32.63,
+        32.21,
+        32.14
+      ],
+      "decode_tok_s_min": 32.14,
+      "decode_tok_s_max": 32.63,
+      "decode_tok_s_stdev": 0.27,
+      "bandwidth_floor_tok_s": 40.56,
+      "pct_of_floor": 79.4,
+      "reps_ok": 3,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 0,
+        "captures": 0,
+        "eager_steps": 381,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4204.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 19.6705,
+      "prefill_tok_s": 213.5,
+      "decode_tok_s": 30.38,
+      "decode_tok_s_reps": [
+        30.12,
+        30.41,
+        30.38
+      ],
+      "decode_tok_s_min": 30.12,
+      "decode_tok_s_max": 30.41,
+      "decode_tok_s_stdev": 0.16,
+      "bandwidth_floor_tok_s": 40.56,
+      "pct_of_floor": 74.9,
+      "reps_ok": 3,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 0,
+        "captures": 0,
+        "eager_steps": 381,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": [
+    "size 128: 0 graph replays during the measured reps (decode ran eagerly)",
+    "size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+    "size 4096: 0 graph replays during the measured reps (decode ran eagerly)"
+  ]
+}

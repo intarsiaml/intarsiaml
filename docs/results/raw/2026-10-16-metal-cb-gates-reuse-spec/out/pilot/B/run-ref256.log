@@ -1,0 +1,20 @@
+solo: 17 cases -> http://127.0.0.1:8101
+token ids: requested (http://127.0.0.1:8101)
+  [  1/17] s000 S length 96 1.8s
+  [  2/17] s001 S stop 226 3.8s
+  [  3/17] s002 S length 48 1.1s
+  [  4/17] s003 S length 224 7.7s
+  [  5/17] s004 S length 48 0.9s
+  [  6/17] s005 S length 288 8.7s
+  [  7/17] s006 S length 48 0.8s
+  [  8/17] s007 S length 160 2.8s
+  [  9/17] s008 S length 64 1.0s
+  [ 10/17] s009 S length 96 4.6s
+  [ 11/17] s010 S length 160 2.4s
+  [ 12/17] s011 S length 48 2.2s
+  [ 13/17] s012 S length 288 16.6s
+  [ 14/17] s013 S stop 10 0.4s
+  [ 15/17] s014 S length 224 4.2s
+  [ 16/17] s015 S length 64 3.2s
+  [ 17/17] s016 S length 288 10.2s
+wrote /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/B/ref256.jsonl: 17 records, 0 errors, wall 73.2s, peak client in-flight 0

@@ -1,0 +1,2 @@
+{"name": "long_prose_300", "kind": "raw", "file": "ppl.txt", "skip_tokens": 0, "max_tokens": 300}
+{"name": "long_prose_700", "kind": "raw", "file": "ppl.txt", "skip_tokens": 100, "max_tokens": 700}

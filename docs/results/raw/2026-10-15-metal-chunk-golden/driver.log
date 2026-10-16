@@ -1,0 +1,31 @@
+fleetq: #2106 waiting (#4 in line): in line behind #2103 "cb-m1 step2 gate 4: localeval throughput max-batch 1 vs 8 (cb-wire 1bdcbca, retry: script fix)" (claude-0e8026c5) on endor
+fleetq:   #2103 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2103 set, or it will wait for #2103 to be released.
+fleetq: #2106 waiting (#3 in line): in line behind #2104 "metal forward-no1: 1-row tail probe + short/long/4k accuracy (retry, metal build)" (claude-31e10c55) on endor
+fleetq: #2106 waiting (#2 in line): in line behind #2105 "gemm midm: mid tile table: cargo test + held-out engine A/B" (claude-0e8026c5) on endor
+fleetq:   #2105 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2105 set, or it will wait for #2105 to be released.
+fleetq: #2106 waiting (#1 in line): endor is held exclusively by #2105 "gemm midm: mid tile table: cargo test + held-out engine A/B" (claude-0e8026c5)
+fleetq:   #2105 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2105 set, or it will wait for #2105 to be released.
+fleetq: #2106 running on endor: docs/results/raw/2026-10-15-metal-chunk-golden/run.sh
+== 1. serving path + Model::forward path, bitwise logits (harness)
+harness chunk=256 exit 0
+harness chunk=2048 exit 0
+== 2. intarsia generate (CLI, serving path) ids, 48 tokens
+generate p257s1 chunk=256 exit 1
+generate p257s1 chunk=2048 exit 1
+generate p2049s1 chunk=256 exit 1
+generate p2049s1 chunk=2048 exit 1
+generate p2049s2 chunk=256 exit 1
+generate p2049s2 chunk=2048 exit 1
+generate p4097s1 chunk=256 exit 1
+generate p4097s1 chunk=2048 exit 1
+generate p4097s2 chunk=256 exit 1
+generate p4097s2 chunk=2048 exit 1
+== 3. accuracy short/long/4k at chunk 256 vs 2048
+acc c256 short exit 1
+acc c256 long exit 1
+acc c256 4k exit 1
+acc c2048 short exit 1
+acc c2048 long exit 1
+acc c2048 4k exit 1
+RUN_DONE
+fleetq: #2106 done (exit 0)

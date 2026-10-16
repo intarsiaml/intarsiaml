@@ -1,0 +1,9 @@
+qualify-Qwen3-8B-hip-tp2  model=qualify-Qwen3-8B  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      121     0.048         2500        58.1      128       87.4
+    1024     1009     0.234         4307        57.2      128       86.0
+    4096     4190     1.045         4012        55.4      128       83.3
+bandwidth floor: 66.5 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)

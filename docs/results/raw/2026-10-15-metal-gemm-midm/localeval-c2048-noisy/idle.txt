@@ -1,0 +1,4 @@
+idle before gm-c2048-base-1: "Device Utilization %"=0 "Device Utilization %"=10 "Device Utilization %"=10 
+idle before gm-c2048-new-1: "Device Utilization %"=0 "Device Utilization %"=0 "Device Utilization %"=9 
+idle before gm-c2048-new-2: "Device Utilization %"=0 "Device Utilization %"=12 "Device Utilization %"=0 
+idle before gm-c2048-base-2: "Device Utilization %"=0 "Device Utilization %"=12 "Device Utilization %"=10 

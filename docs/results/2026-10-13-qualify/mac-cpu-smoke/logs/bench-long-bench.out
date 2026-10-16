@@ -1,0 +1,7 @@
+qualify-Qwen3-Reranker-0.6B-cpu-bench-long  model=qualify-Qwen3-Reranker-0.6B  gen=16  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     256      256     0.736          348        20.7       16       39.2
+    1024     1033     3.461          298        20.0       16       37.9
+bandwidth floor: 52.9 tok/s
+warning: size 256: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)

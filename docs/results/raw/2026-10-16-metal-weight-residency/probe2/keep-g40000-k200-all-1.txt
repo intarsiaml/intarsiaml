@@ -1,0 +1,13 @@
+mapped and wrapped 5 shards in 0.7 ms (mode keep, sleep 0 ms, gap 40000 ms)
+touch pass: 146.0 ms
+keep-warm (all, every 200 ms): 192 touches over 40000 ms, 1.09 ms mean round trip
+use 0 model-00001-of-00005.safetensors (4.00 GB): 1.48 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 0.37 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 0.31 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 0.25 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 0.30 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.30 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.28 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.29 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.27 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.30 ms

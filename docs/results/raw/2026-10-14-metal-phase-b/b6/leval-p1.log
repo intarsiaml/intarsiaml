@@ -1,0 +1,10 @@
+fleetq: #1896 waiting (#2 in line): in line behind #1895 "metal P1 full: final cargo test, kernels test, full qualify" (claude-31e10c55) on endor
+fleetq: #1896 waiting (#1 in line): endor is held exclusively by #1895 "metal P1 full: final cargo test, kernels test, full qualify" (claude-31e10c55)
+fleetq job 1896
+b6pre idle_util=2(waits=1) zoom=0
+b6pre server up
+b6pre localeval exit 0
+b6new idle_util=4(waits=7) zoom=0
+b6new server up
+b6new localeval exit 0
+#1896 "metal B6 localeval pair 1" (claude-b86890d6) done on endor exclusive 24 GB

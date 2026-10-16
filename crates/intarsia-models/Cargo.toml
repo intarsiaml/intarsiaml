@@ -1,0 +1,29 @@
+[package]
+name = "intarsia-models"
+description = "Recipe loader, safetensors loader, tokenizer and chat template."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+intarsia-core = { workspace = true }
+# admission reference oracle (always built)
+intarsia-backend-cpu = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+memmap2 = { workspace = true }
+tokenizers = { workspace = true }
+minijinja = { workspace = true }
+minijinja-contrib = { workspace = true }
+
+
+[dev-dependencies]
+intarsia-backend-cuda = { workspace = true }
+
+# Batched-decode bitwise gate on the real Metal kernels (tests/batch_metal.rs; skips without the model)
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+intarsia-backend-metal = { workspace = true }

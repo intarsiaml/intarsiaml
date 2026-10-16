@@ -1,0 +1,4 @@
+cargo test exit 0
+kernels test exit 0
+qualify exit 0
+done

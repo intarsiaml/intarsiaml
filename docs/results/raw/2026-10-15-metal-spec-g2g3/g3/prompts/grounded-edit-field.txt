@@ -1,0 +1,107 @@
+Here is a Rust source file excerpt.
+
+```rust
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+pub struct GenRequest {
+    /// Prompt token ids (already tokenized / templated by the caller).
+    pub prompt: Vec<u32>,
+    pub max_tokens: usize,
+    /// EOS (and `stop_ids`) are suppressed until this many tokens exist.
+    pub min_tokens: usize,
+    /// Keep generating past the model's EOS tokens (forced-length benchmarks).
+    pub ignore_eos: bool,
+    /// <= 0 means greedy.
+    pub temperature: f32,
+    pub top_p: f32,
+    /// 0 = disabled.
+    pub top_k: usize,
+    pub seed: Option<u64>,
+    /// Extra stop token ids (not emitted).
+    pub stop_ids: Vec<u32>,
+    /// Stop strings; generation ends before the first match, which is not emitted.
+    pub stop: Vec<String>,
+    /// Set by the caller to cancel the request: checked while queued, between
+    /// prefill chunks and between decode steps.
+    pub cancel: Option<Arc<AtomicBool>>,
+}
+
+impl Default for GenRequest {
+    fn default() -> Self {
+        GenRequest {
+            prompt: Vec::new(),
+            max_tokens: 256,
+            min_tokens: 0,
+            ignore_eos: false,
+            temperature: 0.0,
+            top_p: 1.0,
+            top_k: 0,
+            seed: None,
+            stop_ids: Vec::new(),
+            stop: Vec::new(),
+            cancel: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FinishReason {
+    /// EOS, a stop id or a stop string.
+    Stop,
+    /// `max_tokens` (or the context window) reached.
+    Length,
+    /// The consumer dropped the receiver.
+    Cancelled,
+}
+
+impl FinishReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FinishReason::Stop => "stop",
+            FinishReason::Length => "length",
+            FinishReason::Cancelled => "cancelled",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum GenEvent {
+    /// One generated token. `text` is the newly released text, which can be
+    /// empty (partial UTF-8 sequence or held back as a possible stop-string
+    /// prefix). When text is still held at the end, one extra `Token` that
+    /// repeats the last id carries the remainder. The EOS token is counted in
+    /// `completion_tokens` but not emitted.
+    Token { id: u32, text: String },
+    Done {
+        finish_reason: FinishReason,
+        prompt_tokens: usize,
+        completion_tokens: usize,
+        /// Prompt tokens served from the reused KV prefix.
+        cached_tokens: usize,
+        /// The stop string that ended the generation (`finish_reason` is `Stop`), if one did.
+        stop_sequence: Option<String>,
+        /// Time to first token (prompt processing + first sample).
+        prefill_ms: f64,
+        /// Time spent producing tokens after the first.
+        decode_ms: f64,
+    },
+    /// The request failed (bad request, backend error); no `Done` follows.
+    Error { message: String },
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ChatOpts {
+    pub add_generation_prompt: bool,
+    /// Qwen3-style `enable_thinking` template variable.
+    pub enable_thinking: Option<bool>,
+    /// OpenAI-style tools array, passed to the template as `tools`.
+    pub tools: Option<Value>,
+    /// Further template variables.
+    pub extra: serde_json::Map<String, Value>,
+}
+
+```
+
+Add a field `pub top_k: Option<usize>` (default `None`, documented) to the request struct and to its Default impl. Output the complete modified code in one Rust code block and nothing else.

@@ -1,0 +1,5 @@
+c256 4k P1 rule 1045.1 ms  shipped 991.5  (variant: tails at any N, 256x64 wide) 990.0  oracle 979.4  (x36 layers)
+c256 1k P1 rule 260.8 ms  shipped 244.4  (variant: tails at any N, 256x64 wide) 243.0  oracle 240.9  (x36 layers)
+c2048 4k P1 rule 1025.4 ms  shipped 1025.4  (variant: tails at any N, 256x64 wide) 999.2  oracle 989.1  (x36 layers)
+c2048 1k P1 rule 257.0 ms  shipped 257.0  (variant: tails at any N, 256x64 wide) 253.9  oracle 249.8  (x36 layers)
+c512 4k missing data

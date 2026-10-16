@@ -1,0 +1,33 @@
+### 16k chunk 256: kernel-mode trace, 23532 launches
+
+| kernel | M | n x k | calls | us/call | total ms | share | TFLOPS |
+|---|---|---|---:|---:|---:|---:|---:|
+| attn_prefill_bf16_flash |  |  | 2340 | 2819 | 6595.7 | 61.4% | 12.29 |
+| matmul_pair_bf16_nax | M=256 | 24576x4096 | 2304 | 848 | 1953.0 | 18.2% | 60.80 |
+| matmul_bf16_nax | M=256 | 4096x12288 | 2304 | 464 | 1069.0 | 9.9% | 55.54 |
+| matmul_bf16_nax | M=256 | 4096x4096 | 4608 | 158 | 729.5 | 6.8% | 54.26 |
+| matmul_pair_bf16_nax | M=256 | 2048x4096 | 2304 | 89 | 205.5 | 1.9% | 48.15 |
+| silu_glu_bf16 |  |  | 2340 | 23 | 54.1 | 0.5% |  |
+| rmsnorm_add_bf16 |  |  | 4680 | 8 | 39.6 | 0.4% |  |
+| qk_norm_rope_kv_bf16 |  |  | 2340 | 16 | 36.8 | 0.3% |  |
+| matmul_pair_bf16_nax | M=194 | 24576x4096 | 36 | 838 | 30.2 | 0.3% | 46.63 |
+| matmul_bf16_nax | M=194 | 4096x12288 | 36 | 446 | 16.1 | 0.1% | 43.80 |
+| matmul_bf16_nax | M=194 | 4096x4096 | 72 | 152 | 10.9 | 0.1% | 42.87 |
+| matmul_pair_bf16_nax | M=194 | 2048x4096 | 36 | 86 | 3.1 | 0.0% | 37.81 |
+| logits_bf16_gemv | M=1 | 151936x4096 | 1 | 2715 | 2.7 | 0.0% | 0.46 |
+| embedding_bf16 |  |  | 65 | 11 | 0.7 | 0.0% |  |
+| rmsnorm_bf16 |  |  | 65 | 6 | 0.4 | 0.0% |  |
+| argmax_f32 |  |  | 1 | 13 | 0.0 | 0.0% |  |
+
+Sum of kernel time 10747.3 ms; first-start to last-end span 14605.9 ms (kernel mode serialises launches, so the span includes host submit latency).
+
+| class | ms | share |
+|---|---:|---:|
+| attention | 6595.7 | 61.4% |
+| matmul | 4020.0 | 37.4% |
+| elementwise/row | 131.6 | 1.2% |
+
+Matmul: 230.30 TFLOP in 4020.0 ms = 57.29 TFLOPS aggregate.
+Attention: 81.06 TFLOP (causal) in 6595.7 ms = 12.29 TFLOPS.
+
+attention ms per chunk (36 layers): c0:2, c1:5, c2:8, c3:12, c4:15, c5:18, c6:21, c7:24, c8:27, c9:30, c10:33, c11:39, c12:40, c13:43, c14:46, c15:49, c16:52, c17:55, c18:58, c19:61, c20:64, c21:68, c22:71, c23:74, c24:77, c25:80, c26:83, c27:86, c28:89, c29:92, c30:96, c31:99, c32:102, c33:105, c34:108, c35:111, c36:114, c37:117, c38:121, c39:124, c40:127, c41:130, c42:133, c43:136, c44:139, c45:142, c46:145, c47:149, c48:152, c49:155, c50:158, c51:161, c52:164, c53:167, c54:171, c55:173, c56:176, c57:179, c58:183, c59:186, c60:189, c61:192, c62:195, c63:198, c64:174

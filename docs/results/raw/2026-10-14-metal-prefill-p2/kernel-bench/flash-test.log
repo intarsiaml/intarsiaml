@@ -1,0 +1,22 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/flash_prefill.rs (target/release/deps/flash_prefill-f1a476cf4e6ff173)
+
+running 4 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+metal attn_prefill_bf16_flash: misaligned operands (q skip 1, out skip 0, k cache at 0, v cache at 0); running attn_prefill_bf16 (reported once)
+test flash_falls_back_on_misaligned_operands ... ok
+
+thread 'flash_matches_f64_reference' (88964357) panicked at crates/intarsia-backend-metal/tests/flash_prefill.rs:200:9:
+attn_flash_d128_s4 Case { t: 5, n: 4, nkv: 2, d: 128, pos0: 0, cap: 16 }: element 524: gpu -0.0235595703125 ref -0.022867910930535806 tol 0.0005965509674710652
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test flash_matches_f64_reference ... FAILED
+
+failures:
+
+failures:
+    flash_matches_f64_reference
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test flash_prefill`

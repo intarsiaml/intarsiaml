@@ -1,0 +1,19 @@
+fleetq: #2112 waiting (#6 in line): in line behind #2107 "cbsoak harness e2e: serve max_batch 1 qwen3-8b, 3 min 0.5 req/s + 200 s baseline (cb-soak)" (claude-0e8026c5) on endor
+fleetq:   #2107 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2107 set, or it will wait for #2107 to be released.
+fleetq: #2112 waiting (#5 in line): in line behind #2108 "cb-m1 step2 gate 3 extras: server --max-batch 4 (B=4,8) and prefix reuse on (cb-wire 1bdcbca)" (claude-0e8026c5) on endor
+fleetq:   #2108 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2108 set, or it will wait for #2108 to be released.
+fleetq: #2112 waiting (#3 in line): in line behind #2110 "gemm midm: final e2e (engine A/B edge, localeval ABBA c2048 + c256)" (claude-0e8026c5) on endor
+fleetq:   #2110 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2110 set, or it will wait for #2110 to be released.
+fleetq: #2112 waiting (#2 in line): in line behind #2111 "gemm midm: final gates (cargo test metal, kernels test, ids, accuracy, qualify)" (claude-0e8026c5) on endor
+fleetq:   #2111 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2111 set, or it will wait for #2111 to be released.
+fleetq: #2112 waiting (#1 in line): endor is held exclusively by #2111 "gemm midm: final gates (cargo test metal, kernels test, ids, accuracy, qualify)" (claude-0e8026c5)
+fleetq:   #2111 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2111 set, or it will wait for #2111 to be released.
+fleetq: #2112 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/engine-ab6.sh 3 64 128 256 384 512 1024 2048
+size 64 done
+size 128 done
+size 256 done
+size 384 done
+size 512 done
+size 1024 done
+size 2048 done
+fleetq: #2112 done (exit 0)

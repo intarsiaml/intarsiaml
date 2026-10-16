@@ -1,0 +1,16 @@
+base r1 done
+off r1 done
+blit r1 done
+rs r1 done
+off r2 done
+blit r2 done
+rs r2 done
+base r2 done
+blit r3 done
+rs r3 done
+base r3 done
+off r3 done
+rs r4 done
+base r4 done
+off r4 done
+blit r4 done

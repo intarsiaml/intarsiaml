@@ -1,0 +1,8 @@
+start Thu Oct 15 08:43:26 EDT 2026
+cargo test exit 0
+kernels test (default) exit 0
+kernels test (MULTIROW=1) exit 0
+bench aligned run1 exit 0
+bench aligned run2 exit 0
+bench a8 exit 0
+end Thu Oct 15 08:58:18 EDT 2026

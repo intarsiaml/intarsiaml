@@ -1,0 +1,230 @@
+[burst] job 1534; stopping radiance 2026-10-13 09:58:01
+inactive
+[burst] radiance stopped 2026-10-13 09:58:05
+################ stage comm start 09:58:05
+=== [09:58:05] comm: correctness (all-reduce vs host sum, exact; 9600 back-to-back launches; abort)
+warning: function `ik_rt_event_destroy` is never used
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+68 |     pub fn ik_rt_event_destroy(ev: S) -> c_int;
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-hip` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 5 tests
+test all_reduce_is_exact_and_identical_on_both_ranks ... ok
+test all_reduce_rate ... ignored
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+test f32_partials_reduce_into_bf16_with_one_rounding ... ok
+test many_back_to_back_launches_keep_both_scratch_parities_straight ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.42s
+
+=== [09:58:09] comm: rate
+
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 1 test
+     bytes      us/call   GB/s (msg)   launches
+      8192          5.8         1.41       4000
+     16384          6.3         2.58       4000
+     65536          8.2         7.98       4000
+    524288         32.0        16.40        400
+   2097152        108.5        19.32        400
+test all_reduce_rate ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.35s
+
+=== [09:58:10] comm: correctness and rate with the fence drain (INTARSIA_HIP_AR_DRAIN=1; the default is 3)
+test all_reduce_is_exact_and_identical_on_both_ranks ... ok
+test all_reduce_rate ... ignored
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+test f32_partials_reduce_into_bf16_with_one_rounding ... ok
+test many_back_to_back_launches_keep_both_scratch_parities_straight ... ok
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.47s
+      8192         11.5         0.71       4000
+     16384         11.6         1.41       4000
+     65536         12.8         5.13       4000
+    524288         35.1        14.96        400
+   2097152        112.3        18.68        400
+test all_reduce_rate ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.41s
+
+################ stage comm end 09:58:14
+################ stage smoke start 09:58:14
+=== [09:58:14] smoke: greedy generation, tp=1 vs tp=2 (host comm) vs tp=2 (p2p)
+--- generate: tp=1
+loaded Qwen3-8B on AMD Radeon Graphics in 1.1s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 5 tokens
+ Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. The capital
+ids: [12095, 13, 576, 6722, 315, 15344, 374, 21718, 13, 576, 6722, 315, 17689, 374, 24081, 13, 576, 6722, 315, 9856, 374, 19846, 13, 576, 6722, 315, 279, 25662, 374, 37741, 13, 576, 6722, 315, 32961, 374, 37169, 13, 576, 6722]
+finish=length prompt=5 (cached 0) completion=40 | prefill 80 ms (62.1 tok/s) | decode 1055 ms (36.97 tok/s)
+steps=40 graph replays=0 (captures 0) eager decode steps=39 (profiled 2) top ops: matmul=109ms/10080 embedding=11ms/40 logits=7ms/40 rope=5ms/2880 rmsnorm_add=5ms/2880
+--- generate: tp=2 --comm host
+loaded Qwen3-8B on AMD Radeon Graphics x2 (tp=2, host comm) in 2.2s: 36 layers, hidden 4096, act bf16, kv bf16, weights 9.44 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 5 tokens
+ Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. The capital
+ids: [12095, 13, 576, 6722, 315, 15344, 374, 21718, 13, 576, 6722, 315, 17689, 374, 24081, 13, 576, 6722, 315, 9856, 374, 19846, 13, 576, 6722, 315, 279, 25662, 374, 37741, 13, 576, 6722, 315, 32961, 374, 37169, 13, 576, 6722]
+finish=length prompt=5 (cached 0) completion=40 | prefill 62 ms (81.1 tok/s) | decode 825 ms (47.27 tok/s)
+tensor parallel: 2880 all-reduces (72.0 per step), 216 timed, avg 65.1 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=40 graph replays=0 (captures 0) eager decode steps=39 (profiled 2) top ops: matmul=44ms/7200 logits=31ms/2920 all_reduce=14ms/2880 rope=5ms/2880 rmsnorm_add=5ms/2880
+--- generate: tp=2 (p2p)
+loaded Qwen3-8B on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 2.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 9.44 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 5 tokens
+ Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. The capital
+ids: [12095, 13, 576, 6722, 315, 15344, 374, 21718, 13, 576, 6722, 315, 17689, 374, 24081, 13, 576, 6722, 315, 9856, 374, 19846, 13, 576, 6722, 315, 279, 25662, 374, 37741, 13, 576, 6722, 315, 32961, 374, 37169, 13, 576, 6722]
+finish=length prompt=5 (cached 0) completion=40 | prefill 60 ms (83.8 tok/s) | decode 694 ms (56.23 tok/s)
+tensor parallel: 2880 all-reduces (72.0 per step), 216 timed, avg 28.7 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=40 graph replays=0 (captures 0) eager decode steps=39 (profiled 2) top ops: matmul=43ms/7200 logits=31ms/2920 embedding=7ms/40 all_reduce=6ms/2880 rope=5ms/2880
+################ stage smoke end 09:58:24
+################ stage plan start 09:58:24
+=== [09:58:24] plan show --tp 2
+model Qwen3-8B  backend hip  device AMD Radeon Graphics (32624 MiB)  exactness deterministic
+act bf16  kv bf16  prefill chunk 256  scratch 624000 B  require_admitted false  reference_only false
+tensor parallel x2 (hip-p2p collective)  per rank: 16 heads, 4 kv heads, ffn 6144 (model: 32/8/12288)  all-reduce 72 calls/decode step, 1179648 B/rank
+  rank 0: AMD Radeon Graphics (32624 MiB)  weights 8998 MiB  kv cap 4096 tokens  + lm_head
+  rank 1: AMD Radeon Graphics (32624 MiB)  weights 7811 MiB  kv cap 4096 tokens
+
+layers (36):
+    0..35  attention+dense_ffn
+
+op             kernel                     exactness     admitted  calls/step   scratch
+embedding      embedding_bf16             exact         no        1 0
+rmsnorm        rmsnorm_bf16               deterministic no        1 0
+rmsnorm_add    rmsnorm_add_bf16           deterministic no        72 0
+qk_norm        qk_norm_bf16               deterministic no        72 0
+rope           rope_bf16                  deterministic no        72 0
+matmul         matmul_bf16                deterministic no        0 0
+matmul         matmul_bf16_gemv           deterministic no        180 0
+logits         logits_bf16                deterministic no        0 0
+logits         logits_bf16_gemv           deterministic no        73 0
+kv_append      kv_append_bf16             exact         no        72 0
+attn_prefill   attn_prefill_bf16_flash    deterministic no        0 0
+attn_prefill   attn_prefill_bf16_splitkv  deterministic no        0 624000
+attn_decode    attn_decode_bf16_splitkv   deterministic no        36 532480
+silu_glu       silu_glu_bf16              deterministic no        36 0
+argmax         argmax_f32                 exact         no        1 0
+################ stage plan end 09:58:26
+################ stage accuracy start 09:58:26
+=== [09:58:26] accuracy tp=2
+--- accuracy tp=2 qwen3-8b.safetensors 
+chat_multiturn        58    58   100.00   1.235e-3   1.203e-3   2.902e-2   0.0337   0.0340    98.62     58/58      0
+chat_reasoning        90    90   100.00   7.289e-4   7.083e-4   1.780e-2   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434    99.77   6.545e-4   6.022e-4   2.902e-2   0.0322   0.0322    98.53     88.5%      0
+prefill floor [bf16]: top-1 99.77% (need >= 99.5) ok | full-vocab KL 6.545e-4 (need <= 1.0e-3) ok | tail mass ours 0.0322 vs ref 0.0322, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   3.489e-5   3.233e-5   1.457e-4   0.0028   0.0029    97.50     16/16      0
+story                 39    16   100.00   1.270e-3   1.233e-3   3.869e-3   0.0241   0.0240    96.25     16/16      0
+code                  80    16   100.00   2.156e-5   2.155e-5   1.208e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   3.206e-4   3.081e-4   1.371e-3   0.0102   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   1.038e-3   9.288e-4   5.627e-3   0.0630   0.0627    97.50     16/16      0
+chat_system           32    16   100.00   2.569e-3   1.957e-3   1.352e-2   0.0757   0.0741    96.25     16/16      0
+chat_multiturn        58    16   100.00   1.192e-3   1.170e-3   6.101e-3   0.0073   0.0075    98.75     16/16      0
+chat_reasoning        90    16   100.00   1.512e-3   1.468e-3   6.223e-3   0.0096   0.0097    98.75     16/16      0
+OVERALL                    128   100.00   9.948e-4   8.900e-4   1.352e-2   0.0241   0.0239    97.97    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.948e-4 (need <= 1.0e-3) ok | tail mass ours 0.0239 vs ref 0.0241, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 92.1% of positions before the first argmax divergence, worst prompt 36.7% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy tp=2 qwen3-8b-long.safetensors 
+
+real	0m7.897s
+user	0m0.017s
+sys	0m0.018s
+prefill floor [bf16]: top-1 99.44% strict (99.65% if the 3 fp16 reference ties counted as agreement) (need >= 99.5) FAIL | full-vocab KL 8.629e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0187, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   3.489e-5   3.233e-5   1.457e-4   0.0028   0.0029    97.50     16/16      0
+story                 39    16   100.00   1.270e-3   1.233e-3   3.869e-3   0.0241   0.0240    96.25     16/16      0
+code                  80    16   100.00   2.156e-5   2.155e-5   1.208e-4   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   3.206e-4   3.081e-4   1.371e-3   0.0102   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   1.038e-3   9.288e-4   5.627e-3   0.0630   0.0627    97.50     16/16      0
+chat_system           32    16   100.00   2.569e-3   1.957e-3   1.352e-2   0.0757   0.0741    96.25     16/16      0
+chat_multiturn        58    16   100.00   1.192e-3   1.170e-3   6.101e-3   0.0073   0.0075    98.75     16/16      0
+chat_reasoning        90    16   100.00   1.512e-3   1.468e-3   6.223e-3   0.0096   0.0097    98.75     16/16      0
+long_prose_300       300    16   100.00   8.402e-6   8.401e-6   6.875e-5   0.0000   0.0000    96.25     16/16      0
+long_prose_700       700    16   100.00   1.389e-3   1.235e-3   1.331e-2   0.0247   0.0239    97.50     16/16      0
+OVERALL                    160   100.00   9.356e-4   8.363e-4   1.352e-2   0.0218   0.0215    97.75    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.356e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0218, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 74.1% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+
+real	0m13.353s
+user	0m0.020s
+sys	0m0.014s
+################ stage accuracy end 09:58:48
+################ stage accuracy_self start 09:58:48
+=== [09:58:48] self-golden: tp=1 writes its top-k log-probs, tp=2 is compared with them
+wrote self-golden /work/bench-out/sg-qwen3-8b-tp1.safetensors (top-64 rows of modes prefill for 8 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+chat_reasoning        90    90   100.00   2.642e-4   2.621e-4   5.179e-3   0.0180   0.0180    98.67     90/90      0
+OVERALL                    434    99.77   3.464e-4   3.271e-4   4.150e-2   0.0241   0.0241    98.76     88.5%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 3.2711e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         4.1420e-2  (limit 5.0000e-3)  FAIL
+  top-1 flips                                      1.0000e0  (limit 2.0000e0)  ok
+  mean |tail diff|                                1.4907e-4  (limit 5.0000e-4)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_multiturn]        9.8329e-4  (limit 5.0000e-4)  FAIL
+SELF-STATS mode=prefill positions=434 mean_kl21=3.271144e-4 max_kl21=4.142016e-2 flips=1 flip_pct=0.2304 tail_abs=1.490711e-4 worst_prompt_kl21=9.832936e-4
+prefill self-golden => FAIL
+greedy-match [prefill]: mean 92.1% of positions before the first argmax divergence, worst prompt 36.7% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
+wrote self-golden /work/bench-out/sg-qwen3-8b-long-tp1.safetensors (top-64 rows of modes prefill for 10 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+long_prose_700       700   700    99.57   6.794e-4   6.781e-4   5.023e-2   0.0070   0.0070    98.14    55/700      0
+OVERALL                   1434    99.65   5.979e-4   5.896e-4   5.023e-2   0.0124   0.0123    98.34     45.1%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 5.8963e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         5.0241e-2  (limit 5.0000e-3)  FAIL
+  top-1 flips                                      5.0000e0  (limit 7.0000e0)  ok
+  mean |tail diff|                                1.4986e-4  (limit 5.0000e-4)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_multiturn]        9.8329e-4  (limit 5.0000e-4)  FAIL
+SELF-STATS mode=prefill positions=1434 mean_kl21=5.896296e-4 max_kl21=5.024094e-2 flips=5 flip_pct=0.3487 tail_abs=1.498608e-4 worst_prompt_kl21=9.832936e-4
+prefill self-golden => FAIL
+greedy-match [prefill]: mean 81.4% of positions before the first argmax divergence, worst prompt 7.9% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage accuracy_self end 09:59:09
+################ stage perf start 09:59:09
+=== [09:59:09] decode, 192 tokens, no per-op profiling
+--- tp=1
+finish=length prompt=5 (cached 0) completion=192 | prefill 59 ms (84.8 tok/s) | decode 5059 ms (37.76 tok/s)
+--- tp=2
+finish=length prompt=5 (cached 0) completion=192 | prefill 51 ms (98.5 tok/s) | decode 3294 ms (57.98 tok/s)
+tensor parallel: 13824 all-reduces (72.0 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+--- tp=2, collectives skipped (INTARSIA_TP_NO_COMM=1; garbage output, timing only)
+finish=length prompt=5 (cached 0) completion=192 | prefill 45 ms (111.4 tok/s) | decode 3052 ms (62.58 tok/s)
+--- tp=2, per-op profile on every step
+finish=length prompt=5 (cached 0) completion=64 | prefill 59 ms (84.1 tok/s) | decode 1712 ms (36.79 tok/s)
+tensor parallel: 4608 all-reduces (72.0 per step), 4608 timed, avg 21.7 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=64 graph replays=0 (captures 0) eager decode steps=63 (profiled 63) top ops: matmul=691ms/11520 logits=481ms/4672 all_reduce=100ms/4608 rope=99ms/4608 rmsnorm_add=93ms/4608
+################ stage perf end 09:59:32
+[burst] stages done 2026-10-13 09:59:32
+[burst] starting radiance 2026-10-13 09:59:32
+[burst] radiance answers 2026-10-13 09:59:42 (after 15 s)

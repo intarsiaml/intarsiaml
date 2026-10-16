@@ -1,0 +1,21 @@
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/gemm_nax.rs (target/release/deps/gemm_nax-437184b2b116056c)
+
+running 1 test
+test nax_glu_is_bitwise_pair_then_silu_glu ... FAILED
+
+failures:
+
+---- nax_glu_is_bitwise_pair_then_silu_glu stdout ----
+
+thread 'nax_glu_is_bitwise_pair_then_silu_glu' (89874924) panicked at crates/intarsia-backend-metal/tests/gemm_nax.rs:405:17:
+gemm_nax_glu_t64x64w2: m=205 n=1024 k=4096: element 0 (0, 0) differs from pair + silu_glu: 0x33bd vs 0x3d35
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    nax_glu_is_bitwise_pair_then_silu_glu
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.81s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test gemm_nax`

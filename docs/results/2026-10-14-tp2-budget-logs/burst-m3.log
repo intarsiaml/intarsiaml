@@ -1,0 +1,101 @@
+[burst] job 1742; stages: m3; stopping radiance 2026-10-13 20:00:33
+[burst] radiance stopped 2026-10-13 20:00:35
+################ stage m3 start 20:00:35
+[20:00:45] B-bug-1.01@0 rc=1 (10 s) env='INTARSIA_TP_TEST_BUG=scale:1.01@0' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.65   7.506e-4   7.432e-4   7.257e-2   0.0124   0.0124    97.95     47.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=7.431884e-4 max_kl21=7.249101e-2 flips=5 flip_pct=0.3487 tail_abs=2.167803e-4 worst_prompt_kl21=1.057677e-3
+    OVERALL                    160   100.00   6.159e-4   5.819e-4   1.553e-2   0.0111   0.0111    97.88    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.819134e-4 max_kl21=1.123065e-2 flips=0 flip_pct=0.0000 tail_abs=2.896708e-4 worst_prompt_kl21=1.574273e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:00:55] B-bug-1.02 rc=1 (10 s) env='INTARSIA_TP_TEST_BUG=scale:1.02' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.51   1.457e-3   1.445e-3   1.656e-1   0.0124   0.0123    97.43     35.2%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=1.444634e-3 max_kl21=1.655660e-1 flips=7 flip_pct=0.4881 tail_abs=3.024876e-4 worst_prompt_kl21=1.897617e-3
+    OVERALL                    160    99.38   1.383e-3   1.324e-3   3.981e-2   0.0111   0.0111    98.00     91.9%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=1.324321e-3 max_kl21=3.980328e-2 flips=1 flip_pct=0.6250 tail_abs=3.505994e-4 worst_prompt_kl21=3.352039e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:01:05] B-bug-1.005 rc=1 (10 s) env='INTARSIA_TP_TEST_BUG=scale:1.005' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    99.44   5.591e-4   5.459e-4   4.852e-2   0.0124   0.0124    98.35     33.2%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.459325e-4 max_kl21=4.852194e-2 flips=8 flip_pct=0.5579 tail_abs=1.900236e-4 worst_prompt_kl21=1.140837e-3
+    OVERALL                    160   100.00   5.453e-4   5.206e-4   1.188e-2   0.0111   0.0111    98.38    100.0%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=5.206090e-4 max_kl21=1.187776e-2 flips=0 flip_pct=0.0000 tail_abs=2.958578e-4 worst_prompt_kl21=1.795291e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:01:14] B-bug-1.05 rc=1 (9 s) env='INTARSIA_TP_TEST_BUG=scale:1.05' args='--self-golden /work/bench-out/tp2b/measure/S0.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                   1434    98.68   5.435e-3   5.396e-3   8.799e-1   0.0124   0.0124    95.36     19.1%      0
+    SELF-STATS mode=prefill positions=1434 mean_kl21=5.395990e-3 max_kl21=8.798350e-1 flips=19 flip_pct=1.3250 tail_abs=4.725710e-4 worst_prompt_kl21=6.927055e-3
+    OVERALL                    160    98.12   3.937e-3   3.763e-3   8.632e-2   0.0111   0.0109    96.75     77.5%      0
+    SELF-STATS mode=decode positions=160 mean_kl21=3.763150e-3 max_kl21=8.630884e-2 flips=3 flip_pct=1.8750 tail_abs=5.529254e-4 worst_prompt_kl21=1.028279e-2
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:01:23] A-short-S0 rc=0 (9 s) env='HIP_VISIBLE_DEVICES=0' args='--golden /models/golden/qwen3-8b-fp32.safetensors --gate-class bf16 --write-self-golden /work/bench-out/tp2b/measure/S0short.safetensors'
+    OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+    OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+    golden gate: PASS
+[20:01:29] B-short-repeat rc=0 (6 s) env='HIP_VISIBLE_DEVICES=0' args='--self-golden /work/bench-out/tp2b/measure/S0short.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                    434   100.00  1.128e-15  7.234e-12  2.766e-14   0.0241   0.0241   100.00    100.0%      0
+    SELF-STATS mode=prefill positions=434 mean_kl21=7.234311e-12 max_kl21=1.512422e-9 flips=0 flip_pct=0.0000 tail_abs=8.047522e-9 worst_prompt_kl21=2.544676e-11
+    OVERALL                    128   100.00  1.023e-15  1.464e-12  5.935e-15   0.0125   0.0125   100.00    100.0%      0
+    SELF-STATS mode=decode positions=128 mean_kl21=1.463836e-12 max_kl21=5.491994e-11 flips=0 flip_pct=0.0000 tail_abs=8.447808e-9 worst_prompt_kl21=3.632213e-12
+    self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+    golden gate: PASS
+[20:01:36] B-short-t1-simt rc=1 (7 s) env='HIP_VISIBLE_DEVICES=0 INTARSIA_HIP_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash' args='--self-golden /work/bench-out/tp2b/measure/S0short.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                    434    99.77   2.583e-4   2.535e-4   1.035e-2   0.0241   0.0241    98.85     88.5%      0
+    SELF-STATS mode=prefill positions=434 mean_kl21=2.534580e-4 max_kl21=1.035146e-2 flips=1 flip_pct=0.2304 tail_abs=1.528051e-4 worst_prompt_kl21=7.696082e-4
+    OVERALL                    128   100.00   3.764e-4   3.576e-4   7.344e-3   0.0125   0.0124    97.97    100.0%      0
+    SELF-STATS mode=decode positions=128 mean_kl21=3.575920e-4 max_kl21=6.247469e-3 flips=0 flip_pct=0.0000 tail_abs=2.281397e-4 worst_prompt_kl21=7.617473e-4
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:01:45] B-short-t1-gemvoff rc=1 (9 s) env='HIP_VISIBLE_DEVICES=0 INTARSIA_HIP_DISABLE=matmul_bf16_gemv,logits_bf16_gemv' args='--self-golden /work/bench-out/tp2b/measure/S0short.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                    434   100.00  6.779e-14  7.308e-12  2.893e-11   0.0241   0.0241   100.00    100.0%      0
+    SELF-STATS mode=prefill positions=434 mean_kl21=7.307733e-12 max_kl21=1.512422e-9 flips=0 flip_pct=0.0000 tail_abs=9.203369e-9 worst_prompt_kl21=2.544676e-11
+    OVERALL                    128   100.00   3.019e-4   2.893e-4   8.897e-3   0.0125   0.0123    98.59    100.0%      0
+    SELF-STATS mode=decode positions=128 mean_kl21=2.892529e-4 max_kl21=8.930170e-3 flips=0 flip_pct=0.0000 tail_abs=2.299767e-4 worst_prompt_kl21=1.150622e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:01:51] B-short-t2 rc=1 (6 s) env='' args='--self-golden /work/bench-out/tp2b/measure/S0short.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                    434    99.77   3.464e-4   3.271e-4   4.150e-2   0.0241   0.0241    98.76     88.5%      0
+    SELF-STATS mode=prefill positions=434 mean_kl21=3.271144e-4 max_kl21=4.142016e-2 flips=1 flip_pct=0.2304 tail_abs=1.490711e-4 worst_prompt_kl21=9.832936e-4
+    OVERALL                    128   100.00   5.279e-4   5.067e-4   1.463e-2   0.0125   0.0126    97.97    100.0%      0
+    SELF-STATS mode=decode positions=128 mean_kl21=5.066904e-4 max_kl21=1.464406e-2 flips=0 flip_pct=0.0000 tail_abs=2.382999e-4 worst_prompt_kl21=1.971237e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:01:58] B-short-bug-1.01 rc=1 (7 s) env='INTARSIA_TP_TEST_BUG=scale:1.01' args='--self-golden /work/bench-out/tp2b/measure/S0short.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                    434   100.00   4.563e-4   4.340e-4   4.520e-2   0.0241   0.0240    98.71    100.0%      0
+    SELF-STATS mode=prefill positions=434 mean_kl21=4.340401e-4 max_kl21=4.505775e-2 flips=0 flip_pct=0.0000 tail_abs=2.839913e-4 worst_prompt_kl21=1.273997e-3
+    OVERALL                    128   100.00   6.133e-4   5.813e-4   1.550e-2   0.0125   0.0124    98.28    100.0%      0
+    SELF-STATS mode=decode positions=128 mean_kl21=5.813062e-4 max_kl21=1.071126e-2 flips=0 flip_pct=0.0000 tail_abs=4.064509e-4 worst_prompt_kl21=1.858662e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+[20:02:05] B-short-bug-1.02 rc=1 (7 s) env='INTARSIA_TP_TEST_BUG=scale:1.02' args='--self-golden /work/bench-out/tp2b/measure/S0short.safetensors --allow-same-code --revlist /work/revlist.txt'
+    self-golden written by: head 192f652 code-tree 0da171c71cb8 clean (top-64, modes prefill,decode)
+    self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+    OVERALL                    434    99.77   6.820e-4   6.591e-4   3.017e-2   0.0241   0.0240    98.43     84.1%      0
+    SELF-STATS mode=prefill positions=434 mean_kl21=6.590708e-4 max_kl21=3.016505e-2 flips=1 flip_pct=0.2304 tail_abs=3.734295e-4 worst_prompt_kl21=1.493977e-3
+    OVERALL                    128    99.22   1.285e-3   1.232e-3   3.981e-2   0.0125   0.0125    98.12     89.8%      0
+    SELF-STATS mode=decode positions=128 mean_kl21=1.232390e-3 max_kl21=3.980328e-2 flips=1 flip_pct=0.7812 tail_abs=3.786945e-4 worst_prompt_kl21=3.328354e-3
+    self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+    golden gate: FAIL
+################ stage 1.02 end 20:02:05
+[burst] stages done 2026-10-13 20:02:05 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-13 20:02:05
+[burst] radiance answers 2026-10-13 20:02:15 (after 15 s)

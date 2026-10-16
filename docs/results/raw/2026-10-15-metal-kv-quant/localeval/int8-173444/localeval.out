@@ -1,0 +1,18 @@
+# localeval: adhoc — 2026-10-15T17:35
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8791/v1`
+- thinking: off; run kind: speed; label: metal-kvq-int8
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8791/v1 --model intarsia-metal --sizes 4096,16384 --gen 256 --reps 3 --thinking off --label metal-kvq-int8`
+- result file: `results/20261015-173533-adhoc-metal-kvq-int8/result.json`
+
+## Warnings
+
+- INCOMPLETE: RuntimeError: adhoc: /models unreachable ({'reachable': False, 'http_status': 0, 'error': 'URLError: <urlopen error [Errno 61] Connection refused>'})
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261015-173533-adhoc-metal-kvq-int8/result.json
+[localeval] not logged to unanimis (nothing measured)

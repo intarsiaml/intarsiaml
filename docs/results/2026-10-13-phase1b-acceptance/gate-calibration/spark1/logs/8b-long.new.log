@@ -1,0 +1,43 @@
+accuracy: Qwen/Qwen3-8B on NVIDIA GB10 (vocab 151936, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsiaml-golden/qwen3-8b-long-fp32.safetensors (10 prompts, 1434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+  reference: engine hf-transformers transformers 5.15.1, torch 2.13.0+cu129 | model /hf/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 | revision b968826d9c46dd6066d109eabc6255188de91218 | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (--gate-class); top-1 >= 99.5%, KL <= 1.0e-3, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+this build: head 4ad0eea code-tree bbc5483de9fd clean
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   1.821e-4   1.077e-4   5.191e-3   0.0324   0.0317    99.47     38/38      0
+story                 39    39   100.00   4.332e-4   2.729e-4   9.476e-3   0.0400   0.0394    97.95     39/39      0
+code                  80    80   100.00   1.085e-4   5.485e-5   5.603e-3   0.0142   0.0140    99.75     80/80      0
+science               79    79   100.00   2.376e-4   1.515e-4   1.263e-2   0.0168   0.0162    98.73     79/79      0
+chat_short            18    18   100.00   3.741e-4   3.274e-4   1.842e-3   0.1108   0.1112   100.00     18/18      0
+chat_system           32    32   100.00   6.502e-4   5.317e-4   9.178e-3   0.0841   0.0845    98.12     32/32      0
+chat_multiturn        58    58   100.00   4.257e-4   4.051e-4   1.486e-2   0.0340   0.0340    98.62     58/58      0
+chat_reasoning        90    90   100.00   2.471e-4   2.365e-4   7.033e-3   0.0243   0.0243    98.67     90/90      0
+long_prose_300       300   300    99.67   4.431e-4   4.161e-4   1.663e-2   0.0126   0.0125    98.40     0/300      0
+long_prose_700       700   700    99.43   4.506e-4   4.343e-4   2.104e-2   0.0129   0.0129    98.49    55/700      0
+OVERALL                   1434    99.65   4.004e-4   3.679e-4   2.104e-2   0.0188   0.0187    98.59     34.1%      0
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   8.039e-6   7.025e-6   7.498e-5   0.0029   0.0029    98.75     16/16      0
+story                 39    16   100.00   2.212e-4   2.090e-4   1.334e-3   0.0237   0.0238   100.00     16/16      0
+code                  80    16   100.00   1.342e-5   1.341e-5   5.751e-5   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   1.349e-4   1.311e-4   6.817e-4   0.0104   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   6.929e-4   6.602e-4   4.273e-3   0.0621   0.0625    98.75     16/16      0
+chat_system           32    16   100.00   9.168e-4   6.690e-4   6.841e-3   0.0736   0.0734    97.50     16/16      0
+chat_multiturn        58    16   100.00   2.140e-4   2.057e-4   1.265e-3   0.0076   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   3.890e-4   3.707e-4   2.816e-3   0.0099   0.0098   100.00     16/16      0
+long_prose_300       300    16   100.00   4.454e-6   4.454e-6   4.744e-5   0.0000   0.0000   100.00     16/16      0
+long_prose_700       700    16   100.00   7.369e-4   6.655e-4   6.336e-3   0.0244   0.0254    95.00     16/16      0
+OVERALL                    160   100.00   3.332e-4   2.936e-4   6.841e-3   0.0215   0.0216    98.88    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 80.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

@@ -1,0 +1,134 @@
+Here is a Rust source file excerpt.
+
+```rust
+impl Default for LoadOptions {
+    fn default() -> Self {
+        LoadOptions {
+            max_seq: 4096,
+            kv_fraction: 0.5,
+            prefill_chunk: 256,
+            act_dtype: None,
+            kv_dtype: None,
+            profile_every: 1,
+            mem_budget: None,
+            fp8_act: None,
+        }
+    }
+}
+
+struct AttnBlock {
+    pre_norm: TensorRef,
+    /// `[n_heads * head_dim * (1 + gated), hidden]`: with `gated` each head's rows are `q` then its output gate.
+    wq: QTensor,
+    wk: QTensor,
+    wv: QTensor,
+    wo: QTensor,
+    q_norm: Option<TensorRef>,
+    k_norm: Option<TensorRef>,
+    slot: usize,
+    /// `q` carries a per-head output gate (`attn_out * sigmoid(gate)` before `wo`).
+    gated: bool,
+    /// Leading values of each head that rotate (`partial_rotary_factor * head_dim`); 0 = the whole head.
+    rotary_dim: usize,
+}
+
+struct FfnBlock {
+    pre_norm: TensorRef,
+    gate: TensorRef,
+    up: TensorRef,
+    down: TensorRef,
+}
+
+/// Sparse MoE FFN (router + routed experts + gated shared expert); the activation scratch is shared in the workspace.
+struct MoeBlock {
+    pre_norm: TensorRef,
+    w: MoeWeights,
+}
+
+enum Block {
+    Attn(AttnBlock),
+    Gdn(GdnBlock),
+    Ffn(FfnBlock),
+    Moe(MoeBlock),
+}
+
+struct Workspace {
+    max_tokens: usize,
+    ids: Buffer,
+    h: [Buffer; 2],
+    n: Buffer,
+    blk: Buffer,
+    q: [Buffer; 2],
+    k: [Buffer; 2],
+    v: Buffer,
+    g: Buffer,
+    u: Buffer,
+    a: Buffer,
+    logits: Buffer,
+    tok: Buffer,
+    /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
+    x: ExtraWs,
+    /// Activations of the MoE blocks (one set, reused by every layer).
+    moe: Option<MoeScratch>,
+}
+
+/// Runs the MoE block's ops through `Model::exec` (profiling, plan recording, kernel scratch).
+struct ExecRunner<'a> {
+    m: &'a Model,
+    profile: bool,
+}
+
+impl OpRunner for ExecRunner<'_> {
+    fn run(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<()> {
+        self.m.exec(op, inputs, outputs, attrs, self.profile)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeadMode {
+    /// Fill the KV cache only.
+    None,
+    /// Logits of the last position.
+    LastLogits,
+    /// Greedy token of the last position (argmax on device, 4 bytes back).
+    LastArgmax,
+    /// Logits of every position, streamed through a callback.
+    AllLogits,
+}
+
+#[derive(Debug)]
+pub enum StepOut {
+    None,
+    Logits(Vec<f32>),
+    Token(u32),
+}
+
+pub type RowCallback<'a> = &'a mut dyn FnMut(usize, &[f32]) -> Result<()>;
+
+pub struct Model {
+    pub backend: Arc<dyn Backend>,
+    pub registry: Registry,
+    pub dims: ModelDims,
+    pub recipe: Recipe,
+    pub act: DType,
+    pub kv: DType,
+    pub plan: MemoryPlan,
+    pub weights_bytes: u64,
+    embed: TensorRef,
+    final_norm: TensorRef,
+    lm_head: QTensor,
+    layers: Vec<Vec<Block>>,
+    slot_specs: Vec<SlotSpec>,
+    ws: Workspace,
+    telemetry: Arc<Telemetry>,
+    profile_every: u32,
+    /// Kernel scratch workspace shared by all ops (sized by plan resolution; ops run in stream order).
+    scratch: Option<Buffer>,
+    /// Installed by [`Model::dry_run`]: `exec` records `(op, shape, kernel)` instead of launching.
+    recorder: Mutex<Option<crate::plan::Recorder>>,
+    /// Result of plan resolution (kernel of every op/shape the model needs).
+    pub resolved: crate::plan::ResolvedPlan,
+}
+```
+
+Change `LoadOptions` so every field is wrapped in `Option` with a `None` default, adjusting the Default impl. Output the complete modified code in one Rust code block and nothing else.

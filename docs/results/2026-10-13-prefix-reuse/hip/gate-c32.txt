@@ -1,0 +1,20 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      skipped: split 19 is below one prefill chunk (32): nothing to reuse across chunk boundaries
+story              both      skipped: split 19 is below one prefill chunk (32): nothing to reuse across chunk boundaries
+code               continue      40     96      55      0     32/32  ok
+code               restore       40     80      40      0     32/32  ok
+code               aligned       32     80      32      0     32/32  ok
+science            continue      39     95      54      0      9/32  ok (rounding tie at token 9: warm took 576 cold took 4354; shared rows differ by 0.096 (before) / 0.025 (here) nats of log-probability, KL up to 6.7e-4; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.101); warm margin 0.007, cold margin 0.033; legacy criterion (>= 16 leading tokens): FAIL)
+science            restore       39     79      39      0     32/32  ok
+science            aligned       32     79      32      0     32/32  ok
+chat_short         both      skipped: split 9 is below one prefill chunk (32): nothing to reuse across chunk boundaries
+chat_system        both      skipped: split 16 is below one prefill chunk (32): nothing to reuse across chunk boundaries
+chat_multiturn     both      skipped: split 29 is below one prefill chunk (32): nothing to reuse across chunk boundaries
+chat_reasoning     continue      45    106      60      0     32/32  ok
+chat_reasoning     restore       45     90      45      0     32/32  ok
+chat_reasoning     aligned       32     90      32      0     32/32  ok
+prefix-reuse gate: PASS
+golden gate: PASS
+rc=0

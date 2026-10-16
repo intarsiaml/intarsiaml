@@ -1,0 +1,31 @@
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsia-dbg/g/dbg.safetensors (11 prompts, 41317 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden_4k.jsonl", "golden_12k.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 not gated, 21-way KL <= 3.0e-2, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 4631; prompts spanning more than one chunk: 11/11
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+chat_reuse_4k@4631  4631  4631    88.49   2.165e-1   2.549e-1    2.648e1   0.0688   0.0842    87.80   64/4631      0
+chat_reuse_4k@4608  4608  4608    88.43   2.175e-1   2.561e-1    2.648e1   0.0692   0.0846    87.77   64/4608      0
+chat_reuse_4k@4624  4624  4624    88.45   2.168e-1   2.553e-1    2.648e1   0.0689   0.0843    87.78   64/4624      0
+chat_reuse_4k@4096  4096  4096    88.67   1.965e-1   2.299e-1    2.648e1   0.0743   0.0876    87.99   64/4096      0
+chat_reuse_4k@2048  2048  2048    90.19   9.113e-2   1.001e-1    1.344e1   0.1025   0.1064    89.73   64/2048      0
+chat_reuse_4k@1024  1024  1024    90.04   1.166e-1   1.359e-1    1.344e1   0.0935   0.0991    89.79   64/1024      0
+long_docs_4k@4064   4064  4064    93.82   2.017e-2   1.806e-2    1.805e0   0.0944   0.0967    90.69    0/4064      0
+long_docs_4k@4055   4055  4055    93.86   2.014e-2   1.803e-2    1.805e0   0.0946   0.0968    90.68    0/4055      0
+long_docs_4k@4048   4048  4048    93.85   2.011e-2   1.800e-2    1.805e0   0.0946   0.0968    90.68    0/4048      0
+long_code_4k@4064   4064  4064    96.80   8.504e-3   7.643e-3   7.944e-1   0.0370   0.0380    91.52   20/4064      0
+long_code_4k@4055   4055  4055    96.79   8.489e-3   7.627e-3   7.944e-1   0.0370   0.0380    91.51   20/4055      0
+OVERALL                  41317    91.83   1.073e-1   1.236e-1    2.648e1   0.0730   0.0807    89.54      1.0%      0
+prefill floor [4bit]: top-1 91.83% (not gated for this class) ok | 21-way KL 1.236e-1 (need <= 3.0e-2) FAIL | tail mass ours 0.0807 vs ref 0.0730, excess +0.0077 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+greedy-match [prefill]: mean 1.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED

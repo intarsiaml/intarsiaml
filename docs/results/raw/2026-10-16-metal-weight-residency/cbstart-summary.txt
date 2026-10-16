@@ -1,0 +1,7 @@
+first command buffer: commit -> GPU start (ms), and first three summed; median [min..max]; request 1/2/3 = idle 3/10/40 s
+ kwb   req 1 (n=6): first    7.2 [6.3..8.0]   first3  552.5 [550.6..555.1]
+ kwb   req 2 (n=6): first    8.3 [7.0..8.7]   first3  555.3 [551.3..557.7]
+ kwb   req 3 (n=6): first    8.3 [7.0..9.8]   first3  555.9 [549.8..560.6]
+ rs    req 1 (n=6): first   10.0 [8.9..11.0]   first3  562.7 [557.6..564.4]
+ rs    req 2 (n=6): first   10.8 [9.5..14.3]   first3  563.7 [561.4..574.9]
+ rs    req 3 (n=6): first   11.3 [9.8..14.8]   first3  565.9 [560.5..578.2]

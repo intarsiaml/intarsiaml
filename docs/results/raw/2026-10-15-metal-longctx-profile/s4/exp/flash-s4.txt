@@ -1,0 +1,36 @@
+## flash-c512-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1617 666 20 100 61 5] clockok=0
+heads 32/8 head_dim 128, chunk 512, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                             3171.1    3168.5    3213.1    44.02
+## flash-c1024-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1617 1579 10 104 75 10] clockok=0
+heads 32/8 head_dim 128, chunk 1024, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                             6336.2    6323.0    6348.8    44.74
+## flash-c4096-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1124 1009 96 42 72 50] clockok=1
+heads 32/8 head_dim 128, chunk 4096, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                            31997.6   30638.8   37542.2    38.66
+## flash-c2048-p16384b attempt 1 clock(med p10 %<1450 W C n)=[1517 1342 32 93 81 19] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  16384 nax                            12843.0   12113.5   13822.1    45.48
+## flash-c2048-p38912 attempt 1 clock(med p10 %<1450 W C n)=[969 692 85 29 78 65] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 nax                            46814.5   40902.5   60874.9    28.62
+## flash-c2048-p8192 attempt 1 clock(med p10 %<1450 W C n)=[910 810 86 27 66 14] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 nax                            10958.6   10447.5   11633.7    28.22
+## flash-c2048-p63488 attempt 1 clock(med p10 %<1450 W C n)=[938 658 86 28 81 111] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  63488 nax                            80448.1   78345.7   97474.5    26.91
+## flash-c2048-p0 attempt 1 clock(med p10 %<1450 W C n)=[few-samples] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 nax                              684.0     683.0     684.7    50.26
+## flash-c2048-p30720 attempt 1 clock(med p10 %<1450 W C n)=[634 553 97 15 80 66] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  30720 nax                            54702.2   53247.2   59798.8    19.47

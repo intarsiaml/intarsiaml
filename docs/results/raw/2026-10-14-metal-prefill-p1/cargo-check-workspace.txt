@@ -1,0 +1,2 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a1247931a45f1aeb7/crates/intarsia-backend-metal)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.01s

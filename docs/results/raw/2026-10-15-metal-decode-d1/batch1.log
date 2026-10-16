@@ -1,0 +1,2 @@
+fleetq: #1918 waiting (#1 in line): endor is held exclusively by #1916 "metal F1: nax attn ablation bench" (claude-31e10c55)
+fleetq:   #1916 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1916 set, or it will wait for #1916 to be released.

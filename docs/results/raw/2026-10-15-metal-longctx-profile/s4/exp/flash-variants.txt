@@ -1,0 +1,96 @@
+## fv-attn_nax_d128_s4-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1617 1401 23 107 90 43] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4               30131.4   28824.0   32796.1    44.47
+## fv-attn_nax_d128_s8-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1503 1241 35 83 94 48] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8               32066.1   30864.6   36069.4    41.79
+## fv-attn_nax_d128_s16-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1527 1418 22 81 95 50] clockok=0
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s16              34374.1   33144.8   35497.1    38.98
+## fv-attn_nax_d128_s32-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1430 1182 51 40 96 114] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s32              80582.8   78120.6   81231.5    16.63
+## fv-attn_nax_d128_s4_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1242 1113 97 28 74 133] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4_k64           90825.1   87884.3   94143.7    14.75
+## fv-attn_nax_d128_s8_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1276 1186 97 28 71 136] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8_k64           92141.0   91420.6   96571.1    14.54
+## fv-attn_nax_d128_s8_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1370 1156 82 34 79 130] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8_k64           95490.9   87728.6   98199.3    14.03
+## fv-attn_nax_d128_s4_k64-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1244 1137 98 28 74 134] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4_k64           90486.6   87514.6   95704.6    14.81
+## fv-attn_nax_d128_s32-p38912 attempt 1 clock(med p10 %<1450 W C n)=[643 568 99 11 71 173] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s32             130667.8  115337.3  131471.7    10.26
+## fv-attn_nax_d128_s16-p38912 attempt 1 clock(med p10 %<1450 W C n)=[1042 852 90 31 79 67] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s16              48872.4   47695.6   53040.4    27.42
+## fv-attn_nax_d128_s8-p38912 attempt 1 clock(med p10 %<1450 W C n)=[853 708 97 24 70 75] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s8               48033.3   45444.2   60707.0    27.90
+## fv-attn_nax_d128_s4-p38912 attempt 1 clock(med p10 %<1450 W C n)=[885 665 88 26 80 69] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+  38912 attn_nax_d128_s4               50005.4   47094.5   60515.8    26.80
+## fv-attn_nax_d128_s4-p8192 attempt 1 clock(med p10 %<1450 W C n)=[964 692 93 30 66 14] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4               10179.8    9899.0   13212.1    30.38
+## fv-attn_nax_d128_s8-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1180 1143 92 45 71 12] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8                8481.8    8293.7    8603.9    36.46
+## fv-attn_nax_d128_s16-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1083 1014 92 36 71 13] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s16              10035.1    9487.7   10372.2    30.82
+## fv-attn_nax_d128_s32-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1133 856 70 26 75 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s32              19187.4   17366.5   21256.1    16.12
+## fv-attn_nax_d128_s4_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1326 1059 90 34 69 29] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4_k64           19384.8   18713.5   21047.0    15.95
+## fv-attn_nax_d128_s8_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1308 1238 74 32 71 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8_k64           20145.1   19371.4   21046.6    15.35
+## fv-attn_nax_d128_s8_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1474 1260 48 44 75 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8_k64           18964.9   17583.6   20462.4    16.31
+## fv-attn_nax_d128_s4_k64-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1338 1237 85 35 69 27] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4_k64           19297.6   18757.9   20053.1    16.03
+## fv-attn_nax_d128_s32-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1025 736 79 22 72 29] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s32              19755.2   18584.5   23540.8    15.65
+## fv-attn_nax_d128_s16-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1229 980 92 46 73 13] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s16               9070.2    8568.9   10700.3    34.10
+## fv-attn_nax_d128_s8-p8192 attempt 1 clock(med p10 %<1450 W C n)=[876 716 87 25 65 15] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s8               11350.1    9574.5   12850.8    27.25
+## fv-attn_nax_d128_s4-p8192 attempt 1 clock(med p10 %<1450 W C n)=[1226 1190 82 49 70 11] clockok=1
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 5 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+   8192 attn_nax_d128_s4                8229.1    7965.7    8411.2    37.58

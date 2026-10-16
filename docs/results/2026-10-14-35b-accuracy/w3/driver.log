@@ -1,0 +1,89 @@
+18:43:12 fleetq status:
+fleetq · 18:43:12 · last health check 4s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 48.3 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+18:43:12 lease 1716 held
+18:43:15 memory freed: 111 GB available
+18:43:15 running $HOME/intarsia-acc35b/scripts/w3run.sh (cap 16 min)
+MemAvailable 111 GB
+== 35b-short vs vLLM, baseline + envelope (16 min left) 18:43:15
+exit 1
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.271e-3 (need <= 3.0e-2) ok | tail mass ours 0.0173 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [4bit]: top-1 98.12% (not gated for this class) ok | 21-way KL 1.556e-2 (need <= 3.0e-2) ok | tail mass ours 0.0235 vs ref 0.0258, excess -0.0022 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+  failing per-prompt checks by k (information): k=0: 1 prompt(s) / 1 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+  failing per-prompt checks by k (information): k=0: 1 prompt(s) / 1 check(s), k=1: 1 prompt(s) / 1 check(s), k=2: 1 prompt(s) / 1 check(s) <- used, k=3: 1 prompt(s) / 1 check(s), k=5: 1 prompt(s) / 1 check(s), k=10: 1 prompt(s) /
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+golden gate: FAIL
+== 35b-short vs CPU dump, HEAD (15 min left) 18:43:59
+exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill vs the other build's logits (same weights):
+SELF-STATS mode=prefill positions=1441 mean_kl21=5.066948e-3 max_kl21=6.108180e-1 flips=21 flip_pct=1.4573 tail_abs=9.300809e-4 worst_prompt_kl21=3.204166e-2
+prefill self-golden => PASS
+decode (teacher-forced) vs the other build's logits (same weights):
+SELF-STATS mode=decode positions=160 mean_kl21=6.796001e-3 max_kl21=2.923630e-1 flips=2 flip_pct=1.2500 tail_abs=1.517952e-3 worst_prompt_kl21=2.540841e-2
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
+== 35b-short vs CPU dump, oldmoe (statistics) (14 min left) 18:44:50
+exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill vs the other build's logits (same weights):
+SELF-STATS mode=prefill positions=1441 mean_kl21=4.243022e-3 max_kl21=8.538907e-1 flips=20 flip_pct=1.3879 tail_abs=8.172139e-4 worst_prompt_kl21=5.235175e-2
+prefill self-golden => PASS
+decode (teacher-forced) vs the other build's logits (same weights):
+SELF-STATS mode=decode positions=160 mean_kl21=5.664582e-3 max_kl21=2.923630e-1 flips=3 flip_pct=1.8750 tail_abs=1.422681e-3 worst_prompt_kl21=2.540841e-2
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
+== 35b-short vs CPU dump, simt (statistics) (13 min left) 18:45:42
+exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill vs the other build's logits (same weights):
+SELF-STATS mode=prefill positions=1441 mean_kl21=4.437742e-3 max_kl21=4.498115e-1 flips=15 flip_pct=1.0409 tail_abs=9.353147e-4 worst_prompt_kl21=2.641357e-2
+prefill self-golden => PASS
+decode (teacher-forced) vs the other build's logits (same weights):
+SELF-STATS mode=decode positions=160 mean_kl21=5.407262e-3 max_kl21=2.637897e-1 flips=2 flip_pct=1.2500 tail_abs=8.245059e-4 worst_prompt_kl21=1.864462e-2
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
+== 35b-long vs vLLM, baseline + envelope, with dump (12 min left) 18:46:33
+exit 1
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 12064; prompts spanning more than one chunk: 5/5
+prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.273e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0029 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode (teacher-forced) floor [4bit]: top-1 96.56% (not gated for this class) ok | 21-way KL 9.138e-3 (need <= 3.0e-2) ok | tail mass ours 0.0232 vs ref 0.0230, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+  failing per-prompt checks by k (information): k=0: 1 prompt(s) / 1 check(s), k=1: 1 prompt(s) / 1 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: PASS
+golden gate: FAIL
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: PASS
+== 8B qwen3-8b-fp32 (7 min left) 18:52:05
+exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== 8B qwen3-8b-long-fp32 (6 min left) 18:53:01
+exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== w3 done 18:53:55, 5 min left
+18:53:55 script exit 0
+18:53:55 killing leftover processes of ours under ~/intarsia-acc35b
+18:53:58 starting missioncntrl-guidance and waiting for /v1/models
+18:57:46 vLLM is serving again
+18:57:46 releasing fleetq job 1716
+18:57:46 done (status 0)

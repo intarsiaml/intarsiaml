@@ -1,0 +1,74 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 0d44a1b..6e8d3a3 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1034,6 +1034,7 @@ name = "intarsia-core"
+ version = "0.0.1"
+ dependencies = [
+  "half",
++ "libc",
+  "serde",
+  "serde_json",
+  "thiserror 2.0.21",
+diff --git a/crates/intarsia-core/Cargo.toml b/crates/intarsia-core/Cargo.toml
+index 80dbb2e..19d3ab6 100644
+--- a/crates/intarsia-core/Cargo.toml
++++ b/crates/intarsia-core/Cargo.toml
+@@ -13,3 +13,4 @@ thiserror = { workspace = true }
+ serde = { workspace = true }
+ serde_json = { workspace = true }
+ half = { workspace = true }
++libc = { workspace = true }
+diff --git a/crates/intarsia-core/src/engine.rs b/crates/intarsia-core/src/engine.rs
+index 41a381b..ccbe5b4 100644
+--- a/crates/intarsia-core/src/engine.rs
++++ b/crates/intarsia-core/src/engine.rs
+@@ -749,7 +749,11 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
+     // Prefill all but the last chunk here so a cancel is noticed between chunks.
+     let chunk = model.prefill_chunk().max(1);
+     let mut pos = p;
++    let trace = std::env::var_os("INTARSIA_PREFILL_TRACE").is_some();
++    let cpu0 = thread_cpu_ms();
++    let mut chunk_ms: Vec<(f64, f64)> = Vec::new();
+     while plen - pos > chunk {
++        let (tw, tc) = (Instant::now(), thread_cpu_ms());
+         if cancelled() {
+             return Ok(cancel_outcome(cached));
+         }
+@@ -758,6 +762,9 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
+             _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
+         }
+         pos += chunk;
++        if trace {
++            chunk_ms.push((tw.elapsed().as_secs_f64() * 1e3, thread_cpu_ms() - tc));
++        }
+         st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+     }
+     if cancelled() {
+@@ -772,6 +779,15 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
+     }
+     let mut tok = pick(model, st, &req.prompt[pos..], 1, &mut sampler)?;
+     let prefill = t0.elapsed();
++    if trace {
++        let w: Vec<String> = chunk_ms.iter().map(|(w, c)| format!("{w:.0}/{c:.0}")).collect();
++        eprintln!(
++            "[prefill-trace] wall {:.0} ms, engine-thread cpu {:.0} ms; per-chunk wall/cpu ms: {}",
++            prefill.as_secs_f64() * 1e3,
++            thread_cpu_ms() - cpu0,
++            w.join(" ")
++        );
++    }
+     let t_dec = Instant::now();
+ 
+     let codec = &*sh.codec;
+@@ -841,3 +857,10 @@ fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEve
+         decode: t_dec.elapsed(),
+     })
+ }
++
++/// CPU time consumed by the calling thread, in ms (diagnostics).
++fn thread_cpu_ms() -> f64 {
++    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
++    unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut ts) };
++    ts.tv_sec as f64 * 1e3 + ts.tv_nsec as f64 / 1e6
++}

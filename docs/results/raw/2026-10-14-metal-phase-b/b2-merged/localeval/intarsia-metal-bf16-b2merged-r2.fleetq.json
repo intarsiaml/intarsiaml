@@ -1,0 +1,26 @@
+{
+  "id": 1844,
+  "state": "running",
+  "kind": "lease",
+  "owner": "claude-31e10c55",
+  "label": "metal B2 fusion localeval intarsia-metal-bf16-b2merged-r2",
+  "hosts": [
+    "endor"
+  ],
+  "mem_gb": 24.0,
+  "exclusive": true,
+  "uses": [],
+  "takes_down": [],
+  "created_at": 1792001560.6159182,
+  "started_at": 1792001560.6213403,
+  "ended_at": null,
+  "heartbeat_at": 1792001560.6213403,
+  "expect_s": 1200.0,
+  "command": "",
+  "reason": "",
+  "exit_code": null,
+  "note": "",
+  "mem_map": {},
+  "flags": [],
+  "roles_taken_down": []
+}

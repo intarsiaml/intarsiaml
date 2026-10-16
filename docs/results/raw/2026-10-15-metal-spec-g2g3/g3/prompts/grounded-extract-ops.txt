@@ -1,0 +1,35 @@
+Document:
+
+| radiance file / entry | purpose | dtypes | constraints | launch | our op / ik | adapter |
+|---|---|---|---|---|---|---|
+| `r4d_attn_paged_h128_gqa4.hip` / `r4d_attn_decode_h128_gqa4_bf16kv(const R4DArgs*, stream)`, `..._fp8kv`, `r4d_attn_decode_h128_gqa4_scratch_bytes(a)`, `r4d_attn_h128_gqa4_have_prefill()` (returns 0) | paged split-KV decode, head_dim 128, **4 q heads per KV head = exactly Qwen3-8B (32 q / 8 kv, hd 128)**; sliding-window bit available (`R4DArgs.window`, 0 = none) | q bf16, kv bf16 or fp8 e4m3 (+`k_descale`/`v_descale`), out bf16 | `q_len*gqa <= 64` (`B_MAX_DECODE_ROWS`); block_size 16; **no prefill instantiation** (file header says decode only on purpose) | grid `(splits, kv_heads, num_seqs)`; `splits=0` lets the split law pick; scratch = f16 partials, size from `*_scratch_bytes` | `attn_decode` -> `ik_attn_decode_bf16_splitkv` (exactly the scratch-taking variant) | fill `R4DArgs` (q,kv,block_table,seqused_k,out,scratch,num_seqs=1,q_len,q_heads=32,kv_heads=8,head_dim=128,block_size=16,max_blocks,strides,scale,splits=0,max_ctx,window=0,causal=1); `KernelImpl::scratch` = `r4d_attn_decode_h128_gqa4_scratch_bytes`; `seqused_k` is a **device** int32 holding `pos0+T`, so the plan needs a tiny per-step device buffer updated by the host (or by a one-thread kernel); needs the paged KV of section 2 option A. |
+| `r4d_attn_prefill_h256_gqa6.hip` (+ `r4d_attn_decode_h256_gqa6.hip`) templates; `r4d_attn_paged_gqa8.hip` instantiates **h128 and h64 prefill at gqa 8** (`r4d_rad_attn_prefill_h128_gqa...`) | query-tiled prefill kernel, templated on head_dim and gqa | bf16/fp8 kv | tile = `NWARPS(16)/gqa` query positions per block | per `R4DArgs` | `attn_prefill` -> `ik_attn_prefill_bf16_flash` / `_splitkv` | **Port work, not a drop-in for Qwen3-8B**: add an `h128/gqa4` instantiation of the prefill template (the h128 case already exists for gqa8, so the head_dim path is exercised; only the gqa constant and the tile-per-block rule change). Until then prefill falls back to our own `native` pack attention. |
+| `r4d_attn_paged_gqa8.hip` / `r4d_attn_decode_h256_gqa8` family (macro `GQ_SYM`), prefill `h256_gqa8` | the Qwen3.6-35B-A3B full-attention layers: 16 q over 2 kv, head_dim 256 (file header names this model) | as above | gqa exactly 8 | as above | `attn_prefill`, `attn_decode` (35B) | same adapter as above with `head_dim=256, gqa=8`; GGUF header confirms `head_count 16, head_count_kv 2, key_length 256`. |
+
+### 3.3 Small bf16 ops (`r4d_model_bf16.hip`, "the ten small bf16 ops the engine issues between the GEMMs")
+
+These exist only as `__global__` kernels plus row shims in this one 1616-line file; there is no `r4d.h` entry. Port =
+copy the kernel + write a 10-line launcher each. File header: arithmetic is deliberately equal to radiance's CPU
+reference `libref` (f32 accumulate, bf16 round-to-nearest-even store, **negative index = padding, writes zero /
+skips store**).
+
+| kernel | purpose / semantics | constraints | our op | adapter notes |
+|---|---|---|---|---|
+| `embed_lookup_kernel` | gather rows of the embedding table | negative id -> zero row; optional `mult`, `vocab_offset` (vocab-parallel) | `embedding` / `ik_embedding_bf16` | ours treats ids as valid; keep the padding rule (it is stricter, harmless). Table stride args. |
+| `rmsnorm_kernel<WF32,THR>` | `y = x * rsqrt(mean(x^2)+eps) * (w + wadd)`, two passes, f32 accumulate; gain f32 or bf16 (template) | `x_ld`, `y_ld` strides; n = 256 (a QK head) or hidden | `rmsnorm` (`w_offset` == `wadd`), also **`qk_norm`** by launching with rows = tokens*heads, n = head_dim | exact semantic match for `ik_rmsnorm_bf16` (`scale = w + w_offset`). Choose `WF32` from the weight dtype (Qwen3-8B norm weights are bf16). `rmsnorm_add` (ours fused: `sum=x+res`, `out=rmsnorm(sum)*w`) is **not** a radiance kernel; write it on top of this one (radiance composes `add` + `rmsnorm`). |
+| `binary_kernel` | elementwise add / mul | | `add` / `ik_add_bf16` | trivial |
+| `sigmoid_kernel` | sigmoid | | part of `sigmoid_mul` | radiance has no fused `a*sigmoid(g)` here; the Qwen3.5-style gate is folded into `r4d_qk_norm_rope_gate.hip` / the GDN gated norm. Ours stays a separate small kernel. |
+| `silu_mul_kernel` | `y = silu(gu[:, :n]) * gu[:, n:2n]` (kSiluPer=4 elements/thread, split over grid.y) | **takes the fused gate_up row**, gate = first half | `silu_glu` / `ik_silu_glu_bf16` (ours: separate `gate[T,I]`, `up[T,I]`) | change the kernel to take two row pointers (3-line edit), or fuse gate/up weights at load. Fusing at load halves GEMM launches (radiance does this in `rad-convert`) and is the better long-term choice; needs a recipe/loader change, so list as phase 2. |
+| `rope_kernel` | in-place rotary over a fused `[n_head + 2*n_kv]` head row (V heads untouched); NeoX (`i`,`i+half`) or GPT-J; partial `rot`; mrope/imrope/axial modes via `plane`-strided positions; YaRN | positions are an **int32 array `pos[M]`**, not a scalar; `rot` may be < head_dim | `rope` / `ik_rope_bf16` (scalar `pos0`, separate `out`, `theta`, `rotary_dim`) | adapter writes `pos0..pos0+T-1` into plan scratch (tiny `iota` kernel or host-built buffer) and aliases out==x (copy first if out != x). Qwen3 uses NeoX with `rotary_dim = head_dim = 128`, theta 1e6 (Qwen3-8B `rope_theta` in `config.json`). |
+| `kv_store_kernel` / `kv_store_fp8_kernel` | scatter K,V into the paged cache via `slot_mapping` (negative = padding), bf16 or e4m3 | block 16 | `kv_append` / `ik_kv_append_bf16` | consistent with option A; `slot_mapping[t] = pos0+t` under an identity block table. |
+| `fill_kernel` | memset-like fill | | glue | not needed |
+| `gather_rows_*`, `scatter_rows_u8_*` | row gather/scatter (MoE/n-gram) | | | later (MoE) |
+
+### 3.4 Sampling
+
+| entry | purpose | our op | note |
+|---|---|---|---|
+| `r4d_sample_chain_f32(logits, query, u, out, ...)` (`r4d_sample_chain_f32.hip`): one workgroup per position: temperature, softmax, top_k, top_p, min_p, renormalise, draw, plus greedy-draft rejection-sampling outputs | `sample` | vLLM order; temperature 0 keeps lowest-id tie-break. Our op takes explicit `u[R]` f32, which maps onto its `u` argument. |
+| `r4d_rad_sample_{temp,mask,penalties,dry,argmax,topk,topp,minp,typical,xtc,...}` (`r4d_sample_stages_f32.hip`, `RadSampleParams` rows) | decomposed 11-op chain | `argmax`, `sample` | `argmax`/`ik_argmax_f32` needs only the argmax stage; tie rule (lowest id) equals ours. Entry layer is the row shim (UNVERIFIED whether a plain-pointer variant exists; port kernel body). |
+
+Extract every kernel or operation named in this section into a JSON array of objects with the keys "kernel", "purpose" and "notes", copying the wording from the document. Output only the JSON.

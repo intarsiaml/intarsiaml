@@ -1,0 +1,178 @@
+temp before kernel-4096: 70 C
+temp before kernel-16384: 65 C
+temp before kernel-32764: 71 C
+temp before kernel-40000: 71 C
+temp before cb-4096: 84 C
+  cooled to 69 C after 10 s
+temp before cb-16384: 76 C
+temp before cb-32764: 84 C
+  cooled to 67 C after 10 s
+temp before cb-40000: 67 C
+temp before plain-4096-r1: 85 C
+  cooled to 67 C after 10 s
+temp before plain-16384-r1: 72 C
+temp before plain-32764-r1: 73 C
+temp before plain-40000-r1: 73 C
+temp before plain-4096-r2: 74 C
+temp before plain-16384-r2: 72 C
+temp before plain-32764-r2: 74 C
+temp before plain-40000-r2: 74 C
+temp before plain-4096-r3: 74 C
+temp before plain-16384-r3: 72 C
+temp before plain-32764-r3: 73 C
+temp before plain-40000-r3: 72 C
+temp before flash c2048: 63 C
+temp before kernel-32768: 65 C
+temp before kernel-32768: 64 C
+temp before cb-32768: 67 C
+temp before cb-32768: 75 C
+  cooled to 59 C after 10 s
+temp before attn_bw-128-a1: 72 C
+  cooled to 58 C after 10 s
+temp before attn_bw-128-a2: 57 C
+temp before attn_bw-128-a3: 57 C
+temp before attn_bw-1024-a1: 57 C
+temp before attn_bw-1024-a2: 57 C
+temp before attn_bw-1024-a3: 57 C
+temp before attn_bw-4096-a1: 57 C
+temp before attn_bw-4096-a2: 57 C
+temp before attn_bw-4096-a3: 56 C
+temp before attn_bw-8192-a1: 56 C
+temp before attn_bw-8192-a2: 57 C
+temp before attn_bw-8192-a3: 57 C
+temp before attn_bw-16384-a1: 57 C
+temp before attn_bw-16384-a2: 56 C
+temp before attn_bw-16384-a3: 55 C
+temp before attn_bw-32768-a1: 54 C
+temp before attn_bw-32768-a2: 53 C
+temp before attn_bw-32768-a3: 53 C
+temp before attn_bw-40000-a1: 53 C
+temp before attn_bw-40000-a2: 52 C
+temp before attn_bw-40000-a3: 50 C
+temp before attn_bw-65536-a1: 52 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx4096-c2048-r1-a1: 54 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx4096-c2048-r1-a2: 60 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx4096-c2048-r1-a3: 63 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx16384-c2048-r1-a1: 66 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx32768-c2048-r1-a1: 75 C
+  cooled to 63 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx32768-c2048-r1-a2: 85 C
+  cooled to 69 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx32768-c2048-r1-a3: 87 C
+  cooled to 70 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx40000-c2048-r1-a1: 84 C
+  cooled to 65 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s2/plain/ctx40000-c2048-r1-a2: 74 C
+  cooled to 61 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r1-a1: 64 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r1-a2: 65 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r1-a3: 67 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r1-a1: 68 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r1-a2: 71 C
+  cooled to 59 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r1-a3: 70 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r1-a1: 72 C
+  cooled to 59 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r1-a2: 74 C
+  cooled to 60 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r1-a3: 74 C
+  cooled to 60 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r1-a1: 74 C
+  cooled to 60 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r1-a2: 75 C
+  cooled to 61 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r1-a3: 76 C
+  cooled to 61 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx4096-c2048-r2-a1: 76 C
+  cooled to 60 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r2-a1: 68 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r2-a2: 72 C
+  cooled to 59 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx16384-c2048-r2-a3: 69 C
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r2-a1: 73 C
+  cooled to 59 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r2-a2: 74 C
+  cooled to 60 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx32768-c2048-r2-a3: 74 C
+  cooled to 59 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r2-a1: 74 C
+  cooled to 60 C after 10 s
+temp before /opt/code/intarsiaml-longctx/docs/results/raw/2026-10-15-metal-longctx-profile/s3/plain/ctx40000-c2048-r2-a2: 75 C
+temp before kernel-32768: 63 C
+temp before kernel-32768: 68 C
+temp before cb-32768: 72 C
+  cooled to 59 C after 10 s
+temp before flash-c512-p16384b-a1: 74 C
+  cooled to 59 C after 10 s
+temp before flash-c1024-p16384b-a1: 60 C
+temp before flash-c4096-p16384b-a1: 74 C
+  cooled to 55 C after 10 s
+temp before flash-c2048-p16384b-a1: 70 C
+temp before sweep-40000-128,120-a1: 80 C
+  cooled to 56 C after 10 s
+temp before sweep-40000-128,60-a1: 55 C
+temp before sweep-40000-128,240-a1: 54 C
+temp before sweep-40000-128,360-a1: 53 C
+temp before sweep-40000-128,512-a1: 52 C
+temp before sweep-40000-256,120-a1: 51 C
+temp before sweep-40000-128,120-a1: 51 C
+temp before sweep-16384-128,120-a1: 51 C
+temp before sweep-16384-128,60-a1: 51 C
+temp before sweep-16384-128,240-a1: 51 C
+temp before sweep-16384-128,360-a1: 51 C
+temp before sweep-16384-128,512-a1: 50 C
+temp before sweep-16384-256,120-a1: 50 C
+temp before sweep-16384-128,120-a1: 50 C
+temp before fv-attn_nax_d128_s4-p38912-a1: 77 C
+  cooled to 59 C after 10 s
+temp before fv-attn_nax_d128_s8-p38912-a1: 87 C
+  cooled to 67 C after 10 s
+temp before fv-attn_nax_d128_s16-p38912-a1: 92 C
+  cooled to 68 C after 20 s
+temp before fv-attn_nax_d128_s32-p38912-a1: 94 C
+  cooled to 69 C after 20 s
+temp before fv-attn_nax_d128_s4_k64-p38912-a1: 96 C
+  cooled to 66 C after 20 s
+temp before fv-attn_nax_d128_s8_k64-p38912-a1: 71 C
+  cooled to 59 C after 10 s
+temp before fv-attn_nax_d128_s8_k64-p38912-a1: 70 C
+temp before fv-attn_nax_d128_s4_k64-p38912-a1: 73 C
+  cooled to 63 C after 10 s
+temp before fv-attn_nax_d128_s32-p38912-a1: 73 C
+  cooled to 62 C after 10 s
+temp before fv-attn_nax_d128_s16-p38912-a1: 70 C
+temp before fv-attn_nax_d128_s8-p38912-a1: 73 C
+  cooled to 62 C after 10 s
+temp before fv-attn_nax_d128_s4-p38912-a1: 69 C
+temp before fv-attn_nax_d128_s4-p8192-a1: 72 C
+  cooled to 60 C after 10 s
+temp before fv-attn_nax_d128_s8-p8192-a1: 65 C
+temp before fv-attn_nax_d128_s16-p8192-a1: 70 C
+temp before fv-attn_nax_d128_s32-p8192-a1: 70 C
+temp before fv-attn_nax_d128_s4_k64-p8192-a1: 73 C
+  cooled to 60 C after 10 s
+temp before fv-attn_nax_d128_s8_k64-p8192-a1: 69 C
+temp before fv-attn_nax_d128_s8_k64-p8192-a1: 70 C
+temp before fv-attn_nax_d128_s4_k64-p8192-a1: 73 C
+  cooled to 59 C after 10 s
+temp before fv-attn_nax_d128_s32-p8192-a1: 68 C
+temp before fv-attn_nax_d128_s16-p8192-a1: 70 C
+temp before fv-attn_nax_d128_s8-p8192-a1: 72 C
+  cooled to 58 C after 10 s
+temp before fv-attn_nax_d128_s4-p8192-a1: 64 C
+temp before flash-c2048-p38912-a1: 69 C
+temp before flash-c2048-p8192-a1: 71 C
+  cooled to 59 C after 10 s
+temp before flash-c2048-p63488-a1: 66 C
+temp before flash-c2048-p0-a1: 72 C
+  cooled to 67 C after 10 s
+temp before flash-c2048-p30720-a1: 67 C
+temp before g-40000-s4: 75 C
+  cooled to 70 C after 10 s
+temp before g-40000-s16: 73 C
+  cooled to 61 C after 10 s
+temp before g-40000-s4_k64: 71 C
+  cooled to 58 C after 10 s
+temp before g-40000-s8: 73 C
+  cooled to 60 C after 10 s
+temp before g-40000-s8_k64: 71 C

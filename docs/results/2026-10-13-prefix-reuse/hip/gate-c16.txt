@@ -1,0 +1,27 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+count              continue      19     54      34      0     32/32  ok
+count              restore       19     38      19      0     32/32  ok
+count              aligned       16     38      16      0     32/32  ok
+story              continue      19     55      34      0     28/32  ok (rounding tie at token 28: warm took 9324 cold took 5710; shared rows differ by 0.143 (before) / 0.100 (here) nats of log-probability, KL up to 3.3e-3; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.125, cold margin 0.051)
+story              restore       19     39      19      0     32/32  ok
+story              aligned       16     39      16      0     32/32  ok
+code               continue      40     96      55      0     32/32  ok
+code               restore       40     80      40      0     32/32  ok
+code               aligned       32     80      32      0     32/32  ok
+science            continue      39     95      54      0      9/32  ok (rounding tie at token 9: warm took 4354 cold took 576; shared rows differ by 0.092 (before) / 0.048 (here) nats of log-probability, KL up to 6.5e-4; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.012, cold margin 0.000; legacy criterion (>= 16 leading tokens): FAIL)
+science            restore       39     79      39      0     32/32  ok
+science            aligned       32     79      32      0     32/32  ok
+chat_short         both      skipped: split 9 is below one prefill chunk (16): nothing to reuse across chunk boundaries
+chat_system        continue      16     48      31      0     32/32  ok
+chat_system        restore       16     32      16      0     32/32  ok
+chat_multiturn     continue      29     74      44      0     32/32  ok
+chat_multiturn     restore       29     58      29      0     32/32  ok
+chat_multiturn     aligned       16     58      16      0     32/32  ok
+chat_reasoning     continue      45    106      60      0     32/32  ok
+chat_reasoning     restore       45     90      45      0     32/32  ok
+chat_reasoning     aligned       32     90      32      0     32/32  ok
+prefix-reuse gate: PASS
+golden gate: PASS
+rc=0

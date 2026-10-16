@@ -1,0 +1,214 @@
+18:33:06 fleetq status:
+fleetq · 18:33:06 · last health check 28s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 48 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+18:33:06 lease 1705 held
+18:33:08 memory freed: 111 GB available
+18:33:08 running $HOME/intarsia-acc35b/scripts/w2.sh (cap 8 min)
+MemAvailable 111 GB
+== MoE small-T sweep (8 min left) 18:33:09
+exit 0
+test moe_experts_mma_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 new 0.0014; rel_l2 old 8.005e-5 new 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 new 0.0025; rel_l2 old 1.123e-4 new 1.751e-4
+test moe_experts_mma_small_t_sweep ... SWEEP seed=  1 T=  32: off-reference old 0.0153 % mma 0.0336 %; rel_l2 old 4.516e-5 mma 5.397e-5; max ulp old 8 mma 32
+SWEEP seed=  1 T=  33: off-reference old 0.0311 % mma 0.5075 %; rel_l2 old 6.060e-5 mma 2.577e-4; max ulp old 8 mma 14720 BREACH repeat-bitwise=true max-pairs/expert=9 ex
+SWEEP seed=  1 T=  34: off-reference old 0.0287 % mma 0.0158 %; rel_l2 old 5.097e-5 mma 3.664e-5; max ulp old 4 mma 64
+SWEEP seed=  1 T=  35: off-reference old 0.1381 % mma 0.0419 %; rel_l2 old 1.224e-4 mma 7.427e-5; max ulp old 316 mma 32
+SWEEP seed=  1 T=  40: off-reference old 0.0391 % mma 0.1624 %; rel_l2 old 6.179e-5 mma 1.489e-4; max ulp old 32 mma 29048
+SWEEP seed=  1 T=  41: off-reference old 0.0322 % mma 0.2846 %; rel_l2 old 5.262e-5 mma 1.907e-4; max ulp old 64 mma 64 BREACH repeat-bitwise=true max-pairs/expert=10 exp
+SWEEP seed=  1 T=  42: off-reference old 0.0372 % mma 0.0326 %; rel_l2 old 5.516e-5 mma 6.109e-5; max ulp old 32 mma 8
+SWEEP seed=  1 T=  48: off-reference old 0.1038 % mma 0.2228 %; rel_l2 old 1.108e-4 mma 1.454e-4; max ulp old 29584 mma 104
+SWEEP seed=  1 T=  49: off-reference old 0.0518 % mma 0.0508 %; rel_l2 old 5.650e-5 mma 7.754e-5; max ulp old 16 mma 8
+SWEEP seed=  1 T=  57: off-reference old 0.0128 % mma 0.0728 %; rel_l2 old 3.232e-5 mma 7.414e-5; max ulp old 2 mma 8
+SWEEP seed=  1 T=  63: off-reference old 0.0767 % mma 0.1263 %; rel_l2 old 9.842e-5 mma 1.534e-4; max ulp old 16 mma 96
+SWEEP seed=  1 T=  64: off-reference old 0.1068 % mma 0.2808 %; rel_l2 old 1.233e-4 mma 1.940e-4; max ulp old 76 mma 64
+SWEEP seed=  2 T=  32: off-reference old 0.7874 % mma 0.3738 %; rel_l2 old 3.070e-4 mma 1.994e-4; max ulp old 29184 mma 14848
+SWEEP seed=  2 T=  33: off-reference old 0.3965 % mma 0.4143 %; rel_l2 old 2.355e-4 mma 2.370e-4; max ulp old 288 mma 288
+SWEEP seed=  2 T=  34: off-reference old 0.0373 % mma 0.1221 %; rel_l2 old 7.098e-5 mma 1.100e-4; max ulp old 32 mma 400
+SWEEP seed=  2 T=  35: off-reference old 0.0767 % mma 0.0614 %; rel_l2 old 7.912e-5 mma 7.140e-5; max ulp old 16 mma 8
+SWEEP seed=  2 T=  40: off-reference old 0.1111 % mma 0.1233 %; rel_l2 old 1.499e-4 mma 1.578e-4; max ulp old 16 mma 16
+SWEEP seed=  2 T=  41: off-reference old 0.0476 % mma 0.0929 %; rel_l2 old 9.843e-5 mma 1.181e-4; max ulp old 64 mma 60
+SWEEP seed=  2 T=  42: off-reference old 0.0407 % mma 0.0930 %; rel_l2 old 7.288e-5 mma 8.865e-5; max ulp old 16 mma 12
+SWEEP seed=  2 T=  48: off-reference old 0.0671 % mma 0.1190 %; rel_l2 old 9.888e-5 mma 1.150e-4; max ulp old 32 mma 89
+SWEEP seed=  2 T=  49: off-reference old 0.0588 % mma 0.1525 %; rel_l2 old 1.094e-4 mma 1.347e-4; max ulp old 64 mma 128
+SWEEP seed=  2 T=  57: off-reference old 0.0317 % mma 0.1336 %; rel_l2 old 6.006e-5 mma 1.090e-4; max ulp old 29440 mma 150
+SWEEP seed=  2 T=  63: off-reference old 0.0302 % mma 0.0651 %; rel_l2 old 6.196e-5 mma 8.704e-5; max ulp old 32 mma 323
+SWEEP seed=  2 T=  64: off-reference old 0.0595 % mma 0.0656 %; rel_l2 old 8.964e-5 mma 7.344e-5; max ulp old 64 mma 8
+SWEEP seed=  3 T=  32: off-reference old 0.0336 % mma 0.3235 %; rel_l2 old 7.806e-5 mma 2.058e-4; max ulp old 8 mma 16 BREACH repeat-bitwise=true max-pairs/expert=11 expe
+SWEEP seed=  3 T=  33: off-reference old 0.0370 % mma 0.3255 %; rel_l2 old 7.770e-5 mma 1.947e-4; max ulp old 16 mma 14848 BREACH repeat-bitwise=true max-pairs/expert=8 e
+SWEEP seed=  3 T=  34: off-reference old 0.1192 % mma 0.0862 %; rel_l2 old 1.166e-4 mma 9.851e-5; max ulp old 29912 mma 8
+SWEEP seed=  3 T=  35: off-reference old 0.0237 % mma 0.2344 %; rel_l2 old 6.711e-5 mma 1.271e-4; max ulp old 16 mma 64
+SWEEP seed=  3 T=  40: off-reference old 0.0342 % mma 0.1648 %; rel_l2 old 7.872e-5 mma 1.333e-4; max ulp old 4 mma 128
+SWEEP seed=  3 T=  41: off-reference old 0.0750 % mma 0.2346 %; rel_l2 old 9.005e-5 mma 2.031e-4; max ulp old 8 mma 16
+SWEEP seed=  3 T=  42: off-reference old 0.2209 % mma 0.1755 %; rel_l2 old 1.911e-4 mma 1.734e-4; max ulp old 14720 mma 14720
+SWEEP seed=  3 T=  48: off-reference old 0.0519 % mma 0.0692 %; rel_l2 old 6.527e-5 mma 7.866e-5; max ulp old 144 mma 33
+SWEEP seed=  3 T=  49: off-reference old 0.0399 % mma 0.0438 %; rel_l2 old 6.628e-5 mma 6.642e-5; max ulp old 16 mma 16
+SWEEP seed=  3 T=  57: off-reference old 0.1739 % mma 0.4326 %; rel_l2 old 1.256e-4 mma 2.647e-4; max ulp old 52 mma 29672
+SWEEP seed=  3 T=  63: off-reference old 0.0550 % mma 0.3387 %; rel_l2 old 9.365e-5 mma 2.377e-4; max ulp old 128 mma 256 BREACH repeat-bitwise=true max-pairs/expert=14 e
+SWEEP seed=  3 T=  64: off-reference old 0.1106 % mma 0.0732 %; rel_l2 old 1.265e-4 mma 9.466e-5; max ulp old 182 mma 29
+SWEEP seed=  4 T=  32: off-reference old 0.0153 % mma 0.0275 %; rel_l2 old 4.128e-5 mma 5.093e-5; max ulp old 4 mma 16
+SWEEP seed=  4 T=  33: off-reference old 0.0237 % mma 0.0473 %; rel_l2 old 4.691e-5 mma 5.228e-5; max ulp old 4 mma 160
+SWEEP seed=  4 T=  34: off-reference old 0.0144 % mma 0.1005 %; rel_l2 old 5.211e-5 mma 1.137e-4; max ulp old 32 mma 64
+SWEEP seed=  4 T=  35: off-reference old 0.1102 % mma 0.4143 %; rel_l2 old 1.276e-4 mma 2.544e-4; max ulp old 32 mma 64 BREACH repeat-bitwise=true max-pairs/expert=9 expe
+SWEEP seed=  4 T=  40: off-reference old 0.0232 % mma 0.0586 %; rel_l2 old 5.552e-5 mma 6.622e-5; max ulp old 264 mma 14848
+SWEEP seed=  4 T=  41: off-reference old 0.1143 % mma 0.0762 %; rel_l2 old 1.012e-4 mma 7.424e-5; max ulp old 16 mma 29936
+SWEEP seed=  4 T=  42: off-reference old 0.0081 % mma 0.0372 %; rel_l2 old 4.337e-5 mma 5.707e-5; max ulp old 2 mma 29024
+SWEEP seed=  4 T=  48: off-reference old 0.1109 % mma 0.1109 %; rel_l2 old 1.061e-4 mma 1.013e-4; max ulp old 74 mma 136
+SWEEP seed=  4 T=  49: off-reference old 0.0448 % mma 0.0877 %; rel_l2 old 7.086e-5 mma 1.077e-4; max ulp old 8 mma 93
+SWEEP seed=  4 T=  57: off-reference old 0.0882 % mma 0.1653 %; rel_l2 old 1.005e-4 mma 1.469e-4; max ulp old 351 mma 64
+SWEEP seed=  4 T=  63: off-reference old 0.2077 % mma 0.1643 %; rel_l2 old 1.675e-4 mma 1.615e-4; max ulp old 30160 mma 30160
+SWEEP seed=  4 T=  64: off-reference old 0.0351 % mma 0.3128 %; rel_l2 old 7.081e-5 mma 2.206e-4; max ulp old 32 mma 14592 BREACH repeat-bitwise=true max-pairs/expert=15 
+SWEEP seed=  5 T=  32: off-reference old 0.1465 % mma 0.3677 %; rel_l2 old 1.392e-4 mma 2.154e-4; max ulp old 29438 mma 29640
+SWEEP seed=  5 T=  33: off-reference old 0.0518 % mma 0.0355 %; rel_l2 old 5.774e-5 mma 1.024e-4; max ulp old 128 mma 128
+SWEEP seed=  5 T=  34: off-reference old 0.0259 % mma 0.0302 %; rel_l2 old 2.503e-5 mma 4.133e-5; max ulp old 288 mma 288
+SWEEP seed=  5 T=  35: off-reference old 0.2804 % mma 0.1828 %; rel_l2 old 1.805e-4 mma 1.706e-4; max ulp old 27 mma 152
+SWEEP seed=  5 T=  40: off-reference old 0.0403 % mma 0.2222 %; rel_l2 old 1.083e-4 mma 1.401e-4; max ulp old 94 mma 14720
+SWEEP seed=  5 T=  41: off-reference old 0.0048 % mma 0.0107 %; rel_l2 old 1.436e-5 mma 4.085e-5; max ulp old 4 mma 4 BREACH repeat-bitwise=true max-pairs/expert=10 exper
+SWEEP seed=  5 T=  42: off-reference old 0.0128 % mma 0.0163 %; rel_l2 old 2.353e-5 mma 4.213e-5; max ulp old 29392 mma 29392
+SWEEP seed=  5 T=  48: off-reference old 0.0417 % mma 0.1872 %; rel_l2 old 6.800e-5 mma 1.770e-4; max ulp old 64 mma 29682 BREACH repeat-bitwise=true max-pairs/expert=13 
+SWEEP seed=  5 T=  49: off-reference old 0.0428 % mma 0.0648 %; rel_l2 old 7.213e-5 mma 8.562e-5; max ulp old 32 mma 64
+SWEEP seed=  5 T=  57: off-reference old 0.0188 % mma 0.1730 %; rel_l2 old 4.606e-5 mma 1.397e-4; max ulp old 16 mma 14720 BREACH repeat-bitwise=true max-pairs/expert=14 
+SWEEP seed=  5 T=  63: off-reference old 0.1287 % mma 0.2155 %; rel_l2 old 1.175e-4 mma 1.581e-4; max ulp old 49 mma 29424
+SWEEP seed=  5 T=  64: off-reference old 0.0244 % mma 0.2304 %; rel_l2 old 4.004e-5 mma 1.807e-4; max ulp old 8 mma 64 BREACH repeat-bitwise=true max-pairs/expert=15 expe
+SWEEP seed=  6 T=  32: off-reference old 0.0244 % mma 0.3845 %; rel_l2 old 4.728e-5 mma 1.980e-4; max ulp old 4 mma 64 BREACH repeat-bitwise=true max-pairs/expert=9 exper
+SWEEP seed=  6 T=  33: off-reference old 0.0414 % mma 0.0858 %; rel_l2 old 5.837e-5 mma 1.103e-4; max ulp old 8 mma 8
+SWEEP seed=  6 T=  34: off-reference old 0.1178 % mma 0.2226 %; rel_l2 old 1.117e-4 mma 1.338e-4; max ulp old 184 mma 184
+SWEEP seed=  6 T=  35: off-reference old 0.0656 % mma 0.0098 %; rel_l2 old 8.659e-5 mma 3.166e-5; max ulp old 32 mma 4
+SWEEP seed=  6 T=  40: off-reference old 0.0024 % mma 0.0537 %; rel_l2 old 8.787e-6 mma 5.936e-5; max ulp old 16 mma 8 BREACH repeat-bitwise=true max-pairs/expert=10 expe
+SWEEP seed=  6 T=  41: off-reference old 0.0202 % mma 0.0988 %; rel_l2 old 4.571e-5 mma 8.922e-5; max ulp old 16 mma 16
+SWEEP seed=  6 T=  42: off-reference old 0.1767 % mma 0.3476 %; rel_l2 old 1.682e-4 mma 2.217e-4; max ulp old 132 mma 132
+SWEEP seed=  6 T=  48: off-reference old 0.1221 % mma 0.0315 %; rel_l2 old 1.437e-4 mma 6.666e-5; max ulp old 77 mma 8
+SWEEP seed=  6 T=  49: off-reference old 0.2262 % mma 0.1006 %; rel_l2 old 1.920e-4 mma 9.477e-5; max ulp old 168 mma 64
+SWEEP seed=  6 T=  57: off-reference old 0.0917 % mma 0.1122 %; rel_l2 old 1.108e-4 mma 1.428e-4; max ulp old 29792 mma 29792
+SWEEP seed=  6 T=  63: off-reference old 0.0868 % mma 0.0930 %; rel_l2 old 1.035e-4 mma 9.752e-5; max ulp old 16 mma 16
+SWEEP seed=  6 T=  64: off-reference old 0.0488 % mma 0.0519 %; rel_l2 old 9.461e-5 mma 6.852e-5; max ulp old 16 mma 10
+SWEEP seed=  7 T=  32: off-reference old 0.0275 % mma 0.1709 %; rel_l2 old 5.551e-5 mma 1.645e-4; max ulp old 4 mma 112 BREACH repeat-bitwise=true max-pairs/expert=10 exp
+SWEEP seed=  7 T=  33: off-reference old 0.0148 % mma 0.0311 %; rel_l2 old 5.101e-5 mma 3.967e-5; max ulp old 8 mma 8
+SWEEP seed=  7 T=  34: off-reference old 0.0689 % mma 0.0819 %; rel_l2 old 1.051e-4 mma 1.158e-4; max ulp old 16 mma 16
+SWEEP seed=  7 T=  35: off-reference old 0.0321 % mma 0.1158 %; rel_l2 old 5.445e-5 mma 1.139e-4; max ulp old 128 mma 32
+SWEEP seed=  7 T=  40: off-reference old 0.1001 % mma 0.1941 %; rel_l2 old 1.013e-4 mma 1.580e-4; max ulp old 138 mma 32
+SWEEP seed=  7 T=  41: off-reference old 0.1000 % mma 0.5657 %; rel_l2 old 1.082e-4 mma 2.703e-4; max ulp old 16 mma 64 BREACH repeat-bitwise=true max-pairs/expert=9 expe
+SWEEP seed=  7 T=  42: off-reference old 0.0326 % mma 0.3046 %; rel_l2 old 8.054e-5 mma 2.106e-4; max ulp old 40 mma 64 BREACH repeat-bitwise=true max-pairs/expert=10 exp
+SWEEP seed=  7 T=  48: off-reference old 0.1068 % mma 0.2045 %; rel_l2 old 1.118e-4 mma 1.596e-4; max ulp old 32 mma 80
+SWEEP seed=  7 T=  49: off-reference old 0.0309 % mma 0.0518 %; rel_l2 old 6.181e-5 mma 7.361e-5; max ulp old 28 mma 40
+SWEEP seed=  7 T=  57: off-reference old 0.1533 % mma 0.2938 %; rel_l2 old 1.185e-4 mma 2.101e-4; max ulp old 59 mma 112
+SWEEP seed=  7 T=  63: off-reference old 0.0271 % mma 0.0457 %; rel_l2 old 7.984e-5 mma 8.560e-5; max ulp old 32 mma 8
+SWEEP seed=  7 T=  64: off-reference old 0.0313 % mma 0.0870 %; rel_l2 old 5.355e-5 mma 9.847e-5; max ulp old 192 mma 33
+SWEEP seed=  8 T=  32: off-reference old 0.0565 % mma 0.0305 %; rel_l2 old 9.725e-5 mma 6.064e-5; max ulp old 64 mma 32
+SWEEP seed=  8 T=  33: off-reference old 0.0089 % mma 0.0281 %; rel_l2 old 2.215e-5 mma 4.792e-5; max ulp old 8 mma 8
+SWEEP seed=  8 T=  34: off-reference old 0.0086 % mma 0.1120 %; rel_l2 old 2.181e-5 mma 1.340e-4; max ulp old 16 mma 192 BREACH repeat-bitwise=true max-pairs/expert=11 ex
+SWEEP seed=  8 T=  35: off-reference old 0.0377 % mma 0.3223 %; rel_l2 old 5.670e-5 mma 1.887e-4; max ulp old 192 mma 192 BREACH repeat-bitwise=true max-pairs/expert=10 e
+SWEEP seed=  8 T=  40: off-reference old 0.0256 % mma 0.1978 %; rel_l2 old 4.483e-5 mma 1.546e-4; max ulp old 32 mma 128 BREACH repeat-bitwise=true max-pairs/expert=10 ex
+SWEEP seed=  8 T=  41: off-reference old 0.1798 % mma 0.1929 %; rel_l2 old 1.610e-4 mma 1.650e-4; max ulp old 120 mma 85
+SWEEP seed=  8 T=  42: off-reference old 0.0186 % mma 0.0825 %; rel_l2 old 5.586e-5 mma 9.895e-5; max ulp old 8 mma 32
+SWEEP seed=  8 T=  48: off-reference old 0.0610 % mma 0.1058 %; rel_l2 old 1.000e-4 mma 1.176e-4; max ulp old 32 mma 64
+SWEEP seed=  8 T=  49: off-reference old 0.0070 % mma 0.1246 %; rel_l2 old 3.271e-5 mma 1.300e-4; max ulp old 1 mma 128 BREACH repeat-bitwise=true max-pairs/expert=13 exp
+SWEEP seed=  8 T=  57: off-reference old 0.0788 % mma 0.3161 %; rel_l2 old 8.058e-5 mma 1.966e-4; max ulp old 29172 mma 128 BREACH repeat-bitwise=true max-pairs/expert=14
+SWEEP seed=  8 T=  63: off-reference old 0.0233 % mma 0.0729 %; rel_l2 old 5.464e-5 mma 1.018e-4; max ulp old 6 mma 8
+SWEEP seed=  8 T=  64: off-reference old 0.1968 % mma 0.1953 %; rel_l2 old 1.395e-4 mma 1.515e-4; max ulp old 288 mma 88
+SWEEP seed=  9 T=  32: off-reference old 0.0473 % mma 0.1770 %; rel_l2 old 6.061e-5 mma 1.427e-4; max ulp old 4 mma 32
+SWEEP seed=  9 T=  33: off-reference old 0.0651 % mma 0.0533 %; rel_l2 old 8.673e-5 mma 7.875e-5; max ulp old 9 mma 16
+SWEEP seed=  9 T=  34: off-reference old 0.1953 % mma 0.1867 %; rel_l2 old 1.482e-4 mma 1.462e-4; max ulp old 32 mma 32
+SWEEP seed=  9 T=  35: off-reference old 0.1702 % mma 0.0809 %; rel_l2 old 1.394e-4 mma 1.118e-4; max ulp old 64 mma 16
+SWEEP seed=  9 T=  40: off-reference old 0.0330 % mma 0.0476 %; rel_l2 old 4.982e-5 mma 5.659e-5; max ulp old 192 mma 8
+SWEEP seed=  9 T=  41: off-reference old 0.0786 % mma 0.0917 %; rel_l2 old 1.207e-4 mma 9.198e-5; max ulp old 64 mma 8
+SWEEP seed=  9 T=  42: off-reference old 0.1372 % mma 0.1581 %; rel_l2 old 1.197e-4 mma 1.283e-4; max ulp old 64 mma 64
+SWEEP seed=  9 T=  48: off-reference old 0.0041 % mma 0.1017 %; rel_l2 old 1.528e-5 mma 9.712e-5; max ulp old 2 mma 288 BREACH repeat-bitwise=true max-pairs/expert=12 exp
+SWEEP seed=  9 T=  49: off-reference old 0.1335 % mma 0.0628 %; rel_l2 old 1.327e-4 mma 8.535e-5; max ulp old 16 mma 74
+SWEEP seed=  9 T=  57: off-reference old 0.2347 % mma 0.2724 %; rel_l2 old 1.748e-4 mma 1.843e-4; max ulp old 144 mma 144
+SWEEP seed=  9 T=  63: off-reference old 0.2155 % mma 0.0938 %; rel_l2 old 1.412e-4 mma 1.008e-4; max ulp old 29632 mma 29632
+SWEEP seed=  9 T=  64: off-reference old 0.2342 % mma 0.0389 %; rel_l2 old 1.768e-4 mma 6.596e-5; max ulp old 128 mma 8
+SWEEP seed= 10 T=  32: off-reference old 0.0336 % mma 0.0443 %; rel_l2 old 7.653e-5 mma 8.585e-5; max ulp old 8 mma 8
+SWEEP seed= 10 T=  33: off-reference old 0.0148 % mma 0.1228 %; rel_l2 old 3.973e-5 mma 1.128e-4; max ulp old 2 mma 32 BREACH repeat-bitwise=true max-pairs/expert=9 exper
+SWEEP seed= 10 T=  34: off-reference old 0.0158 % mma 0.0345 %; rel_l2 old 3.287e-5 mma 5.444e-5; max ulp old 80 mma 80
+SWEEP seed= 10 T=  35: off-reference old 0.0014 % mma 0.1660 %; rel_l2 old 1.383e-5 mma 1.534e-4; max ulp old 1 mma 80 BREACH repeat-bitwise=true max-pairs/expert=8 exper
+SWEEP seed= 10 T=  40: off-reference old 0.0500 % mma 0.1294 %; rel_l2 old 7.299e-5 mma 1.434e-4; max ulp old 64 mma 16
+SWEEP seed= 10 T=  41: off-reference old 0.0822 % mma 0.1215 %; rel_l2 old 8.545e-5 mma 1.108e-4; max ulp old 142 mma 8
+SWEEP seed= 10 T=  42: off-reference old 0.0233 % mma 0.0546 %; rel_l2 old 5.388e-5 mma 7.807e-5; max ulp old 37 mma 8
+SWEEP seed= 10 T=  48: off-reference old 0.1587 % mma 0.1048 %; rel_l2 old 1.524e-4 mma 9.861e-5; max ulp old 23 mma 32
+SWEEP seed= 10 T=  49: off-reference old 0.0518 % mma 0.0777 %; rel_l2 old 8.362e-5 mma 9.865e-5; max ulp old 8 mma 64
+SWEEP seed= 10 T=  57: off-reference old 0.2039 % mma 0.1388 %; rel_l2 old 1.534e-4 mma 1.271e-4; max ulp old 14592 mma 29376
+SWEEP seed= 10 T=  63: off-reference old 0.0806 % mma 0.3387 %; rel_l2 old 9.872e-5 mma 2.256e-4; max ulp old 32 mma 192 BREACH repeat-bitwise=true max-pairs/expert=14 ex
+SWEEP seed= 10 T=  64: off-reference old 0.2083 % mma 0.1526 %; rel_l2 old 1.656e-4 mma 1.673e-4; max ulp old 400 mma 64
+SWEEP seed= 11 T=  32: off-reference old 0.2075 % mma 0.1358 %; rel_l2 old 1.525e-4 mma 1.331e-4; max ulp old 32 mma 32
+SWEEP seed= 11 T=  33: off-reference old 0.0059 % mma 0.0562 %; rel_l2 old 2.219e-5 mma 7.923e-5; max ulp old 2 mma 16 BREACH repeat-bitwise=true max-pairs/expert=10 expe
+SWEEP seed= 11 T=  34: off-reference old 0.5227 % mma 0.1537 %; rel_l2 old 2.516e-4 mma 1.371e-4; max ulp old 32 mma 32
+SWEEP seed= 11 T=  35: off-reference old 0.0684 % mma 0.4339 %; rel_l2 old 1.055e-4 mma 2.346e-4; max ulp old 64 mma 29376 BREACH repeat-bitwise=true max-pairs/expert=10 
+SWEEP seed= 11 T=  40: off-reference old 0.0378 % mma 0.2698 %; rel_l2 old 5.944e-5 mma 1.820e-4; max ulp old 16 mma 160 BREACH repeat-bitwise=true max-pairs/expert=10 ex
+SWEEP seed= 11 T=  41: off-reference old 0.1608 % mma 0.2549 %; rel_l2 old 1.227e-4 mma 1.813e-4; max ulp old 240 mma 240
+SWEEP seed= 11 T=  42: off-reference old 0.1616 % mma 0.1953 %; rel_l2 old 1.226e-4 mma 1.433e-4; max ulp old 40 mma 40
+SWEEP seed= 11 T=  48: off-reference old 0.0529 % mma 0.0854 %; rel_l2 old 9.286e-5 mma 1.014e-4; max ulp old 16 mma 16
+SWEEP seed= 11 T=  49: off-reference old 0.0319 % mma 0.0488 %; rel_l2 old 6.934e-5 mma 9.009e-5; max ulp old 8 mma 32
+SWEEP seed= 11 T=  57: off-reference old 0.0925 % mma 0.1576 %; rel_l2 old 1.043e-4 mma 1.279e-4; max ulp old 48 mma 14720
+SWEEP seed= 11 T=  63: off-reference old 0.1310 % mma 0.0767 %; rel_l2 old 1.187e-4 mma 9.020e-5; max ulp old 64 mma 50
+SWEEP seed= 11 T=  64: off-reference old 0.0755 % mma 0.0427 %; rel_l2 old 7.997e-5 mma 6.247e-5; max ulp old 128 mma 128
+SWEEP seed= 12 T=  32: off-reference old 0.0977 % mma 0.0259 %; rel_l2 old 1.198e-4 mma 7.644e-5; max ulp old 288 mma 8
+SWEEP seed= 12 T=  33: off-reference old 0.0710 % mma 0.0873 %; rel_l2 old 1.106e-4 mma 9.149e-5; max ulp old 4 mma 64
+SWEEP seed= 12 T=  34: off-reference old 0.1738 % mma 0.3648 %; rel_l2 old 1.621e-4 mma 1.976e-4; max ulp old 96 mma 29440
+SWEEP seed= 12 T=  35: off-reference old 0.0879 % mma 0.1228 %; rel_l2 old 1.107e-4 mma 1.462e-4; max ulp old 29816 mma 32
+SWEEP seed= 12 T=  40: off-reference old 0.0317 % mma 0.0244 %; rel_l2 old 4.361e-5 mma 4.527e-5; max ulp old 113 mma 113
+SWEEP seed= 12 T=  41: off-reference old 0.0917 % mma 0.0548 %; rel_l2 old 1.246e-4 mma 8.421e-5; max ulp old 32 mma 61
+SWEEP seed= 12 T=  42: off-reference old 0.0581 % mma 0.0291 %; rel_l2 old 8.443e-5 mma 7.390e-5; max ulp old 24 mma 8
+SWEEP seed= 12 T=  48: off-reference old 0.0183 % mma 0.0926 %; rel_l2 old 4.905e-5 mma 1.402e-4; max ulp old 8 mma 32 BREACH repeat-bitwise=true max-pairs/expert=12 expe
+SWEEP seed= 12 T=  49: off-reference old 0.0917 % mma 0.1196 %; rel_l2 old 1.222e-4 mma 1.274e-4; max ulp old 8 mma 16
+SWEEP seed= 12 T=  57: off-reference old 0.1139 % mma 0.0857 %; rel_l2 old 1.149e-4 mma 1.074e-4; max ulp old 35 mma 16
+SWEEP seed= 12 T=  63: off-reference old 0.1248 % mma 0.0829 %; rel_l2 old 1.018e-4 mma 1.013e-4; max ulp old 64 mma 14976
+SWEEP seed= 12 T=  64: off-reference old 0.1160 % mma 0.0755 %; rel_l2 old 9.752e-5 mma 9.511e-5; max ulp old 128 mma 29664
+SWEEP seed= 13 T=  32: off-reference old 0.0092 % mma 0.2640 %; rel_l2 old 2.184e-5 mma 1.931e-4; max ulp old 16 mma 400 BREACH repeat-bitwise=true max-pairs/expert=9 exp
+SWEEP seed= 13 T=  33: off-reference old 0.0533 % mma 0.0163 %; rel_l2 old 6.178e-5 mma 4.448e-5; max ulp old 88 mma 32
+SWEEP seed= 13 T=  34: off-reference old 0.0316 % mma 0.2815 %; rel_l2 old 8.513e-5 mma 2.125e-4; max ulp old 4 mma 30204
+SWEEP seed= 13 T=  35: off-reference old 0.0405 % mma 0.2455 %; rel_l2 old 8.448e-5 mma 1.819e-4; max ulp old 16 mma 29376
+SWEEP seed= 13 T=  40: off-reference old 0.2209 % mma 0.9351 %; rel_l2 old 1.667e-4 mma 3.618e-4; max ulp old 8 mma 29664 BREACH repeat-bitwise=true max-pairs/expert=9 ex
+SWEEP seed= 13 T=  41: off-reference old 0.0417 % mma 0.0595 %; rel_l2 old 5.631e-5 mma 7.749e-5; max ulp old 21 mma 21
+SWEEP seed= 13 T=  42: off-reference old 0.0837 % mma 0.0709 %; rel_l2 old 8.735e-5 mma 6.525e-5; max ulp old 32 mma 16
+SWEEP seed= 13 T=  48: off-reference old 0.0529 % mma 0.0336 %; rel_l2 old 7.891e-5 mma 6.958e-5; max ulp old 32 mma 32
+SWEEP seed= 13 T=  49: off-reference old 0.2481 % mma 0.1853 %; rel_l2 old 2.032e-4 mma 1.448e-4; max ulp old 400 mma 64
+SWEEP seed= 13 T=  57: off-reference old 0.0300 % mma 0.2056 %; rel_l2 old 3.586e-5 mma 1.758e-4; max ulp old 16 mma 176 BREACH repeat-bitwise=true max-pairs/expert=11 ex
+SWEEP seed= 13 T=  63: off-reference old 0.0667 % mma 0.1062 %; rel_l2 old 1.070e-4 mma 1.198e-4; max ulp old 64 mma 64
+SWEEP seed= 13 T=  64: off-reference old 0.0229 % mma 0.0694 %; rel_l2 old 5.137e-5 mma 8.575e-5; max ulp old 16 mma 16
+SWEEP seed= 14 T=  32: off-reference old 0.0702 % mma 0.0473 %; rel_l2 old 9.381e-5 mma 9.842e-5; max ulp old 29480 mma 64
+SWEEP seed= 14 T=  33: off-reference old 0.0148 % mma 0.0799 %; rel_l2 old 3.027e-5 mma 8.891e-5; max ulp old 2 mma 240 BREACH repeat-bitwise=true max-pairs/expert=10 exp
+SWEEP seed= 14 T=  34: off-reference old 0.0732 % mma 0.0488 %; rel_l2 old 6.952e-5 mma 8.041e-5; max ulp old 64 mma 16
+SWEEP seed= 14 T=  35: off-reference old 0.0335 % mma 0.0530 %; rel_l2 old 5.283e-5 mma 6.675e-5; max ulp old 16 mma 8
+SWEEP seed= 14 T=  40: off-reference old 0.0403 % mma 0.0305 %; rel_l2 old 9.118e-5 mma 4.786e-5; max ulp old 16 mma 16
+SWEEP seed= 14 T=  41: off-reference old 0.1024 % mma 0.0786 %; rel_l2 old 9.995e-5 mma 1.007e-4; max ulp old 16 mma 32
+SWEEP seed= 14 T=  42: off-reference old 0.1290 % mma 0.2453 %; rel_l2 old 1.159e-4 mma 1.832e-4; max ulp old 32 mma 64
+SWEEP seed= 14 T=  48: off-reference old 0.0214 % mma 0.1170 %; rel_l2 old 7.598e-5 mma 1.298e-4; max ulp old 4 mma 32
+SWEEP seed= 14 T=  49: off-reference old 0.0708 % mma 0.2720 %; rel_l2 old 9.877e-5 mma 1.770e-4; max ulp old 344 mma 64
+SWEEP seed= 14 T=  57: off-reference old 0.0385 % mma 0.3778 %; rel_l2 old 7.646e-5 mma 2.382e-4; max ulp old 32 mma 56 BREACH repeat-bitwise=true max-pairs/expert=13 exp
+SWEEP seed= 14 T=  63: off-reference old 0.0891 % mma 0.0961 %; rel_l2 old 1.031e-4 mma 9.522e-5; max ulp old 120 mma 64
+SWEEP seed= 14 T=  64: off-reference old 0.0259 % mma 0.0740 %; rel_l2 old 4.920e-5 mma 8.744e-5; max ulp old 8 mma 40
+SWEEP seed= 15 T=  32: off-reference old 0.0168 % mma 0.0259 %; rel_l2 old 5.525e-5 mma 7.929e-5; max ulp old 16 mma 4
+SWEEP seed= 15 T=  33: off-reference old 0.0888 % mma 0.2486 %; rel_l2 old 1.192e-4 mma 2.080e-4; max ulp old 32 mma 176
+SWEEP seed= 15 T=  34: off-reference old 0.0287 % mma 0.0259 %; rel_l2 old 5.620e-5 mma 7.137e-5; max ulp old 2 mma 4
+SWEEP seed= 15 T=  35: off-reference old 0.0558 % mma 0.1311 %; rel_l2 old 9.185e-5 mma 1.234e-4; max ulp old 64 mma 64
+SWEEP seed= 15 T=  40: off-reference old 0.0208 % mma 0.0635 %; rel_l2 old 4.900e-5 mma 7.405e-5; max ulp old 4 mma 8
+SWEEP seed= 15 T=  41: off-reference old 0.1810 % mma 0.2263 %; rel_l2 old 1.963e-4 mma 1.837e-4; max ulp old 30200 mma 33
+SWEEP seed= 15 T=  42: off-reference old 0.0058 % mma 0.0337 %; rel_l2 old 1.744e-5 mma 6.643e-5; max ulp old 2 mma 32 BREACH repeat-bitwise=true max-pairs/expert=10 expe
+SWEEP seed= 15 T=  48: off-reference old 0.1424 % mma 0.0519 %; rel_l2 old 1.562e-4 mma 9.575e-5; max ulp old 112 mma 112
+SWEEP seed= 15 T=  49: off-reference old 0.0189 % mma 0.3179 %; rel_l2 old 4.491e-5 mma 2.126e-4; max ulp old 7 mma 192 BREACH repeat-bitwise=true max-pairs/expert=12 exp
+SWEEP seed= 15 T=  57: off-reference old 0.1782 % mma 0.2313 %; rel_l2 old 1.424e-4 mma 1.733e-4; max ulp old 64 mma 16
+SWEEP seed= 15 T=  63: off-reference old 0.0217 % mma 0.0380 %; rel_l2 old 5.140e-5 mma 6.810e-5; max ulp old 32 mma 288
+SWEEP seed= 15 T=  64: off-reference old 0.0504 % mma 0.0870 %; rel_l2 old 7.186e-5 mma 9.924e-5; max ulp old 32 mma 48
+SWEEP seed= 16 T=  32: off-reference old 0.0107 % mma 0.1373 %; rel_l2 old 2.270e-5 mma 1.679e-4; max ulp old 2 mma 240 BREACH repeat-bitwise=true max-pairs/expert=9 expe
+SWEEP seed= 16 T=  33: off-reference old 0.1524 % mma 0.1435 %; rel_l2 old 1.250e-4 mma 1.440e-4; max ulp old 136 mma 8
+SWEEP seed= 16 T=  34: off-reference old 0.0388 % mma 0.0373 %; rel_l2 old 7.438e-5 mma 9.663e-5; max ulp old 14 mma 32
+SWEEP seed= 16 T=  35: off-reference old 0.0056 % mma 0.1032 %; rel_l2 old 2.334e-5 mma 1.022e-4; max ulp old 2 mma 16 BREACH repeat-bitwise=true max-pairs/expert=10 expe
+SWEEP seed= 16 T=  40: off-reference old 0.0598 % mma 0.0525 %; rel_l2 old 8.332e-5 mma 8.118e-5; max ulp old 15 mma 15
+SWEEP seed= 16 T=  41: off-reference old 0.0357 % mma 0.0512 %; rel_l2 old 6.869e-5 mma 9.748e-5; max ulp old 32 mma 128
+SWEEP seed= 16 T=  42: off-reference old 0.0105 % mma 0.0488 %; rel_l2 old 4.023e-5 mma 8.076e-5; max ulp old 8 mma 32
+SWEEP seed= 16 T=  48: off-reference old 0.0437 % mma 0.1556 %; rel_l2 old 5.211e-5 mma 1.227e-4; max ulp old 32 mma 64
+SWEEP seed= 16 T=  49: off-reference old 0.0199 % mma 0.0947 %; rel_l2 old 2.935e-5 mma 9.309e-5; max ulp old 4 mma 64 BREACH repeat-bitwise=true max-pairs/expert=12 expe
+SWEEP seed= 16 T=  57: off-reference old 0.0300 % mma 0.1850 %; rel_l2 old 6.565e-5 mma 1.318e-4; max ulp old 8 mma 240
+SWEEP seed= 16 T=  63: off-reference old 0.2062 % mma 0.1953 %; rel_l2 old 1.680e-4 mma 1.442e-4; max ulp old 64 mma 14336
+SWEEP seed= 16 T=  64: off-reference old 0.0267 % mma 0.2922 %; rel_l2 old 4.446e-5 mma 2.126e-4; max ulp old 16 mma 198 BREACH repeat-bitwise=true max-pairs/expert=16 ex
+SWEEP done: 192 cases, 40 break the bounds of moe_experts_mma_is_as_accurate_as_old_kernel
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 59.18s
+== w1 done 18:34:08, 7 min left
+18:34:08 script exit 0
+18:34:08 killing leftover processes of ours under ~/intarsia-acc35b
+18:34:12 starting missioncntrl-guidance and waiting for /v1/models
+18:37:29 vLLM is serving again
+18:37:29 releasing fleetq job 1705
+18:37:29 done (status 0)

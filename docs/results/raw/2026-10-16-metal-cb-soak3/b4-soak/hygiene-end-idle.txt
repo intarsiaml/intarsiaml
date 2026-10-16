@@ -1,0 +1,19 @@
+--- end-idle 13:26:48
+gpu_usage [253, 0.0016624608542770147] gpu_power 0.01 sys_power 13.7
+gpu_usage [253, 0.0017979939002543688] gpu_power 0.01 sys_power 10.3
+gpu_usage [169, 0.001636485569179058] gpu_power 0.01 sys_power 12.0
+10099 215.7 694416    16:54:56 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd
+88901  16.7 406112 02-17:48:26 /Applications/Syrtis.app/Contents/MacOS/Syrtis
+25718  16.7   9072    17:22:57 macmon
+ 2572  10.2 2065680 19-19:19:27 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+17746   5.5 550592       48:34 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+87301   3.7 187952 01-19:29:25 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+22540   2.7 628672       47:09 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+98591   1.7 428800 01-05:59:45 /usr/libexec/hybridsearchd
+13571   1.0  74848 07-16:04:28 /Applications/Herdr.app/Contents/MacOS/Herdr
+  692   0.9  56656 19-19:33:54 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+52223   0.8 324544 01-00:33:01 /usr/libexec/spotlightknowledged.updater
+ 2902   0.7  89952 19-19:19:23 /Library/SystemExtensions/5EBCF999-5BAB-4656-8545-C8A4EC8A003D/io.tailscale.ipn.macsys.network-extension.systemextensio
+vm.swapusage: total = 11264.00M  used = 10392.50M  free = 871.50M  (encrypted)
+leftover servers: none
+tracked: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;

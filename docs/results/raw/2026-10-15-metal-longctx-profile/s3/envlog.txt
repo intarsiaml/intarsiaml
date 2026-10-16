@@ -1,0 +1,84 @@
+== warm2 12:11:02
+load averages: 2.35 2.52 3.77
+21.4 /Users/josef/bin/macmon | 14.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 5.6 /usr/sbin/coreaudiod | 5.5 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 3.5 /Users/josef/Library/Application Support/Claude/claude-code/ | 
+"Device Utilization %"=2
+== ctx4096-c2048-r1-a1 12:11:05
+load averages: 2.48 2.54 3.77
+626.4 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python | 89.2 /Applications/OrbStack.app/Contents/MacOS/OrbStack | 37.0 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 25.1 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Help | 16.7 /Users/josef/bin/macmon | 
+"Device Utilization %"=98
+== ctx4096-c2048-r1-a2 12:11:11
+load averages: 2.68 2.58 3.78
+53.1 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 25.9 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 17.7 /Users/josef/bin/macmon | 9.3 /Users/josef/Library/Application Support/Claude/claude-code/ | 9.2 /System/Volumes/Preboot/Cryptexes/App/System/Applications/Sa | 
+"Device Utilization %"=99
+== ctx4096-c2048-r1-a3 12:11:16
+load averages: 2.79 2.60 3.78
+100.0 /bin/sh | 27.8 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 27.0 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 26.6 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 19.6 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.f | 
+"Device Utilization %"=99
+== ctx16384-c2048-r1-a1 12:11:22
+load averages: 2.72 2.59 3.77
+16.5 /Users/josef/bin/macmon | 13.1 /System/Library/Frameworks/CoreServices.framework/Versions/A | 6.2 /Users/josef/Library/Application Support/Claude/claude-code/ | 4.8 /usr/sbin/coreaudiod | 4.5 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 
+"Device Utilization %"=99
+== ctx16384-c2048-r1-a2 12:11:44
+load averages: 3.08 2.69 3.77
+98.8 /bin/sh | 18.4 /Users/josef/bin/macmon | 5.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 3.4 /usr/sbin/coreaudiod | 1.6 /Applications/Syrtis.app/Contents/MacOS/Syrtis | 
+"Device Utilization %"=98
+== ctx16384-c2048-r1-a3 12:11:55
+load averages: 2.91 2.67 3.75
+16.6 /Users/josef/bin/macmon | 15.3 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 6.3 /bin/sh | 5.6 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 4.6 /usr/sbin/coreaudiod | 
+"Device Utilization %"=99
+== ctx32768-c2048-r1-a1 12:12:17
+load averages: 2.89 2.67 3.72
+39.8 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 33.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 18.1 /Users/josef/bin/macmon | 4.8 /usr/sbin/coreaudiod | 4.6 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Help | 
+"Device Utilization %"=97
+== ctx32768-c2048-r1-a2 12:12:51
+load averages: 2.63 2.64 3.67
+18.6 /Users/josef/bin/macmon | 11.2 /Users/josef/Library/Application Support/Claude/claude-code/ | 6.9 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 5.5 /Applications/Herdr.app/Contents/MacOS/Herdr | 5.3 /usr/sbin/coreaudiod | 
+"Device Utilization %"=99
+== ctx32768-c2048-r1-a3 12:13:25
+load averages: 2.25 2.54 3.59
+99.1 /bin/sh | 15.8 /Users/josef/bin/macmon | 5.4 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Help | 3.5 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 3.3 /usr/sbin/coreaudiod | 
+"Device Utilization %"=99
+== ctx40000-c2048-r1-a1 12:13:58
+load averages: 2.00 2.44 3.51
+98.8 /bin/sh | 15.9 /Users/josef/bin/macmon | 12.6 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 6.1 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 3.3 /usr/sbin/coreaudiod | 
+"Device Utilization %"=98
+== ctx40000-c2048-r1-a2 12:14:40
+load averages: 2.57 2.53 3.49
+67.9 /System/Library/Frameworks/CoreServices.framework/Versions/A | 18.9 /Users/josef/bin/macmon | 8.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 8.1 /Applications/Herdr.app/Contents/MacOS/Herdr | 5.3 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 
+"Device Utilization %"=99
+== ctx40000-c2048-r1-a3 12:15:21
+load averages: 2.54 2.54 3.45
+99.1 /bin/sh | 16.5 /Users/josef/bin/macmon | 11.7 /usr/libexec/coreduetd | 11.2 /Users/josef/Library/Application Support/Claude/claude-code/ | 10.0 /System/Library/Frameworks/CoreServices.framework/Versions/A | 
+"Device Utilization %"=99
+== ctx4096-c2048-r2-a1 12:16:02
+load averages: 2.51 2.53 3.40
+29.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 19.3 /Users/josef/bin/macmon | 7.7 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 7.7 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 6.9 /usr/libexec/runningboardd | 
+"Device Utilization %"=99
+== ctx16384-c2048-r2-a1 12:16:07
+load averages: 2.38 2.50 3.39
+99.6 /bin/sh | 82.0 /Applications/OrbStack.app/Contents/MacOS/OrbStack | 40.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 17.1 /Users/josef/bin/macmon | 7.2 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 
+"Device Utilization %"=98
+== ctx16384-c2048-r2-a2 12:16:29
+load averages: 2.67 2.56 3.38
+21.0 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 19.9 /Users/josef/bin/macmon | 17.3 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 9.6 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 5.6 /usr/sbin/coreaudiod | 
+"Device Utilization %"=98
+== ctx16384-c2048-r2-a3 12:16:41
+load averages: 2.78 2.59 3.38
+96.4 /bin/sh | 16.9 /Users/josef/bin/macmon | 15.9 /System/Library/PrivateFrameworks/CloudKitDaemon.framework/S | 10.8 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 10.5 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 
+"Device Utilization %"=99
+== ctx32768-c2048-r2-a1 12:17:03
+load averages: 2.92 2.63 3.38
+19.3 /Users/josef/bin/macmon | 13.3 /bin/sh | 5.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 5.4 /usr/sbin/coreaudiod | 4.2 /Applications/Herdr.app/Contents/MacOS/Herdr | 
+"Device Utilization %"=97
+== ctx32768-c2048-r2-a2 12:17:37
+load averages: 3.15 2.72 3.38
+220.9 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python | 97.9 /bin/sh | 44.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 31.7 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 15.8 /Users/josef/bin/macmon | 
+"Device Utilization %"=98
+== ctx32768-c2048-r2-a3 12:18:11
+load averages: 2.59 2.63 3.32
+91.9 /bin/sh | 19.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 16.4 /Users/josef/bin/macmon | 6.2 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 4.1 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio | 
+"Device Utilization %"=99
+== ctx40000-c2048-r2-a1 12:18:44
+load averages: 2.31 2.57 3.27
+19.6 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCSe | 18.4 /Users/josef/bin/macmon | 13.1 /Users/josef/Library/Application Support/Claude/claude-code/ | 10.0 /System/Library/PrivateFrameworks/SkyLight.framework/Resourc | 6.2 /Applications/Herdr.app/Contents/MacOS/Herdr | 
+"Device Utilization %"=99

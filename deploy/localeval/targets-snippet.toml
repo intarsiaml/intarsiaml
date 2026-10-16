@@ -1,0 +1,42 @@
+# Paste into /opt/code/deepeval/targets.toml (or merge by hand) to benchmark the IntarsiaML
+# engine with `localeval`. Conventions follow the existing spark-* entries.
+#
+# The engine runs on spark1 (host name spark-4e77), port 8090. Port 8000 is the production vLLM
+# (guidance/capcom roles): never point this entry at it. The server must live inside the same fleetq
+# lease as the benchmark (localeval then runs with FLEETQ_JOB set and does not queue behind it):
+#   fleetq run --host spark1 --exclusive --mem 24 --label "intarsiaml bench" -- \
+#       deploy/localeval/serve-and-bench.sh --mem-budget 24 -- \
+#       uv run --project /opt/code/deepeval localeval speed spark-intarsia
+# See docs/benchmarking.md.
+
+[targets.spark-intarsia]
+url = "http://spark-4e77:8090/v1"
+model = "Qwen3-8B"        # the id reported by GET /v1/models (--model-id, default: model directory name)
+host = "spark-4e77"
+engine = "IntarsiaML"
+thinking = "off"          # IntarsiaML applies the chat template as given; no server-side reasoning preset
+thinking_style = "chat_template_kwargs"
+structured = "prompt"     # Phase 0 server has no response_format / json_schema support
+bandwidth_gbs = 221       # measured on the GB10 (unanimis 6a7efe40)
+gb_per_token = 16.4       # Qwen3-8B bf16 weights (~16.4 GB) read once per decoded token
+notes = "IntarsiaML engine, Qwen3-8B bf16, CUDA sm_121; not fleet-role traffic, take a fleetq slot (localeval does)"
+
+# Phase 1a/1b: Qwen3.6-35B-A3B NVFP4 (the checkpoint vLLM serves as "guidance"). Single-sequence
+# engine, so use concurrency 1 only (requests queue FIFO behind one worker). Start the server with
+#   intarsia serve --backend cuda --model $S1_35B --port 8090 --served-model-name intarsia-35b \
+#       --max-seq 8192 --mem-budget 38
+# inside a lease taken with `--exclusive --uses guidance` when it is compared against vLLM.
+# Ad-hoc equivalent (no targets.toml edit needed):
+#   uv run localeval speed --url http://spark-4e77:8090/v1 --model intarsia-35b --thinking off \
+#       --sizes 128,1024,4096 --gen 128 --reps 5 --label intarsia-35b
+[targets.spark-intarsia-35b]
+url = "http://spark-4e77:8090/v1"
+model = "intarsia-35b"    # --served-model-name
+host = "spark-4e77"
+engine = "IntarsiaML"
+thinking = "off"
+thinking_style = "chat_template_kwargs"
+structured = "prompt"
+bandwidth_gbs = 221
+gb_per_token = 2.2        # bytes read per decoded token counted from the checkpoint layout (docs/results/2026-10-12-phase1a.md 3.3)
+notes = "IntarsiaML engine, Qwen3.6-35B-A3B NVFP4, CUDA sm_121; single sequence; take a fleetq slot (localeval does), --uses guidance when vLLM runs beside it"

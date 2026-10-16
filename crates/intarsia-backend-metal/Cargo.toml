@@ -1,0 +1,24 @@
+[package]
+name = "intarsia-backend-metal"
+description = "Metal backend (macOS, Apple GPU): AOT .metallib kernels (kernels/metal), shared-storage buffers, zero-copy mmap weights. Spike."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[dependencies]
+intarsia-core = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-metal = "0.3"
+libc = { workspace = true }
+dispatch2 = "0.3"
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+half = { workspace = true }
+memmap2 = { workspace = true }
+serde_json = { workspace = true }

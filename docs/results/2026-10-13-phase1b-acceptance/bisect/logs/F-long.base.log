@@ -1,0 +1,41 @@
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors (5 prompts, 36887 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden_4k.jsonl", "golden_12k.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 not gated, 21-way KL <= 3.0e-2, |tail excess| <= 0.02
+prefill chunk 256; longest prompt 12064; prompts spanning more than one chunk: 5/5
+this build: head 9d27c01 code-tree f712bb76ddc3 dirty
+baseline recorded from: head 4963b43 code-tree 59c9b247fd19 dirty + harness overlay [crates/intarsia-cli/src/cmd/accuracy.rs, crates/intarsia-cli/src/cmd/accuracy/baseline.rs, crates/intarsia-cli/src/cmd/accuracy/provenance.rs, crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs]
+differences from the baseline's run (kernels per op, flags): matmul_fp8: matmul_fp8_gemv+matmul_fp8_mma -> matmul_fp8_gemm+matmul_fp8_gemv+matmul_fp8_mma; matmul_nvfp4: matmul_nvfp4_gemv+matmul_nvfp4_mma -> matmul_nvfp4_gemm+matmul_nvfp4_gemv+matmul_nvfp4_mma; moe_experts: moe_experts_bf16 -> moe_experts_bf16+moe_experts_decode_bf16+moe_experts_mma_bf16
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.670e-2   1.611e-2   1.655e-1   0.0185   0.0203    89.69     44/64      0
+long_code_4k        4064    64    92.19   1.333e-2   1.063e-2   2.984e-1   0.0481   0.0462    90.31     28/64      0
+chat_reuse_4k       4631    64   100.00   2.293e-3   2.294e-3   6.289e-2   0.0000   0.0000    91.25     64/64      0
+long_docs_12k      12064    64    98.44   1.203e-2   1.132e-2   1.302e-1   0.0399   0.0411    90.00     60/64      0
+long_code_12k      12064    64    98.44   5.421e-3   5.344e-3   5.288e-2   0.0085   0.0085    90.00      2/64      0
+OVERALL                    320    96.56   9.954e-3   9.138e-3   2.984e-1   0.0230   0.0232    90.25     61.9%      0
+decode (teacher-forced) floor [4bit]: top-1 96.56% (not gated for this class) ok | 21-way KL 9.138e-3 (need <= 3.0e-2) ok | tail mass ours 0.0232 vs ref 0.0230, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [decode (teacher-forced)]: mean 61.9% of positions before the first argmax divergence, worst prompt 3.1% (informational)
+
+baseline: /home/nvidia/intarsia-acc/bis/O-long.baseline.json (recorded 1791898625, golden qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors hash 1c62c8e49c68fe34); margins: top-1 -0.3 pt (>= 1 position), KL x1.15 (+1e-6), top-5 -0.5 pt, tail +0.002
+
+baseline gate, decode (teacher-forced) (320 positions):
+  metric               baseline     this run        limit  
+  top-1 %             9.68750e1    9.65625e1    9.65625e1  >= ok
+  mean KL            1.05836e-2   9.95419e-3   1.21711e-2  <= ok
+  tail-bucket KL     9.90072e-3   9.13773e-3   1.13858e-2  <= ok
+  top-5 %             9.03750e1    9.02500e1    8.98750e1  >= ok
+  |tail excess|      9.54029e-4   2.18669e-4   2.95403e-3  <= ok
+  mean |tail diff|   2.96422e-3   2.67701e-3   4.96422e-3  <= ok
+  max KL(21-way)     1.78759e-1   1.96395e-1   4.47897e-1  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  prompt long_code_4k       prompt top-1 %      baseline    9.6875e1  this run    9.2188e1  limit >=    9.5312e1  FAIL
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins): FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED

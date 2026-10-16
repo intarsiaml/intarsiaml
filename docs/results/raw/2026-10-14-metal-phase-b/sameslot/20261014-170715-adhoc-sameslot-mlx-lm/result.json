@@ -1,0 +1,215 @@
+{
+ "run_id": "20261014-170715-adhoc-sameslot-mlx-lm",
+ "kind": "speed",
+ "label": "sameslot-mlx-lm",
+ "started_at": "2026-10-14T17:07:15-04:00",
+ "finished_at": "2026-10-14T17:08:33-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://127.0.0.1:8092/v1",
+  "model": "/Users/josef/models/Qwen3-8B",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.2.1",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8092/v1 --model /Users/josef/models/Qwen3-8B --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label sameslot-mlx-lm",
+  "git": "69c7a84"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "Vontra/Qwen3.8-27B-MLX-4bit",
+    "TensorFold/Qwen3.8-27B-MLX-4bit",
+    "Vontra/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit",
+    "LOKSUN-158/SamQuant-Qwen3.8-Flash-Next-Uncensored-MLX-Serve-Mix-C58",
+    "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+    "/Users/josef/models/Qwen3-8B"
+   ]
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.06,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 133,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.228,
+     "min": 0.219,
+     "max": 0.395,
+     "n": 3,
+     "spread_pct": 76.8
+    },
+    "prefill_tok_s": {
+     "median": 565.625,
+     "min": 324.447,
+     "max": 597.072,
+     "n": 3,
+     "spread_pct": 48.2
+    },
+    "decode_tok_s": {
+     "median": 34.294,
+     "min": 33.63,
+     "max": 34.339,
+     "n": 3,
+     "spread_pct": 2.1
+    },
+    "peak_decode_tok_s": {
+     "median": 43.2,
+     "min": 39.3,
+     "max": 43.3,
+     "n": 3,
+     "spread_pct": 9.3
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 5,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 991,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.422,
+     "min": 0.421,
+     "max": 0.438,
+     "n": 3,
+     "spread_pct": 4.0
+    },
+    "prefill_tok_s": {
+     "median": 2336.713,
+     "min": 2252.009,
+     "max": 2339.725,
+     "n": 3,
+     "spread_pct": 3.8
+    },
+    "decode_tok_s": {
+     "median": 33.567,
+     "min": 32.863,
+     "max": 33.598,
+     "n": 3,
+     "spread_pct": 2.2
+    },
+    "peak_decode_tok_s": {
+     "median": 39.6,
+     "min": 39.0,
+     "max": 41.1,
+     "n": 3,
+     "spread_pct": 5.3
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 5,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 4422.7,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4087,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 1.41,
+     "min": 1.392,
+     "max": 1.786,
+     "n": 3,
+     "spread_pct": 27.9
+    },
+    "prefill_tok_s": {
+     "median": 2896.124,
+     "min": 2286.975,
+     "max": 2932.617,
+     "n": 3,
+     "spread_pct": 22.3
+    },
+    "decode_tok_s": {
+     "median": 32.626,
+     "min": 32.541,
+     "max": 32.634,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "peak_decode_tok_s": {
+     "median": 37.9,
+     "min": 37.7,
+     "max": 41.8,
+     "n": 3,
+     "spread_pct": 10.8
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3133.6
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": "0.31.3-0.32.1-macOS-27.0-arm64-arm-64bit-applegpu_g17s",
+  "served_model": "/Users/josef/models/Qwen3-8B",
+  "activity_checks": {
+   "idle": 0,
+   "busy": 0,
+   "unknown": 10
+  },
+  "warnings": [
+   "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+ ]
+}

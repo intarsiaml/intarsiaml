@@ -1,0 +1,10 @@
+slot 1995 RUNNING (identity A) Thu Oct 15 10:46:25 EDT 2026: #1995 "metal spec G1: identity A" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+released 1995 Thu Oct 15 10:49:10 EDT 2026
+slot 1996 RUNNING (phase B: mid-run identity, speed, serve, tests) Thu Oct 15 10:50:33 EDT 2026: #1996 "metal spec G1: phase B: mid-run identity, speed, serve, tests" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+released 1996 Thu Oct 15 10:58:02 EDT 2026
+slot 1997 RUNNING (phase C: tests, plan) Thu Oct 15 10:59:23 EDT 2026: #1997 "metal spec G1: phase C: tests, plan" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+released 1997 Thu Oct 15 10:59:46 EDT 2026
+slot 1998 RUNNING (final identity rerun) Thu Oct 15 11:01:17 EDT 2026: #1998 "metal spec G1: final identity rerun" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+released 1998 Thu Oct 15 11:05:19 EDT 2026
+slot 1999 RUNNING (phase D: golden 4k, EOS mid-run, two-turn serve) Thu Oct 15 11:13:16 EDT 2026: #1999 "metal spec G1: phase D: golden 4k, EOS mid-run, two-turn serve" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+released 1999 Thu Oct 15 11:16:37 EDT 2026

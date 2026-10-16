@@ -1,0 +1,94 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 6 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 371 tokens
+spec: token 2 pos 371 drafted 6 accepted 0 emits 1
+spec: token 3 pos 372 drafted 6 accepted 6 emits 7
+spec: token 10 pos 379 drafted 6 accepted 6 emits 7
+spec: token 17 pos 386 drafted 6 accepted 6 emits 7
+spec: token 24 pos 393 drafted 6 accepted 6 emits 7
+spec: token 31 pos 400 drafted 6 accepted 6 emits 7
+spec: token 38 pos 407 drafted 6 accepted 3 emits 4
+spec: token 42 pos 411 drafted 6 accepted 1 emits 2
+spec: token 44 pos 413 drafted 6 accepted 1 emits 2
+spec: token 46 pos 415 drafted 6 accepted 0 emits 1
+spec: token 47 pos 416 drafted 6 accepted 3 emits 4
+spec: token 51 pos 420 drafted 6 accepted 6 emits 7
+spec: token 58 pos 427 drafted 6 accepted 6 emits 7
+spec: token 65 pos 434 drafted 6 accepted 6 emits 7
+spec: token 72 pos 441 drafted 6 accepted 2 emits 3
+spec: token 75 pos 444 drafted 6 accepted 6 emits 7
+spec: token 82 pos 451 drafted 6 accepted 6 emits 7
+spec: token 89 pos 458 drafted 6 accepted 0 emits 1
+spec: token 90 pos 459 drafted 6 accepted 6 emits 7
+spec: token 97 pos 466 drafted 6 accepted 0 emits 1
+spec: token 98 pos 467 drafted 6 accepted 6 emits 7
+spec: token 105 pos 474 drafted 6 accepted 0 emits 1
+spec: token 106 pos 475 drafted 6 accepted 6 emits 7
+spec: token 113 pos 482 drafted 6 accepted 0 emits 1
+spec: token 114 pos 483 drafted 6 accepted 0 emits 1
+spec: token 115 pos 484 drafted 6 accepted 6 emits 7
+spec: token 122 pos 491 drafted 6 accepted 0 emits 1
+spec: token 123 pos 492 drafted 6 accepted 6 emits 7
+spec: token 130 pos 499 drafted 6 accepted 0 emits 1
+spec: token 131 pos 500 drafted 6 accepted 6 emits 7
+spec: token 138 pos 507 drafted 6 accepted 6 emits 7
+spec: token 145 pos 514 drafted 6 accepted 0 emits 1
+spec: token 146 pos 515 drafted 6 accepted 6 emits 7
+spec: token 153 pos 522 drafted 6 accepted 6 emits 7
+spec: token 160 pos 529 drafted 6 accepted 4 emits 5
+spec: token 165 pos 534 drafted 6 accepted 0 emits 1
+spec: token 166 pos 535 drafted 6 accepted 6 emits 7
+spec: token 173 pos 542 drafted 6 accepted 6 emits 7
+spec: token 180 pos 549 drafted 6 accepted 6 emits 7
+spec: token 187 pos 556 drafted 6 accepted 6 emits 7
+spec: token 194 pos 563 drafted 6 accepted 6 emits 7
+spec: token 201 pos 570 drafted 6 accepted 6 emits 7
+spec: token 208 pos 577 drafted 6 accepted 6 emits 7
+spec: token 215 pos 584 drafted 6 accepted 6 emits 7
+spec: token 222 pos 591 drafted 6 accepted 6 emits 7
+spec: token 229 pos 598 drafted 6 accepted 6 emits 7
+spec: token 236 pos 605 drafted 6 accepted 6 emits 7
+spec: token 243 pos 612 drafted 6 accepted 0 emits 1
+spec: token 244 pos 613 drafted 6 accepted 6 emits 7
+spec: token 251 pos 620 drafted 6 accepted 0 emits 1
+spec: token 252 pos 621 drafted 6 accepted 0 emits 1
+spec: token 253 pos 622 drafted 6 accepted 2 emits 3
+spec: token 256 pos 625 drafted 6 accepted 0 emits 1
+spec: token 257 pos 626 drafted 6 accepted 6 emits 7
+spec: token 264 pos 633 drafted 6 accepted 0 emits 1
+spec: token 265 pos 634 drafted 6 accepted 0 emits 1
+spec: token 266 pos 635 drafted 6 accepted 2 emits 3
+spec: token 269 pos 638 drafted 6 accepted 6 emits 7
+spec: token 276 pos 645 drafted 6 accepted 6 emits 7
+spec: token 283 pos 652 drafted 6 accepted 0 emits 1
+spec: token 284 pos 653 drafted 6 accepted 0 emits 1
+spec: token 285 pos 654 drafted 6 accepted 6 emits 7
+spec: token 292 pos 661 drafted 6 accepted 1 emits 2
+spec: token 294 pos 663 drafted 6 accepted 6 emits 7
+spec: token 301 pos 670 drafted 6 accepted 6 emits 7
+spec: token 308 pos 677 drafted 6 accepted 0 emits 1
+spec: token 309 pos 678 drafted 6 accepted 3 emits 4
+spec: token 313 pos 682 drafted 6 accepted 6 emits 7
+spec: token 320 pos 689 drafted 6 accepted 6 emits 7
+spec: token 327 pos 696 drafted 6 accepted 0 emits 1
+spec: token 329 pos 698 drafted 6 accepted 0 emits 0 (min_tokens cut: next token by a plain step)
+spec: token 330 pos 699 drafted 6 accepted 6 emits 7
+spec: token 337 pos 706 drafted 6 accepted 6 emits 7
+spec: token 344 pos 713 drafted 6 accepted 6 emits 7
+spec: token 351 pos 720 drafted 6 accepted 0 emits 1
+spec: token 352 pos 721 drafted 6 accepted 6 emits 7
+spec: token 359 pos 728 drafted 6 accepted 6 emits 7
+spec: token 366 pos 735 drafted 6 accepted 0 emits 1
+spec: token 367 pos 736 drafted 6 accepted 4 emits 5
+spec: token 372 pos 741 drafted 6 accepted 6 emits 7
+spec: token 379 pos 748 drafted 6 accepted 0 emits 1
+spec: token 380 pos 749 drafted 6 accepted 0 emits 1
+spec: token 381 pos 750 drafted 6 accepted 6 emits 7
+spec: token 388 pos 757 drafted 6 accepted 6 emits 7
+spec: token 395 pos 764 drafted 6 accepted 6 emits 7
+spec: finished at token 400 with 1 verified tokens unemitted; KV 771 -> 770
+ids: [73594, 35788, 198, 13353, 27098, 65297, 11, 11091, 5563, 9585, 2036, 9316, 1900, 341, 262, 1048, 59501, 3950, 14151, 320, 45484, 3950, 1506, 608, 67530, 657, 553, 279, 19865, 4292, 262, 6675, 9934, 25, 11312, 34837, 18, 17, 12520, 262, 6675, 1932, 5921, 28838, 25, 22301, 345, 262, 1048, 48901, 320, 437, 1565, 9495, 8077, 32881, 525, 54989, 3080, 419, 1657, 11211, 3000, 624, 262, 6675, 1308, 28838, 25, 22301, 345, 262, 1048, 13655, 23163, 3267, 279, 1614, 594, 48901, 11211, 320, 24246, 29325, 62019, 4292, 262, 6675, 10034, 2204, 436, 25, 1807, 345, 262, 1048, 2651, 220, 15, 3363, 55980, 624, 262, 6675, 9315, 25, 282, 18, 17, 345, 262, 6675, 1909, 620, 25, 282, 18, 17, 345, 262, 1048, 220, 15, 284, 8386, 624, 262, 6675, 1909, 4698, 25, 22301, 345, 262, 6675, 10320, 25, 6959, 34837, 21, 19, 12520, 262, 1048, 24992, 2936, 3950, 14151, 320, 1921, 46942, 4292, 262, 6675, 2936, 8077, 25, 11312, 34837, 18, 17, 12520, 262, 1048, 14215, 9069, 26, 9471, 10335, 1573, 279, 1156, 2432, 11, 892, 374, 537, 46942, 624, 262, 6675, 2936, 25, 11312, 3464, 12520, 262, 1048, 2573, 553, 279, 19865, 311, 9121, 279, 1681, 25, 10067, 1393, 57163, 11, 1948, 198, 262, 1048, 855, 7559, 26757, 323, 1948, 16895, 7354, 624, 262, 6675, 9121, 25, 6959, 30192, 1287, 27, 65857, 11233, 61340, 630, 6383, 7899, 369, 9316, 1900, 341, 262, 5168, 1638, 368, 1464, 10115, 341, 286, 9316, 1900, 341, 310, 9934, 25, 11312, 486, 931, 3148, 310, 1932, 5921, 28838, 25, 220, 17, 20, 21, 345, 310, 1308, 28838, 25, 220, 15, 345, 310, 10034, 2204, 436, 25, 895, 345, 310, 9315, 25, 220, 15, 13, 15, 345, 310, 1909, 620, 25, 220, 16, 13, 15, 345, 310, 1909, 4698, 25, 220, 15, 345, 310, 10320, 25, 2240, 345, 310, 2936, 8077, 25, 11312, 486, 931, 3148, 310, 2936, 25, 11312, 486, 931, 3148, 310, 9121, 25, 2240, 345, 286, 456, 262, 456, 532, 73594, 151668, 271, 73594, 35788, 198, 13353, 27098, 65297, 11, 11091, 5563, 9585, 2036, 9316, 1900, 341, 262, 1048, 59501, 3950, 14151, 320, 45484, 3950, 1506, 608, 67530, 657, 553, 279, 19865, 4292, 262, 6675, 9934, 25, 11312, 34837, 18, 17, 12520, 262, 6675, 1932, 5921, 28838, 25, 22301, 345, 262, 1048, 48901, 320, 437, 1565, 9495, 8077, 32881, 525, 54989, 3080, 419, 1657, 11211, 3000, 624, 262, 6675, 1308, 28838, 25, 22301]
+finish=length prompt=371 (cached 0) completion=400 | prefill 239 ms (1551.5 tok/s) | decode 3409 ms (117.03 tok/s)
+spec: verify passes=85 proposed=510 accepted=314 (acceptance 61.6%, 4.69 tokens per pass)
+steps=88 graph replays=0 (captures 0) eager decode steps=2 (profiled 0) top ops: argmax=0ms/85 attn_decode=0ms/72 attn_prefill=0ms/3096 embedding=0ms/88 logits=0ms/88

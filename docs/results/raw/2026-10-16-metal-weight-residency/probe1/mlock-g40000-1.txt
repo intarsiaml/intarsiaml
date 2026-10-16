@@ -1,0 +1,17 @@
+mapped and wrapped 5 shards in 0.7 ms (mode mlock, sleep 0 ms, gap 40000 ms)
+mlock model-00001-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 80.8 ms
+mlock model-00002-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 79.2 ms
+mlock model-00003-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 65.5 ms
+mlock model-00004-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 46.9 ms
+mlock model-00005-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 18.1 ms
+mlock pass: 290.7 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 71.12 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 42.64 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 30.16 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 17.64 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 8.11 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.50 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.73 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.67 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.52 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.22 ms

@@ -1,0 +1,23 @@
+fleetq: #1743 running on spark1: scripts/cuda-decode/mutate.sh
+applied pair-block to ./kernels/cuda/matmul.cu
+KILLED   pair-block: matmul_pair_is_bitwise_two_gemvs result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s 
+applied pair-nb0 to ./kernels/cuda/matmul.cu
+KILLED   pair-nb0: matmul_pair_is_bitwise_two_gemvs result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s 
+applied fp8-pair-scale to ./kernels/cuda/fp8.cu
+KILLED   fp8-pair-scale: matmul_fp8_pair_is_bitwise_two_gemvs result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s 
+applied fp8-pair-out to ./kernels/cuda/fp8.cu
+KILLED   fp8-pair-out: matmul_fp8_pair_is_bitwise_two_gemvs result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s 
+applied glu-scale to ./kernels/cuda/nvfp4.cu
+KILLED   glu-scale: matmul_nvfp4_glu_is_bitwise_gate_up_silu result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s 
+applied glu-round to ./kernels/cuda/nvfp4.cu
+KILLED   glu-round: matmul_nvfp4_glu_is_bitwise_gate_up_silu result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s 
+applied glu-blockscale to ./kernels/cuda/nvfp4.cu
+KILLED   glu-blockscale: matmul_nvfp4_glu_is_bitwise_gate_up_silu result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s 
+applied gated-order to ./kernels/cuda/norm.cu
+KILLED   gated-order: gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s 
+applied gated-round to ./kernels/cuda/norm.cu
+KILLED   gated-round: gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s 
+applied gated-round-scalar to ./kernels/cuda/norm.cu
+KILLED   gated-round-scalar: gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s 
+unmutated: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+fleetq: #1743 done (exit 0)

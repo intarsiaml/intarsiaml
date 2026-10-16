@@ -1,0 +1,146 @@
+[08:17:55] phase1b acceptance: stages=lease,kernels,accuracy,graphs,ab,verdict dry_run=0 host=spark1 pre-change=4963b43 work=/opt/code/intarsiaml/target/phase1b-acceptance/run3
+[08:17:55] == lease: exclusive slot on spark1 taking guidance down
+[08:17:55] stopping the vLLM container missioncntrl-guidance
+[08:17:58] memory freed: 111 GB available
+[08:17:58] == kernels: admission on the real shapes, then the CUDA kernel tests
+[08:17:59] memory: 111 GB available, kernels needs 8 GB + 20 GB headroom
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0    1.488e-3    4.327e-5  ADMITTED
+rope           rope_bf16                      36      0    1.469e-5    2.380e-7  ADMITTED
+matmul         matmul_bf16                    21      0    3.497e-3    1.833e-4  ADMITTED
+matmul         matmul_bf16_gemv               14      0    4.371e-4    2.037e-5  ADMITTED
+logits         logits_bf16                     4      0    1.184e-6    1.004e-6  ADMITTED
+logits         logits_bf16_gemv                4      0    1.247e-7    7.402e-8  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              21      0    9.766e-4    6.527e-5  ADMITTED
+attn_decode    attn_decode_bf16               15      0    2.441e-4    1.028e-4  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         6      0    5.051e-3    2.407e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv      12      0    1.397e-3    5.352e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0    6.104e-5    3.781e-5  ADMITTED
+silu_glu       silu_glu_bf16                   9      0     0.000e0     0.000e0  ADMITTED
+gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.841e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    3.773e-5  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 60      0    4.329e-3    1.939e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm                 8      0    4.184e-3    1.723e-4  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    5.549e-6    9.427e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               34      0    2.841e-3    6.587e-5  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemm               6      0    2.252e-3    5.061e-5  ADMITTED
+moe_topk       moe_topk_bf16                  48      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16               11      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_bf16         2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_bf16            6      0    3.185e-3    3.377e-4  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+34 kernels, 501 cases in 25.0s
+196 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+196 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+
+running 5 tests
+test a_failed_capture_leaves_the_stream_usable ... ok
+test graph_replay_follows_the_device_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 7 tests
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_skewed_and_invalid_routing ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test bench_real_shapes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.51s
+
+[08:18:33] == accuracy: old build records, new build is gated
+[08:18:34] memory: 110 GB available, accuracy 35b-short needs 38 GB + 20 GB headroom
+[08:18:34] -- 35b-short: record from the pre-change build (4963b43 + harness)
+[08:19:20] -- 35b-short: noise floor (old build, equivalent attention kernels, vs its own dump)
+[08:20:07] -- 35b-short: budgets (max of default and 3x noise): --self-max-kl 0.009723 --self-max-pos-kl 1.163 --self-max-flip-pct 3.331 --self-max-tail 0.003853
+[08:20:07] -- 35b-short: gate the new build against the baseline (floor, baseline, per prompt)
+exit 1
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins): FAIL
+golden gate: FAIL
+[08:20:58] -- 35b-short: self-golden (new vs old logits)
+exit 0
+SELF-STATS mode=prefill positions=1441 mean_kl21=3.581875e-3 max_kl21=2.716275e-1 flips=21 flip_pct=1.4573 tail_abs=7.786458e-4 worst_prompt_kl21=1.322865e-2
+prefill self-golden => PASS
+SELF-STATS mode=decode positions=160 mean_kl21=1.500441e-3 max_kl21=2.966336e-2 flips=0 flip_pct=0.0000 tail_abs=1.297065e-4 worst_prompt_kl21=4.346488e-3
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+[08:21:49] -- 35b-short: determinism (new build vs its own dump, second process)
+exit 0
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.212466e-12 max_kl21=1.176621e-9 flips=0 flip_pct=0.0000 tail_abs=3.625206e-9 worst_prompt_kl21=3.834316e-11
+prefill self-golden => PASS
+SELF-STATS mode=decode positions=160 mean_kl21=3.726456e-11 max_kl21=5.919182e-9 flips=0 flip_pct=0.0000 tail_abs=5.782527e-9 worst_prompt_kl21=3.716788e-10
+decode (teacher-forced) self-golden => PASS
+[08:22:40] memory: 111 GB available, accuracy 35b-long needs 38 GB + 20 GB headroom
+[08:22:40] -- 35b-long: record from the pre-change build (4963b43 + harness)
+[08:29:07] -- 35b-long: noise floor (old build, equivalent attention kernels, vs its own dump)
+[08:33:31] -- 35b-long: budgets (max of default and 3x noise): --self-max-kl 0.08751 --self-max-pos-kl 58.98 --self-max-flip-pct 12.77 --self-max-tail 0.01116
+[08:33:31] -- 35b-long: gate the new build against the baseline (floor, baseline, per prompt)
+exit 1
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins): FAIL   prefix-reuse verdict: FAIL
+golden gate: FAIL
+[08:37:36] -- 35b-long: self-golden (new vs old logits)
+exit 0
+SELF-STATS mode=prefill positions=36887 mean_kl21=3.425581e-2 max_kl21=2.479512e1 flips=1681 flip_pct=4.5572 tail_abs=3.655594e-3 worst_prompt_kl21=2.121318e-1
+prefill self-golden => PASS
+SELF-STATS mode=decode positions=320 mean_kl21=5.982975e-3 max_kl21=1.075662e-1 flips=13 flip_pct=4.0625 tail_abs=1.095266e-3 worst_prompt_kl21=9.655312e-3
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+[08:39:54] memory: 111 GB available, accuracy 8b-full needs 17 GB + 20 GB headroom
+[08:39:54] -- 8b-full: record from the pre-change build (4963b43 + harness)
+[08:41:25] -- 8b-full: noise floor (old build, equivalent attention kernels, vs its own dump)
+[08:42:16] -- 8b-full: budgets (max of default and 3x noise): --self-max-kl 0.002019 --self-max-pos-kl 0.654 --self-max-flip-pct 0.5 --self-max-tail 0.0005276
+[08:42:16] -- 8b-full: gate the new build against the baseline (floor, baseline, per prompt)
+exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins): PASS
+golden gate: PASS
+[08:43:18] -- 8b-full: self-golden (new vs old logits)
+exit 0
+SELF-STATS mode=prefill positions=1434 mean_kl21=9.567039e-11 max_kl21=6.494361e-8 flips=0 flip_pct=0.0000 tail_abs=4.459036e-9 worst_prompt_kl21=1.847660e-10
+prefill self-golden => PASS
+SELF-STATS mode=decode positions=160 mean_kl21=1.946358e-12 max_kl21=7.146459e-11 flips=0 flip_pct=0.0000 tail_abs=8.105191e-9 worst_prompt_kl21=5.108000e-12
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+[08:44:17] -- 8b-full: determinism (new build vs its own dump, second process)
+exit 0
+SELF-STATS mode=prefill positions=1434 mean_kl21=9.567039e-11 max_kl21=6.494361e-8 flips=0 flip_pct=0.0000 tail_abs=4.459036e-9 worst_prompt_kl21=1.847660e-10
+prefill self-golden => PASS
+SELF-STATS mode=decode positions=160 mean_kl21=1.946358e-12 max_kl21=7.146459e-11 flips=0 flip_pct=0.0000 tail_abs=8.105191e-9 worst_prompt_kl21=5.108000e-12
+decode (teacher-forced) self-golden => PASS
+[08:45:16] SKIPPED 8b-4k: golden ~/intarsiaml-golden/qwen3-8b-4k-top20.safetensors does not exist on spark1 (build it in its own lease, never beside vLLM; docs/accuracy.md)
+[08:45:16] SKIPPED goldens: 8b-4k
+[08:45:16] accuracy FAILED: 35b-short: baseline gate 35b-long: baseline gate 35b-long: prefix reuse
+[08:45:16] bisect before touching code: rerun the failing case with --no-graphs, then with INTARSIA_CUDA_DISABLE=<new kernel names> (a typo is now refused)
+[08:45:16] == graphs: 256-step greedy decode on the 35B, graph replay vs --no-graphs (bitwise identical token ids)
+[08:45:17] memory: 111 GB available, graph-vs-eager needs 38 GB + 20 GB headroom
+[08:46:52] ABORT: graph replay and eager decode differ (or produced nothing) for prompt 1: diff ~/intarsia-acc/logs/g1.ids ~/intarsia-acc/logs/e1.ids
+[08:46:52] exiting with status 1, restoring the box
+[08:46:52] killing any intarsia-acc process still running on spark1 before vLLM is started
+[08:46:56] starting the vLLM container missioncntrl-guidance and waiting for it to serve
+[08:50:11] vLLM is serving again
+[08:50:11] releasing fleetq job 1504
+[08:50:11] done (status 1); artefacts in /opt/code/intarsiaml/target/phase1b-acceptance/run3
+rc=1

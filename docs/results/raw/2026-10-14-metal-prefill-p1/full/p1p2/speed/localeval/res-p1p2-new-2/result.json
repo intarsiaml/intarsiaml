@@ -1,0 +1,209 @@
+{
+ "run_id": "20261014-220738-adhoc-p1p2-new-2",
+ "kind": "speed",
+ "label": "p1p2-new-2",
+ "started_at": "2026-10-14T22:07:38-04:00",
+ "finished_at": "2026-10-14T22:08:51-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://127.0.0.1:8133/v1",
+  "model": "intarsia-metal",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.2.1",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8133/v1 --model intarsia-metal --sizes 128,1024,4096 --gen 256 --reps 3 --thinking off --label p1p2-new-2",
+  "git": "69c7a84"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia-metal"
+   ],
+   "root": "Qwen3-8B",
+   "owned_by": "intarsia",
+   "max_model_len": 8192
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.1,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 134,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.065,
+     "min": 0.065,
+     "max": 0.071,
+     "n": 3,
+     "spread_pct": 9.5
+    },
+    "prefill_tok_s": {
+     "median": 1986.727,
+     "min": 1817.552,
+     "max": 1991.348,
+     "n": 3,
+     "spread_pct": 8.7
+    },
+    "decode_tok_s": {
+     "median": 36.313,
+     "min": 36.06,
+     "max": 36.396,
+     "n": 3,
+     "spread_pct": 0.9
+    },
+    "peak_decode_tok_s": {
+     "median": 36.4,
+     "min": 36.3,
+     "max": 36.5,
+     "n": 3,
+     "spread_pct": 0.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 6,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 989,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.306,
+     "min": 0.305,
+     "max": 0.306,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "prefill_tok_s": {
+     "median": 3223.985,
+     "min": 3211.599,
+     "max": 3225.567,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "decode_tok_s": {
+     "median": 36.098,
+     "min": 36.047,
+     "max": 36.136,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 36.3,
+     "min": 36.3,
+     "max": 36.4,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3547.7,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4090,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 1.714,
+     "min": 1.688,
+     "max": 1.923,
+     "n": 3,
+     "spread_pct": 13.7
+    },
+    "prefill_tok_s": {
+     "median": 2384.268,
+     "min": 2124.41,
+     "max": 2416.777,
+     "n": 3,
+     "spread_pct": 12.3
+    },
+    "decode_tok_s": {
+     "median": 35.138,
+     "min": 35.134,
+     "max": 35.194,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 35.3,
+     "min": 35.2,
+     "max": 35.4,
+     "n": 3,
+     "spread_pct": 0.6
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 2202.4
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia-metal",
+  "activity_checks": {
+   "idle": 10,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

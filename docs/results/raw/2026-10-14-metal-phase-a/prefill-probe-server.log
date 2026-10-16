@@ -1,0 +1,10 @@
+16tok-COLD-first-request     prompt_tokens=    53  wall=    429.2 ms     123.5 tok/s
+16tok-warm-2nd               prompt_tokens=    55  wall=    251.3 ms     218.9 tok/s
+16tok-warm-3rd               prompt_tokens=    56  wall=    252.2 ms     222.0 tok/s
+~128tok-warm                 prompt_tokens=   192  wall=    579.5 ms     331.3 tok/s
+~128tok-warm                 prompt_tokens=   192  wall=    581.4 ms     330.2 tok/s
+~1k-warm                     prompt_tokens=  1355  wall=   4237.0 ms     319.8 tok/s
+~1k-warm                     prompt_tokens=  1352  wall=   4229.6 ms     319.7 tok/s
+~4k-warm                     prompt_tokens=  3773  wall=  16165.6 ms     233.4 tok/s
+~4k-warm                     prompt_tokens=  3774  wall=  16019.6 ms     235.6 tok/s
+short-warm-again             prompt_tokens=    58  wall=    259.9 ms     223.2 tok/s

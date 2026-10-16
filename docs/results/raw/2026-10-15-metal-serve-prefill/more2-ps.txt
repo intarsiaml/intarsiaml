@@ -1,0 +1,2156 @@
+T 1792053115.5 load { 1.35 1.67 1.68 }
+138.4   917 corespotlightd
+ 98.2 13574 sh
+ 46.0 85541 /Users/josef/Library/Application Supportclaude
+ 10.5  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  3.3   631 coreaudiod
+  3.1 87301 BambuStudio
+T 1792053118.6 load { 1.35 1.67 1.68 }
+135.5   917 corespotlightd
+ 99.3 59015 intarsia-base
+  4.2 13574 sh
+  3.8 85541 /Users/josef/Library/Application Supportclaude
+  2.9   631 coreaudiod
+  1.9     1 launchd
+T 1792053121.6 load { 1.40 1.68 1.68 }
+ 99.4 59015 intarsia-base
+  6.9 85541 /Users/josef/Library/Application Supportclaude
+  5.0   488 loginwindow
+  3.4   631 coreaudiod
+  3.3 87301 BambuStudio
+  2.6   485 WindowServer
+T 1792053124.7 load { 1.61 1.71 1.70 }
+100.0 59015 intarsia-base
+ 98.8 13574 sh
+  3.4   631 coreaudiod
+  1.9 40257 /Users/josef/Library/Application Supportclaude
+  1.3 85541 /Users/josef/Library/Application Supportclaude
+  1.1   438 corespeechd_system
+T 1792053127.8 load { 1.61 1.71 1.70 }
+100.0 59015 intarsia-base
+ 19.7 85541 /Users/josef/Library/Application Supportclaude
+  8.8 59126 python
+  8.0 59124 python
+  3.8   631 coreaudiod
+  3.6 88901 Syrtis
+T 1792053130.9 load { 1.56 1.70 1.69 }
+ 99.5 59015 intarsia-base
+ 15.7 88901 Syrtis
+  7.4 40257 /Users/josef/Library/Application Supportclaude
+  3.4   631 coreaudiod
+  1.3 55403 /Users/josef/Library/Application Supportclaude
+  1.1 13571 Herdr
+T 1792053133.9 load { 1.56 1.70 1.69 }
+100.0 59015 intarsia-base
+ 99.1 13574 sh
+  7.4   791 mds_stores
+  3.6 59189 mdworker_shared
+  3.5   631 coreaudiod
+  3.3 88901 Syrtis
+T 1792053137.0 load { 1.83 1.76 1.71 }
+100.0 59015 intarsia-base
+ 67.7 88901 Syrtis
+  3.4   631 coreaudiod
+  1.2 13571 Herdr
+  1.1   438 corespeechd_system
+  1.0  2823 ssh-agent
+T 1792053140.1 load { 1.77 1.74 1.71 }
+ 99.1 59015 intarsia-base
+  3.4   631 coreaudiod
+  1.6   555 airportd
+  1.4   485 WindowServer
+  1.1  2823 ssh-agent
+  1.0   438 corespeechd_system
+T 1792053143.1 load { 1.77 1.74 1.71 }
+100.0 59015 intarsia-base
+100.0 13574 sh
+  3.3   631 coreaudiod
+  2.3 13571 Herdr
+  2.0 72332 /Users/josef/Library/Application Supportclaude
+  1.4   555 airportd
+T 1792053146.2 load { 2.03 1.80 1.73 }
+100.0 59015 intarsia-base
+  3.5   631 coreaudiod
+  2.2 15787 ptpcamerad
+  1.1   438 corespeechd_system
+  1.0   539 mDNSResponder
+  0.8  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+T 1792053149.3 load { 1.94 1.78 1.72 }
+ 14.6 59289 macmon
+  4.7   631 coreaudiod
+  2.9 13571 Herdr
+  1.3   438 corespeechd_system
+  1.2 85541 /Users/josef/Library/Application Supportclaude
+  0.9 19493 /Users/josef/Library/Application Supportclaude
+T 1792053152.3 load { 1.94 1.78 1.72 }
+ 99.1 13574 sh
+ 15.9 59289 macmon
+  3.9   631 coreaudiod
+  3.6 13571 Herdr
+  1.4   438 corespeechd_system
+  1.1 59015 intarsia-base
+T 1792053155.4 load { 1.87 1.77 1.72 }
+ 15.6 59289 macmon
+  7.6 87301 BambuStudio
+  5.4   631 coreaudiod
+  4.3  2718 /Applications/VSCodium.app/Contents/Frameworks/VSCodium Helper (Renderer).app/Contents/MacOS/VSCodium Helper (Renderer)
+  4.3  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.8 27128 /Users/josef/Library/Application Supportclaude
+T 1792053158.5 load { 1.87 1.77 1.72 }
+ 69.4 13574 sh
+ 13.9 59289 macmon
+  4.4   631 coreaudiod
+  4.0 59152 /Users/josef/Library/Application Supportclaude
+  3.7 13571 Herdr
+  2.8 87301 BambuStudio
+T 1792053161.6 load { 2.12 1.82 1.74 }
+ 99.0 13574 sh
+ 15.4 59289 macmon
+ 10.5 85541 /Users/josef/Library/Application Supportclaude
+  5.1 87301 BambuStudio
+  4.9   478 bluetoothd
+  4.2   631 coreaudiod
+T 1792053164.7 load { 2.11 1.83 1.74 }
+119.1   917 corespotlightd
+ 15.3 59289 macmon
+ 10.7 88901 Syrtis
+  6.8 26492 spotlightknowledged.updater
+  5.4 28098 /Users/josef/Library/Application Supportclaude
+  5.1 84188 searchpartyuseragent
+T 1792053167.8 load { 2.11 1.83 1.74 }
+ 94.3 13574 sh
+ 19.5 59289 macmon
+  3.5   631 coreaudiod
+  2.2 27400 Claude
+  2.0 13571 Herdr
+  1.5 87301 BambuStudio
+T 1792053170.9 load { 2.02 1.81 1.73 }
+ 93.4  2415 OrbStack
+ 89.3 13574 sh
+ 15.9 59289 macmon
+ 12.5  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.8 40257 /Users/josef/Library/Application Supportclaude
+  4.4   631 coreaudiod
+T 1792053173.9 load { 2.02 1.81 1.73 }
+ 15.0 59289 macmon
+  4.6   631 coreaudiod
+  2.4  2415 OrbStack
+  2.0 27299 /Users/josef/Library/Application Supportclaude
+  2.0   737 cfprefsd
+  1.7 85541 /Users/josef/Library/Application Supportclaude
+T 1792053177.0 load { 2.02 1.82 1.74 }
+ 98.5 13574 sh
+ 14.2 59289 macmon
+  4.0   631 coreaudiod
+  3.0 66359 /Users/josef/Library/Application Supportclaude
+  2.6 15787 ptpcamerad
+  1.9   555 airportd
+T 1792053180.1 load { 2.34 1.89 1.76 }
+ 18.2 13574 sh
+ 14.0 59289 macmon
+  8.7   488 loginwindow
+  4.8   631 coreaudiod
+  4.2 13571 Herdr
+  3.7   485 WindowServer
+T 1792053183.2 load { 2.34 1.89 1.76 }
+ 14.1 59289 macmon
+  4.8   631 coreaudiod
+  3.1 87961 /Users/josef/Library/Application Supportclaude
+  1.5   438 corespeechd_system
+  1.4 59015 intarsia-base
+  1.3   692 AppleCentauriAlpha
+T 1792053186.3 load { 2.23 1.87 1.76 }
+ 98.7 13574 sh
+ 14.2 59289 macmon
+ 12.6  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.3 13571 Herdr
+  4.3   631 coreaudiod
+  2.8 85541 /Users/josef/Library/Application Supportclaude
+T 1792053189.4 load { 2.13 1.86 1.75 }
+ 15.0 59289 macmon
+  8.0 87301 BambuStudio
+  4.7   631 coreaudiod
+  3.9 13574 sh
+  3.0 72332 /Users/josef/Library/Application Supportclaude
+  2.8 27707 /Users/josef/Library/Application Supportclaude
+T 1792053192.5 load { 2.13 1.86 1.75 }
+ 15.4 59289 macmon
+  4.7   631 coreaudiod
+  2.8 87301 BambuStudio
+  2.8 88901 Syrtis
+  1.5   438 corespeechd_system
+  1.4 92414 Finder
+T 1792053195.6 load { 2.04 1.84 1.75 }
+ 99.7 13574 sh
+ 14.5 59289 macmon
+  4.5 87301 BambuStudio
+  4.0   631 coreaudiod
+  2.9 93345 Dropbox
+  2.6 13571 Herdr
+T 1792053198.6 load { 2.04 1.84 1.75 }
+ 15.4 59289 macmon
+  4.5   631 coreaudiod
+  3.3 87301 BambuStudio
+  2.6 71055 /Users/josef/Library/Application Supportclaude
+  1.5   490 runningboardd
+  1.3 20092 /Users/josef/Library/Application Supportclaude
+T 1792053201.7 load { 1.88 1.81 1.74 }
+ 15.6 59289 macmon
+  4.9   631 coreaudiod
+  3.5 60122 /Users/josef/Library/Application Supportclaude
+  2.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.1 87301 BambuStudio
+  1.6 13571 Herdr
+T 1792053204.8 load { 1.89 1.81 1.74 }
+ 99.0 13574 sh
+ 13.5 59289 macmon
+  3.7   631 coreaudiod
+  1.5   438 corespeechd_system
+  1.3 87301 BambuStudio
+  1.2 59015 intarsia-base
+T 1792053207.9 load { 1.89 1.81 1.74 }
+ 42.1     1 launchd
+ 20.4 59289 macmon
+  5.6   631 coreaudiod
+  4.7 27299 /Users/josef/Library/Application Supportclaude
+  1.6   438 corespeechd_system
+  1.6 15787 ptpcamerad
+T 1792053211.0 load { 1.73 1.78 1.73 }
+ 15.7 59289 macmon
+  4.4   631 coreaudiod
+  1.6 66359 /Users/josef/Library/Application Supportclaude
+  1.3   438 corespeechd_system
+  1.0 40257 /Users/josef/Library/Application Supportclaude
+  0.9 13571 Herdr
+T 1792053214.1 load { 1.73 1.78 1.73 }
+ 99.4 13574 sh
+ 15.1 59289 macmon
+  3.7   631 coreaudiod
+  1.9 13571 Herdr
+  1.4   438 corespeechd_system
+  1.3 59015 intarsia-base
+T 1792053217.1 load { 1.68 1.77 1.72 }
+ 15.4 59289 macmon
+  4.7   631 coreaudiod
+  2.9  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  1.6 59015 intarsia-base
+  1.5   438 corespeechd_system
+  1.4   692 AppleCentauriAlpha
+T 1792053220.2 load { 1.78 1.79 1.73 }
+ 20.4 59289 macmon
+ 19.8 13574 sh
+  5.5   631 coreaudiod
+  2.0 56034 adb
+  1.8 82471 /Users/josef/Library/Application Supportclaude
+  1.6 13571 Herdr
+T 1792053223.3 load { 1.78 1.79 1.73 }
+ 99.0 13574 sh
+ 18.3 59289 macmon
+  5.3 87301 BambuStudio
+  3.3   631 coreaudiod
+  1.7   490 runningboardd
+  1.6 27400 Claude
+T 1792053226.4 load { 1.64 1.76 1.72 }
+ 16.0 59289 macmon
+ 12.6  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  9.1 88901 Syrtis
+  4.9 87301 BambuStudio
+  4.4   631 coreaudiod
+  2.0 93345 Dropbox
+T 1792053229.5 load { 1.59 1.75 1.72 }
+ 70.8 13574 sh
+ 15.7 59289 macmon
+  4.8 87301 BambuStudio
+  4.1   631 coreaudiod
+  1.6 19493 /Users/josef/Library/Application Supportclaude
+  1.4   438 corespeechd_system
+T 1792053232.6 load { 1.59 1.75 1.72 }
+100.5  2415 OrbStack
+100.0 13574 sh
+ 15.4 59289 macmon
+  4.1   631 coreaudiod
+  3.3 13571 Herdr
+  2.3 87301 BambuStudio
+T 1792053235.7 load { 1.46 1.72 1.71 }
+ 15.7 59289 macmon
+  4.8   631 coreaudiod
+  3.4 87301 BambuStudio
+  2.1 13571 Herdr
+  1.3 59015 intarsia-base
+  1.1   438 corespeechd_system
+T 1792053238.7 load { 1.46 1.72 1.71 }
+ 89.8 13574 sh
+ 16.0 59289 macmon
+  3.9   631 coreaudiod
+  3.0 13571 Herdr
+  2.5 89489 /Users/josef/Library/Application Supportclaude
+  1.9     1 launchd
+T 1792053241.8 load { 1.42 1.71 1.70 }
+ 83.2 13574 sh
+ 14.3 59289 macmon
+  8.5   488 loginwindow
+  4.0   485 WindowServer
+  3.8   631 coreaudiod
+  1.7 13571 Herdr
+T 1792053244.9 load { 1.47 1.71 1.70 }
+ 16.1 59289 macmon
+  4.6   631 coreaudiod
+  3.1 66359 /Users/josef/Library/Application Supportclaude
+  1.3 13571 Herdr
+  1.3 59015 intarsia-base
+  1.2   438 corespeechd_system
+T 1792053248.0 load { 1.47 1.71 1.70 }
+ 98.4 13574 sh
+ 14.1 59289 macmon
+  7.6 85541 /Users/josef/Library/Application Supportclaude
+  3.7   631 coreaudiod
+  2.2 84670 /Applications/Grok Bot.app/Contents/MacOS/Grok Bot
+  2.1   692 AppleCentauriAlpha
+T 1792053251.1 load { 1.43 1.70 1.70 }
+ 18.6 13574 sh
+ 15.7 59289 macmon
+  4.7   631 coreaudiod
+  3.4  5051 /Users/josef/Library/Application Supportclaude
+  3.4 40257 /Users/josef/Library/Application Supportclaude
+  1.4 59015 intarsia-base
+T 1792053254.2 load { 1.43 1.70 1.70 }
+ 16.2 59289 macmon
+  4.9   631 coreaudiod
+  4.8 88901 Syrtis
+  3.9   858 identityservicesd
+  1.9 59015 intarsia-base
+  1.6 55403 /Users/josef/Library/Application Supportclaude
+T 1792053257.3 load { 1.32 1.67 1.69 }
+100.0 13574 sh
+ 15.4 59289 macmon
+  3.8   631 coreaudiod
+  3.1 13571 Herdr
+  1.5  2902 io.tailscale.ipn.macsys.network-extension
+  1.5   438 corespeechd_system
+T 1792053260.3 load { 1.37 1.68 1.69 }
+ 15.2 59289 macmon
+  4.7   631 coreaudiod
+  3.9 13574 sh
+  2.4 40257 /Users/josef/Library/Application Supportclaude
+  1.7 13571 Herdr
+  1.5 59015 intarsia-base
+T 1792053263.4 load { 1.37 1.68 1.69 }
+ 15.8 59289 macmon
+  9.9 59015 intarsia-base
+  7.0 87301 BambuStudio
+  4.6   631 coreaudiod
+  1.8 13571 Herdr
+  1.5   490 runningboardd
+T 1792053266.5 load { 1.42 1.68 1.69 }
+ 99.0 13574 sh
+ 27.9  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 15.6 59289 macmon
+  4.1   631 coreaudiod
+  3.0 18165 /Users/josef/Library/Application Supportclaude
+  2.5 87301 BambuStudio
+T 1792053269.6 load { 1.39 1.67 1.69 }
+ 15.4 59289 macmon
+  4.7   631 coreaudiod
+  4.3 87301 BambuStudio
+  1.4   438 corespeechd_system
+  1.3 59015 intarsia-base
+  1.2 13574 sh
+T 1792053272.7 load { 1.39 1.67 1.69 }
+ 15.0 59289 macmon
+  4.6   631 coreaudiod
+  1.6 87301 BambuStudio
+  1.5 59015 intarsia-base
+  1.5   438 corespeechd_system
+  1.0   692 AppleCentauriAlpha
+T 1792053275.8 load { 1.52 1.69 1.69 }
+100.0 13574 sh
+ 15.4 59289 macmon
+  3.4   631 coreaudiod
+  3.0 57537 /Users/josef/Library/Application Supportclaude
+  1.6 87301 BambuStudio
+  1.3 13571 Herdr
+T 1792053278.9 load { 1.52 1.69 1.69 }
+ 37.3 88901 Syrtis
+ 15.7 59289 macmon
+  5.0 85541 /Users/josef/Library/Application Supportclaude
+  4.7   631 coreaudiod
+  2.0 87961 /Users/josef/Library/Application Supportclaude
+  2.0 13571 Herdr
+T 1792053282.0 load { 1.39 1.66 1.68 }
+142.8 41570 contactsd
+ 37.7 59868 AddressBookSourceSync
+ 33.0 85541 /Users/josef/Library/Application Supportclaude
+ 26.6 74402 trustd
+ 22.9   490 runningboardd
+ 22.0 73564 searchtoold
+T 1792053285.0 load { 1.52 1.68 1.69 }
+100.0 13574 sh
+ 13.9 59289 macmon
+  3.9   631 coreaudiod
+  2.0 85541 /Users/josef/Library/Application Supportclaude
+  2.0 13571 Herdr
+  1.4   438 corespeechd_system
+T 1792053288.1 load { 1.52 1.68 1.69 }
+ 15.3 59289 macmon
+  5.5   917 corespotlightd
+  4.8   631 coreaudiod
+  3.1 85541 /Users/josef/Library/Application Supportclaude
+  2.2 60122 /Users/josef/Library/Application Supportclaude
+  1.9 84670 /Applications/Grok Bot.app/Contents/MacOS/Grok Bot
+T 1792053291.2 load { 1.56 1.69 1.69 }
+ 94.5  2415 OrbStack
+ 15.1 59289 macmon
+  8.8  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.8   631 coreaudiod
+  2.5 85541 /Users/josef/Library/Application Supportclaude
+  2.2  2789 hazlUI
+T 1792053294.3 load { 1.68 1.71 1.70 }
+100.0 13574 sh
+ 40.4 85541 /Users/josef/Library/Application Supportclaude
+ 16.9 59289 macmon
+ 15.4  2415 OrbStack
+  6.8   631 coreaudiod
+  4.7 87301 BambuStudio
+T 1792053297.4 load { 1.68 1.71 1.70 }
+ 47.8 41570 contactsd
+ 19.5 59868 AddressBookSourceSync
+ 16.0 59289 macmon
+ 15.5 85541 /Users/josef/Library/Application Supportclaude
+ 12.5 74402 trustd
+  6.3 87301 BambuStudio
+T 1792053300.5 load { 1.86 1.75 1.71 }
+ 66.9 13574 sh
+ 16.2 59289 macmon
+ 10.9 88901 Syrtis
+  9.0   488 loginwindow
+  6.0 85541 /Users/josef/Library/Application Supportclaude
+  4.2   631 coreaudiod
+T 1792053303.6 load { 1.86 1.75 1.71 }
+ 99.1 13574 sh
+ 25.7 85541 /Users/josef/Library/Application Supportclaude
+ 15.9 59289 macmon
+  4.3   631 coreaudiod
+  3.9 87301 BambuStudio
+  1.8 59015 intarsia-base
+T 1792053306.7 load { 1.87 1.75 1.71 }
+ 15.5 59289 macmon
+  4.7   631 coreaudiod
+  3.5  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.5 89489 /Users/josef/Library/Application Supportclaude
+  2.3 87301 BambuStudio
+  1.6 59015 intarsia-base
+T 1792053309.7 load { 1.96 1.77 1.72 }
+ 92.1 13574 sh
+ 15.0 59289 macmon
+  4.0   631 coreaudiod
+  2.8 85541 /Users/josef/Library/Application Supportclaude
+  2.2 87301 BambuStudio
+  1.8 57537 /Users/josef/Library/Application Supportclaude
+T 1792053312.8 load { 1.96 1.77 1.72 }
+ 49.3 13574 sh
+ 15.7 59289 macmon
+ 12.8 85541 /Users/josef/Library/Application Supportclaude
+  8.1 59015 intarsia-base
+  4.1   631 coreaudiod
+  2.2 13571 Herdr
+T 1792053315.9 load { 1.97 1.78 1.72 }
+ 14.7 59289 macmon
+  8.1 87961 /Users/josef/Library/Application Supportclaude
+  5.2   631 coreaudiod
+  2.9 85541 /Users/josef/Library/Application Supportclaude
+  1.9 87301 BambuStudio
+  1.8 33773 /Users/josef/Library/Application Supportclaude
+T 1792053319.0 load { 1.97 1.78 1.72 }
+ 99.4 13574 sh
+ 16.2 59289 macmon
+ 14.3   791 mds_stores
+  5.7 85541 /Users/josef/Library/Application Supportclaude
+  4.0   631 coreaudiod
+  2.8 13571 Herdr
+T 1792053322.1 load { 2.13 1.81 1.74 }
+113.0 88901 Syrtis
+ 45.6 85541 /Users/josef/Library/Application Supportclaude
+ 18.9 13574 sh
+ 16.6 59289 macmon
+  6.7   631 coreaudiod
+  3.5 66359 /Users/josef/Library/Application Supportclaude
+T 1792053325.2 load { 1.96 1.78 1.73 }
+ 16.6 59289 macmon
+  5.1   631 coreaudiod
+  4.9  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.3 85541 /Users/josef/Library/Application Supportclaude
+  2.9 13571 Herdr
+  2.4 54754 /Users/josef/Library/Application Supportclaude
+T 1792053328.2 load { 1.96 1.78 1.73 }
+100.0 13574 sh
+ 13.8 59289 macmon
+  7.8     1 launchd
+  4.1   631 coreaudiod
+  3.1 13571 Herdr
+  1.5 88901 Syrtis
+T 1792053331.3 load { 1.96 1.79 1.73 }
+ 18.4 59289 macmon
+ 15.2 88901 Syrtis
+  6.4 87301 BambuStudio
+  5.8   631 coreaudiod
+  4.1 13574 sh
+  4.1 27299 /Users/josef/Library/Application Supportclaude
+T 1792053334.4 load { 1.88 1.77 1.72 }
+ 20.4 59289 macmon
+  5.9   631 coreaudiod
+  3.7 87301 BambuStudio
+  2.7 13571 Herdr
+  1.5 85541 /Users/josef/Library/Application Supportclaude
+  1.3   438 corespeechd_system
+T 1792053337.5 load { 1.88 1.77 1.72 }
+100.0 13574 sh
+ 35.4 60282 parsec-fbf
+ 15.0 59289 macmon
+ 13.8  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.3   466 dasd
+  4.2 87301 BambuStudio
+T 1792053340.6 load { 1.97 1.79 1.73 }
+ 15.5 59289 macmon
+  4.8   631 coreaudiod
+  3.6 27558 PerfPowerServices
+  2.2 87301 BambuStudio
+  1.8 13571 Herdr
+  1.4 59015 intarsia-base
+T 1792053343.6 load { 1.97 1.79 1.73 }
+ 15.4 59289 macmon
+  5.1 40257 /Users/josef/Library/Application Supportclaude
+  5.0   631 coreaudiod
+  3.5 87301 BambuStudio
+  2.8 57537 /Users/josef/Library/Application Supportclaude
+  1.6 59015 intarsia-base
+T 1792053346.7 load { 1.89 1.78 1.73 }
+ 98.7 13574 sh
+ 16.0 59289 macmon
+  3.5   631 coreaudiod
+  2.1 15455 /Users/josef/Library/Application Supportclaude
+  1.6 13571 Herdr
+  1.6 88901 Syrtis
+T 1792053349.8 load { 1.90 1.78 1.73 }
+ 14.0 59289 macmon
+  4.8   631 coreaudiod
+  3.1 87301 BambuStudio
+  1.3 59015 intarsia-base
+  1.3   438 corespeechd_system
+  1.2 13571 Herdr
+T 1792053352.9 load { 1.90 1.78 1.73 }
+100.6  2415 OrbStack
+ 17.2 59289 macmon
+  7.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.2   631 coreaudiod
+  4.6 87961 /Users/josef/Library/Application Supportclaude
+  4.1 13571 Herdr
+T 1792053356.0 load { 1.83 1.77 1.72 }
+100.0 13574 sh
+ 15.2 59289 macmon
+  3.8   631 coreaudiod
+  3.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.7 87301 BambuStudio
+  1.8 82471 /Users/josef/Library/Application Supportclaude
+T 1792053359.1 load { 1.83 1.77 1.72 }
+119.2 41570 contactsd
+ 17.1 59289 macmon
+  6.8 17285 Safari
+  5.4   631 coreaudiod
+  5.2 82020 IMDPersistenceAgent
+  4.9 88932 photoanalysisd
+T 1792053362.2 load { 1.92 1.79 1.73 }
+ 18.3 59289 macmon
+  6.2   488 loginwindow
+  5.5   631 coreaudiod
+  3.6   485 WindowServer
+  2.9 59152 /Users/josef/Library/Application Supportclaude
+  1.9 13571 Herdr
+T 1792053365.3 load { 1.93 1.79 1.73 }
+100.0 13574 sh
+ 15.0 59289 macmon
+  3.8   631 coreaudiod
+  1.9  5051 /Users/josef/Library/Application Supportclaude
+  1.4   438 corespeechd_system
+  1.3 59015 intarsia-base
+T 1792053368.3 load { 1.93 1.79 1.73 }
+ 16.0 59289 macmon
+  5.1   631 coreaudiod
+  4.3  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  3.2 85541 /Users/josef/Library/Application Supportclaude
+  2.0 15787 ptpcamerad
+  1.8 59015 intarsia-base
+T 1792053371.4 load { 1.85 1.78 1.73 }
+ 66.0 13574 sh
+ 18.4 59289 macmon
+  6.7 87301 BambuStudio
+  4.3   631 coreaudiod
+  2.2 13571 Herdr
+  2.0   490 runningboardd
+T 1792053374.5 load { 1.85 1.78 1.73 }
+100.0 13574 sh
+ 15.7 59289 macmon
+ 10.8   490 runningboardd
+  5.7 87301 BambuStudio
+  3.5   631 coreaudiod
+  3.2 60122 /Users/josef/Library/Application Supportclaude
+T 1792053377.6 load { 2.11 1.83 1.75 }
+ 15.9 59289 macmon
+  5.7  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.7   631 coreaudiod
+  4.2 87301 BambuStudio
+  2.7 34959 /Users/josef/Library/Application Supportclaude
+  1.4   438 corespeechd_system
+T 1792053380.7 load { 2.02 1.82 1.74 }
+ 97.4 88901 Syrtis
+ 91.8 13574 sh
+ 15.6 59289 macmon
+  4.3   631 coreaudiod
+  3.7 27128 /Users/josef/Library/Application Supportclaude
+  2.7 27558 PerfPowerServices
+T 1792053383.7 load { 2.02 1.82 1.74 }
+ 95.9 88901 Syrtis
+ 86.1 13574 sh
+ 15.6 59289 macmon
+  4.2   631 coreaudiod
+  3.3 36622 /Users/josef/Library/Application Supportclaude
+  3.1 40257 /Users/josef/Library/Application Supportclaude
+T 1792053386.8 load { 1.94 1.81 1.74 }
+ 15.0 59289 macmon
+ 11.7 60122 /Users/josef/Library/Application Supportclaude
+  4.9   631 coreaudiod
+  2.9 13571 Herdr
+  1.6 59015 intarsia-base
+  1.3   438 corespeechd_system
+T 1792053389.9 load { 1.94 1.81 1.74 }
+ 97.5 13574 sh
+ 14.7 59289 macmon
+  3.8   631 coreaudiod
+  3.6 40257 /Users/josef/Library/Application Supportclaude
+  1.3 13571 Herdr
+  1.3   438 corespeechd_system
+T 1792053393.0 load { 1.94 1.81 1.74 }
+ 19.2 13574 sh
+ 18.6 59289 macmon
+  9.8 54754 /Users/josef/Library/Application Supportclaude
+  5.5   631 coreaudiod
+  1.3   438 corespeechd_system
+  1.3 85541 /Users/josef/Library/Application Supportclaude
+T 1792053396.1 load { 1.78 1.78 1.73 }
+ 16.6 59289 macmon
+ 15.3 59015 intarsia-base
+  4.7   631 coreaudiod
+  1.9   555 airportd
+  1.8   485 WindowServer
+  1.4 13571 Herdr
+T 1792053399.2 load { 1.78 1.78 1.73 }
+100.0 13574 sh
+ 15.7 59289 macmon
+  3.6   631 coreaudiod
+  3.5 85541 /Users/josef/Library/Application Supportclaude
+  2.6  5051 /Users/josef/Library/Application Supportclaude
+  2.6 15787 ptpcamerad
+T 1792053402.2 load { 1.80 1.78 1.73 }
+ 15.1 59289 macmon
+  4.9   631 coreaudiod
+  4.2 13574 sh
+  2.4 99688 Muse
+  2.4   831 tccd
+  1.7 87301 BambuStudio
+T 1792053405.3 load { 1.90 1.80 1.74 }
+ 15.4 59289 macmon
+  7.7 87301 BambuStudio
+  5.0   631 coreaudiod
+  1.9 13571 Herdr
+  1.5 59015 intarsia-base
+  1.4   438 corespeechd_system
+T 1792053408.4 load { 1.90 1.80 1.74 }
+ 98.9 13574 sh
+ 16.1 59289 macmon
+  4.8 87301 BambuStudio
+  3.6   631 coreaudiod
+  3.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.4 33773 /Users/josef/Library/Application Supportclaude
+T 1792053411.5 load { 1.83 1.79 1.73 }
+ 95.3  2415 OrbStack
+ 15.7  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 14.8 59289 macmon
+  5.3   631 coreaudiod
+  4.9 87301 BambuStudio
+  3.1 27400 Claude
+T 1792053414.6 load { 1.92 1.81 1.74 }
+ 16.0 59289 macmon
+ 14.0  2415 OrbStack
+  6.8 60632 /Users/josef/Library/Application Supportclaude
+  5.2   631 coreaudiod
+  4.2 60738 node
+  2.8 87301 BambuStudio
+T 1792053417.7 load { 1.92 1.81 1.74 }
+100.0 13574 sh
+ 15.9 59289 macmon
+  9.5 60632 /Users/josef/Library/Application Supportclaude
+  7.3 27582 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+  3.8   631 coreaudiod
+  2.8 87301 BambuStudio
+T 1792053420.8 load { 1.77 1.78 1.73 }
+ 15.7 59289 macmon
+  8.4   488 loginwindow
+  4.9   631 coreaudiod
+  3.8   485 WindowServer
+  2.7 27558 PerfPowerServices
+  2.6 60632 /Users/josef/Library/Application Supportclaude
+T 1792053423.8 load { 1.77 1.78 1.73 }
+194.7  2929 python
+ 22.8 60888 python
+ 22.5 60890 python
+ 16.0 59289 macmon
+  6.8   631 coreaudiod
+  4.5 60632 /Users/josef/Library/Application Supportclaude
+T 1792053426.9 load { 1.70 1.76 1.73 }
+100.0 13574 sh
+ 14.6 59289 macmon
+  4.2   631 coreaudiod
+  3.2 54754 /Users/josef/Library/Application Supportclaude
+  2.7 72332 /Users/josef/Library/Application Supportclaude
+  1.8  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+T 1792053430.0 load { 1.97 1.82 1.74 }
+ 15.1 59289 macmon
+  5.8 99698 com.apple.WebKit.WebContent
+  5.0   631 coreaudiod
+  2.3 13571 Herdr
+  2.1 40257 /Users/josef/Library/Application Supportclaude
+  1.4 59015 intarsia-base
+T 1792053433.1 load { 1.97 1.82 1.74 }
+131.5   917 corespotlightd
+ 15.2 59289 macmon
+  4.4   631 coreaudiod
+  3.2 85541 /Users/josef/Library/Application Supportclaude
+  2.4 27299 /Users/josef/Library/Application Supportclaude
+  1.4 59015 intarsia-base
+T 1792053436.2 load { 2.05 1.84 1.75 }
+252.9   917 corespotlightd
+100.0 13574 sh
+ 16.0 59289 macmon
+  3.5   631 coreaudiod
+  2.4 15455 /Users/josef/Library/Application Supportclaude
+  1.5   692 AppleCentauriAlpha
+T 1792053439.3 load { 2.05 1.84 1.75 }
+ 20.6 59289 macmon
+ 11.9 88901 Syrtis
+  6.1   631 coreaudiod
+  4.2 85541 /Users/josef/Library/Application Supportclaude
+  3.9 87301 BambuStudio
+  2.8 54973 /Users/josef/Library/Application Supportclaude
+T 1792053442.3 load { 1.89 1.81 1.74 }
+ 65.7 13574 sh
+ 16.0 59289 macmon
+ 12.4 85541 /Users/josef/Library/Application Supportclaude
+ 10.0 59015 intarsia-base
+  4.5   490 runningboardd
+  4.0   631 coreaudiod
+T 1792053445.4 load { 1.81 1.79 1.74 }
+ 99.1 13574 sh
+ 46.8 88901 Syrtis
+ 15.4 59289 macmon
+  5.3 87301 BambuStudio
+  3.8   631 coreaudiod
+  2.4 13571 Herdr
+T 1792053448.5 load { 1.81 1.79 1.74 }
+ 14.3 59289 macmon
+ 10.8  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.2   631 coreaudiod
+  3.4     1 launchd
+  3.0 87301 BambuStudio
+  2.5 72332 /Users/josef/Library/Application Supportclaude
+T 1792053451.6 load { 1.75 1.78 1.73 }
+ 92.8 13574 sh
+ 14.9 59289 macmon
+  4.2 59152 /Users/josef/Library/Application Supportclaude
+  4.0   631 coreaudiod
+  3.8 87301 BambuStudio
+  3.0 54973 /Users/josef/Library/Application Supportclaude
+T 1792053454.7 load { 1.77 1.78 1.73 }
+ 54.4 13574 sh
+ 14.0 59289 macmon
+  4.0   631 coreaudiod
+  1.4   438 corespeechd_system
+  1.3 87301 BambuStudio
+  1.3 59015 intarsia-base
+T 1792053457.8 load { 1.77 1.78 1.73 }
+ 15.5 59289 macmon
+  4.8   631 coreaudiod
+  2.7 27707 /Users/josef/Library/Application Supportclaude
+  2.2 87301 BambuStudio
+  1.6 59015 intarsia-base
+  1.6 34959 /Users/josef/Library/Application Supportclaude
+T 1792053460.8 load { 2.11 1.85 1.76 }
+ 99.2 13574 sh
+ 14.6 59289 macmon
+  3.8   631 coreaudiod
+  2.2 87961 /Users/josef/Library/Application Supportclaude
+  2.1 13571 Herdr
+  1.8 87301 BambuStudio
+T 1792053463.9 load { 2.11 1.85 1.76 }
+ 15.6 59289 macmon
+ 12.2 13574 sh
+  4.7   631 coreaudiod
+  2.4 40257 /Users/josef/Library/Application Supportclaude
+  1.6 59015 intarsia-base
+  1.3   438 corespeechd_system
+T 1792053467.0 load { 2.02 1.84 1.75 }
+157.8   917 corespotlightd
+ 15.9 59289 macmon
+  4.7   631 coreaudiod
+  2.2 85541 /Users/josef/Library/Application Supportclaude
+  1.6 13571 Herdr
+  1.4 59015 intarsia-base
+T 1792053470.1 load { 2.02 1.84 1.75 }
+ 98.9 13574 sh
+ 16.2 59289 macmon
+  3.4   631 coreaudiod
+  1.1   438 corespeechd_system
+  1.0 87301 BambuStudio
+  0.6 13571 Herdr
+T 1792053473.2 load { 2.02 1.84 1.75 }
+ 40.3  2415 OrbStack
+ 14.1 59289 macmon
+  5.4 92414 Finder
+  5.2 85541 /Users/josef/Library/Application Supportclaude
+  5.0 59015 intarsia-base
+  5.0   631 coreaudiod
+T 1792053476.3 load { 1.85 1.81 1.74 }
+ 14.4 59289 macmon
+  5.1   631 coreaudiod
+  2.4 13571 Herdr
+  1.5 15787 ptpcamerad
+  1.4 59015 intarsia-base
+  1.4   438 corespeechd_system
+T 1792053479.4 load { 1.85 1.81 1.74 }
+ 99.3 13574 sh
+ 15.3 59289 macmon
+  7.3 87301 BambuStudio
+  3.9   631 coreaudiod
+  3.2 13571 Herdr
+  1.5 85541 /Users/josef/Library/Application Supportclaude
+T 1792053482.4 load { 1.87 1.81 1.75 }
+ 15.4 59289 macmon
+  4.8   631 coreaudiod
+  4.5 87301 BambuStudio
+  2.4  2789 hazlUI
+  1.5   488 loginwindow
+  1.5   438 corespeechd_system
+T 1792053485.5 load { 1.72 1.78 1.74 }
+ 14.6 59289 macmon
+  5.2 87301 BambuStudio
+  4.9   631 coreaudiod
+  2.5 59152 /Users/josef/Library/Application Supportclaude
+  1.6 59015 intarsia-base
+  1.5 13571 Herdr
+T 1792053488.6 load { 1.72 1.78 1.74 }
+100.0 13574 sh
+ 17.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 13.9 59289 macmon
+  4.0   631 coreaudiod
+  2.1 87301 BambuStudio
+  2.0  2789 hazlUI
+T 1792053491.7 load { 1.74 1.79 1.74 }
+ 16.5 59289 macmon
+  5.2   631 coreaudiod
+  3.7 87301 BambuStudio
+  3.2 20092 /Users/josef/Library/Application Supportclaude
+  1.4 66359 /Users/josef/Library/Application Supportclaude
+  1.3 15787 ptpcamerad
+T 1792053494.8 load { 1.68 1.77 1.73 }
+ 22.3 59289 macmon
+  6.0   631 coreaudiod
+  2.8   831 tccd
+  2.2  2789 hazlUI
+  2.1 56034 adb
+  1.4 87301 BambuStudio
+T 1792053497.9 load { 1.68 1.77 1.73 }
+100.0 13574 sh
+ 14.9 59289 macmon
+  8.7 87961 /Users/josef/Library/Application Supportclaude
+  3.6   631 coreaudiod
+  2.3 40257 /Users/josef/Library/Application Supportclaude
+  1.4   438 corespeechd_system
+T 1792053501.0 load { 1.54 1.74 1.72 }
+ 15.5 59289 macmon
+  4.8   631 coreaudiod
+  3.8 59015 intarsia-base
+  2.2 13571 Herdr
+  2.1 27299 /Users/josef/Library/Application Supportclaude
+  1.4   478 bluetoothd
+T 1792053504.0 load { 1.54 1.74 1.72 }
+ 15.5 59289 macmon
+  7.8 40257 /Users/josef/Library/Application Supportclaude
+  4.9   631 coreaudiod
+  1.6 59015 intarsia-base
+  1.5   692 AppleCentauriAlpha
+  1.3   438 corespeechd_system
+T 1792053507.1 load { 1.58 1.75 1.72 }
+100.0 13574 sh
+ 15.7 59289 macmon
+  4.0   631 coreaudiod
+  2.9 28098 /Users/josef/Library/Application Supportclaude
+  1.8   485 WindowServer
+  1.7   555 airportd
+T 1792053510.2 load { 1.69 1.77 1.73 }
+ 14.8 59289 macmon
+  4.8   631 coreaudiod
+  1.9   929 ControlCenter
+  1.6   485 WindowServer
+  1.5 59015 intarsia-base
+  1.4   438 corespeechd_system
+T 1792053513.3 load { 1.69 1.77 1.73 }
+ 73.2 13574 sh
+ 15.6 59289 macmon
+  8.8 87301 BambuStudio
+  4.2   631 coreaudiod
+  2.3 60122 /Users/josef/Library/Application Supportclaude
+  1.7 13571 Herdr
+T 1792053516.4 load { 1.64 1.75 1.73 }
+ 99.5 13574 sh
+ 16.9 60738 node
+ 15.2 59289 macmon
+  4.8 60735 node
+  4.6 87301 BambuStudio
+  4.3   631 coreaudiod
+T 1792053519.5 load { 1.64 1.75 1.73 }
+ 14.2 59289 macmon
+  6.8  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.8 87301 BambuStudio
+  4.9   631 coreaudiod
+  2.2 13571 Herdr
+  1.7 59015 intarsia-base
+T 1792053522.6 load { 1.59 1.74 1.72 }
+ 95.7 13574 sh
+ 13.8 59289 macmon
+  3.8   631 coreaudiod
+  2.4 87301 BambuStudio
+  1.3 59015 intarsia-base
+  1.3   438 corespeechd_system
+T 1792053525.6 load { 1.78 1.78 1.74 }
+ 69.1 13574 sh
+ 16.5 59289 macmon
+  4.2 20092 /Users/josef/Library/Application Supportclaude
+  4.0   631 coreaudiod
+  4.0 59015 intarsia-base
+  3.7 87301 BambuStudio
+T 1792053528.7 load { 1.78 1.78 1.74 }
+ 13.7 59289 macmon
+  6.9 88901 Syrtis
+  4.9   631 coreaudiod
+  4.8 54754 /Users/josef/Library/Application Supportclaude
+  1.9 13571 Herdr
+  1.6 59015 intarsia-base
+T 1792053531.8 load { 1.80 1.78 1.74 }
+ 98.8 13574 sh
+ 95.2  2415 OrbStack
+ 16.6 59289 macmon
+  7.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.5   631 coreaudiod
+  2.7 87301 BambuStudio
+T 1792053534.9 load { 1.65 1.75 1.73 }
+ 15.7 13574 sh
+ 14.8 59289 macmon
+ 11.6  2415 OrbStack
+  4.6   631 coreaudiod
+  3.8 85541 /Users/josef/Library/Application Supportclaude
+  2.2  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+T 1792053538.0 load { 1.65 1.75 1.73 }
+ 22.7     1 launchd
+ 15.9 59289 macmon
+  8.1 60632 /Users/josef/Library/Application Supportclaude
+  5.0   631 coreaudiod
+  1.7 59015 intarsia-base
+  1.3 13571 Herdr
+T 1792053541.1 load { 1.60 1.74 1.72 }
+100.0 13574 sh
+ 88.0 61529 AssetMetricsExtension
+ 15.3 59289 macmon
+  9.2   488 loginwindow
+  5.3   485 WindowServer
+  4.3   631 coreaudiod
+T 1792053544.1 load { 1.60 1.74 1.72 }
+ 18.1 59289 macmon
+  8.5 40257 /Users/josef/Library/Application Supportclaude
+  5.0   631 coreaudiod
+  3.2 13574 sh
+  1.8 71055 /Users/josef/Library/Application Supportclaude
+  1.3   485 WindowServer
+T 1792053547.2 load { 1.63 1.74 1.72 }
+ 19.6 59289 macmon
+  6.9 66359 /Users/josef/Library/Application Supportclaude
+  5.8   631 coreaudiod
+  5.6 27707 /Users/josef/Library/Application Supportclaude
+  4.1 20092 /Users/josef/Library/Application Supportclaude
+  1.8 55403 /Users/josef/Library/Application Supportclaude
+T 1792053550.3 load { 1.66 1.75 1.73 }
+100.0 13574 sh
+ 14.1 59289 macmon
+  3.5   631 coreaudiod
+  2.7 13571 Herdr
+  1.7 84670 /Applications/Grok Bot.app/Contents/MacOS/Grok Bot
+  1.3 72332 /Users/josef/Library/Application Supportclaude
+T 1792053553.4 load { 1.66 1.75 1.73 }
+ 15.1 59289 macmon
+  5.8 87301 BambuStudio
+  4.9   631 coreaudiod
+  2.6 59015 intarsia-base
+  2.4   490 runningboardd
+  2.1 13571 Herdr
+T 1792053556.5 load { 1.53 1.72 1.71 }
+ 16.7 59289 macmon
+  4.8   631 coreaudiod
+  4.0 87301 BambuStudio
+  2.0 13571 Herdr
+  1.8  2823 ssh-agent
+  1.7   692 AppleCentauriAlpha
+T 1792053559.6 load { 1.53 1.72 1.71 }
+ 99.0 13574 sh
+ 15.6 59289 macmon
+ 14.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  3.9   631 coreaudiod
+  3.6 60122 /Users/josef/Library/Application Supportclaude
+  3.4 87301 BambuStudio
+T 1792053562.7 load { 1.81 1.77 1.73 }
+ 14.3 59289 macmon
+  4.8   631 coreaudiod
+  2.2 13571 Herdr
+  1.5 59015 intarsia-base
+  1.5 87301 BambuStudio
+  1.4 85541 /Users/josef/Library/Application Supportclaude
+T 1792053565.7 load { 2.14 1.84 1.76 }
+ 21.8 88901 Syrtis
+ 15.6 59289 macmon
+  5.0   631 coreaudiod
+  3.9 13571 Herdr
+  2.1 87301 BambuStudio
+  1.6 59015 intarsia-base
+T 1792053568.8 load { 2.14 1.84 1.76 }
+ 99.3 13574 sh
+ 14.4 59289 macmon
+  4.0   631 coreaudiod
+  3.5 27582 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+  3.3 27547 /Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper
+  2.9 19493 /Users/josef/Library/Application Supportclaude
+T 1792053571.9 load { 2.13 1.85 1.76 }
+ 13.8 59289 macmon
+  4.9   631 coreaudiod
+  2.4 13571 Herdr
+  2.4 27128 /Users/josef/Library/Application Supportclaude
+  1.6 59015 intarsia-base
+  1.5   438 corespeechd_system
+T 1792053575.0 load { 2.04 1.83 1.75 }
+ 16.0 59289 macmon
+  8.5 87961 /Users/josef/Library/Application Supportclaude
+  5.1   631 coreaudiod
+  3.4 85541 /Users/josef/Library/Application Supportclaude
+  3.3 54973 /Users/josef/Library/Application Supportclaude
+  1.9 54754 /Users/josef/Library/Application Supportclaude
+T 1792053578.1 load { 2.04 1.83 1.75 }
+ 99.7 13574 sh
+ 45.5  2718 /Applications/VSCodium.app/Contents/Frameworks/VSCodium Helper (Renderer).app/Contents/MacOS/VSCodium Helper (Renderer)
+ 15.4 59289 macmon
+  4.0   631 coreaudiod
+  3.1 59015 intarsia-base
+  2.5 40257 /Users/josef/Library/Application Supportclaude
+T 1792053581.2 load { 1.96 1.82 1.75 }
+ 15.6 59289 macmon
+  5.0   631 coreaudiod
+  2.7 13571 Herdr
+  1.6 27707 /Users/josef/Library/Application Supportclaude
+  1.5 55403 /Users/josef/Library/Application Supportclaude
+  1.5   438 corespeechd_system
+T 1792053584.3 load { 1.96 1.82 1.75 }
+ 71.7 13574 sh
+ 15.9 59289 macmon
+  8.4 40257 /Users/josef/Library/Application Supportclaude
+  4.3   631 coreaudiod
+  2.1 87961 /Users/josef/Library/Application Supportclaude
+  2.0 99688 Muse
+T 1792053587.4 load { 1.88 1.80 1.75 }
+ 99.1 13574 sh
+ 20.8 59015 intarsia-base
+ 15.0 59289 macmon
+  7.4 87301 BambuStudio
+  4.5  2718 /Applications/VSCodium.app/Contents/Frameworks/VSCodium Helper (Renderer).app/Contents/MacOS/VSCodium Helper (Renderer)
+  3.5   631 coreaudiod
+T 1792053590.4 load { 1.81 1.79 1.74 }
+ 14.9 59289 macmon
+  5.7 87301 BambuStudio
+  4.9   631 coreaudiod
+  1.6 59015 intarsia-base
+  1.5   438 corespeechd_system
+  1.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+T 1792053593.5 load { 1.81 1.79 1.74 }
+100.1  2415 OrbStack
+ 92.9 13574 sh
+ 14.8 59289 macmon
+  5.2  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.1 87301 BambuStudio
+  4.2   631 coreaudiod
+T 1792053596.6 load { 1.82 1.79 1.74 }
+ 41.8 13574 sh
+ 14.7 59289 macmon
+  4.4   631 coreaudiod
+  4.0 59152 /Users/josef/Library/Application Supportclaude
+  2.5 28098 /Users/josef/Library/Application Supportclaude
+  2.4 87301 BambuStudio
+T 1792053599.7 load { 1.82 1.79 1.74 }
+ 33.5  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 15.7 59289 macmon
+  5.3   631 coreaudiod
+  4.2 87301 BambuStudio
+  1.5 59015 intarsia-base
+  1.4 67315 /Users/josef/Library/Application Supportclaude
+T 1792053602.8 load { 1.76 1.78 1.74 }
+ 98.2 13574 sh
+ 15.7 59289 macmon
+  3.8   631 coreaudiod
+  2.2 85541 /Users/josef/Library/Application Supportclaude
+  1.5 87301 BambuStudio
+  1.4   438 corespeechd_system
+T 1792053605.9 load { 1.70 1.77 1.73 }
+ 21.7 59289 macmon
+  9.3 13574 sh
+  5.7   631 coreaudiod
+  3.7 18165 /Users/josef/Library/Application Supportclaude
+  3.0 15787 ptpcamerad
+  2.1 87301 BambuStudio
+T 1792053609.0 load { 1.70 1.77 1.73 }
+ 31.7 59015 intarsia-base
+ 17.0 59289 macmon
+ 11.6   490 runningboardd
+  4.6   631 coreaudiod
+  3.3 85541 /Users/josef/Library/Application Supportclaude
+  2.9 54973 /Users/josef/Library/Application Supportclaude
+T 1792053612.1 load { 1.56 1.74 1.72 }
+ 98.8 13574 sh
+ 15.0 59289 macmon
+  3.5   631 coreaudiod
+  1.2   438 corespeechd_system
+  1.1   692 AppleCentauriAlpha
+  1.0 71055 /Users/josef/Library/Application Supportclaude
+T 1792053615.1 load { 1.43 1.71 1.71 }
+ 15.9 59289 macmon
+  4.9   631 coreaudiod
+  2.1 13574 sh
+  1.6 59015 intarsia-base
+  1.4 85541 /Users/josef/Library/Application Supportclaude
+  1.1   438 corespeechd_system
+T 1792053618.2 load { 1.43 1.71 1.71 }
+ 15.3 59289 macmon
+  5.0   631 coreaudiod
+  3.5 40257 /Users/josef/Library/Application Supportclaude
+  2.2   485 WindowServer
+  1.7 59152 /Users/josef/Library/Application Supportclaude
+  1.5   555 airportd
+T 1792053621.3 load { 1.64 1.75 1.73 }
+ 99.2 13574 sh
+ 16.2 59289 macmon
+  7.7 87301 BambuStudio
+  3.9 60657 npm exec @playwright/mcp@latest
+  3.7 60655 npm exec rea-agents@6.4.0 mcp
+  3.6   631 coreaudiod
+T 1792053624.4 load { 1.64 1.75 1.73 }
+ 14.5 59289 macmon
+  5.4 87301 BambuStudio
+  4.9   631 coreaudiod
+  2.2 13571 Herdr
+  1.3 59015 intarsia-base
+  1.3   438 corespeechd_system
+T 1792053627.5 load { 1.59 1.73 1.72 }
+ 15.3 59289 macmon
+  5.2 87301 BambuStudio
+  4.8   631 coreaudiod
+  3.2 88901 Syrtis
+  1.7 59015 intarsia-base
+  1.6 20092 /Users/josef/Library/Application Supportclaude
+T 1792053630.6 load { 1.78 1.77 1.74 }
+100.0 13574 sh
+ 16.3 59289 macmon
+  3.9   631 coreaudiod
+  3.2  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.3 87301 BambuStudio
+  1.3 59015 intarsia-base
+T 1792053633.7 load { 1.78 1.77 1.74 }
+ 15.5 59289 macmon
+  4.9   631 coreaudiod
+  3.7 87301 BambuStudio
+  3.0 13571 Herdr
+  1.6 59015 intarsia-base
+  1.4   692 AppleCentauriAlpha
+T 1792053636.7 load { 1.80 1.77 1.74 }
+ 14.2 59289 macmon
+  5.2   631 coreaudiod
+  3.1 15787 ptpcamerad
+  3.0 82471 /Users/josef/Library/Application Supportclaude
+  3.0 13571 Herdr
+  1.6   438 corespeechd_system
+T 1792053639.8 load { 1.80 1.77 1.74 }
+100.0 13574 sh
+ 14.9 59289 macmon
+  3.8   631 coreaudiod
+  2.1 87301 BambuStudio
+  1.5   438 corespeechd_system
+  1.5 60122 /Users/josef/Library/Application Supportclaude
+T 1792053642.9 load { 1.81 1.78 1.74 }
+ 16.1 59289 macmon
+  5.0   631 coreaudiod
+  2.0 13571 Herdr
+  1.7 59015 intarsia-base
+  1.4   438 corespeechd_system
+  1.3 85541 /Users/josef/Library/Application Supportclaude
+T 1792053646.0 load { 1.75 1.76 1.73 }
+ 18.3 59289 macmon
+ 10.9 13574 sh
+  5.5   631 coreaudiod
+  2.2 13571 Herdr
+  1.2 33773 /Users/josef/Library/Application Supportclaude
+  1.2 87301 BambuStudio
+T 1792053649.1 load { 1.75 1.76 1.73 }
+100.0 13574 sh
+ 14.1 59289 macmon
+  3.6   631 coreaudiod
+  1.6 66359 /Users/josef/Library/Application Supportclaude
+  1.3   438 corespeechd_system
+  1.2 59015 intarsia-base
+T 1792053652.2 load { 1.69 1.75 1.73 }
+ 96.2  2415 OrbStack
+ 16.9 59289 macmon
+  8.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.1   631 coreaudiod
+  2.0 59015 intarsia-base
+  1.9 40257 /Users/josef/Library/Application Supportclaude
+T 1792053655.3 load { 1.63 1.74 1.73 }
+ 78.5 13574 sh
+ 27.6  2415 OrbStack
+ 15.3 59289 macmon
+  4.9 85541 /Users/josef/Library/Application Supportclaude
+  4.3   631 coreaudiod
+  3.6 74402 trustd
+T 1792053658.3 load { 1.63 1.74 1.73 }
+100.0 13574 sh
+ 15.0 59289 macmon
+  5.9     1 launchd
+  4.0   631 coreaudiod
+  3.3 13571 Herdr
+  1.5   438 corespeechd_system
+T 1792053661.4 load { 1.58 1.73 1.72 }
+ 19.5 59289 macmon
+  8.6 87301 BambuStudio
+  6.8   488 loginwindow
+  6.0 27128 /Users/josef/Library/Application Supportclaude
+  5.8   631 coreaudiod
+  4.7   485 WindowServer
+T 1792053664.5 load { 1.58 1.73 1.72 }
+ 97.2 13574 sh
+ 14.8 59289 macmon
+  3.4   631 coreaudiod
+  3.2 59015 intarsia-base
+  2.8 87301 BambuStudio
+  2.5 28098 /Users/josef/Library/Application Supportclaude
+T 1792053667.6 load { 1.62 1.73 1.72 }
+ 39.3 13574 sh
+ 15.9 59289 macmon
+  4.3 87301 BambuStudio
+  4.3   631 coreaudiod
+  2.4 33773 /Users/josef/Library/Application Supportclaude
+  2.0 15787 ptpcamerad
+T 1792053670.7 load { 1.57 1.72 1.72 }
+ 16.2 59289 macmon
+ 12.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  8.1 87961 /Users/josef/Library/Application Supportclaude
+  5.2   631 coreaudiod
+  1.8 85541 /Users/josef/Library/Application Supportclaude
+  1.8 87301 BambuStudio
+T 1792053673.8 load { 1.57 1.72 1.72 }
+100.0 13574 sh
+ 15.7 59289 macmon
+  3.9   631 coreaudiod
+  2.2 72332 /Users/josef/Library/Application Supportclaude
+  1.6 87301 BambuStudio
+  1.5 88901 Syrtis
+T 1792053676.9 load { 2.08 1.82 1.75 }
+128.0 77357 privatecloudcomputed
+ 90.4 48280 mobileassetd
+ 84.0 53907 deleted
+ 46.6 77358 swtransparencyd
+ 38.9 74402 trustd
+ 16.3 59289 macmon
+T 1792053679.9 load { 2.08 1.82 1.75 }
+ 15.0 59289 macmon
+  5.8 48280 mobileassetd
+  4.9   631 coreaudiod
+  2.5 27558 PerfPowerServices
+  1.6 59015 intarsia-base
+  1.5   438 corespeechd_system
+T 1792053683.0 load { 1.91 1.79 1.74 }
+100.0 13574 sh
+ 37.8 88901 Syrtis
+ 15.3 59289 macmon
+  4.1   631 coreaudiod
+  2.7 55403 /Users/josef/Library/Application Supportclaude
+  1.8 85541 /Users/josef/Library/Application Supportclaude
+T 1792053686.1 load { 1.84 1.78 1.74 }
+ 14.1 59289 macmon
+  5.2  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.9   631 coreaudiod
+  1.7 59015 intarsia-base
+  1.5   438 corespeechd_system
+  1.5 13571 Herdr
+T 1792053689.2 load { 1.84 1.78 1.74 }
+ 15.4 59289 macmon
+ 13.9 88901 Syrtis
+  4.8   631 coreaudiod
+  2.9 13571 Herdr
+  2.2 67315 /Users/josef/Library/Application Supportclaude
+  1.5   478 bluetoothd
+T 1792053692.3 load { 1.85 1.78 1.74 }
+100.0 13574 sh
+ 18.1 59289 macmon
+  4.2 87301 BambuStudio
+  3.2   631 coreaudiod
+  3.0 60122 /Users/josef/Library/Application Supportclaude
+  1.0   438 corespeechd_system
+T 1792053695.4 load { 1.71 1.75 1.73 }
+ 16.5 59289 macmon
+  7.6 87301 BambuStudio
+  4.9   631 coreaudiod
+  3.0 20092 /Users/josef/Library/Application Supportclaude
+  1.8 88901 Syrtis
+  1.6 59015 intarsia-base
+T 1792053698.4 load { 1.71 1.75 1.73 }
+ 14.9 59289 macmon
+  4.9   631 coreaudiod
+  4.3 88901 Syrtis
+  2.9 13571 Herdr
+  2.8 87301 BambuStudio
+  2.4  2789 hazlUI
+T 1792053701.5 load { 1.73 1.76 1.73 }
+100.0 13574 sh
+ 18.6 59289 macmon
+  3.6 87301 BambuStudio
+  3.3   631 coreaudiod
+  2.2 60632 /Users/josef/Library/Application Supportclaude
+  1.9 27299 /Users/josef/Library/Application Supportclaude
+T 1792053704.6 load { 1.73 1.76 1.73 }
+ 15.4 59289 macmon
+  5.8 99688 Muse
+  5.0   631 coreaudiod
+  3.1 66359 /Users/josef/Library/Application Supportclaude
+  2.9 74402 trustd
+  2.7  2789 hazlUI
+T 1792053707.7 load { 1.75 1.76 1.73 }
+ 56.3 13574 sh
+ 16.0 59289 macmon
+  4.7   631 coreaudiod
+  2.7 87301 BambuStudio
+  1.8 13571 Herdr
+  1.7 59015 intarsia-base
+T 1792053710.8 load { 1.69 1.75 1.73 }
+100.0 13574 sh
+ 17.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 15.3 59289 macmon
+  4.0   631 coreaudiod
+  2.6 13571 Herdr
+  2.4  2789 hazlUI
+T 1792053713.9 load { 1.69 1.75 1.73 }
+100.1  2415 OrbStack
+ 16.6 59289 macmon
+  5.1   631 coreaudiod
+  2.9 13571 Herdr
+  1.9 87301 BambuStudio
+  1.5  2789 hazlUI
+T 1792053717.0 load { 1.63 1.73 1.72 }
+ 89.2 13574 sh
+ 15.3 59289 macmon
+  3.8   631 coreaudiod
+  1.2   438 corespeechd_system
+  0.9   692 AppleCentauriAlpha
+  0.8 87301 BambuStudio
+T 1792053720.0 load { 1.63 1.73 1.72 }
+100.0 13574 sh
+ 15.4 59289 macmon
+  3.7   631 coreaudiod
+  3.3 13571 Herdr
+  2.5   831 tccd
+  1.4 85541 /Users/josef/Library/Application Supportclaude
+T 1792053723.1 load { 1.50 1.71 1.71 }
+ 16.6 59289 macmon
+  5.0   631 coreaudiod
+  3.4 13571 Herdr
+  1.6 59015 intarsia-base
+  1.5   438 corespeechd_system
+  1.0  2823 ssh-agent
+T 1792053726.2 load { 1.62 1.73 1.72 }
+ 95.7 13574 sh
+ 14.6 59289 macmon
+  3.5   631 coreaudiod
+  2.5  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  1.9 13571 Herdr
+  1.4   438 corespeechd_system
+T 1792053729.3 load { 1.62 1.73 1.72 }
+ 24.1 13574 sh
+ 14.0 59289 macmon
+  8.4 88901 Syrtis
+  4.9 87301 BambuStudio
+  4.7   631 coreaudiod
+  4.0 27128 /Users/josef/Library/Application Supportclaude
+T 1792053732.4 load { 1.49 1.70 1.71 }
+ 15.9 59289 macmon
+  5.2 87301 BambuStudio
+  4.9   631 coreaudiod
+  1.9   887 imagent
+  1.8 54754 /Users/josef/Library/Application Supportclaude
+  1.4   438 corespeechd_system
+T 1792053735.5 load { 1.77 1.75 1.73 }
+100.0 13574 sh
+ 15.8 59289 macmon
+  9.4 93345 Dropbox
+  4.7 87301 BambuStudio
+  3.8   631 coreaudiod
+  2.9 57537 /Users/josef/Library/Application Supportclaude
+T 1792053738.5 load { 1.77 1.75 1.73 }
+ 16.0 59289 macmon
+  5.6 13574 sh
+  5.0   631 coreaudiod
+  3.9 87301 BambuStudio
+  1.8 59015 intarsia-base
+  1.4   438 corespeechd_system
+T 1792053741.7 load { 1.71 1.74 1.73 }
+ 19.8 59289 macmon
+ 11.0  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.7   631 coreaudiod
+  3.9 87301 BambuStudio
+  1.6 85541 /Users/josef/Library/Application Supportclaude
+  1.4 13571 Herdr
+T 1792053744.7 load { 1.71 1.74 1.73 }
+100.0 13574 sh
+ 16.6 59289 macmon
+  3.7   631 coreaudiod
+  2.0 87301 BambuStudio
+  1.8 71055 /Users/josef/Library/Application Supportclaude
+  1.5 89489 /Users/josef/Library/Application Supportclaude
+T 1792053747.8 load { 1.65 1.73 1.72 }
+ 26.7     1 launchd
+ 16.5 59289 macmon
+  4.9   631 coreaudiod
+  2.8 82471 /Users/josef/Library/Application Supportclaude
+  2.2 87961 /Users/josef/Library/Application Supportclaude
+  1.9  2823 ssh-agent
+T 1792053750.9 load { 1.60 1.72 1.72 }
+ 19.8 59289 macmon
+  5.7   631 coreaudiod
+  4.4 85541 /Users/josef/Library/Application Supportclaude
+  2.8   831 tccd
+  2.7 13571 Herdr
+  1.9 87301 BambuStudio
+T 1792053754.0 load { 1.60 1.72 1.72 }
+ 99.0 13574 sh
+ 14.7 59289 macmon
+  3.7   631 coreaudiod
+  2.0 13571 Herdr
+  1.6 59015 intarsia-base
+  1.6   692 AppleCentauriAlpha
+T 1792053757.1 load { 1.55 1.70 1.71 }
+ 17.9 59289 macmon
+  5.6 87961 /Users/josef/Library/Application Supportclaude
+  4.9   631 coreaudiod
+  1.7 59015 intarsia-base
+  1.6 89489 /Users/josef/Library/Application Supportclaude
+  1.4   438 corespeechd_system
+T 1792053760.2 load { 1.55 1.70 1.71 }
+ 15.0 59289 macmon
+  5.0   631 coreaudiod
+  1.5 59015 intarsia-base
+  1.3   438 corespeechd_system
+  1.3 15787 ptpcamerad
+  1.1 56034 adb
+T 1792053763.3 load { 1.51 1.69 1.71 }
+136.3   917 corespotlightd
+100.0 13574 sh
+ 15.3 59289 macmon
+  3.2   631 coreaudiod
+  2.2 27128 /Users/josef/Library/Application Supportclaude
+  1.6 59152 /Users/josef/Library/Application Supportclaude
+T 1792053766.3 load { 1.55 1.70 1.71 }
+220.7   917 corespotlightd
+ 15.8 59289 macmon
+  5.3  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.8   631 coreaudiod
+  2.2 87961 /Users/josef/Library/Application Supportclaude
+  2.1 36622 /Users/josef/Library/Application Supportclaude
+T 1792053769.4 load { 1.55 1.70 1.71 }
+ 16.0 59289 macmon
+  7.5 87301 BambuStudio
+  5.0   631 coreaudiod
+  3.3 13571 Herdr
+  1.6   490 runningboardd
+  1.5 57537 /Users/josef/Library/Application Supportclaude
+T 1792053772.5 load { 1.50 1.68 1.71 }
+ 99.8  2415 OrbStack
+ 99.0 13574 sh
+ 15.7 59289 macmon
+ 14.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.1 40257 /Users/josef/Library/Application Supportclaude
+  3.9 87301 BambuStudio
+T 1792053775.6 load { 1.46 1.67 1.70 }
+ 20.2 59289 macmon
+ 14.1 87961 /Users/josef/Library/Application Supportclaude
+  5.5   631 coreaudiod
+  5.3 87301 BambuStudio
+  1.4   438 corespeechd_system
+  1.2   692 AppleCentauriAlpha
+T 1792053778.7 load { 1.46 1.67 1.70 }
+ 48.8 13574 sh
+ 15.5 59289 macmon
+  4.4 54754 /Users/josef/Library/Application Supportclaude
+  4.3   631 coreaudiod
+  3.6 59015 intarsia-base
+  2.9 85541 /Users/josef/Library/Application Supportclaude
+T 1792053781.8 load { 1.67 1.71 1.71 }
+100.0 13574 sh
+ 15.3 59289 macmon
+  9.3  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  8.2   488 loginwindow
+  4.2   631 coreaudiod
+  4.0   485 WindowServer
+T 1792053784.8 load { 1.67 1.71 1.71 }
+ 15.4 59289 macmon
+  4.8   631 coreaudiod
+  1.7 27707 /Users/josef/Library/Application Supportclaude
+  1.7 59015 intarsia-base
+  1.4   438 corespeechd_system
+  1.2 87301 BambuStudio
+T 1792053787.9 load { 1.69 1.72 1.72 }
+ 89.1 13574 sh
+ 15.1 59289 macmon
+  4.1   631 coreaudiod
+  2.8 71055 /Users/josef/Library/Application Supportclaude
+  1.4 59015 intarsia-base
+  1.3   438 corespeechd_system
+T 1792053791.0 load { 1.64 1.70 1.71 }
+ 76.3 13574 sh
+ 13.9 59289 macmon
+  4.1   631 coreaudiod
+  1.6   673 sysmond
+  1.4   438 corespeechd_system
+  1.3 59015 intarsia-base
+T 1792053794.1 load { 1.64 1.70 1.71 }
+ 38.1 47168 com.apple.geod
+ 15.0 59289 macmon
+  8.1 87961 /Users/josef/Library/Application Supportclaude
+  8.0 26492 spotlightknowledged.updater
+  5.0   631 coreaudiod
+  2.6 13571 Herdr
+T 1792053797.2 load { 1.59 1.69 1.71 }
+ 96.9 13574 sh
+ 14.1 59289 macmon
+  4.0   631 coreaudiod
+  3.7 27128 /Users/josef/Library/Application Supportclaude
+  1.5 59152 /Users/josef/Library/Application Supportclaude
+  1.4 13571 Herdr
+T 1792053800.3 load { 1.59 1.69 1.71 }
+ 25.5 13574 sh
+ 14.0 59289 macmon
+  4.6   631 coreaudiod
+  1.8 60122 /Users/josef/Library/Application Supportclaude
+  1.4 59015 intarsia-base
+  1.4   438 corespeechd_system
+T 1792053803.4 load { 1.54 1.68 1.70 }
+ 14.8 59289 macmon
+  7.8 87301 BambuStudio
+  4.6   631 coreaudiod
+  4.0 59015 intarsia-base
+  1.5   490 runningboardd
+  1.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+T 1792053806.4 load { 1.65 1.70 1.71 }
+ 98.8 13574 sh
+ 14.8 59289 macmon
+  4.0   631 coreaudiod
+  4.0 88901 Syrtis
+  3.8 13571 Herdr
+  3.1 87301 BambuStudio
+T 1792053809.5 load { 1.65 1.70 1.71 }
+ 13.9 59289 macmon
+  5.4 13574 sh
+  5.2 87301 BambuStudio
+  4.7   631 coreaudiod
+  1.7 13571 Herdr
+  1.6 59015 intarsia-base
+T 1792053812.6 load { 1.68 1.71 1.71 }
+ 33.3 59015 intarsia-base
+ 16.6 59289 macmon
+  4.7   631 coreaudiod
+  3.4 40257 /Users/josef/Library/Application Supportclaude
+  3.3   457 launchservicesd
+  2.1 87301 BambuStudio
+T 1792053815.7 load { 1.63 1.69 1.71 }
+100.0 13574 sh
+ 15.3 59289 macmon
+  3.5   631 coreaudiod
+  3.3 87301 BambuStudio
+  1.3 13571 Herdr
+  1.0   438 corespeechd_system
+T 1792053818.8 load { 1.63 1.69 1.71 }
+ 15.9 59289 macmon
+  4.7   631 coreaudiod
+  3.1 85541 /Users/josef/Library/Application Supportclaude
+  1.6 59015 intarsia-base
+  1.4 87301 BambuStudio
+  1.1   438 corespeechd_system
+T 1792053821.9 load { 1.74 1.72 1.71 }
+ 32.2  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 15.2 59289 macmon
+  5.1   631 coreaudiod
+  2.4 84670 /Applications/Grok Bot.app/Contents/MacOS/Grok Bot
+  1.6 59015 intarsia-base
+  1.5   438 corespeechd_system
+T 1792053825.0 load { 1.74 1.72 1.71 }
+ 99.0 13574 sh
+ 14.0 59289 macmon
+  4.6 99688 Muse
+  4.1   631 coreaudiod
+  2.2 74402 trustd
+  1.9   692 AppleCentauriAlpha
+T 1792053828.0 load { 1.68 1.70 1.71 }
+ 16.6 59289 macmon
+  5.0   631 coreaudiod
+  1.7 59015 intarsia-base
+  1.4   438 corespeechd_system
+  1.1   478 bluetoothd
+  0.9   692 AppleCentauriAlpha
+T 1792053831.1 load { 1.62 1.69 1.71 }
+ 14.7 59289 macmon
+  5.2   631 coreaudiod
+  3.3 27128 /Users/josef/Library/Application Supportclaude
+  2.3 13571 Herdr
+  1.6 87301 BambuStudio
+  1.4   438 corespeechd_system
+T 1792053834.2 load { 1.62 1.69 1.71 }
+100.0 13574 sh
+ 19.5 59289 macmon
+ 10.3  2415 OrbStack
+  3.3   631 coreaudiod
+  2.7  5051 /Users/josef/Library/Application Supportclaude
+  1.9 13571 Herdr
+T 1792053837.3 load { 1.65 1.70 1.71 }
+ 15.0 59289 macmon
+  6.6 88901 Syrtis
+  4.8   631 coreaudiod
+  4.2 87301 BambuStudio
+  1.4   692 AppleCentauriAlpha
+  1.3   438 corespeechd_system
+T 1792053840.4 load { 1.65 1.70 1.71 }
+ 14.7 59289 macmon
+  9.5   488 loginwindow
+  5.1   631 coreaudiod
+  4.9 87301 BambuStudio
+  4.0   485 WindowServer
+  3.0 66359 /Users/josef/Library/Application Supportclaude
+T 1792053843.5 load { 1.92 1.75 1.73 }
+ 99.1 13574 sh
+ 15.7 59289 macmon
+  5.7 87301 BambuStudio
+  3.8   631 coreaudiod
+  1.8 71055 /Users/josef/Library/Application Supportclaude
+  1.6   438 corespeechd_system
+T 1792053846.5 load { 1.77 1.72 1.72 }
+ 15.6 59289 macmon
+  4.8   631 coreaudiod
+  3.3 13571 Herdr
+  2.7 87301 BambuStudio
+  1.7 59015 intarsia-base
+  1.5   438 corespeechd_system
+T 1792053849.6 load { 1.77 1.72 1.72 }
+ 50.4 13574 sh
+ 15.9 59289 macmon
+  4.4   631 coreaudiod
+  3.9 87301 BambuStudio
+  1.8 59015 intarsia-base
+  1.5 27299 /Users/josef/Library/Application Supportclaude
+T 1792053852.7 load { 1.79 1.73 1.72 }
+100.0 13574 sh
+ 15.7 59289 macmon
+  8.4 40257 /Users/josef/Library/Application Supportclaude
+  3.9   631 coreaudiod
+  3.5  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.0 13571 Herdr
+T 1792053855.8 load { 1.72 1.71 1.71 }
+ 15.1 59289 macmon
+  5.6 93345 Dropbox
+  5.0   631 coreaudiod
+  2.4 13571 Herdr
+  1.5 87301 BambuStudio
+  1.4   438 corespeechd_system
+T 1792053858.9 load { 1.72 1.71 1.71 }
+ 91.0 13574 sh
+ 15.1 59289 macmon
+  6.2 59015 intarsia-base
+  3.5   631 coreaudiod
+  1.4   703 searchpartyd
+  1.2   438 corespeechd_system
+T 1792053862.0 load { 1.82 1.74 1.72 }
+ 82.0 13574 sh
+ 15.8 59289 macmon
+  5.7  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  3.8   631 coreaudiod
+  2.2 13571 Herdr
+  2.1 59015 intarsia-base
+T 1792053865.1 load { 1.82 1.74 1.72 }
+ 15.9 59289 macmon
+  4.9   631 coreaudiod
+  3.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  3.0 71055 /Users/josef/Library/Application Supportclaude
+  2.6 59152 /Users/josef/Library/Application Supportclaude
+  1.5 59015 intarsia-base
+T 1792053868.2 load { 1.76 1.72 1.72 }
+ 98.7 13574 sh
+ 15.2 59289 macmon
+ 15.0     1 launchd
+  4.0   631 coreaudiod
+  2.9 13571 Herdr
+  2.9 28098 /Users/josef/Library/Application Supportclaude
+T 1792053871.2 load { 1.94 1.76 1.73 }
+ 18.7 13574 sh
+ 14.4 59289 macmon
+ 10.8 88901 Syrtis
+  4.5   631 coreaudiod
+  2.4 87961 /Users/josef/Library/Application Supportclaude
+  1.6 92414 Finder
+T 1792053874.3 load { 1.94 1.76 1.73 }
+ 41.0   791 mds_stores
+ 22.2 63136 mdworker_shared
+ 15.9 59289 macmon
+  5.1   631 coreaudiod
+  2.9 13571 Herdr
+  1.4     1 launchd
+T 1792053877.4 load { 1.94 1.76 1.73 }
+ 98.5 13574 sh
+ 17.1 59289 macmon
+  7.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  6.8 87301 BambuStudio
+  5.9 88901 Syrtis
+  3.4   631 coreaudiod
+T 1792053880.5 load { 1.94 1.76 1.73 }
+ 17.6 59289 macmon
+  5.6   631 coreaudiod
+  4.9 27558 PerfPowerServices
+  4.9 19493 /Users/josef/Library/Application Supportclaude
+  4.2 13574 sh
+  3.7 33773 /Users/josef/Library/Application Supportclaude
+T 1792053883.6 load { 1.95 1.77 1.73 }
+ 15.0 59289 macmon
+  4.8   631 coreaudiod
+  4.7 87301 BambuStudio
+  2.5 13571 Herdr
+  1.7 59015 intarsia-base
+  1.3   438 corespeechd_system
+T 1792053886.7 load { 1.95 1.77 1.73 }
+ 99.0 13574 sh
+ 15.3 59289 macmon
+  3.5   631 coreaudiod
+  2.3 20092 /Users/josef/Library/Application Supportclaude
+  1.6 87301 BambuStudio
+  1.4 18165 /Users/josef/Library/Application Supportclaude
+T 1792053889.7 load { 1.95 1.77 1.73 }
+ 15.6 59289 macmon
+  4.7   631 coreaudiod
+  4.4 13571 Herdr
+  3.1 87301 BambuStudio
+  1.4 59015 intarsia-base
+  1.3   438 corespeechd_system
+T 1792053892.8 load { 1.79 1.74 1.72 }
+ 96.0  2415 OrbStack
+ 17.4 59289 macmon
+ 17.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.1   631 coreaudiod
+  3.2 13571 Herdr
+  3.1 40257 /Users/josef/Library/Application Supportclaude
+T 1792053895.9 load { 2.13 1.81 1.75 }
+100.0 13574 sh
+ 31.2  2415 OrbStack
+ 15.3 59289 macmon
+  4.2 74402 trustd
+  3.7   631 coreaudiod
+  3.0 55403 /Users/josef/Library/Application Supportclaude
+T 1792053899.0 load { 2.13 1.81 1.75 }
+ 16.4 59289 macmon
+ 12.1 88901 Syrtis
+  8.6 87961 /Users/josef/Library/Application Supportclaude
+  5.2   631 coreaudiod
+  4.9 85541 /Users/josef/Library/Application Supportclaude
+  4.0 27128 /Users/josef/Library/Application Supportclaude
+T 1792053902.1 load { 1.96 1.78 1.74 }
+ 16.2 59289 macmon
+  9.8   488 loginwindow
+  4.9   631 coreaudiod
+  3.4   485 WindowServer
+  1.9 28098 /Users/josef/Library/Application Supportclaude
+  1.7 13571 Herdr
+T 1792053905.2 load { 1.96 1.78 1.74 }
+100.0 13574 sh
+ 15.9 59289 macmon
+  7.7   555 airportd
+  4.0   631 coreaudiod
+  2.5  2789 hazlUI
+  2.4   485 WindowServer
+T 1792053908.2 load { 1.96 1.79 1.74 }
+ 13.8 59289 macmon
+  4.9   631 coreaudiod
+  2.0 84670 /Applications/Grok Bot.app/Contents/MacOS/Grok Bot
+  1.8 13571 Herdr
+  1.5 59015 intarsia-base
+  1.5 92414 Finder
+T 1792053911.3 load { 1.81 1.76 1.73 }
+ 19.1 59289 macmon
+  7.3 87301 BambuStudio
+  5.2   631 coreaudiod
+  3.1 59152 /Users/josef/Library/Application Supportclaude
+  2.0   490 runningboardd
+  1.3   438 corespeechd_system
+T 1792053914.4 load { 1.81 1.76 1.73 }
+181.6   917 corespotlightd
+ 99.3 13574 sh
+ 15.9 59289 macmon
+  4.3 87301 BambuStudio
+  3.5   631 coreaudiod
+  1.9  5051 /Users/josef/Library/Application Supportclaude
+T 1792053917.5 load { 1.74 1.74 1.72 }
+ 15.3 59289 macmon
+  5.2 87301 BambuStudio
+  5.0   631 coreaudiod
+  2.8   490 runningboardd
+  2.4 13571 Herdr
+  2.3 87961 /Users/josef/Library/Application Supportclaude
+T 1792053920.6 load { 1.74 1.74 1.72 }
+ 78.8 13574 sh
+ 14.2 59289 macmon
+  4.3   631 coreaudiod
+  3.2 88901 Syrtis
+  2.9 27558 PerfPowerServices
+  2.8 85541 /Users/josef/Library/Application Supportclaude
+T 1792053923.7 load { 1.68 1.73 1.72 }
+ 99.7 13574 sh
+ 15.5 59289 macmon
+  8.5 85541 /Users/josef/Library/Application Supportclaude
+  3.7   631 coreaudiod
+  3.2 87301 BambuStudio
+  2.5  2789 hazlUI
+T 1792053926.8 load { 1.71 1.73 1.72 }
+ 14.5 59289 macmon
+  5.0   631 coreaudiod
+  3.0 85541 /Users/josef/Library/Application Supportclaude
+  2.2 60122 /Users/josef/Library/Application Supportclaude
+  1.9 40257 /Users/josef/Library/Application Supportclaude
+  1.8 59015 intarsia-base
+T 1792053929.8 load { 1.71 1.73 1.72 }
+ 95.1 13574 sh
+ 15.7 59289 macmon
+ 11.2 47149 dataaccessd
+  5.5 74402 trustd
+  4.1   631 coreaudiod
+  3.1 13571 Herdr
+T 1792053932.9 load { 1.81 1.76 1.73 }
+ 61.0 13574 sh
+ 32.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 18.0 59289 macmon
+  9.0 40257 /Users/josef/Library/Application Supportclaude
+  4.1   631 coreaudiod
+  2.3   490 runningboardd
+T 1792053936.0 load { 1.74 1.74 1.72 }
+ 38.4 59015 intarsia-base
+ 17.7 59289 macmon
+  4.8   631 coreaudiod
+  3.1 87961 /Users/josef/Library/Application Supportclaude
+  3.1   791 mds_stores
+  2.9 57537 /Users/josef/Library/Application Supportclaude
+T 1792053939.1 load { 1.74 1.74 1.72 }
+ 97.2 13574 sh
+ 15.7 59289 macmon
+  3.5   631 coreaudiod
+  2.1 27299 /Users/josef/Library/Application Supportclaude
+  1.9  2902 io.tailscale.ipn.macsys.network-extension
+  1.2   438 corespeechd_system
+T 1792053942.2 load { 1.76 1.75 1.73 }
+ 15.6 59289 macmon
+ 13.8 13574 sh
+ 11.4 88901 Syrtis
+  4.7   631 coreaudiod
+  2.6 13571 Herdr
+  1.7   555 airportd
+T 1792053945.2 load { 1.76 1.75 1.73 }
+ 21.6 53856 mediaanalysisd
+ 15.1 59289 macmon
+  5.0   631 coreaudiod
+  2.2   466 dasd
+  1.9 36622 /Users/josef/Library/Application Supportclaude
+  1.9 87301 BambuStudio
+T 1792053948.3 load { 1.78 1.75 1.73 }
+100.0 13574 sh
+ 15.7 59289 macmon
+  4.1 87301 BambuStudio
+  3.9   631 coreaudiod
+  1.6 28098 /Users/josef/Library/Application Supportclaude
+  1.6 13571 Herdr
+T 1792053951.4 load { 1.80 1.75 1.73 }
+ 15.0 59289 macmon
+  5.2 87301 BambuStudio
+  4.9 88901 Syrtis
+  4.8   631 coreaudiod
+  3.1 13574 sh
+  2.6 13571 Herdr
+T 1792053954.5 load { 1.80 1.75 1.73 }
+100.1  2415 OrbStack
+ 14.6 59289 macmon
+  5.2   631 coreaudiod
+  3.4 87301 BambuStudio
+  2.5  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  1.8   831 tccd
+T 1792053957.6 load { 2.06 1.81 1.75 }
+ 99.3 13574 sh
+ 15.4 59289 macmon
+  3.8   631 coreaudiod
+  3.6 87301 BambuStudio
+  2.7 68358 /Users/josef/Library/Application Supportclaude
+  2.5 72332 /Users/josef/Library/Application Supportclaude
+T 1792053960.7 load { 2.06 1.81 1.75 }
+ 15.9 59289 macmon
+  9.2   488 loginwindow
+  6.1  1068 WeatherWidget
+  5.0   631 coreaudiod
+  4.6   490 runningboardd
+  3.8   485 WindowServer
+T 1792053963.8 load { 1.97 1.79 1.74 }
+ 14.1 59289 macmon
+  7.4 53856 mediaanalysisd
+  5.0   631 coreaudiod
+  2.5 13571 Herdr
+  2.4  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  2.1 87301 BambuStudio
+T 1792053966.9 load { 1.97 1.80 1.75 }
+ 99.0 13574 sh
+ 15.3  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+ 15.2 59289 macmon
+  3.7   631 coreaudiod
+  2.4 27128 /Users/josef/Library/Application Supportclaude
+  1.4 59015 intarsia-base
+T 1792053969.9 load { 1.97 1.80 1.75 }
+ 16.0 59289 macmon
+  4.9   631 coreaudiod
+  2.8 33773 /Users/josef/Library/Application Supportclaude
+  2.1 87301 BambuStudio
+  1.6 60632 /Users/josef/Library/Application Supportclaude
+  1.5 59015 intarsia-base
+T 1792053973.0 load { 1.90 1.78 1.74 }
+ 15.3 59289 macmon
+  5.4 40257 /Users/josef/Library/Application Supportclaude
+  5.3   631 coreaudiod
+  5.2 87961 /Users/josef/Library/Application Supportclaude
+  3.0 13571 Herdr
+  1.8 66359 /Users/josef/Library/Application Supportclaude
+T 1792053976.1 load { 1.90 1.79 1.74 }
+100.0 13574 sh
+ 21.5 53856 mediaanalysisd
+ 14.7 59289 macmon
+  3.3   631 coreaudiod
+  1.5 87301 BambuStudio
+  1.5 93345 Dropbox
+T 1792053979.2 load { 1.90 1.79 1.74 }
+ 16.2 59289 macmon
+  5.3   631 coreaudiod
+  4.7 72332 /Users/josef/Library/Application Supportclaude
+  3.2 13571 Herdr
+  2.4 85541 /Users/josef/Library/Application Supportclaude
+  2.4 36622 /Users/josef/Library/Application Supportclaude
+T 1792053982.3 load { 1.75 1.76 1.73 }
+ 15.0 59289 macmon
+  5.0   631 coreaudiod
+  4.3 88901 Syrtis
+  1.6 59015 intarsia-base
+  1.6   438 corespeechd_system
+  1.6 87301 BambuStudio
+T 1792053985.4 load { 1.75 1.76 1.73 }
+ 99.1 13574 sh
+ 40.5 88901 Syrtis
+ 18.9 59289 macmon
+  7.3 87301 BambuStudio
+  4.0 13571 Herdr
+  3.3   631 coreaudiod
+T 1792053988.5 load { 1.69 1.74 1.73 }
+ 36.0 59015 intarsia-base
+ 17.4 59289 macmon
+  7.7  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  6.4     1 launchd
+  4.8 87301 BambuStudio
+  4.8   631 coreaudiod
+T 1792053991.5 load { 1.63 1.73 1.72 }
+ 73.2 13574 sh
+ 49.7 27558 PerfPowerServices
+ 49.2   490 runningboardd
+ 14.0 59289 macmon
+  4.5 87301 BambuStudio
+  4.1   631 coreaudiod
+T 1792053994.6 load { 1.63 1.73 1.72 }
+100.0 13574 sh
+ 16.4 59289 macmon
+  8.0 85541 /Users/josef/Library/Application Supportclaude
+  4.8 88901 Syrtis
+  4.0   631 coreaudiod
+  2.8 87301 BambuStudio
+T 1792053997.7 load { 1.50 1.70 1.71 }
+ 22.3 53856 mediaanalysisd
+ 15.3 59289 macmon
+  4.9   631 coreaudiod
+  2.9 87301 BambuStudio
+  2.4 93345 Dropbox
+  1.8   692 AppleCentauriAlpha
+T 1792054000.8 load { 1.50 1.70 1.71 }
+ 93.9 13574 sh
+ 15.3 59289 macmon
+  3.9   631 coreaudiod
+  2.7 27558 PerfPowerServices
+  2.1 59015 intarsia-base
+  1.5 87301 BambuStudio
+T 1792054003.9 load { 1.54 1.71 1.71 }
+ 43.8 13574 sh
+ 15.5 59289 macmon
+  9.1 88901 Syrtis
+  6.0  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  4.6   631 coreaudiod
+  2.0 13571 Herdr
+T 1792054007.0 load { 1.42 1.68 1.70 }
+ 15.3 59289 macmon
+  4.8   631 coreaudiod
+  2.6 27299 /Users/josef/Library/Application Supportclaude
+  1.5 59015 intarsia-base
+  1.3   438 corespeechd_system
+  1.2   692 AppleCentauriAlpha
+T 1792054010.1 load { 1.42 1.68 1.70 }
+100.0 13574 sh
+ 14.2 59289 macmon
+  3.6   631 coreaudiod
+  3.4 13571 Herdr
+  1.3 59015 intarsia-base
+  1.2   438 corespeechd_system
+T 1792054013.1 load { 1.55 1.70 1.71 }
+ 97.7  2415 OrbStack
+ 15.6 59289 macmon
+ 10.5 13574 sh
+  6.3 88901 Syrtis
+  5.3  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  5.0   631 coreaudiod
+T 1792054016.2 load { 1.50 1.69 1.71 }
+ 18.7 59289 macmon
+  8.8  2415 OrbStack
+  8.1 88901 Syrtis
+  5.4   631 coreaudiod
+  2.7 85541 /Users/josef/Library/Application Supportclaude
+  1.6   438 corespeechd_system
+T 1792054019.3 load { 1.50 1.69 1.71 }
+ 98.8 13574 sh
+ 15.1 59289 macmon
+  8.0 87301 BambuStudio
+  4.1   631 coreaudiod
+  2.7 55403 /Users/josef/Library/Application Supportclaude
+  1.8   485 WindowServer
+T 1792054022.4 load { 1.54 1.69 1.71 }
+ 16.0 59289 macmon
+  5.3 87301 BambuStudio
+  5.1   631 coreaudiod
+  4.8 85541 /Users/josef/Library/Application Supportclaude
+  3.6 27128 /Users/josef/Library/Application Supportclaude
+  2.3   488 loginwindow
+T 1792054025.5 load { 1.54 1.69 1.71 }
+ 19.0 59289 macmon
+  5.9   631 coreaudiod
+  5.5 87301 BambuStudio
+  1.4   438 corespeechd_system
+  1.2   485 WindowServer
+  1.2   692 AppleCentauriAlpha
+T 1792054028.6 load { 1.50 1.68 1.70 }
+100.0 13574 sh
+ 15.4 59289 (macmon)
+  4.2 59015 (intarsia-base)
+  3.5   631 coreaudiod
+  2.6 87301 BambuStudio
+  2.2 13571 Herdr
+T 1792054031.7 load { 1.46 1.67 1.70 }
+ 56.9 53856 mediaanalysisd
+  5.8   631 coreaudiod
+  3.4 55403 /Users/josef/Library/Application Supportclaude
+  3.2 87301 BambuStudio
+  2.1 56034 adb
+  1.7  2823 ssh-agent
+T 1792054034.8 load { 1.46 1.67 1.70 }
+  6.0   631 coreaudiod
+  4.3 85541 /Users/josef/Library/Application Supportclaude
+  3.3 87301 BambuStudio
+  2.5 59152 /Users/josef/Library/Application Supportclaude
+  1.7 13571 Herdr
+  1.6 54973 /Users/josef/Library/Application Supportclaude
+T 1792054037.9 load { 1.42 1.66 1.70 }
+100.0 13574 sh
+  3.8 13571 Herdr
+  3.3   631 coreaudiod
+  2.8 27400 Claude
+  2.4  5051 /Users/josef/Library/Application Supportclaude
+  1.2 87301 BambuStudio
+T 1792054040.9 load { 1.42 1.66 1.70 }
+ 24.8 85541 /Users/josef/Library/Application Supportclaude
+  5.8   631 coreaudiod
+  1.9 27558 PerfPowerServices
+  1.3 87301 BambuStudio
+  1.2 13571 Herdr
+  1.2   438 corespeechd_system
+T 1792054044.0 load { 1.39 1.65 1.69 }
+ 29.1  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  6.0   631 coreaudiod
+  3.5 34959 /Users/josef/Library/Application Supportclaude
+  2.9 88901 Syrtis
+  2.3 20092 /Users/josef/Library/Application Supportclaude
+  1.6 93345 Dropbox
+T 1792054047.1 load { 1.36 1.64 1.69 }
+100.0 13574 sh
+  3.2   631 coreaudiod
+  3.2 85541 /Users/josef/Library/Application Supportclaude
+  1.9 54754 /Users/josef/Library/Application Supportclaude
+  1.9 13571 Herdr
+  1.4 40257 /Users/josef/Library/Application Supportclaude
+T 1792054050.2 load { 1.36 1.64 1.69 }
+112.2 53856 mediaanalysisd
+ 15.4 85541 /Users/josef/Library/Application Supportclaude
+  5.3   631 coreaudiod
+  1.1   438 corespeechd_system
+  1.0 92414 Finder
+  1.0   692 AppleCentauriAlpha
+T 1792054053.3 load { 1.33 1.63 1.68 }
+ 56.6 53856 mediaanalysisd
+ 52.5 13574 sh
+ 15.1   942 aned
+  7.2 40257 /Users/josef/Library/Application Supportclaude
+  4.6   631 coreaudiod
+  4.3 85541 /Users/josef/Library/Application Supportclaude
+T 1792054056.3 load { 1.46 1.65 1.69 }
+132.8 53856 mediaanalysisd
+ 99.1 13574 sh
+ 21.2 88901 Syrtis
+  8.7 85541 /Users/josef/Library/Application Supportclaude
+  7.0 20451 textunderstandingd
+  3.7 27128 /Users/josef/Library/Application Supportclaude
+T 1792054059.4 load { 1.46 1.65 1.69 }
+121.4 53856 mediaanalysisd
+ 14.3 85541 /Users/josef/Library/Application Supportclaude
+  8.8 64110 (python3.13)
+  5.3   631 coreaudiod
+  4.8 87301 BambuStudio
+  3.2  2572 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+T 1792054062.5 load { 1.66 1.69 1.70 }
+ 90.9 13574 sh
+ 52.6 20451 textunderstandingd
+ 48.5 53856 mediaanalysisd
+  3.2   631 coreaudiod
+  2.7 87301 BambuStudio
+  2.5 85541 /Users/josef/Library/Application Supportclaude

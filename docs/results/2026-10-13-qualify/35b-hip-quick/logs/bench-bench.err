@@ -1,0 +1,19 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.6-35B-A3B-NVFP4
+server context window: 4608 tokens
+calibration: 47 base tokens, 21.30 tokens per filler sentence
+  size    128 rep: prompt=129 gen=128 ttft=0.11s prefill=1210 tok/s decode=125.6 tok/s
+  size    128 rep: prompt=128 gen=128 ttft=0.10s prefill=1235 tok/s decode=126.1 tok/s
+  size    128 rep: prompt=131 gen=128 ttft=0.12s prefill=1113 tok/s decode=126.1 tok/s
+  size    128 rep: prompt=129 gen=128 ttft=0.11s prefill=1227 tok/s decode=126.1 tok/s
+  size    128 rep: prompt=137 gen=128 ttft=0.11s prefill=1207 tok/s decode=126.0 tok/s
+  size   1024 rep: prompt=1040 gen=128 ttft=0.53s prefill=1959 tok/s decode=125.4 tok/s
+  size   1024 rep: prompt=1018 gen=128 ttft=0.48s prefill=2130 tok/s decode=125.4 tok/s
+  size   1024 rep: prompt=1025 gen=128 ttft=0.48s prefill=2136 tok/s decode=125.3 tok/s
+  size   1024 rep: prompt=1009 gen=128 ttft=0.48s prefill=2114 tok/s decode=125.3 tok/s
+  size   1024 rep: prompt=1004 gen=128 ttft=0.48s prefill=2110 tok/s decode=125.3 tok/s
+  size   4096 rep: prompt=4213 gen=128 ttft=2.05s prefill=2054 tok/s decode=122.2 tok/s
+  size   4096 rep: prompt=4214 gen=128 ttft=2.05s prefill=2052 tok/s decode=122.1 tok/s
+  size   4096 rep: prompt=4217 gen=128 ttft=2.06s prefill=2052 tok/s decode=122.1 tok/s
+  size   4096 rep: prompt=4159 gen=128 ttft=2.05s prefill=2026 tok/s decode=122.2 tok/s
+  size   4096 rep: prompt=4224 gen=128 ttft=2.06s prefill=2051 tok/s decode=122.1 tok/s
+wrote /work/bench-out/qualify-35b-fix/bench/qualify-Qwen3.6-35B-A3B-NVFP4-hip-bench.json

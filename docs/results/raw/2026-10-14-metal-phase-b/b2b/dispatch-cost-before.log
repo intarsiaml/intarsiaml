@@ -1,0 +1,18 @@
+fleetq: #1810 running on endor: ./target/release/examples/dispatch_cost
+device: Apple M5 Max; 2000 chained dispatches per command buffer, median of 15
+
+kernel                                           serial   concurrent+barrier   concurrent, no barrier
+add_bf16, 1 tg x 32 thr (near-empty)             0.91us               1.10us                   0.12us
+rmsnorm_add_bf16 H=4096, 64 thr                 19.09us              18.95us                   0.21us
+rmsnorm_add_bf16 H=4096, 128 thr                10.05us              10.48us                   0.13us
+rmsnorm_add_bf16 H=4096, 256 thr                 6.00us               6.28us                   0.12us
+rmsnorm_add_bf16 H=4096, 512 thr                 4.07us               4.41us                   0.12us
+rmsnorm_add_bf16 H=4096, 1024 thr                4.85us               5.20us                   0.12us
+rmsnorm_bf16 H=4096, 128 thr                     8.40us               9.21us                   0.12us
+rmsnorm_bf16 H=4096, 256 thr                     4.91us               5.28us                   0.12us
+rmsnorm_bf16 H=4096, 512 thr                     3.55us               4.01us                   0.11us
+rmsnorm_bf16 H=4096, 1024 thr                    4.47us               4.81us                   0.12us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 32 thr     2.26us               2.67us                   0.52us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 128 thr     1.63us               2.01us                   0.50us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 256 thr     1.75us               2.15us                   0.51us
+fleetq: #1810 done (exit 0)

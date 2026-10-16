@@ -1,0 +1,26 @@
+{
+  "id": 1901,
+  "state": "running",
+  "kind": "lease",
+  "owner": "claude-b86890d6",
+  "label": "metal B6 localeval pair 2",
+  "hosts": [
+    "endor"
+  ],
+  "mem_gb": 24.0,
+  "exclusive": true,
+  "uses": [],
+  "takes_down": [],
+  "created_at": 1792025965.3499587,
+  "started_at": 1792026754.4740477,
+  "ended_at": null,
+  "heartbeat_at": 1792026754.4740477,
+  "expect_s": 1500.0,
+  "command": "",
+  "reason": "",
+  "exit_code": null,
+  "note": "",
+  "mem_map": {},
+  "flags": [],
+  "roles_taken_down": []
+}

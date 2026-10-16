@@ -1,0 +1,29 @@
+```rust
+/// Holds state for decoding a stream of token IDs into text incrementally.
+pub struct IncrementalDecoder {
+    ids: Vec<u32>,
+    prefix: usize,
+    read: usize,
+}
+
+/// Provides a default implementation for `IncrementalDecoder`.
+impl Default for IncrementalDecoder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl IncrementalDecoder {
+    /// Creates a new `IncrementalDecoder` with empty state.
+    pub fn new() -> Self {
+        IncrementalDecoder { ids: Vec::new(), prefix: 0, read: 0 }
+    }
+
+    /// Decodes a new token ID and returns the new text that has been decoded since the last prefix.
+    pub fn push(&mut self, codec: &dyn TextCodec, id: u32) -> Result<String> {
+        self.ids.push(id);
+        let prefix_text = codec.decode(&self.ids[self.prefix..self.read], true)?;
+        let new_text = codec.decode(&self.ids[self.prefix..], true)?;
+        if new_text.len() > prefix_text.len() && !new_text.ends_with('\u{FFFD}') {
+            if let Some(delta) = new_text.get(prefix_text.len()..) {
+               

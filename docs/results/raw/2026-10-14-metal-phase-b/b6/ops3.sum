@@ -1,0 +1,7 @@
+norm_add: nov16 2.36 2.34 2.34 2.34 2.36  pre 2.94 2.93 2.95 2.94 2.95  v16 2.62 2.62 2.63 2.59 2.63
+qkrope: nov16 2.64 2.64 2.63 2.63 2.64  pre 2.85 2.85 4.69 2.85 2.85  v16 2.64 2.64 2.64 2.64 2.65
+silu: nov16 1.23 1.24 1.24 1.24 1.24  pre 1.21 1.24 1.22 1.22 1.24  v16 1.24 1.24 1.24 1.22 1.23
+argmax: nov16 11.95 11.97 11.91 11.92 11.91  pre 12.88 12.94 12.82 12.77 12.60  v16 11.96 11.96 11.92 11.91 11.89
+fingerprints nov16: 18 cases, differ from pre: none
+fingerprints pre: 18 cases, differ from pre: none
+fingerprints v16: 18 cases, differ from pre: none

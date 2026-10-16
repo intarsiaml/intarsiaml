@@ -1,0 +1,7 @@
+norm_add: d0 1.47 1.32 1.32 1.37 1.32  new 2.36 2.35 2.35 2.34 2.35  pre 2.93 2.95 2.95 2.89 2.95
+qkrope: d0 2.63 2.63 2.63 2.63 2.63  new 2.63 2.64 2.63 2.64 2.64  pre 2.84 2.86 2.83 2.86 2.85
+silu: d0 1.24 1.24 1.24 1.24 1.24  new 1.24 1.24 1.23 1.24 1.24  pre 1.24 1.21 1.24 1.24 1.24
+argmax: d0 11.94 11.94 11.95 11.97 11.97  new 11.96 11.94 11.94 11.95 11.92  pre 12.95 13.10 12.94 12.90 13.02
+fingerprints d0: 18 cases, differ from pre: ['norm_add 1x4096 off0', 'norm_add 3x4096 off1', 'norm_add 2x128 off0', 'norm_add 2x8192 off0']
+fingerprints new: 18 cases, differ from pre: none
+fingerprints pre: 18 cases, differ from pre: none

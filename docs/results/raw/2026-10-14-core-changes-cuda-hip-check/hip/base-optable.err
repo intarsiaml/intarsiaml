@@ -1,0 +1,19 @@
+prefill chunk 256 (default)
+loaded Qwen3-8B on AMD Radeon Graphics in 1.2s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 122 tokens
+finish=length prompt=122 (cached 0) completion=65 | prefill 76 ms (1605.4 tok/s) | decode 1767 ms (36.22 tok/s)
+op table (estimated ms over all launches; total 2614.2 ms):
+op                               ms  share%    calls   timed
+matmul                      1940.87   74.24    16380    2268
+logits                       144.97    5.55       65       9
+rope                         110.72    4.24     4680     648
+rmsnorm_add                   95.76    3.66     4680     648
+qk_norm                       88.83    3.40     4680     648
+kv_append                     86.40    3.31     4680     648
+attn_decode                   60.36    2.31     2304     288
+silu_glu                      45.89    1.76     2340     324
+embedding                     28.59    1.09       65       9
+argmax                         6.17    0.24       65       9
+rmsnorm                        3.92    0.15       65       9
+attn_prefill                   1.71    0.07       36      36
+steps=65 graph replays=56 (captures 1) eager decode steps=8 (profiled 8) top ops: matmul=269ms/16380 logits=20ms/65 rope=15ms/4680 rmsnorm_add=13ms/4680 qk_norm=12ms/4680

@@ -1,0 +1,1085 @@
+{
+  "kind": "intarsia-qualify",
+  "schema_version": 1,
+  "section": "full",
+  "model": "Qwen3-8B",
+  "model_dir": "/models/Qwen3-8B",
+  "backend": "hip",
+  "tp": 2,
+  "reference": null,
+  "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+  "version": "0.0.1",
+  "generated_unix": 1791912758,
+  "verdict": "PASS",
+  "exit_code": 0,
+  "headline": {
+    "speed": [
+      {
+        "size": 128,
+        "decode_tok_s": 37.74,
+        "prefill_tok_s": 2033.4,
+        "pct_of_floor": 91.1,
+        "ttft_s": 0.0606
+      },
+      {
+        "size": 1024,
+        "decode_tok_s": 37.11,
+        "prefill_tok_s": 3473.2,
+        "pct_of_floor": 89.6,
+        "ttft_s": 0.2922
+      },
+      {
+        "size": 4096,
+        "decode_tok_s": 35.91,
+        "prefill_tok_s": 3008.6,
+        "pct_of_floor": 86.7,
+        "ttft_s": 1.3837
+      }
+    ],
+    "accuracy": [
+      {
+        "stage": "acc-short",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 434,
+            "top1_pct": 100.0,
+            "mean_kl": 0.00023353416261622672,
+            "mean_kl21": 0.00017003371569887486,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 128,
+            "top1_pct": 100.0,
+            "mean_kl": 0.0003625526885744193,
+            "mean_kl21": 0.0003165011906207648,
+            "floor_pass": true
+          }
+        ]
+      },
+      {
+        "stage": "acc-long",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1434,
+            "top1_pct": 99.581589958159,
+            "mean_kl": 0.0003965679401960502,
+            "mean_kl21": 0.0003629401443630029,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 500,
+            "top1_pct": 99.8,
+            "mean_kl": 0.00030533677968126293,
+            "mean_kl21": 0.0002856540703269425,
+            "floor_pass": true
+          }
+        ]
+      },
+      {
+        "stage": "tp",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 434,
+            "top1_pct": 99.76958525345624,
+            "mean_kl": 0.0003902447529223862,
+            "mean_kl21": 0.00032321437255994454,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 128,
+            "top1_pct": 100.0,
+            "mean_kl": 0.0003518245207220143,
+            "mean_kl21": 0.0003083360787554771,
+            "floor_pass": true
+          }
+        ]
+      }
+    ],
+    "quick_gate": {
+      "perplexity": 1.852,
+      "perplexity_line": "1.852 over 1169 tokens (need <= 40), non-finite rows 0 ok",
+      "sanity_ok": 5,
+      "sanity_failed": 0
+    }
+  },
+  "failures": [],
+  "skipped": [
+    {
+      "stage": "ab",
+      "reason": "no --reference server given"
+    }
+  ],
+  "wall_s": {
+    "quick": 188.322317417,
+    "full": 206.191520672,
+    "total": 394.513838089
+  },
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "AMD Radeon Graphics (gfx1201), 30 kernels registered",
+      "wall_s": 0.450439439,
+      "started_unix": 1791912364,
+      "artifacts": [
+        "doctor.json"
+      ],
+      "metrics": {
+        "host": {
+          "hostname": "b35821e1ffe1",
+          "os": "Ubuntu 24.04.4 LTS",
+          "kernel": "Linux 7.0.0-38-generic",
+          "arch": "x86_64",
+          "cpu_model": "AMD Ryzen 9 9900X 12-Core Processor",
+          "logical_cores": 24,
+          "physical_cores": 12,
+          "ram_total_bytes": 32690343936,
+          "ram_available_bytes": 27240341504,
+          "swap_total_bytes": 8589930496
+        },
+        "device": {
+          "name": "AMD Radeon Graphics",
+          "backend": "hip",
+          "arch": "gfx1201",
+          "total_mem": 34208743424,
+          "free_mem": 33986445312,
+          "unified": false,
+          "bandwidth_gbs": 427.0403969638839
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 28.6,
+          "device_to_host_gbs": 28.0,
+          "device_copy_gbs": 582.0,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        },
+        "failures": [],
+        "warnings": []
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": null,
+        "arch": null,
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia doctor --backend hip --device 0 --out /work/reports/qwen3-8b/run3/doctor.json"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16)",
+      "wall_s": 0.008901322,
+      "started_unix": 1791912364,
+      "artifacts": [],
+      "metrics": {
+        "architectures": [
+          "Qwen3ForCausalLM"
+        ],
+        "templates_resolved": [
+          25,
+          25
+        ],
+        "quant": "bf16",
+        "notes": [
+          "config.json: architectures [\"Qwen3ForCausalLM\"], family \"qwen3\" (config.json model_type)",
+          "tensors: model.safetensors.index.json (399 tensors) + 5/5 shard headers",
+          "layer prefix model.layers.{i} (36 layers, matches num_hidden_layers)",
+          "quantisation: bf16",
+          "closest existing recipe: builtin:qwen3 (blocks {\"attn\", \"ffn\"} vs inferred {\"attn\", \"ffn\"}; 25/25 tensor templates resolve; covers this model)"
+        ],
+        "todos": []
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "recipe::analyse(/models/Qwen3-8B)"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "15 ops resolved, exactness deterministic, loaded in 49.8s",
+      "wall_s": 49.810203239,
+      "started_unix": 1791912364,
+      "artifacts": [
+        "plan.json"
+      ],
+      "metrics": {
+        "model": "Qwen3-8B",
+        "device": "AMD Radeon Graphics",
+        "exactness": "deterministic",
+        "act_dtype": "bf16",
+        "kv_dtype": "bf16",
+        "prefill_chunk": 256,
+        "scratch_bytes": 748800,
+        "reference_only": false,
+        "layers": 36,
+        "layer_blocks": [
+          "attention+dense_ffn"
+        ],
+        "ops": [
+          {
+            "op": "embedding",
+            "kernel": "embedding_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm",
+            "kernel": "rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm_add",
+            "kernel": "rmsnorm_add_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 72
+          },
+          {
+            "op": "qk_norm",
+            "kernel": "qk_norm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 72
+          },
+          {
+            "op": "rope",
+            "kernel": "rope_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 72
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 252
+          },
+          {
+            "op": "logits",
+            "kernel": "logits_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "logits",
+            "kernel": "logits_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "kv_append",
+            "kernel": "kv_append_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 72
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_flash",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 36
+          },
+          {
+            "op": "silu_glu",
+            "kernel": "silu_glu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 36
+          },
+          {
+            "op": "argmax",
+            "kernel": "argmax_f32",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          }
+        ],
+        "load_s": 49.809953523
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia plan show --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --admit --json"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "30 kernels, 479 cases in 41.3s",
+      "wall_s": 41.414853346,
+      "started_unix": 1791912414,
+      "artifacts": [
+        "logs/kernels.out"
+      ],
+      "metrics": {
+        "summary": "30 kernels, 479 cases in 41.3s"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia kernels test --backend hip --device 0 --model /models/Qwen3-8B"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows",
+      "wall_s": 9.151934771,
+      "started_unix": 1791912455,
+      "artifacts": [
+        "logs/gate.out"
+      ],
+      "metrics": {
+        "perplexity": 1.852,
+        "perplexity_line": "1.852 over 1169 tokens (need <= 40), non-finite rows 0 ok",
+        "sanity_ok": 5,
+        "sanity_failed": 0
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia accuracy --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --quick --max-seq 2048"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "prefill top-1 100.00% KL 2.34e-4; decode top-1 100.00% KL 3.63e-4",
+      "wall_s": 7.922001982,
+      "started_unix": 1791912465,
+      "artifacts": [
+        "logs/acc-short.out",
+        "baselines/acc-short.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/models/golden/qwen3-8b-fp32.safetensors",
+        "golden_how": "given with --golden",
+        "golden_fingerprint": "fnv1a64:6054fa6dbcbd50d2 size:131886928",
+        "gate_class": "bf16",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 434,
+            "top1_pct": 100.0,
+            "mean_kl": 0.00023353416261622672,
+            "mean_kl21": 0.00017003371569887486,
+            "top5_pct": 98.80184331797236,
+            "tail_ref": 0.03248061505350207,
+            "tail_ours": 0.03225394001975375,
+            "max_kl": 0.013144225987352131,
+            "max_kl21": 0.006156428829009318,
+            "tail_abs": 0.00045395150274954855,
+            "nonfinite": 0,
+            "greedy_match_pct": 100.0,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 128,
+            "top1_pct": 100.0,
+            "mean_kl": 0.0003625526885744193,
+            "mean_kl21": 0.0003165011906207648,
+            "top5_pct": 98.125,
+            "tail_ref": 0.023774583913369927,
+            "tail_ours": 0.023823537587111258,
+            "max_kl": 0.008323355863989836,
+            "max_kl21": 0.008259016542728417,
+            "tail_abs": 0.00031269888261566977,
+            "nonfinite": 0,
+            "greedy_match_pct": 100.0,
+            "floor_pass": true
+          }
+        ],
+        "run_s": 7.802500243
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia accuracy --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --golden /models/golden/qwen3-8b-fp32.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /work/reports/qwen3-8b/run3/baselines/acc-short.baseline.json"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "decode 37.7 tok/s at 128 tokens (91% of the byte floor)",
+      "wall_s": 79.563983318,
+      "started_unix": 1791912473,
+      "artifacts": [
+        "bench/qualify-Qwen3-8B-hip-bench.json",
+        "logs/bench-bench.out",
+        "logs/bench-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 128,
+            "prompt_tokens": 124.0,
+            "ttft_s": 0.0606,
+            "prefill_tok_s": 2033.4,
+            "decode_tok_s": 37.74,
+            "decode_stdev": 0.01,
+            "floor_tok_s": 41.42,
+            "pct_of_floor": 91.1,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 1024,
+            "prompt_tokens": 1015.0,
+            "ttft_s": 0.2922,
+            "prefill_tok_s": 3473.2,
+            "decode_tok_s": 37.11,
+            "decode_stdev": 0.01,
+            "floor_tok_s": 41.42,
+            "pct_of_floor": 89.6,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4163.0,
+            "ttft_s": 1.3837,
+            "prefill_tok_s": 3008.6,
+            "decode_tok_s": 35.91,
+            "decode_stdev": 0.02,
+            "floor_tok_s": 41.42,
+            "pct_of_floor": 86.7,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 15.136811008,
+        "bandwidth_gbs": 627.0,
+        "floor_inputs": "gb/token: from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: 627 GB/s, the R9700 figure of docs/results/2026-10-13-phase2a-hip.md",
+        "server_load_s": 40.004481664,
+        "label": "qualify-Qwen3-8B-hip-bench"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia serve --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3-8B --max-seq 4608 --profile-every 0 --no-supervisor --no-ui",
+          "/target/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3-8B --sizes 128,1024,4096 --gen 128 --reps 3 --warmup 1 --thinking off --label qualify-Qwen3-8B-hip-bench --out-dir /work/reports/qwen3-8b/run3/bench --tp 1 --fingerprint model=Qwen3-8B --fingerprint backend=hip --fingerprint build=head=3d06ce8 code-tree=f83e8dda827f dirty=no --timeout-s 900 --gb-per-token 15.1368 --bandwidth-gbs 627 --fingerprint-file /work/reports/qwen3-8b/run3/doctor.json"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": [
+        "bench warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)"
+      ]
+    },
+    {
+      "id": "acc-long",
+      "title": "accuracy --mode all on the long golden (prefill, decode, prefix reuse)",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "prefill top-1 99.58% KL 3.97e-4; decode top-1 99.80% KL 3.05e-4",
+      "wall_s": 29.351147918,
+      "started_unix": 1791912552,
+      "artifacts": [
+        "logs/acc-long.out",
+        "baselines/acc-long.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/models/golden/qwen3-8b-long-fp32.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:20f6e4acc5a28d14 size:435766608",
+        "gate_class": "bf16",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1434,
+            "top1_pct": 99.581589958159,
+            "mean_kl": 0.0003965679401960502,
+            "mean_kl21": 0.0003629401443630029,
+            "top5_pct": 98.50767085076708,
+            "tail_ref": 0.01879050591469215,
+            "tail_ours": 0.018678474219388876,
+            "max_kl": 0.030323453112010196,
+            "max_kl21": 0.03031970960118373,
+            "tail_abs": 0.0003352748867128882,
+            "nonfinite": 0,
+            "greedy_match_pct": 37.726638772663875,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 500,
+            "top1_pct": 99.8,
+            "mean_kl": 0.00030533677968126293,
+            "mean_kl21": 0.0002856540703269425,
+            "top5_pct": 98.72,
+            "tail_ref": 0.012356548585001194,
+            "tail_ours": 0.012327635952352188,
+            "max_kl": 0.02821681374727787,
+            "max_kl21": 0.02816674128077806,
+            "tail_abs": 0.00020758507087996592,
+            "nonfinite": 0,
+            "greedy_match_pct": 90.0,
+            "floor_pass": true
+          }
+        ],
+        "run_s": 28.956220394
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia accuracy --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --golden /models/golden/qwen3-8b-long-fp32.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /work/reports/qwen3-8b/run3/baselines/acc-long.baseline.json"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "envelope",
+      "title": "noise envelope and baseline for regression gating",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "baseline and envelope (chunk + attn-simt) written; they gate this build: PASS",
+      "wall_s": 23.558665207,
+      "started_unix": 1791912581,
+      "artifacts": [
+        "baselines/acc-short.baseline.json",
+        "baselines/envelope.json",
+        "logs/baseline-selfcheck.out"
+      ],
+      "metrics": {
+        "baseline": "baselines/acc-short.baseline.json",
+        "envelope": "baselines/envelope.json",
+        "perturbations": [
+          {
+            "perturbation": "chunk",
+            "wall_s": 7.95302381
+          },
+          {
+            "perturbation": "attn-simt",
+            "wall_s": 7.802714315
+          }
+        ],
+        "selfcheck_verdict_line": "floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS",
+        "use": "intarsia accuracy --model <dir> --backend hip --golden /models/golden/qwen3-8b-fp32.safetensors --baseline baselines/acc-short.baseline.json --noise-envelope baselines/envelope.json  (copy both files next to the golden, e.g. golden/baselines/)"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia accuracy --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --golden /models/golden/qwen3-8b-fp32.safetensors --mode both --decode-positions 16 --max-seq 4096 --noise-ref /work/reports/qwen3-8b/run3/baselines/acc-short.baseline.json --noise-perturb chunk --write-noise-envelope /work/reports/qwen3-8b/run3/baselines/envelope.json --allow-same-code",
+          "/target/release/intarsia accuracy --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --golden /models/golden/qwen3-8b-fp32.safetensors --mode both --decode-positions 16 --max-seq 4096 --noise-ref /work/reports/qwen3-8b/run3/baselines/acc-short.baseline.json --noise-perturb attn-simt --write-noise-envelope /work/reports/qwen3-8b/run3/baselines/envelope.json --allow-same-code",
+          "/target/release/intarsia accuracy --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --golden /models/golden/qwen3-8b-fp32.safetensors --mode both --decode-positions 16 --max-seq 4096 --baseline /work/reports/qwen3-8b/run3/baselines/acc-short.baseline.json --noise-envelope /work/reports/qwen3-8b/run3/baselines/envelope.json --allow-same-code --pre-change 3d06ce8"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "bench-long",
+      "title": "long-context bench up to 16k",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "decode 37.1 tok/s at 1024 tokens (90% of the byte floor)",
+      "wall_s": 82.715532854,
+      "started_unix": 1791912605,
+      "artifacts": [
+        "bench/qualify-Qwen3-8B-hip-bench-long.json",
+        "logs/bench-long-bench.out",
+        "logs/bench-long-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 1024,
+            "prompt_tokens": 1002.0,
+            "ttft_s": 0.2911,
+            "prefill_tok_s": 3441.8,
+            "decode_tok_s": 37.12,
+            "decode_stdev": 0.05,
+            "floor_tok_s": 41.42,
+            "pct_of_floor": 89.6,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 126,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4088.0,
+            "ttft_s": 1.343,
+            "prefill_tok_s": 3044.3,
+            "decode_tok_s": 35.93,
+            "decode_stdev": 0.03,
+            "floor_tok_s": 41.42,
+            "pct_of_floor": 86.7,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 126,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 16384,
+            "prompt_tokens": 16815.0,
+            "ttft_s": 8.2035,
+            "prefill_tok_s": 2049.7,
+            "decode_tok_s": 32.19,
+            "decode_stdev": 0.0,
+            "floor_tok_s": 41.42,
+            "pct_of_floor": 77.7,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 126,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 15.136811008,
+        "bandwidth_gbs": 627.0,
+        "floor_inputs": "gb/token: from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: 627 GB/s, the R9700 figure of docs/results/2026-10-13-phase2a-hip.md",
+        "server_load_s": 40.004317791,
+        "label": "qualify-Qwen3-8B-hip-bench-long"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia serve --model /models/Qwen3-8B --backend hip --device 0 --mem-budget 28 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3-8B --max-seq 17152 --profile-every 0 --no-supervisor --no-ui",
+          "/target/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3-8B --sizes 1024,4096,16384 --gen 64 --reps 2 --warmup 1 --thinking off --label qualify-Qwen3-8B-hip-bench-long --out-dir /work/reports/qwen3-8b/run3/bench --tp 1 --fingerprint model=Qwen3-8B --fingerprint backend=hip --fingerprint build=head=3d06ce8 code-tree=f83e8dda827f dirty=no --timeout-s 900 --gb-per-token 15.1368 --bandwidth-gbs 627 --fingerprint-file /work/reports/qwen3-8b/run3/doctor.json"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": [
+        "bench warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)"
+      ]
+    },
+    {
+      "id": "ab",
+      "title": "A/B against the reference server via localeval",
+      "section": "full",
+      "verdict": "SKIP",
+      "reason": "no --reference server given",
+      "wall_s": 2.7e-7,
+      "started_unix": 1791912688,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "tp",
+      "title": "tensor-parallel variant",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "decode 58.1 tok/s at 128 tokens (87% of the byte floor); accuracy prefill top-1 99.77% KL 3.90e-4; decode top-1 100.00% KL 3.52e-4",
+      "wall_s": 70.566174423,
+      "started_unix": 1791912688,
+      "artifacts": [
+        "bench/qualify-Qwen3-8B-hip-tp2.json",
+        "logs/tp2-bench.out",
+        "logs/tp2-server.err",
+        "baselines/tp2-acc.baseline.json"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 128,
+            "prompt_tokens": 121.0,
+            "ttft_s": 0.0483,
+            "prefill_tok_s": 2500.3,
+            "decode_tok_s": 58.1,
+            "decode_stdev": 0.07,
+            "floor_tok_s": 66.45,
+            "pct_of_floor": 87.4,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 1024,
+            "prompt_tokens": 1009.0,
+            "ttft_s": 0.2343,
+            "prefill_tok_s": 4306.7,
+            "decode_tok_s": 57.16,
+            "decode_stdev": 0.11,
+            "floor_tok_s": 66.45,
+            "pct_of_floor": 86.0,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4190.0,
+            "ttft_s": 1.045,
+            "prefill_tok_s": 4011.8,
+            "decode_tok_s": 55.35,
+            "decode_stdev": 0.08,
+            "floor_tok_s": 66.45,
+            "pct_of_floor": 83.3,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 2,
+        "gb_per_token": 9.435703296,
+        "bandwidth_gbs": 627.0,
+        "floor_inputs": "gb/token: busiest tp rank's weights from the plan; bandwidth: 627 GB/s, the R9700 figure of docs/results/2026-10-13-phase2a-hip.md",
+        "server_load_s": 34.004199952,
+        "label": "qualify-Qwen3-8B-hip-tp2",
+        "tp_plan": {
+          "world": 2,
+          "comm": "hip-p2p",
+          "all_reduce_calls_per_decode_step": 72,
+          "ranks": [
+            {
+              "rank": 0,
+              "device": "AMD Radeon Graphics",
+              "mem_total": 34208743424,
+              "free_mem": 24196939776,
+              "weights_bytes": 9435703296,
+              "kv_cap_tokens": 4096,
+              "holds_lm_head": true
+            },
+            {
+              "rank": 1,
+              "device": "AMD Radeon Graphics",
+              "mem_total": 34208743424,
+              "free_mem": 25442648064,
+              "weights_bytes": 8191043584,
+              "kv_cap_tokens": 4096,
+              "holds_lm_head": false
+            }
+          ],
+          "load_s": 2.401269979
+        },
+        "accuracy": {
+          "golden": "/models/golden/qwen3-8b-fp32.safetensors",
+          "golden_how": "given with --golden",
+          "gate_class": "bf16",
+          "modes": [
+            {
+              "mode": "prefill",
+              "positions": 434,
+              "top1_pct": 99.76958525345624,
+              "mean_kl": 0.0003902447529223862,
+              "mean_kl21": 0.00032321437255994454,
+              "top5_pct": 98.84792626728112,
+              "tail_ref": 0.03248061505350207,
+              "tail_ours": 0.03219125906183324,
+              "max_kl": 0.06219160127323827,
+              "max_kl21": 0.062157804695400165,
+              "tail_abs": 0.0004055604620395598,
+              "nonfinite": 0,
+              "greedy_match_pct": 88.47926267281106,
+              "floor_pass": true
+            },
+            {
+              "mode": "decode",
+              "positions": 128,
+              "top1_pct": 100.0,
+              "mean_kl": 0.0003518245207220143,
+              "mean_kl21": 0.0003083360787554771,
+              "top5_pct": 98.59375,
+              "tail_ref": 0.023774583913369927,
+              "tail_ours": 0.023882792186712777,
+              "max_kl": 0.00773088795806874,
+              "max_kl21": 0.0072835837983205535,
+              "tail_abs": 0.00029486190950696496,
+              "nonfinite": 0,
+              "greedy_match_pct": 100.0,
+              "floor_pass": true
+            }
+          ],
+          "verdict": "PASS",
+          "reason": ""
+        }
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=3d06ce8 code-tree=f83e8dda827f dirty=no",
+        "binary": "/target/release/intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3-8B",
+        "model_fingerprint": "fnv1a64:e6a70935b68a5561",
+        "commands": [
+          "/target/release/intarsia plan show --model /models/Qwen3-8B --backend hip --device 0 --tp 2 --mem-budget 28 --json",
+          "/target/release/intarsia serve --model /models/Qwen3-8B --backend hip --device 0 --tp 2 --mem-budget 28 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3-8B --max-seq 4608 --profile-every 0 --no-supervisor --no-ui",
+          "/target/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3-8B --sizes 128,1024,4096 --gen 128 --reps 3 --warmup 1 --thinking off --label qualify-Qwen3-8B-hip-tp2 --out-dir /work/reports/qwen3-8b/run3/bench --tp 2 --fingerprint model=Qwen3-8B --fingerprint backend=hip --fingerprint build=head=3d06ce8 code-tree=f83e8dda827f dirty=no --timeout-s 900 --gb-per-token 9.4357 --bandwidth-gbs 627 --fingerprint-file /work/reports/qwen3-8b/run3/doctor.json",
+          "/target/release/intarsia accuracy --model /models/Qwen3-8B --backend hip --device 0 --tp 2 --mem-budget 28 --golden /models/golden/qwen3-8b-fp32.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /work/reports/qwen3-8b/run3/baselines/tp2-acc.baseline.json"
+        ],
+        "env": {
+          "GPU_MAX_HW_QUEUES": "1",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "1611"
+        }
+      },
+      "notes": [
+        "bench warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)"
+      ]
+    }
+  ],
+  "hooks": []
+}

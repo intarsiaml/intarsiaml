@@ -1,0 +1,7 @@
+prefill chunk 4096 (--prefill-chunk)
+loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 4107 tokens
+top logits (id:value): 803:20.4155 374:20.1295 614:19.9094 714:19.8733 825:19.8659 323:19.8352 862:19.7873 572:19.5735
+ids: [803, 374, 614, 1012, 614, 1012, 614, 1012, 614, 1012, 614, 1012, 614, 1012, 614, 1012, 614, 1012, 614, 1012, 614, 1012, 614, 1012]
+finish=length prompt=4107 (cached 4106) completion=24 | prefill 30 ms (33.8 tok/s) | decode 707 ms (32.52 tok/s)
+steps=26 graph replays=0 (captures 0) eager decode steps=24 (profiled 1) top ops: logits=2031ms/281 matmul_pair=541ms/1800 matmul=446ms/2952 rmsnorm_add=145ms/1872 attn_prefill=104ms/72

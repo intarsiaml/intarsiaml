@@ -1,0 +1,117 @@
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/flash_prefill_nax.rs (target/release/deps/flash_prefill_nax-638d80717ff1c8f0)
+
+running 6 tests
+test flash_chunk_invariant ... 
+thread 'flash_chunk_invariant' (90165920) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:301:13:
+attn_nax_d128_s4_p2: split [64, 64, 64, 64] differs from the single call
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test flash_falls_back_on_misaligned_operands ... metal attn_prefill_bf16_flash_nax: misaligned operands (q skip 1, out skip 0, q at 2, out at 0, k cache at 0, v cache at 0); running attn_prefill_bf16_flash (reported once)
+metal attn_prefill_bf16_flash: misaligned operands (q skip 1, out skip 0, k cache at 0, v cache at 0); running attn_prefill_bf16 (reported once)
+
+thread 'flash_falls_back_on_misaligned_operands' (90166007) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+fallback Case { t: 40, n: 8, nkv: 2, d: 128, pos0: 20, cap: 64 }: element 0: gpu 0.56640625 ref 0.5136529830026236 tol 0.00860354551909015
+FAILED
+test flash_matches_f64_reference ... attn_nax_d128_s4: worst error 0.746 of tolerance over 17 cases
+attn_nax_d128_s8: worst error 0.746 of tolerance over 17 cases
+attn_nax_d128_s4_p1: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s8_p1: worst error 0.654 of tolerance over 17 cases
+
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s4_p2 Case { t: 1, n: 4, nkv: 2, d: 128, pos0: 0, cap: 16 }: element 16: gpu -1.203125 ref -0.984375 tol 0.015024298266280036
+attn_nax_d128_s4_p2: FAILED the f64 reference check
+
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s8_p2 Case { t: 1, n: 4, nkv: 2, d: 128, pos0: 0, cap: 16 }: element 16: gpu -1.203125 ref -0.984375 tol 0.015024298266280036
+attn_nax_d128_s8_p2: FAILED the f64 reference check
+
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s4_p3 Case { t: 1, n: 4, nkv: 2, d: 128, pos0: 0, cap: 16 }: element 16: gpu -1.203125 ref -0.984375 tol 0.015024298266280036
+attn_nax_d128_s4_p3: FAILED the f64 reference check
+
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:196:9:
+attn_nax_d128_s8_p3 Case { t: 1, n: 4, nkv: 2, d: 128, pos0: 0, cap: 16 }: element 16: gpu -1.203125 ref -0.984375 tol 0.015024298266280036
+attn_nax_d128_s8_p3: FAILED the f64 reference check
+attn_nax_d128_s4_p4: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s8_p4: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s4_p5: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s8_p5: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s4_p6: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s8_p6: worst error 0.685 of tolerance over 17 cases
+attn_nax_d128_s4_p7: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s8_p7: worst error 0.654 of tolerance over 17 cases
+attn_nax_d128_s4_p8: worst error 0.746 of tolerance over 17 cases
+attn_nax_d128_s8_p8: worst error 0.746 of tolerance over 17 cases
+
+thread 'flash_matches_f64_reference' (90166035) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:273:5:
+variants failing the f64 reference check: ["attn_nax_d128_s4_p2", "attn_nax_d128_s8_p2", "attn_nax_d128_s4_p3", "attn_nax_d128_s8_p3"]
+FAILED
+test flash_numerics_report ... numerics scale 0.0884 attn_nax_d128_s4: rel rms 1.8641e-3
+numerics scale 0.0884 attn_nax_d128_s8: rel rms 1.8641e-3
+numerics scale 0.0884 attn_nax_d128_s4_p1: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s8_p1: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s4_p2: rel rms 1.0947e0
+numerics scale 0.0884 attn_nax_d128_s8_p2: rel rms 1.0947e0
+numerics scale 0.0884 attn_nax_d128_s4_p3: rel rms 9.7654e-1
+numerics scale 0.0884 attn_nax_d128_s8_p3: rel rms 9.7654e-1
+numerics scale 0.0884 attn_nax_d128_s4_p4: rel rms 1.6762e-3
+numerics scale 0.0884 attn_nax_d128_s8_p4: rel rms 1.6762e-3
+numerics scale 0.0884 attn_nax_d128_s4_p5: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s8_p5: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s4_p6: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s8_p6: rel rms 1.7132e-3
+numerics scale 0.0884 attn_nax_d128_s4_p7: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s8_p7: rel rms 1.6793e-3
+numerics scale 0.0884 attn_nax_d128_s4_p8: rel rms 1.8637e-3
+numerics scale 0.0884 attn_nax_d128_s8_p8: rel rms 1.8637e-3
+numerics scale 0.5000 attn_nax_d128_s4: rel rms 1.7317e-3
+numerics scale 0.5000 attn_nax_d128_s8: rel rms 1.7317e-3
+numerics scale 0.5000 attn_nax_d128_s4_p1: rel rms 1.6632e-3
+numerics scale 0.5000 attn_nax_d128_s8_p1: rel rms 1.6632e-3
+numerics scale 0.5000 attn_nax_d128_s4_p2: rel rms 1.1594e0
+numerics scale 0.5000 attn_nax_d128_s8_p2: rel rms 1.1594e0
+numerics scale 0.5000 attn_nax_d128_s4_p3: rel rms 1.0974e0
+numerics scale 0.5000 attn_nax_d128_s8_p3: rel rms 1.0974e0
+numerics scale 0.5000 attn_nax_d128_s4_p4: rel rms 1.6621e-3
+numerics scale 0.5000 attn_nax_d128_s8_p4: rel rms 1.6621e-3
+numerics scale 0.5000 attn_nax_d128_s4_p5: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s8_p5: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s4_p6: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s8_p6: rel rms 1.6875e-3
+numerics scale 0.5000 attn_nax_d128_s4_p7: rel rms 1.6633e-3
+numerics scale 0.5000 attn_nax_d128_s8_p7: rel rms 1.6633e-3
+numerics scale 0.5000 attn_nax_d128_s4_p8: rel rms 1.7270e-3
+numerics scale 0.5000 attn_nax_d128_s8_p8: rel rms 1.7270e-3
+numerics scale 1.0000 attn_nax_d128_s4: rel rms 1.7231e-3
+numerics scale 1.0000 attn_nax_d128_s8: rel rms 1.7231e-3
+numerics scale 1.0000 attn_nax_d128_s4_p1: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s8_p1: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s4_p2: rel rms 1.3820e0
+numerics scale 1.0000 attn_nax_d128_s8_p2: rel rms 1.3820e0
+numerics scale 1.0000 attn_nax_d128_s4_p3: rel rms 1.3455e0
+numerics scale 1.0000 attn_nax_d128_s8_p3: rel rms 1.3455e0
+numerics scale 1.0000 attn_nax_d128_s4_p4: rel rms 1.6571e-3
+numerics scale 1.0000 attn_nax_d128_s8_p4: rel rms 1.6571e-3
+numerics scale 1.0000 attn_nax_d128_s4_p5: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s8_p5: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s4_p6: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s8_p6: rel rms 1.6642e-3
+numerics scale 1.0000 attn_nax_d128_s4_p7: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s8_p7: rel rms 1.6582e-3
+numerics scale 1.0000 attn_nax_d128_s4_p8: rel rms 1.7140e-3
+numerics scale 1.0000 attn_nax_d128_s8_p8: rel rms 1.7140e-3
+ok
+test flash_predicate ... ok
+test registry_splits_are_bitwise_the_single_call ... ok
+
+failures:
+
+failures:
+    flash_chunk_invariant
+    flash_falls_back_on_misaligned_operands
+    flash_matches_f64_reference
+
+test result: FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.10s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test flash_prefill_nax`

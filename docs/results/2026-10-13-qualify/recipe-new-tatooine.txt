@@ -1,0 +1,8 @@
+fleetq: #1602 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'cd ~/intarsiaml-qualify && export INTARSIA_REPO=$HOME/intarsiaml-qualify; for m in Qwen3-8B Qwen3.6-35B-A3B-NVFP4; do echo "=== $m"; deploy/tatooine/dev.sh /target/release/intarsia recipe new --model /models/$m; echo "exit=$?"; done'
+=== Qwen3-8B
+covered: builtin:qwen3 already handles this model (25/25 tensor templates resolve, quant: bf16); no new recipe needed
+exit=0
+=== Qwen3.6-35B-A3B-NVFP4
+covered: builtin:qwen3_5_moe already handles this model (61/61 tensor templates resolve, quant: nvfp4+fp8); no new recipe needed
+exit=0
+fleetq: #1602 done (exit 0)

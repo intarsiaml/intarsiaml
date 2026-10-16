@@ -1,0 +1,4 @@
+2026-10-13 job=1730 stop=19:48:05 up=19:53:40 down=5.5 min label="cuda-decode-fusion W1: baseline nsys decode profile" serving=1
+2026-10-13 job=1753 stop=20:12:57 up=20:23:06 down=10.1 min label="cuda-decode-fusion W2: dev nsys profile and 35B A/B rounds 1-2" serving=1
+2026-10-13 job=1757 stop=20:24:20 up=20:34:00 down=9.6 min label="cuda-decode-fusion W3: accuracy, 8B goldens, graph proof" serving=1
+2026-10-13 job=1759 stop=20:34:19 up=20:53:32 down=19.2 min label="cuda-decode-fusion W4: qualify quick-only 35B, A/B round 3, 8B A/B" serving=1

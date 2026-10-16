@@ -1,0 +1,12 @@
+fleetq: #1875 waiting (#2 in line): in line behind #1874 "metal P2 flash attn microbench (short)" (claude-31e10c55) on endor
+fleetq:   #1874 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1874 set, or it will wait for #1874 to be released.
+fleetq: #1875 waiting (#1 in line): endor is held exclusively by #1874 "metal P2 flash attn microbench (short)" (claude-31e10c55)
+fleetq:   #1874 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=1874 set, or it will wait for #1874 to be released.
+fleetq job 1875
+b5new-r2 idle_util=3(waits=1) zoom=0
+b5new-r2 server up
+b5new-r2 localeval exit 0
+b5pre-r2 idle_util=4(waits=4) zoom=0
+b5pre-r2 server up
+b5pre-r2 localeval exit 0
+#1875 "metal B5 localeval pair 2 reversed new then pre" (claude-31e10c55) done on endor exclusive 24 GB

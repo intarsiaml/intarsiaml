@@ -1,0 +1,11 @@
+mapped and wrapped 5 shards in 1.6 ms (mode none, sleep 100 ms)
+use 0 model-00001-of-00005.safetensors (4.00 GB): 90.27 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 0.63 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 0.53 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 0.61 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 0.19 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.56 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.16 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.17 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.15 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.61 ms

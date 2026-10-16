@@ -1,0 +1,49 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   4.319e-4   2.278e-4   1.452e-2   0.0324   0.0315    99.47     38/38      0
+story                 39    39   100.00   6.752e-4   4.112e-4   1.509e-2   0.0400   0.0396    98.97     39/39      0
+code                  80    80   100.00   1.219e-4   6.101e-5   6.296e-3   0.0142   0.0140    99.25     80/80      0
+science               79    79   100.00   3.613e-4   3.189e-4   5.208e-3   0.0168   0.0165    98.73     79/79      0
+chat_short            18    18   100.00   8.961e-4   8.250e-4   6.056e-3   0.1108   0.1113   100.00     18/18      0
+chat_system           32    32   100.00   1.365e-3   1.170e-3   2.439e-2   0.0841   0.0851    98.12     32/32      0
+chat_multiturn        58    58   100.00   8.709e-4   8.435e-4   1.118e-2   0.0340   0.0339    98.62     58/58      0
+chat_reasoning        90    90   100.00   3.105e-4   2.986e-4   6.056e-3   0.0243   0.0243    98.89     90/90      0
+long_prose_300       300   300    99.67   1.719e-3   1.621e-3   6.944e-2   0.0126   0.0125    97.87   122/300      0
+long_prose_700       700   700    99.29   1.663e-3   1.619e-3   1.442e-1   0.0129   0.0129    97.43    22/700      0
+OVERALL                   1434    99.58   1.324e-3   1.257e-3   1.442e-1   0.0188   0.0187    97.98     40.3%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 1.324e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.063e-5   9.212e-6   6.703e-5   0.0029   0.0029    98.75     16/16      0
+story                 39    16   100.00   4.343e-4   4.171e-4   2.010e-3   0.0237   0.0242    98.75     16/16      0
+code                  80    16   100.00   5.571e-6   5.563e-6   4.093e-5   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   4.133e-4   3.981e-4   3.732e-3   0.0104   0.0105    97.50     16/16      0
+chat_short            18    16   100.00   7.844e-4   7.196e-4   4.276e-3   0.0621   0.0624    97.50     16/16      0
+chat_system           32    16   100.00   1.888e-3   1.466e-3   1.618e-2   0.0736   0.0743    96.25     16/16      0
+chat_multiturn        58    16   100.00   6.320e-4   6.080e-4   3.089e-3   0.0076   0.0076    98.75     16/16      0
+chat_reasoning        90    16   100.00   4.941e-4   4.620e-4   3.444e-3   0.0099   0.0097    98.75     16/16      0
+long_prose_300       300    16   100.00   5.533e-6   5.531e-6   5.466e-5   0.0000   0.0000    96.25     16/16      0
+long_prose_700       700    16   100.00   1.399e-3   1.209e-3   5.145e-3   0.0244   0.0241    97.50     16/16      0
+OVERALL                    160   100.00   6.067e-4   5.300e-4   1.618e-2   0.0215   0.0216    97.88    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 6.067e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 84.4% of positions before the first argmax divergence, worst prompt 3.1% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+story              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+code               both      skipped: split 40 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+science            both      skipped: split 39 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_short         both      skipped: split 9 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_system        both      skipped: split 16 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_multiturn     both      skipped: split 29 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_reasoning     both      skipped: split 45 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_300     both      skipped: split 150 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_700     both      skipped: split 350 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk 2048); not a pass
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL

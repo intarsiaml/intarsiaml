@@ -1,0 +1,86 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "phase1a-qwen3-8b",
+  "timestamp_unix": 1791866391,
+  "url": "http://127.0.0.1:8090",
+  "model": "qwen3-8b-intarsia",
+  "config": {
+    "sizes": [
+      128,
+      1024,
+      4096,
+      16000
+    ],
+    "gen": 128,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 16.38,
+    "bandwidth_gbs": 221.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 46.0,
+    "tokens_per_filler_sentence": 20.83
+  },
+  "fingerprint": {},
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 122.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.0954,
+      "prefill_tok_s": 1278.8,
+      "decode_tok_s": 14.85,
+      "bandwidth_floor_tok_s": 13.49,
+      "pct_of_floor": 110.1,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 1005.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.4279,
+      "prefill_tok_s": 2348.5,
+      "decode_tok_s": 14.72,
+      "bandwidth_floor_tok_s": 13.49,
+      "pct_of_floor": 109.1,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4067.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 1.7546,
+      "prefill_tok_s": 2317.8,
+      "decode_tok_s": 14.31,
+      "bandwidth_floor_tok_s": 13.49,
+      "pct_of_floor": 106.0,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 16000,
+      "prompt_tokens": 16346.0,
+      "gen_tokens": 46.0,
+      "ttft_s": 7.8685,
+      "prefill_tok_s": 2077.4,
+      "decode_tok_s": 12.86,
+      "bandwidth_floor_tok_s": 13.49,
+      "pct_of_floor": 95.3,
+      "reps_ok": 2,
+      "errors": 1
+    }
+  ],
+  "concurrency": [],
+  "warnings": [
+    "size 16000: 1/3 calls failed, e.g. HTTP 400: {\"error\":{\"message\":\"the prompt has 16415 tokens but the context window is 16392 tokens\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":400}}",
+    "size 16000: 2 calls returned fewer than 128 tokens (server ignored min_tokens/ignore_eos?)",
+    "server rejected parameters, dropped: [\"ignore_eos\", \"min_tokens\", \"stream_options\"]"
+  ]
+}

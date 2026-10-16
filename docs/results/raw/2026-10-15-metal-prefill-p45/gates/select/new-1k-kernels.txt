@@ -1,0 +1,1 @@
+new prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16_nax': 432, 'matmul_pair_bf16_nax': 288, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16_flash': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}

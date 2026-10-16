@@ -1,0 +1,63 @@
+# Qwen3.5 dense hybrid decoder (Qwen3_5ForCausalLM): GatedDeltaNet linear attention interleaved with gated full
+# attention (config.json layer_types), zero-centred RMSNorm, partial rotary embeddings, dense SwiGLU FFN.
+# Tensor name templates use {i} for the layer index; ".weight" is appended to bare names.
+# Dimensions (heads, head_dim, linear_* sizes, eps, rope theta, partial_rotary_factor) come from config.json.
+[model]
+match.architectures = ["Qwen3_5ForCausalLM"]
+family = "qwen3_5"
+chat_template = "hf"
+reasoning_parser = "think-tags"
+tool_parser = "hermes"
+norm_offset = 1.0        # RMSNorm scale is 1 + weight (not the gated norm inside GatedDeltaNet)
+
+[layer]
+pattern = ["attn", "ffn"]              # used only when a layer has no type
+pattern_by_layer = "layer_types"       # config.json key
+
+[layer.by_type]
+full_attention = ["attn", "ffn"]
+linear_attention = ["gdn", "ffn"]
+
+[layer.attn]
+kind = "gqa"
+gated = true                           # q_proj = [q | output gate] per head
+q = "model.layers.{i}.self_attn.q_proj"
+k = "model.layers.{i}.self_attn.k_proj"
+v = "model.layers.{i}.self_attn.v_proj"
+o = "model.layers.{i}.self_attn.o_proj"
+q_norm = "model.layers.{i}.self_attn.q_norm"
+k_norm = "model.layers.{i}.self_attn.k_norm"
+rope = "default"
+
+[layer.gdn]
+kind = "gated_delta_net"
+in_qkv = "model.layers.{i}.linear_attn.in_proj_qkv"
+in_z = "model.layers.{i}.linear_attn.in_proj_z"
+in_b = "model.layers.{i}.linear_attn.in_proj_b"
+in_a = "model.layers.{i}.linear_attn.in_proj_a"
+conv = "model.layers.{i}.linear_attn.conv1d"
+a_log = "model.layers.{i}.linear_attn.A_log"
+dt_bias = "model.layers.{i}.linear_attn.dt_bias"
+norm = "model.layers.{i}.linear_attn.norm"
+out = "model.layers.{i}.linear_attn.out_proj"
+
+[layer.ffn]
+kind = "dense"
+act = "silu_glu"
+gate = "model.layers.{i}.mlp.gate_proj"
+up = "model.layers.{i}.mlp.up_proj"
+down = "model.layers.{i}.mlp.down_proj"
+
+[layer.norms]
+pre_attn = "model.layers.{i}.input_layernorm"
+pre_gdn = "model.layers.{i}.input_layernorm"
+pre_ffn = "model.layers.{i}.post_attention_layernorm"
+
+[top]
+embed = "model.embed_tokens"
+final_norm = "model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
+
+[defaults]
+kv_dtype = "bf16"
+max_batch = 32

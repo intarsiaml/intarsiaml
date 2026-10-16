@@ -1,0 +1,9 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-afe24a73270ed0c31/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 3.27s
+     Running tests/flash_prefill_nax.rs (target/release/deps/flash_prefill_nax-638d80717ff1c8f0)
+
+running 1 test
+test flash_constant_v_comes_out_unchanged ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.13s
+

@@ -1,0 +1,10 @@
+fleetq: #2095 waiting (#2 in line): in line behind #2094 "gemm midm: in-engine A/B of pick rules (p45/new/pad), kernel traces" (claude-0e8026c5) on endor
+fleetq:   #2094 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2094 set, or it will wait for #2094 to be released.
+fleetq: #2095 waiting (#1 in line): endor is held exclusively by #2094 "gemm midm: in-engine A/B of pick rules (p45/new/pad), kernel traces" (claude-0e8026c5)
+fleetq:   #2094 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2094 set, or it will wait for #2094 to be released.
+fleetq: #2095 running on endor: /opt/code/intarsiaml-cb-wire/docs/results/raw/2026-10-15-metal-cb-m1-step2/gates.sh /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/step2m/gates 1bdcbca
+HEAD 1bdcbca dirty=       0 binary cd55c91ac8e96971b7073a6fafc6c1d0b145adf8  /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-cbwire-current
+cargo test --workspace --release: exit 0
+cargo test -p intarsia-backend-metal --release: exit 0
+identity: exit 0
+fleetq: #2095 done (exit 0)

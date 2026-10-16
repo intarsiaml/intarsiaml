@@ -1,0 +1,35 @@
+== 1. kernel selection in the engine
+pre lists nax kernels: 0 (want 0); new: 2 (want 2); new INTARSIA_METAL_NO_METAL4=1: 0 (want 0)
+pre prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16': 1008, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+new prefill 1k kernels: {'embedding_bf16': 4, 'rmsnorm_bf16': 4, 'matmul_bf16_nax': 432, 'matmul_pair_bf16_nax': 288, 'qk_norm_rope_kv_bf16': 144, 'attn_prefill_bf16': 144, 'rmsnorm_add_bf16': 288, 'silu_glu_bf16': 144, 'logits_bf16_gemv': 1, 'argmax_f32': 1}
+== 2. decode dispatches per step (cb trace, 129-token decode, 364 expected on both)
+pre short: 28.936 28.434 0.503 364.0 (34.55 tok/s)
+new short: 28.555 28.131 0.425 364.0 (35.01 tok/s)
+pre 4k: 33.155 31.482 1.673 364.0 (29.53 tok/s)
+new 4k: 29.043 28.705 0.338 364.0 (34.43 tok/s)
+== 3. greedy ids, pre vs new
+short 48 tokens: ids identical (48 tokens)
+4k 48 tokens: ids identical (48 tokens)
+short 256 tokens: ids identical (256 tokens)
+4k 256 tokens: ids identical (256 tokens)
+== 4. chunk invariance (new binary): greedy ids of the 4k prompt for several --prefill-chunk
+new 4k: chunk 256 vs 128: ids identical (48 tokens)
+new 4k: chunk 256 vs 512: ids identical (48 tokens)
+new 4k: chunk 256 vs 1024: ids identical (48 tokens)
+new 4k: chunk 256 vs 4050: ids identical (48 tokens)
+pre 4k: chunk 256 vs 128: ids identical (48 tokens)
+pre 4k: chunk 256 vs 512: ids identical (48 tokens)
+pre 4k: chunk 256 vs 1024: ids identical (48 tokens)
+pre 4k: chunk 256 vs 4050: ids identical (48 tokens)
+accuracy prefill new chunk 128 exit 0
+accuracy prefill pre chunk 128 exit 0
+accuracy prefill new chunk 256 exit 0
+accuracy prefill pre chunk 256 exit 0
+accuracy prefill new chunk 512 exit 0
+accuracy prefill pre chunk 512 exit 0
+== 5. accuracy against the fp32 goldens, gate class bf16 (new; pre for side by side)
+accuracy new short exit 0
+accuracy new long exit 0
+accuracy pre short exit 0
+accuracy pre long exit 0
+done

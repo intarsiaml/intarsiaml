@@ -1,0 +1,14 @@
+== sample set 2026-10-14T17:10:40-04:00
+"Device Utilization %"=98
+"Device Utilization %"=0
+"Device Utilization %"=23
+median=23
+zoom: 
+idle util 23 > 10, waiting 10s (try 0)
+== sample set 2026-10-14T17:10:53-04:00
+"Device Utilization %"=25
+"Device Utilization %"=9
+"Device Utilization %"=0
+median=9
+zoom: 
+FINAL median=9 tries=1

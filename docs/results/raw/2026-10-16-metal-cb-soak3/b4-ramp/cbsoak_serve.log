@@ -1,0 +1,437 @@
+macmon pid 29439, idle sample (gpu_usage, 6 s before server start):
+  gpu_usage [338, 0.011121667921543121] gpu_power 0.05 sys_power 22.2
+  gpu_usage [253, 0.004329541698098183] gpu_power 0.02 sys_power 15.0
+  gpu_usage [253, 0.02854795940220356] gpu_power 0.15 sys_power 12.1
+binary: /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin3/intarsia-head-66feda6  model: /Users/josef/models/Qwen3-8B  port: 8107  extra: --max-batch 4
+server up pid=29627 after ~52 s; plan: {"model":"Qwen3-8B","backend":"metal","device":{"name":"Apple M5 Max","mem_total":115448725504,"arch":"applegpu_g17s"},"tp":null,"exactness":"deterministic","layers":[{"index":0,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":1,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":2,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":3,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":4,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":5,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":6,"kind":"attention","blocks
+=== run 1 (run): --rate 0.2 --seed 41 --duration 100 --drain-s 60 --cancel-frac 0.1 --sample-s 3 --window-s 20 ===
+cbsoak: warmup 128 tokens -> ok ttft=63 ms
+cbsoak: warmup 4096 tokens -> ok ttft=1000 ms
+cbsoak: http://127.0.0.1:8107 model=Qwen3-8B rate=0.2/s duration=100.0s -> 22 requests planned, chars/token={'docs': 3.37, 'code': 4.15}
+cbsoak: t=    31s sent=5 done=4 inflight=1
+cbsoak: t=    67s sent=9 done=8 inflight=1
+# cbsoak report
+
+http://127.0.0.1:8107  model `Qwen3-8B`  started 2026-10-16T12:44:48-04:00  wall 103 s  planned rate 0.2 req/s over 100.0 s  seed 41
+
+## Totals
+
+| sent | ok | cancelled | shed (429/503) | error | client_dropped |
+|---|---|---|---|---|---|
+| 22 | 22 | 0 | 0 (0/0) | 0 | 0 |
+
+offered 0.220 req/s, completed 0.231 req/s, output 37.9 tok/s (over the 95 s from first send to last completion); shed rate 0.00%, error rate 0.00%, cancel rate 0.00%, goodput 100.00%; chunks per completion token 1.000 (1.0 means ITL is per token).
+
+## Latency
+
+| metric | n | mean | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| TTFT (ms) | 22 | 595.5 | 306.3 | 1714.1 | 2666.8 | 2912.3 |
+| ITL (ms) | 3594 | 32.2 | 28.5 | 32.6 | 113.1 | 125.2 |
+| per-stream decode (tok/s) | 22 | 31.1 | 33.1 | 35.9 | 36.1 | 36.2 |
+
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (2 such prompts): n 17, p50 99.2, p95 104.5, p99 104.9, max 105.0 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
+TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n 5, p50 303.5, p95 971.8, max 1137.5 ms; all other requests: n 17, p50 409.4, p95 1977.3 ms.
+
+## By prompt length
+
+solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).
+
+| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 128 | 154 | 4 | 4 | 0 | 0 | 99.1 | 116.6 | 79.6 (1) | 28.1 | 31.7 |
+| 512 | 505 | 6 | 6 | 0 | 0 | 218.0 | 258.4 | 154.8 (2) | 28.1 | 31.9 |
+| 1024 | 1071 | 6 | 6 | 0 | 0 | 444.3 | 998.8 | 306.3 (2) | 30.1 | 99.1 |
+| 2048 | 2102 | 4 | 4 | 0 | 0 | 856.8 | 2613.6 | - (0) | 29.6 | 32.3 |
+| 4096 | 4056 | 2 | 2 | 0 | 0 | 1440.5 | 1713.2 | 1137.5 (1) | 28.6 | 30.9 |
+
+## Per 20 s window (requests by send time, ITL and tok/s by chunk arrival time)
+
+| window | t0 (s) | sent | ok | shed | err | canc | tok/s | TTFT p50 | TTFT p95 | ITL p50 | ITL p95 | ITL p99 | queue max | mem (MB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 4 | 4 | 0 | 0 | 0 | 21.5 | 551 | 1601 | 30.1 | 95.6 | 101.2 | 0 | 5003 |
+| 1 | 20 | 1 | 1 | 0 | 0 | 0 | 16.9 | 1137 | 1137 | 28.2 | 29.1 | 29.6 | 0 | 5133 |
+| 2 | 40 | 3 | 3 | 0 | 0 | 0 | 30.3 | 92 | 705 | 27.9 | 28.9 | 94.7 | 0 | 5149 |
+| 3 | 60 | 6 | 6 | 0 | 0 | 0 | 32.7 | 287 | 462 | 27.9 | 29.3 | 98.2 | 0 | 5150 |
+| 4 | 80 | 8 | 8 | 0 | 0 | 0 | 73.5 | 376 | 2297 | 30.1 | 103.9 | 119.2 | 0 | 5151 |
+| 5 | 100 | 0 | 0 | 0 | 0 | 0 | 6.0 | - | - | 28.6 | 30.9 | 31.4 | 0 | 5151 |
+
+## Memory
+
+source `footprint_mb`, 34 samples; start 3995 MB, end 5151 MB, max 5151 MB (end - start 1156 MB).
+
+Growth fit over t >= 20 s (27 samples, 1.3 min): Theil-Sen slope 2.79 MB/min (OLS 70.43, r2 0.24), fitted growth 4 MB, projected 168 MB/h. Leak suspect: **no** (growth >= 100 MB and r2 >= 0.6).
+
+Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start 20499 MB, end 20499 MB, max 20499 MB; slope 0.00 MB/min (r2 1.00), fitted growth 0 MB. Leak suspect: **no**.
+
+## Server (/metrics)
+
+35 samples. running: max 4.0 / mean 1.14. queue depth: max 0.0 / mean 0.00. step EWMA ms: max 86.7 / mean 31.90. KV bytes used: max 1298497536.0 / mean 951984362.06 of 4608 MB. rejected (delta): 0. server TTFT mean 449.8 ms, ITL mean 32.0 ms. prefill chunks (delta) 90.
+
+Batch-size histogram (decode passes by rows, delta over the run):
+
+| rows | passes | share |
+|---|---|---|
+| 1 | 1221 | 56.6% |
+| 2 | 549 | 25.4% |
+| 3 | 307 | 14.2% |
+| 4 | 82 | 3.8% |
+| 5 | 0 | 0.0% |
+| 6 | 0 | 0.0% |
+| 7 | 0 | 0.0% |
+| 8 | 0 | 0.0% |
+
+mean rows per decode pass 1.65
+
+## SLO
+
+no thresholds given (informational run).
+
+cbsoak run 1 rc=0
+=== run 2 (run): --rate 0.3 --seed 42 --duration 100 --drain-s 60 --cancel-frac 0.1 --sample-s 3 --window-s 20 ===
+cbsoak: warmup 128 tokens -> ok ttft=71 ms
+cbsoak: warmup 4096 tokens -> ok ttft=1330 ms
+cbsoak: http://127.0.0.1:8107 model=Qwen3-8B rate=0.3/s duration=100.0s -> 29 requests planned, chars/token={'docs': 3.37, 'code': 4.15}
+cbsoak: t=    32s sent=7 done=6 inflight=1
+cbsoak: t=    65s sent=19 done=16 inflight=3
+# cbsoak report
+
+http://127.0.0.1:8107  model `Qwen3-8B`  started 2026-10-16T12:46:31-04:00  wall 100 s  planned rate 0.3 req/s over 100.0 s  seed 42
+
+## Totals
+
+| sent | ok | cancelled | shed (429/503) | error | client_dropped |
+|---|---|---|---|---|---|
+| 29 | 28 | 1 | 0 (0/0) | 0 | 0 |
+
+offered 0.290 req/s, completed 0.303 req/s, output 38.7 tok/s (over the 92 s from first send to last completion); shed rate 0.00%, error rate 0.00%, cancel rate 3.45%, goodput 96.55%; chunks per completion token 0.998 (1.0 means ITL is per token).
+
+## Latency
+
+| metric | n | mean | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| TTFT (ms) | 29 | 485.4 | 291.3 | 1696.6 | 2356.8 | 2440.5 |
+| ITL (ms) | 3537 | 32.4 | 28.9 | 33.2 | 136.0 | 149.5 |
+| per-stream decode (tok/s) | 28 | 31.8 | 32.8 | 35.8 | 36.1 | 36.2 |
+
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (2 such prompts): n 60, p50 137.9, p95 149.4, p99 149.5, max 149.5 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
+TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n 3, p50 339.6, p95 960.3, max 1029.3 ms; all other requests: n 26, p50 290.2, p95 1860.8 ms.
+
+## By prompt length
+
+solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).
+
+| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 128 | 134 | 6 | 6 | 0 | 0 | 105.9 | 1716.0 | 106.0 (1) | 28.8 | 30.6 |
+| 512 | 515 | 12 | 11 | 0 | 0 | 198.8 | 668.8 | 154.0 (6) | 29.0 | 34.7 |
+| 1024 | 1130 | 8 | 8 | 0 | 0 | 393.4 | 489.2 | 323.8 (3) | 28.1 | 29.6 |
+| 2048 | 2378 | 1 | 1 | 0 | 0 | 1011.7 | 1011.7 | - (0) | 30.5 | 130.9 |
+| 4096 | 4226 | 2 | 2 | 0 | 0 | 1734.9 | 2369.9 | 1029.3 (1) | 29.0 | 32.3 |
+
+## Per 20 s window (requests by send time, ITL and tok/s by chunk arrival time)
+
+| window | t0 (s) | sent | ok | shed | err | canc | tok/s | TTFT p50 | TTFT p95 | ITL p50 | ITL p95 | ITL p99 | queue max | mem (MB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 4 | 3 | 0 | 0 | 1 | 18.6 | 159 | 268 | 28.3 | 29.5 | 38.2 | 0 | 5006 |
+| 1 | 20 | 5 | 5 | 0 | 0 | 0 | 27.5 | 340 | 489 | 27.9 | 29.2 | 94.8 | 0 | 5151 |
+| 2 | 40 | 7 | 7 | 0 | 0 | 0 | 53.1 | 383 | 1017 | 29.9 | 33.7 | 114.6 | 0 | 5143 |
+| 3 | 60 | 8 | 8 | 0 | 0 | 0 | 36.9 | 359 | 2336 | 29.9 | 129.4 | 148.8 | 1 | 5152 |
+| 4 | 80 | 5 | 5 | 0 | 0 | 0 | 42.2 | 324 | 394 | 28.9 | 30.2 | 94.3 | 0 | 5007 |
+| 5 | 100 | 0 | 0 | 0 | 0 | 0 | 0.0 | - | - | - | - | - | - | - |
+
+## Memory
+
+source `footprint_mb`, 33 samples; start 5150 MB, end 5007 MB, max 5152 MB (end - start -143 MB).
+
+Growth fit over t >= 20 s (26 samples, 1.3 min): Theil-Sen slope 1.08 MB/min (OLS 14.50, r2 0.01), fitted growth 1 MB, projected 65 MB/h. Leak suspect: **no** (growth >= 100 MB and r2 >= 0.6).
+
+Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start 20499 MB, end 20499 MB, max 20499 MB; slope 0.00 MB/min (r2 1.00), fitted growth 0 MB. Leak suspect: **no**.
+
+## Server (/metrics)
+
+34 samples. running: max 4.0 / mean 1.21. queue depth: max 1.0 / mean 0.03. step EWMA ms: max 118.1 / mean 32.90. KV bytes used: max 1509064704.0 / mean 758079969.88 of 4608 MB. rejected (delta): 0. server TTFT mean 398.9 ms, ITL mean 32.5 ms. prefill chunks (delta) 84.
+
+Batch-size histogram (decode passes by rows, delta over the run):
+
+| rows | passes | share |
+|---|---|---|
+| 1 | 1042 | 52.4% |
+| 2 | 451 | 22.7% |
+| 3 | 374 | 18.8% |
+| 4 | 120 | 6.0% |
+| 5 | 0 | 0.0% |
+| 6 | 0 | 0.0% |
+| 7 | 0 | 0.0% |
+| 8 | 0 | 0.0% |
+
+mean rows per decode pass 1.78
+
+## SLO
+
+no thresholds given (informational run).
+
+cbsoak run 2 rc=0
+=== run 3 (run): --rate 0.45 --seed 43 --duration 100 --drain-s 60 --cancel-frac 0.1 --sample-s 3 --window-s 20 ===
+cbsoak: warmup 128 tokens -> ok ttft=78 ms
+cbsoak: warmup 4096 tokens -> ok ttft=1369 ms
+cbsoak: http://127.0.0.1:8107 model=Qwen3-8B rate=0.45/s duration=100.0s -> 52 requests planned, chars/token={'docs': 3.37, 'code': 4.15}
+cbsoak: t=    30s sent=16 done=15 inflight=1
+cbsoak: t=    61s sent=32 done=30 inflight=2
+cbsoak: t=    95s sent=49 done=48 inflight=1
+# cbsoak report
+
+http://127.0.0.1:8107  model `Qwen3-8B`  started 2026-10-16T12:48:17-04:00  wall 103 s  planned rate 0.45 req/s over 100.0 s  seed 43
+
+## Totals
+
+| sent | ok | cancelled | shed (429/503) | error | client_dropped |
+|---|---|---|---|---|---|
+| 52 | 48 | 4 | 0 (0/0) | 0 | 0 |
+
+offered 0.520 req/s, completed 0.468 req/s, output 53.8 tok/s (over the 102 s from first send to last completion); shed rate 0.00%, error rate 0.00%, cancel rate 7.69%, goodput 92.31%; chunks per completion token 0.999 (1.0 means ITL is per token).
+
+## Latency
+
+| metric | n | mean | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| TTFT (ms) | 51 | 746.1 | 355.1 | 2477.4 | 2630.4 | 2687.9 |
+| ITL (ms) | 5458 | 35.5 | 30.4 | 98.2 | 134.4 | 218.6 |
+| per-stream decode (tok/s) | 48 | 29.4 | 30.5 | 36.2 | 36.4 | 36.6 |
+
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (4 such prompts): n 202, p50 117.5, p95 140.9, p99 148.3, max 218.6 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
+TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n 1, p50 140.6, p95 140.6, max 140.6 ms; all other requests: n 50, p50 372.3, p95 2481.5 ms.
+
+## By prompt length
+
+solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).
+
+| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 128 | 155 | 10 | 9 | 0 | 0 | 103.0 | 2378.5 | 81.4 (1) | 29.1 | 32.3 |
+| 512 | 510 | 20 | 19 | 0 | 0 | 238.1 | 994.0 | 139.3 (4) | 29.8 | 93.4 |
+| 1024 | 1046 | 10 | 10 | 0 | 0 | 445.4 | 2521.1 | 367.0 (2) | 31.4 | 117.8 |
+| 2048 | 2057 | 8 | 6 | 0 | 0 | 770.6 | 1098.4 | 630.6 (4) | 29.9 | 94.9 |
+| 4096 | 4193 | 4 | 4 | 0 | 0 | 2456.7 | 2564.7 | - (0) | 32.3 | 116.2 |
+
+## Per 20 s window (requests by send time, ITL and tok/s by chunk arrival time)
+
+| window | t0 (s) | sent | ok | shed | err | canc | tok/s | TTFT p50 | TTFT p95 | ITL p50 | ITL p95 | ITL p99 | queue max | mem (MB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 10 | 9 | 0 | 0 | 1 | 46.8 | 229 | 638 | 28.7 | 31.4 | 97.0 | 0 | 5152 |
+| 1 | 20 | 11 | 11 | 0 | 0 | 0 | 58.8 | 410 | 1968 | 30.9 | 111.4 | 135.3 | 0 | 5153 |
+| 2 | 40 | 10 | 10 | 0 | 0 | 0 | 48.1 | 150 | 681 | 29.3 | 32.2 | 107.9 | 0 | 5153 |
+| 3 | 60 | 14 | 11 | 0 | 0 | 3 | 58.2 | 964 | 2586 | 31.1 | 116.2 | 136.5 | 2 | 5154 |
+| 4 | 80 | 7 | 7 | 0 | 0 | 0 | 53.2 | 1156 | 2493 | 32.0 | 108.3 | 135.2 | 1 | 5154 |
+| 5 | 100 | 0 | 0 | 0 | 0 | 0 | 10.3 | - | - | 29.9 | 30.6 | 30.7 | 0 | 5154 |
+
+## Memory
+
+source `footprint_mb`, 34 samples; start 5152 MB, end 5154 MB, max 5154 MB (end - start 2 MB).
+
+Growth fit over t >= 20 s (27 samples, 1.3 min): Theil-Sen slope 1.14 MB/min (OLS 1.17, r2 0.77), fitted growth 2 MB, projected 69 MB/h. Leak suspect: **no** (growth >= 100 MB and r2 >= 0.6).
+
+Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start 20499 MB, end 20499 MB, max 20499 MB; slope 0.00 MB/min (r2 1.00), fitted growth 0 MB. Leak suspect: **no**.
+
+## Server (/metrics)
+
+35 samples. running: max 4.0 / mean 2.06. queue depth: max 2.0 / mean 0.14. step EWMA ms: max 109.2 / mean 37.86. KV bytes used: max 1260601344.0 / mean 764133844.11 of 4608 MB. rejected (delta): 0. server TTFT mean 489.3 ms, ITL mean 35.7 ms. prefill chunks (delta) 187.
+
+Batch-size histogram (decode passes by rows, delta over the run):
+
+| rows | passes | share |
+|---|---|---|
+| 1 | 907 | 35.1% |
+| 2 | 891 | 34.5% |
+| 3 | 421 | 16.3% |
+| 4 | 363 | 14.1% |
+| 5 | 0 | 0.0% |
+| 6 | 0 | 0.0% |
+| 7 | 0 | 0.0% |
+| 8 | 0 | 0.0% |
+
+mean rows per decode pass 2.09
+
+## SLO
+
+no thresholds given (informational run).
+
+cbsoak run 3 rc=0
+=== run 4 (run): --rate 0.6 --seed 44 --duration 100 --drain-s 60 --cancel-frac 0.1 --sample-s 3 --window-s 20 ===
+cbsoak: warmup 128 tokens -> ok ttft=60 ms
+cbsoak: warmup 4096 tokens -> ok ttft=1452 ms
+cbsoak: http://127.0.0.1:8107 model=Qwen3-8B rate=0.6/s duration=100.0s -> 47 requests planned, chars/token={'docs': 3.37, 'code': 4.15}
+cbsoak: t=    32s sent=12 done=9 inflight=3
+cbsoak: t=    62s sent=25 done=22 inflight=3
+cbsoak: t=    92s sent=42 done=39 inflight=3
+# cbsoak report
+
+http://127.0.0.1:8107  model `Qwen3-8B`  started 2026-10-16T12:50:05-04:00  wall 105 s  planned rate 0.6 req/s over 100.0 s  seed 44
+
+## Totals
+
+| sent | ok | cancelled | shed (429/503) | error | client_dropped |
+|---|---|---|---|---|---|
+| 47 | 43 | 4 | 0 (0/0) | 0 | 0 |
+
+offered 0.470 req/s, completed 0.415 req/s, output 60.5 tok/s (over the 104 s from first send to last completion); shed rate 0.00%, error rate 0.00%, cancel rate 8.51%, goodput 91.49%; chunks per completion token 0.999 (1.0 means ITL is per token).
+
+## Latency
+
+| metric | n | mean | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| TTFT (ms) | 46 | 1703.6 | 754.8 | 7421.2 | 9883.2 | 11588.0 |
+| ITL (ms) | 6223 | 38.8 | 31.1 | 122.6 | 139.7 | 181.7 |
+| per-stream decode (tok/s) | 43 | 26.9 | 26.5 | 33.3 | 33.5 | 33.6 |
+
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (4 such prompts): n 643, p50 32.9, p95 139.6, p99 140.9, max 143.9 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
+TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n 1, p50 73.7, p95 73.7, max 73.7 ms; all other requests: n 45, p50 778.2, p95 7476.1 ms.
+
+## By prompt length
+
+solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).
+
+| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 128 | 142 | 5 | 5 | 0 | 0 | 115.0 | 631.7 | 73.7 (1) | 29.7 | 31.9 |
+| 512 | 545 | 11 | 9 | 0 | 0 | 349.2 | 844.8 | - (0) | 30.9 | 126.8 |
+| 1024 | 1107 | 19 | 18 | 0 | 0 | 698.2 | 6707.4 | 297.9 (1) | 31.3 | 122.7 |
+| 2048 | 2133 | 8 | 7 | 0 | 0 | 1519.3 | 9415.8 | - (0) | 30.5 | 115.8 |
+| 4096 | 4217 | 4 | 4 | 0 | 0 | 2251.2 | 6993.8 | 1940.1 (1) | 33.5 | 130.8 |
+
+## Per 20 s window (requests by send time, ITL and tok/s by chunk arrival time)
+
+| window | t0 (s) | sent | ok | shed | err | canc | tok/s | TTFT p50 | TTFT p95 | ITL p50 | ITL p95 | ITL p99 | queue max | mem (MB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 7 | 7 | 0 | 0 | 0 | 39.5 | 703 | 2602 | 29.8 | 32.4 | 120.2 | 1 | 5154 |
+| 1 | 20 | 7 | 7 | 0 | 0 | 0 | 56.5 | 806 | 1904 | 31.7 | 132.4 | 140.7 | 0 | 5154 |
+| 2 | 40 | 10 | 7 | 0 | 0 | 3 | 52.0 | 486 | 1435 | 29.3 | 98.9 | 131.5 | 0 | 5155 |
+| 3 | 60 | 12 | 11 | 0 | 0 | 1 | 67.3 | 4495 | 9694 | 33.0 | 132.2 | 140.8 | 4 | 5156 |
+| 4 | 80 | 11 | 11 | 0 | 0 | 0 | 75.5 | 639 | 1267 | 31.5 | 122.7 | 135.0 | 1 | 5156 |
+| 5 | 100 | 0 | 0 | 0 | 0 | 0 | 22.6 | - | - | 29.9 | 32.3 | 33.0 | 0 | 5156 |
+
+## Memory
+
+source `footprint_mb`, 35 samples; start 5154 MB, end 5156 MB, max 5156 MB (end - start 2 MB).
+
+Growth fit over t >= 20 s (28 samples, 1.4 min): Theil-Sen slope 1.32 MB/min (OLS 1.82, r2 0.18), fitted growth 2 MB, projected 79 MB/h. Leak suspect: **no** (growth >= 100 MB and r2 >= 0.6).
+
+Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start 20499 MB, end 20499 MB, max 20499 MB; slope 0.00 MB/min (r2 1.00), fitted growth 0 MB. Leak suspect: **no**.
+
+## Server (/metrics)
+
+35 samples. running: max 4.0 / mean 2.57. queue depth: max 4.0 / mean 0.46. step EWMA ms: max 110.8 / mean 45.82. KV bytes used: max 1827422208.0 / mean 839226865.37 of 4608 MB. rejected (delta): 0. server TTFT mean 780.2 ms, ITL mean 39.8 ms. prefill chunks (delta) 241.
+
+Batch-size histogram (decode passes by rows, delta over the run):
+
+| rows | passes | share |
+|---|---|---|
+| 1 | 635 | 25.7% |
+| 2 | 686 | 27.8% |
+| 3 | 595 | 24.1% |
+| 4 | 555 | 22.5% |
+| 5 | 0 | 0.0% |
+| 6 | 0 | 0.0% |
+| 7 | 0 | 0.0% |
+| 8 | 0 | 0.0% |
+
+mean rows per decode pass 2.43
+
+## SLO
+
+no thresholds given (informational run).
+
+cbsoak run 4 rc=0
+=== run 5 (run): --rate 0.8 --seed 45 --duration 100 --drain-s 60 --cancel-frac 0.1 --sample-s 3 --window-s 20 ===
+cbsoak: warmup 128 tokens -> ok ttft=78 ms
+cbsoak: warmup 4096 tokens -> ok ttft=1534 ms
+cbsoak: http://127.0.0.1:8107 model=Qwen3-8B rate=0.8/s duration=100.0s -> 94 requests planned, chars/token={'docs': 3.37, 'code': 4.15}
+cbsoak: t=    30s sent=30 done=18 inflight=12
+cbsoak: t=    61s sent=54 done=37 inflight=17
+cbsoak: t=    94s sent=91 done=61 inflight=30
+# cbsoak report
+
+http://127.0.0.1:8107  model `Qwen3-8B`  started 2026-10-16T12:52:37-04:00  wall 148 s  planned rate 0.8 req/s over 100.0 s  seed 45
+
+## Totals
+
+| sent | ok | cancelled | shed (429/503) | error | client_dropped |
+|---|---|---|---|---|---|
+| 94 | 83 | 11 | 0 (0/0) | 0 | 0 |
+
+offered 0.940 req/s, completed 0.565 req/s, output 80.9 tok/s (over the 147 s from first send to last completion); shed rate 0.00%, error rate 0.00%, cancel rate 11.70%, goodput 88.30%; chunks per completion token 0.999 (1.0 means ITL is per token).
+
+## Latency
+
+| metric | n | mean | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| TTFT (ms) | 85 | 20414.6 | 17336.7 | 46218.9 | 48981.4 | 50006.0 |
+| ITL (ms) | 11792 | 41.9 | 32.0 | 123.9 | 139.0 | 153.2 |
+| per-stream decode (tok/s) | 83 | 25.0 | 25.4 | 31.0 | 35.8 | 36.5 |
+
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (7 such prompts): n 5963, p50 31.9, p95 129.6, p99 139.3, max 150.2 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
+TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n 1, p50 294.7, p95 294.7, max 294.7 ms; all other requests: n 84, p50 17475.1, p95 46293.1 ms.
+
+## By prompt length
+
+solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).
+
+| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 128 | 134 | 11 | 8 | 0 | 0 | 13159.1 | 29967.6 | 61.5 (1) | 31.8 | 127.1 |
+| 512 | 519 | 26 | 25 | 0 | 0 | 16885.2 | 45909.8 | - (0) | 31.6 | 120.9 |
+| 1024 | 1041 | 27 | 24 | 0 | 0 | 21467.6 | 46903.1 | 294.7 (1) | 31.9 | 125.0 |
+| 2048 | 2101 | 22 | 19 | 0 | 0 | 19219.1 | 45279.8 | - (0) | 32.2 | 122.0 |
+| 4096 | 4390 | 8 | 7 | 0 | 0 | 26467.2 | 37347.0 | - (0) | 32.9 | 128.7 |
+
+## Per 20 s window (requests by send time, ITL and tok/s by chunk arrival time)
+
+| window | t0 (s) | sent | ok | shed | err | canc | tok/s | TTFT p50 | TTFT p95 | ITL p50 | ITL p95 | ITL p99 | queue max | mem (MB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 17 | 14 | 0 | 0 | 3 | 69.5 | 2272 | 4108 | 31.3 | 108.7 | 125.2 | 4 | 5157 |
+| 1 | 20 | 20 | 18 | 0 | 0 | 2 | 93.0 | 11879 | 19315 | 31.5 | 118.3 | 139.4 | 9 | 5158 |
+| 2 | 40 | 16 | 15 | 0 | 0 | 1 | 78.4 | 14322 | 17790 | 32.8 | 128.8 | 141.7 | 11 | 5158 |
+| 3 | 60 | 23 | 21 | 0 | 0 | 2 | 86.2 | 26467 | 37143 | 31.8 | 123.5 | 138.9 | 20 | 5159 |
+| 4 | 80 | 18 | 15 | 0 | 0 | 3 | 83.5 | 43486 | 49152 | 31.7 | 127.5 | 137.3 | 26 | 5160 |
+| 5 | 100 | 0 | 0 | 0 | 0 | 0 | 65.5 | - | - | 33.2 | 136.2 | 146.5 | 23 | 5160 |
+| 6 | 120 | 0 | 0 | 0 | 0 | 0 | 90.5 | - | - | 32.2 | 115.6 | 132.4 | 13 | 5160 |
+| 7 | 140 | 0 | 0 | 0 | 0 | 0 | 27.4 | - | - | 29.8 | 32.3 | 118.4 | 0 | 5152 |
+
+## Memory
+
+source `footprint_mb`, 49 samples; start 5156 MB, end 5152 MB, max 5160 MB (end - start -4 MB).
+
+Growth fit over t >= 20 s (42 samples, 2.1 min): Theil-Sen slope 1.71 MB/min (OLS 1.16, r2 0.23), fitted growth 4 MB, projected 103 MB/h. Leak suspect: **no** (growth >= 100 MB and r2 >= 0.6).
+
+Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start 20499 MB, end 20499 MB, max 20499 MB; slope 0.00 MB/min (r2 1.00), fitted growth 0 MB. Leak suspect: **no**.
+
+## Server (/metrics)
+
+50 samples. running: max 4.0 / mean 3.68. queue depth: max 26.0 / mean 11.32. step EWMA ms: max 121.1 / mean 48.11. KV bytes used: max 1905721344.0 / mean 863248711.68 of 4608 MB. rejected (delta): 0. server TTFT mean 759.2 ms, ITL mean 42.3 ms. prefill chunks (delta) 475.
+
+Batch-size histogram (decode passes by rows, delta over the run):
+
+| rows | passes | share |
+|---|---|---|
+| 1 | 173 | 5.3% |
+| 2 | 120 | 3.7% |
+| 3 | 481 | 14.8% |
+| 4 | 2477 | 76.2% |
+| 5 | 0 | 0.0% |
+| 6 | 0 | 0.0% |
+| 7 | 0 | 0.0% |
+| 8 | 0 | 0.0% |
+
+mean rows per decode pass 3.62
+
+## SLO
+
+no thresholds given (informational run).
+
+cbsoak run 5 rc=0
+cbsoak rc=0

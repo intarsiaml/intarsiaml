@@ -1,0 +1,36 @@
+fleetq: #2042 running on spark1: /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/spark_check.sh
+=== cargo check -p intarsia-cli --features cuda --tests
+    Checking toml_writer v1.1.3+spec-1.1.0
+    Checking unicode_categories v0.1.1
+    Checking utf8-zero v0.8.1
+    Checking winnow v0.7.15
+    Checking clap_lex v1.1.1
+    Checking ureq v3.4.2
+    Checking clap_builder v4.6.7
+    Checking toml v0.9.12+spec-1.1.0
+    Checking intarsia-ui v0.0.1 (~/cb-m0-check-N/crates/intarsia-ui)
+    Checking intarsia-backend-cpu v0.0.1 (~/cb-m0-check-N/crates/intarsia-backend-cpu)
+    Checking minijinja-contrib v2.24.0
+    Checking ratatui v0.30.2
+    Checking tokio-stream v0.1.19
+   Compiling clap_derive v4.6.7
+   Compiling derive_builder_macro v0.20.2
+    Checking memmap2 v0.9.11
+    Checking intarsia-bench v0.0.1 (~/cb-m0-check-N/crates/intarsia-bench)
+    Checking derive_builder v0.20.2
+    Checking tokenizers v0.22.2
+    Checking tracing v0.1.44
+    Checking intarsia-server v0.0.1 (~/cb-m0-check-N/crates/intarsia-server)
+    Checking intarsia-models v0.0.1 (~/cb-m0-check-N/crates/intarsia-models)
+    Checking clap v4.6.7
+    Checking intarsia-cli v0.0.1 (~/cb-m0-check-N/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 29.41s
+EXIT=0
+=== cargo check -p intarsia-cli --features hip --tests
+   Compiling intarsia-backend-hip v0.0.1 (~/cb-m0-check-N/crates/intarsia-backend-hip)
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+    Checking intarsia-cli v0.0.1 (~/cb-m0-check-N/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.04s
+EXIT=0
+scratch ~/cb-m0-check-90159 removed
+fleetq: #2042 done (exit 0)

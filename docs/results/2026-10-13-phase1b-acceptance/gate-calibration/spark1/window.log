@@ -1,0 +1,44 @@
+[12:06:01] phase1b acceptance: stages=lease,accuracy dry_run=0 host=spark1 pre-change=4963b43 work=/opt/code/intarsiaml/target/accept3
+[12:06:01] == lease: exclusive slot on spark1 taking guidance down
+[12:06:01] stopping the vLLM container missioncntrl-guidance
+[12:06:04] memory freed: 111 GB available
+[12:06:04] == accuracy: old build records baseline + noise envelope, new build is gated
+[12:06:05] memory: 111 GB available, accuracy 35b-short needs 38 GB + 20 GB headroom
+[12:06:05] -- 35b-short: record from the pre-change build (4963b43 + harness)
+[12:06:52] -- 35b-short: noise envelope, perturbation attn-simt (old build, vs its own baseline)
+[12:07:46] -- 35b-short: noise envelope, perturbation chunk=64 (old build, vs its own baseline)
+[12:08:40] -- 35b-short: gate the new build (floor, baseline, per prompt with the noise envelope)
+exit 1
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+golden gate: FAIL
+[12:09:26] memory: 111 GB available, accuracy 8b-short needs 17 GB + 20 GB headroom
+[12:09:26] -- 8b-short: gate the new build (floor)
+exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+[12:10:15] memory: 111 GB available, accuracy 8b-long needs 17 GB + 20 GB headroom
+[12:10:15] -- 8b-long: gate the new build (floor)
+exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+[12:11:19] memory: 111 GB available, accuracy 35b-long needs 38 GB + 20 GB headroom
+[12:11:19] -- 35b-long: record from the pre-change build (4963b43 + harness)
+[12:14:28] -- 35b-long: noise envelope, perturbation chunk=1024 (old build, vs its own baseline)
+[12:17:31] -- 35b-long: gate the new build (floor, baseline, per prompt with the noise envelope)
+exit 1
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: PASS
+golden gate: FAIL
+[12:21:05] memory: 111 GB available, held-out 35b-long needs 38 GB + 20 GB headroom
+[12:21:05] -- 35b-long: held-out check (old build with SIMT attention, gated with the envelope of chunk=1024)
+exit 1
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) / 0 check(s)
+  failing per-prompt checks by k (information): k=0: 2 prompt(s) / 2 check(s), k=1: 1 prompt(s) / 1 check(s), k=2: 1 prompt(s) / 1 check(s) <- used, k=3: 1 prompt(s) / 1 check(s), k=5: 1 prompt(s) / 1 check(s), k=10: 1 prompt(s) / 1 check(s)
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+golden gate: FAIL
+[12:25:23] accuracy FAILED: 35b-short: baseline gate
+[12:25:23] bisect before touching code: rerun the failing case with --no-graphs, then with INTARSIA_CUDA_DISABLE=<new kernel names> (a typo is now refused)
+[12:25:23] killing any intarsia-acc process still running on spark1 before vLLM is started
+[12:25:26] starting the vLLM container missioncntrl-guidance and waiting for it to serve
+[12:29:17] vLLM is serving again
+[12:29:17] releasing fleetq job 1578
+[12:29:17] done (status 0); artefacts in /opt/code/intarsiaml/target/accept3

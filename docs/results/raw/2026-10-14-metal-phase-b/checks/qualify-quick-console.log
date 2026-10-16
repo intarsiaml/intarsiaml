@@ -1,0 +1,19 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml/docs/results/raw/2026-10-14-metal-phase-b/qualify-quick
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 16 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     34s] plan: PASS in 33.7s (14 ops resolved, exactness deterministic, loaded in 33.7s)
+[qualify     34s] == kernels [kernels test on the model's shapes]
+[qualify     56s] kernels: PASS in 22.1s (16 kernels, 181 cases in 21.9s)
+[qualify     56s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     71s] gate: PASS in 14.7s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     71s] == acc-short [short accuracy against a golden]
+[qualify     82s] acc-short: PASS in 11.1s (prefill top-1 100.00% KL 2.61e-4; decode top-1 100.00% KL 3.64e-4)
+[qualify     82s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    112s] server up in 30s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    248s] bench: PASS in 166.4s (decode 33.5 tok/s at 128 tokens (83% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml/docs/results/raw/2026-10-14-metal-phase-b/qualify-quick/quick-report.md
+[qualify    248s] exit code 0

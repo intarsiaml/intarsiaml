@@ -1,0 +1,69 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "phase1a-35b-vllm",
+  "timestamp_unix": 1791866580,
+  "url": "http://100.120.88.104:8000",
+  "model": "guidance",
+  "config": {
+    "sizes": [
+      128,
+      1024,
+      4096
+    ],
+    "gen": 128,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": null,
+    "bandwidth_gbs": null
+  },
+  "calibration": {
+    "base_prompt_tokens": 46.0,
+    "tokens_per_filler_sentence": 22.05
+  },
+  "fingerprint": {},
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 127.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.1206,
+      "prefill_tok_s": 1094.1,
+      "decode_tok_s": 76.53,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 978.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.2027,
+      "prefill_tok_s": 4824.4,
+      "decode_tok_s": 76.68,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4078.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.6686,
+      "prefill_tok_s": 6135.1,
+      "decode_tok_s": 78.24,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 3,
+      "errors": 0
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

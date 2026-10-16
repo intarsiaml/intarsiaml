@@ -1,0 +1,13 @@
+fleetq: #2133 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/e2e2.sh
+cb c2048 done
+idle before gm-c2048-base-1: "Device Utilization %"=0 "Device Utilization %"=19 "Device Utilization %"=23 
+gm-c2048-base-1 localeval exit 0
+idle before gm-c2048-new-1: "Device Utilization %"=0 "Device Utilization %"=2 "Device Utilization %"=3 
+gm-c2048-new-1 localeval exit 0
+idle before gm-c2048-new-2: "Device Utilization %"=0 "Device Utilization %"=0 "Device Utilization %"=22 
+gm-c2048-new-2 localeval exit 0
+idle before gm-c2048-base-2: "Device Utilization %"=0 "Device Utilization %"=2 "Device Utilization %"=20 
+gm-c2048-base-2 localeval exit 0
+done
+localeval c2048 done
+fleetq: #2133 done (exit 0)

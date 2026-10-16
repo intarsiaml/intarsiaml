@@ -1,0 +1,48 @@
+== base1
+  A_after_decode     n=12 min=1147 med=1380 max=1779  (>1.3x floor: 5/12)  ttft-minus-server-prefill median 1 ms
+  B_decode_idle5     n=12 min=1277 med=1430 max=1527  (>1.3x floor: 3/12)  ttft-minus-server-prefill median 5 ms
+  C_b2b_prefill      n=12 min=1148 med=1358 max=1555  (>1.3x floor: 2/12)  ttft-minus-server-prefill median 1 ms
+  E_leval_pattern    n=12 min=1277 med=1418 max=1813  (>1.3x floor: 5/12)  ttft-minus-server-prefill median 1 ms
+== trace1
+  A_after_decode     n=12 min=1140 med=1712 max=2064  (>1.3x floor: 8/12)  ttft-minus-server-prefill median 2 ms
+  B_decode_idle5     n=12 min=1279 med=1308 max=1581  (>1.3x floor: 2/12)  ttft-minus-server-prefill median 5 ms
+  C_b2b_prefill      n=12 min=1144 med=1196 max=1547  (>1.3x floor: 1/12)  ttft-minus-server-prefill median 2 ms
+  E_leval_pattern    n=12 min=1174 med=1550 max=2096  (>1.3x floor: 7/12)  ttft-minus-server-prefill median 1 ms
+== mac1
+  A_after_decode     n=14 min=1140 med=1152 max=1294  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  B_decode_idle5     n=14 min=1275 med=1480 max=1529  (>1.3x floor: 4/14)  ttft-minus-server-prefill median 3 ms
+  C_b2b_prefill      n=14 min=1149 med=1373 max=1476  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  E_leval_pattern    n=14 min=1182 med=1248 max=1373  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  G1_decode_idle1    n=14 min=1158 med=1161 max=1348  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 3 ms
+  G2_decode_idle2    n=14 min=1282 med=1293 max=1538  (>1.3x floor: 1/14)  ttft-minus-server-prefill median 4 ms
+  H_decode32         n=14 min=1149 med=1150 max=1297  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+== cb1
+  A_after_decode     n=12 min=1141 med=1151 max=1733  (>1.3x floor: 1/12)  ttft-minus-server-prefill median 2 ms
+  B_decode_idle5     n=12 min=1298 med=1311 max=1355  (>1.3x floor: 0/12)  ttft-minus-server-prefill median 4 ms
+  C_b2b_prefill      n=12 min=1142 med=1150 max=1339  (>1.3x floor: 0/12)  ttft-minus-server-prefill median 2 ms
+  E_leval_pattern    n=12 min=1150 med=1151 max=1296  (>1.3x floor: 0/12)  ttft-minus-server-prefill median 2 ms
+== long1
+  A_after_decode     n=22 min=1150 med=1527 max=2067  (>1.3x floor: 14/22)  ttft-minus-server-prefill median 2 ms
+  B_decode_idle5     n=22 min=1280 med=1318 max=1593  (>1.3x floor: 6/22)  ttft-minus-server-prefill median 3 ms
+  C_b2b_prefill      n=22 min=1149 med=1363 max=1580  (>1.3x floor: 2/22)  ttft-minus-server-prefill median 2 ms
+  E_leval_pattern    n=22 min=1189 med=1432 max=1847  (>1.3x floor: 9/22)  ttft-minus-server-prefill median 1 ms
+== pvs1
+  plain              n=16 min=1284 med=1308 max=1336  (>1.3x floor: 0/16)  ttft-minus-server-prefill median 0 ms
+  serve_b2b          n=16 min=1147 med=1172 max=1193  (>1.3x floor: 0/16)  ttft-minus-server-prefill median 8 ms
+  serve_idle5        n=16 min=1275 med=1289 max=1302  (>1.3x floor: 0/16)  ttft-minus-server-prefill median 8 ms
+== more2
+  A_after_decode     n=14 min=1140 med=1155 max=1250  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  B_decode_idle5     n=14 min=1304 med=1368 max=1476  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 4 ms
+  C_b2b_prefill      n=14 min=1146 med=1410 max=1480  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  E_leval_pattern    n=14 min=1149 med=1176 max=1263  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  G1_decode_idle1    n=14 min=1159 med=1161 max=1376  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 3 ms
+  G2_decode_idle2    n=14 min=1302 med=1365 max=1504  (>1.3x floor: 1/14)  ttft-minus-server-prefill median 2 ms
+  H_decode32         n=14 min=1150 med=1186 max=1426  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+== more2
+  A_after_decode     n=14 min=1140 med=1155 max=1250  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  B_decode_idle5     n=14 min=1304 med=1368 max=1476  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 4 ms
+  C_b2b_prefill      n=14 min=1146 med=1410 max=1480  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  E_leval_pattern    n=14 min=1149 med=1176 max=1263  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms
+  G1_decode_idle1    n=14 min=1159 med=1161 max=1376  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 3 ms
+  G2_decode_idle2    n=14 min=1302 med=1365 max=1504  (>1.3x floor: 1/14)  ttft-minus-server-prefill median 2 ms
+  H_decode32         n=14 min=1150 med=1186 max=1426  (>1.3x floor: 0/14)  ttft-minus-server-prefill median 2 ms

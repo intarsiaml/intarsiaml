@@ -1,0 +1,20 @@
+{
+ "stream_text": "```rust\n#[derive(Clone, Debug)]\npub struct GenRequest {\n    /// Prompt token ids (already tokenized / templated by the caller).\n    pub prompt: Vec<u32>,\n    pub max_new_tokens: usize,\n    /// EOS (and `stop_ids`) are suppressed until this many tokens exist.\n    pub min_tokens: usize,\n    /// Keep generating past the model's EOS tokens (forced-length benchmarks).\n    pub ignore_eos: bool,\n    /// <= 0 means greedy.\n    pub temperature: f32,\n    pub top_p: f32,\n    /// 0 = disabled.\n    pub top_k: usize,\n    pub seed: Option<u64>,\n    /// Extra stop token ids (not emitted).\n    pub stop_ids: Vec<u32>,\n    /// Stop strings; generation ends before the first match, which is not emitted.\n    pub stop: Vec<String>,\n    /// Set by the caller to cancel the request: checked while queued, between\n    /// prefill chunks and between decode steps.\n    pub cancel: Option<Arc<AtomicBool>>,\n}\n\nimpl Default for GenRequest {\n    fn default() -> Self {\n        GenRequest {\n            prompt: Vec::new(),\n            max_new_tokens: 256,\n            min_tokens: 0,\n            ignore_eos: false,\n            temperature: 0.0,\n            top_p: 1.0,\n            top_k: 0,\n            seed: None,\n            stop_ids: Vec::new(),\n            stop: Vec::new(),\n            cancel: None,\n        }\n    }\n}\n```",
+ "stream_chunks": 328,
+ "stream_finish": "stop",
+ "full_text": "```rust\n#[derive(Clone, Debug)]\npub struct GenRequest {\n    /// Prompt token ids (already tokenized / templated by the caller).\n    pub prompt: Vec<u32>,\n    pub max_new_tokens: usize,\n    /// EOS (and `stop_ids`) are suppressed until this many tokens exist.\n    pub min_tokens: usize,\n    /// Keep generating past the model's EOS tokens (forced-length benchmarks).\n    pub ignore_eos: bool,\n    /// <= 0 means greedy.\n    pub temperature: f32,\n    pub top_p: f32,\n    /// 0 = disabled.\n    pub top_k: usize,\n    pub seed: Option<u64>,\n    /// Extra stop token ids (not emitted).\n    pub stop_ids: Vec<u32>,\n    /// Stop strings; generation ends before the first match, which is not emitted.\n    pub stop: Vec<String>,\n    /// Set by the caller to cancel the request: checked while queued, between\n    /// prefill chunks and between decode steps.\n    pub cancel: Option<Arc<AtomicBool>>,\n}\n\nimpl Default for GenRequest {\n    fn default() -> Self {\n        GenRequest {\n            prompt: Vec::new(),\n            max_new_tokens: 256,\n            min_tokens: 0,\n            ignore_eos: false,\n            temperature: 0.0,\n            top_p: 1.0,\n            top_k: 0,\n            seed: None,\n            stop_ids: Vec::new(),\n            stop: Vec::new(),\n            cancel: None,\n        }\n    }\n}\n```",
+ "full_finish": "stop",
+ "usage": {
+  "prompt_tokens": 372,
+  "completion_tokens": 329,
+  "total_tokens": 701,
+  "prompt_tokens_details": {
+   "cached_tokens": 371
+  }
+ },
+ "metrics_spec": {
+  "intarsia_spec_steps_total": 0.0,
+  "intarsia_spec_proposed_tokens_total": 0.0,
+  "intarsia_spec_accepted_tokens_total": 0.0
+ }
+}

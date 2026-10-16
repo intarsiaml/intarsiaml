@@ -1,0 +1,5 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+admission on plan shapes: 18 kernel(s) checked, 36 case(s) run, 201 cached
+loaded Qwen3-8B on metal (Apple M5 Max) in 49.0s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:8093

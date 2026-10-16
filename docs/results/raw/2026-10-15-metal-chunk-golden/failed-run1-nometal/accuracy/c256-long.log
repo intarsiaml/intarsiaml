@@ -1,0 +1,1 @@
+Error: this binary was built without the Metal backend (macOS only: cargo build -p intarsia-cli --features metal)

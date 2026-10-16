@@ -1,0 +1,32 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/qualify
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 23 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     43s] plan: PASS in 42.9s (14 ops resolved, exactness deterministic, loaded in 42.9s)
+[qualify     43s] == kernels [kernels test on the model's shapes]
+[qualify     76s] kernels: PASS in 32.8s (23 kernels, 291 cases in 32.7s)
+[qualify     76s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     86s] gate: PASS in 9.5s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     86s] == acc-short [short accuracy against a golden]
+[qualify     93s] acc-short: PASS in 7.0s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
+[qualify     93s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    131s] server up in 38s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    170s] bench: PASS in 77.4s (decode 36.7 tok/s at 128 tokens (91% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/qualify/quick-report.md
+[qualify    170s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    194s] acc-long: PASS in 23.5s (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4)
+[qualify    194s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    252s] acc-4k: FAIL in 58.7s (prefill: top-1 99.28% (need >= 99.5); decode: top-1 98.96% (need >= 99.5))
+[qualify    252s] == envelope [noise envelope and baseline for regression gating]
+[qualify    266s] envelope: PASS in 13.7s (baseline and envelope (chunk) written; they gate this build: PASS)
+[qualify    266s] == bench-long [long-context bench up to 16k]
+[qualify    306s] server up in 40s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    344s] bench-long: PASS in 78.3s (decode 36.5 tok/s at 1024 tokens (90% of the byte floor))
+[qualify    344s] == ab [A/B against the reference server via localeval]
+[qualify    344s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    344s] == tp [tensor-parallel variant]
+[qualify    344s] tp: SKIP in 0.0s (--tp not given (or 1))
+FULL DONE: /opt/code/intarsiaml-golden-4k/docs/results/raw/2026-10-15-metal-golden-4k/p3/qualify/full-report.md
+[qualify    344s] exit code 1

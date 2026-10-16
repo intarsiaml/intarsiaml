@@ -1,0 +1,8 @@
+pre short pair1 idle_util=2(waits=0) 29.423 29.117 0.306 544.0 (33.98 tok/s)
+v1 short pair1 idle_util=2(waits=1) 28.318 28.012 0.306 544.0 (35.31 tok/s)
+v1 short pair2 idle_util=2(waits=1) 28.323 28.033 0.291 544.0 (35.30 tok/s)
+pre short pair2 idle_util=4(waits=1) 29.382 29.115 0.267 544.0 (34.03 tok/s)
+pre short pair3 idle_util=2(waits=1) 29.333 29.057 0.276 544.0 (34.09 tok/s)
+v1 short pair3 idle_util=5(waits=1) 28.527 28.236 0.291 544.0 (35.05 tok/s)
+v1 short pair4 idle_util=3(waits=1) 28.371 28.065 0.306 544.0 (35.24 tok/s)
+pre short pair4 idle_util=3(waits=1) 29.209 28.909 0.300 544.0 (34.23 tok/s)

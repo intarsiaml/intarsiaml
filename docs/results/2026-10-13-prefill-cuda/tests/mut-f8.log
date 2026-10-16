@@ -1,0 +1,58 @@
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-cuda/tests/quantmoe.rs:92:49
+   |
+92 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+   |                                                 ^           ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+92 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+92 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:127:49
+    |
+127 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+127 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+127 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:196:45
+    |
+196 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+196 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+196 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 2 tests
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 5.229e-1; elements off: 0.0000 / 0.9990
+
+thread 'matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm' panicked at crates/intarsia-backend-cuda/tests/quantmoe.rs:399:13:
+act_quant=true M=5 N=192 K=256 Bf16: rel_l2 5.229e-1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+
+failures:
+
+failures:
+    matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.34s
+
+error: test failed, to rerun pass `-p intarsia-backend-cuda --test quantmoe`

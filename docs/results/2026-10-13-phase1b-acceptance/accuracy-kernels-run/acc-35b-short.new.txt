@@ -1,0 +1,3 @@
+exit 1
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins): FAIL
+golden gate: FAIL

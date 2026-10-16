@@ -1,0 +1,11 @@
+# Grafana file provisioning for the dashboard (mount intarsia.json next to it).
+apiVersion: 1
+providers:
+  - name: intarsia
+    folder: IntarsiaML
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

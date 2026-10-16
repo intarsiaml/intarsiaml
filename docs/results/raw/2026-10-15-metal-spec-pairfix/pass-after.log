@@ -1,0 +1,14 @@
+#2037 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+  run work inside it: prefix commands with FLEETQ_JOB=2037
+  release when finished: fleetq release 2037
+slot 2037 RUNNING (test after fix) Thu Oct 15 14:02:42 EDT 2026: #2037 "metal spec pair fix" (claude-31e10c55) running on endor exclusive 20 GB for 0s
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/multirow.rs (target/release/deps/multirow-856d8fe765ca58f4)
+
+running 2 tests
+test pair_mixed_family_halves_all_rows ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.62s
+
+released 2037 Thu Oct 15 14:02:43 EDT 2026

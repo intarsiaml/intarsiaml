@@ -1,0 +1,29 @@
+short-48|48|--ignore-eos|short
+short-256|256|--ignore-eos|short
+4k-48|48|--ignore-eos|4k
+4k-256|256|--ignore-eos|4k
+grounded-256|256|--chat --no-think|grounded
+grounded-512|512|--chat --no-think|grounded
+open-256|256|--chat --no-think|open
+grounded-max102|102|--chat --no-think|grounded
+grounded-max188|188|--chat --no-think|grounded
+grounded-stop-topp|512|--chat --no-think --stop top_p:|grounded
+grounded-stop-vecstring|512|--chat --no-think --stop Vec<String>|grounded
+grounded-stop-atomic|512|--chat --no-think --stop AtomicBool>>,|grounded
+grounded-min331|400|--chat --no-think --min-tokens 331|grounded
+grounded-min335|400|--chat --no-think --min-tokens 335|grounded
+grounded-min320-stopfence|400|--chat --no-think --min-tokens 320 --stop ```|grounded
+4k-max9|9|--ignore-eos|4k
+4k-max44|44|--ignore-eos|4k
+4k-stop250|256|--ignore-eos --stop 250.|4k
+short-stopkettles|256|--ignore-eos --stop kettles|short
+golden-docs-48|48|--ignore-eos|golden-docs
+golden-docs-256|256|--ignore-eos|golden-docs
+golden-code-48|48|--ignore-eos|golden-code
+golden-code-256|256|--ignore-eos|golden-code
+repeat-eos|64|--chat --no-think|repeat
+sampled-short-128|128|--ignore-eos|short|--temperature 0.8 --top-p 0.9 --top-k 40 --seed 42
+sampled-grounded-256|256|--chat --no-think|grounded|--temperature 0.7 --seed 7
+sampled-open-min50-stop|300|--chat --no-think --min-tokens 50 --stop the|open|--temperature 0.9 --seed 3
+sampled-4k-64|64|--ignore-eos|4k|--temperature 1.0 --top-k 20 --seed 11
+sampled-repeat-eos|64|--chat --no-think|repeat|--temperature 0.5 --seed 5

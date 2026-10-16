@@ -1,0 +1,9 @@
+fleetq job 1984
+== 1. no 4k golden, acc stages only: SAFE (256), P3 (2048)
+safe-no4k exit 0
+p3-no4k exit 1
+== 2. full qualify with the 4k golden
+safe qualify exit 0
+p3 qualify exit 0
+done
+#1984 "metal golden-4k: qualify round 2 (SAFE+tailfix vs P3)" (claude-31e10c55) done on endor exclusive 24 GB

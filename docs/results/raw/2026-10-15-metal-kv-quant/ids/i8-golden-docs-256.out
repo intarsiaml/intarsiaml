@@ -1,0 +1,21 @@
+. For each batch bucket (e.g. 16x128 tokens), capture the graph (as a `GraphHandle`), and store it in the tuning DB for future use.
+
+The plan is a `GraphHandle` per batch bucket, and the scheduler uses these to manage continuous batching and chunked prefill.
+
+---
+
+## 4. Scheduler and KV manager
+
+### 4.1 Scheduler: continuous batching, chunked prefill, priorities
+
+The scheduler manages a **continuous batch** of active sequences, each with a **chunked prefill** and **decode steps**. It uses **priorities** to manage resource allocation and scheduling.
+
+- **Continuous batching**: Sequences are grouped into batches, and the scheduler manages the batch as a whole, optimizing for throughput.
+- **Chunked prefill**: Large prefill requests are split into smaller chunks to manage memory and improve efficiency.
+- **Priorities**: Sequences are assigned priorities based on their importance, ensuring that high-priority sequences get more resources.
+
+### 4.2 KV manager: paged blocks, radix prefix cache, host tier
+
+The KV manager handles the **key-value (KV) cache** for the model, which is crucial for efficient inference.
+
+- **Paged blocks

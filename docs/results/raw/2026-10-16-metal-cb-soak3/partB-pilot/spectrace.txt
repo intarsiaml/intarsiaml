@@ -1,0 +1,4 @@
+== all: 928 decode phases, spec-off phases 0 (with a verify pass: 0), gate value != (b<4): 0, on->off 0, off->on 0 (drafting resumed after 0), drafted 1163 accepted 658 in 291 passes
+   b: 1: 154ph/34vp/136dr/84ac, 2: 774ph/257vp/1027dr/574ac
+== b2: 928 decode phases, spec-off phases 0 (with a verify pass: 0), gate value != (b<4): 0, on->off 0, off->on 0 (drafting resumed after 0), drafted 1163 accepted 658 in 291 passes
+   b: 1: 154ph/34vp/136dr/84ac, 2: 774ph/257vp/1027dr/574ac

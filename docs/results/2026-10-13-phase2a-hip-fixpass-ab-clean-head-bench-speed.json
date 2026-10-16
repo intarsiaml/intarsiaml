@@ -1,0 +1,70 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "ab2-head-1",
+  "timestamp_unix": 1791876691,
+  "url": "http://127.0.0.1:8090",
+  "model": "qwen36-35b-intarsia-hip",
+  "config": {
+    "sizes": [
+      128,
+      1024,
+      4096
+    ],
+    "gen": 128,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 2.2,
+    "bandwidth_gbs": 627.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 48.0,
+    "tokens_per_filler_sentence": 21.73
+  },
+  "fingerprint": {},
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 130.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.1169,
+      "prefill_tok_s": 1077.9,
+      "decode_tok_s": 96.71,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 33.9,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 1001.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.4806,
+      "prefill_tok_s": 2066.3,
+      "decode_tok_s": 96.21,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 33.8,
+      "reps_ok": 3,
+      "errors": 0
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4083.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 1.9789,
+      "prefill_tok_s": 2063.3,
+      "decode_tok_s": 94.45,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 33.1,
+      "reps_ok": 3,
+      "errors": 0
+    }
+  ],
+  "concurrency": [],
+  "warnings": [],
+  "tree_stamp": "binary built from git HEAD a7da13b89e5bac0f7d3c1f17c76c1aafd5b91941 (clean, git archive)"
+}

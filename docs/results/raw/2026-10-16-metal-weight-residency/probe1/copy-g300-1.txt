@@ -1,0 +1,17 @@
+mapped and wrapped 5 shards in 0.7 ms (mode copy, sleep 0 ms, gap 300 ms)
+copy model-00001-of-00005.safetensors: alloc+upload 398.7 ms
+copy model-00002-of-00005.safetensors: alloc+upload 426.6 ms
+copy model-00003-of-00005.safetensors: alloc+upload 436.6 ms
+copy model-00004-of-00005.safetensors: alloc+upload 378.5 ms
+copy model-00005-of-00005.safetensors: alloc+upload 154.0 ms
+copy pass: 1794.7 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 100.71 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 83.22 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 130.19 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 68.33 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 24.66 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.17 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.13 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.13 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.19 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.13 ms

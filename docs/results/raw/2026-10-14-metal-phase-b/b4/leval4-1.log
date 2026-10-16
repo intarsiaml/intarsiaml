@@ -1,0 +1,8 @@
+fleetq job 1857
+intarsia-metal-bf16-b4pre idle_util=9(waits=1)
+intarsia-metal-bf16-b4pre server up
+intarsia-metal-bf16-b4pre localeval exit 0
+intarsia-metal-bf16-b4fold idle_util=8(waits=1)
+intarsia-metal-bf16-b4fold server up
+intarsia-metal-bf16-b4fold localeval exit 0
+#1857 "metal B4 fold localeval pre/after back to back" (claude-31e10c55) done on endor exclusive 24 GB

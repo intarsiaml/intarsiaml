@@ -1,0 +1,246 @@
+metal4/NAX: true; rounds 30; pool 3072 MiB; weights offset 0
+
+== qo Matmul K=4096 N=4096+0 pool 96 x 32.0 MiB, chain 192 dispatches, GPU util at start Some(2)%
+  bitwise mr1x1 vs 1 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr1x2 vs 1 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr1x4 vs 1 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr2x1 vs 2 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr2x2 vs 2 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr2x4 vs 2 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr3x1 vs 3 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr3x2 vs 3 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr3x4 vs 3 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr4x1 vs 4 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr4x2 vs 4 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr4x4 vs 4 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr5x1 vs 5 serving 1-row launches: IDENTICAL (40960 output bytes of y0 compared)
+  bitwise mr5x2 vs 5 serving 1-row launches: IDENTICAL (40960 output bytes of y0 compared)
+  bitwise mr5x4 vs 5 serving 1-row launches: IDENTICAL (40960 output bytes of y0 compared)
+  bitwise mr6x1 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr6x2 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr6x4 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr7x1 vs 7 serving 1-row launches: IDENTICAL (57344 output bytes of y0 compared)
+  bitwise mr7x2 vs 7 serving 1-row launches: IDENTICAL (57344 output bytes of y0 compared)
+  bitwise mr7x4 vs 7 serving 1-row launches: IDENTICAL (57344 output bytes of y0 compared)
+  bitwise mr8x1 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x2 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x4 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr16x1 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr16x2 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr16x4 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr6x1s3 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr6x1s2 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr8x1s4 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x1s2 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x2s4 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr16x1s8 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr16x1s4 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  serving1       58.3 us  x1.000 of T(1)   575.9 GB/s weights
+  mr4x1          59.3 us  x1.017 of T(1)   566.0 GB/s weights
+  mr5x1          60.0 us  x1.030 of T(1)   559.4 GB/s weights
+  mr6x1          60.9 us  x1.046 of T(1)   550.6 GB/s weights
+  mr7x1          62.0 us  x1.065 of T(1)   541.0 GB/s weights
+  mr8x1          64.2 us  x1.102 of T(1)   522.5 GB/s weights
+  mr6x1s3        66.9 us  x1.149 of T(1)   501.4 GB/s weights
+  mr6x1s2        69.8 us  x1.197 of T(1)   481.0 GB/s weights
+  mr8x1s4        82.5 us  x1.416 of T(1)   406.6 GB/s weights
+  mr8x1s2        88.8 us  x1.524 of T(1)   377.9 GB/s weights
+  mr8x2s4       104.1 us  x1.788 of T(1)   322.2 GB/s weights
+  mr16x1s8      168.6 us  x2.894 of T(1)   199.0 GB/s weights
+  mr16x1s4      181.9 us  x3.121 of T(1)   184.5 GB/s weights
+
+== down Matmul K=12288 N=4096+0 pool 32 x 96.0 MiB, chain 64 dispatches, GPU util at start Some(2)%
+  bitwise mr1x1 vs 1 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr1x2 vs 1 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr1x4 vs 1 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr2x1 vs 2 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr2x2 vs 2 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr2x4 vs 2 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr3x1 vs 3 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr3x2 vs 3 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr3x4 vs 3 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr4x1 vs 4 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr4x2 vs 4 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr4x4 vs 4 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr5x1 vs 5 serving 1-row launches: IDENTICAL (40960 output bytes of y0 compared)
+  bitwise mr5x2 vs 5 serving 1-row launches: IDENTICAL (40960 output bytes of y0 compared)
+  bitwise mr5x4 vs 5 serving 1-row launches: IDENTICAL (40960 output bytes of y0 compared)
+  bitwise mr6x1 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr6x2 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr6x4 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr7x1 vs 7 serving 1-row launches: IDENTICAL (57344 output bytes of y0 compared)
+  bitwise mr7x2 vs 7 serving 1-row launches: IDENTICAL (57344 output bytes of y0 compared)
+  bitwise mr7x4 vs 7 serving 1-row launches: IDENTICAL (57344 output bytes of y0 compared)
+  bitwise mr8x1 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x2 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x4 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr16x1 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr16x2 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr16x4 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr6x1s3 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr6x1s2 vs 6 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr8x1s4 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x1s2 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr8x2s4 vs 8 serving 1-row launches: IDENTICAL (65536 output bytes of y0 compared)
+  bitwise mr16x1s8 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  bitwise mr16x1s4 vs 16 serving 1-row launches: IDENTICAL (131072 output bytes of y0 compared)
+  serving1      170.3 us  x1.000 of T(1)   591.0 GB/s weights
+  mr4x1         171.2 us  x1.005 of T(1)   587.8 GB/s weights
+  mr5x1         170.9 us  x1.003 of T(1)   589.0 GB/s weights
+  mr6x1         171.3 us  x1.006 of T(1)   587.6 GB/s weights
+  mr7x1         174.7 us  x1.026 of T(1)   576.1 GB/s weights
+  mr8x1         203.5 us  x1.194 of T(1)   494.8 GB/s weights
+  mr6x1s3       191.7 us  x1.125 of T(1)   525.2 GB/s weights
+  mr6x1s2       209.7 us  x1.231 of T(1)   480.1 GB/s weights
+  mr8x1s4       255.2 us  x1.498 of T(1)   394.4 GB/s weights
+  mr8x1s2       271.2 us  x1.592 of T(1)   371.1 GB/s weights
+  mr8x2s4       257.1 us  x1.509 of T(1)   391.6 GB/s weights
+  mr16x1s8      536.2 us  x3.148 of T(1)   187.7 GB/s weights
+  mr16x1s4      591.1 us  x3.470 of T(1)   170.3 GB/s weights
+
+== kv Pair K=4096 N=1024+1024 pool 192 x 16.0 MiB, chain 384 dispatches, GPU util at start Some(0)%
+  bitwise mr1x1 vs 1 serving 1-row launches: IDENTICAL (2048 output bytes of y0 compared)
+  bitwise mr1x2 vs 1 serving 1-row launches: IDENTICAL (2048 output bytes of y0 compared)
+  bitwise mr1x4 vs 1 serving 1-row launches: IDENTICAL (2048 output bytes of y0 compared)
+  bitwise mr2x1 vs 2 serving 1-row launches: IDENTICAL (4096 output bytes of y0 compared)
+  bitwise mr2x2 vs 2 serving 1-row launches: IDENTICAL (4096 output bytes of y0 compared)
+  bitwise mr2x4 vs 2 serving 1-row launches: IDENTICAL (4096 output bytes of y0 compared)
+  bitwise mr3x1 vs 3 serving 1-row launches: IDENTICAL (6144 output bytes of y0 compared)
+  bitwise mr3x2 vs 3 serving 1-row launches: IDENTICAL (6144 output bytes of y0 compared)
+  bitwise mr3x4 vs 3 serving 1-row launches: IDENTICAL (6144 output bytes of y0 compared)
+  bitwise mr4x1 vs 4 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr4x2 vs 4 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr4x4 vs 4 serving 1-row launches: IDENTICAL (8192 output bytes of y0 compared)
+  bitwise mr5x1 vs 5 serving 1-row launches: IDENTICAL (10240 output bytes of y0 compared)
+  bitwise mr5x2 vs 5 serving 1-row launches: IDENTICAL (10240 output bytes of y0 compared)
+  bitwise mr5x4 vs 5 serving 1-row launches: IDENTICAL (10240 output bytes of y0 compared)
+  bitwise mr6x1 vs 6 serving 1-row launches: IDENTICAL (12288 output bytes of y0 compared)
+  bitwise mr6x2 vs 6 serving 1-row launches: IDENTICAL (12288 output bytes of y0 compared)
+  bitwise mr6x4 vs 6 serving 1-row launches: IDENTICAL (12288 output bytes of y0 compared)
+  bitwise mr7x1 vs 7 serving 1-row launches: IDENTICAL (14336 output bytes of y0 compared)
+  bitwise mr7x2 vs 7 serving 1-row launches: IDENTICAL (14336 output bytes of y0 compared)
+  bitwise mr7x4 vs 7 serving 1-row launches: IDENTICAL (14336 output bytes of y0 compared)
+  bitwise mr8x1 vs 8 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr8x2 vs 8 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr8x4 vs 8 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr16x1 vs 16 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr16x2 vs 16 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr16x4 vs 16 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr6x1s3 vs 6 serving 1-row launches: IDENTICAL (12288 output bytes of y0 compared)
+  bitwise mr6x1s2 vs 6 serving 1-row launches: IDENTICAL (12288 output bytes of y0 compared)
+  bitwise mr8x1s4 vs 8 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr8x1s2 vs 8 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr8x2s4 vs 8 serving 1-row launches: IDENTICAL (16384 output bytes of y0 compared)
+  bitwise mr16x1s8 vs 16 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  bitwise mr16x1s4 vs 16 serving 1-row launches: IDENTICAL (32768 output bytes of y0 compared)
+  serving1       29.6 us  x1.000 of T(1)   566.5 GB/s weights
+  mr4x1          30.2 us  x1.021 of T(1)   555.1 GB/s weights
+  mr5x1          30.8 us  x1.040 of T(1)   544.6 GB/s weights
+  mr6x1          31.8 us  x1.075 of T(1)   526.9 GB/s weights
+  mr7x1          32.8 us  x1.106 of T(1)   512.2 GB/s weights
+  mr8x1          34.9 us  x1.178 of T(1)   481.0 GB/s weights
+  mr6x1s3        37.1 us  x1.252 of T(1)   452.6 GB/s weights
+  mr6x1s2        38.1 us  x1.288 of T(1)   439.9 GB/s weights
+  mr8x1s4        45.3 us  x1.530 of T(1)   370.2 GB/s weights
+  mr8x1s2        47.3 us  x1.595 of T(1)   355.1 GB/s weights
+  mr8x2s4        57.4 us  x1.938 of T(1)   292.3 GB/s weights
+  mr16x1s8       80.0 us  x2.702 of T(1)   209.7 GB/s weights
+  mr16x1s4       86.2 us  x2.910 of T(1)   194.7 GB/s weights
+
+== gu Pair K=4096 N=12288+12288 pool 16 x 192.0 MiB, chain 32 dispatches, GPU util at start Some(4)%
+  bitwise mr1x1 vs 1 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr1x2 vs 1 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr1x4 vs 1 serving 1-row launches: IDENTICAL (24576 output bytes of y0 compared)
+  bitwise mr2x1 vs 2 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr2x2 vs 2 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr2x4 vs 2 serving 1-row launches: IDENTICAL (49152 output bytes of y0 compared)
+  bitwise mr3x1 vs 3 serving 1-row launches: IDENTICAL (73728 output bytes of y0 compared)
+  bitwise mr3x2 vs 3 serving 1-row launches: IDENTICAL (73728 output bytes of y0 compared)
+  bitwise mr3x4 vs 3 serving 1-row launches: IDENTICAL (73728 output bytes of y0 compared)
+  bitwise mr4x1 vs 4 serving 1-row launches: IDENTICAL (98304 output bytes of y0 compared)
+  bitwise mr4x2 vs 4 serving 1-row launches: IDENTICAL (98304 output bytes of y0 compared)
+  bitwise mr4x4 vs 4 serving 1-row launches: IDENTICAL (98304 output bytes of y0 compared)
+  bitwise mr5x1 vs 5 serving 1-row launches: IDENTICAL (122880 output bytes of y0 compared)
+  bitwise mr5x2 vs 5 serving 1-row launches: IDENTICAL (122880 output bytes of y0 compared)
+  bitwise mr5x4 vs 5 serving 1-row launches: IDENTICAL (122880 output bytes of y0 compared)
+  bitwise mr6x1 vs 6 serving 1-row launches: IDENTICAL (147456 output bytes of y0 compared)
+  bitwise mr6x2 vs 6 serving 1-row launches: IDENTICAL (147456 output bytes of y0 compared)
+  bitwise mr6x4 vs 6 serving 1-row launches: IDENTICAL (147456 output bytes of y0 compared)
+  bitwise mr7x1 vs 7 serving 1-row launches: IDENTICAL (172032 output bytes of y0 compared)
+  bitwise mr7x2 vs 7 serving 1-row launches: IDENTICAL (172032 output bytes of y0 compared)
+  bitwise mr7x4 vs 7 serving 1-row launches: IDENTICAL (172032 output bytes of y0 compared)
+  bitwise mr8x1 vs 8 serving 1-row launches: IDENTICAL (196608 output bytes of y0 compared)
+  bitwise mr8x2 vs 8 serving 1-row launches: IDENTICAL (196608 output bytes of y0 compared)
+  bitwise mr8x4 vs 8 serving 1-row launches: IDENTICAL (196608 output bytes of y0 compared)
+  bitwise mr16x1 vs 16 serving 1-row launches: IDENTICAL (393216 output bytes of y0 compared)
+  bitwise mr16x2 vs 16 serving 1-row launches: IDENTICAL (393216 output bytes of y0 compared)
+  bitwise mr16x4 vs 16 serving 1-row launches: IDENTICAL (393216 output bytes of y0 compared)
+  bitwise mr6x1s3 vs 6 serving 1-row launches: IDENTICAL (147456 output bytes of y0 compared)
+  bitwise mr6x1s2 vs 6 serving 1-row launches: IDENTICAL (147456 output bytes of y0 compared)
+  bitwise mr8x1s4 vs 8 serving 1-row launches: IDENTICAL (196608 output bytes of y0 compared)
+  bitwise mr8x1s2 vs 8 serving 1-row launches: IDENTICAL (196608 output bytes of y0 compared)
+  bitwise mr8x2s4 vs 8 serving 1-row launches: IDENTICAL (196608 output bytes of y0 compared)
+  bitwise mr16x1s8 vs 16 serving 1-row launches: IDENTICAL (393216 output bytes of y0 compared)
+  bitwise mr16x1s4 vs 16 serving 1-row launches: IDENTICAL (393216 output bytes of y0 compared)
+  serving1      336.2 us  x1.000 of T(1)   598.8 GB/s weights
+  mr4x1         338.8 us  x1.008 of T(1)   594.2 GB/s weights
+  mr5x1         339.6 us  x1.010 of T(1)   592.8 GB/s weights
+  mr6x1         341.7 us  x1.016 of T(1)   589.2 GB/s weights
+  mr7x1         349.5 us  x1.040 of T(1)   576.0 GB/s weights
+  mr8x1         394.0 us  x1.172 of T(1)   511.0 GB/s weights
+  mr6x1s3       410.4 us  x1.221 of T(1)   490.5 GB/s weights
+  mr6x1s2       455.9 us  x1.356 of T(1)   441.6 GB/s weights
+  mr8x1s4       530.2 us  x1.577 of T(1)   379.7 GB/s weights
+  mr8x1s2       656.1 us  x1.951 of T(1)   306.8 GB/s weights
+  mr8x2s4       624.8 us  x1.858 of T(1)   322.2 GB/s weights
+  mr16x1s8     1158.3 us  x3.445 of T(1)   173.8 GB/s weights
+  mr16x1s4     1263.7 us  x3.758 of T(1)   159.3 GB/s weights
+
+== lm Logits K=4096 N=151936+0 pool 3 x 1187.0 MiB, chain 6 dispatches, GPU util at start Some(0)%
+  bitwise mr1x1 vs 1 serving 1-row launches: IDENTICAL (607744 output bytes of y0 compared)
+  bitwise mr1x2 vs 1 serving 1-row launches: IDENTICAL (607744 output bytes of y0 compared)
+  bitwise mr1x4 vs 1 serving 1-row launches: IDENTICAL (607744 output bytes of y0 compared)
+  bitwise mr2x1 vs 2 serving 1-row launches: IDENTICAL (1215488 output bytes of y0 compared)
+  bitwise mr2x2 vs 2 serving 1-row launches: IDENTICAL (1215488 output bytes of y0 compared)
+  bitwise mr2x4 vs 2 serving 1-row launches: IDENTICAL (1215488 output bytes of y0 compared)
+  bitwise mr3x1 vs 3 serving 1-row launches: IDENTICAL (1823232 output bytes of y0 compared)
+  bitwise mr3x2 vs 3 serving 1-row launches: IDENTICAL (1823232 output bytes of y0 compared)
+  bitwise mr3x4 vs 3 serving 1-row launches: IDENTICAL (1823232 output bytes of y0 compared)
+  bitwise mr4x1 vs 4 serving 1-row launches: IDENTICAL (2430976 output bytes of y0 compared)
+  bitwise mr4x2 vs 4 serving 1-row launches: IDENTICAL (2430976 output bytes of y0 compared)
+  bitwise mr4x4 vs 4 serving 1-row launches: IDENTICAL (2430976 output bytes of y0 compared)
+  bitwise mr5x1 vs 5 serving 1-row launches: IDENTICAL (3038720 output bytes of y0 compared)
+  bitwise mr5x2 vs 5 serving 1-row launches: IDENTICAL (3038720 output bytes of y0 compared)
+  bitwise mr5x4 vs 5 serving 1-row launches: IDENTICAL (3038720 output bytes of y0 compared)
+  bitwise mr6x1 vs 6 serving 1-row launches: IDENTICAL (3646464 output bytes of y0 compared)
+  bitwise mr6x2 vs 6 serving 1-row launches: IDENTICAL (3646464 output bytes of y0 compared)
+  bitwise mr6x4 vs 6 serving 1-row launches: IDENTICAL (3646464 output bytes of y0 compared)
+  bitwise mr7x1 vs 7 serving 1-row launches: IDENTICAL (4254208 output bytes of y0 compared)
+  bitwise mr7x2 vs 7 serving 1-row launches: IDENTICAL (4254208 output bytes of y0 compared)
+  bitwise mr7x4 vs 7 serving 1-row launches: IDENTICAL (4254208 output bytes of y0 compared)
+  bitwise mr8x1 vs 8 serving 1-row launches: IDENTICAL (4861952 output bytes of y0 compared)
+  bitwise mr8x2 vs 8 serving 1-row launches: IDENTICAL (4861952 output bytes of y0 compared)
+  bitwise mr8x4 vs 8 serving 1-row launches: IDENTICAL (4861952 output bytes of y0 compared)
+  bitwise mr16x1 vs 16 serving 1-row launches: IDENTICAL (9723904 output bytes of y0 compared)
+  bitwise mr16x2 vs 16 serving 1-row launches: IDENTICAL (9723904 output bytes of y0 compared)
+  bitwise mr16x4 vs 16 serving 1-row launches: IDENTICAL (9723904 output bytes of y0 compared)
+  bitwise mr6x1s3 vs 6 serving 1-row launches: IDENTICAL (3646464 output bytes of y0 compared)
+  bitwise mr6x1s2 vs 6 serving 1-row launches: IDENTICAL (3646464 output bytes of y0 compared)
+  bitwise mr8x1s4 vs 8 serving 1-row launches: IDENTICAL (4861952 output bytes of y0 compared)
+  bitwise mr8x1s2 vs 8 serving 1-row launches: IDENTICAL (4861952 output bytes of y0 compared)
+  bitwise mr8x2s4 vs 8 serving 1-row launches: IDENTICAL (4861952 output bytes of y0 compared)
+  bitwise mr16x1s8 vs 16 serving 1-row launches: IDENTICAL (9723904 output bytes of y0 compared)
+  bitwise mr16x1s4 vs 16 serving 1-row launches: IDENTICAL (9723904 output bytes of y0 compared)
+  serving1     2086.2 us  x1.000 of T(1)   596.6 GB/s weights
+  mr4x1        2099.5 us  x1.006 of T(1)   592.8 GB/s weights
+  mr5x1        2110.5 us  x1.012 of T(1)   589.7 GB/s weights
+  mr6x1        2155.4 us  x1.033 of T(1)   577.5 GB/s weights
+  mr7x1        2255.7 us  x1.081 of T(1)   551.8 GB/s weights
+  mr8x1        2506.4 us  x1.201 of T(1)   496.6 GB/s weights
+  mr6x1s3      2119.0 us  x1.016 of T(1)   587.4 GB/s weights
+  mr6x1s2      2131.2 us  x1.022 of T(1)   584.0 GB/s weights
+  mr8x1s4      2225.6 us  x1.067 of T(1)   559.2 GB/s weights
+  mr8x1s2      2338.3 us  x1.121 of T(1)   532.3 GB/s weights
+  mr8x2s4      2670.9 us  x1.280 of T(1)   466.0 GB/s weights
+  mr16x1s8     4982.4 us  x2.388 of T(1)   249.8 GB/s weights
+  mr16x1s4     3955.3 us  x1.896 of T(1)   314.7 GB/s weights

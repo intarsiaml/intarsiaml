@@ -1,0 +1,6 @@
+fleetq job 1968
+date 2026-10-15T03:34:47-04:00 bin=/private/tmp/claude-501/sp/intarsia-trace env=INTARSIA_PREFILL_TRACE=1
+prefill chunk 256 (default)
+gpu idle: Device Utilization %"=98
+done
+#1968 "metal serve-prefill trace1" (claude-31e10c55) done on endor exclusive 24 GB

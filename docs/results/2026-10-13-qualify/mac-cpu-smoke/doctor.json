@@ -1,0 +1,96 @@
+{
+  "kind": "intarsia-doctor",
+  "schema_version": 1,
+  "timestamp_unix": 1791912800,
+  "intarsia_version": "0.0.1",
+  "cuda_feature": false,
+  "hip_feature": false,
+  "host": {
+    "hostname": "endor.kuepker.haus",
+    "os": "macOS 27.0",
+    "kernel": "Darwin 27.0.0",
+    "arch": "aarch64",
+    "cpu_model": "Apple M5 Max",
+    "logical_cores": 18,
+    "physical_cores": 18,
+    "ram_total_bytes": 137438953472,
+    "ram_available_bytes": 13290356736,
+    "swap_total_bytes": 5368709120
+  },
+  "gpu": {
+    "nvidia_smi": null,
+    "proc_driver_nvidia": null,
+    "nvcc": null,
+    "cuda_toolkit_version": null,
+    "rocm_version": null,
+    "hipcc": null
+  },
+  "backend": {
+    "requested": "cpu",
+    "name": "cpu",
+    "device": {
+      "name": "cpu-ref (Apple M5 Max)",
+      "backend": "cpu",
+      "arch": "any",
+      "total_mem": 137438953472,
+      "free_mem": 13288947712,
+      "unified": true,
+      "bandwidth_gbs": null
+    },
+    "kernel_count": 46,
+    "kernels_by_arch": {
+      "any": 46
+    },
+    "bandwidth": {
+      "buffer_mib": 256,
+      "host_to_device_gbs": 71.1,
+      "device_to_host_gbs": 70.7,
+      "device_copy_gbs": 63.0,
+      "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+    }
+  },
+  "checks": [
+    {
+      "id": "sm_121_target",
+      "status": "info",
+      "detail": "no NVIDIA GPU visible (nvidia-smi missing or failing)",
+      "fix": null
+    },
+    {
+      "id": "transparent_hugepages",
+      "status": "info",
+      "detail": "THP setting not readable on this OS",
+      "fix": null
+    },
+    {
+      "id": "disk_free:.",
+      "status": "ok",
+      "detail": "2050.2 GB free of 3996 GB (51% free)",
+      "fix": null
+    },
+    {
+      "id": "disk_free:/Users/josef",
+      "status": "ok",
+      "detail": "2050.2 GB free of 3996 GB (51% free)",
+      "fix": null
+    },
+    {
+      "id": "hip_gpu_max_hw_queues",
+      "status": "info",
+      "detail": "GPU_MAX_HW_QUEUES=unset (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)",
+      "fix": null
+    },
+    {
+      "id": "serve_port",
+      "status": "ok",
+      "detail": "port 8090 is free",
+      "fix": null
+    },
+    {
+      "id": "bandwidth",
+      "status": "info",
+      "detail": "host->device 71.1 GB/s, device->host 70.7 GB/s, device copy 63.0 GB/s (read+write)",
+      "fix": null
+    }
+  ]
+}

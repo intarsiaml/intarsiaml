@@ -1,0 +1,23 @@
+TTFT ms, median [min..max] over rounds
+ idle  3 s: base: 1164.1 [1159.5..1185.4] (n=6)   kwb: 1056.4 [1054.2..1057.6] (n=6)   rs: 1060.5 [1058.2..1063.2] (n=6)
+ idle 10 s: base: 1173.5 [1167.3..1178.1] (n=6)   kwb: 1056.6 [1055.7..1059.6] (n=6)   rs: 1061.4 [1060.5..1065.4] (n=6)
+ idle 40 s: base: 1172.5 [1169.7..1181.9] (n=6)   kwb: 1056.8 [1054.9..1060.1] (n=6)   rs: 1062.7 [1059.5..1069.7] (n=6)
+paired TTFT difference vs base (ms), median [min..max]
+ idle  3 s kwb-base: -107.7 [-129.1..-103.4] n=6
+ idle  3 s rs-base: -104.9 [-124.8..-96.3] n=6
+ idle 10 s kwb-base: -115.0 [-121.6..-111.0] n=6
+ idle 10 s rs-base: -110.6 [-116.5..-106.2] n=6
+ idle 40 s kwb-base: -115.7 [-127.0..-109.7] n=6
+ idle 40 s rs-base: -109.5 [-122.0..-100.1] n=6
+ITL ms (decode after idle): mean of chunks 2..33, and first 3 gaps median
+ idle  3 s base: mean-ITL 29.3 [28.4..30.7]  first-3 29.3 [28.2..30.1]
+ idle  3 s kwb: mean-ITL 29.2 [29.0..29.4]  first-3 29.1 [28.6..29.3]
+ idle  3 s rs: mean-ITL 29.4 [28.7..30.6]  first-3 29.2 [28.6..32.0]
+ idle 10 s base: mean-ITL 29.4 [28.2..30.2]  first-3 29.4 [28.2..30.4]
+ idle 10 s kwb: mean-ITL 29.2 [28.9..29.6]  first-3 28.9 [28.4..30.3]
+ idle 10 s rs: mean-ITL 29.3 [29.0..29.7]  first-3 29.1 [29.0..30.3]
+ idle 40 s base: mean-ITL 29.3 [28.4..29.8]  first-3 29.2 [28.3..29.6]
+ idle 40 s kwb: mean-ITL 29.3 [28.7..29.8]  first-3 29.3 [28.8..29.7]
+ idle 40 s rs: mean-ITL 29.3 [28.9..29.7]  first-3 29.4 [28.9..30.3]
+text identical across arms for the same prompt:
+  0 differing groups

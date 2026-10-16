@@ -1,0 +1,174 @@
+##### 1. attention sweep (with the added 4631-token chat shapes)
+11:13:19
+test attention_kernels_match_reference_on_random_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 6.61s
+
+##### 1b. mutated flash mask (key > lim)
+11:13:25
+
+failures:
+    attention_kernels_match_reference_on_random_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.38s
+
+##### 2. 35B: the same document with and without the ChatML wrapper
+11:13:26
+A_raw_doc@4487      4487  4487     0.78    6.783e0    1.271e1    2.796e1   0.0708   0.8972     3.74    0/4487      0
+B_system_user_doc_open@4516  4516  4516    88.33   2.169e-1   2.478e-1    2.887e1   0.0705   0.0853    87.92    7/4516      0
+C_user_doc_closed@4492  4492  4492    10.04    6.544e0    1.024e1    2.913e1   0.0708   0.7438    10.66    2/4492      0
+OVERALL                  13495    33.16    4.506e0    7.718e0    2.913e1   0.0707   0.5744    34.21      0.1%      0
+-- SIMT vs flash (same chunk)
+A_raw_doc@4487      4487  4487    94.09   3.075e-2   3.009e-2    1.423e1   0.0652   0.0661    92.10   10/4487      0
+B_system_user_doc_open@4516  4516  4516    90.79   1.533e-1   1.717e-1    1.874e1   0.0470   0.0550    90.24    7/4516      0
+C_user_doc_closed@4492  4492  4492    90.58   1.142e-1   1.219e-1    1.823e1   0.0486   0.0533    90.29   57/4492      0
+OVERALL                  13495    91.82   9.954e-2   1.080e-1    1.874e1   0.0536   0.0581    90.88      0.5%      0
+-- flash chunk 1024
+A_raw_doc@4487      4487  4487     0.71    6.776e0    1.278e1    2.654e1   0.0708   0.8974     3.66    0/4487      0
+B_system_user_doc_open@4516  4516  4516    87.95   2.180e-1   2.559e-1    1.795e1   0.0705   0.0875    87.54    7/4516      0
+C_user_doc_closed@4492  4492  4492     9.64    6.435e0    1.025e1    2.899e1   0.0708   0.7576    10.32    2/4492      0
+OVERALL                  13495    32.88    4.468e0    7.747e0    2.899e1   0.0707   0.5799    33.94      0.1%      0
+##### 3. fp32 HF goldens for Qwen3-8B
+11:17:05
+goldenlib.py
+golden.py
+prompts
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/399 [00:00<?, ?it/s]Loading weights:   0%|          | 1/399 [00:00<01:35,  4.17it/s]Loading weights:  22%|██▏       | 89/399 [00:00<00:00, 310.19it/s]Loading weights:  34%|███▎      | 134/399 [00:00<00:00, 265.41it/s]Loading weights:  42%|████▏     | 169/399 [00:00<00:01, 167.20it/s]Loading weights:  49%|████▊     | 194/399 [00:01<00:01, 141.52it/s]Loading weights:  53%|█████▎    | 213/399 [00:01<00:01, 121.43it/s]Loading weights:  57%|█████▋    | 229/399 [00:01<00:01, 120.67it/s]Loading weights:  61%|██████    | 244/399 [00:01<00:01, 97.93it/s] Loading weights:  64%|██████▍   | 257/399 [00:01<00:01, 101.87it/s]Loading weights:  67%|██████▋   | 269/399 [00:02<00:01, 90.48it/s] Loading weights:  70%|███████   | 280/399 [00:02<00:01, 87.46it/s]Loading weights:  73%|███████▎  | 291/399 [00:02<00:01, 85.78it/s]Loading weights:  75%|███████▌  | 301/399 [00:02<00:01, 87.90it/s]Loading weights:  78%|███████▊  | 312/399 [00:02<00:00, 88.30it/s]Loading weights:  81%|████████  | 324/399 [00:02<00:00, 91.81it/s]Loading weights:  84%|████████▍ | 335/399 [00:02<00:00, 87.34it/s]Loading weights:  87%|████████▋ | 346/399 [00:02<00:00, 91.12it/s]Loading weights:  89%|████████▉ | 357/399 [00:03<00:00, 86.16it/s]Loading weights:  92%|█████████▏| 368/399 [00:03<00:00, 86.23it/s]Loading weights:  97%|█████████▋| 389/399 [00:03<00:00, 97.09it/s]Loading weights: 100%|██████████| 399/399 [00:03<00:00, 114.13it/s]
+[0] count               38 tokens (38+0)  vocab=151936  argmax_last=220  2s
+[1] story               39 tokens (39+0)  vocab=151936  argmax_last=33693  3s
+[2] code                80 tokens (80+0)  vocab=151936  argmax_last=262  3s
+[3] science             79 tokens (79+0)  vocab=151936  argmax_last=1753  4s
+[4] chat_short          18 tokens (18+0)  vocab=151936  argmax_last=151667  4s
+[5] chat_system         32 tokens (32+0)  vocab=151936  argmax_last=151667  4s
+[6] chat_multiturn      58 tokens (58+0)  vocab=151936  argmax_last=151667  5s
+[7] chat_reasoning      90 tokens (90+0)  vocab=151936  argmax_last=151667  6s
+wrote /work/qwen3-8b-fp32.safetensors (131.9 MB) in 6s
+11:17:34
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/399 [00:00<?, ?it/s]Loading weights:   0%|          | 1/399 [00:00<01:16,  5.20it/s]Loading weights:  31%|███▏      | 125/399 [00:00<00:00, 522.95it/s]Loading weights:  49%|████▉     | 196/399 [00:00<00:00, 276.61it/s]Loading weights:  61%|██████    | 243/399 [00:00<00:00, 227.38it/s]Loading weights:  70%|██████▉   | 278/399 [00:01<00:00, 199.97it/s]Loading weights:  77%|███████▋  | 306/399 [00:01<00:00, 195.64it/s]Loading weights:  83%|████████▎ | 331/399 [00:01<00:00, 172.87it/s]Loading weights:  88%|████████▊ | 352/399 [00:02<00:00, 106.86it/s]Loading weights:  92%|█████████▏| 368/399 [00:02<00:00, 88.37it/s] Loading weights:  95%|█████████▌| 380/399 [00:02<00:00, 76.30it/s]Loading weights:  98%|█████████▊| 390/399 [00:02<00:00, 76.05it/s]Loading weights: 100%|██████████| 399/399 [00:02<00:00, 141.84it/s]
+[0] count               38 tokens (38+0)  vocab=151936  argmax_last=220  2s
+[1] story               39 tokens (39+0)  vocab=151936  argmax_last=33693  2s
+[2] code                80 tokens (80+0)  vocab=151936  argmax_last=262  3s
+[3] science             79 tokens (79+0)  vocab=151936  argmax_last=1753  4s
+[4] chat_short          18 tokens (18+0)  vocab=151936  argmax_last=151667  4s
+[5] chat_system         32 tokens (32+0)  vocab=151936  argmax_last=151667  5s
+[6] chat_multiturn      58 tokens (58+0)  vocab=151936  argmax_last=151667  5s
+[7] chat_reasoning      90 tokens (90+0)  vocab=151936  argmax_last=151667  6s
+[8] long_prose_300     300 tokens (300+0)  vocab=151936  argmax_last=31350  7s
+[9] long_prose_700     700 tokens (700+0)  vocab=151936  argmax_last=264  12s
+wrote /work/qwen3-8b-long-fp32.safetensors (435.8 MB) in 12s
+11:19:24
+-rw------- 1 nvidia nvidia 131886928 Oct 13 11:17 /home/nvidia/intarsia-dbg/gold/qwen3-8b-fp32.safetensors
+-rw------- 1 nvidia nvidia 435766608 Oct 13 11:19 /home/nvidia/intarsia-dbg/gold/qwen3-8b-long-fp32.safetensors
+##### 4. 8B CUDA accuracy
+11:19:24
+=== qwen3-8b-fp32
+golden: /home/nvidia/intarsia-dbg/gold/qwen3-8b-fp32.safetensors (8 prompts, 434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+== mode: prefill ==
+count                 38    38   100.00   1.821e-4   1.077e-4   5.191e-3   0.0324   0.0317    99.47     38/38      0
+story                 39    39   100.00   4.332e-4   2.729e-4   9.476e-3   0.0400   0.0394    97.95     39/39      0
+code                  80    80   100.00   1.085e-4   5.485e-5   5.603e-3   0.0142   0.0140    99.75     80/80      0
+science               79    79   100.00   2.376e-4   1.515e-4   1.263e-2   0.0168   0.0162    98.73     79/79      0
+chat_short            18    18   100.00   3.741e-4   3.274e-4   1.842e-3   0.1108   0.1112   100.00     18/18      0
+chat_system           32    32   100.00   6.502e-4   5.317e-4   9.178e-3   0.0841   0.0845    98.12     32/32      0
+chat_multiturn        58    58   100.00   4.257e-4   4.051e-4   1.486e-2   0.0340   0.0340    98.62     58/58      0
+chat_reasoning        90    90   100.00   2.471e-4   2.365e-4   7.033e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.897e-4   2.276e-4   1.486e-2   0.0325   0.0323    98.89    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+== mode: decode (teacher-forced) ==
+count                 38    16   100.00   8.039e-6   7.025e-6   7.498e-5   0.0029   0.0029    98.75     16/16      0
+story                 39    16   100.00   2.212e-4   2.090e-4   1.334e-3   0.0237   0.0238   100.00     16/16      0
+code                  80    16   100.00   1.342e-5   1.341e-5   5.751e-5   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   1.349e-4   1.311e-4   6.817e-4   0.0104   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   6.929e-4   6.602e-4   4.273e-3   0.0621   0.0625    98.75     16/16      0
+chat_system           32    16   100.00   9.168e-4   6.690e-4   6.841e-3   0.0736   0.0734    97.50     16/16      0
+chat_multiturn        58    16   100.00   2.140e-4   2.057e-4   1.265e-3   0.0076   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   3.890e-4   3.707e-4   2.816e-3   0.0099   0.0098   100.00     16/16      0
+OVERALL                    128   100.00   3.238e-4   2.833e-4   6.841e-3   0.0238   0.0238    99.22    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+=== qwen3-8b-long-fp32
+golden: /home/nvidia/intarsia-dbg/gold/qwen3-8b-long-fp32.safetensors (10 prompts, 1434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+== mode: prefill ==
+count                 38    38   100.00   1.821e-4   1.077e-4   5.191e-3   0.0324   0.0317    99.47     38/38      0
+story                 39    39   100.00   4.332e-4   2.729e-4   9.476e-3   0.0400   0.0394    97.95     39/39      0
+code                  80    80   100.00   1.085e-4   5.485e-5   5.603e-3   0.0142   0.0140    99.75     80/80      0
+science               79    79   100.00   2.376e-4   1.515e-4   1.263e-2   0.0168   0.0162    98.73     79/79      0
+chat_short            18    18   100.00   3.741e-4   3.274e-4   1.842e-3   0.1108   0.1112   100.00     18/18      0
+chat_system           32    32   100.00   6.502e-4   5.317e-4   9.178e-3   0.0841   0.0845    98.12     32/32      0
+chat_multiturn        58    58   100.00   4.257e-4   4.051e-4   1.486e-2   0.0340   0.0340    98.62     58/58      0
+chat_reasoning        90    90   100.00   2.471e-4   2.365e-4   7.033e-3   0.0243   0.0243    98.67     90/90      0
+long_prose_300       300   300    99.67   4.431e-4   4.161e-4   1.663e-2   0.0126   0.0125    98.40     0/300      0
+long_prose_700       700   700    99.43   4.506e-4   4.343e-4   2.104e-2   0.0129   0.0129    98.49    55/700      0
+OVERALL                   1434    99.65   4.004e-4   3.679e-4   2.104e-2   0.0188   0.0187    98.59     34.1%      0
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+== mode: decode (teacher-forced) ==
+count                 38    16   100.00   8.039e-6   7.025e-6   7.498e-5   0.0029   0.0029    98.75     16/16      0
+story                 39    16   100.00   2.212e-4   2.090e-4   1.334e-3   0.0237   0.0238   100.00     16/16      0
+code                  80    16   100.00   1.342e-5   1.341e-5   5.751e-5   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   1.349e-4   1.311e-4   6.817e-4   0.0104   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   6.929e-4   6.602e-4   4.273e-3   0.0621   0.0625    98.75     16/16      0
+chat_system           32    16   100.00   9.168e-4   6.690e-4   6.841e-3   0.0736   0.0734    97.50     16/16      0
+chat_multiturn        58    16   100.00   2.140e-4   2.057e-4   1.265e-3   0.0076   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   3.890e-4   3.707e-4   2.816e-3   0.0099   0.0098   100.00     16/16      0
+long_prose_300       300    16   100.00   4.454e-6   4.454e-6   4.744e-5   0.0000   0.0000   100.00     16/16      0
+long_prose_700       700    16   100.00   7.369e-4   6.655e-4   6.336e-3   0.0244   0.0254    95.00     16/16      0
+OVERALL                    160   100.00   3.332e-4   2.936e-4   6.841e-3   0.0215   0.0216    98.88    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+=== qwen3-8b
+golden: /home/nvidia/intarsiaml-golden/qwen3-8b.safetensors (8 prompts, 434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+== mode: prefill ==
+count                 38    38   100.00   2.847e-4   2.003e-4   5.137e-3   0.0311   0.0317    98.95     38/38      0
+story                 39    39   100.00   8.036e-4   7.324e-4   4.403e-3   0.0395   0.0395    96.92     39/39      0
+code                  80    80   100.00   1.565e-4   1.457e-4   2.817e-3   0.0139   0.0140    98.75     80/80      0
+science               79    79   100.00   3.395e-4   3.212e-4   3.053e-3   0.0164   0.0162    97.97     79/79      0
+chat_short            18    18   100.00   1.385e-3   1.287e-3   1.144e-2   0.1118   0.1113    97.78     18/18      0
+chat_system           32    32   100.00   1.463e-3   1.228e-3   1.200e-2   0.0847   0.0847    96.88     32/32      0
+chat_multiturn        58    58   100.00   8.103e-4   7.738e-4   1.173e-2   0.0337   0.0340    97.93     58/58      0
+chat_reasoning        90    90   100.00   8.502e-4   8.271e-4   1.973e-2   0.0243   0.0243    98.22     90/90      0
+OVERALL                    434   100.00   6.377e-4   5.876e-4   1.973e-2   0.0322   0.0323    98.06    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 6.377e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0322, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+== mode: decode (teacher-forced) ==
+count                 38    16   100.00   5.047e-5   4.787e-5   3.723e-4   0.0028   0.0029    97.50     16/16      0
+story                 39    16   100.00   1.221e-3   1.186e-3   7.419e-3   0.0241   0.0238    97.50     16/16      0
+code                  80    16   100.00   8.198e-5   8.197e-5   7.835e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   5.138e-4   5.003e-4   4.218e-3   0.0102   0.0104    97.50     16/16      0
+chat_short            18    16   100.00   2.163e-3   2.019e-3   1.510e-2   0.0630   0.0626    96.25     16/16      0
+chat_system           32    16   100.00   2.167e-3   1.626e-3   1.467e-2   0.0757   0.0735    93.75     16/16      0
+chat_multiturn        58    16   100.00   1.076e-3   1.054e-3   8.665e-3   0.0073   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   1.646e-3   1.602e-3   1.306e-2   0.0096   0.0099   100.00     16/16      0
+OVERALL                    128   100.00   1.115e-3   1.015e-3   1.510e-2   0.0241   0.0238    97.66    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 1.115e-3 (need <= 1.0e-3) FAIL | tail mass ours 0.0238 vs ref 0.0241, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+=== qwen3-8b-long
+golden: /home/nvidia/intarsiaml-golden/qwen3-8b-long.safetensors (10 prompts, 1434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+== mode: prefill ==
+count                 38    38   100.00   2.847e-4   2.003e-4   5.137e-3   0.0311   0.0317    98.95     38/38      0
+story                 39    39   100.00   8.036e-4   7.324e-4   4.403e-3   0.0395   0.0395    96.92     39/39      0
+code                  80    80   100.00   1.565e-4   1.457e-4   2.817e-3   0.0139   0.0140    98.75     80/80      0
+science               79    79   100.00   3.395e-4   3.212e-4   3.053e-3   0.0164   0.0162    97.97     79/79      0
+chat_short            18    18   100.00   1.385e-3   1.287e-3   1.144e-2   0.1118   0.1113    97.78     18/18      0
+chat_system           32    32   100.00   1.463e-3   1.228e-3   1.200e-2   0.0847   0.0847    96.88     32/32      0
+chat_multiturn        58    58   100.00   8.103e-4   7.738e-4   1.173e-2   0.0337   0.0340    97.93     58/58      0
+chat_reasoning        90    90   100.00   8.502e-4   8.271e-4   1.973e-2   0.0243   0.0243    98.22     90/90      0
+long_prose_300       300   300    99.33   9.998e-4   9.569e-4   4.701e-2   0.0125   0.0126    97.07     0/300      0
+long_prose_700       700   700    99.43   9.323e-4   9.000e-4   1.112e-1   0.0129   0.0129    97.49    28/700      0
+OVERALL                   1434    99.58   8.573e-4   8.173e-4   1.112e-1   0.0187   0.0187    97.57     32.2%      0
+prefill floor [bf16]: top-1 99.58% strict (99.72% if the 2 fp16 reference ties counted as agreement) (need >= 99.5) ok | full-vocab KL 8.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0187, excess +0.0001 (|.| <= 0.02
+== mode: decode (teacher-forced) ==
+count                 38    16   100.00   5.047e-5   4.787e-5   3.723e-4   0.0028   0.0029    97.50     16/16      0
+story                 39    16   100.00   1.221e-3   1.186e-3   7.419e-3   0.0241   0.0238    97.50     16/16      0
+code                  80    16   100.00   8.198e-5   8.197e-5   7.835e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   5.138e-4   5.003e-4   4.218e-3   0.0102   0.0104    97.50     16/16      0
+chat_short            18    16   100.00   2.163e-3   2.019e-3   1.510e-2   0.0630   0.0626    96.25     16/16      0
+chat_system           32    16   100.00   2.167e-3   1.626e-3   1.467e-2   0.0757   0.0735    93.75     16/16      0
+chat_multiturn        58    16   100.00   1.076e-3   1.054e-3   8.665e-3   0.0073   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   1.646e-3   1.602e-3   1.306e-2   0.0096   0.0099   100.00     16/16      0
+long_prose_300       300    16   100.00   2.537e-6   2.536e-6   2.070e-5   0.0000   0.0000    96.25     16/16      0
+long_prose_700       700    16   100.00   8.827e-4   7.376e-4   5.780e-3   0.0247   0.0254    95.00     16/16      0
+OVERALL                    160   100.00   9.805e-4   8.856e-4   1.510e-2   0.0218   0.0216    97.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 9.805e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0218, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+11:23:01

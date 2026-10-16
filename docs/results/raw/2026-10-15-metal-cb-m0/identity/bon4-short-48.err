@@ -1,0 +1,24 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded Qwen3-8B on Apple M5 Max in 0.3s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 122 tokens
+spec: token 2 pos 122 drafted 4 accepted 0 emits 1
+spec: token 3 pos 123 drafted 4 accepted 2 emits 3
+spec: token 7 pos 127 drafted 4 accepted 4 emits 5
+spec: token 12 pos 132 drafted 4 accepted 2 emits 3
+spec: token 17 pos 137 drafted 4 accepted 0 emits 1
+spec: token 18 pos 138 drafted 4 accepted 3 emits 4
+spec: token 23 pos 143 drafted 4 accepted 0 emits 1
+spec: token 24 pos 144 drafted 4 accepted 4 emits 5
+spec: token 29 pos 149 drafted 4 accepted 1 emits 2
+spec: token 33 pos 153 drafted 4 accepted 0 emits 1
+spec: token 34 pos 154 drafted 4 accepted 1 emits 2
+spec: token 37 pos 157 drafted 4 accepted 0 emits 1
+spec: token 38 pos 158 drafted 4 accepted 4 emits 5
+spec: token 43 pos 163 drafted 4 accepted 1 emits 2
+spec: token 45 pos 165 drafted 4 accepted 0 emits 1
+spec: token 47 pos 167 drafted 4 accepted 1 emits 2
+ids: [362, 8720, 21881, 798, 29994, 279, 6301, 41938, 518, 38393, 389, 1899, 220, 23, 13, 576, 2310, 326, 57909, 53416, 15384, 279, 19780, 16876, 20097, 304, 389, 1899, 220, 24, 13, 362, 22208, 38835, 29994, 279, 19780, 16876, 20097, 304, 389, 1899, 220, 16, 15, 13, 576, 56411]
+finish=length prompt=122 (cached 0) completion=48 | prefill 228 ms (534.5 tok/s) | decode 688 ms (68.30 tok/s)
+spec: verify passes=16 proposed=64 accepted=23 (acceptance 35.9%, 2.44 tokens per pass)
+steps=25 graph replays=0 (captures 0) eager decode steps=8 (profiled 0) top ops: argmax=0ms/25 attn_decode=0ms/288 attn_prefill=0ms/612 embedding=0ms/25 logits=0ms/25

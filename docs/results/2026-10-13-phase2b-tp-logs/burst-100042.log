@@ -1,0 +1,66 @@
+[burst] job 1536; stopping radiance 2026-10-13 10:00:42
+inactive
+[burst] radiance stopped 2026-10-13 10:00:46
+################ stage bench start 10:00:46
+=== [10:00:46] bench tp=1 then tp=2 (bytes read per token by the busiest rank: tp1 15.14 GB, tp2 8.19 GB)
+--- serve tp=1 [10:00:46]
+up after ~54s
+admission on plan shapes: 15 kernel(s) checked, 277 case(s) run, 0 cached
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-tp1
+server context window: 8192 tokens
+calibration: 48 base tokens, 20.87 tokens per filler sentence
+  size    128 rep: prompt=127 gen=128 ttft=0.06s prefill=2092 tok/s decode=36.9 tok/s
+  size    128 rep: prompt=125 gen=128 ttft=0.06s prefill=2084 tok/s decode=36.9 tok/s
+  size    128 rep: prompt=126 gen=128 ttft=0.06s prefill=2090 tok/s decode=36.9 tok/s
+  size   1024 rep: prompt=983 gen=128 ttft=0.29s prefill=3377 tok/s decode=36.3 tok/s
+  size   1024 rep: prompt=990 gen=128 ttft=0.29s prefill=3403 tok/s decode=36.3 tok/s
+  size   1024 rep: prompt=975 gen=128 ttft=0.29s prefill=3363 tok/s decode=36.3 tok/s
+  size   4096 rep: prompt=4089 gen=128 ttft=1.32s prefill=3090 tok/s decode=35.1 tok/s
+  size   4096 rep: prompt=4068 gen=128 ttft=1.32s prefill=3078 tok/s decode=35.1 tok/s
+  size   4096 rep: prompt=4085 gen=128 ttft=1.33s prefill=3078 tok/s decode=35.2 tok/s
+wrote /work/bench-out/phase2b-qwen3-8b-tp1.json
+phase2b-qwen3-8b-tp1  model=qwen3-8b-tp1  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      126     0.060         2090        36.9      128       89.1
+    1024      983     0.291         3378        36.3      128       87.7
+    4096     4085     1.323         3078        35.1      128       84.9
+bandwidth floor: 41.4 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 128: the timing includes 24 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 24 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: the timing includes 24 profiled eager steps (per-op profiling synchronises around every op)
+--- serve tp=2 [10:02:17]
+up after ~42s
+admission on plan shapes: 15 kernel(s) checked, 295 case(s) run, 0 cached
+loaded Qwen3-8B on hip (AMD Radeon Graphics x2 (tp=2, hip-p2p comm)) in 37.2s, context 8192 tokens
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-tp2
+server context window: 8192 tokens
+calibration: 48 base tokens, 20.77 tokens per filler sentence
+  size    128 rep: prompt=122 gen=128 ttft=0.05s prefill=2532 tok/s decode=56.0 tok/s
+  size    128 rep: prompt=119 gen=128 ttft=0.05s prefill=2476 tok/s decode=56.1 tok/s
+  size    128 rep: prompt=119 gen=128 ttft=0.05s prefill=2496 tok/s decode=56.1 tok/s
+  size   1024 rep: prompt=1004 gen=128 ttft=0.23s prefill=4276 tok/s decode=55.1 tok/s
+  size   1024 rep: prompt=993 gen=128 ttft=0.23s prefill=4256 tok/s decode=55.3 tok/s
+  size   1024 rep: prompt=995 gen=128 ttft=0.23s prefill=4277 tok/s decode=55.2 tok/s
+  size   4096 rep: prompt=4122 gen=128 ttft=1.05s prefill=3937 tok/s decode=53.4 tok/s
+  size   4096 rep: prompt=4107 gen=128 ttft=1.04s prefill=3959 tok/s decode=53.4 tok/s
+  size   4096 rep: prompt=4056 gen=128 ttft=1.00s prefill=4052 tok/s decode=53.3 tok/s
+wrote /work/bench-out/phase2b-qwen3-8b-tp2.json
+phase2b-qwen3-8b-tp2  model=qwen3-8b-tp2  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      119     0.048         2496        56.0      128       73.2
+    1024      995     0.233         4276        55.2      128       72.1
+    4096     4107     1.037         3959        53.4      128       69.8
+bandwidth floor: 76.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 128: the timing includes 24 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 24 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: the timing includes 24 profiled eager steps (per-op profiling synchronises around every op)
+################ stage bench end 10:03:24
+[burst] stages done 2026-10-13 10:03:24
+[burst] starting radiance 2026-10-13 10:03:24
+[burst] radiance answers 2026-10-13 10:03:35 (after 15 s)

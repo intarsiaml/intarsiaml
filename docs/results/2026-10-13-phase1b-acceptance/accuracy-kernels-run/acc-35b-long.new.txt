@@ -1,0 +1,3 @@
+exit 1
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins): FAIL   prefix-reuse verdict: FAIL
+golden gate: FAIL

@@ -1,0 +1,1 @@
+loaded Qwen3-8B on metal (Apple M5 Max) in 38.6s, context 20480 tokens

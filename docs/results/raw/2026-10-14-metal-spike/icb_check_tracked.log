@@ -1,0 +1,14 @@
+fleetq: #1771 running on endor: ./target/release/examples/icb_check
+device: Apple M5 Max
+253 GEMVs per step, step bytes 15.14 GB, variant gemv_bf16_r1u4s4
+ICB records 253 compute commands; one-time record cost 0.22 ms
+RESULT bit_exact mode=DirectUnretained identical=true differing_bytes=0 of 3105536
+RESULT bit_exact mode=IcbBarrier identical=true differing_bytes=0 of 3105536
+RESULT bit_exact mode=IcbConcurrent identical=true differing_bytes=0 of 3105536
+RESULT bit_exact_all=true
+RESULT timing mode=Direct cpu_encode_commit_ms[median 0.083 p10 0.064 p90 0.115] gpu_ms[median 26.330 p10 26.033 p90 26.734] wall_ms[median 26.708 p10 26.342 p90 27.087]
+RESULT timing mode=DirectUnretained cpu_encode_commit_ms[median 0.079 p10 0.058 p90 0.110] gpu_ms[median 26.307 p10 26.027 p90 26.839] wall_ms[median 26.656 p10 26.312 p90 27.260]
+RESULT timing mode=IcbBarrier cpu_encode_commit_ms[median 0.048 p10 0.034 p90 0.065] gpu_ms[median 26.388 p10 26.123 p90 26.784] wall_ms[median 26.724 p10 26.375 p90 27.110]
+RESULT timing mode=IcbConcurrent cpu_encode_commit_ms[median 0.047 p10 0.033 p90 0.063] gpu_ms[median 25.600 p10 25.374 p90 25.993] wall_ms[median 25.943 p10 25.616 p90 26.323]
+RESULT summary: direct encode 0.083 ms vs ICB replay 0.048 ms per step (saving 0.035 ms, 1.7x)
+fleetq: #1771 done (exit 0)

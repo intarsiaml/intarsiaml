@@ -1,0 +1,25 @@
+== flash trace
+10:56:10
+long_docs_4k@300     300   300    95.33   1.513e-2   1.243e-2   3.657e-1   0.1531   0.1566    91.73     0/300      0
+OVERALL                    632    92.56   3.690e-2   3.490e-2    7.157e0   0.1163   0.1196    91.36      2.2%      0
+prefill floor [4bit]: top-1 92.56% (not gated for this class) ok | 21-way KL 3.490e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.1196 vs ref 0.1163, excess +0.0034 (|.| <= 0.02) ok |
+greedy-match [prefill]: mean 8.1% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+== simt trace
+10:56:57
+long_docs_4k@300     300   300    96.33   1.341e-2   1.113e-2   2.649e-1   0.1531   0.1577    91.13     0/300      0
+OVERALL                    632    93.67   4.590e-2   5.551e-2    1.092e1   0.1163   0.1193    90.35     15.2%      0
+prefill floor [4bit]: top-1 93.67% (not gated for this class) ok | 21-way KL 5.551e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.1193 vs ref 0.1163, excess +0.0030 (|.| <= 0.02) ok |
+greedy-match [prefill]: mean 40.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+10:57:44
+250
+4560
+1.3G	tr_flash
+1.3G	tr_simt

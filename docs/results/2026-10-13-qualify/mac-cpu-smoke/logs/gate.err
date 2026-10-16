@@ -1,0 +1,2 @@
+accuracy: Qwen/Qwen3-Reranker-0.6B on cpu-ref (Apple M5 Max) (vocab 151669, weights/act/kv bf16/bf16)
+Error: accuracy gate FAILED

@@ -1,0 +1,35 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 6 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 371 tokens
+spec: token 2 pos 371 drafted 6 accepted 0 emits 1
+spec: token 3 pos 372 drafted 6 accepted 6 emits 7
+spec: token 10 pos 379 drafted 6 accepted 6 emits 7
+spec: token 17 pos 386 drafted 6 accepted 6 emits 7
+spec: token 24 pos 393 drafted 6 accepted 6 emits 7
+spec: token 31 pos 400 drafted 6 accepted 6 emits 7
+spec: token 38 pos 407 drafted 6 accepted 3 emits 4
+spec: token 42 pos 411 drafted 6 accepted 1 emits 2
+spec: token 44 pos 413 drafted 6 accepted 1 emits 2
+spec: token 46 pos 415 drafted 6 accepted 0 emits 1
+spec: token 47 pos 416 drafted 6 accepted 3 emits 4
+spec: token 51 pos 420 drafted 6 accepted 6 emits 7
+spec: token 58 pos 427 drafted 6 accepted 6 emits 7
+spec: token 65 pos 434 drafted 6 accepted 6 emits 7
+spec: token 72 pos 441 drafted 6 accepted 2 emits 3
+spec: token 75 pos 444 drafted 6 accepted 6 emits 7
+spec: token 82 pos 451 drafted 6 accepted 6 emits 7
+spec: token 89 pos 458 drafted 6 accepted 0 emits 1
+spec: token 90 pos 459 drafted 6 accepted 6 emits 7
+spec: token 97 pos 466 drafted 6 accepted 0 emits 1
+spec: token 98 pos 467 drafted 6 accepted 6 emits 7
+spec: token 105 pos 474 drafted 6 accepted 0 emits 1
+spec: token 106 pos 475 drafted 6 accepted 6 emits 7
+spec: token 113 pos 482 drafted 6 accepted 0 emits 1
+spec: token 114 pos 483 drafted 6 accepted 0 emits 1
+spec: token 115 pos 484 drafted 6 accepted 6 emits 7
+spec: finished at token 115 with 6 verified tokens unemitted; KV 491 -> 485
+ids: [73594, 35788, 198, 13353, 27098, 65297, 11, 11091, 5563, 9585, 2036, 9316, 1900, 341, 262, 1048, 59501, 3950, 14151, 320, 45484, 3950, 1506, 608, 67530, 657, 553, 279, 19865, 4292, 262, 6675, 9934, 25, 11312, 34837, 18, 17, 12520, 262, 6675, 1932, 5921, 28838, 25, 22301, 345, 262, 1048, 48901, 320, 437, 1565, 9495, 8077, 32881, 525, 54989, 3080, 419, 1657, 11211, 3000, 624, 262, 6675, 1308, 28838, 25, 22301, 345, 262, 1048, 13655, 23163, 3267, 279, 1614, 594, 48901, 11211, 320, 24246, 29325, 62019, 4292, 262, 6675, 10034, 2204, 436, 25, 1807, 345, 262, 1048, 2651, 220, 15, 3363, 55980, 624, 262, 6675, 9315, 25, 282, 18, 17, 345, 262, 6675, 1909, 620, 25]
+finish=stop prompt=371 (cached 0) completion=115 | prefill 248 ms (1495.4 tok/s) | decode 809 ms (140.83 tok/s)
+spec: verify passes=26 proposed=156 accepted=94 (acceptance 60.3%, 4.62 tokens per pass)
+steps=27 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: argmax=0ms/27 attn_prefill=0ms/972 embedding=0ms/27 logits=0ms/27 matmul=0ms/2916

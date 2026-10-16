@@ -1,0 +1,100 @@
+{
+ "after_disconnect": {
+  "finish": "length",
+  "text": " A patient gardener counted the slow tide at dawn on day 8. The old lighthouse keeper watched the grey waves rolling in on day 9. A",
+  "usage": {
+   "completion_tokens": 32,
+   "prompt_tokens": 122,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "total_tokens": 154
+  }
+ },
+ "disconnect_chunks_read": 8,
+ "metrics": {
+  "intarsia_requests_finished_total{reason=\"cancelled\"}": 1.0,
+  "intarsia_requests_finished_total{reason=\"length\"}": 4.0,
+  "intarsia_requests_finished_total{reason=\"stop\"}": 3.0,
+  "intarsia_requests_rejected_total": 0.0,
+  "intarsia_requests_total": 8.0,
+  "intarsia_spec_accepted_tokens_total": 128.0,
+  "intarsia_spec_proposed_tokens_total": 280.0,
+  "intarsia_spec_steps_total": 70.0,
+  "intarsia_tokens_cached_total": 658.0,
+  "intarsia_tokens_generated_total": 513.0,
+  "intarsia_tokens_prompt_total": 1754.0
+ },
+ "sampled_a": {
+  "finish": "length",
+  "text": "Here's the modified code with `max_tokens` renamed to `max_new_tokens`:\n\n```rust\n#[derive(Clone, Debug)]\npub struct GenRequest {\n    /// Prompt token ids (already tokenized / templated by the caller).\n    pub prompt: Vec<u32>,\n    pub max_new_tokens: usize,\n    /// EOS (and `stop_ids`) are suppressed until this many tokens exist.\n    pub min_tokens: usize,\n    /// Keep generating past the model's EOS tokens (forced-length benchmarks).\n    pub ignore_eos: bool,\n    /// <= 0 means greedy.\n",
+  "usage": {
+   "completion_tokens": 120,
+   "prompt_tokens": 360,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "total_tokens": 480
+  }
+ },
+ "sampled_b": {
+  "finish": "length",
+  "text": "Here's the modified code with `max_tokens` renamed to `max_new_tokens`:\n\n```rust\n#[derive(Clone, Debug)]\npub struct GenRequest {\n    /// Prompt token ids (already tokenized / templated by the caller).\n    pub prompt: Vec<u32>,\n    pub max_new_tokens: usize,\n    /// EOS (and `stop_ids`) are suppressed until this many tokens exist.\n    pub min_tokens: usize,\n    /// Keep generating past the model's EOS tokens (forced-length benchmarks).\n    pub ignore_eos: bool,\n    /// <= 0 means greedy.\n",
+  "usage": {
+   "completion_tokens": 120,
+   "prompt_tokens": 360,
+   "prompt_tokens_details": {
+    "cached_tokens": 359
+   },
+   "total_tokens": 480
+  }
+ },
+ "sampled_stop_min": {
+  "finish": "stop",
+  "text": " The patient gardener counted the slow tide at dawn on day 8. A curious fox repaired the grey waves rolling in on day 9. The harbor master counted a stack of faded maps on day 10. The patient gardener watched ",
+  "usage": {
+   "completion_tokens": 50,
+   "prompt_tokens": 122,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "total_tokens": 172
+  }
+ },
+ "turn1": {
+  "finish": "stop",
+  "text": " A patient gardener counted the slow tide at dawn on day 8. The old lighthouse keeper watched the grey waves rolling in on day 9. A curious fox counted the grey waves rolling in on day 10. The harbor master counted a row of copper ",
+  "usage": {
+   "completion_tokens": 57,
+   "prompt_tokens": 122,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "total_tokens": 179
+  }
+ },
+ "turn1_again": {
+  "finish": "stop",
+  "text": " A patient gardener counted the slow tide at dawn on day 8. The old lighthouse keeper watched the grey waves rolling in on day 9. A curious fox counted the grey waves rolling in on day 10. The harbor master counted a row of copper ",
+  "usage": {
+   "completion_tokens": 57,
+   "prompt_tokens": 122,
+   "prompt_tokens_details": {
+    "cached_tokens": 121
+   },
+   "total_tokens": 179
+  }
+ },
+ "turn2_stream": {
+  "finish": "length",
+  "text": " patient gardener counted a stack of faded maps on day 100. The harbor master counted a stack of faded maps on day 101. The patient gardener counted a row of copper kettles on day 102. The old lighthouse keeper counted a stack of faded maps on day",
+  "usage": {
+   "completion_tokens": 64,
+   "prompt_tokens": 186,
+   "prompt_tokens_details": {
+    "cached_tokens": 178
+   },
+   "total_tokens": 250
+  }
+ }
+}

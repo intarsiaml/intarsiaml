@@ -1,0 +1,19 @@
+prefill chunk 256 (default)
+loaded Qwen3-8B on NVIDIA GB10 in 33.9s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 122 tokens
+finish=length prompt=122 (cached 0) completion=65 | prefill 282 ms (433.2 tok/s) | decode 4300 ms (14.88 tok/s)
+op table (estimated ms over all launches; total 6063.8 ms):
+op                               ms  share%    calls   timed
+matmul                      5480.07   90.37    16380    2268
+logits                       344.69    5.68       65       9
+rope                          62.08    1.02     4680     648
+rmsnorm_add                   40.59    0.67     4680     648
+kv_append                     39.02    0.64     4680     648
+attn_decode                   37.22    0.61     2304     288
+qk_norm                       32.81    0.54     4680     648
+silu_glu                      19.63    0.32     2340     324
+embedding                      3.25    0.05       65       9
+rmsnorm                        1.96    0.03       65       9
+argmax                         1.79    0.03       65       9
+attn_prefill                   0.71    0.01       36      36
+steps=65 graph replays=56 (captures 1) eager decode steps=8 (profiled 8) top ops: matmul=759ms/16380 logits=48ms/65 rope=9ms/4680 rmsnorm_add=6ms/4680 kv_append=5ms/4680

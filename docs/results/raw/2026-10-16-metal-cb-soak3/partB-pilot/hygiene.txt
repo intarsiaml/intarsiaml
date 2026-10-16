@@ -1,0 +1,28 @@
+--- start 13:54:29
+25718  15.7   9072    17:50:38 macmon
+  485  13.4 410016 19-20:01:37 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+22540  12.7 643552    01:14:50 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+15504   8.9 1096640    01:17:19 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+22254   8.4   6992    14:12:48 /bin/sh
+88901   6.2 464400 02-18:16:07 /Applications/Syrtis.app/Contents/MacOS/Syrtis
+  576   4.8  62176 19-20:01:36 /usr/libexec/syspolicyd
+  673   4.0  16544 19-20:01:35 /usr/libexec/sysmond
+15399   2.8 133136    01:17:19 /Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper
+87301   2.6 188032 01-19:57:06 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+74425   2.2  17376 18-23:00:17 /usr/libexec/trustd
+13571   2.2  74800 07-16:32:09 /Applications/Herdr.app/Contents/MacOS/Herdr
+vm.swapusage: total = 11264.00M  used = 10384.50M  free = 879.50M  (encrypted)
+--- end (servers stopped) 13:57:21
+22540  22.4 648304    01:17:42 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+25718  22.3   9072    17:53:30 macmon
+  485  14.3 407984 19-20:04:29 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+15504   7.6 1066384    01:20:11 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+15394   5.7 725856    01:20:12 /Applications/Claude.app/Contents/MacOS/Claude
+64451   5.3 716976       59:14 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+99698   4.0 575632 08-14:43:19 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.a
+ 2902   3.8  89984 19-19:49:56 /Library/SystemExtensions/5EBCF999-5BAB-4656-8545-C8A4EC8A003D/io.tailscale.ipn.macsys.network-extension.systemextensio
+87301   3.2 188032 01-19:59:58 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+15399   3.1 132400    01:20:11 /Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper
+  692   2.7  55696 19-20:04:27 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+13571   2.5  74560 07-16:35:01 /Applications/Herdr.app/Contents/MacOS/Herdr
+vm.swapusage: total = 11264.00M  used = 10384.50M  free = 879.50M  (encrypted)

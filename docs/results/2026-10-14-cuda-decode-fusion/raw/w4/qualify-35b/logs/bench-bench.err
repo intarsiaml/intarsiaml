@@ -1,0 +1,19 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.6-35B-A3B-NVFP4
+server context window: 4608 tokens
+calibration: 50 base tokens, 21.71 tokens per filler sentence
+  size    128 rep: prompt=131 gen=128 ttft=0.10s prefill=1316 tok/s decode=80.7 tok/s
+  size    128 rep: prompt=133 gen=128 ttft=0.10s prefill=1306 tok/s decode=80.7 tok/s
+  size    128 rep: prompt=126 gen=128 ttft=0.10s prefill=1269 tok/s decode=80.7 tok/s
+  size    128 rep: prompt=130 gen=128 ttft=0.10s prefill=1302 tok/s decode=80.7 tok/s
+  size    128 rep: prompt=133 gen=128 ttft=0.10s prefill=1311 tok/s decode=80.7 tok/s
+  size   1024 rep: prompt=1014 gen=128 ttft=0.25s prefill=3978 tok/s decode=80.0 tok/s
+  size   1024 rep: prompt=999 gen=128 ttft=0.25s prefill=3921 tok/s decode=80.0 tok/s
+  size   1024 rep: prompt=988 gen=128 ttft=0.25s prefill=3953 tok/s decode=79.9 tok/s
+  size   1024 rep: prompt=999 gen=128 ttft=0.26s prefill=3902 tok/s decode=80.2 tok/s
+  size   1024 rep: prompt=1009 gen=128 ttft=0.26s prefill=3938 tok/s decode=80.0 tok/s
+  size   4096 rep: prompt=4059 gen=128 ttft=0.87s prefill=4687 tok/s decode=77.5 tok/s
+  size   4096 rep: prompt=4096 gen=128 ttft=0.87s prefill=4723 tok/s decode=77.5 tok/s
+  size   4096 rep: prompt=4067 gen=128 ttft=0.86s prefill=4739 tok/s decode=77.4 tok/s
+  size   4096 rep: prompt=4087 gen=128 ttft=0.87s prefill=4719 tok/s decode=77.1 tok/s
+  size   4096 rep: prompt=4109 gen=128 ttft=0.91s prefill=4502 tok/s decode=77.5 tok/s
+wrote /home/nvidia/intarsia-decfuse/out/w4/qualify-35b/bench/qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench.json

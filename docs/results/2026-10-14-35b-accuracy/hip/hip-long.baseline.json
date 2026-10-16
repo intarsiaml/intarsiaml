@@ -1,0 +1,166 @@
+{
+  "format": "intarsia-accuracy-baseline-v2",
+  "created_unix": 1791929357,
+  "tool_version": "0.0.1",
+  "code": {
+    "head": "",
+    "code_tree": "",
+    "dirty": false,
+    "overlay": []
+  },
+  "exec": {
+    "cmdline": [
+      "/target/release/intarsia",
+      "accuracy",
+      "--backend",
+      "hip",
+      "--model",
+      "/models/Qwen3.6-35B-A3B-NVFP4",
+      "--golden",
+      "/models/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+      "--mem-budget",
+      "29",
+      "--allow-unstamped",
+      "--allow-dirty",
+      "--prefill-chunk",
+      "256",
+      "--write-baseline",
+      "/work/acc-out/hip-long.baseline.json",
+      "--write-self-golden",
+      "/work/acc-out/hip-long.dump.safetensors",
+      "--mode",
+      "decode",
+      "--decode-positions",
+      "64",
+      "--max-seq",
+      "16384"
+    ],
+    "disable_list": "",
+    "fault": "",
+    "kernels": {
+      "argmax": "argmax_f32",
+      "attn_decode": "attn_decode_bf16_splitkv",
+      "attn_prefill": "attn_prefill_bf16_flash+attn_prefill_bf16_splitkv",
+      "embedding": "embedding_bf16",
+      "gate_split": "gate_split_bf16",
+      "gdn_conv": "gdn_conv_bf16",
+      "gdn_delta_rule": "gdn_delta_rule_bf16",
+      "kv_append": "kv_append_bf16",
+      "matmul": "matmul_bf16+matmul_bf16_gemv",
+      "matmul_fp8": "matmul_fp8_gemv_v2+matmul_fp8_mma",
+      "matmul_nvfp4": "matmul_nvfp4_gemv_v2+matmul_nvfp4_mma",
+      "moe_combine": "moe_combine_bf16",
+      "moe_experts": "moe_experts_bf16_v2",
+      "moe_topk": "moe_topk_bf16_v2",
+      "qk_norm": "qk_norm_bf16",
+      "rmsnorm": "rmsnorm_bf16",
+      "rmsnorm_add": "rmsnorm_add_bf16",
+      "rope": "rope_bf16",
+      "sigmoid_mul": "sigmoid_mul_bf16",
+      "silu_glu": "silu_glu_bf16"
+    }
+  },
+  "golden": {
+    "file": "qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+    "fnv1a64": "1c62c8e49c68fe34",
+    "size": 6061444,
+    "format": "intarsia-golden-topk-v1",
+    "prompts": 5,
+    "positions": 36887,
+    "topk": 20,
+    "engine": "vllm",
+    "engine_version": "0.26.1rc1.dev602+g65b7662d3",
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "model_revision": "not in the model root path",
+    "kv_dtype": "fp8"
+  },
+  "run": {
+    "model": "Qwen3.6-35B-A3B-NVFP4",
+    "backend": "hip",
+    "device": "AMD Radeon Graphics",
+    "kv_dtype": "bf16",
+    "act_dtype": "bf16",
+    "fp8_act": "recipe default",
+    "prefill_chunk": 256,
+    "prefill_chunk_source": "--prefill-chunk",
+    "decode_positions": 64,
+    "gate_class": "4bit"
+  },
+  "modes": [
+    {
+      "overall": {
+        "mode": "decode",
+        "positions": 320,
+        "top1_pct": 96.875,
+        "mean_kl": 0.010857142555536851,
+        "mean_kl21": 0.010201676691442299,
+        "top5_pct": 90.0,
+        "tail_ref": 0.023018183032261424,
+        "tail_ours": 0.023788976297177404,
+        "max_kl": 0.21160022202944997,
+        "max_kl21": 0.20444979428202747,
+        "tail_abs": 0.002853687384228621,
+        "nonfinite": 0,
+        "greedy_match_pct": 45.625,
+        "floor_pass": true
+      },
+      "prompts": [
+        {
+          "name": "long_docs_4k",
+          "positions": 64,
+          "top1_pct": 93.75,
+          "mean_kl": 0.017350541214479858,
+          "mean_kl21": 0.016565236824280186,
+          "top5_pct": 90.625,
+          "tail_excess": -0.0009529392194207766,
+          "max_kl21": 0.20444979428202747,
+          "tail_abs": 0.002593539670104291
+        },
+        {
+          "name": "long_code_4k",
+          "positions": 64,
+          "top1_pct": 95.3125,
+          "mean_kl": 0.010682877882002855,
+          "mean_kl21": 0.009377717734982322,
+          "top5_pct": 89.375,
+          "tail_excess": 0.00283321358480184,
+          "max_kl21": 0.042829845221302926,
+          "tail_abs": 0.0051845744691454
+        },
+        {
+          "name": "chat_reuse_4k",
+          "positions": 64,
+          "top1_pct": 100.0,
+          "mean_kl": 0.0039602847566544775,
+          "mean_kl21": 0.00396081789325668,
+          "top5_pct": 92.5,
+          "tail_excess": 4.143309190847148e-6,
+          "max_kl21": 0.061736885748376026,
+          "tail_abs": 4.44947659413881e-6
+        },
+        {
+          "name": "long_docs_12k",
+          "positions": 64,
+          "top1_pct": 96.875,
+          "mean_kl": 0.016079251650961957,
+          "mean_kl21": 0.014955617463515154,
+          "top5_pct": 89.6875,
+          "tail_excess": 0.0021018387926485943,
+          "max_kl21": 0.17855332592846462,
+          "tail_abs": 0.0052730657176468685
+        },
+        {
+          "name": "long_code_12k",
+          "positions": 64,
+          "top1_pct": 98.4375,
+          "mean_kl": 0.006212757273585106,
+          "mean_kl21": 0.006148993541177153,
+          "top5_pct": 87.8125,
+          "tail_excess": -0.0001322901426406113,
+          "max_kl21": 0.0882864066078144,
+          "tail_abs": 0.0012128075876524076
+        }
+      ]
+    }
+  ]
+}

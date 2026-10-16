@@ -1,0 +1,118 @@
+/Users/josef/.local/share/uv/tools/mlx-lm/lib/python3.11/site-packages/mlx_lm/server.py:1723: UserWarning: mlx_lm.server is not recommended for production as it only implements basic security checks.
+  warnings.warn(
+2026-10-15 02:46:04,863 - INFO - Starting httpd at 127.0.0.1 on port 8092...
+127.0.0.1 - - [15/Oct/2026 02:46:05] "GET /v1/models HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 02:46:09] "GET /v1/models HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 02:46:09] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:09] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:09,052 - INFO - Prompt Cache: 0 sequences, 0.00 GB
+2026-10-15 02:46:09,052 - INFO - - assistant: 0 sequences, 0.00 GB
+2026-10-15 02:46:09,052 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:09,052 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:09] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:09,379 - INFO - Prompt processing progress: 51/55
+2026-10-15 02:46:09,417 - INFO - Prompt processing progress: 54/55
+2026-10-15 02:46:09,456 - INFO - Prompt processing progress: 55/55
+2026-10-15 02:46:09,500 - INFO - Prompt Cache: 1 sequences, 0.01 GB
+2026-10-15 02:46:09,500 - INFO - - assistant: 1 sequences, 0.01 GB
+2026-10-15 02:46:09,500 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:09,500 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:09] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:10,122 - INFO - Prompt processing progress: 2048/4460
+2026-10-15 02:46:11,074 - INFO - Prompt processing progress: 4096/4460
+2026-10-15 02:46:11,291 - INFO - Prompt processing progress: 4456/4460
+2026-10-15 02:46:11,342 - INFO - Prompt processing progress: 4459/4460
+2026-10-15 02:46:11,384 - INFO - Prompt processing progress: 4460/4460
+127.0.0.1 - - [15/Oct/2026 02:46:11] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:11] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:11,426 - INFO - Prompt Cache: 1 sequences, 0.66 GB
+2026-10-15 02:46:11,426 - INFO - - assistant: 1 sequences, 0.66 GB
+2026-10-15 02:46:11,426 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:11,426 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:11] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:11,570 - INFO - Prompt processing progress: 103/107
+2026-10-15 02:46:11,607 - INFO - Prompt processing progress: 106/107
+2026-10-15 02:46:11,645 - INFO - Prompt processing progress: 107/107
+127.0.0.1 - - [15/Oct/2026 02:46:19] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:19] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:19,068 - INFO - Prompt Cache: 1 sequences, 0.05 GB
+2026-10-15 02:46:19,068 - INFO - - assistant: 1 sequences, 0.05 GB
+2026-10-15 02:46:19,068 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:19,068 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:19] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:19,182 - INFO - Prompt processing progress: 104/108
+2026-10-15 02:46:19,216 - INFO - Prompt processing progress: 107/108
+2026-10-15 02:46:19,253 - INFO - Prompt processing progress: 108/108
+127.0.0.1 - - [15/Oct/2026 02:46:26] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:26] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:26,679 - INFO - Prompt Cache: 1 sequences, 0.05 GB
+2026-10-15 02:46:26,679 - INFO - - assistant: 1 sequences, 0.05 GB
+2026-10-15 02:46:26,679 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:26,679 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:26] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:26,795 - INFO - Prompt processing progress: 108/112
+2026-10-15 02:46:26,829 - INFO - Prompt processing progress: 111/112
+2026-10-15 02:46:26,866 - INFO - Prompt processing progress: 112/112
+127.0.0.1 - - [15/Oct/2026 02:46:34] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:34] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:34,308 - INFO - Prompt Cache: 1 sequences, 0.05 GB
+2026-10-15 02:46:34,308 - INFO - - assistant: 1 sequences, 0.05 GB
+2026-10-15 02:46:34,308 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:34,308 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:34] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:34,636 - INFO - Prompt processing progress: 980/984
+2026-10-15 02:46:34,674 - INFO - Prompt processing progress: 983/984
+2026-10-15 02:46:34,712 - INFO - Prompt processing progress: 984/984
+127.0.0.1 - - [15/Oct/2026 02:46:42] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:42] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:42,270 - INFO - Prompt Cache: 1 sequences, 0.18 GB
+2026-10-15 02:46:42,270 - INFO - - assistant: 1 sequences, 0.18 GB
+2026-10-15 02:46:42,270 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:42,270 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:42] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:42,585 - INFO - Prompt processing progress: 984/988
+2026-10-15 02:46:42,624 - INFO - Prompt processing progress: 987/988
+2026-10-15 02:46:42,661 - INFO - Prompt processing progress: 988/988
+127.0.0.1 - - [15/Oct/2026 02:46:50] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:50] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:50,204 - INFO - Prompt Cache: 1 sequences, 0.18 GB
+2026-10-15 02:46:50,204 - INFO - - assistant: 1 sequences, 0.18 GB
+2026-10-15 02:46:50,204 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:50,204 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:50] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:50,518 - INFO - Prompt processing progress: 983/987
+2026-10-15 02:46:50,557 - INFO - Prompt processing progress: 986/987
+2026-10-15 02:46:50,594 - INFO - Prompt processing progress: 987/987
+127.0.0.1 - - [15/Oct/2026 02:46:58] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:46:58] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:46:58,140 - INFO - Prompt Cache: 1 sequences, 0.18 GB
+2026-10-15 02:46:58,140 - INFO - - assistant: 1 sequences, 0.18 GB
+2026-10-15 02:46:58,140 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:46:58,140 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:46:58] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:46:58,734 - INFO - Prompt processing progress: 2048/4086
+2026-10-15 02:46:59,348 - INFO - Prompt processing progress: 4082/4086
+2026-10-15 02:46:59,395 - INFO - Prompt processing progress: 4085/4086
+2026-10-15 02:46:59,437 - INFO - Prompt processing progress: 4086/4086
+127.0.0.1 - - [15/Oct/2026 02:47:07] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:47:07] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:47:07,281 - INFO - Prompt Cache: 1 sequences, 0.64 GB
+2026-10-15 02:47:07,282 - INFO - - assistant: 1 sequences, 0.64 GB
+2026-10-15 02:47:07,282 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:47:07,282 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:47:07] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:47:07,889 - INFO - Prompt processing progress: 2048/4084
+2026-10-15 02:47:08,534 - INFO - Prompt processing progress: 4080/4084
+2026-10-15 02:47:08,581 - INFO - Prompt processing progress: 4083/4084
+2026-10-15 02:47:08,625 - INFO - Prompt processing progress: 4084/4084
+127.0.0.1 - - [15/Oct/2026 02:47:16] "GET /metrics HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 02:47:16] "GET /slots HTTP/1.1" 404 -
+2026-10-15 02:47:16,463 - INFO - Prompt Cache: 1 sequences, 0.64 GB
+2026-10-15 02:47:16,463 - INFO - - assistant: 1 sequences, 0.64 GB
+2026-10-15 02:47:16,463 - INFO - - user: 0 sequences, 0.00 GB
+2026-10-15 02:47:16,463 - INFO - - system: 0 sequences, 0.00 GB
+127.0.0.1 - - [15/Oct/2026 02:47:16] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-10-15 02:47:17,079 - INFO - Prompt processing progress: 2048/4084
+2026-10-15 02:47:17,748 - INFO - Prompt processing progress: 4080/4084
+2026-10-15 02:47:17,796 - INFO - Prompt processing progress: 4083/4084
+2026-10-15 02:47:17,840 - INFO - Prompt processing progress: 4084/4084

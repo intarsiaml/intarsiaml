@@ -1,0 +1,18 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml-gemm-midm/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 2.14s
+     Running tests/gemm_nax.rs (target/release/deps/gemm_nax-437184b2b116056c)
+
+running 10 tests
+test nax_is_run_to_run_deterministic ... ok
+test nax_k_tails ... ok
+test nax_kernels_are_registered_for_prefill_shapes_only ... ok
+test nax_launch_picks_tiles_without_changing_bits ... ok
+test nax_launch_through_the_backend ... ok
+test nax_matches_f64_reference ... ok
+test nax_mid_size_chunks_keep_row_bits ... ok
+test nax_pair_is_bitwise_two_singles ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_tile_pick_is_by_shape ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.43s
+

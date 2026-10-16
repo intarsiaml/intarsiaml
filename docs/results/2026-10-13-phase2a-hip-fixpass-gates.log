@@ -1,0 +1,661 @@
+# Phase 2a HIP fix pass: raw gate output (2026-10-13)
+Tree: head=a7da13b89e5bac0f7d3c1f17c76c1aafd5b91941 code-tree=180d43e643d2 dirty=yes (scripts/tree-stamp.sh). Host tatooine, one card (HIP_VISIBLE_DEVICES=0), radiance down under fleetq leases.
+Each section is the output of one burst script (condensed by the script with tail/grep, exit codes explicit as `rc=`); see docs/results/2026-10-13-phase2a-hip.md section 10.
+
+====================================================================================================
+## burst 2: kernels test default sweep and --model Qwen3-8B (before the TOL change), mutants M1-M5
+====================================================================================================
+== kernels test default sweep
+03:06:47
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0     0.000e0     0.000e0  ADMITTED
+rope           rope_bf16                      36      0    1.469e-5    2.380e-7  ADMITTED
+matmul         matmul_bf16                    21      0    1.773e-3    6.999e-5  ADMITTED
+matmul         matmul_bf16_gemv               14      0    4.371e-4    2.037e-5  ADMITTED
+logits         logits_bf16                     4      0    6.237e-7    2.282e-7  ADMITTED
+logits         logits_bf16_gemv                4      0    1.247e-7    7.402e-8  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              21      0    9.766e-4    6.703e-5  ADMITTED
+attn_decode    attn_decode_bf16               15      0    2.441e-4    1.028e-4  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         6      0    5.051e-3    2.407e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv      12      0    1.397e-3    5.352e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0     0.000e0     0.000e0  ADMITTED
+silu_glu       silu_glu_bf16                   9      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.773e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    4.551e-5  ADMITTED
+gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 60      0    4.329e-3    1.479e-4  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    5.549e-6    9.427e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               31      0    1.488e-3    3.758e-5  ADMITTED
+moe_topk       moe_topk_bf16                  48      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16                6      0    1.488e-3    7.398e-5  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+30 kernels, 471 cases in 15.1s
+== kernels test 8B
+03:07:02
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0    7.022e-4    2.655e-5  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0    6.443e-4    1.356e-5  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0    1.445e-3    2.183e-5  ADMITTED
+rope           rope_bf16                      36      0    8.503e-4    1.078e-5  ADMITTED
+matmul         matmul_bf16                    21      0    3.185e-3    1.424e-4  ADMITTED
+matmul         matmul_bf16_gemv               14      0    9.690e-4    2.014e-5  ADMITTED
+logits         logits_bf16                     4      0    1.474e-6    6.604e-7  ADMITTED
+logits         logits_bf16_gemv                4      0    1.293e-7    9.902e-8  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              21      0    2.041e-3    1.050e-4  ADMITTED
+attn_decode    attn_decode_bf16               15      0    3.356e-3    2.362e-4  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         6      0    5.025e-3    2.434e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv      12      0    1.208e-3    3.632e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0    3.356e-3    2.362e-4  ADMITTED
+silu_glu       silu_glu_bf16                   9      0    7.354e-7    2.023e-8  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.773e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    4.551e-5  ADMITTED
+gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 60      0    4.329e-3    1.479e-4  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    5.549e-6    9.427e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               31      0    1.488e-3    3.758e-5  ADMITTED
+moe_topk       moe_topk_bf16                  48      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16                6      0    1.488e-3    7.398e-5  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+30 kernels, 471 cases in 38.1s
+== clean / attention_kernels_match_reference_on_random_shapes
+03:07:41
+cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_kernels_match_reference_on_random_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 3.26s
+
+exit=0
+== clean / attention_causal_and_chunk_edges_are_exact
+03:07:45
+edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_causal_and_chunk_edges_are_exact ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 39.79s
+
+exit=0
+== M1_flash_mask / attention_kernels_match_reference_on_random_shapes
+03:08:25
+failures:
+    attention_kernels_match_reference_on_random_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.28s
+
+exit=101
+== M1_flash_mask / attention_causal_and_chunk_edges_are_exact
+03:08:25
+failures:
+    attention_causal_and_chunk_edges_are_exact
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.08s
+
+exit=101
+== M2_splitkv_visible / attention_kernels_match_reference_on_random_shapes
+03:08:26
+failures:
+    attention_kernels_match_reference_on_random_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.18s
+
+exit=101
+== M2_splitkv_visible / attention_causal_and_chunk_edges_are_exact
+03:08:27
+failures:
+    attention_causal_and_chunk_edges_are_exact
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.17s
+
+exit=101
+== M3_simt_visible / attention_kernels_match_reference_on_random_shapes
+03:08:27
+failures:
+    attention_kernels_match_reference_on_random_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.17s
+
+exit=101
+== M3_simt_visible / attention_causal_and_chunk_edges_are_exact
+03:08:28
+failures:
+    attention_causal_and_chunk_edges_are_exact
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.17s
+
+exit=101
+== M4_splitkv_chunk_edge / attention_kernels_match_reference_on_random_shapes
+03:08:28
+failures:
+    attention_kernels_match_reference_on_random_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.19s
+
+exit=101
+== M4_splitkv_chunk_edge / attention_causal_and_chunk_edges_are_exact
+03:08:29
+failures:
+    attention_causal_and_chunk_edges_are_exact
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.18s
+
+exit=101
+== M5_flash_qblock_start / attention_kernels_match_reference_on_random_shapes
+03:08:29
+cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_kernels_match_reference_on_random_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 3.27s
+
+exit=0
+== M5_flash_qblock_start / attention_causal_and_chunk_edges_are_exact
+03:08:33
+failures:
+    attention_causal_and_chunk_edges_are_exact
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.11s
+
+exit=101
+== moe wmma off bench
+03:08:34
+hot = same buffers every launch (cache-assisted); cold = weights rotate over >= 768 MB of distinct copies (DRAM)
+moe_experts T=1 (8 of 256) x2           58.7      44.0       14.16       241       321     51%
+moe_experts T=4 x2                     163.7     148.0       56.62       346       383     61%
+moe_experts T=16 x2                    484.6     535.5      226.49       467       423     67%
+moe_experts T=64 x2                   1332.8    1485.6      452.98       340       305     49%
+moe_experts T=256 x2                  4073.2    3832.0      452.98       111       118     19%
+== done
+03:08:39
+
+====================================================================================================
+## FINAL GATE BURST (job 1476): cargo test, mutants M1-M6, kernels test, cold bench, accuracy 8B x2 and 35B, HIP trace, serve + bench speed
+====================================================================================================
+tree: head=a7da13b code-tree=180d43e643d2 dirty=yes full-head=a7da13b89e5bac0f7d3c1f17c76c1aafd5b91941
+
+=== GATE cargotest: start 03:17:28
+=== GATE cargotest: rc=0 end 03:18:23
+test kernels::tests::arch_is_a_gfx12_target ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test backend_is_usable_from_other_threads ... ok
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+test uninstantiated_gemv_knob_still_computes ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_hip_kernel_matches_the_reference ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.74s
+test attention_throughput ... ignored
+cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_kernels_match_reference_on_random_shapes ... ok
+edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_causal_and_chunk_edges_are_exact ... ok
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 38.77s
+test gdn_kernels_timing_at_35b_shapes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test gemm_throughput_on_qwen3_8b_shapes ... ignored
+test gemv_bandwidth_on_qwen3_8b_shapes ... ignored
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test bench_real_shapes ... ignored
+f32-output quant matmuls: 21 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+test quant_f32_outputs_meet_the_f32_tolerance ... ok
+test moe_experts_skewed_and_invalid_routing ... ok
+batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+batch invariance: strict=true, tokens differing from T=1 in the tensor-core path: 0
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.28s
+test moe_experts_batch_invariance ... ok
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+=== MUTANT attention-M1_flash_mask / attention_kernels_match_reference_on_random_shapes
+rc=101
+thread 'attention_kernels_match_reference_on_random_shapes' panicked at crates/intarsia-backend-hip/tests/attention.rs:148:21:
+attn_prefill_bf16_flash N=4 Nkv=4 D=64 T=17 pos0=0 qscale=4: max_abs 1.175e0 rel_l2 4.201e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.28s
+
+
+=== MUTANT attention-M1_flash_mask / attention_causal_and_chunk_edges_are_exact
+rc=101
+thread 'attention_causal_and_chunk_edges_are_exact' panicked at crates/intarsia-backend-hip/tests/attention.rs:306:25:
+attn_prefill_bf16_flash: N=6 Nkv=2 D=64 T=17 pos0=0 one-hot key 15: rel_l2 7.303e-1 (a dropped, doubled or leaked key)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.09s
+
+
+=== MUTANT attention-M2_splitkv_visible / attention_kernels_match_reference_on_random_shapes
+rc=101
+thread 'attention_kernels_match_reference_on_random_shapes' panicked at crates/intarsia-backend-hip/tests/attention.rs:148:21:
+attn_prefill_bf16_splitkv N=4 Nkv=4 D=64 T=1 pos0=0 qscale=4: max_abs 1.282e0 rel_l2 1.109e0
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.18s
+
+
+=== MUTANT attention-M2_splitkv_visible / attention_causal_and_chunk_edges_are_exact
+rc=101
+thread 'attention_causal_and_chunk_edges_are_exact' panicked at crates/intarsia-backend-hip/tests/attention.rs:306:25:
+attn_prefill_bf16_splitkv: N=6 Nkv=2 D=64 T=1 pos0=1 one-hot key 1: rel_l2 3.359e-1 (a dropped, doubled or leaked key)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.17s
+
+
+=== MUTANT attention-M3_simt_visible / attention_kernels_match_reference_on_random_shapes
+rc=101
+thread 'attention_kernels_match_reference_on_random_shapes' panicked at crates/intarsia-backend-hip/tests/attention.rs:148:21:
+attn_prefill_bf16 N=4 Nkv=4 D=64 T=1 pos0=0 qscale=4: max_abs 1.282e0 rel_l2 1.109e0
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.17s
+
+
+=== MUTANT attention-M3_simt_visible / attention_causal_and_chunk_edges_are_exact
+rc=101
+thread 'attention_causal_and_chunk_edges_are_exact' panicked at crates/intarsia-backend-hip/tests/attention.rs:306:25:
+attn_prefill_bf16: N=6 Nkv=2 D=64 T=1 pos0=1 one-hot key 1: rel_l2 3.359e-1 (a dropped, doubled or leaked key)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.18s
+
+
+=== MUTANT attention-M4_splitkv_chunk_edge / attention_kernels_match_reference_on_random_shapes
+rc=101
+thread 'attention_kernels_match_reference_on_random_shapes' panicked at crates/intarsia-backend-hip/tests/attention.rs:148:21:
+attn_decode_bf16_splitkv N=4 Nkv=4 D=64 T=1 pos0=64 qscale=4: max_abs 3.347e-1 rel_l2 1.889e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.18s
+
+
+=== MUTANT attention-M4_splitkv_chunk_edge / attention_causal_and_chunk_edges_are_exact
+rc=101
+thread 'attention_causal_and_chunk_edges_are_exact' panicked at crates/intarsia-backend-hip/tests/attention.rs:306:25:
+attn_prefill_bf16_splitkv: N=6 Nkv=2 D=64 T=1 pos0=64 one-hot key 64: rel_l2 9.683e-1 (a dropped, doubled or leaked key)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.18s
+
+
+=== MUTANT attention-M5_flash_qblock_start / attention_kernels_match_reference_on_random_shapes
+rc=0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 3.28s
+
+
+=== MUTANT attention-M5_flash_qblock_start / attention_causal_and_chunk_edges_are_exact
+rc=101
+thread 'attention_causal_and_chunk_edges_are_exact' panicked at crates/intarsia-backend-hip/tests/attention.rs:306:25:
+attn_prefill_bf16_flash: N=6 Nkv=2 D=64 T=17 pos0=62 one-hot key 63: rel_l2 2.776e-1 (a dropped, doubled or leaked key)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.10s
+
+
+=== MUTANT admission-M6_gemv_knob_unfixed
+rc=101
+thread 'uninstantiated_gemv_knob_still_computes' panicked at crates/intarsia-backend-hip/tests/admission.rs:139:5:
+gemv with INTARSIA_HIP_GEMV=2,16: rel_l2 1e0
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+thread 'uninstantiated_gemv_knob_still_computes' panicked at crates/intarsia-backend-hip/tests/admission.rs:115:9:
+INTARSIA_HIP_GEMV=2,16 broke the GEMV
+
+=== GATE kernels_default: start 03:18:33
+=== GATE kernels_default: rc=0 end 03:18:48
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 60      0    4.329e-3    1.479e-4  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    5.549e-6    9.427e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               31      0    1.488e-3    3.758e-5  ADMITTED
+moe_topk       moe_topk_bf16                  48      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16                6      0    1.488e-3    7.398e-5  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+30 kernels, 471 cases in 15.1s
+30
+
+=== GATE kernels_8b: start 03:18:48
+=== GATE kernels_8b: rc=0 end 03:19:27
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+30 kernels, 471 cases in 38.0s
+30
+
+=== GATE kernels_35b_quick: start 03:19:27
+=== GATE kernels_35b_quick: rc=1 end 03:19:27
+30 kernels, 108 cases in 0.1s
+Error: kernel admission failed
+29
+
+=== GATE bench_cold: start 03:19:27
+=== GATE bench_cold: rc=0 end 03:19:32
+hot = same buffers every launch (cache-assisted); cold = weights rotate over >= 768 MB of distinct copies (DRAM)
+case                                  hot us   cold us   weight MB  hot GB/s cold GB/s cold %627
+lm_head M=1 (248320x2048) x3           426.5     469.0      286.06       671       610     97%
+shared gate/up M=1 (512x2048) x1366       5.7       5.5        0.59       104       106     17%
+shared down M=1 (2048x512) x1366        13.8      13.6        0.59        43        43      7%
+shared gate M=4 x1366                    8.5       8.2        0.59        69        72     12%
+lm_head prefill M=256 mma x3          4365.4    4290.6      286.06        66        67     11%
+fp8 qkv M=1 (8192x2048) x48             36.2      35.5       16.78       463       473     75%
+fp8 z M=1 (4096x2048) x96               29.4      28.7        8.39       285       292     47%
+fp8 o_proj M=1 (2048x4096) x96          23.5      22.9        8.39       356       367     58%
+fp8 k/v_proj M=1 (512x2048) x768         7.6       7.1        1.05       138       147     23%
+fp8 qkv M=256 mma x48                  566.0     525.2       16.78        30        32      5%
+moe_experts T=1 (8 of 256) x2           59.0      44.1       14.16       240       321     51%
+moe_experts T=4 x2                     162.4     148.0       56.62       349       382     61%
+moe_experts T=16 x2                    664.2     756.6      226.49       341       299     48%
+moe_experts T=64 x2                   1153.5    1220.3      452.98       393       371     59%
+moe_experts T=256 x2                  1355.8    1348.9      452.98       334       336     54%
+
+=== GATE bench_cold_wmma_off: start 03:19:32
+=== GATE bench_cold_wmma_off: rc=0 end 03:19:37
+moe_experts T=1 (8 of 256) x2           52.1      44.0       14.16       272       322     51%
+moe_experts T=4 x2                     163.6     148.1       56.62       346       382     61%
+moe_experts T=16 x2                    482.1     534.1      226.49       470       424     68%
+moe_experts T=64 x2                   1327.3    1480.3      452.98       341       306     49%
+moe_experts T=256 x2                  4034.2    3799.8      452.98       112       119     19%
+
+=== GATE acc8b_short: start 03:19:37
+=== GATE acc8b_short: rc=0 end 03:19:47
+chat_short            18    18   100.00    1.644e-3    9.796e-3    97.78     18/18       0
+chat_system           32    32   100.00    1.020e-3    1.147e-2    97.50     32/32       0
+chat_multiturn        58    58   100.00    7.352e-4    9.317e-3    98.62     58/58       0
+chat_reasoning        90    90   100.00    6.498e-4    1.099e-2    98.67     90/90       0
+OVERALL                    434   100.00    5.623e-4    1.147e-2    98.43    100.0%       0
+prefill gate [bf16]: top-1 100.00% (need >= 99.5) ok | mean KL 5.623e-4 (need <= 1.0e-3) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %     mean KL      max KL  top-5 %    greedy  nonfin
+count                 38    16   100.00    3.905e-5    2.000e-4    96.25     16/16       0
+story                 39    16   100.00    1.319e-3    5.875e-3    96.25     16/16       0
+code                  80    16   100.00    2.271e-5    1.231e-4   100.00     16/16       0
+science               79    16   100.00    4.226e-4    2.310e-3    98.75     16/16       0
+chat_short            18    16   100.00    1.305e-3    7.648e-3    97.50     16/16       0
+chat_system           32    16   100.00    1.603e-3    1.231e-2    97.50     16/16       0
+chat_multiturn        58    16   100.00    1.464e-3    1.316e-2    97.50     16/16       0
+chat_reasoning        90    16   100.00    1.514e-3    1.278e-2    98.75     16/16       0
+OVERALL                    128   100.00    9.611e-4    1.316e-2    97.81    100.0%       0
+decode (teacher-forced) gate [bf16]: top-1 100.00% (need >= 99.5) ok | mean KL 9.611e-4 (need <= 1.0e-3) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+golden gate: PASS
+
+=== GATE acc8b_long: start 03:19:47
+=== GATE acc8b_long: rc=0 end 03:19:59
+long_prose_300       300   300    98.67    8.471e-4    2.370e-2    97.20     0/300       0
+long_prose_700       700   700    99.57    8.997e-4    8.667e-2    97.43    28/700       0
+OVERALL                   1434    99.51    7.866e-4    8.667e-2    97.68     32.2%       0
+prefill gate [bf16]: top-1 99.51% strict (99.65% if the 2 fp16 reference ties counted as agreement) (need >= 99.5) ok | mean KL 7.866e-4 (need <= 1.0e-3) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %     mean KL      max KL  top-5 %    greedy  nonfin
+count                 38    16   100.00    3.905e-5    2.000e-4    96.25     16/16       0
+story                 39    16   100.00    1.319e-3    5.875e-3    96.25     16/16       0
+code                  80    16   100.00    2.271e-5    1.231e-4   100.00     16/16       0
+science               79    16   100.00    4.226e-4    2.310e-3    98.75     16/16       0
+chat_short            18    16   100.00    1.305e-3    7.648e-3    97.50     16/16       0
+chat_system           32    16   100.00    1.603e-3    1.231e-2    97.50     16/16       0
+chat_multiturn        58    16   100.00    1.464e-3    1.316e-2    97.50     16/16       0
+chat_reasoning        90    16   100.00    1.514e-3    1.278e-2    98.75     16/16       0
+long_prose_300       300    16   100.00    1.637e-5    1.994e-4    96.25     16/16       0
+long_prose_700       700    16   100.00    1.104e-3    6.061e-3    98.75     16/16       0
+OVERALL                    160   100.00    8.810e-4    1.316e-2    97.75    100.0%       0
+decode (teacher-forced) gate [bf16]: top-1 100.00% (need >= 99.5) ok | mean KL 8.810e-4 (need <= 1.0e-3) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 80.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+golden gate: PASS
+
+=== GATE acc35b: start 03:19:59
+=== GATE acc35b: rc=0 end 03:20:10
+chat_multiturn        58    58    96.55    8.712e-3    3.940e-1    96.90      2/58       0
+chat_reasoning        90    90    96.67    8.455e-3    6.816e-2    95.33      2/90       0
+long_prose_300       300   300    99.00    4.166e-3    2.768e-1    90.20     5/300       0
+long_prose_700       700   700    99.14    6.728e-3    7.150e-1    89.63     0/700       0
+OVERALL                   1441    98.54    6.560e-3    7.150e-1    91.42      7.3%       0
+prefill gate [4bit]: top-1 98.54% (not gated for this class) ok | mean KL 6.560e-3 (need <= 3.0e-2) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %     mean KL      max KL  top-5 %    greedy  nonfin
+count                 38    16   100.00    1.222e-3    6.572e-3    95.00     16/16       0
+story                 39    16   100.00    8.121e-3    4.091e-2    93.75     16/16       0
+code                  87    16   100.00    4.430e-3    2.717e-2    92.50     16/16       0
+science               79    16   100.00    7.858e-3    3.143e-2    96.25     16/16       0
+chat_short            18    16    93.75    4.894e-3    2.840e-2    98.75      0/16       0
+chat_system           32    16   100.00    1.589e-2    1.439e-1    87.50     16/16       0
+chat_multiturn        58    16   100.00    1.978e-2    2.919e-1    97.50     16/16       0
+chat_reasoning        90    16   100.00    1.028e-2    4.738e-2    96.25     16/16       0
+long_prose_300       300    16   100.00    5.893e-4    7.807e-3    87.50     16/16       0
+long_prose_700       700    16   100.00    2.655e-2    3.505e-1    83.75     16/16       0
+OVERALL                    160    99.38    9.962e-3    3.505e-1    92.88     90.0%       0
+decode (teacher-forced) gate [4bit]: top-1 99.38% (not gated for this class) ok | mean KL 9.962e-3 (need <= 3.0e-2) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 25.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 90.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+golden gate: PASS
+
+=== GATE trace35b: start 03:20:10
+=== GATE trace35b: rc=0 end 03:20:16
+finish=length prompt=24 (cached 0) completion=200 | prefill 95 ms (251.5 tok/s) | decode 3101 ms (64.17 tok/s)
+steps=201 top ops: argmax=0ms/200 attn_decode=0ms/2000 attn_prefill=0ms/10 embedding=0ms/201 gate_split=0ms/2010
+hip trace: 201 batches, 169642 launches, kernel GPU time 2536.1 ms, stream wall time 3130.1 ms, idle between launches 593.9 ms (19% of wall)
+kernel                         launches   total ms    avg us % kern
+matmul_fp8_gemv                   26000     765.30      29.4  30.2%
+moe_experts_bf16                   8040     395.31      49.2  15.6%
+matmul_nvfp4_gemv                 24200     377.24      15.6  14.9%
+matmul_bf16_gemv                  28000     204.98       7.3   8.1%
+rmsnorm_add_bf16                  16080     120.39       7.5   4.7%
+gdn_delta_rule_bf16                6030      96.36      16.0   3.8%
+silu_glu_bf16                     14070      94.87       6.7   3.7%
+moe_topk_bf16                      8040      88.25      11.0   3.5%
+gdn_conv_bf16                      6030      61.70      10.2   2.4%
+moe_combine_bf16                   8040      54.08       6.7   2.1%
+rope_bf16                          4020      48.22      12.0   1.9%
+attn_decode_bf16_splitkv           2000      46.88      23.4   1.8%
+rmsnorm_bf16                       6231      44.18       7.1   1.7%
+matmul_fp8_mma                      130      34.92     268.6   1.4%
+qk_norm_bf16                       4020      28.06       7.0   1.1%
+kv_append_bf16                     4020      26.51       6.6   1.0%
+gate_split_bf16                    2010      12.73       6.3   0.5%
+sigmoid_mul_bf16                   2010      12.38       6.2   0.5%
+argmax_f32                          200       9.32      46.6   0.4%
+matmul_nvfp4_mma                    120       7.53      62.8   0.3%
+matmul_bf16                         140       3.77      26.9   0.1%
+embedding_bf16                      201       3.03      15.1   0.1%
+attn_prefill_bf16_flash              10       0.15      14.9   0.0%
+
+=== SERVE + BENCH
+03:20:16
+{"status":"ok","detail":null,"model":"qwen36-35b-intarsia-hip","steps_total":0,"last_step_ms":0,"no_progress_s":0.0,"running":0,"waiting":0,"max_queue":64,"requests_total":0,"uptime_s":11.723119781}
+
+=== GATE bench35b: start 03:20:28
+=== GATE bench35b: rc=0 end 03:20:53
+  size    128 rep: prompt=131 gen=128 ttft=0.13s prefill=1018 tok/s decode=97.2 tok/s
+  size   1024 rep: prompt=998 gen=128 ttft=0.49s prefill=2034 tok/s decode=96.6 tok/s
+  size   1024 rep: prompt=976 gen=128 ttft=0.48s prefill=2043 tok/s decode=96.7 tok/s
+  size   1024 rep: prompt=983 gen=128 ttft=0.48s prefill=2060 tok/s decode=96.6 tok/s
+  size   4096 rep: prompt=4017 gen=128 ttft=1.97s prefill=2043 tok/s decode=94.4 tok/s
+  size   4096 rep: prompt=4032 gen=128 ttft=1.97s prefill=2047 tok/s decode=94.6 tok/s
+  size   4096 rep: prompt=4018 gen=128 ttft=1.97s prefill=2043 tok/s decode=94.5 tok/s
+phase2a-hip-fixpass-qwen36-35b  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.129         1018        97.2      128       34.1
+    1024      983     0.478         2043        96.6      128       33.9
+    4096     4018     1.967         2043        94.5      128       33.2
+bandwidth floor: 285.0 tok/s
+wrote /work/bench-out/phase2a-hip-fixpass-qwen36-35b.json
+total 12
+drwxr-xr-x  2 josef josef 4096 Oct 13 03:20 .
+drwxr-xr-x 13 josef josef 4096 Oct 13 03:20 ..
+-rw-r--r--  1 josef josef 1496 Oct 13 03:20 phase2a-hip-fixpass-qwen36-35b.json
+=== FINAL DONE 03:20:53
+
+====================================================================================================
+## burst 4: mutants M7-M8, kernels test -m 35B --quick, bench rerun
+====================================================================================================
+tree: head=a7da13b code-tree=180d43e643d2 dirty=yes full-head=a7da13b89e5bac0f7d3c1f17c76c1aafd5b91941
+=== kernels 35b quick (failures)
+rc=1
+Error: kernel admission failed
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+attn_prefill   attn_prefill_bf16_flash         0      0     0.000e0     0.000e0  NO CASES (untested)
+30 kernels, 108 cases in 0.1s
+=== kernels 35b quick verbose failing cases
+rc=1
+Error: kernel admission failed
+op             kernel                      cases   fail     max_abs      rel_l2  result
+
+=== MUTANT attention-M7_splitkv_leak_only_beyond_1000 / attention_kernels_match_reference_on_random_shapes
+rc=101
+thread 'attention_kernels_match_reference_on_random_shapes' panicked at crates/intarsia-backend-hip/tests/attention.rs:158:25:
+attn_prefill_bf16_splitkv leaks past the causal edge: N=4 Nkv=4 D=64 T=8 pos0=1999: max_abs 3.294e3 rel_l2 6.251e3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.28s
+
+
+=== MUTANT attention-M7_splitkv_leak_only_beyond_1000 / attention_causal_and_chunk_edges_are_exact
+rc=101
+thread 'attention_causal_and_chunk_edges_are_exact' panicked at crates/intarsia-backend-hip/tests/attention.rs:306:25:
+attn_prefill_bf16_splitkv: N=6 Nkv=2 D=64 T=1 pos0=1022 one-hot key 63: rel_l2 1.000e0 (a dropped, doubled or leaked key)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.28s
+
+
+=== MUTANT attention-M8_flash_leak_only_beyond_1000 / attention_kernels_match_reference_on_random_shapes
+rc=101
+thread 'attention_kernels_match_reference_on_random_shapes' panicked at crates/intarsia-backend-hip/tests/attention.rs:148:21:
+attn_prefill_bf16_flash N=4 Nkv=4 D=64 T=65 pos0=3000 qscale=4: max_abs 3.025e-2 rel_l2 5.233e-3
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.33s
+
+
+=== MUTANT attention-M8_flash_leak_only_beyond_1000 / attention_causal_and_chunk_edges_are_exact
+rc=101
+thread 'attention_causal_and_chunk_edges_are_exact' panicked at crates/intarsia-backend-hip/tests/attention.rs:306:25:
+attn_prefill_bf16_flash: N=6 Nkv=2 D=64 T=17 pos0=1006 one-hot key 1022: rel_l2 1.000e0 (a dropped, doubled or leaked key)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.36s
+
+
+=== SERVE + BENCH run 2
+03:22:38
+rc=0
+  size   4096 rep: prompt=4044 gen=128 ttft=1.97s prefill=2050 tok/s decode=94.2 tok/s
+wrote /work/bench-out/phase2a-hip-fixpass-qwen36-35b-run2.json
+phase2a-hip-fixpass-qwen36-35b-run2  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.128         1031        96.7      128       33.9
+    1024      982     0.476         2037        96.2      128       33.8
+    4096     4044     1.969         2051        94.2      128       33.0
+bandwidth floor: 285.0 tok/s
+=== DONE 03:23:15
+
+====================================================================================================
+## burst 5: A/B bench, 'HEAD' binary was stale (built over a mutated kernel library; ignore its numbers, see section 10.7)
+====================================================================================================
+=== ab-head-1 03:24:30
+rc=0
+ab-head-1  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      132     0.116         1046        96.7      128       33.9
+    1024      971     0.505         1919        96.3      128       33.8
+    4096     4042     2.442         1655        93.7      128       32.9
+bandwidth floor: 285.0 tok/s
+=== ab-new-1 03:25:09
+rc=0
+ab-new-1  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      127     0.118         1077        96.5      128       33.9
+    1024      987     0.479         2052        96.1      128       33.7
+    4096     4124     2.038         2023        94.4      128       33.1
+bandwidth floor: 285.0 tok/s
+=== ab-head-2 03:25:46
+rc=0
+ab-head-2  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      125     0.117         1047        96.6      128       33.9
+    1024      999     0.512         1953        96.2      128       33.8
+    4096     4108     2.518         1631        93.9      128       32.9
+bandwidth floor: 285.0 tok/s
+=== ab-new-2 03:26:26
+rc=0
+ab-new-2  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      123     0.118         1046        96.5      128       33.9
+    1024      972     0.475         2031        96.1      128       33.7
+    4096     4030     1.968         2048        94.0      128       33.0
+bandwidth floor: 285.0 tok/s
+=== DONE 03:26:51
+
+====================================================================================================
+## burst 6: A/B variants (HEAD + one fixed file)
+====================================================================================================
+=== ab-headmatmul 03:28:24
+rc=0
+ab-headmatmul  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.118         1083        96.7      128       33.9
+    1024     1018     0.485         2100        96.2      128       33.7
+    4096     4082     1.974         2068        94.5      128       33.1
+bandwidth floor: 285.0 tok/s
+=== ab-headmoe 03:29:01
+rc=0
+ab-headmoe  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      131     0.117         1049        96.5      128       33.8
+    1024      972     0.478         2016        96.1      128       33.7
+    4096     4051     1.968         2053        94.1      128       33.0
+bandwidth floor: 285.0 tok/s
+=== ab-head-3 03:29:38
+rc=0
+ab-head-3  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      131     0.117         1044        96.6      128       33.9
+    1024      997     0.512         1946        96.2      128       33.8
+    4096     4098     2.479         1654        93.9      128       33.0
+bandwidth floor: 285.0 tok/s
+=== DONE 03:30:06
+
+====================================================================================================
+## burst 7: A/B clean HEAD vs fixes
+====================================================================================================
+=== ab2-head-1 03:31:06
+rc=0
+ab2-head-1  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.117         1078        96.7      128       33.9
+    1024     1001     0.481         2066        96.2      128       33.8
+    4096     4083     1.979         2063        94.5      128       33.1
+bandwidth floor: 285.0 tok/s
+=== ab2-new-1 03:31:43
+rc=0
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      126     0.117         1074        96.5      128       33.8
+    1024      983     0.481         2048        96.1      128       33.7
+    4096     4090     1.976         2068        94.4      128       33.1
+bandwidth floor: 285.0 tok/s
+wrote /work/bench-out/ab2-new-1.json
+=== ab2-head-2 03:32:20
+rc=0
+ab2-head-2  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      133     0.129         1030        96.4      128       33.8
+    1024     1012     0.484         2078        96.0      128       33.7
+    4096     4086     1.974         2062        94.2      128       33.1
+bandwidth floor: 285.0 tok/s
+=== ab2-new-2 03:32:57
+rc=0
+ab2-new-2  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      129     0.118         1082        96.5      128       33.8
+    1024      978     0.481         2045        96.1      128       33.7
+    4096     4061     1.965         2067        94.2      128       33.0
+bandwidth floor: 285.0 tok/s
+=== DONE 03:33:22
+

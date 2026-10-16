@@ -1,0 +1,31 @@
+First working version of the kernel (no loop unrolling pragma), chunk 256, 32/8 heads, head_dim 128, 36 layers, GPU timestamps
+of the command buffer / 36, transcribed from the console of the two runs (fleetq #1874, #1876; the console output was not
+written to a file). Variant names are the exploration names (half operands, attn_flash<ET, D, BK, NSG, TQ>).
+
+fleetq #1874 (GPU idle before: 63, 0, 2 percent)
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 old                              688.2     682.3     693.4     0.78
+      0 attn_flash_h128_bk32_s8_q2       614.3     612.3     617.5     0.88
+      0 attn_flash_h128_bk32_s4_q2       571.6     570.8     571.7     0.94
+      0 attn_flash_h128_bk32_s8_q1       485.4     483.6     487.4     1.11
+      0 attn_flash_h128_bk16_s8_q2       716.1     714.1     718.0     0.75
+      0 attn_flash_b128_bk32_s8_q2       629.2     628.3     631.3     0.86
+   3840 old                            27212.0   26802.0   27419.2     0.61
+   3840 attn_flash_h128_bk32_s8_q2     12548.1   12519.4   12645.1     1.33
+   3840 attn_flash_h128_bk32_s4_q2     13200.9   13120.0   13509.3     1.26
+   3840 attn_flash_h128_bk32_s8_q1     11899.5   11709.1   12265.5     1.40
+   3840 attn_flash_h128_bk16_s8_q2     14715.6   14666.2   14760.8     1.13
+   3840 attn_flash_b128_bk32_s8_q2     12518.2   12491.6   12574.0     1.33
+
+Ablation of attn_flash_h128_bk32_s8_q2 at pos0 3840 (fleetq #1876; GPU idle before 5, 5, 5 percent). The kernel computes
+garbage in the ablated modes; only the time is of interest. dbg1: no global loads / threadgroup stores of K and V;
+dbg2: no S = Q.K^T products; dbg4: no O += P.V products; dbg6: neither; dbg7: neither and no loads.
+   3840 attn_flash_h128_bk32_s8_q2     12443.2   12410.6   12464.9     1.34
+   3840 attn_flash_dbg1                12386.7   12381.8   12403.6     1.34
+   3840 attn_flash_dbg2                11471.0   11446.6   11489.6     1.45
+   3840 attn_flash_dbg4                 7361.1    7348.8    7376.4     2.26
+   3840 attn_flash_dbg6                 3277.7    3272.0    3288.9     5.08
+   3840 attn_flash_dbg7                 3285.1    3279.4    3302.7     5.07
+(Removing 128 of 256 products per tile changed the time by 1 ms (S) or 5 ms (PV), the loads by nothing: the kernel was
+bound by something else; unrolling the fragment loops with `#pragma clang loop unroll(full)` took it from 1.3 to 8.9
+TFLOPS, see the result doc.)

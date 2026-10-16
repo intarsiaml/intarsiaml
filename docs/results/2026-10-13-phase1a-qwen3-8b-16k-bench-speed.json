@@ -1,0 +1,43 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "phase1a-qwen3-8b-16k",
+  "timestamp_unix": 1791867230,
+  "url": "http://127.0.0.1:8090",
+  "model": "qwen3-8b-intarsia",
+  "config": {
+    "sizes": [
+      16384
+    ],
+    "gen": 128,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 16.38,
+    "bandwidth_gbs": 221.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 48.0,
+    "tokens_per_filler_sentence": 21.07
+  },
+  "fingerprint": {},
+  "rows": [
+    {
+      "target_prompt_tokens": 16384,
+      "prompt_tokens": 16565.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 7.9649,
+      "prefill_tok_s": 2079.9,
+      "decode_tok_s": 12.89,
+      "bandwidth_floor_tok_s": 13.49,
+      "pct_of_floor": 95.5,
+      "reps_ok": 3,
+      "errors": 0
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

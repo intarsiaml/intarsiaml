@@ -1,0 +1,19 @@
+  [  1] c007s0 branch cached 0 gen 49 chunk 256 ok length
+  [  2] c000s0 ext    cached 0 gen 80 chunk 256 ok length
+  [  3] c002s0 ext    cached 0 gen 84 chunk 256 ok length
+  [  4] c003s0 ext2   cached 0 gen 84 chunk 256 ok length
+  [  5] c001s0 branch cached 0 gen 96 chunk 256 ok length
+  [  6] c006s0 ext2   cached 0 gen 85 chunk 256 ok length
+  [  7] c005s0 ext    cached 0 gen 101 chunk 256 ok length
+  [  8] c004s0 ext    cached 0 gen 111 chunk 256 ok length
+  [  9] c007s1 branch cached 297 gen 56 chunk 256 ok length
+  [ 10] c002s1 ext    cached 1163 gen 41 chunk 256 ok length
+  [ 11] c006s1 ext2   cached 1159 gen 49 chunk 256 ok length
+  [ 12] c003s1 ext2   cached 1265 gen 63 chunk 256 ok length
+  [ 13] c004s1 ext    cached 211 gen 38 chunk 256 ok length
+  [ 14] c000s1 ext    cached 357 gen 91 chunk 256 ok length
+  [ 15] c001s1 branch cached 1067 gen 83 chunk 256 ok length
+  [ 16] c003s2 ext2   cached 1446 gen 30 chunk 256 ok length
+  [ 17] c005s1 ext    cached 232 gen 86 chunk 256 ok length
+  [ 18] c006s2 ext2   cached 1267 gen 91 chunk 256 ok length
+wrote /opt/code/intarsiaml-cb-gates/docs/results/raw/2026-10-16-metal-cb-gates-reuse-spec/out/pilot/A/conc-c256-b8.jsonl: 18 requests, 0 errors, wall 28.1s, peak in-flight 8

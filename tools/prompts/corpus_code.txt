@@ -1,0 +1,1770 @@
+//! Engine API consumed by the server, CLI, accuracy and bench tools, plus the
+//! Phase 0 implementation: one worker thread, FIFO queue, a single sequence.
+//!
+//! `Engine` is object safe: hold it as `Arc<dyn Engine>`.
+
+use crate::error::{Error, Result};
+use crate::model::{HeadMode, Model, StepOut};
+use crate::sampler::{Sampler, SamplingParams};
+use crate::state::SequenceState;
+use crate::telemetry::{Telemetry, TelemetrySnapshot};
+use serde::Serialize;
+use serde_json::Value;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+// ---------------------------------------------------------------------------
+// public data types
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+pub struct GenRequest {
+    /// Prompt token ids (already tokenized / templated by the caller).
+    pub prompt: Vec<u32>,
+    pub max_tokens: usize,
+    /// EOS (and `stop_ids`) are suppressed until this many tokens exist.
+    pub min_tokens: usize,
+    /// Keep generating past the model's EOS tokens (forced-length benchmarks).
+    pub ignore_eos: bool,
+    /// <= 0 means greedy.
+    pub temperature: f32,
+    pub top_p: f32,
+    /// 0 = disabled.
+    pub top_k: usize,
+    pub seed: Option<u64>,
+    /// Extra stop token ids (not emitted).
+    pub stop_ids: Vec<u32>,
+    /// Stop strings; generation ends before the first match, which is not emitted.
+    pub stop: Vec<String>,
+    /// Set by the caller to cancel the request: checked while queued, between
+    /// prefill chunks and between decode steps.
+    pub cancel: Option<Arc<AtomicBool>>,
+}
+
+impl Default for GenRequest {
+    fn default() -> Self {
+        GenRequest {
+            prompt: Vec::new(),
+            max_tokens: 256,
+            min_tokens: 0,
+            ignore_eos: false,
+            temperature: 0.0,
+            top_p: 1.0,
+            top_k: 0,
+            seed: None,
+            stop_ids: Vec::new(),
+            stop: Vec::new(),
+            cancel: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FinishReason {
+    /// EOS, a stop id or a stop string.
+    Stop,
+    /// `max_tokens` (or the context window) reached.
+    Length,
+    /// The consumer dropped the receiver.
+    Cancelled,
+}
+
+impl FinishReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FinishReason::Stop => "stop",
+            FinishReason::Length => "length",
+            FinishReason::Cancelled => "cancelled",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum GenEvent {
+    /// One generated token. `text` is the newly released text, which can be
+    /// empty (partial UTF-8 sequence or held back as a possible stop-string
+    /// prefix). When text is still held at the end, one extra `Token` that
+    /// repeats the last id carries the remainder. The EOS token is counted in
+    /// `completion_tokens` but not emitted.
+    Token { id: u32, text: String },
+    Done {
+        finish_reason: FinishReason,
+        prompt_tokens: usize,
+        completion_tokens: usize,
+        /// Prompt tokens served from the reused KV prefix.
+        cached_tokens: usize,
+        /// The stop string that ended the generation (`finish_reason` is `Stop`), if one did.
+        stop_sequence: Option<String>,
+        /// Time to first token (prompt processing + first sample).
+        prefill_ms: f64,
+        /// Time spent producing tokens after the first.
+        decode_ms: f64,
+    },
+    /// The request failed (bad request, backend error); no `Done` follows.
+    Error { message: String },
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ChatOpts {
+    pub add_generation_prompt: bool,
+    /// Qwen3-style `enable_thinking` template variable.
+    pub enable_thinking: Option<bool>,
+    /// OpenAI-style tools array, passed to the template as `tools`.
+    pub tools: Option<Value>,
+    /// Further template variables.
+    pub extra: serde_json::Map<String, Value>,
+}
+
+/// Tokenizer + chat template. Implemented by `intarsia-models`.
+pub trait TextCodec: Send + Sync {
+    fn encode(&self, text: &str, add_special_tokens: bool) -> Result<Vec<u32>>;
+    fn decode(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String>;
+    /// `messages` are OpenAI-style JSON objects (`role`, `content`, optional `tool_calls`, ...).
+    fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String>;
+    fn has_chat_template(&self) -> bool;
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ModelInfo {
+    pub id: String,
+    pub family: String,
+    pub backend: String,
+    pub device: String,
+    pub arch: String,
+    pub n_layers: usize,
+    pub hidden: usize,
+    pub vocab: usize,
+    pub n_heads: usize,
+    pub n_kv_heads: usize,
+    pub head_dim: usize,
+    pub max_position_embeddings: usize,
+    /// Planned context capacity in tokens (from measured free memory).
+    pub context_len: usize,
+    pub act_dtype: String,
+    pub kv_dtype: String,
+    pub weights_bytes: u64,
+    pub eos_ids: Vec<u32>,
+    pub has_chat_template: bool,
+    pub reasoning_parser: Option<String>,
+    pub tool_parser: Option<String>,
+    pub memory_plan: crate::memplan::MemoryPlan,
+}
+
+pub trait Engine: Send + Sync {
+    fn info(&self) -> ModelInfo;
+
+    fn tokenize(&self, text: &str, add_special_tokens: bool) -> Result<Vec<u32>>;
+    fn detokenize(&self, ids: &[u32]) -> Result<String>;
+    fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String>;
+
+    /// Queue a generation. Events arrive on the returned channel, ending with
+    /// `Done` or `Error`. Dropping the receiver cancels the request (client disconnect).
+    fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>>;
+
+    /// Blocking convenience over [`Engine::submit`].
+    fn generate(&self, req: GenRequest, sink: &mut dyn FnMut(GenEvent)) -> Result<()> {
+        let rx = self.submit(req)?;
+        for ev in rx.iter() {
+            let end = matches!(ev, GenEvent::Done { .. } | GenEvent::Error { .. });
+            sink(ev);
+            if end {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// Full-vocabulary logits for every position of `ids` (accuracy tooling).
+    /// Memory is `len * vocab * 4` bytes; prefer [`Engine::forward_logits_each`] for long inputs.
+    fn forward_logits(&self, ids: &[u32]) -> Result<Vec<Vec<f32>>> {
+        let mut out = Vec::with_capacity(ids.len());
+        self.forward_logits_each(ids, &mut |_, row| {
+            out.push(row.to_vec());
+            Ok(())
+        })?;
+        Ok(out)
+    }
+
+    /// Streaming variant: `(position, logits row)` in order; the row is only valid during the call.
+    fn forward_logits_each(&self, ids: &[u32], cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>) -> Result<()>;
+
+    /// Teacher-forced decode (accuracy tooling): prefill `ids[..n - n_decode]`, then feed the
+    /// remaining ids one at a time through the single-token decode path (`T = 1`: the decode
+    /// attention and GEMV kernels that serving uses) and report the logits row of each. `cb` gets
+    /// `(absolute position, logits row)` for the last `n_decode` positions only.
+    fn forward_logits_decode(
+        &self,
+        _ids: &[u32],
+        _n_decode: usize,
+        _cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>,
+    ) -> Result<()> {
+        Err(Error::Unsupported("this engine has no teacher-forced decode path".into()))
+    }
+
+    fn telemetry(&self) -> TelemetrySnapshot;
+
+    /// `Some(reason)` once the engine can no longer serve requests (the worker
+    /// panicked); `/health` then answers 503 and the supervisor restarts the process.
+    fn failed(&self) -> Option<String> {
+        None
+    }
+
+    /// The execution plan (served at `GET /v1/intarsia/plan`); `Null` when the engine has none.
+    fn plan(&self) -> Value {
+        Value::Null
+    }
+}
+
+// ---------------------------------------------------------------------------
+// incremental detokenisation + stop strings
+// ---------------------------------------------------------------------------
+
+/// Turns a growing token list into text deltas without emitting half UTF-8
+/// characters (byte-level BPE can split one character across tokens).
+pub struct IncrementalDecoder {
+    ids: Vec<u32>,
+    prefix: usize,
+    read: usize,
+}
+
+impl Default for IncrementalDecoder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl IncrementalDecoder {
+    pub fn new() -> Self {
+        IncrementalDecoder { ids: Vec::new(), prefix: 0, read: 0 }
+    }
+
+    pub fn push(&mut self, codec: &dyn TextCodec, id: u32) -> Result<String> {
+        self.ids.push(id);
+        let prefix_text = codec.decode(&self.ids[self.prefix..self.read], true)?;
+        let new_text = codec.decode(&self.ids[self.prefix..], true)?;
+        if new_text.len() > prefix_text.len() && !new_text.ends_with('\u{FFFD}') {
+            if let Some(delta) = new_text.get(prefix_text.len()..) {
+                let delta = delta.to_string();
+                self.prefix = self.read;
+                self.read = self.ids.len();
+                return Ok(delta);
+            }
+        }
+        Ok(String::new())
+    }
+
+    /// Remaining text (lossy) at the end of the stream.
+    pub fn flush(&mut self, codec: &dyn TextCodec) -> Result<String> {
+        let prefix_text = codec.decode(&self.ids[self.prefix..self.read], true)?;
+        let new_text = codec.decode(&self.ids[self.prefix..], true)?;
+        self.prefix = self.ids.len();
+        self.read = self.ids.len();
+        Ok(new_text.get(prefix_text.len()..).unwrap_or("").to_string())
+    }
+}
+
+/// Holds back text that could still become a stop string.
+pub struct StopMatcher {
+    stops: Vec<String>,
+    pending: String,
+    matched: Option<String>,
+}
+
+impl StopMatcher {
+    pub fn new(stops: &[String]) -> Self {
+        StopMatcher { stops: stops.iter().filter(|s| !s.is_empty()).cloned().collect(), pending: String::new(), matched: None }
+    }
+
+    /// The stop string that triggered the last `push` (if it stopped).
+    pub fn matched(&self) -> Option<&str> {
+        self.matched.as_deref()
+    }
+
+    /// Returns (text safe to release, stopped).
+    pub fn push(&mut self, text: &str) -> (String, bool) {
+        if self.stops.is_empty() {
+            return (text.to_string(), false);
+        }
+        self.pending.push_str(text);
+        let hit = self.stops.iter().filter_map(|s| self.pending.find(s.as_str()).map(|i| (i, s))).min_by_key(|h| h.0);
+        if let Some((i, s)) = hit {
+            self.matched = Some(s.clone());
+            let out = self.pending[..i].to_string();
+            self.pending.clear();
+            return (out, true);
+        }
+        let mut keep = 0usize;
+        for s in &self.stops {
+            for k in (1..s.len()).rev() {
+                if k <= keep {
+                    break;
+                }
+                if s.is_char_boundary(k) && self.pending.ends_with(&s[..k]) {
+                    keep = k;
+                    break;
+                }
+            }
+        }
+        let rel = self.pending.len() - keep;
+        let out: String = self.pending.drain(..rel).collect();
+        (out, false)
+    }
+
+    pub fn flush(&mut self) -> String {
+        std::mem::take(&mut self.pending)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// LocalEngine
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Default)]
+pub struct EngineMeta {
+    pub id: String,
+    pub eos_ids: Vec<u32>,
+    pub reasoning_parser: Option<String>,
+    pub tool_parser: Option<String>,
+}
+
+struct Inner {
+    model: Model,
+    state: SequenceState,
+}
+
+struct Shared {
+    inner: Mutex<Inner>,
+    telemetry: Arc<Telemetry>,
+    codec: Arc<dyn TextCodec>,
+    eos: Vec<u32>,
+    /// Set when the worker panicked: the engine accepts no more work.
+    failed: Mutex<Option<String>>,
+}
+
+impl Shared {
+    fn failure(&self) -> Option<String> {
+        self.failed.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+}
+
+/// Debug aid: `INTARSIA_DEBUG_STALL_S=n` makes the worker sleep n seconds at the start of every
+/// job (a wedged-GPU stand-in for testing the watchdog and supervisor);
+/// `INTARSIA_DEBUG_PANIC=1` makes it panic instead.
+fn debug_hooks() {
+    if let Some(s) = std::env::var("INTARSIA_DEBUG_STALL_S").ok().and_then(|v| v.parse::<f64>().ok()) {
+        std::thread::sleep(Duration::from_secs_f64(s.max(0.0)));
+    }
+    if std::env::var("INTARSIA_DEBUG_PANIC").map(|v| v == "1").unwrap_or(false) {
+        panic!("INTARSIA_DEBUG_PANIC set");
+    }
+}
+
+fn panic_message(p: &(dyn std::any::Any + Send)) -> String {
+    p.downcast_ref::<&str>()
+        .map(|s| s.to_string())
+        .or_else(|| p.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "unknown panic".into())
+}
+
+struct Job {
+    req: GenRequest,
+    tx: Sender<GenEvent>,
+}
+
+/// Single-sequence engine: a worker thread draining a FIFO queue.
+pub struct LocalEngine {
+    shared: Arc<Shared>,
+    tx: Mutex<Option<Sender<Job>>>,
+    info: ModelInfo,
+    plan: Value,
+    worker: Mutex<Option<std::thread::JoinHandle<()>>>,
+}
+
+impl LocalEngine {
+    pub fn new(
+        model: Model,
+        codec: Arc<dyn TextCodec>,
+        meta: EngineMeta,
+        telemetry: Arc<Telemetry>,
+    ) -> Result<LocalEngine> {
+        let state = model.new_state()?;
+        let dinfo = model.backend.info();
+        let info = ModelInfo {
+            id: meta.id.clone(),
+            family: model.recipe.model.family.clone(),
+            backend: dinfo.backend.clone(),
+            device: dinfo.name.clone(),
+            arch: dinfo.arch.clone(),
+            n_layers: model.dims.n_layers,
+            hidden: model.dims.hidden,
+            vocab: model.dims.vocab,
+            n_heads: model.dims.n_heads,
+            n_kv_heads: model.dims.n_kv_heads,
+            head_dim: model.dims.head_dim,
+            max_position_embeddings: model.dims.max_positions,
+            context_len: state.cap,
+            act_dtype: model.act.name().into(),
+            kv_dtype: model.kv.name().into(),
+            weights_bytes: model.weights_bytes,
+            eos_ids: meta.eos_ids.clone(),
+            has_chat_template: codec.has_chat_template(),
+            reasoning_parser: meta.reasoning_parser.clone(),
+            tool_parser: meta.tool_parser.clone(),
+            memory_plan: model.plan.clone(),
+        };
+        let plan = crate::plan::plan_json(&model, &meta.id);
+        telemetry.set_model(&meta.id, dinfo, model.weights_bytes);
+        let backend = model.backend.clone();
+        telemetry.set_device_probe(Box::new(move || backend.info()));
+        telemetry.set_kv(0, state.total_bytes() as u64, 0, state.cap as u64);
+
+        let shared = Arc::new(Shared {
+            inner: Mutex::new(Inner { model, state }),
+            telemetry,
+            codec,
+            eos: meta.eos_ids,
+            failed: Mutex::new(None),
+        });
+        let (tx, rx) = channel::<Job>();
+        let sh = shared.clone();
+        let worker = std::thread::Builder::new()
+            .name("intarsia-engine".into())
+            .spawn(move || {
+                for job in rx.iter() {
+                    if let Some(why) = sh.failure() {
+                        sh.telemetry.request_rejected();
+                        let _ = job.tx.send(GenEvent::Error { message: format!("engine failed: {why}") });
+                        continue;
+                    }
+                    let (tx, plen) = (job.tx.clone(), job.req.prompt.len());
+                    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_job(&sh, job)));
+                    if let Err(p) = r {
+                        // A panic can leave the device or the KV state inconsistent: fail the
+                        // engine for good (the supervisor restarts the process).
+                        let why = format!("worker panicked: {}", panic_message(&*p));
+                        *sh.failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(why.clone());
+                        sh.telemetry.request_finished("error", plen, 0, 0, Duration::ZERO, Duration::ZERO, Duration::ZERO);
+                        let _ = tx.send(GenEvent::Error { message: why });
+                    }
+                }
+            })
+            .map_err(|e| Error::Other(format!("spawn engine worker: {e}")))?;
+        Ok(LocalEngine { shared, tx: Mutex::new(Some(tx)), info, plan, worker: Mutex::new(Some(worker)) })
+    }
+}
+
+impl Drop for LocalEngine {
+    fn drop(&mut self) {
+        // closing the channel ends the worker loop
+        self.tx.lock().unwrap().take();
+        if let Some(h) = self.worker.lock().unwrap().take() {
+            let _ = h.join();
+        }
+    }
+}
+
+impl Engine for LocalEngine {
+    fn info(&self) -> ModelInfo {
+        self.info.clone()
+    }
+
+    fn tokenize(&self, text: &str, add_special_tokens: bool) -> Result<Vec<u32>> {
+        self.shared.codec.encode(text, add_special_tokens)
+    }
+
+    fn detokenize(&self, ids: &[u32]) -> Result<String> {
+        self.shared.codec.decode(ids, false)
+    }
+
+    fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String> {
+        self.shared.codec.apply_chat_template(messages, opts)
+    }
+
+    fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
+        if let Some(why) = self.shared.failure() {
+            return Err(Error::Other(format!("engine failed: {why}")));
+        }
+        let (etx, erx) = channel();
+        self.shared.telemetry.request_enqueued();
+        let guard = self.tx.lock().unwrap();
+        let sent = match guard.as_ref() {
+            Some(tx) => tx.send(Job { req, tx: etx }).map_err(|_| Error::Other("engine worker has stopped".into())),
+            None => Err(Error::Other("engine is shut down".into())),
+        };
+        if let Err(e) = sent {
+            self.shared.telemetry.request_rejected();
+            return Err(e);
+        }
+        Ok(erx)
+    }
+
+    fn failed(&self) -> Option<String> {
+        self.shared.failure()
+    }
+
+    fn forward_logits_each(&self, ids: &[u32], cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>) -> Result<()> {
+        if let Some(why) = self.shared.failure() {
+            return Err(Error::Other(format!("engine failed: {why}")));
+        }
+        let mut g = self.shared.inner.lock().unwrap();
+        let Inner { model, state } = &mut *g;
+        state.reset(&*model.backend)?;
+        model.forward(state, ids, HeadMode::AllLogits, Some(cb))?;
+        self.shared.telemetry.set_kv(
+            state.used_bytes() as u64,
+            state.total_bytes() as u64,
+            state.len as u64,
+            state.cap as u64,
+        );
+        Ok(())
+    }
+
+    fn forward_logits_decode(
+        &self,
+        ids: &[u32],
+        n_decode: usize,
+        cb: &mut dyn FnMut(usize, &[f32]) -> Result<()>,
+    ) -> Result<()> {
+        if n_decode == 0 || n_decode >= ids.len() {
+            return Err(Error::invalid(format!("n_decode {n_decode} must be in 1..{}", ids.len())));
+        }
+        let mut g = self.shared.inner.lock().unwrap();
+        let Inner { model, state } = &mut *g;
+        state.reset(&*model.backend)?;
+        let split = ids.len() - n_decode;
+        model.forward(state, &ids[..split], HeadMode::None, None)?;
+        for (j, id) in ids[split..].iter().enumerate() {
+            match model.forward(state, std::slice::from_ref(id), HeadMode::LastLogits, None)? {
+                StepOut::Logits(row) => cb(split + j, &row)?,
+                _ => return Err(Error::Other("backend returned no logits".into())),
+            }
+        }
+        Ok(())
+    }
+
+    fn plan(&self) -> Value {
+        self.plan.clone()
+    }
+
+    fn telemetry(&self) -> TelemetrySnapshot {
+        self.shared.telemetry.snapshot()
+    }
+}
+
+struct Outcome {
+    reason: FinishReason,
+    stop_sequence: Option<String>,
+    prompt_tokens: usize,
+    completion_tokens: usize,
+    cached_tokens: usize,
+    prefill: Duration,
+    decode: Duration,
+}
+
+fn run_job(sh: &Shared, job: Job) {
+    sh.telemetry.request_started();
+    let t_total = Instant::now();
+    debug_hooks();
+    let mut g = sh.inner.lock().unwrap();
+    let res = generate_one(sh, &mut g, &job.req, &job.tx);
+    let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
+    drop(g);
+    sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
+    match res {
+        Ok(o) => {
+            sh.telemetry.request_finished(
+                o.reason.as_str(),
+                o.prompt_tokens,
+                o.completion_tokens,
+                o.cached_tokens,
+                o.prefill,
+                o.decode,
+                o.prefill,
+            );
+            let _ = job.tx.send(GenEvent::Done {
+                finish_reason: o.reason,
+                prompt_tokens: o.prompt_tokens,
+                completion_tokens: o.completion_tokens,
+                cached_tokens: o.cached_tokens,
+                stop_sequence: o.stop_sequence,
+                prefill_ms: o.prefill.as_secs_f64() * 1e3,
+                decode_ms: o.decode.as_secs_f64() * 1e3,
+            });
+        }
+        Err(e) => {
+            sh.telemetry.request_finished(
+                "error",
+                job.req.prompt.len(),
+                0,
+                0,
+                t_total.elapsed(),
+                Duration::ZERO,
+                t_total.elapsed(),
+            );
+            let _ = job.tx.send(GenEvent::Error { message: e.to_string() });
+        }
+    }
+}
+
+fn common_prefix(a: &[u32], b: &[u32]) -> usize {
+    a.iter().zip(b).take_while(|(x, y)| x == y).count()
+}
+
+fn generate_one(sh: &Shared, g: &mut Inner, req: &GenRequest, tx: &Sender<GenEvent>) -> Result<Outcome> {
+    let Inner { model, state: st } = g;
+    let plen = req.prompt.len();
+    if plen == 0 {
+        return Err(Error::BadRequest("empty prompt".into()));
+    }
+    if plen >= st.cap {
+        return Err(Error::BadRequest(format!(
+            "prompt of {plen} tokens does not fit the context window of {} tokens",
+            st.cap
+        )));
+    }
+    let max_new = req.max_tokens.min(st.cap - plen);
+
+    // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
+    let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
+    if st.has_recurrent() {
+        // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
+        // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
+        p = st.restorable_len(p);
+    }
+    st.truncate(p, &*model.backend)?;
+    let cached = p;
+
+    let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
+    let greedy = req.temperature <= 0.0;
+    let mut sampler = Sampler::new(params, req.seed);
+    let mut stop_ids: Vec<u32> = req.stop_ids.clone();
+    if !req.ignore_eos {
+        stop_ids.extend_from_slice(&sh.eos);
+    }
+
+    // choose how to get the next token: argmax on device when nothing needs the logits
+    let pick = |model: &Model, st: &mut SequenceState, ids: &[u32], k: usize, sampler: &mut Sampler| -> Result<u32> {
+        // The logits only travel to the host when something uses them: sampling, or the min_tokens
+        // mask on stop ids. With `ignore_eos` (no stop ids) a forced-length greedy run keeps the
+        // on-device argmax, so forced-length speed benchmarks measure the real decode path.
+        let masks_stop_ids = k <= req.min_tokens && !stop_ids.is_empty();
+        let need_logits = !greedy || masks_stop_ids;
+        if !need_logits {
+            return match model.forward(st, ids, HeadMode::LastArgmax, None)? {
+                StepOut::Token(t) => Ok(t),
+                _ => Err(Error::Other("backend returned no token".into())),
+            };
+        }
+        match model.forward(st, ids, HeadMode::LastLogits, None)? {
+            StepOut::Logits(mut l) => {
+                if k <= req.min_tokens {
+                    for &s in &stop_ids {
+                        if let Some(x) = l.get_mut(s as usize) {
+                            *x = f32::NEG_INFINITY;
+                        }
+                    }
+                }
+                Ok(sampler.sample(&l) as u32)
+            }
+            _ => Err(Error::Other("backend returned no logits".into())),
+        }
+    };
+
+    let cancelled = || req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed));
+    let t0 = Instant::now();
+    let cancel_outcome = |p: usize| Outcome {
+        reason: FinishReason::Cancelled,
+        stop_sequence: None,
+        prompt_tokens: plen,
+        completion_tokens: 0,
+        cached_tokens: p,
+        prefill: t0.elapsed(),
+        decode: Duration::ZERO,
+    };
+    if max_new == 0 {
+        return Ok(Outcome {
+            reason: FinishReason::Length,
+            stop_sequence: None,
+            prompt_tokens: plen,
+            completion_tokens: 0,
+            cached_tokens: cached,
+            prefill: Duration::ZERO,
+            decode: Duration::ZERO,
+        });
+    }
+    // Prefill all but the last chunk here so a cancel is noticed between chunks.
+    let chunk = model.prefill_chunk().max(1);
+    let mut pos = p;
+    while plen - pos > chunk {
+        if cancelled() {
+            return Ok(cancel_outcome(cached));
+        }
+        match model.forward(st, &req.prompt[pos..pos + chunk], HeadMode::None, None)? {
+            StepOut::None => {}
+            _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
+        }
+        pos += chunk;
+        st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+    }
+    if cancelled() {
+        return Ok(cancel_outcome(cached));
+    }
+    if st.has_recurrent() && plen - pos > 1 {
+        // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
+        // but its last token, as with an attention-only cache
+        model.forward(st, &req.prompt[pos..plen - 1], HeadMode::None, None)?;
+        pos = plen - 1;
+        st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+    }
+    let mut tok = pick(model, st, &req.prompt[pos..], 1, &mut sampler)?;
+    let prefill = t0.elapsed();
+    let t_dec = Instant::now();
+
+    let codec = &*sh.codec;
+    let mut dec = IncrementalDecoder::new();
+    // Like vLLM, stop strings are not checked until `min_tokens` tokens exist.
+    let mut stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
+    let mut generated = 0usize;
+    let mut reason;
+    let mut string_stop = false;
+    let mut last_id = tok;
+    loop {
+        generated += 1;
+        if stop_ids.contains(&tok) {
+            reason = FinishReason::Stop;
+            break;
+        }
+        last_id = tok;
+        let delta = dec.push(codec, tok)?;
+        if req.min_tokens > 0 && generated == req.min_tokens + 1 {
+            stops = StopMatcher::new(&req.stop);
+        }
+        let (text, stopped) = stops.push(&delta);
+        if tx.send(GenEvent::Token { id: tok, text }).is_err() {
+            reason = FinishReason::Cancelled;
+            break;
+        }
+        if stopped {
+            string_stop = true;
+            reason = FinishReason::Stop;
+            break;
+        }
+        if generated >= max_new {
+            reason = FinishReason::Length;
+            break;
+        }
+        if cancelled() {
+            reason = FinishReason::Cancelled;
+            break;
+        }
+        tok = pick(model, st, &[tok], generated + 1, &mut sampler)?;
+    }
+    if reason != FinishReason::Cancelled && !string_stop {
+        // release anything still held back: partial UTF-8 and possible stop-string prefixes
+        let mut tail = String::new();
+        if let Ok(t) = dec.flush(codec) {
+            let (rel, hit) = stops.push(&t);
+            tail.push_str(&rel);
+            if hit {
+                string_stop = true;
+                reason = FinishReason::Stop;
+            }
+        }
+        if !string_stop {
+            tail.push_str(&stops.flush());
+        }
+        if !tail.is_empty() {
+            let _ = tx.send(GenEvent::Token { id: last_id, text: tail });
+        }
+    }
+    Ok(Outcome {
+        reason,
+        stop_sequence: if string_stop { stops.matched().map(String::from) } else { None },
+        prompt_tokens: plen,
+        completion_tokens: generated,
+        cached_tokens: cached,
+        prefill,
+        decode: t_dec.elapsed(),
+    })
+}
+//! The generic decoder (ARCHITECTURE 3.5 / 3.6): walks the recipe's layer
+//! pattern and calls ops through the backend. Nothing here is model-family
+//! specific: shapes, tensor names, norms, qk-norm, tied head and rope theta all
+//! come from the recipe + `config.json`.
+//!
+//! Dataflow per block (pre-norm, residual stream `h`):
+//! ```text
+//!   n = norm(h)                      first block: RmsNorm
+//!   n, h = rmsnorm_add(prev_out, h)  later blocks: fused residual add + norm
+//!   prev_out = block(n)
+//! ```
+//! and one final `rmsnorm_add` with the model's final norm before the head.
+
+use crate::backend::{Backend, Buffer, MemKind, TensorRef};
+use crate::dtype::DType;
+use crate::error::{Error, Result};
+use crate::memplan::MemoryPlan;
+use crate::ops::{Op, OpAttrs, OpCall, ShapeInfo};
+use crate::quant::moe::{MoeScratch, MoeWeights, OpRunner};
+use crate::quant::{Fp8Act, QTensor, QuantLoadOpts};
+use crate::recipe::{LinearDims, ModelDims, Recipe};
+use crate::registry::Registry;
+use crate::state::{SequenceState, SlotSpec, StateSlot};
+use crate::telemetry::Telemetry;
+use crate::weights::{load_tensor, WeightSource};
+use std::cell::Cell;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
+
+mod gdn_block;
+use gdn_block::{ExtraWs, GdnBlock};
+
+/// Rows of logits computed/downloaded at a time when all positions are requested.
+const LOGIT_ROWS: usize = 16;
+
+#[derive(Clone, Debug)]
+pub struct LoadOptions {
+    /// Upper bound on context length (tokens); clamped by measured free memory.
+    pub max_seq: usize,
+    /// Fraction of measured free memory the KV cache may use.
+    pub kv_fraction: f32,
+    /// Tokens per forward pass (prefill chunk / activation workspace rows).
+    pub prefill_chunk: usize,
+    pub act_dtype: Option<DType>,
+    pub kv_dtype: Option<DType>,
+    /// Time every Nth step per op (synchronises the device); 1 = every step; 0 = never.
+    pub profile_every: u32,
+    /// Bytes this process may use in total (weights + workspace + KV); the KV cache is
+    /// clamped to what is left, so a fleet lease sizes the KV, not the box's free memory.
+    pub mem_budget: Option<u64>,
+    /// FP8 projections: activations quantised with the checkpoint's static scale (`static`, W8A8) or kept
+    /// 16-bit (`none`, W8A16). `None` = the recipe's `[defaults] fp8_act`.
+    pub fp8_act: Option<Fp8Act>,
+}
+
+impl Default for LoadOptions {
+    fn default() -> Self {
+        LoadOptions {
+            max_seq: 4096,
+            kv_fraction: 0.5,
+            prefill_chunk: 256,
+            act_dtype: None,
+            kv_dtype: None,
+            profile_every: 1,
+            mem_budget: None,
+            fp8_act: None,
+        }
+    }
+}
+
+struct AttnBlock {
+    pre_norm: TensorRef,
+    /// `[n_heads * head_dim * (1 + gated), hidden]`: with `gated` each head's rows are `q` then its output gate.
+    wq: QTensor,
+    wk: QTensor,
+    wv: QTensor,
+    wo: QTensor,
+    q_norm: Option<TensorRef>,
+    k_norm: Option<TensorRef>,
+    slot: usize,
+    /// `q` carries a per-head output gate (`attn_out * sigmoid(gate)` before `wo`).
+    gated: bool,
+    /// Leading values of each head that rotate (`partial_rotary_factor * head_dim`); 0 = the whole head.
+    rotary_dim: usize,
+}
+
+struct FfnBlock {
+    pre_norm: TensorRef,
+    gate: TensorRef,
+    up: TensorRef,
+    down: TensorRef,
+}
+
+/// Sparse MoE FFN (router + routed experts + gated shared expert); the activation scratch is shared in the workspace.
+struct MoeBlock {
+    pre_norm: TensorRef,
+    w: MoeWeights,
+}
+
+enum Block {
+    Attn(AttnBlock),
+    Gdn(GdnBlock),
+    Ffn(FfnBlock),
+    Moe(MoeBlock),
+}
+
+struct Workspace {
+    max_tokens: usize,
+    ids: Buffer,
+    h: [Buffer; 2],
+    n: Buffer,
+    blk: Buffer,
+    q: [Buffer; 2],
+    k: [Buffer; 2],
+    v: Buffer,
+    g: Buffer,
+    u: Buffer,
+    a: Buffer,
+    logits: Buffer,
+    tok: Buffer,
+    /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
+    x: ExtraWs,
+    /// Activations of the MoE blocks (one set, reused by every layer).
+    moe: Option<MoeScratch>,
+}
+
+/// Runs the MoE block's ops through `Model::exec` (profiling, plan recording, kernel scratch).
+struct ExecRunner<'a> {
+    m: &'a Model,
+    profile: bool,
+}
+
+impl OpRunner for ExecRunner<'_> {
+    fn run(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<()> {
+        self.m.exec(op, inputs, outputs, attrs, self.profile)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeadMode {
+    /// Fill the KV cache only.
+    None,
+    /// Logits of the last position.
+    LastLogits,
+    /// Greedy token of the last position (argmax on device, 4 bytes back).
+    LastArgmax,
+    /// Logits of every position, streamed through a callback.
+    AllLogits,
+}
+
+#[derive(Debug)]
+pub enum StepOut {
+    None,
+    Logits(Vec<f32>),
+    Token(u32),
+}
+
+pub type RowCallback<'a> = &'a mut dyn FnMut(usize, &[f32]) -> Result<()>;
+
+pub struct Model {
+    pub backend: Arc<dyn Backend>,
+    pub registry: Registry,
+    pub dims: ModelDims,
+    pub recipe: Recipe,
+    pub act: DType,
+    pub kv: DType,
+    pub plan: MemoryPlan,
+    pub weights_bytes: u64,
+    embed: TensorRef,
+    final_norm: TensorRef,
+    lm_head: QTensor,
+    layers: Vec<Vec<Block>>,
+    slot_specs: Vec<SlotSpec>,
+    ws: Workspace,
+    telemetry: Arc<Telemetry>,
+    profile_every: u32,
+    /// Kernel scratch workspace shared by all ops (sized by plan resolution; ops run in stream order).
+    scratch: Option<Buffer>,
+    /// Installed by [`Model::dry_run`]: `exec` records `(op, shape, kernel)` instead of launching.
+    recorder: Mutex<Option<crate::plan::Recorder>>,
+    /// Result of plan resolution (kernel of every op/shape the model needs).
+    pub resolved: crate::plan::ResolvedPlan,
+}
+
+fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
+    if src.info(name).is_some() {
+        return Ok(name.to_string());
+    }
+    let w = format!("{name}.weight");
+    if src.info(&w).is_some() {
+        return Ok(w);
+    }
+    Err(Error::model(format!("tensor '{name}' (or '{name}.weight') not found in checkpoint")))
+}
+
+impl Model {
+    /// Tokens per forward pass (the prefill chunk); callers split long prompts on it to stay responsive.
+    pub fn prefill_chunk(&self) -> usize {
+        self.ws.max_tokens
+    }
+
+    pub fn load(
+        backend: Arc<dyn Backend>,
+        recipe: &Recipe,
+        dims: &ModelDims,
+        src: &dyn WeightSource,
+        opts: &LoadOptions,
+        telemetry: Arc<Telemetry>,
+    ) -> Result<Model> {
+        recipe.validate()?;
+        let b: &dyn Backend = &*backend;
+        let weights_bytes = Cell::new(0u64);
+        let load = |tmpl: &str, layer: usize, shape: Option<&[usize]>| -> Result<TensorRef> {
+            let name = resolve(src, &Recipe::expand(tmpl, layer))?;
+            let t = load_tensor(b, src, &name, shape)?;
+            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            Ok(t)
+        };
+        // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
+        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act) };
+        let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| -> Result<QTensor> {
+            let prefix = Recipe::expand(tmpl, layer);
+            let q = crate::quant::load_linear(src, &prefix, b, &qopts)?;
+            if (q.n, q.k) != (n, k) {
+                return Err(Error::model(format!("tensor '{prefix}' is [{}, {}], expected [{n}, {k}]", q.n, q.k)));
+            }
+            weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+            Ok(q)
+        };
+
+        let embed = load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?;
+        let act = match opts.act_dtype {
+            Some(d) => d,
+            None if embed.dtype.is_float() && embed.dtype != DType::Fp8E4m3 && embed.dtype != DType::Fp8E5m2 => {
+                embed.dtype
+            }
+            None => DType::Bf16,
+        };
+        let kv = match opts.kv_dtype {
+            Some(d) => d,
+            None => recipe.kv_dtype()?,
+        };
+        let final_norm = load(&recipe.top.final_norm, 0, Some(&[dims.hidden]))?;
+
+        // lm_head: own tensor, or tied to the embedding table.
+        // (the head may be quantised: Qwen3.6 NVFP4 ships `lm_head.{weight,weight_scale,weight_scale_2,input_scale}`)
+        let lm_head = {
+            let lh = &recipe.top.lm_head;
+            let own = resolve(src, &lh.tensor).ok();
+            let dense = |t: TensorRef| QTensor {
+                format: crate::quant::BF16,
+                n: dims.vocab,
+                k: dims.hidden,
+                parts: vec![t],
+                act_quant: false,
+            };
+            match (own, &lh.tied_to) {
+                (Some(_), _) if !dims.tie_embeddings => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
+                (_, Some(_)) => dense(embed.clone()),
+                (Some(_), None) => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
+                (None, None) => {
+                    return Err(Error::model(format!(
+                        "lm_head tensor '{}' missing and the recipe has no tied_to",
+                        lh.tensor
+                    )))
+                }
+            }
+        };
+
+        let qdim = dims.n_heads * dims.head_dim;
+        let kvdim = dims.n_kv_heads * dims.head_dim;
+        let mut layers = Vec::new();
+        let mut slot_specs = Vec::new();
+        for li in 0..dims.n_layers {
+            let mut blocks = Vec::new();
+            for name in recipe.layer.pattern_for(li, &dims.layer_types)? {
+                let pre = recipe
+                    .layer
+                    .norms
+                    .get(&format!("pre_{name}"))
+                    .ok_or_else(|| Error::model(format!("recipe layer.norms.pre_{name} missing")))?;
+                match name.as_str() {
+                    "attn" => {
+                        let a = recipe.layer.attn.as_ref().unwrap();
+                        if a.kind != "gqa" {
+                            return Err(Error::Unsupported(format!(
+                                "attention kind '{}' is not implemented in this build",
+                                a.kind
+                            )));
+                        }
+                        if a.rope != "default" {
+                            return Err(Error::Unsupported(format!("rope variant '{}'", a.rope)));
+                        }
+                        // partial rotary embeddings: only the first `rotary_dim` values of each head rotate
+                        let rotary_dim = if (dims.partial_rotary_factor - 1.0).abs() < 1e-6 {
+                            0
+                        } else {
+                            let rd = (dims.head_dim as f64 * dims.partial_rotary_factor as f64).round() as usize;
+                            if rd == 0 || rd % 2 != 0 || rd > dims.head_dim {
+                                return Err(Error::Unsupported(format!(
+                                    "partial_rotary_factor {} of head_dim {} gives rotary dim {rd} (must be even)",
+                                    dims.partial_rotary_factor, dims.head_dim
+                                )));
+                            }
+                            rd
+                        };
+                        let gate = usize::from(a.gated);
+                        let slot = slot_specs.len();
+                        slot_specs.push(SlotSpec::AttnKv {
+                            n_kv_heads: dims.n_kv_heads,
+                            head_dim: dims.head_dim,
+                            dtype: kv,
+                        });
+                        blocks.push(Block::Attn(AttnBlock {
+                            pre_norm: load(pre, li, Some(&[dims.hidden]))?,
+                            wq: load_q(&a.q, li, qdim * (1 + gate), dims.hidden)?,
+                            wk: load_q(&a.k, li, kvdim, dims.hidden)?,
+                            wv: load_q(&a.v, li, kvdim, dims.hidden)?,
+                            wo: load_q(&a.o, li, dims.hidden, qdim)?,
+                            q_norm: a.q_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
+                            k_norm: a.k_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
+                            slot,
+                            gated: a.gated,
+                            rotary_dim,
+                        }));
+                    }
+                    "gdn" => {
+                        let g = recipe.layer.gdn.as_ref().unwrap();
+                        if g.kind != "gated_delta_net" {
+                            return Err(Error::Unsupported(format!(
+                                "linear attention kind '{}' is not implemented in this build",
+                                g.kind
+                            )));
+                        }
+                        let lin: LinearDims = dims.linear.ok_or_else(|| {
+                            Error::model("the recipe has a gdn block but config.json has no linear attention dimensions")
+                        })?;
+                        let (c, vdim, hv) = (lin.conv_dim(), lin.v_heads * lin.v_head_dim, lin.v_heads);
+                        let slot = slot_specs.len();
+                        slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin) });
+                        let conv = load(&g.conv, li, None)?;
+                        if conv.numel() != c * lin.conv_kernel {
+                            return Err(Error::model(format!(
+                                "conv taps {:?} do not match [{c}, {}]",
+                                conv.shape, lin.conv_kernel
+                            )));
+                        }
+                        blocks.push(Block::Gdn(GdnBlock {
+                            pre_norm: load(pre, li, Some(&[dims.hidden]))?,
+                            in_qkv: load_q(&g.in_qkv, li, c, dims.hidden)?,
+                            in_z: load_q(&g.in_z, li, vdim, dims.hidden)?,
+                            in_b: load_q(&g.in_b, li, hv, dims.hidden)?,
+                            in_a: load_q(&g.in_a, li, hv, dims.hidden)?,
+                            conv: conv.reshaped(&[c, lin.conv_kernel]),
+                            a_log: load(&g.a_log, li, Some(&[hv]))?,
+                            dt_bias: load(&g.dt_bias, li, Some(&[hv]))?,
+                            norm: load(&g.norm, li, Some(&[lin.v_head_dim]))?,
+                            out: load_q(&g.out, li, dims.hidden, vdim)?,
+                            slot,
+                            lin,
+                        }));
+                    }
+                    "moe" => {
+                        let mc = dims.moe.as_ref().ok_or_else(|| {
+                            Error::model("the recipe has a moe block but config.json has no MoE dimensions")
+                        })?;
+                        let m = recipe.layer.other.get("moe").ok_or_else(|| Error::model("recipe [layer.moe] missing"))?;
+                        if m.get("kind").and_then(|v| v.as_str()) != Some("qwen3_5_moe") {
+                            return Err(Error::Unsupported(format!("moe kind {:?} is not implemented in this build", m.get("kind"))));
+                        }
+                        let tmpl = m
+                            .get("prefix")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| Error::model("recipe [layer.moe] needs a prefix"))?;
+                        let w = MoeWeights::load(b, src, &Recipe::expand(tmpl, li), mc, &qopts)?;
+                        weights_bytes.set(weights_bytes.get() + w.weight_bytes() as u64);
+                        blocks.push(Block::Moe(MoeBlock { pre_norm: load(pre, li, Some(&[dims.hidden]))?, w }));
+                    }
+                    "ffn" => {
+                        let f = recipe.layer.ffn.as_ref().unwrap();
+                        if f.kind != "dense" || f.act != "silu_glu" {
+                            return Err(Error::Unsupported(format!(
+                                "ffn kind '{}' / act '{}' is not implemented in this build",
+                                f.kind, f.act
+                            )));
+                        }
+                        blocks.push(Block::Ffn(FfnBlock {
+                            pre_norm: load(pre, li, Some(&[dims.hidden]))?,
+                            gate: load(&f.gate, li, Some(&[dims.intermediate, dims.hidden]))?,
+                            up: load(&f.up, li, Some(&[dims.intermediate, dims.hidden]))?,
+                            down: load(&f.down, li, Some(&[dims.hidden, dims.intermediate]))?,
+                        }));
+                    }
+                    other => {
+                        return Err(Error::Unsupported(format!(
+                            "block kind '{other}' is not implemented in this build"
+                        )))
+                    }
+                }
+            }
+            layers.push(blocks);
+        }
+
+        // activation workspace
+        let mt = opts.prefill_chunk.max(1);
+        let esz = act.size_bytes();
+        let mut ws_bytes = 0u64;
+        let mut wb = |bytes: usize| -> Result<Buffer> {
+            ws_bytes += bytes as u64;
+            b.alloc(bytes.max(16), MemKind::Device)
+        };
+        let (has_gdn, has_gated) = layers.iter().flatten().fold((false, false), |(g, a), blk| match blk {
+            Block::Gdn(_) => (true, a),
+            Block::Attn(x) => (g, a || x.gated),
+            _ => (g, a),
+        });
+        let x = gdn_block::alloc_extra(&mut wb, mt, esz, dims, has_gdn, has_gated)?;
+        let mut moe_bytes = 0u64;
+        let moe = match dims.moe.as_ref().filter(|_| layers.iter().flatten().any(|bl| matches!(bl, Block::Moe(_)))) {
+            Some(mc) => {
+                let si = mc.shared_inter.max(1);
+                moe_bytes = (mt * (mc.experts * esz + mc.top_k * 8 + 2 * mc.hidden * esz + 3 * si * esz + 2 * esz)) as u64;
+                Some(MoeScratch::new(b, mc, mt, act)?)
+            }
+            None => None,
+        };
+        let ws = Workspace {
+            max_tokens: mt,
+            ids: wb(mt * 4)?,
+            h: [wb(mt * dims.hidden * esz)?, wb(mt * dims.hidden * esz)?],
+            n: wb(mt * dims.hidden * esz)?,
+            blk: wb(mt * dims.hidden * esz)?,
+            q: [wb(mt * qdim * esz)?, wb(mt * qdim * esz)?],
+            k: [wb(mt * kvdim * esz)?, wb(mt * kvdim * esz)?],
+            v: wb(mt * kvdim * esz)?,
+            g: wb(mt * dims.intermediate * esz)?,
+            u: wb(mt * dims.intermediate * esz)?,
+            a: wb(mt * dims.intermediate * esz)?,
+            logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
+            tok: wb(16)?,
+            x,
+            moe,
+        };
+        // recurrent state is fixed-size: the live copy plus the prefix-reuse snapshots count against the budget
+        let rec_bytes: u64 = slot_specs
+            .iter()
+            .map(|s| match s {
+                SlotSpec::Recurrent { bytes } => *bytes as u64,
+                _ => 0,
+            })
+            .sum();
+        ws_bytes += moe_bytes;
+        ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
+
+        let kv_per_tok: u64 = slot_specs
+            .iter()
+            .map(|s| match s {
+                SlotSpec::AttnKv { n_kv_heads, head_dim, dtype } => {
+                    (2 * n_kv_heads * head_dim * dtype.size_bytes()) as u64
+                }
+                _ => 0,
+            })
+            .sum();
+        let plan = MemoryPlan::compute_budgeted(
+            &b.info(),
+            weights_bytes.get(),
+            ws_bytes,
+            kv_per_tok,
+            opts.max_seq,
+            dims.max_positions,
+            opts.kv_fraction,
+            opts.mem_budget,
+        )?;
+        let registry = Registry::new(b.name(), &b.info(), b.kernels());
+
+        let mut model = Model {
+            backend,
+            registry,
+            dims: dims.clone(),
+            recipe: recipe.clone(),
+            act,
+            kv,
+            plan,
+            weights_bytes: weights_bytes.get(),
+            embed,
+            final_norm,
+            lm_head,
+            layers,
+            slot_specs,
+            ws,
+            telemetry,
+            profile_every: opts.profile_every,
+            scratch: None,
+            recorder: Mutex::new(None),
+            resolved: Default::default(),
+        };
+        // resolve the kernel of every (op, shape) now: a missing kernel is a load error
+        crate::plan::resolve(&mut model)?;
+        Ok(model)
+    }
+
+    /// Apply plan options (`--reference`, admission, `require_admitted`) and re-resolve. `reference`
+    /// is the oracle backend for admission (the cpu backend); required when `opts.admit` is set.
+    pub fn configure_plan(
+        &mut self,
+        opts: &crate::plan::PlanOptions,
+        reference: Option<&dyn Backend>,
+    ) -> Result<crate::plan::AdmitSummary> {
+        self.registry.reference_only = opts.force_reference;
+        self.registry.require_admitted = false;
+        let mut summary = Default::default();
+        if opts.admit {
+            let r = reference.ok_or_else(|| Error::invalid("plan admission needs a reference backend"))?;
+            summary = crate::plan::admit(self, r, opts)?;
+        }
+        self.registry.require_admitted = opts.require_admitted;
+        crate::plan::resolve(self)?;
+        Ok(summary)
+    }
+
+    /// Run the real forward path for `t` tokens at `pos0` with a recorder installed: every `exec`
+    /// selects its kernel and is logged, nothing launches, nothing is uploaded or downloaded.
+    pub fn dry_run(&self, phase: crate::plan::Phase, t: usize, pos0: usize) -> Result<crate::plan::Recorder> {
+        let st = crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, pos0);
+        *self.recorder.lock().unwrap() = Some(crate::plan::Recorder { phase: Some(phase), t, pos0, ..Default::default() });
+        let ids = vec![0u32; t];
+        let run = (|| -> Result<()> {
+            let hn = self.run_chunk(&st, &ids, false)?;
+            // the heads generation and accuracy use: argmax of the last row, logits of up to LOGIT_ROWS rows
+            self.head_argmax(&hn, t - 1, false)?;
+            if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+                r.extra = true;
+            }
+            self.head_logits(&hn, 0, t.min(LOGIT_ROWS), false)?;
+            Ok(())
+        })();
+        let rec = self.recorder.lock().unwrap().take().unwrap_or_default();
+        run?;
+        Ok(rec)
+    }
+
+    /// Make sure the scratch workspace holds at least `bytes` (0 = none needed).
+    pub fn reserve_scratch(&mut self, bytes: usize) -> Result<()> {
+        if bytes == 0 || self.scratch.as_ref().is_some_and(|b| b.bytes() >= bytes) {
+            return Ok(());
+        }
+        self.scratch = None; // free the old one first
+        self.scratch = Some(self.backend.alloc(bytes.max(16), MemKind::Device)?);
+        self.plan.workspace_bytes += bytes as u64;
+        Ok(())
+    }
+
+    fn scratch_view(&self, need: usize) -> Result<TensorRef> {
+        match &self.scratch {
+            Some(b) if b.bytes() >= need => Ok(TensorRef::new(b.clone(), DType::U8, &[need])),
+            Some(b) => Err(Error::Memory(format!("kernel needs {need} scratch bytes but the plan reserved {}", b.bytes()))),
+            None => Err(Error::Memory(format!("kernel needs {need} scratch bytes but the plan reserved none"))),
+        }
+    }
+
+    /// Block kinds of every layer in plan vocabulary ("attention", "dense_ffn", ...).
+    pub fn layer_kinds(&self) -> Vec<Vec<&'static str>> {
+        self.layers
+            .iter()
+            .map(|blocks| {
+                blocks
+                    .iter()
+                    .map(|b| match b {
+                        Block::Attn(_) => "attention",
+                        Block::Gdn(_) => "gated_delta_net",
+                        Block::Ffn(_) => "dense_ffn",
+                        Block::Moe(_) => "moe",
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// Allocate a fresh sequence state with the planned KV capacity.
+    pub fn new_state(&self) -> Result<SequenceState> {
+        SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)
+    }
+
+    /// Run `ids` through the model starting at `st.len`, appending to the state.
+    ///
+    /// `on_row` is required for [`HeadMode::AllLogits`]: it receives
+    /// `(absolute position, logits row)` in order.
+    ///
+    /// A failed forward on a model with recurrent state resets the sequence: the recurrent slots are
+    /// updated in place chunk by chunk, so a pass that died halfway leaves state that matches no token prefix.
+    pub fn forward(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        let r = self.forward_inner(st, ids, mode, on_row);
+        if r.is_err() && st.has_recurrent() {
+            let _ = st.reset(&*self.backend);
+        }
+        r
+    }
+
+    fn forward_inner(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        mut on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        if ids.is_empty() {
+            return Err(Error::BadRequest("empty token list".into()));
+        }
+        if st.len + ids.len() > st.cap {
+            return Err(Error::BadRequest(format!(
+                "sequence of {} tokens exceeds the planned context of {}",
+                st.len + ids.len(),
+                st.cap
+            )));
+        }
+        if mode == HeadMode::AllLogits && on_row.is_none() {
+            return Err(Error::invalid("AllLogits needs a row callback"));
+        }
+        let nchunks = ids.len().div_ceil(self.ws.max_tokens);
+        let mut out = StepOut::None;
+        for (ci, chunk) in ids.chunks(self.ws.max_tokens).enumerate() {
+            let last = ci + 1 == nchunks;
+            let base = st.len;
+            let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+            let hn = self.run_chunk(st, chunk, profile)?;
+            match mode {
+                HeadMode::None => {}
+                HeadMode::LastLogits if last => {
+                    out = StepOut::Logits(self.head_logits(&hn, chunk.len() - 1, 1, profile)?);
+                }
+                HeadMode::LastArgmax if last => {
+                    out = StepOut::Token(self.head_argmax(&hn, chunk.len() - 1, profile)?);
+                }
+                HeadMode::AllLogits => {
+                    let cb = on_row.as_mut().unwrap();
+                    let mut r = 0;
+                    while r < chunk.len() {
+                        let c = LOGIT_ROWS.min(chunk.len() - r);
+                        let flat = self.head_logits(&hn, r, c, profile)?;
+                        for i in 0..c {
+                            cb(base + r + i, &flat[i * self.dims.vocab..(i + 1) * self.dims.vocab])?;
+                        }
+                        r += c;
+                    }
+                }
+                _ => {}
+            }
+            st.commit(chunk);
+            self.telemetry.step();
+        }
+        Ok(out)
+    }
+
+    fn view(&self, b: &Buffer, dtype: DType, shape: &[usize]) -> TensorRef {
+        TensorRef::new(b.clone(), dtype, shape)
+    }
+
+    fn exec(
+        &self,
+        op: Op,
+        inputs: Vec<TensorRef>,
+        outputs: Vec<TensorRef>,
+        attrs: OpAttrs,
+        profile: bool,
+    ) -> Result<()> {
+        let mut call = OpCall::new(op, inputs, outputs, attrs);
+        call.check()?;
+        {
+            let mut rec = self.recorder.lock().unwrap();
+            if let Some(r) = rec.as_mut() {
+                match self.registry.select(&call) {
+                    Ok(k) => r.calls.push(crate::plan::PlannedCall {
+                        phase: r.phase.unwrap_or(crate::plan::Phase::Decode),
+                        t: r.t,
+                        pos0: r.pos0,
+                        kernel: k.name.clone(),
+                        call,
+                        extra: r.extra,
+                    }),
+                    Err(e) => {
+                        let s = ShapeInfo::from_call(&call);
+                        r.missing.push((
+                            call.op,
+                            format!("{e} (heads {}/{} head_dim {} kv_len {})", s.n_heads, s.n_kv_heads, s.head_dim, s.kv_len),
+                        ))
+                    }
+                }
+                return Ok(());
+            }
+        }
+        let kernel = self.registry.select(&call)?;
+        if kernel.scratch.is_some() {
+            let need = kernel.scratch_bytes(&ShapeInfo::from_call(&call));
+            if need > 0 {
+                call.scratch = Some(self.scratch_view(need)?);
+            }
+        }
+        if profile {
+            // drain queued work first, or the previous op's (or an async upload's) time lands on this op
+            self.backend.synchronize(0)?;
+        }
+        let t0 = Instant::now();
+        self.backend.launch(&kernel.name, &call, 0)?;
+        if profile {
+            self.backend.synchronize(0)?;
+            self.telemetry.record_op(op, Some(t0.elapsed()));
+        } else {
+            self.telemetry.record_op(op, None);
+        }
+        Ok(())
+    }
+
+    /// Returns the normed final hidden states `[T, H]`.
+    fn run_chunk(&self, st: &SequenceState, ids: &[u32], profile: bool) -> Result<TensorRef> {
+        let t = ids.len();
+        let d = &self.dims;
+        let act = self.act;
+        let h = d.hidden;
+        let pos0 = st.len;
+        let ws = &self.ws;
+
+        if !self.recorder.lock().unwrap().is_some() {
+            let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+            self.backend.upload(&ws.ids, 0, &ids_i32, 0)?;
+            for &i in ids {
+                if i as usize >= d.vocab {
+                    return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
+                }
+            }
+        }
+
+        let mut cur = 0usize; // which h buffer holds the residual stream
+        let hv = |i: usize| self.view(&ws.h[i], act, &[t, h]);
+        let nv = self.view(&ws.n, act, &[t, h]);
+        let blkv = self.view(&ws.blk, act, &[t, h]);
+
+        self.exec(
+            Op::Embedding,
+            vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()],
+            vec![hv(cur)],
+            OpAttrs::default(),
+            profile,
+        )?;
+
+        let eps_attrs = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
+        let mut pending = false;
+        let norm_in = |pre: &TensorRef, pending: bool, cur: &mut usize| -> Result<()> {
+            if pending {
+                let next = 1 - *cur;
+                self.exec(
+                    Op::RmsNormAdd,
+                    vec![blkv.clone(), hv(*cur), pre.clone()],
+                    vec![nv.clone(), hv(next)],
+                    eps_attrs.clone(),
+                    profile,
+                )?;
+                *cur = next;
+            } else {
+                self.exec(Op::RmsNorm, vec![hv(*cur), pre.clone()], vec![nv.clone()], eps_attrs.clone(), profile)?;
+            }
+            Ok(())
+        };
+
+        for blocks in &self.layers {
+            for block in blocks {
+                match block {
+                    Block::Attn(a) => {
+                        norm_in(&a.pre_norm, pending, &mut cur)?;
+                        self.attn_block(a, st, &nv, &blkv, t, pos0, profile)?;
+                    }
+                    Block::Gdn(g) => {
+                        norm_in(&g.pre_norm, pending, &mut cur)?;
+                        self.gdn_block(g, st, &nv, &blkv, t, profile)?;
+                    }
+                    Block::Ffn(f) => {
+                        norm_in(&f.pre_norm, pending, &mut cur)?;
+                        self.ffn_block(f, &nv, &blkv, t, profile)?;
+                    }
+                    Block::Moe(m) => {
+                        norm_in(&m.pre_norm, pending, &mut cur)?;
+                        let ws = self.ws.moe.as_ref().ok_or_else(|| Error::invalid("moe block without workspace"))?;
+                        m.w.forward(&ExecRunner { m: self, profile }, ws, &nv, &blkv)?;
+                    }
+                }
+                pending = true;
+            }
+        }
+        // final: h = h + block_out ; n = norm(h)
+        norm_in(&self.final_norm, pending, &mut cur)?;
+        Ok(nv)
+    }
+
+    /// `out = x @ W^T` for a linear layer in any supported weight format.
+    fn proj(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, profile: bool) -> Result<()> {
+        let call = w.call(x.clone(), out.clone());
+        self.exec(call.op, call.inputs, call.outputs, call.attrs, profile)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn attn_block(
+        &self,
+        a: &AttnBlock,
+        st: &SequenceState,
+        n: &TensorRef,
+        out: &TensorRef,
+        t: usize,
+        pos0: usize,
+        profile: bool,
+    ) -> Result<()> {
+        let d = &self.dims;
+        let act = self.act;
+        let ws = &self.ws;
+        let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
+        let qshape = [t, nh * hd];
+        let kshape = [t, nkv * hd];
+        let q3 = [t, nh, hd];
+        let k3 = [t, nkv, hd];
+        let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
+        let rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
+
+        // q: matmul [-> split off the output gate] -> [norm] -> rope ; result tracked by `qc`
+        let mut qc = 0usize;
+        let gate = if a.gated {
+            let (qg, gate) = self.gated_q_buffers(t);
+            self.proj(n, &a.wq, &qg, profile)?;
+            self.exec(
+                Op::GateSplit,
+                vec![qg.reshaped(&[t, nh, 2 * hd])],
+                vec![self.view(&ws.q[qc], act, &q3), gate.clone()],
+                OpAttrs::default(),
+                profile,
+            )?;
+            Some(gate)
+        } else {
+            self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &qshape), profile)?;
+            None
+        };
+        if let Some(w) = &a.q_norm {
+            self.exec(
+                Op::QkNorm,
+                vec![self.view(&ws.q[qc], act, &q3), w.clone()],
+                vec![self.view(&ws.q[1 - qc], act, &q3)],
+                eps.clone(),
+                profile,
+            )?;
+            qc = 1 - qc;
+        }
+        self.exec(
+            Op::Rope,
+            vec![self.view(&ws.q[qc], act, &q3)],
+            vec![self.view(&ws.q[1 - qc], act, &q3)],
+            rope.clone(),
+            profile,
+        )?;
+        qc = 1 - qc;
+
+        let mut kc = 0usize;
+        self.proj(n, &a.wk, &self.view(&ws.k[kc], act, &kshape), profile)?;
+        if let Some(w) = &a.k_norm {
+            self.exec(
+                Op::QkNorm,
+                vec![self.view(&ws.k[kc], act, &k3), w.clone()],
+                vec![self.view(&ws.k[1 - kc], act, &k3)],
+                eps.clone(),
+                profile,
+            )?;
+            kc = 1 - kc;
+        }
+        self.exec(
+            Op::Rope,
+            vec![self.view(&ws.k[kc], act, &k3)],
+            vec![self.view(&ws.k[1 - kc], act, &k3)],
+            rope.clone(),
+            profile,
+        )?;
+        kc = 1 - kc;
+
+        self.proj(n, &a.wv, &self.view(&ws.v, act, &kshape), profile)?;
+
+        let slot = match &st.slots[a.slot] {
+            StateSlot::AttnKv(s) => s,
+            StateSlot::Recurrent(_) => return Err(Error::invalid("attention block bound to a recurrent state slot")),
+        };
+        let cache_shape = [nkv, slot.cap, hd];
+        let kcache = self.view(&slot.k, slot.dtype, &cache_shape);
+        let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
+        let append = OpAttrs { pos0, kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
+        self.exec(Op::KvAppend, vec![self.view(&ws.k[kc], act, &k3)], vec![kcache.clone()], append.clone(), profile)?;
+        self.exec(Op::KvAppend, vec![self.view(&ws.v, act, &k3)], vec![vcache.clone()], append, profile)?;
+
+        let attn_out = self.view(&ws.q[1 - qc], act, &q3);
+        let attrs = OpAttrs {
+            pos0,
+            scale: 1.0 / (hd as f32).sqrt(),
+            n_heads: nh,
+            n_kv_heads: nkv,
+            head_dim: hd,
+            kv_cap: slot.cap,
+            ..Default::default()
+        };
+        self.exec(
+            if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
+            vec![self.view(&ws.q[qc], act, &q3), kcache, vcache],
+            vec![attn_out.clone()],
+            attrs,
+            profile,
+        )?;
+        let o_in = match gate {
+            // output gate: attn_out * sigmoid(gate), into the (now free) roped-q buffer
+            Some(g) => {
+                let gated = self.view(&ws.q[qc], act, &qshape);
+                self.exec(
+                    Op::SigmoidMul,
+                    vec![attn_out.reshaped(&qshape), g.reshaped(&qshape)],
+                    vec![gated.clone()],
+                    OpAttrs::default(),
+                    profile,
+                )?;
+                gated
+            }
+            None => attn_out.reshaped(&qshape),
+        };
+        self.proj(&o_in, &a.wo, out, profile)
+    }
+
+    fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        let act = self.act;
+        let ws = &self.ws;
+        let i = self.dims.intermediate;
+        let g = self.view(&ws.g, act, &[t, i]);
+        let u = self.view(&ws.u, act, &[t, i]);
+        let a = self.view(&ws.a, act, &[t, i]);
+        self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
+        self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
+        self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
+        self.exec(Op::Matmul, vec![a, f.down.clone()], vec![out.clone()], OpAttrs::default(), profile)
+    }
+
+    /// Logits for rows `[r0, r0+c)` of the normed hidden states, row-major f32 `[c, vocab]`.
+    fn head_logits(&self, hn: &TensorRef, r0: usize, c: usize, profile: bool) -> Result<Vec<f32>> {
+        let v = self.dims.vocab;
+        let x = hn.rows(r0, c);
+        let out = self.view(&self.ws.logits, DType::F32, &[c, v]);
+        self.proj(&x, &self.lm_head, &out, profile)?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(Vec::new());
+        }
+        let mut bytes = vec![0u8; c * v * 4];
+        self.backend.download(&self.ws.logits, 0, &mut bytes, 0)?;
+        Ok(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
+    }
+
+    fn head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {
+        let v = self.dims.vocab;
+        let x = hn.rows(row, 1);
+        let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
+        self.proj(&x, &self.lm_head, &logits, profile)?;
+        let tok = self.view(&self.ws.tok, DType::I32, &[1]);
+        self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(0);
+        }
+        let mut b = [0u8; 4];
+        self.backend.download(&self.ws.tok, 0, &mut b, 0)?;
+        Ok(i32::from_le_bytes(b) as u32)
+    }
+
+    /// KV cache bytes one token occupies across all attention slots.
+    pub fn kv_bytes_per_token(&self) -> u64 {
+        self.plan.kv_bytes_per_token
+    }
+}

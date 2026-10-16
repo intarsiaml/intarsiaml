@@ -1,0 +1,30 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 20480 tokens
+calibration: 49 base tokens, 21.77 tokens per filler sentence
+  size    128 rep: prompt=126 gen=128 ttft=0.10s prefill=1246 tok/s decode=72.7 tok/s
+  size    128 rep: prompt=130 gen=128 ttft=0.10s prefill=1260 tok/s decode=72.8 tok/s
+  size    128 rep: prompt=136 gen=128 ttft=0.10s prefill=1315 tok/s decode=72.7 tok/s
+  size    128 rep: prompt=134 gen=128 ttft=0.10s prefill=1305 tok/s decode=72.8 tok/s
+  size    128 rep: prompt=131 gen=128 ttft=0.10s prefill=1270 tok/s decode=72.7 tok/s
+  size   1024 rep: prompt=1007 gen=128 ttft=0.26s prefill=3904 tok/s decode=72.3 tok/s
+  size   1024 rep: prompt=993 gen=128 ttft=0.26s prefill=3821 tok/s decode=72.3 tok/s
+  size   1024 rep: prompt=990 gen=128 ttft=0.26s prefill=3870 tok/s decode=72.3 tok/s
+  size   1024 rep: prompt=1010 gen=128 ttft=0.26s prefill=3856 tok/s decode=72.0 tok/s
+  size   1024 rep: prompt=1007 gen=128 ttft=0.26s prefill=3904 tok/s decode=72.1 tok/s
+  size   4096 rep: prompt=4065 gen=128 ttft=0.88s prefill=4628 tok/s decode=70.0 tok/s
+  size   4096 rep: prompt=4096 gen=128 ttft=0.88s prefill=4640 tok/s decode=69.7 tok/s
+  size   4096 rep: prompt=4108 gen=128 ttft=0.93s prefill=4424 tok/s decode=69.8 tok/s
+  size   4096 rep: prompt=4067 gen=128 ttft=0.88s prefill=4634 tok/s decode=69.9 tok/s
+  size   4096 rep: prompt=4120 gen=128 ttft=0.93s prefill=4434 tok/s decode=69.7 tok/s
+  size  16384 rep: prompt=16742 gen=128 ttft=3.86s prefill=4339 tok/s decode=63.8 tok/s
+  size  16384 rep: prompt=16747 gen=128 ttft=3.87s prefill=4333 tok/s decode=63.8 tok/s
+  size  16384 rep: prompt=16850 gen=128 ttft=3.90s prefill=4319 tok/s decode=63.7 tok/s
+  size  16384 rep: prompt=16686 gen=128 ttft=3.88s prefill=4299 tok/s decode=63.8 tok/s
+  size  16384 rep: prompt=16748 gen=128 ttft=3.86s prefill=4337 tok/s decode=63.8 tok/s
+wrote /home/nvidia/intarsia-perf/ab/ours-c2048-r3/prefillcuda-c2048-r3.json
+prefillcuda-c2048-r3  model=intarsia-35b  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+     128      131     0.103         1270        72.7      128
+    1024     1007     0.258         3870        72.3      128
+    4096     4096     0.883         4628        69.8      128
+   16384    16747     3.865         4333        63.8      128

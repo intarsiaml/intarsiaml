@@ -1,0 +1,3 @@
+2026-10-13 job=1677 stop=18:08:08 up=18:16:54 down=8.7 min label="intarsiaml 35b-acc W1: CUDA dumps (HEAD, oldmoe, simt, long decode), MoE small-T sweep" serving=1
+2026-10-13 job=1705 stop=18:33:06 up=18:37:29 down=4.3 min label="intarsiaml 35b-acc W2: MoE small-T sweep (kernel test)" serving=1
+2026-10-13 job=1716 stop=18:43:12 up=18:57:46 down=14.5 min label="intarsiaml 35b-acc W3: final gates (35b-short, CPU-reference, 35b-long, 8B fp32)" serving=1

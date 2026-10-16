@@ -1,0 +1,107 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/crates/intarsia-backend-metal)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running unittests src/lib.rs (target/debug/deps/intarsia_backend_metal-390d3b1f38133683)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gemv.rs (target/debug/deps/gemv-b2579ae417b83f17)
+
+running 6 tests
+test backend_info_and_alloc_roundtrip ... DeviceInfo { name: "Apple M5 Max", backend: "metal", arch: "applegpu_g17s", total_mem: 115448725504, free_mem: 115448266752, unified: true, bandwidth_gbs: Some(542.9622867977229) }
+ok
+test every_variant_matches_reference ... gemv_bf16_r1u1s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u2s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u4s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u4s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u4s16: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r1u8s8: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r2u1s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r2u2s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r2u4s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r4u1s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r4u2s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r8u1s2: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_r8u2s2: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_a8u4s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_a8u8s4: 1031 rows, worst error 0.885 of tolerance
+gemv_bf16_a8u8s8: 1031 rows, worst error 0.885 of tolerance
+ok
+test k_not_multiple_of_8_and_odd_n ... K=1 N=1 offs=(0,0,0): 1 rows, worst error 0.188 of tolerance
+K=7 N=3 offs=(0,0,0): 3 rows, worst error 0.283 of tolerance
+K=13 N=17 offs=(0,0,0): 17 rows, worst error 0.846 of tolerance
+K=4100 N=33 offs=(0,0,0): 33 rows, worst error 0.904 of tolerance
+K=4097 N=1025 offs=(0,0,0): 1025 rows, worst error 0.928 of tolerance
+K=1000 N=5 offs=(0,0,0): 5 rows, worst error 0.523 of tolerance
+K=8 N=1 offs=(0,0,0): 1 rows, worst error 0.453 of tolerance
+K=16 N=5 offs=(0,0,0): 5 rows, worst error 0.618 of tolerance
+K=264 N=7 offs=(0,0,0): 7 rows, worst error 0.478 of tolerance
+K=4104 N=129 offs=(0,0,0): 129 rows, worst error 0.821 of tolerance
+K=8200 N=2049 offs=(0,0,0): 2049 rows, worst error 0.939 of tolerance
+ok
+test qwen3_8b_shapes ... K=4096 N=4096 offs=(0,0,0): 4096 rows, worst error 0.928 of tolerance
+K=4096 N=12288 offs=(0,0,0): 12288 rows, worst error 0.946 of tolerance
+K=12288 N=4096 offs=(0,0,0): 4096 rows, worst error 0.935 of tolerance
+K=4096 N=151936 offs=(0,0,0): 151936 rows, worst error 0.962 of tolerance
+ok
+test shader_choice_follows_alignment_and_k ... ok
+test unaligned_operand_offsets ... K=4096 N=130 offs=(2,0,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(2,0,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(2,0,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(0,2,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(0,2,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(0,2,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(0,0,2): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(0,0,2): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(0,0,2): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(4,6,2): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(4,6,2): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(4,6,2): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(16,32,16): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(16,32,16): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(16,32,16): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(18,16,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(18,16,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(18,16,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(6,10,14): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(6,10,14): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(6,10,14): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(8,0,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(8,0,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(8,0,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(8,8,8): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(8,8,8): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(8,8,8): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(24,16,0): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(24,16,0): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(24,16,0): 9 rows, worst error 0.617 of tolerance
+K=4096 N=130 offs=(8,8,6): 130 rows, worst error 0.910 of tolerance
+K=4100 N=33 offs=(8,8,6): 33 rows, worst error 0.776 of tolerance
+K=77 N=9 offs=(8,8,6): 9 rows, worst error 0.617 of tolerance
+ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.21s
+
+     Running tests/wrap_host.rs (target/debug/deps/wrap_host-47127a347cb42a15)
+
+running 3 tests
+test gemv_on_wrapped_weights ... GEMV on mtp.layers.0.self_attn.q_proj.weight [8192,2048] at file offset 1658667520 (mod 16 = 0, mod page = 512)
+wrapped mtp.layers.0.self_attn.q_proj.weight rows 0..: 8192 rows, worst error 0.968 of tolerance
+wrapped mtp.layers.0.self_attn.q_proj.weight rows 4096..: 4096 rows, worst error 0.927 of tolerance
+ok
+test wrap_page_rounding_with_synthetic_file ... ok
+test wrap_real_safetensors_unaligned_and_last_tensor ... model-00001-of-00003.safetensors: 10006877608 bytes (5544 mod page), 51662 tensors, 45258 start off a 16 B boundary, 51656 off a page boundary
+model-00002-of-00003.safetensors: 10003595752 bytes (488 mod page), 63484 tensors, 55563 start off a 16 B boundary, 63476 off a page boundary
+model-00003-of-00003.safetensors: 3413864960 bytes (12800 mod page), 9322 tensors, 3483 start off a 16 B boundary, 9318 off a page boundary
+verified 150 tensors across 3 shards
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+   Doc-tests intarsia_backend_metal
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,30 @@
+```rust
+#[derive(Clone, Debug)]
+pub struct GenRequest {
+    /// Prompt token ids (already tokenized / templated by the caller).
+    pub prompt: Vec<u32>,
+    pub max_new_tokens: usize,
+    /// EOS (and `stop_ids`) are suppressed until this many tokens exist.
+    pub min_tokens: usize,
+    /// Keep generating past the model's EOS tokens (forced-length benchmarks).
+    pub ignore_eos: bool,
+    /// <= 0 means greedy.
+    pub temperature: f32,
+    pub top_p: f32,
+    /// 0 = disabled.
+    pub top_k: usize,
+    pub seed: Option<u64>,
+    /// Extra stop token ids (not emitted).
+    pub stop_ids: Vec<u32>,
+    /// Stop strings; generation ends before the first match, which is not emitted.
+    pub stop: Vec<String>,
+    /// Set by the caller to cancel the request: checked while queued, between
+    /// prefill chunks and between decode steps.
+    pub cancel: Option<Arc<AtomicBool>>,
+}
+
+impl Default for GenRequest {
+    fn default() -> Self {
+        GenRequest {
+            prompt: Vec::new(),
+            max_new_tokens: 2

@@ -1,0 +1,63 @@
+[08:51:12] phase1b acceptance: stages=lease,graphs,ab,verdict dry_run=0 host=spark1 pre-change=4963b43 work=/opt/code/intarsiaml/target/phase1b-acceptance/run4
+[08:51:12] == lease: exclusive slot on spark1 taking guidance down
+[08:51:12] stopping the vLLM container missioncntrl-guidance
+[08:51:15] memory freed: 110 GB available
+[08:51:15] == graphs: 256-step greedy decode on the 35B, graph replay vs --no-graphs (bitwise identical token ids)
+[08:51:15] memory: 110 GB available, graph-vs-eager needs 38 GB + 20 GB headroom
+[08:52:45] prompt 1: graph == eager for 256 steps; replays=256 eager=0
+[08:54:22] prompt 2: graph == eager for 256 steps; replays=256 eager=0
+[08:54:22] == ab: 3 interleaved rounds (ours-new, ours-old, vLLM); vLLM is stopped while ours runs
+[08:54:22] memory: 111 GB available, ab round 1 needs 38 GB + 20 GB headroom
+[08:54:22] starting the server ~/intarsia-acc/new/target/acc/release/intarsia
+[08:55:13] -- round 1: ours-new
+[08:55:58] stopping our server (wait for the pid, then kill -9)
+[08:56:00] starting the server ~/intarsia-acc/old/target/acc/release/intarsia
+[08:56:47] -- round 1: ours-old
+[08:58:01] stopping our server (wait for the pid, then kill -9)
+[08:58:02] starting the vLLM container missioncntrl-guidance and waiting for it to serve
+[09:01:17] vLLM is serving again
+[09:01:17] -- round 1: vllm
+[09:01:53] memory freed: 111 GB available
+[09:01:55] memory: 111 GB available, ab round 2 needs 38 GB + 20 GB headroom
+[09:01:55] starting the server ~/intarsia-acc/old/target/acc/release/intarsia
+[09:02:36] -- round 2: ours-old
+[09:03:50] stopping our server (wait for the pid, then kill -9)
+[09:03:51] starting the server ~/intarsia-acc/new/target/acc/release/intarsia
+[09:04:32] -- round 2: ours-new
+[09:05:18] stopping our server (wait for the pid, then kill -9)
+[09:05:19] starting the vLLM container missioncntrl-guidance and waiting for it to serve
+[09:08:44] vLLM is serving again
+[09:08:44] -- round 2: vllm
+[09:09:20] memory freed: 111 GB available
+[09:09:22] memory: 111 GB available, ab round 3 needs 38 GB + 20 GB headroom
+[09:09:22] starting the server ~/intarsia-acc/new/target/acc/release/intarsia
+[09:10:09] -- round 3: ours-new
+[09:10:55] stopping our server (wait for the pid, then kill -9)
+[09:10:56] starting the server ~/intarsia-acc/old/target/acc/release/intarsia
+[09:11:41] -- round 3: ours-old
+[09:12:54] stopping our server (wait for the pid, then kill -9)
+[09:12:56] starting the vLLM container missioncntrl-guidance and waiting for it to serve
+[09:16:10] vLLM is serving again
+[09:16:10] -- round 3: vllm
+[09:16:46] memory freed: 111 GB available
+[09:16:48] == verdict
+valid rounds: [1, 2, 3] of [1, 2, 3]
+size   128: FAIL         d min/median/max -4.48/-4.04/-3.61; ours-old rounds ['65.8', '65.0', '65.5']
+    r1: ours 73.00 vllm 77.48 d -4.48
+    r2: ours 72.06 vllm 76.10 d -4.04
+    r3: ours 72.32 vllm 75.93 d -3.61
+size  1024: FAIL         d min/median/max -6.10/-5.77/-5.05; ours-old rounds ['65.3', '64.8', '65.1']
+    r1: ours 72.43 vllm 77.48 d -5.05
+    r2: ours 71.59 vllm 77.69 d -6.10
+    r3: ours 71.81 vllm 77.58 d -5.77
+size  4096: FAIL         d min/median/max -7.05/-6.76/-6.02; ours-old rounds ['63.3', '62.7', '63.1']
+    r1: ours 70.24 vllm 76.26 d -6.02
+    r2: ours 69.49 vllm 76.54 d -7.05
+    r3: ours 69.62 vllm 76.38 d -6.76
+PHASE 1 SPEED GATE: FAIL
+[09:16:48] killing any intarsia-acc process still running on spark1 before vLLM is started
+[09:16:51] starting the vLLM container missioncntrl-guidance and waiting for it to serve
+[09:20:10] vLLM is serving again
+[09:20:10] releasing fleetq job 1515
+[09:20:10] done (status 1); artefacts in /opt/code/intarsiaml/target/phase1b-acceptance/run4
+rc=1

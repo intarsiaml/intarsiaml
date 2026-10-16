@@ -1,0 +1,38 @@
+fleetq: #2131 waiting (#2 in line): in line behind #2125 "localeval quality spark-guidance fair-think-qwen36-ifeval" (claude-920e0770) on spark1
+fleetq: #2131 waiting (#1 in line): spark1 is held exclusively by #2125 "localeval quality spark-guidance fair-think-qwen36-ifeval" (claude-920e0770)
+fleetq: #2131 running on spark1: /opt/code/intarsiaml-cb-wire/docs/results/raw/2026-10-15-metal-cb-m1-step2/spark_check.sh
+=== cargo check -p intarsia-cli --features cuda --tests
+    Checking utf8-zero v0.8.1
+    Checking winnow v0.7.15
+    Checking toml_writer v1.1.3+spec-1.1.0
+    Checking clap_lex v1.1.1
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-backend-cuda)
+    Checking ureq v3.4.2
+    Checking clap_builder v4.6.7
+    Checking minijinja-contrib v2.24.0
+    Checking toml v0.9.12+spec-1.1.0
+    Checking intarsia-backend-cpu v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-backend-cpu)
+    Checking ratatui v0.30.2
+    Checking intarsia-ui v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-ui)
+    Checking tokio-stream v0.1.19
+   Compiling derive_builder_macro v0.20.2
+   Compiling clap_derive v4.6.7
+    Checking memmap2 v0.9.11
+    Checking intarsia-bench v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-bench)
+    Checking derive_builder v0.20.2
+    Checking tokenizers v0.22.2
+    Checking tracing v0.1.44
+    Checking intarsia-server v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-server)
+    Checking intarsia-models v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-models)
+    Checking clap v4.6.7
+    Checking intarsia-cli v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 29.32s
+EXIT=0
+=== cargo check -p intarsia-cli --features hip --tests
+   Compiling intarsia-backend-hip v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-backend-hip)
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+    Checking intarsia-cli v0.0.1 (/home/nvidia/cb-wire-check-94353/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.91s
+EXIT=0
+scratch ~/cb-wire-check-94353 removed
+fleetq: #2131 done (exit 0)

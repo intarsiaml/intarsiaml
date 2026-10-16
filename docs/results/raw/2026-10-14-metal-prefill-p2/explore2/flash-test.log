@@ -1,0 +1,46 @@
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/flash_prefill.rs (target/release/deps/flash_prefill-f1a476cf4e6ff173)
+
+running 4 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+metal attn_prefill_bf16_flash: misaligned operands (q skip 1, out skip 0, k cache at 0, v cache at 0); running attn_prefill_bf16 (reported once)
+test flash_falls_back_on_misaligned_operands ... ok
+
+thread 'flash_matches_f64_reference' (88769291) panicked at crates/intarsia-backend-metal/src/flash.rs:172:36:
+attempt to divide by zero
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'flash_matches_f64_reference' (88769291) panicked at crates/intarsia-backend-metal/src/lib.rs:578:41:
+called `Result::unwrap()` on an `Err` value: PoisonError { .. }
+stack backtrace:
+   0:        0x100aaa358 - <<std[13ff499bfa5c4ad9]::sys::backtrace::BacktraceLock>::print::DisplayBacktrace as core[2399d0a7b562ce5e]::fmt::Display>::fmt
+   1:        0x100abcc88 - core[2399d0a7b562ce5e]::fmt::write
+   2:        0x100aaf274 - <std[13ff499bfa5c4ad9]::sys::stdio::unix::Stderr as core[2399d0a7b562ce5e]::io::write::Write>::write_fmt
+   3:        0x100a8f1c0 - std[13ff499bfa5c4ad9]::panicking::default_hook::{closure#0}
+   4:        0x100aa3cbc - std[13ff499bfa5c4ad9]::panicking::default_hook
+   5:        0x100aa4174 - std[13ff499bfa5c4ad9]::panicking::panic_with_hook
+   6:        0x100a8f244 - std[13ff499bfa5c4ad9]::panicking::panic_handler::{closure#0}
+   7:        0x100a8750c - std[13ff499bfa5c4ad9]::sys::backtrace::__rust_end_short_backtrace::<std[13ff499bfa5c4ad9]::panicking::panic_handler::{closure#0}, !>
+   8:        0x100a8f910 - __rustc[52828192185b2537]::rust_begin_unwind
+   9:        0x100acc178 - core[2399d0a7b562ce5e]::panicking::panic_fmt
+  10:        0x100acbf44 - core[2399d0a7b562ce5e]::result::unwrap_failed
+  11:        0x100a73ef8 - <intarsia_backend_metal[bc09f588dc2fdf01]::MetalBackend as intarsia_core[aa3f8fbc7233323b]::backend::Backend>::synchronize
+  12:        0x100a73bc8 - <intarsia_backend_metal[bc09f588dc2fdf01]::MetalBackend as core[2399d0a7b562ce5e]::ops::drop::Drop>::drop
+  13:        0x100a2d18c - core[2399d0a7b562ce5e]::ptr::drop_glue::<intarsia_backend_metal[bc09f588dc2fdf01]::MetalBackend>
+  14:        0x100a2d3fc - core[2399d0a7b562ce5e]::ptr::drop_glue::<flash_prefill[e225edc05460765c]::Run>
+  15:        0x100a31234 - <flash_prefill[e225edc05460765c]::flash_matches_f64_reference::{closure#0} as core[2399d0a7b562ce5e]::ops::function::FnOnce<()>>::call_once
+  16:        0x100a34698 - test[2e9bdec6e1c36934]::__rust_begin_short_backtrace::<core[2399d0a7b562ce5e]::result::Result<(), alloc[5ea372fd361bcb50]::string::String>, fn() -> core[2399d0a7b562ce5e]::result::Result<(), alloc[5ea372fd361bcb50]::string::String>>
+  17:        0x100a3fc0c - test[2e9bdec6e1c36934]::run_test::{closure#0}
+  18:        0x100a3a5ac - std[13ff499bfa5c4ad9]::sys::backtrace::__rust_begin_short_backtrace::<test[2e9bdec6e1c36934]::run_test::{closure#1}, ()>
+  19:        0x100a420d0 - <std[13ff499bfa5c4ad9]::thread::lifecycle::spawn_unchecked<test[2e9bdec6e1c36934]::run_test::{closure#1}, ()>::{closure#1} as core[2399d0a7b562ce5e]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+  20:        0x100aa9b48 - <std[13ff499bfa5c4ad9]::sys::thread::unix::Thread>::new::thread_start
+  21:        0x1938b5d00 - __pthread_exit
+
+thread 'flash_matches_f64_reference' (88769291) panicked at /rustc/b940084d7eb6a299eb4bfeb8e34901bc051e7ac4/library/core/src/panicking.rs:233:5:
+panic in a destructor during cleanup
+thread caused non-unwinding panic. aborting.
+error: test failed, to rerun pass `-p intarsia-backend-metal --test flash_prefill`
+
+Caused by:
+  process didn't exit successfully: `/opt/code/intarsiaml/.claude/worktrees/agent-a6a0312aabf864646/target/release/deps/flash_prefill-f1a476cf4e6ff173 --nocapture` (signal: 6, SIGABRT: process abort signal)

@@ -1,0 +1,10 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3-8B
+server context window: 17152 tokens
+calibration: 44 base tokens, 20.75 tokens per filler sentence
+  size   1024 rep: prompt=1007 gen=64 ttft=0.29s prefill=3455 tok/s decode=37.1 tok/s
+  size   1024 rep: prompt=997 gen=64 ttft=0.29s prefill=3428 tok/s decode=37.2 tok/s
+  size   4096 rep: prompt=4115 gen=64 ttft=1.37s prefill=3003 tok/s decode=36.0 tok/s
+  size   4096 rep: prompt=4060 gen=64 ttft=1.32s prefill=3085 tok/s decode=35.9 tok/s
+  size  16384 rep: prompt=16810 gen=64 ttft=8.20s prefill=2050 tok/s decode=32.2 tok/s
+  size  16384 rep: prompt=16819 gen=64 ttft=8.21s prefill=2049 tok/s decode=32.2 tok/s
+wrote /work/reports/qwen3-8b/run3/bench/qualify-Qwen3-8B-hip-bench-long.json
