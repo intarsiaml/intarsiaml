@@ -54,7 +54,7 @@ use objc2_metal::{
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub type Device = Retained<ProtocolObject<dyn MTLDevice>>;
@@ -180,8 +180,6 @@ pub struct MetalBackend {
     metal4: bool,
     stream: Mutex<Stream>,
     hosts: Mutex<host::HostCache>,
-    /// Pre-wire newly wrapped weight files ([`MetalBackend::set_prewire`]); off by default.
-    prewire: AtomicBool,
     page_size: usize,
     /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
     /// cached. Construction stays cheap; the one-off cost lands on whoever asks first (the telemetry probe).
@@ -244,7 +242,6 @@ impl MetalBackend {
                 ..Stream::default()
             }),
             hosts: Mutex::new(host::HostCache::default()),
-            prewire: AtomicBool::new(false),
             page_size,
             bandwidth: OnceLock::new(),
         })
@@ -252,19 +249,6 @@ impl MetalBackend {
 
     pub fn arc() -> Result<Arc<dyn Backend>> {
         Ok(Arc::new(MetalBackend::new()?))
-    }
-
-    /// Pre-wire the weight files that `wrap_host` sees from now on (see `host.rs`): off by default, because it only pays when
-    /// there is time between loading and the first launch (a server) and costs a wait in `Drop` and a stall of work that
-    /// starts right after the load. The caller decides (`intarsia serve` turns it on; `INTARSIA_METAL_PREWIRE=0` / `=1` override
-    /// in the CLI, `crates/intarsia-cli/src/common.rs`).
-    pub fn set_prewire(&self, on: bool) {
-        self.prewire.store(on, Ordering::Relaxed);
-    }
-
-    /// Bytes of weight files pre-wired so far (0 while [`MetalBackend::set_prewire`] is off).
-    pub fn prewired_bytes(&self) -> u64 {
-        self.hosts.lock().unwrap().prewired()
     }
 
     pub fn device(&self) -> &ProtocolObject<dyn MTLDevice> {
@@ -534,8 +518,6 @@ impl Drop for MetalBackend {
         let _ = self.synchronize(0);
         // the keep-warm touches read the weight mappings too
         self.stop_keepwarm();
-        // the pre-wiring blits read the weight mappings, which go away with `hosts`
-        self.drain_prewire(true);
     }
 }
 
@@ -720,7 +702,6 @@ impl Backend for MetalBackend {
             p.resolve();
         }
         drop(st);
-        self.drain_prewire(false);
         match first {
             Some(e) => Err(Error::backend(e)),
             None => Ok(()),

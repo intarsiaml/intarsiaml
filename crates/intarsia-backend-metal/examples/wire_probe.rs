@@ -19,8 +19,7 @@
 //!   copy       copy every shard into a fresh shared MTLBuffer (alloc + memcpy), the timed uses read those instead
 //!
 //! `sleep ms` waits that long after wrapping (a loader doing other work) before the mode's setup; `gap ms` waits that long
-//! after the setup (an idle server) before the timed uses. The probe pre-wires wrapped files
-//! (`MetalBackend::set_prewire`) only with `INTARSIA_METAL_PREWIRE=1` in its environment.
+//! after the setup (an idle server) before the timed uses.
 //! Run inside a fleetq slot.
 #[cfg(not(target_os = "macos"))]
 fn main() {}
@@ -52,7 +51,6 @@ fn main() {
         .collect();
     files.sort();
     let be = MetalBackend::new().unwrap();
-    be.set_prewire(std::env::var_os("INTARSIA_METAL_PREWIRE").is_some_and(|v| v == "1"));
     let small = be.alloc(4096, MemKind::Device).unwrap();
     let t0 = Instant::now();
     let mut mems: Vec<Arc<dyn HostMemory>> = Vec::new();

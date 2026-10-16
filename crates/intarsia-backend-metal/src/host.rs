@@ -21,9 +21,8 @@
 //!  * `None` is also returned for empty ranges, ranges outside the slice, and when Metal refuses the memory; set
 //!    `INTARSIA_METAL_DEBUG=1` to print the reason, or call [`MetalBackend::try_wrap_host`] for it.
 //!  * The cache holds the `Arc` until the backend drops: a wrapped file stays mapped for the process lifetime.
-//!  * With `MetalBackend::set_prewire(true)` (off by default; `intarsia serve` turns it on) a new whole-file buffer is pre-wired: a one-byte blit out of it in a committed command buffer of its own makes the
-//!    driver map the whole file for the GPU in the background (about 10 ms per GB), so the first prefill chunk does not
-//!    wait for it (`MetalBackend::prewire`). `Drop` waits for those buffers.
+//!  * `MetalBackend::set_keepwarm` (off by default; `intarsia serve` turns it on) keeps the driver's wiring of the whole-file
+//!    buffers from decaying while the process idles, see there.
 
 use crate::{buffer::MetalBuffer, MetalBackend, MtlBuffer};
 use intarsia_core::backend::{Buffer, HostMemory};
@@ -37,15 +36,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-/// Whole-file buffers may be pre-wired (see [`MetalBackend::prewire`]) up to this share of the device's recommended
+/// Whole-file buffers are kept warm (see [`MetalBackend::set_keepwarm`]) up to this share of the device's recommended
 /// working set; past it the first use of a buffer pays for its own wiring, as before.
-const PREWIRE_SHARE: u64 = 2;
-
-impl HostCache {
-    pub(crate) fn prewired(&self) -> u64 {
-        self.prewired
-    }
-}
+const KEEPWARM_SHARE: u64 = 2;
 
 struct Entry {
     _mem: Arc<dyn HostMemory>,
@@ -57,14 +50,9 @@ struct Entry {
 pub(crate) struct HostCache {
     /// The keep-warm thread and its registry, while [`MetalBackend::set_keepwarm`] has it on.
     kw: Option<KeepWarm>,
-    /// Bytes registered with it so far (bounded like [`PREWIRE_SHARE`]).
+    /// Bytes registered with it so far (bounded like [`KEEPWARM_SHARE`]).
     kw_bytes: u64,
     map: HashMap<usize, Entry>,
-    /// Bytes handed to [`MetalBackend::prewire`] so far.
-    prewired: u64,
-    /// Their command buffers, until they have completed: [`MetalBackend::drain_prewire`] waits for them before the
-    /// mappings can go away (the blit reads the no-copy buffer).
-    prewire_cbs: Vec<crate::CommandBuffer>,
 }
 
 fn round_down(v: usize, page: usize) -> usize {
@@ -117,16 +105,9 @@ pub(crate) fn try_wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usiz
         let whole = if total <= max { Some((no_copy(be, floor, total)?, floor)) } else { None };
         if let Some((mtl, _)) = &whole {
             if let Some(kw) = &cache.kw {
-                if cache.kw_bytes + total as u64 <= be.device().recommendedMaxWorkingSetSize() / PREWIRE_SHARE {
+                if cache.kw_bytes + total as u64 <= be.device().recommendedMaxWorkingSetSize() / KEEPWARM_SHARE {
                     kw.register(mtl.clone(), mem.clone());
                     cache.kw_bytes += total as u64;
-                }
-            }
-            if cache.prewired + total as u64 <= be.device().recommendedMaxWorkingSetSize() / PREWIRE_SHARE {
-                if let Some(cb) = be.prewire(mtl) {
-                    cache.prewired += total as u64;
-                    cache.prewire_cbs.retain(|c| c.status() != MTLCommandBufferStatus::Completed);
-                    cache.prewire_cbs.push(cb);
                 }
             }
         }
@@ -345,7 +326,7 @@ impl MetalBackend {
             }
         };
         let kw = KeepWarm { shared, thread };
-        let limit = self.device().recommendedMaxWorkingSetSize() / PREWIRE_SHARE;
+        let limit = self.device().recommendedMaxWorkingSetSize() / KEEPWARM_SHARE;
         let mut bytes = 0u64;
         for e in cache.map.values() {
             if let Some((mtl, _)) = &e.whole {
@@ -368,49 +349,6 @@ impl MetalBackend {
     pub(crate) fn stop_keepwarm(&self) {
         let kw = self.hosts.lock().unwrap().kw.take();
         drop(kw);
-    }
-
-    /// Reference a freshly wrapped weight file from a committed command buffer of its own (a one-byte blit out of it), so
-    /// the driver maps all of the file for the GPU now, in the background, while the loader carries on. The first command
-    /// buffer that uses such a buffer otherwise waits for that (about 10 ms per GB: ~100 ms before the first prefill chunk
-    /// of Qwen3-8B starts, and ~25 ms more before each of the next two command buffers, which a short chunk cannot hide
-    /// behind the one still running). Nothing is computed, nothing is waited on.
-    /// Returns the committed command buffer (the caller keeps it for [`Self::drain_prewire`]); `None` when pre-wiring is
-    /// off or the command buffer could not be made.
-    fn prewire(&self, buf: &MtlBuffer) -> Option<crate::CommandBuffer> {
-        if !self.prewire.load(std::sync::atomic::Ordering::Relaxed) {
-            return None;
-        }
-        let scratch = self.new_mtl_buffer(16, true).ok()?;
-        let cb = self.queue().commandBuffer()?;
-        let enc = cb.blitCommandEncoder()?;
-        // SAFETY: both buffers are at least one byte long and distinct.
-        unsafe { enc.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(buf, 0, &scratch, 0, 1) };
-        enc.endEncoding();
-        cb.commit();
-        Some(cb)
-    }
-
-    /// Wait (`wait`) for the pre-wiring command buffers and drop the finished ones. They are not part of the stream (the
-    /// first upload at load time must not wait for the wiring, that overlap is the point), so `synchronize` leaves them
-    /// alone; this runs from `Drop`, before the backend lets go of the mappings they read, and from `synchronize` to
-    /// forget the ones already finished. A failed one only means the first use of that file pays for the wiring, as before:
-    /// it is reported once on stderr and otherwise ignored.
-    pub(crate) fn drain_prewire(&self, wait: bool) {
-        let mut cache = self.hosts.lock().unwrap();
-        for cb in std::mem::take(&mut cache.prewire_cbs) {
-            if wait {
-                cb.waitUntilCompleted();
-            }
-            match cb.status() {
-                MTLCommandBufferStatus::Completed => {}
-                MTLCommandBufferStatus::Error => {
-                    static ONCE: std::sync::Once = std::sync::Once::new();
-                    ONCE.call_once(|| eprintln!("intarsia-backend-metal: pre-wiring a weight file failed (ignored): {:?}", cb.error()));
-                }
-                _ => cache.prewire_cbs.push(cb),
-            }
-        }
     }
 
     /// [`Backend::wrap_host`] with the reason it declined.

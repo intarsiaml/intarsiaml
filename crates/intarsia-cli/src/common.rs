@@ -104,10 +104,6 @@ pub struct ModelArgs {
     /// `serve --spec-off-at`, batched engine only. `serve` only.
     #[arg(skip)]
     pub spec_off_at: Option<usize>,
-    /// Metal: pre-wire the weight files while the model loads (`MetalBackend::set_prewire`). Default off; [`ModelArgs::for_serving`]
-    /// turns it on, `INTARSIA_METAL_PREWIRE=0` / `=1` override either way ([`prewire_wanted`]).
-    #[arg(skip)]
-    pub prewire: Option<bool>,
     /// Metal: keep the weight wiring from decaying while the server idles (`MetalBackend::set_keepwarm`). Default off;
     /// [`ModelArgs::for_serving`] turns it on, `INTARSIA_METAL_KEEPWARM=0` / `=1` / `=<ms>` override ([`keepwarm_period_ms`]).
     #[arg(skip)]
@@ -115,16 +111,6 @@ pub struct ModelArgs {
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
-}
-
-/// Whether the Metal backend pre-wires weight files: `INTARSIA_METAL_PREWIRE=0` / `=1` win, otherwise `default` (set by
-/// [`ModelArgs::for_serving`]; `None` = off, so every other command behaves as it did before the switch existed).
-pub fn prewire_wanted(default: Option<bool>, env: Option<&str>) -> bool {
-    match env {
-        Some("0") => false,
-        Some("1") => true,
-        _ => default.unwrap_or(false),
-    }
 }
 
 /// Keep-warm touch period (ms) of the Metal backend, 0 = off: after 1.0 s unused the driver drops its wiring of a weight
@@ -143,13 +129,13 @@ pub fn keepwarm_period_ms(default: Option<bool>, env: Option<&str>) -> u64 {
 }
 
 pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
-    open_backend_with(name, device, None, None)
+    open_backend_with(name, device, None)
 }
 
-/// [`open_backend`] with the pre-wire default of the caller (only the Metal backend has one).
-pub fn open_backend_with(name: &str, device: usize, prewire: Option<bool>, keepwarm: Option<bool>) -> Result<Arc<dyn Backend>> {
+/// [`open_backend`] with the keep-warm default of the caller (only the Metal backend has one).
+pub fn open_backend_with(name: &str, device: usize, keepwarm: Option<bool>) -> Result<Arc<dyn Backend>> {
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
-    let _ = (prewire, keepwarm);
+    let _ = keepwarm;
     match name {
         "cpu" => Ok(intarsia_backend_cpu::CpuBackend::arc()),
         "cuda" => {
@@ -181,7 +167,6 @@ pub fn open_backend_with(name: &str, device: usize, prewire: Option<bool>, keepw
                     bail!("the metal backend drives the system default GPU only (--device {device} is not supported)");
                 }
                 let be = intarsia_backend_metal::MetalBackend::new().map_err(|e| anyhow::anyhow!("{e}"))?;
-                be.set_prewire(prewire_wanted(prewire, std::env::var("INTARSIA_METAL_PREWIRE").ok().as_deref()));
                 let mode = match std::env::var("INTARSIA_METAL_KEEPWARM_MODE").ok().as_deref() {
                     Some("residency") => intarsia_backend_metal::KeepMode::Residency,
                     _ => intarsia_backend_metal::KeepMode::Blit,
@@ -221,7 +206,7 @@ pub fn open_group(name: &str, ordinals: &[usize], comm: &str) -> Result<(Vec<Arc
 
 impl ModelArgs {
     pub fn open_backend(&self) -> Result<Arc<dyn Backend>> {
-        open_backend_with(&self.backend, self.device, self.prewire, self.keepwarm)
+        open_backend_with(&self.backend, self.device, self.keepwarm)
     }
 
     /// The device ordinals of the tensor-parallel group.
@@ -315,12 +300,9 @@ impl ModelArgs {
         if self.profile_every.is_none() && self.backend == "metal" {
             self.profile_every = Some(0);
         }
-        // A server idles between loading and the first request, which is what hides the weight wiring; `generate`, `plan`,
-        // `doctor` and the accuracy tools start work right away (and exit right away) and keep the old behaviour.
-        if self.prewire.is_none() {
-            self.prewire = Some(true);
-        }
-        // ... and the wiring decays again within a second of the last use, so it is kept warm while the server idles.
+        // The driver drops its wiring of the weight files about a second after their last use, so the first request after
+        // a pause pays ~170 ms for it again (Qwen3-8B): a server keeps it warm. `generate`, `plan`, `doctor` and the accuracy
+        // tools use the weights at once and exit, they keep the old behaviour.
         if self.keepwarm.is_none() {
             self.keepwarm = Some(true);
         }
@@ -369,30 +351,6 @@ mod tests {
         assert_eq!(profile_every(&["--backend", "metal"], false), 16);
         assert_eq!(profile_every(&["--backend", "cuda"], true), 16);
         assert_eq!(profile_every(&["--backend", "cpu"], true), 1);
-    }
-
-    #[test]
-    fn prewire_is_on_for_serve_only_and_the_env_overrides_both_ways() {
-        use super::prewire_wanted;
-        let args = |serving: bool| {
-            let mut a = Cli::parse_from(["t", "-m", "/m", "--backend", "metal"]).model;
-            if serving {
-                a = a.for_serving();
-            }
-            a.prewire
-        };
-        assert_eq!(args(false), None, "non-serve commands carry no default");
-        assert_eq!(args(true), Some(true));
-        // default off without a serving default
-        assert!(!prewire_wanted(args(false), None));
-        assert!(prewire_wanted(args(true), None));
-        // INTARSIA_METAL_PREWIRE wins in both directions; other values are ignored
-        assert!(!prewire_wanted(args(true), Some("0")));
-        assert!(prewire_wanted(args(false), Some("1")));
-        assert!(prewire_wanted(args(true), Some("1")));
-        assert!(!prewire_wanted(args(false), Some("0")));
-        assert!(prewire_wanted(args(true), Some("")));
-        assert!(!prewire_wanted(args(false), Some("yes")));
     }
 
     #[test]
