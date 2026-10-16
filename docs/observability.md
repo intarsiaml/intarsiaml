@@ -56,6 +56,18 @@ Robustness metrics: `intarsia_requests_rejected_total` (HTTP 429, queue full),
 `intarsia_engine_failed` (1 after a worker panic), `intarsia_engine_no_progress_seconds` (time with
 work queued and no engine step; the watchdog input).
 
+Batched engine (`serve --max-batch N`) adds `intarsia_batch_*`. Which gauge counts what: `intarsia_requests_waiting`
+(telemetry) and `intarsia_batch_queue_depth` (scheduler) both count requests accepted and not yet given a KV slot,
+including those still in the hand-off channel to the scheduler thread, and both are live. They differ only in where a
+request enters: `waiting` from `Engine::submit`, so a request that is about to be refused for a full queue is counted
+until the refusal; `queue_depth` from the queue reservation, so it never exceeds the bound. `intarsia_requests_running`
+(telemetry, live) and `intarsia_batch_running` (scheduler, as of the end of its last iteration) both count requests
+holding a slot, prefilling or decoding; an admitted request that has not started prefilling is in `running`, in neither
+queue gauge. `intarsia_batch_queue_depth_max` is the highest `queue_depth` seen at a submit. The scheduler also exports
+`intarsia_batch_mixed_iterations_total` (iterations that ran a decode phase and a prefill chunk),
+`intarsia_batch_requests_{admitted,finished,cancelled,failed,rejected}_total`, and the histograms
+`intarsia_batch_{step,chunk,ttft,itl}_seconds`.
+
 vLLM-compatible gauges: `vllm:num_requests_running` and `vllm:num_requests_waiting` carry the same
 values as `intarsia_requests_{running,waiting}`. `localeval` decides "is this server busy?" from
 exactly these two names (`BUSY_GAUGES` in `/opt/code/deepeval/src/localeval/client.py`), so they must

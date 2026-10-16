@@ -11,7 +11,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use intarsia_core::rng::SplitMix64;
@@ -95,6 +95,8 @@ struct MockModel {
     rec: Arc<Mutex<Rec>>,
     /// `BatchModel::avoid_single_row_prefill`.
     avoid: bool,
+    /// While `false`, every `prefill_chunk` and `decode_step` blocks (a long step, for the live-gauge test).
+    gate: Option<Arc<(Mutex<bool>, Condvar)>>,
 }
 
 impl MockModel {
@@ -113,6 +115,15 @@ impl MockModel {
             leak: false,
             rec: Arc::new(Mutex::new(Rec::default())),
             avoid: avoid(),
+            gate: None,
+        }
+    }
+    fn wait_gate(&self) {
+        if let Some(g) = &self.gate {
+            let mut open = g.0.lock().unwrap();
+            while !*open {
+                open = g.1.wait(open).unwrap();
+            }
         }
     }
     fn preload(&mut self, slot: usize, entries: Vec<Entry>) {
@@ -163,6 +174,7 @@ impl BatchModel for MockModel {
         Ok(())
     }
     fn prefill_chunk(&mut self, slot: usize, tokens: &[u32], mode: Option<Mode>) -> Result<Option<Out>> {
+        self.wait_gate();
         let id = self.owner[slot].expect("prefill into an unowned slot");
         if self.fail_prefill.contains(&id) {
             return Err(Error::Other("injected prefill failure".into()));
@@ -176,6 +188,7 @@ impl BatchModel for MockModel {
         Ok(mode.map(|m| (mix(h, mode_code(m)), m)))
     }
     fn decode_step(&mut self, rows: &[Row<Mode>]) -> Result<Vec<Result<Out>>> {
+        self.wait_gate();
         assert!(!rows.is_empty() && rows.len() <= self.max_rows);
         let mut seen: Vec<usize> = rows.iter().map(|r| r.slot).collect();
         seen.sort();
@@ -1561,4 +1574,65 @@ fn fifo_checker_rejects_overtaking() {
     // a chunk after the request's final chunk
     let t = vec![adm(0, 0), adm(1, 1), fin(0, EndKind::Cancelled), chunk(1, true), adm(2, 0), chunk(2, true), chunk(1, true)];
     assert!(catch_unwind(|| check_fifo(&t, 3)).is_err(), "chunk after the final chunk not caught");
+}
+
+/// The queue-depth gauge is live: requests submitted while the scheduler thread is inside a long step (a big prefill
+/// chunk) are counted at once, they do not appear only when the thread next drains its channel (soak2 shedding burst:
+/// `intarsia_requests_waiting` 7 against a sampled `intarsia_batch_queue_depth` 4).
+#[test]
+fn queue_depth_is_live_during_a_long_step() {
+    /// Opens the gate when dropped, so a failing assert does not leave the scheduler thread blocked in `Drop`.
+    struct OpenOnDrop(Arc<(Mutex<bool>, Condvar)>);
+    impl Drop for OpenOnDrop {
+        fn drop(&mut self) {
+            *self.0 .0.lock().unwrap() = true;
+            self.0 .1.notify_all();
+        }
+    }
+    let gate = Arc::new((Mutex::new(false), Condvar::new()));
+    let mut model = MockModel::new(2, 4096);
+    model.gate = Some(gate.clone());
+    let cfg = SchedulerConfig { max_batch: 2, max_queue: 5, ..Default::default() };
+    let engine = BatchEngine::<MockModel, MockSeq>::spawn(model, cfg).unwrap();
+    let _guard = OpenOnDrop(gate.clone()); // declared after `engine`, so it drops first
+    let mut rxs = Vec::new();
+    let mut go = |engine: &BatchEngine<MockModel, MockSeq>, n: usize| {
+        let (seq, rx, _) = MockSeq::new(greedy(vec![6; n], 3));
+        let r = engine.submit(seq);
+        rxs.push(rx);
+        r
+    };
+    go(&engine, 10).unwrap();
+    // the scheduler thread admits it (the queue counter drops) and then blocks in its prefill chunk
+    let t0 = std::time::Instant::now();
+    while engine.metrics().queue_depth != 0 || engine.metrics().admitted == 0 {
+        assert!(t0.elapsed() < Duration::from_secs(10), "request never admitted");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    std::thread::sleep(Duration::from_millis(20)); // the thread is now inside the gated chunk
+    for k in 1..=5 {
+        go(&engine, 10).unwrap();
+        assert_eq!(engine.metrics().queue_depth, k, "gauge lags behind the {k} submits");
+    }
+    assert!(go(&engine, 10).is_err(), "bound is max_queue = 5");
+    let m = engine.metrics();
+    assert_eq!((m.queue_depth, m.queue_depth_max, m.rejected), (5, 5, 1), "a refused request is never counted");
+    {
+        let mut open = gate.0.lock().unwrap();
+        *open = true;
+        gate.1.notify_all();
+    }
+    for rx in rxs.iter().take(6) {
+        loop {
+            match rx.recv_timeout(Duration::from_secs(20)).expect("event") {
+                Ev::Done { .. } => break,
+                Ev::Err(e) => panic!("{e}"),
+                Ev::Tok(_) => {}
+            }
+        }
+    }
+    let m = engine.metrics();
+    assert_eq!((m.queue_depth, m.queue_depth_max), (0, 5));
+    assert_eq!(m.mixed_iterations > 0 || m.prefill_chunks >= 6, true);
+    assert!(m.chunk.count >= 6, "chunk time recorded: {}", m.chunk.count);
 }
