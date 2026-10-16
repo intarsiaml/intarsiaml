@@ -131,9 +131,9 @@ def cmd_scenario(a):
     # warm-up pass (same shape, shorter streams), then the measured pass without an idle gap
     wa = argparse.Namespace(**vars(a))
     wa.stream_tokens = a.warmup_stream_tokens
-    _, ws, wb = run_pass(a.url, ps, model, f"warm-{a.arm}-{a.round}", wa)
+    _, ws, wb = run_pass(a.url, ps, model, f"warm-{a.round}", wa)
     werr = [s.error for s in ws + [wb] if s.error]
-    t_start, streams, big = run_pass(a.url, ps, model, f"meas-{a.arm}-{a.round}", a)
+    t_start, streams, big = run_pass(a.url, ps, model, f"meas-{a.round}", a)
     rec = {
         "arm": a.arm, "round": a.round, "order": a.order, "cpt": ps.cpt, "t_start": t_start,
         "params": {k: getattr(a, k) for k in ("n_streams", "stream_ctx", "stream_tokens", "big_ctx", "big_tokens", "settle_tokens", "delay_s", "seed")},
@@ -384,7 +384,7 @@ def main():
     s.add_argument("--out", required=True)
     s.add_argument("--n-streams", type=int, default=7)
     s.add_argument("--stream-ctx", type=int, default=1024, help="prompt tokens of each stream")
-    s.add_argument("--stream-tokens", type=int, default=600)
+    s.add_argument("--stream-tokens", type=int, default=400)
     s.add_argument("--warmup-stream-tokens", type=int, default=250)
     s.add_argument("--big-ctx", type=int, default=4096)
     s.add_argument("--big-tokens", type=int, default=16)

@@ -8,6 +8,7 @@
 # scenario (warm-up pass + measured pass, no idle gap), stops the server. macmon logs the GPU (100 ms) for the whole slot.
 # env: BIN (intarsia binary), MODEL, PORT, ARMS ("256 320")
 set -u
+source ${0:A:h}/../docs/results/raw/2026-10-16-metal-cb-chunk320/guard.sh
 OUT=${1:?usage: cbchunkab_slot.sh OUTDIR [ROUNDS]}; ROUNDS=${2:-8}
 mkdir -p "$OUT"; OUT=${OUT:A}
 T=${0:A:h}
@@ -23,12 +24,15 @@ exec > >(tee -a "$OUT/slot.log") 2>&1
 SPID=""; MPID=""
 stop_server() { if [ -n "$SPID" ] && kill -0 "$SPID" 2>/dev/null; then kill "$SPID" 2>/dev/null; for i in {1..20}; do kill -0 "$SPID" 2>/dev/null || break; sleep 0.5; done; kill -0 "$SPID" 2>/dev/null && kill -9 "$SPID" 2>/dev/null; fi; SPID=""; }
 cleanup() { stop_server; [ -n "$MPID" ] && kill "$MPID" 2>/dev/null; }
-trap cleanup EXIT INT TERM
+trap "cleanup; [ -n \"\${WDPID:-}\" ] && kill \$WDPID 2>/dev/null" EXIT
+trap "exit 143" INT TERM
+start_watchdog
 echo "slot job $FLEETQ_JOB $(date); binary $BIN sha256 $(shasum -a 256 "$BIN" | cut -c1-16); arms $ARMS rounds $ROUNDS"
 macmon pipe -i 100 > "$OUT/macmon.jsonl" 2>/dev/null &
 MPID=$!
 sleep 1
 for r in $(seq 1 $ROUNDS); do
+  past_soft && { echo "SKIP round $r (past soft deadline)"; break; }
   if (( r % 2 )); then ORDER=($ARMS); else ORDER=(${(Oa)ARMS}); fi
   pos=1
   for c in $ORDER; do
