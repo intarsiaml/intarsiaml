@@ -101,6 +101,9 @@ pub struct ModelArgs {
     /// `serve --max-queue`, which sizes the batched engine's request queue. Set by `serve` only.
     #[arg(skip)]
     pub max_queue: Option<usize>,
+    /// `serve --spec-off-at`, batched engine only. `serve` only.
+    #[arg(skip)]
+    pub spec_off_at: Option<usize>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -231,6 +234,7 @@ impl ModelArgs {
             spec: intarsia_core::spec::SpecConfig::parse(&self.spec, self.spec_k).map_err(|e| anyhow::anyhow!("{e}"))?,
             max_batch: self.max_batch,
             max_queue: self.max_queue,
+            spec_off_at: self.spec_off_at,
         })
     }
 
@@ -337,5 +341,16 @@ mod tests {
         let s = Srv::try_parse_from(["t", "-m", "/m", "--max-batch", "4", "--max-queue", "2000"]).unwrap().a;
         assert_eq!((s.max_batch, s.max_queue), (Some(4), 2000));
         assert_eq!(s.model.max_batch, None, "serve copies the flag into the model args when it loads");
+    }
+
+    #[test]
+    fn spec_off_at_is_a_serve_flag_with_a_checked_range() {
+        let s = Srv::try_parse_from(["t", "-m", "/m"]).unwrap().a;
+        assert_eq!(s.spec_off_at, 4, "default matches SchedulerConfig");
+        let s = Srv::try_parse_from(["t", "-m", "/m", "--spec-off-at", "6"]).unwrap().a;
+        assert_eq!(s.spec_off_at, 6);
+        assert!(Srv::try_parse_from(["t", "-m", "/m", "--spec-off-at", "10"]).is_err());
+        let g = Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--spec-off-at", "4"]);
+        assert!(g.is_err());
     }
 }

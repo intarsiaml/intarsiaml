@@ -843,6 +843,9 @@ fn config_limits() {
     .is_err());
     let d = SchedulerConfig::default();
     assert_eq!((d.max_batch, d.solo_chunk, d.busy_chunk, d.busy_chunks_per_iter, d.spec_off_at), (1, 2048, 256, 1, 4));
+    assert!(!d.trace && !d.trace_stderr, "tracing is off by default");
+    let ok = |n| SchedulerConfig { spec_off_at: n, ..Default::default() }.validate();
+    assert!(ok(0).is_ok() && ok(9).is_ok() && ok(10).is_err());
 }
 
 /// The main property test: staggered arrivals, cancellations at random iterations, client disconnects, mixed lengths,
@@ -969,6 +972,35 @@ fn max_batch_one_uses_solo_chunk() {
     for (_, rx, _) in rxs {
         assert_eq!(tokens(&collect(&rx)).len(), 10);
     }
+}
+
+/// Run the same small workload under `cfg`; the scheduler is returned for its trace.
+fn traced_run(cfg: SchedulerConfig) -> Scheduler<MockModel, MockSeq> {
+    let mut s = Scheduler::new(MockModel::new(2, 8192), SchedulerConfig { max_batch: 2, ..cfg }).unwrap();
+    let mut rng = SplitMix64::new(7);
+    for _ in 0..3 {
+        submit(&mut s, greedy(random_prompt(&mut rng, 300), 20));
+    }
+    run_to_end(&mut s);
+    s
+}
+
+/// Tracing off (the default and production): no event is stored. Print-only tracing stores nothing either. With the
+/// store on it is a ring of at most `trace_cap` events, newest kept.
+#[test]
+fn trace_store_is_off_by_default_and_bounded() {
+    let mut off = traced_run(SchedulerConfig::default());
+    assert!(off.take_trace().is_empty(), "no trace store when tracing is off");
+
+    let mut print_only = traced_run(SchedulerConfig { trace_stderr: true, ..Default::default() });
+    assert!(print_only.take_trace().is_empty(), "stderr tracing must not store events");
+
+    let full = traced_run(SchedulerConfig { trace: true, ..Default::default() }).take_trace();
+    assert!(full.len() > 8, "workload should produce more events than the small cap below");
+    let cap = 5;
+    let ring = traced_run(SchedulerConfig { trace: true, trace_cap: cap, ..Default::default() }).take_trace();
+    assert_eq!(ring.len(), cap, "store stays at trace_cap");
+    assert_eq!(ring[..], full[full.len() - cap..], "the newest events are the ones kept");
 }
 
 /// A request that starts its prefill while another decodes takes 256-token chunks, and keeps them after the other one

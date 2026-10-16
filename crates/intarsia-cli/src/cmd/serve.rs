@@ -19,10 +19,15 @@ pub struct ServeArgs {
     /// Requests allowed to wait behind the running one; further requests get HTTP 429.
     #[arg(long, default_value_t = 64)]
     pub max_queue: usize,
-    /// Concurrent sequences decoded together (continuous batching, Metal only), 2..=8. Default 1: the single-sequence
-    /// engine. Only `serve` takes this flag.
+    /// Opt-in continuous batching: decode up to N sequences together, N in 2..=8. Metal only; refused on other
+    /// backends and on models with recurrent layers. Default 1: the single-sequence engine. Only `serve` takes this flag.
     #[arg(long)]
     pub max_batch: Option<usize>,
+    /// With `--max-batch` and `--spec`: speculative drafting runs only while fewer than N sequences are decoding
+    /// (0..=9; 0 and 1 turn it off for every batch, 9 keeps it on at every size). No effect without `--spec` or without
+    /// `--max-batch`.
+    #[arg(long, default_value_t = intarsia_core::scheduler::SPEC_OFF_AT_DEFAULT as u8, value_parser = clap::value_parser!(u8).range(0..=9))]
+    pub spec_off_at: u8,
     /// `max_tokens` for requests that name none, also bounded by the context (0 = only the context).
     #[arg(long, default_value_t = 4096)]
     pub default_max_tokens: usize,
@@ -65,6 +70,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
     let t0 = std::time::Instant::now();
     let mut model = args.model.clone();
     model.max_batch = args.max_batch;
+    model.spec_off_at = Some(usize::from(args.spec_off_at));
     model.max_queue = Some(args.max_queue);
     let loaded = match model.for_serving().load() {
         Ok(l) => l,

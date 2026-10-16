@@ -60,6 +60,8 @@ pub struct EngineOptions {
     /// The server's `--max-queue`, for sizing the batched engine's request queue to `max_queue + max_batch` (the most
     /// requests the server lets wait inside the engine). `None`: [`BATCH_QUEUE`].
     pub max_queue: Option<usize>,
+    /// The server's `--spec-off-at` (batched engine only; `None`: the scheduler default).
+    pub spec_off_at: Option<usize>,
 }
 
 fn read_json(p: &Path) -> Result<Value> {
@@ -269,7 +271,10 @@ pub fn load_engine_tp(
     let engine: Arc<dyn Engine> = if max_batch.value > 1 {
         // the server admits at most max_queue + max_batch requests, so a queue of that size never fills first
         let queue = batch_queue(opts.max_queue, max_batch.value);
-        let bo = intarsia_core::BatchedOptions::new(max_batch.value, queue);
+        let mut bo = intarsia_core::BatchedOptions::new(max_batch.value, queue);
+        if let Some(n) = opts.spec_off_at {
+            bo.spec_off_at = n;
+        }
         eprintln!("continuous batching: up to {} sequences ({})", max_batch.value, max_batch.source);
         Arc::new(intarsia_core::BatchedEngine::new(model, Arc::new(codec), meta, telemetry, bo)?)
     } else {
