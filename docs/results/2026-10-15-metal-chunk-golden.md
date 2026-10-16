@@ -6,7 +6,7 @@ Question (continuous-batching-design 8.1): the scheduler prefills at 256 under l
 
 ## Answer
 
-**Yes. On the serving path, prefill at `--prefill-chunk` 256 and 2048 is bitwise identical (greedy ids and all 32 sampled-step logits rows, plus the prefill-final row) for all 33 prompts tested. The existing 2048 goldens cover 256-schedule serving prefill; no new baselines are needed for this reason.** Only 3 of the 33 prompts exceed one chunk at 2048 sizes in a way that tests a 256-vs-2048 difference at the boundary (L > 2048: 2049, 2050, 4064 x2, 4095-4098, 4200, 4557), and the L%256 cases (255, 256, 257, 258, 511-514, 2047-2050, 4095-4098) all pass.
+**Yes. On the serving path, prefill at `--prefill-chunk` 256 and 2048 is bitwise identical (greedy ids and all 32 sampled-step logits rows, plus the prefill-final row) for all 33 prompts tested. The existing 2048 goldens cover 256-schedule serving prefill; no new baselines are needed for this reason.** Coverage: 11 prompts are longer than 2048 tokens (2049, 2050, 4095-4098, 4200, 4064 x2, 4557) and so multi-chunk at both schedules; the L%256 in {0,1,2,255} and L%2048 in {0,1,2} cases are all included.
 
 ## Method
 
@@ -42,7 +42,7 @@ Full table: `serving/compare.md` (`compare.py`). Serving-path result for every r
 | glong_8, glong_9 (golden long) | 300, 700 | 44, 188 | | same | identical | identical |
 | gshort_0..7 (golden short) | 18..90 | | | same | identical | identical |
 
-Why `Model::forward` differs only at 257 and 513: it still splits with `ids.chunks(max_tokens)`, so at chunk 256 and L%256==1 it computes a (C,1) tail whose 1-row chunk runs decode kernels, which are not bitwise equal to the multi-row kernels. At 2048 those lengths are one chunk. L=2049 and 4097 (L%2048==1) show no difference here because at chunk 256 the Model::forward split is (256 x 8, 1) and at 2048 it is (2048, 1): both have a 1-row tail, and the tail row is the same computation. The fix for this path is merged separately as `spike/metal` 32a42d8 (`Model::forward` cuts by the engine's prefill rule); this branch and its binary (28e5c5a) do not contain it and I did not rerun for it. It does not affect the serving path.
+Why `Model::forward` differs only at 257 and 513: it still splits with `ids.chunks(max_tokens)`, so at chunk 256 and L%256==1 it computes a (C,1) tail whose 1-row chunk runs decode kernels, which are not bitwise equal to the multi-row kernels. At 2048 those lengths are one chunk. L=2049 and 4097 (L%2048==1) show no difference here because at chunk 256 the Model::forward split is (256 x 8, 1) and at 2048 it is (2048, 1): both have a 1-row tail (my reading, not separately verified; the measured fact is that the hashes match). The fix for this path is merged separately as `spike/metal` 32a42d8 (`Model::forward` cuts by the engine's prefill rule); this branch and its binary (28e5c5a) do not contain it and I did not rerun for it. It does not affect the serving path.
 
 ## intarsia generate (CLI, serving path), 48 tokens, greedy, `--ignore-eos --show-ids`
 
