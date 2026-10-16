@@ -44,6 +44,8 @@ Full table: `serving/compare.md` (`compare.py`). Serving-path result for every r
 
 Why `Model::forward` differs only at 257 and 513: it still splits with `ids.chunks(max_tokens)`, so at chunk 256 and L%256==1 it computes a (C,1) tail whose 1-row chunk runs decode kernels, which are not bitwise equal to the multi-row kernels. At 2048 those lengths are one chunk. L=2049 and 4097 (L%2048==1) show no difference here because at chunk 256 the Model::forward split is (256 x 8, 1) and at 2048 it is (2048, 1): both have a 1-row tail (my reading, not separately verified; the measured fact is that the hashes match). The fix for this path is merged separately as `spike/metal` 32a42d8 (`Model::forward` cuts by the engine's prefill rule); this branch and its binary (28e5c5a) do not contain it and I did not rerun for it. It does not affect the serving path.
 
+**Correction (2026-10-16, `docs/results/2026-10-16-metal-forward-hash.md`):** after 32a42d8 the 257/513 differences remained. They come from the `AllLogits` head grouping (`LOGIT_ROWS=16` restarting per chunk, so a 1-row head group runs the decode GEMV), not from a 1-row layer tail. Only the last row differed (max abs 3e-5..5e-5, same argmax). Fixed in 1f99227 (merged 6c077aa).
+
 ## intarsia generate (CLI, serving path), 48 tokens, greedy, `--ignore-eos --show-ids`
 
 `generate/`. Prompts from `2026-10-15-metal-chunk-no1/prompts`: L=257 (s1), 2049 (s1, s2), 4097 (s1, s2). Chunk 256 vs 2048: ids identical and stdout text byte-identical in all 5 (exit 0 in all 10 runs).
