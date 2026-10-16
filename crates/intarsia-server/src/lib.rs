@@ -40,8 +40,10 @@ pub struct ServerConfig {
     pub port: u16,
     /// Model name reported in responses and `/v1/models` (default: the engine's model id).
     pub served_model_name: Option<String>,
-    /// Requests that may wait behind the running one before new ones get 429.
+    /// Requests that may wait behind the running ones before new ones get 429.
     pub max_queue: usize,
+    /// Requests the engine runs at once (`--max-batch`; 1 for the single-sequence engine).
+    pub max_running: usize,
     /// `max_tokens` when a request names none, bounded by the context (0 = only the context).
     pub default_max_tokens: usize,
     /// Seconds without an engine step, with work queued, before the server reports itself
@@ -63,6 +65,7 @@ impl Default for ServerConfig {
             port: 8090,
             served_model_name: None,
             max_queue: 64,
+            max_running: 1,
             default_max_tokens: 4096,
             watchdog_s: 60.0,
             exit_on_stall: false,
@@ -199,11 +202,14 @@ async fn plan(State(st): State<AppState>) -> Response {
 }
 
 async fn prometheus(State(st): State<AppState>) -> Response {
-    let r = blocking(&st.engine, |e| Ok((e.telemetry(), e.info()))).await;
+    let r = blocking(&st.engine, |e| Ok((e.telemetry(), e.info(), e.batch_metrics()))).await;
     match r {
-        Ok((snap, info)) => {
-            ([("content-type", "text/plain; version=0.0.4; charset=utf-8")], metrics::render(&snap, &info, &st.metrics))
-                .into_response()
+        Ok((snap, info, batch)) => {
+            let mut body = metrics::render(&snap, &info, &st.metrics);
+            if let Some(b) = batch {
+                body.push_str(&metrics::render_batch(&b));
+            }
+            ([("content-type", "text/plain; version=0.0.4; charset=utf-8")], body).into_response()
         }
         Err(e) => e.into_response(),
     }

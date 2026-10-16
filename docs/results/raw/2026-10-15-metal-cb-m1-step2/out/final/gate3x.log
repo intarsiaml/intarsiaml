@@ -1,0 +1,34 @@
+fleetq: #2116 waiting (#7 in line): in line behind #2110 "gemm midm: final e2e (engine A/B edge, localeval ABBA c2048 + c256)" (claude-0e8026c5) on endor
+fleetq:   #2110 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2110 set, or it will wait for #2110 to be released.
+fleetq: #2116 waiting (#6 in line): in line behind #2111 "gemm midm: final gates (cargo test metal, kernels test, ids, accuracy, qualify)" (claude-0e8026c5) on endor
+fleetq:   #2111 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2111 set, or it will wait for #2111 to be released.
+fleetq: #2116 waiting (#5 in line): in line behind #2112 "gemm midm: in-engine GEMM per layer at M 64..512 (kernel traces)" (claude-0e8026c5) on endor
+fleetq:   #2112 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2112 set, or it will wait for #2112 to be released.
+fleetq: #2116 waiting (#4 in line): in line behind #2113 "metal chunk-golden part 2: CLI generate ids + accuracy 256 vs 2048 (claude chunk-golden)" (claude-0e8026c5) on endor
+fleetq:   #2113 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2113 set, or it will wait for #2113 to be released.
+fleetq: #2116 waiting (#3 in line): in line behind #2114 "cb-m1 step2 FINAL gates 1+2 on merged tree (cb-wire 9ebd6f8, spike/metal 32a42d8)" (claude-0e8026c5) on endor
+fleetq:   #2114 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2114 set, or it will wait for #2114 to be released.
+fleetq: #2116 waiting (#2 in line): in line behind #2115 "cb-m1 step2 FINAL gate 3: concurrent identity B=2,4,8 (cb-wire 9ebd6f8)" (claude-0e8026c5) on endor
+fleetq:   #2115 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2115 set, or it will wait for #2115 to be released.
+fleetq: #2116 waiting (#1 in line): endor is held exclusively by #2115 "cb-m1 step2 FINAL gate 3: concurrent identity B=2,4,8 (cb-wire 9ebd6f8)" (claude-0e8026c5)
+fleetq:   #2115 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2115 set, or it will wait for #2115 to be released.
+fleetq: #2116 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/step2f/gate3x.sh
+server batched pid 88626 ready on 8101
+conc mb4 B=4 on: exit 0
+conc mb4 B=4 off: exit 0
+conc mb4 B=8 on: exit 0
+conc mb4 B=8 off: exit 0
+compare: exit 0
+--- reuse enabled (informational)
+server batched pid 20731 ready on 8101
+conc mb8 B=8 on: exit 0
+conc mb8 B=8 off: exit 0
+compare: exit 0
+--- sparse arrivals (more requests prefill alone with the full chunk)
+server batched pid 24141 ready on 8101
+conc mb8 B=2 on: exit 0
+conc mb8 B=2 off: exit 0
+conc mb8 B=4 on: exit 0
+conc mb8 B=4 off: exit 0
+compare: exit 0
+fleetq: #2116 done (exit 0)

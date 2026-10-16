@@ -152,21 +152,26 @@ def one_request(url, path, body, stream, timeout, cancel_ms=None, cancel_chunks=
     rec["t_send"] = time.time()
     deadline = t_send + cancel_ms / 1000.0 if cancel_ms is not None else None
     conn = http.client.HTTPConnection(host, port, timeout=timeout)
+    # The raw socket, captured before getresponse(): a reply with `Connection: close` (intarsia serve replies so to our
+    # request header) makes http.client drop `conn.sock` (the response keeps the file object), after which settimeout and
+    # shutdown on conn.sock would silently do nothing and a cancel_after_ms would never fire mid-stream.
+    sock = [None]
 
     def arm():
-        if conn.sock is None:
+        if sock[0] is None:
             return
         if deadline is None:
-            conn.sock.settimeout(timeout)
+            sock[0].settimeout(timeout)
         else:
             left = deadline - time.monotonic()
             if left <= 0:
                 raise Cancel("ms")
-            conn.sock.settimeout(left)
+            sock[0].settimeout(left)
 
     try:
         payload = json.dumps(body).encode()
         conn.request("POST", path, body=payload, headers={"Content-Type": "application/json", "Connection": "close"})
+        sock[0] = conn.sock
         arm()
         resp = conn.getresponse()
         rec["http_status"] = resp.status
@@ -234,9 +239,9 @@ def one_request(url, path, body, stream, timeout, cancel_ms=None, cancel_chunks=
         rec["status"] = "error"
         rec["error"] = repr(e)
     finally:
-        if rec["status"] == "cancelled" and conn.sock is not None:
+        if rec["status"] == "cancelled" and sock[0] is not None:
             try:
-                conn.sock.shutdown(socket.SHUT_RDWR)
+                sock[0].shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
         conn.close()
@@ -435,6 +440,11 @@ def compare_case(c, r, t):
     if t["status"] == "cancelled":
         info["cancelled"] = True
         info["emitted_bytes"] = len(t["text"].encode())
+        # did the cancel really cut the generation short? (a "cancelled" request that ran to its end tests nothing)
+        ri0, ti0 = r.get("ids"), t.get("ids")
+        info["emitted_tokens"] = len(ti0) if ti0 is not None else None
+        info["ref_tokens"] = comp_tokens(r)
+        info["cancel_cut"] = (len(ti0) < len(ri0)) if (ri0 is not None and ti0 is not None) else (len(t["text"]) < len(r["text"]))
         if not r["text"].startswith(t["text"]):
             i = first_diff(r["text"], t["text"])
             reasons.append(f"cancelled prefix is not a prefix of the reference text (first diff at char {i}: ref {r['text'][i:i + 30]!r} vs {t['text'][i:i + 30]!r})")
@@ -503,8 +513,25 @@ def coverage(cases, ref):
     return cov
 
 
-def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None):
+def rec_chunk(rec):
+    """Prefill chunk size the server reports for a request (usage.prompt_tokens_details.prefill_chunk, sent with
+    return_token_ids); None when absent."""
+    return ((rec.get("usage") or {}).get("prompt_tokens_details") or {}).get("prefill_chunk")
+
+
+def ref_chunk(hdr):
+    """The --prefill-chunk a reference server ran with (its plan)."""
+    return ((hdr.get("server") or {}).get("plan") or {}).get("prefill_chunk")
+
+
+def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None, alts=()):
+    """`alts`: [(hdr, recs)] further solo references run with other --prefill-chunk values. A batched request ran its
+    prompt with the chunk size the scheduler picked for it (256 while others decode, the model's alone, reported in
+    usage); its solo reference is the run whose server used that chunk (docs/results/2026-10-15-metal-cb-scheduler.md)."""
     out = {"warnings": [], "runs": []}
+    by_chunk = {}
+    for h, r in [(ref_hdr, ref)] + list(alts):
+        by_chunk.setdefault(ref_chunk(h), r)
     for tf in test_files:
         th, tr = read_run(tf)
         run = {"file": str(tf), "header": {k: v for k, v in th.items() if k != "server"}, "rows": [], "mismatches": []}
@@ -519,7 +546,16 @@ def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None):
         counts = collections.Counter()
         for cid, t in tr.items():
             c = cases_by_id.get(cid, {"id": cid})
-            verdict, reasons, info = compare_case(c, ref.get(cid), t)
+            tc = rec_chunk(t)
+            rset = ref
+            if alts and tc is not None:
+                rset = by_chunk.get(tc)
+                if rset is None:
+                    out["warnings"].append(f"{tf}: {cid} ran with prefill chunk {tc}, no reference with that chunk")
+                    rset = ref
+            verdict, reasons, info = compare_case(c, rset.get(cid), t)
+            info["chunk"] = tc
+            counts[f"chunk_{tc}"] += 1
             row = {"id": cid, "verdict": verdict, "stream": t["stream"], "status": t["status"], "reasons": reasons,
                    "tags": c.get("tags", []), "cancel_case": is_cancel_case(c), **info}
             run["rows"].append(row)
@@ -530,6 +566,7 @@ def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None):
             if info.get("cancelled"):
                 counts["cancelled"] += 1
                 counts["cancelled_with_output"] += 1 if info.get("emitted_bytes") else 0
+                counts["cancel_cut"] += 1 if info.get("cancel_cut") else 0
             elif is_cancel_case(c):
                 counts["cancel_case_completed_first"] += 1
             if info.get("ids_compared"):
@@ -569,14 +606,14 @@ def print_report(rep, cov, ref_hdr):
     for w in rep["warnings"]:
         print("WARNING:", w)
     print("\n== identity vs reference ==")
-    cols = ["run", "cases", "pass", "mismatch", "ref_err", "stream/non", "cancel(out>0)/cases", "ids cmp", "cached!=", "mism+cached!="]
+    cols = ["run", "cases", "pass", "mismatch", "ref_err", "stream/non", "cancel(out>0)/cases", "cut short", "ids cmp", "cached!=", "mism+cached!="]
     rows = []
     for run in rep["runs"]:
         c = run["counts"]
         ncancel_cases = sum(1 for r in run["rows"] if r["cancel_case"])
         rows.append([fmt_run_label(run), len(run["rows"]), c.get("pass", 0), c.get("mismatch", 0),
                      c.get("ref_error", 0) + c.get("missing", 0), f"{c.get('stream', 0)}/{c.get('nonstream', 0)}",
-                     f"{c.get('cancelled', 0)}({c.get('cancelled_with_output', 0)})/{ncancel_cases}", c.get("ids_compared", 0), c.get("cached_differs", 0),
+                     f"{c.get('cancelled', 0)}({c.get('cancelled_with_output', 0)})/{ncancel_cases}", c.get("cancel_cut", 0), c.get("ids_compared", 0), c.get("cached_differs", 0),
                      c.get("mismatch_with_cached_diff", 0)])
     w = [max(len(str(x)) for x in [cols[i]] + [r[i] for r in rows]) for i in range(len(cols))]
     print("  ".join(cols[i].ljust(w[i]) for i in range(len(cols))))
@@ -598,7 +635,8 @@ def cmd_compare(args):
     cases = load_cases(args.cases) if pathlib.Path(args.cases).exists() else []
     cbi = {c["id"]: c for c in cases}
     ref_hdr, ref = read_run(args.ref)
-    rep = compare_runs(cbi, ref_hdr, ref, args.test, args.expect_cap)
+    alts = [read_run(f) for f in (getattr(args, "ref_alt", None) or [])]
+    rep = compare_runs(cbi, ref_hdr, ref, args.test, args.expect_cap, alts)
     cov = coverage([cbi.get(cid, {"id": cid}) for cid in ref], ref)
     rep["coverage"] = cov
     rep["ref"] = {"file": args.ref, "header": {k: v for k, v in ref_hdr.items() if k != "server"}}
@@ -631,6 +669,18 @@ def cmd_gate(args):
         if any(r["status"] == "error" for r in recs):
             print("reference run has errors; fix the server/case set first")
             return 2
+    alt_paths = list(getattr(args, "ref_alt_file", None) or [])
+    for i, u in enumerate(getattr(args, "ref_alt_url", None) or []):
+        ra = argparse.Namespace(**vars(args))
+        ra.url = u
+        print(f"reference (alt {i}): {len(cases)} cases alone -> {u}")
+        h, recs = run_cases(ra, cases, "solo")
+        ap = outdir / f"ref-alt{i}.jsonl"
+        write_run(ap, h, recs)
+        alt_paths.append(str(ap))
+        if any(r["status"] == "error" for r in recs):
+            print("alt reference run has errors; fix the server/case set first")
+            return 2
     tests = []
     for b in [int(x) for x in args.b.split(",")]:
         for sm in args.streams.split(","):
@@ -641,7 +691,8 @@ def cmd_gate(args):
             p = outdir / f"conc-b{b}-{sm}.jsonl"
             write_run(p, h, recs)
             tests.append(str(p))
-    ca = argparse.Namespace(cases=args.cases, ref=str(ref_path), test=tests, report=str(outdir / "report.json"), expect_cap=None)
+    ca = argparse.Namespace(cases=args.cases, ref=str(ref_path), test=tests, report=str(outdir / "report.json"), expect_cap=None,
+                            ref_alt=alt_paths)
     return cmd_compare(ca)
 
 
@@ -920,7 +971,8 @@ def make_mock(bug=None, serial=False, delay=0.002, ids=True):
                           **({"token_ids": tids} if want_ids else {})}
                     self._json(200, {"id": "x", "choices": [ch], "usage": usage})
             except (BrokenPipeError, ConnectionResetError, OSError):
-                pass
+                with state["lock"]:
+                    state["disconnects"] = state.get("disconnects", 0) + 1
 
     srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
     srv.daemon_threads = True
@@ -982,6 +1034,24 @@ def cmd_selftest(_args):
     cp = tmp / "cases.jsonl"
     cp.write_text("".join(json.dumps(c) + "\n" for c in cases))
     cbi = {c["id"]: c for c in load_cases(cp)}
+
+    # 0. cancel_after_ms really cancels mid-stream against a server that replies `Connection: close` (the mock does, as
+    #    intarsia serve does): the stream is cut at the deadline, not read to its end, and the server sees the disconnect
+    slow_srv, slow_url = make_mock(delay=0.02)
+    body = {"model": "mock", "prompt": "Hello", "max_tokens": 100, "temperature": 0, "stream": True, "ignore_eos": True}
+    t0 = time.monotonic()
+    r0 = one_request(slow_url, "/v1/completions", body, True, 30, cancel_ms=200)
+    el = time.monotonic() - t0
+    time.sleep(0.3)
+    check("cancel_after_ms cancels a Connection: close stream mid-way",
+          r0["status"] == "cancelled" and r0["cancel"] == "ms" and 0 < len(r0["deltas"]) < 100 and el < 1.0,
+          f"status {r0['status']} cancel {r0['cancel']} deltas {len(r0['deltas'])} after {el:.2f}s")
+    check("cancel_after_ms: the server saw the disconnect", slow_srv.state.get("disconnects", 0) >= 1, str(slow_srv.state))
+    t0 = time.monotonic()
+    r1 = one_request(slow_url, "/v1/completions", body, True, 30, cancel_chunks=3)
+    check("cancel_after_chunks cancels after 3 deltas", r1["status"] == "cancelled" and len(r1["deltas"]) == 3 and time.monotonic() - t0 < 1.0,
+          f"status {r1['status']} deltas {len(r1['deltas'])}")
+    slow_srv.shutdown()
 
     # 1. compare_case on synthetic records
     def rec(text="abc def", deltas=("abc", " def"), finish="length", ct=2, status="ok", stream=True, cached=0, ids=None):
@@ -1060,7 +1130,7 @@ def cmd_selftest(_args):
     write_run(tmp / "idbug.jsonl", h, recs)
     rep = compare_runs(cbi, rh, rr, [str(tmp / "idbug.jsonl")])
     nb = len(rep["runs"][0]["mismatches"])
-    check("id-only concurrency bug detected (text identical)", nb > 0 and all(r["reasons"][0].startswith("TOKEN IDS") for r in rep["runs"][0]["mismatches"]) and nb <= idbug_srv.state["bug_fired"], f"{nb} mismatches, fired {idbug_srv.state['bug_fired']}")
+    check("id-only concurrency bug detected (text identical)", nb > 0 and all(r["reasons"][0].startswith(("TOKEN IDS", "cancelled token ids")) for r in rep["runs"][0]["mismatches"]) and nb <= idbug_srv.state["bug_fired"], f"{nb} mismatches, fired {idbug_srv.state['bug_fired']}")
 
     # 3c. server without the extension: probe says no, runs still work, text criteria apply, a warning says ids were skipped
     old_srv, old_url = make_mock(ids=False)
@@ -1142,6 +1212,9 @@ def main():
     c = sub.add_parser("compare", help="compare concurrent run(s) against a reference run; exit 1 on any mismatch")
     c.add_argument("--ref", required=True)
     c.add_argument("--test", nargs="+", required=True)
+    c.add_argument("--ref-alt", nargs="*", default=[], metavar="FILE",
+                   help="further solo reference runs made with other --prefill-chunk values; each test request is compared "
+                        "with the reference whose server chunk equals the chunk the test server reports for that request")
     c.add_argument("--cases", default=str(DEFAULT_CASES))
     c.add_argument("--report", help="JSON report path")
     c.add_argument("--expect-cap", type=int, help="perturbation self-test: the test run used --cap-max-tokens N; pass iff the mismatch set is exactly the predicted one")
@@ -1152,6 +1225,8 @@ def main():
     ga.add_argument("--url", required=True, help="server for the concurrent runs")
     ga.add_argument("--ref-url", help="server for the reference run (default: --url)")
     ga.add_argument("--ref-file", help="reuse an existing reference run instead of running one")
+    ga.add_argument("--ref-alt-url", nargs="*", default=[], help="servers for further solo references (other --prefill-chunk)")
+    ga.add_argument("--ref-alt-file", nargs="*", default=[], help="existing further reference runs")
     ga.add_argument("--b", default="2,3,4,6,8")
     ga.add_argument("--streams", default="mixed", help="comma list of on,off,mixed")
     ga.add_argument("--stream", default="on", help=argparse.SUPPRESS)

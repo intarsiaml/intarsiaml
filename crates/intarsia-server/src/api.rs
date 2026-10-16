@@ -22,8 +22,10 @@ pub struct AppState {
     pub model_name: String,
     pub metrics: Arc<Metrics>,
     pub created: u64,
-    /// Requests the engine may hold at once: one running plus `max_queue` waiting.
+    /// Requests that may wait behind the running ones (`max_running` at a time, see `ServerConfig`).
     pub max_queue: usize,
+    /// Requests the engine runs at once (`--max-batch`).
+    pub max_running: usize,
     /// `max_tokens` when the client sends none (0 = as much as the context allows).
     pub default_max_tokens: usize,
     pub progress: Arc<Progress>,
@@ -59,6 +61,7 @@ impl AppState {
             metrics: Arc::new(Metrics::new()),
             created: now.as_secs(),
             max_queue: cfg.max_queue,
+            max_running: cfg.max_running.max(1),
             default_max_tokens: cfg.default_max_tokens,
             progress: Arc::new(Progress::new(Duration::from_secs_f64(cfg.watchdog_s.max(0.0)))),
             inflight: Arc::new(AtomicUsize::new(0)),
@@ -68,7 +71,7 @@ impl AppState {
     }
 
     fn acquire(&self) -> Option<Slot> {
-        let limit = self.max_queue.saturating_add(1);
+        let limit = self.max_queue.saturating_add(self.max_running);
         let mut n = self.inflight.load(Ordering::Acquire);
         loop {
             if n >= limit {
@@ -256,6 +259,7 @@ pub struct Collected {
     pub prompt_tokens: usize,
     pub completion_tokens: usize,
     pub cached_tokens: usize,
+    pub prefill_chunk: Option<usize>,
     pub stop_sequence: Option<String>,
     /// Generated token ids (the stop/EOS token is not included), see `real_id_count`.
     pub ids: Vec<u32>,
@@ -305,7 +309,9 @@ pub async fn collect(mut rx: GenRx, flavor: Flavor) -> Result<Collected, ApiErro
                 text.push_str(&t);
                 ids.push(id);
             }
-            GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. } => {
+            GenEvent::Done {
+                finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, prefill_chunk, ..
+            } => {
                 ids.truncate(real_id_count(finish_reason, stop_sequence.is_some(), completion_tokens));
                 return Ok(Collected {
                     ids,
@@ -314,6 +320,7 @@ pub async fn collect(mut rx: GenRx, flavor: Flavor) -> Result<Collected, ApiErro
                     prompt_tokens,
                     completion_tokens,
                     cached_tokens,
+                    prefill_chunk,
                     stop_sequence,
                 })
             }

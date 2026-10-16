@@ -126,6 +126,9 @@ pub trait BatchSeq<M: BatchModel>: Send {
     fn admit(&mut self, cached: usize, cap: usize) -> Result<bool>;
     /// Head mode of the final prefill chunk (the step that samples generated token 1).
     fn first_mode(&self) -> M::Mode;
+    /// The scheduler chose prefill chunk size `chunk` for this request (once, at its first chunk) while `decoding`
+    /// other sequences were decoding. Informational (the harness reads it back to pick the matching solo reference).
+    fn on_prefill_start(&mut self, _chunk: usize, _decoding: usize) {}
     /// Plan this iteration's step. `spec_allowed` is the scheduler's speculation gate (false when `B >= spec_off_at`).
     /// A speculating sequence may run its verify pass here on its own slot (single-slot, exact by the G1 argument)
     /// and return `Ready`; it must not draft when `spec_allowed` is false.
@@ -166,6 +169,9 @@ pub struct SchedulerConfig {
     pub spec_off_at: usize,
     /// Keep a [`TraceEvent`] log (tests, the identity harness).
     pub trace: bool,
+    /// Offer idle slots' KV prefixes for reuse at admission (default). Off: every request starts from an empty slot
+    /// (the concurrent-identity harness compares against cold-prefill solo runs).
+    pub prefix_reuse: bool,
 }
 
 impl Default for SchedulerConfig {
@@ -178,6 +184,7 @@ impl Default for SchedulerConfig {
             busy_chunks_per_iter: 1,
             spec_off_at: 4,
             trace: false,
+            prefix_reuse: true,
         }
     }
 }
@@ -445,7 +452,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             return Err(e);
         }
         if self.queued.load(Ordering::SeqCst) >= self.cfg.max_queue {
-            let e = Error::BadRequest(format!("queue full ({} waiting)", self.cfg.max_queue));
+            let e = Error::Other(format!("queue full ({} waiting)", self.cfg.max_queue));
             seq.fail(&e);
             self.metrics.lock().unwrap().rejected += 1;
             return Err(e);
@@ -558,7 +565,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let reuse_max = prompt.len().saturating_sub(1);
         (0..self.cfg.max_batch)
             .filter(|&s| !self.busy[s])
-            .map(|s| (s, common_prefix(self.model.slot_tokens(s), prompt).min(reuse_max)))
+            .map(|s| {
+                let cached = if self.cfg.prefix_reuse { common_prefix(self.model.slot_tokens(s), prompt).min(reuse_max) } else { 0 };
+                (s, cached)
+            })
             .max_by(|a, b| a.1.cmp(&b.1).then(self.last_used[b.0].cmp(&self.last_used[a.0])).then(b.0.cmp(&a.0)))
     }
 
@@ -786,6 +796,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                 let c = if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk };
                 let id = self.active[i].id;
                 self.ev(TraceEvent::PrefillStart { iter: self.iter, id, chunk: c, decoding: n_decoding });
+                self.active[i].seq.on_prefill_start(c, n_decoding);
                 c
             }
         };
@@ -892,7 +903,7 @@ where
         }
         if self.shared.queued.fetch_add(1, Ordering::SeqCst) >= self.shared.max_queue {
             self.shared.queued.fetch_sub(1, Ordering::SeqCst);
-            let e = Error::BadRequest(format!("queue full ({} waiting)", self.shared.max_queue));
+            let e = Error::Other(format!("queue full ({} waiting)", self.shared.max_queue));
             seq.fail(&e);
             self.shared.metrics.lock().unwrap().rejected += 1;
             return Err(e);

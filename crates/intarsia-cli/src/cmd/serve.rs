@@ -68,6 +68,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
         }
         Err(e) => return Err(e),
     };
+    let loaded_max_batch = loaded.max_batch;
     let engine: Arc<dyn Engine> = loaded.engine;
     let info = engine.info();
     eprintln!(
@@ -84,6 +85,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
         port: args.port,
         served_model_name: args.served_model_name,
         max_queue: args.max_queue,
+        max_running: loaded_max_batch,
         default_max_tokens: args.default_max_tokens,
         watchdog_s: args.watchdog_s,
         exit_on_stall: args.child,

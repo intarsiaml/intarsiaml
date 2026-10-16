@@ -1,7 +1,7 @@
 //! End-to-end check on a real checkpoint. Opt-in: skipped unless INTARSIA_TEST_REAL_MODEL=1 and a
 //! model directory is available: set INTARSIA_TEST_MODEL, or have the Qwen3-Reranker-0.6B snapshot in the HF cache.
 
-use intarsia_core::{Engine, GenEvent, GenRequest};
+use intarsia_core::{GenEvent, GenRequest};
 use std::path::PathBuf;
 
 /// Real-model tests are opt-in (INTARSIA_TEST_REAL_MODEL=1).

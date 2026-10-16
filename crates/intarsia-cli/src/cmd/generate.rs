@@ -3,7 +3,7 @@
 use crate::common::ModelArgs;
 use anyhow::{bail, Result};
 use clap::Args;
-use intarsia_core::engine::{ChatOpts, Engine, GenEvent, GenRequest};
+use intarsia_core::engine::{ChatOpts, GenEvent, GenRequest};
 use serde_json::json;
 use std::io::Write;
 

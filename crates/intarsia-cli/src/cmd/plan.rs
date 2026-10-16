@@ -4,7 +4,6 @@
 use crate::common::ModelArgs;
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use intarsia_core::engine::Engine;
 use serde_json::Value;
 
 #[derive(Args, Debug)]

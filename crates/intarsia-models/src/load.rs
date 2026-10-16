@@ -10,7 +10,11 @@ use intarsia_core::quant::scheme::QuantScheme;
 use intarsia_core::recipe::{ModelDims, PrefillChunk, Recipe};
 use intarsia_core::backend::HostMemory;
 use intarsia_core::weights::{WeightInfo, WeightSource};
-use intarsia_core::{Backend, Comm, EngineMeta, Error, LocalEngine, Result, Telemetry};
+use intarsia_core::{Backend, Comm, Engine, EngineMeta, Error, LocalEngine, Result, Telemetry};
+
+/// Requests the batching scheduler may hold waiting for a slot. A safety bound only: the server admits at most
+/// `max_queue + max_batch` requests (`ServerConfig`), which is tighter.
+const BATCH_QUEUE: usize = 1024;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -115,7 +119,9 @@ impl WeightSource for SchemedSource {
 }
 
 pub struct Loaded {
-    pub engine: Arc<LocalEngine>,
+    pub engine: Arc<dyn Engine>,
+    /// Sequences the engine decodes together (1: the single-sequence engine).
+    pub max_batch: usize,
     pub recipe_source: String,
     /// The prefill chunk the model was loaded with and where it came from.
     pub prefill_chunk: PrefillChunk,
@@ -135,7 +141,21 @@ pub fn load_engine_tp(
     opts: &EngineOptions,
 ) -> Result<Loaded> {
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
-    let max_batch = recipe.resolve_max_batch(opts.max_batch, intarsia_core::engine::SERVE_MAX_BATCH)?;
+    // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
+    let max_batch = recipe.resolve_max_batch(
+        opts.max_batch,
+        if opts.max_batch.is_some() { intarsia_core::engine::SERVE_MAX_BATCH } else { 1 },
+    )?;
+    if max_batch.value > 1 {
+        // fail before reading any weights: continuous batching is Metal only (row-exact multi-row kernels)
+        let b = backends.first().map_or("cpu", |b| b.name());
+        if b != "metal" {
+            return Err(Error::Unsupported(format!(
+                "--max-batch {} needs the Metal backend (row-exact multi-row kernels; backend is {b}); use --max-batch 1",
+                max_batch.value
+            )));
+        }
+    }
     let weights = SchemedSource::open(dir)?;
     let telemetry = Arc::new(Telemetry::new());
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
@@ -165,7 +185,17 @@ pub fn load_engine_tp(
         model.enable_verify(opts.spec.verify_rows())?;
     }
     if max_batch.value > 1 {
-        // refuses a backend without row-exact multi-row kernels, a tensor-parallel or non-dense model
+        // Batching needs the row-exact multi-row kernels (Metal). `enable_batch` exempts the cpu backend (its kernels
+        // loop over rows), but the batched engine serves only backends that register them.
+        if !model.batch_capable() {
+            return Err(Error::Unsupported(format!(
+                "--max-batch {} needs row-exact multi-row kernels, which the {} backend does not provide (continuous \
+                 batching is Metal only); use --max-batch 1",
+                max_batch.value,
+                model.backend.name()
+            )));
+        }
+        // refuses a tensor-parallel or non-dense model
         model.enable_batch(max_batch.value)?;
     }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
@@ -214,6 +244,13 @@ pub fn load_engine_tp(
         reasoning_parser: recipe.model.reasoning_parser.clone(),
         tool_parser: recipe.model.tool_parser.clone(),
     };
-    let engine = Arc::new(LocalEngine::new(model, Arc::new(codec), meta, telemetry)?);
-    Ok(Loaded { engine, recipe_source, prefill_chunk, chat_template_source })
+    let engine: Arc<dyn Engine> = if max_batch.value > 1 {
+        // opts.max_queue-sized scheduler queue: the server's own admission limit is the tighter bound
+        let bo = intarsia_core::BatchedOptions::new(max_batch.value, BATCH_QUEUE);
+        eprintln!("continuous batching: up to {} sequences ({})", max_batch.value, max_batch.source);
+        Arc::new(intarsia_core::BatchedEngine::new(model, Arc::new(codec), meta, telemetry, bo)?)
+    } else {
+        Arc::new(LocalEngine::new(model, Arc::new(codec), meta, telemetry)?)
+    };
+    Ok(Loaded { engine, recipe_source, prefill_chunk, chat_template_source, max_batch: max_batch.value })
 }
