@@ -273,13 +273,17 @@ fn raw_modes(
     let t = Instant::now();
     let period: u64 = std::env::var("KEEP_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(500);
     if let Some(set) = &set {
-        let mut n = 0;
+        let (mut n, mut sum, mut max) = (0, 0.0f64, 0.0f64);
         while (t.elapsed().as_millis() as u64) + period <= gap_ms {
             std::thread::sleep(std::time::Duration::from_millis(period));
+            let t1 = Instant::now();
             set.requestResidency();
+            let d = t1.elapsed().as_secs_f64() * 1e3;
+            sum += d;
+            max = max.max(d);
             n += 1;
         }
-        println!("requestResidency x{n} (CPU only, every {period} ms)");
+        println!("requestResidency x{n} (CPU only, every {period} ms): mean {:.3} ms, max {max:.3} ms per call", sum / n.max(1) as f64);
     }
     let rest = gap_ms.saturating_sub(t.elapsed().as_millis() as u64);
     std::thread::sleep(std::time::Duration::from_millis(rest));

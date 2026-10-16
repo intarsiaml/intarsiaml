@@ -182,7 +182,11 @@ pub fn open_backend_with(name: &str, device: usize, prewire: Option<bool>, keepw
                 }
                 let be = intarsia_backend_metal::MetalBackend::new().map_err(|e| anyhow::anyhow!("{e}"))?;
                 be.set_prewire(prewire_wanted(prewire, std::env::var("INTARSIA_METAL_PREWIRE").ok().as_deref()));
-                be.set_keepwarm(keepwarm_period_ms(keepwarm, std::env::var("INTARSIA_METAL_KEEPWARM").ok().as_deref()));
+                let mode = match std::env::var("INTARSIA_METAL_KEEPWARM_MODE").ok().as_deref() {
+                    Some("residency") => intarsia_backend_metal::KeepMode::Residency,
+                    _ => intarsia_backend_metal::KeepMode::Blit,
+                };
+                be.set_keepwarm_mode(keepwarm_period_ms(keepwarm, std::env::var("INTARSIA_METAL_KEEPWARM").ok().as_deref()), mode);
                 Ok(Arc::new(be))
             }
             #[cfg(not(all(feature = "metal", target_os = "macos")))]

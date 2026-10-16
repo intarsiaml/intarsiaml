@@ -37,6 +37,7 @@ pub mod multirow;
 pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
+pub use host::KeepMode;
 pub use kernels::{GemvVariant, DEFAULT_GEMV, GEMV_VARIANTS};
 
 use dispatch2::DispatchData;

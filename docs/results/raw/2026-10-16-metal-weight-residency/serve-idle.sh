@@ -1,6 +1,7 @@
 #!/bin/zsh
 # First 4k request after an idle gap, in a server that is already running; paired arms. serve-idle.sh <outdir> <rounds> <arms...>
-# arms: base (6d99a6f, no pre-wire, no keep-warm) | kw (this branch, serve defaults) | other names: env in $ARMENV_<name>
+# arms: base (6d99a6f) | kw (this branch, serve defaults: pre-wire + blit keep-warm) | kwb (blit keep-warm, no pre-wire) |
+# rs (residency-set keep-warm, no pre-wire) | off (this binary, both off). R0=<n> starts at round n.
 # Per sample: start `intarsia serve` (profile cb trace), wait /health, one warm-up request (4k, 1 token), then for each idle in
 # 3 10 40 s: sleep, send one streamed 4k request (33 tokens) with a nonce no earlier request shares.  Same nonce for every arm
 # of a round, so the generated text can be compared across arms.
@@ -19,8 +20,9 @@ sample() { # arm round
   case $arm in
     base) bin=$SC/intarsia-base; envv=(A=1);;
     kw) bin=$SC/intarsia-kw; envv=(A=1);;
-    kwonly) bin=$SC/intarsia-kw; envv=(INTARSIA_METAL_PREWIRE=0);;
-    kwoff) bin=$SC/intarsia-kw; envv=(INTARSIA_METAL_KEEPWARM=0 INTARSIA_METAL_PREWIRE=0);;
+    kwb) bin=$SC/intarsia-kw; envv=(INTARSIA_METAL_PREWIRE=0);;
+    rs) bin=$SC/intarsia-kw; envv=(INTARSIA_METAL_PREWIRE=0 INTARSIA_METAL_KEEPWARM_MODE=residency);;
+    off) bin=$SC/intarsia-kw; envv=(INTARSIA_METAL_PREWIRE=0 INTARSIA_METAL_KEEPWARM=0);;
   esac
   local F=$O/$arm-r$r
   wait_idle || echo "$arm r$r not idle" >> $O/samples.txt
@@ -41,7 +43,7 @@ sample() { # arm round
   kill $SPID; wait $SPID 2>/dev/null; SPID=""
   echo "$arm r$r done" >> $O/samples.txt
 }
-for r in $(seq 1 $N); do
+for r in $(seq ${R0:-1} $N); do
   # rotate the arm order each round
   k=$(( (r - 1) % ${#ARMS[@]} ))
   ORD=(${ARMS[@]:$k} ${ARMS[@]:0:$k})

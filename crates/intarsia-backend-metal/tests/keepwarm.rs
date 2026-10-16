@@ -125,3 +125,22 @@ fn memkind_still_allocates_with_keepwarm_on() {
     be.zero(&b, 0).unwrap();
     be.synchronize(0).unwrap();
 }
+
+#[test]
+fn residency_mode_touches_registered_files_and_drops_cleanly() {
+    use intarsia_backend_metal::KeepMode;
+    for round in 0..4 {
+        let be = backend();
+        be.set_keepwarm_mode(40, KeepMode::Residency);
+        let (mem, data) = mapped_file(32 << 20, 20 + round);
+        let w = be.wrap_host(mem, 0, data.len()).expect("wrap");
+        wait_for("the first residency request", || be.keepwarm_touches() >= 1);
+        let n = be.keepwarm_touches();
+        wait_for("a refresh of the idle engine", || be.keepwarm_touches() > n);
+        for off in [0usize, 4096 + 3, data.len() - 4096] {
+            assert_eq!(read_back(&be, &w, off, 4096), data[off..off + 4096], "offset {off}");
+        }
+        drop(w);
+        drop(be);
+    }
+}
