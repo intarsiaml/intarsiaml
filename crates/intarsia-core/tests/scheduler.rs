@@ -1382,3 +1382,183 @@ fn engine_queue_bound_and_fatal() {
     assert!(engine.submit(seq).is_err());
     assert!(matches!(rx.try_iter().last(), Some(Ev::Err(_))));
 }
+
+// ---------------------------------------------------------------------------
+// FIFO fairness (design 2.2 "Fairness", operator decision 6, M2 gate "no admitted request waits behind a later one")
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum St {
+    Queued,
+    Prefilling,
+    Decoding,
+    Gone,
+}
+
+#[derive(Default, Debug)]
+struct FifoCov {
+    admitted: usize,
+    reused: usize,
+    /// Chunks run while a younger request was prefilling too (the oldest-first choice mattered).
+    contested_chunks: usize,
+    /// Requests that reached `Admitted` while a younger one was already waiting (head-of-line held back, or just FIFO).
+    younger_waiting: usize,
+    cancel_queued: usize,
+    cancel_prefill: usize,
+    cancel_decode: usize,
+    failed_prefill: usize,
+}
+
+/// Replay a scheduler trace and check the fairness properties. Ids are assigned in submit order, so "older" is "lower id".
+///
+/// 1. A request is admitted only when every older request has left the queue (admitted, cancelled while queued, or
+///    rejected): nothing admitted waits behind a later one, with or without prefix reuse and cancellations.
+/// 2. A prefill chunk goes to the oldest prefilling request: no chunk while an older request is still prefilling.
+/// 3. First tokens (final chunks) come in submit order.
+fn check_fifo(trace: &[TraceEvent], n: usize) -> FifoCov {
+    let mut st = vec![St::Queued; n];
+    let mut cov = FifoCov::default();
+    let mut last_first: Option<RequestId> = None;
+    for e in trace {
+        match e {
+            TraceEvent::Admitted { id, cached, .. } => {
+                let i = *id as usize;
+                assert_eq!(st[i], St::Queued, "request {id} admitted twice");
+                if let Some(j) = (0..i).find(|&j| st[j] == St::Queued) {
+                    panic!("request {id} admitted while older request {j} still waits");
+                }
+                if (i + 1..n).any(|j| st[j] == St::Queued) {
+                    cov.younger_waiting += 1;
+                }
+                st[i] = St::Prefilling;
+                cov.admitted += 1;
+                cov.reused += usize::from(*cached > 0);
+            }
+            TraceEvent::Chunk { id, last, .. } => {
+                let i = *id as usize;
+                assert_eq!(st[i], St::Prefilling, "chunk for request {id} that is not prefilling");
+                if let Some(j) = (0..i).find(|&j| st[j] == St::Prefilling) {
+                    panic!("chunk for request {id} while older request {j} is still prefilling");
+                }
+                if (i + 1..n).any(|j| st[j] == St::Prefilling) {
+                    cov.contested_chunks += 1;
+                }
+                if *last {
+                    assert!(last_first.map_or(true, |p| p < *id), "first tokens out of order: {last_first:?} then {id}");
+                    last_first = Some(*id);
+                    st[i] = St::Decoding;
+                }
+            }
+            TraceEvent::Finished { id, how, .. } => {
+                let i = *id as usize;
+                if *how == EndKind::Cancelled {
+                    match st[i] {
+                        St::Queued => cov.cancel_queued += 1,
+                        St::Prefilling => cov.cancel_prefill += 1,
+                        St::Decoding => cov.cancel_decode += 1,
+                        St::Gone => panic!("request {id} finished twice"),
+                    }
+                }
+                if *how == EndKind::Failed && st[i] == St::Prefilling {
+                    cov.failed_prefill += 1;
+                }
+                st[i] = St::Gone;
+            }
+            TraceEvent::PrefillStart { .. } | TraceEvent::Decode { .. } => {}
+        }
+    }
+    assert!(st.iter().all(|&s| s == St::Gone), "requests left unfinished: {st:?}");
+    cov
+}
+
+/// Pressure: a short arrival window so that several requests are queued and prefilling at once, and cancels that land
+/// while a request is queued, prefilling and decoding.
+fn pressure_reqs(rng: &mut SplitMix64, n: usize, cap: usize) -> Vec<Req> {
+    let mut reqs = random_reqs(rng, n, cap);
+    for r in &mut reqs {
+        let a = r.arrive;
+        r.arrive = a / 4;
+        r.cancel_at = r.cancel_at.map(|c| r.arrive + (c - a) / 3);
+        r.drop_rx_at = r.drop_rx_at.map(|c| r.arrive + (c - a) / 3);
+    }
+    reqs
+}
+
+#[test]
+fn fifo_fairness_randomized() {
+    let cap = 4096;
+    let mut total = FifoCov::default();
+    let mut runs = 0;
+    for avoid_flag in [false, true] {
+        with_avoid(avoid_flag, || {
+            for b in 1..=8usize {
+                for per_iter in 1..=3usize {
+                    for reuse in [true, false] {
+                        for seed in 0..2u64 {
+                            let mut rng = SplitMix64::new(9000 + seed * 100 + (b * 10 + per_iter) as u64);
+                            let reqs = pressure_reqs(&mut rng, 30, cap);
+                            let cfg = SchedulerConfig {
+                                max_batch: b,
+                                max_queue: 1000,
+                                busy_chunks_per_iter: per_iter,
+                                prefix_reuse: reuse,
+                                ..Default::default()
+                            };
+                            let run = run_batched(cfg.clone(), cap, &reqs, false);
+                            check_trace(&run, &cfg);
+                            let c = check_fifo(&run.trace, reqs.len());
+                            assert_eq!(c.admitted as u64, run.metrics.admitted, "B = {b}, seed {seed}");
+                            assert!(reuse || c.reused == 0, "prefix reuse off but a request reused KV");
+                            total.admitted += c.admitted;
+                            total.reused += c.reused;
+                            total.contested_chunks += c.contested_chunks;
+                            total.younger_waiting += c.younger_waiting;
+                            total.cancel_queued += c.cancel_queued;
+                            total.cancel_prefill += c.cancel_prefill;
+                            total.cancel_decode += c.cancel_decode;
+                            total.failed_prefill += c.failed_prefill;
+                            runs += 1;
+                        }
+                    }
+                }
+            }
+        });
+    }
+    eprintln!("fifo coverage over {runs} runs: {total:?}");
+    // the properties were exercised, not vacuous
+    assert!(total.contested_chunks >= 200, "{total:?}");
+    assert!(total.younger_waiting >= 200, "{total:?}");
+    assert!(total.reused >= 100, "{total:?}");
+    assert!(total.cancel_queued >= 30 && total.cancel_prefill >= 30 && total.cancel_decode >= 30, "{total:?}");
+    assert!(total.failed_prefill >= 5, "{total:?}");
+}
+
+/// Negative control for the checker itself: traces that overtake are rejected.
+#[test]
+fn fifo_checker_rejects_overtaking() {
+    use std::panic::catch_unwind;
+    let adm = |id, slot| TraceEvent::Admitted { iter: 1, id, slot, cached: 0 };
+    let chunk = |id, last| TraceEvent::Chunk { iter: 1, id, start: 0, len: 10, last };
+    let fin = |id, how| TraceEvent::Finished { iter: 2, id, how };
+    // fine: 0 cancelled while queued, 1 and 2 in order
+    let ok = vec![
+        fin(0, EndKind::Cancelled),
+        adm(1, 0),
+        adm(2, 1),
+        chunk(1, true),
+        chunk(2, true),
+        fin(1, EndKind::Done),
+        fin(2, EndKind::Done),
+    ];
+    let c = check_fifo(&ok, 3);
+    assert_eq!((c.cancel_queued, c.admitted), (1, 2));
+    // 1 admitted while 0 still waits
+    let t = vec![adm(1, 0), adm(0, 1), fin(0, EndKind::Done), fin(1, EndKind::Done)];
+    assert!(catch_unwind(|| check_fifo(&t, 2)).is_err(), "admission overtake not caught");
+    // a younger request's chunk while an older one is prefilling
+    let t = vec![adm(0, 0), adm(1, 1), chunk(1, false), chunk(0, true), chunk(1, true)];
+    assert!(catch_unwind(|| check_fifo(&t, 2)).is_err(), "prefill overtake not caught");
+    // a chunk after the request's final chunk
+    let t = vec![adm(0, 0), adm(1, 1), fin(0, EndKind::Cancelled), chunk(1, true), adm(2, 0), chunk(2, true), chunk(1, true)];
+    assert!(catch_unwind(|| check_fifo(&t, 3)).is_err(), "chunk after the final chunk not caught");
+}
