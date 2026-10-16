@@ -1,0 +1,17 @@
+mapped and wrapped 5 shards in 0.7 ms (mode madvise, sleep 0 ms, gap 300 ms)
+madvise model-00001-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 86.6 ms
+madvise model-00002-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 83.6 ms
+madvise model-00003-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 73.3 ms
+madvise model-00004-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 55.9 ms
+madvise model-00005-of-00005.safetensors: rc 0 errno No such file or directory (os error 2) in 23.2 ms
+madvise pass: 322.7 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 60.69 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 42.27 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 30.11 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 18.44 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 8.10 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 1.01 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.79 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.82 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.22 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.85 ms
