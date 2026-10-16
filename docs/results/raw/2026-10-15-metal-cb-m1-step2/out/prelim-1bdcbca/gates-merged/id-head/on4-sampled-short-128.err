@@ -1,0 +1,8 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 122 tokens
+ids: [576, 8720, 21881, 798, 29994, 264, 5611, 315, 53334, 14043, 389, 1899, 220, 23, 13, 576, 2310, 326, 57909, 53416, 26471, 264, 2802, 315, 23285, 595, 7066, 642, 389, 1899, 220, 24, 13, 576, 56411, 7341, 26471, 279, 6301, 41938, 518, 38393, 389, 1899, 220, 16, 15, 13, 576, 8720, 21881, 798, 26471, 264, 5611, 315, 53334, 14043, 389, 1899, 220, 16, 16, 13, 576, 22208, 38835, 26471, 279, 19780, 16876, 20097, 304, 389, 1899, 220, 16, 17, 13, 576, 8720, 21881, 798, 26471, 279, 6301, 41938, 518, 38393, 389, 1899, 220, 16, 18, 13, 576, 2310, 326, 57909, 53416, 26471, 264, 5611, 315, 53334, 14043, 389, 1899, 220, 16, 19, 13, 576, 56411, 7341, 26471, 264, 2802, 315, 23285, 595, 7066, 642, 389, 1899, 220, 16, 20]
+finish=length prompt=122 (cached 0) completion=128 | prefill 240 ms (507.8 tok/s) | decode 3662 ms (34.68 tok/s)
+spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+steps=128 graph replays=0 (captures 0) eager decode steps=127 (profiled 0) top ops: attn_decode=0ms/4572 attn_prefill=0ms/36 embedding=0ms/128 logits=0ms/128 matmul=0ms/13824

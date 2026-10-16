@@ -1,0 +1,22 @@
+prefill chunk 2048 (recipe qwen3, metal)
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 8192 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 4062 tokens
+spec: token 2 pos 4062 drafted 4 accepted 2 emits 3
+spec: token 5 pos 4065 drafted 4 accepted 0 emits 1
+spec: token 6 pos 4066 drafted 4 accepted 0 emits 1
+spec: token 7 pos 4067 drafted 4 accepted 4 emits 5
+spec: token 12 pos 4072 drafted 4 accepted 4 emits 5
+spec: token 17 pos 4077 drafted 4 accepted 4 emits 5
+spec: token 22 pos 4082 drafted 4 accepted 4 emits 5
+spec: token 27 pos 4087 drafted 4 accepted 4 emits 5
+spec: token 32 pos 4092 drafted 4 accepted 1 emits 2
+spec: token 34 pos 4094 drafted 4 accepted 2 emits 3
+spec: token 37 pos 4097 drafted 4 accepted 4 emits 5
+spec: token 42 pos 4102 drafted 4 accepted 4 emits 5
+spec: token 47 pos 4107 drafted 4 accepted 3 emits 4
+spec: finished at token 48 with 2 verified tokens unemitted; KV 4111 -> 4109
+ids: [576, 56411, 7341, 8110, 279, 1293, 5636, 311, 279, 13648, 389, 1899, 220, 17, 19, 21, 13, 576, 56411, 7341, 8110, 279, 1293, 5636, 311, 279, 13648, 389, 1899, 220, 17, 19, 22, 13, 576, 56411, 7341, 8110, 279, 1293, 5636, 311, 279, 13648, 389, 1899, 220, 17]
+finish=length prompt=4062 (cached 0) completion=48 | prefill 1146 ms (3544.3 tok/s) | decode 406 ms (115.86 tok/s)
+spec: verify passes=13 proposed=52 accepted=36 (acceptance 69.2%, 3.77 tokens per pass)
+steps=15 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: argmax=0ms/14 attn_prefill=0ms/540 embedding=0ms/15 logits=0ms/14 matmul=0ms/1620

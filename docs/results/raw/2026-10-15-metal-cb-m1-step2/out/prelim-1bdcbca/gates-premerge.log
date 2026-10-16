@@ -1,0 +1,12 @@
+fleetq: #2089 waiting (#4 in line): in line behind #2082 "metal chunk-no1: ids L=257/2049/4097 base vs after, accuracy, qualify, metal tests" (claude-0e8026c5) on endor
+fleetq:   #2082 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2082 set, or it will wait for #2082 to be released.
+fleetq: #2089 waiting (#2 in line): in line behind #2085 "gemm midm: in-engine tile sweep, mid M (kernel traces)" (claude-0e8026c5) on endor
+fleetq:   #2085 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2085 set, or it will wait for #2085 to be released.
+fleetq: #2089 waiting (#1 in line): endor is held exclusively by #2085 "gemm midm: in-engine tile sweep, mid M (kernel traces)" (claude-0e8026c5)
+fleetq:   #2085 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2085 set, or it will wait for #2085 to be released.
+fleetq: #2089 running on endor: docs/results/raw/2026-10-15-metal-cb-m1-step2/gates.sh /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/step2/gates 825b46f
+HEAD efca589 dirty=       0 binary 331d824771b09e71d3615cb93568fd51c4a5d9df  /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-cbwire-current
+cargo test --workspace --release: exit 101
+cargo test -p intarsia-backend-metal --release: exit 0
+identity: exit 0
+fleetq: #2089 done (exit 0)
