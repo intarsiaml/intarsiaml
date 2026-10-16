@@ -361,7 +361,7 @@ Only the slot layout part of 3 is still open.
 
 Open items:
 
-* Speculation and prefix reuse enabled together: not yet gated (gates A and B of `docs/results/2026-10-16-metal-cb-gates-reuse-spec.md` each ran with one of them off).
+* ~~Speculation and prefix reuse enabled together: not yet gated.~~ Closed 2026-10-16: `--spec ngram` + prefix reuse, batched vs solo, 799/799 identical at B=2/3/8 (about 55% from decode-written KV; negative control 3/3), `docs/results/2026-10-16-metal-cb-soak3.md` Part B. The same doc closes the B=4 soak and the B=1 guard (1.009x p50 vs base).
 
 ## 9. Sources and confidence
 
