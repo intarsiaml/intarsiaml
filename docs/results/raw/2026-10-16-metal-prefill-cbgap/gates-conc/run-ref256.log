@@ -1,0 +1,206 @@
+solo: 203 cases -> http://127.0.0.1:8101
+token ids: requested (http://127.0.0.1:8101)
+  [  1/203] cb000 S stop 2 0.1s
+  [  2/203] cb001 S stop 80 3.1s
+  [  3/203] cb002 S length 96 3.3s
+  [  4/203] cb003 S length 16 0.7s
+  [  5/203] cb004 S length 96 4.6s
+  [  6/203] cb005 S length 128 3.5s
+  [  7/203] cb006 S length 128 3.5s
+  [  8/203] cb007 S length 16 0.6s
+  [  9/203] cb008 S length 32 1.0s
+  [ 10/203] cb009 S length 32 1.5s
+  [ 11/203] cb010 S stop 15 0.6s
+  [ 12/203] cb011 S length 32 1.1s
+  [ 13/203] cb012 S length 48 1.3s
+  [ 14/203] cb013 S stop 15 0.5s
+  [ 15/203] cb014 S length 16 0.5s
+  [ 16/203] cb015 S stop 3 0.4s
+  [ 17/203] cb016 S length 32 1.1s
+  [ 18/203] cb017 S length 32 1.4s
+  [ 19/203] cb018 S length 48 1.8s
+  [ 20/203] cb019 S stop 45 2.2s
+  [ 21/203] cb020 S length 128 4.2s
+  [ 22/203] cb021 S stop 18 1.1s
+  [ 23/203] cb022 S stop 2 0.2s
+  [ 24/203] cb023 S length 160 5.4s
+  [ 25/203] cb024 S length 128 3.6s
+  [ 26/203] cb025 S length 96 2.7s
+  [ 27/203] cb026 S stop 9 0.3s
+  [ 28/203] cb027 S stop 14 0.5s
+  [ 29/203] cb028 S length 48 2.5s
+  [ 30/203] cb029 S length 128 3.8s
+  [ 31/203] cb030 S length 48 1.4s
+  [ 32/203] cb031 S length 16 0.5s
+  [ 33/203] cb032 S length 64 2.0s
+  [ 34/203] cb033 S length 48 1.4s
+  [ 35/203] cb034 S length 48 1.9s
+  [ 36/203] cb035 S length 16 0.8s
+  [ 37/203] cb036 S length 96 2.7s
+  [ 38/203] cb037 S length 48 1.6s
+  [ 39/203] cb038 S stop 77 2.3s
+  [ 40/203] cb039 S stop 2 0.1s
+  [ 41/203] cb040 S stop 36 1.0s
+  [ 42/203] cb041 S length 96 3.3s
+  [ 43/203] cb042 S stop 27 0.8s
+  [ 44/203] cb043 S stop 94 3.8s
+  [ 45/203] cb044 S stop 1 0.3s
+  [ 46/203] cb045 S length 64 2.4s
+  [ 47/203] cb046 S length 64 3.7s
+  [ 48/203] cb047 S length 96 2.8s
+  [ 49/203] cb048 S length 32 1.0s
+  [ 50/203] cb049 S length 96 2.7s
+  [ 51/203] cb050 S length 48 1.3s
+  [ 52/203] cb051 S length 48 2.4s
+  [ 53/203] cb052 S length 96 2.6s
+  [ 54/203] cb053 S stop 2 1.1s
+  [ 55/203] cb054 S length 16 0.6s
+  [ 56/203] cb055 S length 16 0.7s
+  [ 57/203] cb056 S length 128 3.6s
+  [ 58/203] cb057 S length 16 0.7s
+  [ 59/203] cb058 S length 64 2.0s
+  [ 60/203] cb059 S stop 17 0.5s
+  [ 61/203] cb060 S length 48 1.5s
+  [ 62/203] cb061 S stop 32 1.2s
+  [ 63/203] cb062 S stop 31 1.2s
+  [ 64/203] cb063 S length 96 2.9s
+  [ 65/203] cb064 S length 32 0.9s
+  [ 66/203] cb065 S length 96 2.7s
+  [ 67/203] cb066 S length 96 2.7s
+  [ 68/203] cb067 S length 48 1.9s
+  [ 69/203] cb068 S length 64 1.8s
+  [ 70/203] cb069 S length 48 1.6s
+  [ 71/203] cb070 S length 96 2.7s
+  [ 72/203] cb071 S stop 103 3.0s
+  [ 73/203] cb072 S stop 2 0.1s
+  [ 74/203] cb073 S length 48 1.3s
+  [ 75/203] cb074 S length 64 2.5s
+  [ 76/203] cb075 S length 96 3.0s
+  [ 77/203] cb076 S length 16 1.0s
+  [ 78/203] cb077 S length 64 1.8s
+  [ 79/203] cb078 S stop 24 0.8s
+  [ 80/203] cb079 S length 48 1.5s
+  [ 81/203] cb080 S length 96 3.3s
+  [ 82/203] cb081 S length 96 2.9s
+  [ 83/203] cb082 S stop 17 0.5s
+  [ 84/203] cb083 S length 16 0.5s
+  [ 85/203] cb084 S length 32 1.0s
+  [ 86/203] cb085 S stop 56 1.8s
+  [ 87/203] cb086 S length 48 1.4s
+  [ 88/203] cb087 S stop 4 0.3s
+  [ 89/203] cb088 S length 16 0.5s
+  [ 90/203] cb089 S length 96 2.7s
+  [ 91/203] cb090 S length 48 1.5s
+  [ 92/203] cb091 S stop 2 0.6s
+  [ 93/203] cb092 S stop 6 0.7s
+  [ 94/203] cb093 S length 128 4.7s
+  [ 95/203] cb094 S length 128 5.0s
+  [ 96/203] cb095 S length 32 1.0s
+  [ 97/203] cb096 S stop 27 0.8s
+  [ 98/203] cb097 S stop 52 2.5s
+  [ 99/203] cb098 S stop 45 2.2s
+  [100/203] cb099 S stop 59 2.2s
+  [101/203] cb100 S length 48 1.3s
+  [102/203] cb101 S length 96 2.7s
+  [103/203] cb102 S length 64 3.6s
+  [104/203] cb103 S length 16 0.5s
+  [105/203] cb104 S stop 88 3.3s
+  [106/203] cb105 S length 96 3.5s
+  [107/203] cb106 S stop 27 0.8s
+  [108/203] cb107 S stop 95 3.3s
+  [109/203] cb108 S stop 15 0.9s
+  [110/203] cb109 S length 16 1.3s
+  [111/203] cb110 S length 48 2.5s
+  [112/203] cb111 S length 48 1.9s
+  [113/203] cb112 S length 64 2.7s
+  [114/203] cb113 S stop 85 2.9s
+  [115/203] cb114 S length 96 3.3s
+  [116/203] cb115 S length 128 3.5s
+  [117/203] cb116 S length 128 3.5s
+  [118/203] cb117 S length 96 3.9s
+  [119/203] cb118 S length 64 2.0s
+  [120/203] cb119 S length 128 3.9s
+  [121/203] cb120 S stop 67 2.9s
+  [122/203] cb121 S length 48 1.3s
+  [123/203] cb122 S length 96 2.7s
+  [124/203] cb123 S length 48 1.3s
+  [125/203] cb124 S length 48 2.1s
+  [126/203] cb125 S stop 56 2.4s
+  [127/203] cb126 S length 128 3.7s
+  [128/203] cb127 S stop 4 0.4s
+  [129/203] cb128 S length 32 1.5s
+  [130/203] cb129 S length 64 2.3s
+  [131/203] cb130 S length 16 0.6s
+  [132/203] cb131 S length 48 1.3s
+  [133/203] cb132 S stop 15 1.0s
+  [134/203] cb133 S length 96 2.7s
+  [135/203] cb134 S length 48 1.6s
+  [136/203] cb135 S length 96 3.8s
+  [137/203] cb136 S stop 25 1.2s
+  [138/203] cb137 S length 128 3.7s
+  [139/203] cb138 S length 48 1.9s
+  [140/203] cb139 S length 96 3.3s
+  [141/203] cb140 S length 128 3.6s
+  [142/203] cb141 S length 48 1.3s
+  [143/203] cb142 S stop 3 1.1s
+  [144/203] cb143 S length 128 3.5s
+  [145/203] cb144 S stop 2 0.9s
+  [146/203] cb145 S length 48 1.3s
+  [147/203] cb146 S length 96 2.9s
+  [148/203] cb147 S stop 53 2.0s
+  [149/203] cb148 S length 64 1.8s
+  [150/203] cb149 S stop 13 0.4s
+  [151/203] cb150 S length 16 0.7s
+  [152/203] cb151 S stop 73 2.6s
+  [153/203] cb152 S length 32 0.9s
+  [154/203] cb153 S length 128 3.7s
+  [155/203] cb154 S length 128 3.5s
+  [156/203] cb155 S stop 2 0.3s
+  [157/203] cb156 S length 32 1.0s
+  [158/203] cb157 S length 64 2.6s
+  [159/203] cb158 S length 32 1.0s
+  [160/203] cb159 S length 96 2.9s
+  [161/203] cb160 S stop 15 1.1s
+  [162/203] cb161 S length 48 1.3s
+  [163/203] cb162 S length 64 2.3s
+  [164/203] cb163 S length 32 1.0s
+  [165/203] cb164 S length 128 3.6s
+  [166/203] cb165 S length 128 4.7s
+  [167/203] cb166 S stop 3 0.9s
+  [168/203] cb167 S length 128 4.7s
+  [169/203] cb168 S length 128 4.9s
+  [170/203] cb169 S stop 93 2.6s
+  [171/203] cb170 S length 96 2.9s
+  [172/203] cb171 S length 64 1.9s
+  [173/203] cb172 S length 128 3.6s
+  [174/203] cb173 S length 64 3.1s
+  [175/203] cb174 S length 32 1.0s
+  [176/203] cb175 S length 96 3.9s
+  [177/203] cb176 S stop 87 2.4s
+  [178/203] cb177 S length 48 1.4s
+  [179/203] cb178 S stop 53 2.0s
+  [180/203] cb179 S stop 95 3.2s
+  [181/203] cb180 S length 96 3.0s
+  [182/203] cb181 S length 32 1.2s
+  [183/203] cb182 S length 128 4.7s
+  [184/203] cb183 S length 16 0.5s
+  [185/203] cb184 S stop 3 0.2s
+  [186/203] cb185 S stop 118 3.9s
+  [187/203] cb186 S length 128 3.5s
+  [188/203] cb187 S stop 33 1.2s
+  [189/203] cb188 S stop 96 5.1s
+  [190/203] cb189 S stop 2 0.1s
+  [191/203] cb190 S stop 31 0.9s
+  [192/203] cb191 S length 32 0.9s
+  [193/203] cb192 S stop 26 1.3s
+  [194/203] cb193 S length 96 3.8s
+  [195/203] cb194 S length 16 0.7s
+  [196/203] cb195 S length 128 3.6s
+  [197/203] cb196 S stop 8 0.5s
+  [198/203] cb197 S stop 2 0.3s
+  [199/203] cb198 S length 48 1.6s
+  [200/203] cb199 S length 32 1.7s
+  [201/203] cb200 S length 64 2.9s
+  [202/203] cb201 S length 64 2.9s
+  [203/203] cb202 S length 64 3.1s
+wrote /opt/code/intarsiaml-cbgap/docs/results/raw/2026-10-16-metal-prefill-cbgap/gates-conc/ref256.jsonl: 203 records, 0 errors, wall 418.0s, peak client in-flight 0

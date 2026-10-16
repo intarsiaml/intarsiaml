@@ -1,0 +1,8 @@
+ts-c256 4062: idle   8.5 cbs 48 wall 1146 | 1024: idle   1.4 cbs 12 wall 270 | 4062: idle   5.9 cbs 48 wall 1162 | 1024: idle   1.2 cbs 12 wall 267
+v1-c256-ahead0 4062: idle   6.3 cbs 48 wall 1370 | 1024: idle   1.2 cbs 12 wall 292 | 4062: idle   6.0 cbs 48 wall 1274 | 1024: idle   1.4 cbs 12 wall 295
+v1-c256-ahead2 4062: idle   0.0 cbs 46 wall 1395 | 1024: idle   0.0 cbs 12 wall 301 | 4062: idle   0.0 cbs 46 wall 1206 | 1024: idle   0.0 cbs 12 wall 284
+v1-c256 4062: idle   0.0 cbs 46 wall 1243 | 1024: idle   0.0 cbs 12 wall 283 | 4062: idle   0.0 cbs 46 wall 1204 | 1024: idle   0.0 cbs 12 wall 289
+v1-c256-ahead4 4062: idle   0.0 cbs 46 wall 1243 | 1024: idle   0.0 cbs 12 wall 338 | 4062: idle   0.0 cbs 46 wall 1285 | 1024: idle   0.0 cbs 12 wall 285
+v1-c256-ahead6 4062: idle   0.0 cbs 46 wall 1247 | 1024: idle   0.0 cbs 12 wall 286 | 4062: idle   0.0 cbs 46 wall 1243 | 1024: idle   0.0 cbs 12 wall 285
+ts-c2048 4062: idle   0.5 cbs 6 wall 1206 | 1024: idle   0.0 cbs 3 wall 264 | 4062: idle   0.5 cbs 6 wall 1117 | 1024: idle   0.0 cbs 3 wall 260
+v1-c2048 4062: idle   0.0 cbs 6 wall 1130 | 1024: idle   0.0 cbs 3 wall 270 | 4062: idle   0.0 cbs 6 wall 1111 | 1024: idle   0.0 cbs 3 wall 269

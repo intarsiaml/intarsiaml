@@ -1,0 +1,78 @@
+== none-1
+mapped and wrapped 5 shards in 0.7 ms (mode none)
+use 0 model-00001-of-00005.safetensors (4.00 GB): 38.59 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 45.36 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 40.65 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 37.12 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 11.36 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.61 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.77 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.26 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.71 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.68 ms
+== residency-1
+mapped and wrapped 5 shards in 0.9 ms (mode residency)
+residency set built+committed in 0.03 ms, requested, added to queue at 179.20 ms
+residency set allocatedSize 15622 MB after 8 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 3.98 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 0.25 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 0.20 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 0.22 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 0.20 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.17 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.15 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.17 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.22 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.19 ms
+== touch-1
+mapped and wrapped 5 shards in 0.7 ms (mode touch)
+touch pass: 179.2 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 0.75 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 0.57 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 0.25 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 0.78 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 0.31 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.22 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.22 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.15 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.16 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.17 ms
+== none-2
+mapped and wrapped 5 shards in 0.8 ms (mode none)
+use 0 model-00001-of-00005.safetensors (4.00 GB): 41.65 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 45.95 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 34.69 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 36.20 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 11.72 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.60 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.76 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.82 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.65 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.77 ms
+== residency-2
+mapped and wrapped 5 shards in 0.8 ms (mode residency)
+residency set built+committed in 0.02 ms, requested, added to queue at 185.03 ms
+residency set allocatedSize 15622 MB after 6 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 4.06 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 0.22 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 0.15 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 0.15 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 0.13 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.16 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.13 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.16 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.14 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.15 ms
+== touch-2
+mapped and wrapped 5 shards in 0.7 ms (mode touch)
+touch pass: 167.0 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 0.26 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 0.20 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 0.21 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 0.17 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 0.22 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.20 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.19 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.20 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.19 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.18 ms

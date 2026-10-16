@@ -1,0 +1,16 @@
+heads 32/8 head_dim 128, chunk 256, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 4062 chunk 256: attn_nax_d128_s4                 3491.4 us per layer (125.7 ms over 36 layers)   38.72 TFLOPS
+total 4062 chunk 256: attn_nax_d128_s8                 3694.1 us per layer (133.0 ms over 36 layers)   36.60 TFLOPS
+heads 32/8 head_dim 128, chunk 512, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 4062 chunk 512: attn_nax_d128_s4                 3119.3 us per layer (112.3 ms over 36 layers)   43.34 TFLOPS
+total 4062 chunk 512: attn_nax_d128_s8                 3396.5 us per layer (122.3 ms over 36 layers)   39.81 TFLOPS
+heads 32/8 head_dim 128, chunk 1024, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 4062 chunk 1024: attn_nax_d128_s4                 3041.6 us per layer (109.5 ms over 36 layers)   44.45 TFLOPS
+total 4062 chunk 1024: attn_nax_d128_s8                 3096.4 us per layer (111.5 ms over 36 layers)   43.66 TFLOPS
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 8 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+total 4062 chunk 2048: attn_nax_d128_s4                 2849.7 us per layer (102.6 ms over 36 layers)   47.44 TFLOPS
+total 4062 chunk 2048: attn_nax_d128_s8                 2922.0 us per layer (105.2 ms over 36 layers)   46.27 TFLOPS

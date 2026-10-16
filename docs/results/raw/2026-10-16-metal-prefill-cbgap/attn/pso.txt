@@ -1,0 +1,8 @@
+attn_nax_d128_s4: nsg 4 bk 32 maxTotalThreads 128 execWidth 32 staticTgMem 0
+  T 256: 16 x 8 = 128 threadgroups of 128 threads
+  T 2048: 128 x 8 = 1024 threadgroups of 128 threads
+  T 240: 15 x 8 = 120 threadgroups of 128 threads
+attn_nax_d128_s8: nsg 8 bk 32 maxTotalThreads 256 execWidth 32 staticTgMem 0
+  T 256: 8 x 8 = 64 threadgroups of 256 threads
+  T 2048: 64 x 8 = 512 threadgroups of 256 threads
+  T 240: 8 x 8 = 64 threadgroups of 256 threads
