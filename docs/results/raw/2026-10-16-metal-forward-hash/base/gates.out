@@ -1,0 +1,21 @@
+fleetq: #2165 waiting (#1 in line): endor is held exclusively by #2162 "cbgap trim: paired cold serve 4k prewire default vs off vs base 00abb36 (metal-prefill-cbgap)" (claude-0e8026c5)
+fleetq:   #2162 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2162 set, or it will wait for #2162 to be released.
+fleetq: #2165 running on endor: /opt/code/intarsiaml-fwdhash/docs/results/raw/2026-10-16-metal-forward-hash/gates.sh base /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/fh/gates-base
+== 1. fwdrows [base]
+fwdrows chunk=256 exit 0
+fwdrows chunk=2048 exit 0
+== 2. chunkgolden [base]
+chunkgolden chunk=256 exit 0
+chunkgolden chunk=2048 exit 0
+== 3. accuracy on the truncated golden (lengths 257 513 258 769 2049) [base]
+acc trunc c256 exit 0
+acc trunc c2048 exit 0
+== 4. accuracy short/long/4k [base]
+acc c256 short exit 0
+acc c256 long exit 0
+acc c256 4k exit 0
+acc c2048 short exit 0
+acc c2048 long exit 1
+acc c2048 4k exit 0
+GATES_DONE
+fleetq: #2165 done (exit 0)

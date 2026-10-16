@@ -1139,9 +1139,13 @@ impl Model {
                 }
                 HeadMode::AllLogits => {
                     let cb = on_row.as_mut().unwrap();
+                    // head groups of `LOGIT_ROWS` rows by the prefill rule too: a 1-row group runs the decode GEMV, which is
+                    // not bitwise the same row inside a >= 2-row group, so a `k * LOGIT_ROWS + 1` chunk would score its last
+                    // row differently from a schedule that ends it in a 2-row chunk (`(.., 15, 2)` instead of `(.., 16, 1)`)
+                    let avoid = self.backend.avoid_single_row_prefill();
                     let mut r = 0;
                     while r < chunk.len() {
-                        let c = LOGIT_ROWS.min(chunk.len() - r);
+                        let c = crate::scheduler::next_prefill_chunk(chunk.len() - r, LOGIT_ROWS, avoid);
                         let flat = self.head_logits(&hn, r, c, profile)?;
                         for i in 0..c {
                             cb(base + r + i, &flat[i * self.dims.vocab..(i + 1) * self.dims.vocab])?;
