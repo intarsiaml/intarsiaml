@@ -94,11 +94,13 @@ pub struct ModelArgs {
     /// Most draft tokens per verify pass with `--spec ngram` (1..=6).
     #[arg(long, default_value_t = intarsia_core::spec::SPEC_K_DEFAULT)]
     pub spec_k: usize,
-    /// Concurrent sequences the engine decodes together (continuous batching). Default: the recipe's `max_batch`.
-    /// Only 1 is implemented so far; larger values are rejected until the batching scheduler lands
-    /// (docs/research/continuous-batching-design.md, M1).
-    #[arg(long)]
+    /// Concurrent sequences the engine decodes together (continuous batching). Not a flag of this group: only
+    /// `serve --max-batch` sets it, because the other commands need the single-sequence engine.
+    #[arg(skip)]
     pub max_batch: Option<usize>,
+    /// `serve --max-queue`, which sizes the batched engine's request queue. Set by `serve` only.
+    #[arg(skip)]
+    pub max_queue: Option<usize>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -228,6 +230,7 @@ impl ModelArgs {
             },
             spec: intarsia_core::spec::SpecConfig::parse(&self.spec, self.spec_k).map_err(|e| anyhow::anyhow!("{e}"))?,
             max_batch: self.max_batch,
+            max_queue: self.max_queue,
         })
     }
 
@@ -306,5 +309,33 @@ mod tests {
         assert_eq!(profile_every(&["--backend", "metal"], false), 16);
         assert_eq!(profile_every(&["--backend", "cuda"], true), 16);
         assert_eq!(profile_every(&["--backend", "cpu"], true), 1);
+    }
+
+    #[derive(Parser)]
+    struct Gen {
+        #[command(flatten)]
+        a: crate::cmd::generate::GenerateArgs,
+    }
+    #[derive(Parser)]
+    struct Acc {
+        #[command(flatten)]
+        a: crate::cmd::accuracy::AccuracyArgs,
+    }
+    #[derive(Parser)]
+    struct Srv {
+        #[command(flatten)]
+        a: crate::cmd::serve::ServeArgs,
+    }
+
+    #[test]
+    fn max_batch_is_a_serve_only_flag() {
+        use clap::error::ErrorKind;
+        let g = Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--max-batch", "4"]);
+        assert_eq!(g.err().map(|e| e.kind()), Some(ErrorKind::UnknownArgument));
+        let a = Acc::try_parse_from(["t", "-m", "/m", "--max-batch", "4"]);
+        assert_eq!(a.err().map(|e| e.kind()), Some(ErrorKind::UnknownArgument));
+        let s = Srv::try_parse_from(["t", "-m", "/m", "--max-batch", "4", "--max-queue", "2000"]).unwrap().a;
+        assert_eq!((s.max_batch, s.max_queue), (Some(4), 2000));
+        assert_eq!(s.model.max_batch, None, "serve copies the flag into the model args when it loads");
     }
 }

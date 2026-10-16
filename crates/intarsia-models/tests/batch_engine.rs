@@ -251,7 +251,7 @@ fn queue_full_is_refused_and_unwinds_telemetry() {
         match eng.submit(long(i)) {
             Ok(rx) => rxs.push(rx),
             Err(e) => {
-                assert!(e.to_string().contains("queue full"), "{e}");
+                assert!(matches!(e, intarsia_core::Error::QueueFull(2)), "{e}");
                 refused += 1;
             }
         }

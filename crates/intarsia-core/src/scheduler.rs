@@ -452,7 +452,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             return Err(e);
         }
         if self.queued.load(Ordering::SeqCst) >= self.cfg.max_queue {
-            let e = Error::Other(format!("queue full ({} waiting)", self.cfg.max_queue));
+            let e = Error::QueueFull(self.cfg.max_queue);
             seq.fail(&e);
             self.metrics.lock().unwrap().rejected += 1;
             return Err(e);
@@ -903,7 +903,7 @@ where
         }
         if self.shared.queued.fetch_add(1, Ordering::SeqCst) >= self.shared.max_queue {
             self.shared.queued.fetch_sub(1, Ordering::SeqCst);
-            let e = Error::Other(format!("queue full ({} waiting)", self.shared.max_queue));
+            let e = Error::QueueFull(self.shared.max_queue);
             seq.fail(&e);
             self.shared.metrics.lock().unwrap().rejected += 1;
             return Err(e);
