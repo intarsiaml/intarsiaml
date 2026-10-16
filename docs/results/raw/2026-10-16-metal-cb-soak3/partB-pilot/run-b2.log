@@ -1,0 +1,20 @@
+  [  1] c001s0 exact  cached 0 gen 69 chunk 256 ok length
+  [  2] c000s0 ext    cached 0 gen 114 chunk 256 ok length
+  [  3] c000s1 ext    cached 408 gen 30 chunk 256 ok length
+  [  4] c001s1 exact  cached 1234 gen 70 chunk 256 ok length
+  [  5] c002s0 ext2   cached 0 gen 160 chunk 256 ok length
+  [  6] c002s1 ext2   cached 456 gen 41 chunk 256 ok length
+  [  7] c003s0 ext    cached 0 gen 224 chunk 256 ok length
+  [  8] c003s1 ext    cached 414 gen 40 chunk 256 ok length
+  [  9] c002s2 ext2   cached 602 gen 75 chunk 256 ok length
+  [ 10] c005s0 ext2   cached 0 gen 111 chunk 256 ok length
+  [ 11] c005s1 ext2   cached 555 gen 85 chunk 256 ok length
+  [ 12] c004s0 branch cached 0 gen 224 chunk 256 ok length
+  [ 13] c005s2 ext2   cached 731 gen 49 chunk 256 ok length
+  [ 14] c004s1 branch cached 342 gen 84 chunk 256 ok length
+  [ 15] c007s0 exact  cached 0 gen 50 chunk 256 ok length
+  [ 16] c006s0 ext2   cached 0 gen 103 chunk 256 ok length
+  [ 17] c007s1 exact  cached 288 gen 48 chunk 256 ok length
+  [ 18] c006s1 ext2   cached 292 gen 49 chunk 256 ok length
+  [ 19] c006s2 ext2   cached 374 gen 95 chunk 256 ok length
+wrote /opt/code/intarsiaml-cb-soak3/docs/results/raw/2026-10-16-metal-cb-soak3/partB-pilot/conc-b2.jsonl: 19 requests, 0 errors, wall 26.8s, peak in-flight 2

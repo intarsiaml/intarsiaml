@@ -1,0 +1,28 @@
+--- start 13:57:41
+88901  47.7 450832 02-18:19:19 /Applications/Syrtis.app/Contents/MacOS/Syrtis
+25718  19.3   9072    17:53:50 macmon
+22540  10.5 649824    01:18:02 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+76980   3.3   4560 06-14:58:46 /System/Library/PrivateFrameworks/MobileDevice.framework/Versions/A/Resources/usbmuxd
+  673   3.0  16592 19-20:04:47 /usr/libexec/sysmond
+64451   2.4 716992       59:34 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+  692   2.3  55696 19-20:04:47 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+87301   2.2 188032 01-20:00:18 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+17746   1.9 551504    01:19:27 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+  485   1.5 408176 19-20:04:49 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+13571   1.4  74560 07-16:35:21 /Applications/Herdr.app/Contents/MacOS/Herdr
+ 2929   1.4 961312 19-19:50:16 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python
+vm.swapusage: total = 11264.00M  used = 10384.50M  free = 879.50M  (encrypted)
+--- end (servers stopped) 14:20:08
+25718  17.5   9072    18:16:17 macmon
+  631   7.1  74064 19-20:27:15 /usr/sbin/coreaudiod
+  485   5.2 410480 19-20:27:16 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+13571   4.3  74592 07-16:57:48 /Applications/Herdr.app/Contents/MacOS/Herdr
+87301   3.5 191536 01-20:22:45 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+93345   2.0 357680 03-00:07:25 /Applications/Dropbox.app/Contents/MacOS/Dropbox
+  692   1.4  56832 19-20:27:14 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+  438   1.3   8336 19-20:27:16 /System/Library/PrivateFrameworks/CoreSpeech.framework/corespeechd_system
+ 2823   1.1   1040 19-20:12:44 /usr/bin/ssh-agent
+ 2902   0.9 115088 19-20:12:43 /Library/SystemExtensions/5EBCF999-5BAB-4656-8545-C8A4EC8A003D/io.tailscale.ipn.macsys.network-extension.systemextensio
+23577   0.8 1207392       20:52 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.
+  932   0.8  26768 19-20:27:02 /System/Library/PrivateFrameworks/CoreSpeech.framework/corespeechd
+vm.swapusage: total = 11264.00M  used = 10384.50M  free = 879.50M  (encrypted)

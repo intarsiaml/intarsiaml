@@ -1,0 +1,13 @@
+requests 268  comparable 268  pass 265  MISMATCH 3  errors ref/test 0/0  not comparable 0
+comparable requests that started from reused KV: 148 (55%); from reused DECODE-WRITTEN KV: 148 (55%), 17098 decode-written tokens reused
+  kind branch  mismatch        1
+  kind branch  pass            49
+  kind exact   mismatch        1
+  kind exact   pass            35
+  kind ext     mismatch        1
+  kind ext     pass            97
+  kind ext2    pass            84
+MISMATCH c008s0 TOKEN IDS differ at token 23/46 (ref [340, 286, 335, 770, 341, 310] vs test [340, 286, 336, 770, 341, 310]; 46 ref vs 46 test)
+MISMATCH c043s1 TOKEN IDS differ at token 17/35 (ref [330, 1235, 12011, 314, 4232, 25] vs test [330, 1235, 12012, 314, 4232, 25]; 35 ref vs 35 test)
+MISMATCH c089s1 TOKEN IDS differ at token 31/63 (ref [3070, 9349, 334, 320, 3481, 220] vs test [3070, 9349, 335, 320, 3481, 220]; 63 ref vs 63 test)
+exit 1

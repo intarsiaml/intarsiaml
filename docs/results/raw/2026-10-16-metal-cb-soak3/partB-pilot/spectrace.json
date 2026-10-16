@@ -1,0 +1,66 @@
+{
+ "all": {
+  "decode_phases": 928,
+  "orphan_spec_lines": 0,
+  "by_b": {
+   "1": {
+    "phases": 154,
+    "allowed_phases": 154,
+    "verify_passes": 34,
+    "drafted": 136,
+    "accepted": 84
+   },
+   "2": {
+    "phases": 774,
+    "allowed_phases": 774,
+    "verify_passes": 257,
+    "drafted": 1027,
+    "accepted": 574
+   }
+  },
+  "phases_spec_off": 0,
+  "spec_off_phases_with_verify_pass": 0,
+  "phases_where_gate_value_is_not_(b<4)": 0,
+  "runs": 1,
+  "on_to_off_transitions": 0,
+  "off_to_on_transitions": 0,
+  "off_to_on_followed_by_drafting": 0,
+  "drafted_total": 1163,
+  "accepted_total": 658,
+  "verify_passes_total": 291,
+  "drafted_while_allowed": 1163,
+  "drafted_while_off": 0
+ },
+ "b2": {
+  "decode_phases": 928,
+  "orphan_spec_lines": 0,
+  "by_b": {
+   "1": {
+    "phases": 154,
+    "allowed_phases": 154,
+    "verify_passes": 34,
+    "drafted": 136,
+    "accepted": 84
+   },
+   "2": {
+    "phases": 774,
+    "allowed_phases": 774,
+    "verify_passes": 257,
+    "drafted": 1027,
+    "accepted": 574
+   }
+  },
+  "phases_spec_off": 0,
+  "spec_off_phases_with_verify_pass": 0,
+  "phases_where_gate_value_is_not_(b<4)": 0,
+  "runs": 1,
+  "on_to_off_transitions": 0,
+  "off_to_on_transitions": 0,
+  "off_to_on_followed_by_drafting": 0,
+  "drafted_total": 1163,
+  "accepted_total": 658,
+  "verify_passes_total": 291,
+  "drafted_while_allowed": 1163,
+  "drafted_while_off": 0
+ }
+}
