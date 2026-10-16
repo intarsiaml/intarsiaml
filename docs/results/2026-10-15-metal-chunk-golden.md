@@ -6,7 +6,7 @@ Question (continuous-batching-design 8.1): the scheduler prefills at 256 under l
 
 ## Answer
 
-**Yes. On the serving path, prefill at `--prefill-chunk` 256 and 2048 is bitwise identical (greedy ids and all 32 sampled-step logits rows, plus the prefill-final row) for all 33 prompts tested. The existing 2048 goldens cover 256-schedule serving prefill; no new baselines are needed for this reason.** Coverage: 11 prompts are longer than 2048 tokens (2049, 2050, 4095-4098, 4200, 4064 x2, 4557) and so multi-chunk at both schedules; the L%256 in {0,1,2,255} and L%2048 in {0,1,2} cases are all included.
+**Yes. On the serving path, prefill at `--prefill-chunk` 256 and 2048 is bitwise identical (greedy ids and all 32 sampled-step logits rows, plus the prefill-final row) for all 33 prompts tested. The existing 2048 goldens cover 256-schedule serving prefill; no new baselines are needed for this reason.** Coverage: 10 prompts are longer than 2048 tokens (2049, 2050, 4064 x2, 4095-4098, 4200, 4557) and so multi-chunk at both schedules; the L%256 in {0,1,2,255} and L%2048 in {0,1,2} cases are all included.
 
 ## Method
 
