@@ -18,6 +18,8 @@ offered 0.235 req/s, completed 0.234 req/s, output 7.2 tok/s (over the 201 s fro
 | ITL (ms) | 1409 | 57.5 | 50.2 | 91.8 | 103.3 | 215.9 |
 | per-stream decode (tok/s) | 47 | 18.4 | 16.8 | 31.3 | 36.0 | 36.1 |
 
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (13 such prompts): n 236, p50 50.4, p95 90.3, p99 101.5, max 106.1 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
 ## By prompt length
 
 solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).

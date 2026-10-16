@@ -643,6 +643,27 @@ def window_of(t, win):
     return int(t // win)
 
 
+def itl_during_long_prefill(reqs, min_prompt_tokens=3000):
+    """Scenario view of the M2 gate: ITL gaps (ms) of requests, other than the arriving one, that overlap the prefill window
+    [t_send, t_send + TTFT] of an arriving prompt of at least `min_prompt_tokens`. Returns (gaps, number of such prompts)."""
+    longs = []
+    for r in reqs:
+        pt = (r.get("usage") or {}).get("prompt_tokens") or (r.get("target_tokens") if r.get("status") != "ok" else None) or 0
+        if pt >= min_prompt_tokens and r.get("ttft_ms") is not None:
+            longs.append((r["i"], r["t_send"], r["t_send"] + r["ttft_ms"] / 1000.0))
+    gaps = []
+    for r in reqs:
+        if r["status"] not in ("ok", "cancelled") or not r.get("itl_ms"):
+            continue
+        ts = chunk_times(r)
+        for k, g in enumerate(r["itl_ms"]):
+            a = ts[k + 1]
+            b = a - g / 1000.0
+            if any(i != r["i"] and a > t0 and b < t1 for i, t0, t1 in longs):
+                gaps.append(g)
+    return gaps, len(longs)
+
+
 def server_summary(samples, t_from=0.0):
     """Summary of /metrics samples: gauges (queue, running), deltas of counters (rejected, batch-size histogram), server TTFT/ITL means."""
     if not samples:
@@ -711,6 +732,9 @@ def build_report(raw, window_s=30.0, mem_warmup_s=None, slo=None):
              "busy_window_s": busy, "shed_rate": shed / sent if sent else 0.0, "error_rate": err / sent if sent else 0.0,
              "cancel_rate": by["cancelled"] / sent if sent else 0.0, "goodput": by["ok"] / sent if sent else 0.0,
              "per_stream_decode_tok_s": summarize(per_req_decode), "chunks_per_completion_token": chunks / ct if ct else None}
+    stall_gaps, n_long = itl_during_long_prefill(reqs)
+    rates["itl_during_long_prefill_ms"] = summarize(stall_gaps)
+    rates["long_prefill_arrivals"] = n_long
     # per prompt-length bucket
     buckets = []
     for b in sorted({r["bucket"] for r in reqs}):
@@ -788,6 +812,7 @@ SLO_KEYS = {
     "max_itl_p50_ms": ("ITL p50 (ms)", lambda r: r["itl_ms"]["p50"], "max"),
     "max_itl_p95_ms": ("ITL p95 (ms)", lambda r: r["itl_ms"]["p95"], "max"),
     "max_itl_p99_ms": ("ITL p99 (ms)", lambda r: r["itl_ms"]["p99"], "max"),
+    "max_itl_prefill_p95_ms": ("ITL p95 (ms) of gaps overlapping a >=3000-token prompt's prefill", lambda r: r["rates"]["itl_during_long_prefill_ms"]["p95"], "max"),
     "max_error_rate": ("error rate", lambda r: r["rates"]["error_rate"], "max"),
     "max_shed_rate": ("shed rate", lambda r: r["rates"]["shed_rate"], "max"),
     "max_mem_growth_mb": ("memory growth (fitted, MB)", lambda r: r["memory"].get("growth_mb") if r["memory"].get("available") else None, "max"),
@@ -835,6 +860,9 @@ def render_md(rep):
     L += ["## Latency", "", "| metric | n | mean | p50 | p95 | p99 | max |", "|---|---|---|---|---|---|---|"]
     for nm, s in (("TTFT (ms)", rep["ttft_ms"]), ("ITL (ms)", rep["itl_ms"]), ("per-stream decode (tok/s)", r["per_stream_decode_tok_s"])):
         L.append(f"| {nm} | {s['n']} | {f(s['mean'])} | {f(s['p50'])} | {f(s['p95'])} | {f(s['p99'])} | {f(s['max'])} |")
+    sg = r["itl_during_long_prefill_ms"]
+    L += ["", f"ITL of running streams during the prefill of an arriving >= 3000-token prompt ({r['long_prefill_arrivals']} such prompts): n {sg['n']}, "
+          f"p50 {f(sg['p50'])}, p95 {f(sg['p95'])}, p99 {f(sg['p99'])}, max {f(sg['max'])} ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there)."]
     L += ["", "## By prompt length", "", "solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).", "", "| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for b in rep["buckets"]:
         L.append(f"| {b['bucket_tokens']} | {f(b['prompt_tokens_mean'], 0)} | {b['n']} | {b['ok']} | {b['shed']} | {b['error']} | "
@@ -912,6 +940,7 @@ def add_slo_args(p):
     p.add_argument("--max-itl-p50-ms", type=float)
     p.add_argument("--max-itl-p95-ms", type=float)
     p.add_argument("--max-itl-p99-ms", type=float)
+    p.add_argument("--max-itl-prefill-p95-ms", type=float, help="p95 of the ITL gaps that overlap the prefill of an arriving >=3000-token prompt (scenario view of the M2 gate)")
     p.add_argument("--max-error-rate", type=float, help="errors / sent (HTTP errors other than 429/503, timeouts, broken streams)")
     p.add_argument("--max-shed-rate", type=float, help="429+503 / sent")
     p.add_argument("--max-mem-growth-mb", type=float, help="fitted (Theil-Sen) memory growth over the post-warmup span")
@@ -1167,6 +1196,16 @@ def cmd_selftest(_args):
     check("slo: violations listed", not bad["pass"] and {v["key"] for v in bad["violations"]} == {"max_itl_p95_ms", "max_shed_rate", "max_mem_growth_mb"})
     check("slo: unmeasurable metric with a threshold is a violation", not nom["pass"] and nom["violations"][0]["why"] == "not measurable")
     check("slo: no thresholds -> pass", evaluate_slos(fake, {})["pass"])
+
+    # --- prefill-stall scenario metric (synthetic records) -------------------------------------------------------
+    def mk(i, t_send, ttft, gaps, pt=100):
+        return {"i": i, "status": "ok", "t_send": t_send, "ttft_ms": ttft, "itl_ms": gaps, "usage": {"prompt_tokens": pt}}
+    # stream 0: first chunk at 0.1 s, then 20 ms gaps; a 4k prompt (request 1) arrives at t=1.0 s with TTFT 0.5 s and stalls stream 0 for 400 ms
+    g0 = [20.0] * 45 + [400.0] + [20.0] * 20            # chunks at 0.1 + cumsum: the 400 ms gap ends at 1.4 s, inside [1.0, 1.5]
+    reqs = [mk(0, 0.0, 100.0, g0), mk(1, 1.0, 500.0, [20.0] * 5, pt=4096), mk(2, 5.0, 50.0, [20.0] * 10, pt=200)]
+    gp, nl = itl_during_long_prefill(reqs)
+    check("prefill stall: only gaps overlapping the long prompt's window count, the stall is found", nl == 1 and 400.0 in gp and max(gp) == 400.0 and len(gp) < 15, f"n_long={nl} gaps={len(gp)}")
+    check("prefill stall: no long prompt -> empty", itl_during_long_prefill([reqs[0], reqs[2]]) == ([], 0))
 
     # --- end-to-end against the mock ------------------------------------------------------------------------------
     base = dict(prompts_dir=str(PROMPTS), corpora="docs:1,code:1", golden_frac=0.3, no_nonce=False, no_calibrate=False, no_warmup=True, temperature=0.0, ignore_eos=True,

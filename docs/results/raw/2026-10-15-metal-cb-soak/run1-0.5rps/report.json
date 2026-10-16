@@ -1037,7 +1037,16 @@
    "p99": 36.67094952701066,
    "max": 36.75127319701553
   },
-  "chunks_per_completion_token": 1.0
+  "chunks_per_completion_token": 1.0,
+  "itl_during_long_prefill_ms": {
+   "n": 338,
+   "mean": 28.068541665561497,
+   "p50": 27.914541424252093,
+   "p95": 29.256053536664695,
+   "p99": 30.30361578334123,
+   "max": 43.242083163931966
+  },
+  "long_prefill_arrivals": 7
  },
  "ttft_ms": {
   "n": 101,
