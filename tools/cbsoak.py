@@ -674,7 +674,7 @@ def server_summary(samples, t_from=0.0):
            "queue_depth": gauge("intarsia_batch_queue_depth") or gauge("intarsia_requests_waiting"),
            "queue_depth_max_server": gauge("intarsia_batch_queue_depth_max"),
            "step_ewma_ms": gauge("intarsia_batch_step_ewma_ms"),
-           "kv_used_bytes": gauge("intarsia_kv_used_bytes"),
+           "kv_used_bytes": gauge("intarsia_kv_bytes_used"), "kv_total_bytes": gauge("intarsia_kv_bytes_total"),
            "rejected_total_delta": delta("intarsia_requests_rejected_total"),
            "batch_rows_delta": dict(rows), "batch_mean_rows": mean_b,
            "prefill_chunks_delta": delta("intarsia_batch_prefill_chunks_total")}
@@ -765,6 +765,10 @@ def build_report(raw, window_s=30.0, mem_warmup_s=None, slo=None):
     if memory.get("available") and any(s.get("rss_mb") is not None for s in raw.get("mem") or []):
         rs = [s["rss_mb"] for s in raw["mem"] if s.get("rss_mb") is not None]
         memory["rss_start_mb"], memory["rss_end_mb"], memory["rss_max_mb"] = rs[0], rs[-1], max(rs)
+    # device memory as the server reports it (GPU buffers do not show up in the process footprint): used = total - free, system-wide
+    dev = [{"t": x["t"], "mb": (x["m"]["intarsia_device_memory_total_bytes"] - x["m"]["intarsia_device_memory_free_bytes"]) / 1024.0**2}
+           for x in raw.get("server") or [] if "intarsia_device_memory_total_bytes" in x["m"] and "intarsia_device_memory_free_bytes" in x["m"]]
+    memory["device"] = analyze_memory(dev, warm, "mb") if dev else {"available": False}
     rep = {"meta": {k: v for k, v in meta.items() if k != "args"} | {"cmdline_args": meta["args"]}, "counts": counts, "error_kinds": dict(err_kinds),
            "http_status": {str(k): v for k, v in http.items()}, "rates": rates, "ttft_ms": summarize(ttfts), "itl_ms": summarize(itls),
            "buckets": buckets, "windows": windows, "window_s": window_s, "memory": memory, "server": server_summary(raw.get("server") or [])}
@@ -787,6 +791,7 @@ SLO_KEYS = {
     "max_error_rate": ("error rate", lambda r: r["rates"]["error_rate"], "max"),
     "max_shed_rate": ("shed rate", lambda r: r["rates"]["shed_rate"], "max"),
     "max_mem_growth_mb": ("memory growth (fitted, MB)", lambda r: r["memory"].get("growth_mb") if r["memory"].get("available") else None, "max"),
+    "max_device_mem_growth_mb": ("device memory growth (fitted, MB; /metrics total - free, system-wide)", lambda r: r["memory"]["device"].get("growth_mb") if r["memory"].get("device", {}).get("available") else None, "max"),
     "min_out_tok_s": ("output tok/s", lambda r: r["rates"]["out_tok_s"], "min"),
     "min_req_s": ("completed req/s", lambda r: r["rates"]["completed_req_s"], "min"),
 }
@@ -848,13 +853,19 @@ def render_md(rep):
               f"(OLS {f(m['slope_ols_mb_per_min'], 2)}, r2 {f(m['r2'], 2)}), fitted growth {f(m['growth_mb'], 0)} MB, projected {f(m['projected_mb_per_hour'], 0)} MB/h. "
               f"Leak suspect: **{'YES' if m['leak_suspect'] else 'no'}** (growth >= 100 MB and r2 >= 0.6)."]
     else:
-        L += ["no memory samples (run without --pid, or the process could not be sampled)."]
+        L += ["no process memory samples (run without --pid, or the process could not be sampled)."]
+    d = m.get("device", {})
+    if d.get("available"):
+        L += ["", f"Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start {f(d['start_mb'], 0)} MB, "
+              f"end {f(d['end_mb'], 0)} MB, max {f(d['max_mb'], 0)} MB; slope {f(d['slope_mb_per_min'], 2)} MB/min (r2 {f(d['r2'], 2)}), fitted growth {f(d['growth_mb'], 0)} MB. "
+              f"Leak suspect: **{'YES' if d['leak_suspect'] else 'no'}**."]
     s = rep["server"]
     L += ["", "## Server (/metrics)", ""]
     if s.get("available"):
         def g(x):
             return "-" if not x else f"max {f(x['max'], 1)} / mean {f(x['mean'], 2)}"
         L += [f"{s['n']} samples. running: {g(s['running'])}. queue depth: {g(s['queue_depth'])}. step EWMA ms: {g(s['step_ewma_ms'])}. "
+              f"KV bytes used: {g(s['kv_used_bytes'])} of {f(s['kv_total_bytes']['max'] / 2**20, 0) if s['kv_total_bytes'] else '-'} MB. "
               f"rejected (delta): {f(s['rejected_total_delta'], 0)}. server TTFT mean {f(s['server_ttft_mean_ms'])} ms, ITL mean {f(s['server_itl_mean_ms'])} ms. "
               f"prefill chunks (delta) {f(s['prefill_chunks_delta'], 0)}."]
         if s["batch_rows_delta"]:
@@ -904,6 +915,7 @@ def add_slo_args(p):
     p.add_argument("--max-error-rate", type=float, help="errors / sent (HTTP errors other than 429/503, timeouts, broken streams)")
     p.add_argument("--max-shed-rate", type=float, help="429+503 / sent")
     p.add_argument("--max-mem-growth-mb", type=float, help="fitted (Theil-Sen) memory growth over the post-warmup span")
+    p.add_argument("--max-device-mem-growth-mb", type=float, help="fitted growth of (device total - free) from /metrics; system-wide, so run on a quiet box")
     p.add_argument("--min-out-tok-s", type=float)
     p.add_argument("--min-req-s", type=float)
     p.add_argument("--window-s", type=float, default=30.0)
@@ -978,7 +990,7 @@ def main():
 # mock server (offline self-test): streaming completions with configurable timing, concurrency cap and shedding
 # ----------------------------------------------------------------------------------------------------------------------
 
-def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=True, slow_after=None):
+def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=True, slow_after=None, dev_leak_mb_per_tok=0.0):
     """slow_after: seconds after server start from which every token takes 4x longer (a degradation to detect)."""
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -1008,7 +1020,8 @@ def make_mock(first_ms=30.0, itl_ms=8.0, max_conc=None, shed_code=429, metrics=T
                            f"intarsia_requests_waiting 0\nintarsia_requests_rejected_total {st['shed']}\n"
                            f'intarsia_batch_decode_rows_total{{rows="1"}} {st["tokens"]}\n'
                            f'intarsia_batch_decode_rows_total{{rows="2"}} {st["tokens"] // 2}\n'
-                           f"intarsia_batch_queue_depth {max(0, st['inflight'] - 1)}\n")
+                           f"intarsia_batch_queue_depth {max(0, st['inflight'] - 1)}\n"
+                           f"intarsia_device_memory_total_bytes {100 * 2**30}\nintarsia_device_memory_free_bytes {int(60 * 2**30 - dev_leak_mb_per_tok * 2**20 * st['tokens'])}\n")
                 return self._send(200, txt.encode(), "text/plain")
             if self.path == "/v1/intarsia/plan":
                 return self._send(200, {"mock": True})
@@ -1233,6 +1246,14 @@ def cmd_selftest(_args):
     w = rep["windows"]
     check("windows: late-window ITL p50 shows the 4x slowdown", w[0]["itl_ms"]["p50"] is not None and w[-2]["itl_ms"]["p50"] is not None and w[-2]["itl_ms"]["p50"] > 2.5 * w[0]["itl_ms"]["p50"],
           f"{w[0]['itl_ms']['p50']} -> {w[-2]['itl_ms']['p50']}")
+    srv.shutdown()
+
+    # (4b) device-memory leak from /metrics: the mock "allocates" 0.5 MB per generated token
+    srv, url = make_mock(first_ms=5, itl_ms=3, dev_leak_mb_per_tok=0.5)
+    a = argparse.Namespace(url=url, **{**base, "rate": 5.0, "duration": 8.0, "max_tokens_mix": "60:1", "prompt_mix": "128:1", "no_calibrate": True})
+    rep = build_report(run_load(a, None, quiet), window_s=4.0, mem_warmup_s=1.0, slo={"max_device_mem_growth_mb": 20})
+    d = rep["memory"]["device"]
+    check("device memory: leak from /metrics detected and fails --max-device-mem-growth-mb", d["available"] and d["growth_mb"] > 50 and not rep["slo"]["pass"], str(d.get("growth_mb")))
     srv.shutdown()
 
     # (5) /metrics absent and server errors / timeouts / refused connection
