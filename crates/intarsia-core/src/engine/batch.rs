@@ -167,6 +167,18 @@ pub(crate) struct SeqAdapter {
     ended: bool,
     /// Prefill chunk size the scheduler picked for this request (0: none ran).
     chunk: usize,
+    /// The request ended as cancelled (reported `Done` with `Cancelled`), see [`BatchSeq::ended_cancelled`].
+    was_cancelled: bool,
+}
+
+impl Drop for SeqAdapter {
+    /// A request dropped without its `Done` / `Error` (the scheduler panicked while it was detached from the queue and
+    /// the slots) still hears of it, instead of finding its channel closed.
+    fn drop(&mut self) {
+        if !self.ended {
+            self.fail(&Error::Other("request aborted: the scheduler failed".into()));
+        }
+    }
 }
 
 impl SeqAdapter {
@@ -227,6 +239,10 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         self.seq.as_ref().is_some_and(|s| s.cancelled())
     }
 
+    fn ended_cancelled(&self) -> bool {
+        self.was_cancelled
+    }
+
     fn finish(&mut self, model: &mut SlotModel, slot: Option<usize>, cancelled: bool) -> Result<()> {
         let mut seq = self.seq.take().ok_or_else(|| Error::Other("request already finished".into()))?;
         if cancelled {
@@ -244,6 +260,7 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         let kv = model.kv_totals();
         self.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
         self.ended = true;
+        self.was_cancelled = outcome.reason == FinishReason::Cancelled;
         report_done(&self.telemetry, &self.tx, outcome, Some(self.chunk));
         Ok(())
     }
@@ -388,6 +405,7 @@ impl Engine for BatchedEngine {
             started: false,
             ended: false,
             chunk: 0,
+            was_cancelled: false,
         };
         self.env.telemetry.request_enqueued();
         // a refusal calls `adapter.fail`, which undoes `request_enqueued`
@@ -426,5 +444,75 @@ impl Engine for BatchedEngine {
 
     fn batch_metrics(&self) -> Option<BatchMetrics> {
         Some(self.engine.metrics())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct NoCodec;
+    impl TextCodec for NoCodec {
+        fn encode(&self, _: &str, _: bool) -> Result<Vec<u32>> {
+            Ok(vec![])
+        }
+        fn decode(&self, _: &[u32], _: bool) -> Result<String> {
+            Ok(String::new())
+        }
+        fn apply_chat_template(&self, _: &[Value], _: &ChatOpts) -> Result<String> {
+            Ok(String::new())
+        }
+        fn has_chat_template(&self) -> bool {
+            false
+        }
+    }
+
+    fn adapter(started: bool) -> (SeqAdapter, Receiver<GenEvent>, Arc<Telemetry>) {
+        let tel = Arc::new(Telemetry::new());
+        let env = SeqEnv { codec: Arc::new(NoCodec), telemetry: tel.clone(), eos: vec![], spec: Default::default() };
+        let (tx, rx) = channel();
+        let seq = Seq::build(&env, GenRequest { prompt: vec![1, 2], ..Default::default() }, tx.clone(), 0, false);
+        tel.request_enqueued();
+        if started {
+            tel.request_started();
+        }
+        let a = SeqAdapter {
+            seq: Some(seq),
+            tx,
+            telemetry: tel.clone(),
+            plen: 2,
+            vocab: 10,
+            t_new: Instant::now(),
+            started,
+            ended: false,
+            chunk: 0,
+            was_cancelled: false,
+        };
+        (a, rx, tel)
+    }
+
+    /// A request dropped by an unwinding scheduler (detached from the queue and the slots) gets an `Error`, and its
+    /// telemetry counters balance, instead of a silently closed channel.
+    #[test]
+    fn dropped_request_hears_an_error() {
+        for started in [false, true] {
+            let (a, rx, tel) = adapter(started);
+            drop(a);
+            match rx.try_recv() {
+                Ok(GenEvent::Error { message }) => assert!(message.contains("aborted"), "{message}"),
+                other => panic!("expected an error event, got {other:?}"),
+            }
+            let s = tel.snapshot();
+            assert_eq!((s.running, s.waiting), (0, 0), "started {started}: {s:?}");
+        }
+    }
+
+    #[test]
+    fn finished_request_is_not_reported_twice() {
+        let (mut a, rx, _) = adapter(true);
+        a.fail(&Error::Other("x".into()));
+        drop(a);
+        assert!(matches!(rx.try_recv(), Ok(GenEvent::Error { .. })));
+        assert!(rx.try_recv().is_err(), "a second event after the first Error");
     }
 }

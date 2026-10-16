@@ -317,3 +317,42 @@ fn only_the_batched_engine_reports_the_prefill_chunk() {
     let (eng, _) = batched(7, 2, None, 4);
     assert_eq!(done_chunk(&eng.submit(req()).unwrap()), Some(CHUNK));
 }
+
+#[test]
+fn client_gone_mid_generation_counts_as_cancelled() {
+    let (eng, _) = batched(7, 2, None, 4);
+    let rx = eng
+        .submit(GenRequest { prompt: vec![9, 8, 7], max_tokens: 100_000, ignore_eos: true, ..Default::default() })
+        .unwrap();
+    // wait for the first token, then hang up: the next token send fails inside `on_token`, which ends the request as cancelled
+    assert!(matches!(rx.recv_timeout(Duration::from_secs(60)), Ok(GenEvent::Token { .. })));
+    drop(rx);
+    for _ in 0..600 {
+        let m = eng.metrics();
+        if m.cancelled + m.finished + m.failed > 0 {
+            assert_eq!((m.cancelled, m.finished, m.failed), (1, 0, 0), "{m:?}");
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    panic!("the abandoned request never ended");
+}
+
+#[test]
+fn shutdown_ends_every_submitted_request() {
+    let (eng, _) = batched(7, 2, None, 64);
+    let long = |i: u32| GenRequest { prompt: vec![1 + i, 2, 3], max_tokens: 100_000, ignore_eos: true, ..Default::default() };
+    let first = eng.submit(long(0)).unwrap();
+    // the scheduler is mid-iteration while the rest arrive, so some are still in its channel when the engine is dropped
+    assert!(matches!(first.recv_timeout(Duration::from_secs(60)), Ok(GenEvent::Token { .. })));
+    let mut rxs: Vec<_> = (1..60).map(|i| eng.submit(long(i)).unwrap()).collect();
+    rxs.push(first);
+    drop(eng);
+    for (i, rx) in rxs.iter().enumerate() {
+        // either cancelled (`Done`) or refused (`Error`), never a channel closed without an end event
+        match collect(rx) {
+            Ok(o) => assert_eq!(o.reason, Some(FinishReason::Cancelled), "request {i}"),
+            Err(m) => assert!(!m.is_empty(), "request {i}"),
+        }
+    }
+}
