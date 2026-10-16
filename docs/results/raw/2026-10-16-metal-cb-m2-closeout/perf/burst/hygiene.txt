@@ -1,0 +1,45 @@
+--- start (before macmon/server) 15:29:29
+ 5982  75.4 646320    20:03:46 /usr/libexec/textunderstandingd
+56282  40.6 145280       07:25 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Con
+ 5657  33.3 886528 19-21:09:42 /System/Library/ExtensionKit/Extensions/TGOnDeviceInferenceProviderService.appex/Contents/MacOS/TGOnDeviceInferenceProv
+25718  15.9   9072    19:25:38 macmon
+52223   5.5 331824 01-02:35:42 /usr/libexec/spotlightknowledged.updater
+  631   5.1  74032 19-21:36:36 /usr/sbin/coreaudiod
+  490   3.2  31072 19-21:36:37 /usr/libexec/runningboardd
+87301   2.6 795040 01-21:32:06 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+64451   2.6 761344    02:31:22 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+15394   1.9 806848    02:52:20 /Applications/Claude.app/Contents/MacOS/Claude
+  737   1.8   9744 19-21:36:28 /usr/sbin/cfprefsd
+  703   1.8  25488 19-21:36:32 /usr/libexec/searchpartyd
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;58273 ssh -f spark1 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29761 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_DEBUG=INFO TF_NEMOTRON_RANK=1 setsid nohup /tmp/sv-stage/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve /tmp/sv-stage/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 > rank1.log 2>&1 < /dev/null &;
+--- end (before server stop) 15:30:59
+ 5982  87.5 695536    20:05:16 /usr/libexec/textunderstandingd
+52223  76.1 333552 01-02:37:12 /usr/libexec/spotlightknowledged.updater
+56282  55.1 145664       08:55 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Con
+25718  14.3   9072    19:27:08 macmon
+  737  12.7   9744 19-21:37:58 /usr/sbin/cfprefsd
+23577  11.4 1074448    01:31:43 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.
+  631   5.2  74032 19-21:38:06 /usr/sbin/coreaudiod
+54240   5.0  14592 05-15:44:41 /System/Library/PrivateFrameworks/BiomeStreams.framework/Support/BiomeAgent
+  490   3.7  31072 19-21:38:07 /usr/libexec/runningboardd
+87301   3.1 795072 01-21:33:36 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+38449   2.7  16128    17:40:57 /System/Library/PrivateFrameworks/CascadeSets.framework/Versions/A/XPCServices/SetStoreUpdateService.xpc/Contents/MacOS
+    1   2.7  32176 19-21:39:38 /sbin/launchd
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;58273 ssh -f spark1 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29761 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_DEBUG=INFO TF_NEMOTRON_RANK=1 setsid nohup /tmp/sv-stage/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve /tmp/sv-stage/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 > rank1.log 2>&1 < /dev/null &;
+--- end (cleanup) 15:30:59
+ 5982  87.5 695872    20:05:16 /usr/libexec/textunderstandingd
+52223  76.1 333552 01-02:37:12 /usr/libexec/spotlightknowledged.updater
+56282  55.1 145984       08:55 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Con
+25718  14.3   9072    19:27:08 macmon
+  737  12.7   9744 19-21:37:58 /usr/sbin/cfprefsd
+23577  11.4 1074448    01:31:43 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.
+  631   5.2  74032 19-21:38:06 /usr/sbin/coreaudiod
+54240   5.0  14592 05-15:44:41 /System/Library/PrivateFrameworks/BiomeStreams.framework/Support/BiomeAgent
+  490   3.7  31072 19-21:38:07 /usr/libexec/runningboardd
+87301   3.1 795072 01-21:33:36 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+38449   2.7  16128    17:40:57 /System/Library/PrivateFrameworks/CascadeSets.framework/Versions/A/XPCServices/SetStoreUpdateService.xpc/Contents/MacOS
+    1   2.7  32176 19-21:39:38 /sbin/launchd
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;58273 ssh -f spark1 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29761 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_DEBUG=INFO TF_NEMOTRON_RANK=1 setsid nohup /tmp/sv-stage/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve /tmp/sv-stage/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 > rank1.log 2>&1 < /dev/null &;

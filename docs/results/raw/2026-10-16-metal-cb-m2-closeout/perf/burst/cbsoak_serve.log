@@ -1,0 +1,25 @@
+macmon pid 73136, idle sample (gpu_usage, 6 s before server start):
+  gpu_usage [338, 0.003381377551704645] gpu_power 0.02 sys_power 17.5
+  gpu_usage [253, 0.005148698575794697] gpu_power 0.02 sys_power 15.3
+  gpu_usage [169, 0.0012851974461227655] gpu_power 0.01 sys_power 22.7
+binary: /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-m2close-8ce01d2  model: /Users/josef/models/Qwen3-8B  port: 8143  extra: --max-batch 4 --max-queue 4
+server up pid=73527 after ~48 s; plan: {"model":"Qwen3-8B","backend":"metal","device":{"name":"Apple M5 Max","mem_total":115448725504,"arch":"applegpu_g17s"},"tp":null,"exactness":"deterministic","layers":[{"index":0,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":1,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":2,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":3,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":4,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":5,"kind":"attention","blocks":["attention","dense_ffn"]},{"index":6,"kind":"attention","blocks
+=== run 1 (burst): --n 16 --prompt-tokens 512 --max-tokens 300 --seed 1 ===
+# cbsoak burst
+
+16 simultaneous requests (max_queue 4): status {'shed': 8, 'ok': 8}, http {'429': 8, '200': 8}, Retry-After on the 429s {'1': 8}, `intarsia_requests_rejected_total` delta 8.0; /metrics peaks {'queue_max': 4.0, 'running_max': 4.0, 'waiting_max': 4.0}; admitted TTFT p50 5385.2 p95 10464.9 max 10531.9 ms, admitted ITL p50 30.3 p95 31.4 max 100.9 ms; after: health {'status': 'ok', 'running': 0, 'waiting': 0}, follow-up {'status': 'ok', 'ttft_ms': 68.23737500235438}.
+429 body: ['HTTP 429: {"error":{"message":"the request queue is full (4 waiting); retry shortly","type":"rate_limit_error","param":n']
+
+VIOLATIONS: none
+
+cbsoak run 1 rc=0
+=== run 2 (burst): --n 24 --prompt-tokens 1024 --max-tokens 200 --seed 2 ===
+# cbsoak burst
+
+24 simultaneous requests (max_queue 4): status {'shed': 16, 'ok': 8}, http {'429': 16, '200': 8}, Retry-After on the 429s {'1': 16}, `intarsia_requests_rejected_total` delta 16.0; /metrics peaks {'queue_max': 6.0, 'running_max': 4.0, 'waiting_max': 6.0}; admitted TTFT p50 4804.3 p95 9180.1 max 9389.4 ms, admitted ITL p50 30.8 p95 34.3 max 111.9 ms; after: health {'status': 'ok', 'running': 0, 'waiting': 0}, follow-up {'status': 'ok', 'ttft_ms': 84.26287490874529}.
+429 body: ['HTTP 429: {"error":{"message":"the request queue is full (4 waiting); retry shortly","type":"rate_limit_error","param":n']
+
+VIOLATIONS: none
+
+cbsoak run 2 rc=0
+cbsoak rc=0

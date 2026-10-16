@@ -111,10 +111,24 @@ fn metric(out: &mut String, name: &str, kind: &str, help: &str, value: impl std:
     let _ = writeln!(out, "# HELP {name} {help}\n# TYPE {name} {kind}\n{name} {value}");
 }
 
+/// A scheduler [`LatencyHist`](intarsia_core::scheduler::LatencyHist) (milliseconds, per-bucket counts) as a Prometheus
+/// histogram in seconds.
+fn render_latency(o: &mut String, name: &str, help: &str, h: &intarsia_core::scheduler::LatencyHist) {
+    use intarsia_core::scheduler::LatencyHist;
+    let _ = writeln!(o, "# HELP {name} {help}\n# TYPE {name} histogram");
+    let mut cum = 0u64;
+    for (i, ms) in LatencyHist::BOUNDS_MS.iter().enumerate() {
+        cum += h.counts.get(i).copied().unwrap_or(0);
+        let _ = writeln!(o, "{name}_bucket{{le=\"{}\"}} {cum}", ms / 1e3);
+    }
+    let _ = writeln!(o, "{name}_bucket{{le=\"+Inf\"}} {}\n{name}_sum {}\n{name}_count {}", h.count, h.sum_ms / 1e3, h.count);
+}
+
 /// Scheduler metrics of a batching engine (`--max-batch N`): batch-size histogram of the decode passes, queue depth,
-/// prefill work, latencies.
+/// prefill work, request outcomes, latencies. The two request gauges differ from the `intarsia_requests_*` ones only in
+/// where they are counted, see the help texts.
 pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
-    let mut o = String::with_capacity(2048);
+    let mut o = String::with_capacity(4096);
     metric(&mut o, "intarsia_batch_iterations_total", "counter", "Scheduler iterations.", b.iterations);
     metric(&mut o, "intarsia_batch_decode_steps_total", "counter", "Batched decode passes.", b.decode_steps);
     let _ = writeln!(o, "# HELP intarsia_batch_decode_rows_total Decode passes by number of rows.");
@@ -124,11 +138,62 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
     }
     metric(&mut o, "intarsia_batch_prefill_chunks_total", "counter", "Prefill chunks run.", b.prefill_chunks);
     metric(&mut o, "intarsia_batch_prefill_tokens_total", "counter", "Prompt tokens prefilled.", b.prefill_tokens);
-    metric(&mut o, "intarsia_batch_running", "gauge", "Requests holding a slot.", b.running);
-    metric(&mut o, "intarsia_batch_queue_depth", "gauge", "Requests waiting for a slot.", b.queue_depth);
-    metric(&mut o, "intarsia_batch_queue_depth_max", "gauge", "Most requests that waited at once.", b.queue_depth_max);
+    metric(
+        &mut o,
+        "intarsia_batch_mixed_iterations_total",
+        "counter",
+        "Iterations that ran a decode phase and then a prefill chunk (the decoding requests waited behind the chunk).",
+        b.mixed_iterations,
+    );
+    metric(
+        &mut o,
+        "intarsia_batch_running",
+        "gauge",
+        "Requests holding a KV slot, prefilling or decoding, as of the end of the scheduler's last iteration.",
+        b.running,
+    );
+    metric(
+        &mut o,
+        "intarsia_batch_queue_depth",
+        "gauge",
+        "Requests accepted by the batch engine and not yet holding a slot, now: in the hand-off channel to the scheduler thread plus its FIFO queue. Live; counts a request until it is given a slot.",
+        b.queue_depth,
+    );
+    metric(
+        &mut o,
+        "intarsia_batch_queue_depth_max",
+        "gauge",
+        "Highest intarsia_batch_queue_depth since start, taken at every submit.",
+        b.queue_depth_max,
+    );
     metric(&mut o, "intarsia_batch_cached_tokens_total", "counter", "Prompt tokens served from reused KV.", b.cached_tokens);
-    metric(&mut o, "intarsia_batch_step_ewma_ms", "gauge", "EWMA of an iteration with a decode step.", b.step_ewma_ms);
+    metric(
+        &mut o,
+        "intarsia_batch_step_ewma_ms",
+        "gauge",
+        "EWMA (alpha 0.1) of the wall time of a whole scheduler iteration that ran a decode step: the decode pass (which first waits for the previous iteration's prefill chunk to finish on the GPU) plus enqueueing this iteration's chunk.",
+        b.step_ewma_ms,
+    );
+    metric(&mut o, "intarsia_batch_requests_admitted_total", "counter", "Requests given a slot.", b.admitted);
+    metric(&mut o, "intarsia_batch_requests_finished_total", "counter", "Requests that finished normally.", b.finished);
+    metric(&mut o, "intarsia_batch_requests_cancelled_total", "counter", "Requests cancelled (queued, prefilling or decoding).", b.cancelled);
+    metric(&mut o, "intarsia_batch_requests_failed_total", "counter", "Requests that ended with an error after being accepted.", b.failed);
+    metric(
+        &mut o,
+        "intarsia_batch_requests_rejected_total",
+        "counter",
+        "Requests refused by the batch engine: queue full, or invalid at admission.",
+        b.rejected,
+    );
+    render_latency(&mut o, "intarsia_batch_step_seconds", "Wall time of a scheduler iteration that ran a decode step.", &b.step);
+    render_latency(
+        &mut o,
+        "intarsia_batch_chunk_call_seconds",
+        "Wall time of the prefill_chunk call. A non-final chunk is enqueued and the call returns at once, so this is the host cost only; its GPU time shows up in the next decode step. The final chunk waits for the first token and includes its GPU time.",
+        &b.chunk,
+    );
+    render_latency(&mut o, "intarsia_batch_ttft_seconds", "Submit to first token, per request.", &b.ttft);
+    render_latency(&mut o, "intarsia_batch_itl_seconds", "Between consecutive tokens of one request.", &b.itl);
     o
 }
 
@@ -141,12 +206,12 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
         "Engine steps (prefill chunks and decode steps).",
         snap.steps_total,
     );
-    metric(&mut o, "intarsia_requests_running", "gauge", "Requests currently executing.", snap.running);
-    metric(&mut o, "intarsia_requests_waiting", "gauge", "Requests queued behind the running one.", snap.waiting);
+    metric(&mut o, "intarsia_requests_running", "gauge", "Requests holding the engine now: the one running request (max-batch 1) or, with --max-batch N, those that started (got a slot), prefilling or decoding.", snap.running);
+    metric(&mut o, "intarsia_requests_waiting", "gauge", "Requests accepted by the engine and not yet started, counted from submit: with --max-batch N, those in the hand-off channel and the scheduler queue (a request leaves when it gets a KV slot), plus a request being refused for a full queue until it is refused.", snap.waiting);
     metric(&mut o, "intarsia_requests_total", "counter", "Requests accepted by the engine.", snap.requests_total);
     // The names vLLM and llama.cpp publish; localeval's idle check and fleet tooling read these.
-    metric(&mut o, "vllm:num_requests_running", "gauge", "Requests currently executing (vLLM name).", snap.running);
-    metric(&mut o, "vllm:num_requests_waiting", "gauge", "Requests queued (vLLM name).", snap.waiting);
+    metric(&mut o, "vllm:num_requests_running", "gauge", "Same value as intarsia_requests_running (vLLM name).", snap.running);
+    metric(&mut o, "vllm:num_requests_waiting", "gauge", "Same value as intarsia_requests_waiting (vLLM name).", snap.waiting);
     metric(
         &mut o,
         "intarsia_requests_rejected_total",
@@ -281,4 +346,33 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
         esc(&info.kv_dtype)
     );
     o
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use intarsia_core::scheduler::BatchMetrics;
+    use std::time::Duration;
+
+    #[test]
+    fn batch_metrics_render_histograms_and_counters() {
+        let mut b = BatchMetrics { queue_depth: 3, queue_depth_max: 7, mixed_iterations: 5, cancelled: 2, ..Default::default() };
+        b.chunk.record(Duration::from_millis(70));
+        b.chunk.record(Duration::from_millis(2000));
+        let o = render_batch(&b);
+        assert!(o.contains("\nintarsia_batch_queue_depth 3\n"), "{o}");
+        assert!(o.contains("\nintarsia_batch_queue_depth_max 7\n"));
+        assert!(o.contains("\nintarsia_batch_mixed_iterations_total 5\n"));
+        assert!(o.contains("\nintarsia_batch_requests_cancelled_total 2\n"));
+        // 70 ms is in the le=0.075 bucket and every later one; 2 s only in +Inf
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"0.05\"} 0\n"), "{o}");
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"0.075\"} 1\n"));
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"1\"} 1\n"));
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"+Inf\"} 2\n"));
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_count 2\n"));
+        // an empty histogram renders zeros, not a panic
+        assert!(o.contains("intarsia_batch_step_seconds_bucket{le=\"0.001\"} 0\n"));
+        // every metric has HELP and TYPE
+        assert_eq!(o.matches("# HELP ").count(), o.matches("# TYPE ").count());
+    }
 }

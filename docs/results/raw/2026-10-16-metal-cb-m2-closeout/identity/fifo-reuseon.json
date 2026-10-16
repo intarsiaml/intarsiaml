@@ -1,0 +1,20 @@
+[
+ {
+  "log": "/opt/code/intarsiaml-m2close/docs/results/raw/2026-10-16-metal-cb-m2-closeout/identity/server-batched-reuseon.log",
+  "coverage": {
+   "admitted": 203,
+   "reused": 28,
+   "contested_chunks": 663,
+   "cancel_queued": 1,
+   "cancel_prefill": 1,
+   "cancel_decode": 18,
+   "done": 184,
+   "failed": 0,
+   "rejected": 0,
+   "chunks": 1086,
+   "first_tokens": 202,
+   "requests": 204
+  },
+  "violations": []
+ }
+]

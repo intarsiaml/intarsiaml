@@ -1,0 +1,20 @@
+[
+ {
+  "log": "/opt/code/intarsiaml-m2close/docs/results/raw/2026-10-16-metal-cb-m2-closeout/perf/burst/server.log",
+  "coverage": {
+   "admitted": 22,
+   "reused": 12,
+   "contested_chunks": 20,
+   "cancel_queued": 0,
+   "cancel_prefill": 0,
+   "cancel_decode": 0,
+   "done": 22,
+   "failed": 0,
+   "rejected": 0,
+   "chunks": 57,
+   "first_tokens": 22,
+   "requests": 22
+  },
+  "violations": []
+ }
+]
