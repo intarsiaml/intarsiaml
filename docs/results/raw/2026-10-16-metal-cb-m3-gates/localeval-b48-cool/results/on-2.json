@@ -1,0 +1,377 @@
+{
+ "run_id": "20261016-180706-adhoc-m3gates-on-r2",
+ "kind": "speed",
+ "label": "m3gates-on-r2",
+ "started_at": "2026-10-16T18:07:06-04:00",
+ "finished_at": "2026-10-16T18:08:28-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://127.0.0.1:8147/v1",
+  "model": "Qwen3-8B",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "default",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval-decode-agg/.venv/bin/localeval speed --url http://127.0.0.1:8147/v1 --model Qwen3-8B --sizes 1024 --gen 512 --reps 3 --concurrency 4,8 --label m3gates-on-r2",
+  "git": "603ee54"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "Qwen3-8B"
+   ],
+   "root": "Qwen3-8B",
+   "owned_by": "intarsia",
+   "max_model_len": 8192
+  },
+  "gen_tokens": 512,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.05,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 987,
+    "completion_tokens": {
+     "median": 512,
+     "min": 512,
+     "max": 512,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.247,
+     "min": 0.247,
+     "max": 0.248,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "prefill_tok_s": {
+     "median": 3973.413,
+     "min": 3955.69,
+     "max": 3980.209,
+     "n": 3,
+     "spread_pct": 0.6
+    },
+    "decode_tok_s": {
+     "median": 43.043,
+     "min": 41.491,
+     "max": 43.454,
+     "n": 3,
+     "spread_pct": 4.6
+    },
+    "peak_decode_tok_s": {
+     "median": 138.6,
+     "min": 111.9,
+     "max": 157.8,
+     "n": 3,
+     "spread_pct": 33.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 4,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 115.5,
+    "per_stream_decode_tok_s": {
+     "median": 30.692,
+     "min": 30.191,
+     "max": 31.508,
+     "n": 4,
+     "spread_pct": 4.3
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 32.5,
+     "min": 32.5,
+     "max": 32.5,
+     "n": 4,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.865,
+     "min": 0.265,
+     "max": 1.506,
+     "n": 4,
+     "spread_pct": 143.5
+    },
+    "errors": [],
+    "arrival_ms": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "overlap_decode_tok_s": 127.2,
+    "overlap_window_s": 15.683,
+    "overlap_tokens": 1995.0,
+    "overlap_streams": 4,
+    "itl_s": {
+     "p50": 0.03123,
+     "p95": 0.03316,
+     "max": 0.13249,
+     "n": 2044
+    },
+    "ttft_pct_s": {
+     "p50": 0.8654,
+     "p95": 1.4406,
+     "max": 1.5064,
+     "n": 4
+    },
+    "per_request": [
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 0.2646,
+      "decode_tok_s": 30.2,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.03125,
+       "p95": 0.03325,
+       "max": 0.13242,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 0.6634,
+      "decode_tok_s": 30.5,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.03125,
+       "p95": 0.03319,
+       "max": 0.13247,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 1.0674,
+      "decode_tok_s": 30.9,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.03123,
+       "p95": 0.03313,
+       "max": 0.13249,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 1.5064,
+      "decode_tok_s": 31.5,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.03123,
+       "p95": 0.03301,
+       "max": 0.08962,
+       "n": 511
+      }
+     }
+    ]
+   },
+   {
+    "streams": 8,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 155.4,
+    "per_stream_decode_tok_s": {
+     "median": 21.386,
+     "min": 20.442,
+     "max": 22.542,
+     "n": 8,
+     "spread_pct": 9.8
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 23.8,
+     "min": 23.8,
+     "max": 26.5,
+     "n": 8,
+     "spread_pct": 11.3
+    },
+    "ttft_s": {
+     "median": 1.96,
+     "min": 0.339,
+     "max": 3.68,
+     "n": 8,
+     "spread_pct": 170.4
+    },
+    "errors": [],
+    "arrival_ms": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "overlap_decode_tok_s": 178.1,
+    "overlap_window_s": 21.656,
+    "overlap_tokens": 3858.0,
+    "overlap_streams": 8,
+    "itl_s": {
+     "p50": 0.04431,
+     "p95": 0.04866,
+     "max": 0.13018,
+     "n": 4088
+    },
+    "ttft_pct_s": {
+     "p50": 1.9601,
+     "p95": 3.5033,
+     "max": 3.6801,
+     "n": 8
+    },
+    "per_request": [
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 0.3393,
+      "decode_tok_s": 20.4,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04532,
+       "p95": 0.11396,
+       "max": 0.13018,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 0.7985,
+      "decode_tok_s": 20.7,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04514,
+       "p95": 0.05303,
+       "max": 0.13016,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 1.2559,
+      "decode_tok_s": 20.9,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04499,
+       "p95": 0.04949,
+       "max": 0.13015,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 1.7234,
+      "decode_tok_s": 21.2,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04452,
+       "p95": 0.04875,
+       "max": 0.13003,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 2.1968,
+      "decode_tok_s": 21.5,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04395,
+       "p95": 0.04835,
+       "max": 0.13006,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 2.681,
+      "decode_tok_s": 21.8,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04386,
+       "p95": 0.04827,
+       "max": 0.13011,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 3.1748,
+      "decode_tok_s": 22.2,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04376,
+       "p95": 0.04817,
+       "max": 0.13003,
+       "n": 511
+      }
+     },
+     {
+      "arrival_ms": 0.0,
+      "ok": true,
+      "ttft_s": 3.6801,
+      "decode_tok_s": 22.5,
+      "completion_tokens": 512,
+      "itl_s": {
+       "p50": 0.04374,
+       "p95": 0.04804,
+       "max": 0.06314,
+       "n": 511
+      }
+     }
+    ]
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "Qwen3-8B",
+  "activity_checks": {
+   "idle": 6,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

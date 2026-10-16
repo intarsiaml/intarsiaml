@@ -1,0 +1,64 @@
+slot job 2209 Fri Oct 16 15:31:06 EDT 2026; mode client; binary /private/tmp/claude-501/m3/bin/intarsia-66feda6 sha256 917f31e09649bd6f; arms off on rounds 3 scen solo-grounded,solo-open,mixed-once,mixed-loop,grounded-n2,grounded-n3,grounded-n4,open-n2,open-n3
+=== round 1 arm off (position 1) 15:31:07
+[cbm3] off r1 solo-grounded: decode_tok_s_median=34.6, decode_tok_s_mean=34.4
+[cbm3] off r1 solo-open: decode_tok_s_median=35.5, decode_tok_s_mean=35.4
+[cbm3] off r1 mixed-once: wall_s=8.0, agg_tok_s=128.5, open_decode_tok_s_mean=32.9, grounded_wall_s=8.0
+[cbm3] off r1 mixed-loop: wall_s=20.2, agg_tok_s=120.3, open_decode_tok_s_mean=31.9
+[cbm3] off r1 grounded-n2: wall_s=7.6, agg_tok_s=67.3
+[cbm3] off r1 grounded-n3: wall_s=8.1, agg_tok_s=95.1
+[cbm3] off r1 grounded-n4: wall_s=8.6, agg_tok_s=119.4
+[cbm3] off r1 open-n2: wall_s=7.3, agg_tok_s=70.1
+[cbm3] off r1 open-n3: wall_s=7.7, agg_tok_s=99.3
+=== round 1 arm on (position 2) 15:35:25
+[cbm3] on r1 solo-grounded: decode_tok_s_median=127.7, decode_tok_s_mean=127.5
+[cbm3] on r1 solo-open: decode_tok_s_median=35.8, decode_tok_s_mean=35.8
+[cbm3] on r1 mixed-once: wall_s=8.2, agg_tok_s=124.9, open_decode_tok_s_mean=31.9, grounded_wall_s=8.2
+[cbm3] on r1 mixed-loop: wall_s=20.2, agg_tok_s=120.2, open_decode_tok_s_mean=31.9
+[cbm3] on r1 grounded-n2: wall_s=4.2, agg_tok_s=122.5
+[cbm3] on r1 grounded-n3: wall_s=6.4, agg_tok_s=119.4
+[cbm3] on r1 grounded-n4: wall_s=8.6, agg_tok_s=119.2
+[cbm3] on r1 open-n2: wall_s=8.8, agg_tok_s=58.3
+[cbm3] on r1 open-n3: wall_s=9.1, agg_tok_s=84.7
+=== round 2 arm on (position 1) 15:39:09
+[cbm3] on r2 solo-grounded: decode_tok_s_median=124.7, decode_tok_s_mean=125.0
+[cbm3] on r2 solo-open: decode_tok_s_median=35.4, decode_tok_s_mean=35.7
+[cbm3] on r2 mixed-once: wall_s=8.0, agg_tok_s=128.0, open_decode_tok_s_mean=32.7, grounded_wall_s=8.0
+[cbm3] on r2 mixed-loop: wall_s=19.9, agg_tok_s=122.2, open_decode_tok_s_mean=32.4
+[cbm3] on r2 grounded-n2: wall_s=4.1, agg_tok_s=124.4
+[cbm3] on r2 grounded-n3: wall_s=6.2, agg_tok_s=123.5
+[cbm3] on r2 grounded-n4: wall_s=8.5, agg_tok_s=120.8
+[cbm3] on r2 open-n2: wall_s=8.1, agg_tok_s=63.4
+[cbm3] on r2 open-n3: wall_s=9.0, agg_tok_s=85.6
+=== round 2 arm off (position 2) 15:42:53
+[cbm3] off r2 solo-grounded: decode_tok_s_median=35.3, decode_tok_s_mean=35.3
+[cbm3] off r2 solo-open: decode_tok_s_median=35.6, decode_tok_s_mean=35.7
+[cbm3] off r2 mixed-once: wall_s=7.9, agg_tok_s=129.1, open_decode_tok_s_mean=33.1, grounded_wall_s=7.9
+[cbm3] off r2 mixed-loop: wall_s=20.2, agg_tok_s=120.5, open_decode_tok_s_mean=31.9
+[cbm3] off r2 grounded-n2: wall_s=7.5, agg_tok_s=68.5
+[cbm3] off r2 grounded-n3: wall_s=8.0, agg_tok_s=95.8
+[cbm3] off r2 grounded-n4: wall_s=8.5, agg_tok_s=121.0
+[cbm3] off r2 open-n2: wall_s=7.3, agg_tok_s=69.7
+[cbm3] off r2 open-n3: wall_s=7.7, agg_tok_s=99.8
+=== round 3 arm off (position 1) 15:47:08
+[cbm3] off r3 solo-grounded: decode_tok_s_median=35.2, decode_tok_s_mean=35.2
+[cbm3] off r3 solo-open: decode_tok_s_median=35.6, decode_tok_s_mean=35.7
+[cbm3] off r3 mixed-once: wall_s=8.0, agg_tok_s=128.1, open_decode_tok_s_mean=32.8, grounded_wall_s=8.0
+[cbm3] off r3 mixed-loop: wall_s=19.6, agg_tok_s=124.0, open_decode_tok_s_mean=32.8
+[cbm3] off r3 grounded-n2: wall_s=7.6, agg_tok_s=67.7
+[cbm3] off r3 grounded-n3: wall_s=8.0, agg_tok_s=96.5
+[cbm3] off r3 grounded-n4: wall_s=8.3, agg_tok_s=124.1
+[cbm3] off r3 open-n2: wall_s=7.4, agg_tok_s=69.3
+[cbm3] off r3 open-n3: wall_s=7.5, agg_tok_s=102.2
+=== round 3 arm on (position 2) 15:51:22
+[cbm3] on r3 solo-grounded: decode_tok_s_median=125.2, decode_tok_s_mean=125.4
+[cbm3] on r3 solo-open: decode_tok_s_median=35.9, decode_tok_s_mean=35.9
+[cbm3] on r3 mixed-once: wall_s=8.0, agg_tok_s=128.0, open_decode_tok_s_mean=32.7, grounded_wall_s=8.0
+[cbm3] on r3 mixed-loop: wall_s=20.5, agg_tok_s=118.9, open_decode_tok_s_mean=31.5
+[cbm3] on r3 grounded-n2: wall_s=4.2, agg_tok_s=123.1
+[cbm3] on r3 grounded-n3: wall_s=6.2, agg_tok_s=123.1
+[cbm3] on r3 grounded-n4: wall_s=8.6, agg_tok_s=119.5
+[cbm3] on r3 open-n2: wall_s=8.2, agg_tok_s=62.6
+[cbm3] on r3 open-n3: wall_s=9.2, agg_tok_s=83.1
+analyze rc=0
+no intarsia serve left
+done Fri Oct 16 15:55:06 EDT 2026
