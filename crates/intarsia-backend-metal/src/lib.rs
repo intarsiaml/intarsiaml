@@ -166,6 +166,8 @@ struct Stream {
     commit_every: usize,
     /// Profiling only: host time at which the open command buffer was created.
     opened: f64,
+    /// `host::now_ms()` of the last commit of the stream (the keep-warm thread stays out of the engine's way while it moves).
+    last_commit: Arc<std::sync::atomic::AtomicU64>,
 }
 
 pub struct MetalBackend {
@@ -300,6 +302,7 @@ impl MetalBackend {
         let mut st = self.stream.lock().unwrap();
         Self::flush_locked(&mut st);
         cb.commit();
+        st.last_commit.store(host::now_ms(), Ordering::Relaxed);
         Self::track(&mut st, cb.clone());
     }
 
@@ -333,6 +336,7 @@ impl MetalBackend {
             enc.endEncoding();
             let commit = st.prof.is_some().then(profile::host_now);
             cb.commit();
+            st.last_commit.store(host::now_ms(), Ordering::Relaxed);
             let label = st.label.take();
             if let Some(p) = st.prof.as_mut() {
                 let host = profile::Host { open: st.opened, commit: commit.unwrap_or(0.0), committed: profile::host_now() };
@@ -527,6 +531,8 @@ impl Drop for MetalBackend {
         // an open encoder must be ended before it is released (Metal aborts otherwise); this also waits for the queue,
         // which writes the last trace records when INTARSIA_METAL_PROFILE is set. A no-op when nothing is pending.
         let _ = self.synchronize(0);
+        // the keep-warm touches read the weight mappings too
+        self.stop_keepwarm();
         // the pre-wiring blits read the weight mappings, which go away with `hosts`
         self.drain_prewire(true);
     }

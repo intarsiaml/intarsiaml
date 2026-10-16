@@ -108,6 +108,10 @@ pub struct ModelArgs {
     /// turns it on, `INTARSIA_METAL_PREWIRE=0` / `=1` override either way ([`prewire_wanted`]).
     #[arg(skip)]
     pub prewire: Option<bool>,
+    /// Metal: keep the weight wiring from decaying while the server idles (`MetalBackend::set_keepwarm`). Default off;
+    /// [`ModelArgs::for_serving`] turns it on, `INTARSIA_METAL_KEEPWARM=0` / `=1` / `=<ms>` override ([`keepwarm_period_ms`]).
+    #[arg(skip)]
+    pub keepwarm: Option<bool>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -123,14 +127,29 @@ pub fn prewire_wanted(default: Option<bool>, env: Option<&str>) -> bool {
     }
 }
 
+/// Keep-warm touch period (ms) of the Metal backend, 0 = off: after 1.0 s unused the driver drops its wiring of a weight
+/// file (1.2 s measured decayed), so 400 ms leaves room for a late tick. `INTARSIA_METAL_KEEPWARM=0` / `=1` win (1 = the
+/// default period), a larger number is a period in ms (experiments); otherwise `default` (set by [`ModelArgs::for_serving`];
+/// `None` = off, so every other command behaves as it did before the switch existed).
+pub fn keepwarm_period_ms(default: Option<bool>, env: Option<&str>) -> u64 {
+    const PERIOD_MS: u64 = 400;
+    match env.and_then(|v| v.parse::<u64>().ok()) {
+        Some(0) => 0,
+        Some(1) => PERIOD_MS,
+        Some(ms) => ms,
+        None if default == Some(true) => PERIOD_MS,
+        None => 0,
+    }
+}
+
 pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
-    open_backend_with(name, device, None)
+    open_backend_with(name, device, None, None)
 }
 
 /// [`open_backend`] with the pre-wire default of the caller (only the Metal backend has one).
-pub fn open_backend_with(name: &str, device: usize, prewire: Option<bool>) -> Result<Arc<dyn Backend>> {
+pub fn open_backend_with(name: &str, device: usize, prewire: Option<bool>, keepwarm: Option<bool>) -> Result<Arc<dyn Backend>> {
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
-    let _ = prewire;
+    let _ = (prewire, keepwarm);
     match name {
         "cpu" => Ok(intarsia_backend_cpu::CpuBackend::arc()),
         "cuda" => {
@@ -163,6 +182,7 @@ pub fn open_backend_with(name: &str, device: usize, prewire: Option<bool>) -> Re
                 }
                 let be = intarsia_backend_metal::MetalBackend::new().map_err(|e| anyhow::anyhow!("{e}"))?;
                 be.set_prewire(prewire_wanted(prewire, std::env::var("INTARSIA_METAL_PREWIRE").ok().as_deref()));
+                be.set_keepwarm(keepwarm_period_ms(keepwarm, std::env::var("INTARSIA_METAL_KEEPWARM").ok().as_deref()));
                 Ok(Arc::new(be))
             }
             #[cfg(not(all(feature = "metal", target_os = "macos")))]
@@ -197,7 +217,7 @@ pub fn open_group(name: &str, ordinals: &[usize], comm: &str) -> Result<(Vec<Arc
 
 impl ModelArgs {
     pub fn open_backend(&self) -> Result<Arc<dyn Backend>> {
-        open_backend_with(&self.backend, self.device, self.prewire)
+        open_backend_with(&self.backend, self.device, self.prewire, self.keepwarm)
     }
 
     /// The device ordinals of the tensor-parallel group.
@@ -296,6 +316,10 @@ impl ModelArgs {
         if self.prewire.is_none() {
             self.prewire = Some(true);
         }
+        // ... and the wiring decays again within a second of the last use, so it is kept warm while the server idles.
+        if self.keepwarm.is_none() {
+            self.keepwarm = Some(true);
+        }
         self
     }
 
@@ -365,6 +389,27 @@ mod tests {
         assert!(!prewire_wanted(args(false), Some("0")));
         assert!(prewire_wanted(args(true), Some("")));
         assert!(!prewire_wanted(args(false), Some("yes")));
+    }
+
+    #[test]
+    fn keepwarm_is_on_for_serve_only_and_the_env_overrides_both_ways() {
+        use super::keepwarm_period_ms;
+        let args = |serving: bool| {
+            let mut a = Cli::parse_from(["t", "-m", "/m", "--backend", "metal"]).model;
+            if serving {
+                a = a.for_serving();
+            }
+            a.keepwarm
+        };
+        assert_eq!(args(false), None, "non-serve commands carry no default");
+        assert_eq!(args(true), Some(true));
+        assert_eq!(keepwarm_period_ms(args(false), None), 0);
+        assert_eq!(keepwarm_period_ms(args(true), None), 400);
+        assert_eq!(keepwarm_period_ms(args(true), Some("0")), 0);
+        assert_eq!(keepwarm_period_ms(args(false), Some("1")), 400);
+        assert_eq!(keepwarm_period_ms(args(false), Some("250")), 250);
+        assert_eq!(keepwarm_period_ms(args(true), Some("")), 400);
+        assert_eq!(keepwarm_period_ms(args(false), Some("yes")), 0);
     }
 
     #[derive(Parser)]
