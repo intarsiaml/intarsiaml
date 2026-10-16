@@ -1,7 +1,8 @@
 //! GPU-timestamp trace of the stream, for decode / prefill profiles. Off unless `INTARSIA_METAL_PROFILE` is set to
 //! `kernel:<file>` or `cb:<file>`; the trace is JSON lines, one per committed command buffer, written when the buffers
 //! are waited on (`synchronize`) and at drop. Times are the command buffer's `GPUStartTime` / `GPUEndTime` in seconds on
-//! one clock, so gaps between records are GPU idle time.
+//! one clock, so gaps between records are GPU idle time. `ho` / `hc` / `hr` are the host times on that clock at which
+//! the buffer's first dispatch started to be encoded and `commit` was entered / returned, to tell host stalls from GPU work.
 //!
 //!  * `kernel`: every launch is committed as its own command buffer and waited on before the next one is encoded, so
 //!    records never overlap. Each is labelled with the kernel, the weight shape and weight bytes of matmul-like ops, and
@@ -58,6 +59,27 @@ struct Rec {
     label: Option<Label>,
     dispatches: usize,
     cb: CommandBuffer,
+    host: Host,
+}
+
+/// Host-side times of one command buffer, seconds on the clock of `GPUStartTime` (see [`host_now`]): when its first
+/// dispatch started to be encoded, and when `commit` was entered and returned.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Host {
+    pub open: f64,
+    pub commit: f64,
+    pub committed: f64,
+}
+
+extern "C" {
+    fn clock_gettime_nsec_np(clock_id: u32) -> u64;
+}
+
+/// Now on the clock command buffer `GPUStartTime` / `GPUEndTime` use (`CLOCK_UPTIME_RAW`, mach absolute time in seconds).
+pub(crate) fn host_now() -> f64 {
+    const CLOCK_UPTIME_RAW: u32 = 8;
+    // SAFETY: plain libc call without pointers.
+    unsafe { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) as f64 * 1e-9 }
 }
 
 pub(crate) struct Prof {
@@ -89,8 +111,8 @@ impl Prof {
     }
 
     /// A command buffer was committed; its times are read by [`Self::resolve`] once it has completed.
-    pub fn note(&mut self, cb: CommandBuffer, label: Option<Label>, dispatches: usize) {
-        self.pending.push(Rec { seq: self.seq, label, dispatches, cb });
+    pub fn note(&mut self, cb: CommandBuffer, label: Option<Label>, dispatches: usize, host: Host) {
+        self.pending.push(Rec { seq: self.seq, label, dispatches, cb, host });
         self.seq += 1;
     }
 
@@ -105,7 +127,7 @@ impl Prof {
             let l = r.label.clone().unwrap_or_default();
             let _ = writeln!(
                 self.out,
-                "{{\"i\":{},\"op\":\"{}\",\"t\":{},\"n\":{},\"k\":{},\"bytes\":{},\"nd\":{},\"s\":{:.9},\"e\":{:.9}}}",
+                "{{\"i\":{},\"op\":\"{}\",\"t\":{},\"n\":{},\"k\":{},\"bytes\":{},\"nd\":{},\"s\":{:.9},\"e\":{:.9},\"ho\":{:.9},\"hc\":{:.9},\"hr\":{:.9}}}",
                 r.seq,
                 if l.op.is_empty() { "other" } else { &l.op },
                 l.t,
@@ -114,7 +136,10 @@ impl Prof {
                 l.bytes,
                 r.dispatches,
                 r.cb.GPUStartTime(),
-                r.cb.GPUEndTime()
+                r.cb.GPUEndTime(),
+                r.host.open,
+                r.host.commit,
+                r.host.committed
             );
         }
         self.pending = keep;

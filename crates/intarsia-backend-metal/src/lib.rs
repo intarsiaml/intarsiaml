@@ -37,6 +37,7 @@ pub mod multirow;
 pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
+pub use host::KeepMode;
 pub use kernels::{GemvVariant, DEFAULT_GEMV, GEMV_VARIANTS};
 
 use dispatch2::DispatchData;
@@ -53,6 +54,7 @@ use objc2_metal::{
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub type Device = Retained<ProtocolObject<dyn MTLDevice>>;
@@ -163,6 +165,10 @@ struct Stream {
     label: Option<profile::Label>,
     /// Dispatches per command buffer before it is committed (`COMMIT_EVERY`, overridable for experiments).
     commit_every: usize,
+    /// Profiling only: host time at which the open command buffer was created.
+    opened: f64,
+    /// `host::now_ms()` of the last commit of the stream (the keep-warm thread stays out of the engine's way while it moves).
+    last_commit: Arc<std::sync::atomic::AtomicU64>,
 }
 
 pub struct MetalBackend {
@@ -281,6 +287,7 @@ impl MetalBackend {
         let mut st = self.stream.lock().unwrap();
         Self::flush_locked(&mut st);
         cb.commit();
+        st.last_commit.store(host::now_ms(), Ordering::Relaxed);
         Self::track(&mut st, cb.clone());
     }
 
@@ -312,10 +319,13 @@ impl MetalBackend {
     fn flush_locked(st: &mut Stream) {
         if let Some((cb, enc)) = st.open.take() {
             enc.endEncoding();
+            let commit = st.prof.is_some().then(profile::host_now);
             cb.commit();
+            st.last_commit.store(host::now_ms(), Ordering::Relaxed);
             let label = st.label.take();
             if let Some(p) = st.prof.as_mut() {
-                p.note(cb.clone(), label, st.dispatches);
+                let host = profile::Host { open: st.opened, commit: commit.unwrap_or(0.0), committed: profile::host_now() };
+                p.note(cb.clone(), label, st.dispatches, host);
             }
             Self::track(st, cb);
             st.dispatches = 0;
@@ -342,6 +352,9 @@ impl MetalBackend {
                 .computeCommandEncoderWithDispatchType(MTLDispatchType::Serial)
                 .ok_or_else(|| Error::backend("metal: computeCommandEncoder failed"))?;
             st.open = Some((cb, enc));
+            if st.prof.is_some() {
+                st.opened = profile::host_now();
+            }
         }
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
@@ -503,6 +516,8 @@ impl Drop for MetalBackend {
         // an open encoder must be ended before it is released (Metal aborts otherwise); this also waits for the queue,
         // which writes the last trace records when INTARSIA_METAL_PROFILE is set. A no-op when nothing is pending.
         let _ = self.synchronize(0);
+        // the keep-warm touches read the weight mappings too
+        self.stop_keepwarm();
     }
 }
 
@@ -686,6 +701,7 @@ impl Backend for MetalBackend {
         if let Some(p) = st.prof.as_mut() {
             p.resolve();
         }
+        drop(st);
         match first {
             Some(e) => Err(Error::backend(e)),
             None => Ok(()),

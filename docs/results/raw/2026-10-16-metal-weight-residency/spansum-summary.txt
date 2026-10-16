@@ -1,0 +1,10 @@
+prefill command buffers of the timed request (request 1/2/3 = idle 3/10/40 s): GPU busy, span first start..last end, idle inside the span, n cbs
+ base  req 1 (n=6): busy   882.3 [881.0..882.8]  span   882.7 [881.4..883.2]  idle-in-span     0.4 [0.4..0.4]  cbs 5
+ base  req 2 (n=6): busy   881.7 [880.7..883.0]  span   882.1 [881.1..883.4]  idle-in-span     0.4 [0.4..0.4]  cbs 5
+ base  req 3 (n=6): busy   881.4 [880.0..882.5]  span   881.9 [880.4..882.9]  idle-in-span     0.4 [0.4..0.5]  cbs 5
+ kwb   req 1 (n=6): busy   881.0 [879.6..882.5]  span   881.4 [880.2..882.8]  idle-in-span     0.4 [0.4..0.5]  cbs 5
+ kwb   req 2 (n=6): busy   880.7 [880.2..882.3]  span   881.1 [880.6..882.8]  idle-in-span     0.4 [0.4..0.4]  cbs 5
+ kwb   req 3 (n=6): busy   881.1 [879.3..882.1]  span   881.5 [879.7..882.5]  idle-in-span     0.4 [0.4..0.4]  cbs 5
+ rs    req 1 (n=6): busy   882.2 [881.0..884.2]  span   882.6 [881.4..884.7]  idle-in-span     0.4 [0.4..0.5]  cbs 5
+ rs    req 2 (n=6): busy   882.3 [881.2..883.3]  span   882.8 [881.6..883.7]  idle-in-span     0.4 [0.4..0.4]  cbs 5
+ rs    req 3 (n=6): busy   882.9 [880.2..885.0]  span   883.3 [880.6..885.6]  idle-in-span     0.4 [0.4..0.6]  cbs 5

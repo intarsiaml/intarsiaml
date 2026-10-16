@@ -1,0 +1,36 @@
+fleetq: #2187 running on spark1: /opt/code/intarsiaml-residency/docs/results/raw/2026-10-16-metal-weight-residency/spark_check.sh
+=== cargo check -p intarsia-cli --features cuda --tests
+    Checking unicode_categories v0.1.1
+    Checking toml_writer v1.1.3+spec-1.1.0
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-backend-cuda)
+    Checking clap_lex v1.1.1
+    Checking utf8-zero v0.8.1
+    Checking winnow v0.7.15
+    Checking ureq v3.4.2
+    Checking clap_builder v4.6.7
+    Checking intarsia-backend-cpu v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-backend-cpu)
+    Checking toml v0.9.12+spec-1.1.0
+    Checking intarsia-ui v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-ui)
+    Checking ratatui v0.30.2
+    Checking minijinja-contrib v2.24.0
+    Checking tokio-stream v0.1.19
+   Compiling clap_derive v4.6.7
+    Checking memmap2 v0.9.11
+    Checking intarsia-bench v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-bench)
+    Checking derive_builder v0.20.2
+    Checking tokenizers v0.22.2
+    Checking intarsia-models v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-models)
+    Checking tracing v0.1.44
+    Checking intarsia-server v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-server)
+    Checking clap v4.6.7
+    Checking intarsia-cli v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 29.39s
+EXIT=0
+=== cargo check -p intarsia-cli --features hip --tests
+   Compiling intarsia-backend-hip v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-backend-hip)
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+    Checking intarsia-cli v0.0.1 (/home/nvidia/residency-check-87239/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.90s
+EXIT=0
+scratch ~/residency-check-87239 removed
+fleetq: #2187 done (exit 0)

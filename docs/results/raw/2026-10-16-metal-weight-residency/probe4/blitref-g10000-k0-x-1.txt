@@ -1,0 +1,13 @@
+mapped and wrapped 5 shards in 0.8 ms (mode blitref, sleep 0 ms, gap 10000 ms)
+blitref: prepared 5 buffers in 0.0 ms
+touch pass ms: 47.2 / 43.2 / 31.6 / 19.5 / 8.6
+use 0 model-00001-of-00005.safetensors (4.00 GB): 72.17 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 45.39 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 31.73 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 19.89 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 8.48 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.53 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.23 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.17 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.64 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.15 ms

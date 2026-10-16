@@ -1,0 +1,18 @@
+mapped and wrapped 5 shards in 0.7 ms (mode copyprivate, sleep 0 ms, gap 10000 ms)
+copyprivate model-00001-of-00005.safetensors: alloc+blit 180.3 ms
+copyprivate model-00002-of-00005.safetensors: alloc+blit 176.7 ms
+copyprivate model-00003-of-00005.safetensors: alloc+blit 172.7 ms
+copyprivate model-00004-of-00005.safetensors: alloc+blit 120.1 ms
+copyprivate model-00005-of-00005.safetensors: alloc+blit 41.2 ms
+copyprivate: prepared 5 buffers in 691.3 ms
+touch pass ms: 0.2 / 0.2 / 0.2 / 0.2 / 0.1
+use 0 model-00001-of-00005.safetensors (4.00 GB): 117.10 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 63.94 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 67.49 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 34.83 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 12.71 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.58 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.16 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.16 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.14 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.15 ms

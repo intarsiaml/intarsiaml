@@ -1,0 +1,12 @@
+mapped and wrapped 5 shards in 1.2 ms (mode touch, sleep 0 ms, gap 60000 ms)
+touch pass: 150.7 ms
+use 0 model-00001-of-00005.safetensors (4.00 GB): 59.11 ms
+use 0 model-00002-of-00005.safetensors (3.99 GB): 46.30 ms
+use 0 model-00003-of-00005.safetensors (3.96 GB): 32.58 ms
+use 0 model-00004-of-00005.safetensors (3.19 GB): 22.14 ms
+use 0 model-00005-of-00005.safetensors (1.24 GB): 7.95 ms
+use 1 model-00001-of-00005.safetensors (4.00 GB): 0.67 ms
+use 1 model-00002-of-00005.safetensors (3.99 GB): 0.22 ms
+use 1 model-00003-of-00005.safetensors (3.96 GB): 0.20 ms
+use 1 model-00004-of-00005.safetensors (3.19 GB): 0.22 ms
+use 1 model-00005-of-00005.safetensors (1.24 GB): 0.23 ms

@@ -1,0 +1,8 @@
+chunk   256 base         n 2 prefill wall  1363.5 [1345..1382] busy  1184.3 span  1238.9 idle-in-span  54.7 cbs 48
+chunk   256 v3           n 2 prefill wall  1232.5 [1190..1275] busy  1214.9 span  1214.9 idle-in-span   0.0 cbs 46
+chunk   256 v3noprewire  n 2 prefill wall  1348.0 [1345..1351] busy  1188.5 span  1234.2 idle-in-span  45.7 cbs 46
+chunk   256 v3nostage    n 2 prefill wall  1232.0 [1203..1261] busy  1215.3 span  1221.9 idle-in-span   6.6 cbs 48
+chunk  2048 base         n 2 prefill wall  1175.0 [1151..1199] busy  1061.6 span  1062.2 idle-in-span   0.6 cbs 6
+chunk  2048 v3           n 2 prefill wall  1103.0 [1066..1140] busy  1083.4 span  1083.4 idle-in-span   0.0 cbs 6
+chunk  2048 v3noprewire  n 2 prefill wall  1211.5 [1146..1277] busy  1095.4 span  1095.4 idle-in-span   0.0 cbs 6
+chunk  2048 v3nostage    n 2 prefill wall  1113.5 [1062..1165] busy  1093.9 span  1094.5 idle-in-span   0.5 cbs 6

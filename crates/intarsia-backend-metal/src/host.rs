@@ -21,24 +21,38 @@
 //!  * `None` is also returned for empty ranges, ranges outside the slice, and when Metal refuses the memory; set
 //!    `INTARSIA_METAL_DEBUG=1` to print the reason, or call [`MetalBackend::try_wrap_host`] for it.
 //!  * The cache holds the `Arc` until the backend drops: a wrapped file stays mapped for the process lifetime.
+//!  * `MetalBackend::set_keepwarm` (off by default; `intarsia serve` turns it on) keeps the driver's wiring of the whole-file
+//!    buffers from decaying while the process idles, see there.
 
 use crate::{buffer::MetalBuffer, MetalBackend, MtlBuffer};
 use intarsia_core::backend::{Buffer, HostMemory};
 use intarsia_core::{Error, Result};
-use objc2_metal::{MTLDevice, MTLResourceOptions};
+use objc2::runtime::ProtocolObject;
+use objc2_metal::{MTLBlitCommandEncoder, MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue, MTLBuffer, MTLDevice, MTLResourceOptions};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+/// Whole-file buffers are kept warm (see [`MetalBackend::set_keepwarm`]) up to this share of the device's recommended
+/// working set; past it the first use of a buffer pays for its own wiring, as before.
+const KEEPWARM_SHARE: u64 = 2;
 
 struct Entry {
-    _mem: Arc<dyn HostMemory>,
     /// `None`: the whole mapping does not fit one buffer, use per-tensor buffers.
+    /// Declared before `_mem`: fields drop in order, so the no-copy buffer goes before the file unmaps.
     whole: Option<(MtlBuffer, usize)>,
+    _mem: Arc<dyn HostMemory>,
 }
 
 #[derive(Default)]
 pub(crate) struct HostCache {
+    /// The keep-warm thread and its registry, while [`MetalBackend::set_keepwarm`] has it on.
+    kw: Option<KeepWarm>,
+    /// Bytes registered with it so far (bounded like [`KEEPWARM_SHARE`]).
+    kw_bytes: u64,
     map: HashMap<usize, Entry>,
 }
 
@@ -90,6 +104,13 @@ pub(crate) fn try_wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usiz
         let floor = round_down(start, page);
         let total = round_up(start + slice.len(), page) - floor;
         let whole = if total <= max { Some((no_copy(be, floor, total)?, floor)) } else { None };
+        if let Some((mtl, _)) = &whole {
+            let limit = be.device().recommendedMaxWorkingSetSize() / KEEPWARM_SHARE;
+            let HostCache { kw, kw_bytes, .. } = &mut *cache;
+            if let Some(kw) = kw {
+                kw.register_capped(mtl, &mem, kw_bytes, limit);
+            }
+        }
         cache.map.insert(key, Entry { _mem: mem.clone(), whole });
     }
     let entry = &cache.map[&key];
@@ -108,7 +129,268 @@ pub(crate) fn try_wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usiz
     Ok(Buffer::new(MetalBuffer { mtl, base, bytes: len, read_only: true, _host: Some(mem) }))
 }
 
+/// Milliseconds since the first call in this process (a monotonic clock cheap to share through an atomic).
+pub(crate) fn now_ms() -> u64 {
+    static T0: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+    T0.get_or_init(Instant::now).elapsed().as_millis() as u64
+}
+
+/// What the keep-warm thread shares with the backend: the whole-file weight buffers to touch (each with the mapping it
+/// reads, so the pages cannot go away under a queued touch), the stop flag, and the engine's last-commit clock.
+struct KwShared {
+    bufs: Mutex<Vec<(MtlBuffer, Arc<dyn HostMemory>)>>,
+    stop: AtomicBool,
+    period_ms: u64,
+    mode: KeepMode,
+    /// `now_ms()` of the engine stream's last commit (`Stream::last_commit`).
+    last_commit: Arc<AtomicU64>,
+    /// Touch command buffers committed so far.
+    touches: AtomicU64,
+}
+
+// SAFETY: Apple documents MTLBuffer as usable from any thread; the mappings are read-only `Arc`s.
+unsafe impl Send for KwShared {}
+unsafe impl Sync for KwShared {}
+
+/// A value that crosses to the keep-warm thread although objc2 does not know it is thread-safe (MTLCommandQueue,
+/// MTLBuffer: documented as usable from any thread).
+struct Xfer<T>(T);
+// SAFETY: see above; only used for those two types.
+unsafe impl<T> Send for Xfer<T> {}
+
+/// How the keep-warm thread keeps a file wired.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KeepMode {
+    /// A one-byte GPU blit out of every file, from a queue of the thread's own, every period while the engine is quiet.
+    Blit,
+    /// An `MTLResidencySet` holding every file, attached to the engine's queue; the thread re-requests its residency (a
+    /// CPU-only call, no GPU work).
+    Residency,
+}
+
+/// Keeps the GPU's wiring of the weight files from decaying (see [`MetalBackend::set_keepwarm`]).
+pub(crate) struct KeepWarm {
+    shared: Arc<KwShared>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl KeepWarm {
+    fn register(&self, buf: MtlBuffer, mem: Arc<dyn HostMemory>) {
+        self.shared.bufs.lock().unwrap().push((buf, mem));
+        if let Some(t) = &self.thread {
+            t.thread().unpark();
+        }
+    }
+
+    /// [`Self::register`] a whole-file buffer unless `*used` + its size passes `limit` (bytes), and say which on stderr.
+    fn register_capped(&self, buf: &MtlBuffer, mem: &Arc<dyn HostMemory>, used: &mut u64, limit: u64) {
+        let len = buf.length() as u64;
+        let id = mem.as_slice().as_ptr() as usize;
+        if *used + len <= limit {
+            eprintln!("intarsia-backend-metal: keep-warm: registered the file at {id:#x}, {:.2} GB", len as f64 / 1e9);
+            self.register(buf.clone(), mem.clone());
+            *used += len;
+        } else {
+            eprintln!(
+                "intarsia-backend-metal: keep-warm: SKIPPED the file at {id:#x}, {:.2} GB: {:.2} GB registered, cap {:.2} GB (half the recommended working set); it decays when idle",
+                len as f64 / 1e9,
+                *used as f64 / 1e9,
+                limit as f64 / 1e9
+            );
+        }
+    }
+}
+
+impl Drop for KeepWarm {
+    fn drop(&mut self) {
+        self.shared.stop.store(true, Ordering::Release);
+        if let Some(t) = self.thread.take() {
+            t.thread().unpark();
+            let _ = t.join();
+        }
+    }
+}
+
+/// Commit a command buffer on `queue` that blits one byte out of every registered buffer (no wait); `None` when empty.
+fn keepwarm_touch(sh: &KwShared, queue: &ProtocolObject<dyn MTLCommandQueue>, scratch: &MtlBuffer) -> Option<crate::CommandBuffer> {
+    let bufs = sh.bufs.lock().unwrap();
+    if bufs.is_empty() {
+        return None;
+    }
+    let cb = queue.commandBuffer()?;
+    let enc = cb.blitCommandEncoder()?;
+    for (i, (b, _)) in bufs.iter().enumerate() {
+        // SAFETY: both buffers are at least 16 bytes long (the weight files are whole pages) and distinct.
+        unsafe { enc.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(b, 0, scratch, (i % 16) as usize, 1) };
+    }
+    enc.endEncoding();
+    cb.commit();
+    sh.touches.fetch_add(1, Ordering::Relaxed);
+    Some(cb)
+}
+
+/// The residency-set flavour of [`keepwarm_loop`]: all registered files go into one set on the engine's queue, and
+/// `requestResidency` is called again every period while the engine is quiet.
+/// The keep-warm thread must not be scheduled behind background work: the whole point is a tick that lands inside the
+/// driver's one-second window.
+fn thread_qos_user_initiated() {
+    // SAFETY: sets the calling thread's QoS class; no pointers.
+    unsafe { libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_USER_INITIATED, 0) };
+}
+
+/// Returns false when the residency set could not be made (the caller falls back to [`keepwarm_loop`]).
+fn residency_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, device: Xfer<crate::Device>) -> bool {
+    use objc2::runtime::ProtocolObject;
+    use objc2_metal::{MTLAllocation, MTLResidencySet, MTLResidencySetDescriptor};
+    thread_qos_user_initiated();
+    let (queue, device) = (queue.0, device.0);
+    let period = Duration::from_millis(sh.period_ms);
+    let mut set: Option<objc2::rc::Retained<ProtocolObject<dyn MTLResidencySet>>> = None;
+    let mut seen = 0usize;
+    while !sh.stop.load(Ordering::Acquire) {
+        let n = sh.bufs.lock().unwrap().len();
+        let quiet = now_ms().saturating_sub(sh.last_commit.load(Ordering::Relaxed)) >= sh.period_ms / 2;
+        if n != seen || (quiet && n > 0) {
+            if set.is_none() {
+                let desc = MTLResidencySetDescriptor::new();
+                match device.newResidencySetWithDescriptor_error(&desc) {
+                    Ok(s) => {
+                        queue.addResidencySet(&s);
+                        set = Some(s);
+                    }
+                    Err(e) => {
+                        eprintln!("intarsia-backend-metal: keep-warm: no residency set ({e:?}), using GPU touches instead");
+                        return false;
+                    }
+                }
+            }
+            let set = set.as_ref().unwrap();
+            if n != seen {
+                // `seen` comes from the length under THIS lock: a register between the two locks is added once, now
+                let bufs = sh.bufs.lock().unwrap();
+                for (b, _) in &bufs[seen..] {
+                    set.addAllocation(ProtocolObject::<dyn MTLAllocation>::from_ref(&**b));
+                }
+                set.commit();
+                seen = bufs.len();
+            }
+            set.requestResidency();
+            sh.touches.fetch_add(1, Ordering::Relaxed);
+        }
+        std::thread::park_timeout(period);
+    }
+    if let Some(set) = set {
+        queue.removeResidencySet(&set);
+    }
+    true
+}
+
+fn keepwarm_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, scratch: Xfer<MtlBuffer>) {
+    thread_qos_user_initiated();
+    let (queue, scratch) = (queue.0, scratch.0);
+    let period = Duration::from_millis(sh.period_ms);
+    let mut prev: Option<crate::CommandBuffer> = None;
+    let mut seen = 0usize;
+    while !sh.stop.load(Ordering::Acquire) {
+        let n = sh.bufs.lock().unwrap().len();
+        // The engine's own command buffers touch every weight; only a quiet engine (nothing committed for half a period)
+        // or a newly registered file needs a touch. Never queue a second one behind one that has not run yet.
+        let quiet = now_ms().saturating_sub(sh.last_commit.load(Ordering::Relaxed)) >= sh.period_ms / 2;
+        let pending = prev.as_ref().is_some_and(|c| !matches!(c.status(), MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error));
+        if (n != seen || quiet) && !pending {
+            prev = keepwarm_touch(&sh, &queue, &scratch);
+            seen = n;
+        }
+        std::thread::park_timeout(period);
+    }
+    if let Some(cb) = prev {
+        cb.waitUntilCompleted();
+    }
+}
+
 impl MetalBackend {
+    /// Keep the GPU's wiring of the wrapped weight files from decaying. The driver wires a file for the GPU on its first
+    /// use (about 10 ms per GB) and drops that wiring again once the file has gone unused for about a second: the first
+    /// request to a server that was idle for longer pays for all of it again (~170 ms for Qwen3-8B). This starts a thread
+    /// that puts every whole-file weight buffer into an `MTLResidencySet` on the engine's queue and calls
+    /// `requestResidency` again every `period_ms` while the engine is quiet (a CPU-only call of ~20 us: no GPU work, and
+    /// the set alone is not enough, it decays too without the re-request). The first request of a newly wrapped file wires
+    /// it in the background (~170 ms for 16 GB, in the thread, not the loader). `0` stops it. The period must stay well
+    /// below the decay horizon (the set held at 2 s and lost it at 5 s; a plain GPU touch loses it at 1.0..1.2 s); the CLI
+    /// uses 400 ms. See [`KeepMode`] for the GPU-touch flavour (also the fallback without `MTLResidencySet`).
+    pub fn set_keepwarm(&self, period_ms: u64) {
+        self.set_keepwarm_mode(period_ms, KeepMode::Residency);
+    }
+
+    /// [`Self::set_keepwarm`] with the way the files are kept warm. [`KeepMode::Residency`] falls back to
+    /// [`KeepMode::Blit`] on a macOS without `MTLResidencySet`.
+    pub fn set_keepwarm_mode(&self, period_ms: u64, mut mode: KeepMode) {
+        let mut cache = self.hosts.lock().unwrap();
+        if cache.kw.as_ref().is_some_and(|k| k.shared.period_ms == period_ms && k.shared.mode == mode) {
+            return;
+        }
+        cache.kw = None; // joins a running thread
+        cache.kw_bytes = 0;
+        if period_ms == 0 {
+            return;
+        }
+        let (Some(queue), Ok(scratch)) = (self.device().newCommandQueue(), self.new_mtl_buffer(256, true)) else {
+            eprintln!("intarsia-backend-metal: keep-warm: could not make a queue or scratch buffer (off)");
+            return;
+        };
+        if mode == KeepMode::Residency {
+            use objc2::runtime::NSObjectProtocol;
+            if !self.device().respondsToSelector(objc2::sel!(newResidencySetWithDescriptor:error:)) {
+                mode = KeepMode::Blit;
+            }
+        }
+        let last_commit = self.stream.lock().unwrap().last_commit.clone();
+        let shared = Arc::new(KwShared { bufs: Mutex::new(Vec::new()), stop: AtomicBool::new(false), period_ms, mode, last_commit, touches: AtomicU64::new(0) });
+        let sh = shared.clone();
+        let thread = match mode {
+            KeepMode::Blit => {
+                let (q, sc) = (Xfer(queue), Xfer(scratch));
+                std::thread::Builder::new().name("metal-keepwarm".into()).spawn(move || keepwarm_loop(sh, q, sc)).ok()
+            }
+            KeepMode::Residency => {
+                let (q, d) = (Xfer(self.queue.clone()), Xfer(self.device.clone()));
+                std::thread::Builder::new()
+                    .name("metal-keepwarm".into())
+                    .spawn(move || {
+                        let dev = d.0.clone();
+                        if !residency_loop(sh.clone(), q, Xfer(d.0)) {
+                            // no residency set after all: GPU touches from a queue of this thread's own
+                            if let (Some(tq), Some(sc)) = (dev.newCommandQueue(), dev.newBufferWithLength_options(256, MTLResourceOptions::StorageModeShared)) {
+                                keepwarm_loop(sh, Xfer(tq), Xfer(sc));
+                            }
+                        }
+                    })
+                    .ok()
+            }
+        };
+        let kw = KeepWarm { shared, thread };
+        let limit = self.device().recommendedMaxWorkingSetSize() / KEEPWARM_SHARE;
+        let mut bytes = 0u64;
+        for e in cache.map.values() {
+            if let Some((mtl, _)) = &e.whole {
+                kw.register_capped(mtl, &e._mem, &mut bytes, limit);
+            }
+        }
+        cache.kw_bytes = bytes;
+        cache.kw = Some(kw);
+    }
+
+    /// Touch command buffers the keep-warm thread has committed (0 while it is off).
+    pub fn keepwarm_touches(&self) -> u64 {
+        self.hosts.lock().unwrap().kw.as_ref().map_or(0, |k| k.shared.touches.load(Ordering::Relaxed))
+    }
+
+    /// Stop the keep-warm thread and wait for its last command buffer; `Drop` runs this before the mappings can go.
+    pub(crate) fn stop_keepwarm(&self) {
+        let kw = self.hosts.lock().unwrap().kw.take();
+        drop(kw);
+    }
+
     /// [`Backend::wrap_host`] with the reason it declined.
     pub fn try_wrap_host(&self, mem: Arc<dyn HostMemory>, offset: usize, len: usize) -> Result<Buffer> {
         try_wrap(self, mem, offset, len)

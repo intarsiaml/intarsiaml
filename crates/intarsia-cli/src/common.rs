@@ -104,12 +104,57 @@ pub struct ModelArgs {
     /// `serve --spec-off-at`, batched engine only. `serve` only.
     #[arg(skip)]
     pub spec_off_at: Option<usize>,
+    /// Metal: keep the weight wiring from decaying while the server idles (`MetalBackend::set_keepwarm`). Default off;
+    /// [`ModelArgs::for_serving`] turns it on, `INTARSIA_METAL_KEEPWARM=0` / `=1` / `=<ms>` override ([`keepwarm_period_ms`]);
+    /// `INTARSIA_METAL_KEEPWARM_MODE=blit` keeps the files warm with GPU touches instead of an `MTLResidencySet`.
+    #[arg(skip)]
+    pub keepwarm: Option<bool>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
 }
 
+/// Keep-warm refresh period (ms) of the Metal backend, 0 = off: the driver drops its wiring of a weight file after about
+/// a second unused (GPU touches: 1.0 s held, 1.2 s decayed; residency set: 2 s held, 5 s decayed), so 400 ms leaves room
+/// for a late tick. `INTARSIA_METAL_KEEPWARM` wins over `default` (set by [`ModelArgs::for_serving`]; `None` = off, so every
+/// other command behaves as it did before the switch existed): `0` / `off` / `false` / `no` = off, `1` / `on` / `true` /
+/// `yes` = the default period, any other number = a period in ms clamped to [`KEEPWARM_MIN_MS`]..=[`KEEPWARM_MAX_MS`]
+/// (with a warning: 2 ms would be ~500 touches/s, 5000 ms loses the wiring and the next use pays 210..230 ms). Anything
+/// else is warned about and ignored.
+pub fn keepwarm_period_ms(default: Option<bool>, env: Option<&str>) -> u64 {
+    let from_default = if default == Some(true) { KEEPWARM_DEFAULT_MS } else { 0 };
+    let Some(raw) = env else { return from_default };
+    let v = raw.trim().to_ascii_lowercase();
+    match v.as_str() {
+        "0" | "off" | "false" | "no" => 0,
+        "1" | "on" | "true" | "yes" => KEEPWARM_DEFAULT_MS,
+        _ => match v.parse::<u64>() {
+            Ok(ms) if (KEEPWARM_MIN_MS..=KEEPWARM_MAX_MS).contains(&ms) => ms,
+            Ok(ms) => {
+                let c = ms.clamp(KEEPWARM_MIN_MS, KEEPWARM_MAX_MS);
+                eprintln!("warning: INTARSIA_METAL_KEEPWARM={ms} is outside {KEEPWARM_MIN_MS}..{KEEPWARM_MAX_MS} ms, using {c}");
+                c
+            }
+            Err(_) => {
+                eprintln!("warning: INTARSIA_METAL_KEEPWARM={raw:?} is not 0/1/on/off/true/false/yes/no or a period in ms, ignored");
+                from_default
+            }
+        },
+    }
+}
+
+const KEEPWARM_DEFAULT_MS: u64 = 400;
+pub const KEEPWARM_MIN_MS: u64 = 50;
+pub const KEEPWARM_MAX_MS: u64 = 1500;
+
 pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
+    open_backend_with(name, device, None)
+}
+
+/// [`open_backend`] with the keep-warm default of the caller (only the Metal backend has one).
+pub fn open_backend_with(name: &str, device: usize, keepwarm: Option<bool>) -> Result<Arc<dyn Backend>> {
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    let _ = keepwarm;
     match name {
         "cpu" => Ok(intarsia_backend_cpu::CpuBackend::arc()),
         "cuda" => {
@@ -140,7 +185,13 @@ pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
                 if device != 0 {
                     bail!("the metal backend drives the system default GPU only (--device {device} is not supported)");
                 }
-                intarsia_backend_metal::MetalBackend::arc().map_err(|e| anyhow::anyhow!("{e}"))
+                let be = intarsia_backend_metal::MetalBackend::new().map_err(|e| anyhow::anyhow!("{e}"))?;
+                let mode = match std::env::var("INTARSIA_METAL_KEEPWARM_MODE").ok().as_deref() {
+                    Some("blit") => intarsia_backend_metal::KeepMode::Blit,
+                    _ => intarsia_backend_metal::KeepMode::Residency,
+                };
+                be.set_keepwarm_mode(keepwarm_period_ms(keepwarm, std::env::var("INTARSIA_METAL_KEEPWARM").ok().as_deref()), mode);
+                Ok(Arc::new(be))
             }
             #[cfg(not(all(feature = "metal", target_os = "macos")))]
             {
@@ -174,7 +225,7 @@ pub fn open_group(name: &str, ordinals: &[usize], comm: &str) -> Result<(Vec<Arc
 
 impl ModelArgs {
     pub fn open_backend(&self) -> Result<Arc<dyn Backend>> {
-        open_backend(&self.backend, self.device)
+        open_backend_with(&self.backend, self.device, self.keepwarm)
     }
 
     /// The device ordinals of the tensor-parallel group.
@@ -268,6 +319,12 @@ impl ModelArgs {
         if self.profile_every.is_none() && self.backend == "metal" {
             self.profile_every = Some(0);
         }
+        // The driver drops its wiring of the weight files about a second after their last use, so the first request after
+        // a pause pays ~170 ms for it again (Qwen3-8B): a server keeps it warm. `generate`, `plan`, `doctor` and the accuracy
+        // tools use the weights at once and exit, they keep the old behaviour.
+        if self.keepwarm.is_none() {
+            self.keepwarm = Some(true);
+        }
         self
     }
 
@@ -313,6 +370,45 @@ mod tests {
         assert_eq!(profile_every(&["--backend", "metal"], false), 16);
         assert_eq!(profile_every(&["--backend", "cuda"], true), 16);
         assert_eq!(profile_every(&["--backend", "cpu"], true), 1);
+    }
+
+    #[test]
+    fn keepwarm_is_on_for_serve_only_and_the_env_overrides_both_ways() {
+        use super::keepwarm_period_ms;
+        let args = |serving: bool| {
+            let mut a = Cli::parse_from(["t", "-m", "/m", "--backend", "metal"]).model;
+            if serving {
+                a = a.for_serving();
+            }
+            a.keepwarm
+        };
+        assert_eq!(args(false), None, "non-serve commands carry no default");
+        assert_eq!(args(true), Some(true));
+        assert_eq!(keepwarm_period_ms(args(false), None), 0);
+        assert_eq!(keepwarm_period_ms(args(true), None), 400);
+        assert_eq!(keepwarm_period_ms(args(true), Some("0")), 0);
+        assert_eq!(keepwarm_period_ms(args(false), Some("1")), 400);
+        assert_eq!(keepwarm_period_ms(args(false), Some("250")), 250);
+        // words: off means off on serve too, on means on elsewhere (case and spaces ignored)
+        for off in ["off", "OFF", "false", "no", " No "] {
+            assert_eq!(keepwarm_period_ms(args(true), Some(off)), 0, "{off:?} on serve");
+            assert_eq!(keepwarm_period_ms(args(false), Some(off)), 0, "{off:?}");
+        }
+        for on in ["on", "On", "true", "yes"] {
+            assert_eq!(keepwarm_period_ms(args(false), Some(on)), 400, "{on:?}");
+            assert_eq!(keepwarm_period_ms(args(true), Some(on)), 400, "{on:?} on serve");
+        }
+        // clamped to 50..=1500
+        assert_eq!(keepwarm_period_ms(args(true), Some("2")), 50);
+        assert_eq!(keepwarm_period_ms(args(true), Some("49")), 50);
+        assert_eq!(keepwarm_period_ms(args(true), Some("50")), 50);
+        assert_eq!(keepwarm_period_ms(args(true), Some("1500")), 1500);
+        assert_eq!(keepwarm_period_ms(args(true), Some("5000")), 1500);
+        // anything else is ignored: the default stands
+        assert_eq!(keepwarm_period_ms(args(true), Some("")), 400);
+        assert_eq!(keepwarm_period_ms(args(true), Some("maybe")), 400);
+        assert_eq!(keepwarm_period_ms(args(false), Some("yess")), 0);
+        assert_eq!(keepwarm_period_ms(args(true), Some("-5")), 400);
     }
 
     #[derive(Parser)]

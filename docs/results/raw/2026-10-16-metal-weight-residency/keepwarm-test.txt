@@ -1,0 +1,12 @@
+
+running 7 tests
+test a_busy_engine_is_not_touched ... ok
+test dropping_the_backend_right_after_wrapping_joins_the_thread_before_the_mapping_goes ... ok
+test files_are_touched_when_wrapped_and_while_the_engine_is_quiet_and_still_read_back_exactly ... ok
+test keepwarm_is_off_by_default ... ok
+test memkind_still_allocates_with_keepwarm_on ... ok
+test residency_mode_touches_registered_files_and_drops_cleanly ... ok
+test turning_it_on_after_wrapping_covers_the_files_already_wrapped_and_off_stops_it ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+
