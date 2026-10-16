@@ -1414,8 +1414,9 @@ struct FifoCov {
     reused: usize,
     /// Chunks run while a younger request was prefilling too (the oldest-first choice mattered).
     contested_chunks: usize,
-    /// Requests that reached `Admitted` while a younger one was already waiting (head-of-line held back, or just FIFO).
-    younger_waiting: usize,
+    /// Requests admitted at least one iteration after they were submitted (they queued behind a full house or a
+    /// predecessor); needs `arrive` to be filled in.
+    waited: usize,
     cancel_queued: usize,
     cancel_prefill: usize,
     cancel_decode: usize,
@@ -1428,20 +1429,20 @@ struct FifoCov {
 ///    rejected): nothing admitted waits behind a later one, with or without prefix reuse and cancellations.
 /// 2. A prefill chunk goes to the oldest prefilling request: no chunk while an older request is still prefilling.
 /// 3. First tokens (final chunks) come in submit order.
-fn check_fifo(trace: &[TraceEvent], n: usize) -> FifoCov {
+fn check_fifo(trace: &[TraceEvent], n: usize, arrive: &[u64]) -> FifoCov {
     let mut st = vec![St::Queued; n];
     let mut cov = FifoCov::default();
     let mut last_first: Option<RequestId> = None;
     for e in trace {
         match e {
-            TraceEvent::Admitted { id, cached, .. } => {
+            TraceEvent::Admitted { iter, id, cached, .. } => {
                 let i = *id as usize;
                 assert_eq!(st[i], St::Queued, "request {id} admitted twice");
                 if let Some(j) = (0..i).find(|&j| st[j] == St::Queued) {
                     panic!("request {id} admitted while older request {j} still waits");
                 }
-                if (i + 1..n).any(|j| st[j] == St::Queued) {
-                    cov.younger_waiting += 1;
+                if arrive.get(i).is_some_and(|&a| *iter > a + 1) {
+                    cov.waited += 1;
                 }
                 st[i] = St::Prefilling;
                 cov.admitted += 1;
@@ -1519,13 +1520,17 @@ fn fifo_fairness_randomized() {
                             };
                             let run = run_batched(cfg.clone(), cap, &reqs, false);
                             check_trace(&run, &cfg);
-                            let c = check_fifo(&run.trace, reqs.len());
+                            let mut arrive = vec![0u64; reqs.len()];
+                            for (r, id) in reqs.iter().zip(&run.ids) {
+                                arrive[id.unwrap() as usize] = r.arrive;
+                            }
+                            let c = check_fifo(&run.trace, reqs.len(), &arrive);
                             assert_eq!(c.admitted as u64, run.metrics.admitted, "B = {b}, seed {seed}");
                             assert!(reuse || c.reused == 0, "prefix reuse off but a request reused KV");
                             total.admitted += c.admitted;
                             total.reused += c.reused;
                             total.contested_chunks += c.contested_chunks;
-                            total.younger_waiting += c.younger_waiting;
+                            total.waited += c.waited;
                             total.cancel_queued += c.cancel_queued;
                             total.cancel_prefill += c.cancel_prefill;
                             total.cancel_decode += c.cancel_decode;
@@ -1540,7 +1545,7 @@ fn fifo_fairness_randomized() {
     eprintln!("fifo coverage over {runs} runs: {total:?}");
     // the properties were exercised, not vacuous
     assert!(total.contested_chunks >= 200, "{total:?}");
-    assert!(total.younger_waiting >= 200, "{total:?}");
+    assert!(total.waited >= 200, "{total:?}");
     assert!(total.reused >= 100, "{total:?}");
     assert!(total.cancel_queued >= 30 && total.cancel_prefill >= 30 && total.cancel_decode >= 30, "{total:?}");
     assert!(total.failed_prefill >= 5, "{total:?}");
@@ -1563,17 +1568,17 @@ fn fifo_checker_rejects_overtaking() {
         fin(1, EndKind::Done),
         fin(2, EndKind::Done),
     ];
-    let c = check_fifo(&ok, 3);
+    let c = check_fifo(&ok, 3, &[]);
     assert_eq!((c.cancel_queued, c.admitted), (1, 2));
     // 1 admitted while 0 still waits
     let t = vec![adm(1, 0), adm(0, 1), fin(0, EndKind::Done), fin(1, EndKind::Done)];
-    assert!(catch_unwind(|| check_fifo(&t, 2)).is_err(), "admission overtake not caught");
+    assert!(catch_unwind(|| check_fifo(&t, 2, &[])).is_err(), "admission overtake not caught");
     // a younger request's chunk while an older one is prefilling
     let t = vec![adm(0, 0), adm(1, 1), chunk(1, false), chunk(0, true), chunk(1, true)];
-    assert!(catch_unwind(|| check_fifo(&t, 2)).is_err(), "prefill overtake not caught");
+    assert!(catch_unwind(|| check_fifo(&t, 2, &[])).is_err(), "prefill overtake not caught");
     // a chunk after the request's final chunk
     let t = vec![adm(0, 0), adm(1, 1), fin(0, EndKind::Cancelled), chunk(1, true), adm(2, 0), chunk(2, true), chunk(1, true)];
-    assert!(catch_unwind(|| check_fifo(&t, 3)).is_err(), "chunk after the final chunk not caught");
+    assert!(catch_unwind(|| check_fifo(&t, 3, &[])).is_err(), "chunk after the final chunk not caught");
 }
 
 /// The queue-depth gauge is live: requests submitted while the scheduler thread is inside a long step (a big prefill
