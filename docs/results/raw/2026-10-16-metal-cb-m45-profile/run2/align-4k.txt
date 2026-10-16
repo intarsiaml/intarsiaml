@@ -1,0 +1,8 @@
+| class | launches | slow launches | aligned median us | misaligned median us | excess ms/step |
+|---|---:|---:|---:|---:|---:|
+| q/o | 72 | 15 | 68.8 | 81.5 | 0.188 |
+| k+v | 36 | 8 | 39.3 | 46.6 | 0.058 |
+| gate+up | 36 | 7 | 402.1 | 480.8 | 0.553 |
+| down | 36 | 7 | 212.7 | 238.7 | 0.180 |
+
+total excess 0.979 ms/step = 2.18% of a 44.90 ms step; aggregate tok/s gain if removed 2.23%

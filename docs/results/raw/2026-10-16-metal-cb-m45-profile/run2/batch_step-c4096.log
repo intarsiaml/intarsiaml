@@ -1,0 +1,7 @@
+# Qwen3-8B BF16 Metal, context 4096 (+128 decoded), 8 rounds x 16 steps, chunk 2048
+| B | B solo steps ms | 1 batched step ms | speedup | solo tok/s | batched tok/s | design est. ms (1k) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 29.05 | 28.29 | 1.03x | 34.4 | 35.3 | 27.3 |
+| 2 | 58.72 | 31.67 | 1.85x | 34.1 | 63.1 | 28.0 |
+| 4 | 117.56 | 37.24 | 3.16x | 34.0 | 107.4 | 29.3 |
+| 8 | 232.85 | 65.09 | 3.58x | 34.4 | 122.9 | 36.6 |
