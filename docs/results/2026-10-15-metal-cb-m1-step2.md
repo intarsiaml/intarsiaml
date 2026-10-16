@@ -193,14 +193,15 @@ about a baseline that drifted 1.8x in another soak.
 ## 7. CUDA / HIP
 
 `cargo check -p intarsia-cli --features cuda --tests` and `--features hip --tests` on spark1 in a scratch dir (build only, no GPU
-use, no `--takes-down`), fleetq #2090 on the first wiring (both EXIT=0) and re-run on the final tree (see
-`out/final/spark.log`; result in the report). Raw: `spark1-check.log`, `spark_check.sh`.
+use, no `--takes-down`): fleetq #2090 on the first wiring and **#2131 on the final tree (9ebd6f8 content: load.rs Metal-only check,
+chunk-no1 / forward-no1 merges): `--features cuda --tests` EXIT=0 and `--features hip --tests` EXIT=0**, scratch dir removed.
+Raw: `out/final/spark.log`, `spark1-check.log` (first run), `spark_check.sh`.
 
 ## 8. fleetq jobs
 
 Valid results: #2089 (gates 1+2 pre-merge, found the stale `SERVE_MAX_BATCH` assertion), #2090 (spark1 cuda/hip), #2095 (gates
 1+2, first merge), #2102 (gate 3 on 1bdcbca, harness without the cancel fix), #2103 (gate 4, no interleave), **#2114 (final gates
-1+2), #2115 (final gate 3), #2116 (extras), #2117 (final gate 4)**, final spark1 check. #2096 and #2097 ran with a zsh
+1+2), #2115 (final gate 3), #2116 (extras), #2117 (final gate 4), #2131 (final spark1 check)**. #2096 and #2097 ran with a zsh
 word-splitting bug in my scripts (exit 127 / "invalid value '1 8'"), nothing measured. **#2108 and #2109 were released while queued;
 fleetq's runner kept waiting and ran them later outside the lock (fleetq bug, found by the coordinator, killed, outputs
 discarded: `scratchpad/step2r/gate3x*`, `gate4-gen512*` are not used anywhere).** Timings taken by other slots between 19:50 and
