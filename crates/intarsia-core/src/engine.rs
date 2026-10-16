@@ -350,7 +350,7 @@ impl StopMatcher {
 }
 
 mod batch;
-pub use batch::{BatchedEngine, BatchedOptions};
+pub use batch::{BatchedEngine, BatchedOptions, BUSY_PREFILL_CHUNK};
 
 // ---------------------------------------------------------------------------
 // LocalEngine
