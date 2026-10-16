@@ -41,9 +41,10 @@ use std::time::{Duration, Instant};
 const KEEPWARM_SHARE: u64 = 2;
 
 struct Entry {
-    _mem: Arc<dyn HostMemory>,
     /// `None`: the whole mapping does not fit one buffer, use per-tensor buffers.
+    /// Declared before `_mem`: fields drop in order, so the no-copy buffer goes before the file unmaps.
     whole: Option<(MtlBuffer, usize)>,
+    _mem: Arc<dyn HostMemory>,
 }
 
 #[derive(Default)]
@@ -104,11 +105,10 @@ pub(crate) fn try_wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usiz
         let total = round_up(start + slice.len(), page) - floor;
         let whole = if total <= max { Some((no_copy(be, floor, total)?, floor)) } else { None };
         if let Some((mtl, _)) = &whole {
-            if let Some(kw) = &cache.kw {
-                if cache.kw_bytes + total as u64 <= be.device().recommendedMaxWorkingSetSize() / KEEPWARM_SHARE {
-                    kw.register(mtl.clone(), mem.clone());
-                    cache.kw_bytes += total as u64;
-                }
+            let limit = be.device().recommendedMaxWorkingSetSize() / KEEPWARM_SHARE;
+            let HostCache { kw, kw_bytes, .. } = &mut *cache;
+            if let Some(kw) = kw {
+                kw.register_capped(mtl, &mem, kw_bytes, limit);
             }
         }
         cache.map.insert(key, Entry { _mem: mem.clone(), whole });
@@ -181,6 +181,24 @@ impl KeepWarm {
             t.thread().unpark();
         }
     }
+
+    /// [`Self::register`] a whole-file buffer unless `*used` + its size passes `limit` (bytes), and say which on stderr.
+    fn register_capped(&self, buf: &MtlBuffer, mem: &Arc<dyn HostMemory>, used: &mut u64, limit: u64) {
+        let len = buf.length() as u64;
+        let id = mem.as_slice().as_ptr() as usize;
+        if *used + len <= limit {
+            eprintln!("intarsia-backend-metal: keep-warm: registered the file at {id:#x}, {:.2} GB", len as f64 / 1e9);
+            self.register(buf.clone(), mem.clone());
+            *used += len;
+        } else {
+            eprintln!(
+                "intarsia-backend-metal: keep-warm: SKIPPED the file at {id:#x}, {:.2} GB: {:.2} GB registered, cap {:.2} GB (half the recommended working set); it decays when idle",
+                len as f64 / 1e9,
+                *used as f64 / 1e9,
+                limit as f64 / 1e9
+            );
+        }
+    }
 }
 
 impl Drop for KeepWarm {
@@ -213,9 +231,18 @@ fn keepwarm_touch(sh: &KwShared, queue: &ProtocolObject<dyn MTLCommandQueue>, sc
 
 /// The residency-set flavour of [`keepwarm_loop`]: all registered files go into one set on the engine's queue, and
 /// `requestResidency` is called again every period while the engine is quiet.
-fn residency_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, device: Xfer<crate::Device>) {
+/// The keep-warm thread must not be scheduled behind background work: the whole point is a tick that lands inside the
+/// driver's one-second window.
+fn thread_qos_user_initiated() {
+    // SAFETY: sets the calling thread's QoS class; no pointers.
+    unsafe { libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_USER_INITIATED, 0) };
+}
+
+/// Returns false when the residency set could not be made (the caller falls back to [`keepwarm_loop`]).
+fn residency_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, device: Xfer<crate::Device>) -> bool {
     use objc2::runtime::ProtocolObject;
     use objc2_metal::{MTLAllocation, MTLResidencySet, MTLResidencySetDescriptor};
+    thread_qos_user_initiated();
     let (queue, device) = (queue.0, device.0);
     let period = Duration::from_millis(sh.period_ms);
     let mut set: Option<objc2::rc::Retained<ProtocolObject<dyn MTLResidencySet>>> = None;
@@ -232,19 +259,20 @@ fn residency_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, device: Xfer<cra
                         set = Some(s);
                     }
                     Err(e) => {
-                        eprintln!("intarsia-backend-metal: keep-warm: no residency set (off): {e:?}");
-                        return;
+                        eprintln!("intarsia-backend-metal: keep-warm: no residency set ({e:?}), using GPU touches instead");
+                        return false;
                     }
                 }
             }
             let set = set.as_ref().unwrap();
             if n != seen {
+                // `seen` comes from the length under THIS lock: a register between the two locks is added once, now
                 let bufs = sh.bufs.lock().unwrap();
                 for (b, _) in &bufs[seen..] {
                     set.addAllocation(ProtocolObject::<dyn MTLAllocation>::from_ref(&**b));
                 }
                 set.commit();
-                seen = n;
+                seen = bufs.len();
             }
             set.requestResidency();
             sh.touches.fetch_add(1, Ordering::Relaxed);
@@ -254,9 +282,11 @@ fn residency_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, device: Xfer<cra
     if let Some(set) = set {
         queue.removeResidencySet(&set);
     }
+    true
 }
 
 fn keepwarm_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, scratch: Xfer<MtlBuffer>) {
+    thread_qos_user_initiated();
     let (queue, scratch) = (queue.0, scratch.0);
     let period = Duration::from_millis(sh.period_ms);
     let mut prev: Option<crate::CommandBuffer> = None;
@@ -324,7 +354,18 @@ impl MetalBackend {
             }
             KeepMode::Residency => {
                 let (q, d) = (Xfer(self.queue.clone()), Xfer(self.device.clone()));
-                std::thread::Builder::new().name("metal-keepwarm".into()).spawn(move || residency_loop(sh, q, d)).ok()
+                std::thread::Builder::new()
+                    .name("metal-keepwarm".into())
+                    .spawn(move || {
+                        let dev = d.0.clone();
+                        if !residency_loop(sh.clone(), q, Xfer(d.0)) {
+                            // no residency set after all: GPU touches from a queue of this thread's own
+                            if let (Some(tq), Some(sc)) = (dev.newCommandQueue(), dev.newBufferWithLength_options(256, MTLResourceOptions::StorageModeShared)) {
+                                keepwarm_loop(sh, Xfer(tq), Xfer(sc));
+                            }
+                        }
+                    })
+                    .ok()
             }
         };
         let kw = KeepWarm { shared, thread };
@@ -332,10 +373,7 @@ impl MetalBackend {
         let mut bytes = 0u64;
         for e in cache.map.values() {
             if let Some((mtl, _)) = &e.whole {
-                if bytes + mtl.length() as u64 <= limit {
-                    kw.register(mtl.clone(), e._mem.clone());
-                    bytes += mtl.length() as u64;
-                }
+                kw.register_capped(mtl, &e._mem, &mut bytes, limit);
             }
         }
         cache.kw_bytes = bytes;

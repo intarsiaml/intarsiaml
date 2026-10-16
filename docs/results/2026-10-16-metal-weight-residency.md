@@ -72,7 +72,7 @@ the same 15622 MB the mmaps already are), and no load cost on the loader thread.
   * `Drop`: the thread is stopped and joined (and, for `Blit`, its last command buffer awaited) before the mappings can go; the registry holds the
     mapping `Arc`s so a queued touch can never read unmapped pages.
 * CLI (`crates/intarsia-cli/src/common.rs`): `ModelArgs.keepwarm`, `ModelArgs::for_serving` sets it (serve only), `keepwarm_period_ms`
-  (400 ms), `INTARSIA_METAL_KEEPWARM=0|1|<ms>` overrides either way, `INTARSIA_METAL_KEEPWARM_MODE=blit` picks the GPU-touch flavour.
+  (400 ms), `INTARSIA_METAL_KEEPWARM` overrides either way (`0|off|false|no`, `1|on|true|yes`, or a period in ms clamped to 50..1500 with a warning; anything else is warned about and ignored), `INTARSIA_METAL_KEEPWARM_MODE=blit` picks the GPU-touch flavour.
   `generate`, `plan`, `doctor`, `kernels` and the accuracy tools carry no default: no thread, no residency set, behaviour as before.
 * Removed (coordinator's instruction, the keep-warm covers it): `set_prewire`, `prewired_bytes`, `drain_prewire`, the `for_serving` pre-wire default,
   `INTARSIA_METAL_PREWIRE`, `tests/prewire.rs`. Kept: `profile.rs` host timestamps (`ho/hc/hr` in `cb` records), `wire_probe`, `pso_nax_attn`.
@@ -130,7 +130,9 @@ after idle already ran at 29 ms.
 
 ## Cost
 
-* **Memory:** none added. The residency set accounts the 15622 MB the mapped shards already are; `blit` mode allocates a 256 byte scratch buffer.
+* **Memory:** no new allocation (the set accounts the 15622 MB the mapped shards already are; `blit` mode allocates a 256 byte scratch buffer), **but the weights
+  stay wired while `serve` idles**, up to `recommendedMaxWorkingSetSize` / 2 (the cap; files past it are skipped and logged), and the OS cannot reclaim
+  those pages under memory pressure meanwhile. Without keep-warm the driver dropped the wiring after ~1 s. endor showed ~11 GB of swap in use during these runs.
   The copy variants (c) would add 15.6 GB resident and 0.7..1.7 s of load.
 * **Load:** the 150..175 ms wiring moves into the keep-warm thread, concurrent with the rest of the load; nothing waits for it. `Drop` joins the thread.
 * **CPU:** one wake-up per 400 ms; the refresh is 0.013..0.020 ms. Skipped while the engine commits.
@@ -157,6 +159,20 @@ after idle already ran at 29 ms.
 | `cargo test --release -p intarsia-cli --features metal --lib` | 79 passed |
 | CUDA and HIP `cargo check -p intarsia-cli --features {cuda,hip} --tests` on spark1 (fleetq #2187) | both EXIT=0 (`spark1-check.log`; HIP builds the stub, no hipcc, as before) |
 | serve output identity | the 33-token texts of all arms agree in every prompt group (18 groups in the 6-round run, 8 in the ITL run) |
+
+## Review fixes (on top of 54df20a)
+
+* `INTARSIA_METAL_KEEPWARM=off|false|no` now means off and `on|true|yes` on (it used to be ignored, leaving serve's default on); other words warn and are ignored;
+  numbers clamp to 50..1500 ms with a warning (2 ms = ~500 touches/s, 5000 ms = the 210..230 ms failure mode). Unit test extended (off on serve, words, clamps).
+* `residency_loop`: if `newResidencySetWithDescriptor` fails at runtime the thread falls back to `keepwarm_loop` (GPU touches, own queue and scratch)
+  instead of exiting while `register` keeps filling the list. Not exercised by a test (the failure cannot be forced here).
+* `residency_loop`: `seen` is taken from the length under the second lock, so a `register` between the two locks is added once.
+* `Entry`: `whole` is declared before `_mem`, so the no-copy buffer drops before the file unmaps.
+* The keep-warm thread runs at QoS `USER_INITIATED`.
+* Every whole-file buffer is logged on stderr when registered (address, size) and, loudly, when skipped by the half-working-set cap.
+* Memory section corrected above.
+* Gates for these fixes: see the final report of the session; GPU gates (cargo test with `keepwarm.rs`, one 3 s serve spot check) are in
+  `raw/.../review-fix.sh`, run status stated there.
 
 ## Fleet jobs
 

@@ -116,19 +116,36 @@ pub struct ModelArgs {
 
 /// Keep-warm refresh period (ms) of the Metal backend, 0 = off: the driver drops its wiring of a weight file after about
 /// a second unused (GPU touches: 1.0 s held, 1.2 s decayed; residency set: 2 s held, 5 s decayed), so 400 ms leaves room
-/// for a late tick. `INTARSIA_METAL_KEEPWARM=0` / `=1` win (1 = the
-/// default period), a larger number is a period in ms (experiments); otherwise `default` (set by [`ModelArgs::for_serving`];
-/// `None` = off, so every other command behaves as it did before the switch existed).
+/// for a late tick. `INTARSIA_METAL_KEEPWARM` wins over `default` (set by [`ModelArgs::for_serving`]; `None` = off, so every
+/// other command behaves as it did before the switch existed): `0` / `off` / `false` / `no` = off, `1` / `on` / `true` /
+/// `yes` = the default period, any other number = a period in ms clamped to [`KEEPWARM_MIN_MS`]..=[`KEEPWARM_MAX_MS`]
+/// (with a warning: 2 ms would be ~500 touches/s, 5000 ms loses the wiring and the next use pays 210..230 ms). Anything
+/// else is warned about and ignored.
 pub fn keepwarm_period_ms(default: Option<bool>, env: Option<&str>) -> u64 {
-    const PERIOD_MS: u64 = 400;
-    match env.and_then(|v| v.parse::<u64>().ok()) {
-        Some(0) => 0,
-        Some(1) => PERIOD_MS,
-        Some(ms) => ms,
-        None if default == Some(true) => PERIOD_MS,
-        None => 0,
+    let from_default = if default == Some(true) { KEEPWARM_DEFAULT_MS } else { 0 };
+    let Some(raw) = env else { return from_default };
+    let v = raw.trim().to_ascii_lowercase();
+    match v.as_str() {
+        "0" | "off" | "false" | "no" => 0,
+        "1" | "on" | "true" | "yes" => KEEPWARM_DEFAULT_MS,
+        _ => match v.parse::<u64>() {
+            Ok(ms) if (KEEPWARM_MIN_MS..=KEEPWARM_MAX_MS).contains(&ms) => ms,
+            Ok(ms) => {
+                let c = ms.clamp(KEEPWARM_MIN_MS, KEEPWARM_MAX_MS);
+                eprintln!("warning: INTARSIA_METAL_KEEPWARM={ms} is outside {KEEPWARM_MIN_MS}..{KEEPWARM_MAX_MS} ms, using {c}");
+                c
+            }
+            Err(_) => {
+                eprintln!("warning: INTARSIA_METAL_KEEPWARM={raw:?} is not 0/1/on/off/true/false/yes/no or a period in ms, ignored");
+                from_default
+            }
+        },
     }
 }
+
+const KEEPWARM_DEFAULT_MS: u64 = 400;
+pub const KEEPWARM_MIN_MS: u64 = 50;
+pub const KEEPWARM_MAX_MS: u64 = 1500;
 
 pub fn open_backend(name: &str, device: usize) -> Result<Arc<dyn Backend>> {
     open_backend_with(name, device, None)
@@ -372,8 +389,26 @@ mod tests {
         assert_eq!(keepwarm_period_ms(args(true), Some("0")), 0);
         assert_eq!(keepwarm_period_ms(args(false), Some("1")), 400);
         assert_eq!(keepwarm_period_ms(args(false), Some("250")), 250);
+        // words: off means off on serve too, on means on elsewhere (case and spaces ignored)
+        for off in ["off", "OFF", "false", "no", " No "] {
+            assert_eq!(keepwarm_period_ms(args(true), Some(off)), 0, "{off:?} on serve");
+            assert_eq!(keepwarm_period_ms(args(false), Some(off)), 0, "{off:?}");
+        }
+        for on in ["on", "On", "true", "yes"] {
+            assert_eq!(keepwarm_period_ms(args(false), Some(on)), 400, "{on:?}");
+            assert_eq!(keepwarm_period_ms(args(true), Some(on)), 400, "{on:?} on serve");
+        }
+        // clamped to 50..=1500
+        assert_eq!(keepwarm_period_ms(args(true), Some("2")), 50);
+        assert_eq!(keepwarm_period_ms(args(true), Some("49")), 50);
+        assert_eq!(keepwarm_period_ms(args(true), Some("50")), 50);
+        assert_eq!(keepwarm_period_ms(args(true), Some("1500")), 1500);
+        assert_eq!(keepwarm_period_ms(args(true), Some("5000")), 1500);
+        // anything else is ignored: the default stands
         assert_eq!(keepwarm_period_ms(args(true), Some("")), 400);
-        assert_eq!(keepwarm_period_ms(args(false), Some("yes")), 0);
+        assert_eq!(keepwarm_period_ms(args(true), Some("maybe")), 400);
+        assert_eq!(keepwarm_period_ms(args(false), Some("yess")), 0);
+        assert_eq!(keepwarm_period_ms(args(true), Some("-5")), 400);
     }
 
     #[derive(Parser)]
