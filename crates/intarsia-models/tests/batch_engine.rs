@@ -54,10 +54,21 @@ fn solo(seed: u64, spec_k: Option<usize>) -> LocalEngine {
 }
 
 fn batched(seed: u64, rows: usize, spec_k: Option<usize>, max_queue: usize) -> (BatchedEngine, Arc<Telemetry>) {
+    batched_with(seed, rows, spec_k, max_queue, |_| {})
+}
+
+fn batched_with(
+    seed: u64,
+    rows: usize,
+    spec_k: Option<usize>,
+    max_queue: usize,
+    tweak: impl FnOnce(&mut BatchedOptions),
+) -> (BatchedEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (m, spec) = model(seed, rows, spec_k, &tel);
     let mut o = BatchedOptions::new(rows, max_queue);
     o.prefix_reuse = false;
+    tweak(&mut o);
     (BatchedEngine::new(m, Arc::new(ByteCodec), meta(spec), tel.clone(), o).unwrap(), tel)
 }
 
@@ -260,4 +271,29 @@ fn queue_full_is_refused_and_unwinds_telemetry() {
 fn solo_only_endpoints_are_refused() {
     let (eng, _) = batched(7, 2, None, 4);
     assert!(eng.forward_logits(&[1, 2, 3]).unwrap_err().to_string().contains("--max-batch 1"));
+}
+
+#[test]
+fn bad_decode_row_fails_only_its_request() {
+    let reference = solo(7, None);
+    let mk = |i: u32| GenRequest { prompt: vec![10 + i, 20, 30], max_tokens: 24, ignore_eos: true, ..Default::default() };
+    let want: Vec<Out> = (0..4).map(|i| run_solo(&reference, mk(i))).collect();
+    // three slots: requests 0..3 take slots 0..3 in order; slot 1 is fed an out-of-vocab id once it holds 3 + 4 tokens
+    let (eng, tel) = batched_with(7, 3, None, 16, |o| o.row_fault = Some((1, 7, 99_999)));
+    let rxs: Vec<_> = (0..3).map(|i| eng.submit(mk(i)).unwrap()).collect();
+    let err = collect(&rxs[1]).unwrap_err();
+    assert!(err.contains("vocab"), "{err}");
+    for i in [0usize, 2] {
+        let got = collect(&rxs[i]).unwrap();
+        assert_eq!(got, Out { cached_tokens: got.cached_tokens, ..clone_out(&want[i]) }, "request {i}");
+    }
+    // the engine did not fail, and the poisoned slot serves the next request exactly
+    assert!(eng.failed().is_none(), "{:?}", eng.failed());
+    let again = collect(&eng.submit(mk(3)).unwrap()).unwrap();
+    assert_eq!(again, Out { cached_tokens: again.cached_tokens, ..clone_out(&want[3]) });
+    let m = eng.metrics();
+    assert_eq!((m.failed, m.finished), (1, 3), "{m:?}");
+    std::thread::sleep(Duration::from_millis(100));
+    let snap = tel.snapshot();
+    assert_eq!((snap.running, snap.waiting), (0, 0), "{snap:?}");
 }

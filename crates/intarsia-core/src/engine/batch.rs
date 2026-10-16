@@ -45,12 +45,22 @@ pub struct BatchedOptions {
     pub prefix_reuse: bool,
     /// Log scheduler events to stderr (`INTARSIA_CB_TRACE=1`).
     pub trace: bool,
+    /// Test seam: feed `token` once instead of the real one in the decode row of slot `.0` whose slot holds `.1` tokens
+    /// (error-isolation tests put an invalid id into one row). Always `None` outside tests.
+    #[doc(hidden)]
+    pub row_fault: Option<(usize, usize, u32)>,
 }
 
 impl BatchedOptions {
     pub fn new(max_batch: usize, max_queue: usize) -> Self {
         let env = |k: &str| std::env::var(k).map(|v| v == "1").unwrap_or(false);
-        BatchedOptions { max_batch, max_queue, prefix_reuse: !env("INTARSIA_CB_NO_REUSE"), trace: env("INTARSIA_CB_TRACE") }
+        BatchedOptions {
+            max_batch,
+            max_queue,
+            prefix_reuse: !env("INTARSIA_CB_NO_REUSE"),
+            trace: env("INTARSIA_CB_TRACE"),
+            row_fault: None,
+        }
     }
 }
 
@@ -58,6 +68,8 @@ impl BatchedOptions {
 pub(crate) struct SlotModel {
     model: Model,
     states: Vec<SequenceState>,
+    /// [`BatchedOptions::row_fault`], cleared once it fired.
+    row_fault: Option<(usize, usize, u32)>,
 }
 
 impl SlotModel {
@@ -107,11 +119,36 @@ impl BatchModel for SlotModel {
                 .ok_or_else(|| Error::Other(format!("decode row names slot {} twice or out of range", r.slot)))?;
             refs.push(st);
         }
-        let ids: Vec<u32> = rows.iter().map(|r| r.token).collect();
-        let modes: Vec<HeadMode> = rows.iter().map(|r| r.mode).collect();
-        // an error here is fatal for the whole batch (the scheduler fails every request)
-        let outs = self.model.forward_batch(&mut refs, &ids, &modes)?;
-        Ok(outs.into_iter().map(Ok).collect())
+        // per-row validation first, so a bad row fails its own request and the rest of the batch goes on
+        let mut res: Vec<Option<Result<StepOut>>> = (0..rows.len()).map(|_| None).collect();
+        let mut good: Vec<usize> = Vec::with_capacity(rows.len());
+        let mut tokens: Vec<u32> = Vec::with_capacity(rows.len());
+        for (r, row) in rows.iter().enumerate() {
+            let mut token = row.token;
+            if let Some((slot, len, bad)) = self.row_fault {
+                if row.slot == slot && refs[r].len == len {
+                    token = bad;
+                    self.row_fault = None;
+                }
+            }
+            tokens.push(token);
+            match self.model.check_batch_row(&*refs[r], token, row.mode) {
+                Ok(()) => good.push(r),
+                Err(e) => res[r] = Some(Err(e)),
+            }
+        }
+        if !good.is_empty() {
+            let ids: Vec<u32> = good.iter().map(|&r| tokens[r]).collect();
+            let modes: Vec<HeadMode> = good.iter().map(|&r| rows[r].mode).collect();
+            let mut slots: Vec<Option<&mut SequenceState>> = refs.into_iter().map(Some).collect();
+            let mut grefs: Vec<&mut SequenceState> = good.iter().map(|&r| slots[r].take().expect("row once")).collect();
+            // an error here is a device / pass failure: fatal for the whole batch (the scheduler fails every request)
+            let outs = self.model.forward_batch(&mut grefs, &ids, &modes)?;
+            for (&r, o) in good.iter().zip(outs) {
+                res[r] = Some(Ok(o));
+            }
+        }
+        Ok(res.into_iter().map(|o| o.expect("every row has a result")).collect())
     }
 }
 
@@ -164,7 +201,7 @@ impl BatchSeq<SlotModel> for SeqAdapter {
     }
 
     fn prepare(&mut self, model: &mut SlotModel, slot: usize, spec_allowed: bool) -> Result<SeqStep<HeadMode>> {
-        let SlotModel { model, states } = model;
+        let SlotModel { model, states, .. } = model;
         let seq = self.seq()?;
         seq.set_spec_allowed(spec_allowed);
         Ok(match seq.prepare(model, &mut states[slot])? {
@@ -303,7 +340,7 @@ impl BatchedEngine {
         let vocab = model.dims.vocab;
         let verify_rows = model.verify_rows();
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
-        let engine = BatchEngine::spawn(SlotModel { model, states }, cfg)?;
+        let engine = BatchEngine::spawn(SlotModel { model, states, row_fault: opts.row_fault }, cfg)?;
         Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows })
     }
 
