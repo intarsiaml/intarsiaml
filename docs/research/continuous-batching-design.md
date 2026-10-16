@@ -355,7 +355,7 @@ Core path M0-M3: **17-23 working days** (estimate). Optional M4-M6: +9-11. This 
 | 10 | **ADR-0010 accepted.** | `docs/decisions/0010-continuous-batching.md` (branch metal-cb-adr). |
 | 11 | **`trace_logits` requests batch normally.** (User decision relayed by the Parallel tasks session, 2026-10-16 07:11 EDT.) | No solo isolation for logits-tracing requests; this is the current code behaviour. Their logits rows are bitwise equal to solo (M1 step 2 gates). Replaces the run-alone suggestion in 2.3. |
 | 12 | **Busy prefill chunk stays 256.** (2026-10-16 ~10:05 EDT, confirmed 11:00) | 320 vs 256 A/B: 4k TTFT -44 ms (2%), decode-stall p95 176 vs 139 ms (27% worse, 10/10 rounds). `serve --busy-chunk N` (16..=2048, default 256) exists for tuning; `docs/results/2026-10-16-metal-cb-chunk320.md`. |
-| 13 | **M2 SLO revisions adopted.** (2026-10-16 11:00 EDT, relayed by the Parallel tasks session) | Steady-state ITL p95 <= ~60 ms; prefill-overlap ITL p95 <= 150 ms judged on the scripted scenario, not the soak; TTFT limits stated at <= 60% of saturation; memory growth measured after warmup. B=8 soak passes all; `docs/results/2026-10-16-metal-cb-soak2.md`. |
+| 13 | **M2 SLO revisions adopted.** (2026-10-16 11:00 EDT, relayed by the Parallel tasks session) | Steady-state ITL p95 <= ~60 ms; prefill-overlap ITL p95 <= 150 ms judged on the scripted scenario, not the soak; TTFT limits stated at <= 60% of saturation; memory growth measured after warmup. B=8 soak passes all; `docs/results/2026-10-16-metal-cb-soak-batched.md`. |
 
 Only the slot layout part of 3 is still open.
 
