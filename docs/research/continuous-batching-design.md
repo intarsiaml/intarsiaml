@@ -123,7 +123,7 @@ All of these are properties of one `Seq` and are evaluated in `on_token`, in the
 * `max_new = min(max_tokens, cap - plen)` is per seq (`engine.rs:676`); `cap` is the slot capacity.
 * Cancellation: checked at the top of each iteration (flag, or a failed `tx.send`), so a cancelled request costs at most one extra row in the step already running. Its slot's KV stays valid and becomes a prefix-cache candidate.
 * Sampled rows: `HeadMode::LastLogits` semantics per row; the host sampler is unchanged. Greedy rows use the on-device argmax (`HeadMode::LastArgmax`, `engine.rs:703-708`), generalised to a row-wise argmax over `[B, V]` (the `verify_head` pattern, [spec]`model.rs:765`).
-* `trace_logits` requests (accuracy tooling, `engine.rs:44-46`) are not batched: they run alone, as a one-row batch.
+* `trace_logits` requests (accuracy tooling, `engine.rs:44-46`) batch with other requests like any other (operator decision Q11, section 8.1). The original suggestion was to run them alone as a one-row batch; that is not needed, because a batched row's logits are bitwise equal to the solo row (M1 step 2 gates), so isolating them would only cost throughput.
 
 ### 2.4 Prefill and decode interleave (chunked prefill)
 
@@ -351,9 +351,9 @@ Core path M0-M3: **17-23 working days** (estimate). Optional M4-M6: +9-11. This 
 | 5 | **Prefix reuse from idle slots only.** | No strided KV copy from active slots. A shared system prompt across concurrent users is prefilled again per slot. |
 | 6 | **FIFO admission.** | No priorities and no shortest-prompt-first. |
 | 7 | **Speculation turns off automatically at B >= 4** (configurable). | `--spec ngram` stays on at low load, and the scheduler stops drafting while 4 or more sequences are active. |
-
 | 9 | **MoE and recurrent/hybrid models out of scope.** (2026-10-15 19:29 EDT) | `BatchEngine` refuses them at load. Batching them would need its own estimate and decision. |
 | 10 | **ADR-0010 accepted.** | `docs/decisions/0010-continuous-batching.md` (branch metal-cb-adr). |
+| 11 | **`trace_logits` requests batch normally.** (User decision relayed by the Parallel tasks session, 2026-10-16 07:11 EDT.) | No solo isolation for logits-tracing requests; this is the current code behaviour. Their logits rows are bitwise equal to solo (M1 step 2 gates). Replaces the run-alone suggestion in 2.3. |
 
 Only the slot layout part of 3 is still open.
 
