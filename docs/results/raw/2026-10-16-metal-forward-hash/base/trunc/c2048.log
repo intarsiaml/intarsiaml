@@ -1,0 +1,23 @@
+prefill chunk 2048 (--prefill-chunk)
+accuracy: Qwen3-8B on Apple M5 Max (vocab 151936, weights/act/kv bf16/bf16)
+golden: /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/fh/trunc-top20.safetensors (5 prompts, 3846 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.19.0, torch 2.14.1 | model /Users/josef/Models/Qwen3-8B | revision not in the model path | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden_4k.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (weights: bf16 (no quantization metadata), kv cache: bf16); top-1 >= 0%, 21-way KL <= 1.0e-3, |tail excess| <= 0.02
+prefill chunk 2048; longest prompt 2049; prompts spanning more than one chunk: 1/5
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k_first257   257   257    99.61   9.238e-5   8.215e-5   7.227e-4   0.1515   0.1515    99.30    92/257      0
+long_code_4k_first513   513   513    99.42   9.299e-5   8.631e-5   1.488e-3   0.0537   0.0537    99.38    18/513      0
+long_docs_4k_first258   258   258    99.61   9.202e-5   8.184e-5   7.227e-4   0.1509   0.1509    99.30    92/258      0
+long_code_4k_first769   769   769    99.48   1.011e-4   9.524e-5   2.680e-3   0.0486   0.0486    99.35    18/769      0
+long_docs_4k_first2049  2049  2049    99.27   1.723e-4   1.540e-4   7.660e-3   0.1232   0.1231    99.11   92/2049      0
+OVERALL                   3846    99.38   1.368e-4   1.236e-4   7.660e-3   0.1028   0.1027    99.22      8.1%      0
+prefill floor [bf16]: top-1 99.38% (need >= 0) ok | 21-way KL 1.236e-4 (need <= 1.0e-3) ok | tail mass ours 0.1027 vs ref 0.1028, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.4% of positions before the first argmax divergence, worst prompt 2.3% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

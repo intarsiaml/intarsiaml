@@ -1,0 +1,33 @@
+code17 L=17 (chunk 256 vs 2048): fwd rows differing 0/17 []; serve0 equal True; serve0==fwd_last: A True B True
+    A: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+    B: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+code33 L=33 (chunk 256 vs 2048): fwd rows differing 0/33 []; serve0 equal True; serve0==fwd_last: A True B True
+    A: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+    B: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+code255 L=255 (chunk 256 vs 2048): fwd rows differing 0/255 []; serve0 equal True; serve0==fwd_last: A False B False
+    A: serve row0 vs fwd last row: max|d| 4.196e-05, 144522 logits differ
+    B: serve row0 vs fwd last row: max|d| 4.196e-05, 144522 logits differ
+docs256 L=256 (chunk 256 vs 2048): fwd rows differing 0/256 []; serve0 equal True; serve0==fwd_last: A False B False
+    A: serve row0 vs fwd last row: max|d| 3.624e-05, 146945 logits differ
+    B: serve row0 vs fwd last row: max|d| 3.624e-05, 146945 logits differ
+code257 L=257 (chunk 256 vs 2048): fwd rows differing 1/257 [256]; serve0 equal True; serve0==fwd_last: A False B True
+    row 256: max|d| 5.150e-05 at logit 123730 (|v| 17.50), 141922 of 151936 logits differ, argmax 2204 vs 2204
+    A: serve row0 vs fwd last row: max|d| 5.150e-05, 141922 logits differ
+    B: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+docs258 L=258 (chunk 256 vs 2048): fwd rows differing 0/258 []; serve0 equal True; serve0==fwd_last: A False B False
+    A: serve row0 vs fwd last row: max|d| 3.338e-05, 143457 logits differ
+    B: serve row0 vs fwd last row: max|d| 3.338e-05, 143457 logits differ
+code273 L=273 (chunk 256 vs 2048): fwd rows differing 0/273 []; serve0 equal True; serve0==fwd_last: A True B True
+    A: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+    B: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+code513 L=513 (chunk 256 vs 2048): fwd rows differing 1/513 [512]; serve0 equal True; serve0==fwd_last: A False B True
+    row 512: max|d| 3.815e-05 at logit 55421 (|v| 16.21), 138105 of 151936 logits differ, argmax 330 vs 330
+    A: serve row0 vs fwd last row: max|d| 3.815e-05, 138105 logits differ
+    B: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+code769 L=769 (chunk 256 vs 2048): fwd rows differing 1/769 [768]; serve0 equal True; serve0==fwd_last: A False B True
+    row 768: max|d| 2.956e-05 at logit 38828 (|v| 9.35), 145687 of 151936 logits differ, argmax 1372 vs 1372
+    A: serve row0 vs fwd last row: max|d| 2.956e-05, 145687 logits differ
+    B: serve row0 vs fwd last row: max|d| 0.000e+00, 0 logits differ
+code2049 L=2049 (chunk 256 vs 2048): fwd rows differing 0/2049 []; serve0 equal True; serve0==fwd_last: A False B False
+    A: serve row0 vs fwd last row: max|d| 6.485e-05, 144710 logits differ
+    B: serve row0 vs fwd last row: max|d| 6.485e-05, 144710 logits differ
