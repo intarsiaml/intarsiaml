@@ -54,10 +54,21 @@ fn solo(seed: u64, spec_k: Option<usize>) -> LocalEngine {
 }
 
 fn batched(seed: u64, rows: usize, spec_k: Option<usize>, max_queue: usize) -> (BatchedEngine, Arc<Telemetry>) {
+    batched_with(seed, rows, spec_k, max_queue, |_| {})
+}
+
+fn batched_with(
+    seed: u64,
+    rows: usize,
+    spec_k: Option<usize>,
+    max_queue: usize,
+    tweak: impl FnOnce(&mut BatchedOptions),
+) -> (BatchedEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (m, spec) = model(seed, rows, spec_k, &tel);
     let mut o = BatchedOptions::new(rows, max_queue);
     o.prefix_reuse = false;
+    tweak(&mut o);
     (BatchedEngine::new(m, Arc::new(ByteCodec), meta(spec), tel.clone(), o).unwrap(), tel)
 }
 
@@ -240,7 +251,7 @@ fn queue_full_is_refused_and_unwinds_telemetry() {
         match eng.submit(long(i)) {
             Ok(rx) => rxs.push(rx),
             Err(e) => {
-                assert!(e.to_string().contains("queue full"), "{e}");
+                assert!(matches!(e, intarsia_core::Error::QueueFull(2)), "{e}");
                 refused += 1;
             }
         }
@@ -260,4 +271,87 @@ fn queue_full_is_refused_and_unwinds_telemetry() {
 fn solo_only_endpoints_are_refused() {
     let (eng, _) = batched(7, 2, None, 4);
     assert!(eng.forward_logits(&[1, 2, 3]).unwrap_err().to_string().contains("--max-batch 1"));
+}
+
+#[test]
+fn bad_decode_row_fails_only_its_request() {
+    let reference = solo(7, None);
+    let mk = |i: u32| GenRequest { prompt: vec![10 + i, 20, 30], max_tokens: 24, ignore_eos: true, ..Default::default() };
+    let want: Vec<Out> = (0..4).map(|i| run_solo(&reference, mk(i))).collect();
+    // three slots: requests 0..3 take slots 0..3 in order; slot 1 is fed an out-of-vocab id once it holds 3 + 4 tokens
+    let (eng, tel) = batched_with(7, 3, None, 16, |o| o.row_fault = Some((1, 7, 99_999)));
+    let rxs: Vec<_> = (0..3).map(|i| eng.submit(mk(i)).unwrap()).collect();
+    let err = collect(&rxs[1]).unwrap_err();
+    assert!(err.contains("vocab"), "{err}");
+    for i in [0usize, 2] {
+        let got = collect(&rxs[i]).unwrap();
+        assert_eq!(got, Out { cached_tokens: got.cached_tokens, ..clone_out(&want[i]) }, "request {i}");
+    }
+    // the engine did not fail, and the poisoned slot serves the next request exactly
+    assert!(eng.failed().is_none(), "{:?}", eng.failed());
+    let again = collect(&eng.submit(mk(3)).unwrap()).unwrap();
+    assert_eq!(again, Out { cached_tokens: again.cached_tokens, ..clone_out(&want[3]) });
+    let m = eng.metrics();
+    assert_eq!((m.failed, m.finished), (1, 3), "{m:?}");
+    std::thread::sleep(Duration::from_millis(100));
+    let snap = tel.snapshot();
+    assert_eq!((snap.running, snap.waiting), (0, 0), "{snap:?}");
+}
+
+/// The `Done` event's prefill chunk: reported by the batched engine only (so CUDA / HIP, which never batch, answer as
+/// before).
+fn done_chunk(rx: &Receiver<GenEvent>) -> Option<usize> {
+    loop {
+        match rx.recv_timeout(Duration::from_secs(120)).expect("engine stalled") {
+            GenEvent::Done { prefill_chunk, .. } => return prefill_chunk,
+            GenEvent::Error { message } => panic!("{message}"),
+            GenEvent::Token { .. } => {}
+        }
+    }
+}
+
+#[test]
+fn only_the_batched_engine_reports_the_prefill_chunk() {
+    let req = || GenRequest { prompt: vec![5, 6, 7], max_tokens: 2, ignore_eos: true, ..Default::default() };
+    assert_eq!(done_chunk(&solo(7, None).submit(req()).unwrap()), None);
+    let (eng, _) = batched(7, 2, None, 4);
+    assert_eq!(done_chunk(&eng.submit(req()).unwrap()), Some(CHUNK));
+}
+
+#[test]
+fn client_gone_mid_generation_counts_as_cancelled() {
+    let (eng, _) = batched(7, 2, None, 4);
+    let rx = eng
+        .submit(GenRequest { prompt: vec![9, 8, 7], max_tokens: 100_000, ignore_eos: true, ..Default::default() })
+        .unwrap();
+    // wait for the first token, then hang up: the next token send fails inside `on_token`, which ends the request as cancelled
+    assert!(matches!(rx.recv_timeout(Duration::from_secs(60)), Ok(GenEvent::Token { .. })));
+    drop(rx);
+    for _ in 0..600 {
+        let m = eng.metrics();
+        if m.cancelled + m.finished + m.failed > 0 {
+            assert_eq!((m.cancelled, m.finished, m.failed), (1, 0, 0), "{m:?}");
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    panic!("the abandoned request never ended");
+}
+
+#[test]
+fn shutdown_ends_every_submitted_request() {
+    let (eng, _) = batched(7, 2, None, 64);
+    let long = |i: u32| GenRequest { prompt: vec![1 + i, 2, 3], max_tokens: 100_000, ignore_eos: true, ..Default::default() };
+    let first = eng.submit(long(0)).unwrap();
+    // the scheduler is mid-iteration while the rest arrive, so some are still in its channel when the engine is dropped
+    assert!(matches!(first.recv_timeout(Duration::from_secs(60)), Ok(GenEvent::Token { .. })));
+    let mut rxs: Vec<_> = (1..60).map(|i| eng.submit(long(i)).unwrap()).collect();
+    rxs.push(first);
+    drop(eng);
+    for (i, rx) in rxs.iter().enumerate() {
+        // all of them end cancelled, including those still in the scheduler's channel at shutdown (not the `Error`
+        // a dropped request would get as a last resort)
+        let o = collect(rx).unwrap_or_else(|m| panic!("request {i}: {m}"));
+        assert_eq!(o.reason, Some(FinishReason::Cancelled), "request {i}");
+    }
 }

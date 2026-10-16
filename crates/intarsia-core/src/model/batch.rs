@@ -95,6 +95,22 @@ impl Model {
         self.batch_rows
     }
 
+    /// The pre-GPU checks of one `forward_batch` row. A caller that wants a bad row to fail alone (the continuous-batching
+    /// adapter) runs this per row first and passes only the rows that pass.
+    pub fn check_batch_row(&self, st: &SequenceState, id: u32, mode: HeadMode) -> Result<()> {
+        if !matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) {
+            return Err(Error::invalid("forward_batch rows return logits or a token"));
+        }
+        Self::check_forward(st, &[id], mode, false)?;
+        if !st.peers.is_empty() || st.has_recurrent() {
+            return Err(Error::Unsupported("batched decode of a recurrent or tensor-parallel state".into()));
+        }
+        if id as usize >= self.dims.vocab {
+            return Err(Error::BadRequest(format!("token id {id} >= vocab {}", self.dims.vocab)));
+        }
+        Ok(())
+    }
+
     /// One decode token for each of several sequences in one batched pass: `ids[r]` is fed to `states[r]` at its
     /// current length, and `modes[r]` (`LastLogits` or `LastArgmax`) says what row `r` returns, in the form
     /// [`Model::forward`] returns for a one-token step (`StepOut::Logits` / `StepOut::Token`). Row `r`'s result is
@@ -121,16 +137,7 @@ impl Model {
             )));
         }
         for r in 0..b {
-            if !matches!(modes[r], HeadMode::LastLogits | HeadMode::LastArgmax) {
-                return Err(Error::invalid("forward_batch rows return logits or a token"));
-            }
-            Self::check_forward(states[r], &ids[r..r + 1], modes[r], false)?;
-            if !states[r].peers.is_empty() || states[r].has_recurrent() {
-                return Err(Error::Unsupported("batched decode of a recurrent or tensor-parallel state".into()));
-            }
-            if ids[r] as usize >= self.dims.vocab {
-                return Err(Error::BadRequest(format!("token id {} >= vocab {}", ids[r], self.dims.vocab)));
-            }
+            self.check_batch_row(states[r], ids[r], modes[r])?;
         }
         if b == 1 {
             return Ok(vec![self.forward(states[0], ids, modes[0], None)?]);

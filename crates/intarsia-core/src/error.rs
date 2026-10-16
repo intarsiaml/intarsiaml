@@ -25,6 +25,9 @@ pub enum Error {
     /// Request rejected before running (too long, bad parameters).
     #[error("bad request: {0}")]
     BadRequest(String),
+    /// The engine's own request queue is full (retry shortly); the server maps it to HTTP 429.
+    #[error("queue full ({0} waiting)")]
+    QueueFull(usize),
     #[error("tokenizer/template error: {0}")]
     Text(String),
     #[error("io error: {0}")]

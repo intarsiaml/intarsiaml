@@ -19,6 +19,10 @@ pub struct ServeArgs {
     /// Requests allowed to wait behind the running one; further requests get HTTP 429.
     #[arg(long, default_value_t = 64)]
     pub max_queue: usize,
+    /// Concurrent sequences decoded together (continuous batching, Metal only), 2..=8. Default 1: the single-sequence
+    /// engine. Only `serve` takes this flag.
+    #[arg(long)]
+    pub max_batch: Option<usize>,
     /// `max_tokens` for requests that name none, also bounded by the context (0 = only the context).
     #[arg(long, default_value_t = 4096)]
     pub default_max_tokens: usize,
@@ -59,7 +63,10 @@ pub fn run(args: ServeArgs) -> Result<()> {
         return supervise(&args);
     }
     let t0 = std::time::Instant::now();
-    let loaded = match args.model.clone().for_serving().load() {
+    let mut model = args.model.clone();
+    model.max_batch = args.max_batch;
+    model.max_queue = Some(args.max_queue);
+    let loaded = match model.for_serving().load() {
         Ok(l) => l,
         // Restarting cannot fix a bad model path or recipe: tell the supervisor to stop.
         Err(e) if args.child => {

@@ -227,6 +227,11 @@ pub fn start(st: &AppState, flavor: Flavor, mut req: GenRequest) -> Result<GenRx
     let rx = st.engine.submit(req).map_err(|e| {
         let status = match e {
             intarsia_core::Error::BadRequest(_) => StatusCode::BAD_REQUEST,
+            // the engine's own queue is full: the same answer as the server's limit
+            intarsia_core::Error::QueueFull(n) => {
+                st.metrics.rejected.fetch_add(1, Ordering::Relaxed);
+                return ApiError::too_many_requests(flavor, format!("the request queue is full ({n} waiting); retry shortly"));
+            }
             _ => StatusCode::SERVICE_UNAVAILABLE,
         };
         ApiError::new(status, flavor, e)

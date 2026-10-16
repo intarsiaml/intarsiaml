@@ -29,6 +29,8 @@ struct Mock {
     stop_seq: Option<String>,
     /// Telemetry overrides.
     busy: (u32, u32),
+    /// `submit` refuses with the engine's own queue-full error.
+    queue_full: bool,
 }
 
 impl Engine for Mock {
@@ -87,6 +89,9 @@ impl Engine for Mock {
         Ok(s)
     }
     fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
+        if self.queue_full {
+            return Err(intarsia_core::Error::QueueFull(8));
+        }
         let (tx, rx) = channel();
         let plen = req.prompt.len();
         let max = req.max_tokens;
@@ -609,6 +614,25 @@ async fn cancel_flag_is_set_when_the_response_is_dropped() {
     // a completed request must hand the engine a cancel flag
     call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
     assert!(mock.reqs.lock().unwrap()[0].cancel.is_some());
+}
+
+#[tokio::test]
+async fn engine_queue_full_is_429_with_retry_after_and_counts_as_rejected() {
+    let app = app_with(Arc::new(Mock { queue_full: true, ..Default::default() }));
+    for uri in ["/v1/completions", "/v1/chat/completions"] {
+        let body = json!({"prompt": "abc", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 4});
+        let req = Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let r = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(r.status(), StatusCode::TOO_MANY_REQUESTS, "{uri}");
+        assert!(r.headers().contains_key("retry-after"), "{uri}");
+    }
+    let (_, _, m) = call(&app, "GET", "/metrics", None).await;
+    assert!(m.contains("intarsia_requests_rejected_total 2"), "{m}");
 }
 
 #[tokio::test]

@@ -45,12 +45,22 @@ pub struct BatchedOptions {
     pub prefix_reuse: bool,
     /// Log scheduler events to stderr (`INTARSIA_CB_TRACE=1`).
     pub trace: bool,
+    /// Test seam: feed `token` once instead of the real one in the decode row of slot `.0` whose slot holds `.1` tokens
+    /// (error-isolation tests put an invalid id into one row). Always `None` outside tests.
+    #[doc(hidden)]
+    pub row_fault: Option<(usize, usize, u32)>,
 }
 
 impl BatchedOptions {
     pub fn new(max_batch: usize, max_queue: usize) -> Self {
         let env = |k: &str| std::env::var(k).map(|v| v == "1").unwrap_or(false);
-        BatchedOptions { max_batch, max_queue, prefix_reuse: !env("INTARSIA_CB_NO_REUSE"), trace: env("INTARSIA_CB_TRACE") }
+        BatchedOptions {
+            max_batch,
+            max_queue,
+            prefix_reuse: !env("INTARSIA_CB_NO_REUSE"),
+            trace: env("INTARSIA_CB_TRACE"),
+            row_fault: None,
+        }
     }
 }
 
@@ -58,6 +68,8 @@ impl BatchedOptions {
 pub(crate) struct SlotModel {
     model: Model,
     states: Vec<SequenceState>,
+    /// [`BatchedOptions::row_fault`], cleared once it fired.
+    row_fault: Option<(usize, usize, u32)>,
 }
 
 impl SlotModel {
@@ -107,11 +119,36 @@ impl BatchModel for SlotModel {
                 .ok_or_else(|| Error::Other(format!("decode row names slot {} twice or out of range", r.slot)))?;
             refs.push(st);
         }
-        let ids: Vec<u32> = rows.iter().map(|r| r.token).collect();
-        let modes: Vec<HeadMode> = rows.iter().map(|r| r.mode).collect();
-        // an error here is fatal for the whole batch (the scheduler fails every request)
-        let outs = self.model.forward_batch(&mut refs, &ids, &modes)?;
-        Ok(outs.into_iter().map(Ok).collect())
+        // per-row validation first, so a bad row fails its own request and the rest of the batch goes on
+        let mut res: Vec<Option<Result<StepOut>>> = (0..rows.len()).map(|_| None).collect();
+        let mut good: Vec<usize> = Vec::with_capacity(rows.len());
+        let mut tokens: Vec<u32> = Vec::with_capacity(rows.len());
+        for (r, row) in rows.iter().enumerate() {
+            let mut token = row.token;
+            if let Some((slot, len, bad)) = self.row_fault {
+                if row.slot == slot && refs[r].len == len {
+                    token = bad;
+                    self.row_fault = None;
+                }
+            }
+            tokens.push(token);
+            match self.model.check_batch_row(&*refs[r], token, row.mode) {
+                Ok(()) => good.push(r),
+                Err(e) => res[r] = Some(Err(e)),
+            }
+        }
+        if !good.is_empty() {
+            let ids: Vec<u32> = good.iter().map(|&r| tokens[r]).collect();
+            let modes: Vec<HeadMode> = good.iter().map(|&r| rows[r].mode).collect();
+            let mut slots: Vec<Option<&mut SequenceState>> = refs.into_iter().map(Some).collect();
+            let mut grefs: Vec<&mut SequenceState> = good.iter().map(|&r| slots[r].take().expect("row once")).collect();
+            // an error here is a device / pass failure: fatal for the whole batch (the scheduler fails every request)
+            let outs = self.model.forward_batch(&mut grefs, &ids, &modes)?;
+            for (&r, o) in good.iter().zip(outs) {
+                res[r] = Some(Ok(o));
+            }
+        }
+        Ok(res.into_iter().map(|o| o.expect("every row has a result")).collect())
     }
 }
 
@@ -130,6 +167,18 @@ pub(crate) struct SeqAdapter {
     ended: bool,
     /// Prefill chunk size the scheduler picked for this request (0: none ran).
     chunk: usize,
+    /// The request ended as cancelled (reported `Done` with `Cancelled`), see [`BatchSeq::ended_cancelled`].
+    was_cancelled: bool,
+}
+
+impl Drop for SeqAdapter {
+    /// A request dropped without its `Done` / `Error` (the scheduler panicked while it was detached from the queue and
+    /// the slots) still hears of it, instead of finding its channel closed.
+    fn drop(&mut self) {
+        if !self.ended {
+            self.fail(&Error::Other("request aborted: the scheduler failed".into()));
+        }
+    }
 }
 
 impl SeqAdapter {
@@ -164,7 +213,7 @@ impl BatchSeq<SlotModel> for SeqAdapter {
     }
 
     fn prepare(&mut self, model: &mut SlotModel, slot: usize, spec_allowed: bool) -> Result<SeqStep<HeadMode>> {
-        let SlotModel { model, states } = model;
+        let SlotModel { model, states, .. } = model;
         let seq = self.seq()?;
         seq.set_spec_allowed(spec_allowed);
         Ok(match seq.prepare(model, &mut states[slot])? {
@@ -190,6 +239,10 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         self.seq.as_ref().is_some_and(|s| s.cancelled())
     }
 
+    fn ended_cancelled(&self) -> bool {
+        self.was_cancelled
+    }
+
     fn finish(&mut self, model: &mut SlotModel, slot: Option<usize>, cancelled: bool) -> Result<()> {
         let mut seq = self.seq.take().ok_or_else(|| Error::Other("request already finished".into()))?;
         if cancelled {
@@ -207,7 +260,8 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         let kv = model.kv_totals();
         self.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
         self.ended = true;
-        report_done(&self.telemetry, &self.tx, outcome, self.chunk);
+        self.was_cancelled = outcome.reason == FinishReason::Cancelled;
+        report_done(&self.telemetry, &self.tx, outcome, Some(self.chunk));
         Ok(())
     }
 
@@ -303,7 +357,7 @@ impl BatchedEngine {
         let vocab = model.dims.vocab;
         let verify_rows = model.verify_rows();
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
-        let engine = BatchEngine::spawn(SlotModel { model, states }, cfg)?;
+        let engine = BatchEngine::spawn(SlotModel { model, states, row_fault: opts.row_fault }, cfg)?;
         Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows })
     }
 
@@ -351,6 +405,7 @@ impl Engine for BatchedEngine {
             started: false,
             ended: false,
             chunk: 0,
+            was_cancelled: false,
         };
         self.env.telemetry.request_enqueued();
         // a refusal calls `adapter.fail`, which undoes `request_enqueued`
@@ -389,5 +444,75 @@ impl Engine for BatchedEngine {
 
     fn batch_metrics(&self) -> Option<BatchMetrics> {
         Some(self.engine.metrics())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct NoCodec;
+    impl TextCodec for NoCodec {
+        fn encode(&self, _: &str, _: bool) -> Result<Vec<u32>> {
+            Ok(vec![])
+        }
+        fn decode(&self, _: &[u32], _: bool) -> Result<String> {
+            Ok(String::new())
+        }
+        fn apply_chat_template(&self, _: &[Value], _: &ChatOpts) -> Result<String> {
+            Ok(String::new())
+        }
+        fn has_chat_template(&self) -> bool {
+            false
+        }
+    }
+
+    fn adapter(started: bool) -> (SeqAdapter, Receiver<GenEvent>, Arc<Telemetry>) {
+        let tel = Arc::new(Telemetry::new());
+        let env = SeqEnv { codec: Arc::new(NoCodec), telemetry: tel.clone(), eos: vec![], spec: Default::default() };
+        let (tx, rx) = channel();
+        let seq = Seq::build(&env, GenRequest { prompt: vec![1, 2], ..Default::default() }, tx.clone(), 0, false);
+        tel.request_enqueued();
+        if started {
+            tel.request_started();
+        }
+        let a = SeqAdapter {
+            seq: Some(seq),
+            tx,
+            telemetry: tel.clone(),
+            plen: 2,
+            vocab: 10,
+            t_new: Instant::now(),
+            started,
+            ended: false,
+            chunk: 0,
+            was_cancelled: false,
+        };
+        (a, rx, tel)
+    }
+
+    /// A request dropped by an unwinding scheduler (detached from the queue and the slots) gets an `Error`, and its
+    /// telemetry counters balance, instead of a silently closed channel.
+    #[test]
+    fn dropped_request_hears_an_error() {
+        for started in [false, true] {
+            let (a, rx, tel) = adapter(started);
+            drop(a);
+            match rx.try_recv() {
+                Ok(GenEvent::Error { message }) => assert!(message.contains("aborted"), "{message}"),
+                other => panic!("expected an error event, got {other:?}"),
+            }
+            let s = tel.snapshot();
+            assert_eq!((s.running, s.waiting), (0, 0), "started {started}: {s:?}");
+        }
+    }
+
+    #[test]
+    fn finished_request_is_not_reported_twice() {
+        let (mut a, rx, _) = adapter(true);
+        a.fail(&Error::Other("x".into()));
+        drop(a);
+        assert!(matches!(rx.try_recv(), Ok(GenEvent::Error { .. })));
+        assert!(rx.try_recv().is_err(), "a second event after the first Error");
     }
 }

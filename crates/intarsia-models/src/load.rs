@@ -12,9 +12,28 @@ use intarsia_core::backend::HostMemory;
 use intarsia_core::weights::{WeightInfo, WeightSource};
 use intarsia_core::{Backend, Comm, Engine, EngineMeta, Error, LocalEngine, Result, Telemetry};
 
-/// Requests the batching scheduler may hold waiting for a slot. A safety bound only: the server admits at most
-/// `max_queue + max_batch` requests (`ServerConfig`), which is tighter.
+/// Requests the batching scheduler may hold waiting for a slot when the caller names no `EngineOptions::max_queue`
+/// (library use). `intarsia serve` passes `--max-queue`, which sizes the queue to `max_queue + max_batch`.
 const BATCH_QUEUE: usize = 1024;
+
+/// The batched engine's queue bound for the server's `--max-queue` (`None`: [`BATCH_QUEUE`]).
+fn batch_queue(max_queue: Option<usize>, max_batch: usize) -> usize {
+    max_queue.map_or(BATCH_QUEUE, |q| q.saturating_add(max_batch))
+}
+
+#[cfg(test)]
+mod queue_tests {
+    use super::*;
+
+    #[test]
+    fn engine_queue_holds_everything_the_server_admits() {
+        assert_eq!(batch_queue(None, 4), BATCH_QUEUE);
+        assert_eq!(batch_queue(Some(64), 4), 68);
+        // a --max-queue above the old fixed 1024 is no longer cut short
+        assert_eq!(batch_queue(Some(2000), 8), 2008);
+        assert_eq!(batch_queue(Some(usize::MAX), 8), usize::MAX);
+    }
+}
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -38,6 +57,9 @@ pub struct EngineOptions {
     pub spec: intarsia_core::spec::SpecConfig,
     /// Concurrent sequences (`--max-batch`). `None`: the recipe's `max_batch`, clamped to what the engine implements.
     pub max_batch: Option<usize>,
+    /// The server's `--max-queue`, for sizing the batched engine's request queue to `max_queue + max_batch` (the most
+    /// requests the server lets wait inside the engine). `None`: [`BATCH_QUEUE`].
+    pub max_queue: Option<usize>,
 }
 
 fn read_json(p: &Path) -> Result<Value> {
@@ -245,8 +267,9 @@ pub fn load_engine_tp(
         tool_parser: recipe.model.tool_parser.clone(),
     };
     let engine: Arc<dyn Engine> = if max_batch.value > 1 {
-        // opts.max_queue-sized scheduler queue: the server's own admission limit is the tighter bound
-        let bo = intarsia_core::BatchedOptions::new(max_batch.value, BATCH_QUEUE);
+        // the server admits at most max_queue + max_batch requests, so a queue of that size never fills first
+        let queue = batch_queue(opts.max_queue, max_batch.value);
+        let bo = intarsia_core::BatchedOptions::new(max_batch.value, queue);
         eprintln!("continuous batching: up to {} sequences ({})", max_batch.value, max_batch.source);
         Arc::new(intarsia_core::BatchedEngine::new(model, Arc::new(codec), meta, telemetry, bo)?)
     } else {

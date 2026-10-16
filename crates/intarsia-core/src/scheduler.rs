@@ -139,6 +139,12 @@ pub trait BatchSeq<M: BatchModel>: Send {
     fn on_token(&mut self) -> Result<bool>;
     /// Cancellation requested (flag set, or the client went away).
     fn cancelled(&self) -> bool;
+    /// Whether the sequence ended as cancelled on its own (a cancel noticed while taking a token, or the client gone),
+    /// so the scheduler counts it as cancelled although it finished through [`BatchSeq::on_token`]. Read after
+    /// [`BatchSeq::finish`] (default: false).
+    fn ended_cancelled(&self) -> bool {
+        false
+    }
     /// The request ended: roll back anything unaccounted in `slot` (speculative rows), send `Done`. `slot` is `None`
     /// when it never got one (cancelled while queued). `cancelled`: ended by the scheduler's cancellation check (the
     /// sequence may be in any phase). With `cancelled == false` it is only called after [`BatchSeq::on_token`]
@@ -452,7 +458,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             return Err(e);
         }
         if self.queued.load(Ordering::SeqCst) >= self.cfg.max_queue {
-            let e = Error::Other(format!("queue full ({} waiting)", self.cfg.max_queue));
+            let e = Error::QueueFull(self.cfg.max_queue);
             seq.fail(&e);
             self.metrics.lock().unwrap().rejected += 1;
             return Err(e);
@@ -489,7 +495,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let mut a = self.active.remove(i);
         let res = a.seq.finish(&mut self.model, Some(a.slot), cancelled);
         let how = match res {
-            Ok(()) if cancelled => EndKind::Cancelled,
+            Ok(()) if cancelled || a.seq.ended_cancelled() => EndKind::Cancelled,
             Ok(()) => EndKind::Done,
             Err(e) => {
                 a.seq.fail(&e);
@@ -903,7 +909,7 @@ where
         }
         if self.shared.queued.fetch_add(1, Ordering::SeqCst) >= self.shared.max_queue {
             self.shared.queued.fetch_sub(1, Ordering::SeqCst);
-            let e = Error::Other(format!("queue full ({} waiting)", self.shared.max_queue));
+            let e = Error::QueueFull(self.shared.max_queue);
             seq.fail(&e);
             self.shared.metrics.lock().unwrap().rejected += 1;
             return Err(e);
@@ -953,6 +959,10 @@ fn run_scheduler<M: BatchModel, S: BatchSeq<M>>(
     let mut open = true;
     loop {
         if sh.shutdown.load(Ordering::SeqCst) {
+            // jobs still in the channel were never seen: queue them so they end cancelled like the waiting ones
+            while let Ok(Msg::Job { id, seq, t_submit }) = rx.try_recv() {
+                sched.enqueue(id, seq, t_submit);
+            }
             sched.cancel_all();
             break;
         }
