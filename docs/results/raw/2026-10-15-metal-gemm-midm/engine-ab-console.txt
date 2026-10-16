@@ -1,0 +1,16 @@
+fleetq: #2094 waiting (#3 in line): in line behind #2092 "test-gpu-gate: skip + opt-in checks" (claude-0e8026c5) on endor
+fleetq:   #2092 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2092 set, or it will wait for #2092 to be released.
+fleetq: #2094 waiting (#2 in line): in line behind #2093 "metal kv quant: serve int8 + localeval check" (claude-31e10c55) on endor
+fleetq: #2094 waiting (#1 in line): endor is held exclusively by #2093 "metal kv quant: serve int8 + localeval check" (claude-31e10c55)
+fleetq: #2094 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/engine-ab.sh 5 1092 639 722 784 928 1206 1289 1477 1887 577
+size 1092 done
+size 639 done
+size 722 done
+size 784 done
+size 928 done
+size 1206 done
+size 1289 done
+size 1477 done
+size 1887 done
+size 577 done
+fleetq: #2094 done (exit 0)

@@ -1,0 +1,33 @@
+fleetq: #2134 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/job-final.sh
+cargo test metal exit 0
+kernels test exit 0
+== chunk invariance: 4k prompt greedy ids, 48 tokens, chunks 128..2048, base and new
+base 4k: chunk 256 vs 128: ids identical (48 tokens)
+base 4k: chunk 256 vs 512: ids identical (48 tokens)
+base 4k: chunk 256 vs 1024: ids identical (48 tokens)
+base 4k: chunk 256 vs 2048: ids identical (48 tokens)
+new 4k: chunk 256 vs 128: ids identical (48 tokens)
+new 4k: chunk 256 vs 512: ids identical (48 tokens)
+new 4k: chunk 256 vs 1024: ids identical (48 tokens)
+new 4k: chunk 256 vs 2048: ids identical (48 tokens)
+4k chunk 128: base vs new: ids identical (48 tokens)
+4k chunk 256: base vs new: ids identical (48 tokens)
+4k chunk 512: base vs new: ids identical (48 tokens)
+4k chunk 1024: base vs new: ids identical (48 tokens)
+4k chunk 2048: base vs new: ids identical (48 tokens)
+== greedy ids 256 tokens, short + 4k, chunk 2048 (recipe default), base vs new
+short 256 tokens, base vs new: ids identical (256 tokens)
+4k 256 tokens, base vs new: ids identical (256 tokens)
+== accuracy (gate class bf16), new then base
+accuracy new short exit 0
+accuracy new long exit 0
+accuracy base short exit 0
+accuracy base long exit 0
+accuracy prefill new chunk 128 exit 0
+accuracy prefill new chunk 512 exit 0
+accuracy prefill new chunk 2048 exit 0
+qualify exit 0
+done
+gates done
+done
+fleetq: #2134 done (exit 0)

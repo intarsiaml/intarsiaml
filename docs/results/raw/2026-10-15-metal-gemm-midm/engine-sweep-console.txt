@@ -1,0 +1,17 @@
+fleetq: #2085 waiting (#2 in line): in line behind #2082 "metal chunk-no1: ids L=257/2049/4097 base vs after, accuracy, qualify, metal tests" (claude-0e8026c5) on endor
+fleetq:   #2082 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2082 set, or it will wait for #2082 to be released.
+fleetq: #2085 waiting (#1 in line): endor is held exclusively by #2082 "metal chunk-no1: ids L=257/2049/4097 base vs after, accuracy, qualify, metal tests" (claude-0e8026c5)
+fleetq:   #2082 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2082 set, or it will wait for #2082 to be released.
+fleetq: #2085 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/engine-sweep.sh 3 1100 1433 1850 640 768 900 1280 1536 1700 2048 512
+size 1100 done
+size 1433 done
+size 1850 done
+size 640 done
+size 768 done
+size 900 done
+size 1280 done
+size 1536 done
+size 1700 done
+size 2048 done
+size 512 done
+fleetq: #2085 done (exit 0)

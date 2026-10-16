@@ -1,0 +1,9 @@
+fleetq: #2121 waiting (#3 in line): in line behind #2117 "cb-m1 step2 FINAL gate 4: localeval throughput gen 256 + 512, max-batch 1 vs 8 (cb-wire 9ebd6f8)" (claude-0e8026c5) on endor
+fleetq:   #2117 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2117 set, or it will wait for #2117 to be released.
+fleetq: #2121 waiting (#2 in line): in line behind #2119 "gemm midm: final e2e rerun, idle-gated (engine A/B edge, localeval ABBA c2048 + c256)" (claude-0e8026c5) on endor
+fleetq:   #2119 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2119 set, or it will wait for #2119 to be released.
+fleetq: #2121 waiting (#1 in line): endor is held exclusively by #2119 "gemm midm: final e2e rerun, idle-gated (engine A/B edge, localeval ABBA c2048 + c256)" (claude-0e8026c5)
+fleetq:   #2119 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2119 set, or it will wait for #2119 to be released.
+fleetq: #2121 running on endor: docs/results/raw/2026-10-15-metal-gemm-midm/chunk-ab.sh 4
+done
+fleetq: #2121 done (exit 0)

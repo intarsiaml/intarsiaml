@@ -1,0 +1,3 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml-gemm-midm/crates/intarsia-backend-metal)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml-gemm-midm/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 4.82s
