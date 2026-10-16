@@ -1,0 +1,39 @@
+v1-c256 1 cbs 46
+ cb  0 nd 128 t  256 gpu  26.98 gap   0.28 encode_at     0.04 commit_at     0.15 gpu_start     0.28
+ cb  1 nd 128 t  256 gpu  26.02 gap   0.00 encode_at     0.16 commit_at     0.24 gpu_start    27.26
+ cb  2 nd 128 t  256 gpu  25.22 gap   0.00 encode_at     0.25 commit_at     0.41 gpu_start    53.28
+ cb  3 nd 128 t  256 gpu  25.61 gap   0.00 encode_at     0.41 commit_at     0.49 gpu_start    78.51
+ cb  4 nd 128 t  256 gpu  25.43 gap   0.00 encode_at     0.49 commit_at     0.57 gpu_start   104.12
+ cb  5 nd 128 t  256 gpu  25.26 gap   0.00 encode_at     0.57 commit_at    53.52 gpu_start   129.55
+ cb  6 nd 128 t  256 gpu  28.39 gap   0.00 encode_at    53.53 commit_at    53.62 gpu_start   154.81
+ cb  7 nd 128 t  256 gpu  28.70 gap   0.00 encode_at    53.62 commit_at    53.70 gpu_start   183.20
+ cb  8 nd 128 t  256 gpu  29.70 gap   0.00 encode_at    53.71 commit_at   129.79 gpu_start   211.89
+ cb  9 nd 128 t  256 gpu  28.90 gap   0.00 encode_at   129.80 commit_at   129.89 gpu_start   241.60
+ cb 10 nd 128 t  256 gpu  26.07 gap   0.00 encode_at   129.90 commit_at   129.99 gpu_start   270.50
+ cb 11 nd 128 t  256 gpu  25.29 gap   0.00 encode_at   129.99 commit_at   212.14 gpu_start   296.57
+v1-c256 2 cbs 46
+ cb  0 nd 128 t  256 gpu  23.32 gap   0.27 encode_at     0.03 commit_at     0.14 gpu_start     0.27
+ cb  1 nd 128 t  256 gpu  24.55 gap   0.00 encode_at     0.15 commit_at     0.23 gpu_start    23.59
+ cb  2 nd 128 t  256 gpu  24.22 gap   0.00 encode_at     0.23 commit_at     0.38 gpu_start    48.14
+ cb  3 nd 128 t  256 gpu  24.43 gap   0.00 encode_at     0.38 commit_at     0.46 gpu_start    72.37
+ cb  4 nd 128 t  256 gpu  24.21 gap   0.00 encode_at     0.46 commit_at     0.53 gpu_start    96.80
+ cb  5 nd 128 t  256 gpu  24.19 gap   0.00 encode_at     0.54 commit_at    48.37 gpu_start   121.02
+ cb  6 nd 128 t  256 gpu  24.80 gap   0.00 encode_at    48.38 commit_at    48.48 gpu_start   145.21
+ cb  7 nd 128 t  256 gpu  24.42 gap   0.00 encode_at    48.49 commit_at    48.59 gpu_start   170.01
+ cb  8 nd 128 t  256 gpu  24.78 gap   0.00 encode_at    48.59 commit_at   121.29 gpu_start   194.43
+ cb  9 nd 128 t  256 gpu  25.62 gap   0.00 encode_at   121.30 commit_at   121.40 gpu_start   219.21
+ cb 10 nd 128 t  256 gpu  25.06 gap   0.00 encode_at   121.41 commit_at   121.51 gpu_start   244.83
+ cb 11 nd 128 t  256 gpu  24.48 gap   0.00 encode_at   121.52 commit_at   194.67 gpu_start   269.89
+ts-c256 1 cbs 48
+ cb  0 nd 128 t  256 gpu  21.73 gap   0.27 encode_at     0.02 commit_at     0.14 gpu_start     0.27
+ cb  1 nd 128 t  256 gpu  23.34 gap   0.00 encode_at     0.15 commit_at     0.24 gpu_start    22.00
+ cb  2 nd 106 t  256 gpu  19.07 gap   0.00 encode_at     0.25 commit_at     0.33 gpu_start    45.34
+ cb  3 nd 128 t  256 gpu  22.00 gap   0.38 encode_at    64.54 commit_at    64.67 gpu_start    64.79
+ cb  4 nd 128 t  256 gpu  23.65 gap   0.00 encode_at    64.68 commit_at    64.77 gpu_start    86.79
+ cb  5 nd 106 t  256 gpu  19.34 gap   0.00 encode_at    64.77 commit_at    64.86 gpu_start   110.45
+ cb  6 nd 128 t  256 gpu  22.37 gap   0.35 encode_at   129.91 commit_at   130.02 gpu_start   130.13
+ cb  7 nd 128 t  256 gpu  23.98 gap   0.00 encode_at   130.02 commit_at   130.10 gpu_start   152.50
+ cb  8 nd 106 t  256 gpu  19.57 gap   0.00 encode_at   130.10 commit_at   130.17 gpu_start   176.48
+ cb  9 nd 128 t  256 gpu  22.67 gap   0.34 encode_at   196.16 commit_at   196.27 gpu_start   196.38
+ cb 10 nd 128 t  256 gpu  24.45 gap   0.00 encode_at   196.27 commit_at   196.35 gpu_start   219.05
+ cb 11 nd 106 t  256 gpu  19.90 gap   0.00 encode_at   196.36 commit_at   196.42 gpu_start   243.51

@@ -1,0 +1,25 @@
+== serving path / Model::forward bitwise (base vs n2, each chunk)
+chunk 256 base vs n2: 33 prompts, 1056 sampled logits rows hashed: ALL IDENTICAL
+chunk 2048 base vs n2: 33 prompts, 1056 sampled logits rows hashed: ALL IDENTICAL
+== new chunk 256 vs 2048 (the standing chunk-invariance claim)
+DIFF code257 L=257: ids True rows True fwd-last False fwd-all False cached True
+DIFF code513 L=513: ids True rows True fwd-last False fwd-all False cached True
+n2 chunk 256 vs 2048: 33 prompts, 1056 sampled logits rows hashed: 2 MISMATCHES
+== generate (CLI) greedy ids, 48 tokens
+p257s1 chunk 256 base vs n2: ids identical (48 tokens)
+p257s1 chunk 2048 base vs n2: ids identical (48 tokens)
+p2049s1 chunk 256 base vs n2: ids identical (48 tokens)
+p2049s1 chunk 2048 base vs n2: ids identical (48 tokens)
+p2049s2 chunk 256 base vs n2: ids identical (48 tokens)
+p2049s2 chunk 2048 base vs n2: ids identical (48 tokens)
+p4097s1 chunk 256 base vs n2: ids identical (48 tokens)
+p4097s1 chunk 2048 base vs n2: ids identical (48 tokens)
+p4097s2 chunk 256 base vs n2: ids identical (48 tokens)
+p4097s2 chunk 2048 base vs n2: ids identical (48 tokens)
+== accuracy logs, base vs n2 (every line that differs)
+c2048-4k.log: identical logs
+c2048-long.log: identical logs
+c2048-short.log: identical logs
+c256-4k.log: identical logs
+c256-long.log: identical logs
+c256-short.log: identical logs

@@ -1,0 +1,1 @@
+{"id":"cmpl-a16e97e00000","object":"text_completion","created":1792131817,"model":"Qwen3-8B","choices":[{"index":0,"text":" The","logprobs":null,"finish_reason":"length"}],"usage":{"prompt_tokens":4062,"completion_tokens":1,"total_tokens":4063,"prompt_tokens_details":{"cached_tokens":0}}}
