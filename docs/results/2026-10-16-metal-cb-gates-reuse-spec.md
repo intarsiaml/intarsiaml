@@ -12,7 +12,7 @@ fleetq jobs: pilot #2135, gate A #2140, gate B #2141 (all `--host endor --exclus
 ## 1. How the prefix cache treats decode-written KV (checked before designing gate A)
 
 * `SequenceState::commit` extends `tokens` on every forward pass, decode included (`crates/intarsia-core/src/state.rs:243`). The held sequence therefore equals prompt + generated tokens, minus the last one (never fed). With speculation, `Seq::finish` truncates back to `plen + generated - 1` (`engine.rs:1204-1220`).
-* Solo (`LocalEngine`): `common_prefix(&st.tokens, &req.prompt).min(plen - 1)` (`engine.rs:864`). Batched: `pick_slot` takes the free slot with the longest `min(common_prefix(slot_tokens, prompt), plen - 1)` (`scheduler.rs:562`). Same rule, so the contract can be met for decode-written KV; a solo reference is comparable.
+* Solo (`LocalEngine`): `common_prefix(&st.tokens, &req.prompt).min(plen - 1)` (`engine.rs:864`). Batched: `pick_slot` takes the free slot with the longest `min(common_prefix(slot_tokens, prompt), plen - 1)` (`scheduler.rs` `pick_slot`). Same rule, so the contract can be met for decode-written KV; a solo reference is comparable.
 * Measured: solo chain `c000`, P prompt 278 tokens, 80 generated, follow-up cached **357 = 278 + 80 - 1** (`out/pilot/A/gen.log`).
 
 ## 2. Gate A: concurrent identity with prefix reuse on
@@ -68,24 +68,25 @@ The scheduler trace hook prints a marker per decode phase (`iter`, `b` = decodin
 | B=8 | 2137 | 600 (b=4..8) | **0** | 0 | 7 | 7 | 7 |
 | all | 11973 | 2160 | **0** | 0 | 37 | 37 | 36 |
 
-Across the whole log 12484 draft tokens were proposed, all in phases with b < 4 (drafted while off: 0), in 3121 verify passes (equals the 914+914+406+430+457 from `/metrics`). The one off to on transition without drafting afterwards (B=4 run) was not examined further. Per b: drafting passes occurred at b=1 (383), 2 (1198), 3 (1540) and never at b=4..8 (2160 phases). Identity held in every run that crossed these transitions (B=4: 23 cycles, B=6/8: 7 each); sequences that were mid-generation when drafting switched off or on are inside these runs and all 144 requests of B=4/6/8 are identical.
+Across the whole log 12484 draft tokens were proposed, all in phases with b < 4 (drafted while off: 0), in 3121 verify passes (equals the 914+914+406+430+457 from `/metrics`). The one off to on transition without drafting afterwards (B=4 run) was not examined further. Per b: drafting passes occurred at b=1 (383), 2 (1198), 3 (1540) and never at b=4..8 (2160 phases). Identity held in every run that crossed these transitions (B=4: 23 cycles, B=6/8: 7 each). Per request (`out/B/transitions.txt`, `transitions.py`: scheduler request ids from the `Admitted`/`Finished`/`Decode` trace events; with drafting off every decoding sequence is a row of the `Decode` event, so "decoded while off" is exact): of the 144 requests (plus one harness probe each) in the B=4/6/8 runs, 128 decoded in a drafting-off phase and 61 of those saw drafting allowed again before they finished; all 144 are token-identical to their solo reference. In the B=2/3 runs no request decoded in an off phase.
 
 ## 4. Findings (reported, not fixed)
 
 1. **`INTARSIA_CB_TRACE=1` printed nothing.** `SchedulerConfig::trace` only pushes events into `Scheduler::trace`; nothing drains it outside the tests (`take_trace`), contrary to the doc comment "Log scheduler events to stderr", and the vector grows without bound while the variable is set. Needed for gate B, so a hook was added (section 5).
-2. **No flag for the B >= 4 speculation threshold.** `SchedulerConfig::spec_off_at` is 4 by default (`scheduler.rs:185`) and nothing in `intarsia serve` or `BatchedOptions` sets it; `serve --help` has `--spec`, `--spec-k`, `--max-batch` only. Gate B ran the hard-coded 4.
+2. **No flag for the B >= 4 speculation threshold.** `SchedulerConfig::spec_off_at` is 4 by default (`SchedulerConfig::default`, `scheduler.rs:185` at `70b15eb`) and nothing in `intarsia serve` or `BatchedOptions` sets it; `serve --help` has `--spec`, `--spec-k`, `--max-batch` only. Gate B ran the hard-coded 4.
 3. **`serve --help` is stale for `--max-batch`**: it says "Only 1 is implemented so far; larger values are rejected".
-4. No bug found in the engine: no identity mismatch in 3248 earlier + 328 + 240 comparisons here.
+4. No bug found in the engine: no identity mismatch in the 3248 comparisons of M1 step 2 and the 643 (gate A, 322 + 321 comparable) + 240 (gate B) here.
 
 ## 5. Code change (test hook, `crates/` touched)
 
-`crates/intarsia-core/src/scheduler.rs`, commits `0bd5db7` and `75ecb17`, +9 lines: when `SchedulerConfig::trace` is set (`INTARSIA_CB_TRACE=1`) each trace event is also printed to stderr (`cb-trace t=<epoch ms> <event>`), and a `DecodePhase { iter, b, spec_allowed }` line is printed before the decode rows are prepared. Env-gated, off by default, no change to behaviour or the `TraceEvent` enum. It is in the backend-generic scheduler, not Metal-only, but the scheduler is only reachable through `--max-batch > 1`, which is Metal-only. Check: `cargo test -p intarsia-core` 62 + 2 + 16 passed, 0 failed (`out/cargo-test-intarsia-core.txt`); the binary was then run for the gates. `engine/batch.rs` (the parallel `metal-cb-fix` branch) is untouched.
+`crates/intarsia-core/src/scheduler.rs`, commits `0bd5db7` and `75ecb17` (+9 lines; a later commit only applies `rustfmt` to those lines, no semantic change, the gate binary was built before it): when `SchedulerConfig::trace` is set (`INTARSIA_CB_TRACE=1`) each trace event is also printed to stderr (`cb-trace t=<epoch ms> <event>`), and a `DecodePhase { iter, b, spec_allowed }` line is printed before the decode rows are prepared. Env-gated, off by default, no change to behaviour or the `TraceEvent` enum. It is in the backend-generic scheduler, not Metal-only, but the scheduler is only reachable through `--max-batch > 1`, which is Metal-only. Check: `cargo test -p intarsia-core` 62 + 2 + 16 passed, 0 failed (`out/cargo-test-intarsia-core.txt`); the binary was then run for the gates. `engine/batch.rs` (the parallel `metal-cb-fix` branch) is untouched.
 
 ## 6. Not covered
 
 * The default 2048 chunk with reuse at low concurrency (idle server) has no reference: chains were generated at chunk 256 only. A2 shows the default configuration at B=8, where it almost always uses 256.
 * In gate A, 6 of 328 (A1) and 7 of 328 (A2) requests were not comparable (11 because the follow-up's slot had been taken by another client, 2 from one run-start chunk effect); they are listed in `out/A/report-*.json` (`not_comparable`) and are not claimed as passes.
 * Gate B used `--spec-k 4` and one prompt family (copy tasks); sampled requests never speculate (server rule) and were only batch companions. `INTARSIA_SPEC_GATE` (per-request adaptive back-off) was left at its default.
+* Speculation together with prefix reuse: gate A ran without `--spec`, gate B with `INTARSIA_CB_NO_REUSE=1`, so the spec `finish` truncation to `plen + generated - 1` (section 1) never fed a reused follow-up in either gate.
 * Chunk-size invariance (256 vs 2048 prefill) remains unproven, as before; both gates compare at the chunk the server reports.
 
 ## 7. Reproduce

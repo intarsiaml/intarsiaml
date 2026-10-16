@@ -569,7 +569,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         (0..self.cfg.max_batch)
             .filter(|&s| !self.busy[s])
             .map(|s| {
-                let cached = if self.cfg.prefix_reuse { common_prefix(self.model.slot_tokens(s), prompt).min(reuse_max) } else { 0 };
+                let cached = if self.cfg.prefix_reuse {
+                    common_prefix(self.model.slot_tokens(s), prompt).min(reuse_max)
+                } else {
+                    0
+                };
                 (s, cached)
             })
             .max_by(|a, b| a.1.cmp(&b.1).then(self.last_used[b.0].cmp(&self.last_used[a.0])).then(b.0.cmp(&a.0)))
@@ -670,8 +674,12 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             if self.cfg.trace {
                 // Test hook: marks the decode phase so `spec:` lines (INTARSIA_SPEC_TRACE) printed by `prepare` below can be
                 // attributed to an iteration, including iterations where every sequence drafted and no Decode event follows.
-                let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
-                eprintln!("cb-trace t={ms} DecodePhase {{ iter: {}, b: {b}, spec_allowed: {spec_allowed} }}", self.iter);
+                let ms =
+                    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+                eprintln!(
+                    "cb-trace t={ms} DecodePhase {{ iter: {}, b: {b}, spec_allowed: {spec_allowed} }}",
+                    self.iter
+                );
             }
             // plan every row; a planning error fails that request only
             let mut rows: Vec<Row<M::Mode>> = Vec::with_capacity(b);
