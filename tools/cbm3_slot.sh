@@ -6,7 +6,7 @@
 #
 # MODE client    tools/cbm3.py scenarios (env SCEN, default the cbm3.py default set)
 # MODE localeval localeval speed --sizes 1024 --gen 512 --reps 3 --concurrency 1,2,4,8 (deepeval-decode-agg: has aggregate_decode_tok_s)
-# env: BIN (intarsia binary, required), LE_CONC (localeval concurrency levels, default 1,2,4,8), SERVER_ENV (extra VAR=val words for the server, e.g. INTARSIA_SPEC_TRACE=1), ARMS (default "off on"), MODEL, PORT, SCEN, MAXMIN (no new arm after this many minutes, 38)
+# env: BIN (intarsia binary, required), COOLDOWN (seconds idle before each server start, default 0; thermal throttling was seen), LE_CONC (localeval concurrency levels, default 1,2,4,8), SERVER_ENV (extra VAR=val words for the server, e.g. INTARSIA_SPEC_TRACE=1), ARMS (default "off on"), MODEL, PORT, SCEN, MAXMIN (no new arm after this many minutes, 38)
 # Arm names: off | on | offatN (= --spec ngram --spec-off-at N). Round r runs the arms in order, reversed on even rounds, with a
 # fresh server per arm. macmon logs the GPU (100 ms) for the whole slot.
 set -u
@@ -41,6 +41,7 @@ for r in $(seq 1 $ROUNDS); do
   pos=1
   for c in $ORDER; do
     if (( $(date +%s) - START > MAXMIN * 60 )); then echo "SKIP round $r arm $c (past ${MAXMIN} min)"; continue; fi
+    [ "${COOLDOWN:-0}" -gt 0 ] && sleep ${COOLDOWN}
     echo "=== round $r arm $c (position $pos) $(date +%T)"
     FL=$(arm_flags $c) || exit 4
     echo "$(date +%s) round $r arm $c pos $pos" >> "$OUT/arm-times.txt"

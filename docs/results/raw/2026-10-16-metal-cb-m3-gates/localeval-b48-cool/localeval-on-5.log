@@ -1,0 +1,43 @@
+[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=8192
+[localeval]   1024 tok rep 1/3: prompt=987 ttft=0.25s prefill=3983 tok/s decode=41.7 tok/s peak=141.5 tok/s out=512
+[localeval]   1024 tok rep 2/3: prompt=986 ttft=0.25s prefill=3985 tok/s decode=42.4 tok/s peak=126.3 tok/s out=512
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.25s prefill=3987 tok/s decode=44.8 tok/s peak=142.2 tok/s out=512
+[localeval] 4 streams: aggregate 120.1 tok/s (tokens/wall), overlap decode 131.2 tok/s over 15.196 s, ITL p50 30.2 ms p95 32.6 ms
+[localeval] 8 streams: aggregate 162.3 tok/s (tokens/wall), overlap decode 184.7 tok/s over 20.893 s, ITL p50 42.6 ms p95 48.3 ms
+# localeval: adhoc — 2026-10-16T18:28
+
+- model: `Qwen3-8B` on ? (?), url `http://127.0.0.1:8147/v1`
+- thinking: default; run kind: speed; label: m3gates-on-r5
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 603ee54
+- command: `/opt/code/deepeval-decode-agg/.venv/bin/localeval speed --url http://127.0.0.1:8147/v1 --model Qwen3-8B --sizes 1024 --gen 512 --reps 3 --concurrency 4,8 --label m3gates-on-r5`
+- result file: `results/20261016-182839-adhoc-m3gates-on-r5/result.json`
+
+## Speed sweep
+
+served `Qwen3-8B`, fingerprint `None`, ctx 8192, 3 reps, 512 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 987 | 0.25 | 3985 (3983–3987) * | - | 42.4 (41.7–44.8) | 141.5 (126.3–142.2) | - | - | 512 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate tok/s (tokens/wall) | overlap decode tok/s | per-stream decode | TTFT s | TTFT p95 s | ITL p50 ms | ITL p95 ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4 | 120.1 | 131.2 | 31.7 (31.2–32.7) | 0.83 | 1.38 | 30.2 | 32.6 |
+| 8 | 162.3 | 184.7 | 22.3 (21.3–23.3) | 1.77 | 3.18 | 42.6 | 48.3 |
+
+Aggregate = completion tokens / wall time (includes prefill and queueing). Overlap decode = tokens emitted by all streams inside the window where every stream is decoding / window length. ITL = gap between output chunks per token. '-' = older run or no overlap.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval-decode-agg/results/20261016-182839-adhoc-m3gates-on-r5/result.json
+[localeval] logged to unanimis: 4f911d38-4b46-4902-8c20-05c088b5a3a4

@@ -1,1 +1,12 @@
 1792184139 round 1 arm off pos 1
+1792184274 round 1 arm on pos 2
+1792184403 round 1 arm offat3 pos 3
+1792184531 round 2 arm offat3 pos 1
+1792184657 round 2 arm on pos 2
+1792184784 round 2 arm off pos 3
+1792184916 round 3 arm off pos 1
+1792185049 round 3 arm on pos 2
+1792185176 round 3 arm offat3 pos 3
+1792185302 round 4 arm offat3 pos 1
+1792185431 round 4 arm on pos 2
+1792185560 round 4 arm off pos 3

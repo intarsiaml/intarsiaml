@@ -12,6 +12,18 @@ Arms: off, on; rounds per arm: off=3, on=3
 | open-n2 | aggregate tok/s | 69.7 (70.1 / 69.7 / 69.3) | 62.6 (58.3 / 63.4 / 62.6) | 0.832 / 0.909 / 0.905 | 0.905 | 0.832 |
 | open-n3 | aggregate tok/s | 99.8 (99.3 / 99.8 / 102.2) | 84.7 (84.7 / 85.6 / 83.1) | 0.853 / 0.857 / 0.813 | 0.853 | 0.813 |
 
+| scenario | on/off per round (median) |
+|---|---|
+| solo-grounded | 3.695 / 3.531 / 3.551 (3.551) |
+| solo-open | 1.009 / 0.992 / 1.010 (1.009) |
+| mixed-once | 0.972 / 0.991 / 0.999 (0.991) |
+| mixed-loop | 1.000 / 1.014 / 0.959 (1.000) |
+| grounded-n2 | 1.820 / 1.817 / 1.818 (1.818) |
+| grounded-n3 | 1.256 / 1.289 / 1.275 (1.275) |
+| grounded-n4 | 0.999 / 0.999 / 0.963 (0.999) |
+| open-n2 | 0.832 / 0.909 / 0.905 (0.905) |
+| open-n3 | 0.853 / 0.857 / 0.813 (0.853) |
+
 | scenario | arm | open-stream decode tok/s (mean over rounds) | grounded wall s / finished (mixed) |
 |---|---|---|---|
 | mixed-once | off | 32.9 | 8.0 / 7.9 / 8.0 |
