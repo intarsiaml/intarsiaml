@@ -15,3 +15,8 @@ print("round-1 check", ok, len(fs)); sys.exit(0 if ok else 1)
 PY
 cp -r $R/idle1 $R/idle6 2>/dev/null
 R0=2 $R/serve-idle.sh $R/idle6 6 base kwb rs
+# --- appended while running ---
+SC=/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/resid
+$SC/keepwarm-test2 --test-threads=1 > $R/keepwarm-test2.txt 2>&1; echo "keepwarm test2 exit $?"
+$R/gates.sh $R/gates
+NOPROF=1 IDLES="3 40" $R/serve-idle2.sh $R/itl 4 base off blit rs

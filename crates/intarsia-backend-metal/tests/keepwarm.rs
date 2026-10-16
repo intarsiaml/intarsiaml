@@ -1,10 +1,11 @@
 #![cfg(target_os = "macos")]
-//! `set_keepwarm(ms)`: a thread touches the wrapped weight files from its own queue (default: off). The wrapped bytes still
+//! `set_keepwarm(ms)`: a thread keeps the wrapped weight files wired (an `MTLResidencySet` refreshed every period, or GPU
+//! touches from its own queue; default: off). The wrapped bytes still
 //! read back exactly while touches run, the touches stay out of the way of a busy engine, turning it on after the wrap
 //! covers files already wrapped, and dropping the backend right after wrapping joins the thread before the mapping goes.
 mod common;
 use common::*;
-use intarsia_backend_metal::MetalBackend;
+use intarsia_backend_metal::{KeepMode, MetalBackend};
 use intarsia_core::backend::{Backend, HostMemory, MemKind};
 use memmap2::Mmap;
 use std::io::Write;
@@ -55,8 +56,14 @@ fn keepwarm_is_off_by_default() {
 
 #[test]
 fn files_are_touched_when_wrapped_and_while_the_engine_is_quiet_and_still_read_back_exactly() {
+    for mode in [KeepMode::Residency, KeepMode::Blit] {
+        files_are_touched(mode);
+    }
+}
+
+fn files_are_touched(mode: KeepMode) {
     let be = backend();
-    be.set_keepwarm(40);
+    be.set_keepwarm_mode(40, mode);
     let (mem, data) = mapped_file(48 << 20, 2);
     let w = be.wrap_host(mem, 0, data.len()).expect("wrap");
     // the new file is touched at once, then again while nothing is committed
@@ -90,8 +97,14 @@ fn turning_it_on_after_wrapping_covers_the_files_already_wrapped_and_off_stops_i
 
 #[test]
 fn a_busy_engine_is_not_touched() {
+    for mode in [KeepMode::Residency, KeepMode::Blit] {
+        busy_engine(mode);
+    }
+}
+
+fn busy_engine(mode: KeepMode) {
     let be = backend();
-    be.set_keepwarm(200);
+    be.set_keepwarm_mode(200, mode);
     let (mem, data) = mapped_file(8 << 20, 5);
     let w = be.wrap_host(mem, 0, data.len()).expect("wrap");
     wait_for("the first touch", || be.keepwarm_touches() >= 1);
@@ -109,7 +122,7 @@ fn a_busy_engine_is_not_touched() {
 fn dropping_the_backend_right_after_wrapping_joins_the_thread_before_the_mapping_goes() {
     for round in 0..8 {
         let be = backend();
-        be.set_keepwarm(5);
+        be.set_keepwarm_mode(5, if round % 2 == 0 { KeepMode::Blit } else { KeepMode::Residency });
         let (mem, data) = mapped_file(64 << 20, 10 + round);
         let w = be.wrap_host(mem, 0, data.len()).expect("wrap");
         drop(w);
@@ -128,7 +141,6 @@ fn memkind_still_allocates_with_keepwarm_on() {
 
 #[test]
 fn residency_mode_touches_registered_files_and_drops_cleanly() {
-    use intarsia_backend_metal::KeepMode;
     for round in 0..4 {
         let be = backend();
         be.set_keepwarm_mode(40, KeepMode::Residency);

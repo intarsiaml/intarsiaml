@@ -161,7 +161,7 @@ unsafe impl<T> Send for Xfer<T> {}
 /// How the keep-warm thread keeps a file wired.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeepMode {
-    /// A one-byte GPU blit out of every file, from a queue of the thread's own.
+    /// A one-byte GPU blit out of every file, from a queue of the thread's own, every period while the engine is quiet.
     Blit,
     /// An `MTLResidencySet` holding every file, attached to the engine's queue; the thread re-requests its residency (a
     /// CPU-only call, no GPU work).
@@ -282,16 +282,19 @@ impl MetalBackend {
     /// Keep the GPU's wiring of the wrapped weight files from decaying. The driver wires a file for the GPU on its first
     /// use (about 10 ms per GB) and drops that wiring again once the file has gone unused for about a second: the first
     /// request to a server that was idle for longer pays for all of it again (~170 ms for Qwen3-8B). This starts a thread
-    /// that, every `period_ms` while the engine is quiet, commits a command buffer of its own (separate queue) with a
-    /// one-byte blit out of each whole-file weight buffer: nothing is computed, nothing the engine does is ordered
-    /// against it. A newly wrapped file is touched at once (what pre-wiring did). `0` stops it. The period must stay well
-    /// below the decay horizon (1.0 s measured, 1.2 s decayed); the CLI uses 400 ms.
+    /// that puts every whole-file weight buffer into an `MTLResidencySet` on the engine's queue and calls
+    /// `requestResidency` again every `period_ms` while the engine is quiet (a CPU-only call of ~20 us: no GPU work, and
+    /// the set alone is not enough, it decays too without the re-request). The first request of a newly wrapped file wires
+    /// it in the background (~170 ms for 16 GB, in the thread, not the loader). `0` stops it. The period must stay well
+    /// below the decay horizon (the set held at 2 s and lost it at 5 s; a plain GPU touch loses it at 1.0..1.2 s); the CLI
+    /// uses 400 ms. See [`KeepMode`] for the GPU-touch flavour (also the fallback without `MTLResidencySet`).
     pub fn set_keepwarm(&self, period_ms: u64) {
-        self.set_keepwarm_mode(period_ms, KeepMode::Blit);
+        self.set_keepwarm_mode(period_ms, KeepMode::Residency);
     }
 
-    /// [`Self::set_keepwarm`] with the way the files are kept warm.
-    pub fn set_keepwarm_mode(&self, period_ms: u64, mode: KeepMode) {
+    /// [`Self::set_keepwarm`] with the way the files are kept warm. [`KeepMode::Residency`] falls back to
+    /// [`KeepMode::Blit`] on a macOS without `MTLResidencySet`.
+    pub fn set_keepwarm_mode(&self, period_ms: u64, mut mode: KeepMode) {
         let mut cache = self.hosts.lock().unwrap();
         if cache.kw.as_ref().is_some_and(|k| k.shared.period_ms == period_ms && k.shared.mode == mode) {
             return;
@@ -308,8 +311,7 @@ impl MetalBackend {
         if mode == KeepMode::Residency {
             use objc2::runtime::NSObjectProtocol;
             if !self.device().respondsToSelector(objc2::sel!(newResidencySetWithDescriptor:error:)) {
-                eprintln!("intarsia-backend-metal: keep-warm: this macOS has no MTLResidencySet (off)");
-                return;
+                mode = KeepMode::Blit;
             }
         }
         let last_commit = self.stream.lock().unwrap().last_commit.clone();

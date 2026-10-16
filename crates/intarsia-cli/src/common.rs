@@ -105,7 +105,8 @@ pub struct ModelArgs {
     #[arg(skip)]
     pub spec_off_at: Option<usize>,
     /// Metal: keep the weight wiring from decaying while the server idles (`MetalBackend::set_keepwarm`). Default off;
-    /// [`ModelArgs::for_serving`] turns it on, `INTARSIA_METAL_KEEPWARM=0` / `=1` / `=<ms>` override ([`keepwarm_period_ms`]).
+    /// [`ModelArgs::for_serving`] turns it on, `INTARSIA_METAL_KEEPWARM=0` / `=1` / `=<ms>` override ([`keepwarm_period_ms`]);
+    /// `INTARSIA_METAL_KEEPWARM_MODE=blit` keeps the files warm with GPU touches instead of an `MTLResidencySet`.
     #[arg(skip)]
     pub keepwarm: Option<bool>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
@@ -113,8 +114,9 @@ pub struct ModelArgs {
     pub prefill_chunk_source: Option<String>,
 }
 
-/// Keep-warm touch period (ms) of the Metal backend, 0 = off: after 1.0 s unused the driver drops its wiring of a weight
-/// file (1.2 s measured decayed), so 400 ms leaves room for a late tick. `INTARSIA_METAL_KEEPWARM=0` / `=1` win (1 = the
+/// Keep-warm refresh period (ms) of the Metal backend, 0 = off: the driver drops its wiring of a weight file after about
+/// a second unused (GPU touches: 1.0 s held, 1.2 s decayed; residency set: 2 s held, 5 s decayed), so 400 ms leaves room
+/// for a late tick. `INTARSIA_METAL_KEEPWARM=0` / `=1` win (1 = the
 /// default period), a larger number is a period in ms (experiments); otherwise `default` (set by [`ModelArgs::for_serving`];
 /// `None` = off, so every other command behaves as it did before the switch existed).
 pub fn keepwarm_period_ms(default: Option<bool>, env: Option<&str>) -> u64 {
@@ -168,8 +170,8 @@ pub fn open_backend_with(name: &str, device: usize, keepwarm: Option<bool>) -> R
                 }
                 let be = intarsia_backend_metal::MetalBackend::new().map_err(|e| anyhow::anyhow!("{e}"))?;
                 let mode = match std::env::var("INTARSIA_METAL_KEEPWARM_MODE").ok().as_deref() {
-                    Some("residency") => intarsia_backend_metal::KeepMode::Residency,
-                    _ => intarsia_backend_metal::KeepMode::Blit,
+                    Some("blit") => intarsia_backend_metal::KeepMode::Blit,
+                    _ => intarsia_backend_metal::KeepMode::Residency,
                 };
                 be.set_keepwarm_mode(keepwarm_period_ms(keepwarm, std::env::var("INTARSIA_METAL_KEEPWARM").ok().as_deref()), mode);
                 Ok(Arc::new(be))
