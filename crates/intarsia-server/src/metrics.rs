@@ -171,7 +171,7 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
         &mut o,
         "intarsia_batch_step_ewma_ms",
         "gauge",
-        "EWMA (alpha 0.1) of the wall time of a whole scheduler iteration that ran a decode step, including the prefill chunk run after it.",
+        "EWMA (alpha 0.1) of the wall time of a whole scheduler iteration that ran a decode step: the decode pass (which first waits for the previous iteration's prefill chunk to finish on the GPU) plus enqueueing this iteration's chunk.",
         b.step_ewma_ms,
     );
     metric(&mut o, "intarsia_batch_requests_admitted_total", "counter", "Requests given a slot.", b.admitted);
@@ -186,7 +186,12 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
         b.rejected,
     );
     render_latency(&mut o, "intarsia_batch_step_seconds", "Wall time of a scheduler iteration that ran a decode step.", &b.step);
-    render_latency(&mut o, "intarsia_batch_chunk_seconds", "Wall time of one prefill chunk.", &b.chunk);
+    render_latency(
+        &mut o,
+        "intarsia_batch_chunk_call_seconds",
+        "Wall time of the prefill_chunk call. A non-final chunk is enqueued and the call returns at once, so this is the host cost only; its GPU time shows up in the next decode step. The final chunk waits for the first token and includes its GPU time.",
+        &b.chunk,
+    );
     render_latency(&mut o, "intarsia_batch_ttft_seconds", "Submit to first token, per request.", &b.ttft);
     render_latency(&mut o, "intarsia_batch_itl_seconds", "Between consecutive tokens of one request.", &b.itl);
     o
@@ -360,11 +365,11 @@ mod tests {
         assert!(o.contains("\nintarsia_batch_mixed_iterations_total 5\n"));
         assert!(o.contains("\nintarsia_batch_requests_cancelled_total 2\n"));
         // 70 ms is in the le=0.075 bucket and every later one; 2 s only in +Inf
-        assert!(o.contains("intarsia_batch_chunk_seconds_bucket{le=\"0.05\"} 0\n"), "{o}");
-        assert!(o.contains("intarsia_batch_chunk_seconds_bucket{le=\"0.075\"} 1\n"));
-        assert!(o.contains("intarsia_batch_chunk_seconds_bucket{le=\"1\"} 1\n"));
-        assert!(o.contains("intarsia_batch_chunk_seconds_bucket{le=\"+Inf\"} 2\n"));
-        assert!(o.contains("intarsia_batch_chunk_seconds_count 2\n"));
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"0.05\"} 0\n"), "{o}");
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"0.075\"} 1\n"));
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"1\"} 1\n"));
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_bucket{le=\"+Inf\"} 2\n"));
+        assert!(o.contains("intarsia_batch_chunk_call_seconds_count 2\n"));
         // an empty histogram renders zeros, not a panic
         assert!(o.contains("intarsia_batch_step_seconds_bucket{le=\"0.001\"} 0\n"));
         // every metric has HELP and TYPE

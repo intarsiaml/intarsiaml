@@ -367,7 +367,8 @@ pub struct BatchMetrics {
     pub ttft: LatencyHist,
     /// Between consecutive tokens of one request.
     pub itl: LatencyHist,
-    /// Wall time of one prefill chunk (what each decoding sequence waits behind in a mixed iteration).
+    /// Wall time of the `prefill_chunk` call. A non-final chunk is only enqueued on the device (the call returns at
+    /// once; its GPU time is paid by the next decode step's wait), the final chunk waits for the first token.
     pub chunk: LatencyHist,
     /// Wall time of one iteration with a decode step, and its EWMA (alpha 0.1).
     pub step: LatencyHist,
