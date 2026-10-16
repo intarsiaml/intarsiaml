@@ -1,0 +1,24 @@
+slot job 2173 Fri Oct 16 07:30:36 EDT 2026; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/intarsia-chunk320 sha256 650d6c264d482493; arms 256 320 rounds 1
+=== round 1 arm 256 (position 1) 07:30:37
+round 1 arm 256: errors=none warmup_errors=none prompt_tokens=[1128, 1122, 1210, 1042, 1095, 851, 972, 4305] big ttft=2039.9868488311768 ms
+=== round 1 arm 320 (position 2) 07:32:10
+round 1 arm 320: errors=none warmup_errors=none prompt_tokens=[1128, 1122, 1210, 1042, 1095, 851, 972, 4305] big ttft=2084.066152572632 ms
+analyze rc=0
+35218 /bin/zsh -c source /Users/josef/.claude/shell-snapshots/snapshot-zsh-1792077604790-emab6i.sh 2>/dev/null || true && export FLEETQ_OWNER=claude-0e8026c5
+export FLEETQ_OWNER=claude-0e8026c5
+export FLEETQ_OWNER=claude-0e8026c5
+export FLEETQ_OWNER=claude-0e8026c5
+export CODEX_COMPANION_SESSION_ID='0e8026c5-6dd0-4b83-b375-5ff0a66894fc'
+export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc.jsonl'
+export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex'
+export CODEX_COMPANION_SESSION_ID='0e8026c5-6dd0-4b83-b375-5ff0a66894fc'
+export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc.jsonl'
+export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex'
+export CODEX_COMPANION_SESSION_ID='0e8026c5-6dd0-4b83-b375-5ff0a66894fc'
+export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc.jsonl'
+export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex'
+export CODEX_COMPANION_SESSION_ID='0e8026c5-6dd0-4b83-b375-5ff0a66894fc'
+export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc.jsonl'
+export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex'
+: && setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUAL 2>/dev/null || true && { \builtin unalias -- 'unsetenv'; \builtin unset -f -- 'unsetenv'; } >/dev/null 2>&1 || true && eval 'cd /opt/code/intarsiaml-residency && git add -A && git commit -q -m "metal: keep-warm thread for wrapped weight files (set_keepwarm), serve default via ModelArgs::keepwarm; probes + harness (WIP, not yet measured on serve)" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>" && git log --oneline -1; until ! fleetq status | grep -q "QUEUED.*#2178\|RUNNING #2178" ; do sleep 20; done; fleetq status | grep -E "#2178|#2176|RUNNING" | cut -c1-140' && pwd -P >| /tmp/claude-3c67-cwd
+done Fri Oct 16 07:33:39 EDT 2026
