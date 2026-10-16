@@ -1,8 +1,11 @@
 //! P1 spike: NAX bf16 GEMM microbench and error table (docs/results/2026-10-14-metal-prefill-p1-spike.md).
 //!
-//!   cargo run --release -p intarsia-backend-metal --example gemm_nax -- bench|err|pair|pick [shape ...]
+//!   cargo run --release -p intarsia-backend-metal --example gemm_nax -- bench|err|pair|pick|pick2|pick3|sweep|waves [shape ...]
 //!   pair: gate/up (2 x 12288x4096) and k/v (2 x 1024x4096) as one pair dispatch against two single dispatches, per tile
 //!   pick: the shipped tile pick (gemm_nax::pick_variant) against each fixed tile, per shape and M
+//!   pick2: the P1 rule against the shipped pick; pick3: the P4/P5 rule (pick_variant_p45) against the shipped pick
+//!   sweep: every tile and the shipped pick per Qwen3-8B shape (incl. lm_head) and M, all cells interleaved (docs/results/2026-10-15-metal-gemm-midm.md)
+//!   waves: one tile over a grid of T threadgroups, time against T (how many threadgroups the 40 cores run at once)
 //!   shapes: qo (4096x4096), kv (1024x4096), gu (12288x4096), down (4096x12288); default all
 //!   env: NAX_M=256,1024,2048  NAX_ONLY=<shader substrings, comma separated>  NAX_SWZ=0,2 (swizzle log2 candidates)
 //!        NAX_REPS=<dispatches per chain> NAX_ROUNDS=<interleaved rounds> NAX_POOL_MIB=<rotating distinct weights>
@@ -25,8 +28,9 @@ fn main() {
 #[cfg(target_os = "macos")]
 mod imp {
     use intarsia_backend_metal::bench::{self, stats, Rng};
-    use intarsia_backend_metal::gemm_nax::{encode_nax, encode_nax_pair, pick_variant, NaxPairParams, NaxParams, NaxVariant, NAX_VARIANTS};
+    use intarsia_backend_metal::gemm_nax::{encode_nax, encode_nax_pair, pick_variant, pick_variant_p45, NaxPairParams, NaxParams, NaxVariant, NAX_VARIANTS};
     use intarsia_backend_metal::{MetalBackend, MtlBuffer};
+    use std::time::Instant;
     use objc2_metal::{MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue};
 
     struct Shape {
@@ -285,6 +289,166 @@ mod imp {
         }
     }
 
+    /// Midm sweep: every tile and the shipped pick on the engine's launches (single kernel for q / o, down and lm_head, pair
+    /// for k + v and gate + up), per Qwen3-8B shape and M. All (M, tile) cells of a shape run interleaved in the same
+    /// rounds (weights from one rotating pool), so the GPU clock state is common to every cell. `SWEEP` lines: microseconds
+    /// per call and TFLOPS of each tile (median over rounds), `picked=1` for the shipped pick. env NAX_M, NAX_ONLY (tile
+    /// filter), NAX_SHAPES (labels), NAX_ROUNDS, NAX_CHAIN_MS (target chain length), NAX_POOL_MIB.
+    fn sweep_mode(be: &MetalBackend) {
+        let ms: Vec<usize> = env_list("NAX_M", &[64, 128, 256, 384, 512, 1024, 1366, 1536, 1850, 2048]);
+        let rounds = env_usize("NAX_ROUNDS", 15);
+        let chain_ms = env_usize("NAX_CHAIN_MS", 25) as f64;
+        let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
+        let want: Option<String> = std::env::var("NAX_SHAPES").ok();
+        let cands = candidates();
+        let mmax = *ms.iter().max().unwrap();
+        // (label, columns per matrix, k, pair)
+        for (label, n, k, pair) in
+            [("qo", 4096usize, 4096usize, false), ("kv", 1024, 4096, true), ("gu", 12288, 4096, true), ("down", 4096, 12288, false), ("lm", 151936, 4096, false)]
+        {
+            if want.as_ref().is_some_and(|w| !w.split(',').any(|t| t == label)) {
+                continue;
+            }
+            let base0 = Operands::new(be, mmax, n, k, pool, (0, 0, 0));
+            let base1 = if pair { Some(Operands::new(be, mmax, n, k, pool, (0, 0, 0))) } else { None };
+            let share = |b: &Operands, m: usize| {
+                let mut o = Operands::new(be, m, n, k, 1, (0, 0, 0));
+                o.ws = b.ws.clone();
+                o
+            };
+            let per_m: Vec<(usize, Operands, Option<Operands>)> =
+                ms.iter().map(|&m| (m, share(&base0, m), base1.as_ref().map(|b| share(b, m)))).collect();
+            let ntot = if pair { 2 * n } else { n };
+            let reps_of = |m: usize| ((chain_ms * 1e-3 / (2.0 * m as f64 * ntot as f64 * k as f64 / 55e12)).round() as usize).clamp(2, 60);
+            let run = |mi: usize, v: &NaxVariant, count: usize| {
+                let (m, o0, o1) = &per_m[mi];
+                match o1 {
+                    Some(o1) => pair_chain(be, v, true, *m, n, k, o0, o1, count),
+                    None => dispatch_chain(be, v, *m, n, k, 0, o0, count),
+                }
+            };
+            // warm the GPU clock up (about 1 s of the biggest cell) and every pipeline
+            let warm = Instant::now();
+            while warm.elapsed().as_secs_f64() < 1.0 {
+                run(per_m.len() - 1, &cands[0], reps_of(per_m[per_m.len() - 1].0));
+            }
+            let cells: Vec<(usize, usize)> = (0..per_m.len()).flat_map(|mi| (0..cands.len()).map(move |vi| (mi, vi))).collect();
+            let mut samples: Vec<Vec<f64>> = vec![Vec::new(); cells.len()];
+            for r in 0..rounds {
+                for j in 0..cells.len() {
+                    let ci = (j + r * 7) % cells.len();
+                    let (mi, vi) = cells[ci];
+                    let reps = reps_of(per_m[mi].0);
+                    samples[ci].push(run(mi, &cands[vi], reps) / reps as f64);
+                }
+            }
+            for (ci, &(mi, vi)) in cells.iter().enumerate() {
+                let (m, v) = (per_m[mi].0, &cands[vi]);
+                let flop = 2.0 * m as f64 * ntot as f64 * k as f64;
+                let st = stats(&mut samples[ci]);
+                println!(
+                    "SWEEP shape={label} M={m} N={ntot} K={k} tile={}x{}w{} us={:.1} tflops={:.2} p10_us={:.1} p90_us={:.1} picked={}",
+                    v.bm, v.bn, v.sg, st.median * 1e6, flop / st.median / 1e12, st.p10 * 1e6, st.p90 * 1e6,
+                    if v.shader == pick_variant(m, ntot).shader { 1 } else { 0 }
+                );
+            }
+        }
+    }
+
+    /// Threadgroup concurrency probe: one tile at K = 4096 over a grid of T threadgroups (8 M tiles, T / 8 N tiles; the
+    /// operands stay cache resident), time per call against T. A step function in T shows how many threadgroups the 40 cores
+    /// run at once. `WAVES` lines. env NAX_ONLY (tile filter), NAX_ROUNDS, NAX_TGS (list of T, multiples of 8).
+    fn waves_mode(be: &MetalBackend) {
+        let rounds = env_usize("NAX_ROUNDS", 11);
+        let k = env_usize("NAX_K", 4096);
+        let tgs: Vec<usize> = env_list("NAX_TGS", &[8, 16, 24, 32, 40, 48, 64, 80, 96, 120, 160, 200, 240, 320, 400, 480, 640]);
+        for v in candidates() {
+            let (bm, bn) = (v.bm as usize, v.bn as usize);
+            let ops: Vec<(usize, Operands)> = tgs.iter().map(|&t| (t, Operands::new(be, 8 * bm, (t / 8) * bn, k, 0, (0, 0, 0)))).collect();
+            let mut samples: Vec<Vec<f64>> = vec![Vec::new(); ops.len()];
+            for (_, op) in &ops {
+                let n = op.c.length() / 2 / (8 * bm);
+                dispatch_chain(be, &v, 8 * bm, n, k, 0, op, 3);
+            }
+            for r in 0..rounds {
+                for j in 0..ops.len() {
+                    let i = (j + r * 5) % ops.len();
+                    let (t, op) = &ops[i];
+                    let n = (t / 8) * bn;
+                    let reps = (1200 / t.max(&8)).clamp(4, 100);
+                    samples[i].push(dispatch_chain(be, &v, 8 * bm, n, k, 0, op, reps) / reps as f64);
+                }
+            }
+            for (i, (t, _)) in ops.iter().enumerate() {
+                let st = stats(&mut samples[i]);
+                println!("WAVES tile={}x{}w{} tgs={t} us={:.1} us_per_tg_per_core={:.2}", v.bm, v.bn, v.sg, st.median * 1e6, st.median * 1e6 * 40.0 / *t as f64);
+            }
+        }
+    }
+
+    /// The P4/P5 pick (`pick_variant_p45`) against the shipped `pick_variant` at M the pad-aware rule changes (chunks past
+    /// 512 rows that are not a multiple of 128), per Qwen3-8B shape, with the kernels the engine launches. All M, both
+    /// picks and every shape's rounds interleaved. `PICK3` lines.
+    fn pick3_mode(be: &MetalBackend) {
+        let ms: Vec<usize> = env_list("NAX_M", &[600, 700, 800, 900, 952, 1000, 1100, 1200, 1300, 1366, 1433, 1500, 1600, 1700, 1800, 1850, 1900, 2000, 2040]);
+        let rounds = env_usize("NAX_ROUNDS", 15);
+        let chain_ms = env_usize("NAX_CHAIN_MS", 25) as f64;
+        let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
+        let want: Option<String> = std::env::var("NAX_SHAPES").ok();
+        let mmax = *ms.iter().max().unwrap();
+        for (label, n, k, pair) in [("qo", 4096usize, 4096usize, false), ("kv", 1024, 4096, true), ("gu", 12288, 4096, true), ("down", 4096, 12288, false)] {
+            if want.as_ref().is_some_and(|w| !w.split(',').any(|t| t == label)) {
+                continue;
+            }
+            let base0 = Operands::new(be, mmax, n, k, pool, (0, 0, 0));
+            let base1 = if pair { Some(Operands::new(be, mmax, n, k, pool, (0, 0, 0))) } else { None };
+            let share = |b: &Operands, m: usize| {
+                let mut o = Operands::new(be, m, n, k, 1, (0, 0, 0));
+                o.ws = b.ws.clone();
+                o
+            };
+            let per_m: Vec<(usize, Operands, Option<Operands>)> =
+                ms.iter().map(|&m| (m, share(&base0, m), base1.as_ref().map(|b| share(b, m)))).collect();
+            let ntot = if pair { 2 * n } else { n };
+            let reps_of = |m: usize| ((chain_ms * 1e-3 / (2.0 * m as f64 * ntot as f64 * k as f64 / 55e12)).round() as usize).clamp(2, 60);
+            let run = |mi: usize, v: &NaxVariant, count: usize| {
+                let (m, o0, o1) = &per_m[mi];
+                match o1 {
+                    Some(o1) => pair_chain(be, v, true, *m, n, k, o0, o1, count),
+                    None => dispatch_chain(be, v, *m, n, k, 0, o0, count),
+                }
+            };
+            let warm = Instant::now();
+            while warm.elapsed().as_secs_f64() < 1.0 {
+                run(per_m.len() - 1, pick_variant_p45(mmax, ntot), reps_of(mmax));
+            }
+            let cells: Vec<(usize, bool)> = (0..per_m.len()).flat_map(|mi| [(mi, false), (mi, true)]).collect();
+            let mut samples: Vec<Vec<f64>> = vec![Vec::new(); cells.len()];
+            for r in 0..rounds {
+                for j in 0..cells.len() {
+                    let ci = (j + r * 5) % cells.len();
+                    let (mi, new) = cells[ci];
+                    let m = per_m[mi].0;
+                    let v = if new { pick_variant(m, ntot) } else { pick_variant_p45(m, ntot) };
+                    let reps = reps_of(m);
+                    samples[ci].push(run(mi, v, reps) / reps as f64);
+                }
+            }
+            for (mi, (m, _, _)) in per_m.iter().enumerate() {
+                let flop = 2.0 * *m as f64 * ntot as f64 * k as f64;
+                let (old, new) = (pick_variant_p45(*m, ntot), pick_variant(*m, ntot));
+                let (so, sn) = (stats(&mut samples[2 * mi]).median, stats(&mut samples[2 * mi + 1]).median);
+                println!(
+                    "PICK3 shape={label}{} M={m} N={ntot} K={k} old={} new={} old_us={:.1} new_us={:.1} old_tflops={:.2} new_tflops={:.2} change={:+.1}%",
+                    if pair { "-pair" } else { "" },
+                    old.shader.trim_start_matches("gemm_nax_"),
+                    new.shader.trim_start_matches("gemm_nax_"),
+                    so * 1e6, sn * 1e6, flop / so / 1e12, flop / sn / 1e12, (so / sn - 1.0) * 100.0
+                );
+            }
+        }
+    }
+
     /// The shipped pick against each fixed tile, per Qwen3-8B shape and M (single kernel).
     fn pick_mode(be: &MetalBackend, shapes: &[&Shape]) {
         let ms: Vec<usize> = env_list("NAX_M", &[16, 32, 64, 128, 205, 256, 512, 1024, 2048]);
@@ -500,6 +664,9 @@ mod imp {
             "pair" => pair_mode(&be),
             "pick" => pick_mode(&be, &shapes),
             "pick2" => pick2_mode(&be),
+            "sweep" => sweep_mode(&be),
+            "waves" => waves_mode(&be),
+            "pick3" => pick3_mode(&be),
             other => panic!("mode '{other}': bench or err"),
         }
     }

@@ -46,14 +46,17 @@ pub const NAX_VARIANTS: &[NaxVariant] = &[
 /// 16-row accelerator tile but the call is weight-bandwidth bound, so it is far cheaper than the tiled GEMM (which streams
 /// the weights at about a tenth of the bandwidth) and keeps a row's bits independent of the chunk it lands in.
 pub const NAX_MIN_M: usize = 2;
-/// The 128x64 tile is used for M >= `NAX_BIG_TILE_MIN_M` when it still leaves at least this many threadgroups (40 GPU
-/// cores; with fewer, the 64x64 tile's finer grid wins; for M < 128 the second 64 rows of a 128-row tile are padding).
-/// Measured per shape and M in docs/results/raw/2026-10-14-metal-prefill-p1/full/bench-pick.txt.
+/// The P1 rule uses the 128x64 tile for M >= `NAX_BIG_TILE_MIN_M` when it still leaves at least this many threadgroups (40
+/// GPU cores; with fewer, the 64x64 tile's finer grid wins; for M < 128 the second 64 rows of a 128-row tile are padding).
+/// Measured per shape and M in docs/results/raw/2026-10-14-metal-prefill-p1/full/bench-pick.txt. It still applies above
+/// [`mid_tile`]'s range and at the steps the table leaves out.
 pub const NAX_BIG_TILE_MIN_TGS: usize = 192;
 pub const NAX_BIG_TILE_MIN_M: usize = 128;
 /// Rows up to which the chunk-sized calls (the 256-row default chunk and its tail) take the P4/P5 tiles of
-/// [`pick_variant`]; above it the P1 rule above applies again.
-pub const NAX_CHUNK_MAX_M: usize = 512;
+/// [`pick_variant`]; above it the [`mid_tile`] table applies up to 1344 rows, then the P1 rule.
+pub const NAX_CHUNK_MAX_M: usize = 640;
+/// The same limit before docs/results/2026-10-15-metal-gemm-midm.md.
+const P45_CHUNK_MAX_M: usize = 512;
 /// Output elements (`m * n`) below which the one-simdgroup 32x32 tile is the fastest (the k + v pair at M = 256: 2048
 /// columns, 64 x 8 tiles).
 pub const NAX_FINE_ELEMS: usize = 700_000;
@@ -66,10 +69,13 @@ fn variant(shader: &str) -> &'static NaxVariant {
 }
 
 /// The tile for an `m` by `n` output (`n` of a pair is `n0 + n1`). Any choice gives the same bits; this rule is the faster
-/// one measured per shape and M inside the engine (docs/results/2026-10-15-metal-prefill-p45.md, raw/.../engine-sweep).
-/// M < 128 and M > `NAX_CHUNK_MAX_M`: the P1 pick (64x64 four simdgroups, or 128x64 when it leaves enough threadgroups).
-/// Chunk-sized M: the k + v pair on 32x32 / one simdgroup; q / o and down at an M tail on 32x128 / two simdgroups (a
-/// 64-row tile would be mostly padding); everything else 64x64 / two simdgroups.
+/// one measured per shape and M inside the engine (docs/results/2026-10-15-metal-prefill-p45.md, raw/.../engine-sweep,
+/// docs/results/2026-10-15-metal-gemm-midm.md).
+/// M < 128: the P1 pick (64x64 four simdgroups).
+/// Chunk-sized M (`NAX_BIG_TILE_MIN_M..=NAX_CHUNK_MAX_M`): the k + v pair on 32x32 / one simdgroup; q / o and down at an M
+/// tail on 32x128 / two simdgroups (a 64-row tile would be mostly padding); everything else 64x64 / two simdgroups.
+/// `NAX_CHUNK_MAX_M < M <= 1344`: the 64x64 tile on four or two simdgroups, or the P1 pick, by the number of 64-row tiles
+/// ([`mid_tile`]). Above: the P1 pick (128x64 / four simdgroups when it leaves enough threadgroups).
 pub fn pick_variant(m: usize, n: usize) -> &'static NaxVariant {
     // measurement knob: INTARSIA_NAX_TILE=<shader name, e.g. gemm_nax_t64x64w2> forces one tile for every call
     static FORCED: std::sync::OnceLock<Option<&'static NaxVariant>> = std::sync::OnceLock::new();
@@ -79,7 +85,40 @@ pub fn pick_variant(m: usize, n: usize) -> &'static NaxVariant {
     }) {
         return v;
     }
-    if (NAX_BIG_TILE_MIN_M..=NAX_CHUNK_MAX_M).contains(&m) {
+    // measurement knob: INTARSIA_NAX_PICK=p45 restores the pick before docs/results/2026-10-15-metal-gemm-midm.md (same
+    // bits, A/B in one binary)
+    static P45: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *P45.get_or_init(|| std::env::var("INTARSIA_NAX_PICK").is_ok_and(|v| v == "p45")) {
+        return pick_variant_p45(m, n);
+    }
+    pick_by_ranges(m, n, NAX_CHUNK_MAX_M, true)
+}
+
+/// The tile for a call of `m` rows in `NAX_CHUNK_MAX_M < m <= 1344`, by `ceil(m / 64)` (`None`: the P1 pick). Which
+/// tile is fastest changes from one 64-row step to the next (wave quantisation of the grid on the 40 cores, not padding
+/// alone), so this is a table measured in the engine, one entry per step, on the four Qwen3-8B GEMM shapes
+/// (docs/results/2026-10-15-metal-gemm-midm.md, raw/.../eng3): the 128x64 tile is 4 to 5% faster at 1089..=1152 and
+/// 1345..=1408 rows and is what the P1 pick gives; elsewhere a 64x64 tile on four simdgroups ("w4") or two ("w2") is faster
+/// by 1 to 11% per layer.
+pub fn mid_tile(m: usize) -> Option<&'static NaxVariant> {
+    const W4: &str = "gemm_nax_t64x64w4";
+    const W2: &str = "gemm_nax_t64x64w2";
+    let steps = m.div_ceil(64);
+    let shader = match steps {
+        11..=12 => W4,  // 641..=768
+        13 => W2,       // 769..=832
+        14..=17 => W4,  // 833..=1088
+        19 => W4,       // 1153..=1216
+        20 => W2,       // 1217..=1280
+        21 => W4,       // 1281..=1344
+        _ => return None,
+    };
+    Some(variant(shader))
+}
+
+/// The tile rule with the chunk-sized range up to `chunk_max` rows; `mid` adds the [`mid_tile`] table above it.
+fn pick_by_ranges(m: usize, n: usize, chunk_max: usize, mid: bool) -> &'static NaxVariant {
+    if (NAX_BIG_TILE_MIN_M..=chunk_max).contains(&m) {
         if m * n < NAX_FINE_ELEMS {
             variant("gemm_nax_t32x32w1")
         } else if (1..=32).contains(&(m % 64)) && n < NAX_TAIL_MAX_N {
@@ -87,6 +126,8 @@ pub fn pick_variant(m: usize, n: usize) -> &'static NaxVariant {
         } else {
             variant("gemm_nax_t64x64w2")
         }
+    } else if let Some(v) = mid.then(|| mid_tile(m)).flatten() {
+        v
     } else {
         let big = variant("gemm_nax_t128x64w4");
         if m >= NAX_BIG_TILE_MIN_M && m.div_ceil(big.bm as usize) * n.div_ceil(big.bn as usize) >= NAX_BIG_TILE_MIN_TGS {
@@ -95,6 +136,11 @@ pub fn pick_variant(m: usize, n: usize) -> &'static NaxVariant {
             variant("gemm_nax_t64x64w4")
         }
     }
+}
+
+/// The P4/P5 pick (before docs/results/2026-10-15-metal-gemm-midm.md).
+pub fn pick_variant_p45(m: usize, n: usize) -> &'static NaxVariant {
+    pick_by_ranges(m, n, P45_CHUNK_MAX_M, false)
 }
 
 /// Kernel arguments of `gemm_nax_t` (`NaxP` in gemm_nax_bf16.metal; 32 bytes).
