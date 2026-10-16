@@ -6,7 +6,7 @@
 #
 # MODE client    tools/cbm3.py scenarios (env SCEN, default the cbm3.py default set)
 # MODE localeval localeval speed --sizes 1024 --gen 512 --reps 3 --concurrency 1,2,4,8 (deepeval-decode-agg: has aggregate_decode_tok_s)
-# env: BIN (intarsia binary, required), ARMS (default "off on"), MODEL, PORT, SCEN, MAXMIN (no new arm after this many minutes, 38)
+# env: BIN (intarsia binary, required), LE_CONC (localeval concurrency levels, default 1,2,4,8), SERVER_ENV (extra VAR=val words for the server, e.g. INTARSIA_SPEC_TRACE=1), ARMS (default "off on"), MODEL, PORT, SCEN, MAXMIN (no new arm after this many minutes, 38)
 # Arm names: off | on | offatN (= --spec ngram --spec-off-at N). Round r runs the arms in order, reversed on even rounds, with a
 # fresh server per arm. macmon logs the GPU (100 ms) for the whole slot.
 set -u
@@ -44,7 +44,7 @@ for r in $(seq 1 $ROUNDS); do
     echo "=== round $r arm $c (position $pos) $(date +%T)"
     FL=$(arm_flags $c) || exit 4
     echo "$(date +%s) round $r arm $c pos $pos" >> "$OUT/arm-times.txt"
-    INTARSIA_CB_TRACE=0 "$BIN" serve --model "$MODEL" --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui \
+    env INTARSIA_CB_TRACE=0 ${=SERVER_ENV:-} "$BIN" serve --model "$MODEL" --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui \
       --host 127.0.0.1 --port $PORT --max-batch 8 ${=FL} > "$OUT/server-$c-$r.log" 2>&1 &
     SPID=$!
     ok=0
@@ -58,7 +58,7 @@ for r in $(seq 1 $ROUNDS); do
       uv run "$T/cbm3.py" run --url "$URL" --arm $c --round $r --out "$OUT" --scenarios "$SCEN" || echo "client rc=$?"
     else
       ( cd /opt/code/deepeval-decode-agg && uv run localeval speed --url "$URL/v1" --model Qwen3-8B --sizes 1024 --gen 512 --reps 3 \
-          --concurrency 1,2,4,8 --label "m3gates-$c-r$r" ) > "$OUT/localeval-$c-$r.log" 2>&1
+          --concurrency ${LE_CONC:-1,2,4,8} --label "m3gates-$c-r$r" ) > "$OUT/localeval-$c-$r.log" 2>&1
       echo "localeval rc=$?"
     fi
     curl -s "$URL/metrics" > "$OUT/metrics-$c-$r.txt" 2>/dev/null

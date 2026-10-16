@@ -217,6 +217,28 @@ for _k in (2, 3, 4):
 DEFAULT = "solo-grounded,solo-open,mixed-once,mixed-loop"
 
 
+def counters(url):
+    """The speculation / batching counters of /metrics (cumulative since server start)."""
+    host, port = split_url(url)
+    conn = http.client.HTTPConnection(host, port, timeout=10)
+    try:
+        conn.request("GET", "/metrics")
+        txt = conn.getresponse().read().decode()
+    except Exception:  # noqa: BLE001
+        return {}
+    finally:
+        conn.close()
+    out = {}
+    for ln in txt.splitlines():
+        if ln.startswith(("intarsia_spec_", "intarsia_batch_decode_steps_total")) and " " in ln and not ln.startswith("#"):
+            k, v = ln.rsplit(" ", 1)
+            try:
+                out[k] = float(v)
+            except ValueError:
+                pass
+    return out
+
+
 def cmd_run(a):
     j = get_json(a.url, "/v1/models")
     model = (j or {}).get("data", [{}])[0].get("id", "m")
@@ -230,10 +252,15 @@ def cmd_run(a):
         SCENARIOS[n](a.url, model, argparse.Namespace(reps=1))
     res = {"arm": a.arm, "round": a.round, "url": a.url, "model": model, "t_start": t_all, "scenarios": {}}
     for n in names:
+        c0 = counters(a.url)
         res["scenarios"][n] = SCENARIOS[n](a.url, model, a)
+        c1 = counters(a.url)
         s = res["scenarios"][n]
+        s["counters_delta"] = {k: c1[k] - c0.get(k, 0) for k in c1}
         print(f"[cbm3] {a.arm} r{a.round} {n}: " + ", ".join(f"{k}={v:.1f}" for k, v in s.items()
-                                                              if isinstance(v, float)), flush=True)
+                                                              if isinstance(v, float))
+              + "  " + " ".join(f"{k.replace('intarsia_', '')}={v:.0f}" for k, v in s["counters_delta"].items() if v),
+              flush=True)
     res["t_end"] = time.time()
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -286,6 +313,23 @@ def cmd_analyze(a):
                                       for r in runs[x].values()) else "aggregate tok/s"
         L.append(f"| {n} | {mname} | " + " | ".join(cells) + " | " + " / ".join(f"{q:.3f}" for q in ratios) + " | " +
                  (f"{statistics.median(ratios):.3f}" if ratios else "-") + " | " + (f"{min(ratios):.3f}" if ratios else "-") + " |")
+    # every arm against the denominator arm, paired by round
+    others = [x for x in arms if x != den]
+    if den in runs and others:
+        L.append("")
+        L.append(f"| scenario | " + " | ".join(f"{x}/{den} per round (median)" for x in others) + " |")
+        L.append("|---|" + "---|" * len(others))
+        for n in names:
+            cells = []
+            for x in others:
+                rs = []
+                for rd in sorted(set(runs[x]) & set(runs[den])):
+                    p, q = (metric(runs[x][rd]["scenarios"].get(n, {})) if n in runs[x][rd]["scenarios"] else None,
+                            metric(runs[den][rd]["scenarios"][n]) if n in runs[den][rd]["scenarios"] else None)
+                    if p and q:
+                        rs.append(p / q)
+                cells.append(" / ".join(f"{y:.3f}" for y in rs) + (f" ({statistics.median(rs):.3f})" if rs else "-"))
+            L.append(f"| {n} | " + " | ".join(cells) + " |")
     # extra detail for the mixed scenarios
     L.append("")
     L.append("| scenario | arm | open-stream decode tok/s (mean over rounds) | grounded wall s / finished (mixed) |")

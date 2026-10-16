@@ -1,0 +1,191 @@
+# HELP intarsia_engine_steps_total Engine steps (prefill chunks and decode steps).
+# TYPE intarsia_engine_steps_total counter
+intarsia_engine_steps_total 2969
+# HELP intarsia_requests_running Requests currently executing.
+# TYPE intarsia_requests_running gauge
+intarsia_requests_running 0
+# HELP intarsia_requests_waiting Requests queued behind the running one.
+# TYPE intarsia_requests_waiting gauge
+intarsia_requests_waiting 0
+# HELP intarsia_requests_total Requests accepted by the engine.
+# TYPE intarsia_requests_total counter
+intarsia_requests_total 36
+# HELP vllm:num_requests_running Requests currently executing (vLLM name).
+# TYPE vllm:num_requests_running gauge
+vllm:num_requests_running 0
+# HELP vllm:num_requests_waiting Requests queued (vLLM name).
+# TYPE vllm:num_requests_waiting gauge
+vllm:num_requests_waiting 0
+# HELP intarsia_requests_rejected_total Requests refused with 429 because the queue was full.
+# TYPE intarsia_requests_rejected_total counter
+intarsia_requests_rejected_total 0
+# HELP intarsia_engine_failed 1 when the engine worker has failed and the server answers 503.
+# TYPE intarsia_engine_failed gauge
+intarsia_engine_failed 0
+# HELP intarsia_engine_no_progress_seconds Seconds the engine has had work without completing a step (watchdog input).
+# TYPE intarsia_engine_no_progress_seconds gauge
+intarsia_engine_no_progress_seconds 0
+# HELP intarsia_requests_finished_total Finished requests by reason.
+# TYPE intarsia_requests_finished_total counter
+intarsia_requests_finished_total{reason="length"} 36
+# HELP intarsia_tokens_prompt_total Prompt tokens processed.
+# TYPE intarsia_tokens_prompt_total counter
+intarsia_tokens_prompt_total 7277
+# HELP intarsia_tokens_generated_total Tokens generated.
+# TYPE intarsia_tokens_generated_total counter
+intarsia_tokens_generated_total 11520
+# HELP intarsia_tokens_cached_total Prompt tokens served from the reused KV prefix.
+# TYPE intarsia_tokens_cached_total counter
+intarsia_tokens_cached_total 145
+# HELP intarsia_ttft_seconds Time to first token.
+# TYPE intarsia_ttft_seconds histogram
+intarsia_ttft_seconds_bucket{le="0.01"} 0
+intarsia_ttft_seconds_bucket{le="0.025"} 0
+intarsia_ttft_seconds_bucket{le="0.05"} 3
+intarsia_ttft_seconds_bucket{le="0.1"} 10
+intarsia_ttft_seconds_bucket{le="0.25"} 27
+intarsia_ttft_seconds_bucket{le="0.5"} 34
+intarsia_ttft_seconds_bucket{le="1"} 36
+intarsia_ttft_seconds_bucket{le="2.5"} 36
+intarsia_ttft_seconds_bucket{le="5"} 36
+intarsia_ttft_seconds_bucket{le="10"} 36
+intarsia_ttft_seconds_bucket{le="30"} 36
+intarsia_ttft_seconds_bucket{le="60"} 36
+intarsia_ttft_seconds_bucket{le="+Inf"} 36
+intarsia_ttft_seconds_sum 6.876573412999999
+intarsia_ttft_seconds_count 36
+# HELP intarsia_itl_seconds Inter-token latency (per-request mean, weighted by token count).
+# TYPE intarsia_itl_seconds histogram
+intarsia_itl_seconds_bucket{le="0.001"} 0
+intarsia_itl_seconds_bucket{le="0.0025"} 0
+intarsia_itl_seconds_bucket{le="0.005"} 0
+intarsia_itl_seconds_bucket{le="0.01"} 0
+intarsia_itl_seconds_bucket{le="0.025"} 510
+intarsia_itl_seconds_bucket{le="0.05"} 11484
+intarsia_itl_seconds_bucket{le="0.1"} 11484
+intarsia_itl_seconds_bucket{le="0.25"} 11484
+intarsia_itl_seconds_bucket{le="0.5"} 11484
+intarsia_itl_seconds_bucket{le="1"} 11484
+intarsia_itl_seconds_bucket{le="+Inf"} 11484
+intarsia_itl_seconds_sum 339.502798623
+intarsia_itl_seconds_count 11484
+# HELP intarsia_kv_bytes_used KV cache bytes in use.
+# TYPE intarsia_kv_bytes_used gauge
+intarsia_kv_bytes_used 182550528
+# HELP intarsia_kv_bytes_total KV cache bytes allocated.
+# TYPE intarsia_kv_bytes_total gauge
+intarsia_kv_bytes_total 9663676416
+# HELP intarsia_kv_tokens_used KV cache tokens in use.
+# TYPE intarsia_kv_tokens_used gauge
+intarsia_kv_tokens_used 1238
+# HELP intarsia_kv_tokens_capacity KV cache capacity in tokens.
+# TYPE intarsia_kv_tokens_capacity gauge
+intarsia_kv_tokens_capacity 65536
+# HELP intarsia_weights_bytes Model weight bytes resident.
+# TYPE intarsia_weights_bytes gauge
+intarsia_weights_bytes 16381470720
+# HELP intarsia_device_memory_total_bytes Device memory total.
+# TYPE intarsia_device_memory_total_bytes gauge
+intarsia_device_memory_total_bytes 115448725504
+# HELP intarsia_device_memory_free_bytes Device memory free at scrape time.
+# TYPE intarsia_device_memory_free_bytes gauge
+intarsia_device_memory_free_bytes 89118212096
+# HELP intarsia_last_prefill_tokens_per_second Prefill speed of the last finished request.
+# TYPE intarsia_last_prefill_tokens_per_second gauge
+intarsia_last_prefill_tokens_per_second 199.0615772770148
+# HELP intarsia_last_decode_tokens_per_second Decode speed of the last finished request.
+# TYPE intarsia_last_decode_tokens_per_second gauge
+intarsia_last_decode_tokens_per_second 33.41415409153369
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 0
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 0
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 23
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+# TYPE intarsia_decode_profiled_steps_total counter
+intarsia_decode_profiled_steps_total 0
+# HELP intarsia_spec_steps_total Speculative decoding verify passes (--spec).
+# TYPE intarsia_spec_steps_total counter
+intarsia_spec_steps_total 115
+# HELP intarsia_spec_proposed_tokens_total Draft tokens proposed to speculative verify passes.
+# TYPE intarsia_spec_proposed_tokens_total counter
+intarsia_spec_proposed_tokens_total 460
+# HELP intarsia_spec_accepted_tokens_total Draft tokens accepted by speculative verify passes.
+# TYPE intarsia_spec_accepted_tokens_total counter
+intarsia_spec_accepted_tokens_total 281
+# HELP intarsia_uptime_seconds Seconds since engine start.
+# TYPE intarsia_uptime_seconds gauge
+intarsia_uptime_seconds 142.824521042
+# HELP intarsia_last_step_timestamp_seconds Unix time of the last engine step (0 = none yet).
+# TYPE intarsia_last_step_timestamp_seconds gauge
+intarsia_last_step_timestamp_seconds 1792182472.778
+# HELP intarsia_op_seconds_total Cumulative sampled time per op (profiled launches only).
+# TYPE intarsia_op_seconds_total counter
+intarsia_op_seconds_total{op="argmax"} 0
+intarsia_op_seconds_total{op="attn_decode"} 0
+intarsia_op_seconds_total{op="attn_prefill"} 0
+intarsia_op_seconds_total{op="embedding"} 0
+intarsia_op_seconds_total{op="logits"} 0
+intarsia_op_seconds_total{op="matmul"} 0
+intarsia_op_seconds_total{op="matmul_pair"} 0
+intarsia_op_seconds_total{op="qk_norm_rope_kv"} 0
+intarsia_op_seconds_total{op="rmsnorm"} 0
+intarsia_op_seconds_total{op="rmsnorm_add"} 0
+intarsia_op_seconds_total{op="silu_glu"} 0
+# HELP intarsia_op_calls_total Launches per op.
+# TYPE intarsia_op_calls_total counter
+intarsia_op_calls_total{op="argmax"} 2955
+intarsia_op_calls_total{op="attn_decode"} 399708
+intarsia_op_calls_total{op="attn_prefill"} 5940
+intarsia_op_calls_total{op="embedding"} 2969
+intarsia_op_calls_total{op="logits"} 2955
+intarsia_op_calls_total{op="matmul"} 320652
+intarsia_op_calls_total{op="matmul_pair"} 213768
+intarsia_op_calls_total{op="qk_norm_rope_kv"} 405648
+intarsia_op_calls_total{op="rmsnorm"} 2969
+intarsia_op_calls_total{op="rmsnorm_add"} 213768
+intarsia_op_calls_total{op="silu_glu"} 106884
+# HELP intarsia_info Static build/model information.
+# TYPE intarsia_info gauge
+intarsia_info{model="Qwen3-8B",family="qwen3",backend="metal",device="Apple M5 Max",act_dtype="bf16",kv_dtype="bf16"} 1
+# HELP intarsia_batch_iterations_total Scheduler iterations.
+# TYPE intarsia_batch_iterations_total counter
+intarsia_batch_iterations_total 3114
+# HELP intarsia_batch_decode_steps_total Batched decode passes.
+# TYPE intarsia_batch_decode_steps_total counter
+intarsia_batch_decode_steps_total 2804
+# HELP intarsia_batch_decode_rows_total Decode passes by number of rows.
+# TYPE intarsia_batch_decode_rows_total counter
+intarsia_batch_decode_rows_total{rows="1"} 23
+intarsia_batch_decode_rows_total{rows="2"} 13
+intarsia_batch_decode_rows_total{rows="3"} 18
+intarsia_batch_decode_rows_total{rows="4"} 2750
+intarsia_batch_decode_rows_total{rows="5"} 0
+intarsia_batch_decode_rows_total{rows="6"} 0
+intarsia_batch_decode_rows_total{rows="7"} 0
+intarsia_batch_decode_rows_total{rows="8"} 0
+# HELP intarsia_batch_prefill_chunks_total Prefill chunks run.
+# TYPE intarsia_batch_prefill_chunks_total counter
+intarsia_batch_prefill_chunks_total 50
+# HELP intarsia_batch_prefill_tokens_total Prompt tokens prefilled.
+# TYPE intarsia_batch_prefill_tokens_total counter
+intarsia_batch_prefill_tokens_total 7132
+# HELP intarsia_batch_running Requests holding a slot.
+# TYPE intarsia_batch_running gauge
+intarsia_batch_running 0
+# HELP intarsia_batch_queue_depth Requests waiting for a slot.
+# TYPE intarsia_batch_queue_depth gauge
+intarsia_batch_queue_depth 0
+# HELP intarsia_batch_queue_depth_max Most requests that waited at once.
+# TYPE intarsia_batch_queue_depth_max gauge
+intarsia_batch_queue_depth_max 3
+# HELP intarsia_batch_cached_tokens_total Prompt tokens served from reused KV.
+# TYPE intarsia_batch_cached_tokens_total counter
+intarsia_batch_cached_tokens_total 145
+# HELP intarsia_batch_step_ewma_ms EWMA of an iteration with a decode step.
+# TYPE intarsia_batch_step_ewma_ms gauge
+intarsia_batch_step_ewma_ms 34.292242196493724
