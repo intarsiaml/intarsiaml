@@ -10,7 +10,7 @@ Arms: **off** = `--spec off`; **on** = `--spec ngram` (k = 4, `--spec-off-at` 4,
 |---|---|---|
 | (a) B = 1 equals G1 | **PASS** | grounded **3.55x** (3.70 / 3.53 / 3.55 per round; G1 3.3x-3.4x); open-ended **1.009x** (0.992 / 1.009 / 1.010; limit 0.99x) |
 | (b) B >= 4 within 2 % of spec off | **PASS on medians and means, not resolvable per pair** | localeval aggregate_decode_tok_s, on/off: B = 4 median 1.004 (3 rounds) and 0.997 (5 rounds, cooled); B = 8 median 1.006 and 0.985. Single pairs scatter 0.95 to 1.02 (clock drift, section 3), so ±2 % cannot be shown per pair |
-| (c) mixed 1 grounded + 3 open-ended | **PASS on medians** | mixed-once on/off 0.991 / 0.994 / 0.997 over three independent slots, mixed-loop 0.991 / 0.995 / 1.000; two single pairs are below 0.98 (0.972, 0.959) with the two arms running the same code path (section 4) |
+| (c) mixed 1 grounded + 3 open-ended | **PASS on medians (about 0.5 % real cost); the per-pair 2 % bound cannot be resolved** | mixed-once on/off medians 0.991 / 0.994 / 0.997 over three independent slots, mixed-loop 0.991 / 0.995 / 1.000; two single pairs are below 0.98 (0.972, 0.959). The `on` arm is not the same code path as `off`: it runs 2 to 3 verify passes per run in mixed-once (ramp) and 40 to 42 in mixed-loop (B = 3 gaps), so a small real cost exists; the closest A/A arm scatters 0.963 to 1.029 per pair (section 4) |
 | (d) identity with spec on | **PASS, cited not re-run** | gate B in `docs/results/2026-10-16-metal-cb-gates-reuse-spec.md` section 3 (240 of 240 requests identical at B = 2, 3, 4, 6, 8, token ids compared) and soak3 Part B in `/opt/code/intarsiaml-cb-soak3/docs/results/2026-10-16-metal-cb-soak3.md` section 3 (268 requests per B at B = 2, 3, 8, 0 mismatches in 799 comparable comparisons, negative control gives exactly the 3 planted ones) |
 
 **Not covered by any M3 gate, but a regression the gates would not catch: at B = 2 and B = 3 `--spec ngram` is 10 to 17 % slower than spec off on open-ended text** (section 5), because a verify pass still runs on its own slot. On grounded text the same configuration is 1.28x to 1.86x faster. The deliverable that removes this (verify groups inside the batched step) is missing (section 2).
@@ -71,7 +71,7 @@ Client `tools/cbm3.py` (streams `/v1/chat/completions`, greedy, thinking off, G1
 | #2223, 4 rounds | mixed-once | 127.5 | 127.2 | 0.987 / 1.004 / 1.003 / 0.991 | 0.997 |
 | #2223 | mixed-loop | 121.2 | 120.9 | 0.993 / 0.994 / 0.995 / 1.001 | 0.995 |
 
-Per-stream: open-ended streams decode 32.2 to 33.0 tok/s with spec off and 32.0 to 32.7 with spec on; the grounded stream in `mixed-once` takes 7.8 to 8.3 s in both arms. Conclusion: the gate (never below spec off by more than 2 %) holds on medians in all three slots; two single pairs (#2209 mixed-once round 1 0.972, mixed-loop round 3 0.959) are below it, again with equal code paths in the two arms and a noise level of ±3 %. Speculation delivers no gain here either: with 4 streams decoding it is off by design, so the grounded stream gets no speed-up. In `mixed-loop` the grounded requests run 40 to 42 verify passes per run (74 % acceptance, `b4-repeat/m3-on-*.json`) in the B = 3 gaps and the net effect is 0.995.
+Per-stream: open-ended streams decode 32.2 to 33.0 tok/s with spec off and 32.0 to 32.7 with spec on; the grounded stream in `mixed-once` takes 7.8 to 8.3 s in both arms. Conclusion: the gate (never below spec off by more than 2 %) is a per-pair bound. It holds on medians in all three slots, but two single pairs (#2209 mixed-once round 1 0.972, mixed-loop round 3 0.959) are below it and the arms are not the same code path (the `on` arm runs the verify passes counted below), so I do not call those two noise. The noise floor is wide: `offat3`, which only speculates during the B <= 2 ramp and is the closest A/A arm, scatters 0.963 to 1.029 per pair against `off` (`offat-sweep`, `b4-repeat`, section 6). The tightest evidence is the 4-round repeat (#2223): mixed-loop on/off 0.993 / 0.994 / 0.995 / 1.001, consistent and about 0.5 % under, which I read as a small real cost of the verify passes at B = 3 and during the ramp. So (c) is a pass on medians with a cost of about 0.5 to 1 %, and a strict per-pair 2 % bound cannot be shown at ±3 % pair noise. Speculation delivers no gain here either: with 4 streams decoding it is off by design, so the grounded stream gets no speed-up. In `mixed-loop` the grounded requests run 40 to 42 verify passes per run (74 % acceptance, `b4-repeat/m3-on-*.json`) in the B = 3 gaps and the net effect is 0.995.
 
 ## 5. Gate (a) and the B = 1 to 3 picture
 
@@ -84,7 +84,7 @@ Gate (a), fleetq #2209, 3 rounds, server `--max-batch 8`, one request at a time,
 
 Individual reps of the open-ended prompt scatter by ±3 % (diag run, `diag-b23`: 0.968 and 1.035). Server-side counters of the diag run: spec on, solo open-ended, 53 to 58 verify passes of 211 to 231 proposed tokens, 10 to 17 accepted.
 
-B = 2 and 3, N streams of the same prompt (each with its own nonce line), aggregate tok/s, 3 rounds (fleetq #2209 `summary.md`, and #2226 `offat2-b23/summary.md` which gives the same numbers):
+B = 2 and 3, N streams of the same prompt (each with its own nonce line), aggregate tok/s, 3 rounds (the table is fleetq #2226, `offat2-b23/summary.md`; #2209 `client/summary.md` agrees within about 2 %, for example grounded B = 2 67.7 off / 123.1 on, ratio 1.818):
 
 | scenario | off | on (default `--spec-off-at` 4) | on/off per round | `--spec-off-at 2` / off |
 |---|---|---|---|---|
@@ -116,5 +116,32 @@ At B = 4 offat3 and offat4 run the same code (speculation off for all 4 decoding
 * Tools (this branch): `tools/cbm3.py` (client: gate (a), gate (c), N-stream scenarios, `/metrics` spec counters before and after every scenario, `analyze` with paired ratios), `tools/cbm3_slot.sh` (one exclusive slot: fresh server per arm and round, order alternating, macmon at 100 ms, `client` or `localeval` mode, `COOLDOWN`, `LE_CONC`, `SERVER_ENV`), `tools/cbm3_localeval_table.py` (gate (b) table from localeval results), `tools/cbm3_gpu.py` (busy GPU clock per arm run from macmon), prompts `tools/prompts/m3_grounded.txt`, `m3_open.txt`. Gate (b) uses localeval as the local-model-bench skill requires; gates (a) and (c) and the sweep need grounded text and mixed concurrency, which localeval does not offer, hence the client.
 * Prompts: grounded = G1's input-grounded Rust edit (371 prompt tokens); open-ended = G1's 300-word story prompt; both with a nonce line first so no request shares a prefix; open-ended streams use `ignore_eos` so all run 256 tokens.
 * Jobs (all `fleetq run --host endor --exclusive --mem 24`, each under 45 min, each ended with `no intarsia serve left`): #2205 smoke (output not kept; first look at the client, GPU was at a low clock), #2209 gates (a)(c) client, #2210 localeval 1,2,4,8 (its slot script hit a zsh parse error at the very end because I edited it while it ran, after all arms had finished; no data affected), #2211 sweep, #2221 B = 2, 3 diagnosis, #2223 B = 4 repeat with A/A arm, #2224 localeval 4,8 (throttled), #2226 off-at 2 vs 4 at B = 2, 3, #2228 localeval 4,8 with cool-down. Busy GPU clock means per slot: 1469 (#2209), 1382 (#2210), 1577 (#2211), 1466 (#2221), 1584 (#2223), 1286 (#2224), 1575 (#2226), 1425 (#2228) MHz: compare only inside a slot.
+* Localeval run ids and unanimis records (also in `localeval-run-ids.md`):
+
+| slot | arm | round | localeval run id (`/opt/code/deepeval-decode-agg/results/`) | unanimis record |
+|---|---|---|---|---|
+| #2210 | off | 1 | `20261016-155604-adhoc-m3gates-off-r1` | `f7e0b960-34b7-45f3-bb95-6270a07c96a8` |
+| #2210 | on | 1 | `20261016-155901-adhoc-m3gates-on-r1` | `6d3792a8-d9e0-4d44-a3a1-970f2c0b736a` |
+| #2210 | off | 2 | `20261016-160438-adhoc-m3gates-off-r2` | `48ca09c1-ef86-4d0b-ac66-21eb57ee036b` |
+| #2210 | on | 2 | `20261016-160150-adhoc-m3gates-on-r2` | `27727963-8ed7-4986-b5fb-01cd07fb8b0c` |
+| #2210 | off | 3 | `20261016-160734-adhoc-m3gates-off-r3` | `3b339653-d8fe-4820-8d77-49bc6713a4e1` |
+| #2210 | on | 3 | `20261016-161033-adhoc-m3gates-on-r3` | `b3ab092a-1707-41dc-ab64-4d38ecc4237a` |
+| #2224 | off | 1 | `20261016-172453-adhoc-m3gates-off-r1` | `0d56d669-74f9-4bc6-b4e6-8601e5d48714` |
+| #2224 | on | 1 | `20261016-172234-adhoc-m3gates-on-r1` | `2b4001cf-5cd2-49cb-9ef6-fbe7259aedb9` |
+| #2224 | off | 2 | `20261016-172719-adhoc-m3gates-off-r2` | `668cf35c-e58b-4258-a820-6cfba84720a1` |
+| #2224 | on | 2 | `20261016-172945-adhoc-m3gates-on-r2` | `d9dbdb7e-8c56-4ae2-a672-93a331e44145` |
+| #2224 | off | 3 | `20261016-173436-adhoc-m3gates-off-r3` | `663fb347-bc9b-46e3-a6c6-16bca2d8ad34` |
+| #2224 | on | 3 | `20261016-173211-adhoc-m3gates-on-r3` | `09ad6741-5dbb-46d2-be20-5d24d7401589` |
+| #2228 | off | 1 | `20261016-180049-adhoc-m3gates-off-r1` | `8ebddfe0-031c-464b-9aee-c9934a55ab63` |
+| #2228 | on | 1 | `20261016-180401-adhoc-m3gates-on-r1` | `7d76fd3b-7626-4567-b2be-37070897f8f2` |
+| #2228 | off | 2 | `20261016-181009-adhoc-m3gates-off-r2` | `caa7ce72-0e95-4e4b-ba0d-c13f28ea4109` |
+| #2228 | on | 2 | `20261016-180706-adhoc-m3gates-on-r2` | `d504a038-d0ef-481c-a8ea-9491e5bd232c` |
+| #2228 | off | 3 | `20261016-181316-adhoc-m3gates-off-r3` | `a6385cee-66f8-4d0c-b769-a162b6b22ccd` |
+| #2228 | on | 3 | `20261016-181623-adhoc-m3gates-on-r3` | `e8c78b32-e05c-4ec1-a9fc-526fd2b19daa` |
+| #2228 | off | 4 | `20261016-182224-adhoc-m3gates-off-r4` | `9485dd59-8ada-4c43-9aad-3a423c3c1e0a` |
+| #2228 | on | 4 | `20261016-181925-adhoc-m3gates-on-r4` | `cb038186-9aa7-4e6c-b008-f146fa77f111` |
+| #2228 | off | 5 | `20261016-182532-adhoc-m3gates-off-r5` | `4644bf2d-abe5-4557-a119-68e5d979c957` |
+| #2228 | on | 5 | `20261016-182839-adhoc-m3gates-on-r5` | `4f911d38-4b46-4902-8c20-05c088b5a3a4` |
+
 * Limits: 3 to 5 rounds per arm, pair noise ±3 to 5 %, so a 2 % bound is judged on medians and means; thermal throttling hit two localeval slots (reported above, not dropped); the sweep did not test `--spec-off-at` at B = 3 directly (offat3 is off at B = 3; B = 3 is covered by `on` against `offat2`); localeval's random-word filler drafts well at N = 1 (spec-on 1.17x there), which is a property of that prompt, not a G1 number.
 * Build and checks: `cargo build --release --features metal -p intarsia-cli` at 66feda6 passed. No Rust code was changed, so `cargo test` was not rerun; the tools were exercised by the slots above and `counters()` against a fake `/metrics` server.
