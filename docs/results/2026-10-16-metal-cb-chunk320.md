@@ -4,6 +4,9 @@ Date 2026-10-16. Machine endor (Apple M5 Max), Qwen3-8B BF16 (`~/models/Qwen3-8B
 
 **Status: done.** Every item in the task ran. Nothing is partial.
 
+
+**Decision (operator, 2026-10-16):** keep the decode-time prefill chunk at 256. `--busy-chunk` stays available for experiments.
+
 ## Result
 
 * **320 is not a win on this machine, on these measurements.** The 4k prompt reaches its first token only 2 to 4% sooner (paired median delta -44 ms, -2.2%, 8 of 10 rounds faster; medians of the rounds 1993 vs 1918 ms, -3.8%), while the decoding streams stall 20% longer at p50 and 26% longer at p95 per iteration that carries a chunk (p50 122 to 146 ms, p95 139 to 176 ms). Aggregate throughput is unchanged (162.6 vs 162.3 tok/s, paired mean -0.3). No GPU-busy gain (0.840 vs 0.854, within the round-to-round spread).
