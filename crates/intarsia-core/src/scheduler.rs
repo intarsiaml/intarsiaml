@@ -475,6 +475,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
 
     fn ev(&mut self, e: TraceEvent) {
         if self.cfg.trace {
+            // Test hook (Metal serve gates): `INTARSIA_CB_TRACE=1` documented a stderr log, but nothing drained `trace`.
+            let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+            eprintln!("cb-trace t={ms} {e:?}");
             self.trace.push(e);
         }
     }
