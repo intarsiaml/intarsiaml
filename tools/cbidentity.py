@@ -152,21 +152,26 @@ def one_request(url, path, body, stream, timeout, cancel_ms=None, cancel_chunks=
     rec["t_send"] = time.time()
     deadline = t_send + cancel_ms / 1000.0 if cancel_ms is not None else None
     conn = http.client.HTTPConnection(host, port, timeout=timeout)
+    # The raw socket, captured before getresponse(): a reply with `Connection: close` (intarsia serve replies so to our
+    # request header) makes http.client drop `conn.sock` (the response keeps the file object), after which settimeout and
+    # shutdown on conn.sock would silently do nothing and a cancel_after_ms would never fire mid-stream.
+    sock = [None]
 
     def arm():
-        if conn.sock is None:
+        if sock[0] is None:
             return
         if deadline is None:
-            conn.sock.settimeout(timeout)
+            sock[0].settimeout(timeout)
         else:
             left = deadline - time.monotonic()
             if left <= 0:
                 raise Cancel("ms")
-            conn.sock.settimeout(left)
+            sock[0].settimeout(left)
 
     try:
         payload = json.dumps(body).encode()
         conn.request("POST", path, body=payload, headers={"Content-Type": "application/json", "Connection": "close"})
+        sock[0] = conn.sock
         arm()
         resp = conn.getresponse()
         rec["http_status"] = resp.status
@@ -234,9 +239,9 @@ def one_request(url, path, body, stream, timeout, cancel_ms=None, cancel_chunks=
         rec["status"] = "error"
         rec["error"] = repr(e)
     finally:
-        if rec["status"] == "cancelled" and conn.sock is not None:
+        if rec["status"] == "cancelled" and sock[0] is not None:
             try:
-                conn.sock.shutdown(socket.SHUT_RDWR)
+                sock[0].shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
         conn.close()
@@ -960,7 +965,8 @@ def make_mock(bug=None, serial=False, delay=0.002, ids=True):
                           **({"token_ids": tids} if want_ids else {})}
                     self._json(200, {"id": "x", "choices": [ch], "usage": usage})
             except (BrokenPipeError, ConnectionResetError, OSError):
-                pass
+                with state["lock"]:
+                    state["disconnects"] = state.get("disconnects", 0) + 1
 
     srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
     srv.daemon_threads = True
@@ -1022,6 +1028,24 @@ def cmd_selftest(_args):
     cp = tmp / "cases.jsonl"
     cp.write_text("".join(json.dumps(c) + "\n" for c in cases))
     cbi = {c["id"]: c for c in load_cases(cp)}
+
+    # 0. cancel_after_ms really cancels mid-stream against a server that replies `Connection: close` (the mock does, as
+    #    intarsia serve does): the stream is cut at the deadline, not read to its end, and the server sees the disconnect
+    slow_srv, slow_url = make_mock(delay=0.02)
+    body = {"model": "mock", "prompt": "Hello", "max_tokens": 100, "temperature": 0, "stream": True, "ignore_eos": True}
+    t0 = time.monotonic()
+    r0 = one_request(slow_url, "/v1/completions", body, True, 30, cancel_ms=200)
+    el = time.monotonic() - t0
+    time.sleep(0.3)
+    check("cancel_after_ms cancels a Connection: close stream mid-way",
+          r0["status"] == "cancelled" and r0["cancel"] == "ms" and 0 < len(r0["deltas"]) < 100 and el < 1.0,
+          f"status {r0['status']} cancel {r0['cancel']} deltas {len(r0['deltas'])} after {el:.2f}s")
+    check("cancel_after_ms: the server saw the disconnect", slow_srv.state.get("disconnects", 0) >= 1, str(slow_srv.state))
+    t0 = time.monotonic()
+    r1 = one_request(slow_url, "/v1/completions", body, True, 30, cancel_chunks=3)
+    check("cancel_after_chunks cancels after 3 deltas", r1["status"] == "cancelled" and len(r1["deltas"]) == 3 and time.monotonic() - t0 < 1.0,
+          f"status {r1['status']} deltas {len(r1['deltas'])}")
+    slow_srv.shutdown()
 
     # 1. compare_case on synthetic records
     def rec(text="abc def", deltas=("abc", " def"), finish="length", ct=2, status="ok", stream=True, cached=0, ids=None):
@@ -1100,7 +1124,7 @@ def cmd_selftest(_args):
     write_run(tmp / "idbug.jsonl", h, recs)
     rep = compare_runs(cbi, rh, rr, [str(tmp / "idbug.jsonl")])
     nb = len(rep["runs"][0]["mismatches"])
-    check("id-only concurrency bug detected (text identical)", nb > 0 and all(r["reasons"][0].startswith("TOKEN IDS") for r in rep["runs"][0]["mismatches"]) and nb <= idbug_srv.state["bug_fired"], f"{nb} mismatches, fired {idbug_srv.state['bug_fired']}")
+    check("id-only concurrency bug detected (text identical)", nb > 0 and all(r["reasons"][0].startswith(("TOKEN IDS", "cancelled token ids")) for r in rep["runs"][0]["mismatches"]) and nb <= idbug_srv.state["bug_fired"], f"{nb} mismatches, fired {idbug_srv.state['bug_fired']}")
 
     # 3c. server without the extension: probe says no, runs still work, text criteria apply, a warning says ids were skipped
     old_srv, old_url = make_mock(ids=False)
