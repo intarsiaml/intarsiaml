@@ -1,0 +1,12 @@
+fleetq job 2194; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin3/intarsia-head-66feda6 (d979ae2ceb9a57e6); git 66feda6
+server ref pid 19785 ready on 8101
+gen: exit 0
+server batched pid 40107 ready on 8101
+run B=2: exit 0
+run B=3: exit 0
+run B=8: exit 0
+compare B=2: exit 0
+compare B=3: exit 0
+compare B=8: exit 0
+spectrace: exit 0
+no intarsia serve left

@@ -1,0 +1,19 @@
+--- end-idle 13:54:20
+gpu_usage [253, 0.029233794659376144] gpu_power 0.26 sys_power 17.9
+gpu_usage [338, 0.02530756965279579] gpu_power 0.15 sys_power 15.5
+gpu_usage [338, 0.006625442765653133] gpu_power 0.04 sys_power 11.0
+25718  21.4   9072    17:50:29 macmon
+  485  12.5 410256 19-20:01:28 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+15504   6.4 1079888    01:17:10 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+15399   3.9 127888    01:17:10 /Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper
+87301   3.5 188032 01-19:56:57 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+13571   2.9  74800 07-16:32:00 /Applications/Herdr.app/Contents/MacOS/Herdr
+  489   2.3  11152 19-20:01:28 /usr/sbin/cfprefsd
+15394   2.1 789248    01:17:11 /Applications/Claude.app/Contents/MacOS/Claude
+  462   1.9  45264 19-20:01:28 /usr/libexec/locationd
+  529   1.3  20192 19-20:01:28 /usr/libexec/lsd
+40317   0.9  25120 07-14:54:06 /System/Library/PrivateFrameworks/UniversalAccess.framework/Versions/A/Resources/AXVisualSupportAgent.app/Contents/MacO
+22540   0.9 641456    01:14:41 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+vm.swapusage: total = 11264.00M  used = 10384.50M  free = 879.50M  (encrypted)
+leftover servers: none
+tracked: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;
