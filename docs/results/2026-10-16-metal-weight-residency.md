@@ -6,9 +6,15 @@ backend only: no CUDA/HIP file changed, `core` untouched.
 Raw logs and scripts: `docs/results/raw/2026-10-16-metal-weight-residency/` (summaries: `probe-summary.txt`, `idle6-summary.txt`,
 `itl-summary.txt`, `cbstart-summary.txt`, `power-summary.txt`). Follows `2026-10-16-metal-prefill-cbgap.md`, which found the stall.
 
-**Status: done.** A residency set that is re-requested every 400 ms from a background thread removes the stall (first 4k request after 3 / 10 /
-40 s idle: about 110 ms faster, 6 of 6 paired rounds at each idle). It is the `intarsia serve` default; every other command is unchanged. Pre-wire
-is gone (the coordinator's instruction: it is redundant). All gates listed below pass.
+**Status: done, with one gap in the requested gate.** A residency set that is re-requested every 400 ms from a background thread cuts the first 4k
+request after idle by about 110 ms (TTFT 1165..1180 ms down to 1056..1063 ms) and it is the `intarsia serve` default; every other command is unchanged.
+Pre-wire is gone (coordinator's instruction). Which build measured what:
+
+* 3 / 10 / 40 s idle, 6 paired rounds each, all in one slot (#2178): measured on a **pre-final** build (`intarsia-kw`: the residency flavour selected with
+  `INTARSIA_METAL_KEEPWARM_MODE=residency`, the old pre-wire code present but switched off). 36 of 36 paired differences negative.
+* The **shipped** build (`intarsia-new`, residency by default, pre-wire code removed) was measured with 4 paired rounds at 3 s and 40 s only (the ITL control
+  below, also #2178). The 10 s idle case was **not** run on the shipped build; the residency loop is the same code in both builds. Resume command under "Not done".
+* All other gates ran on the shipped build.
 
 ## Mechanism
 
@@ -76,7 +82,7 @@ the same 15622 MB the mmaps already are), and no load cost on the loader thread.
 
 ## `serve`: first request after idle (6 paired rounds, fleetq #2178)
 
-`serve-idle.sh`: per sample start `intarsia serve --max-seq 8192 --profile-every 0` (default chunk 256, `INTARSIA_METAL_PROFILE=cb:` on in every arm), wait
+`serve-idle.sh`: per sample start `intarsia serve --max-seq 8192 --profile-every 0` (prefill chunk 2048 from the qwen3 recipe, `INTARSIA_METAL_PROFILE=cb:` on in every arm), wait
 for `/health`, send one warm-up 4k request, then for idle in 3, 10, 40 s: sleep, send ONE streamed 4k request (4062 prompt tokens plus a nonce line so
 no request shares a prefix with an earlier one, 33 tokens, temperature 0). One server per sample, 6 rounds, arm order rotated per round, all in
 one slot. Arms: `base` = 6d99a6f (no pre-wire, no keep-warm); `kwb` = this branch with GPU-touch keep-warm; `rs` = this branch with the residency set
@@ -90,10 +96,15 @@ TTFT ms (request sent to first token chunk at the client), median [min..max] of 
 | 40 s | 1172.5 [1169.7..1181.9] | 1056.8 [1054.9..1060.1] | 1062.7 [1059.5..1069.7] | -115.7 [-127.0..-109.7] | -109.5 [-122.0..-100.1] |
 
 Every one of the 36 paired differences is negative (`idle6-summary.txt`). The generated 33-token texts of the three arms are identical in all 18 prompt groups
-(0 differing). First command buffer of a request, commit to GPU start (`cbstart-summary.txt`, only the arms whose trace has the host timestamps):
-7..8 ms (blit) and 10..11 ms (residency) after 3 / 10 / 40 s idle, against ~102 ms for the unwired base in the cbgap doc; the part of the base's ~170 ms
-stall that is not in that number is the 2nd and 3rd command buffer (~25 ms each) that also waited for wiring. The 7..11 ms that remain are the same
-commit-to-start latency a warm GPU wake-up has (not separately measured with 0 s idle), not weights.
+(0 differing).
+
+Where the 110 ms went (`spansum-summary.txt`, `cbstart-summary.txt`): the five prefill command buffers of the timed request (chunk 2048, 4062 tokens) have the
+same GPU busy time (881..883 ms) and the same idle inside their span (0.4 ms) in all three arms, so the whole gain is **before the first command buffer
+starts**. Commit-to-GPU-start of the first command buffer is 7..8 ms (blit) and 10..11 ms (residency) after 3 / 10 / 40 s idle in the arms that carry the
+host timestamps (the base build has none; the cbgap doc measured ~102 ms for it). TTFT minus GPU span is ~178 ms for the residency arm against ~288 ms for the
+base. The residual against a warm request was not measured in the same server (no back-to-back 0 s arm); the cbgap doc's warm 4062-token chunk-2048
+prefill wall was 1041..1057 ms (a different harness), the residency arm's TTFT is 1061 ms. So: the stall is cut by ~110 ms; whether a few ms are left (the residency
+arm trails the blit arm by 4..6 ms in TTFT and ~3 ms on the first command buffer) is unresolved.
 
 ### Decode ITL after idle
 
@@ -127,8 +138,10 @@ after idle already ran at 29 ms.
   (macmon, 60 s segments, `power-summary.txt`) A idle box 27..37 mW mean, B process holding the shards with no touches 61..75 mW, C blit every 500 ms
   46..119 mW, D blit every 1000 ms 68..113 mW: run-to-run spread is larger than the differences, so no cost is resolved at the ~0.1 W level (only
   the fallback was measured; the default does no GPU work).
+* **Failure mode:** if the refreshes lapse (the thread starved, or `INTARSIA_METAL_KEEPWARM=<ms>` set to 5000 or more), the first use after the gap re-wires the
+  whole set at once and costs 210..230 ms, worse than the ~150 ms of no keep-warm (a1, `probe5/residencycpu-g40000-k5000`). The set held at a 2 s refresh.
 * **Coverage gap:** shards over `maxBufferLength` (per-tensor fallback buffers) and anything past half the recommended working set decay as before.
-  KV cache and activation buffers are not kept warm; the ~7..11 ms first-command-buffer latency left after idle says they cost little for Qwen3-8B at
+  KV cache and activation buffers are not kept warm; the 7..11 ms first-command-buffer latency left after idle suggests they cost little for Qwen3-8B at
   `--max-seq 8192`, but a much larger KV cache was not measured.
 
 ## Gates (final code, fleetq #2178 unless noted)
@@ -140,7 +153,7 @@ after idle already ran at 29 ms.
 | `tests/keepwarm.rs` as a standalone binary | 7 passed (`keepwarm-test.txt` first version, `keepwarm-test2.txt` final) |
 | CLI `generate` greedy ids, 48 tokens, L=2049, 2 prompts, chunks 256 and 2048 | new binary, new binary with `INTARSIA_METAL_KEEPWARM=1` (thread running), and 6d99a6f all byte-identical to the 00abb36 binary in stdout and ids (12 of 12 per arm; `gates/gen-*`) |
 | `intarsia accuracy` short (`--mode both`) and 4k (`--mode all`) at chunks 256 and 2048, base 6d99a6f vs new | logs byte-identical (4 of 4; `gates/acc-*`) |
-| `cargo check --workspace --all-targets` and with `--features intarsia-cli/metal` | pass |
+| `cargo check --workspace --all-targets` and with `--features intarsia-cli/metal` (rerun on the final HEAD ee93c0a code) | pass |
 | `cargo test --release -p intarsia-cli --features metal --lib` | 79 passed |
 | CUDA and HIP `cargo check -p intarsia-cli --features {cuda,hip} --tests` on spark1 (fleetq #2187) | both EXIT=0 (`spark1-check.log`; HIP builds the stub, no hipcc, as before) |
 | serve output identity | the 33-token texts of all arms agree in every prompt group (18 groups in the 6-round run, 8 in the ITL run) |
@@ -154,6 +167,9 @@ residency with CPU-only refresh. #2178 one slot: refresh period sweep (`probe5`)
 
 ## Not done / uncertain
 
+* The requested gate on the shipped build: `IDLES="3 10 40" docs/results/raw/2026-10-16-metal-weight-residency/serve-idle2.sh <outdir> 6 base rs` inside
+  `fleetq run --host endor --exclusive --mem 24` (about 25 minutes; needs `intarsia-base` (6d99a6f) and `intarsia-new` in the scratch dir `SC` set at the top of the
+  script; not queued because the endor queue was several hours deep at the time and the deadline was 11:20).
 * `commandBuffer.useResidencySet` (per-command-buffer instead of per-queue set) was not tried; the queue-level set already works.
 * The residency set is attached to the engine queue. The ITL arms show no effect on decode, but the effect on very short command buffers (single-sequence
   batch-1 decode at high rates) was not isolated beyond that.
