@@ -1,0 +1,45 @@
+--- start (before macmon/server) 15:13:57
+99698  24.1 576368 08-15:59:55 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.a
+25718  17.4   9072    19:10:06 macmon
+  576  10.0  58592 19-21:21:04 /usr/libexec/syspolicyd
+  485   8.4 422224 19-21:21:05 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+  631   6.1  74000 19-21:21:04 /usr/sbin/coreaudiod
+74425   5.3  17456 19-00:19:45 /usr/libexec/trustd
+22540   5.2 786096    02:34:18 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+13571   4.3  73712 07-17:51:37 /Applications/Herdr.app/Contents/MacOS/Herdr
+99694   3.8  47936 08-15:59:56 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.We
+87301   3.4 796256 01-21:16:34 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+  692   3.0  55984 19-21:21:03 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+12251   2.9 647232    01:19:00 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 4708 ssh -f spark2 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_RANK=0 TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29741 NCCL_SOCKET_IFNAME=enp1s0f1np1 setsid nohup ~/opt/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 --name super --host 127.0.0.1 --port 8710 > rank0.log 2>&1 < /dev/null &;6382 /bin/zsh -c source /Users/josef/.claude/shell-snapshots/snapshot-zsh-1792176110934-3l68jm.sh 2>/dev/null || true && export FLEETQ_OWNER=claude-b3e189ed;export CODEX_COMPANION_SESSION_ID='b3e189ed-4e71-47a1-a06c-fd33cd9f06ea';export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-TensorFold/b3e189ed-4e71-47a1-a06c-fd33cd9f06ea.jsonl';export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex';
+--- end (before server stop) 15:18:16
+10099 212.7 730864    18:46:24 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd
+46279  93.0  82368       00:46 /System/Library/PrivateFrameworks/PowerlogCore.framework/Versions/A/XPCServices/PerfPowerServicesSignpostReader.xpc/Con
+25718  19.5   9072    19:14:25 macmon
+46446   6.1  32672    23:13:23 /usr/libexec/PerfPowerServices
+  631   5.2  74000 19-21:25:23 /usr/sbin/coreaudiod
+  414   4.0  94864 19-21:25:24 /usr/libexec/logd
+87301   3.9 796368 01-21:20:53 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+38254   3.1  11296       04:19 macmon
+  841   2.8  96576 19-21:25:12 /usr/libexec/rapportd
+13571   2.1  73728 07-17:55:56 /Applications/Herdr.app/Contents/MacOS/Herdr
+12251   2.0 647344    01:23:19 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+  539   1.9  34768 19-21:25:24 /usr/sbin/mDNSResponder
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 4708 ssh -f spark2 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_RANK=0 TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29741 NCCL_SOCKET_IFNAME=enp1s0f1np1 setsid nohup ~/opt/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 --name super --host 127.0.0.1 --port 8710 > rank0.log 2>&1 < /dev/null &;6382 /bin/zsh -c source /Users/josef/.claude/shell-snapshots/snapshot-zsh-1792176110934-3l68jm.sh 2>/dev/null || true && export FLEETQ_OWNER=claude-b3e189ed;export CODEX_COMPANION_SESSION_ID='b3e189ed-4e71-47a1-a06c-fd33cd9f06ea';export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-TensorFold/b3e189ed-4e71-47a1-a06c-fd33cd9f06ea.jsonl';export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex';
+--- end (cleanup) 15:18:16
+10099 230.5 730864    18:46:24 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd
+46279  88.6  82368       00:46 /System/Library/PrivateFrameworks/PowerlogCore.framework/Versions/A/XPCServices/PerfPowerServicesSignpostReader.xpc/Con
+25718  15.4   9072    19:14:25 macmon
+98591   7.7 420320 01-07:51:13 /usr/libexec/hybridsearchd
+  631   5.2  74000 19-21:25:23 /usr/sbin/coreaudiod
+46446   4.2  32672    23:13:23 /usr/libexec/PerfPowerServices
+  414   4.0  94832 19-21:25:24 /usr/libexec/logd
+87301   3.5 796368 01-21:20:53 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+  841   2.8  96576 19-21:25:12 /usr/libexec/rapportd
+13571   2.1  73728 07-17:55:56 /Applications/Herdr.app/Contents/MacOS/Herdr
+  539   1.9  34768 19-21:25:24 /usr/sbin/mDNSResponder
+52223   1.5 333968 01-02:24:29 /usr/libexec/spotlightknowledged.updater
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 4708 ssh -f spark2 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_RANK=0 TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29741 NCCL_SOCKET_IFNAME=enp1s0f1np1 setsid nohup ~/opt/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 --name super --host 127.0.0.1 --port 8710 > rank0.log 2>&1 < /dev/null &;6382 /bin/zsh -c source /Users/josef/.claude/shell-snapshots/snapshot-zsh-1792176110934-3l68jm.sh 2>/dev/null || true && export FLEETQ_OWNER=claude-b3e189ed;export CODEX_COMPANION_SESSION_ID='b3e189ed-4e71-47a1-a06c-fd33cd9f06ea';export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-TensorFold/b3e189ed-4e71-47a1-a06c-fd33cd9f06ea.jsonl';export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex';

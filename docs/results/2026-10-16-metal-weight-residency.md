@@ -174,6 +174,19 @@ after idle already ran at 29 ms.
 * Gates for these fixes: see the final report of the session; GPU gates (cargo test with `keepwarm.rs`, one 3 s serve spot check) are in
   `raw/.../review-fix.sh`, run status stated there.
 
+## Final build at 10 s idle (fleetq #2203)
+
+The final binary (`intarsia-new`, built from a4de0f2 with the review fixes) was run against base 6d99a6f in one exclusive slot, using `IDLES=10 NOPROF=1 serve-idle2.sh <out> 6 base rs`: 6 paired rounds, arm order alternating, and the profile trace off. The `rs` server logs show the five keep-warm registrations (4.00, 3.19, 1.24, 3.99 and 3.96 GB), which confirms the review-fix build ran.
+
+TTFT in ms, median [min..max] over 6 rounds:
+
+| idle | base 6d99a6f | final build (residency keep-warm) | paired: final minus base |
+|---|---|---|---|
+| 10 s | 1126.2 [1121.6..1139.5] | 1066.5 [1060.7..1078.4] | -58.5 [-78.8..-45.2] |
+| warm (back-to-back) | 1128.6 [1123.5..1140.4] | 1076.1 [1064.9..1104.1] | |
+
+The final build was faster in 6 of 6 rounds. The gain is about half of #2178's (-110.6 ms at 10 s). That is because base came in 47 ms faster than in #2178 (1126 ms against 1173.5 ms), while keep-warm came in roughly level (1066.5 ms against 1061.4 ms). This slot differs from #2178 in two ways: the profile trace was off (`NOPROF=1`), and the binary had the review fixes. Neither difference explains why only base moved, and that question is still open. Keep-warm does still win at 10 s on the shipped build, by about 60 ms (5%). Raw results: `raw/2026-10-16-metal-weight-residency/idle10-final/`.
+
 ## Fleet jobs
 
 #2169 probe: none/residency/mlock/madvise/copy at 0.3/3/10/40 s. #2170 decay horizon and keep-warm variants. #2171 horizon 1.2..1.8 s, period
@@ -183,9 +196,7 @@ residency with CPU-only refresh. #2178 one slot: refresh period sweep (`probe5`)
 
 ## Not done / uncertain
 
-* The requested gate on the shipped build: `IDLES="3 10 40" docs/results/raw/2026-10-16-metal-weight-residency/serve-idle2.sh <outdir> 6 base rs` inside
-  `fleetq run --host endor --exclusive --mem 24` (about 25 minutes; needs `intarsia-base` (6d99a6f) and `intarsia-new` in the scratch dir `SC` set at the top of the
-  script; not queued because the endor queue was several hours deep at the time and the deadline was 11:20).
+* The shipped build was measured at 3 s (#2188) and 10 s (#2203, above) idle, but not at 40 s.
 * `commandBuffer.useResidencySet` (per-command-buffer instead of per-queue set) was not tried; the queue-level set already works.
 * The residency set is attached to the engine queue. The ITL arms show no effect on decode, but the effect on very short command buffers (single-sequence
   batch-1 decode at high rates) was not isolated beyond that.

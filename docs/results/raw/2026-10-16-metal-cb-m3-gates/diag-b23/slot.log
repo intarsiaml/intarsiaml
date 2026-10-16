@@ -1,0 +1,24 @@
+slot job 2221 Fri Oct 16 16:47:06 EDT 2026; mode client; binary /private/tmp/claude-501/m3/bin/intarsia-66feda6 sha256 917f31e09649bd6f; arms off on rounds 2 scen open-n2,open-n3,grounded-n2,solo-open
+=== round 1 arm off (position 1) 16:47:07
+[cbm3] off r1 open-n2: wall_s=7.2, agg_tok_s=71.0  batch_decode_steps_total=256
+[cbm3] off r1 open-n3: wall_s=7.4, agg_tok_s=103.3  batch_decode_steps_total=257
+[cbm3] off r1 grounded-n2: wall_s=7.4, agg_tok_s=69.4  batch_decode_steps_total=257
+[cbm3] off r1 solo-open: decode_tok_s_median=36.5, decode_tok_s_mean=36.5  batch_decode_steps_total=765
+=== round 1 arm on (position 2) 16:49:13
+[cbm3] on r1 open-n2: wall_s=8.0, agg_tok_s=63.7  spec_steps_total=32 spec_proposed_tokens_total=128 spec_accepted_tokens_total=6 batch_decode_steps_total=253
+[cbm3] on r1 open-n3: wall_s=8.9, agg_tok_s=86.2  spec_steps_total=48 spec_proposed_tokens_total=192 spec_accepted_tokens_total=12 batch_decode_steps_total=255
+[cbm3] on r1 grounded-n2: wall_s=4.2, agg_tok_s=123.2  spec_steps_total=128 spec_proposed_tokens_total=512 spec_accepted_tokens_total=378 batch_decode_steps_total=4
+[cbm3] on r1 solo-open: decode_tok_s_median=35.3, decode_tok_s_mean=35.3  spec_steps_total=53 spec_proposed_tokens_total=211 spec_accepted_tokens_total=10 batch_decode_steps_total=702
+=== round 2 arm on (position 1) 16:51:17
+[cbm3] on r2 open-n2: wall_s=8.4, agg_tok_s=61.0  spec_steps_total=42 spec_proposed_tokens_total=168 spec_accepted_tokens_total=7 batch_decode_steps_total=251
+[cbm3] on r2 open-n3: wall_s=9.4, agg_tok_s=82.1  spec_steps_total=62 spec_proposed_tokens_total=248 spec_accepted_tokens_total=16 batch_decode_steps_total=257
+[cbm3] on r2 grounded-n2: wall_s=4.1, agg_tok_s=124.3  spec_steps_total=128 spec_proposed_tokens_total=512 spec_accepted_tokens_total=378 batch_decode_steps_total=4
+[cbm3] on r2 solo-open: decode_tok_s_median=35.8, decode_tok_s_mean=35.7  spec_steps_total=58 spec_proposed_tokens_total=231 spec_accepted_tokens_total=17 batch_decode_steps_total=690
+=== round 2 arm off (position 2) 16:53:24
+[cbm3] off r2 open-n2: wall_s=7.5, agg_tok_s=68.7  batch_decode_steps_total=256
+[cbm3] off r2 open-n3: wall_s=7.8, agg_tok_s=97.9  batch_decode_steps_total=257
+[cbm3] off r2 grounded-n2: wall_s=7.8, agg_tok_s=65.9  batch_decode_steps_total=257
+[cbm3] off r2 solo-open: decode_tok_s_median=34.6, decode_tok_s_mean=34.6  batch_decode_steps_total=765
+analyze rc=0
+no intarsia serve left
+done Fri Oct 16 16:55:34 EDT 2026

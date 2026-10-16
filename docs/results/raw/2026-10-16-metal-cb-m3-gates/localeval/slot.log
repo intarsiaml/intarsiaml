@@ -1,0 +1,16 @@
+slot job 2210 Fri Oct 16 15:55:08 EDT 2026; mode localeval; binary /private/tmp/claude-501/m3/bin/intarsia-66feda6 sha256 917f31e09649bd6f; arms off on rounds 3 scen solo-grounded,solo-open,mixed-once,mixed-loop
+=== round 1 arm off (position 1) 15:55:09
+localeval rc=0
+=== round 1 arm on (position 2) 15:58:06
+localeval rc=0
+=== round 2 arm on (position 1) 16:00:55
+localeval rc=0
+=== round 2 arm off (position 2) 16:03:43
+localeval rc=0
+=== round 3 arm off (position 1) 16:06:39
+localeval rc=0
+=== round 3 arm on (position 2) 16:09:34
+localeval rc=0
+no intarsia serve left
+done Fri Oct 16 16:12:28 EDT 2026
+tools/cbm3_slot.sh:76: unmatched "

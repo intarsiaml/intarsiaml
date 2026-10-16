@@ -47,8 +47,8 @@ JSON shape (`schema_version` 1; additive changes keep the version, breaking ones
 | `steps_total` | Monotonic count of engine steps. One step is one forward pass: a prefill chunk or a decode step. A watchdog treats "`running + waiting > 0` and `steps_total` not advancing for N seconds" as a wedge (vLLM's cuDNN FP8 hang kept `/metrics` alive while dead). | `intarsia_engine_steps_total` (counter) |
 | `last_step_ms` | Unix ms of the latest step, `0` before the first. | gauge |
 | `requests_total` | Requests accepted by `Engine::submit` (counted at submit). | `intarsia_requests_total` |
-| `running` | Requests executing now (0 or 1 in Phase 0). | `intarsia_requests_running` (gauge) |
-| `waiting` | Requests queued behind the running one. | `intarsia_requests_waiting` (gauge) |
+| `running` | Requests that have started (hold the engine) now: 0 or 1 with `--max-batch 1`; with `--max-batch N` those holding a KV slot, prefilling or decoding. | `intarsia_requests_running` (gauge) |
+| `waiting` | Requests counted at submit and not yet started. With `--max-batch N`: those in the hand-off channel to the scheduler thread plus the scheduler's FIFO queue, until a request is given a KV slot; also a request that is about to be refused for a full queue (counted until the refusal). Live. | `intarsia_requests_waiting` (gauge) |
 | `finished` | Finished requests by reason: `stop`, `length`, `cancelled`, `error`. | `intarsia_requests_finished_total{reason}` |
 | `prompt_tokens_total` | Prompt tokens of finished requests (including cached ones). | `intarsia_prompt_tokens_total` |
 | `generation_tokens_total` | Completion tokens of finished requests (EOS counted, not emitted). | `intarsia_generation_tokens_total` |

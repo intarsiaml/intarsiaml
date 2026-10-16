@@ -1,0 +1,45 @@
+--- start (before macmon/server) 15:18:19
+10099 220.3 731792    18:46:27 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd
+46279  91.0  80688       00:49 /System/Library/PrivateFrameworks/PowerlogCore.framework/Versions/A/XPCServices/PerfPowerServicesSignpostReader.xpc/Con
+25718  19.6   9072    19:14:28 macmon
+  791   9.7 231568 19-21:25:18 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_store
+13571   6.3  73728 07-17:55:59 /Applications/Herdr.app/Contents/MacOS/Herdr
+  631   5.6  74000 19-21:25:26 /usr/sbin/coreaudiod
+98591   5.3 418000 01-07:51:16 /usr/libexec/hybridsearchd
+48079   4.2  12320       00:00 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_
+87301   3.5 796336 01-21:20:56 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+52223   2.2 334928 01-02:24:32 /usr/libexec/spotlightknowledged.updater
+  692   2.0  56160 19-21:25:25 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+  438   1.4   8336 19-21:25:27 /System/Library/PrivateFrameworks/CoreSpeech.framework/corespeechd_system
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 4708 ssh -f spark2 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_RANK=0 TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29741 NCCL_SOCKET_IFNAME=enp1s0f1np1 setsid nohup ~/opt/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 --name super --host 127.0.0.1 --port 8710 > rank0.log 2>&1 < /dev/null &;6382 /bin/zsh -c source /Users/josef/.claude/shell-snapshots/snapshot-zsh-1792176110934-3l68jm.sh 2>/dev/null || true && export FLEETQ_OWNER=claude-b3e189ed;export CODEX_COMPANION_SESSION_ID='b3e189ed-4e71-47a1-a06c-fd33cd9f06ea';export CODEX_COMPANION_TRANSCRIPT_PATH='/Users/josef/.claude/projects/-opt-code-TensorFold/b3e189ed-4e71-47a1-a06c-fd33cd9f06ea.jsonl';export CLAUDE_PLUGIN_DATA='/Users/josef/.claude/plugins/data/codex-openai-codex';
+--- end (before server stop) 15:29:26
+ 2415  95.2 1445440 19-21:22:07 /Applications/OrbStack.app/Contents/MacOS/OrbStack
+ 5982  89.5 646544    20:03:43 /usr/libexec/textunderstandingd
+ 5657  48.1 885904 19-21:09:39 /System/Library/ExtensionKit/Extensions/TGOnDeviceInferenceProviderService.appex/Contents/MacOS/TGOnDeviceInferenceProv
+56282  39.1 145072       07:22 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Con
+25718  15.9   9072    19:25:35 macmon
+  631   4.4  74032 19-21:36:33 /usr/sbin/coreaudiod
+  692   4.0  55712 19-21:36:32 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+  490   4.0  31072 19-21:36:34 /usr/libexec/runningboardd
+87301   3.8 795040 01-21:32:03 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+77323   2.9  10032    07:51:04 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.a
+77274   2.5   7088 06-16:30:26 /System/Library/PrivateFrameworks/AMPDevices.framework/Versions/A/Support/AMPDeviceDiscoveryAgent
+17746   2.3 570496    02:51:12 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;58273 ssh -f spark1 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29761 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_DEBUG=INFO TF_NEMOTRON_RANK=1 setsid nohup /tmp/sv-stage/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve /tmp/sv-stage/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 > rank1.log 2>&1 < /dev/null &;
+--- end (cleanup) 15:29:26
+ 2415  96.0 1445440 19-21:22:07 /Applications/OrbStack.app/Contents/MacOS/OrbStack
+ 5982  86.6 643312    20:03:43 /usr/libexec/textunderstandingd
+ 5657  50.8 885904 19-21:09:39 /System/Library/ExtensionKit/Extensions/TGOnDeviceInferenceProviderService.appex/Contents/MacOS/TGOnDeviceInferenceProv
+56282  39.6 145072       07:22 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Con
+25718  14.9   9072    19:25:35 macmon
+  673   5.7  16480 19-21:36:32 /usr/libexec/sysmond
+  631   3.9  74032 19-21:36:33 /usr/sbin/coreaudiod
+  490   3.4  31072 19-21:36:34 /usr/libexec/runningboardd
+87301   3.2 795040 01-21:32:03 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+  692   2.8  55712 19-21:36:32 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha
+77323   2.6  10032    07:51:04 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.a
+48080   2.1   3024       11:07 /bin/zsh
+vm.swapusage: total = 11264.00M  used = 10376.50M  free = 887.50M  (encrypted)
+tracked ps: 33221 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;33226 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;33227 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;44338 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;58273 ssh -f spark1 cd ~/superv-bench && LD_LIBRARY_PATH=/home/nvidia/clef-shim/.venv/lib/python3.12/site-packages/nvidia/nccl/lib TF_NEMOTRON_WORLD=2 NCCL_COMM_ID=10.100.152.3:29761 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_DEBUG=INFO TF_NEMOTRON_RANK=1 setsid nohup /tmp/sv-stage/tensorfold-1.0.12/tensorfold-1.0.12-linux-aarch64/bin/tensorfold-native serve /tmp/sv-stage/models--nvidia--NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/snapshots/82d93699acd3be9e4617c53360fe5b3f5dbeb1b3 > rank1.log 2>&1 < /dev/null &;

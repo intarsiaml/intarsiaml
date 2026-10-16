@@ -345,10 +345,15 @@ pub struct BatchMetrics {
     pub batch_hist: [u64; MAX_BATCH_CAP + 1],
     pub prefill_chunks: u64,
     pub prefill_tokens: u64,
-    /// Requests waiting for a slot now / at most.
+    /// Iterations that ran a decode phase and a prefill chunk (the decode rows stalled behind the chunk). Iterations
+    /// with a decode step and no chunk are `decode_steps - mixed_iterations` (spec-only decode phases aside).
+    pub mixed_iterations: u64,
+    /// Requests submitted and not yet holding a slot, now: still in the hand-off channel plus the FIFO queue. Live
+    /// (read from the engine's queue counter when the snapshot is taken), not as of the last iteration.
     pub queue_depth: usize,
+    /// The most `queue_depth` has been, taken at each submit.
     pub queue_depth_max: usize,
-    /// Requests holding a slot now.
+    /// Requests holding a slot (prefilling or decoding), as of the end of the last iteration.
     pub running: usize,
     pub submitted: u64,
     pub admitted: u64,
@@ -362,6 +367,9 @@ pub struct BatchMetrics {
     pub ttft: LatencyHist,
     /// Between consecutive tokens of one request.
     pub itl: LatencyHist,
+    /// Wall time of the `prefill_chunk` call. A non-final chunk is only enqueued on the device (the call returns at
+    /// once; its GPU time is paid by the next decode step's wait), the final chunk waits for the first token.
+    pub chunk: LatencyHist,
     /// Wall time of one iteration with a decode step, and its EWMA (alpha 0.1).
     pub step: LatencyHist,
     pub step_ewma_ms: f64,
@@ -454,7 +462,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         &mut self.model
     }
     pub fn metrics(&self) -> BatchMetrics {
-        self.metrics.lock().unwrap().clone()
+        let mut m = self.metrics.lock().unwrap().clone();
+        m.queue_depth = self.queued.load(Ordering::SeqCst);
+        m
     }
     pub fn take_trace(&mut self) -> Vec<TraceEvent> {
         std::mem::take(&mut self.trace).into()
@@ -484,7 +494,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             self.metrics.lock().unwrap().rejected += 1;
             return Err(e);
         }
-        self.queued.fetch_add(1, Ordering::SeqCst);
+        let depth = self.queued.fetch_add(1, Ordering::SeqCst) + 1;
+        {
+            let mut m = self.metrics.lock().unwrap();
+            m.queue_depth_max = m.queue_depth_max.max(depth);
+        }
         let id = self.next_id;
         self.next_id += 1;
         self.enqueue(id, seq, Instant::now());
@@ -496,8 +510,6 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         self.waiting.push_back(Waiting { id, seq, t_submit });
         let mut m = self.metrics.lock().unwrap();
         m.submitted += 1;
-        m.queue_depth = self.waiting.len();
-        m.queue_depth_max = m.queue_depth_max.max(self.waiting.len());
     }
 
     fn ev(&mut self, e: TraceEvent) {
@@ -580,7 +592,6 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let mut m = self.metrics.lock().unwrap();
         m.failed += n as u64;
         m.running = 0;
-        m.queue_depth = 0;
     }
 
     /// Cancel everything (shutdown): each request finishes as cancelled.
@@ -789,9 +800,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         // 4. prefill: the oldest prefilling sequence gets its next chunk(s)
         let n_decoding = self.active.iter().filter(|a| matches!(a.phase, Phase::Decoding)).count();
         let per_iter = if n_decoding > 0 { self.cfg.busy_chunks_per_iter } else { 1 };
+        let mut chunked = false;
         for _ in 0..per_iter {
             let Some(i) = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })) else { break };
             did = true;
+            chunked = true;
             if self.prefill_one(i, n_decoding) {
                 break;
             }
@@ -802,8 +815,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
 
         let mut m = self.metrics.lock().unwrap();
         m.iterations += 1;
+        if chunked && !decoding.is_empty() {
+            m.mixed_iterations += 1;
+        }
         m.running = self.active.len();
-        m.queue_depth = self.waiting.len();
         if stepped {
             let d = t_iter.elapsed();
             m.step.record(d);
@@ -860,12 +875,14 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let slot = self.active[i].slot;
         let id = self.active[i].id;
         self.ev(TraceEvent::Chunk { iter: self.iter, id, start: pos, len, last });
+        let t_chunk = Instant::now();
         let res = {
             let tokens = &self.active[i].seq.prompt()[pos..pos + len];
             self.model.prefill_chunk(slot, tokens, mode)
         };
         {
             let mut m = self.metrics.lock().unwrap();
+            m.chunk.record(t_chunk.elapsed());
             m.prefill_chunks += 1;
             m.prefill_tokens += len as u64;
         }
@@ -954,12 +971,23 @@ where
             seq.fail(&e);
             return Err(e);
         }
-        if self.shared.queued.fetch_add(1, Ordering::SeqCst) >= self.shared.max_queue {
-            self.shared.queued.fetch_sub(1, Ordering::SeqCst);
-            let e = Error::QueueFull(self.shared.max_queue);
-            seq.fail(&e);
-            self.shared.metrics.lock().unwrap().rejected += 1;
-            return Err(e);
+        // reserve a queue place without ever counting a request that is refused (the live depth never exceeds the bound)
+        let mut n = self.shared.queued.load(Ordering::SeqCst);
+        loop {
+            if n >= self.shared.max_queue {
+                let e = Error::QueueFull(self.shared.max_queue);
+                seq.fail(&e);
+                self.shared.metrics.lock().unwrap().rejected += 1;
+                return Err(e);
+            }
+            match self.shared.queued.compare_exchange(n, n + 1, Ordering::SeqCst, Ordering::SeqCst) {
+                Ok(_) => break,
+                Err(cur) => n = cur,
+            }
+        }
+        {
+            let mut m = self.shared.metrics.lock().unwrap();
+            m.queue_depth_max = m.queue_depth_max.max(n + 1);
         }
         let id = self.shared.next_id.fetch_add(1, Ordering::SeqCst);
         let msg = Msg::Job { id, seq, t_submit: Instant::now() };
@@ -974,8 +1002,12 @@ where
         }
     }
 
+    /// Counters and histograms as of now; `queue_depth` is live (the engine's queue counter), `running` is as of the
+    /// end of the scheduler's last iteration.
     pub fn metrics(&self) -> BatchMetrics {
-        self.shared.metrics.lock().unwrap().clone()
+        let mut m = self.shared.metrics.lock().unwrap().clone();
+        m.queue_depth = self.shared.queued.load(Ordering::SeqCst);
+        m
     }
 
     pub fn failed(&self) -> Option<String> {

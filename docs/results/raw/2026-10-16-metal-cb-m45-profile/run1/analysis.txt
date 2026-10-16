@@ -1,0 +1,158 @@
+# analysis output (analyze.py)
+
+## ctx 1024
+
+### B=1: plain step wall medians per run (ms): [28.48, 28.7, 27.8]
+cb mode: wall 27.97 ms, GPU span 27.63, GPU busy 27.63, dispatches 364, command buffers 3, lead 0.21 ms, tail 0.13 ms
+
+kernel mode, c=0.0 us per launch removed: sum 28.70 ms over 364 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 12.68 | 44.2% |
+| down | 36 | 6.44 | 22.4% |
+| q/o | 72 | 4.48 | 15.6% |
+| head | 1 | 2.13 | 7.4% |
+| attn | 72 | 1.29 | 4.5% |
+| k+v | 36 | 1.18 | 4.1% |
+| norm/elementwise | 111 | 0.48 | 1.7% |
+
+kernel mode, c=1.8 us per launch removed: sum 28.04 ms over 364 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 12.62 | 45.0% |
+| down | 36 | 6.37 | 22.7% |
+| q/o | 72 | 4.35 | 15.5% |
+| head | 1 | 2.13 | 7.6% |
+| attn | 72 | 1.16 | 4.1% |
+| k+v | 36 | 1.11 | 4.0% |
+| norm/elementwise | 111 | 0.28 | 1.0% |
+  attn kernel qk_norm_rope_kv_bf16: mean 9.89 us  min 5.49  n/step 36
+  attn kernel attn_decode_bf16_splitkv: mean 39.91 us  min 23.03  n/step 36
+
+kernel mode, c=3.1 us per launch removed: sum 27.57 ms over 364 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 12.57 | 45.6% |
+| down | 36 | 6.33 | 22.9% |
+| q/o | 72 | 4.26 | 15.4% |
+| head | 1 | 2.13 | 7.7% |
+| attn | 72 | 1.07 | 3.9% |
+| k+v | 36 | 1.07 | 3.9% |
+| norm/elementwise | 111 | 0.14 | 0.5% |
+
+### B=8: plain step wall medians per run (ms): [59.41, 56.13, 58.02]
+cb mode: wall 50.94 ms, GPU span 50.59, GPU busy 50.59, dispatches 868, command buffers 7, lead 0.24 ms, tail 0.14 ms
+
+kernel mode, c=0.0 us per launch removed: sum 40.94 ms over 868 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 14.92 | 36.5% |
+| attn | 576 | 8.65 | 21.1% |
+| down | 36 | 7.77 | 19.0% |
+| q/o | 72 | 5.07 | 12.4% |
+| head | 1 | 2.51 | 6.1% |
+| k+v | 36 | 1.47 | 3.6% |
+| norm/elementwise | 111 | 0.49 | 1.2% |
+
+kernel mode, c=1.8 us per launch removed: sum 39.38 ms over 868 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 14.86 | 37.7% |
+| down | 36 | 7.71 | 19.6% |
+| attn | 576 | 7.61 | 19.3% |
+| q/o | 72 | 4.94 | 12.6% |
+| head | 1 | 2.51 | 6.4% |
+| k+v | 36 | 1.41 | 3.6% |
+| norm/elementwise | 111 | 0.29 | 0.7% |
+  attn kernel qk_norm_rope_kv_bf16: mean 5.26 us  min 4.24  n/step 288
+  attn kernel attn_decode_bf16_splitkv: mean 22.97 us  min 20.20  n/step 288
+
+kernel mode, c=3.1 us per launch removed: sum 38.25 ms over 868 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 14.81 | 38.7% |
+| down | 36 | 7.66 | 20.0% |
+| attn | 576 | 6.86 | 17.9% |
+| q/o | 72 | 4.85 | 12.7% |
+| head | 1 | 2.51 | 6.6% |
+| k+v | 36 | 1.36 | 3.6% |
+| norm/elementwise | 111 | 0.15 | 0.4% |
+
+## ctx 4096
+
+### B=1: plain step wall medians per run (ms): [28.11, 28.1, 28.01]
+cb mode: wall 28.24 ms, GPU span 27.93, GPU busy 27.93, dispatches 364, command buffers 3, lead 0.19 ms, tail 0.11 ms
+
+kernel mode, c=0.0 us per launch removed: sum 28.13 ms over 364 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 12.16 | 43.2% |
+| down | 36 | 6.17 | 21.9% |
+| q/o | 72 | 4.24 | 15.1% |
+| head | 1 | 2.08 | 7.4% |
+| attn | 72 | 1.90 | 6.8% |
+| k+v | 36 | 1.12 | 4.0% |
+| norm/elementwise | 111 | 0.45 | 1.6% |
+
+kernel mode, c=1.8 us per launch removed: sum 27.48 ms over 364 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 12.09 | 44.0% |
+| down | 36 | 6.11 | 22.2% |
+| q/o | 72 | 4.11 | 15.0% |
+| head | 1 | 2.08 | 7.6% |
+| attn | 72 | 1.77 | 6.4% |
+| k+v | 36 | 1.06 | 3.8% |
+| norm/elementwise | 111 | 0.25 | 0.9% |
+  attn kernel qk_norm_rope_kv_bf16: mean 6.00 us  min 5.41  n/step 36
+  attn kernel attn_decode_bf16_splitkv: mean 43.64 us  min 41.95  n/step 36
+
+kernel mode, c=3.1 us per launch removed: sum 27.00 ms over 364 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 12.05 | 44.6% |
+| down | 36 | 6.06 | 22.4% |
+| q/o | 72 | 4.02 | 14.9% |
+| head | 1 | 2.08 | 7.7% |
+| attn | 72 | 1.68 | 6.2% |
+| k+v | 36 | 1.01 | 3.7% |
+| norm/elementwise | 111 | 0.11 | 0.4% |
+
+### B=8: plain step wall medians per run (ms): [62.54, 62.33, 63.25]
+cb mode: wall 53.49 ms, GPU span 53.13, GPU busy 53.13, dispatches 868, command buffers 7, lead 0.22 ms, tail 0.14 ms
+
+kernel mode, c=0.0 us per launch removed: sum 46.47 ms over 868 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 14.90 | 32.1% |
+| attn | 576 | 14.19 | 30.5% |
+| down | 36 | 7.78 | 16.7% |
+| q/o | 72 | 5.05 | 10.9% |
+| head | 1 | 2.52 | 5.4% |
+| k+v | 36 | 1.47 | 3.2% |
+| norm/elementwise | 111 | 0.49 | 1.1% |
+
+kernel mode, c=1.8 us per launch removed: sum 44.91 ms over 868 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 14.84 | 33.0% |
+| attn | 576 | 13.15 | 29.3% |
+| down | 36 | 7.71 | 17.2% |
+| q/o | 72 | 4.92 | 11.0% |
+| head | 1 | 2.51 | 5.6% |
+| k+v | 36 | 1.41 | 3.1% |
+| norm/elementwise | 111 | 0.29 | 0.7% |
+  attn kernel qk_norm_rope_kv_bf16: mean 4.77 us  min 3.99  n/step 288
+  attn kernel attn_decode_bf16_splitkv: mean 41.11 us  min 38.91  n/step 288
+
+kernel mode, c=3.1 us per launch removed: sum 43.78 ms over 868 launches
+| class | launches | GPU ms | share of kernel sum |
+|---|---:|---:|---:|
+| gate+up | 36 | 14.79 | 33.8% |
+| attn | 576 | 12.40 | 28.3% |
+| down | 36 | 7.67 | 17.5% |
+| q/o | 72 | 4.83 | 11.0% |
+| head | 1 | 2.51 | 5.7% |
+| k+v | 36 | 1.36 | 3.1% |
+| norm/elementwise | 111 | 0.15 | 0.3% |
+
