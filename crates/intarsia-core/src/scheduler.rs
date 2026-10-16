@@ -45,6 +45,8 @@ use crate::error::{Error, Result};
 
 /// Hard cap on `max_batch` (operator decision 8.1: exact kernels only, 8 rows; `Model::BATCH_MAX_ROWS`).
 pub const MAX_BATCH_CAP: usize = 8;
+/// Default `spec_off_at` (design 6: speculation off at B >= 4).
+pub const SPEC_OFF_AT_DEFAULT: usize = 4;
 
 /// Identifies one submitted request (assigned at submit, increasing).
 pub type RequestId = u64;
@@ -171,10 +173,16 @@ pub struct SchedulerConfig {
     /// final chunk of a prompt is shorter than its `C`; the budget never splits a chunk.
     pub busy_chunks_per_iter: usize,
     /// Speculation is offered to sequences only while fewer than this many sequences decode (design 6: off at B >= 4).
-    /// 0 disables it entirely.
+    /// 0 and 1 both disable it entirely (a decode step always has at least one sequence); `MAX_BATCH_CAP + 1` keeps it
+    /// on at every batch size. Larger values are rejected by [`SchedulerConfig::validate`].
     pub spec_off_at: usize,
-    /// Keep a [`TraceEvent`] log (tests, the identity harness).
+    /// Keep the last [`SchedulerConfig::trace_cap`] [`TraceEvent`]s for [`Scheduler::take_trace`] (tests, the identity
+    /// harness). Bounded: older events are dropped. Production leaves this off.
     pub trace: bool,
+    /// Print every [`TraceEvent`] to stderr (`INTARSIA_CB_TRACE=1`). Stores nothing.
+    pub trace_stderr: bool,
+    /// Ring size of the stored trace (`trace`).
+    pub trace_cap: usize,
     /// Offer idle slots' KV prefixes for reuse at admission (default). Off: every request starts from an empty slot
     /// (the concurrent-identity harness compares against cold-prefill solo runs).
     pub prefix_reuse: bool,
@@ -188,8 +196,10 @@ impl Default for SchedulerConfig {
             solo_chunk: 2048,
             busy_chunk: 256,
             busy_chunks_per_iter: 1,
-            spec_off_at: 4,
+            spec_off_at: SPEC_OFF_AT_DEFAULT,
             trace: false,
+            trace_stderr: false,
+            trace_cap: 1 << 16,
             prefix_reuse: true,
         }
     }
@@ -202,6 +212,13 @@ impl SchedulerConfig {
         }
         if self.solo_chunk == 0 || self.busy_chunk == 0 || self.busy_chunks_per_iter == 0 {
             return Err(Error::BadRequest("prefill chunk sizes and chunks per iteration must be >= 1".into()));
+        }
+        if self.spec_off_at > MAX_BATCH_CAP + 1 {
+            return Err(Error::BadRequest(format!(
+                "spec_off_at {} outside 0..={}",
+                self.spec_off_at,
+                MAX_BATCH_CAP + 1
+            )));
         }
         Ok(())
     }
@@ -392,7 +409,9 @@ pub struct Scheduler<M: BatchModel, S: BatchSeq<M>> {
     metrics: Arc<Mutex<BatchMetrics>>,
     /// Requests submitted but not yet admitted (shared with [`BatchEngine::submit`] for the queue bound).
     queued: Arc<AtomicUsize>,
-    trace: Vec<TraceEvent>,
+    trace: VecDeque<TraceEvent>,
+    /// `cfg.trace || cfg.trace_stderr`, fixed at construction: when false no event is built, stored or printed.
+    tracing: bool,
 }
 
 impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
@@ -406,6 +425,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             )));
         }
         let n = cfg.max_batch;
+        let tracing = cfg.trace || cfg.trace_stderr;
         Ok(Scheduler {
             cfg,
             model,
@@ -419,7 +439,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             failed_shared: Arc::new(Mutex::new(None)),
             metrics: Arc::new(Mutex::new(BatchMetrics::default())),
             queued: Arc::new(AtomicUsize::new(0)),
-            trace: Vec::new(),
+            trace: VecDeque::new(),
+            tracing,
         })
     }
 
@@ -436,7 +457,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         self.metrics.lock().unwrap().clone()
     }
     pub fn take_trace(&mut self) -> Vec<TraceEvent> {
-        std::mem::take(&mut self.trace)
+        std::mem::take(&mut self.trace).into()
     }
     /// The fatal error that stopped the scheduler, if any.
     pub fn failed(&self) -> Option<&str> {
@@ -480,11 +501,18 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     }
 
     fn ev(&mut self, e: TraceEvent) {
-        if self.cfg.trace {
-            // Test hook (Metal serve gates): `INTARSIA_CB_TRACE=1` documented a stderr log, but nothing drained `trace`.
+        if !self.tracing {
+            return;
+        }
+        if self.cfg.trace_stderr {
             let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
             eprintln!("cb-trace t={ms} {e:?}");
-            self.trace.push(e);
+        }
+        if self.cfg.trace {
+            if self.trace.len() >= self.cfg.trace_cap.max(1) {
+                self.trace.pop_front();
+            }
+            self.trace.push_back(e);
         }
     }
 
@@ -677,7 +705,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             did = true;
             let b = decoding.len();
             let spec_allowed = b < self.cfg.spec_off_at;
-            if self.cfg.trace {
+            if self.cfg.trace_stderr {
                 // Test hook: marks the decode phase so `spec:` lines (INTARSIA_SPEC_TRACE) printed by `prepare` below can be
                 // attributed to an iteration, including iterations where every sequence drafted and no Decode event follows.
                 let ms =
@@ -712,7 +740,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                 }
             }
             if !rows.is_empty() {
-                self.ev(TraceEvent::Decode { iter: self.iter, ids: row_of.clone(), spec_allowed });
+                if self.tracing {
+                    self.ev(TraceEvent::Decode { iter: self.iter, ids: row_of.clone(), spec_allowed });
+                }
                 let outs = match self.model.decode_step(&rows) {
                     Ok(o) if o.len() == rows.len() => o,
                     Ok(o) => {

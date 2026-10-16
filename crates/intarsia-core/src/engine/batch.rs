@@ -26,6 +26,7 @@ use crate::error::{Error, Result};
 use crate::model::{HeadMode, Model, StepOut};
 use crate::scheduler::{
     BatchEngine, BatchMetrics, BatchModel, BatchSeq, RequestId, Row, SchedulerConfig, SeqStep, MAX_BATCH_CAP,
+    SPEC_OFF_AT_DEFAULT,
 };
 use crate::state::SequenceState;
 use crate::telemetry::{Telemetry, TelemetrySnapshot};
@@ -43,8 +44,11 @@ pub struct BatchedOptions {
     /// Reuse the KV prefix an idle slot holds (default on). `INTARSIA_CB_NO_REUSE=1` switches it off, which the
     /// concurrent-identity harness uses to compare against a cold-prefill solo reference.
     pub prefix_reuse: bool,
-    /// Log scheduler events to stderr (`INTARSIA_CB_TRACE=1`).
+    /// Log scheduler events to stderr (`INTARSIA_CB_TRACE=1`). Nothing is stored.
     pub trace: bool,
+    /// Speculation drafts only while fewer than this many sequences decode (`--spec-off-at`, default
+    /// [`SPEC_OFF_AT_DEFAULT`]). No effect unless speculation is enabled.
+    pub spec_off_at: usize,
     /// Test seam: feed `token` once instead of the real one in the decode row of slot `.0` whose slot holds `.1` tokens
     /// (error-isolation tests put an invalid id into one row). Always `None` outside tests.
     #[doc(hidden)]
@@ -52,6 +56,20 @@ pub struct BatchedOptions {
 }
 
 impl BatchedOptions {
+    /// The scheduler policy these options select, for a model whose prefill chunk is `solo_chunk`.
+    pub fn scheduler_config(&self, solo_chunk: usize) -> SchedulerConfig {
+        SchedulerConfig {
+            max_batch: self.max_batch,
+            max_queue: self.max_queue,
+            solo_chunk,
+            busy_chunk: BUSY_PREFILL_CHUNK.min(solo_chunk),
+            prefix_reuse: self.prefix_reuse,
+            trace_stderr: self.trace,
+            spec_off_at: self.spec_off_at,
+            ..SchedulerConfig::default()
+        }
+    }
+
     pub fn new(max_batch: usize, max_queue: usize) -> Self {
         let env = |k: &str| std::env::var(k).map(|v| v == "1").unwrap_or(false);
         BatchedOptions {
@@ -59,6 +77,7 @@ impl BatchedOptions {
             max_queue,
             prefix_reuse: !env("INTARSIA_CB_NO_REUSE"),
             trace: env("INTARSIA_CB_TRACE"),
+            spec_off_at: SPEC_OFF_AT_DEFAULT,
             row_fault: None,
         }
     }
@@ -345,15 +364,7 @@ impl BatchedEngine {
         telemetry.set_kv(0, total_kv, 0, cap as u64 * opts.max_batch as u64);
 
         let solo_chunk = model.prefill_chunk().max(1);
-        let cfg = SchedulerConfig {
-            max_batch: opts.max_batch,
-            max_queue: opts.max_queue,
-            solo_chunk,
-            busy_chunk: BUSY_PREFILL_CHUNK.min(solo_chunk),
-            prefix_reuse: opts.prefix_reuse,
-            trace: opts.trace,
-            ..SchedulerConfig::default()
-        };
+        let cfg = opts.scheduler_config(solo_chunk);
         let vocab = model.dims.vocab;
         let verify_rows = model.verify_rows();
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
@@ -514,5 +525,16 @@ mod tests {
         drop(a);
         assert!(matches!(rx.try_recv(), Ok(GenEvent::Error { .. })));
         assert!(rx.try_recv().is_err(), "a second event after the first Error");
+    }
+
+    #[test]
+    fn spec_off_at_reaches_the_scheduler_config() {
+        let mut o = BatchedOptions::new(4, 16);
+        assert_eq!(o.scheduler_config(2048).spec_off_at, SPEC_OFF_AT_DEFAULT);
+        o.spec_off_at = 7;
+        let c = o.scheduler_config(2048);
+        assert_eq!((c.spec_off_at, c.max_batch, c.max_queue), (7, 4, 16));
+        assert!(!c.trace, "production never stores the trace");
+        assert!(c.validate().is_ok());
     }
 }

@@ -89,6 +89,8 @@ Across the whole log 12484 draft tokens were proposed, all in phases with b < 4 
 * Speculation together with prefix reuse: gate A ran without `--spec`, gate B with `INTARSIA_CB_NO_REUSE=1`, so the spec `finish` truncation to `plen + generated - 1` (section 1) never fed a reused follow-up in either gate.
 * Chunk-size invariance (256 vs 2048 prefill) remains unproven, as before; both gates compare at the chunk the server reports.
 
+**Open item: speculation and prefix reuse enabled together are not yet gated.** Gate A ran reuse without `--spec` and gate B ran spec with reuse off; no run has both on in one server.
+
 ## 7. Reproduce
 
 ```

@@ -357,6 +357,10 @@ Core path M0-M3: **17-23 working days** (estimate). Optional M4-M6: +9-11. This 
 
 Only the slot layout part of 3 is still open.
 
+Open items:
+
+* Speculation and prefix reuse enabled together: not yet gated (gates A and B of `docs/results/2026-10-16-metal-cb-gates-reuse-spec.md` each ran with one of them off).
+
 ## 9. Sources and confidence
 
 Repository (measured; read for this document): overnight report `docs/results/2026-10-15-metal-overnight-report.md` (decode, prefill, TTFT); `[levers]` (sections 1, 2, 5, 6, 7); `[g0]` (multi-row GEMV costs, bitwise tests); `[g0b]` (multi-row attention, small ops, verify-step estimate, alignment remedy); `[g1]` (verify path design, `exact_rows`, `rows_exact`, `Phase::Verify`, identity method);
