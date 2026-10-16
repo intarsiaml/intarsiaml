@@ -53,6 +53,7 @@ use objc2_metal::{
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub type Device = Retained<ProtocolObject<dyn MTLDevice>>;
@@ -163,6 +164,8 @@ struct Stream {
     label: Option<profile::Label>,
     /// Dispatches per command buffer before it is committed (`COMMIT_EVERY`, overridable for experiments).
     commit_every: usize,
+    /// Profiling only: host time at which the open command buffer was created.
+    opened: f64,
 }
 
 pub struct MetalBackend {
@@ -174,6 +177,8 @@ pub struct MetalBackend {
     metal4: bool,
     stream: Mutex<Stream>,
     hosts: Mutex<host::HostCache>,
+    /// Pre-wire newly wrapped weight files ([`MetalBackend::set_prewire`]); off by default.
+    prewire: AtomicBool,
     page_size: usize,
     /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
     /// cached. Construction stays cheap; the one-off cost lands on whoever asks first (the telemetry probe).
@@ -236,6 +241,7 @@ impl MetalBackend {
                 ..Stream::default()
             }),
             hosts: Mutex::new(host::HostCache::default()),
+            prewire: AtomicBool::new(false),
             page_size,
             bandwidth: OnceLock::new(),
         })
@@ -243,6 +249,19 @@ impl MetalBackend {
 
     pub fn arc() -> Result<Arc<dyn Backend>> {
         Ok(Arc::new(MetalBackend::new()?))
+    }
+
+    /// Pre-wire the weight files that `wrap_host` sees from now on (see `host.rs`): off by default, because it only pays when
+    /// there is time between loading and the first launch (a server) and costs a wait in `Drop` and a stall of work that
+    /// starts right after the load. The caller decides (`intarsia serve` turns it on; `INTARSIA_METAL_PREWIRE=0` / `=1` override
+    /// in the CLI, `crates/intarsia-cli/src/common.rs`).
+    pub fn set_prewire(&self, on: bool) {
+        self.prewire.store(on, Ordering::Relaxed);
+    }
+
+    /// Bytes of weight files pre-wired so far (0 while [`MetalBackend::set_prewire`] is off).
+    pub fn prewired_bytes(&self) -> u64 {
+        self.hosts.lock().unwrap().prewired()
     }
 
     pub fn device(&self) -> &ProtocolObject<dyn MTLDevice> {
@@ -312,10 +331,12 @@ impl MetalBackend {
     fn flush_locked(st: &mut Stream) {
         if let Some((cb, enc)) = st.open.take() {
             enc.endEncoding();
+            let commit = st.prof.is_some().then(profile::host_now);
             cb.commit();
             let label = st.label.take();
             if let Some(p) = st.prof.as_mut() {
-                p.note(cb.clone(), label, st.dispatches);
+                let host = profile::Host { open: st.opened, commit: commit.unwrap_or(0.0), committed: profile::host_now() };
+                p.note(cb.clone(), label, st.dispatches, host);
             }
             Self::track(st, cb);
             st.dispatches = 0;
@@ -342,6 +363,9 @@ impl MetalBackend {
                 .computeCommandEncoderWithDispatchType(MTLDispatchType::Serial)
                 .ok_or_else(|| Error::backend("metal: computeCommandEncoder failed"))?;
             st.open = Some((cb, enc));
+            if st.prof.is_some() {
+                st.opened = profile::host_now();
+            }
         }
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
@@ -503,6 +527,8 @@ impl Drop for MetalBackend {
         // an open encoder must be ended before it is released (Metal aborts otherwise); this also waits for the queue,
         // which writes the last trace records when INTARSIA_METAL_PROFILE is set. A no-op when nothing is pending.
         let _ = self.synchronize(0);
+        // the pre-wiring blits read the weight mappings, which go away with `hosts`
+        self.drain_prewire(true);
     }
 }
 
@@ -686,6 +712,8 @@ impl Backend for MetalBackend {
         if let Some(p) = st.prof.as_mut() {
             p.resolve();
         }
+        drop(st);
+        self.drain_prewire(false);
         match first {
             Some(e) => Err(Error::backend(e)),
             None => Ok(()),
