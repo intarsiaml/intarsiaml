@@ -349,10 +349,9 @@ fn shutdown_ends_every_submitted_request() {
     rxs.push(first);
     drop(eng);
     for (i, rx) in rxs.iter().enumerate() {
-        // either cancelled (`Done`) or refused (`Error`), never a channel closed without an end event
-        match collect(rx) {
-            Ok(o) => assert_eq!(o.reason, Some(FinishReason::Cancelled), "request {i}"),
-            Err(m) => assert!(!m.is_empty(), "request {i}"),
-        }
+        // all of them end cancelled, including those still in the scheduler's channel at shutdown (not the `Error`
+        // a dropped request would get as a last resort)
+        let o = collect(rx).unwrap_or_else(|m| panic!("request {i}: {m}"));
+        assert_eq!(o.reason, Some(FinishReason::Cancelled), "request {i}");
     }
 }
