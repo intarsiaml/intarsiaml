@@ -667,6 +667,12 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             did = true;
             let b = decoding.len();
             let spec_allowed = b < self.cfg.spec_off_at;
+            if self.cfg.trace {
+                // Test hook: marks the decode phase so `spec:` lines (INTARSIA_SPEC_TRACE) printed by `prepare` below can be
+                // attributed to an iteration, including iterations where every sequence drafted and no Decode event follows.
+                let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+                eprintln!("cb-trace t={ms} DecodePhase {{ iter: {}, b: {b}, spec_allowed: {spec_allowed} }}", self.iter);
+            }
             // plan every row; a planning error fails that request only
             let mut rows: Vec<Row<M::Mode>> = Vec::with_capacity(b);
             let mut row_of: Vec<RequestId> = Vec::with_capacity(b);
