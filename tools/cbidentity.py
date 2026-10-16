@@ -440,6 +440,11 @@ def compare_case(c, r, t):
     if t["status"] == "cancelled":
         info["cancelled"] = True
         info["emitted_bytes"] = len(t["text"].encode())
+        # did the cancel really cut the generation short? (a "cancelled" request that ran to its end tests nothing)
+        ri0, ti0 = r.get("ids"), t.get("ids")
+        info["emitted_tokens"] = len(ti0) if ti0 is not None else None
+        info["ref_tokens"] = comp_tokens(r)
+        info["cancel_cut"] = (len(ti0) < len(ri0)) if (ri0 is not None and ti0 is not None) else (len(t["text"]) < len(r["text"]))
         if not r["text"].startswith(t["text"]):
             i = first_diff(r["text"], t["text"])
             reasons.append(f"cancelled prefix is not a prefix of the reference text (first diff at char {i}: ref {r['text'][i:i + 30]!r} vs {t['text'][i:i + 30]!r})")
@@ -561,6 +566,7 @@ def compare_runs(cases_by_id, ref_hdr, ref, test_files, expect_cap=None, alts=()
             if info.get("cancelled"):
                 counts["cancelled"] += 1
                 counts["cancelled_with_output"] += 1 if info.get("emitted_bytes") else 0
+                counts["cancel_cut"] += 1 if info.get("cancel_cut") else 0
             elif is_cancel_case(c):
                 counts["cancel_case_completed_first"] += 1
             if info.get("ids_compared"):
@@ -600,14 +606,14 @@ def print_report(rep, cov, ref_hdr):
     for w in rep["warnings"]:
         print("WARNING:", w)
     print("\n== identity vs reference ==")
-    cols = ["run", "cases", "pass", "mismatch", "ref_err", "stream/non", "cancel(out>0)/cases", "ids cmp", "cached!=", "mism+cached!="]
+    cols = ["run", "cases", "pass", "mismatch", "ref_err", "stream/non", "cancel(out>0)/cases", "cut short", "ids cmp", "cached!=", "mism+cached!="]
     rows = []
     for run in rep["runs"]:
         c = run["counts"]
         ncancel_cases = sum(1 for r in run["rows"] if r["cancel_case"])
         rows.append([fmt_run_label(run), len(run["rows"]), c.get("pass", 0), c.get("mismatch", 0),
                      c.get("ref_error", 0) + c.get("missing", 0), f"{c.get('stream', 0)}/{c.get('nonstream', 0)}",
-                     f"{c.get('cancelled', 0)}({c.get('cancelled_with_output', 0)})/{ncancel_cases}", c.get("ids_compared", 0), c.get("cached_differs", 0),
+                     f"{c.get('cancelled', 0)}({c.get('cancelled_with_output', 0)})/{ncancel_cases}", c.get("cancel_cut", 0), c.get("ids_compared", 0), c.get("cached_differs", 0),
                      c.get("mismatch_with_cached_diff", 0)])
     w = [max(len(str(x)) for x in [cols[i]] + [r[i] for r in rows]) for i in range(len(cols))]
     print("  ".join(cols[i].ljust(w[i]) for i in range(len(cols))))
