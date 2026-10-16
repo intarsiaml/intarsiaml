@@ -1,0 +1,20 @@
+[
+ {
+  "log": "/opt/code/intarsiaml-m2close/docs/results/raw/2026-10-16-metal-cb-m2-closeout/perf/fifo-soak/server.log",
+  "coverage": {
+   "admitted": 451,
+   "reused": 430,
+   "contested_chunks": 618,
+   "cancel_queued": 12,
+   "cancel_prefill": 7,
+   "cancel_decode": 34,
+   "done": 410,
+   "failed": 0,
+   "rejected": 0,
+   "chunks": 2352,
+   "first_tokens": 444,
+   "requests": 463
+  },
+  "violations": []
+ }
+]
