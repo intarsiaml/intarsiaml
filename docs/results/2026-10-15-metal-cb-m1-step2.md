@@ -10,18 +10,22 @@ request is byte-identical (token ids, text, deltas, finish reason, counts) to it
 request comparisons** (server `--max-batch 8` and `4`, client in-flight B = 2/4/8, streaming and non-streaming, dense and
 sparse arrivals, prefix reuse off and on), 20/20 cancellations really cut short in every run. `--max-batch 1` (default) is the
 unchanged `LocalEngine` path: the M0 solo identity subset is identical to the 8254311 binary (33/33, spec off and `--spec ngram`).
-Throughput: aggregate **1.88x / 3.20x / 4.37x** at N = 2 / 4 / 8 with `--gen 256` (gate 1.6 / 3.0 / 4.5: **N = 8 misses by 3%**), and
-**1.92x / 3.39x / 4.77x** with the design's `--gen 512` wording (all three met); decode-window aggregate at N = 8 is 187 tok/s
-(gate >= 175).
+Throughput gate at the requested `--gen 256`: aggregate **1.88x / 3.20x / 4.37x** at N = 2 / 4 / 8 against 1.6 / 3.0 / 4.5:
+**N = 2 and 4 met, the N = 8 aggregate gate is MISSED (4.37x, 3% short)**; decode-window aggregate at N = 8 is 187 tok/s (gate >= 175, met).
+Supplementary, with the design doc's own `--gen 512` wording: 1.92x / 3.39x / 4.77x (all three met).
 
 ## 1. What was built
 
 | Commit | Content |
 |---|---|
 | `825b46f` | The wiring (below), CPU tiny-model identity tests `crates/intarsia-models/tests/batch_engine.rs`. |
-| `efca589`, `1bdcbca`, `0d9f64a`, `9ebd6f8` and the harness/script commits | Metal-only check before the weights load; `avoid_single_row_prefill` in the adapter after the chunk-no1 merge; `--ref-alt` in `tools/cbidentity.py`; gate scripts. |
-| merges `9487bc5`, `9ebd6f8` | `spike/metal` 28e5c5a and 32a42d8. No conflicts. |
-| `cbidentity` fix commits | `cancel_after_ms` fix and the "cut short" column (section 5). |
+| `efca589` | Metal-only check before the weights load. |
+| `1bdcbca` | `avoid_single_row_prefill` in the adapter (after the chunk-no1 merge `a0f66b0`); `1a38892` fixes the stale `SERVE_MAX_BATCH == 1` test assertion. |
+| `9d635a6` | `tools/cbidentity.py --ref-alt` (reference per reported chunk). |
+| `f1307cf`, `7283398` | `cancel_after_ms` fix + selftest cases; the "cut short" column (section 5). |
+| `1aa7c97`, `2d36908`, `f7eda13`, `7f7ae1d`, `0d9f64a` | Gate scripts (zsh word-splitting fix, REFDIR, GEN, interleaved gate 4 with macmon / ps). |
+| `64df17f`, `9fcd29f` | Raw gate outputs; this document. |
+| merges `a0f66b0` (chunk-no1 71b40b1), `9487bc5` (28e5c5a), `9ebd6f8` (32a42d8) | `spike/metal` merged three times, no conflicts. The final gates ran on binary `9ebd6f8`; later commits change only scripts, tools and docs. |
 
 ### How the adapter maps onto `Seq` / `Model` (`crates/intarsia-core/src/engine/batch.rs`, new; `engine.rs` refactor)
 
@@ -124,7 +128,7 @@ M0 subset (11 cases: short, 4k, grounded, stop strings, `min_tokens`, EOS, three
 | sparse arrivals (`--arrival-scale 3`) | `--max-batch 8`, reuse off | 2, 4 | 4 x 203 | **0** | 10-12 / 171-173 | 20/20 each |
 | prefix reuse on (informational) | `--max-batch 8`, reuse on | 8 | 2 x 203 | **0** | 2 / 181 | 20/20 each |
 
-Token ids were compared for 201 of 203 requests per run (the other two are cancellation cases that emitted nothing before
+Token ids were compared for 201 of 203 requests per run (197 in the `--max-batch 4` B = 8 runs; the others are cancellation cases that emitted nothing before
 the cancel; for the cancelled ones the emitted ids are checked to be a prefix of the reference). Server side, from `/metrics`
 after the main runs: 120 requests finished `cancelled` (6 runs x 20), `intarsia_batch_decode_rows_total` = 2659 / 9434 / 1746 /
 3602 / 496 / 644 / 781 / 765 passes of 1 / 2 / .. / 8 rows (real batches of every size up to 8), `queue_depth_max` 6, `/health`
@@ -170,6 +174,8 @@ about a baseline that drifted 1.8x in another soak.
 | ratio | **1.92x** | **3.39x** | **4.77x** (met) |
 | overlap decode tok/s / ITL p50 / p95 ms | 69.1 / 28.8 / 30.0 | 128.4 / 31.1 / 32.3 | 186.7 / 42.5 / 45.5 |
 
+* localeval's `aggregate_decode_tok_s` (result.json) is the same number as the "aggregate ... (tokens/wall)" printed in the log; the
+  tables use it, and `overlap_decode_tok_s` is the decode-window figure.
 * N = 1 is unchanged: `--max-batch 8` single-stream decode 35.0 vs 35.1 tok/s (0.3%, gate 2%). The `--max-batch 1` path is the
   untouched `LocalEngine`.
 * Baseline drift: the three `--max-batch 1` passes agree within 2% (single-stream decode 35.0-35.2; aggregates within 3.6%),
@@ -178,8 +184,8 @@ about a baseline that drifted 1.8x in another soak.
   other sessions' idle shells; raw files in `out/final/gate4-*/` (`macmon.jsonl`, `ps-*.txt`).
 * The N = 8 miss at `--gen 256`: aggregate is tokens / wall time including the 8 one-thousand-token prefills (about 2.8 s of a
   13.5 s run, each 256-token chunk stalls the decode step, ITL p95 105 ms); the decode window itself runs at 187 tok/s (5.3x
-  one stream). With `--gen 512` the same prefill cost is diluted and the aggregate gate is met (4.77x). Whether to count 256 or 512
-  tokens for the gate is the operator's call; both are reported. Overlapping prefill with decode (mixed passes) is out of scope (design 4.5 item 3).
+  one stream). With `--gen 512` the same prefill cost is diluted and the aggregate gate is met (4.77x). The task asked for `--gen 256`,
+  so this is a missed gate; the `--gen 512` row is supplementary. Overlapping prefill with decode (mixed passes) is out of scope (design 4.5 item 3).
 * localeval run ids (results under `/opt/code/deepeval-decode-agg/results/`, unanimis ids in the logs): gen 256 passes
   `20261015-214412 / 214718 / 214855 / 215202 / 215338 / 215643` (`-adhoc-cbwire-pN-mbM-gen256`), gen 512 passes
   `20261015-215819 / 220326 / 220552` (`-gen512`).
@@ -207,6 +213,11 @@ discarded: `scratchpad/step2r/gate3x*`, `gate4-gen512*` are not used anywhere).*
 * Chunk-size identity (256 vs 2048 prefill produce the same bits) is unproven; identity is shown at equal C, with C reported per request.
 * `forward_logits*` / `forward_script` unsupported with `--max-batch > 1` (accuracy tooling must use `--max-batch 1`).
 * No adaptive chunk budget, no mixed prefill+decode passes (M2). `trace_logits` requests batch instead of running alone.
+* `--spec ngram` together with `--max-batch > 1` ran only on the CPU fixture (`batch_engine.rs`, accepted drafts asserted at B = 2
+  and 4); on Metal the speculation gate (auto-off at B >= 4) and a verify pass inside a batched iteration are untested.
+* Commits without the `Co-Authored-By: Claude Opus 5.5` trailer (history not rewritten, hashes are cited by binaries, fleetq labels
+  and this document): `efca589`, `1bdcbca`, `1a38892`, `1aa7c97`, `1eb3125`, `2d36908`, `f7eda13`, `7f7ae1d`, `0d9f64a`, `64df17f` and
+  the three merge commits `a0f66b0`, `9487bc5`, `9ebd6f8`.
 * The Qwen3-8B Metal test for `BatchedEngine` is the harness run, not a `cargo test` (so nothing new to gate behind
   `INTARSIA_TEST_REAL_MODEL`); the CPU test uses the tiny fixture, where `batch_capable()` is false and the cpu backend
   serves rows one at a time.
