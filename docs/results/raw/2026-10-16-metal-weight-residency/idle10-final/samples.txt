@@ -1,0 +1,12 @@
+base r1 done
+rs r1 done
+rs r2 done
+base r2 done
+base r3 done
+rs r3 done
+rs r4 done
+base r4 done
+base r5 done
+rs r5 done
+rs r6 done
+base r6 done
