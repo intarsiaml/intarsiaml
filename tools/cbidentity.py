@@ -1075,6 +1075,10 @@ def cmd_selftest(_args):
     check("synthetic: cancel prefix violation (deltas) caught", compare_case(cc, ref, rec(text="abc", deltas=("ab", "c"), status="cancelled", finish=None))[0] == "mismatch")
     v, _, info = compare_case(cc, ref, rec(cached=3))
     check("synthetic: cached_tokens difference reported, not a mismatch", v == "pass" and info["cached_differs"])
+    # a --max-batch 1 server (LocalEngine) sends no usage.prompt_tokens_details.prefill_chunk: its reference is picked by the
+    # chunk in its plan, and only batched (test) records need to carry one
+    check("synthetic: solo records carry no chunk, the reference chunk comes from its plan",
+          rec_chunk(rec()) is None and ref_chunk({"server": {"plan": {"prefill_chunk": 256}}}) == 256)
 
     # token ids: primary criterion, compared only when both records have them
     rid = rec(ids=[1, 2])

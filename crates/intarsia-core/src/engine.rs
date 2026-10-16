@@ -116,9 +116,9 @@ pub enum GenEvent {
         prefill_ms: f64,
         /// Time spent producing tokens after the first.
         decode_ms: f64,
-        /// Prefill chunk size the prompt was processed with (the batched engine picks 256 or the model's chunk per
-        /// request, see `scheduler::SchedulerConfig`; the single-sequence engine always uses the model's). `None`:
-        /// not known.
+        /// Prefill chunk size the prompt was processed with. Only the batched engine reports it (it picks 256 or the
+        /// model's chunk per request, see `scheduler::SchedulerConfig`); the single-sequence engine sends `None`
+        /// (its chunk is the plan's `prefill_chunk`) so CUDA / HIP responses are unchanged.
         prefill_chunk: Option<usize>,
     },
     /// The request failed (bad request, backend error); no `Done` follows.
@@ -673,8 +673,9 @@ pub(crate) struct Outcome {
 }
 
 /// Report a finished request: telemetry, then the `Done` event. Shared by the single-sequence worker and the batched
-/// engine so the two cannot drift. `chunk` is the prefill chunk size the request's prompt was processed with.
-pub(crate) fn report_done(telemetry: &Telemetry, tx: &Sender<GenEvent>, o: Outcome, chunk: usize) {
+/// engine so the two cannot drift. `chunk` is the prefill chunk size the request's prompt was processed with, when the
+/// engine reports it (batched engine only).
+pub(crate) fn report_done(telemetry: &Telemetry, tx: &Sender<GenEvent>, o: Outcome, chunk: Option<usize>) {
     telemetry.request_finished(
         o.reason.as_str(),
         o.prompt_tokens,
@@ -692,7 +693,7 @@ pub(crate) fn report_done(telemetry: &Telemetry, tx: &Sender<GenEvent>, o: Outco
         stop_sequence: o.stop_sequence,
         prefill_ms: o.prefill.as_secs_f64() * 1e3,
         decode_ms: o.decode.as_secs_f64() * 1e3,
-        prefill_chunk: Some(chunk),
+        prefill_chunk: chunk,
     });
 }
 
@@ -711,11 +712,11 @@ fn run_job(sh: &Shared, job: Job) {
     let mut g = sh.inner.lock().unwrap();
     let res = generate_one(sh, &mut g, req, tx.clone());
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
-    let chunk = g.model.prefill_chunk();
     drop(g);
     sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
     match res {
-        Ok(o) => report_done(&sh.telemetry, &tx, o, chunk),
+        // the chunk size is reported only by the batched engine (its scheduler picks it per request)
+        Ok(o) => report_done(&sh.telemetry, &tx, o, None),
         Err(e) => report_error(&sh.telemetry, &tx, plen, t_total.elapsed(), &e),
     }
 }

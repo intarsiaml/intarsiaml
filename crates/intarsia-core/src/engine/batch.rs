@@ -244,7 +244,7 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         let kv = model.kv_totals();
         self.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
         self.ended = true;
-        report_done(&self.telemetry, &self.tx, outcome, self.chunk);
+        report_done(&self.telemetry, &self.tx, outcome, Some(self.chunk));
         Ok(())
     }
 

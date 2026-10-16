@@ -297,3 +297,23 @@ fn bad_decode_row_fails_only_its_request() {
     let snap = tel.snapshot();
     assert_eq!((snap.running, snap.waiting), (0, 0), "{snap:?}");
 }
+
+/// The `Done` event's prefill chunk: reported by the batched engine only (so CUDA / HIP, which never batch, answer as
+/// before).
+fn done_chunk(rx: &Receiver<GenEvent>) -> Option<usize> {
+    loop {
+        match rx.recv_timeout(Duration::from_secs(120)).expect("engine stalled") {
+            GenEvent::Done { prefill_chunk, .. } => return prefill_chunk,
+            GenEvent::Error { message } => panic!("{message}"),
+            GenEvent::Token { .. } => {}
+        }
+    }
+}
+
+#[test]
+fn only_the_batched_engine_reports_the_prefill_chunk() {
+    let req = || GenRequest { prompt: vec![5, 6, 7], max_tokens: 2, ignore_eos: true, ..Default::default() };
+    assert_eq!(done_chunk(&solo(7, None).submit(req()).unwrap()), None);
+    let (eng, _) = batched(7, 2, None, 4);
+    assert_eq!(done_chunk(&eng.submit(req()).unwrap()), Some(CHUNK));
+}
