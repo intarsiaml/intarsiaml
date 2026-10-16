@@ -49,6 +49,9 @@ pub struct BatchedOptions {
     /// Speculation drafts only while fewer than this many sequences decode (`--spec-off-at`, default
     /// [`SPEC_OFF_AT_DEFAULT`]). No effect unless speculation is enabled.
     pub spec_off_at: usize,
+    /// Prefill chunk of a sequence that starts its prefill while others decode (`--busy-chunk`, default
+    /// [`BUSY_PREFILL_CHUNK`]); capped at the model's chunk.
+    pub busy_chunk: usize,
     /// Test seam: feed `token` once instead of the real one in the decode row of slot `.0` whose slot holds `.1` tokens
     /// (error-isolation tests put an invalid id into one row). Always `None` outside tests.
     #[doc(hidden)]
@@ -62,7 +65,7 @@ impl BatchedOptions {
             max_batch: self.max_batch,
             max_queue: self.max_queue,
             solo_chunk,
-            busy_chunk: BUSY_PREFILL_CHUNK.min(solo_chunk),
+            busy_chunk: self.busy_chunk.min(solo_chunk),
             prefix_reuse: self.prefix_reuse,
             trace_stderr: self.trace,
             spec_off_at: self.spec_off_at,
@@ -78,6 +81,7 @@ impl BatchedOptions {
             prefix_reuse: !env("INTARSIA_CB_NO_REUSE"),
             trace: env("INTARSIA_CB_TRACE"),
             spec_off_at: SPEC_OFF_AT_DEFAULT,
+            busy_chunk: BUSY_PREFILL_CHUNK,
             row_fault: None,
         }
     }
@@ -536,5 +540,18 @@ mod tests {
         assert_eq!((c.spec_off_at, c.max_batch, c.max_queue), (7, 4, 16));
         assert!(!c.trace, "production never stores the trace");
         assert!(c.validate().is_ok());
+    }
+
+    #[test]
+    fn busy_chunk_reaches_the_scheduler_config() {
+        let mut o = BatchedOptions::new(4, 16);
+        assert_eq!(o.scheduler_config(2048).busy_chunk, BUSY_PREFILL_CHUNK);
+        assert_eq!(BUSY_PREFILL_CHUNK, 256, "the default decode-time prefill chunk stays 256");
+        o.busy_chunk = 320;
+        let c = o.scheduler_config(2048);
+        assert_eq!((c.busy_chunk, c.solo_chunk), (320, 2048));
+        assert!(c.validate().is_ok());
+        // never above the model's chunk
+        assert_eq!(o.scheduler_config(128).busy_chunk, 128);
     }
 }

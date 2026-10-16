@@ -109,6 +109,9 @@ pub struct ModelArgs {
     /// `INTARSIA_METAL_KEEPWARM_MODE=blit` keeps the files warm with GPU touches instead of an `MTLResidencySet`.
     #[arg(skip)]
     pub keepwarm: Option<bool>,
+    /// `serve --busy-chunk`, batched engine only. `serve` only.
+    #[arg(skip)]
+    pub busy_chunk: Option<usize>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -286,6 +289,7 @@ impl ModelArgs {
             max_batch: self.max_batch,
             max_queue: self.max_queue,
             spec_off_at: self.spec_off_at,
+            busy_chunk: self.busy_chunk,
         })
     }
 
@@ -448,5 +452,17 @@ mod tests {
         assert!(Srv::try_parse_from(["t", "-m", "/m", "--spec-off-at", "10"]).is_err());
         let g = Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--spec-off-at", "4"]);
         assert!(g.is_err());
+    }
+
+    #[test]
+    fn busy_chunk_is_a_serve_flag_with_a_checked_range() {
+        let s = Srv::try_parse_from(["t", "-m", "/m"]).unwrap().a;
+        assert_eq!(usize::from(s.busy_chunk), intarsia_core::engine::BUSY_PREFILL_CHUNK);
+        assert_eq!(s.busy_chunk, 256, "default stays 256");
+        let s = Srv::try_parse_from(["t", "-m", "/m", "--busy-chunk", "320"]).unwrap().a;
+        assert_eq!(s.busy_chunk, 320);
+        assert!(Srv::try_parse_from(["t", "-m", "/m", "--busy-chunk", "15"]).is_err());
+        assert!(Srv::try_parse_from(["t", "-m", "/m", "--busy-chunk", "2049"]).is_err());
+        assert!(Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--busy-chunk", "320"]).is_err());
     }
 }
