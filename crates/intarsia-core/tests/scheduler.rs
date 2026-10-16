@@ -258,7 +258,7 @@ struct MockSeq {
     cached: usize,
     reason: Option<FinishReason>,
     out: Vec<u32>,
-    spec_log: Arc<Mutex<Vec<bool>>>,
+    spec_log: Arc<Mutex<Vec<(bool, bool)>>>,
     on_tokens: Arc<AtomicUsize>,
 }
 
@@ -330,8 +330,8 @@ impl BatchSeq<MockModel> for MockSeq {
     fn first_mode(&self) -> Mode {
         self.head_mode(1)
     }
-    fn prepare(&mut self, _m: &mut MockModel, _slot: usize, spec_allowed: bool) -> Result<SeqStep<Mode>> {
-        self.spec_log.lock().unwrap().push(spec_allowed);
+    fn prepare(&mut self, _m: &mut MockModel, _slot: usize, spec_allowed: bool, busy: bool) -> Result<SeqStep<Mode>> {
+        self.spec_log.lock().unwrap().push((spec_allowed, busy));
         Ok(SeqStep::Plain(self.tok, self.head_mode(self.generated + 1)))
     }
     fn accept(&mut self, out: Out) -> Result<()> {
@@ -1254,6 +1254,31 @@ fn spec_gate_follows_batch_size() {
         }
         assert!(logs.iter().all(|l| !l.lock().unwrap().is_empty()));
     }
+}
+
+/// The `busy` flag of `prepare`: false while a sequence decodes alone (before the other one is admitted, after it
+/// ended), true while at least two decode in the same iteration.
+#[test]
+fn busy_flag_follows_decoding_rows() {
+    let cfg = SchedulerConfig { max_batch: 2, spec_off_at: 8, trace: true, ..Default::default() };
+    let mut s = Scheduler::new(MockModel::new(2, 8192), cfg).unwrap();
+    let (long, rx_long, _) = MockSeq::new(greedy(vec![7; 5], 30));
+    let (short, rx_short, _) = MockSeq::new(greedy(vec![9; 5], 6));
+    let (log_long, log_short) = (long.spec_log.clone(), short.spec_log.clone());
+    s.submit(long).unwrap();
+    s.submit(short).unwrap();
+    run_to_end(&mut s);
+    let (long, short) = (log_long.lock().unwrap().clone(), log_short.lock().unwrap().clone());
+    assert!(long.iter().chain(short.iter()).all(|(allowed, _)| *allowed), "spec_off_at 8: always offered");
+    // the short request only ever decodes beside the long one
+    assert!(!short.is_empty() && short.iter().all(|(_, busy)| *busy), "{short:?}");
+    // the long one is busy exactly in the iterations the short one decodes (alone before it is admitted and after it
+    // ended), one contiguous stretch
+    let busy: Vec<bool> = long.iter().map(|(_, b)| *b).collect();
+    assert_eq!(busy.iter().filter(|b| **b).count(), short.len(), "{busy:?}");
+    let first = busy.iter().position(|b| *b).unwrap();
+    assert!(busy[first..first + short.len()].iter().all(|b| *b) && !busy[busy.len() - 1], "{busy:?}");
+    drop((rx_long, rx_short));
 }
 
 /// Real threads: several submitters and cancellers against the engine thread; every request still equals its solo

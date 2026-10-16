@@ -235,10 +235,16 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         self.chunk = chunk;
     }
 
-    fn prepare(&mut self, model: &mut SlotModel, slot: usize, spec_allowed: bool) -> Result<SeqStep<HeadMode>> {
+    fn prepare(
+        &mut self,
+        model: &mut SlotModel,
+        slot: usize,
+        spec_allowed: bool,
+        busy: bool,
+    ) -> Result<SeqStep<HeadMode>> {
         let SlotModel { model, states, .. } = model;
         let seq = self.seq()?;
-        seq.set_spec_allowed(spec_allowed);
+        seq.set_spec_allowed(spec_allowed, busy);
         Ok(match seq.prepare(model, &mut states[slot])? {
             Some((tok, mode)) => SeqStep::Plain(tok, mode),
             None => SeqStep::Ready,
