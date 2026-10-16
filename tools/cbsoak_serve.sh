@@ -22,9 +22,16 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 [ -n "${FLEETQ_JOB:-}" ] || echo "WARNING: FLEETQ_JOB not set: not inside a fleetq slot" >&2
 lsof -nP -iTCP:$PORT -sTCP:LISTEN -t >/dev/null 2>&1 && { echo "port $PORT already in use" >&2; exit 3; }
 exec > >(tee -a "$OUT/cbsoak_serve.log") 2>&1
-SPID=""
-cleanup() { if [ -n "$SPID" ] && kill -0 "$SPID" 2>/dev/null; then kill "$SPID" 2>/dev/null; sleep 3; kill -0 "$SPID" 2>/dev/null && kill -9 "$SPID" 2>/dev/null; fi; }
+SPID=""; MPID=""
+hyg() {  # $1 = label: other GPU/CPU users (ps top 12 by cpu), swap, memory pressure
+  { echo "--- $1 $(date '+%H:%M:%S')"; ps -axo pid,pcpu,rss,etime,comm | sort -k2 -nr | head -12 | cut -c1-150; sysctl vm.swapusage; echo "tracked ps: $(pgrep -fl 'kev|tensorfold' | head -5 | tr '\n' ';')"; } >> "$OUT/hygiene.txt" 2>&1
+}
+cleanup() { [ -n "$MPID" ] && kill "$MPID" 2>/dev/null; hyg "end (cleanup)"; if [ -n "$SPID" ] && kill -0 "$SPID" 2>/dev/null; then kill "$SPID" 2>/dev/null; sleep 3; kill -0 "$SPID" 2>/dev/null && kill -9 "$SPID" 2>/dev/null; fi; }
 trap cleanup EXIT INT TERM
+hyg "start (before macmon/server)"
+if command -v macmon >/dev/null 2>&1; then macmon pipe -i 1000 >"$OUT/macmon.jsonl" 2>/dev/null & MPID=$!; sleep 6; echo "macmon pid $MPID, idle sample (gpu_usage, 6 s before server start):"; tail -n 3 "$OUT/macmon.jsonl" | python3 -c "import sys,json
+for l in sys.stdin:
+    d=json.loads(l); print('  gpu_usage',d['gpu_usage'],'gpu_power',round(d['gpu_power'],2),'sys_power',round(d['sys_power'],1))"; fi
 echo "binary: $BIN  model: $MODEL  port: $PORT  extra: ${SERVE_EXTRA:-}"
 "$BIN" serve --model "$MODEL" --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port $PORT ${=SERVE_EXTRA:-} >"$OUT/server.log" 2>&1 &
 SPID=$!
@@ -36,11 +43,12 @@ done
 curl -sf "$URL/health" >/dev/null 2>&1 || { echo "server not healthy after 240 s"; tail -20 "$OUT/server.log"; exit 7; }
 echo "server up pid=$SPID after ~$((i*2)) s; plan: $(curl -s $URL/v1/intarsia/plan | head -c 600)"
 RC=0; N=1; RUN=()
-run_one() { echo "=== run $N: $* ==="; uv run "$T/cbsoak.py" run --url "$URL" --pid "$SPID" --out "$OUT/soak$([ $N -gt 1 ] && echo $N)" "$@"; local r=$?; echo "cbsoak run $N rc=$r"; [ $r -gt $RC ] && RC=$r; N=$((N+1)); }
+run_one() { local sub=run; case "$1" in scenario|burst|run) sub=$1; shift;; esac; echo "=== run $N ($sub): $* ==="; uv run "$T/cbsoak.py" $sub --url "$URL" --pid "$SPID" --out "$OUT/soak$([ $N -gt 1 ] && echo $N)" "$@"; local r=$?; echo "cbsoak run $N rc=$r"; [ $r -gt $RC ] && RC=$r; N=$((N+1)); }
 for a in "$@"; do
   if [ "$a" = "--then" ]; then run_one "${RUN[@]}"; RUN=(); else RUN+=("$a"); fi
 done
 run_one "${RUN[@]}"
 echo "cbsoak rc=$RC"
 curl -s "$URL/metrics" > "$OUT/metrics-end.txt" 2>/dev/null
+hyg "end (before server stop)"
 exit $RC
