@@ -31,6 +31,8 @@ struct Mock {
     busy: (u32, u32),
     /// `submit` refuses with the engine's own queue-full error.
     queue_full: bool,
+    /// The engine dies after this many tokens: the stream ends with an `Error` event instead of `Done`.
+    die_after: Option<usize>,
 }
 
 impl Engine for Mock {
@@ -97,6 +99,7 @@ impl Engine for Mock {
         let max = req.max_tokens;
         self.reqs.lock().unwrap().push(req);
         let slow = self.slow;
+        let die_after = self.die_after;
         let stop_seq = self.stop_seq.clone();
         let cancelled = self.cancelled.clone();
         let script = self.script.clone();
@@ -116,6 +119,13 @@ impl Engine for Mock {
                     prefill_chunk: None,
                 })
                 .ok();
+                return;
+            }
+            if let Some(n) = die_after {
+                for _ in 0..n {
+                    tx.send(GenEvent::Token { id: 65, text: "x".into() }).ok();
+                }
+                tx.send(GenEvent::Error { message: "worker panicked: boom".into() }).ok();
                 return;
             }
             if slow {
@@ -807,4 +817,82 @@ async fn token_ids_length_finish_keeps_all() {
     )
     .await;
     assert_eq!(on.matches("\"token_ids\":[7]").count(), 2);
+}
+
+fn msg_body(stream: bool) -> Value {
+    json!({"max_tokens": 8, "stream": stream, "messages": [{"role": "user", "content": "hello"}]})
+}
+
+fn assert_anthropic_error(v: &Value, ty: &str) {
+    assert_eq!(v["type"], "error", "{v}");
+    assert_eq!(v["error"]["type"], ty, "{v}");
+    assert!(v["error"]["message"].as_str().is_some_and(|m| !m.is_empty()), "{v}");
+}
+
+#[tokio::test]
+async fn anthropic_engine_down_is_503_overloaded_error_like_openai() {
+    let app = app_with(Arc::new(Mock { fail: true, ..Default::default() }));
+    for stream in [false, true] {
+        let (st, ct, body) = call(&app, "POST", "/v1/messages", Some(msg_body(stream))).await;
+        assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE, "stream {stream}");
+        assert!(ct.starts_with("application/json"), "{ct}");
+        assert_anthropic_error(&serde_json::from_str(&body).unwrap(), "overloaded_error");
+    }
+    let chat = json!({"messages": [{"role": "user", "content": "hi"}], "max_tokens": 4});
+    let (st, _, body) = call(&app, "POST", "/v1/chat/completions", Some(chat)).await;
+    assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(body.contains("\"server_error\""), "{body}");
+}
+
+#[tokio::test]
+async fn anthropic_queue_full_is_429_with_retry_after() {
+    let app = app_with(Arc::new(Mock { queue_full: true, ..Default::default() }));
+    let req = Request::builder()
+        .method("POST")
+        .uri("/v1/messages")
+        .header("content-type", "application/json")
+        .body(Body::from(msg_body(false).to_string()))
+        .unwrap();
+    let r = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(r.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert!(r.headers().contains_key("retry-after"));
+    let v: Value = serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_anthropic_error(&v, "rate_limit_error");
+}
+
+#[tokio::test]
+async fn anthropic_non_stream_engine_failure_mid_generation_is_an_error_body() {
+    let app = app_with(Arc::new(Mock { die_after: Some(2), ..Default::default() }));
+    let (st, ct, body) = call(&app, "POST", "/v1/messages", Some(msg_body(false))).await;
+    assert_eq!(st, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(ct.starts_with("application/json"), "{ct}");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_anthropic_error(&v, "api_error");
+    assert!(v["error"]["message"].as_str().unwrap().contains("boom"));
+    // same failure on the OpenAI route: status and message agree, only the envelope differs
+    let chat = json!({"messages": [{"role": "user", "content": "hi"}], "max_tokens": 4});
+    let (st, _, body) = call(&app, "POST", "/v1/chat/completions", Some(chat)).await;
+    assert_eq!(st, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(body.contains("boom"), "{body}");
+}
+
+/// A stream that fails ends with an `error` event and nothing after it: no `message_delta` / `message_stop` claiming success.
+#[tokio::test]
+async fn anthropic_stream_engine_failure_ends_with_an_error_event() {
+    for die_after in [0, 2] {
+        let app = app_with(Arc::new(Mock { die_after: Some(die_after), ..Default::default() }));
+        let (st, _, body) = call(&app, "POST", "/v1/messages", Some(msg_body(true))).await;
+        assert_eq!(st, StatusCode::OK, "the stream was already open");
+        let ev = sse_events(&body);
+        let names: Vec<&str> = ev.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(names.first(), Some(&"message_start"), "{names:?}");
+        assert_eq!(names.last(), Some(&"error"), "{names:?}");
+        assert_eq!(names.iter().filter(|n| **n == "error").count(), 1, "{names:?}");
+        for bad in ["message_delta", "message_stop"] {
+            assert!(!names.contains(&bad), "{bad} after a failure: {names:?}");
+        }
+        let (_, v) = ev.last().unwrap();
+        assert_anthropic_error(v, "api_error");
+        assert!(v["error"]["message"].as_str().unwrap().contains("boom"));
+    }
 }
