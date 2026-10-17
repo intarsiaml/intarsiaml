@@ -154,6 +154,9 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// sequence may be in any phase). With `cancelled == false` it is only called after [`BatchSeq::on_token`]
     /// returned true or [`BatchSeq::admit`] returned `Ok(false)`, so the sequence has its finish reason set.
     fn finish(&mut self, model: &mut M, slot: Option<usize>, cancelled: bool) -> Result<()>;
+    /// The scheduler accepted the request into its queue (called once, after the submit checks passed): a later
+    /// [`BatchSeq::fail`] is an accepted request that failed, not a refusal.
+    fn on_queued(&mut self) {}
     /// The request failed: send `Error`.
     fn fail(&mut self, err: &Error);
 }
@@ -521,7 +524,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     }
 
     /// Queue a request already counted in `queued` (the engine's submit path).
-    fn enqueue(&mut self, id: RequestId, seq: S, t_submit: Instant) {
+    fn enqueue(&mut self, id: RequestId, mut seq: S, t_submit: Instant) {
+        seq.on_queued();
         self.waiting.push_back(Waiting { id, seq, t_submit });
         let mut m = self.metrics.lock().unwrap();
         m.submitted += 1;

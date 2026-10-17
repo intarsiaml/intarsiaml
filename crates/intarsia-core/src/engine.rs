@@ -521,7 +521,8 @@ impl LocalEngine {
             .spawn(move || {
                 for job in rx.iter() {
                     if let Some(why) = sh.failure() {
-                        sh.telemetry.request_rejected();
+                        // queued, then the engine died: still an accepted request, counted as an error
+                        sh.telemetry.request_dropped_queued("error");
                         let _ = job.tx.send(GenEvent::Error { message: format!("engine failed: {why}") });
                         continue;
                     }

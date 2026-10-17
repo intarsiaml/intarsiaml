@@ -230,6 +230,13 @@ impl Telemetry {
         self.waiting.fetch_sub(1, Ordering::Relaxed);
     }
 
+    /// A request that was queued ended without ever starting (the engine failed, or admission refused it): it stays
+    /// in `requests_total` and is counted under `finished[reason]`, so the outcomes sum to the total once idle.
+    pub fn request_dropped_queued(&self, reason: &str) {
+        self.waiting.fetch_sub(1, Ordering::Relaxed);
+        *self.inner.lock().unwrap().finished.entry(reason.to_string()).or_insert(0) += 1;
+    }
+
     pub fn request_started(&self) {
         self.waiting.fetch_sub(1, Ordering::Relaxed);
         self.running.fetch_add(1, Ordering::Relaxed);
@@ -383,5 +390,32 @@ mod tests {
         assert!((s.last_decode_tok_s - 10.0).abs() < 1e-6);
         assert_eq!(s.finished["stop"], 1);
         assert!(serde_json::to_string(&s).unwrap().contains("steps_total"));
+    }
+
+    /// Every accepted request lands in exactly one outcome: `requests_total == sum(finished)` once nothing is in flight.
+    #[test]
+    fn queued_requests_that_never_start_stay_counted() {
+        let t = Telemetry::new();
+        let done = |t: &Telemetry, reason| {
+            t.request_finished(reason, 1, 1, 0, Duration::ZERO, Duration::ZERO, Duration::ZERO)
+        };
+        // normal completion
+        t.request_enqueued();
+        t.request_started();
+        done(&t, "stop");
+        // queued, then cancelled (the scheduler balances started -> finished)
+        t.request_enqueued();
+        t.request_started();
+        done(&t, "cancelled");
+        // queued, then the engine failed before it started
+        t.request_enqueued();
+        t.request_dropped_queued("error");
+        // refused at submit: not accepted, undone
+        t.request_enqueued();
+        t.request_rejected();
+        let s = t.snapshot();
+        assert_eq!((s.requests_total, s.waiting, s.running), (3, 0, 0));
+        assert_eq!(s.finished.values().sum::<u64>(), s.requests_total);
+        assert_eq!((s.finished["stop"], s.finished["cancelled"], s.finished["error"]), (1, 1, 1));
     }
 }
