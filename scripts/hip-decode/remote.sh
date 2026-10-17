@@ -162,6 +162,10 @@ stage_mutate() {
     echo
   done
   rm -rf "$MUT"
+  # the mutated builds shared the cargo target volume: make the real sources newer than its outputs, so the next build of
+  # this tree recompiles the kernels instead of trusting mtimes (run the build before any later stage)
+  find "$INTARSIA_REPO/kernels" "$INTARSIA_REPO/crates" -type f -exec touch {} +
+  echo "NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume"
 }
 
 stage_kernels() {
