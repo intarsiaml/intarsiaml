@@ -75,10 +75,11 @@ MUTATIONS = {
     # the zero-centred norm's +1 on the weight is dropped
     "norm-woff": ("kernels/hip/matmul.hip", [(
         "for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);", "for (int k = 0; k < 8; ++k) f[k] = f[k] * r * g[k];")]),
-    # the block reduction adds the partial sums in another order (neighbouring lanes swapped before the sum)
+    # the eight squares of a thread's chunk are added in the opposite order (swapping neighbouring lanes before the butterfly
+    # sum would be an equivalent mutant: the xor tree is invariant under it)
     "norm-order": ("kernels/hip/matmul.hip", [(
-        "    ss = ik_block_sum(ss, red);\n    const float r = rsqrtf(ss / (float)K + eps);",
-        "    ss = ik_block_sum(__shfl_xor(ss, 1), red);\n    const float r = rsqrtf(ss / (float)K + eps);")]),
+        "        for (int k = 0; k < 8; ++k) ss += f[k] * f[k];\n    }\n    ss = ik_block_sum(ss, red);",
+        "        for (int k = 7; k >= 0; --k) ss += f[k] * f[k];\n    }\n    ss = ik_block_sum(ss, red);")]),
     # the second matrix's blocks start one block late
     "norm-pair-block": ("kernels/hip/matmul.hip", [(
         "w1, o1, N1, K, (int64_t)blockIdx.x - nb0, writer, xs, red);", "w1, o1, N1, K, (int64_t)blockIdx.x - nb0 + 1, writer, xs, red);")]),

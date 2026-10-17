@@ -248,14 +248,18 @@ fn rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair() {
     }
 }
 
-/// Many draws at the model's row width: a reduction that sums the same partial sums in another order moves the last bit of the
-/// sum of squares, which flips a bf16 output element only about once in 2^16, so one row would rarely show it.
+/// Many draws at the model's row width. A reduction that sums the same values in another order moves the last bit of the sum of
+/// squares, and that flips a bf16 output element only about once in 2^16 draws of an element, so a few rows would rarely show it
+/// (mutation `norm-order`): re-draw the activations 2500 times against fixed weights (a few seconds).
 #[test]
 fn rmsnorm_add_matmul_pair_many_rows_bitwise() {
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(66);
-    for trial in 0..160 {
-        let hc = rmsnorm_add_matmul_pair_case(&mut rng, 1, 8, 1, 2048, DType::Bf16, 1.0);
+    let mut hc = rmsnorm_add_matmul_pair_case(&mut rng, 1, 8, 1, 2048, DType::Bf16, 1.0);
+    for trial in 0..2500 {
+        let scale = 0.5 + (trial % 7) as f32;
+        hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &rng.normal_vec(2048, scale));
+        hc.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &rng.normal_vec(2048, 1.0));
         let label = format!("norm+pair trial {trial}");
         let got = run_host(&*hip, "rmsnorm_add_matmul_pair_bf16_gemv", &hc).unwrap();
         let norm = call(
@@ -305,14 +309,17 @@ fn gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv() {
     }
 }
 
-/// Many draws of the model's shape: the sum of squares of a head summed in another order changes its last bit, which flips an
-/// output element only about once in 2^16, so a single draw would rarely show it (as `rmsnorm_add_matmul_pair_many_rows_bitwise`).
+/// Many draws of the model's shape (as `rmsnorm_add_matmul_pair_many_rows_bitwise`; mutation `gn-order`): the sum of squares of a
+/// head summed in another order flips a normalised element rarely, and a flipped element moves the projections of that row.
 #[test]
 fn gated_rmsnorm_matmul_fp8_many_draws_bitwise() {
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(68);
-    for trial in 0..120 {
-        let hc = gated_rmsnorm_matmul_fp8_case(&mut rng, 32, 256, true, DType::Bf16);
+    let mut hc = gated_rmsnorm_matmul_fp8_case(&mut rng, 32, 512, true, DType::Bf16);
+    for trial in 0..2500 {
+        let scale = 0.5 + (trial % 7) as f32;
+        hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[32, 128], &rng.normal_vec(32 * 128, scale));
+        hc.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &[32, 128], &rng.normal_vec(32 * 128, 2.0));
         let label = format!("gated norm + fp8 trial {trial}");
         let got = run_host(&*hip, "gated_rmsnorm_matmul_fp8_gemv", &hc).unwrap();
         let norm = call(
@@ -323,7 +330,7 @@ fn gated_rmsnorm_matmul_fp8_many_draws_bitwise() {
         );
         let mut normed = run_host(&*hip, "gated_rmsnorm_bf16", &norm).unwrap().remove(0);
         normed.shape = vec![1, 32 * 128];
-        let mm = call(Op::MatmulFp8, vec![normed, hc.inputs[3].clone(), hc.inputs[4].clone()], vec![out_bf16(&[1, 256])], OpAttrs::default());
+        let mm = call(Op::MatmulFp8, vec![normed, hc.inputs[3].clone(), hc.inputs[4].clone()], vec![out_bf16(&[1, 512])], OpAttrs::default());
         let want = run_host(&*hip, "matmul_fp8_gemv_v2", &mm).unwrap();
         bits_eq(&label, "output", &got[0], &want[0]);
     }
