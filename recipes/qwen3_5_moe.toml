@@ -71,7 +71,8 @@ prefill_chunk = 2048
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058
 # at 16k; 4096 fits the 29 GB budget at max-seq 17408. Prefill is chunk-invariant bit for bit on HIP (short and long golden give the
-# same numbers at 256, 1024, 2048 and 4096). 4096 is also the largest chunk the prefix-reuse gate can still run on chat_reuse_4k
-# (split 4447); a larger one gives SKIPPED, which counts as a fail (docs/results/2026-10-17-hip-prefill.md).
+# same numbers at 256, 1024, 2048 and 4096). At 4096 the prefix-reuse gate runs only on chat_reuse_4k (the two 4k documents split
+# at 2000, below one chunk, and are skipped; at 256 long_docs_4k fails the continue case, on the base build too) and passes
+# (docs/results/2026-10-17-hip-prefill.md).
 [tuning.hip]
 prefill_chunk = 4096

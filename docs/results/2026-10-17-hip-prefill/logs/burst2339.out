@@ -1,0 +1,129 @@
+[burst] job 2339; stages: acc35c:256 acc35c:1024 acc35c:2048 acc35c:4096 chunk35l:4096; stopping radiance 2026-10-17 13:49:01
+[burst] radiance stopped 2026-10-17 13:49:04
+################ stage acc35c:256 start 13:49:04
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096 --prefill-chunk 256
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35c:256 end 13:49:15
+################ stage acc35c:1024 start 13:49:15
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096 --prefill-chunk 1024
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35c:1024 end 13:49:24
+################ stage acc35c:2048 start 13:49:24
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096 --prefill-chunk 2048
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35c:2048 end 13:49:33
+################ stage acc35c:4096 start 13:49:33
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096 --prefill-chunk 4096
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35c:4096 end 13:49:43
+################ stage chunk35l:4096 start 13:49:43
+--- serve qwen36-35b-intarsia-hip [13:49:43]
+up after ~15s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen36-35b-intarsia-hip
+server context window: 17408 tokens
+calibration: 47 base tokens, 22.08 tokens per filler sentence
+  size  16384 rep: prompt=16600 gen=16 ttft=5.42s prefill=3061 tok/s decode=124.2 tok/s
+  size  16384 rep: prompt=16597 gen=16 ttft=5.44s prefill=3054 tok/s decode=124.0 tok/s
+wrote /work/bench-out/pfchunk-35b-16k-4096.json
+pfchunk-35b-16k-4096  model=qwen36-35b-intarsia-hip  gen=16  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+   16384    16599     5.429         3058       124.1       16       43.5
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 42
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage chunk35l:4096 end 13:50:13
+[burst] stages done 2026-10-17 13:50:13 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 13:50:13
+[burst] radiance answers 2026-10-17 13:50:23 (after 15 s)

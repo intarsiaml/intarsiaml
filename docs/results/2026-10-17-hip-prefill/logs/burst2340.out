@@ -1,0 +1,91 @@
+[burst] job 2340; stages: acc35l:256 acc35l:4096; stopping radiance 2026-10-17 13:50:35
+[burst] radiance stopped 2026-10-17 13:50:37
+################ stage acc35l:256 start 13:50:37
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 256
+chat_reuse_4k       4631  4631    87.80   2.360e-1   2.679e-1    2.729e1   0.0688   0.0857    87.54   20/4631      0
+long_docs_12k      12064 12064    92.97   2.271e-2   2.034e-2    1.166e1   0.0839   0.0850    90.18   5/12064      0
+long_code_12k      12064 12064    97.10   9.198e-3   8.552e-3    1.722e0   0.0323   0.0328    90.99  10/12064      0
+OVERALL                  36887    94.21   4.311e-2   4.583e-2    2.729e1   0.0611   0.0641    90.34      0.1%      0
+prefill floor [4bit]: top-1 94.21% (not gated for this class) ok | 21-way KL 4.583e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.735e-2   1.657e-2   2.116e-1   0.0185   0.0176    90.62     44/64      0
+long_code_4k        4064    64    95.31   1.068e-2   9.378e-3   7.260e-2   0.0481   0.0510    89.38     28/64      0
+chat_reuse_4k       4631    64   100.00   3.960e-3   3.961e-3   6.174e-2   0.0000   0.0000    92.50     64/64      0
+long_docs_12k      12064    64    96.88   1.608e-2   1.496e-2   1.810e-1   0.0399   0.0420    89.69      7/64      0
+long_code_12k      12064    64    98.44   6.213e-3   6.149e-3   9.011e-2   0.0085   0.0083    87.81      3/64      0
+OVERALL                    320    96.88   1.086e-2   1.020e-2   2.116e-1   0.0230   0.0238    90.00     45.6%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 1.020e-2 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 45.6% of positions before the first argmax divergence, worst prompt 4.7% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       continue    2000   4080    2015      0     12/32  FAIL (streams diverge beyond rounding at token 12: warm took 4670 cold took 2186; shared rows differ by 2.171 (before) / 0.405 (here) nats of log-probability, KL up to 4.9e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.332, cold margin 0.306)
+long_docs_4k       restore     2000   4064    1792      0     32/32  ok
+long_docs_4k       aligned     1792   4064    1792      0     32/32  ok
+long_code_4k       continue    2000   4080    2015      0     32/32  ok
+long_code_4k       restore     2000   4064    1792      0     32/32  ok
+long_code_4k       aligned     1792   4064    1792      0     32/32  ok
+chat_reuse_4k      continue    4521   4647    4536      0     22/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 22: warm took 48794 cold took 1414; shared rows differ by 1.452 (before) / 0.345 (here) nats of log-probability, KL up to 2.9e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.262, cold margin 0.270; legacy criterion (>= 16 leading tokens): ok)
+chat_reuse_4k      restore     4521   4631    4352      0     32/32  ok
+chat_reuse_4k      aligned     4352   4631    4352      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    5888      0     32/32  ok
+long_docs_12k      aligned     5888  12064    5888      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    5888      0     32/32  ok
+long_code_12k      aligned     5888  12064    5888      0     32/32  ok
+prefix-reuse gate: FAIL
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l:256 end 13:55:11
+################ stage acc35l:4096 start 13:55:11
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.85   1.955e-2   1.751e-2    1.909e0   0.0944   0.0966    90.72    0/4064      0
+long_code_4k        4064  4064    96.97   8.102e-3   7.374e-3   8.864e-1   0.0370   0.0383    91.72   10/4064      0
+chat_reuse_4k       4631  4631    87.80   2.360e-1   2.679e-1    2.729e1   0.0688   0.0857    87.54   20/4631      0
+long_docs_12k      12064 12064    92.97   2.271e-2   2.034e-2    1.166e1   0.0839   0.0850    90.18   5/12064      0
+long_code_12k      12064 12064    97.10   9.198e-3   8.552e-3    1.722e0   0.0323   0.0328    90.99  10/12064      0
+OVERALL                  36887    94.21   4.311e-2   4.583e-2    2.729e1   0.0611   0.0641    90.34      0.1%      0
+prefill floor [4bit]: top-1 94.21% (not gated for this class) ok | 21-way KL 4.583e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.735e-2   1.657e-2   2.116e-1   0.0185   0.0176    90.62     44/64      0
+long_code_4k        4064    64    95.31   1.068e-2   9.378e-3   7.260e-2   0.0481   0.0510    89.38     28/64      0
+chat_reuse_4k       4631    64   100.00   3.960e-3   3.961e-3   6.174e-2   0.0000   0.0000    92.50     64/64      0
+long_docs_12k      12064    64    96.88   1.608e-2   1.496e-2   1.810e-1   0.0399   0.0420    89.69      7/64      0
+long_code_12k      12064    64    98.44   6.213e-3   6.149e-3   9.011e-2   0.0085   0.0083    87.81      3/64      0
+OVERALL                    320    96.88   1.086e-2   1.020e-2   2.116e-1   0.0230   0.0238    90.00     45.6%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 1.020e-2 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 45.6% of positions before the first argmax divergence, worst prompt 4.7% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     22/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 22: warm took 48794 cold took 1414; shared rows differ by 1.452 (before) / 0.345 (here) nats of log-probability, KL up to 2.9e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.262, cold margin 0.270; legacy criterion (>= 16 leading tokens): ok)
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l:4096 end 13:58:01
+[burst] stages done 2026-10-17 13:58:01 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 13:58:01
+[burst] radiance answers 2026-10-17 13:58:11 (after 15 s)
