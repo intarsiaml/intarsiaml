@@ -262,10 +262,10 @@ int ik_moe_combine_bf16(const ik_tensor* routed, const ik_tensor* shared, const 
  *   rmsnorm_add_matmul_pair_bf16_gemv
  *                           x[1,K], res[1,K], w[K] (bf16, K % 8 == 0, K <= 8192), eps, w_offset, w0[N0,K], w1[N1,K] ->
  *                           normed[1,K], sum[1,K], out0[1,N0], out1[1,N1] = rmsnorm_add_bf16(x, res, w) then matmul_pair_bf16_gemv
- *                           on `normed`. normed / sum must not overlap x / res (HIP only so far; CUDA keeps the two launches).
+ *                           on `normed`. normed / sum must not overlap x / res (HIP and CUDA).
  *   gated_rmsnorm_matmul_fp8_gemv
  *                           x[R,128], z[R,128], w[128] (bf16), eps, w_offset, fp8 weights [N,R*128] + scales -> out[1,N] (bf16)
- *                           = matmul_fp8_gemv_v2(gated_rmsnorm_bf16(x, z, w) read as one row, ...) (HIP only so far). */
+ *                           = matmul_fp8_gemv_v2(gated_rmsnorm_bf16(x, z, w) read as one row, ...) (HIP and CUDA). */
 int ik_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* out0,
                              ik_tensor* out1, void* stream);
 int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,

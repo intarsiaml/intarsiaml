@@ -16,20 +16,68 @@ constexpr int kWarps = 8;
 
 // ---- GEMV --------------------------------------------------------------------------------------------------------
 
+// The GDN output norm folded into the staging (PRO): the value gated_rmsnorm_kernel<true> (norm.cu) stores for the 8-element
+// chunk `i8` of the rows `x` / `z` of 128 values (sixteen chunks per row), as bf16 chunks. A row's sum of squares is that
+// kernel's block reduction over its 32 threads, of which only the first sixteen hold a chunk: the xor butterfly of ik_warp_sum
+// starting at offset 8 inside a 16-lane group sums the same values in the same order (its first step, offset 16, adds an exact
+// zero, and a + b == b + a bitwise), so the sixteen lanes of a row may share a warp with the next row's. All 32 lanes of the
+// warp must call it (full-mask shuffles); a lane past the last chunk passes a valid chunk index and drops the result.
+IK_DEVI uint4 gated_norm_chunk(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ z, const ik_bf16* __restrict__ nw,
+                               int i8, float eps, float woff) {
+    float f[8], g[8], zf[8];
+    ik_unpack8(__ldg(reinterpret_cast<const uint4*>(x) + i8), f);
+    float ss = 0.f;
+#pragma unroll
+    for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
+#pragma unroll
+    for (int o = 8; o > 0; o >>= 1) ss += __shfl_xor_sync(0xffffffffu, ss, o);
+    const float r = rsqrtf(ss / 128.f + eps);
+    ik_unpack8(__ldg(reinterpret_cast<const uint4*>(nw) + (i8 & 15)), g);
+    ik_unpack8(__ldg(reinterpret_cast<const uint4*>(z) + i8), zf);
+#pragma unroll
+    for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
+    float nrm[8];
+    ik_unpack8(ik_pack8(f), nrm);  // the normalised row as the rmsnorm launch stores it (bf16)
+#pragma unroll
+    for (int k = 0; k < 8; ++k) f[k] = ik_silu(zf[k]) * nrm[k];
+    return ik_pack8(f);
+}
+
 // `blk` is the block's index along the rows of this matrix: blockIdx.x for fp8_gemv_kernel, the index inside its segment
 // for the pair kernel below, which therefore runs this very code (its staging uses the segment's own scales).
-template <int M, typename OutT>
+// PRO stages the output of the GDN gated rmsnorm of `x` (the core, rows of 128) and `pz` (the gate) with weight `pnw` instead
+// of reading `x` as it is (M == 1); the rest of the body is shared.
+template <int M, typename OutT, bool PRO = false>
 __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w,
                                               const float* __restrict__ sc, OutT* __restrict__ out, int N, int K,
-                                              int64_t blk) {
+                                              int64_t blk, const ik_bf16* __restrict__ pz = nullptr,
+                                              const ik_bf16* __restrict__ pnw = nullptr, float peps = 0.f,
+                                              float pwoff = 0.f) {
+    static_assert(!PRO || M == 1, "the folded norm is the single-row staging");
     extern __shared__ __align__(16) unsigned char smem[];
     ik_bf16* xs = reinterpret_cast<ik_bf16*>(smem);  // [M][K] bf16: x, or xq (fp8 values are exact in bf16)
     const bool actq = sc[1] > 0.f;
     const float s_in = actq ? sc[1] : 1.f;
     const float s_out = sc[0] * s_in;
-    for (int i = threadIdx.x; i < M * K; i += blockDim.x) {
-        const ik_bf16 v = x[i];
-        xs[i] = actq ? ik_f2b(ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(ik_b2f(v), s_in)))) : v;
+    if constexpr (PRO) {
+        const int nch = K / 8;  // chunks of 8; a multiple of 16 (K = rows * 128), so a 16-lane group is all in or all out
+        for (int base = 0; base < nch; base += blockDim.x) {
+            const int i8 = base + threadIdx.x;
+            uint4 v = gated_norm_chunk(x, pz, pnw, i8 < nch ? i8 : 0, peps, pwoff);
+            if (actq) {
+                float f[8];
+                ik_unpack8(v, f);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));
+                v = ik_pack8(f);  // fp8 values are exact in bf16
+            }
+            if (i8 < nch) reinterpret_cast<uint4*>(xs)[i8] = v;
+        }
+    } else {
+        for (int i = threadIdx.x; i < M * K; i += blockDim.x) {
+            const ik_bf16 v = x[i];
+            xs[i] = actq ? ik_f2b(ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(ik_b2f(v), s_in)))) : v;
+        }
     }
     __syncthreads();
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
@@ -80,6 +128,16 @@ fp8_gemv_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ 
     const int nb0 = (N0 + kWarps - 1) / kWarps;
     if ((int)blockIdx.x < nb0) fp8_gemv_body<1, OutT>(x, w0, sc0, o0, N0, K, (int64_t)blockIdx.x);
     else fp8_gemv_body<1, OutT>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);
+}
+
+// The GDN output norm folded into the fp8 out_proj: y = fp8_gemv(gated_rmsnorm(core, z, w), W). Every block normalises the
+// rows itself while it stages the activations, so the norm launch and its output round trip disappear. The staged row, and
+// therefore the result, is bitwise the two launches it replaces (the body is the one fp8_gemv_kernel<1, bf16> runs).
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_gated_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ z, const ik_bf16* __restrict__ nw, float eps,
+                      float woff, const uint8_t* __restrict__ w, const float* __restrict__ sc, ik_bf16* __restrict__ out,
+                      int N, int K) {
+    fp8_gemv_body<1, ik_bf16, true>(x, w, sc, out, N, K, (int64_t)blockIdx.x, z, nw, eps, woff);
 }
 
 template <int M, typename OutT>
@@ -262,9 +320,41 @@ int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik
     return ik_launch_status();
 }
 
+// x / z [R, 128] (R * 128 == K), nw [128], w [N, K] fp8, out [1, N] bf16.
+int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float woff, const ik_tensor* w,
+                 const ik_tensor* scales, ik_tensor* out, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(z, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(nw, IK_DTYPE_BF16, 1));
+    const int64_t rows = x->shape[0], D = x->shape[1], K = rows * D, N = w->shape[0];
+    if (z->shape[0] != rows || z->shape[1] != D || nw->shape[0] != D || D != 128) return IK_ERR_SHAPE;
+    // the matmul sees the normalised rows as one activation row [1, K]
+    ik_tensor xv = *x;
+    xv.ndim = 2;
+    xv.shape[0] = 1;
+    xv.shape[1] = K;
+    xv.stride[0] = K;
+    xv.stride[1] = 1;
+    IK_TRY(check(&xv, w, scales, out));
+    if (out->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    if (K * 2 > 49152 || !ik_aligned16(x->data) || !ik_aligned16(z->data) || !ik_aligned16(nw->data)) return IK_ERR_SHAPE;
+    if (N == 0 || K == 0) return IK_ERR_SHAPE;  // (nothing the model produces; the unfused ops handle empty shapes)
+    if (N > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
+    fp8_gemv_gated_kernel<<<grid, kWarps * IK_WARP, (size_t)K * 2, IK_STREAM(stream)>>>(
+        (const ik_bf16*)x->data, (const ik_bf16*)z->data, (const ik_bf16*)nw->data, eps, woff, (const uint8_t*)w->data,
+        (const float*)scales->data, (ik_bf16*)out->data, (int)N, (int)K);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
+
+int ik_gated_rmsnorm_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float w_offset,
+                                     const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
+    return gated_matmul(x, z, nw, eps, w_offset, w, scales, out, stream);
+}
 
 int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
                             const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream) {

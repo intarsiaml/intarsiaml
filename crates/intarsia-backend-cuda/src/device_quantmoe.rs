@@ -88,6 +88,22 @@ extern "C" {
     #[allow(clippy::too_many_arguments)]
     fn ik_matmul_nvfp4_glu_gemv(x: T, wg: T, bsg: T, gsg: T, wu: T, bsu: T, gsu: T, out: TM, s: S) -> c_int;
     fn ik_gated_rmsnorm_bf16(x: T, z: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
+    fn ik_gated_rmsnorm_matmul_fp8_gemv(x: T, z: T, nw: T, eps: f32, w_offset: f32, w: T, scales: T, out: TM, s: S) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_rmsnorm_add_matmul_pair_bf16_gemv(
+        x: T,
+        res: T,
+        w: T,
+        eps: f32,
+        w_offset: f32,
+        w0: T,
+        w1: T,
+        normed: TM,
+        sum: TM,
+        out0: TM,
+        out1: TM,
+        s: S,
+    ) -> c_int;
 }
 
 impl CudaBackend {
@@ -198,6 +214,23 @@ impl CudaBackend {
                 "matmul_fp8_pair_gemv" => ik_matmul_fp8_pair_gemv(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
                 "matmul_nvfp4_glu_gemv" => ik_matmul_nvfp4_glu_gemv(i(0), i(1), i(2), i(3), i(4), i(5), i(6), o, s),
                 "gated_rmsnorm_bf16" => ik_gated_rmsnorm_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, s),
+                "gated_rmsnorm_matmul_fp8_gemv" => {
+                    ik_gated_rmsnorm_matmul_fp8_gemv(i(0), i(1), i(2), a.eps, a.w_offset, i(3), i(4), o, s)
+                }
+                "rmsnorm_add_matmul_pair_bf16_gemv" => ik_rmsnorm_add_matmul_pair_bf16_gemv(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.eps,
+                    a.w_offset,
+                    i(3),
+                    i(4),
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3),
+                    s,
+                ),
                 other => return Err(Error::NoKernel(format!("cuda kernel '{other}' has no dispatch entry"))),
             }
         };

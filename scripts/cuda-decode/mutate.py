@@ -100,7 +100,8 @@ MUTATIONS = {
         "f[k] = ik_silu(zf[k]) * nrm[k];\n    return ik_pack8(f);", "f[k] = ik_silu(nrm[k]) * zf[k];\n    return ik_pack8(f);")]),
     # W8A8: the staged value is not quantised
     "gn-actq": ("kernels/cuda/fp8.cu", [(
-        "f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));", "f[e] = f[e];")]),
+        "\n                for (int e = 0; e < 8; ++e) f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));",
+        "\n                for (int e = 0; e < 8; ++e) f[e] = f[e];")]),
     # the last chunk group of an odd row count is dropped
     "gn-tail": ("kernels/cuda/fp8.cu", [(
         "if (i8 < nch) reinterpret_cast<uint4*>(xs)[i8] = v;", "if (i8 < nch - 1) reinterpret_cast<uint4*>(xs)[i8] = v;")]),
