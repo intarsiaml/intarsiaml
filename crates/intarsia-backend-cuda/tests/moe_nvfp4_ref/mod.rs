@@ -54,8 +54,9 @@ pub fn e2m1_value(code: u8) -> f64 {
 pub fn quant_row(x: &[f32]) -> (Vec<f64>, f32) {
     let t = e4m3_table();
     let amax = x.iter().fold(0f32, |m, v| m.max(v.abs()));
-    let gx = if amax > 0.0 { 2688f32 / amax } else { 0.0 };
-    let ginv = if amax > 0.0 { amax / 2688f32 } else { 0.0 };
+    let nz = amax > 1e-30;
+    let gx = if nz { 2688f32 / amax } else { 0.0 };
+    let ginv = if nz { amax / 2688f32 } else { 0.0 };
     let mut out = Vec::with_capacity(x.len());
     for blk in x.chunks(16) {
         let bmax = blk.iter().fold(0f32, |m, v| m.max(v.abs()));

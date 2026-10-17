@@ -99,8 +99,8 @@ fn moe_nvfp4_handles_range_zero_rows_and_odd_routing() {
     let mut rng = SplitMix64::new(72);
     let (t, e, k, h, i) = (48usize, 16usize, 4usize, 256usize, 128usize);
     let base = with_distinct_gscales(&experts_case(&mut rng, t, e, k, h, i, DType::Bf16));
-    let scaled = with_rows_scaled(&base, &[(0, 1e3), (1, 1e-3), (2, 0.0), (3, 5e4), (4, 3e-6)]);
-    check_quantised(&*cuda, &scaled, "row magnitudes 1e3 / 1e-3 / 0 / 5e4 / 3e-6", 3e-3);
+    let scaled = with_rows_scaled(&base, &[(0, 1e3), (1, 1e-3), (2, 0.0), (3, 5e4), (4, 3e-6), (5, 1e-37), (6, 1e-33)]);
+    check_quantised(&*cuda, &scaled, "row magnitudes 1e3 / 1e-3 / 0 / 5e4 / 3e-6 / 1e-37 / 1e-33", 3e-3);
     let mut odd = scaled.clone();
     let mut ids = odd.inputs[1].to_i32().unwrap();
     for j in 0..k {

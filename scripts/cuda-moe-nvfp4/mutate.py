@@ -48,17 +48,17 @@ MUTATIONS = {
         "e2m1 pairs packed high nibble first (the two elements of every byte swapped)",
         [('"cvt.rn.satfinite.e2m1x2.f32 b0, %2, %1;\\n"', '"cvt.rn.satfinite.e2m1x2.f32 b0, %1, %2;\\n"', 1)],
     ),
-    "quant-no-sat-guard": (
+    "quant-ignores-scale-rounding": (
         "inverse block scale computed with the unrounded scale (gx / (amax * gx / 6)) instead of the e4m3 one",
         [("__fdiv_rn(gx, sd)", "__fdiv_rn(6.f, bmax > 0.f ? bmax : 1.f)", 1)],
     ),
     "a-unit-offset": (
         "activation bytes of unit u read from u * 32 instead of u * 64",
-        [("aq + arow * (Kdim / 2) + u * 64 + rpart * 16", "aq + arow * (Kdim / 2) + u * 32 + rpart * 16", 1)],
+        [("aq + arow[q] * (Kdim / 2) + u * 64 + rpart * 16", "aq + arow[q] * (Kdim / 2) + u * 32 + rpart * 16", 1)],
     ),
     "valid-rows": (
         "rows past the end of an expert's pair list are read as real pairs (tile tail not masked)",
-        [("a_ok = ar < rows;", "a_ok = ar < BM;", 1)],
+        [("a_ok[q] = r < rows;", "a_ok[q] = r < BM;", 1)],
     ),
     "up-rows": (
         "up projection rows taken from the gate rows",

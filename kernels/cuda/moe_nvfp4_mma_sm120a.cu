@@ -76,7 +76,7 @@ IK_DEVI uint32_t pack_e2m1x8(const float* f) {
 constexpr float kGlobalDen = 2688.f;  // 448 * 6: block scales then span the whole e4m3 range
 
 // One warp per row of x [rows, K] bf16 -> q u8 [rows, K/2], s e4m3 [rows, K/16], ginv f32 [rows] (= amax / 2688).
-// A row of zeros gets zero data, zero scales and ginv 0. Deterministic.
+// A row of zeros (or with amax <= 1e-30) gets zero data, zero scales and ginv 0. Deterministic.
 __global__ void __launch_bounds__(128) act_quant_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ q,
                                                         uint8_t* __restrict__ s, float* __restrict__ ginv, int rows,
                                                         int K) {
@@ -96,8 +96,10 @@ __global__ void __launch_bounds__(128) act_quant_kernel(const ik_bf16* __restric
     }
 #pragma unroll
     for (int o = 16; o > 0; o >>= 1) amax = fmaxf(amax, __shfl_xor_sync(0xffffffffu, amax, o));
-    const float gx = amax > 0.f ? kGlobalDen / amax : 0.f;
-    if (lane == 0) ginv[warp] = amax > 0.f ? amax / kGlobalDen : 0.f;
+    // rows below 1e-30 count as zero: 2688 / amax would overflow for denormal amax and turn the row into NaNs
+    const bool nz = amax > 1e-30f;
+    const float gx = nz ? kGlobalDen / amax : 0.f;
+    if (lane == 0) ginv[warp] = nz ? amax / kGlobalDen : 0.f;
     for (int b = lane; b < K / 16; b += 32) {
         const uint4 u0 = *reinterpret_cast<const uint4*>(xr + b * 16);
         const uint4 u1 = *reinterpret_cast<const uint4*>(xr + b * 16 + 8);
@@ -180,14 +182,18 @@ __global__ void __launch_bounds__(128 * WM, NS == 2 ? (WM == 1 ? 4 : 2) : 1)
         wsrc[q] = w + ((int64_t)e * nrows + weight_row(r)) * (Kdim / 2) + rpart * 16;
     }
     const uint8_t* ssrc = sc + ((int64_t)e * nrows + weight_row(tid < kWRows ? tid : 0)) * (Kdim / 16);
-    // activation copies: tid < 4 BM -> row tid >> 2, part tid & 3; tid < BM -> scales of row tid
-    const bool a_chunk = tid < BM * 4, a_sc = tid < BM;
-    const int ar = tid >> 2;
-    int64_t arow = 0, asrow = 0;
-    bool a_ok = false, as_ok = false;
-    if (a_chunk) {
-        a_ok = ar < rows;
-        if (a_ok) arow = MODE == 0 ? pairs[begin + m0 + ar] / K : begin + m0 + ar;
+    // activation copies: chunk (tid + NTHREADS q) of the BM x 4 chunks = row (tid >> 2) + NTHREADS / 4 * q, part tid & 3;
+    // scales: tid < BM -> row tid
+    constexpr int AQ = (BM * 4 + NTHREADS - 1) / NTHREADS;
+    const bool a_sc = tid < BM;
+    int64_t arow[AQ], asrow = 0;
+    bool a_ok[AQ], as_ok = false;
+#pragma unroll
+    for (int q = 0; q < AQ; ++q) {
+        const int r = (tid >> 2) + (NTHREADS / 4) * q;
+        arow[q] = 0;
+        a_ok[q] = r < rows;
+        if (a_ok[q]) arow[q] = MODE == 0 ? pairs[begin + m0 + r] / K : begin + m0 + r;
     }
     if (a_sc) {
         as_ok = tid < rows;
@@ -200,9 +206,13 @@ __global__ void __launch_bounds__(128 * WM, NS == 2 ? (WM == 1 ? 4 : 2) : 1)
             ik_cp_async16(wraw(stage) + r * kRawStride + rpart * 16, wsrc[q] + u * 64, 16);
         }
         if (tid < kWRows) cp_async8(wsc(stage) + tid * 8, ssrc + u * 8, 8);
-        if (a_chunk)
-            ik_cp_async16(araw(stage) + ar * kRawStride + rpart * 16, aq + arow * (Kdim / 2) + u * 64 + rpart * 16,
-                          a_ok ? 16 : 0);
+#pragma unroll
+        for (int q = 0; q < AQ; ++q) {
+            const int r = (tid >> 2) + (NTHREADS / 4) * q;
+            if (r < BM)
+                ik_cp_async16(araw(stage) + r * kRawStride + rpart * 16, aq + arow[q] * (Kdim / 2) + u * 64 + rpart * 16,
+                              a_ok[q] ? 16 : 0);
+        }
         if (a_sc) cp_async8(asc(stage) + tid * 8, as + asrow * (Kdim / 16) + u * 8, as_ok ? 8 : 0);
     };
 
