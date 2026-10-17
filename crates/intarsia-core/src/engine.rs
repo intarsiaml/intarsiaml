@@ -697,9 +697,18 @@ pub(crate) fn report_done(telemetry: &Telemetry, tx: &Sender<GenEvent>, o: Outco
     });
 }
 
-/// Report a failed request (one that had started): telemetry, then the `Error` event.
-pub(crate) fn report_error(telemetry: &Telemetry, tx: &Sender<GenEvent>, plen: usize, elapsed: Duration, e: &Error) {
-    telemetry.request_finished("error", plen, 0, 0, elapsed, Duration::ZERO, elapsed);
+/// Report a failed request (one that had started): telemetry, then the `Error` event. `generated` is the number of
+/// tokens the request had generated before it failed (already streamed to the client), so the generated-token counter
+/// covers failed requests too.
+pub(crate) fn report_error(
+    telemetry: &Telemetry,
+    tx: &Sender<GenEvent>,
+    plen: usize,
+    generated: usize,
+    elapsed: Duration,
+    e: &Error,
+) {
+    telemetry.request_finished("error", plen, generated, 0, elapsed, Duration::ZERO, elapsed);
     let _ = tx.send(GenEvent::Error { message: e.to_string() });
 }
 
@@ -710,14 +719,15 @@ fn run_job(sh: &Shared, job: Job) {
     let Job { req, tx } = job;
     let plen = req.prompt.len();
     let mut g = sh.inner.lock().unwrap();
-    let res = generate_one(sh, &mut g, req, tx.clone());
+    let mut generated = 0;
+    let res = generate_one(sh, &mut g, req, tx.clone(), &mut generated);
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
     drop(g);
     sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
     match res {
         // the chunk size is reported only by the batched engine (its scheduler picks it per request)
         Ok(o) => report_done(&sh.telemetry, &tx, o, None),
-        Err(e) => report_error(&sh.telemetry, &tx, plen, t_total.elapsed(), &e),
+        Err(e) => report_error(&sh.telemetry, &tx, plen, generated, t_total.elapsed(), &e),
     }
 }
 
@@ -1258,18 +1268,45 @@ impl Seq {
 }
 
 /// Single-sequence driver: prefill, then one token at a time until the sequence ends.
-fn generate_one(sh: &Shared, g: &mut Inner, req: GenRequest, tx: Sender<GenEvent>) -> Result<Outcome> {
+/// `generated` receives the number of tokens generated before a failure (left at 0 on success).
+fn generate_one(
+    sh: &Shared,
+    g: &mut Inner,
+    req: GenRequest,
+    tx: Sender<GenEvent>,
+    generated: &mut usize,
+) -> Result<Outcome> {
     let Inner { model, state: st } = g;
     let mut seq = Seq::new(sh, model, st, req, tx)?;
+    match run_seq(&mut seq, model, st) {
+        Ok(Some(o)) => Ok(o),
+        Ok(None) => {
+            let n = seq.generated;
+            let res = seq.finish(model, st);
+            if res.is_err() {
+                *generated = n;
+            }
+            res
+        }
+        Err(e) => {
+            *generated = seq.generated;
+            Err(e)
+        }
+    }
+}
+
+/// Prefill and decode until the request stops: `Some` when it finished during prefill, `None` when it is ready for
+/// [`Seq::finish`].
+fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<Option<Outcome>> {
     loop {
         match seq.prefill_step(model, st)? {
             PrefillStep::Chunk => {}
             PrefillStep::Started => break,
-            PrefillStep::Finished(o) => return Ok(o),
+            PrefillStep::Finished(o) => return Ok(Some(o)),
         }
     }
     while !seq.on_token()? {
         seq.advance(model, st)?;
     }
-    seq.finish(model, st)
+    Ok(None)
 }

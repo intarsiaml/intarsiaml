@@ -98,7 +98,7 @@ Same in `err-sup` and `panic-sup` (read before the child exited).
 
 ## Observations (not bugs; nothing changed)
 
-* `intarsia_tokens_generated_total` is only incremented when a request completes normally: the 6 to 13 tokens each streamed decoder had already sent before the failure are in no token counter (still 9 after the failure, from the warm-up). The failed-request counters are right; a token counter that excludes failed requests is a choice, noted here for whoever reads the dashboard.
+* `intarsia_tokens_generated_total` is only incremented when a request completes normally: the 6 to 13 tokens each streamed decoder had already sent before the failure are in no token counter (still 9 after the failure, from the warm-up). The failed-request counters are right; a token counter that excludes failed requests is a choice, noted here for whoever reads the dashboard. **Fixed afterwards** on `metal-cb-tokcount`: a failed request now adds the tokens it generated before the failure, in both the batched and the single-sequence engine. Unit test: `failed_request_counts_its_generated_tokens`. Not re-measured on the GPU.
 * Queued requests that die in `fail_all` are counted in `intarsia_batch_requests_failed_total` but not in `intarsia_requests_total` (telemetry starts at admission). Fine, as the batch counters are the outcome counters.
 
 ## Reproduce
