@@ -1,0 +1,28 @@
+
+running 1 test
+gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.4 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_conv_bf16          T=64          26.7 us/launch
+gdn_delta_rule_bf16    T=64          87.8 us/launch
+gdn_delta_rule_bf16_lanes T=64          51.2 us/launch
+gdn_delta_rule_bf16_chunked T=64          87.8 us/launch
+gdn_conv_bf16          T=512         88.8 us/launch
+gdn_delta_rule_bf16    T=512        598.0 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.5 us/launch
+gdn_delta_rule_bf16_chunked T=512        576.7 us/launch
+gdn_conv_bf16          T=2048       371.5 us/launch
+gdn_delta_rule_bf16    T=2048      2802.1 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1998.4 us/launch
+gdn_delta_rule_bf16_chunked T=2048      2633.1 us/launch
+gdn_conv_bf16          T=4096       737.2 us/launch
+gdn_delta_rule_bf16    T=4096      5590.2 us/launch
+gdn_delta_rule_bf16_lanes T=4096      3837.6 us/launch
+gdn_delta_rule_bf16_chunked T=4096      4975.0 us/launch
+test gdn_kernels_timing_at_35b_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
