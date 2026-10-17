@@ -1,0 +1,35 @@
+11:55:02 fleetq status:
+fleetq · 11:55:02 · last health check 19s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 47.2 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+11:55:02 lease 2282 held
+11:55:05 memory freed: 110 GB available
+11:55:05 running $HOME/intarsia-decfuse/moe-mma-dev/scripts/moe-mma/w1.sh (cap 9 min)
+MemAvailable 110 GB
+== sweep (9 min left) 11:55:05
+exit 0
+ACC SUMMARY 192 cases, 17629184 outputs; old: 14511 off-reference
+ACC SUMMARY mode 0: off-reference 25593 (1.76x old), breaches 40, cases with more off than old 139, mean rel_l2/old 1.802
+ACC SUMMARY mode 1: off-reference 1013 (0.07x old), breaches 1, cases with more off than old 4, mean rel_l2/old 0.202
+ACC SUMMARY mode 2: off-reference 3860 (0.27x old), breaches 0, cases with more off than old 21, mean rel_l2/old 0.552
+ACC SUMMARY mode 3: off-reference 1726 (0.12x old), breaches 0, cases with more off than old 12, mean rel_l2/old 0.332
+ACC SUMMARY mode 4: off-reference 1934 (0.13x old), breaches 1, cases with more off than old 8, mean rel_l2/old 0.302
+ACC SUMMARY mode 5: off-reference 4532 (0.31x old), breaches 6, cases with more off than old 28, mean rel_l2/old 0.639
+ACC SUMMARY mode 6: off-reference 2045 (0.14x old), breaches 2, cases with more off than old 8, mean rel_l2/old 0.379
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 69.12s
+== bench (7 min left) 11:56:14
+exit 0
+test moe_experts_mma_acc_bench ... ACCBENCH T=   64 m0   2120.7 us m1   2354.3 us m2   2089.6 us m3   2114.5 us m4   2141.9 us m5   2071.7 us m6   2094.2 us
+ACCBENCH T=  256 m0   2489.3 us m1   2701.7 us m2   2474.0 us m3   2480.8 us m4   2510.1 us m5   2498.7 us m6   2513.9 us
+ACCBENCH T= 1024 m0   3127.9 us m1   4275.8 us m2   3384.1 us m3   3599.1 us m4   3348.2 us m5   3242.7 us m6   3544.1 us
+ACCBENCH T= 2048 m0   4398.5 us m1   6512.9 us m2   4985.6 us m3   5334.0 us m4   5092.3 us m5   4850.2 us m6   5279.9 us
+ACCBENCH T= 4096 m0   7171.1 us m1  10680.4 us m2   8504.0 us m3   9038.0 us m4   8429.4 us m5   8161.3 us m6   8780.0 us
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 7.40s
+== w1 done 11:56:22, 7 min left
+11:56:22 script exit 0
+11:56:22 killing leftover processes of ours under ~/intarsia-decfuse
+11:56:26 starting missioncntrl-guidance and waiting for /v1/models
+11:59:32 vLLM is serving again
+11:59:32 releasing fleetq job 2282
+11:59:33 done (status 0)

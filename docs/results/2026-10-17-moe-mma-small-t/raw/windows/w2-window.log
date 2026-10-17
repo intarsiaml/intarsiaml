@@ -1,0 +1,83 @@
+12:02:26 fleetq status:
+fleetq · 12:02:26 · last health check 13s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 47.4 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+12:02:26 lease 2292 held
+12:02:29 memory freed: 110 GB available
+12:02:29 running $HOME/intarsia-decfuse/moe-mma-dev/scripts/moe-mma/w2.sh (cap 17 min)
+MemAvailable 110 GB
+== CUDA kernel tests (16 min left) 12:02:29
+exit 0
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.40s
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.74s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 60.25s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== mutation: small-T sweep on the origin/main kernel (must fail) (14 min left) 12:04:09
+exit 101 (101 = test failed, as it must)
+SWEEP done: 192 cases, 40 break the per-case bounds, off-reference elements old 14511 mma 25593
+thread 'moe_experts_mma_small_t_sweep' panicked at crates/intarsia-backend-cuda/tests/quantmoe.rs:502:5:
+40 of 192 cases break the bounds of moe_experts_mma_is_as_accurate_as_old_kernel: [(1, 33), (1, 41), (3, 32), (3, 33), (3, 63), (4, 35), (4, 64), (5, 41), (5, 48), (5, 57), (5, 64), (6, 32), (6, 40), (7, 32), (7, 41), (7, 42), (8, 34), (8, 35), (8, 40), (8, 49), (8, 57), (9, 48), (10, 33), (10, 35),
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 58.22s
+== kernels test (13 min left) 12:05:08
+exit 0
+41
+moe_experts    moe_experts_bf16               11      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_bf16         2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_bf16            6      0    3.185e-3    1.459e-4  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16             16      0    7.940e-6    3.586e-7  ADMITTED
+41 kernels, 569 cases in 31.1s
+== 35b-short vs vLLM, baseline + envelope (12 min left) 12:05:39
+exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [4bit]: top-1 98.27% (not gated for this class) ok | 21-way KL 6.525e-3 (need <= 3.0e-2) ok | tail mass ours 0.0175 vs ref 0.0176, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [4bit]: top-1 98.12% (not gated for this class) ok | 21-way KL 7.676e-3 (need <= 3.0e-2) ok | tail mass ours 0.0239 vs ref 0.0258, excess -0.0019 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+golden gate: PASS
+== 8B qwen3-8b-fp32 (12 min left) 12:06:23
+exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== 8B qwen3-8b-long-fp32 (10 min left) 12:07:32
+exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== 35b-long vs vLLM, baseline + envelope (10 min left) 12:08:23
+exit 1
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 12064; prompts spanning more than one chunk: 5/5
+prefill floor [4bit]: top-1 94.31% (not gated for this class) ok | 21-way KL 4.394e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0639 vs ref 0.0611, excess +0.0028 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode (teacher-forced) floor [4bit]: top-1 98.44% (not gated for this class) ok | 21-way KL 9.258e-3 (need <= 3.0e-2) ok | tail mass ours 0.0232 vs ref 0.0230, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: FAIL
+golden gate: FAIL
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: FAIL
+== w2 done 12:13:37, 4 min left
+12:13:37 script exit 0
+12:13:37 killing leftover processes of ours under ~/intarsia-decfuse
+12:13:41 starting missioncntrl-guidance and waiting for /v1/models
+12:16:48 vLLM is serving again
+12:16:48 releasing fleetq job 2292
+12:16:48 done (status 0)

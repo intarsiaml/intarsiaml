@@ -1,0 +1,66 @@
+12:18:43 fleetq status:
+fleetq · 12:18:43 · last health check 28s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 47.4 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+12:18:43 lease 2297 held
+12:18:45 memory freed: 111 GB available
+12:18:45 running $HOME/intarsia-decfuse/moe-mma-dev/scripts/moe-mma/w3.sh (cap 17 min)
+== round 1 (15 min left) 12:18:45: base:moe-mma-base dev:moe-mma-dev
+MemAvailable 111 GB
+== 35b round 1 arm base (tree moe-mma-base env '') 12:18:45
+wrote /home/nvidia/intarsia-decfuse/out/moe-mma-ab/35b-base-r1/cudadecode-35b-base-r1.json
+cudadecode-35b-base-r1  model=intarsia-35b  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1008     0.255         3949        80.6      128
+    4096     4081     0.861         4733        78.1      128
+   16384    16719     3.821         4378        70.9      128
+== 35b round 1 arm dev (tree moe-mma-dev env '') 12:20:09
+wrote /home/nvidia/intarsia-decfuse/out/moe-mma-ab/35b-dev-r1/cudadecode-35b-dev-r1.json
+cudadecode-35b-dev-r1  model=intarsia-35b  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      975     0.270         3608        79.5      128
+    4096     4048     0.928         4373        77.0      128
+   16384    16589     4.070         4074        69.9      128
+== w-ab 35b round 1 done 12:21:34
+== round 2 (12 min left) 12:21:34: dev:moe-mma-dev base:moe-mma-base
+MemAvailable 111 GB
+== 35b round 2 arm dev (tree moe-mma-dev env '') 12:21:34
+wrote /home/nvidia/intarsia-decfuse/out/moe-mma-ab/35b-dev-r2/cudadecode-35b-dev-r2.json
+cudadecode-35b-dev-r2  model=intarsia-35b  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      976     0.270         3616        79.8      128
+    4096     4081     0.930         4361        76.9      128
+   16384    16602     4.065         4080        69.9      128
+== 35b round 2 arm base (tree moe-mma-base env '') 12:22:53
+wrote /home/nvidia/intarsia-decfuse/out/moe-mma-ab/35b-base-r2/cudadecode-35b-base-r2.json
+cudadecode-35b-base-r2  model=intarsia-35b  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      996     0.253         3944        80.0      128
+    4096     4125     0.925         4489        77.2      128
+   16384    16811     3.857         4359        70.1      128
+== w-ab 35b round 2 done 12:24:13
+== round 3 (9 min left) 12:24:13: base:moe-mma-base dev:moe-mma-dev
+MemAvailable 111 GB
+== 35b round 3 arm base (tree moe-mma-base env '') 12:24:13
+wrote /home/nvidia/intarsia-decfuse/out/moe-mma-ab/35b-base-r3/cudadecode-35b-base-r3.json
+cudadecode-35b-base-r3  model=intarsia-35b  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      973     0.249         3895        80.5      128
+    4096     4067     0.866         4698        77.7      128
+   16384    16587     3.808         4357        70.7      128
+== 35b round 3 arm dev (tree moe-mma-dev env '') 12:25:26
+wrote /home/nvidia/intarsia-decfuse/out/moe-mma-ab/35b-dev-r3/cudadecode-35b-dev-r3.json
+cudadecode-35b-dev-r3  model=intarsia-35b  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      994     0.273         3633        80.3      128
+    4096     4115     0.984         4192        77.7      128
+   16384    16736     4.094         4079        70.3      128
+== w-ab 35b round 3 done 12:26:50
+== w3 done 12:26:50, 6 min left
+12:26:50 script exit 0
+12:26:50 killing leftover processes of ours under ~/intarsia-decfuse
+12:26:53 starting missioncntrl-guidance and waiting for /v1/models
+12:29:55 vLLM is serving again
+12:29:55 releasing fleetq job 2297
+12:29:55 done (status 0)

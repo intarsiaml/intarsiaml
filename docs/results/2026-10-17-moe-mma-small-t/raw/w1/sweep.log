@@ -1,0 +1,244 @@
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 1 test
+test moe_experts_mma_acc_sweep ... ACC seed=  1 T= 32 old   10 4.52e-5 | m0   22 5.40e-5 m1    1 7.03e-6 m2    9 5.23e-5 m3   24 5.13e-5 m4    1 7.03e-6
+ACC seed=  1 T= 33 old   21 6.06e-5 | m0  343 2.58e-4 m1    7 3.00e-5 m2   11 3.66e-5 m3  426 2.88e-4 m4    7 3.00e-5
+ACC seed=  1 T= 34 old   20 5.10e-5 | m0   11 3.66e-5 m1    0 0.00e0 m2    2 7.53e-6 m3   16 5.50e-5 m4    0 0.00e0
+ACC seed=  1 T= 35 old   99 1.22e-4 | m0   30 7.43e-5 m1   11 6.09e-5 m2   21 6.15e-5 m3   31 7.66e-5 m4   11 6.09e-5
+ACC seed=  1 T= 40 old   32 6.18e-5 | m0  133 1.49e-4 m1    3 3.83e-5 m2    2 3.61e-5 m3  106 1.19e-4 m4    8 3.91e-5
+ACC seed=  1 T= 41 old   27 5.26e-5 | m0  239 1.91e-4 m1    5 1.66e-5 m2    5 1.82e-5 m3  255 1.97e-4 m4    4 1.65e-5
+ACC seed=  1 T= 42 old   32 5.52e-5 | m0   28 6.11e-5 m1    3 7.67e-6 m2    3 7.67e-6 m3   48 6.60e-5 m4    3 7.67e-6
+ACC seed=  1 T= 48 old  102 1.11e-4 | m0  219 1.45e-4 m1  113 1.25e-4 m2  229 1.71e-4 m3  298 1.86e-4 m4  113 1.25e-4
+ACC seed=  1 T= 49 old   52 5.65e-5 | m0   51 7.75e-5 m1   12 3.03e-5 m2   25 4.53e-5 m3  115 1.38e-4 m4   22 3.76e-5
+ACC seed=  1 T= 57 old   15 3.23e-5 | m0   85 7.41e-5 m1   12 2.85e-5 m2   18 4.01e-5 m3   70 6.01e-5 m4   13 3.55e-5
+ACC seed=  1 T= 63 old   99 9.84e-5 | m0  163 1.53e-4 m1    4 1.02e-5 m2   44 6.13e-5 m3  169 1.54e-4 m4    1 5.08e-6
+ACC seed=  1 T= 64 old  140 1.23e-4 | m0  368 1.94e-4 m1   67 8.23e-5 m2  211 1.42e-4 m3  441 2.28e-4 m4   67 7.98e-5
+ACC seed=  2 T= 32 old  516 3.07e-4 | m0  245 1.99e-4 m1  414 2.67e-4 m2  416 2.69e-4 m3   67 1.02e-4 m4  412 2.67e-4
+ACC seed=  2 T= 33 old  268 2.36e-4 | m0  280 2.37e-4 m1    0 0.00e0 m2    1 1.39e-5 m3  280 2.37e-4 m4    0 0.00e0
+ACC seed=  2 T= 34 old   26 7.10e-5 | m0   85 1.10e-4 m1   71 9.47e-5 m2   64 8.62e-5 m3   87 1.10e-4 m4   71 9.47e-5
+ACC seed=  2 T= 35 old   55 7.91e-5 | m0   44 7.14e-5 m1    0 0.00e0 m2    7 1.82e-5 m3   39 6.57e-5 m4    1 6.70e-6
+ACC seed=  2 T= 40 old   91 1.50e-4 | m0  101 1.58e-4 m1    0 0.00e0 m2    1 1.57e-6 m3  125 1.74e-4 m4    0 0.00e0
+ACC seed=  2 T= 41 old   40 9.84e-5 | m0   78 1.18e-4 m1   59 1.11e-4 m2   58 1.10e-4 m3   88 1.23e-4 m4   58 1.10e-4
+ACC seed=  2 T= 42 old   35 7.29e-5 | m0   80 8.87e-5 m1    5 3.74e-5 m2    8 3.01e-5 m3   48 7.03e-5 m4    4 3.53e-5
+ACC seed=  2 T= 48 old   66 9.89e-5 | m0  117 1.15e-4 m1   61 7.04e-5 m2    5 1.69e-5 m3  133 1.24e-4 m4   62 7.40e-5
+ACC seed=  2 T= 49 old   59 1.09e-4 | m0  153 1.35e-4 m1    2 5.77e-6 m2    7 9.56e-6 m3  147 1.28e-4 m4    3 8.15e-6
+ACC seed=  2 T= 57 old   37 6.01e-5 | m0  156 1.09e-4 m1    1 6.65e-7 m2  133 9.18e-5 m3  173 1.19e-4 m4    2 5.95e-6
+ACC seed=  2 T= 63 old   39 6.20e-5 | m0   84 8.70e-5 m1   44 6.22e-5 m2   81 8.53e-5 m3   53 7.30e-5 m4   43 6.22e-5
+ACC seed=  2 T= 64 old   78 8.96e-5 | m0   86 7.34e-5 m1    3 5.63e-6 m2   25 4.48e-5 m3  117 9.31e-5 m4    3 5.63e-6
+ACC seed=  3 T= 32 old   22 7.81e-5 | m0  212 2.06e-4 m1   48 9.57e-5 m2   11 6.73e-5 m3  213 2.06e-4 m4   50 9.70e-5
+ACC seed=  3 T= 33 old   25 7.77e-5 | m0  220 1.95e-4 m1   10 4.80e-5 m2   10 4.80e-5 m3  228 2.00e-4 m4    9 4.80e-5
+ACC seed=  3 T= 34 old   83 1.17e-4 | m0   60 9.85e-5 m1    2 1.34e-5 m2    1 1.66e-6 m3   21 5.41e-5 m4    1 1.66e-6
+ACC seed=  3 T= 35 old   17 6.71e-5 | m0  168 1.27e-4 m1    1 3.34e-6 m2   13 4.04e-5 m3   47 6.72e-5 m4    0 0.00e0
+ACC seed=  3 T= 40 old   28 7.87e-5 | m0  135 1.33e-4 m1   22 4.78e-5 m2   38 9.74e-5 m3  136 1.35e-4 m4   22 4.78e-5
+ACC seed=  3 T= 41 old   63 9.00e-5 | m0  197 2.03e-4 m1  107 1.29e-4 m2  117 1.41e-4 m3  197 1.96e-4 m4  107 1.31e-4
+ACC seed=  3 T= 42 old  190 1.91e-4 | m0  151 1.73e-4 m1   10 7.73e-5 m2   27 8.48e-5 m3  209 2.12e-4 m4   11 7.74e-5
+ACC seed=  3 T= 48 old   51 6.53e-5 | m0   68 7.87e-5 m1   46 8.94e-5 m2    7 2.52e-5 m3   77 8.01e-5 m4   46 8.94e-5
+ACC seed=  3 T= 49 old   40 6.63e-5 | m0   44 6.64e-5 m1    8 4.09e-5 m2   15 4.30e-5 m3  162 1.53e-4 m4    7 4.05e-5
+ACC seed=  3 T= 57 old  203 1.26e-4 | m0  505 2.65e-4 m1   31 4.81e-5 m2   40 5.01e-5 m3  362 1.79e-4 m4   29 4.66e-5
+ACC seed=  3 T= 63 old   71 9.36e-5 | m0  437 2.38e-4 m1   10 2.73e-5 m2   12 2.95e-5 m3  360 2.20e-4 m4    2 2.25e-5
+ACC seed=  3 T= 64 old  145 1.26e-4 | m0   96 9.47e-5 m1   66 7.68e-5 m2   71 8.00e-5 m3   96 9.71e-5 m4   66 7.68e-5
+ACC seed=  4 T= 32 old   10 4.13e-5 | m0   18 5.09e-5 m1    1 1.43e-5 m2    7 2.32e-5 m3   20 6.16e-5 m4    2 1.44e-5
+ACC seed=  4 T= 33 old   16 4.69e-5 | m0   32 5.23e-5 m1    5 2.10e-5 m2    2 1.42e-5 m3  167 1.71e-4 m4    4 1.98e-5
+ACC seed=  4 T= 34 old   10 5.21e-5 | m0   70 1.14e-4 m1    1 2.75e-5 m2    2 2.75e-5 m3   71 1.14e-4 m4    1 2.75e-5
+ACC seed=  4 T= 35 old   79 1.28e-4 | m0  297 2.54e-4 m1   36 7.58e-5 m2    0 0.00e0 m3  265 2.41e-4 m4   36 7.58e-5
+ACC seed=  4 T= 40 old   19 5.55e-5 | m0   48 6.62e-5 m1    6 1.91e-5 m2    9 3.25e-5 m3   74 1.01e-4 m4    6 1.91e-5
+ACC seed=  4 T= 41 old   96 1.01e-4 | m0   64 7.42e-5 m1   10 2.32e-5 m2   19 3.50e-5 m3   66 7.53e-5 m4   10 2.32e-5
+ACC seed=  4 T= 42 old    7 4.34e-5 | m0   32 5.71e-5 m1    2 1.73e-5 m2   19 5.26e-5 m3   29 6.08e-5 m4    0 0.00e0
+ACC seed=  4 T= 48 old  109 1.06e-4 | m0  109 1.01e-4 m1   34 6.49e-5 m2  125 1.16e-4 m3   79 8.33e-5 m4   43 6.64e-5
+ACC seed=  4 T= 49 old   45 7.09e-5 | m0   88 1.08e-4 m1    2 2.53e-5 m2    8 2.66e-5 m3   64 9.57e-5 m4    1 1.13e-5
+ACC seed=  4 T= 57 old  103 1.01e-4 | m0  193 1.47e-4 m1   71 6.75e-5 m2   86 7.64e-5 m3  193 1.47e-4 m4   71 6.73e-5
+ACC seed=  4 T= 63 old  268 1.67e-4 | m0  212 1.62e-4 m1  139 9.67e-5 m2  186 1.24e-4 m3  202 1.57e-4 m4  138 9.67e-5
+ACC seed=  4 T= 64 old   46 7.08e-5 | m0  410 2.21e-4 m1   30 6.90e-5 m2    9 4.05e-5 m3  252 1.89e-4 m4   27 6.80e-5
+ACC seed=  5 T= 32 old   96 1.39e-4 | m0  241 2.15e-4 m1   10 5.33e-5 m2    2 1.45e-5 m3  476 3.32e-4 m4   10 5.33e-5
+ACC seed=  5 T= 33 old   35 5.77e-5 | m0   24 1.02e-4 m1    5 6.21e-5 m2    6 6.25e-5 m3   20 9.84e-5 m4    3 2.77e-5
+ACC seed=  5 T= 34 old   18 2.50e-5 | m0   21 4.13e-5 m1   37 7.17e-5 m2   41 8.18e-5 m3   56 8.22e-5 m4   37 7.17e-5
+ACC seed=  5 T= 35 old  201 1.81e-4 | m0  131 1.71e-4 m1   86 1.25e-4 m2   87 1.25e-4 m3  317 2.83e-4 m4   86 1.25e-4
+ACC seed=  5 T= 40 old   33 1.08e-4 | m0  182 1.40e-4 m1    0 0.00e0 m2    0 0.00e0 m3  177 1.39e-4 m4    0 0.00e0
+ACC seed=  5 T= 41 old    4 1.44e-5 | m0    9 4.08e-5 m1    1 4.89e-8 m2    1 6.27e-6 m3    6 3.15e-5 m4    1 4.89e-8
+ACC seed=  5 T= 42 old   11 2.35e-5 | m0   14 4.21e-5 m1    3 1.28e-5 m2    4 1.78e-5 m3   10 3.10e-5 m4    1 1.24e-5
+ACC seed=  5 T= 48 old   41 6.80e-5 | m0  184 1.77e-4 m1   47 9.76e-5 m2   82 1.16e-4 m3  172 1.77e-4 m4   46 9.75e-5
+ACC seed=  5 T= 49 old   43 7.21e-5 | m0   65 8.56e-5 m1    0 0.00e0 m2   14 5.95e-5 m3   90 1.15e-4 m4    0 0.00e0
+ACC seed=  5 T= 57 old   22 4.61e-5 | m0  202 1.40e-4 m1    7 2.77e-5 m2    3 1.30e-5 m3  202 1.40e-4 m4    7 2.77e-5
+ACC seed=  5 T= 63 old  166 1.18e-4 | m0  278 1.58e-4 m1   79 7.59e-5 m2   79 7.59e-5 m3  284 1.66e-4 m4   80 7.59e-5
+ACC seed=  5 T= 64 old   32 4.00e-5 | m0  302 1.81e-4 m1   68 7.22e-5 m2   70 7.29e-5 m3  305 1.80e-4 m4   67 7.21e-5
+ACC seed=  6 T= 32 old   16 4.73e-5 | m0  252 1.98e-4 m1    1 5.65e-5 m2    2 5.66e-5 m3  263 2.02e-4 m4    1 5.65e-5
+ACC seed=  6 T= 33 old   28 5.84e-5 | m0   58 1.10e-4 m1   35 8.71e-5 m2   42 8.81e-5 m3   60 1.15e-4 m4   35 8.71e-5
+ACC seed=  6 T= 34 old   82 1.12e-4 | m0  155 1.34e-4 m1   76 1.06e-4 m2   19 7.82e-5 m3  155 1.33e-4 m4   75 1.05e-4
+ACC seed=  6 T= 35 old   47 8.66e-5 | m0    7 3.17e-5 m1   41 9.89e-5 m2   42 9.91e-5 m3   10 3.44e-5 m4   42 9.89e-5
+ACC seed=  6 T= 40 old    2 8.79e-6 | m0   44 5.94e-5 m1    2 2.56e-5 m2    5 2.06e-5 m3   45 6.15e-5 m4    2 2.56e-5
+ACC seed=  6 T= 41 old   17 4.57e-5 | m0   83 8.92e-5 m1    0 0.00e0 m2    0 0.00e0 m3   81 8.28e-5 m4    0 0.00e0
+ACC seed=  6 T= 42 old  152 1.68e-4 | m0  299 2.22e-4 m1    5 2.86e-5 m2    6 3.36e-5 m3  206 1.95e-4 m4    2 1.76e-5
+ACC seed=  6 T= 48 old  120 1.44e-4 | m0   31 6.67e-5 m1    2 1.63e-5 m2    3 1.73e-5 m3   85 1.10e-4 m4    2 1.63e-5
+ACC seed=  6 T= 49 old  227 1.92e-4 | m0  101 9.48e-5 m1   32 5.77e-5 m2   41 6.17e-5 m3  109 8.48e-5 m4    1 2.24e-5
+ACC seed=  6 T= 57 old  107 1.11e-4 | m0  131 1.43e-4 m1   59 8.77e-5 m2   75 9.99e-5 m3  112 1.27e-4 m4   60 8.77e-5
+ACC seed=  6 T= 63 old  112 1.04e-4 | m0  120 9.75e-5 m1    1 2.00e-5 m2    6 3.51e-5 m3  259 1.83e-4 m4    0 0.00e0
+ACC seed=  6 T= 64 old   64 9.46e-5 | m0   68 6.85e-5 m1    9 3.31e-5 m2    6 2.40e-5 m3   49 5.67e-5 m4    6 2.59e-5
+ACC seed=  7 T= 32 old   18 5.55e-5 | m0  112 1.65e-4 m1   96 1.57e-4 m2   96 1.57e-4 m3   43 9.47e-5 m4   96 1.57e-4
+ACC seed=  7 T= 33 old   10 5.10e-5 | m0   21 3.97e-5 m1    1 1.41e-5 m2    2 1.45e-5 m3   31 6.23e-5 m4    1 1.41e-5
+ACC seed=  7 T= 34 old   48 1.05e-4 | m0   57 1.16e-4 m1   21 7.66e-5 m2   21 7.66e-5 m3   57 1.13e-4 m4   21 7.66e-5
+ACC seed=  7 T= 35 old   23 5.44e-5 | m0   83 1.14e-4 m1    1 1.35e-5 m2    4 3.90e-5 m3   75 1.16e-4 m4    0 0.00e0
+ACC seed=  7 T= 40 old   82 1.01e-4 | m0  159 1.58e-4 m1    1 3.18e-6 m2   35 5.46e-5 m3  149 1.57e-4 m4    1 3.18e-6
+ACC seed=  7 T= 41 old   84 1.08e-4 | m0  475 2.70e-4 m1  275 2.17e-4 m2  133 1.09e-4 m3  476 2.71e-4 m4  276 2.17e-4
+ACC seed=  7 T= 42 old   28 8.05e-5 | m0  262 2.11e-4 m1   11 5.91e-5 m2   13 5.97e-5 m3  239 2.01e-4 m4    7 5.17e-5
+ACC seed=  7 T= 48 old  105 1.12e-4 | m0  201 1.60e-4 m1    6 3.32e-5 m2   10 3.70e-5 m3   29 5.75e-5 m4    4 2.43e-5
+ACC seed=  7 T= 49 old   31 6.18e-5 | m0   52 7.36e-5 m1   16 2.91e-5 m2    0 0.00e0 m3   48 7.67e-5 m4   17 2.96e-5
+ACC seed=  7 T= 57 old  179 1.18e-4 | m0  343 2.10e-4 m1  132 9.18e-5 m2  132 9.18e-5 m3  481 2.29e-4 m4  132 8.94e-5
+ACC seed=  7 T= 63 old   35 7.98e-5 | m0   59 8.56e-5 m1    0 0.00e0 m2   10 2.69e-5 m3  129 1.28e-4 m4    1 2.51e-6
+ACC seed=  7 T= 64 old   41 5.35e-5 | m0  114 9.85e-5 m1   17 4.51e-5 m2   21 4.33e-5 m3  142 1.11e-4 m4   16 4.49e-5
+ACC seed=  8 T= 32 old   37 9.72e-5 | m0   20 6.06e-5 m1    0 0.00e0 m2    3 2.99e-5 m3   22 6.15e-5 m4    0 0.00e0
+ACC seed=  8 T= 33 old    6 2.21e-5 | m0   19 4.79e-5 m1    0 0.00e0 m2   13 3.67e-5 m3   95 1.25e-4 m4    0 0.00e0
+ACC seed=  8 T= 34 old    6 2.18e-5 | m0   78 1.34e-4 m1   61 1.28e-4 m2   65 1.32e-4 m3   85 1.39e-4 m4   61 1.28e-4
+ACC seed=  8 T= 35 old   27 5.67e-5 | m0  231 1.89e-4 m1    1 1.35e-5 m2    4 2.03e-5 m3  232 1.89e-4 m4    1 1.35e-5
+ACC seed=  8 T= 40 old   21 4.48e-5 | m0  162 1.55e-4 m1    8 2.90e-5 m2   11 2.08e-5 m3  329 2.20e-4 m4    8 2.90e-5
+ACC seed=  8 T= 41 old  151 1.61e-4 | m0  162 1.65e-4 m1    3 1.76e-5 m2   52 1.07e-4 m3   96 1.25e-4 m4    4 1.76e-5
+ACC seed=  8 T= 42 old   16 5.59e-5 | m0   71 9.90e-5 m1    1 2.44e-5 m2   13 4.14e-5 m3   65 9.33e-5 m4    1 2.44e-5
+ACC seed=  8 T= 48 old   60 1.00e-4 | m0  104 1.18e-4 m1   43 8.28e-5 m2   51 8.72e-5 m3  123 1.23e-4 m4   43 8.59e-5
+ACC seed=  8 T= 49 old    7 3.27e-5 | m0  125 1.30e-4 m1   18 5.21e-5 m2   19 5.15e-5 m3  127 1.32e-4 m4   17 5.09e-5
+ACC seed=  8 T= 57 old   92 8.06e-5 | m0  369 1.97e-4 m1   83 8.52e-5 m2  102 9.89e-5 m3  150 1.16e-4 m4   85 8.65e-5
+ACC seed=  8 T= 63 old   30 5.46e-5 | m0   94 1.02e-4 m1    7 1.87e-5 m2   15 3.25e-5 m3  163 1.31e-4 m4    3 1.22e-5
+ACC seed=  8 T= 64 old  258 1.40e-4 | m0  256 1.51e-4 m1  176 1.24e-4 m2  180 1.26e-4 m3  421 2.05e-4 m4  174 1.24e-4
+ACC seed=  9 T= 32 old   31 6.06e-5 | m0  116 1.43e-4 m1   23 6.35e-5 m2    3 1.01e-5 m3  129 1.48e-4 m4   24 6.51e-5
+ACC seed=  9 T= 33 old   44 8.67e-5 | m0   36 7.88e-5 m1   44 9.08e-5 m2   48 9.80e-5 m3  107 1.18e-4 m4   27 6.99e-5
+ACC seed=  9 T= 34 old  136 1.48e-4 | m0  130 1.46e-4 m1   32 6.32e-5 m2   37 6.52e-5 m3  213 1.84e-4 m4   32 6.32e-5
+ACC seed=  9 T= 35 old  122 1.39e-4 | m0   58 1.12e-4 m1   29 7.73e-5 m2  161 1.67e-4 m3   39 9.56e-5 m4   19 6.36e-5
+ACC seed=  9 T= 40 old   27 4.98e-5 | m0   39 5.66e-5 m1    2 2.56e-5 m2    5 2.73e-5 m3   61 8.53e-5 m4    4 2.57e-5
+ACC seed=  9 T= 41 old   66 1.21e-4 | m0   77 9.20e-5 m1    2 1.29e-5 m2    4 1.43e-5 m3   80 9.19e-5 m4    2 1.40e-5
+ACC seed=  9 T= 42 old  118 1.20e-4 | m0  136 1.28e-4 m1    5 9.17e-6 m2  103 1.12e-4 m3  138 1.25e-4 m4    5 9.17e-6
+ACC seed=  9 T= 48 old    4 1.53e-5 | m0  100 9.71e-5 m1    0 0.00e0 m2    7 3.75e-5 m3  104 1.00e-4 m4    0 0.00e0
+ACC seed=  9 T= 49 old  134 1.33e-4 | m0   63 8.54e-5 m1    3 2.60e-5 m2   42 7.26e-5 m3  136 1.25e-4 m4    2 1.27e-5
+ACC seed=  9 T= 57 old  274 1.75e-4 | m0  318 1.84e-4 m1  182 1.40e-4 m2  181 1.41e-4 m3  322 1.90e-4 m4  173 1.38e-4
+ACC seed=  9 T= 63 old  278 1.41e-4 | m0  121 1.01e-4 m1   92 8.04e-5 m2   37 6.69e-5 m3  135 1.19e-4 m4   91 8.03e-5
+ACC seed=  9 T= 64 old  307 1.77e-4 | m0   51 6.60e-5 m1    5 3.05e-5 m2  115 1.15e-4 m3   51 7.61e-5 m4    6 3.20e-5
+ACC seed= 10 T= 32 old   22 7.65e-5 | m0   29 8.59e-5 m1   38 9.26e-5 m2   38 9.26e-5 m3   37 9.37e-5 m4   38 9.26e-5
+ACC seed= 10 T= 33 old   10 3.97e-5 | m0   83 1.13e-4 m1    1 2.76e-5 m2    1 2.76e-5 m3   83 1.13e-4 m4    1 2.76e-5
+ACC seed= 10 T= 34 old   11 3.29e-5 | m0   24 5.44e-5 m1    2 1.39e-5 m2    2 1.39e-5 m3   25 4.93e-5 m4    3 1.55e-5
+ACC seed= 10 T= 35 old    1 1.38e-5 | m0  119 1.53e-4 m1    0 0.00e0 m2    2 1.55e-5 m3  120 1.53e-4 m4    0 0.00e0
+ACC seed= 10 T= 40 old   41 7.30e-5 | m0  106 1.43e-4 m1   62 8.90e-5 m2   60 9.93e-5 m3  322 2.20e-4 m4   62 8.90e-5
+ACC seed= 10 T= 41 old   69 8.54e-5 | m0  102 1.11e-4 m1   36 7.99e-5 m2   43 8.12e-5 m3  143 1.25e-4 m4   36 7.99e-5
+ACC seed= 10 T= 42 old   20 5.39e-5 | m0   47 7.81e-5 m1    5 3.75e-5 m2    9 4.18e-5 m3   48 7.51e-5 m4    6 3.95e-5
+ACC seed= 10 T= 48 old  156 1.52e-4 | m0  103 9.86e-5 m1   43 7.75e-5 m2   78 1.08e-4 m3   96 9.41e-5 m4   77 1.06e-4
+ACC seed= 10 T= 49 old   52 8.36e-5 | m0   78 9.86e-5 m1    6 2.79e-5 m2    9 2.88e-5 m3   95 1.06e-4 m4    6 2.79e-5
+ACC seed= 10 T= 57 old  238 1.53e-4 | m0  162 1.27e-4 m1   94 9.88e-5 m2   96 9.90e-5 m3  318 1.77e-4 m4   94 9.88e-5
+ACC seed= 10 T= 63 old  104 9.87e-5 | m0  437 2.26e-4 m1   83 9.10e-5 m2   85 9.32e-5 m3  529 2.50e-4 m4   82 9.05e-5
+ACC seed= 10 T= 64 old  273 1.66e-4 | m0  200 1.67e-4 m1   53 6.45e-5 m2  194 1.34e-4 m3  250 1.84e-4 m4   53 6.45e-5
+ACC seed= 11 T= 32 old  136 1.52e-4 | m0   89 1.33e-4 m1    2 1.94e-5 m2    6 2.91e-5 m3   79 1.26e-4 m4    1 1.37e-5
+ACC seed= 11 T= 33 old    4 2.22e-5 | m0   38 7.92e-5 m1    0 0.00e0 m2    2 1.57e-5 m3   24 6.86e-5 m4    1 1.40e-5
+ACC seed= 11 T= 34 old  364 2.52e-4 | m0  107 1.37e-4 m1    2 1.52e-5 m2   37 6.57e-5 m3   40 7.49e-5 m4    2 1.52e-5
+ACC seed= 11 T= 35 old   49 1.06e-4 | m0  311 2.35e-4 m1   47 1.05e-4 m2   47 1.08e-4 m3  245 2.22e-4 m4   46 1.05e-4
+ACC seed= 11 T= 40 old   31 5.94e-5 | m0  221 1.82e-4 m1    9 4.58e-5 m2   10 4.75e-5 m3  214 1.76e-4 m4    9 4.58e-5
+ACC seed= 11 T= 41 old  135 1.23e-4 | m0  214 1.81e-4 m1   27 5.72e-5 m2   24 5.54e-5 m3  224 1.83e-4 m4   24 5.54e-5
+ACC seed= 11 T= 42 old  139 1.23e-4 | m0  168 1.43e-4 m1   27 4.73e-5 m2   28 5.32e-5 m3  174 1.51e-4 m4   26 4.57e-5
+ACC seed= 11 T= 48 old   52 9.29e-5 | m0   84 1.01e-4 m1   11 3.83e-5 m2    1 3.63e-7 m3   82 8.76e-5 m4   11 3.83e-5
+ACC seed= 11 T= 49 old   32 6.93e-5 | m0   49 9.01e-5 m1    5 3.84e-5 m2   10 3.57e-5 m3   56 9.54e-5 m4    4 3.66e-5
+ACC seed= 11 T= 57 old  108 1.04e-4 | m0  184 1.28e-4 m1   43 5.82e-5 m2   53 6.44e-5 m3  111 9.91e-5 m4   44 6.10e-5
+ACC seed= 11 T= 63 old  169 1.19e-4 | m0   99 9.02e-5 m1   14 4.81e-5 m2   23 5.25e-5 m3  132 1.07e-4 m4   14 4.81e-5
+ACC seed= 11 T= 64 old   99 8.00e-5 | m0   56 6.25e-5 m1   30 4.21e-5 m2   27 2.83e-5 m3  139 1.11e-4 m4   28 4.17e-5
+ACC seed= 12 T= 32 old   64 1.20e-4 | m0   17 7.64e-5 m1   16 5.10e-5 m2   20 6.00e-5 m3   19 7.65e-5 m4    2 7.92e-6
+ACC seed= 12 T= 33 old   48 1.11e-4 | m0   59 9.15e-5 m1   41 1.04e-4 m2   42 1.04e-4 m3   62 9.66e-5 m4   36 1.02e-4
+ACC seed= 12 T= 34 old  121 1.62e-4 | m0  254 1.98e-4 m1    2 1.53e-5 m2  128 1.42e-4 m3  366 2.46e-4 m4    3 1.53e-5
+ACC seed= 12 T= 35 old   63 1.11e-4 | m0   88 1.46e-4 m1    1 2.69e-5 m2   17 7.14e-5 m3   65 1.39e-4 m4    3 3.02e-5
+ACC seed= 12 T= 40 old   26 4.36e-5 | m0   20 4.53e-5 m1  191 1.81e-4 m2   84 8.71e-5 m3   33 5.68e-5 m4  190 1.81e-4
+ACC seed= 12 T= 41 old   77 1.25e-4 | m0   46 8.42e-5 m1    3 1.39e-5 m2   36 8.40e-5 m3   68 9.09e-5 m4    2 1.24e-5
+ACC seed= 12 T= 42 old   50 8.44e-5 | m0   25 7.39e-5 m1   37 6.61e-5 m2   42 7.75e-5 m3   57 8.49e-5 m4   37 6.61e-5
+ACC seed= 12 T= 48 old   18 4.91e-5 | m0   91 1.40e-4 m1    1 2.91e-6 m2    4 2.42e-5 m3  100 1.18e-4 m4    1 2.91e-6
+ACC seed= 12 T= 49 old   92 1.22e-4 | m0  120 1.27e-4 m1   74 1.12e-4 m2   73 1.12e-4 m3  122 1.27e-4 m4   71 1.12e-4
+ACC seed= 12 T= 57 old  133 1.15e-4 | m0  100 1.07e-4 m1   40 8.24e-5 m2   42 8.45e-5 m3  132 1.27e-4 m4   29 5.60e-5
+ACC seed= 12 T= 63 old  161 1.02e-4 | m0  107 1.01e-4 m1   43 7.56e-5 m2   10 3.09e-5 m3  225 1.32e-4 m4   42 7.49e-5
+ACC seed= 12 T= 64 old  152 9.75e-5 | m0   99 9.51e-5 m1   40 4.35e-5 m2   53 4.83e-5 m3  112 1.05e-4 m4    7 1.56e-5
+ACC seed= 13 T= 32 old    6 2.18e-5 | m0  173 1.93e-4 m1    1 7.16e-6 m2    2 7.16e-6 m3  175 1.95e-4 m4    0 0.00e0
+ACC seed= 13 T= 33 old   36 6.18e-5 | m0   11 4.45e-5 m1   31 8.99e-5 m2   33 9.10e-5 m3   47 7.48e-5 m4   31 8.99e-5
+ACC seed= 13 T= 34 old   22 8.51e-5 | m0  196 2.13e-4 m1   24 8.18e-5 m2   18 7.78e-5 m3   19 6.16e-5 m4   16 7.77e-5
+ACC seed= 13 T= 35 old   29 8.45e-5 | m0  176 1.82e-4 m1   21 4.92e-5 m2   25 5.95e-5 m3  183 1.91e-4 m4   21 4.92e-5
+ACC seed= 13 T= 40 old  181 1.67e-4 | m0  766 3.62e-4 m1    2 2.78e-5 m2   16 5.42e-5 m3  774 3.62e-4 m4    2 2.78e-5
+ACC seed= 13 T= 41 old   35 5.63e-5 | m0   50 7.75e-5 m1   16 4.09e-5 m2   18 4.15e-5 m3   43 7.55e-5 m4   16 4.09e-5
+ACC seed= 13 T= 42 old   72 8.74e-5 | m0   61 6.53e-5 m1   11 1.81e-5 m2    7 1.67e-5 m3   62 6.24e-5 m4    7 1.67e-5
+ACC seed= 13 T= 48 old   52 7.89e-5 | m0   33 6.96e-5 m1   35 4.96e-5 m2   22 3.61e-5 m3   81 1.06e-4 m4   20 3.59e-5
+ACC seed= 13 T= 49 old  249 2.03e-4 | m0  186 1.45e-4 m1    2 8.16e-6 m2    2 8.16e-6 m3  201 1.50e-4 m4    3 8.29e-6
+ACC seed= 13 T= 57 old   35 3.59e-5 | m0  240 1.76e-4 m1   42 8.15e-5 m2   51 8.86e-5 m3  233 1.78e-4 m4   42 8.15e-5
+ACC seed= 13 T= 63 old   86 1.07e-4 | m0  137 1.20e-4 m1   33 6.99e-5 m2   35 7.08e-5 m3   92 1.03e-4 m4   30 6.99e-5
+ACC seed= 13 T= 64 old   30 5.14e-5 | m0   91 8.57e-5 m1   24 5.23e-5 m2   30 5.79e-5 m3  421 2.22e-4 m4   24 5.24e-5
+ACC seed= 14 T= 32 old   46 9.38e-5 | m0   31 9.84e-5 m1    0 0.00e0 m2    1 1.75e-6 m3   17 6.63e-5 m4    0 0.00e0
+ACC seed= 14 T= 33 old   10 3.03e-5 | m0   54 8.89e-5 m1    0 0.00e0 m2    1 1.70e-6 m3   33 6.50e-5 m4    0 0.00e0
+ACC seed= 14 T= 34 old   51 6.95e-5 | m0   34 8.04e-5 m1    1 3.46e-6 m2    3 3.93e-5 m3   17 5.86e-5 m4    1 3.46e-6
+ACC seed= 14 T= 35 old   24 5.28e-5 | m0   38 6.68e-5 m1    6 3.95e-5 m2   27 5.84e-5 m3   24 4.32e-5 m4    2 3.87e-5
+ACC seed= 14 T= 40 old   33 9.12e-5 | m0   25 4.79e-5 m1   32 4.83e-5 m2   44 5.98e-5 m3   60 1.22e-4 m4   28 4.59e-5
+ACC seed= 14 T= 41 old   86 1.00e-4 | m0   66 1.01e-4 m1   58 8.13e-5 m2   26 4.79e-5 m3   88 1.14e-4 m4   57 8.13e-5
+ACC seed= 14 T= 42 old  111 1.16e-4 | m0  211 1.83e-4 m1    2 1.25e-5 m2    3 2.73e-5 m3   74 9.02e-5 m4    1 3.03e-6
+ACC seed= 14 T= 48 old   21 7.60e-5 | m0  115 1.30e-4 m1    4 2.61e-5 m2    6 2.87e-5 m3   52 7.62e-5 m4    5 2.85e-5
+ACC seed= 14 T= 49 old   71 9.88e-5 | m0  273 1.77e-4 m1    2 1.18e-5 m2    6 3.82e-5 m3  246 1.67e-4 m4    2 1.18e-5
+ACC seed= 14 T= 57 old   45 7.65e-5 | m0  441 2.38e-4 m1    8 2.73e-5 m2    9 2.73e-5 m3  366 2.08e-4 m4    8 2.73e-5
+ACC seed= 14 T= 63 old  115 1.03e-4 | m0  124 9.52e-5 m1    2 1.43e-5 m2    2 1.43e-5 m3   52 7.19e-5 m4    3 1.45e-5
+ACC seed= 14 T= 64 old   34 4.92e-5 | m0   97 8.74e-5 m1   44 5.77e-5 m2   56 6.22e-5 m3  229 1.31e-4 m4   36 6.43e-5
+ACC seed= 15 T= 32 old   11 5.53e-5 | m0   17 7.93e-5 m1   13 4.42e-5 m2   18 5.75e-5 m3   78 1.15e-4 m4   13 4.42e-5
+ACC seed= 15 T= 33 old   60 1.19e-4 | m0  168 2.08e-4 m1   17 6.89e-5 m2  168 2.11e-4 m3  125 1.99e-4 m4    0 0.00e0
+ACC seed= 15 T= 34 old   20 5.62e-5 | m0   18 7.14e-5 m1    0 0.00e0 m2    0 0.00e0 m3   36 7.71e-5 m4    0 0.00e0
+ACC seed= 15 T= 35 old   40 9.19e-5 | m0   94 1.23e-4 m1    0 0.00e0 m2    0 0.00e0 m3   90 1.21e-4 m4    0 0.00e0
+ACC seed= 15 T= 40 old   17 4.90e-5 | m0   52 7.40e-5 m1    9 3.09e-5 m2   12 4.36e-5 m3   31 5.28e-5 m4    9 3.09e-5
+ACC seed= 15 T= 41 old  152 1.96e-4 | m0  190 1.84e-4 m1   15 4.83e-5 m2    6 2.41e-5 m3  198 1.86e-4 m4   14 4.79e-5
+ACC seed= 15 T= 42 old    5 1.74e-5 | m0   29 6.64e-5 m1    0 0.00e0 m2   20 4.10e-5 m3   30 6.75e-5 m4    0 0.00e0
+ACC seed= 15 T= 48 old  140 1.56e-4 | m0   51 9.58e-5 m1   10 1.79e-5 m2   12 3.12e-5 m3  217 2.08e-4 m4    2 6.49e-6
+ACC seed= 15 T= 49 old   19 4.49e-5 | m0  319 2.13e-4 m1   40 5.60e-5 m2   46 6.19e-5 m3  320 2.12e-4 m4   43 6.00e-5
+ACC seed= 15 T= 57 old  208 1.42e-4 | m0  270 1.73e-4 m1   89 9.28e-5 m2  162 1.30e-4 m3  277 1.80e-4 m4   89 1.02e-4
+ACC seed= 15 T= 63 old   28 5.14e-5 | m0   49 6.81e-5 m1   33 4.42e-5 m2   36 4.54e-5 m3  126 1.09e-4 m4   25 3.58e-5
+ACC seed= 15 T= 64 old   66 7.19e-5 | m0  114 9.92e-5 m1    5 2.50e-5 m2   31 4.69e-5 m3  108 9.00e-5 m4    4 2.45e-5
+ACC seed= 16 T= 32 old    7 2.27e-5 | m0   90 1.68e-4 m1    1 6.98e-6 m2    6 3.49e-5 m3   90 1.67e-4 m4    1 6.98e-6
+ACC seed= 16 T= 33 old  103 1.25e-4 | m0   97 1.44e-4 m1   33 7.81e-5 m2   24 4.56e-5 m3   94 1.35e-4 m4   32 7.80e-5
+ACC seed= 16 T= 34 old   27 7.44e-5 | m0   26 9.66e-5 m1    1 2.73e-5 m2    3 3.92e-5 m3   31 7.90e-5 m4    1 6.82e-6
+ACC seed= 16 T= 35 old    4 2.33e-5 | m0   74 1.02e-4 m1    1 6.67e-6 m2    2 1.33e-5 m3   58 1.03e-4 m4    0 0.00e0
+ACC seed= 16 T= 40 old   49 8.33e-5 | m0   43 8.12e-5 m1   24 6.30e-5 m2   25 6.33e-5 m3   46 7.91e-5 m4   24 6.30e-5
+ACC seed= 16 T= 41 old   30 6.87e-5 | m0   43 9.75e-5 m1    4 6.40e-6 m2   11 4.30e-5 m3   44 9.82e-5 m4    1 6.12e-6
+ACC seed= 16 T= 42 old    9 4.02e-5 | m0   42 8.08e-5 m1    2 1.75e-5 m2   28 6.49e-5 m3   58 9.19e-5 m4    2 1.38e-5
+ACC seed= 16 T= 48 old   43 5.21e-5 | m0  153 1.23e-4 m1   29 4.52e-5 m2   35 4.78e-5 m3  105 9.62e-5 m4   29 4.46e-5
+ACC seed= 16 T= 49 old   20 2.93e-5 | m0   95 9.31e-5 m1   10 2.22e-5 m2   14 2.86e-5 m3   93 9.21e-5 m4    9 2.15e-5
+ACC seed= 16 T= 57 old   35 6.57e-5 | m0  216 1.32e-4 m1  125 9.18e-5 m2  182 1.23e-4 m3  340 2.02e-4 m4  126 9.30e-5
+ACC seed= 16 T= 63 old  266 1.68e-4 | m0  252 1.44e-4 m1   92 8.12e-5 m2  105 9.00e-5 m3  248 1.47e-4 m4   91 7.87e-5
+ACC seed= 16 T= 64 old   35 4.45e-5 | m0  383 2.13e-4 m1    7 1.60e-5 m2    6 2.20e-5 m3  144 1.22e-4 m4    7 2.57e-5
+ACC SUMMARY 192 cases, 17629184 outputs; old: 14511 off-reference
+ACC SUMMARY mode 0: off-reference 25593 (1.76x old), breaches 40, cases with more off than old 139, mean rel_l2/old 1.802
+ACC SUMMARY mode 1: off-reference 5689 (0.39x old), breaches 6, cases with more off than old 24, mean rel_l2/old 0.625
+ACC SUMMARY mode 2: off-reference 7435 (0.51x old), breaches 3, cases with more off than old 41, mean rel_l2/old 0.767
+ACC SUMMARY mode 3: off-reference 27340 (1.88x old), breaches 43, cases with more off than old 151, mean rel_l2/old 1.879
+ACC SUMMARY mode 4: off-reference 5484 (0.38x old), breaches 6, cases with more off than old 22, mean rel_l2/old 0.603
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 64.66s
+

@@ -1,0 +1,27 @@
+12:30:50 fleetq status:
+fleetq · 12:30:50 · last health check 6s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 47.5 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+12:30:51 lease 2301 held
+12:30:53 memory freed: 111 GB available
+12:30:53 running $HOME/intarsia-decfuse/moe-mma-dev/scripts/moe-mma/w4.sh (cap 10 min)
+MemAvailable 111 GB
+== small-T sweep (3 min left) 12:30:53
+exit 0
+SWEEP done: 192 cases, 0 break the per-case bounds, off-reference elements old 14511 mma 3860
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 57.71s
+== w2 done 12:31:51, 2 min left
+MemAvailable 111 GB
+== 35b-long vs vLLM, baseline + envelope (7 min left) 12:31:51
+exit 1
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 12064; prompts spanning more than one chunk: 5/5
+== w2 done 12:32:23, 6 min left
+== w4 done 12:32:23
+12:32:23 script exit 0
+12:32:23 killing leftover processes of ours under ~/intarsia-decfuse
+12:32:27 starting missioncntrl-guidance and waiting for /v1/models
+12:35:34 vLLM is serving again
+12:35:34 releasing fleetq job 2301
+12:35:34 done (status 0)

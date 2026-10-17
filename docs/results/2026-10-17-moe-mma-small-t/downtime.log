@@ -1,0 +1,7 @@
+2026-10-17 job=2269 stop=11:43:02 up=11:47:32 down=4.5 min label="intarsiaml moe-mma W1 accumulation experiment" serving=1
+2026-10-17 job=2278 stop=11:49:52 up=11:54:17 down=4.4 min label="intarsiaml moe-mma W1b accumulation experiment 2" serving=1
+2026-10-17 job=2282 stop=11:55:02 up=11:59:32 down=4.5 min label="intarsiaml moe-mma W1c accumulation experiment 3" serving=1
+2026-10-17 job=2292 stop=12:02:26 up=12:16:48 down=14.3 min label="intarsiaml moe-mma W2 gates" serving=1
+2026-10-17 job=2297 stop=12:18:43 up=12:29:55 down=11.2 min label="intarsiaml moe-mma W3 speed A/B" serving=1
+2026-10-17 job=2301 stop=12:30:51 up=12:35:34 down=4.7 min label="intarsiaml moe-mma W4 sweep and base 35b-long" serving=1
+2026-10-17 job=2312 stop=12:36:23 up=12:44:38 down=8.2 min label="intarsiaml moe-mma W5 base 35b-long" serving=1

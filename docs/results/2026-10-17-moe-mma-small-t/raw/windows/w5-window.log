@@ -1,0 +1,28 @@
+12:36:23 fleetq status:
+fleetq · 12:36:23 · last health check 8s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 47.8 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+12:36:23 lease 2312 held
+12:36:25 memory freed: 111 GB available
+12:36:25 running $HOME/intarsia-decfuse/moe-mma-dev/scripts/moe-mma/w5.sh (cap 8 min)
+MemAvailable 111 GB
+== 35b-long vs vLLM, baseline + envelope (8 min left) 12:36:26
+exit 1
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 12064; prompts spanning more than one chunk: 5/5
+prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.273e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0029 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode (teacher-forced) floor [4bit]: top-1 96.56% (not gated for this class) ok | 21-way KL 9.138e-3 (need <= 3.0e-2) ok | tail mass ours 0.0232 vs ref 0.0230, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+  failing per-prompt checks by k (information): k=0: 1 prompt(s) / 1 check(s), k=1: 1 prompt(s) / 1 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) /
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: PASS
+golden gate: FAIL
+floor verdict (class thresholds, absolute): FAIL   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS   prefix-reuse verdict: PASS
+== w2 done 12:41:17, 3 min left
+== w5 done 12:41:17
+12:41:17 script exit 0
+12:41:17 killing leftover processes of ours under ~/intarsia-decfuse
+12:41:21 starting missioncntrl-guidance and waiting for /v1/models
+12:44:38 vLLM is serving again
+12:44:38 releasing fleetq job 2312
+12:44:38 done (status 0)
