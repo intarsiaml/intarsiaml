@@ -4,7 +4,7 @@
 # 1. `intarsia qualify --quick-only` of dev on the 35B
 # 2. 35B A/B, interleaved rounds (base-dev, dev-base, base-dev), sizes 128,1024,4096 (decode 128/1024/4096, prefill 1024/4096 from the
 #    same runs), gen 128, REPS reps, `--require-graphs` (w-ab.sh)
-# Env: ROUNDS (3), REPS (5), W_BUDGET_MIN (14: rounds that do not fit are skipped and said so).
+# Env: ROUNDS (3), REPS (3), W_BUDGET_MIN (14: rounds that do not fit are skipped and said so).
 set -u
 BASE=${1:?base tree}; DEV=${2:?dev tree}
 P=$HOME/intarsia-decfuse
@@ -25,9 +25,9 @@ wait
 echo "== qualify $(date +%T)"
 $BD qualify --model $M35 --backend cuda --quick-only --gen 128 --reps 5 --no-unim --out $O/qualify-35b --golden-dir $GD --mem-budget 45 > $O/qualify-35b.log 2>&1
 echo "qualify exit $?"; tail -40 $O/qualify-35b.log | cut -c1-200
-export SIZES=128,1024,4096 REPS=${REPS:-5} OUT=$O/ab
+export SIZES=128,1024,4096 REPS=${REPS:-3} OUT=$O/ab
 for r in $(seq 1 ${ROUNDS:-3}); do
-  if (( $(left) < 3 )); then echo "SKIP A/B round $r: $(left) min left"; continue; fi
+  if (( $(left) < 2 )); then echo "SKIP A/B round $r: $(left) min left"; continue; fi
   if (( r % 2 == 1 )); then bash $D/w-ab.sh 35b $r base:$BASE dev:$DEV; else bash $D/w-ab.sh 35b $r dev:$DEV base:$BASE; fi
 done
 echo "== wb2 done $(date +%T), $(left) min left"

@@ -1,0 +1,25 @@
+
+running 2 tests
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... FAILED
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... FAILED
+
+failures:
+
+---- gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv stdout ----
+
+thread 'gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv' panicked at crates/intarsia-backend-cuda/tests/fused_decode.rs:60:9:
+gated norm + fp8 r=32 n=2048 act_quant=true w_offset=0: output differs from the unfused launches in 1111 of 2048 elements (first at 1: -0.12011719 vs -0.119140625)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- gated_rmsnorm_matmul_fp8_many_draws_bitwise stdout ----
+
+thread 'gated_rmsnorm_matmul_fp8_many_draws_bitwise' panicked at crates/intarsia-backend-cuda/tests/fused_decode.rs:60:9:
+gated norm + fp8 act_quant=true trial 0: output differs from the unfused launches in 346 of 512 elements (first at 0: -1.0390625 vs -1.0546875)
+
+
+failures:
+    gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv
+    gated_rmsnorm_matmul_fp8_many_draws_bitwise
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.63s
+

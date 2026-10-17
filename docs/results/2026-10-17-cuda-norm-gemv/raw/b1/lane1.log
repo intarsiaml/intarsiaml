@@ -1,0 +1,8 @@
+acc35 dev exit 0
+prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.271e-3 (need <= 3.0e-2) ok | tail mass ours 0.0173 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [4bit]: top-1 98.12% (not gated for this class) ok | 21-way KL 1.556e-2 (need <= 3.0e-2) ok | tail mass ours 0.0235 vs ref 0.0258, excess -0.0022 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+60 tensors in /home/nvidia/intarsia-decfuse/out/noop-hipnorm/B.dump.safetensors, 60 in /home/nvidia/intarsia-decfuse/out/b1/dev.dump.safetensors: 0 differ
+per-position TSV identical to base
+lane1 done 14:06:01
