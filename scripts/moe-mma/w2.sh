@@ -3,6 +3,7 @@
 # (docs/results/2026-10-17-moe-mma-small-t.md), on the tree ~/intarsia-decfuse/${TREE:-moe-mma-dev}. Same commands and
 # gate inputs as scripts/acc35b/w3.sh (baseline + envelope + provenance of the 35B gates, the HF fp32 goldens of the 8B).
 #   tests    cargo test --release -p intarsia-backend-cuda (the CUDA kernel tests, includes the small-T sweep)
+#   mutation the same sweep test on the origin/main kernel (tree moe-mma-base, which holds the new test): must FAIL
 #   kernels  intarsia kernels test --backend cuda --model <35B>
 #   short    35b-short against the vLLM golden (recorded old baseline + noise envelope, chunk 256)
 #   long     35b-long --mode all against the recorded old baseline + envelope
@@ -27,11 +28,15 @@ G_SHORT=$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors
 G_LONG=$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
 show() { echo "exit $1"; grep -E "verdict|golden gate|failing per-prompt|SELF-STATS|self-golden =>|^prefill |^decode" $2 | head -12 | cut -c1-230; }
 cd $T || exit 1
-for STAGE in ${STAGES:-tests kernels short long 8b}; do
+for STAGE in ${STAGES:-tests mutation kernels short 8b long}; do
   case $STAGE in
     tests) need 3 "CUDA kernel tests" && {
         CARGO_BUILD_JOBS=4 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 timeout 6m cargo test --release -p intarsia-backend-cuda -- --test-threads=1 > $O/tests.log 2>&1
         echo "exit $?"; grep -E "^test result|FAILED|panicked|failed" $O/tests.log | head -40 | cut -c1-200; } ;;
+    mutation) need 2 "mutation: small-T sweep on the origin/main kernel (must fail)" && {
+        (cd $HOME/intarsia-decfuse/moe-mma-base && CARGO_BUILD_JOBS=4 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 timeout 4m \
+          cargo test --release -p intarsia-backend-cuda --test quantmoe moe_experts_mma_small_t_sweep -- --nocapture --test-threads=1 > $O/mutation.log 2>&1)
+        echo "exit $? (101 = test failed, as it must)"; grep -E "SWEEP done|^test result|panicked|break the bounds|elements off" $O/mutation.log | head -6 | cut -c1-300; } ;;
     kernels) need 2 "kernels test" && {
         timeout 5m $BIN kernels test --backend cuda --model $M > $O/kernels.log 2>&1; echo "exit $?"
         grep -cE "ADMITTED" $O/kernels.log; grep -E "NOT ADMITTED|FAILED|moe_experts" $O/kernels.log | head -12 | cut -c1-200; tail -4 $O/kernels.log | cut -c1-200; } ;;
