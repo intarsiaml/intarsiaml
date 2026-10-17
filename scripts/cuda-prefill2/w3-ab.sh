@@ -7,8 +7,8 @@
 set -u
 P=$HOME/intarsia-decfuse
 D=$P/dev/scripts/cuda-decode
-export SIZES=${SIZES:-1024,4096,16384} GEN=${GEN:-128} REPS=${REPS:-3} OUT=$P/out/w3/ab
-DEADLINE=$(( $(date +%s) + ${W_BUDGET_SEC:-510} ))
+export SIZES=${SIZES:-1024,4096,16384} GEN=${GEN:-128} REPS=${REPS:-2} OUT=$P/out/w3/ab
+DEADLINE=$(( $(date +%s) + ${W_BUDGET_SEC:-440} ))
 left() { echo $(( DEADLINE - $(date +%s) )); }
 mkdir -p $OUT
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 90 )) || { echo "ABORT: memory"; exit 1; }

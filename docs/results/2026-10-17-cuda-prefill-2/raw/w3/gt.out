@@ -1,0 +1,39 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+
+running 1 test
+gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.5 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.3 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.6 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_conv_bf16          T=64          26.7 us/launch
+gdn_delta_rule_bf16    T=64          91.0 us/launch
+gdn_delta_rule_bf16_lanes T=64          54.5 us/launch
+gdn_delta_rule_bf16_chunked T=64          88.1 us/launch
+gdn_conv_bf16          T=512         87.3 us/launch
+gdn_delta_rule_bf16    T=512        593.6 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.7 us/launch
+gdn_delta_rule_bf16_chunked T=512        636.9 us/launch
+gdn_conv_bf16          T=2048       369.6 us/launch
+gdn_delta_rule_bf16    T=2048      2919.1 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1873.0 us/launch
+gdn_delta_rule_bf16_chunked T=2048      2489.6 us/launch
+gdn_conv_bf16          T=4096       724.8 us/launch
+gdn_delta_rule_bf16    T=4096      5830.6 us/launch
+gdn_delta_rule_bf16_lanes T=4096      3835.2 us/launch
+gdn_delta_rule_bf16_chunked T=4096      4976.8 us/launch
+test gdn_kernels_timing_at_35b_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+Collecting data...
+Generating '/tmp/nsys-report-c101.qdstrm'
+[1/1] [0%                          ] gt.nsys-rep[1/1] [0%                          ] gt.nsys-rep[1/1] [==============64%           ] gt.nsys-rep[1/1] [==================77%       ] gt.nsys-rep[1/1] [=====================89%    ] gt.nsys-rep[1/1] [======================90%   ] gt.nsys-rep[1/1] [========================100%] gt.nsys-rep[1/1] [========================100%] gt.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/w3/gt.nsys-rep
