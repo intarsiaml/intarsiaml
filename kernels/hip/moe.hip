@@ -23,6 +23,7 @@
 //   pairs int[T*K] | offsets int[E+1] | active int[E+1] (last = count) | h bf16[T*K, I] | y bf16[T*K, H]
 #include "ik_quant.h"
 #include "moe_wmma.h"
+#include <algorithm>
 #include <math.h>
 #include <stdlib.h>
 
@@ -41,6 +42,19 @@ bool moe_wmma_enabled() {
         return !(e && e[0] == '0');
     }();
     return on;
+}
+
+// INTARSIA_HIP_MOE_Z=n (default 2): the grid z of the grouped projections is ceil(n * average pairs per expert / 32) pair tiles, not
+// one block per tile an expert could possibly need (ceil(T / 32): at T = 4096 that is 128 per expert and feature tile, of which
+// the average expert fills 4: ~250 000 launched blocks, 97 % of them exiting at once). A block steps through the further tiles
+// of a busier expert by gridDim.z, and every pair's result is independent of the grouping, so the outputs are bit for bit the same
+// for every n; 0 restores the full grid (A/B and debugging). Read once per process; part of the backend fingerprint (kernels.rs).
+int moe_zmul() {
+    static const int n = [] {
+        const char* e = getenv("INTARSIA_HIP_MOE_Z");
+        return e ? atoi(e) : 2;
+    }();
+    return n;
 }
 
 IK_DEVI float round_bf16(float v) { return ik_round_bf16(v); }
@@ -884,7 +898,12 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     moe_group_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>((const int*)ids->data, (int)P, (int)E, pairs, offsets, active);
     IK_TRY(ik_launch_status());
     if (T >= kMwMinTokens && H % kMwKB == 0 && I % kMwKB == 0 && wmma_aligned && moe_wmma_enabled()) {  // prefill-sized: tensor-core grouped projections
-        const unsigned zt = (unsigned)((T + kMwPairs - 1) / kMwPairs);
+        unsigned zt = (unsigned)((T + kMwPairs - 1) / kMwPairs);
+        if (moe_zmul() > 0) {
+            const int64_t avg = (P + E - 1) / E;  // pairs per expert, on average
+            const unsigned cap = (unsigned)std::max<int64_t>(1, ((int64_t)moe_zmul() * avg + kMwPairs - 1) / kMwPairs);
+            if (cap < zt) zt = cap;
+        }
         moe_wmma_kernel<true><<<dim3(slots, (unsigned)((I + kMwFeatGateUp - 1) / kMwFeatGateUp), zt), kMwThreads, 0, s>>>(
             (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,
             (const float*)gscales->data, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);

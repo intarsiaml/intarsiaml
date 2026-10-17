@@ -56,3 +56,9 @@ max_batch = 8
 # skip is not a pass, at any chunk above 350; a long golden with 4k prompts is needed (same document).
 [tuning.metal]
 prefill_chunk = 2048
+
+# 2048 on HIP (R9700, Qwen3-8B BF16): prefill at 1k / 4k goes 3416 / 3124 tok/s (256) to 4444 / 3993 (2048); 4096 is 4412 / 4041,
+# within 1.2 % of 2048. Same known gap as Metal for `qualify`'s prefix-reuse gate on the 700-token long golden
+# (docs/results/2026-10-17-hip-prefill.md).
+[tuning.hip]
+prefill_chunk = 2048

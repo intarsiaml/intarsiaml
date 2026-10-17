@@ -1,0 +1,266 @@
+[burst] job 2342; stages: chunk8:256 chunk8:512 chunk8:1024 chunk8:2048 chunk8:4096 acc8c:256 acc8c:4096; stopping radiance 2026-10-17 13:58:27
+[burst] radiance stopped 2026-10-17 13:58:30
+################ stage chunk8:256 start 13:58:30
+--- serve qwen3-8b-intarsia-hip [13:58:30]
+up after ~60s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 8192 tokens
+calibration: 45 base tokens, 20.95 tokens per filler sentence
+  size    128 rep: prompt=121 gen=16 ttft=0.06s prefill=1954 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=129 gen=16 ttft=0.06s prefill=2120 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=126 gen=16 ttft=0.06s prefill=2094 tok/s decode=37.9 tok/s
+  size   1024 rep: prompt=992 gen=16 ttft=0.29s prefill=3436 tok/s decode=37.4 tok/s
+  size   1024 rep: prompt=968 gen=16 ttft=0.29s prefill=3379 tok/s decode=37.4 tok/s
+  size   1024 rep: prompt=990 gen=16 ttft=0.29s prefill=3416 tok/s decode=37.4 tok/s
+  size   4096 rep: prompt=4068 gen=16 ttft=1.30s prefill=3130 tok/s decode=36.0 tok/s
+  size   4096 rep: prompt=4064 gen=16 ttft=1.30s prefill=3124 tok/s decode=36.1 tok/s
+  size   4096 rep: prompt=4049 gen=16 ttft=1.30s prefill=3116 tok/s decode=36.1 tok/s
+wrote /work/bench-out/pfchunk-8b-256.json
+pfchunk-8b-256  model=qwen3-8b-intarsia-hip  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      126     0.061         2094        37.9       16       99.0
+    1024      990     0.289         3416        37.4       16       97.7
+    4096     4064     1.300         3124        36.0       16       94.2
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 156
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage chunk8:256 end 13:59:40
+################ stage chunk8:512 start 13:59:40
+--- serve qwen3-8b-intarsia-hip [13:59:40]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 8192 tokens
+calibration: 48 base tokens, 20.72 tokens per filler sentence
+  size    128 rep: prompt=127 gen=16 ttft=0.06s prefill=2083 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=122 gen=16 ttft=0.06s prefill=1988 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=122 gen=16 ttft=0.06s prefill=1992 tok/s decode=37.9 tok/s
+  size   1024 rep: prompt=981 gen=16 ttft=0.23s prefill=4217 tok/s decode=37.4 tok/s
+  size   1024 rep: prompt=999 gen=16 ttft=0.23s prefill=4317 tok/s decode=37.4 tok/s
+  size   1024 rep: prompt=980 gen=16 ttft=0.23s prefill=4231 tok/s decode=37.3 tok/s
+  size   4096 rep: prompt=4115 gen=16 ttft=1.13s prefill=3651 tok/s decode=36.1 tok/s
+  size   4096 rep: prompt=4099 gen=16 ttft=1.07s prefill=3821 tok/s decode=36.2 tok/s
+  size   4096 rep: prompt=4101 gen=16 ttft=1.08s prefill=3813 tok/s decode=36.1 tok/s
+wrote /work/bench-out/pfchunk-8b-512.json
+pfchunk-8b-512  model=qwen3-8b-intarsia-hip  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      122     0.061         1992        37.9       16       99.0
+    1024      981     0.232         4231        37.4       16       97.7
+    4096     4101     1.076         3813        36.1       16       94.4
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 156
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage chunk8:512 end 14:00:42
+################ stage chunk8:1024 start 14:00:42
+--- serve qwen3-8b-intarsia-hip [14:00:42]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 8192 tokens
+calibration: 47 base tokens, 20.90 tokens per filler sentence
+  size    128 rep: prompt=118 gen=16 ttft=0.06s prefill=1914 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=124 gen=16 ttft=0.06s prefill=2044 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=128 gen=16 ttft=0.06s prefill=2099 tok/s decode=37.9 tok/s
+  size   1024 rep: prompt=983 gen=16 ttft=0.22s prefill=4413 tok/s decode=37.4 tok/s
+  size   1024 rep: prompt=1004 gen=16 ttft=0.22s prefill=4466 tok/s decode=37.3 tok/s
+  size   1024 rep: prompt=983 gen=16 ttft=0.22s prefill=4420 tok/s decode=37.3 tok/s
+  size   4096 rep: prompt=4046 gen=16 ttft=1.04s prefill=3890 tok/s decode=36.1 tok/s
+  size   4096 rep: prompt=4100 gen=16 ttft=1.05s prefill=3914 tok/s decode=36.1 tok/s
+  size   4096 rep: prompt=4084 gen=16 ttft=1.05s prefill=3896 tok/s decode=36.1 tok/s
+wrote /work/bench-out/pfchunk-8b-1024.json
+pfchunk-8b-1024  model=qwen3-8b-intarsia-hip  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      124     0.061         2044        37.9       16       99.0
+    1024      983     0.223         4420        37.4       16       97.6
+    4096     4084     1.048         3896        36.1       16       94.2
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 156
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage chunk8:1024 end 14:01:44
+################ stage chunk8:2048 start 14:01:44
+--- serve qwen3-8b-intarsia-hip [14:01:44]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 8192 tokens
+calibration: 49 base tokens, 20.66 tokens per filler sentence
+  size    128 rep: prompt=129 gen=16 ttft=0.06s prefill=2109 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=132 gen=16 ttft=0.06s prefill=2111 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=130 gen=16 ttft=0.06s prefill=2134 tok/s decode=37.9 tok/s
+  size   1024 rep: prompt=995 gen=16 ttft=0.22s prefill=4450 tok/s decode=37.4 tok/s
+  size   1024 rep: prompt=991 gen=16 ttft=0.22s prefill=4444 tok/s decode=37.3 tok/s
+  size   1024 rep: prompt=990 gen=16 ttft=0.23s prefill=4398 tok/s decode=37.3 tok/s
+  size   4096 rep: prompt=4140 gen=16 ttft=1.04s prefill=3994 tok/s decode=36.1 tok/s
+  size   4096 rep: prompt=4174 gen=16 ttft=1.05s prefill=3993 tok/s decode=36.1 tok/s
+  size   4096 rep: prompt=4144 gen=16 ttft=1.04s prefill=3985 tok/s decode=36.1 tok/s
+wrote /work/bench-out/pfchunk-8b-2048.json
+pfchunk-8b-2048  model=qwen3-8b-intarsia-hip  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.061         2111        37.9       16       99.0
+    1024      991     0.224         4444        37.4       16       97.6
+    4096     4144     1.040         3993        36.1       16       94.4
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 156
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage chunk8:2048 end 14:02:46
+################ stage chunk8:4096 start 14:02:46
+--- serve qwen3-8b-intarsia-hip [14:02:46]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 8192 tokens
+calibration: 47 base tokens, 20.91 tokens per filler sentence
+  size    128 rep: prompt=126 gen=16 ttft=0.06s prefill=2056 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=125 gen=16 ttft=0.06s prefill=2065 tok/s decode=37.9 tok/s
+  size    128 rep: prompt=124 gen=16 ttft=0.06s prefill=2039 tok/s decode=37.9 tok/s
+  size   1024 rep: prompt=985 gen=16 ttft=0.22s prefill=4408 tok/s decode=37.4 tok/s
+  size   1024 rep: prompt=985 gen=16 ttft=0.22s prefill=4428 tok/s decode=37.3 tok/s
+  size   1024 rep: prompt=998 gen=16 ttft=0.23s prefill=4412 tok/s decode=37.3 tok/s
+  size   4096 rep: prompt=4094 gen=16 ttft=0.99s prefill=4152 tok/s decode=36.1 tok/s
+  size   4096 rep: prompt=4103 gen=16 ttft=1.02s prefill=4041 tok/s decode=36.2 tok/s
+  size   4096 rep: prompt=4121 gen=16 ttft=1.05s prefill=3924 tok/s decode=36.1 tok/s
+wrote /work/bench-out/pfchunk-8b-4096.json
+pfchunk-8b-4096  model=qwen3-8b-intarsia-hip  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      125     0.061         2056        37.9       16       99.0
+    1024      985     0.223         4412        37.3       16       97.6
+    4096     4103     1.015         4041        36.1       16       94.4
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 156
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage chunk8:4096 end 14:03:48
+################ stage acc8c:256 start 14:03:48
+--- accuracy qwen3-8b-fp32.safetensors --prefill-chunk 256
+chat_multiturn        58    58   100.00   2.128e-4   1.947e-4   2.392e-3   0.0340   0.0340    99.31     58/58      0
+chat_reasoning        90    90   100.00   1.708e-4   1.595e-4   2.592e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.335e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.626e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy qwen3-8b-long-fp32.safetensors --prefill-chunk 256
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 3.966e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc8c:256 end 14:04:10
+################ stage acc8c:4096 start 14:04:10
+--- accuracy qwen3-8b-fp32.safetensors --prefill-chunk 4096
+chat_multiturn        58    58   100.00   2.128e-4   1.947e-4   2.392e-3   0.0340   0.0340    99.31     58/58      0
+chat_reasoning        90    90   100.00   1.708e-4   1.595e-4   2.592e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.335e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.626e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy qwen3-8b-long-fp32.safetensors --prefill-chunk 4096
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 3.966e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc8c:4096 end 14:04:32
+[burst] stages done 2026-10-17 14:04:32 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 14:04:32
+[burst] radiance answers 2026-10-17 14:04:42 (after 15 s)

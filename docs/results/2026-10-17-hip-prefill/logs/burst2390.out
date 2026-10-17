@@ -1,0 +1,47 @@
+[burst] job 2390; stages: qual35:prefill qual8:prefill; stopping radiance 2026-10-17 15:05:28
+[burst] radiance stopped 2026-10-17 15:05:31
+################ stage qual35:prefill start 15:05:31
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/bench-out/qualify-35b-prefill
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.6s (AMD Radeon Graphics (gfx1201), 41 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     11s] plan: PASS in 10.1s (30 ops resolved, exactness deterministic, loaded in 10.1s)
+[qualify     11s] == kernels [kernels test on the model's shapes]
+[qualify     40s] kernels: PASS in 29.3s (41 kernels, 675 cases in 29.1s)
+[qualify     40s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     47s] gate: PASS in 6.5s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     47s] == acc-short [short accuracy against a golden]
+[qualify     55s] acc-short: PASS in 8.7s (prefill top-1 98.54% KL 6.56e-3; decode top-1 99.38% KL 9.96e-3)
+[qualify     55s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify     61s] server up in 6s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify     86s] bench: PASS in 30.7s (decode 140.5 tok/s at 128 tokens (50% of the byte floor))
+QUICK DONE: /work/bench-out/qualify-35b-prefill/quick-report.md
+[qualify     86s] exit code 0
+################ stage qual35:prefill end 15:06:58
+################ stage qual8:prefill start 15:06:58
+[qualify      0s] Qwen3-8B on hip, report directory /work/bench-out/qualify-8b-prefill
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 41 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     55s] plan: PASS in 54.3s (16 ops resolved, exactness deterministic, loaded in 54.3s)
+[qualify     55s] == kernels [kernels test on the model's shapes]
+[qualify    105s] kernels: PASS in 49.8s (41 kernels, 688 cases in 49.6s)
+[qualify    105s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    113s] gate: PASS in 8.9s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    113s] == acc-short [short accuracy against a golden]
+[qualify    121s] acc-short: PASS in 7.8s (prefill top-1 100.00% KL 2.34e-4; decode top-1 100.00% KL 3.63e-4)
+[qualify    121s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    163s] server up in 42s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    224s] bench: PASS in 102.9s (decode 38.0 tok/s at 128 tokens (92% of the byte floor))
+QUICK DONE: /work/bench-out/qualify-8b-prefill/quick-report.md
+[qualify    224s] exit code 0
+################ stage qual8:prefill end 15:10:42
+[burst] stages done 2026-10-17 15:10:42 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 15:10:42
+[burst] radiance answers 2026-10-17 15:10:52 (after 15 s)

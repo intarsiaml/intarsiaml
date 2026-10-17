@@ -52,6 +52,12 @@ fn moe_experts_skewed_and_invalid_routing() {
     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
     hot.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
     check_experts(&*hip, &hot, "hot experts");
+    // prefill-sized and skewed: 1024 pairs on each of four experts is 32 pair tiles, the launch grid (INTARSIA_HIP_MOE_Z, default 2 x the
+    // average of 256 pairs per expert) holds 16, so each block steps through a second tile
+    let mut big = experts_case(&mut rng, 1024, e, k, h, i, DType::Bf16);
+    let ids: Vec<i32> = (0..1024).flat_map(|_| (0..k as i32)).collect();
+    big.inputs[1] = HostTensor::from_i32(&[1024, k], &ids);
+    check_experts(&*hip, &big, "hot experts, more pair tiles than the grid");
     // one expert receives every pair of token 0 (duplicate ids are legal input) and some ids are out of range
     let mut odd = base.clone();
     let mut ids = odd.inputs[1].to_i32().unwrap();
@@ -337,6 +343,35 @@ fn bench_real_shapes() {
         row(&format!("{name} x{copies}"), hot, cold, touched);
     }
     let _ = (moe_experts_scratch, Op::MoeTopk, OutSpec::new(DType::F32, &[1]));
+}
+
+/// Prefill-shaped timings at the 35B's shapes (hot caches, so compute-side numbers): the fp8 projections on the bf16 and on the
+/// e4m3 WMMA at M = 4096, the routed experts at the chunk sizes of a 4408-token prompt. Sweep INTARSIA_HIP_MOE_Z with one process
+/// per value: `cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_prefill_shapes`
+#[test]
+#[ignore]
+fn bench_prefill_shapes() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(5);
+    println!("env: MOE_Z={:?} MOE_WMMA={:?}", std::env::var("INTARSIA_HIP_MOE_Z").ok(), std::env::var("INTARSIA_HIP_MOE_WMMA").ok());
+    for (name, n, k) in [("qkv 8192x2048", 8192usize, 2048usize), ("z 4096x2048", 4096, 2048), ("o_proj 2048x4096", 2048, 4096), ("k 512x2048", 512, 2048)] {
+        for m in [312usize, 4096] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
+            let flops = 2.0 * (m * n * k) as f64;
+            let mut line = format!("fp8 {name} M={m}:");
+            for kern in ["matmul_fp8_mma", "matmul_fp8_mma_f8"] {
+                let t = bench_hot(&*hip, kern, &hc, 20);
+                line += &format!("  {kern} {:.0} us {:.1} TFLOPS", t * 1e6, flops / t / 1e12);
+            }
+            println!("{line}");
+        }
+    }
+    for t in [312usize, 1024, 2048, 4096] {
+        let hc = experts_case(&mut rng, t, 256, 8, 2048, 512, DType::Bf16);
+        let secs = bench_hot(&*hip, "moe_experts_bf16_v2", &hc, 10);
+        let flops = (t * 8) as f64 * (2.0 * 2.0 * 512.0 * 2048.0 + 2.0 * 2048.0 * 512.0);
+        println!("moe_experts T={t}: {:.0} us {:.1} TFLOPS", secs * 1e6, flops / secs / 1e12);
+    }
 }
 
 /// Decode-path kernels, v1 against v2 (and the env-selected variants) at the real Qwen3.6-35B-A3B decode shapes, DRAM-cold:

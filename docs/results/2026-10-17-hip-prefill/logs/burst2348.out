@@ -1,0 +1,50 @@
+[burst] job 2348; stages: f8test pfprof:f8c4096:4096 acc35c:4096; stopping radiance 2026-10-17 14:09:42
+[burst] radiance stopped 2026-10-17 14:09:44
+################ stage f8test start 14:09:44
+test f8_is_not_the_bf16_path ... f8 vs matmul_fp8_mma: 724518 elements differ in the last bits (f32 out)
+test f8_matches_cpu_reference_tightly ... f8 vs cpu reference: worst rel_l2 f32 out 5.000e-7, bf16 out 1.916e-4
+test f8_rows_do_not_depend_on_m ... ok
+test f8_weight_only_is_the_bf16_path ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+################ stage f8test end 14:09:46
+################ stage pfprof:f8c4096:4096 start 14:09:46
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 857 ms (5144.6 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 849 ms (5190.8 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 522 (of 3676), span 1971.9 ms, kernel time 1.7 ms, idle 99.9 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+__amd_rocclr_copyBuffer                                                            522     1.69      3.2 100.0%  512x1x1 x 512
+################ stage pfprof:f8c4096:4096 end 14:09:58
+################ stage acc35c:4096 start 14:09:58
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096 --prefill-chunk 4096
+OVERALL                   1441    98.61   7.626e-3   7.417e-3   7.150e-1   0.0176   0.0174    91.30     31.0%      0
+prefill floor [4bit]: top-1 98.61% (not gated for this class) ok | 21-way KL 7.417e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.361e-3   1.547e-3   5.664e-3   0.0209   0.0217    92.50     16/16      0
+story                 39    16   100.00   1.157e-2   1.045e-2   3.817e-2   0.0971   0.0977    96.25     16/16      0
+code                  87    16   100.00   1.588e-3   1.592e-3   8.598e-3   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   1.122e-2   1.081e-2   3.358e-2   0.0460   0.0483    96.25     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   7.532e-3   7.830e-3   5.002e-2   0.0421   0.0380    86.25     16/16      0
+chat_multiturn        58    16   100.00   4.813e-2   4.822e-2   7.315e-1   0.0014   0.0009    92.50     16/16      0
+chat_reasoning        90    16   100.00   2.927e-2   2.933e-2   1.171e-1   0.0011   0.0007    95.00     16/16      0
+long_prose_300       300    16   100.00   7.283e-5   7.957e-5   2.573e-4   0.0002   0.0002    93.75     16/16      0
+long_prose_700       700    16   100.00   1.919e-3   1.928e-3   1.032e-2   0.0007   0.0008    85.00     16/16      0
+OVERALL                    160    98.75   1.176e-2   1.172e-2   7.315e-1   0.0258   0.0254    92.88     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.172e-2 (need <= 3.0e-2) ok | tail mass ours 0.0254 vs ref 0.0258, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 36.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35c:4096 end 14:10:06
+[burst] stages done 2026-10-17 14:10:06 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 14:10:06
+[burst] radiance answers 2026-10-17 14:10:16 (after 15 s)

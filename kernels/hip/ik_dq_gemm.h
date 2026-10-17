@@ -14,6 +14,7 @@
  * Policy contract (all static, device):
  *   struct State                      per-block constants (scales), made once from the launch args
  *   struct Raw                        one 16-element weight chunk as loaded from global memory
+ *   bool  skip(const DqArgs&)        block-uniform: the launch is not for this policy's mode (exits before init)
  *   State init(const DqArgs&)        every thread reaches it at kernel start (may hold a __syncthreads())
  *   Raw   load(const DqArgs&, int64_t n, int k)   16 elements of row n starting at element k (in range)
  *   Raw   zero()
@@ -50,6 +51,7 @@ constexpr int kDqLD = kDqBK + 8;  // padded LDS row (elements): 80 B
 
 template <class P, int WN, int WM, int TN, int TM, typename OutT>
 __global__ void __launch_bounds__(WN * WM * 32) dq_gemm_kernel(DqArgs a, OutT* __restrict__ out) {
+    if (P::skip(a)) return;
     constexpr int NT = WN * WM * IK_WARP;
     constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
     constexpr int CHW = BN * 2, CHX = BM * 4;  // 16-element weight chunks (2 per row), 8-element x chunks (4 per row)

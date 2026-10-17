@@ -158,12 +158,13 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
-    fn qwen3_5_moe_chunk_is_2048_on_cuda_only() {
+    fn qwen3_5_moe_chunk_is_2048_on_cuda_and_4096_on_hip() {
         let cfg = serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]});
         let (_, r) = select_recipe(&cfg, &[]).unwrap();
         assert_eq!(r.resolve_prefill_chunk(None, "cuda").value, 2048);
         let hip = r.resolve_prefill_chunk(None, "hip");
-        assert_eq!((hip.value, hip.source.as_str()), (256, "default"));
+        assert_eq!((hip.value, hip.source.as_str()), (4096, "recipe qwen3_5_moe, hip"));
+        assert_eq!(r.resolve_prefill_chunk(Some(256), "hip").value, 256);
         assert_eq!(r.resolve_prefill_chunk(None, "cpu").value, 256);
         assert_eq!(r.resolve_prefill_chunk(Some(256), "cuda").value, 256);
         // the other built-ins stay at 256 everywhere

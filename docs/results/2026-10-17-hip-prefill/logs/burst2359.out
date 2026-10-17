@@ -1,0 +1,32 @@
+[burst] job 2359; stages: alltests kernels; stopping radiance 2026-10-17 14:24:14
+[burst] radiance stopped 2026-10-17 14:24:17
+################ stage alltests start 14:24:17
+     Running unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-818d9eec60198013)
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... FAILED
+thread 'kernels::tests::every_launcher_is_declared_in_the_abi_header' panicked at crates/intarsia-backend-hip/src/kernels.rs:235:13:
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+error: test failed, to rerun pass `-p intarsia-backend-hip --lib`
+################ stage alltests end 14:24:17
+################ stage kernels start 14:24:17
+moe_topk       moe_topk_bf16                  12      0     0.000e0     0.000e0  ADMITTED
+moe_topk       moe_topk_bf16_v2               12      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16                3      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16_v2             3      0     0.000e0     0.000e0  ADMITTED
+moe_combine    moe_combine_bf16                2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+41 kernels, 167 cases in 0.1s
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16             16      0    7.774e-5    3.924e-6  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv     14      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+41 kernels, 688 cases in 50.0s
+################ stage kernels end 14:25:08
+[burst] stages done 2026-10-17 14:25:08 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 14:25:08
+[burst] radiance answers 2026-10-17 14:25:18 (after 15 s)
