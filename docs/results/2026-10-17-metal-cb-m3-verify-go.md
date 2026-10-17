@@ -19,7 +19,7 @@ The grounded gain is small because of how the scheduler schedules, not because t
 
 The NO-GO does not depend on the k = 4 reading. Under the design doc's shared spare-row budget (section 6 there: speculating sequences share the 6 - B spare rows, i.e. k shrinks when iterations do not fit), the k-shrink variant of section 3 gives +4.1 % (B=2) and +6.7 % (B=3), still under the bar. Only the hypothetical aligned-verify variant crosses it (+10.1 % at B=2, +15.2 % at B=3), and that needs a scheduler that aligns the streams' verifies, which is outside M3 as specified, plus the same unbuilt mixed shape.
 
-Nothing above was tuned after the data: the method (ctx 512 for the primary costs, the attention correction, the packing rule, the metric) is the commit before the data, `04f6629`.
+The method (ctx 512 for the primary costs, the attention correction, the packing rule, the metric) is the commit before the data, `04f6629`; the only later change is the min(packed, today) cost rule, listed with the method at the end, which moves no grounded number.
 
 ## 1. What was measured
 
