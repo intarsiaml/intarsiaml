@@ -27,6 +27,7 @@ pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_GEMV",
     "INTARSIA_HIP_MOE_PRE",
     "INTARSIA_HIP_MOE_WMMA",
+    "INTARSIA_HIP_MOE_Z",
     "INTARSIA_HIP_XSTAGE",
 ];
 

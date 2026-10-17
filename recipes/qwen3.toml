@@ -47,7 +47,7 @@ kv_dtype = "bf16"
 # is opt-in: without `--max-batch` the engine serves one sequence at a time.
 max_batch = 8
 
-# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CUDA/CPU are unchanged).
+# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CUDA/HIP/CPU are unchanged).
 # 2048 on Metal: plain prefill on Qwen3-8B BF16 / M5 Max goes 459 -> 386 ms at 1k (973 tokens), 1725 -> 1448 ms at 4k
 # (4062 tokens), 12998 -> 12532 ms at 16k (medians of 3), for about +220 MiB peak process footprint at max-seq 18432; 1024
 # is within noise of 2048 at 1k and 4k (docs/results/2026-10-14-metal-prefill-p3-final.md). The chunk is part of the

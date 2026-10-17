@@ -210,11 +210,6 @@ int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* s
 /* HIP decode "v2" twins (docs/results/2026-10-13-hip-decode.md): same arguments and the same results as the kernel they
  * are named after, restructured for latency; defined by the HIP backend only. */
 int ik_matmul_fp8_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
-/* HIP prefill (docs/results/2026-10-17-hip-prefill.md): matmul_fp8_mma_f8 = the CUDA matmul_fp8_gemm_f8 idea on the gfx12
- * fp8 x fp8 WMMA. Same op as matmul_fp8_mma; scratch: M * K bytes (the quantised activations, 16-byte aligned); weight-only
- * activations (input_scale <= 0) run the dequantise-to-bf16 kernel of matmul_fp8_mma inside. */
-int ik_matmul_fp8_mma_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
-                         const ik_scratch* scratch, void* stream);
 int ik_matmul_fp8_gemm(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                        const ik_scratch* scratch, void* stream);
 /* matmul_fp8_gemm_f8: same op, W8A8 on e4m3 tensor cores (mma m16n8k32): no weight dequantisation. Same arguments and

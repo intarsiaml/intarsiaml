@@ -98,11 +98,20 @@ stage_f8test() {
   $D cargo test --release -p intarsia-backend-hip --test fp8_f8 -- --nocapture --test-threads=1 2>&1 \
     | grep -E "^test |test result|FAILED|panicked|rel_l2|differ|f8 vs" | cut -c1-300 | tail -30
 }
+# pfbench: prefill-shaped timings (fp8 mma vs mma_f8, routed experts) for INTARSIA_HIP_MOE_Z = 0 (full grid), 2 (default), 4, 1
+stage_pfbench() {
+  local z
+  for z in 0 2 4 1; do
+    echo "=== INTARSIA_HIP_MOE_Z=$z"
+    INTARSIA_HIP_MOE_Z=$z $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_prefill_shapes 2>&1 \
+      | grep -E "^env|^fp8|^moe|panicked|FAILED" | cut -c1-220
+  done
+}
 # chunk35l:<chunk>: does that chunk fit at 16k context (max-seq 17408, one 16384-token prompt)
 stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-16k-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
 # pf35[:tag] / pf8[:tag]: A/B speed, prefill 128/1024/4096/16384 and decode 128 (the serve's own recipe chunk)
-stage_pf35() { MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
-stage_pf8() { MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
+stage_pf35() { [[ "${1:-}" == nof8* ]] && export SERVE_ENV="-e INTARSIA_HIP_DISABLE=matmul_fp8_mma_f8"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
+stage_pf8() { [[ "${1:-}" == nof8* ]] && export SERVE_ENV="-e INTARSIA_HIP_DISABLE=matmul_fp8_mma_f8"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file
   local tag=$1; shift
@@ -198,7 +207,7 @@ stage_mutate() {
   # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
   local MUT="${INTARSIA_MUT_DIR:-$HOME/intarsiaml-hipperf2-mut}"
   local m
-  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round pair-nb0 pair-grid norm-skip-sum norm-skip-normed norm-sum-round norm-woff norm-order norm-pair-block norm-sync gn-round gn-woff gn-order gn-group gn-weight gn-silu}; do
+  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round pair-nb0 pair-grid norm-skip-sum norm-skip-normed norm-sum-round norm-woff norm-order norm-pair-block norm-sync gn-round gn-woff gn-order gn-group gn-weight gn-silu f8-scale f8-kperm f8-actq f8-ktail f8-w16-always f8-w16-never f8-noexit moe-z-step}; do
     rm -rf "$MUT"; mkdir -p "$MUT"
     rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$MUT/"
     python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$MUT" $m || continue

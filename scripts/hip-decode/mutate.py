@@ -106,10 +106,31 @@ MUTATIONS = {
     # silu is applied to the normalised value instead of z
     "gn-silu": ("kernels/hip/fp8.hip", [(
         "f[k] = ik_silu(zf[k]) * nrm[k];\n    return ik_pack8(f);", "f[k] = ik_silu(nrm[k]) * zf[k];\n    return ik_pack8(f);")]),
+    # --- fp8 x fp8 WMMA prefill GEMM (perf/hip-prefill; tests/fp8_f8.rs) and the MoE launch grid (tests/quantmoe.rs) ---
+    # the output scale drops the input scale
+    "f8-scale": ("kernels/hip/ik_f8_gemm.h", [("const float so = sc[0] * sc[1];", "const float so = sc[0];")]),
+    # the token (B) fragments read the other lane half's 16 bytes: A and B disagree on which k a slot holds
+    "f8-kperm": ("kernels/hip/ik_f8_gemm.h", [(
+        "(wm * TM * 16 + j * 16 + lr) * kF8LD + g * 32 + lh]", "(wm * TM * 16 + j * 16 + lr) * kF8LD + g * 32 + (lh ^ 16)]")]),
+    # the activations are quantised with a 6 % larger scale
+    "f8-actq": ("kernels/hip/ik_f8_gemm.h", [(
+        "lo |= (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[e], s_in))", "lo |= (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[e], s_in * 1.0625f))")]),
+    # the last, partial 64-byte stage of K is dropped
+    "f8-ktail": ("kernels/hip/ik_f8_gemm.h", [("const int nk = (K + kF8BK - 1) / kF8BK;", "const int nk = K / kF8BK;")]),
+    # the weight-only half of the launcher no longer steps aside for W8A8: the bf16 kernel overwrites the e4m3 kernel's output
+    "f8-w16-always": ("kernels/hip/fp8.hip", [("IK_DEVI bool skip(const DqArgs& a) { return a.sc[1] > 0.f; }", "IK_DEVI bool skip(const DqArgs& a) { return false; }")]),
+    # ... and steps aside for weight-only activations too: nothing computes them
+    "f8-w16-never": ("kernels/hip/fp8.hip", [("IK_DEVI bool skip(const DqArgs& a) { return a.sc[1] > 0.f; }", "IK_DEVI bool skip(const DqArgs& a) { return true; }")]),
+    # the e4m3 kernel does not step aside for weight-only activations (the bf16 kernel runs after it, so this one is expected to survive)
+    "f8-noexit": ("kernels/hip/ik_f8_gemm.h", [("    if (!(sc[1] > 0.f)) return;  // weight-only activations: the bf16 kernel handles this launch\n", "")]),
+    # a block steps through the further pair tiles of a busy expert by one more than the grid's z
+    "moe-z-step": ("kernels/hip/moe_wmma.h", [("pt += gridDim.z)", "pt += gridDim.z + 1)")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
+TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
+TESTS["moe-z-step"] = "quantmoe"
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target
