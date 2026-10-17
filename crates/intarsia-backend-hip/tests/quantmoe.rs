@@ -395,3 +395,70 @@ fn bench_decode_variants() {
         println!("{:<44} {:>9.1}", format!("moe_topk T=1 E=256 {kern}"), hot * 1e6);
     }
 }
+
+/// fp8 GEMV block-shape sweep at the 35B's decode shapes, DRAM-cold, GB/s against 627: v2 and every (R, UN, W) of
+/// `matmul_fp8_gemv_v3` for the single projections, every (R, W) of the pair kernel for the pairs. One process, the
+/// configuration travels in INTARSIA_HIP_FP8_V3 / INTARSIA_HIP_FP8_PAIR (read at each launch).
+/// `cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_fp8_sweep`
+#[test]
+#[ignore]
+fn bench_fp8_sweep() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(5);
+    println!("{:<34} {:<14} {:>9} {:>9} {:>7}", "case", "config", "hot us", "cold us", "GB/s");
+    let line = |name: &str, cfg: &str, hot: f64, cold: f64, mb: f64| {
+        println!("{:<34} {:<14} {:>9.1} {:>9.1} {:>7.0}", name, cfg, hot * 1e6, cold * 1e6, mb / 1e3 / cold);
+    };
+    let reps = 100;
+    for (name, n, k) in [
+        ("o_proj/out_proj 2048x4096", 2048usize, 4096usize),
+        ("attn q 8192x2048", 8192, 2048),
+        ("k or v 512x2048", 512, 2048),
+        ("qkv 8192x2048", 8192, 2048),
+        ("z 4096x2048", 4096, 2048),
+    ] {
+        let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
+        let mb = (n * k) as f64 / 1e6;
+        std::env::remove_var("INTARSIA_HIP_FP8_V3");
+        let hot = bench_hot(&*hip, "matmul_fp8_gemv_v2", &hc, reps);
+        let (cold, _, _) = bench_cold(&*hip, "matmul_fp8_gemv_v2", &hc, reps, None);
+        line(name, "v2", hot, cold, mb);
+        for r in [1, 2, 4] {
+            for un in [4, 8] {
+                for w in [4, 8, 16] {
+                    let cfg = format!("{r},{un},{w}");
+                    std::env::set_var("INTARSIA_HIP_FP8_V3", &cfg);
+                    let hot = bench_hot(&*hip, "matmul_fp8_gemv_v3", &hc, reps);
+                    let (cold, _, _) = bench_cold(&*hip, "matmul_fp8_gemv_v3", &hc, reps, None);
+                    line(name, &format!("v3 {cfg}"), hot, cold, mb);
+                }
+            }
+        }
+        std::env::remove_var("INTARSIA_HIP_FP8_V3");
+    }
+    // time against bytes (K = 2048): the intercept is the per-kernel fixed cost, the slope the streaming rate
+    for n in [16usize, 256, 1024, 2048, 4096, 8192, 16384, 32768] {
+        let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, 2048, true, DType::Bf16, DType::Bf16);
+        let mb = (n * 2048) as f64 / 1e6;
+        for kern in ["matmul_fp8_gemv_v2", "matmul_fp8_gemv_v3"] {
+            let hot = bench_hot(&*hip, kern, &hc, reps);
+            let (cold, _, _) = bench_cold(&*hip, kern, &hc, reps, None);
+            line(&format!("scale N={n} ({mb:.2} MB)"), kern.trim_start_matches("matmul_fp8_gemv_"), hot, cold, mb);
+        }
+    }
+    for (name, n0, n1) in [("pair qkv+z 12288x2048", 8192usize, 4096usize), ("pair k+v 1024x2048", 512, 512)] {
+        let hc = intarsia_core::quant::cases::matmul_fp8_pair_case(&mut rng, 1, n0, n1, 2048, true, true, DType::Bf16, DType::Bf16);
+        let mb = ((n0 + n1) * 2048) as f64 / 1e6;
+        std::env::remove_var("INTARSIA_HIP_FP8_PAIR");
+        for r in [1, 2, 4] {
+            for w in [4, 8, 16] {
+                let cfg = format!("{r},{w}");
+                std::env::set_var("INTARSIA_HIP_FP8_PAIR", &cfg);
+                let hot = bench_hot(&*hip, "matmul_fp8_pair_gemv", &hc, reps);
+                let (cold, _, _) = bench_cold(&*hip, "matmul_fp8_pair_gemv", &hc, reps, None);
+                line(name, &format!("pair {cfg}"), hot, cold, mb);
+            }
+        }
+        std::env::remove_var("INTARSIA_HIP_FP8_PAIR");
+    }
+}

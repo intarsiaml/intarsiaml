@@ -144,6 +144,10 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
   done
 }
 
+stage_fp8sweep() { # fp8 GEMV block-shape sweep (v2, v3 every R/UN/W, pair R/W), DRAM-cold, at the 35B decode shapes
+  $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_fp8_sweep 2>&1 | grep -E "^(case|o_proj|attn|k or|qkv|z |scale|pair)|panicked|error" | cut -c1-110
+}
+
 stage_mutate() {
   # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
   local MUT="${INTARSIA_MUT_DIR:-$HOME/intarsiaml-hipperf2-mut}"
@@ -170,7 +174,7 @@ acc() { # acc <model> <golden> [args]
   echo "--- accuracy $g $*"
   $D $B accuracy --backend hip --model "$m" --golden "$G/$g" --mode both --mem-budget 29 --allow-unstamped --allow-dirty "$@" 2>&1 | tail -22
 }
-stage_acc35() { acc $M35 qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --max-seq 4096; }
+stage_acc35() { acc $M35 qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096; }  # sha b6b51e1b1699c66c: the golden the CUDA numbers use
 stage_acc8() {
   acc $M8 qwen3-8b-fp32.safetensors
   acc $M8 qwen3-8b-long-fp32.safetensors
@@ -186,6 +190,12 @@ stage_qual8() { stage_qualify $M8 "8b-${1:-base}"; }
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}
   echo "################ stage $s start $(ts)"
-  "stage_$name" $arg
+  if [[ "$name" == *@base ]]; then
+    # A/B: the same stage on the origin/main tree and its own cargo target volume (BASE_REPO / BASE_VOL), for interleaved runs
+    ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
+      cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && "stage_${name%@base}" $arg )
+  else
+    "stage_$name" $arg
+  fi
   echo "################ stage $s end $(ts)"
 done
