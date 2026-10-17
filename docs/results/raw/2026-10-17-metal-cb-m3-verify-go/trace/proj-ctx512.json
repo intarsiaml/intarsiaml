@@ -1,0 +1,567 @@
+{
+ "grounded-n2": {
+  "1": {
+   "iters": 257,
+   "iters_with_verify": 122,
+   "passes_today": 132,
+   "pass_hist": {
+    "1": 118,
+    "2": 6
+   },
+   "today_ms": 3891.1788000000097,
+   "batched_ms": {
+    "g0b": 3840.359160000009,
+    "meas": 3838.412100000009,
+    "none": 3842.563800000009
+   },
+   "kcap_ms": 3678.067992000009,
+   "kcap_tokens": 503,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[5]+0": 114,
+    "[5, 5]+0": 6,
+    "[]+1": 2,
+    "[5]+1": 2
+   },
+   "wall_s": 4.002159833908081,
+   "tokens": 512,
+   "agg": 127.93092261386163,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 128.0,
+    "intarsia_spec_proposed_tokens_total": 512.0,
+    "intarsia_spec_accepted_tokens_total": 378.0,
+    "intarsia_batch_decode_steps_total": 4.0
+   },
+   "measured_off_agg": 65.58264117034405,
+   "proj_wall_g0b": 3.9513401939080803,
+   "proj_agg_g0b": 129.5762892775895,
+   "proj_wall_meas": 3.9493931339080803,
+   "proj_agg_meas": 129.640170689555,
+   "proj_wall_none": 3.9535448339080803,
+   "proj_agg_none": 129.50403283877466,
+   "proj_wall_kcap": 3.8402348627748792,
+   "proj_agg_kcap": 133.32517887461674,
+   "hypo": {
+    "tokens_per_capped_pass": 2.3211009174311927,
+    "pass_ms": 32.000672,
+    "rate_hyp": 0.1450657609584694,
+    "rate_today": 0.13106568117609982,
+    "ratio": 1.1068172816616966
+   },
+   "proj_agg_hypo": 141.17797643794944
+  },
+  "2": {
+   "iters": 257,
+   "iters_with_verify": 122,
+   "passes_today": 132,
+   "pass_hist": {
+    "1": 118,
+    "2": 6
+   },
+   "today_ms": 3891.1788000000097,
+   "batched_ms": {
+    "g0b": 3840.359160000009,
+    "meas": 3838.412100000009,
+    "none": 3842.563800000009
+   },
+   "kcap_ms": 3678.067992000009,
+   "kcap_tokens": 503,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[5]+0": 114,
+    "[5, 5]+0": 6,
+    "[]+1": 2,
+    "[5]+1": 2
+   },
+   "wall_s": 4.2754738330841064,
+   "tokens": 512,
+   "agg": 119.75280869177244,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 128.0,
+    "intarsia_spec_proposed_tokens_total": 512.0,
+    "intarsia_spec_accepted_tokens_total": 378.0,
+    "intarsia_batch_decode_steps_total": 4.0
+   },
+   "measured_off_agg": 68.6104881522443,
+   "proj_wall_g0b": 4.224654193084106,
+   "proj_agg_g0b": 121.19335136072448,
+   "proj_wall_meas": 4.222707133084106,
+   "proj_agg_meas": 121.24923274658987,
+   "proj_wall_none": 4.226858833084106,
+   "proj_agg_none": 121.13013947674752,
+   "proj_wall_kcap": 4.113548861950905,
+   "proj_agg_kcap": 124.46673594565672,
+   "hypo": {
+    "tokens_per_capped_pass": 2.3211009174311927,
+    "pass_ms": 32.000672,
+    "rate_hyp": 0.1450657609584694,
+    "rate_today": 0.13106568117609982,
+    "ratio": 1.1068172816616966
+   },
+   "proj_agg_hypo": 131.2840042949017
+  },
+  "3": {
+   "iters": 257,
+   "iters_with_verify": 122,
+   "passes_today": 132,
+   "pass_hist": {
+    "1": 118,
+    "2": 6
+   },
+   "today_ms": 3891.1788000000097,
+   "batched_ms": {
+    "g0b": 3840.359160000009,
+    "meas": 3838.412100000009,
+    "none": 3842.563800000009
+   },
+   "kcap_ms": 3678.067992000009,
+   "kcap_tokens": 503,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[5]+0": 114,
+    "[5, 5]+0": 6,
+    "[]+1": 2,
+    "[5]+1": 2
+   },
+   "wall_s": 4.105365037918091,
+   "tokens": 512,
+   "agg": 124.71485367830896,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 128.0,
+    "intarsia_spec_proposed_tokens_total": 512.0,
+    "intarsia_spec_accepted_tokens_total": 378.0,
+    "intarsia_batch_decode_steps_total": 4.0
+   },
+   "measured_off_agg": 67.50715622170807,
+   "proj_wall_g0b": 4.0545453979180905,
+   "proj_agg_g0b": 126.27802866947782,
+   "proj_wall_meas": 4.0525983379180905,
+   "proj_agg_meas": 126.33869860960012,
+   "proj_wall_none": 4.05675003791809,
+   "proj_agg_none": 126.20940289995205,
+   "proj_wall_kcap": 3.943440066784889,
+   "proj_agg_kcap": 129.8358771349191,
+   "hypo": {
+    "tokens_per_capped_pass": 2.3211009174311927,
+    "pass_ms": 32.000672,
+    "rate_hyp": 0.1450657609584694,
+    "rate_today": 0.13106568117609982,
+    "ratio": 1.1068172816616966
+   },
+   "proj_agg_hypo": 137.27155458806766
+  }
+ },
+ "grounded-n3": {
+  "1": {
+   "iters": 260,
+   "iters_with_verify": 175,
+   "passes_today": 199,
+   "pass_hist": {
+    "1": 163,
+    "2": 15,
+    "3": 1
+   },
+   "today_ms": 5864.7756999999965,
+   "batched_ms": {
+    "g0b": 5788.546239999997,
+    "meas": 5785.625649999997,
+    "none": 5791.853199999997
+   },
+   "kcap_ms": 5323.990124000002,
+   "kcap_tokens": 745,
+   "kcap_orig_tokens": 766,
+   "comp": {
+    "[5]+0": 157,
+    "[5, 5]+0": 14,
+    "[]+1": 4,
+    "[5]+1": 2,
+    "[5, 5]+1": 1,
+    "[5, 5, 5]+0": 1
+   },
+   "wall_s": 6.024653196334839,
+   "tokens": 768,
+   "agg": 127.47621729782237,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 192.0,
+    "intarsia_spec_proposed_tokens_total": 768.0,
+    "intarsia_spec_accepted_tokens_total": 567.0,
+    "intarsia_batch_decode_steps_total": 6.0
+   },
+   "measured_off_agg": 93.66417877399584,
+   "proj_wall_g0b": 5.948423736334839,
+   "proj_agg_g0b": 129.10983380501543,
+   "proj_wall_meas": 5.94550314633484,
+   "proj_agg_meas": 129.17325600499274,
+   "proj_wall_none": 5.951730696334839,
+   "proj_agg_none": 129.03809651080908,
+   "proj_wall_kcap": 5.633939825172428,
+   "proj_agg_kcap": 136.31668491888715,
+   "hypo": {
+    "tokens_per_capped_pass": 1.632258064516129,
+    "pass_ms": 32.10464,
+    "rate_hyp": 0.15252543537471178,
+    "rate_today": 0.1306102806284647,
+    "ratio": 1.1677904269158348
+   },
+   "proj_agg_hypo": 148.2055926515388
+  },
+  "2": {
+   "iters": 259,
+   "iters_with_verify": 175,
+   "passes_today": 198,
+   "pass_hist": {
+    "1": 162,
+    "2": 15,
+    "3": 1
+   },
+   "today_ms": 5836.768199999997,
+   "batched_ms": {
+    "g0b": 5760.538739999997,
+    "meas": 5757.6181499999975,
+    "none": 5763.845699999997
+   },
+   "kcap_ms": 5295.982624000002,
+   "kcap_tokens": 744,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[5]+0": 157,
+    "[5, 5]+0": 14,
+    "[]+1": 3,
+    "[5]+1": 2,
+    "[5, 5]+1": 1,
+    "[5, 5, 5]+0": 1
+   },
+   "wall_s": 6.60741400718689,
+   "tokens": 768,
+   "agg": 116.23306775761982,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 192.0,
+    "intarsia_spec_proposed_tokens_total": 768.0,
+    "intarsia_spec_accepted_tokens_total": 567.0,
+    "intarsia_batch_decode_steps_total": 6.0
+   },
+   "measured_off_agg": 96.99892224606558,
+   "proj_wall_g0b": 6.53118454718689,
+   "proj_agg_g0b": 117.5896951695834,
+   "proj_wall_meas": 6.528263957186891,
+   "proj_agg_meas": 117.64230200197674,
+   "proj_wall_none": 6.53449150718689,
+   "proj_agg_none": 117.5301856548935,
+   "proj_wall_kcap": 6.216111811703024,
+   "proj_agg_kcap": 123.5499011703896,
+   "hypo": {
+    "tokens_per_capped_pass": 1.632258064516129,
+    "pass_ms": 32.10464,
+    "rate_hyp": 0.15252543537471178,
+    "rate_today": 0.13106568117610023,
+    "ratio": 1.1637328246879375
+   },
+   "proj_agg_hypo": 132.72953588174505
+  },
+  "3": {
+   "iters": 259,
+   "iters_with_verify": 175,
+   "passes_today": 198,
+   "pass_hist": {
+    "1": 162,
+    "2": 15,
+    "3": 1
+   },
+   "today_ms": 5836.768199999997,
+   "batched_ms": {
+    "g0b": 5760.538739999997,
+    "meas": 5757.6181499999975,
+    "none": 5763.845699999997
+   },
+   "kcap_ms": 5295.982624000002,
+   "kcap_tokens": 744,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[5]+0": 157,
+    "[5, 5]+0": 14,
+    "[]+1": 3,
+    "[5]+1": 2,
+    "[5, 5]+1": 1,
+    "[5, 5, 5]+0": 1
+   },
+   "wall_s": 6.22930908203125,
+   "tokens": 768,
+   "agg": 123.28815120369191,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 192.0,
+    "intarsia_spec_proposed_tokens_total": 768.0,
+    "intarsia_spec_accepted_tokens_total": 567.0,
+    "intarsia_batch_decode_steps_total": 6.0
+   },
+   "measured_off_agg": 95.88850397256036,
+   "proj_wall_g0b": 6.1530796220312505,
+   "proj_agg_g0b": 124.81554720178777,
+   "proj_wall_meas": 6.150159032031251,
+   "proj_agg_meas": 124.87481965915082,
+   "proj_wall_none": 6.15638658203125,
+   "proj_agg_none": 124.74850137604656,
+   "proj_wall_kcap": 5.838006886547384,
+   "proj_agg_kcap": 131.55174615667465,
+   "hypo": {
+    "tokens_per_capped_pass": 1.632258064516129,
+    "pass_ms": 32.10464,
+    "rate_hyp": 0.15252543537471178,
+    "rate_today": 0.13106568117610023,
+    "ratio": 1.1637328246879375
+   },
+   "proj_agg_hypo": 142.00926661927932
+  }
+ },
+ "open-n2": {
+  "1": {
+   "iters": 255,
+   "iters_with_verify": 2,
+   "passes_today": 257,
+   "pass_hist": {
+    "1": 255
+   },
+   "today_ms": 7357.819099999951,
+   "batched_ms": {
+    "g0b": 7306.999459999951,
+    "meas": 7305.0523999999505,
+    "none": 7309.204099999951
+   },
+   "kcap_ms": 7306.999459999951,
+   "kcap_tokens": 509,
+   "kcap_orig_tokens": 509,
+   "comp": {
+    "[]+2": 252,
+    "[5]+1": 2,
+    "[]+1": 1
+   },
+   "wall_s": 7.3205461502075195,
+   "tokens": 512,
+   "agg": 69.94013690979682,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 2.0,
+    "intarsia_spec_proposed_tokens_total": 8.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 256.0
+   },
+   "measured_off_agg": 68.23636762037528,
+   "proj_wall_g0b": 7.26972651020752,
+   "proj_agg_g0b": 70.4290593712286,
+   "proj_wall_meas": 7.267779450207519,
+   "proj_agg_meas": 70.4479275283155,
+   "proj_wall_none": 7.27193115020752,
+   "proj_agg_none": 70.40770730968609,
+   "proj_wall_kcap": 7.269726510207519,
+   "proj_agg_kcap": 70.42905937122862
+  },
+  "2": {
+   "iters": 256,
+   "iters_with_verify": 2,
+   "passes_today": 258,
+   "pass_hist": {
+    "1": 256
+   },
+   "today_ms": 7385.82659999995,
+   "batched_ms": {
+    "g0b": 7335.006959999951,
+    "meas": 7333.05989999995,
+    "none": 7337.2115999999505
+   },
+   "kcap_ms": 7335.006959999951,
+   "kcap_tokens": 510,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[]+2": 252,
+    "[]+1": 2,
+    "[5]+1": 2
+   },
+   "wall_s": 7.508878946304321,
+   "tokens": 512,
+   "agg": 68.18594408849717,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 2.0,
+    "intarsia_spec_proposed_tokens_total": 8.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 256.0
+   },
+   "measured_off_agg": 70.13859027186186,
+   "proj_wall_g0b": 7.458059306304322,
+   "proj_agg_g0b": 68.65056698693783,
+   "proj_wall_meas": 7.456112246304321,
+   "proj_agg_meas": 68.66849412758998,
+   "proj_wall_none": 7.460263946304321,
+   "proj_agg_none": 68.63027952967207,
+   "proj_wall_kcap": 7.458059306304321,
+   "proj_agg_kcap": 68.65056698693785
+  },
+  "3": {
+   "iters": 256,
+   "iters_with_verify": 3,
+   "passes_today": 258,
+   "pass_hist": {
+    "1": 256
+   },
+   "today_ms": 7387.34369999995,
+   "batched_ms": {
+    "g0b": 7336.524059999951,
+    "meas": 7334.57699999995,
+    "none": 7338.728699999951
+   },
+   "kcap_ms": 7336.524059999951,
+   "kcap_tokens": 510,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[]+2": 252,
+    "[5]+1": 2,
+    "[]+1": 1,
+    "[5]+0": 1
+   },
+   "wall_s": 7.382925033569336,
+   "tokens": 512,
+   "agg": 69.3492074851083,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 3.0,
+    "intarsia_spec_proposed_tokens_total": 12.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 255.0
+   },
+   "measured_off_agg": 67.92980847222594,
+   "proj_wall_g0b": 7.3321053935693365,
+   "proj_agg_g0b": 69.82987457450523,
+   "proj_wall_meas": 7.330158333569336,
+   "proj_agg_meas": 69.84842300816817,
+   "proj_wall_none": 7.334310033569336,
+   "proj_agg_none": 69.80888422449584,
+   "proj_wall_kcap": 7.332105393569336,
+   "proj_agg_kcap": 69.82987457450523
+  }
+ },
+ "open-n3": {
+  "1": {
+   "iters": 257,
+   "iters_with_verify": 3,
+   "passes_today": 260,
+   "pass_hist": {
+    "1": 254,
+    "2": 3
+   },
+   "today_ms": 7696.938550000041,
+   "batched_ms": {
+    "g0b": 7702.864240000041,
+    "meas": 7699.94365000004,
+    "none": 7706.171200000041
+   },
+   "kcap_ms": 7619.57808400004,
+   "kcap_tokens": 765,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[]+3": 250,
+    "[5]+2": 3,
+    "[]+1": 2,
+    "[]+2": 2
+   },
+   "wall_s": 7.630942344665527,
+   "tokens": 768,
+   "agg": 100.6428780761103,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 3.0,
+    "intarsia_spec_proposed_tokens_total": 12.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 257.0
+   },
+   "measured_off_agg": 98.83278010589063,
+   "proj_wall_g0b": 7.636868034665527,
+   "proj_agg_g0b": 100.56478605023273,
+   "proj_wall_meas": 7.633947444665527,
+   "proj_agg_meas": 100.60326005213271,
+   "proj_wall_none": 7.640174994665527,
+   "proj_agg_none": 100.52125776388996,
+   "proj_wall_kcap": 7.553581878665527,
+   "proj_agg_kcap": 101.67361820345829
+  },
+  "2": {
+   "iters": 257,
+   "iters_with_verify": 4,
+   "passes_today": 260,
+   "pass_hist": {
+    "1": 254,
+    "2": 3
+   },
+   "today_ms": 7698.455650000041,
+   "batched_ms": {
+    "g0b": 7704.381340000041,
+    "meas": 7701.46075000004,
+    "none": 7707.688300000041
+   },
+   "kcap_ms": 7621.09518400004,
+   "kcap_tokens": 765,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[]+3": 250,
+    "[5]+2": 3,
+    "[]+2": 2,
+    "[]+1": 1,
+    "[5]+0": 1
+   },
+   "wall_s": 7.9006569385528564,
+   "tokens": 768,
+   "agg": 97.20710644356527,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 4.0,
+    "intarsia_spec_proposed_tokens_total": 16.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 256.0
+   },
+   "measured_off_agg": 100.46405693808111,
+   "proj_wall_g0b": 7.906582628552856,
+   "proj_agg_g0b": 97.13425332792193,
+   "proj_wall_meas": 7.903662038552856,
+   "proj_agg_meas": 97.17014673120046,
+   "proj_wall_none": 7.909889588552856,
+   "proj_agg_none": 97.09364352082044,
+   "proj_wall_kcap": 7.823296472552855,
+   "proj_agg_kcap": 98.16833641604157
+  },
+  "3": {
+   "iters": 257,
+   "iters_with_verify": 3,
+   "passes_today": 260,
+   "pass_hist": {
+    "1": 254,
+    "2": 3
+   },
+   "today_ms": 7696.938550000041,
+   "batched_ms": {
+    "g0b": 7702.864240000041,
+    "meas": 7699.94365000004,
+    "none": 7706.171200000041
+   },
+   "kcap_ms": 7619.57808400004,
+   "kcap_tokens": 765,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[]+3": 250,
+    "[5]+2": 3,
+    "[]+1": 2,
+    "[]+2": 2
+   },
+   "wall_s": 7.7583019733428955,
+   "tokens": 768,
+   "agg": 98.99073310613667,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 3.0,
+    "intarsia_spec_proposed_tokens_total": 12.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 257.0
+   },
+   "measured_off_agg": 99.28277215576078,
+   "proj_wall_g0b": 7.764227663342895,
+   "proj_agg_g0b": 98.91518297768935,
+   "proj_wall_meas": 7.761307073342895,
+   "proj_agg_meas": 98.95240489038046,
+   "proj_wall_none": 7.767534623342895,
+   "proj_agg_none": 98.87307070277052,
+   "proj_wall_kcap": 7.6809415073428955,
+   "proj_agg_kcap": 99.98774229250418
+  }
+ }
+}
