@@ -6,9 +6,11 @@
 #   lane 2  256 greedy ids of the 8B and the 35B, graphs and --no-graphs, on A and on B (all eight must be identical per model),
 #           optional NOFUSION=1: B with INTARSIA_NO_FUSION=1 (35B and 8B) must match too; the two 8B fp32 goldens on B
 # Then, alone on the GPU (clean timing): 35B decode A/B, two interleaved rounds (SIZES 128,1024; GEN 128; REPS 5), --require-graphs.
-# Env: SPEED=0 skips the A/B, NOFUSION=1 adds the INTARSIA_NO_FUSION runs, SIZES, REPS, W_BUDGET_MIN (default 14).
+# Env: ROUNDS (2), ROUND_MIN (3: minutes a round needs), SIZES, REPS, W_BUDGET_MIN (default 14).
 set -u
 A=${1:?tree A}; B=${2:?tree B}
+# optional 3rd arg: flags, comma separated: nofusion (add the INTARSIA_NO_FUSION=1 runs of B), nolanes, nospeed
+FLAGS=,${3:-},
 P=$HOME/intarsia-decfuse
 D=$(dirname "$0")
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
@@ -44,15 +46,17 @@ gen() { # gen <35b|8b> <tag> <bin> <envs-or-"-"> [extra args]
   echo "gen $m $tag: $(grep -aE 'finish=|steps=' $O/gen$m-$tag.err | cut -c1-200 | tr '\n' ' ')" >> $O/lane2.log
 }
 echo "== lanes start $(date +%T)"
+if [[ $FLAGS != *,nolanes,* ]]; then
 ( acc35 A $BA; acc35 B $BB; echo "lane1 done $(date +%T)" >> $O/lane1.log ) &
 (
   gen 35b A-graph $BA -; gen 35b B-graph $BB -; gen 35b A-eager $BA - --no-graphs; gen 35b B-eager $BB - --no-graphs
   gen 8b A-graph $BA -; gen 8b B-graph $BB -; gen 8b A-eager $BA - --no-graphs; gen 8b B-eager $BB - --no-graphs
-  if [ "${NOFUSION:-0}" = 1 ]; then gen 35b B-nofusion $BB INTARSIA_NO_FUSION=1; gen 8b B-nofusion $BB INTARSIA_NO_FUSION=1; fi
+  if [[ $FLAGS == *,nofusion,* ]]; then gen 35b B-nofusion $BB INTARSIA_NO_FUSION=1; gen 8b B-nofusion $BB INTARSIA_NO_FUSION=1; fi
   acc8 8b-short qwen3-8b-fp32.safetensors; acc8 8b-long qwen3-8b-long-fp32.safetensors
   echo "lane2 done $(date +%T)" >> $O/lane2.log
 ) &
 wait
+fi
 echo "== lanes done $(date +%T), $(left) min left"
 cat $O/lane1.log $O/lane2.log
 for m in 35b 8b; do
@@ -66,9 +70,11 @@ if [ -s $O/A.dump.safetensors ] && [ -s $O/B.dump.safetensors ]; then
   python3 -I $D/cmp_dump.py $O/A.dump.safetensors $O/B.dump.safetensors | tee $O/cmp.txt
   cmp $O/A.pos.tsv $O/B.pos.tsv && echo "per-position TSV identical" | tee -a $O/cmp.txt
 fi
-if [ "${SPEED:-1}" = 1 ]; then
+if [[ $FLAGS != *,nospeed,* ]]; then
   export SIZES=${SIZES:-128,1024} REPS=${REPS:-5} OUT=$O/ab
-  if (( $(left) >= 5 )); then bash $D/w-ab.sh 35b 1 A:$A B:$B; else echo "SKIP A/B round 1: $(left) min left"; fi
-  if (( $(left) >= 3 )); then bash $D/w-ab.sh 35b 2 B:$B A:$A; else echo "SKIP A/B round 2: $(left) min left"; fi
+  for r in $(seq 1 ${ROUNDS:-2}); do
+    if (( $(left) < ${ROUND_MIN:-3} )); then echo "SKIP A/B round $r: $(left) min left"; continue; fi
+    if (( r % 2 == 1 )); then bash $D/w-ab.sh 35b $r A:$A B:$B; else bash $D/w-ab.sh 35b $r B:$B A:$A; fi
+  done
 fi
 echo "== w-noop done $(date +%T), $(left) min left"

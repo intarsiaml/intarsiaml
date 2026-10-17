@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 # Mutation checks of the fused CUDA kernels, on spark1 with vLLM UP (correctness only), inside a shared fleetq slot:
 #   fleetq run --host spark1 --mem 6 --label "..." -- scripts/cuda-decode/mutate.sh [mutation ...]
-# For each mutation: copy the tree under test (~/intarsia-decfuse/dev) kernel sources over ~/intarsia-decfuse/mut, apply the
+# For each mutation: copy the tree under test (~/intarsia-decfuse/$TREE, env TREE; default dev) kernel sources over ~/intarsia-decfuse/mut, apply the
 # mutation (mutate.py), build, run `--test fused_decode`. The test MUST fail (cargo test exit 101, "test result: FAILED"); a
 # compile error or a pass is reported as a harness problem / a test that missed the bug. Finally the unmutated sources are
 # restored and the test must pass again.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 HOST=${HOST:-spark1}
-ALL="pair-block pair-nb0 fp8-pair-scale fp8-pair-out glu-scale glu-round glu-blockscale gated-order gated-round gated-round-scalar down-order down-round down-h down-invalid down-scale"
+ALL="pair-block pair-nb0 fp8-pair-scale fp8-pair-out glu-scale glu-round glu-blockscale gated-order gated-round gated-round-scalar down-order down-round down-h down-invalid down-scale norm-skip-sum norm-skip-normed norm-sum-round norm-woff norm-order norm-pair-block norm-nb0 norm-sync norm-read-x gn-round gn-woff gn-order gn-chunk-order gn-group gn-weight gn-silu gn-actq gn-tail"
+TREE=${TREE:-dev}   # the tree under test, ~/intarsia-decfuse/$TREE
 MUTS=${*:-$ALL}
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 D='~/intarsia-decfuse'
-rsh "mkdir -p $D/mut && cd $D/mut && { test -d target || cp -a $D/dev/target target; }; rsync -a --delete --exclude target $D/dev/ $D/mut/" >/dev/null
+rsh "mkdir -p $D/mut && cd $D/mut && { test -d target || cp -a $D/$TREE/target target; }; rsync -a --delete --exclude target $D/$TREE/ $D/mut/" >/dev/null
 T() { echo "cd $D/mut && CARGO_BUILD_JOBS=6 CARGO_TARGET_DIR=target/acc cargo test --release -p intarsia-backend-cuda $1 2>&1"; }
-restore() { rsh "cd $D/mut && cp $D/dev/kernels/cuda/{matmul,fp8,nvfp4,norm,moe_decode}.cu kernels/cuda/"; }
+restore() { rsh "cd $D/mut && cp $D/$TREE/kernels/cuda/{matmul,fp8,nvfp4,norm,moe_decode}.cu kernels/cuda/"; }
 bad=0
 for m in $MUTS; do
   restore

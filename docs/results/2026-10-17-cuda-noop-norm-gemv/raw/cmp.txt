@@ -1,0 +1,2 @@
+60 tensors in /home/nvidia/intarsia-decfuse/out/noop-hipnorm/A.dump.safetensors, 60 in /home/nvidia/intarsia-decfuse/out/noop-hipnorm/B.dump.safetensors: 0 differ
+per-position TSV identical
