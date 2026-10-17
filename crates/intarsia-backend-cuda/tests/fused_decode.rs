@@ -362,3 +362,37 @@ fn gated_rmsnorm_matmul_fp8_many_draws_bitwise() {
         }
     }
 }
+
+/// `n` values, each a normal draw times 2^u with u uniform in (-spread, spread): rows whose elements span many binades, as LLM
+/// activations with outlier channels do. The squares of bf16 values are exact in f32 and so are their sums while the terms sit
+/// within a few binades, so on well-scaled data a different summation order gives the same bits (the `norm-order` mutation
+/// survived 3000 such draws); with a wide spread the partial sums round and the order shows.
+fn heavy_vec(rng: &mut SplitMix64, n: usize, spread: f32) -> Vec<f32> {
+    (0..n).map(|_| rng.normal() * ((rng.next_f32() * 2.0 - 1.0) * spread).exp2()).collect()
+}
+
+/// `rmsnorm_add_matmul_pair_many_rows_bitwise` with heavy-tailed rows (mutation `norm-order`).
+#[test]
+fn rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise() {
+    let Some(cuda) = device("rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise") else { return };
+    let mut rng = SplitMix64::new(69);
+    let mut hc = rmsnorm_add_matmul_pair_case(&mut rng, 1, 8, 1, 2048, DType::Bf16, 1.0);
+    // a different summation order of the squares flips a normalised element in about one draw of 400 (numpy emulation of the
+    // kernel's reduction on rows like these); 8000 draws expect about 20 such flips for the `norm-order` mutation
+    for trial in 0..8000 {
+        let spread = 2.0 + (trial % 5) as f32 * 2.0;
+        hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &heavy_vec(&mut rng, 2048, spread));
+        hc.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &heavy_vec(&mut rng, 2048, spread));
+        let label = format!("norm+pair heavy trial {trial} spread {spread}");
+        let got = run_host(&*cuda, "rmsnorm_add_matmul_pair_bf16_gemv", &hc).unwrap();
+        let norm = call(
+            Op::RmsNormAdd,
+            vec![hc.inputs[0].clone(), hc.inputs[1].clone(), hc.inputs[2].clone()],
+            vec![out_bf16(&[1, 2048]), out_bf16(&[1, 2048])],
+            hc.attrs.clone(),
+        );
+        let want = run_host(&*cuda, "rmsnorm_add_bf16", &norm).unwrap();
+        bits_eq(&label, "normed", &got[0], &want[0]);
+        bits_eq(&label, "sum", &got[1], &want[1]);
+    }
+}

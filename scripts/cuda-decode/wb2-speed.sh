@@ -17,6 +17,11 @@ DEADLINE=$(( $(date +%s) + ${W_BUDGET_MIN:-14} * 60 ))
 left() { echo $(( (DEADLINE - $(date +%s)) / 60 )); }
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 90 )) || { echo "ABORT: memory"; exit 1; }
 nvidia-smi --query-gpu=clocks.sm,temperature.gpu,power.draw --format=csv
+echo "== heavy-tail norm test, unmutated and norm-order mutant $(date +%T)"
+for m in unmutated norm-order; do
+  ( INTARSIA_REQUIRE_GPU=1 timeout 200 $P/mutbins/$m --test-threads=1 heavy_tail > $O/heavy-$m.log 2>&1; echo "heavy_tail $m rc $? $(grep -E '^test result' $O/heavy-$m.log)" ) &
+done
+wait
 echo "== qualify $(date +%T)"
 $BD qualify --model $M35 --backend cuda --quick-only --gen 128 --reps 5 --no-unim --out $O/qualify-35b --golden-dir $GD --mem-budget 45 > $O/qualify-35b.log 2>&1
 echo "qualify exit $?"; tail -40 $O/qualify-35b.log | cut -c1-200
