@@ -1,0 +1,61 @@
+[burst] job 2315; stages: fusedtest prof:norm2; stopping radiance 2026-10-17 12:42:43
+[burst] radiance stopped 2026-10-17 12:42:46
+################ stage fusedtest start 12:42:46
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=300 N1=5 K=520 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=300 N1=5 K=520 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=24 K=4104 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=24 K=4104 bf16 w_offset=1
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=4 N=40 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=4 N=40 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=64 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=64 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=33 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=33 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=1.977e-6 rel_l2=1.561e-7 R=32 N=2048 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=2.706e-4 rel_l2=1.980e-5 R=32 N=2048 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 N=1 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 N=1 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=520 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=520 bf16 act_quant=false
+op             kernel                      cases   fail     max_abs      rel_l2  result
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.41s
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+test matmul_fp8_pair_every_block_shape_is_bitwise_v2 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+################ stage fusedtest end 12:43:15
+################ stage prof:norm2 start 12:43:15
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 90 ms (267.8 tok/s) | decode 1139 ms (139.54 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 94 ms (255.6 tok/s) | decode 1284 ms (123.80 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+/home/josef/intarsiaml-normgemv/bench-out/prof/norm2/run_kernel_trace.csv
+Traceback (most recent call last):
+  File "/home/josef/intarsiaml-normgemv/scripts/hip-decode/analyze.py", line 91, in <module>
+    rows, k = blocks * int(args[1]) * 8, 0
+                       ^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'bf16'
+################ stage prof:norm2 end 12:43:27
+[burst] stages done 2026-10-17 12:43:27 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 12:43:27
+[burst] radiance answers 2026-10-17 12:43:37 (after 15 s)

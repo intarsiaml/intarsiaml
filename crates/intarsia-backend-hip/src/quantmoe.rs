@@ -26,6 +26,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
     ("matmul_nvfp4_glu_gemv", Op::MatmulNvfp4Glu),
     ("gated_rmsnorm_bf16", Op::GatedRmsnorm),
+    ("rmsnorm_add_matmul_pair_bf16_gemv", Op::RmsNormAddMatmulPair),
+    ("gated_rmsnorm_matmul_fp8_gemv", Op::GatedRmsnormMatmulFp8),
 ];
 
 /// Admission budget of the bf16-rounded outputs of every kernel here (a one-ulp flip, up to 7.8e-3 of the
@@ -139,6 +141,22 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.m == 1 && s.k % 16 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(GLU_TOL)
+                    .priority(10),
+                // the GDN output norm folded into the fp8 out_proj: dv = 128 rows, K = rows * 128 within the LDS staging
+                "gated_rmsnorm_matmul_fp8_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                // norm prologue + pair GEMV: the row is staged in LDS (K <= 8192, K % 8 == 0); bitwise rmsnorm_add + pair
+                "rmsnorm_add_matmul_pair_bf16_gemv" => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.k % 8 == 0 && (8..=8192).contains(&s.k) && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
                     .priority(10),
                 "gated_rmsnorm_bf16" => k.acts(bf).when(|s| s.out == Some(DType::Bf16)).exact(Exactness::Deterministic).tol(GLU_TOL),
                 other => unreachable!("quantmoe kernel {other} has no registration"),

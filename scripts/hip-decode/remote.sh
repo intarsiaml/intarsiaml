@@ -24,7 +24,7 @@ TARGET_VOL() { $D --target-vol; }
 stage_profng() { PROF_EXTRA="--no-graphs" stage_prof "${1:-base}-eager"; }
 stage_prof() { # prof <tag>: rocprofv3 kernel trace of a 160-token 35B decode + the unprofiled rate
   local tag=${1:-base}
-  local gen="$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos ${PROF_EXTRA:-} -p 'Write a long story about a robot who learns to paint.' --max-tokens 160"
+  local gen="${PROF_PRE:-} $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos ${PROF_EXTRA:-} -p 'Write a long story about a robot who learns to paint.' --max-tokens 160"
   echo "--- unprofiled"
   $D bash -c "$gen" 2>&1 | grep -E "finish=|steps="
   echo "--- rocprofv3 (kernel trace)"
@@ -75,7 +75,7 @@ stage_bench8pe16() { PE=16 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "hipdecod
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file
   local tag=$1; shift
-  $D $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
+  $D env ${GEN_ENV:-X=0} $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
     -p 'Write a long story about a robot who learns to paint.' --max-tokens 256 "$@" > "$OUTD/gen35-$tag.out" 2> "$OUTD/gen35-$tag.err"   # (stdout is the text, stderr the ids and the summary)
   grep -a '^ids:' "$OUTD/gen35-$tag.err" > "$OUTD/gen35-$tag.ids"
   grep -aE "finish=|steps=" "$OUTD/gen35-$tag.err"
@@ -93,6 +93,21 @@ stage_graphproof() {
   fi
 }
 
+# INTARSIA_NO_FUSION=1 (the container only forwards INTARSIA_HIP_* / INTARSIA_TP_*, so the variable is set with `env` inside it):
+# the unfused chain must still run, with the launch count of the base tree's own NO_FUSION run, and give the ids of the fused run
+stage_nofusion() {
+  echo "--- NO_FUSION generate (256 tokens)"; GEN_ENV="INTARSIA_NO_FUSION=1" gen35 nofusion
+  if [ -s "$OUTD/gen35-graph.ids" ] && cmp -s "$OUTD/gen35-nofusion.ids" "$OUTD/gen35-graph.ids"; then
+    echo "NO_FUSION == FUSED: the 256 generated token ids are identical"
+  else
+    echo "NO_FUSION != FUSED (or no fused run in this tree): ids DIFFER or are missing"; cmp "$OUTD/gen35-nofusion.ids" "$OUTD/gen35-graph.ids" | head -3
+  fi
+  echo "--- NO_FUSION profile, this tree"; PROF_PRE="env INTARSIA_NO_FUSION=1" stage_prof nofusion
+  echo "--- NO_FUSION profile, base tree"
+  ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
+    cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && PROF_PRE="env INTARSIA_NO_FUSION=1" stage_prof nofusion )
+}
+
 stage_envsweep() { # decode rate of a 256-token generation under CLR env knobs, graph and eager
   local kv g
   for kv in "X=0" "HIP_FORCE_DEV_KERNARG=0" "HIP_FORCE_DEV_KERNARG=1" "ROC_USE_FGS_KERNARG=0" "DEBUG_CLR_MAX_BATCH_SIZE=1" "GPU_STREAMOPS_CP_WAIT=1"; do
@@ -108,7 +123,7 @@ stage_test() { # cargo tests of the hip crate (kernel tests, device_pos, graph p
 }
 
 stage_fusedtest() { # the fused decode kernels against the unfused launches (bitwise) and the cpu reference, plus the GPU admission sweep
-  $D cargo test --release -p intarsia-backend-hip --test fused_decode --test admission -- --nocapture --test-threads=1 2>&1 \
+  $D cargo test --release -p intarsia-backend-hip --test fused_decode --test fp8_pair_shapes --test decode_v2 --test admission -- --nocapture --test-threads=1 2>&1 \
     | grep -E "^test |test result|FAILED|panicked|differs|rel_l2" | cut -c1-400 | tail -40
 }
 
@@ -144,11 +159,15 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
   done
 }
 
+stage_fp8sweep() { # fp8 GEMV at the 35B decode shapes: v2 singles, a size scale (fixed cost / streaming rate), the pair block shapes; DRAM-cold
+  $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_fp8_sweep 2>&1 | grep -E "^(case|o_proj|attn|k or|qkv|z |scale|pair)|panicked|error" | cut -c1-110
+}
+
 stage_mutate() {
   # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
   local MUT="${INTARSIA_MUT_DIR:-$HOME/intarsiaml-hipperf2-mut}"
   local m
-  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round}; do
+  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round pair-nb0 pair-grid norm-skip-sum norm-skip-normed norm-sum-round norm-woff norm-order norm-pair-block norm-sync gn-round gn-woff gn-order gn-group gn-weight gn-silu}; do
     rm -rf "$MUT"; mkdir -p "$MUT"
     rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$MUT/"
     python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$MUT" $m || continue
@@ -158,6 +177,10 @@ stage_mutate() {
     echo
   done
   rm -rf "$MUT"
+  # the mutated builds shared the cargo target volume: make the real sources newer than its outputs, so the next build of
+  # this tree recompiles the kernels instead of trusting mtimes (run the build before any later stage)
+  find "$INTARSIA_REPO/kernels" "$INTARSIA_REPO/crates" -type f -exec touch {} +
+  echo "NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume"
 }
 
 stage_kernels() {
@@ -170,7 +193,7 @@ acc() { # acc <model> <golden> [args]
   echo "--- accuracy $g $*"
   $D $B accuracy --backend hip --model "$m" --golden "$G/$g" --mode both --mem-budget 29 --allow-unstamped --allow-dirty "$@" 2>&1 | tail -22
 }
-stage_acc35() { acc $M35 qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --max-seq 4096; }
+stage_acc35() { acc $M35 qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096; }  # sha b6b51e1b1699c66c: the golden the CUDA numbers use
 stage_acc8() {
   acc $M8 qwen3-8b-fp32.safetensors
   acc $M8 qwen3-8b-long-fp32.safetensors
@@ -186,6 +209,12 @@ stage_qual8() { stage_qualify $M8 "8b-${1:-base}"; }
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}
   echo "################ stage $s start $(ts)"
-  "stage_$name" $arg
+  if [[ "$name" == *@base ]]; then
+    # A/B: the same stage on the origin/main tree and its own cargo target volume (BASE_REPO / BASE_VOL), for interleaved runs
+    ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
+      cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && "stage_${name%@base}" $arg )
+  else
+    "stage_$name" $arg
+  fi
   echo "################ stage $s end $(ts)"
 done

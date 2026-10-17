@@ -1,0 +1,26 @@
+[burst] job 2320; stages: mutate; stopping radiance 2026-10-17 12:47:03
+[burst] radiance stopped 2026-10-17 12:47:06
+################ stage mutate start 12:47:06
+applied norm-skip-sum to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-skip-sum      thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'rmsnorm_add_matmul_pair_many_rows_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s 
+applied norm-skip-normed to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-skip-normed   thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'rmsnorm_add_matmul_pair_many_rows_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s 
+applied norm-sum-round to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-sum-round     thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'rmsnorm_add_matmul_pair_many_rows_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s 
+applied norm-woff to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-woff          thread 'rmsnorm_add_matmul_pair_many_rows_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s 
+applied norm-order to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-order         test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s 
+applied norm-pair-block to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-pair-block    thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+applied norm-sync to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-sync          thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+applied fp8-pair-scale to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+fp8-pair-scale     thread 'matmul_fp8_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+applied pair-block to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+pair-block         thread 'matmul_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s 
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+################ stage mutate end 12:50:49
+[burst] stages done 2026-10-17 12:50:49 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 12:50:49
+[burst] radiance answers 2026-10-17 12:50:59 (after 15 s)

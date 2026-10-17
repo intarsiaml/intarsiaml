@@ -1,5 +1,6 @@
 //! Validation and shape facts of the quantised-weight and MoE ops (`Op::MatmulFp8` ... `Op::MoeCombine`) and of the
-//! fused decode ops (`Op::MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`).
+//! fused decode ops (`Op::MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`,
+//! `GatedRmsnormMatmulFp8`).
 //! Called from `OpCall::check` / `ShapeInfo::from_call`; the table of signatures is in `ops.rs`.
 
 use crate::backend::TensorRef;
@@ -196,6 +197,51 @@ pub fn check(call: &OpCall) -> Result<()> {
                 return bad(op, "tensors must be bf16/f16/f32".into());
             }
         }
+        Op::RmsNormAddMatmulPair => {
+            rank(&i[0], 2, "x")?;
+            let (m, k) = (i[0].shape[0], i[0].shape[1]);
+            if i[1].shape != [m, k] || i[2].shape != [k] || o[0].shape != [m, k] || o[1].shape != [m, k] {
+                return bad(
+                    op,
+                    format!("shapes x {:?} res {:?} norm w {:?} normed {:?} sum {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape, o[1].shape),
+                );
+            }
+            if !act(&i[0]) || !act(&i[1]) || !act(&i[2]) || !act(&o[0]) || !act(&o[1]) {
+                return bad(op, "x, res, norm w, normed and sum must be bf16/f16/f32".into());
+            }
+            for (j, (w, out)) in [(&i[3], &o[2]), (&i[4], &o[3])].into_iter().enumerate() {
+                rank(w, 2, "w")?;
+                let n = w.shape[0];
+                if !act(w) || w.shape[1] != k {
+                    return bad(op, format!("w{j} must be a bf16/f16/f32 [N,{k}] matrix, got {} {:?}", w.dtype, w.shape));
+                }
+                if !act(out) || out.shape != [m, n] {
+                    return bad(op, format!("out{j} {:?} != [{m},{n}]", out.shape));
+                }
+            }
+        }
+        Op::GatedRmsnormMatmulFp8 => {
+            rank(&i[0], 2, "x")?;
+            let (r, d) = (i[0].shape[0], i[0].shape[1]);
+            let k = r * d;
+            if i[1].shape != [r, d] || i[2].shape != [d] {
+                return bad(op, format!("shapes x {:?} z {:?} norm w {:?}", i[0].shape, i[1].shape, i[2].shape));
+            }
+            if !act(&i[0]) || !act(&i[1]) || !act(&i[2]) || !act(&o[0]) {
+                return bad(op, "x, z, norm w and out must be bf16/f16/f32".into());
+            }
+            rank(&i[3], 2, "w")?;
+            let n = i[3].shape[0];
+            if i[3].dtype != DType::Fp8E4m3 || i[3].shape[1] != k {
+                return bad(op, format!("w must be fp8_e4m3 [N,{k}], got {} {:?}", i[3].dtype, i[3].shape));
+            }
+            if i[4].dtype != DType::F32 || i[4].shape != [2] {
+                return bad(op, "scales must be f32 [2] = (weight_scale, input_scale)".into());
+            }
+            if o[0].shape != [1, n] {
+                return bad(op, format!("out {:?} != [1,{n}]", o[0].shape));
+            }
+        }
         _ => unreachable!("quant::ops::check called for {op}"),
     }
     Ok(())
@@ -236,6 +282,21 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.k = i[0].shape[1];
             s.n = i[1].shape[0];
             s.weight = Some(i[1].dtype);
+        }
+        // the first GEMV's weight gives n and the weight dtype (the norm is over k)
+        Op::RmsNormAddMatmulPair => {
+            s.m = i[0].shape[0];
+            s.k = i[0].shape[1];
+            s.n = i[3].shape[0];
+            s.weight = Some(i[3].dtype);
+        }
+        // one output row: the norm is over `d = x.shape[1]` and the matmul over `k = rows * d`
+        Op::GatedRmsnormMatmulFp8 => {
+            s.m = 1;
+            s.k = i[0].shape[0] * i[0].shape[1];
+            s.n = i[3].shape[0];
+            s.head_dim = i[0].shape[1];
+            s.weight = Some(i[3].dtype);
         }
         Op::MatmulNvfp4Glu => {
             s.m = i[0].shape[0];

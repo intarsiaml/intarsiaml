@@ -96,6 +96,136 @@ gemv_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w0, 
     else gemv_body<1, R, U, OutT>(x, w1, o1, N1, K, (int64_t)blockIdx.x - nb0);
 }
 
+// ---- RMSNorm (+ residual add) folded into the pair GEMV --------------------------------------------------
+// rmsnorm_add_matmul_pair: the decode step's `rmsnorm_add(x, res, w) -> (normed, sum)` followed by the pair GEMV on `normed`
+// (the MoE router + shared-expert gate, the GDN b / a gates) as one launch. Every block recomputes the row's norm
+// in its own prologue and keeps the normalised row in LDS, where the GEMV reads it instead of global memory; block 0
+// alone stores `sum` (the residual stream the next layer carries) and `normed` (the other readers of the row), which
+// are different buffers from the `x` / `res` every block reads, so no block sees a partly written input.
+//
+// The result is bitwise the two launches it replaces: the prologue is rmsnorm_kernel<true, true> statement for statement
+// (the same 8-element chunks per thread, the same bf16 rounding of the sum before it is squared and normalised, the same
+// ik_block_sum over the same 256 threads: kGemvWarps * IK_WARP is the block size launch_rows picks for any K >= 2048, and for
+// a narrower row the extra threads contribute exact zeros), and the GEMV below is gemv_body<1, R, U> with its x read from LDS.
+constexpr int kNormMaxK = 8192;  // the LDS row is K * 2 bytes: 16 KB at most
+
+// rmsnorm_kernel<true, true> for one row: `xs` ends up holding the normalised row as bf16 chunks. Every thread of the
+// block must call it (it holds block barriers).
+__device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res,
+                                               const ik_bf16* __restrict__ nw, ik_bf16* __restrict__ normed,
+                                               ik_bf16* __restrict__ sum, uint4* xs, float* red, int64_t K, float eps,
+                                               float woff, bool writer) {
+    const int64_t nv = K / 8;
+    float ss = 0.f;
+    for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+        float f[8], g[8];
+        ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(x) + i), f);
+        ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(res) + i), g);
+#pragma unroll
+        for (int k = 0; k < 8; ++k) f[k] += g[k];
+        const uint4 p = ik_pack8(f);
+        if (writer) reinterpret_cast<uint4*>(sum)[i] = p;
+        xs[i] = p;  // the rounded sum, until the second loop replaces it with the normalised row
+        ik_unpack8(p, f);  // continue from the bf16-rounded sum
+#pragma unroll
+        for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
+    }
+    ss = ik_block_sum(ss, red);
+    const float r = rsqrtf(ss / (float)K + eps);
+    for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+        float f[8], g[8];
+        ik_unpack8(xs[i], f);
+        ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(nw) + i), g);
+#pragma unroll
+        for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
+        const uint4 p = ik_pack8(f);
+        xs[i] = p;
+        if (writer) reinterpret_cast<uint4*>(normed)[i] = p;
+    }
+    __syncthreads();  // the whole normalised row is in LDS before any warp reads it
+}
+
+// gemv_body<1, R, U, ik_bf16> on the normalised row in LDS. The first batch of weight loads is issued before the
+// prologue (the weights do not depend on it), so their DRAM latency hides behind the norm instead of following it. Every warp,
+// live or not, goes through the prologue: its barriers must see the whole block.
+template <int R, int U>
+__device__ __forceinline__ void gemv_norm_body(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res,
+                                               const ik_bf16* __restrict__ nw, ik_bf16* __restrict__ normed,
+                                               ik_bf16* __restrict__ sum, float eps, float woff,
+                                               const ik_bf16* __restrict__ w, ik_bf16* __restrict__ out, int64_t N,
+                                               int64_t K, int64_t blk, bool writer, uint4* xs, float* red) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n0 = (blk * kGemvWarps + warp) * R;
+    const bool live = n0 < N;
+    const int64_t nv = K / 8;
+    const uint4* wr[R];
+#pragma unroll
+    for (int r = 0; r < R; ++r) {
+        const int64_t n = n0 + r < N ? n0 + r : (N > 0 ? N - 1 : 0);  // tail rows re-read the last row; their result is dropped
+        wr[r] = reinterpret_cast<const uint4*>(w + n * K);
+    }
+    uint4 wv[R][U];
+#pragma unroll
+    for (int u = 0; u < U; ++u) {
+        const int64_t idx = (int64_t)u * IK_WARP + lane;
+        const bool ok = live && idx < nv;
+#pragma unroll
+        for (int r = 0; r < R; ++r) wv[r][u] = ok ? ik_ldcs(wr[r] + idx) : make_uint4(0, 0, 0, 0);
+    }
+    norm_add_stage(x, res, nw, normed, sum, xs, red, K, eps, woff, writer);
+    if (!live) return;  // after the prologue's barriers
+    float acc[R];
+#pragma unroll
+    for (int r = 0; r < R; ++r) acc[r] = 0.f;
+    for (int64_t base = 0; base < nv; base += (int64_t)IK_WARP * U) {
+        if (base != 0) {
+#pragma unroll
+            for (int u = 0; u < U; ++u) {
+                const int64_t idx = base + (int64_t)u * IK_WARP + lane;
+                const bool ok = idx < nv;
+#pragma unroll
+                for (int r = 0; r < R; ++r) wv[r][u] = ok ? ik_ldcs(wr[r] + idx) : make_uint4(0, 0, 0, 0);
+            }
+        }
+#pragma unroll
+        for (int u = 0; u < U; ++u) {
+            const int64_t idx = base + (int64_t)u * IK_WARP + lane;
+            const bool ok = idx < nv;
+            float xf[8];
+            ik_unpack8(ok ? xs[idx] : make_uint4(0, 0, 0, 0), xf);
+#pragma unroll
+            for (int r = 0; r < R; ++r) {
+                float wf[8];
+                ik_unpack8(wv[r][u], wf);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) acc[r] += wf[e] * xf[e];
+            }
+        }
+    }
+#pragma unroll
+    for (int r = 0; r < R; ++r) {
+        const float s = ik_warp_sum(acc[r]);
+        if (lane == 0 && n0 + r < N) store_out(out + n0 + r, s);
+    }
+}
+
+template <int R, int U>
+__global__ void __launch_bounds__(kGemvWarps * IK_WARP)
+rmsnorm_add_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res, const ik_bf16* __restrict__ nw,
+                        ik_bf16* __restrict__ normed, ik_bf16* __restrict__ sum, float eps, float woff,
+                        const ik_bf16* __restrict__ w0, ik_bf16* __restrict__ o0, int64_t N0,
+                        const ik_bf16* __restrict__ w1, ik_bf16* __restrict__ o1, int64_t N1, int64_t K) {
+    __shared__ float red[32];
+    __shared__ uint4 xs[kNormMaxK / 8];
+    const int64_t per = (int64_t)kGemvWarps * R;
+    const int64_t nb0 = (N0 + per - 1) / per;
+    const bool writer = blockIdx.x == 0;
+    if ((int64_t)blockIdx.x < nb0)
+        gemv_norm_body<R, U>(x, res, nw, normed, sum, eps, woff, w0, o0, N0, K, (int64_t)blockIdx.x, writer, xs, red);
+    else
+        gemv_norm_body<R, U>(x, res, nw, normed, sum, eps, woff, w1, o1, N1, K, (int64_t)blockIdx.x - nb0, writer, xs, red);
+}
+
 // scalar fallback (K % 8 != 0 or unaligned operands): one warp per row, same reduction shape
 template <int M, typename OutT>
 __global__ void __launch_bounds__(kGemvWarps * IK_WARP)
@@ -441,6 +571,46 @@ int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor
     return ik_launch_status();
 }
 
+// ---- norm + pair launcher (M == 1, vector path only) ---------------------------------------------
+bool overlaps(const void* a, const void* b, size_t bytes) {
+    const char *p = (const char*)a, *q = (const char*)b;
+    return p < q + bytes && q < p + bytes;
+}
+
+int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, float eps, float woff, const ik_tensor* w0,
+              const ik_tensor* w1, ik_tensor* normed, ik_tensor* sum, ik_tensor* o0, ik_tensor* o1, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(res, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(nw, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(normed, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(sum, IK_DTYPE_BF16, 2));
+    IK_TRY(pair_check(normed, w0, w1, o0, o1));
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (res->shape[0] != M || res->shape[1] != K || nw->shape[0] != K || normed->shape[0] != M || normed->shape[1] != K ||
+        sum->shape[0] != M || sum->shape[1] != K)
+        return IK_ERR_SHAPE;
+    // decode only (one row), the vector path, and the row must fit the LDS staging; the registry predicate says the same
+    if (M != 1 || K < 8 || K % 8 != 0 || K > kNormMaxK) return IK_ERR_SHAPE;
+    if (!ik_aligned16(x->data) || !ik_aligned16(res->data) || !ik_aligned16(nw->data) || !ik_aligned16(normed->data) ||
+        !ik_aligned16(sum->data) || !ik_aligned16(w0->data) || !ik_aligned16(w1->data))
+        return IK_ERR_SHAPE;
+    // block 0 stores `normed` and `sum` while the other blocks still read `x` and `res`
+    const size_t rb = (size_t)K * 2;
+    if (overlaps(normed->data, x->data, rb) || overlaps(normed->data, res->data, rb) || overlaps(sum->data, x->data, rb) ||
+        overlaps(sum->data, res->data, rb) || overlaps(normed->data, sum->data, rb))
+        return IK_ERR_INVALID_ARG;
+    if (N0 == 0 && N1 == 0) return IK_ERR_SHAPE;  // (the norm would still have to be stored: not a case the model produces)
+    constexpr int R = 1, U = 8;  // the default variant of gemv_cfg(), as pair() uses
+    const int64_t per = (int64_t)kGemvWarps * R;
+    const int64_t blocks = (N0 + per - 1) / per + (N1 + per - 1) / per;
+    if (blocks > 0x7fffffffLL) return IK_ERR_SHAPE;
+    rmsnorm_add_pair_kernel<R, U><<<(unsigned)blocks, kGemvWarps * IK_WARP, 0, IK_STREAM(stream)>>>(
+        (const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)nw->data, (ik_bf16*)normed->data,
+        (ik_bf16*)sum->data, eps, woff, (const ik_bf16*)w0->data, (ik_bf16*)o0->data, N0, (const ik_bf16*)w1->data,
+        (ik_bf16*)o1->data, N1, K);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
@@ -448,6 +618,11 @@ extern "C" {
 int ik_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* out0,
                              ik_tensor* out1, void* stream) {
     return pair(x, w0, w1, out0, out1, stream);
+}
+int ik_rmsnorm_add_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps,
+                                         float w_offset, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* normed,
+                                         ik_tensor* sum, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return norm_pair(x, res, w, eps, w_offset, w0, w1, normed, sum, out0, out1, stream);
 }
 int ik_matmul_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
     return mm(x, w, out, stream, false, false);

@@ -1,0 +1,54 @@
+[burst] job 2283; stages: graphproof acc35 mutate; stopping radiance 2026-10-17 11:55:28
+[burst] radiance stopped 2026-10-17 11:55:30
+################ stage graphproof start 11:55:30
+--- eager (--no-graphs)
+finish=length prompt=24 (cached 0) completion=256 | prefill 86 ms (277.5 tok/s) | decode 1917 ms (133.01 tok/s)
+steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570
+--- graph
+finish=length prompt=24 (cached 0) completion=256 | prefill 88 ms (273.0 tok/s) | decode 1863 ms (136.84 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570
+ids in each file: 255 / 255 commas
+GRAPH == EAGER: the 256 generated token ids are identical
+################ stage graphproof end 11:55:41
+################ stage acc35 start 11:55:41
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35 end 11:55:51
+################ stage mutate start 11:55:51
+applied fp8-scale to /home/josef/intarsiaml-hipperf2-mut/kernels/hip/fp8.hip
+fp8-scale          thread 'fp8_gemv_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/decode_v2.rs:47:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.84s error: test failed, to rerun pass `-p intarsia-backend-hip --test decode_v2` 
+applied fp8-convert to /home/josef/intarsiaml-hipperf2-mut/kernels/hip/fp8.hip
+fp8-convert        thread 'fp8_gemv_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/decode_v2.rs:47:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s error: test failed, to rerun pass `-p intarsia-backend-hip --test decode_v2` 
+applied pair-block to /home/josef/intarsiaml-hipperf2-mut/kernels/hip/matmul.hip
+pair-block         thread 'matmul_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:53:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+applied fp8-pair-scale to /home/josef/intarsiaml-hipperf2-mut/kernels/hip/fp8.hip
+fp8-pair-scale     thread 'matmul_fp8_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:53:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+applied pair-nb0 to /home/josef/intarsiaml-hipperf2-mut/kernels/hip/fp8.hip
+pair-nb0           thread 'matmul_fp8_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:53:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+applied pair-grid to /home/josef/intarsiaml-hipperf2-mut/kernels/hip/fp8.hip
+pair-grid          thread 'matmul_fp8_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:53:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+################ stage mutate end 11:58:15
+[burst] stages done 2026-10-17 11:58:15 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 11:58:15
+[burst] radiance answers 2026-10-17 11:58:25 (after 15 s)
