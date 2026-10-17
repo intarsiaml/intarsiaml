@@ -9,13 +9,14 @@ NAME=${1:?tree name}; TESTS=${2:-}
 HOST=${HOST:-spark1}; JOBS=${CARGO_BUILD_JOBS:-6}
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 R='~/intarsia-decfuse'
-STAMP=$("$REPO/scripts/tree-stamp.sh")
+SRC=${SRC_DIR:-$REPO}    # SRC_DIR: a plain export (no .git) of another commit, then INTARSIA_STAMP must be set by the caller
+STAMP=${INTARSIA_STAMP:-$("$REPO/scripts/tree-stamp.sh")}
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 rsh "mkdir -p $R/$NAME"
 # seed the dependency cache from an earlier tree on the box (registry crates only; workspace crates rebuild)
 rsh "test -d $R/$NAME/target || { test -d ~/intarsia-acc35b/src/target && cp -a ~/intarsia-acc35b/src/target $R/$NAME/target; true; }"
-rsync -a --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude "$REPO/" "$HOST:intarsia-decfuse/$NAME/"
+rsync -a --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude "$SRC/" "$HOST:intarsia-decfuse/$NAME/"
 echo "stamp: $STAMP"
 rsh "cd $R/$NAME && env INTARSIA_BUILD_STAMP='$STAMP' CARGO_BUILD_JOBS=$JOBS CARGO_TARGET_DIR=target/acc cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -5"
 if [[ $TESTS == --tests ]]; then
