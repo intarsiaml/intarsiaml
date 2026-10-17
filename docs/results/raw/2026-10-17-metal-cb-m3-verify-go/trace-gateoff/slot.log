@@ -1,0 +1,40 @@
+slot job 2262 Sat Oct 17 11:07:30 EDT 2026; mode client; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/m3v/target/release/intarsia sha256 4b7c728de731fd2f; arms off on rounds 3 scen solo-open,open-n2,open-n3,grounded-n2,grounded-n3
+=== round 1 arm off (position 1) 11:07:51
+[cbm3] off r1 solo-open: decode_tok_s_median=35.9, decode_tok_s_mean=35.8  batch_decode_steps_total=765
+[cbm3] off r1 open-n2: wall_s=7.5, agg_tok_s=68.6  batch_decode_steps_total=256
+[cbm3] off r1 open-n3: wall_s=7.7, agg_tok_s=99.2  batch_decode_steps_total=257
+[cbm3] off r1 grounded-n2: wall_s=7.6, agg_tok_s=67.1  batch_decode_steps_total=257
+[cbm3] off r1 grounded-n3: wall_s=8.1, agg_tok_s=94.9  batch_decode_steps_total=259
+=== round 1 arm on (position 2) 11:10:34
+[cbm3] on r1 solo-open: decode_tok_s_median=36.8, decode_tok_s_mean=36.8  spec_steps_total=57 spec_proposed_tokens_total=227 spec_accepted_tokens_total=13 batch_decode_steps_total=695
+[cbm3] on r1 open-n2: wall_s=8.4, agg_tok_s=60.8  spec_steps_total=45 spec_proposed_tokens_total=179 spec_accepted_tokens_total=11 batch_decode_steps_total=250
+[cbm3] on r1 open-n3: wall_s=9.2, agg_tok_s=83.3  spec_steps_total=62 spec_proposed_tokens_total=248 spec_accepted_tokens_total=15 batch_decode_steps_total=255
+[cbm3] on r1 grounded-n2: wall_s=4.0, agg_tok_s=126.5  spec_steps_total=128 spec_proposed_tokens_total=512 spec_accepted_tokens_total=378 batch_decode_steps_total=4
+[cbm3] on r1 grounded-n3: wall_s=6.1, agg_tok_s=125.6  spec_steps_total=192 spec_proposed_tokens_total=768 spec_accepted_tokens_total=567 batch_decode_steps_total=6
+=== round 2 arm on (position 1) 11:13:13
+[cbm3] on r2 solo-open: decode_tok_s_median=36.9, decode_tok_s_mean=36.9  spec_steps_total=59 spec_proposed_tokens_total=235 spec_accepted_tokens_total=15 batch_decode_steps_total=691
+[cbm3] on r2 open-n2: wall_s=8.1, agg_tok_s=62.9  spec_steps_total=35 spec_proposed_tokens_total=140 spec_accepted_tokens_total=9 batch_decode_steps_total=253
+[cbm3] on r2 open-n3: wall_s=9.1, agg_tok_s=84.5  spec_steps_total=60 spec_proposed_tokens_total=240 spec_accepted_tokens_total=14 batch_decode_steps_total=255
+[cbm3] on r2 grounded-n2: wall_s=4.1, agg_tok_s=126.4  spec_steps_total=128 spec_proposed_tokens_total=512 spec_accepted_tokens_total=378 batch_decode_steps_total=4
+[cbm3] on r2 grounded-n3: wall_s=6.2, agg_tok_s=124.3  spec_steps_total=192 spec_proposed_tokens_total=768 spec_accepted_tokens_total=567 batch_decode_steps_total=6
+=== round 2 arm off (position 2) 11:15:50
+[cbm3] off r2 solo-open: decode_tok_s_median=36.0, decode_tok_s_mean=35.9  batch_decode_steps_total=765
+[cbm3] off r2 open-n2: wall_s=7.3, agg_tok_s=70.3  batch_decode_steps_total=256
+[cbm3] off r2 open-n3: wall_s=7.7, agg_tok_s=99.3  batch_decode_steps_total=257
+[cbm3] off r2 grounded-n2: wall_s=7.7, agg_tok_s=66.7  batch_decode_steps_total=257
+[cbm3] off r2 grounded-n3: wall_s=8.1, agg_tok_s=95.0  batch_decode_steps_total=259
+=== round 3 arm off (position 1) 11:18:34
+[cbm3] off r3 solo-open: decode_tok_s_median=36.0, decode_tok_s_mean=36.0  batch_decode_steps_total=765
+[cbm3] off r3 open-n2: wall_s=7.3, agg_tok_s=70.3  batch_decode_steps_total=256
+[cbm3] off r3 open-n3: wall_s=7.6, agg_tok_s=101.6  batch_decode_steps_total=257
+[cbm3] off r3 grounded-n2: wall_s=7.5, agg_tok_s=68.5  batch_decode_steps_total=257
+[cbm3] off r3 grounded-n3: wall_s=7.9, agg_tok_s=97.8  batch_decode_steps_total=259
+=== round 3 arm on (position 2) 11:21:18
+[cbm3] on r3 solo-open: decode_tok_s_median=36.9, decode_tok_s_mean=36.7  spec_steps_total=69 spec_proposed_tokens_total=276 spec_accepted_tokens_total=18 batch_decode_steps_total=678
+[cbm3] on r3 open-n2: wall_s=8.3, agg_tok_s=61.9  spec_steps_total=37 spec_proposed_tokens_total=148 spec_accepted_tokens_total=9 batch_decode_steps_total=254
+[cbm3] on r3 open-n3: wall_s=9.1, agg_tok_s=84.2  spec_steps_total=55 spec_proposed_tokens_total=220 spec_accepted_tokens_total=18 batch_decode_steps_total=255
+[cbm3] on r3 grounded-n2: wall_s=4.3, agg_tok_s=119.5  spec_steps_total=128 spec_proposed_tokens_total=512 spec_accepted_tokens_total=378 batch_decode_steps_total=4
+[cbm3] on r3 grounded-n3: wall_s=6.3, agg_tok_s=121.1  spec_steps_total=192 spec_proposed_tokens_total=768 spec_accepted_tokens_total=567 batch_decode_steps_total=6
+analyze rc=0
+no intarsia serve left
+done Sat Oct 17 11:23:35 EDT 2026

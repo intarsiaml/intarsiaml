@@ -1,0 +1,16 @@
+== grounded-n2
+r1: wall 4.00s agg 127.9 (off 65.6) iters 257 with-verify 122; today-model 4.15s; batched-model g0b 4.10s meas 4.10s none 4.11s -> agg g0b 129.5 meas 129.6 none 129.3 HYPO-aligned-kcap 138.1 (x1.08 decode, 2.32 tok/pass, pass 35.1 ms) kcap 133.3
+r2: wall 4.28s agg 119.8 (off 68.6) iters 257 with-verify 122; today-model 4.15s; batched-model g0b 4.10s meas 4.10s none 4.11s -> agg g0b 121.1 meas 121.2 none 121.0 HYPO-aligned-kcap 128.6 (x1.08 decode, 2.32 tok/pass, pass 35.1 ms) kcap 124.5
+r3: wall 4.11s agg 124.7 (off 67.5) iters 257 with-verify 122; today-model 4.15s; batched-model g0b 4.10s meas 4.10s none 4.11s -> agg g0b 126.2 meas 126.3 none 126.0 HYPO-aligned-kcap 134.3 (x1.08 decode, 2.32 tok/pass, pass 35.1 ms) kcap 129.9
+== grounded-n3
+r1: wall 6.02s agg 127.5 (off 93.7) iters 260 with-verify 175; today-model 6.25s; batched-model g0b 6.18s meas 6.18s none 6.19s -> agg g0b 129.1 meas 129.1 none 128.9 HYPO-aligned-kcap 142.0 (x1.11 decode, 1.63 tok/pass, pass 36.0 ms) kcap 136.4
+r2: wall 6.61s agg 116.2 (off 97.0) iters 259 with-verify 175; today-model 6.22s; batched-model g0b 6.15s meas 6.15s none 6.16s -> agg g0b 117.5 meas 117.6 none 117.4 HYPO-aligned-kcap 127.7 (x1.11 decode, 1.63 tok/pass, pass 36.0 ms) kcap 123.6
+r3: wall 6.23s agg 123.3 (off 95.9) iters 259 with-verify 175; today-model 6.22s; batched-model g0b 6.15s meas 6.15s none 6.16s -> agg g0b 124.8 meas 124.8 none 124.6 HYPO-aligned-kcap 136.3 (x1.11 decode, 1.63 tok/pass, pass 36.0 ms) kcap 131.6
+== open-n2
+r1: wall 7.32s agg 69.9 (off 68.2) iters 255 with-verify 2; today-model 7.69s; batched-model g0b 7.64s meas 7.64s none 7.65s -> agg g0b 70.4 meas 70.4 none 70.4 kcap 70.4
+r2: wall 7.51s agg 68.2 (off 70.1) iters 256 with-verify 2; today-model 7.72s; batched-model g0b 7.67s meas 7.67s none 7.68s -> agg g0b 68.6 meas 68.7 none 68.6 kcap 68.6
+r3: wall 7.38s agg 69.3 (off 67.9) iters 256 with-verify 3; today-model 7.72s; batched-model g0b 7.67s meas 7.67s none 7.68s -> agg g0b 69.8 meas 69.8 none 69.8 kcap 69.8
+== open-n3
+r1: wall 7.63s agg 100.6 (off 98.8) iters 257 with-verify 3; today-model 8.18s; batched-model g0b 8.18s meas 8.18s none 8.18s -> agg g0b 100.6 meas 100.6 none 100.6 kcap 101.7
+r2: wall 7.90s agg 97.2 (off 100.5) iters 257 with-verify 4; today-model 8.19s; batched-model g0b 8.19s meas 8.19s none 8.19s -> agg g0b 97.2 meas 97.2 none 97.2 kcap 98.2
+r3: wall 7.76s agg 99.0 (off 99.3) iters 257 with-verify 3; today-model 8.18s; batched-model g0b 8.18s meas 8.18s none 8.18s -> agg g0b 99.0 meas 99.0 none 99.0 kcap 100.0
