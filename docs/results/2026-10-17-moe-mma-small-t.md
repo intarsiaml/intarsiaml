@@ -108,8 +108,8 @@ is `moe_experts_mma_bf16` at 256 experts, top-8, real layer shape, us per call, 
 Mode 2 is the cheapest of the modes that put all 192 cases inside the per-case bounds; modes 4 and 5 are cheaper by 1 to 5
 points of kernel time but leave 1 and 6 cases outside. The window budget did not allow trying local sums of 8 k16 or a
 Fast2Sum on the 4-sum (which would cut the extra FP32 work further); that is the obvious next experiment if the 7 % prefill
-cost matters, as is compensating only the gate/up GEMM (the h-flip amplification happens there; down has K = 512 and the same
-number of mma calls per output tile would no longer carry the extra FP32 work). `lo` and `sa` add 2 x 16 x MT fp32 registers per thread (64 at BM = 64); register use and spills were not inspected.
+cost matters, as is compensating only the gate/up GEMM (the h-flip amplification happens there, and the two GEMMs issue the same
+number of mma calls, so leaving down uncompensated would roughly halve the added FP32 work; untested). `lo` and `sa` add 2 x 16 x MT fp32 registers per thread (64 at BM = 64); register use and spills were not inspected.
 
 ## 4. Gates (spark1, GB10, vLLM stopped for each window)
 
