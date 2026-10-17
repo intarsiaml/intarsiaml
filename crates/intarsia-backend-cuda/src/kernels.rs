@@ -32,6 +32,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_lanes", Op::GdnDeltaRule),
+    ("gdn_delta_rule_bf16_chunked", Op::GdnDeltaRule),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
@@ -98,6 +99,39 @@ pub fn opt_in_priority(on: i32) -> i32 {
     } else {
         -10
     }
+}
+
+/// Fewest and most tokens of one call the chunked GatedDeltaNet kernel serves (docs/results/2026-10-17-cuda-prefill-2.md):
+/// below one chunk of 64 the sequential kernels are as fast, and its plan scratch grows with the token count.
+const GDN_CHUNKED_MIN_T: usize = 64;
+const GDN_CHUNKED_MAX_T: usize = 8192;
+/// Plan scratch floats of the chunked kernel per (value head, 64-token chunk): Tt and Mt (64 x 64 each) and five 64-vectors
+/// (kernels/cuda/gdn_chunked.cu `kScrFloats`).
+const GDN_CHUNKED_SCRATCH_FLOATS: usize = 2 * 64 * 64 + 5 * 64;
+
+/// Whether the chunked GatedDeltaNet prefill kernel is selected by default. `INTARSIA_CUDA_GDN_CHUNKED=1|0` overrides.
+const GDN_CHUNKED_DEFAULT: bool = false;
+
+pub fn gdn_chunked_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| match std::env::var("INTARSIA_CUDA_GDN_CHUNKED").as_deref() {
+        Ok("1") => true,
+        Ok("0") => false,
+        _ => GDN_CHUNKED_DEFAULT,
+    })
+}
+
+fn gdn_chunked_ok(s: &ShapeInfo) -> bool {
+    matches!(s.k, 64 | 128)
+        && s.n > 0
+        && s.n % 32 == 0
+        && s.n_kv_heads > 0
+        && s.n_heads % s.n_kv_heads == 0
+        && (GDN_CHUNKED_MIN_T..=GDN_CHUNKED_MAX_T).contains(&s.m)
+}
+
+fn gdn_chunked_scratch(s: &ShapeInfo) -> usize {
+    s.m.div_ceil(64) * s.n_heads * GDN_CHUNKED_SCRATCH_FLOATS * 4
 }
 
 pub fn all() -> Vec<KernelImpl> {
@@ -179,6 +213,18 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(opt_in_priority(10)),
+            // chunked (WY) form, fp32 SIMT (kernels/cuda/gdn_chunked.cu): a 64-token chunk is a few small products instead of 64
+            // sequential steps; T >= 64. Not bitwise equal to the sequential kernels (another fixed sum order), so a prompt's
+            // rounding depends on where its calls split (prefix reuse, tail chunks); calls below 64 tokens and decode keep
+            // the sequential kernel. Priority above the lanes kernel so the opt-in fast set still uses it for T >= 64.
+            "gdn_delta_rule_bf16_chunked" => k
+                .acts(bf)
+                .weights(bf)
+                .when(gdn_chunked_ok)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .scratch(gdn_chunked_scratch)
+                .priority(if gdn_chunked_on() { 15 } else { -10 }),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),

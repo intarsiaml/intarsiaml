@@ -321,6 +321,9 @@ impl Backend for CudaBackend {
                 "gdn_delta_rule_bf16_lanes" => {
                     ffi::ik_gdn_delta_rule_bf16_lanes(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
                 }
+                "gdn_delta_rule_bf16_chunked" => {
+                    ffi::ik_gdn_delta_rule_bf16_chunked(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), sc, s)
+                }
                 "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
                 "logits_bf16" => ffi::ik_logits_bf16(i(0), i(1), o, s),

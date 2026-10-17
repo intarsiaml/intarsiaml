@@ -30,7 +30,7 @@ fn gdn_kernels_timing_at_35b_shapes() {
     let a_log = t(&*b, DType::Bf16, &[hv]);
     let dtb = t(&*b, DType::Bf16, &[hv]);
     assert_eq!(2 * hk * dk + hv * dv, c);
-    for tokens in [1usize, 16, 512, 2048] {
+    for tokens in [1usize, 16, 64, 512, 2048, 4096] {
         let x = t(&*b, DType::Bf16, &[tokens, c]);
         let y = t(&*b, DType::Bf16, &[tokens, c]);
         let a = t(&*b, DType::Bf16, &[tokens, hv]);
@@ -43,7 +43,17 @@ fn gdn_kernels_timing_at_35b_shapes() {
             vec![o, state.clone()],
             OpAttrs { eps: 1e-6, ..Default::default() },
         );
-        for (name, call) in [("gdn_conv_bf16", &conv), ("gdn_delta_rule_bf16", &delta), ("gdn_delta_rule_bf16_lanes", &delta)] {
+        let mut delta_c = delta.clone();
+        delta_c.scratch = Some(t(&*b, DType::U8, &[tokens.div_ceil(64).max(1) * hv * (2 * 64 * 64 + 5 * 64) * 4]));
+        for (name, call) in [
+            ("gdn_conv_bf16", &conv),
+            ("gdn_delta_rule_bf16", &delta),
+            ("gdn_delta_rule_bf16_lanes", &delta),
+            ("gdn_delta_rule_bf16_chunked", &delta_c),
+        ] {
+            if name.ends_with("chunked") && tokens < 64 {
+                continue;
+            }
             b.launch(name, call, 0).unwrap();
             b.synchronize(0).unwrap();
             let iters = if tokens >= 512 { 5 } else { 50 };

@@ -1,0 +1,187 @@
+# Accuracy gates
+
+Implements ARCHITECTURE section 6, levels 2 and 3 (admission, level 1, is `intarsia kernels test` and runs
+on the model's own shapes at load, see `kernels/README.md`).
+
+## Golden logits (model level)
+
+Two reference sources, two file formats; `intarsia accuracy` reads both.
+
+### HF transformers: `tools/golden.py` (format `intarsia-golden-v1`, full vocabulary)
+
+Runs the Hugging Face `transformers` model in **bf16** (one forward per prompt, whole sequence at once),
+upcasts the logits to fp32, takes `log_softmax` over the vocab and stores it as fp16.
+
+```
+cd tools
+uv run golden.py --model <HF model dir> --out ../golden/<name>.safetensors [--device cpu|cuda]
+                 [--prompts a.jsonl b.jsonl] [--dtype float32] [--topk 20]
+```
+
+On a GPU box without a Python env, run it inside the vLLM image (torch + transformers + safetensors are
+there), through `fleetq`, with `golden.py`, `goldenlib.py` and `prompts/` copied next to each other
+(`~/intarsiaml-golden/` on spark1, see `run.sh` there). `golden/*.safetensors` is git-ignored.
+
+| tensor | dtype | shape | content |
+|---|---|---|---|
+| `ids_<i>` | I32 | `[n_i]` | token ids of prompt i |
+| `logprobs_<i>` | F16 | `[n_i, vocab]` | row t = `log_softmax(logits_t)` of the fp32-upcast reference logits, i.e. the distribution over token t+1 |
+
+`__metadata__` (all strings): `format`, `model`, `torch`, `transformers`, `device`, `dtype`, `template`,
+`vocab`, and `prompts` (JSON list of `{name, kind, n_tokens, text}`). `vocab` is the lm_head width, which can
+exceed the tokenizer vocab; our engine must produce the same width. fp16 rounds log-probs (relative 5e-4);
+the checker renormalises each reference row before computing KL to remove the rounding bias.
+
+A full-vocabulary row is about 300 KB, so a golden costs `positions x vocab x 2` bytes: the default prompt
+set (1434 positions) is 435 MB at vocab 151,669. Keep it out of nearly full disks (spark1) or use top-k.
+
+### Top-k goldens: `tools/golden_vllm.py`, `golden.py --topk K` (format `intarsia-golden-topk-v1`)
+
+For reference servers that can only report the top-k log-probs (vLLM's `prompt_logprobs`), and to keep goldens
+small. `golden_vllm.py` builds one from any OpenAI-compatible vLLM server:
+
+```
+python3 tools/golden_vllm.py --base-url http://spark-4e77:8000/v1 --model guidance \
+    --out golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors        # inside `fleetq run --uses guidance`
+```
+
+It tokenizes each prompt with the server's `/tokenize`, then sends one `/v1/completions` request with the ids
+plus one dummy token, `max_tokens=1` and `prompt_logprobs=20`. vLLM reports, for prompt position j >= 1, the
+top-20 of the distribution that predicts token j, so row t (the distribution after `ids[..=t]`) is
+`prompt_logprobs[t+1]`; the dummy last token exists only to obtain the row for the final real position
+(causal attention: it cannot change earlier rows). Entries outside the top-20 that vLLM adds for the actual
+prompt token are dropped. `golden_topk.py` converts a full golden to top-k (used to test the comparator).
+
+| tensor | dtype | shape | content |
+|---|---|---|---|
+| `ids_<i>` | I32 | `[n_i]` | token ids of prompt i |
+| `topk_ids_<i>` | I32 | `[n_i, K]` | the K most likely token ids of row t, best first; -1 pads |
+| `topk_logprobs_<i>` | F32 | `[n_i, K]` | their log-probs under the **full-vocabulary** softmax as the source reports them; -1e30 pads |
+
+`__metadata__` as above plus `topk`, `source` (`vllm`), `server`, `served_model`.
+
+**Provenance metadata** (all strings; older goldens lack it and `intarsia accuracy` says "not recorded"):
+`engine` (`hf-transformers` / `vllm`), `engine_version`, `model`, `model_revision` (HF snapshot hash when the
+path has one), `kv_dtype` (the reference's KV cache dtype: for vLLM the `cache_dtype` of
+`vllm:cache_config_info`, for HF the activation dtype), `cache_config_info` (all labels of that metric),
+`max_model_len`, `launch_flags` (vLLM's are not observable through the API; `golden_vllm.py --note` records
+what you know), `template`, `add_special_tokens`, `sampling` (prompt_logprobs, temperature, how the
+continuation was made), `prompt_files`, `skipped` (prompts that did not fit `max_model_len`), `built_unix`.
+Per prompt, `prompts` also carries `n_prompt`, `continuation` and `reuse_split` (below). `intarsia accuracy`
+prints this block and **warns when the reference's KV dtype differs from ours** (aliases are normalised: `fp8`
+= `fp8_e4m3`, `bfloat16` = `bf16`; vLLM's `auto` counts as a 16-bit cache). The live `guidance` vLLM runs an
+**fp8 KV cache** (`cache_dtype="fp8"`, prefix caching on) while we run bf16 (the recipe's `kv_dtype`): part of every
+KL against that reference is the reference's own KV quantisation noise, and it cannot be separated from our error
+until a reference with `--kv-cache-dtype auto` exists. That warning is printed on every 35B run.
+
+**Prefix caching in the golden request.** `golden_vllm.py` re-sends prompt plus continuation to a server that runs with
+`enable_prefix_caching=True` (the `guidance` vLLM). Whether a `prompt_logprobs` request reads cached fp8 KV blocks of
+an earlier request is unverified for vLLM 0.26 (Phase 1b review finding 10b), and the goldens built so far recorded
+nothing about it. `--cache-salt SALT` sends vLLM's per-request `cache_salt` (`SALT-<prompt index>-<n>`) so a request
+cannot share blocks; it is recorded in the `sampling` metadata, and without it the metadata says the cache was not
+controlled. The flag has not been run against a live server; rebuild the goldens with it before relying on a
+KV-noise-free comparison.
+
+### How a top-k golden is compared (tail bucket)
+
+A top-k reference is compared with three numbers, none of which is the old one alone:
+
+* `KL(supp)`: KL over the reference's top-k support with both sides renormalised there (the number reported
+  before). It is **blind to probability mass that moves outside the top-k**: if a bug lifts thousands of rare-token
+  logits from -10 to 0, most of our mass leaves the support while this KL stays near 0 (unit test
+  `mass_leaving_the_top_k_is_invisible_...`).
+* `KL(21-way)`: KL over the partition {the k reference ids, everything else}. vLLM reports full-vocabulary
+  log-probs, so the reference's "other" bucket is `1 - sum(top-k)` and ours is our softmax mass outside the same
+  ids (summed directly). By the chain rule this is the 2-way {support, tail} KL plus `P_ref(support)` times
+  `KL(supp)`: a true lower bound of the full-vocabulary KL, and the tightest one available. **This is the gated KL
+  for top-k goldens.** For full-vocabulary goldens the same partition is built from the reference's top-20 (so
+  numbers are comparable), while the gated KL there is the exact full-vocabulary one.
+* `tail ref` / `tail us`: the mean probability each side puts outside the support, and the gate on
+  `|mean(tail us - tail ref)|` (`--max-tail-excess`, default 0.02, all classes). The reference tail is read from
+  f32 log-probs, so it is resolved to about 1e-6.
+
+Top-1 is our full-vocabulary argmax against the reference's best id; top-5 overlap compares our top-5 with the
+reference's top-5. The top-k files are small (0.25 MB for 10 prompts, 6 MB for the long set), so they live in
+the repo copy on every box; spark1 keeps them in `~/intarsiaml-golden/`.
+
+### Prompt set
+
+`tools/prompts/golden.jsonl` (8 prompts of 18-90 tokens: counting, story, code, science, and four chat prompts)
+plus `tools/prompts/golden_long.jsonl` (two prose prompts of 300 and 700 tokens cut from `ppl.txt`, so the
+default 256-token prefill chunk is crossed twice and three times). One JSON object per line:
+`{"name", "kind": "raw", "text"}`, `{"name", "kind": "raw", "file": "ppl.txt", "skip_tokens", "max_tokens"}`
+or `{"name", "kind": "chat", "messages": [...]}`. Chat prompts are rendered with a fixed ChatML text
+(`--template chatml`), independent of the model's own template, so the token ids are stable. Tokenisation uses
+`add_special_tokens=True`; prompts must be 8-16384 tokens. Shared code: `tools/goldenlib.py`.
+
+**Long sets** (review finding 4: nothing used to go past 700 tokens or 16 decode steps):
+`tools/prompts/golden_4k.jsonl` (a 4000-token docs prompt, a 4000-token code prompt, and a 4.5k-token two-turn
+chat) and `golden_12k.jsonl` (12000-token docs and code prompts). Their text comes from frozen corpora
+(`corpus_docs.txt`: the repo's docs, `corpus_code.txt`: two Rust sources; the ids are in the golden, so editing
+the repo later changes nothing). Every prompt has `"continue": 64`: the golden tool appends 64 tokens of the
+**reference's own greedy continuation**, so the teacher-forced decode window (`--decode-positions 64`) is on the
+model's distribution rather than on arbitrary document text. The chat prompt has `"reuse_after_message": 2`:
+the first two messages plus the assistant header are "turn 1" and the golden records that token count as
+`reuse_split` for `--mode reuse`. Chat messages may take `content_file`/`skip_chars`/`max_chars` instead of
+`content`.
+
+```
+# vLLM (35B), inside the lease; the server must have max_model_len >= 12064+1 or the prompt is skipped, loudly
+python3 tools/golden_vllm.py --base-url http://spark-4e77:8000/v1 --model guidance \
+    --prompts tools/prompts/golden_4k.jsonl tools/prompts/golden_12k.jsonl \
+    --out golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+# HF (8B), top-20 only (a full-vocabulary 4k golden is over a GB per prompt)
+docker run ... golden.py --model <8B> --device cuda --topk 20 --prompts prompts/golden_4k.jsonl --out ...
+```
+
+**The 8B 4k golden and how it is gated.** `qwen3-8b-4k-fp32-top20.safetensors` (HF fp32, CPU, `--topk 20`, 3 prompts, 12685 positions;
+`docs/results/2026-10-15-metal-golden-4k.md`) is the golden whose prompts are long enough for the prefix-reuse gate at a prefill chunk
+of 2048 (`chat_reuse_4k` splits at 4447 tokens; the 700-token long golden has nothing to run it on above a chunk of ~350). Against it
+the class floor top-1 >= 99.5% fails for every build, the CPU engine included (99.45% prefill; 91 of 12685 positions flip, 90% of them
+where the reference's top-2 gap is under 0.1 nats), while KL(21-way) is 2.3e-4. So `qualify`'s `acc-4k` stage runs it with
+`--min-top1 0` (no absolute top-1 floor) and gates KL (class floor), tail mass, non-finite rows, prefix reuse, and, when the backend has
+a baseline for it (`golden/baselines/qwen3-8b-4k-fp32-top20.<backend>.baseline.json` + `.envelope.json`, recorded at the chunk the run
+uses), no worse than that baseline beyond its noise envelope. With no matching baseline the stage is KL-only and says so.
+Record one with `--mode both --decode-positions 64 --max-seq 8192 --write-baseline`, then the envelope with `--noise-ref ...
+--noise-perturb chunk=N --write-noise-envelope` (the other chunk).
+
+## `intarsia accuracy`
+
+```
+intarsia accuracy --model DIR --backend cpu|cuda [--golden FILE]      # golden gate, both modes
+intarsia accuracy --model DIR --backend cpu|cuda --quick               # day-0 gate
+```
+
+`--golden` defaults to `golden/<model name>.safetensors` (the model name is the lower-cased HF repo name
+when the dir is an HF cache snapshot, else the dir name).
+
+### Modes (`--mode prefill|decode|both|reuse|all`, default both)
+
+* **prefill**: `Engine::forward_logits_each` over the stored ids (state reset per prompt, all-position
+  logits): the prefill kernels (`AttnPrefill`, GEMM / chunked matmul), across chunk boundaries when the prompt
+  is longer than `--prefill-chunk` (default: the recipe's value for the backend, else 256; the tool prints how many prompts cross a boundary and warns
+  when none does, then try `--prefill-chunk 64`).
+* **decode (teacher-forced)**: `Engine::forward_logits_decode`: prefill `n - k` tokens, then feed the golden
+  ids one at a time (`T = 1`) and compare the logits row of each step (`k = --decode-positions`, default 16,
+  clamped to `n - 1`). This is the path serving uses (`AttnDecode`, GEMV matmul and logits), which a full
+  forward never touches.
+
+* **reuse** (`--mode reuse`, part of `all`): the prefix-reuse path of the real model through `Engine::generate`,
+  what `serve` runs (the greedy streams are compared; the logits are recorded only to judge a divergence). Per
+  prompt whose split is at least one prefill chunk: *continue*: turn 1 = `ids[..s]` + a real 16-token reply, turn 2 =
+  turn 1 + reply + the rest of the prompt (the engine must reuse what it holds, `cached >= s`); *restore*: turn 1 =
+  `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated (attention) or a recurrent snapshot taken
+  at a prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`; *aligned*: *restore* with `s` rounded
+  down to a multiple of the prefill chunk. A cold run is forced by serving an unrelated
+  prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are compared.
+  `s` is the golden's `reuse_split`, else half of the prompt. A reuse run that has nothing to run on prints SKIPPED
+  and fails. `--reuse-prompt a,b` runs only those prompts.
+  * Identical streams pass. In *aligned* the warm run prefills exactly the chunks of the cold run, so on a backend
+    whose cold run repeats itself bit for bit (checked from the recorded logits when the streams differ) the streams
+    must be identical (`--reuse-exact`, default on).
+  * A diverging pair passes if it is a rounding tie, judged on the logits (`judge_streams`), or if it agrees on
+    `--reuse-min-match` leading tokens as before: the logit criterion can only rescue, never fail what passed. Both runs are repeated with the logits row of every
+    step recorded; rows `0..d` share one context (`d` the first divergence), so any difference between them is
+    numerical. The divergence is a *rounding tie* when every shared row agrees within `--reuse-logit-tol` (0.25 nats of
+    log-probability over the top-5 tokens, raised to twice what re-chunking the cold run alone moves them) and
+    `--reuse-kl-t

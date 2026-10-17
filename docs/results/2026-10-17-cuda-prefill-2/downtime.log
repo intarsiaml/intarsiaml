@@ -1,0 +1,1 @@
+2026-10-17 job=2377 stop=14:46:21 up=14:54:15 down=7.9 min label="intarsiaml cuda-prefill-2 W1: base nsys profile + base prefill KL at 3 chunks" serving=1 (line written by hand: the window script could not append, the log dir did not exist yet)

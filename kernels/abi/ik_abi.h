@@ -158,6 +158,12 @@ int ik_gdn_delta_rule_bf16(const ik_tensor* qkv, const ik_tensor* a, const ik_te
  * latency bound). Deterministic; sums in a different (fixed) order than ik_gdn_delta_rule_bf16. */
 int ik_gdn_delta_rule_bf16_lanes(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                                  const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
+/* same contract, chunked (WY) form for prefill: head_dim in {64, 128}, dv % 32 == 0, uses scratch of
+ * ceil(T/64) * Hv * 8512 floats (CUDA only). Deterministic; fp32 sums in a different fixed order than the sequential kernels,
+ * and not bitwise independent of where a sequence is split into calls. */
+int ik_gdn_delta_rule_bf16_chunked(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                                   const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
+                                   const ik_scratch* scratch, void* stream);
 /* matmul: cuBLAS (any M, "fast") and a native GEMV (M <= 4, deterministic, run-to-run identical). */
 int ik_matmul_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
 int ik_matmul_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
