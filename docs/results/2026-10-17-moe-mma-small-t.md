@@ -20,6 +20,10 @@ T >= 32) was about 2x further from the exact result than the warp-per-row kernel
 | 35B `bench speed` prefill tok/s at 1024 / 4096 / 16384 | 3929 / 4640 / 4365 | **3619 / 4309 / 4078 (-7.9 / -7.1 / -6.6 %)** |
 | 35B decode tok/s at the same prompts | 80.4 / 77.6 / 70.6 | 79.8 / 77.2 / 70.0 (-0.6 %) |
 
+The origin/main sweep, mutation, 35b-long and speed numbers were measured today; the 35b-short, 8B and kernel-test
+"origin/main" entries are the values of the 10-14 doc (`208ed00`) and were not re-run (the 35b-long run, which was, reproduced
+that doc exactly).
+
 The accuracy fix is complete; **it is not free at large T**: the grouped kernel takes 19 % longer at T = 4096 (8.5 vs 7.1 ms
 per call at the real layer shape) and 35B prefill is 7 to 8 % slower end to end. At T <= 256 the kernel time is unchanged.
 No cheaper variant that passes the sweep was found (section 3). Whether that price is acceptable is a decision for the
@@ -88,6 +92,7 @@ shipped form): 0.07x (W1c, mode 1 of the table).
 Experiment (windows W1 to W1c, 192 sweep cases, every mode on the same reference and old-kernel outputs; the experiment kernel
 is kept in `raw/moe_grouped.experiment.cu.txt`, the harness tests were removed; the first window, `raw/w1`, used a plain
 fp32 epilogue and modes 0 to 4 of that day's first version, so its numbers are not comparable to the table below). Kernel time
+(experiment build, where every mode was a template parameter; the shipped kernel was only timed end to end, section 6)
 is `moe_experts_mma_bf16` at 256 experts, top-8, real layer shape, us per call, GB10.
 
 | mode | accumulation | off-reference (old = 14 511) | cases in bounds | us T=256 | us T=1024 | us T=4096 |
@@ -103,7 +108,8 @@ is `moe_experts_mma_bf16` at 256 experts, top-8, real layer shape, us per call, 
 Mode 2 is the cheapest of the modes that put all 192 cases inside the per-case bounds; modes 4 and 5 are cheaper by 1 to 5
 points of kernel time but leave 1 and 6 cases outside. The window budget did not allow trying local sums of 8 k16 or a
 Fast2Sum on the 4-sum (which would cut the extra FP32 work further); that is the obvious next experiment if the 7 % prefill
-cost matters. `lo` and `sa` add 2 x 16 x MT fp32 registers per thread (64 at BM = 64); register use and spills were not inspected.
+cost matters, as is compensating only the gate/up GEMM (the h-flip amplification happens there; down has K = 512 and the same
+number of mma calls per output tile would no longer carry the extra FP32 work). `lo` and `sa` add 2 x 16 x MT fp32 registers per thread (64 at BM = 64); register use and spills were not inspected.
 
 ## 4. Gates (spark1, GB10, vLLM stopped for each window)
 
@@ -172,7 +178,8 @@ loss (that needs the same gate with the old MoE kernel for every T, and no downt
 
 vLLM (`missioncntrl-guidance`) stopped through `scripts/cuda-decode/window.sh` (fleetq exclusive lease with
 `--takes-down guidance`, trap restore, `/v1/models` wait at http://100.120.88.104:8000), never co-tenant; builds and file
-pulls ran as small fleetq jobs with vLLM up; every ssh carried `FLEETQ_JOB`. `downtime.log`:
+pulls ran as small fleetq jobs with vLLM up; every ssh carried `FLEETQ_JOB` except one read-only `ls` of the goldens directory sent
+during W1 from outside a fleetq slot (it changed nothing). `downtime.log`:
 
 | window | what | down |
 |---|---|---|
@@ -187,7 +194,8 @@ pulls ran as small fleetq jobs with vLLM up; every ssh carried `FLEETQ_JOB`. `do
 
 `scripts/cuda-decode/w-ab.sh` through `scripts/moe-mma/w3.sh`: a fresh `intarsia serve` per arm, `bench speed --warmup 1
 --thinking off --require-graphs`, gen 128, 3 reps per round, 3 rounds interleaved (base, dev / dev, base / base, dev),
-`--max-seq 20480`. Means over the 3 rounds (per-round values in the json files; the rounds agree within 1 to 4 %):
+`--max-seq 20480`. Means over the 3 rounds (per-round values in the json files; at every size the best dev round is below the worst base
+round, e.g. prefill at 4096: dev 4192 to 4373, base 4489 to 4733; the base rounds themselves spread by up to 5 %):
 
 | prompt | prefill tok/s base | dev | dev/base | TTFT s base | dev | decode tok/s base | dev |
 |---|---|---|---|---|---|---|---|
@@ -196,8 +204,8 @@ pulls ran as small fleetq jobs with vLLM up; every ssh carried `FLEETQ_JOB`. `do
 | 16384 | 4365 | 4078 | 0.934 | 3.829 | 4.077 | 70.6 | 70.0 |
 
 (the prompt token counts differ by up to 1 % between arms and rounds because the bench builds its prompt from random text;
-tok/s is per actual prompt token). Decode does not use the grouped kernel; its 0.6 % deficit is the same sign in every
-round and size and is not explained (box noise or arm order are the candidates; not investigated).
+tok/s is per actual prompt token). Decode never selects the grouped kernel; its 0.6 % mean deficit is within noise (in round 3 at 4096 dev and base decode
+at 77.70 and 77.68 tok/s).
 
 ## 7. Not done / uncertain
 
