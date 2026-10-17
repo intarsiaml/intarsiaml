@@ -14,6 +14,12 @@ mkdir -p $OUT
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 90 )) || { echo "ABORT: memory"; exit 1; }
 echo "base: $($P/base/target/acc/release/intarsia --version 2>&1 | head -1)  dev: $($P/dev/target/acc/release/intarsia --version 2>&1 | head -1)"
 nvidia-smi --query-gpu=clocks.sm,clocks.mem,temperature.gpu,power.draw --format=csv
+# nsys of the gdn_timing microbench: prep vs state split of the chunked kernel (T = 1 .. 4096)
+GT=$(ls -t $P/dev/target/acc/release/deps/gdn_timing-* | grep -v '\.d$' | head -1)
+mkdir -p $P/out/w3
+timeout 60 nsys profile -t cuda --force-overwrite true -o $P/out/w3/gt $GT --nocapture > $P/out/w3/gt.out 2>&1
+nsys stats -r cuda_gpu_kern_sum -f csv --force-export=true -o $P/out/w3/gt $P/out/w3/gt.nsys-rep > $P/out/w3/gt.stats 2>&1; rm -f $P/out/w3/gt.sqlite
+echo "== gdn_timing nsys done, $(left) s left $(date +%T)"
 last=150
 for r in $(seq 1 ${ROUNDS:-3}); do
   if (( $(left) * 10 < last * 11 )); then echo "SKIP round $r: $(left) s left, the previous round took $last s"; continue; fi

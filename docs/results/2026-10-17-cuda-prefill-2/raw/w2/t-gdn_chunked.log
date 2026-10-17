@@ -1,0 +1,143 @@
+
+running 3 tests
+test gdn_chunked_handles_correlated_keys ... correlated T=64 o: rel_l2 vs f64 reference: rows kernel 1.825e-7, chunked kernel 1.004e-4
+correlated T=64 state: rel_l2 vs f64 reference: rows kernel 5.130e-7, chunked kernel 1.189e-6
+correlated T=130 o: rel_l2 vs f64 reference: rows kernel 4.973e-5, chunked kernel 6.889e-5
+correlated T=130 state: rel_l2 vs f64 reference: rows kernel 5.188e-7, chunked kernel 6.750e-7
+correlated T=257 o: rel_l2 vs f64 reference: rows kernel 4.834e-5, chunked kernel 4.781e-5
+correlated T=257 state: rel_l2 vs f64 reference: rows kernel 9.944e-7, chunked kernel 6.919e-7
+ok
+test gdn_chunked_is_as_accurate_as_the_rows_kernel ... dk=128 dv=128 hv=32 T=64 dtb=0 o: rel_l2 vs f64 reference: rows kernel 5.015e-5, chunked kernel 6.436e-5
+dk=128 dv=128 hv=32 T=64 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.745e-8, chunked kernel 1.114e-6
+dk=128 dv=128 hv=32 T=64 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 4.243e-5, chunked kernel 4.424e-5
+dk=128 dv=128 hv=32 T=64 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.339e-7, chunked kernel 1.787e-7
+dk=128 dv=128 hv=32 T=65 dtb=0 o: rel_l2 vs f64 reference: rows kernel 3.304e-5, chunked kernel 3.803e-5
+dk=128 dv=128 hv=32 T=65 dtb=0 state: rel_l2 vs f64 reference: rows kernel 8.709e-8, chunked kernel 5.131e-7
+dk=128 dv=128 hv=32 T=65 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 2.828e-5, chunked kernel 2.584e-5
+dk=128 dv=128 hv=32 T=65 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.105e-7, chunked kernel 1.764e-7
+dk=128 dv=128 hv=32 T=129 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.661e-5, chunked kernel 5.600e-5
+dk=128 dv=128 hv=32 T=129 dtb=0 state: rel_l2 vs f64 reference: rows kernel 8.943e-8, chunked kernel 8.240e-7
+dk=128 dv=128 hv=32 T=129 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 3.520e-5, chunked kernel 3.975e-5
+dk=128 dv=128 hv=32 T=129 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.417e-7, chunked kernel 1.923e-7
+dk=128 dv=128 hv=32 T=513 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.877e-5, chunked kernel 4.923e-5
+dk=128 dv=128 hv=32 T=513 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.220e-8, chunked kernel 7.218e-7
+dk=128 dv=128 hv=32 T=513 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 3.438e-5, chunked kernel 3.571e-5
+dk=128 dv=128 hv=32 T=513 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.642e-7, chunked kernel 1.858e-7
+dk=64 dv=64 hv=4 T=64 dtb=0 o: rel_l2 vs f64 reference: rows kernel 7.171e-7, chunked kernel 4.592e-5
+dk=64 dv=64 hv=4 T=64 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.134e-7, chunked kernel 1.250e-6
+dk=64 dv=64 hv=4 T=64 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 5.330e-7, chunked kernel 6.027e-6
+dk=64 dv=64 hv=4 T=64 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.979e-7, chunked kernel 1.982e-7
+dk=64 dv=64 hv=4 T=65 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.455e-5, chunked kernel 1.394e-4
+dk=64 dv=64 hv=4 T=65 dtb=0 state: rel_l2 vs f64 reference: rows kernel 8.536e-8, chunked kernel 5.683e-7
+dk=64 dv=64 hv=4 T=65 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.443e-5, chunked kernel 1.443e-5
+dk=64 dv=64 hv=4 T=65 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.525e-7, chunked kernel 1.816e-7
+dk=64 dv=64 hv=4 T=66 dtb=0 o: rel_l2 vs f64 reference: rows kernel 0.000e0, chunked kernel 2.835e-7
+dk=64 dv=64 hv=4 T=66 dtb=0 state: rel_l2 vs f64 reference: rows kernel 7.328e-8, chunked kernel 1.958e-7
+dk=64 dv=64 hv=4 T=66 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.618e-5, chunked kernel 0.000e0
+dk=64 dv=64 hv=4 T=66 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.863e-7, chunked kernel 1.852e-7
+dk=64 dv=64 hv=4 T=100 dtb=0 o: rel_l2 vs f64 reference: rows kernel 1.362e-7, chunked kernel 3.912e-5
+dk=64 dv=64 hv=4 T=100 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.009e-7, chunked kernel 1.328e-6
+dk=64 dv=64 hv=4 T=100 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 3.984e-6, chunked kernel 1.161e-5
+dk=64 dv=64 hv=4 T=100 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.112e-7, chunked kernel 1.680e-7
+dk=64 dv=64 hv=4 T=127 dtb=0 o: rel_l2 vs f64 reference: rows kernel 3.951e-5, chunked kernel 1.890e-5
+dk=64 dv=64 hv=4 T=127 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.101e-7, chunked kernel 7.346e-7
+dk=64 dv=64 hv=4 T=127 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.112e-5, chunked kernel 1.548e-5
+dk=64 dv=64 hv=4 T=127 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.099e-7, chunked kernel 1.948e-7
+dk=64 dv=64 hv=4 T=128 dtb=0 o: rel_l2 vs f64 reference: rows kernel 3.254e-5, chunked kernel 1.833e-5
+dk=64 dv=64 hv=4 T=128 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.800e-8, chunked kernel 2.128e-6
+dk=64 dv=64 hv=4 T=128 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 6.310e-7, chunked kernel 3.569e-6
+dk=64 dv=64 hv=4 T=128 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.412e-7, chunked kernel 1.960e-7
+dk=64 dv=64 hv=4 T=129 dtb=0 o: rel_l2 vs f64 reference: rows kernel 3.900e-6, chunked kernel 3.507e-5
+dk=64 dv=64 hv=4 T=129 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.109e-7, chunked kernel 3.930e-7
+dk=64 dv=64 hv=4 T=129 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.181e-5, chunked kernel 9.652e-5
+dk=64 dv=64 hv=4 T=129 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.900e-7, chunked kernel 1.853e-7
+dk=64 dv=64 hv=4 T=300 dtb=0 o: rel_l2 vs f64 reference: rows kernel 4.180e-5, chunked kernel 4.842e-5
+dk=64 dv=64 hv=4 T=300 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.058e-7, chunked kernel 1.905e-6
+dk=64 dv=64 hv=4 T=300 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 4.968e-6, chunked kernel 4.024e-5
+dk=64 dv=64 hv=4 T=300 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.355e-7, chunked kernel 1.678e-7
+dk=64 dv=64 hv=4 T=513 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.641e-5, chunked kernel 5.787e-5
+dk=64 dv=64 hv=4 T=513 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.241e-8, chunked kernel 4.785e-7
+dk=64 dv=64 hv=4 T=513 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 4.754e-5, chunked kernel 6.472e-5
+dk=64 dv=64 hv=4 T=513 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.426e-7, chunked kernel 2.103e-7
+dk=128 dv=96 hv=2 T=64 dtb=0 o: rel_l2 vs f64 reference: rows kernel 1.500e-8, chunked kernel 6.145e-5
+dk=128 dv=96 hv=2 T=64 dtb=0 state: rel_l2 vs f64 reference: rows kernel 7.953e-8, chunked kernel 1.616e-6
+dk=128 dv=96 hv=2 T=64 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 4.571e-6, chunked kernel 1.828e-5
+dk=128 dv=96 hv=2 T=64 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.918e-7, chunked kernel 1.829e-7
+dk=128 dv=96 hv=2 T=65 dtb=0 o: rel_l2 vs f64 reference: rows kernel 1.205e-7, chunked kernel 5.302e-5
+dk=128 dv=96 hv=2 T=65 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.043e-7, chunked kernel 4.157e-7
+dk=128 dv=96 hv=2 T=65 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 0.000e0, chunked kernel 5.357e-7
+dk=128 dv=96 hv=2 T=65 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.846e-7, chunked kernel 1.700e-7
+dk=128 dv=96 hv=2 T=66 dtb=0 o: rel_l2 vs f64 reference: rows kernel 1.976e-6, chunked kernel 3.169e-5
+dk=128 dv=96 hv=2 T=66 dtb=0 state: rel_l2 vs f64 reference: rows kernel 7.596e-8, chunked kernel 1.107e-7
+dk=128 dv=96 hv=2 T=66 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 2.326e-6, chunked kernel 2.326e-6
+dk=128 dv=96 hv=2 T=66 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.675e-7, chunked kernel 1.537e-7
+dk=128 dv=96 hv=2 T=100 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.057e-5, chunked kernel 1.185e-5
+dk=128 dv=96 hv=2 T=100 dtb=0 state: rel_l2 vs f64 reference: rows kernel 7.536e-8, chunked kernel 1.897e-7
+dk=128 dv=96 hv=2 T=100 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 8.346e-5, chunked kernel 9.447e-5
+dk=128 dv=96 hv=2 T=100 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.374e-7, chunked kernel 1.676e-7
+dk=128 dv=96 hv=2 T=127 dtb=0 o: rel_l2 vs f64 reference: rows kernel 7.839e-8, chunked kernel 1.016e-5
+dk=128 dv=96 hv=2 T=127 dtb=0 state: rel_l2 vs f64 reference: rows kernel 7.672e-8, chunked kernel 1.851e-6
+dk=128 dv=96 hv=2 T=127 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 2.207e-7, chunked kernel 1.081e-6
+dk=128 dv=96 hv=2 T=127 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.961e-7, chunked kernel 1.708e-7
+dk=128 dv=96 hv=2 T=128 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.883e-9, chunked kernel 3.392e-5
+dk=128 dv=96 hv=2 T=128 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.067e-7, chunked kernel 5.287e-7
+dk=128 dv=96 hv=2 T=128 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 2.408e-5, chunked kernel 2.347e-5
+dk=128 dv=96 hv=2 T=128 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.309e-7, chunked kernel 1.979e-7
+dk=128 dv=96 hv=2 T=129 dtb=0 o: rel_l2 vs f64 reference: rows kernel 1.682e-5, chunked kernel 7.141e-5
+dk=128 dv=96 hv=2 T=129 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.025e-7, chunked kernel 4.422e-7
+dk=128 dv=96 hv=2 T=129 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 6.758e-5, chunked kernel 9.443e-6
+dk=128 dv=96 hv=2 T=129 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.561e-7, chunked kernel 1.909e-7
+dk=128 dv=96 hv=2 T=300 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.916e-5, chunked kernel 3.904e-5
+dk=128 dv=96 hv=2 T=300 dtb=0 state: rel_l2 vs f64 reference: rows kernel 7.469e-8, chunked kernel 1.034e-6
+dk=128 dv=96 hv=2 T=300 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.954e-5, chunked kernel 2.338e-6
+dk=128 dv=96 hv=2 T=300 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.952e-7, chunked kernel 1.614e-7
+dk=128 dv=96 hv=2 T=513 dtb=0 o: rel_l2 vs f64 reference: rows kernel 4.452e-5, chunked kernel 7.325e-5
+dk=128 dv=96 hv=2 T=513 dtb=0 state: rel_l2 vs f64 reference: rows kernel 1.014e-7, chunked kernel 4.981e-7
+dk=128 dv=96 hv=2 T=513 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 3.127e-5, chunked kernel 6.922e-6
+dk=128 dv=96 hv=2 T=513 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.773e-7, chunked kernel 1.803e-7
+dk=128 dv=32 hv=4 T=64 dtb=0 o: rel_l2 vs f64 reference: rows kernel 6.759e-5, chunked kernel 6.812e-5
+dk=128 dv=32 hv=4 T=64 dtb=0 state: rel_l2 vs f64 reference: rows kernel 8.513e-8, chunked kernel 1.548e-6
+dk=128 dv=32 hv=4 T=64 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.589e-7, chunked kernel 1.576e-7
+dk=128 dv=32 hv=4 T=64 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.936e-7, chunked kernel 1.719e-7
+dk=128 dv=32 hv=4 T=65 dtb=0 o: rel_l2 vs f64 reference: rows kernel 1.007e-8, chunked kernel 7.291e-6
+dk=128 dv=32 hv=4 T=65 dtb=0 state: rel_l2 vs f64 reference: rows kernel 8.656e-8, chunked kernel 6.120e-7
+dk=128 dv=32 hv=4 T=65 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 0.000e0, chunked kernel 1.727e-8
+dk=128 dv=32 hv=4 T=65 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.782e-7, chunked kernel 1.584e-7
+dk=128 dv=32 hv=4 T=66 dtb=0 o: rel_l2 vs f64 reference: rows kernel 2.883e-5, chunked kernel 2.971e-5
+dk=128 dv=32 hv=4 T=66 dtb=0 state: rel_l2 vs f64 reference: rows kernel 8.642e-8, chunked kernel 2.441e-7
+dk=128 dv=32 hv=4 T=66 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 4.093e-8, chunked kernel 1.650e-7
+dk=128 dv=32 hv=4 T=66 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.331e-7, chunked kernel 1.750e-7
+dk=128 dv=32 hv=4 T=100 dtb=0 o: rel_l2 vs f64 reference: rows kernel 1.131e-5, chunked kernel 3.199e-5
+dk=128 dv=32 hv=4 T=100 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.668e-8, chunked kernel 4.308e-7
+dk=128 dv=32 hv=4 T=100 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 2.233e-6, chunked kernel 2.765e-7
+dk=128 dv=32 hv=4 T=100 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.058e-7, chunked kernel 1.571e-7
+dk=128 dv=32 hv=4 T=127 dtb=0 o: rel_l2 vs f64 reference: rows kernel 6.446e-6, chunked kernel 2.724e-5
+dk=128 dv=32 hv=4 T=127 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.266e-8, chunked kernel 8.725e-7
+dk=128 dv=32 hv=4 T=127 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.907e-6, chunked kernel 4.299e-6
+dk=128 dv=32 hv=4 T=127 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.049e-7, chunked kernel 1.812e-7
+dk=128 dv=32 hv=4 T=128 dtb=0 o: rel_l2 vs f64 reference: rows kernel 5.729e-6, chunked kernel 1.432e-5
+dk=128 dv=32 hv=4 T=128 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.028e-8, chunked kernel 1.117e-6
+dk=128 dv=32 hv=4 T=128 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.145e-5, chunked kernel 1.136e-5
+dk=128 dv=32 hv=4 T=128 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.970e-7, chunked kernel 1.889e-7
+dk=128 dv=32 hv=4 T=129 dtb=0 o: rel_l2 vs f64 reference: rows kernel 5.151e-6, chunked kernel 2.356e-5
+dk=128 dv=32 hv=4 T=129 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.425e-8, chunked kernel 7.089e-7
+dk=128 dv=32 hv=4 T=129 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 8.097e-6, chunked kernel 3.441e-5
+dk=128 dv=32 hv=4 T=129 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 1.904e-7, chunked kernel 1.924e-7
+dk=128 dv=32 hv=4 T=300 dtb=0 o: rel_l2 vs f64 reference: rows kernel 4.538e-6, chunked kernel 1.249e-5
+dk=128 dv=32 hv=4 T=300 dtb=0 state: rel_l2 vs f64 reference: rows kernel 7.267e-8, chunked kernel 1.726e-6
+dk=128 dv=32 hv=4 T=300 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 1.141e-5, chunked kernel 2.047e-5
+dk=128 dv=32 hv=4 T=300 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.593e-7, chunked kernel 1.630e-7
+dk=128 dv=32 hv=4 T=513 dtb=0 o: rel_l2 vs f64 reference: rows kernel 6.631e-6, chunked kernel 2.122e-5
+dk=128 dv=32 hv=4 T=513 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.712e-8, chunked kernel 2.362e-7
+dk=128 dv=32 hv=4 T=513 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 5.869e-5, chunked kernel 9.942e-6
+dk=128 dv=32 hv=4 T=513 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.065e-7, chunked kernel 1.988e-7
+ok
+test gdn_chunked_state_carries_across_calls ... split 70+59 dtb=0: o rel_l2 whole 3.571e-5 split 2.218e-5; state whole 9.914e-7 split 9.448e-7
+split 128+128 dtb=-4: o rel_l2 whole 1.599e-5 split 1.599e-5; state whole 1.931e-7 split 1.931e-7
+split 200+57 dtb=-4: o rel_l2 whole 2.353e-5 split 2.353e-5; state whole 1.836e-7 split 1.755e-7
+split 64+64 dtb=0: o rel_l2 whole 1.859e-5 split 1.859e-5; state whole 1.944e-6 split 1.944e-6
+split 130+70 dtb=-4: o rel_l2 whole 1.597e-5 split 5.623e-5; state whole 1.686e-7 split 1.752e-7
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s
+
