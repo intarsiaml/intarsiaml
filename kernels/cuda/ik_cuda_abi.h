@@ -1,0 +1,26 @@
+/* CUDA-only launchers: declared here instead of the shared kernels/abi/ik_abi.h (the HIP backend does the same with
+ * kernels/hip/ik_hip_abi.h). The CUDA backend's `every_launcher_is_declared_in_the_abi_header` test reads both. */
+#ifndef IK_CUDA_ABI_H
+#define IK_CUDA_ABI_H
+
+#include "abi/ik_abi.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* moe_experts_nvfp4_mma_bf16: moe_experts_mma_bf16 (same inputs, scratch = the grouped layout plus the quantised
+ * activations, see kernels/cuda/moe_nvfp4_mma_sm120a.cu) with the expert GEMMs on the block-scaled FP4 tensor core:
+ * activations are quantised to e2m1 + one ue4m3 scale per 16 values + one f32 scale per row, so the result differs from
+ * the bf16-activation kernels by the activation quantisation error. Needs H % 128 == 0, I % 128 == 0. Built for sm_120a /
+ * sm_121a only; elsewhere the symbol exists and returns IK_ERR_UNSUPPORTED. */
+int ik_moe_experts_nvfp4_mma_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                  const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                  const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                  const ik_scratch* scratch, void* stream);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* IK_CUDA_ABI_H */

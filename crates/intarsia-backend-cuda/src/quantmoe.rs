@@ -5,9 +5,9 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::{opt_in_priority, ARCH};
+use crate::kernels::{moe_nvfp4_priority, opt_in_priority, ARCH};
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
-use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
+use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
@@ -22,6 +22,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_decode_bf16", Op::MoeExperts),
     ("moe_experts_decode_v2_bf16", Op::MoeExperts),
     ("moe_experts_mma_bf16", Op::MoeExperts),
+    ("moe_experts_nvfp4_mma_bf16", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
     // fused decode launchers (docs/results/2026-10-14-cuda-decode-fusion.md): each is bitwise the chain of launches it
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
@@ -61,6 +62,28 @@ const GEMM_MIN_TOKENS: usize = 33;
 /// Most tokens for which the two-launch decode experts kernel is preferred (45 us vs 59 us at 1 token; slower than
 /// the grouping kernel from 2 tokens on, 130 us vs 119 us).
 const DECODE_MAX_TOKENS: usize = 1;
+
+/// Tolerance of `moe_experts_nvfp4_mma_bf16` against the bf16-activation reference (`ref_moe_experts`). The kernel
+/// quantises the activations to e2m1 (a 3-bit value grid), so it is not within `TOL` of the reference; the bound is
+/// the quantisation error measured on the admission shapes by tests/moe_nvfp4_cpu.rs (rel_l2 0.163..0.166, max_abs
+/// 0.14..0.19 of max(1, max|ref|); two e2m1 roundings of ~8 % each) with a 20 % / 50 % margin. Exactness against
+/// the quantised arithmetic is tested separately (tests/moe_nvfp4.rs).
+pub const NVFP4_ACT_TOL: Tol = Tol::new(0.30, 0.20);
+
+/// Scratch bytes of `moe_experts_nvfp4_mma_bf16`: the grouped kernel's, plus the quantised activations
+/// (`xq` u8 `[T,H/2]`, `xs` e4m3 `[T,H/16]`, `xg` f32 `[T]`, and the same three for the sorted `h` `[P,I]`), each region
+/// rounded up to 256 bytes (kernels/cuda/moe_nvfp4_mma_sm120a.cu, `scratch_layout`).
+pub fn moe_experts_nvfp4_scratch(s: &ShapeInfo) -> usize {
+    let r = |x: usize| (x + 255) & !255;
+    let pairs = s.m * s.top_k;
+    moe_experts_mma_scratch(s)
+        + r(s.m * (s.k / 2))
+        + r(s.m * (s.k / 16))
+        + r(s.m * 4)
+        + r(pairs * (s.n / 2))
+        + r(pairs * (s.n / 16))
+        + r(pairs * 4)
+}
 
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
@@ -186,6 +209,23 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .scratch(moe_experts_mma_scratch)
                     .priority(10),
+                // The same grouped experts on the block-scaled FP4 tensor core (kernels/cuda/moe_nvfp4_mma_sm120a.cu):
+                // W4A4, activations quantised to e2m1 + ue4m3. Registered only where the file was built for sm_120a /
+                // sm_121a (build.rs, cfg `ik_sm120a`); selected only with INTARSIA_CUDA_MOE_NVFP4=1 (see `moe_nvfp4`).
+                "moe_experts_nvfp4_mma_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        cfg!(ik_sm120a)
+                            && s.m >= MMA_MIN_TOKENS
+                            && s.experts <= 1024
+                            && s.k % 128 == 0
+                            && s.n % 128 == 0
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(NVFP4_ACT_TOL)
+                    .scratch(moe_experts_nvfp4_scratch)
+                    .priority(moe_nvfp4_priority(20)),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces
                 // (tests/fused_decode.rs), so the budget is that of the kernels it is built from.

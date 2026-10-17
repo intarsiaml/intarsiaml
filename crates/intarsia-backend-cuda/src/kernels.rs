@@ -100,6 +100,23 @@ pub fn opt_in_priority(on: i32) -> i32 {
     }
 }
 
+/// `INTARSIA_CUDA_MOE_NVFP4=1` selects the W4A4 block-scaled FP4 grouped experts kernel for prefill-shaped MoE batches
+/// (`moe_experts_nvfp4_mma_bf16`). Off by default: the activation quantisation is a numerics change and is not default-on
+/// until the accuracy gates pass (docs/results/2026-10-17-cuda-moe-nvfp4-mma.md).
+pub fn moe_nvfp4() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_MOE_NVFP4").is_ok_and(|v| v == "1"))
+}
+
+/// Priority of the FP4 experts kernel: `on` when opted in, below everything otherwise.
+pub fn moe_nvfp4_priority(on: i32) -> i32 {
+    if moe_nvfp4() {
+        on
+    } else {
+        -10
+    }
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     let mut v = Vec::new();
@@ -232,9 +249,13 @@ mod tests {
 
     #[test]
     fn every_launcher_is_declared_in_the_abi_header() {
-        let hdr = include_str!("../../../kernels/abi/ik_abi.h");
+        let hdr = [
+            include_str!("../../../kernels/abi/ik_abi.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi.h"),
+        ]
+        .concat();
         for (name, _) in full_table() {
-            assert!(hdr.contains(&format!("int ik_{name}(")), "ik_{name} missing from kernels/abi/ik_abi.h");
+            assert!(hdr.contains(&format!("int ik_{name}(")), "ik_{name} missing from the ABI headers");
         }
     }
 
