@@ -4,8 +4,8 @@
 usage: analyze_prefill.py kernel_trace.csv
 
 Prints, per kernel name: launches, total ms, average us, share of kernel time, first launch's grid x workgroup, and the
-span / idle of the run. The trace holds the whole process (weight upload helpers, a warm-up-free single prefill), so the
-span is first-to-last kernel start/end of the biggest contiguous burst: gaps over 50 ms split bursts."""
+span / idle of the run. The trace holds the whole process (weight upload, then one prefill), so the table is the burst
+with the most kernel time: gaps over 50 ms split bursts."""
 import collections
 import csv
 import re
@@ -42,7 +42,7 @@ for a, b in zip(rows, rows[1:]):
         cur = []
     cur.append(b)
 bursts.append(cur)
-main = max(bursts, key=lambda s: s[-1][1] - s[0][0])
+main = max(bursts, key=lambda s: sum(e - b for b, e, *_ in s))  # the burst with the most kernel time (the weight upload is a longer but idle one)
 span = main[-1][1] - main[0][0]
 tot = sum(e - s for s, e, *_ in main)
 print(f"kernels in main burst: {len(main)} (of {len(rows)}), span {span/1e6:.1f} ms, kernel time {tot/1e6:.1f} ms, idle {100*(span-tot)/span:.1f} %")

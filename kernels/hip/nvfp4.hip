@@ -270,6 +270,7 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* bs, cons
 // ---- MMA policy ---------------------------------------------------------------------------------------------------
 
 struct Nvfp4Policy {
+    IK_DEVI bool skip(const DqArgs&) { return false; }
     struct State {
         const float* lut;
         float g;

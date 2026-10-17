@@ -15,6 +15,7 @@
 #include <cstdlib>
 
 #include "ik_dq_gemm.h"
+#include "ik_f8_gemm.h"
 
 namespace {
 
@@ -335,6 +336,7 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
 // ---- MMA policy (weights dequantised to bf16 tiles) ---------------------------------------------------------------
 
 struct Fp8Policy {
+    IK_DEVI bool skip(const DqArgs&) { return false; }
     struct State {
         bool actq;
         float s_in, s_out;
@@ -366,6 +368,11 @@ struct Fp8Policy {
         return ik_pack8(f);  // fp8 values are exact in bf16
     }
     IK_DEVI float out_scale(const State& s) { return s.s_out; }
+};
+
+// The weight-only half of matmul_fp8_mma_f8: the same GEMM, exiting at once when the scale is positive (the e4m3 kernel did the launch).
+struct Fp8PolicyW16 : Fp8Policy {
+    IK_DEVI bool skip(const DqArgs& a) { return a.sc[1] > 0.f; }
 };
 
 // ---- launchers ---------------------------------------------------------------------------------------------------
@@ -414,6 +421,43 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     a.vec_out = (N % 8 == 0) && ik_aligned16(out->data);
     if (f32o) dq_gemm_run<Fp8Policy>(a, (float*)out->data, s);
     else dq_gemm_run<Fp8Policy>(a, (ik_bf16*)out->data, s);
+    return ik_launch_status();
+}
+
+// matmul_fp8_mma_f8: the W8A8 GEMM on the fp8 x fp8 WMMA (ik_f8_gemm.h). input_scale > 0 is known only on the device, so one
+// launch of each kind is made and each exits at once when the scale is not for it: the activation quantiser and the e4m3 GEMM
+// for W8A8, the dequantise-to-bf16 GEMM (the matmul_fp8_mma kernel) for weight-only activations. Needs scratch: M * K bytes.
+int launch_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
+              void* stream) {
+    IK_TRY(check(x, w, scales, out));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (M == 0 || N == 0 || K == 0) return launch(x, w, scales, out, stream, 0);
+    if (M > 0x7fffffffLL || N > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (!scratch || !scratch->data || scratch->bytes < M * K) return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+    hipStream_t s = IK_STREAM(stream);
+    uint8_t* xq = (uint8_t*)scratch->data;
+    const uint8_t* wp = (const uint8_t*)w->data;
+    const float* sp = (const float*)scales->data;
+    const int64_t n8 = M * K / 8;
+    f8_actq_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>((const ik_bf16*)x->data, xq, sp, n8);
+    const int vec_out = (N % 8 == 0) && ik_aligned16(out->data);
+    DqArgs a;
+    a.x = (const ik_bf16*)x->data;
+    a.w = wp;
+    a.bs = nullptr;
+    a.sc = sp;
+    a.M = (int)M;
+    a.N = N;
+    a.K = (int)K;
+    a.vec_out = vec_out;
+    if (out->dtype == IK_DTYPE_F32) {
+        f8_gemm_run<float>(xq, wp, sp, (float*)out->data, (int)M, N, (int)K, vec_out, s);
+        dq_gemm_run<Fp8PolicyW16>(a, (float*)out->data, s);
+    } else {
+        f8_gemm_run<ik_bf16>(xq, wp, sp, (ik_bf16*)out->data, (int)M, N, (int)K, vec_out, s);
+        dq_gemm_run<Fp8PolicyW16>(a, (ik_bf16*)out->data, s);
+    }
     return ik_launch_status();
 }
 
@@ -568,6 +612,10 @@ int ik_matmul_fp8_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tenso
 }
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, 0);
+}
+int ik_matmul_fp8_mma_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                         const ik_scratch* scratch, void* stream) {
+    return launch_f8(x, w, scales, out, scratch, stream);
 }
 
 }  // extern "C"

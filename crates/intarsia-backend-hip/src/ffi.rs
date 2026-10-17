@@ -131,6 +131,7 @@ extern "C" {
     pub fn ik_matmul_fp8_gemv(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_gemv_v2(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_fp8_mma_f8(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_gemv(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_gemv_v2(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_mma(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;

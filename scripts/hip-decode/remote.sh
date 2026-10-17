@@ -93,6 +93,11 @@ stage_pfprof() {
 # chunk35:<chunk> / chunk8:<chunk>: serve with --prefill-chunk, prefill speed at 128/1024/4096 (gen 16, 3 reps)
 stage_chunk35() { GEN=16 REPS=3 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
 stage_chunk8() { GEN=16 REPS=3 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pfchunk-8b-${1}" --prefill-chunk "${1}"; }
+# f8test: the e4m3 WMMA GEMM against the cpu reference, M-invariance, bf16-path equivalence (tests/fp8_f8.rs)
+stage_f8test() {
+  $D cargo test --release -p intarsia-backend-hip --test fp8_f8 -- --nocapture --test-threads=1 2>&1 \
+    | grep -E "^test |test result|FAILED|panicked|rel_l2|differ|f8 vs" | cut -c1-300 | tail -30
+}
 # chunk35l:<chunk>: does that chunk fit at 16k context (max-seq 17408, one 16384-token prompt)
 stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-16k-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
 # pf35[:tag] / pf8[:tag]: A/B speed, prefill 128/1024/4096/16384 and decode 128 (the serve's own recipe chunk)

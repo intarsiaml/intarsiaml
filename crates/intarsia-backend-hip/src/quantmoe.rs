@@ -13,6 +13,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
     ("matmul_fp8_gemv_v2", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
+    ("matmul_fp8_mma_f8", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemv_v2", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
@@ -74,6 +75,18 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL),
+                // W8A8 prefill GEMM on the fp8 x fp8 WMMA (kernels/hip/ik_f8_gemm.h); weight-only activations run the bf16
+                // kernel inside. Serves every M the gemv does not (>= 5), so a tail chunk is rounded like the rows of a full
+                // one. INTARSIA_HIP_DISABLE=matmul_fp8_mma_f8 selects matmul_fp8_mma (the previous path).
+                "matmul_fp8_mma_f8" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m >= 5 && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k + 16)
+                    .priority(5),
                 "matmul_nvfp4_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])
