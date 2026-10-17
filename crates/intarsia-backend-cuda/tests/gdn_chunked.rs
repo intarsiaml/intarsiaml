@@ -67,10 +67,25 @@ fn delta_case(rng: &mut SplitMix64, t: usize, hk: usize, hv: usize, dk: usize, d
 /// (hk, hv, dk, dv); dv must be a multiple of 32.
 const SHAPES: [(usize, usize, usize, usize); 4] = [(16, 32, 128, 128), (2, 4, 64, 64), (2, 2, 128, 96), (1, 4, 128, 32)];
 
-/// The bound every comparison uses: as close to the f64 reference as the sequential kernel (the reference rounds its output
-/// to bf16, so a kernel that is exact in fp32 still differs by an occasional one-ulp flip: rel_l2 ~ 5e-5).
-fn within(rn: f64, ro: f64) -> bool {
-    rn <= 1e-3 && rn <= 2.0 * ro.max(5e-5)
+/// Rounding floors of the comparisons. The f64 reference rounds its output to bf16, so any fp32 error of a kernel shows up as
+/// occasional one-ulp flips: the sequential kernels measure rel_l2 4e-5 to 5e-5 on the bf16 output, and the WY form adds
+/// several more fp32 sums (Gram, solve, T Y, M delta), so a correct chunked kernel is expected around 1e-4. The floor of the
+/// output comparison is 2.5e-4 (a bug of the kind the mutation checks inject is at 1e-2 or more); the f32 state has no output
+/// rounding and keeps the 5e-5 floor.
+const OUT_FLOOR: f64 = 2.5e-4;
+const STATE_FLOOR: f64 = 5e-5;
+
+/// As close to the f64 reference as the sequential kernel, up to the floor.
+fn within(rn: f64, ro: f64, floor: f64) -> bool {
+    rn <= 1e-3 && rn <= 2.0 * ro.max(floor)
+}
+
+fn floor_of(what: &str) -> f64 {
+    if what == "o" {
+        OUT_FLOOR
+    } else {
+        STATE_FLOOR
+    }
 }
 
 /// Token counts around the chunk boundaries (a tail of 1, 2, 36, 63 tokens past a multiple of 64).
@@ -96,7 +111,7 @@ fn gdn_chunked_is_as_accurate_as_the_rows_kernel() {
                     let (w, o, n) = (want[i].to_f32(), old[i].to_f32(), new[i].to_f32());
                     let (ro, rn) = (rel_l2(&o, &w), rel_l2(&n, &w));
                     eprintln!("dk={dk} dv={dv} hv={hv} T={t} dtb={dt_mean} {what}: rel_l2 vs f64 reference: rows kernel {ro:.3e}, chunked kernel {rn:.3e}");
-                    assert!(within(rn, ro), "dk={dk} dv={dv} T={t} dtb={dt_mean} {what}: chunked rel_l2 {rn:.3e}, rows kernel {ro:.3e}");
+                    assert!(within(rn, ro, floor_of(what)), "dk={dk} dv={dv} T={t} dtb={dt_mean} {what}: chunked rel_l2 {rn:.3e}, rows kernel {ro:.3e}");
                 }
                 let again = run_host(&*cuda, CHUNKED, &hc).unwrap();
                 assert_eq!(new[0].data, again[0].data, "dk={dk} T={t}: not repeatable");
@@ -134,7 +149,7 @@ fn gdn_chunked_handles_correlated_keys() {
             let (w, o, n) = (want[i].to_f32(), old[i].to_f32(), new[i].to_f32());
             let (ro, rn) = (rel_l2(&o, &w), rel_l2(&n, &w));
             eprintln!("correlated T={t} {what}: rel_l2 vs f64 reference: rows kernel {ro:.3e}, chunked kernel {rn:.3e}");
-            assert!(within(rn, ro.max(1e-4)), "correlated T={t} {what}: chunked rel_l2 {rn:.3e}, rows kernel {ro:.3e}");
+            assert!(within(rn, ro.max(1e-4), floor_of(what)), "correlated T={t} {what}: chunked rel_l2 {rn:.3e}, rows kernel {ro:.3e}");
         }
     }
 }
@@ -187,6 +202,6 @@ fn gdn_chunked_split_case(t1: usize, t2: usize, dt_mean: f32) {
     let (r_whole_o, r_split_o) = (rel_l2(&out_whole[0].to_f32(), &w_o), rel_l2(&joined.to_f32(), &w_o));
     let (r_whole_s, r_split_s) = (rel_l2(&out_whole[1].to_f32(), &w_s), rel_l2(&b[1].to_f32(), &w_s));
     eprintln!("split {t1}+{t2} dtb={dt_mean}: o rel_l2 whole {r_whole_o:.3e} split {r_split_o:.3e}; state whole {r_whole_s:.3e} split {r_split_s:.3e}");
-    assert!(within(r_split_o, r_whole_o), "split {t1}+{t2}: outputs rel_l2 {r_split_o:.3e} (one call {r_whole_o:.3e})");
-    assert!(within(r_split_s, r_whole_s), "split {t1}+{t2}: final state rel_l2 {r_split_s:.3e} (one call {r_whole_s:.3e})");
+    assert!(within(r_split_o, r_whole_o, OUT_FLOOR), "split {t1}+{t2}: outputs rel_l2 {r_split_o:.3e} (one call {r_whole_o:.3e})");
+    assert!(within(r_split_s, r_whole_s, STATE_FLOOR), "split {t1}+{t2}: final state rel_l2 {r_split_s:.3e} (one call {r_whole_s:.3e})");
 }
