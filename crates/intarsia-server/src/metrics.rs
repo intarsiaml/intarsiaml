@@ -208,7 +208,7 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
     );
     metric(&mut o, "intarsia_requests_running", "gauge", "Requests holding the engine now: the one running request (max-batch 1) or, with --max-batch N, those that started (got a slot), prefilling or decoding.", snap.running);
     metric(&mut o, "intarsia_requests_waiting", "gauge", "Requests accepted by the engine and not yet started, counted from submit: with --max-batch N, those in the hand-off channel and the scheduler queue (a request leaves when it gets a KV slot), plus a request being refused for a full queue until it is refused.", snap.waiting);
-    metric(&mut o, "intarsia_requests_total", "counter", "Requests accepted by the engine.", snap.requests_total);
+    metric(&mut o, "intarsia_requests_total", "counter", "Requests accepted into the engine queue (refused submits excluded); once idle, equals the sum of intarsia_requests_finished_total over reasons.", snap.requests_total);
     // The names vLLM and llama.cpp publish; localeval's idle check and fleet tooling read these.
     metric(&mut o, "vllm:num_requests_running", "gauge", "Same value as intarsia_requests_running (vLLM name).", snap.running);
     metric(&mut o, "vllm:num_requests_waiting", "gauge", "Same value as intarsia_requests_waiting (vLLM name).", snap.waiting);

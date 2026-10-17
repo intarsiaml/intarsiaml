@@ -186,6 +186,8 @@ pub(crate) struct SeqAdapter {
     t_new: Instant,
     /// `request_started` was reported (the request got a slot).
     started: bool,
+    /// The scheduler accepted the request into its queue ([`BatchSeq::on_queued`]).
+    queued: bool,
     /// `Done` or `Error` was sent.
     ended: bool,
     /// Prefill chunk size the scheduler picked for this request (0: none ran).
@@ -294,16 +296,24 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         Ok(())
     }
 
+    fn on_queued(&mut self) {
+        self.queued = true;
+    }
+
     fn fail(&mut self, err: &Error) {
         if self.ended {
             return;
         }
         self.ended = true;
-        if self.started {
+        if self.queued && !self.started {
+            // accepted, then failed before it held a slot (engine died, admission refused): stays in `requests_total`
+            self.telemetry.request_dropped_queued("error");
+            let _ = self.tx.send(GenEvent::Error { message: err.to_string() });
+        } else if self.started {
             let generated = self.seq.as_ref().map_or(0, |s| s.generated);
             report_error(&self.telemetry, &self.tx, self.plen, generated, self.t_new.elapsed(), err);
         } else {
-            // refused before it held a slot: undo `request_enqueued`
+            // refused at submit (never queued): undo `request_enqueued`
             self.telemetry.request_rejected();
             let _ = self.tx.send(GenEvent::Error { message: err.to_string() });
         }
@@ -425,6 +435,7 @@ impl Engine for BatchedEngine {
             vocab: self.vocab,
             t_new: Instant::now(),
             started: false,
+            queued: false,
             ended: false,
             chunk: 0,
             was_cancelled: false,
@@ -506,6 +517,7 @@ mod tests {
             vocab: 10,
             t_new: Instant::now(),
             started,
+            queued: false,
             ended: false,
             chunk: 0,
             was_cancelled: false,
@@ -541,6 +553,26 @@ mod tests {
         let (mut q, _rx, tel) = adapter(false);
         q.fail(&Error::Backend("injected".into()));
         assert_eq!(tel.snapshot().generation_tokens_total, 0);
+    }
+
+    /// A request the scheduler queued and then failed before it started (engine died, admission refused) stays in
+    /// `requests_total` and is counted as an error; a refusal at submit (never queued) is undone.
+    #[test]
+    fn queued_then_failed_request_stays_counted() {
+        let (mut q, rx, tel) = adapter(false);
+        q.on_queued();
+        q.fail(&Error::Other("engine failed: boom".into()));
+        assert!(matches!(rx.try_recv(), Ok(GenEvent::Error { .. })));
+        let s = tel.snapshot();
+        assert_eq!((s.requests_total, s.waiting, s.running), (1, 0, 0), "{s:?}");
+        assert_eq!(s.finished["error"], 1);
+
+        let (mut r, rx, tel) = adapter(false);
+        r.fail(&Error::QueueFull(1));
+        assert!(matches!(rx.try_recv(), Ok(GenEvent::Error { .. })));
+        let s = tel.snapshot();
+        assert_eq!((s.requests_total, s.waiting), (0, 0), "{s:?}");
+        assert!(s.finished.is_empty());
     }
 
     #[test]
