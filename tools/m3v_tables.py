@@ -58,6 +58,6 @@ for B in (2, 3):
         cs = Costs(path, c, "g0b")
         o = B - 1
         today = cs.V[5] + cs.P[o] + (t - 1) * cs.P[o]
-        bat = sum(cs.pass_cost(g, pl) for g, pl in __import__("m3v_project").pack([5], o, 6)) + (t - 1) * cs.P[o]
+        bat = min(sum(cs.pass_cost(g, pl) for g, pl in __import__("m3v_project").pack([5], o, 6)), cs.V[5] + cs.P[o]) + (t - 1) * cs.P[o]
         tok = B * t
         print(f"| {B} | {c} | {today:.1f} | {bat:.1f} | {tok:.2f} | {tok/today*1000:.1f} | {tok/bat*1000:.1f} | {(today/bat-1)*100:+.0f}% |")

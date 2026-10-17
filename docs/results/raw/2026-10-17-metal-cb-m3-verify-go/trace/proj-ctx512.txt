@@ -11,6 +11,6 @@ r1: wall 7.32s agg 69.9 (off 68.2) iters 255 with-verify 2; today-model 7.36s; b
 r2: wall 7.51s agg 68.2 (off 70.1) iters 256 with-verify 2; today-model 7.39s; batched-model g0b 7.34s meas 7.33s none 7.34s -> agg g0b 68.7 meas 68.7 none 68.6 kcap 68.7
 r3: wall 7.38s agg 69.3 (off 67.9) iters 256 with-verify 3; today-model 7.39s; batched-model g0b 7.34s meas 7.33s none 7.34s -> agg g0b 69.8 meas 69.8 none 69.8 kcap 69.8
 == open-n3
-r1: wall 7.63s agg 100.6 (off 98.8) iters 257 with-verify 3; today-model 7.70s; batched-model g0b 7.70s meas 7.70s none 7.71s -> agg g0b 100.6 meas 100.6 none 100.5 kcap 101.7
-r2: wall 7.90s agg 97.2 (off 100.5) iters 257 with-verify 4; today-model 7.70s; batched-model g0b 7.70s meas 7.70s none 7.71s -> agg g0b 97.1 meas 97.2 none 97.1 kcap 98.2
-r3: wall 7.76s agg 99.0 (off 99.3) iters 257 with-verify 3; today-model 7.70s; batched-model g0b 7.70s meas 7.70s none 7.71s -> agg g0b 98.9 meas 99.0 none 98.9 kcap 100.0
+r1: wall 7.63s agg 100.6 (off 98.8) iters 257 with-verify 3; today-model 7.70s; batched-model g0b 7.70s meas 7.70s none 7.70s -> agg g0b 100.6 meas 100.6 none 100.6 kcap 101.7
+r2: wall 7.90s agg 97.2 (off 100.5) iters 257 with-verify 4; today-model 7.70s; batched-model g0b 7.70s meas 7.70s none 7.70s -> agg g0b 97.2 meas 97.2 none 97.2 kcap 98.2
+r3: wall 7.76s agg 99.0 (off 99.3) iters 257 with-verify 3; today-model 7.70s; batched-model g0b 7.70s meas 7.70s none 7.70s -> agg g0b 99.0 meas 99.0 none 99.0 kcap 100.0

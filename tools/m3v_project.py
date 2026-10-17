@@ -2,13 +2,12 @@
 """M3 stage 0: project batched speculative verify from d793300 iteration traces and the measured pass costs.
 
   m3v_project.py trace  --dir TRACEDIR --cost COST.json [--ctx 512] [--corr g0b|meas|none] [--rmax 6] [--out OUT.json]
-  m3v_project.py sim    ... (open-ended, gate-off traces; see below)
 
 `trace`: for every `on` run in TRACEDIR (server-on-R.log with INTARSIA_CB_TRACE=1 INTARSIA_SPEC_TRACE=1, m3-on-R.json from
 tools/cbm3.py) rebuild the scheduler iterations: DecodePhase (b decoding), the `spec:` lines printed by prepare (one solo
 verify pass each, q = 1 + drafted rows) and the Decode event (rows of the batched step = plain rows). Then
   today(it)   = sum V(q) + P(plain)                       (P(1) = the solo step)
-  batched(it) = first-fit-decreasing packing into passes of <= rmax rows, each pass costed as in the method section.
+  batched(it) = min(today(it), first-fit-decreasing packing into passes of <= rmax rows, each pass costed as in the method section).
 The aggregate is judged on the wall: projected wall = measured wall - (today - batched), tokens unchanged.
 """
 import argparse, collections, json, re, statistics, sys
@@ -103,8 +102,9 @@ def pack(qs, plain, rmax):
 
 
 def batched_cost(cs, groups, plain, rmax=RMAX):
+    """Packed passes, but never worse than today's split (a scheduler can always fall back to it): min(packed, today)."""
     qs = [1 + d for d, a, e in groups]
-    return sum(cs.pass_cost(g, p) for g, p in pack(qs, plain, rmax))
+    return min(sum(cs.pass_cost(g, p) for g, p in pack(qs, plain, rmax)), today_cost(cs, groups, plain))
 
 
 def kcap_variant(cs, groups, plain, rmax=RMAX):
