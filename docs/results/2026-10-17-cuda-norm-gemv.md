@@ -72,7 +72,7 @@ added `rmsnorm_add_pair_kernel` (69, 444.0 us, 6.4 us each): -84 us. Gated: remo
 | check | result |
 |---|---|
 | fused kernels vs the unfused CUDA chain, bitwise (`tests/fused_decode.rs`, GB10) | pass (8 tests in window B1 plus the heavy-tail test in B2): 11 shapes x w_offset for the pair (K 8 to 8192, K 40 / 96 below the 256-thread block, 4104 past it, 520), 10 shapes x W8A8 / W8A16 x w_offset for the gated fp8 (R 1 to 32, N 1 to 8192, odd R), `near_reference` against the cpu kernel |
-| many draws | norm + pair: 3000 well-scaled rows + **8000 heavy-tailed rows** (2^U(-8,8) per element); gated + fp8: **2500 W8A8** + 1000 W8A16 draws of the model's shape; all bitwise |
+| many draws | norm + pair: 3000 well-scaled rows + **8000 heavy-tailed rows** (2^U(-s,s) per element, s cycling 2, 4, 6, 8, 10); gated + fp8: **2500 W8A8** + 1000 W8A16 draws of the model's shape; all bitwise |
 | `backend-cuda` tests: admission, fused_decode, quantmoe | pass: admission 4, fused_decode 8, quantmoe 10 (3 ignored); `every_cuda_kernel_matches_the_reference` runs the registered kernels |
 | `qualify --quick-only` 35B | **PASS 7/7**: 43 kernels, 595 cases, gate ppl 1.22, acc-short prefill 97.92% KL 5.87e-3 / decode 98.12% KL 1.54e-2, bench 81.1 tok/s |
 | `accuracy` 35b-short vs vLLM golden, dev | prefill 97.99% KL 6.271e-3, decode 98.12% KL 1.556e-2, PASS: the numbers of base |
@@ -109,9 +109,9 @@ correct one) shows the f32 sum of squares differing in 31 of 3000 well-scaled dr
 
 ```
 crates/intarsia-backend-cuda/src/device_quantmoe.rs   +33   dispatch of the two kernels (extern decls, match arms)
-crates/intarsia-backend-cuda/src/kernels.rs           ~8     table test: the two ops are no longer HIP-only
+crates/intarsia-backend-cuda/src/kernels.rs           +3 -5  table test: the two ops are no longer HIP-only
 crates/intarsia-backend-cuda/src/quantmoe.rs          +20    TABLE entries and registration with admission
-crates/intarsia-backend-cuda/tests/fused_decode.rs    +189   6 new tests
+crates/intarsia-backend-cuda/tests/fused_decode.rs    +189   5 new tests and a helper
 kernels/cuda/matmul.cu                                +118   XS flag of gemv_body, norm_add_stage, rmsnorm_add_pair_kernel, launcher
 kernels/cuda/fp8.cu                                   +100   gated_norm_chunk, PRO flag of fp8_gemv_body, fp8_gemv_gated_kernel, launcher
 kernels/abi/ik_abi.h                                  +2 -2 comment only ("HIP only so far" -> "HIP and CUDA")
@@ -128,9 +128,12 @@ Mac, after the rebase onto `df18c6a`: `INTARSIA_CPU_FREE_MEM_GB=8 cargo test --w
 
 ## 6. Not done, uncertain
 
-* The GPU numbers were taken before the rebase onto `df18c6a`. `main` moved in `intarsia-core` `engine.rs`, `scheduler.rs`, `fault.rs`, tests (telemetry and
-  fault injection of the Metal work) between `3ad530e` and `df18c6a`; none touches the decode path of a single request, but the rebased tree was only
-  Mac-checked, not re-run on spark1.
+* The GPU numbers were taken before the rebase onto `df18c6a`. `main` moved in `intarsia-core` `engine.rs`, `engine/batch.rs`, `scheduler.rs`, `fault.rs`, tests between
+  `3ad530e` and `df18c6a`. I read the engine / scheduler diff: it counts the tokens of failed requests in telemetry and adds a `fault-inject` feature-gated hook;
+  nothing on the decode path of a normal request. The rebased HEAD was built on spark1 (`build.sh cudanorm --tests`, CLI and all CUDA test binaries, exit 0) and
+  Mac-checked, but its GPU tests and benchmarks were not re-run.
+* The 15 mutations of the earlier fused kernels (pair, fp8 pair, glu, gated, MoE v2) were not re-run although `gemv_body` and `fp8_gemv_body` were edited
+  (a defaulted template flag each); their unmutated tests pass (fused_decode 8 of 8, quantmoe 10 of 10), and the new bitwise tests compare against the unfused kernels that use the same bodies.
 * Speed: 3 reps per round (not 5), 3 rounds, one prompt-length draw per cell; +0.7 to +0.9% decode is at the edge of the round-to-round drift.
 * No first-weight-load prefetch before the norm (HIP has it), not tried for lack of downtime.
 * The fused ops are M = 1 only; the 8B (dense, no GDN / MoE) is untouched by them and was run only for ids and goldens.

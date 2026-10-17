@@ -5,7 +5,7 @@
 
 * **A** = `origin/main` `c00af21` (a `git archive` export, tree `~/intarsia-decfuse/ref`).
 * **B** = `perf/hip-norm-gemv` at `3ad530e` plus two script commits of this branch (tree `~/intarsia-decfuse/hipnorm`; stamp
-  `head=bab3af1 code-tree=c350fc280236 dirty=no`; the extra commits only add `scripts/cuda-decode/{w-noop,build}.sh`).
+  `head=bab3af1 code-tree=c350fc280236 dirty=no`; the extra commits only add scripts under `scripts/cuda-decode/` and this page; `.cu` and Rust sources are those of `3ad530e`).
 * What B changes for CUDA: no `.cu` file, no `intarsia-backend-cuda` code. Only the model layer (the block takes the preceding
   norm as a `NormFold`, tries `RmsNormAddMatmulPair` / `GatedRmsnormMatmulFp8` with `try_fused`, and runs the norm itself when
   the registry has no kernel) and the core op tables (two new `Op`s, `fused_ref`, admission cases). `git diff c00af21 3ad530e
