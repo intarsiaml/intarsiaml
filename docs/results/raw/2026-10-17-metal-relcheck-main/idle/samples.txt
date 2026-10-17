@@ -1,0 +1,12 @@
+kw r1 done
+base r1 done
+base r2 done
+kw r2 done
+kw r3 done
+base r3 done
+base r4 done
+kw r4 done
+kw r5 done
+base r5 done
+base r6 done
+kw r6 done

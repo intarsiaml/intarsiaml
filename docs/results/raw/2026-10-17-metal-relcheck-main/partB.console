@@ -1,0 +1,13 @@
+fleetq job 2378; binary /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/bin/intarsia-relcheck-b02a5f4 (47e4a0feb4b09e39); git b02a5f4
+server ref pid 1929 ready on 8101
+gen: exit 0
+server batched pid 17648 ready on 8101
+run B=2: exit 0
+run B=3: exit 0
+run B=8: exit 0
+compare B=2: exit 0
+compare B=3: exit 0
+compare B=8: exit 0
+spectrace: exit 0
+no intarsia serve left
+exit 0

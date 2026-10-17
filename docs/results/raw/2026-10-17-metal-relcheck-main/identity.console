@@ -1,0 +1,44 @@
+slot 2378 Sat Oct 17 14:49:51 EDT 2026; binary /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/bin/intarsia-relcheck-b02a5f4 47e4a0feb4b09e39; git b02a5f4; cases      205 lines
+server ref2048 pid 32150 ready
+ref 2048: exit 0 14:57:52
+server ref256 pid 55060 ready
+ref 256: exit 0 15:05:41
+server batched-reuseoff pid 84753 ready
+run reuseoff: exit 0 15:09:10
+server batched-reuseon pid 93466 ready
+run reuseon: exit 0 15:12:39
+COMPARE reuseoff: exit 0
+FIFO reuseoff: exit 0
+/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/server-batched-reuseoff.log: 204 requests, admitted 202 (reused 0), done 184, cancelled q/p/d 2/0/18, failed 0, rejected 0, chunks 1085 (contested 664): OK
+COMPARE reuseon: exit 0
+FIFO reuseon: exit 0
+/private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/server-batched-reuseon.log: 204 requests, admitted 202 (reused 28), done 184, cancelled q/p/d 2/0/18, failed 0, rejected 0, chunks 1085 (contested 661): OK
+--- /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/compare-reuseoff-mixed.log
+== coverage (from the reference run) ==
+cases 203  prompt tokens min/max [127, 4500]
+prompt-token histogram: {'<=192': 29, '193-384': 25, '385-768': 41, '769-1.5k': 39, '1.5k-2.5k': 33, '2.5k-3.5k': 19, '>3.5k': 17}
+reference finish: {'stop (EOS)': 48, 'stop (stop string armed: stop string or EOS)': 15, 'length': 140}
+tags: {'cancel': 20, 'chat': 76, 'chat_greedy': 16, 'chat_sampled': 8, 'eos': 16, 'golden_4k': 3, 'greedy': 158, 'ignore_eos': 8, 'min_tokens': 16, 'raw': 127, 'raw_greedy': 62, 'raw_sampled': 30, 'sampled': 45, 'stop': 24}
+WARNING: /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/conc-reuseoff-mixed.jsonl: server plan differs from the reference server on ['max_batch', 'ops']
+
+== identity vs reference ==
+run        cases  pass  mismatch  ref_err  stream/non  cancel(out>0)/cases  cut short  ids cmp  cached!=  mism+cached!=
+B=8 mixed  203    203   0         0        113/90      20(18)/20            20         201      0         0            
+report: /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/report-reuseoff-mixed.json
+RESULT: IDENTICAL, 0 mismatches
+--- /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/compare-reuseon-mixed.log
+== coverage (from the reference run) ==
+cases 203  prompt tokens min/max [127, 4500]
+prompt-token histogram: {'<=192': 29, '193-384': 25, '385-768': 41, '769-1.5k': 39, '1.5k-2.5k': 33, '2.5k-3.5k': 19, '>3.5k': 17}
+reference finish: {'stop (EOS)': 48, 'stop (stop string armed: stop string or EOS)': 15, 'length': 140}
+tags: {'cancel': 20, 'chat': 76, 'chat_greedy': 16, 'chat_sampled': 8, 'eos': 16, 'golden_4k': 3, 'greedy': 158, 'ignore_eos': 8, 'min_tokens': 16, 'raw': 127, 'raw_greedy': 62, 'raw_sampled': 30, 'sampled': 45, 'stop': 24}
+WARNING: /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/conc-reuseon-mixed.jsonl: server plan differs from the reference server on ['max_batch', 'ops']
+
+== identity vs reference ==
+run        cases  pass  mismatch  ref_err  stream/non  cancel(out>0)/cases  cut short  ids cmp  cached!=  mism+cached!=
+B=8 mixed  203    203   0         0        113/90      20(18)/20            20         201      26        0            
+report: /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/out/identity/report-reuseon-mixed.json
+RESULT: IDENTICAL, 0 mismatches
+no intarsia serve left
+done Sat Oct 17 15:12:40 EDT 2026
+exit 0

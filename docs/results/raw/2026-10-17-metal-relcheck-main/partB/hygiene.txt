@@ -1,0 +1,28 @@
+--- start 15:12:48
+  917 146.8 509920 20-21:19:43 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotl
+19988  15.7 636816 01-02:33:38 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+25718  15.4   5632 01-19:08:57 macmon
+20521  13.2 966128 01-02:33:28 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+47360  10.6  28832 06-00:08:11 /usr/libexec/coreduetd
+15504   7.3 1204224 01-02:35:38 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+12707   6.4 201440    16:50:12 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+12698   5.8  49904    16:50:12 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+  631   4.2  41520 20-21:19:55 /usr/sbin/coreaudiod
+  485   2.8 408864 20-21:19:56 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+87301   2.2  93136 02-21:15:25 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+  529   2.2  17728 20-21:19:56 /usr/libexec/lsd
+vm.swapusage: total = 15360.00M  used = 14336.69M  free = 1023.31M  (encrypted)
+--- end (servers stopped) 15:31:50
+12707  29.0 201392    17:09:14 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+25718  18.0   5632 01-19:27:59 macmon
+88901  10.0 439088 03-19:53:28 /Applications/Syrtis.app/Contents/MacOS/Syrtis
+12698   8.4  49920    17:09:14 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+  631   5.6  41520 20-21:38:57 /usr/sbin/coreaudiod
+20521   3.8 979408 01-02:52:30 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+  485   3.8 408880 20-21:38:58 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+87301   2.3  93120 02-21:34:27 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+52705   1.7 289616 01-02:39:08 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+  438   1.4   6624 20-21:38:58 /System/Library/PrivateFrameworks/CoreSpeech.framework/corespeechd_system
+15504   1.3 1189792 01-02:54:40 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+92414   1.0 184368 05-15:03:48 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder
+vm.swapusage: total = 15360.00M  used = 14160.69M  free = 1199.31M  (encrypted)

@@ -1,0 +1,9 @@
+metrics-reuseoff.txt total 204.0 finished {'cancelled': 20.0, 'length': 129.0, 'stop': 55.0} sum 204.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-reuseon.txt total 204.0 finished {'cancelled': 20.0, 'length': 129.0, 'stop': 55.0} sum 204.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-b8-after.txt total 669.0 finished {'length': 669.0} sum 669.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-b2-after.txt total 269.0 finished {'length': 268.0, 'stop': 1.0} sum 269.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-b3-after.txt total 538.0 finished {'length': 536.0, 'stop': 2.0} sum 538.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-b8-after.txt total 807.0 finished {'length': 804.0, 'stop': 3.0} sum 807.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-end.txt total 242.0 finished {'cancelled': 11.0, 'length': 231.0} sum 242.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-end.txt total 52.0 finished {'length': 52.0} sum 52.0 running 0.0 waiting 0.0 rejected 0.0 OK
+metrics-end.txt total 22.0 finished {'length': 22.0} sum 22.0 running 0.0 waiting 0.0 rejected 24.0 OK

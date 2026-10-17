@@ -1,0 +1,221 @@
+{
+ "all": {
+  "decode_phases": 22782,
+  "orphan_spec_lines": 0,
+  "by_b": {
+   "1": {
+    "phases": 1459,
+    "allowed_phases": 1459,
+    "verify_passes": 286,
+    "drafted": 1144,
+    "accepted": 814
+   },
+   "2": {
+    "phases": 11507,
+    "allowed_phases": 11507,
+    "verify_passes": 2222,
+    "drafted": 8878,
+    "accepted": 7126
+   },
+   "3": {
+    "phases": 6912,
+    "allowed_phases": 6912,
+    "verify_passes": 1869,
+    "drafted": 7466,
+    "accepted": 5951
+   },
+   "4": {
+    "phases": 18,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "5": {
+    "phases": 34,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "6": {
+    "phases": 122,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "7": {
+    "phases": 544,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "8": {
+    "phases": 2186,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   }
+  },
+  "phases_spec_off": 2904,
+  "spec_off_phases_with_verify_pass": 0,
+  "phases_where_gate_value_is_not_(b<4)": 0,
+  "runs": 3,
+  "on_to_off_transitions": 1,
+  "off_to_on_transitions": 1,
+  "off_to_on_followed_by_drafting": 1,
+  "drafted_total": 17488,
+  "accepted_total": 13891,
+  "verify_passes_total": 4377,
+  "drafted_while_allowed": 17488,
+  "drafted_while_off": 0
+ },
+ "b2": {
+  "decode_phases": 11838,
+  "orphan_spec_lines": 0,
+  "by_b": {
+   "1": {
+    "phases": 1183,
+    "allowed_phases": 1183,
+    "verify_passes": 246,
+    "drafted": 984,
+    "accepted": 664
+   },
+   "2": {
+    "phases": 10655,
+    "allowed_phases": 10655,
+    "verify_passes": 2056,
+    "drafted": 8214,
+    "accepted": 6602
+   }
+  },
+  "phases_spec_off": 0,
+  "spec_off_phases_with_verify_pass": 0,
+  "phases_where_gate_value_is_not_(b<4)": 0,
+  "runs": 1,
+  "on_to_off_transitions": 0,
+  "off_to_on_transitions": 0,
+  "off_to_on_followed_by_drafting": 0,
+  "drafted_total": 9198,
+  "accepted_total": 7266,
+  "verify_passes_total": 2302,
+  "drafted_while_allowed": 9198,
+  "drafted_while_off": 0
+ },
+ "b3": {
+  "decode_phases": 7880,
+  "orphan_spec_lines": 0,
+  "by_b": {
+   "1": {
+    "phases": 151,
+    "allowed_phases": 151,
+    "verify_passes": 22,
+    "drafted": 88,
+    "accepted": 78
+   },
+   "2": {
+    "phases": 845,
+    "allowed_phases": 845,
+    "verify_passes": 165,
+    "drafted": 660,
+    "accepted": 520
+   },
+   "3": {
+    "phases": 6884,
+    "allowed_phases": 6884,
+    "verify_passes": 1861,
+    "drafted": 7434,
+    "accepted": 5923
+   }
+  },
+  "phases_spec_off": 0,
+  "spec_off_phases_with_verify_pass": 0,
+  "phases_where_gate_value_is_not_(b<4)": 0,
+  "runs": 1,
+  "on_to_off_transitions": 0,
+  "off_to_on_transitions": 0,
+  "off_to_on_followed_by_drafting": 0,
+  "drafted_total": 8182,
+  "accepted_total": 6521,
+  "verify_passes_total": 2048,
+  "drafted_while_allowed": 8182,
+  "drafted_while_off": 0
+ },
+ "b8": {
+  "decode_phases": 3064,
+  "orphan_spec_lines": 0,
+  "by_b": {
+   "1": {
+    "phases": 125,
+    "allowed_phases": 125,
+    "verify_passes": 18,
+    "drafted": 72,
+    "accepted": 72
+   },
+   "2": {
+    "phases": 7,
+    "allowed_phases": 7,
+    "verify_passes": 1,
+    "drafted": 4,
+    "accepted": 4
+   },
+   "3": {
+    "phases": 28,
+    "allowed_phases": 28,
+    "verify_passes": 8,
+    "drafted": 32,
+    "accepted": 28
+   },
+   "4": {
+    "phases": 18,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "5": {
+    "phases": 34,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "6": {
+    "phases": 122,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "7": {
+    "phases": 544,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   },
+   "8": {
+    "phases": 2186,
+    "allowed_phases": 0,
+    "verify_passes": 0,
+    "drafted": 0,
+    "accepted": 0
+   }
+  },
+  "phases_spec_off": 2904,
+  "spec_off_phases_with_verify_pass": 0,
+  "phases_where_gate_value_is_not_(b<4)": 0,
+  "runs": 3,
+  "on_to_off_transitions": 1,
+  "off_to_on_transitions": 1,
+  "off_to_on_followed_by_drafting": 1,
+  "drafted_total": 108,
+  "accepted_total": 104,
+  "verify_passes_total": 27,
+  "drafted_while_allowed": 108,
+  "drafted_while_off": 0
+ }
+}
