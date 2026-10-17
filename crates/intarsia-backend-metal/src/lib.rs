@@ -702,6 +702,16 @@ impl Backend for MetalBackend {
             p.resolve();
         }
         drop(st);
+        // Test-only fault injection: after the real waits, so the GPU is idle and the stream list is drained exactly as
+        // after a command buffer that finished with status Error (the injected error takes the real error's place).
+        #[cfg(feature = "fault-inject")]
+        match intarsia_core::fault::take() {
+            Some(intarsia_core::fault::Mode::Err) => {
+                first.get_or_insert_with(|| "metal: command buffer failed: injected fault (fault-inject)".to_string());
+            }
+            Some(intarsia_core::fault::Mode::Panic) => panic!("injected fault (fault-inject) in Metal synchronize"),
+            None => {}
+        }
         match first {
             Some(e) => Err(Error::backend(e)),
             None => Ok(()),

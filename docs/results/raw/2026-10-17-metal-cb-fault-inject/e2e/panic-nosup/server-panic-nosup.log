@@ -1,0 +1,15 @@
+prefill chunk 2048 (recipe qwen3, metal)
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 4.00 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x7372800000, 3.19 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x72c8380000, 1.24 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x70ee320000, 3.99 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x71dc350000, 3.96 GB
+admission on plan shapes: 17 kernel(s) checked, 0 case(s) run, 243 cached
+continuous batching: up to 8 sequences (--max-batch)
+loaded Qwen3-8B on metal (Apple M5 Max) in 65.7s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:8117
+fault-inject: arming Panic at iter 20 (decode rows 7, prefilling 1, furthest prefill 512 tokens, waiting 3)
+
+thread 'intarsia-batch' (109748189) panicked at crates/intarsia-backend-metal/src/lib.rs:712:56:
+injected fault (fault-inject) in Metal synchronize
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
