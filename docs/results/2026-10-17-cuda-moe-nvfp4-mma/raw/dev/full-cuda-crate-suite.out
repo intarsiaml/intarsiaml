@@ -1,0 +1,26 @@
+     Running unittests src/lib.rs (target/acc/release/deps/intarsia_backend_cuda-eb13275dd2d9552a)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/admission.rs (target/acc/release/deps/admission-47fa24c8024b63b2)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.54s
+     Running tests/attention.rs (target/acc/release/deps/attention-1f3f7fe05bbcd025)
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.83s
+     Running tests/fused_decode.rs (target/acc/release/deps/fused_decode-e845ae99c338ffe2)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.60s
+     Running tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
+     Running tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+     Running tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+test a_failed_capture_leaves_the_stream_usable ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+     Running tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.04s
+     Running tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+test result: ok. 10 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 4.66s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[exited with code 0]

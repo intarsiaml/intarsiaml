@@ -1,0 +1,2 @@
+2026-10-17 job=2425 stop=16:12:01 up=16:23:48 down=11.7 min label="nvfp4-mma W-A accuracy and gates" serving=1
+2026-10-17 job=2427 stop=16:24:10 up=16:34:20 down=10.1 min label="nvfp4-mma W-B speed A/B" serving=1

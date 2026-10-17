@@ -1,0 +1,9 @@
+Based on the provided text, here is the continuation and completion of the **IntarsiaML architecture plan (v0.2)**. The text cuts off mid-sentence in Section 1. I will complete that section and proceed with the logical subsequent sections (2. Kernel ABI, 3. Model Composition, 4. Phasing, 5. Review Process) consistent with the tone, constraints, and goals outlined in the prompt.
+
+---
+
+...ative speed, safety, and ecosystem maturity. Rust ensures zero-cost abstractions for the serving path, preventing the Python overhead that plagues vLLM and llama.cpp’s Python bindings. The host code handles scheduling, KV cache management, and API translation (OpenAI/Anthropic compatible).
+
+| Layer | Choice | Why |
+|---|---|---|
+| Host: server, scheduler, KV manager, loaders, metrics, UI server, CLI | **Rust** (stable, edition 2021) | Native speed, safety, and ecosystem maturity. Rust ensures zero-cost abstractions for the serving path, preventing the Python overhead that plagues vLLM and llama.cpp’s Python bindings. The host code handles scheduling, KV cache management, and API translation (OpenAI/

@@ -70,9 +70,9 @@ const DECODE_MAX_TOKENS: usize = 1;
 /// the quantised arithmetic is tested separately (tests/moe_nvfp4.rs).
 pub const NVFP4_ACT_TOL: Tol = Tol::new(0.30, 0.20);
 
-/// Fewest tokens for the FP4 experts kernel: its extra launches (two activation quantisations) cost more than the faster
-/// GEMMs save below this, at the real layer shape (256 experts, top-8; microbench in the results page: 7 % slower at 256
-/// tokens, equal at 1024, 30 % faster at 2048). 128 keeps the admission shapes T = 130 and 256 in the sweep.
+/// Fewest tokens for the FP4 experts kernel. A chosen value, not a measured crossover: the two activation-quantisation
+/// launches are a fixed cost that small batches would not amortise, and 128 keeps the admission shapes T = 130 and 256 in
+/// the sweep. The break-even was not measured below 2048 tokens (docs/results/2026-10-17-cuda-moe-nvfp4-mma.md, section 6).
 pub const NVFP4_MIN_TOKENS: usize = 128;
 
 /// Scratch bytes of `moe_experts_nvfp4_mma_bf16`: the grouped kernel's, plus the quantised activations
