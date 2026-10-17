@@ -1,0 +1,18 @@
+
+running 1 test
+test rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise ... FAILED
+
+failures:
+
+---- rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise stdout ----
+
+thread 'rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise' panicked at crates/intarsia-backend-cuda/tests/fused_decode.rs:60:9:
+norm+pair heavy trial 281 spread 4: normed differs from the unfused launches in 1 of 2048 elements (first at 913: 0.022827148 vs 0.022705078)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.62s
+
