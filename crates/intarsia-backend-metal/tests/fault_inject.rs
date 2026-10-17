@@ -9,9 +9,20 @@ use intarsia_core::backend::{Backend, MemKind};
 use intarsia_core::fault::{self, Mode};
 use intarsia_core::Error;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::{Mutex, MutexGuard};
+
+/// The armed fault is process-wide and any `synchronize` (an `upload` has one) consumes it: the tests run behind one lock.
+static LOCK: Mutex<()> = Mutex::new(());
+
+fn serial() -> MutexGuard<'static, ()> {
+    let g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _ = fault::take();
+    g
+}
 
 #[test]
 fn armed_fault_fails_the_next_synchronize_once() {
+    let _g = serial();
     let be = backend();
     let b = be.alloc(256, MemKind::Device).unwrap();
     be.upload(&b, 0, &[7u8; 256], 0).unwrap();
@@ -36,6 +47,7 @@ fn armed_fault_fails_the_next_synchronize_once() {
 
 #[test]
 fn armed_panic_unwinds_out_of_synchronize_and_leaves_the_backend_usable() {
+    let _g = serial();
     let be = backend();
     let b = be.alloc(64, MemKind::Device).unwrap();
     be.upload(&b, 0, &[1u8; 64], 0).unwrap();
