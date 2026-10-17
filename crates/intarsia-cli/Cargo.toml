@@ -26,6 +26,9 @@ hip = ["dep:intarsia-backend-hip"]
 # Metal backend for Apple GPUs (macOS only: the dependency is target-gated, so the feature is a no-op elsewhere; needs the
 # Xcode Metal toolchain at build time). Combinable with cpu; independent of the cuda / hip symbol exclusion.
 metal = ["dep:intarsia-backend-metal"]
+# Test-only fault injection into the continuous-batching engine (INTARSIA_FAULT_INJECT, intarsia-core/src/fault.rs); with `metal`
+# also the Metal synchronize hook. Off by default: a normal build carries no hook.
+fault-inject = ["intarsia-core/fault-inject", "intarsia-backend-metal?/fault-inject"]
 
 # Agents: add the dependencies your command module needs at the end of this
 # section (append only; keep the lines above untouched).

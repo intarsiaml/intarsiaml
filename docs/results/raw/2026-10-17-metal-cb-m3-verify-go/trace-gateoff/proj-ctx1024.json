@@ -1,0 +1,584 @@
+{
+ "open-n2": {
+  "1": {
+   "iters": 255,
+   "iters_with_verify": 43,
+   "passes_today": 294,
+   "pass_hist": {
+    "1": 251,
+    "2": 2
+   },
+   "today_ms": 8339.722400000024,
+   "batched_ms": {
+    "g0b": 7361.763586000038,
+    "meas": 7333.961750000027,
+    "none": 7407.582550000035
+   },
+   "kcap_ms": 7308.932962000039,
+   "kcap_tokens": 507,
+   "kcap_orig_tokens": 509,
+   "comp": {
+    "[]+2": 204,
+    "[5]+1": 38,
+    "[]+1": 6,
+    "[5]+0": 2,
+    "[5, 5]+0": 2,
+    "[4]+1": 1
+   },
+   "wall_s": 8.426460981369019,
+   "tokens": 512,
+   "agg": 60.76097677685052,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 45.0,
+    "intarsia_spec_proposed_tokens_total": 179.0,
+    "intarsia_spec_accepted_tokens_total": 11.0,
+    "intarsia_batch_decode_steps_total": 250.0
+   },
+   "measured_off_agg": 68.63850526411004,
+   "proj_wall_g0b": 7.448502167369033,
+   "proj_agg_g0b": 68.73865221426782,
+   "proj_wall_meas": 7.420700331369021,
+   "proj_agg_meas": 68.99618326260357,
+   "proj_wall_none": 7.494321131369029,
+   "proj_agg_none": 68.31839615958252,
+   "proj_wall_kcap": 7.4245036260593675,
+   "proj_agg_kcap": 68.96083910618943
+  },
+  "2": {
+   "iters": 256,
+   "iters_with_verify": 33,
+   "passes_today": 288,
+   "pass_hist": {
+    "1": 254,
+    "2": 2
+   },
+   "today_ms": 8159.084300000039,
+   "batched_ms": {
+    "g0b": 7407.662180000043,
+    "meas": 7385.976800000035,
+    "none": 7443.2093000000405
+   },
+   "kcap_ms": 7354.831556000045,
+   "kcap_tokens": 510,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[]+2": 213,
+    "[5]+1": 30,
+    "[]+1": 10,
+    "[5, 5]+0": 2,
+    "[5]+0": 1
+   },
+   "wall_s": 8.137117147445679,
+   "tokens": 512,
+   "agg": 62.921547118284,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 35.0,
+    "intarsia_spec_proposed_tokens_total": 140.0,
+    "intarsia_spec_accepted_tokens_total": 9.0,
+    "intarsia_batch_decode_steps_total": 253.0
+   },
+   "measured_off_agg": 70.26361696362146,
+   "proj_wall_g0b": 7.385695027445683,
+   "proj_agg_g0b": 69.32319816853762,
+   "proj_wall_meas": 7.364009647445675,
+   "proj_agg_meas": 69.52733965762734,
+   "proj_wall_none": 7.421242147445681,
+   "proj_agg_none": 68.99114593319467,
+   "proj_wall_kcap": 7.332864403445685,
+   "proj_agg_kcap": 69.8226466262506
+  },
+  "3": {
+   "iters": 256,
+   "iters_with_verify": 36,
+   "passes_today": 291,
+   "pass_hist": {
+    "1": 255,
+    "2": 1
+   },
+   "today_ms": 8244.815200000035,
+   "batched_ms": {
+    "g0b": 7393.203464000044,
+    "meas": 7368.626700000033,
+    "none": 7433.49020000004
+   },
+   "kcap_ms": 7366.788152000045,
+   "kcap_tokens": 510,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[]+2": 210,
+    "[5]+1": 34,
+    "[]+1": 10,
+    "[5]+0": 1,
+    "[5, 5]+0": 1
+   },
+   "wall_s": 8.273767948150635,
+   "tokens": 512,
+   "agg": 61.88232534542415,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 37.0,
+    "intarsia_spec_proposed_tokens_total": 148.0,
+    "intarsia_spec_accepted_tokens_total": 9.0,
+    "intarsia_batch_decode_steps_total": 254.0
+   },
+   "measured_off_agg": 70.29683882119863,
+   "proj_wall_g0b": 7.422156212150643,
+   "proj_agg_g0b": 68.98264943033891,
+   "proj_wall_meas": 7.3975794481506325,
+   "proj_agg_meas": 69.21182848911452,
+   "proj_wall_none": 7.462442948150639,
+   "proj_agg_none": 68.61023977769707,
+   "proj_wall_kcap": 7.395740900150644,
+   "proj_agg_kcap": 69.22903423909443
+  }
+ },
+ "open-n3": {
+  "1": {
+   "iters": 257,
+   "iters_with_verify": 57,
+   "passes_today": 317,
+   "pass_hist": {
+    "1": 206,
+    "2": 51
+   },
+   "today_ms": 9167.863100000006,
+   "batched_ms": {
+    "g0b": 8942.436463999997,
+    "meas": 8935.930849999997,
+    "none": 8953.100599999998
+   },
+   "kcap_ms": 7643.771031999986,
+   "kcap_tokens": 765,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[]+3": 189,
+    "[5]+2": 46,
+    "[]+2": 9,
+    "[5, 5]+1": 5,
+    "[5]+1": 4,
+    "[]+1": 2,
+    "[5]+0": 2
+   },
+   "wall_s": 9.218242883682251,
+   "tokens": 768,
+   "agg": 83.31305756322406,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 62.0,
+    "intarsia_spec_proposed_tokens_total": 248.0,
+    "intarsia_spec_accepted_tokens_total": 15.0,
+    "intarsia_batch_decode_steps_total": 255.0
+   },
+   "measured_off_agg": 99.21379180305041,
+   "proj_wall_g0b": 8.992816247682242,
+   "proj_agg_g0b": 85.40150035846001,
+   "proj_wall_meas": 8.986310633682242,
+   "proj_agg_meas": 85.46332653151379,
+   "proj_wall_none": 9.003480383682243,
+   "proj_agg_none": 85.3003468960637,
+   "proj_wall_kcap": 7.694150815682232,
+   "proj_agg_kcap": 99.81608346364372
+  },
+  "2": {
+   "iters": 257,
+   "iters_with_verify": 57,
+   "passes_today": 315,
+   "pass_hist": {
+    "1": 205,
+    "2": 52
+   },
+   "today_ms": 9110.229500000003,
+   "batched_ms": {
+    "g0b": 8959.945076000002,
+    "meas": 8955.608000000004,
+    "none": 8967.0545
+   },
+   "kcap_ms": 7643.8816199999865,
+   "kcap_tokens": 765,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[]+3": 190,
+    "[5]+2": 49,
+    "[]+2": 7,
+    "[]+1": 3,
+    "[5]+1": 3,
+    "[5, 5]+1": 3,
+    "[5]+0": 2
+   },
+   "wall_s": 9.084465742111206,
+   "tokens": 768,
+   "agg": 84.53991922055714,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 60.0,
+    "intarsia_spec_proposed_tokens_total": 240.0,
+    "intarsia_spec_accepted_tokens_total": 14.0,
+    "intarsia_batch_decode_steps_total": 255.0
+   },
+   "measured_off_agg": 99.32379665509748,
+   "proj_wall_g0b": 8.934181318111206,
+   "proj_agg_g0b": 85.9619894262863,
+   "proj_wall_meas": 8.929844242111207,
+   "proj_agg_meas": 86.00373972686766,
+   "proj_wall_none": 8.941290742111203,
+   "proj_agg_none": 85.89363908981457,
+   "proj_wall_kcap": 7.61811786211119,
+   "proj_agg_kcap": 100.81230218551201
+  },
+  "3": {
+   "iters": 257,
+   "iters_with_verify": 52,
+   "passes_today": 310,
+   "pass_hist": {
+    "1": 211,
+    "2": 46
+   },
+   "today_ms": 8963.492100000003,
+   "batched_ms": {
+    "g0b": 8788.160272,
+    "meas": 8783.100349999999,
+    "none": 8796.4546
+   },
+   "kcap_ms": 7622.6194879999875,
+   "kcap_tokens": 765,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[]+3": 193,
+    "[5]+2": 43,
+    "[]+2": 8,
+    "[]+1": 4,
+    "[5]+1": 4,
+    "[5, 5]+1": 3,
+    "[5]+0": 2
+   },
+   "wall_s": 9.12429690361023,
+   "tokens": 768,
+   "agg": 84.17086906675777,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 55.0,
+    "intarsia_spec_proposed_tokens_total": 220.0,
+    "intarsia_spec_accepted_tokens_total": 18.0,
+    "intarsia_batch_decode_steps_total": 255.0
+   },
+   "measured_off_agg": 101.61994296747257,
+   "proj_wall_g0b": 8.948965075610225,
+   "proj_agg_g0b": 85.81997957430072,
+   "proj_wall_meas": 8.943905153610226,
+   "proj_agg_meas": 85.86853134170315,
+   "proj_wall_none": 8.957259403610225,
+   "proj_agg_none": 85.74051117582432,
+   "proj_wall_kcap": 7.783424291610213,
+   "proj_agg_kcap": 98.67122377329866
+  }
+ },
+ "grounded-n2": {
+  "1": {
+   "iters": 257,
+   "iters_with_verify": 122,
+   "passes_today": 132,
+   "pass_hist": {
+    "1": 118,
+    "2": 6
+   },
+   "today_ms": 3902.4356000000043,
+   "batched_ms": {
+    "g0b": 3852.340792000004,
+    "meas": 3850.8951000000043,
+    "none": 3854.710600000004
+   },
+   "kcap_ms": 3693.8489200000035,
+   "kcap_tokens": 503,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[5]+0": 114,
+    "[5, 5]+0": 6,
+    "[]+1": 2,
+    "[5]+1": 2
+   },
+   "wall_s": 4.046648979187012,
+   "tokens": 512,
+   "agg": 126.5244409963285,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 128.0,
+    "intarsia_spec_proposed_tokens_total": 512.0,
+    "intarsia_spec_accepted_tokens_total": 378.0,
+    "intarsia_batch_decode_steps_total": 4.0
+   },
+   "measured_off_agg": 67.12446624312238,
+   "proj_wall_g0b": 3.9965541711870114,
+   "proj_agg_g0b": 128.11036159380558,
+   "proj_wall_meas": 3.9951084791870115,
+   "proj_agg_meas": 128.15672031618774,
+   "proj_wall_none": 3.9989239791870115,
+   "proj_agg_none": 128.0344419310743,
+   "proj_wall_kcap": 3.889467751354009,
+   "proj_agg_kcap": 131.63754856220663,
+   "hypo": {
+    "tokens_per_capped_pass": 2.3211009174311927,
+    "pass_ms": 32.823488000000005,
+    "rate_hyp": 0.14142926659294663,
+    "rate_today": 0.13068761467838175,
+    "ratio": 1.082193342812169
+   },
+   "proj_agg_hypo": 136.5240038125593
+  },
+  "2": {
+   "iters": 257,
+   "iters_with_verify": 122,
+   "passes_today": 132,
+   "pass_hist": {
+    "1": 118,
+    "2": 6
+   },
+   "today_ms": 3902.4356000000043,
+   "batched_ms": {
+    "g0b": 3852.340792000004,
+    "meas": 3850.8951000000043,
+    "none": 3854.710600000004
+   },
+   "kcap_ms": 3693.8489200000035,
+   "kcap_tokens": 503,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[5]+0": 114,
+    "[5, 5]+0": 6,
+    "[]+1": 2,
+    "[5]+1": 2
+   },
+   "wall_s": 4.050801992416382,
+   "tokens": 512,
+   "agg": 126.394724046875,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 128.0,
+    "intarsia_spec_proposed_tokens_total": 512.0,
+    "intarsia_spec_accepted_tokens_total": 378.0,
+    "intarsia_batch_decode_steps_total": 4.0
+   },
+   "measured_off_agg": 66.71884440031077,
+   "proj_wall_g0b": 4.000707184416382,
+   "proj_agg_g0b": 127.97737409884695,
+   "proj_wall_meas": 3.9992614924163816,
+   "proj_agg_meas": 128.0236366066291,
+   "proj_wall_none": 4.003076992416381,
+   "proj_agg_none": 127.90161192751403,
+   "proj_wall_kcap": 3.893620764583379,
+   "proj_agg_kcap": 131.49714133877248,
+   "hypo": {
+    "tokens_per_capped_pass": 2.3211009174311927,
+    "pass_ms": 32.823488000000005,
+    "rate_hyp": 0.14142926659294663,
+    "rate_today": 0.13068761467838175,
+    "ratio": 1.082193342812169
+   },
+   "proj_agg_hypo": 136.37298511624007
+  },
+  "3": {
+   "iters": 257,
+   "iters_with_verify": 122,
+   "passes_today": 132,
+   "pass_hist": {
+    "1": 118,
+    "2": 6
+   },
+   "today_ms": 3902.4356000000043,
+   "batched_ms": {
+    "g0b": 3852.340792000004,
+    "meas": 3850.8951000000043,
+    "none": 3854.710600000004
+   },
+   "kcap_ms": 3693.8489200000035,
+   "kcap_tokens": 503,
+   "kcap_orig_tokens": 510,
+   "comp": {
+    "[5]+0": 114,
+    "[5, 5]+0": 6,
+    "[]+1": 2,
+    "[5]+1": 2
+   },
+   "wall_s": 4.284459114074707,
+   "tokens": 512,
+   "agg": 119.50166552367114,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 128.0,
+    "intarsia_spec_proposed_tokens_total": 512.0,
+    "intarsia_spec_accepted_tokens_total": 378.0,
+    "intarsia_batch_decode_steps_total": 4.0
+   },
+   "measured_off_agg": 68.46317470892727,
+   "proj_wall_g0b": 4.234364306074707,
+   "proj_agg_g0b": 120.91543452354209,
+   "proj_wall_meas": 4.232918614074707,
+   "proj_agg_meas": 120.95673143763487,
+   "proj_wall_none": 4.236734114074706,
+   "proj_agg_none": 120.84780073856953,
+   "proj_wall_kcap": 4.127277886241704,
+   "proj_agg_kcap": 124.05270837390277,
+   "hypo": {
+    "tokens_per_capped_pass": 2.3211009174311927,
+    "pass_ms": 32.823488000000005,
+    "rate_hyp": 0.14142926659294663,
+    "rate_today": 0.13068761467838175,
+    "ratio": 1.082193342812169
+   },
+   "proj_agg_hypo": 128.38301804561874
+  }
+ },
+ "grounded-n3": {
+  "1": {
+   "iters": 259,
+   "iters_with_verify": 175,
+   "passes_today": 198,
+   "pass_hist": {
+    "1": 162,
+    "2": 15,
+    "3": 1
+   },
+   "today_ms": 5853.653399999984,
+   "batched_ms": {
+    "g0b": 5778.511187999985,
+    "meas": 5776.342649999985,
+    "none": 5782.065899999985
+   },
+   "kcap_ms": 5324.0427519999885,
+   "kcap_tokens": 744,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[5]+0": 157,
+    "[5, 5]+0": 14,
+    "[]+1": 3,
+    "[5]+1": 2,
+    "[5, 5]+1": 1,
+    "[5, 5, 5]+0": 1
+   },
+   "wall_s": 6.112246990203857,
+   "tokens": 768,
+   "agg": 125.64937268256325,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 192.0,
+    "intarsia_spec_proposed_tokens_total": 768.0,
+    "intarsia_spec_accepted_tokens_total": 567.0,
+    "intarsia_batch_decode_steps_total": 6.0
+   },
+   "measured_off_agg": 94.86459952492095,
+   "proj_wall_g0b": 6.037104778203859,
+   "proj_agg_g0b": 127.21329647495253,
+   "proj_wall_meas": 6.034936240203859,
+   "proj_agg_meas": 127.25900812069841,
+   "proj_wall_none": 6.040659490203859,
+   "proj_agg_none": 127.13843600114625,
+   "proj_wall_kcap": 5.732911742461926,
+   "proj_agg_kcap": 133.9633391373634,
+   "hypo": {
+    "tokens_per_capped_pass": 1.632258064516129,
+    "pass_ms": 33.135788000000005,
+    "rate_hyp": 0.14777901746439184,
+    "rate_today": 0.13068761467838225,
+    "ratio": 1.1307805856589468
+   },
+   "proj_agg_hypo": 141.30005896101778
+  },
+  "2": {
+   "iters": 259,
+   "iters_with_verify": 175,
+   "passes_today": 198,
+   "pass_hist": {
+    "1": 162,
+    "2": 15,
+    "3": 1
+   },
+   "today_ms": 5853.653399999984,
+   "batched_ms": {
+    "g0b": 5778.511187999985,
+    "meas": 5776.342649999985,
+    "none": 5782.065899999985
+   },
+   "kcap_ms": 5324.0427519999885,
+   "kcap_tokens": 744,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[5]+0": 157,
+    "[5, 5]+0": 14,
+    "[]+1": 3,
+    "[5]+1": 2,
+    "[5, 5]+1": 1,
+    "[5, 5, 5]+0": 1
+   },
+   "wall_s": 6.179064035415649,
+   "tokens": 768,
+   "agg": 124.29066855403428,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 192.0,
+    "intarsia_spec_proposed_tokens_total": 768.0,
+    "intarsia_spec_accepted_tokens_total": 567.0,
+    "intarsia_batch_decode_steps_total": 6.0
+   },
+   "measured_off_agg": 95.02949047520683,
+   "proj_wall_g0b": 6.103921823415651,
+   "proj_agg_g0b": 125.82074643450139,
+   "proj_wall_meas": 6.101753285415651,
+   "proj_agg_meas": 125.86546260984787,
+   "proj_wall_none": 6.107476535415651,
+   "proj_agg_none": 125.7475154503779,
+   "proj_wall_kcap": 5.799728787673718,
+   "proj_agg_kcap": 132.41998516072786,
+   "hypo": {
+    "tokens_per_capped_pass": 1.632258064516129,
+    "pass_ms": 33.135788000000005,
+    "rate_hyp": 0.14777901746439184,
+    "rate_today": 0.13068761467838225,
+    "ratio": 1.1307805856589468
+   },
+   "proj_agg_hypo": 139.5841099802045
+  },
+  "3": {
+   "iters": 259,
+   "iters_with_verify": 175,
+   "passes_today": 198,
+   "pass_hist": {
+    "1": 162,
+    "2": 15,
+    "3": 1
+   },
+   "today_ms": 5853.653399999984,
+   "batched_ms": {
+    "g0b": 5778.511187999985,
+    "meas": 5776.342649999985,
+    "none": 5782.065899999985
+   },
+   "kcap_ms": 5324.0427519999885,
+   "kcap_tokens": 744,
+   "kcap_orig_tokens": 765,
+   "comp": {
+    "[5]+0": 157,
+    "[5, 5]+0": 14,
+    "[]+1": 3,
+    "[5]+1": 2,
+    "[5, 5]+1": 1,
+    "[5, 5, 5]+0": 1
+   },
+   "wall_s": 6.3442277908325195,
+   "tokens": 768,
+   "agg": 121.05492194176392,
+   "spec_counters": {
+    "intarsia_spec_steps_total": 192.0,
+    "intarsia_spec_proposed_tokens_total": 768.0,
+    "intarsia_spec_accepted_tokens_total": 567.0,
+    "intarsia_batch_decode_steps_total": 6.0
+   },
+   "measured_off_agg": 97.75169753924216,
+   "proj_wall_g0b": 6.269085578832521,
+   "proj_agg_g0b": 122.50590462397597,
+   "proj_wall_meas": 6.266917040832521,
+   "proj_agg_meas": 122.54829527757336,
+   "proj_wall_none": 6.272640290832521,
+   "proj_agg_none": 122.4364803960517,
+   "proj_wall_kcap": 5.964892543090588,
+   "proj_agg_kcap": 128.75336721524178,
+   "hypo": {
+    "tokens_per_capped_pass": 1.632258064516129,
+    "pass_ms": 33.135788000000005,
+    "rate_hyp": 0.14777901746439184,
+    "rate_today": 0.13068761467838225,
+    "ratio": 1.1307805856589468
+   },
+   "proj_agg_hypo": 135.5161145888672
+  }
+ }
+}

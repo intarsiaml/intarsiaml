@@ -1,0 +1,17 @@
+fleetq: #2287 running on endor: zsh -c 'cd /opt/code/intarsiaml-faultinj && for i in 1 2 3 4 5; do cargo test -p intarsia-backend-metal --release --features fault-inject --test fault_inject 2>&1 | grep -E "^test |test result"; done'
+test armed_fault_fails_the_next_synchronize_once ... ok
+test armed_panic_unwinds_out_of_synchronize_and_leaves_the_backend_usable ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test armed_fault_fails_the_next_synchronize_once ... ok
+test armed_panic_unwinds_out_of_synchronize_and_leaves_the_backend_usable ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test armed_fault_fails_the_next_synchronize_once ... ok
+test armed_panic_unwinds_out_of_synchronize_and_leaves_the_backend_usable ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test armed_fault_fails_the_next_synchronize_once ... ok
+test armed_panic_unwinds_out_of_synchronize_and_leaves_the_backend_usable ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test armed_fault_fails_the_next_synchronize_once ... ok
+test armed_panic_unwinds_out_of_synchronize_and_leaves_the_backend_usable ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+fleetq: #2287 done (exit 0)

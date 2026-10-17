@@ -8,6 +8,10 @@ license.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+# Test-only fault injection into the continuous-batching engine (src/fault.rs); off by default, not compiled otherwise.
+fault-inject = []
+
 [dependencies]
 thiserror = { workspace = true }
 serde = { workspace = true }

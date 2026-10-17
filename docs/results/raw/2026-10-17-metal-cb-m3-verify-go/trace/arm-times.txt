@@ -1,0 +1,6 @@
+1792248586 round 1 arm off pos 1
+1792248786 round 1 arm on pos 2
+1792248947 round 2 arm on pos 1
+1792249109 round 2 arm off pos 2
+1792249301 round 3 arm off pos 1
+1792249493 round 3 arm on pos 2

@@ -1,0 +1,10 @@
+docs/results/raw/2026-10-17-metal-cb-m3-verify-go/trace: whole slot, GPU busy samples (usage > 50%): median 1447 MHz, p10 1290, p90 1617, n 3783
+arm round scenario: median busy GPU MHz (n samples)
+  off grounded-n2  r1:1542  r2:1616  r3:1420
+  off grounded-n3  r1:1464  r2:1558  r3:1403
+  off open-n2      r1:1554  r2:1617  r3:1395
+  off open-n3      r1:1435  r2:1578  r3:1405
+  on  grounded-n2  r1:1599  r2:1350  r3:1466
+  on  grounded-n3  r1:1583  r2:1292  r3:1472
+  on  open-n2      r1:1614  r2:1575  r3:1614
+  on  open-n3      r1:1617  r2:1492  r3:1612

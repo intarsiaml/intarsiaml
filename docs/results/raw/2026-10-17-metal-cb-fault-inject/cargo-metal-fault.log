@@ -1,0 +1,11 @@
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml-faultinj/crates/intarsia-core)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml-faultinj/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 2.45s
+     Running tests/fault_inject.rs (target/release/deps/fault_inject-7aac066a22cd4b1e)
+
+running 2 tests
+test armed_fault_fails_the_next_synchronize_once ... ok
+test armed_panic_unwinds_out_of_synchronize_and_leaves_the_backend_usable ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+

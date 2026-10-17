@@ -422,6 +422,9 @@ pub struct Scheduler<M: BatchModel, S: BatchSeq<M>> {
     trace: VecDeque<TraceEvent>,
     /// `cfg.trace || cfg.trace_stderr`, fixed at construction: when false no event is built, stored or printed.
     tracing: bool,
+    /// Planned fault (`INTARSIA_FAULT_INJECT`, feature `fault-inject` only).
+    #[cfg(feature = "fault-inject")]
+    fault: Option<crate::fault::Plan>,
 }
 
 impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
@@ -436,6 +439,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         }
         let n = cfg.max_batch;
         let tracing = cfg.trace || cfg.trace_stderr;
+        #[cfg(feature = "fault-inject")]
+        let fault = crate::fault::Plan::from_env().map_err(Error::BadRequest)?;
         Ok(Scheduler {
             cfg,
             model,
@@ -451,7 +456,15 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             queued: Arc::new(AtomicUsize::new(0)),
             trace: VecDeque::new(),
             tracing,
+            #[cfg(feature = "fault-inject")]
+            fault,
         })
+    }
+
+    /// Replace the planned fault (tests; the environment plan is read in [`Scheduler::new`]).
+    #[cfg(feature = "fault-inject")]
+    pub fn set_fault_plan(&mut self, plan: Option<crate::fault::Plan>) {
+        self.fault = plan;
     }
 
     pub fn config(&self) -> &SchedulerConfig {
@@ -755,6 +768,24 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             if !rows.is_empty() {
                 if self.tracing {
                     self.ev(TraceEvent::Decode { iter: self.iter, ids: row_of.clone(), spec_allowed });
+                }
+                #[cfg(feature = "fault-inject")]
+                if let Some(plan) = self.fault.as_mut() {
+                    let (prefilling, prefilled) = self.active.iter().fold((0, 0), |(n, far), a| match a.phase {
+                        Phase::Prefilling { pos, .. } => (n + 1, far.max(pos)),
+                        Phase::Decoding => (n, far),
+                    });
+                    if let Some(mode) = plan.observe(rows.len(), prefilling, self.waiting.len(), prefilled) {
+                        eprintln!(
+                            "fault-inject: arming {mode:?} at iter {} (decode rows {}, prefilling {}, furthest prefill {} tokens, waiting {})",
+                            self.iter,
+                            rows.len(),
+                            prefilling,
+                            prefilled,
+                            self.waiting.len()
+                        );
+                        crate::fault::arm(mode);
+                    }
                 }
                 let outs = match self.model.decode_step(&rows) {
                     Ok(o) if o.len() == rows.len() => o,
