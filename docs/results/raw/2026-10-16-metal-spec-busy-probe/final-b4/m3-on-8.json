@@ -1,0 +1,79 @@
+{
+ "arm": "on",
+ "round": 8,
+ "url": "http://127.0.0.1:8141",
+ "model": "Qwen3-8B",
+ "t_start": 1792204909.43018,
+ "scenarios": {
+  "grounded-n4": {
+   "reqs": [
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792204917.906871,
+     "t_first": 1792204918.014113,
+     "t_last": 1792204926.0914838,
+     "t_end": 1792204926.0915048,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 388,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 31.56967826835478
+    },
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792204917.906961,
+     "t_first": 1792204918.365837,
+     "t_last": 1792204926.327769,
+     "t_end": 1792204926.327782,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 387,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 32.02740261998566
+    },
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792204917.9070652,
+     "t_first": 1792204918.540552,
+     "t_last": 1792204926.387282,
+     "t_end": 1792204926.387306,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 386,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 32.49761368121868
+    },
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792204917.907139,
+     "t_first": 1792204918.189824,
+     "t_last": 1792204926.240316,
+     "t_end": 1792204926.240337,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 386,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 31.67508346361644
+    }
+   ],
+   "tokens": 1024,
+   "wall_s": 8.480484008789062,
+   "agg_tok_s": 120.7478251169084,
+   "counters_delta": {
+    "intarsia_spec_steps_total": 10.0,
+    "intarsia_spec_proposed_tokens_total": 40.0,
+    "intarsia_spec_accepted_tokens_total": 14.0,
+    "intarsia_batch_decode_steps_total": 255.0
+   }
+  }
+ },
+ "t_end": 1792204926.3880908
+}

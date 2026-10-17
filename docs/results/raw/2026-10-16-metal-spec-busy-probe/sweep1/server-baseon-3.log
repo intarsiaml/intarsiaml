@@ -1,0 +1,11 @@
+prefill chunk 2048 (recipe qwen3, metal)
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 4.00 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x72c8380000, 3.19 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x73863ac000, 1.24 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x70ee320000, 3.99 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x71dc350000, 3.96 GB
+speculative decoding: Ngram, up to 4 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul=matmul_bf16_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32
+admission on plan shapes: 18 kernel(s) checked, 0 case(s) run, 255 cached
+continuous batching: up to 8 sequences (--max-batch)
+loaded Qwen3-8B on metal (Apple M5 Max) in 53.1s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:8141

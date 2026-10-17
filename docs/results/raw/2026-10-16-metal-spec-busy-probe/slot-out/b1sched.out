@@ -1,0 +1,22 @@
+fleetq: #2241 waiting (#2 in line): in line behind #2240 "spec-busy-probe: FINAL B mixed+B4, off/base/new, 5 rounds" (claude-0e8026c5) on endor
+fleetq:   #2240 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2240 set, or it will wait for #2240 to be released.
+fleetq: #2241 waiting (#1 in line): endor is held exclusively by #2240 "spec-busy-probe: FINAL B mixed+B4, off/base/new, 5 rounds" (claude-0e8026c5)
+fleetq:   #2240 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2240 set, or it will wait for #2240 to be released.
+fleetq: #2241 waiting (#1 in line): endor is offline
+fleetq: #2241 waiting (#1 in line): endor is held exclusively by #2240 "spec-busy-probe: FINAL B mixed+B4, off/base/new, 5 rounds" (claude-0e8026c5)
+fleetq:   #2240 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2240 set, or it will wait for #2240 to be released.
+fleetq: #2241 running on endor: env BIN_NEW=/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-new-0c7ef42 BIN_BASE=/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-base-5cd03a5 /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/slot_b1sched.sh /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/b1sched
+slot 2241 Fri Oct 16 21:41:17 EDT 2026; new /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-new-0c7ef42 8f700c591876fd12; base /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-base-5cd03a5 9bb825d494889da6
+{'grounded': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 0}}), 'open': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3}}), 'grounded2': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 3}}), 'open2': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3}})}
+{'grounded': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 0}}), 'open': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3}}), 'grounded2': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 3}}), 'open2': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3}})}
+mb=1: spec lines base      260 new      260
+mb=1: spec trace IDENTICAL
+mb=1: token ids IDENTICAL
+{'grounded': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 0, 'prefill_chunk': 2048}}), 'open': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3, 'prefill_chunk': 2048}}), 'grounded2': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 3, 'prefill_chunk': 2048}}), 'open2': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3, 'prefill_chunk': 2048}})}
+{'grounded': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 0, 'prefill_chunk': 2048}}), 'open': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3, 'prefill_chunk': 2048}}), 'grounded2': (328, {'prompt_tokens': 371, 'completion_tokens': 329, 'total_tokens': 700, 'prompt_tokens_details': {'cached_tokens': 3, 'prefill_chunk': 2048}}), 'open2': (512, {'prompt_tokens': 40, 'completion_tokens': 512, 'total_tokens': 552, 'prompt_tokens_details': {'cached_tokens': 3, 'prefill_chunk': 2048}})}
+mb=8: spec lines base      260 new      260
+mb=8: spec trace IDENTICAL
+mb=8: token ids IDENTICAL
+no intarsia serve left
+done Fri Oct 16 21:46:41 EDT 2026
+fleetq: #2241 done (exit 0)

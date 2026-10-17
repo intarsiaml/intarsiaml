@@ -120,6 +120,10 @@ pub const GATE_MIN_N: usize = 2;
 pub const GATE_FAILS: u32 = 6;
 pub const GATE_SKIP0: u32 = 2;
 pub const GATE_SKIP_MAX: u32 = 32;
+/// Verify passes a request may spend before the busy-batch check (see [`GateParams::busy_warmup`]) applies.
+pub const GATE_BUSY_WARMUP: u32 = 1;
+/// Mean accepted draft tokens per verify pass a request needs to keep drafting while other sequences decode.
+pub const GATE_BUSY_MIN_ACCEPT: u32 = 2;
 
 /// Drafter gate parameters (G2). A verify pass that accepts no draft costs more than the plain step it replaces (a
 /// 5-row pass is ~15-20 % slower at short context), and on open-ended text nearly every pass is such a pass. So after
@@ -137,11 +141,26 @@ pub struct GateParams {
     pub skip_max: u32,
     /// Shortest suffix the drafter may match.
     pub min_n: usize,
+    /// Busy batch (another sequence decodes in the same step): verify passes a request spends before it has to show
+    /// `busy_min_accept` (below). A verify pass runs alone on the request's slot, so beside a batched step it is a whole
+    /// extra weight pass that the batch cannot absorb.
+    pub busy_warmup: u32,
+    /// Busy batch: mean accepted draft tokens per verify pass (over the request's passes so far) below which the
+    /// request stops drafting until it is alone again (0: no busy check). Open-ended text accepts about 0.2 per pass,
+    /// input-grounded text about 3.
+    pub busy_min_accept: u32,
 }
 
 impl Default for GateParams {
     fn default() -> Self {
-        GateParams { fails: GATE_FAILS, skip0: GATE_SKIP0, skip_max: GATE_SKIP_MAX, min_n: GATE_MIN_N }
+        GateParams {
+            fails: GATE_FAILS,
+            skip0: GATE_SKIP0,
+            skip_max: GATE_SKIP_MAX,
+            min_n: GATE_MIN_N,
+            busy_warmup: GATE_BUSY_WARMUP,
+            busy_min_accept: GATE_BUSY_MIN_ACCEPT,
+        }
     }
 }
 
@@ -153,8 +172,15 @@ impl GateParams {
             let mut p = GateParams::default();
             if let Ok(v) = std::env::var("INTARSIA_SPEC_GATE") {
                 let f: Vec<usize> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
-                if f.len() == 4 {
-                    p = GateParams { fails: f[0] as u32, skip0: f[1] as u32, skip_max: f[2] as u32, min_n: f[3] };
+                if f.len() == 4 || f.len() == 6 {
+                    p = GateParams { fails: f[0] as u32, skip0: f[1] as u32, skip_max: f[2] as u32, min_n: f[3], ..p };
+                    if f.len() == 6 {
+                        p.busy_warmup = f[4] as u32;
+                        p.busy_min_accept = f[5] as u32;
+                    }
+                    eprintln!("spec gate: INTARSIA_SPEC_GATE={v:?} -> {p:?}");
+                } else {
+                    eprintln!("spec gate: ignoring INTARSIA_SPEC_GATE={v:?} (want 4 or 6 integers), using {p:?}");
                 }
             }
             p
@@ -166,6 +192,9 @@ impl GateParams {
 #[derive(Clone, Copy, Debug)]
 pub struct SpecGate {
     p: GateParams,
+    /// Verify passes so far, and the draft tokens they accepted (the busy-batch check).
+    passes: u32,
+    accepted: u32,
     /// Consecutive passes without an accepted draft.
     streak: u32,
     /// Plain steps still to take before the next probe.
@@ -176,7 +205,7 @@ pub struct SpecGate {
 
 impl SpecGate {
     pub fn new(p: GateParams) -> SpecGate {
-        SpecGate { p, streak: 0, skip: 0, next_skip: p.skip0 }
+        SpecGate { p, passes: 0, accepted: 0, streak: 0, skip: 0, next_skip: p.skip0 }
     }
 
     /// Shortest suffix the drafter may match.
@@ -184,8 +213,16 @@ impl SpecGate {
         self.p.min_n
     }
 
-    /// Called once per step that could draft. `false`: take a plain step (counts down the back-off).
-    pub fn allow(&mut self) -> bool {
+    /// Called once per step that could draft. `false`: take a plain step (counts down the back-off). `busy`: other
+    /// sequences decode in the same step, where a verify pass is an extra weight pass instead of a replacement for a
+    /// step: a request whose passes so far accepted fewer than `busy_min_accept` draft tokens each on average (after
+    /// `busy_warmup` passes) takes plain steps and its back-off does not advance, so it neither probes nor loses its
+    /// place; once it is alone (`busy == false`) the gate runs as without batching. A request that accepts well keeps
+    /// drafting. `busy == false` is exactly the solo gate.
+    pub fn allow(&mut self, busy: bool) -> bool {
+        if busy && !self.busy_ok() {
+            return false;
+        }
         if self.skip > 0 {
             self.skip -= 1;
             return false;
@@ -193,8 +230,18 @@ impl SpecGate {
         true
     }
 
+    /// Whether a request with this history may draft beside other decoding sequences.
+    fn busy_ok(&self) -> bool {
+        self.p.fails == 0
+            || self.p.busy_min_accept == 0
+            || self.passes < self.p.busy_warmup
+            || self.accepted >= self.passes.saturating_mul(self.p.busy_min_accept)
+    }
+
     /// Result of a verify pass: `accepted` of its drafts were accepted.
     pub fn record(&mut self, accepted: usize) {
+        self.passes = self.passes.saturating_add(1);
+        self.accepted = self.accepted.saturating_add(accepted as u32);
         if self.p.fails == 0 {
             return;
         }
@@ -290,7 +337,7 @@ mod tests {
     }
 
     fn gate(fails: u32, skip0: u32, skip_max: u32) -> SpecGate {
-        SpecGate::new(GateParams { fails, skip0, skip_max, min_n: NGRAM_MIN })
+        SpecGate::new(GateParams { fails, skip0, skip_max, min_n: NGRAM_MIN, ..GateParams::default() })
     }
 
     /// Steps that draft (true) / stay plain (false) for a stream of pass outcomes: every drafting step is a pass whose
@@ -299,7 +346,7 @@ mod tests {
         let mut passes = 0;
         (0..steps)
             .map(|_| {
-                let go = g.allow();
+                let go = g.allow(false);
                 if go {
                     g.record(accepted(passes));
                     passes += 1;
@@ -312,13 +359,13 @@ mod tests {
     #[test]
     fn gate_starts_open_and_one_miss_does_not_close_it() {
         let mut g = gate(2, 4, 64);
-        assert!(g.allow());
+        assert!(g.allow(false));
         g.record(0);
-        assert!(g.allow()); // 1 failed pass < fails
+        assert!(g.allow(false)); // 1 failed pass < fails
         g.record(3);
-        assert!(g.allow());
+        assert!(g.allow(false));
         g.record(0);
-        assert!(g.allow()); // the accepted pass reset the streak
+        assert!(g.allow(false)); // the accepted pass reset the streak
     }
 
     #[test]
@@ -337,9 +384,9 @@ mod tests {
         g.record(0); // back off: skip 4, next back-off 8
         assert_eq!((g.skip, g.next_skip), (4, 8));
         for _ in 0..4 {
-            assert!(!g.allow());
+            assert!(!g.allow(false));
         }
-        assert!(g.allow()); // probe
+        assert!(g.allow(false)); // probe
         g.record(2); // accepted: closed streak, back-off length starts over
         assert_eq!((g.streak, g.next_skip), (0, 4));
         g.record(0);
@@ -361,6 +408,115 @@ mod tests {
         let mut g = gate(0, 4, 64);
         let drafted = run_gate(&mut g, 50, |_| 0);
         assert!(drafted.iter().all(|d| *d));
+    }
+
+    /// Gate with the default busy check (1 warm-up pass, mean 2 accepted tokens per pass).
+    fn busy_gate() -> SpecGate {
+        SpecGate::new(GateParams { fails: 2, skip0: 4, skip_max: 16, ..GateParams::default() })
+    }
+
+    /// Steps that draft for a stream of (busy, accepted-of-this-pass) inputs.
+    fn run_busy(g: &mut SpecGate, steps: &[bool], accepted: impl Fn(usize) -> usize) -> Vec<bool> {
+        let mut passes = 0;
+        steps
+            .iter()
+            .map(|&busy| {
+                let go = g.allow(busy);
+                if go {
+                    g.record(accepted(passes));
+                    passes += 1;
+                }
+                go
+            })
+            .collect()
+    }
+
+    #[test]
+    fn gate_not_busy_ignores_the_busy_check() {
+        // the solo schedule is the same whatever the busy parameters are
+        let schedule = |p: GateParams| {
+            let mut g = SpecGate::new(p);
+            run_gate(&mut g, 120, |pass| if pass % 7 == 3 { 1 } else { 0 })
+        };
+        let base = GateParams { fails: 3, skip0: 2, skip_max: 16, ..GateParams::default() };
+        let none = schedule(GateParams { busy_min_accept: 0, ..base });
+        assert_eq!(schedule(base), none);
+        assert_eq!(schedule(GateParams { busy_warmup: 0, busy_min_accept: 100, ..base }), none);
+        // and it is the unchanged back-off: 3 misses, then probes at growing distance
+        let mut g = SpecGate::new(GateParams { fails: 2, skip0: 4, skip_max: 16, ..GateParams::default() });
+        let at: Vec<usize> =
+            run_gate(&mut g, 80, |_| 0).iter().enumerate().filter(|(_, d)| **d).map(|(i, _)| i).collect();
+        assert_eq!(at, vec![0, 1, 6, 15, 32, 49, 66]);
+    }
+
+    #[test]
+    fn gate_busy_stops_probing_a_poor_request_and_keeps_a_good_one() {
+        // poor: the warm-up pass is allowed, then no draft at all while busy, however many steps pass
+        let mut g = busy_gate();
+        let drafted = run_busy(&mut g, &[true; 200], |_| 0);
+        assert_eq!(drafted.iter().filter(|d| **d).count(), 1, "one warm-up pass, no re-probe");
+        assert!(drafted[1..].iter().all(|d| !*d));
+        // the back-off did not advance while it waited
+        assert_eq!(g.skip, 0);
+        // good: 3 accepted per pass on average, an occasional empty pass does not close it
+        let mut g = busy_gate();
+        let drafted = run_busy(&mut g, &[true; 200], |pass| if pass % 5 == 4 { 0 } else { 4 });
+        assert!(drafted.iter().all(|d| *d));
+    }
+
+    #[test]
+    fn gate_busy_threshold_is_the_mean_accepted_per_pass() {
+        let mut g = busy_gate();
+        assert!(g.allow(true)); // warm-up pass
+        g.record(3);
+        assert!(g.allow(true)); // 3 accepted in 1 pass: mean 3 >= 2
+        g.record(1);
+        assert!(g.allow(true)); // 4 in 2: mean 2 >= 2
+        g.record(0);
+        assert!(!g.allow(true)); // 4 in 3: mean 1.33 < 2
+    }
+
+    #[test]
+    fn gate_resumes_when_alone_again() {
+        let mut g = busy_gate();
+        assert!(g.allow(true));
+        g.record(0); // fails 2: one more miss backs it off
+        assert!(!g.allow(true) && !g.allow(true) && !g.allow(true)); // blocked, back-off frozen
+        // alone: the normal gate. One more miss closes the streak and starts the back-off
+        assert!(g.allow(false));
+        g.record(0);
+        assert_eq!(g.skip, 4);
+        // busy again with the back-off pending: still no countdown, no probe
+        for _ in 0..10 {
+            assert!(!g.allow(true));
+        }
+        assert_eq!(g.skip, 4);
+        // alone: it counts down and probes as before, and a hit reopens it
+        for _ in 0..4 {
+            assert!(!g.allow(false));
+        }
+        assert!(g.allow(false));
+        g.record(4);
+        // a long accepted run lifts the mean over the threshold: busy drafting is back
+        for _ in 0..6 {
+            assert!(g.allow(false));
+            g.record(4);
+        }
+        assert!(g.allow(true));
+    }
+
+    #[test]
+    fn gate_busy_warmup_and_off_switches() {
+        // warm-up 2: two passes before the check applies
+        let mut g = SpecGate::new(GateParams { busy_warmup: 2, ..GateParams::default() });
+        let drafted = run_busy(&mut g, &[true; 20], |_| 0);
+        assert_eq!(drafted.iter().filter(|d| **d).count(), 2);
+        // busy_min_accept 0: no check
+        let mut g = SpecGate::new(GateParams { busy_min_accept: 0, ..GateParams::default() });
+        assert!(run_busy(&mut g, &[true; 20], |_| 0).iter().take(6).all(|d| *d));
+        // gate off (fails 0): drafts always, busy or not
+        let mut g = SpecGate::new(GateParams { fails: 0, ..GateParams::default() });
+        assert!(run_busy(&mut g, &[true; 20], |_| 0).iter().all(|d| *d));
     }
 
     #[test]

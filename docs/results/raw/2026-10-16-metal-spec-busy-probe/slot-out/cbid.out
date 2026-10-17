@@ -1,0 +1,53 @@
+fleetq: #2243 waiting (#4 in line): in line behind #2240 "spec-busy-probe: FINAL B mixed+B4, off/base/new, 5 rounds" (claude-0e8026c5) on endor
+fleetq:   #2240 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2240 set, or it will wait for #2240 to be released.
+fleetq: #2243 waiting (#3 in line): in line behind #2241 "spec-busy-probe: B=1 spec schedule check base vs new" (claude-0e8026c5) on endor
+fleetq:   #2241 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2241 set, or it will wait for #2241 to be released.
+fleetq: #2243 waiting (#2 in line): in line behind #2242 "spec-busy-probe: Part B spec+reuse identity B=2,3,8" (claude-0e8026c5) on endor
+fleetq:   #2242 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2242 set, or it will wait for #2242 to be released.
+fleetq: #2243 waiting (#1 in line): endor is held exclusively by #2242 "spec-busy-probe: Part B spec+reuse identity B=2,3,8" (claude-0e8026c5)
+fleetq:   #2242 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2242 set, or it will wait for #2242 to be released.
+fleetq: #2243 running on endor: env BIN=/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-new-0c7ef42 /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/slot_identity.sh /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid
+slot 2243 Fri Oct 16 21:47:04 EDT 2026; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-new-0c7ef42 8f700c591876fd12; git 41cd1f4; cases      205 lines
+server ref2048 pid 16608 ready
+ref 2048: exit 0 21:54:55
+server ref256 pid 35421 ready
+ref 256: exit 0 22:02:58
+server batched-reuseoff pid 55224 ready
+run reuseoff: exit 0 22:06:20
+server batched-reuseon pid 62819 ready
+run reuseon: exit 0 22:09:49
+COMPARE reuseoff: exit 0
+FIFO reuseoff: exit 0
+/opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/server-batched-reuseoff.log: 204 requests, admitted 202 (reused 0), done 184, cancelled q/p/d 2/0/18, failed 0, rejected 0, chunks 1085 (contested 664): OK
+COMPARE reuseon: exit 0
+FIFO reuseon: exit 0
+/opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/server-batched-reuseon.log: 204 requests, admitted 202 (reused 27), done 184, cancelled q/p/d 2/0/18, failed 0, rejected 0, chunks 1085 (contested 666): OK
+--- /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/compare-reuseoff-mixed.log
+== coverage (from the reference run) ==
+cases 203  prompt tokens min/max [127, 4500]
+prompt-token histogram: {'<=192': 29, '193-384': 25, '385-768': 41, '769-1.5k': 39, '1.5k-2.5k': 33, '2.5k-3.5k': 19, '>3.5k': 17}
+reference finish: {'stop (EOS)': 48, 'stop (stop string armed: stop string or EOS)': 15, 'length': 140}
+tags: {'cancel': 20, 'chat': 76, 'chat_greedy': 16, 'chat_sampled': 8, 'eos': 16, 'golden_4k': 3, 'greedy': 158, 'ignore_eos': 8, 'min_tokens': 16, 'raw': 127, 'raw_greedy': 62, 'raw_sampled': 30, 'sampled': 45, 'stop': 24}
+WARNING: /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/conc-reuseoff-mixed.jsonl: server plan differs from the reference server on ['max_batch', 'ops']
+
+== identity vs reference ==
+run        cases  pass  mismatch  ref_err  stream/non  cancel(out>0)/cases  cut short  ids cmp  cached!=  mism+cached!=
+B=8 mixed  203    203   0         0        113/90      20(18)/20            20         201      0         0            
+report: /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/report-reuseoff-mixed.json
+RESULT: IDENTICAL, 0 mismatches
+--- /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/compare-reuseon-mixed.log
+== coverage (from the reference run) ==
+cases 203  prompt tokens min/max [127, 4500]
+prompt-token histogram: {'<=192': 29, '193-384': 25, '385-768': 41, '769-1.5k': 39, '1.5k-2.5k': 33, '2.5k-3.5k': 19, '>3.5k': 17}
+reference finish: {'stop (EOS)': 48, 'stop (stop string armed: stop string or EOS)': 15, 'length': 140}
+tags: {'cancel': 20, 'chat': 76, 'chat_greedy': 16, 'chat_sampled': 8, 'eos': 16, 'golden_4k': 3, 'greedy': 158, 'ignore_eos': 8, 'min_tokens': 16, 'raw': 127, 'raw_greedy': 62, 'raw_sampled': 30, 'sampled': 45, 'stop': 24}
+WARNING: /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/conc-reuseon-mixed.jsonl: server plan differs from the reference server on ['max_batch', 'ops']
+
+== identity vs reference ==
+run        cases  pass  mismatch  ref_err  stream/non  cancel(out>0)/cases  cut short  ids cmp  cached!=  mism+cached!=
+B=8 mixed  203    203   0         0        113/90      20(18)/20            20         201      25        0            
+report: /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/report-reuseon-mixed.json
+RESULT: IDENTICAL, 0 mismatches
+no intarsia serve left
+done Fri Oct 16 22:09:50 EDT 2026
+fleetq: #2243 done (exit 0)
