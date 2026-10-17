@@ -413,7 +413,9 @@ fn bench_real_shapes() {
 /// outputs differ from the exact (cpu reference) bf16 outputs in roughly 0.1 % of the elements. Accumulating the
 /// whole K = 2048 dot product inside the tensor core's accumulator put 0.6 to 1 % of the elements one bf16 step off
 /// (5 to 10x as many; the mechanism, low bits lost at every accumulate step, is inferred from the effect of the fix).
-/// The kernel now adds each k16 mma result into the fp32 accumulator itself. This is a kernel-precision test only: on
+/// The kernel now forms each k16 mma result from zero and carries the rounding errors of the fp32 accumulation in a
+/// second register (a TwoSum per 64-wide step, kernels/cuda/moe_grouped.cu; the fp32 adds of the k16 results alone left it
+/// at twice the old kernel's error, `moe_experts_mma_small_t_sweep`). This is a kernel-precision test only: on
 /// the 35B the end-to-end per-prompt metrics against the vLLM golden did not follow it (docs/results/
 /// 2026-10-13-phase1b.md, section 8). Real layer shape (H=2048, I=512); the bound is relative to the old kernel's own
 /// error on the same inputs, so it does not depend on the random data's scale.
@@ -437,13 +439,17 @@ fn moe_experts_mma_is_as_accurate_as_old_kernel() {
     }
 }
 
-/// Diagnostic for docs/results/2026-10-14-35b-accuracy.md: the fraction of bf16 outputs off the cpu reference for the
-/// grouped (mma) kernel and the warp-per-row kernel over small token counts (the kernel serves T >= 32; a 58-token
-/// prompt's decode-mode prefill is T = 42), the largest error in bf16 steps, and whether a case that breaks the bounds of
-/// `moe_experts_mma_is_as_accurate_as_old_kernel` repeats bit for bit. Prints only; run with `--include-ignored
-/// --nocapture`. `INTARSIA_SWEEP_SEEDS=a..b` (default 1..17) and `INTARSIA_SWEEP_T=t1,t2,..` choose the cases.
+/// The grouped (mma) kernel must be at least as close to the exact result as the warp-per-row kernel at the small token
+/// counts it serves (T >= 32; a 58-token prompt's decode-mode prefill is T = 42), where docs/results/2026-10-14-35b-accuracy.md
+/// section 3.4 found it about twice as far off: 16 seeds x 12 T in 32..64 on the real layer shape, 40 of 192 cases broke the
+/// bounds of `moe_experts_mma_is_as_accurate_as_old_kernel`. The two kernels see the same inputs and are compared with the
+/// cpu reference: every case must stay inside those bounds (a single case is a noisy statistic: the old kernel's count can
+/// be a handful of elements while one flipped intermediate moves 50 outputs), and over the whole sweep the grouped kernel
+/// must have no more elements off the reference than the old one. Prints one line per case (elements off the reference,
+/// rel_l2 and the largest error in bf16 steps for both kernels; a breaching case is run again to show it repeats bit for
+/// bit). `INTARSIA_SWEEP_SEEDS=a..b` (default 1..17) and `INTARSIA_SWEEP_T=t1,t2,..` choose the cases. Runs only in the
+/// spark1 acceptance run (needs a GPU; about a minute, mostly the cpu reference).
 #[test]
-#[ignore]
 fn moe_experts_mma_small_t_sweep() {
     let Some(cuda) = device() else { return };
     let cpu = CpuBackend::new();
@@ -461,7 +467,7 @@ fn moe_experts_mma_small_t_sweep() {
         };
         a.iter().zip(b).map(|(x, y)| (key(*x) - key(*y)).unsigned_abs()).max().unwrap_or(0)
     };
-    let (mut n, mut breaches) = (0, 0);
+    let (mut n, mut breaches, mut off_old, mut off_new) = (0, Vec::new(), 0usize, 0usize);
     for &seed in &seeds {
         for &t in &ts {
             let mut rng = SplitMix64::new(seed * 1000 + t as u64);
@@ -469,31 +475,22 @@ fn moe_experts_mma_small_t_sweep() {
             let want = run_host(&cpu, "ref_moe_experts", &hc).unwrap()[0].to_f32();
             let old = run_host(&*cuda, "moe_experts_bf16", &hc).unwrap()[0].to_f32();
             let new = run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].to_f32();
-            let frac = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count() as f64 / want.len() as f64;
-            let (fo, fn_) = (frac(&old), frac(&new));
+            let count = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count();
+            let (co, cn) = (count(&old), count(&new));
+            let (fo, fn_) = (co as f64 / want.len() as f64, cn as f64 / want.len() as f64);
             let (ro, rn) = (rel_l2(&old, &want), rel_l2(&new, &want));
             let breach = fn_ > 3.0 * fo.max(1e-3) || rn > 2.5 * ro;
             n += 1;
+            off_old += co;
+            off_new += cn;
             let mut extra = String::new();
             if breach {
-                breaches += 1;
+                breaches.push((seed, t));
                 let again = run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].to_f32();
-                let ids: Vec<i32> = hc.inputs[1].to_f32().iter().map(|&x| x as i32).collect();
-                let mut per = vec![0usize; 64];
-                for &e in &ids {
-                    if (0..64).contains(&e) {
-                        per[e as usize] += 1;
-                    }
-                }
-                extra = format!(
-                    " BREACH repeat-bitwise={} max-pairs/expert={} experts-used={}",
-                    again.iter().zip(&new).all(|(x, y)| x.to_bits() == y.to_bits()),
-                    per.iter().max().unwrap(),
-                    per.iter().filter(|&&c| c > 0).count()
-                );
+                extra = format!(" BREACH repeat-bitwise={}", again.iter().zip(&new).all(|(x, y)| x.to_bits() == y.to_bits()));
             }
             eprintln!(
-                "SWEEP seed={seed:3} T={t:4}: off-reference old {:.4} % mma {:.4} %; rel_l2 old {ro:.3e} mma {rn:.3e}; max ulp old {} mma {}{extra}",
+                "SWEEP seed={seed:3} T={t:4}: off-reference old {co} ({:.4} %) mma {cn} ({:.4} %); rel_l2 old {ro:.3e} mma {rn:.3e}; max ulp old {} mma {}{extra}",
                 fo * 100.0,
                 fn_ * 100.0,
                 ulps(&old, &want),
@@ -501,7 +498,9 @@ fn moe_experts_mma_small_t_sweep() {
             );
         }
     }
-    eprintln!("SWEEP done: {n} cases, {breaches} break the bounds of moe_experts_mma_is_as_accurate_as_old_kernel");
+    eprintln!("SWEEP done: {n} cases, {} break the per-case bounds, off-reference elements old {off_old} mma {off_new}", breaches.len());
+    assert!(breaches.is_empty(), "{} of {n} cases break the bounds of moe_experts_mma_is_as_accurate_as_old_kernel: {breaches:?}", breaches.len());
+    assert!(off_new <= off_old, "mma kernel: {off_new} elements off the reference over {n} cases, the old kernel {off_old}");
 }
 
 /// The tile height (16, 32 or 64 pairs, normally chosen from the mean pairs per expert; `INTARSIA_MOE_BM` forces it)

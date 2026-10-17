@@ -6,9 +6,11 @@
 //   gate_up  block = one tile x 64 intermediate columns: 64 gate rows + the matching 64 up rows of the expert,
 //            streamed over H in steps of 64. Each NVFP4 weight tile is loaded once and dequantised to bf16 in
 //            shared memory (exact: e2m1 * e4m3 has <= 4 significant bits), then all `BM` pairs of the tile run
-//            on tensor cores (mma.sync m16n8k16, bf16 in; every k16 partial sum is formed from zero and added to the
-//            f32 accumulator with a normal fp32 add). The epilogue applies the global scales and SiLU-GLU with the
-//            reference rounding points and writes h in SORTED pair order.
+//            on tensor cores (mma.sync m16n8k16, bf16 in). The four k16 results of a 64-wide step are formed from zero and
+//            summed in fp32; that step sum is added to a running (hi, lo) pair with a TwoSum, so the K = H (or I)
+//            reduction carries its rounding errors instead of dropping them. The epilogue applies the global scales to
+//            (hi + lo) with one fp32 rounding, then SiLU-GLU with the reference rounding points, and writes h in SORTED
+//            pair order.
 //   down     block = one tile x 128 output rows, K = I. A is the contiguous sorted h rows; the epilogue scales
 //            and scatters y[pair] back to the original (token, slot) index.
 //   reduce   out[t] = sum_k round(y[t,k] * w[t,k]) in fixed k order (same as moe.cu: no atomics on `out`).
@@ -33,6 +35,22 @@ constexpr int LDS = BK + 8;    // padded smem row stride (bf16 elements): confli
 constexpr int kWRows = 128;    // weight rows per block (64 gate + 64 up, or 128 down rows): one per thread
 
 IK_DEVI float round_bf16(float v) { return ik_b2f(ik_f2b(v)); }
+
+// s += y, the rounding error of the add is collected in c (Knuth TwoSum: 6 flops, no assumption on |s| >= |y|)
+IK_DEVI void two_sum_add(float& s, float& c, float y) {
+    const float t = s + y;
+    const float bb = t - s;
+    c += (s - (t - bb)) + (y - bb);
+    s = t;
+}
+
+// round_bf16(fp32((hi + lo) * sc)): the product of the exact pair rounds to fp32 once (hi * sc by fma, the cross terms
+// added to the product's error), then to bf16, which is what the reference does with its f64 sum (reference.rs `round`).
+IK_DEVI float scaled_pair_to_bf16(float hi, float lo, float sc) {
+    const float ph = hi * sc;
+    const float pl = fmaf(hi, sc, -ph) + lo * sc;
+    return round_bf16(ph + pl);
+}
 
 // ---- grouping ------------------------------------------------------------------------------------------------------
 
@@ -227,6 +245,14 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
         for (int j = 0; j < 4; ++j)
 #pragma unroll
             for (int v = 0; v < 4; ++v) acc[i][j][v] = 0.f;
+    // the running sum is acc + lo (TwoSum); `sa` holds the step's four k16 results
+    float lo[MT][4][4], sa[MT][4][4];
+#pragma unroll
+    for (int i = 0; i < MT; ++i)
+#pragma unroll
+        for (int j = 0; j < 4; ++j)
+#pragma unroll
+            for (int v = 0; v < 4; ++v) lo[i][j][v] = sa[i][j][v] = 0.f;
 
     // smem row of the j-th n8 tile of this warp
     auto nrow = [&](int j) { return MODE == 0 ? (j < 2 ? wn * 16 + j * 8 : 64 + wn * 16 + (j - 2) * 8) : wn * 32 + j * 8; };
@@ -270,15 +296,19 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
                 ik_ldmatrix_x4(a0, a1, a2, a3, x + r * LDS + kk + (lane >> 4) * 8);
 #pragma unroll
                 for (int j = 0; j < 4; ++j) {
-                    // Each k16 product sum is formed from zero and then added to the running sum with a normal fp32
-                    // add. Accumulating the whole K inside the mma (acc as the C operand) left 0.6 to 1 % of the bf16
-                    // outputs one step off the exact result (the warp-per-row kernel: about 0.1 %); the tensor core's
-                    // accumulate step dropping low bits is the likely cause, inferred from the effect of this change.
-                    // See tests/quantmoe.rs `moe_experts_mma_is_as_accurate_as_old_kernel`.
+                    // Every k16 result is formed from zero (chaining the accumulator through the mma left 0.6 to 1 % of
+                    // the bf16 outputs a step off the exact result). The four of a step are summed in fp32 and the step
+                    // sum goes into (acc, lo) with a TwoSum, because plain fp32 adds into a running sum 128 (gate/up,
+                    // K = 2048) or 32 (down) terms deep leave 0.145 % of the outputs off the reference where the
+                    // warp-per-row kernel's 32-lane tree leaves 0.082 % and this form 0.022 % (192 sweep cases,
+                    // docs/results/2026-10-17-moe-mma-small-t.md). tests/quantmoe.rs `moe_experts_mma_small_t_sweep`.
                     float t[4] = {0.f, 0.f, 0.f, 0.f};
                     ik_mma_bf16_16816(t, a0, a1, a2, a3, b[j][0], b[j][1]);
 #pragma unroll
-                    for (int v = 0; v < 4; ++v) acc[i][j][v] += t[v];
+                    for (int v = 0; v < 4; ++v) {
+                        sa[i][j][v] = kk == 0 ? t[v] : sa[i][j][v] + t[v];
+                        if (kk == BK - 16) two_sum_add(acc[i][j][v], lo[i][j][v], sa[i][j][v]);
+                    }
                 }
             }
         }
@@ -302,8 +332,8 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
                     float hv[2];
 #pragma unroll
                     for (int v = 0; v < 2; ++v) {
-                        const float g = round_bf16(acc[i][j][2 * hh + v] * gg);
-                        const float u = round_bf16(acc[i][j + 2][2 * hh + v] * gu);
+                        const float g = scaled_pair_to_bf16(acc[i][j][2 * hh + v], lo[i][j][2 * hh + v], gg);
+                        const float u = scaled_pair_to_bf16(acc[i][j + 2][2 * hh + v], lo[i][j + 2][2 * hh + v], gu);
                         const float a = round_bf16(g / (1.f + expf(-g)));
                         hv[v] = a * u;
                     }
@@ -320,7 +350,8 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
                 for (int j = 0; j < 4; ++j) {
                     const int cl = wn * 32 + j * 8 + (lane & 3) * 2;
                     *reinterpret_cast<ik_bf162*>(ob + rl * OS + cl) =
-                        __floats2bfloat162_rn(acc[i][j][2 * hh] * gd, acc[i][j][2 * hh + 1] * gd);
+                        __floats2bfloat162_rn(scaled_pair_to_bf16(acc[i][j][2 * hh], lo[i][j][2 * hh], gd),
+                                              scaled_pair_to_bf16(acc[i][j][2 * hh + 1], lo[i][j][2 * hh + 1], gd));
                 }
             }
     }
