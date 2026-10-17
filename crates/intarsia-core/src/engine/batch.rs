@@ -300,7 +300,8 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         }
         self.ended = true;
         if self.started {
-            report_error(&self.telemetry, &self.tx, self.plen, self.t_new.elapsed(), err);
+            let generated = self.seq.as_ref().map_or(0, |s| s.generated);
+            report_error(&self.telemetry, &self.tx, self.plen, generated, self.t_new.elapsed(), err);
         } else {
             // refused before it held a slot: undo `request_enqueued`
             self.telemetry.request_rejected();
@@ -526,6 +527,20 @@ mod tests {
             let s = tel.snapshot();
             assert_eq!((s.running, s.waiting), (0, 0), "started {started}: {s:?}");
         }
+    }
+
+    /// Tokens a request generated (and streamed) before it failed count in `generation_tokens_total`; a request that
+    /// never held a slot adds none.
+    #[test]
+    fn failed_request_counts_its_generated_tokens() {
+        let (mut a, _rx, tel) = adapter(true);
+        a.seq.as_mut().unwrap().generated = 5;
+        a.fail(&Error::Backend("injected".into()));
+        let s = tel.snapshot();
+        assert_eq!(s.generation_tokens_total, 5, "{s:?}");
+        let (mut q, _rx, tel) = adapter(false);
+        q.fail(&Error::Backend("injected".into()));
+        assert_eq!(tel.snapshot().generation_tokens_total, 0);
     }
 
     #[test]
