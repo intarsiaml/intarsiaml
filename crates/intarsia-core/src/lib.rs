@@ -11,6 +11,8 @@ pub mod dtype;
 pub mod engine;
 pub mod error;
 pub mod exec;
+#[cfg(feature = "fault-inject")]
+pub mod fault;
 pub mod gdn;
 pub mod memplan;
 pub mod model;

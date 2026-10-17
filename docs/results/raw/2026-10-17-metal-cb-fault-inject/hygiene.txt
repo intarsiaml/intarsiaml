@@ -1,0 +1,19 @@
+--- hygiene start 11:49:13
+25718  18.5   5632 01-15:45:22 macmon
+22540  15.6 708400    23:09:34 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.a
+20521  11.8 714640    23:09:53 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.a
+12707   7.1 200464    13:26:37 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Ver
+12698   5.9  49296    13:26:37 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Ver
+  631   3.6  37504 20-17:56:20 /usr/sbin/coreaudiod
+  485   3.4 377936 20-17:56:21 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+87301   3.1  87888 02-17:51:50 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+vm.swapusage: total = 16384.00M  used = 15297.75M  free = 1086.25M  (encrypted)
+--- hygiene end 11:57:29
+25718  17.8   5632 01-15:53:38 macmon
+12707   8.1 200448    13:34:53 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Ver
+88492   6.7  21024 02-04:54:29 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/Xpro
+  576   5.7  34816 20-18:04:36 /usr/libexec/syspolicyd
+  673   5.4   6288 20-18:04:35 /usr/libexec/sysmond
+12698   3.9  49696    13:34:53 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Ver
+  631   3.1  37504 20-18:04:36 /usr/sbin/coreaudiod
+  485   3.1 376560 20-18:04:37 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer

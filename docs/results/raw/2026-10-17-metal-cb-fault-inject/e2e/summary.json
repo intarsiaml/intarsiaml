@@ -1,0 +1,22 @@
+[
+ {
+  "case": "err-nosup",
+  "pass": true,
+  "failed_checks": []
+ },
+ {
+  "case": "err-sup",
+  "pass": true,
+  "failed_checks": []
+ },
+ {
+  "case": "panic-nosup",
+  "pass": true,
+  "failed_checks": []
+ },
+ {
+  "case": "panic-sup",
+  "pass": true,
+  "failed_checks": []
+ }
+]

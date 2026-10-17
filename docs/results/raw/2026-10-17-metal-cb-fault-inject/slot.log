@@ -1,0 +1,182 @@
+== 2026-10-17 11:49:13 cbfault_slot: bin=/private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/faultinj/intarsia-fi (18199968 bytes) model=/Users/josef/models/Qwen3-8B port=8117
+== e2e
+[11:49:13] === case err/nosup ===
+[11:49:13] server [err-nosup] pid 98721 fault='err:mixed=7,waiting=2,pos=512' supervised=False
+[11:50:07] calibrated 3.37 chars/token
+[11:50:07]   PASS  armed plan is inert for a normal request  [HTTP 200]
+[11:50:07]   PASS  7 decoders reached steady decode  [running=7]
+[11:50:08] client outcomes:
+[11:50:08]   dec0-stream      http=200 outcome=error_event tokens=12 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   dec1-stream      http=200 outcome=error_event tokens=10 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   dec2-stream      http=200 outcome=error_event tokens=8 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   dec3-stream      http=200 outcome=error_event tokens=11 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   dec4-plain       http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   dec5-plain       http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   dec6-plain       http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   big4k-stream     http=200 outcome=error_event tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   queued0-stream   http=200 outcome=error_event tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   queued1-stream   http=200 outcome=error_event tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   queued2-plain    http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:50:08]   PASS  no client hangs (all returned within the deadline)  [alive=[] hang=[]]
+[11:50:08]   PASS  every in-flight and queued request ends with a clean error (stream: error event + [DONE]; plain: 500 JSON)  [not clean: []]
+[11:50:08]   PASS  error messages name the failure (engine failed + injected fault)  [{'engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'}]
+[11:50:08]   PASS  plain requests: HTTP 500 with JSON {error:{message,type}} body
+[11:50:08]   PASS  streamed requests: HTTP 200 + error event (headers were already sent) then [DONE]
+[11:50:08]   PASS  streamed decoders had produced tokens before the error  [[12, 10, 8, 11]]
+[11:50:08]   PASS  4k prompt was mid-prefill (no token streamed)  [tokens=0]
+[11:50:08]   PASS  queued requests never got a token  [[0, 0, 0]]
+[11:50:08]   PASS  later submits refused with 503 + JSON error body (supervised: or a refused connection once the child exited)  [[('late-plain', 503, 'http_error', ''), ('late-stream', 503, 'http_error', ''), ('late-chat-plain', 503, 'http_error', '')]]
+[11:50:08]   PASS  /health is 503 with status=failed  [{"status": "failed", "detail": "backend error: metal: command buffer failed: injected fault (fault-inject)", "model": "Qwen3-8B", "steps_total": 29, "last_step_ms": 1792252208050, "no_progress_s": 0.0, "running": 0, "waiting": 0, "max_queue": 64, "requests_total": 10, "uptime_s": 54.865090959}]
+[11:50:08]   PASS  /health reports running=0 waiting=0 (no leaked requests)  [running=0 waiting=0]
+[11:50:08]   PASS  metrics: failed_total delta == requests that saw the error (admitted + queued)  [delta=11.0 clients_with_error=11]
+[11:50:08]   PASS  metrics: admitted_total delta == 8 (7 decoders + 4k prompt), finished delta == 0  [admitted=8.0 finished=0.0]
+[11:50:08]   PASS  metrics: engine_failed gauge is 1  [1.0]
+[11:50:08]   PASS  metrics: scheduler running 0 and queue empty after the failure (no leaked slot)  [running=0.0 queue=0.0]
+[11:50:08]   PASS  metrics: request gauges (intarsia_requests_running / _waiting) back to 0  [running=0.0 waiting=0.0]
+[11:50:16]   PASS  process stays up refusing (--no-supervisor: watchdog does not exit)  [returncode=None]
+[11:50:16]   PASS  still refusing 8 s later: /health 503  [HTTP 503]
+[11:50:16]   PASS  server logged the injection point  [fault-inject: arming Err at iter 22 (decode rows 7, prefilling 1, furthest prefill 512 tokens, waiting 3)]
+[11:50:16]   PASS  err mode: the backend error message reaches the clients
+[11:50:16]   PASS  server stopped, no process left in its group
+[11:50:16] server [err-nosup-fresh] pid 1386 fault=None supervised=False
+[11:51:11]   PASS  fresh: a normal request succeeds (plain 200, 24 tokens, finish_reason length)  [{'name': 'fresh-plain', 'stream': False, 'path': '/v1/completions', 'http_status': 200, 'outcome': 'done', 'tokens': 24, 'finish_reason': 'length', 'prompt_tokens': 22, 'error_message': None, 'error_body': None, 'done_marker': False, 't_start': 0.00010395050048828125, 't_first': None, 't_end': 0.7067029476165771, 'detail': ''}]
+[11:51:11]   PASS  fresh: a normal streamed request succeeds ([DONE], 24 tokens)  [tokens=24 done]
+[11:51:11]   PASS  fresh server stopped, no process left
+[11:51:11] === case err/sup ===
+[11:51:11] server [err-sup] pid 3404 fault='err:mixed=7,waiting=2,pos=512' supervised=True
+[11:52:04] calibrated 3.37 chars/token
+[11:52:04]   PASS  armed plan is inert for a normal request  [HTTP 200]
+[11:52:04]   PASS  7 decoders reached steady decode  [running=7]
+[11:52:05] client outcomes:
+[11:52:05]   dec0-stream      http=200 outcome=error_event tokens=9 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   dec1-stream      http=200 outcome=error_event tokens=8 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   dec2-stream      http=200 outcome=error_event tokens=6 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   dec3-stream      http=200 outcome=error_event tokens=7 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   dec4-plain       http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   dec5-plain       http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   dec6-plain       http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   big4k-stream     http=200 outcome=error_event tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   queued0-stream   http=200 outcome=error_event tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   queued1-stream   http=200 outcome=error_event tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   queued2-plain    http=500 outcome=http_error tokens=0 err='engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'
+[11:52:05]   PASS  no client hangs (all returned within the deadline)  [alive=[] hang=[]]
+[11:52:05]   PASS  every in-flight and queued request ends with a clean error (stream: error event + [DONE]; plain: 500 JSON)  [not clean: []]
+[11:52:05]   PASS  error messages name the failure (engine failed + injected fault)  [{'engine failed: backend error: metal: command buffer failed: injected fault (fault-inject)'}]
+[11:52:05]   PASS  plain requests: HTTP 500 with JSON {error:{message,type}} body
+[11:52:05]   PASS  streamed requests: HTTP 200 + error event (headers were already sent) then [DONE]
+[11:52:05]   PASS  streamed decoders had produced tokens before the error  [[9, 8, 6, 7]]
+[11:52:05]   PASS  4k prompt was mid-prefill (no token streamed)  [tokens=0]
+[11:52:05]   PASS  queued requests never got a token  [[0, 0, 0]]
+[11:52:05]   PASS  later submits refused with 503 + JSON error body (supervised: or a refused connection once the child exited)  [[('late-plain', 503, 'http_error', ''), ('late-stream', 503, 'http_error', ''), ('late-chat-plain', 503, 'http_error', '')]]
+[11:52:05]   PASS  /health is 503 with status=failed (supervised: or the child already exited)  [{"status": "failed", "detail": "backend error: metal: command buffer failed: injected fault (fault-inject)", "model": "Qwen3-8B", "steps_total": 26, "last_step_ms": 1792252324949, "no_progress_s": 0.0, "running": 0, "waiting": 0, "max_queue": 64, "requests_total": 10, "uptime_s": 53.756814}]
+[11:52:05]   PASS  /health reports running=0 waiting=0 (no leaked requests)  [running=0 waiting=0]
+[11:52:05]   PASS  metrics: failed_total delta == requests that saw the error (admitted + queued)  [delta=11.0 clients_with_error=11]
+[11:52:05]   PASS  metrics: admitted_total delta == 8 (7 decoders + 4k prompt), finished delta == 0  [admitted=8.0 finished=0.0]
+[11:52:05]   PASS  metrics: engine_failed gauge is 1  [1.0]
+[11:52:05]   PASS  metrics: scheduler running 0 and queue empty after the failure (no leaked slot)  [running=0.0 queue=0.0]
+[11:52:05]   PASS  metrics: request gauges (intarsia_requests_running / _waiting) back to 0  [running=0.0 waiting=0.0]
+[11:52:07]   PASS  child exits 87 (engine worker failed) and the supervisor restarts it  [[supervisor] server died after 55.9s: exit 87 (engine worker failed); restart #1]
+[11:52:07]   PASS  watchdog logged the failure before exiting
+[11:53:00]   PASS  after the restart /health is 200  [{"status": "ok", "detail": null, "model": "Qwen3-8B", "steps_total": 0, "last_step_ms": 0, "no_progress_s": 0.0, "running": 0, "waiting": 0, "max_queue": 64, "requests_total": 0, "uptime_s": 52.751203]
+[11:53:02]   PASS  restart: a normal request succeeds (plain 200, 24 tokens, finish_reason length)  [{'name': 'restart-plain', 'stream': False, 'path': '/v1/completions', 'http_status': 200, 'outcome': 'done', 'tokens': 24, 'finish_reason': 'length', 'prompt_tokens': 23, 'error_message': None, 'error_body': None, 'done_marker': False, 't_start': 56.63518309593201, 't_first': None, 't_end': 57.33944916725159, 'detail': ''}]
+[11:53:02]   PASS  restart: a normal streamed request succeeds ([DONE], 24 tokens)  [tokens=24 done]
+[11:53:02]   PASS  server logged the injection point  [fault-inject: arming Err at iter 19 (decode rows 7, prefilling 1, furthest prefill 512 tokens, waiting 3)]
+[11:53:02]   PASS  err mode: the backend error message reaches the clients
+[11:53:02]   PASS  server stopped, no process left in its group
+[11:53:02] === case panic/nosup ===
+[11:53:02] server [panic-nosup] pid 7327 fault='panic:mixed=7,waiting=2,pos=512' supervised=False
+[11:54:09] calibrated 3.37 chars/token
+[11:54:10]   PASS  armed plan is inert for a normal request  [HTTP 200]
+[11:54:10]   PASS  7 decoders reached steady decode  [running=7]
+[11:54:10] client outcomes:
+[11:54:10]   dec0-stream      http=200 outcome=error_event tokens=9 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   dec1-stream      http=200 outcome=error_event tokens=10 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   dec2-stream      http=200 outcome=error_event tokens=6 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   dec3-stream      http=200 outcome=error_event tokens=8 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   dec4-plain       http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   dec5-plain       http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   dec6-plain       http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   big4k-stream     http=200 outcome=error_event tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   queued0-stream   http=200 outcome=error_event tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   queued1-stream   http=200 outcome=error_event tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   queued2-plain    http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:54:10]   PASS  no client hangs (all returned within the deadline)  [alive=[] hang=[]]
+[11:54:10]   PASS  every in-flight and queued request ends with a clean error (stream: error event + [DONE]; plain: 500 JSON)  [not clean: []]
+[11:54:10]   PASS  error messages name the failure (engine failed + injected fault)  [{'engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'}]
+[11:54:10]   PASS  plain requests: HTTP 500 with JSON {error:{message,type}} body
+[11:54:10]   PASS  streamed requests: HTTP 200 + error event (headers were already sent) then [DONE]
+[11:54:10]   PASS  streamed decoders had produced tokens before the error  [[9, 10, 6, 8]]
+[11:54:10]   PASS  4k prompt was mid-prefill (no token streamed)  [tokens=0]
+[11:54:10]   PASS  queued requests never got a token  [[0, 0, 0]]
+[11:54:10]   PASS  later submits refused with 503 + JSON error body (supervised: or a refused connection once the child exited)  [[('late-plain', 503, 'http_error', ''), ('late-stream', 503, 'http_error', ''), ('late-chat-plain', 503, 'http_error', '')]]
+[11:54:10]   PASS  /health is 503 with status=failed  [{"status": "failed", "detail": "scheduler panicked: injected fault (fault-inject) in Metal synchronize", "model": "Qwen3-8B", "steps_total": 27, "last_step_ms": 1792252450830, "no_progress_s": 0.0, "running": 0, "waiting": 0, "max_queue": 64, "requests_total": 10, "uptime_s": 68.090880875}]
+[11:54:10]   PASS  /health reports running=0 waiting=0 (no leaked requests)  [running=0 waiting=0]
+[11:54:10]   PASS  metrics: failed_total delta == requests that saw the error (admitted + queued)  [delta=11.0 clients_with_error=11]
+[11:54:10]   PASS  metrics: admitted_total delta == 8 (7 decoders + 4k prompt), finished delta == 0  [admitted=8.0 finished=0.0]
+[11:54:10]   PASS  metrics: engine_failed gauge is 1  [1.0]
+[11:54:10]   PASS  metrics: scheduler running 0 and queue empty after the failure (no leaked slot)  [running=0.0 queue=0.0]
+[11:54:10]   PASS  metrics: request gauges (intarsia_requests_running / _waiting) back to 0  [running=0.0 waiting=0.0]
+[11:54:18]   PASS  process stays up refusing (--no-supervisor: watchdog does not exit)  [returncode=None]
+[11:54:18]   PASS  still refusing 8 s later: /health 503  [HTTP 503]
+[11:54:18]   PASS  server logged the injection point  [fault-inject: arming Panic at iter 20 (decode rows 7, prefilling 1, furthest prefill 512 tokens, waiting 3)]
+[11:54:18]   PASS  panic mode: the panic was caught in run_scheduler (message names 'scheduler panicked')  [(503, {'status': 'failed', 'detail': 'scheduler panicked: injected fault (fault-inject) in Metal synchronize', 'model': 'Qwen3-8B', 'steps_total': 27, 'last_step_ms': 1792252450830, 'no_progress_s': 0]
+[11:54:19]   PASS  server stopped, no process left in its group
+[11:54:19] server [panic-nosup-fresh] pid 12964 fault=None supervised=False
+[11:55:14]   PASS  fresh: a normal request succeeds (plain 200, 24 tokens, finish_reason length)  [{'name': 'fresh-plain', 'stream': False, 'path': '/v1/completions', 'http_status': 200, 'outcome': 'done', 'tokens': 24, 'finish_reason': 'length', 'prompt_tokens': 22, 'error_message': None, 'error_body': None, 'done_marker': False, 't_start': 7.987022399902344e-05, 't_first': None, 't_end': 0.7242608070373535, 'detail': ''}]
+[11:55:14]   PASS  fresh: a normal streamed request succeeds ([DONE], 24 tokens)  [tokens=24 done]
+[11:55:14]   PASS  fresh server stopped, no process left
+[11:55:14] === case panic/sup ===
+[11:55:15] server [panic-sup] pid 15296 fault='panic:mixed=7,waiting=2,pos=512' supervised=True
+[11:56:07] calibrated 3.37 chars/token
+[11:56:08]   PASS  armed plan is inert for a normal request  [HTTP 200]
+[11:56:08]   PASS  7 decoders reached steady decode  [running=7]
+[11:56:08] client outcomes:
+[11:56:08]   dec0-stream      http=200 outcome=error_event tokens=13 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   dec1-stream      http=200 outcome=error_event tokens=12 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   dec2-stream      http=200 outcome=error_event tokens=11 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   dec3-stream      http=200 outcome=error_event tokens=9 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   dec4-plain       http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   dec5-plain       http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   dec6-plain       http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   big4k-stream     http=200 outcome=error_event tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   queued0-stream   http=200 outcome=error_event tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   queued1-stream   http=200 outcome=error_event tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   queued2-plain    http=500 outcome=http_error tokens=0 err='engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'
+[11:56:08]   PASS  no client hangs (all returned within the deadline)  [alive=[] hang=[]]
+[11:56:08]   PASS  every in-flight and queued request ends with a clean error (stream: error event + [DONE]; plain: 500 JSON)  [not clean: []]
+[11:56:08]   PASS  error messages name the failure (engine failed + injected fault)  [{'engine failed: scheduler panicked: injected fault (fault-inject) in Metal synchronize'}]
+[11:56:08]   PASS  plain requests: HTTP 500 with JSON {error:{message,type}} body
+[11:56:08]   PASS  streamed requests: HTTP 200 + error event (headers were already sent) then [DONE]
+[11:56:08]   PASS  streamed decoders had produced tokens before the error  [[13, 12, 11, 9]]
+[11:56:08]   PASS  4k prompt was mid-prefill (no token streamed)  [tokens=0]
+[11:56:08]   PASS  queued requests never got a token  [[0, 0, 0]]
+[11:56:08]   PASS  later submits refused with 503 + JSON error body (supervised: or a refused connection once the child exited)  [[('late-plain', 503, 'http_error', ''), ('late-stream', 503, 'http_error', ''), ('late-chat-plain', 503, 'http_error', '')]]
+[11:56:08]   PASS  /health is 503 with status=failed (supervised: or the child already exited)  [{"status": "failed", "detail": "scheduler panicked: injected fault (fault-inject) in Metal synchronize", "model": "Qwen3-8B", "steps_total": 30, "last_step_ms": 1792252568918, "no_progress_s": 0.0, "running": 0, "waiting": 0, "max_queue": 64, "requests_total": 10, "uptime_s": 53.904038083}]
+[11:56:08]   PASS  /health reports running=0 waiting=0 (no leaked requests)  [running=0 waiting=0]
+[11:56:08]   PASS  metrics: failed_total delta == requests that saw the error (admitted + queued)  [delta=11.0 clients_with_error=11]
+[11:56:08]   PASS  metrics: admitted_total delta == 8 (7 decoders + 4k prompt), finished delta == 0  [admitted=8.0 finished=0.0]
+[11:56:08]   PASS  metrics: engine_failed gauge is 1  [1.0]
+[11:56:08]   PASS  metrics: scheduler running 0 and queue empty after the failure (no leaked slot)  [running=0.0 queue=0.0]
+[11:56:08]   PASS  metrics: request gauges (intarsia_requests_running / _waiting) back to 0  [running=0.0 waiting=0.0]
+[11:56:11]   PASS  child exits 87 (engine worker failed) and the supervisor restarts it  [[supervisor] server died after 56.1s: exit 87 (engine worker failed); restart #1]
+[11:56:11]   PASS  watchdog logged the failure before exiting
+[11:57:04]   PASS  after the restart /health is 200  [{"status": "ok", "detail": null, "model": "Qwen3-8B", "steps_total": 0, "last_step_ms": 0, "no_progress_s": 0.0, "running": 0, "waiting": 0, "max_queue": 64, "requests_total": 0, "uptime_s": 52.620299]
+[11:57:06]   PASS  restart: a normal request succeeds (plain 200, 24 tokens, finish_reason length)  [{'name': 'restart-plain', 'stream': False, 'path': '/v1/completions', 'http_status': 200, 'outcome': 'done', 'tokens': 24, 'finish_reason': 'length', 'prompt_tokens': 23, 'error_message': None, 'error_body': None, 'done_marker': False, 't_start': 56.75410318374634, 't_first': None, 't_end': 57.46723484992981, 'detail': ''}]
+[11:57:06]   PASS  restart: a normal streamed request succeeds ([DONE], 24 tokens)  [tokens=24 done]
+[11:57:06]   PASS  server logged the injection point  [fault-inject: arming Panic at iter 23 (decode rows 7, prefilling 1, furthest prefill 512 tokens, waiting 3)]
+[11:57:06]   PASS  panic mode: the panic was caught in run_scheduler (message names 'scheduler panicked')  [(503, {'status': 'failed', 'detail': 'scheduler panicked: injected fault (fault-inject) in Metal synchronize', 'model': 'Qwen3-8B', 'steps_total': 30, 'last_step_ms': 1792252568918, 'no_progress_s': 0]
+[11:57:06]   PASS  server stopped, no process left in its group
+[11:57:06] === summary ===
+[11:57:06] err-nosup: PASS (26/26 checks)
+[11:57:06] err-sup: PASS (26/26 checks)
+[11:57:06] panic-nosup: PASS (26/26 checks)
+[11:57:06] panic-sup: PASS (26/26 checks)
+cbfault_e2e rc=0
+== cargo test -p intarsia-backend-metal --release
+cargo test metal rc=0: 110 passed, 0 failed
+== cargo test -p intarsia-backend-metal --release --features fault-inject --test fault_inject
+cargo test metal fault_inject rc=0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+== leftover check
+no leftover serve process
+port 8117 free
+== done rc=0
