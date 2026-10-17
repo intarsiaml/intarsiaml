@@ -12,7 +12,6 @@ use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
     ("matmul_fp8_gemv_v2", Op::MatmulFp8),
-    ("matmul_fp8_gemv_v3", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemv_v2", Op::MatmulNvfp4),
@@ -66,15 +65,6 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(20),
-                // v3: one activation row, bf16 out; priority 5 until the sweep picks the shapes it wins on
-                "matmul_fp8_gemv_v3" => k
-                    .acts(bf)
-                    .weights([DType::Fp8E4m3])
-                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
-                    .exact(Exactness::Deterministic)
-                    .tol(TOL)
-                    .tol_f32(F32_OUT_TOL)
-                    .priority(5),
                 "matmul_fp8_mma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])

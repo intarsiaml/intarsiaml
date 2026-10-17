@@ -108,7 +108,7 @@ stage_test() { # cargo tests of the hip crate (kernel tests, device_pos, graph p
 }
 
 stage_fusedtest() { # the fused decode kernels against the unfused launches (bitwise) and the cpu reference, plus the GPU admission sweep
-  $D cargo test --release -p intarsia-backend-hip --test fused_decode --test admission -- --nocapture --test-threads=1 2>&1 \
+  $D cargo test --release -p intarsia-backend-hip --test fused_decode --test fp8_pair_shapes --test decode_v2 --test admission -- --nocapture --test-threads=1 2>&1 \
     | grep -E "^test |test result|FAILED|panicked|differs|rel_l2" | cut -c1-400 | tail -40
 }
 
@@ -144,7 +144,7 @@ stage_sweep() { # DRAM-cold v1 vs v2 at the real decode shapes, across the fp8 r
   done
 }
 
-stage_fp8sweep() { # fp8 GEMV block-shape sweep (v2, v3 every R/UN/W, pair R/W), DRAM-cold, at the 35B decode shapes
+stage_fp8sweep() { # fp8 GEMV at the 35B decode shapes: v2 singles, a size scale (fixed cost / streaming rate), the pair block shapes; DRAM-cold
   $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_fp8_sweep 2>&1 | grep -E "^(case|o_proj|attn|k or|qkv|z |scale|pair)|panicked|error" | cut -c1-110
 }
 
@@ -152,7 +152,7 @@ stage_mutate() {
   # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
   local MUT="${INTARSIA_MUT_DIR:-$HOME/intarsiaml-hipperf2-mut}"
   local m
-  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round}; do
+  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round pair-nb0 pair-grid}; do
     rm -rf "$MUT"; mkdir -p "$MUT"
     rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$MUT/"
     python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$MUT" $m || continue

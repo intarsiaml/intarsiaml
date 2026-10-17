@@ -71,20 +71,24 @@ print(f"\n{'kernel':<72}{'n/step':>7}{'us/step':>10}{'avg us':>8}{'%kern':>7}")
 for name, (c, t) in sorted(agg.items(), key=lambda kv: -kv[1][1]):
     print(f"{name:<72}{c/n:>7.1f}{t/n/1e3:>10.1f}{t/c/1e3:>8.1f}{100*t/tot_k:>6.1f}%")
 
-# fp8 GEMV launches grouped by grid (the 35B's decode shapes; blocks = grid / workgroup): achieved GB/s against 627.
-# bytes per grid: out/o_proj 2048x4096 (128 blocks at 16 rows), attention q 8192x2048 (512), GDN qkv+z pair 12288x2048 (768),
-# attention k+v pair 1024x2048 (64). Other grids are listed without a figure.
-MB = {128: 8.389, 512: 16.777, 768: 25.166, 64: 2.097}
+# fp8 GEMV launches grouped by kernel and grid (blocks = grid / workgroup): achieved GB/s against 627. The weight bytes follow
+# from the launch geometry (rows = blocks x R x warps per block, read from the template arguments) and the 35B's K: 4096 for the
+# 2048-row out/o_proj, 2048 for everything else (q, k + v, qkv + z).
 sh = collections.defaultdict(lambda: [0, 0.0])
-for s in dec:
-    for b, e, name, gx, wx in s:
+for s_ in dec:
+    for b, e, name, gx, wx in s_:
         if "fp8_gemv" in name and gx and wx:
-            blocks = int(gx) // int(wx)
-            a = sh[(short(name), blocks)]
+            a = sh[(short(name), int(gx) // int(wx))]
             a[0] += 1; a[1] += (e - b)
 print(f"\n{'fp8 kernel / blocks':<50}{'n/step':>7}{'avg us':>8}{'MB':>8}{'GB/s':>7}{'%627':>6}{'us/step':>9}")
 for (name, blocks), (c, t) in sorted(sh.items(), key=lambda kv: -kv[1][1]):
     avg = t / c / 1e3
-    mb = MB.get(blocks)
-    g = f"{1e3 * mb / avg:>7.0f}{100 * 1e3 * mb / avg / 627:>5.0f}%" if mb else f"{'':>12}"
-    print(f"{name + ' g' + str(blocks):<50}{c/n:>7.1f}{avg:>8.1f}{(mb or 0):>8.2f}{g}{t/n/1e3:>9.1f}")
+    args = [x.strip() for x in name[name.index("<") + 1:name.rindex(">")].split(",")]
+    if "pair" in name:
+        r, w = int(args[0]), (int(args[3]) if len(args) > 3 else 8)
+        rows, k = blocks * r * w, 2048
+    else:
+        rows, k = blocks * int(args[1]) * 8, 0
+        k = 4096 if rows == 2048 else 2048
+    mb = rows * k / 1e6
+    print(f"{name + ' g' + str(blocks):<50}{c/n:>7.1f}{avg:>8.1f}{mb:>8.2f}{1e3 * mb / avg:>7.0f}{100 * 1e3 * mb / avg / 627:>5.0f}%{t/n/1e3:>9.1f}")

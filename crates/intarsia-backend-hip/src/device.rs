@@ -474,7 +474,6 @@ impl Backend for HipBackend {
                 }
                 "matmul_fp8_gemv" => ffi::ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_v2" => ffi::ik_matmul_fp8_gemv_v2(i(0), i(1), i(2), o, s),
-                "matmul_fp8_gemv_v3" => ffi::ik_matmul_fp8_gemv_v3(i(0), i(1), i(2), o, s),
                 "matmul_fp8_mma" => ffi::ik_matmul_fp8_mma(i(0), i(1), i(2), o, s),
                 "matmul_nvfp4_gemv" => ffi::ik_matmul_nvfp4_gemv(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_gemv_v2" => ffi::ik_matmul_nvfp4_gemv_v2(i(0), i(1), i(2), i(3), o, s),

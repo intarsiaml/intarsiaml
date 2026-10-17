@@ -38,8 +38,8 @@ MUTATIONS = {
         "else gemv_body<1, R, U, OutT>(x, w1, o1, N1, K, (int64_t)blockIdx.x - nb0 + 1);")]),
     # fp8 pair: the second segment stages and scales with the first segment's scales
     "fp8-pair-scale": ("kernels/hip/fp8.hip", [(
-        "else fp8_gemv_body<1, R, OutT, Q>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);",
-        "else fp8_gemv_body<1, R, OutT, Q>(x, w1, sc0, o1, N1, K, (int64_t)blockIdx.x - nb0);")]),
+        "else fp8_gemv_body<1, R, OutT, Q, W>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);",
+        "else fp8_gemv_body<1, R, OutT, Q, W>(x, w1, sc0, o1, N1, K, (int64_t)blockIdx.x - nb0);")]),
     # nvfp4 gate+up+silu: the up projection is scaled with the gate's global scale
     "glu-scale": ("kernels/hip/nvfp4.hip", [(
         "ik_warp_sum(acc[1]) * gsu[0]", "ik_warp_sum(acc[1]) * gsg[0]")]),
@@ -53,10 +53,19 @@ MUTATIONS = {
     "gated-round": ("kernels/hip/norm.hip", [(
         "ik_unpack8(ik_pack8(f), nrm);  // the normalised row as the rmsnorm launch stores it (bf16)",
         "for (int k = 0; k < 8; ++k) nrm[k] = f[k];")]),
+    # --- fp8 pair block shape (hip-fp8-gemv; the default is one row per warp, eight warps) ---
+    # the kernel splits its blocks between the segments with a row count per block of two rows per warp, the launcher with R
+    "pair-nb0": ("kernels/hip/fp8.hip", [(
+        "    constexpr int per = W * R;\n    const int nb0 = (N0 + per - 1) / per;",
+        "    constexpr int per = W * 2;\n    const int nb0 = (N0 + per - 1) / per;")]),
+    # the launcher sizes the grid for the two segments together instead of one block count per segment
+    "pair-grid": ("kernels/hip/fp8.hip", [(
+        "const unsigned grid = (unsigned)((N0 + per - 1) / per + (N1 + per - 1) / per);\n    fp8_gemv_pair_kernel<R, ik_bf16, 2, W>",
+        "const unsigned grid = (unsigned)((N0 + N1 + per - 1) / per);\n    fp8_gemv_pair_kernel<R, ik_bf16, 2, W>")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
-TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round")}
+TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid")}
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target
