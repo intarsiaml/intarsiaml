@@ -1,0 +1,2 @@
+2026-10-17 job=2346 stop=14:03:40 up=14:14:56 down=11.2 min label="intarsiaml cuda-norm-gemv B1: nsys launches, tests, mutations, ids, goldens" serving=1
+2026-10-17 job=2352 stop=14:16:40 up=14:30:00 down=13.3 min label="intarsiaml cuda-norm-gemv B2: qualify quick-only and A/B speed" serving=1

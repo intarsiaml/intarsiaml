@@ -1,0 +1,23 @@
+gen 35b A-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 341 ms (70.3 tok/s) | decode 4241 ms (60.13 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 35b B-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 367 ms (65.4 tok/s) | decode 4218 ms (60.45 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 35b A-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 304 ms (78.9 tok/s) | decode 3542 ms (71.99 tok/s) steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 35b B-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 297 ms (80.8 tok/s) | decode 3529 ms (72.25 tok/s) steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 8b A-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 282 ms (85.0 tok/s) | decode 16774 ms (15.20 tok/s) steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+gen 8b B-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 281 ms (85.5 tok/s) | decode 16786 ms (15.19 tok/s) steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+gen 8b A-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 272 ms (88.2 tok/s) | decode 17097 ms (14.91 tok/s) steps=256 graph replays=0 (captures 0) eager decode steps=255 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+gen 8b B-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 273 ms (88.0 tok/s) | decode 17070 ms (14.94 tok/s) steps=256 graph replays=0 (captures 0) eager decode steps=255 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+acc8 8b-short exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+acc8 8b-long exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+lane2 done 13:44:57

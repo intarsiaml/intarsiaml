@@ -1,0 +1,19 @@
+KILLED   gn-group: gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 1.00s 
+KILLED   gn-actq: gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 1.09s 
+KILLED   gn-round: gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.65s 
+KILLED   gn-silu: gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.67s 
+KILLED   gn-tail: gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.63s 
+KILLED   gn-weight: gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.66s 
+KILLED   gn-order: gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 6.62s 
+KILLED   gn-chunk-order: gated_rmsnorm_matmul_fp8_many_draws_bitwise result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 6.72s 
+KILLED   norm-nb0: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 7.45s 
+KILLED   norm-pair-block: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 10.60s 
+SURVIVED norm-order: rc 0 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 10.78s
+KILLED   norm-read-x: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 7.02s 
+KILLED   norm-skip-normed: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair rmsnorm_add_matmul_pair_many_rows_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.80s 
+KILLED   norm-skip-sum: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair rmsnorm_add_matmul_pair_many_rows_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.73s 
+KILLED   norm-sum-round: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair rmsnorm_add_matmul_pair_many_rows_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 1.02s 
+KILLED   norm-woff: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair rmsnorm_add_matmul_pair_many_rows_bitwise result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.91s 
+KILLED   norm-sync: rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 2.68s 
+KILLED   gn-woff: gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 20.51s 
+unmutated: rc 0 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.21s

@@ -1,5 +1,6 @@
 //! The fused decode kernels (`matmul_pair_bf16_gemv`, `matmul_fp8_pair_gemv`, `matmul_nvfp4_glu_gemv`,
-//! `gated_rmsnorm_bf16`) against the launches they replace, and against the cpu reference.
+//! `gated_rmsnorm_bf16`, `rmsnorm_add_matmul_pair_bf16_gemv`, `gated_rmsnorm_matmul_fp8_gemv`) against the launches they
+//! replace, and against the cpu reference.
 //!
 //! A fused kernel runs the arithmetic of the kernels it merges in the same order, so its outputs must be *bitwise* the
 //! outputs of that chain on the same device (this is what keeps the 35B accuracy numbers and the graph/eager proof
@@ -20,7 +21,10 @@ mod common;
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::Backend;
 use intarsia_core::exec::{run_host, HostCall, OutSpec};
-use intarsia_core::quant::cases::{gated_rmsnorm_case, matmul_fp8_pair_case, matmul_nvfp4_glu_case, matmul_pair_case};
+use intarsia_core::quant::cases::{
+    gated_rmsnorm_case, gated_rmsnorm_matmul_fp8_case, matmul_fp8_pair_case, matmul_nvfp4_glu_case, matmul_pair_case,
+    rmsnorm_add_matmul_pair_case,
+};
 use intarsia_core::quant::fp8::scales_tensor;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::{DType, HostTensor, Op, OpAttrs};
@@ -209,5 +213,186 @@ fn gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu() {
             bits_eq(&label, "output", &got[0], &want[0]);
             near_reference(Op::GatedRmsnorm, &hc, &got, 6e-3, &label);
         }
+    }
+}
+
+/// The norm folded into the pair GEMV: all four outputs (the normed row and the new residual stream the kernel stores from one
+/// designated block, and both projections) bitwise the `rmsnorm_add` launch followed by the pair launch.
+#[test]
+fn rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair() {
+    let Some(cuda) = device("rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair") else { return };
+    let mut rng = SplitMix64::new(65);
+    // (n0, n1, k): GDN b + a and the MoE router + shared-expert gate at the 35B hidden size (block of 256 threads, one
+    // vector each), a row narrower than the block (a norm launch of fewer threads), a segment shorter than one block, K = 8,
+    // K past one pass of the block (4104: threads hold two or three vectors), the largest K the smem staging takes, a larger grid
+    for (n0, n1, k) in [
+        (32usize, 32usize, 2048usize),
+        (256, 1, 2048),
+        (33, 1, 96),
+        (9, 17, 40),
+        (1, 1, 8),
+        (300, 5, 520),
+        (40, 24, 4104),
+        (7, 129, 8192),
+        (2048, 2048, 2048),
+        (64, 1, 4096),
+        (5, 3, 264),
+    ] {
+        for w_offset in [0.0f32, 1.0] {
+            let hc = rmsnorm_add_matmul_pair_case(&mut rng, 1, n0, n1, k, DType::Bf16, w_offset);
+            let label = format!("norm+pair n0={n0} n1={n1} k={k} w_offset={w_offset}");
+            let got = run_host(&*cuda, "rmsnorm_add_matmul_pair_bf16_gemv", &hc).unwrap();
+            let norm = call(
+                Op::RmsNormAdd,
+                vec![hc.inputs[0].clone(), hc.inputs[1].clone(), hc.inputs[2].clone()],
+                vec![out_bf16(&[1, k]), out_bf16(&[1, k])],
+                hc.attrs.clone(),
+            );
+            let want = run_host(&*cuda, "rmsnorm_add_bf16", &norm).unwrap();
+            bits_eq(&label, "normed", &got[0], &want[0]);
+            bits_eq(&label, "sum", &got[1], &want[1]);
+            for (j, w) in [(2usize, 3usize), (3, 4)] {
+                let one = call(Op::Matmul, vec![want[0].clone(), hc.inputs[w].clone()], vec![hc.outputs[j].clone()], OpAttrs::default());
+                let gemv = run_host(&*cuda, "matmul_bf16_gemv", &one).unwrap();
+                bits_eq(&label, &format!("output {j}"), &got[j], &gemv[0]);
+            }
+            // the same bits as the pair launch on the normed row
+            let pair = call(
+                Op::MatmulPair,
+                vec![want[0].clone(), hc.inputs[3].clone(), hc.inputs[4].clone()],
+                vec![hc.outputs[2].clone(), hc.outputs[3].clone()],
+                OpAttrs::default(),
+            );
+            let pair_want = run_host(&*cuda, "matmul_pair_bf16_gemv", &pair).unwrap();
+            bits_eq(&label, "pair output 0", &got[2], &pair_want[0]);
+            bits_eq(&label, "pair output 1", &got[3], &pair_want[1]);
+            near_reference(Op::RmsNormAddMatmulPair, &hc, &got, 1e-3, &label);
+        }
+    }
+}
+
+/// Many draws at the model's row width. A reduction that sums the same values in another order moves the last bit of the sum of
+/// squares, and that flips a bf16 output element only about once in 2^16 draws of an element, so a few rows would rarely show it
+/// (mutation `norm-order`): re-draw the activations 3000 times against fixed weights.
+#[test]
+fn rmsnorm_add_matmul_pair_many_rows_bitwise() {
+    let Some(cuda) = device("rmsnorm_add_matmul_pair_many_rows_bitwise") else { return };
+    let mut rng = SplitMix64::new(66);
+    let mut hc = rmsnorm_add_matmul_pair_case(&mut rng, 1, 8, 1, 2048, DType::Bf16, 1.0);
+    for trial in 0..3000 {
+        let scale = 0.5 + (trial % 7) as f32;
+        hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &rng.normal_vec(2048, scale));
+        hc.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &rng.normal_vec(2048, 1.0));
+        let label = format!("norm+pair trial {trial}");
+        let got = run_host(&*cuda, "rmsnorm_add_matmul_pair_bf16_gemv", &hc).unwrap();
+        let norm = call(
+            Op::RmsNormAdd,
+            vec![hc.inputs[0].clone(), hc.inputs[1].clone(), hc.inputs[2].clone()],
+            vec![out_bf16(&[1, 2048]), out_bf16(&[1, 2048])],
+            hc.attrs.clone(),
+        );
+        let want = run_host(&*cuda, "rmsnorm_add_bf16", &norm).unwrap();
+        bits_eq(&label, "normed", &got[0], &want[0]);
+        bits_eq(&label, "sum", &got[1], &want[1]);
+    }
+}
+
+/// The GDN output norm folded into the fp8 out_proj: bitwise `gated_rmsnorm_bf16` then `matmul_fp8_gemv` on the result read as
+/// one row. 32 rows of 128 is the model; the other row counts and widths cover tails of the weight loop and the staging
+/// (an odd row count leaves half a warp of the staging loop without a chunk).
+#[test]
+fn gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv() {
+    let Some(cuda) = device("gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv") else { return };
+    let mut rng = SplitMix64::new(67);
+    for (r, n) in [(32usize, 2048usize), (32, 1), (4, 40), (1, 64), (7, 33), (16, 520), (32, 8192), (24, 4096), (3, 2049), (5, 17)] {
+        for aq in [true, false] {
+            for w_offset in [0.0f32, 1.0] {
+                let mut hc = gated_rmsnorm_matmul_fp8_case(&mut rng, r, n, aq, DType::Bf16);
+                hc.attrs.w_offset = w_offset;
+                let label = format!("gated norm + fp8 r={r} n={n} act_quant={aq} w_offset={w_offset}");
+                let got = run_host(&*cuda, "gated_rmsnorm_matmul_fp8_gemv", &hc).unwrap();
+                let norm = call(
+                    Op::GatedRmsnorm,
+                    vec![hc.inputs[0].clone(), hc.inputs[1].clone(), hc.inputs[2].clone()],
+                    vec![out_bf16(&[r, 128])],
+                    hc.attrs.clone(),
+                );
+                let mut normed = run_host(&*cuda, "gated_rmsnorm_bf16", &norm).unwrap().remove(0);
+                normed.shape = vec![1, r * 128];
+                let mm = call(
+                    Op::MatmulFp8,
+                    vec![normed, hc.inputs[3].clone(), hc.inputs[4].clone()],
+                    vec![out_bf16(&[1, n])],
+                    OpAttrs::default(),
+                );
+                let want = run_host(&*cuda, "matmul_fp8_gemv", &mm).unwrap();
+                bits_eq(&label, "output", &got[0], &want[0]);
+                near_reference(Op::GatedRmsnormMatmulFp8, &hc, &got, 6e-3, &label);
+            }
+        }
+    }
+}
+
+/// Many draws of the model's shape (as `rmsnorm_add_matmul_pair_many_rows_bitwise`; mutation `gn-order`): the sum of squares of a
+/// head summed in another order flips a normalised element rarely, and a flipped element moves the projections of that row.
+#[test]
+fn gated_rmsnorm_matmul_fp8_many_draws_bitwise() {
+    let Some(cuda) = device("gated_rmsnorm_matmul_fp8_many_draws_bitwise") else { return };
+    let mut rng = SplitMix64::new(68);
+    // W8A8 (the checkpoint's recipe) 2500 draws, W8A16 1000
+    for (aq, draws) in [(true, 2500), (false, 1000)] {
+        let mut hc = gated_rmsnorm_matmul_fp8_case(&mut rng, 32, 512, aq, DType::Bf16);
+        for trial in 0..draws {
+            let scale = 0.5 + (trial % 7) as f32;
+            hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[32, 128], &rng.normal_vec(32 * 128, scale));
+            hc.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &[32, 128], &rng.normal_vec(32 * 128, 2.0));
+            let label = format!("gated norm + fp8 act_quant={aq} trial {trial}");
+            let got = run_host(&*cuda, "gated_rmsnorm_matmul_fp8_gemv", &hc).unwrap();
+            let norm = call(
+                Op::GatedRmsnorm,
+                vec![hc.inputs[0].clone(), hc.inputs[1].clone(), hc.inputs[2].clone()],
+                vec![out_bf16(&[32, 128])],
+                hc.attrs.clone(),
+            );
+            let mut normed = run_host(&*cuda, "gated_rmsnorm_bf16", &norm).unwrap().remove(0);
+            normed.shape = vec![1, 32 * 128];
+            let mm = call(Op::MatmulFp8, vec![normed, hc.inputs[3].clone(), hc.inputs[4].clone()], vec![out_bf16(&[1, 512])], OpAttrs::default());
+            let want = run_host(&*cuda, "matmul_fp8_gemv", &mm).unwrap();
+            bits_eq(&label, "output", &got[0], &want[0]);
+        }
+    }
+}
+
+/// `n` values, each a normal draw times 2^u with u uniform in (-spread, spread): rows whose elements span many binades, as LLM
+/// activations with outlier channels do. The squares of bf16 values are exact in f32 and so are their sums while the terms sit
+/// within a few binades, so on well-scaled data a different summation order gives the same bits (the `norm-order` mutation
+/// survived 3000 such draws); with a wide spread the partial sums round and the order shows.
+fn heavy_vec(rng: &mut SplitMix64, n: usize, spread: f32) -> Vec<f32> {
+    (0..n).map(|_| rng.normal() * ((rng.next_f32() * 2.0 - 1.0) * spread).exp2()).collect()
+}
+
+/// `rmsnorm_add_matmul_pair_many_rows_bitwise` with heavy-tailed rows (mutation `norm-order`).
+#[test]
+fn rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise() {
+    let Some(cuda) = device("rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise") else { return };
+    let mut rng = SplitMix64::new(69);
+    let mut hc = rmsnorm_add_matmul_pair_case(&mut rng, 1, 8, 1, 2048, DType::Bf16, 1.0);
+    // a different summation order of the squares flips a normalised element in about one draw of 400 (numpy emulation of the
+    // kernel's reduction on rows like these); 8000 draws expect about 20 such flips for the `norm-order` mutation
+    for trial in 0..8000 {
+        let spread = 2.0 + (trial % 5) as f32 * 2.0;
+        hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &heavy_vec(&mut rng, 2048, spread));
+        hc.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &[1, 2048], &heavy_vec(&mut rng, 2048, spread));
+        let label = format!("norm+pair heavy trial {trial} spread {spread}");
+        let got = run_host(&*cuda, "rmsnorm_add_matmul_pair_bf16_gemv", &hc).unwrap();
+        let norm = call(
+            Op::RmsNormAdd,
+            vec![hc.inputs[0].clone(), hc.inputs[1].clone(), hc.inputs[2].clone()],
+            vec![out_bf16(&[1, 2048]), out_bf16(&[1, 2048])],
+            hc.attrs.clone(),
+        );
+        let want = run_host(&*cuda, "rmsnorm_add_bf16", &norm).unwrap();
+        bits_eq(&label, "normed", &got[0], &want[0]);
+        bits_eq(&label, "sum", &got[1], &want[1]);
     }
 }

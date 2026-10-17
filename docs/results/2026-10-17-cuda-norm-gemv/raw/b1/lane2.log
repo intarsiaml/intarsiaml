@@ -1,0 +1,17 @@
+gen 35b dev-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 408 ms (58.8 tok/s) | decode 6001 ms (42.49 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0 
+gen 35b dev-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 286 ms (84.0 tok/s) | decode 3446 ms (74.00 tok/s) steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0 
+gen 35b dev-nofusion: finish=length prompt=24 (cached 0) completion=256 | prefill 285 ms (84.1 tok/s) | decode 3290 ms (77.50 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0 
+gen 8b dev-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 270 ms (88.7 tok/s) | decode 16840 ms (15.14 tok/s) steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0m 
+gen 8b dev-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 271 ms (88.7 tok/s) | decode 17138 ms (14.88 tok/s) steps=256 graph replays=0 (captures 0) eager decode steps=255 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0m 
+gen 8b dev-nofusion: finish=length prompt=24 (cached 0) completion=256 | prefill 284 ms (84.5 tok/s) | decode 16896 ms (15.09 tok/s) steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0m 
+acc8 qwen3-8b-fp32 exit 0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+acc8 qwen3-8b-long-fp32 exit 0
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+lane2 done 14:11:46

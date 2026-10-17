@@ -1,0 +1,19 @@
+
+running 2 tests
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... FAILED
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+
+failures:
+
+---- rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair stdout ----
+
+thread 'rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-cuda/tests/fused_decode.rs:60:9:
+norm+pair n0=32 n1=32 k=2048 w_offset=0: output 2 differs from the unfused launches in 32 of 32 elements (first at 0: 8 vs 19)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 7.02s
+

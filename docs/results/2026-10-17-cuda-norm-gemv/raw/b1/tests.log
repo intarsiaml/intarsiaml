@@ -1,0 +1,82 @@
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/admission.rs (target/acc/release/deps/admission-47fa24c8024b63b2)
+
+running 4 tests
+test backend_is_usable_from_other_threads ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test info_reports_the_device ... ok
+test every_cuda_kernel_matches_the_reference ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.42s
+
+     Running tests/fused_decode.rs (target/acc/release/deps/fused_decode-e845ae99c338ffe2)
+
+running 8 tests
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.42s
+
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 13 tests
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+test moe_experts_mma_matches_reference ... ok
+
+test result: ok. 10 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 3.81s
+
