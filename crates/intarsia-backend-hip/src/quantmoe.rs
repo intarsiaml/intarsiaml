@@ -45,6 +45,16 @@ pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// the same as the elementwise kernels' (kernels.rs `BF16_TOL`).
 const GLU_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 
+/// `matmul_fp8_mma_f8` is selected only with INTARSIA_HIP_FP8_F8=1. Its products are exact like the bf16 kernel's and it
+/// agrees with the cpu reference to 5e-7 (f32 out), but the order of the f32 additions differs, which moves the 35B's
+/// aggregate prefill KL against the vLLM golden from 7.071e-3 to 7.417e-3, while the base build is bit-identical run to run,
+/// across prefill chunks (spread 0): by the rule that a changed numeric path must not be worse than the base
+/// beyond the base's own spread, it is off by default (docs/results/2026-10-17-hip-prefill.md).
+pub fn fp8_f8_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_HIP_FP8_F8").is_ok_and(|v| v == "1"))
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     TABLE
@@ -76,8 +86,8 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL),
                 // W8A8 prefill GEMM on the fp8 x fp8 WMMA (kernels/hip/ik_f8_gemm.h); weight-only activations run the bf16
-                // kernel inside. Serves every M the gemv does not (>= 5), so a tail chunk is rounded like the rows of a full
-                // one. INTARSIA_HIP_DISABLE=matmul_fp8_mma_f8 selects matmul_fp8_mma (the previous path).
+                // kernel inside. OPT-IN (INTARSIA_HIP_FP8_F8=1, see `fp8_f8_enabled`): off, matmul_fp8_mma stays the kernel for
+                // these shapes. Serves every M the gemv does not (>= 5), so a tail chunk is rounded like the rows of a full one.
                 "matmul_fp8_mma_f8" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
@@ -86,7 +96,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k + 16)
-                    .priority(5),
+                    .priority(if fp8_f8_enabled() { 5 } else { -10 }),
                 "matmul_nvfp4_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])

@@ -20,6 +20,7 @@ pub const COMPILER: &str = env!("IK_HIP_COMPILER");
 /// cached ADMITTED result for the default variant says nothing about `INTARSIA_HIP_GEMV=4,8`.
 pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_DISABLE",
+    "INTARSIA_HIP_FP8_F8",
     "INTARSIA_HIP_FP8_PAIR",
     "INTARSIA_HIP_FP8_Q",
     "INTARSIA_HIP_FP8_ROWS",
@@ -230,7 +231,8 @@ mod tests {
 
     #[test]
     fn every_launcher_is_declared_in_the_abi_header() {
-        let hdr = include_str!("../../../kernels/abi/ik_abi.h");
+        // the shared header, plus the one of the launchers only this backend defines
+        let hdr = [include_str!("../../../kernels/abi/ik_abi.h"), include_str!("../../../kernels/hip/ik_hip_abi.h")].concat();
         for (name, _) in full_table() {
             assert!(hdr.contains(&format!("int ik_{name}(")), "ik_{name} missing from kernels/abi/ik_abi.h");
         }

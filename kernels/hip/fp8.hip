@@ -16,6 +16,7 @@
 
 #include "ik_dq_gemm.h"
 #include "ik_f8_gemm.h"
+#include "ik_hip_abi.h"
 
 namespace {
 
@@ -424,7 +425,7 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     return ik_launch_status();
 }
 
-// matmul_fp8_mma_f8 (HIP only, not declared in kernels/abi/ik_abi.h; crates/intarsia-backend-hip/src/ffi.rs declares it): the W8A8 GEMM on the fp8 x fp8 WMMA (ik_f8_gemm.h). input_scale > 0 is known only on the device, so one
+// matmul_fp8_mma_f8 (HIP only: declared in ik_hip_abi.h): the W8A8 GEMM on the fp8 x fp8 WMMA (ik_f8_gemm.h). input_scale > 0 is known only on the device, so one
 // launch of each kind is made and each exits at once when the scale is not for it: the activation quantiser and the e4m3 GEMM
 // for W8A8, the dequantise-to-bf16 GEMM (the matmul_fp8_mma kernel) for weight-only activations. Needs scratch: M * K bytes.
 int launch_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,

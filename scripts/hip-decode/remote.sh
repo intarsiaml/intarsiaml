@@ -98,6 +98,25 @@ stage_f8test() {
   $D cargo test --release -p intarsia-backend-hip --test fp8_f8 -- --nocapture --test-threads=1 2>&1 \
     | grep -E "^test |test result|FAILED|panicked|rel_l2|differ|f8 vs" | cut -c1-300 | tail -30
 }
+# alltests: every test of the HIP crate (admission, determinism, fused decode, fp8_f8, ...), one thread
+stage_alltests() {
+  $D cargo test --release -p intarsia-backend-hip --no-fail-fast -- --test-threads=1 2>&1 | grep -E "test result|FAILED|panicked|Running|failed" | cut -c1-200 | tail -60
+}
+# accpert: 35B short golden, prefill + decode, for the default build (f8 off), the e4m3 GEMM on, and two other correct kernels that move
+# the rounding (SIMT attention instead of flash / split-KV, GEMV-style MoE instead of the WMMA projections): the spread to read the
+# e4m3 GEMM's delta against. ACC_TAIL=4: the OVERALL lines and verdicts only; full logs in bench-out/acc/.
+stage_accpert() {
+  local m=qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors
+  ACC_TAG=pert-base ACC_TAIL=4 acc $M35 $m --max-seq 4096
+  INTARSIA_HIP_FP8_F8=1 ACC_TAG=pert-f8 ACC_TAIL=4 acc $M35 $m --max-seq 4096
+  INTARSIA_HIP_DISABLE=attn_prefill_bf16_flash,attn_prefill_bf16_splitkv ACC_TAG=pert-simt ACC_TAIL=4 acc $M35 $m --max-seq 4096
+  INTARSIA_HIP_MOE_WMMA=0 ACC_TAG=pert-moegemv ACC_TAIL=4 acc $M35 $m --max-seq 4096
+  INTARSIA_HIP_FP8_F8=1 INTARSIA_HIP_DISABLE=attn_prefill_bf16_flash,attn_prefill_bf16_splitkv ACC_TAG=pert-f8simt ACC_TAIL=4 acc $M35 $m --max-seq 4096
+}
+# f8 variants of the long golden: acc35lf8:<chunk>
+stage_acc35lf8() { INTARSIA_HIP_FP8_F8=1 ACC_TAG="f8c$1" ACC_MODE=all ACC_TAIL=40 acc $M35 qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk "$1"; }
+# kf8: the admission sweep on the 35B's shapes, the lines of the fp8 kernels and the verdict
+stage_kf8() { $D $B kernels test --backend hip --model $M35 2>&1 | grep -E "fp8|kernels,|FAIL|REJECT"; }
 # pfbench: prefill-shaped timings (fp8 mma vs mma_f8, routed experts) for INTARSIA_HIP_MOE_Z = 0 (full grid), 2 (default), 4, 1
 stage_pfbench() {
   local z
@@ -110,8 +129,8 @@ stage_pfbench() {
 # chunk35l:<chunk>: does that chunk fit at 16k context (max-seq 17408, one 16384-token prompt)
 stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-16k-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
 # pf35[:tag] / pf8[:tag]: A/B speed, prefill 128/1024/4096/16384 and decode 128 (the serve's own recipe chunk)
-stage_pf35() { [[ "${1:-}" == nof8* ]] && export SERVE_ENV="-e INTARSIA_HIP_DISABLE=matmul_fp8_mma_f8"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
-stage_pf8() { [[ "${1:-}" == nof8* ]] && export SERVE_ENV="-e INTARSIA_HIP_DISABLE=matmul_fp8_mma_f8"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
+stage_pf35() { [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
+stage_pf8() { [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file
   local tag=$1; shift
