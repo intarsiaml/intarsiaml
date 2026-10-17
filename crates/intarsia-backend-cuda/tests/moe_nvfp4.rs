@@ -146,6 +146,22 @@ fn moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference() {
     }
 }
 
+/// The real prefill shape (256 experts, top-8, H 2048, I 512, 1024 tokens: about 32 pairs per expert, several tiles for
+/// the hot ones): too big for the cpu reference, so the check is against the bf16 GPU kernel (the activation quantisation
+/// error again, ~0.16), plus repeatability and bit-equality across tile heights.
+#[test]
+fn moe_nvfp4_at_the_real_prefill_shape() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(75);
+    let hc = with_distinct_gscales(&experts_case(&mut rng, 1024, 256, 8, 2048, 512, DType::Bf16));
+    let old = run_host(&*cuda, "moe_experts_mma_bf16", &hc).unwrap()[0].to_f32();
+    let got = run_host(&*cuda, KERNEL, &hc).unwrap();
+    let r = rel_l2(&got[0].to_f32(), &old);
+    println!("T=1024 E=256 K=8 H=2048 I=512: fp4 vs bf16 kernel rel_l2 {r:.4}");
+    assert!(r > 0.05 && r < 0.25, "rel_l2 {r}");
+    assert_eq!(got[0].data, run_host(&*cuda, KERNEL, &hc).unwrap()[0].data, "not repeatable");
+}
+
 /// The tile height changes only how rows are batched into mma tiles, never a row's own arithmetic: bit-identical outputs.
 #[test]
 fn moe_nvfp4_is_independent_of_tile_height() {
