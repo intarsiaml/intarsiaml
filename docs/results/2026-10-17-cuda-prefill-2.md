@@ -213,5 +213,5 @@ Housekeeping: `~/intarsia-decfuse/out/w3` on spark1 already held files from an e
 Stop to serving again, from `downtime.log`: W1 7.9 min (14:46:21 to 14:54:15), W2 7.9 min (15:07:04 to 15:15:00), W3 10.1 min
 (15:18:15 to 15:28:25) = **25.9 min of the 40 min cap**, no window over 12 min. Each window used one exclusive fleetq lease with
 `--takes-down guidance` through `scripts/cuda-decode/window.sh`, released at the end, no `--force`. After W3, `/v1/models` at
-http://100.120.88.104:8000 answered (`guidance`, root `nvidia/Qwen3.6-35B-A3B-NVFP4`) at the time of the final check below.
+http://100.120.88.104:8000 answered again right after W3 (15:28:25, the window script's own wait) and in a final check at 15:35:05 (HTTP 200, model `guidance`).
 W1's log line was written by hand: the window script could not append because the log directory did not exist yet.
