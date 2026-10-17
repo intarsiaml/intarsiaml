@@ -258,7 +258,14 @@ int ik_moe_combine_bf16(const ik_tensor* routed, const ik_tensor* shared, const 
  *   matmul_fp8_pair_gemv    x[1,K], (w0, scales0), (w1, scales1) fp8 -> out0, out1 (bf16): two matmul_fp8_gemv_v2.
  *   matmul_nvfp4_glu_gemv   x[1,K], (w, block scales, global) for gate and for up, [N,K] each -> out[1,N] (bf16)
  *                           = silu_glu(matmul_nvfp4_gemv_v2(gate), matmul_nvfp4_gemv_v2(up)).
- *   gated_rmsnorm_bf16      x[R,D], z[R,D], w[D], eps, w_offset -> out[R,D] = silu_glu(z, rmsnorm(x, w)); out may be x. */
+ *   gated_rmsnorm_bf16      x[R,D], z[R,D], w[D], eps, w_offset -> out[R,D] = silu_glu(z, rmsnorm(x, w)); out may be x.
+ *   rmsnorm_add_matmul_pair_bf16_gemv
+ *                           x[1,K], res[1,K], w[K] (bf16, K % 8 == 0, K <= 8192), eps, w_offset, w0[N0,K], w1[N1,K] ->
+ *                           normed[1,K], sum[1,K], out0[1,N0], out1[1,N1] = rmsnorm_add_bf16(x, res, w) then matmul_pair_bf16_gemv
+ *                           on `normed`. normed / sum must not overlap x / res (HIP only so far; CUDA keeps the two launches).
+ *   gated_rmsnorm_matmul_fp8_gemv
+ *                           x[R,128], z[R,128], w[128] (bf16), eps, w_offset, fp8 weights [N,R*128] + scales -> out[1,N] (bf16)
+ *                           = matmul_fp8_gemv_v2(gated_rmsnorm_bf16(x, z, w) read as one row, ...) (HIP only so far). */
 int ik_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* out0,
                              ik_tensor* out1, void* stream);
 int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
@@ -268,6 +275,11 @@ int ik_matmul_nvfp4_glu_gemv(const ik_tensor* x, const ik_tensor* w_gate, const 
                              const ik_tensor* global_scale_up, ik_tensor* out, void* stream);
 int ik_gated_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* z, const ik_tensor* w, float eps, float w_offset,
                           ik_tensor* out, void* stream);
+int ik_gated_rmsnorm_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float w_offset,
+                                     const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
+int ik_rmsnorm_add_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps,
+                                         float w_offset, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* normed,
+                                         ik_tensor* sum, ik_tensor* out0, ik_tensor* out1, void* stream);
 
 /* Optional pack introspection (each pack exports one; used by `intarsia doctor`). */
 typedef struct {

@@ -62,10 +62,53 @@ MUTATIONS = {
     "pair-grid": ("kernels/hip/fp8.hip", [(
         "const unsigned grid = (unsigned)((N0 + per - 1) / per + (N1 + per - 1) / per);\n    fp8_gemv_pair_kernel<R, ik_bf16, 2, W>",
         "const unsigned grid = (unsigned)((N0 + N1 + per - 1) / per);\n    fp8_gemv_pair_kernel<R, ik_bf16, 2, W>")]),
+    # --- rmsnorm_add folded into the bf16 pair GEMV (hip-norm-gemv; tests/fused_decode.rs) ---
+    # the designated block does not store the new residual stream
+    "norm-skip-sum": ("kernels/hip/matmul.hip", [(
+        "        if (writer) reinterpret_cast<uint4*>(sum)[i] = p;\n", "")]),
+    # the designated block does not store the normalised row (the MoE experts and the shared expert read it)
+    "norm-skip-normed": ("kernels/hip/matmul.hip", [(
+        "        if (writer) reinterpret_cast<uint4*>(normed)[i] = p;\n", "")]),
+    # the sum is squared unrounded (rmsnorm_add squares the bf16-rounded sum that the next layer carries)
+    "norm-sum-round": ("kernels/hip/matmul.hip", [(
+        "        ik_unpack8(p, f);  // continue from the bf16-rounded sum\n", "")]),
+    # the zero-centred norm's +1 on the weight is dropped
+    "norm-woff": ("kernels/hip/matmul.hip", [(
+        "for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);", "for (int k = 0; k < 8; ++k) f[k] = f[k] * r * g[k];")]),
+    # the block reduction adds the partial sums in another order (neighbouring lanes swapped before the sum)
+    "norm-order": ("kernels/hip/matmul.hip", [(
+        "    ss = ik_block_sum(ss, red);\n    const float r = rsqrtf(ss / (float)K + eps);",
+        "    ss = ik_block_sum(__shfl_xor(ss, 1), red);\n    const float r = rsqrtf(ss / (float)K + eps);")]),
+    # the second matrix's blocks start one block late
+    "norm-pair-block": ("kernels/hip/matmul.hip", [(
+        "w1, o1, N1, K, (int64_t)blockIdx.x - nb0, writer, xs, red);", "w1, o1, N1, K, (int64_t)blockIdx.x - nb0 + 1, writer, xs, red);")]),
+    # no barrier between the LDS row being written and being read by the other warps
+    "norm-sync": ("kernels/hip/matmul.hip", [(
+        "    __syncthreads();  // the whole normalised row is in LDS before any warp reads it\n", "")]),
+    # --- gated rmsnorm folded into the fp8 out_proj staging (hip-norm-gemv; tests/fused_decode.rs) ---
+    # the normalised value skips its bf16 rounding before the silu product
+    "gn-round": ("kernels/hip/fp8.hip", [(
+        "    ik_unpack8(ik_pack8(f), nrm);  // the normalised row as the rmsnorm launch stores it (bf16)\n",
+        "    for (int k = 0; k < 8; ++k) nrm[k] = f[k];\n")]),
+    # the zero-centred weight offset is dropped
+    "gn-woff": ("kernels/hip/fp8.hip", [(
+        "for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);", "for (int k = 0; k < 8; ++k) f[k] = f[k] * r * g[k];")]),
+    # the sum of squares of a head is added in the opposite order of lanes
+    "gn-order": ("kernels/hip/fp8.hip", [(
+        "for (int o = 8; o > 0; o >>= 1) ss += __shfl_xor(ss, o, IK_WARP);", "for (int o = 1; o < 16; o <<= 1) ss += __shfl_xor(ss, o, IK_WARP);")]),
+    # the reduction spans 32 lanes: two heads share one sum of squares
+    "gn-group": ("kernels/hip/fp8.hip", [(
+        "for (int o = 8; o > 0; o >>= 1) ss += __shfl_xor(ss, o, IK_WARP);", "for (int o = 16; o > 0; o >>= 1) ss += __shfl_xor(ss, o, IK_WARP);")]),
+    # the norm weight is indexed by the wrong chunk
+    "gn-weight": ("kernels/hip/fp8.hip", [(
+        "reinterpret_cast<const uint4*>(nw) + (i8 & 15)", "reinterpret_cast<const uint4*>(nw) + (i8 & 7)")]),
+    # silu is applied to the normalised value instead of z
+    "gn-silu": ("kernels/hip/fp8.hip", [(
+        "f[k] = ik_silu(zf[k]) * nrm[k];\n    return ik_pack8(f);", "f[k] = ik_silu(nrm[k]) * zf[k];\n    return ik_pack8(f);")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
-TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid")}
+TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target

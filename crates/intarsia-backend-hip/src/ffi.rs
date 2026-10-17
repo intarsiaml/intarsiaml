@@ -169,6 +169,22 @@ extern "C" {
     pub fn ik_matmul_fp8_pair_gemv(x: T, w0: T, sc0: T, w1: T, sc1: T, out0: TM, out1: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_glu_gemv(x: T, wg: T, bsg: T, gsg: T, wu: T, bsu: T, gsu: T, out: TM, s: S) -> c_int;
     pub fn ik_gated_rmsnorm_bf16(x: T, z: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
+    pub fn ik_gated_rmsnorm_matmul_fp8_gemv(x: T, z: T, nw: T, eps: f32, w_offset: f32, w: T, scales: T, out: TM, s: S) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_rmsnorm_add_matmul_pair_bf16_gemv(
+        x: T,
+        res: T,
+        w: T,
+        eps: f32,
+        w_offset: f32,
+        w0: T,
+        w1: T,
+        normed: TM,
+        sum: TM,
+        out0: TM,
+        out1: TM,
+        s: S,
+    ) -> c_int;
 }
 
 /// Name of an `enum ik_status` value.

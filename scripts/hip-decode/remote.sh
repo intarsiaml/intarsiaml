@@ -24,7 +24,7 @@ TARGET_VOL() { $D --target-vol; }
 stage_profng() { PROF_EXTRA="--no-graphs" stage_prof "${1:-base}-eager"; }
 stage_prof() { # prof <tag>: rocprofv3 kernel trace of a 160-token 35B decode + the unprofiled rate
   local tag=${1:-base}
-  local gen="$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos ${PROF_EXTRA:-} -p 'Write a long story about a robot who learns to paint.' --max-tokens 160"
+  local gen="${PROF_PRE:-} $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos ${PROF_EXTRA:-} -p 'Write a long story about a robot who learns to paint.' --max-tokens 160"
   echo "--- unprofiled"
   $D bash -c "$gen" 2>&1 | grep -E "finish=|steps="
   echo "--- rocprofv3 (kernel trace)"
@@ -75,7 +75,7 @@ stage_bench8pe16() { PE=16 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "hipdecod
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file
   local tag=$1; shift
-  $D $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
+  $D env ${GEN_ENV:-X=0} $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
     -p 'Write a long story about a robot who learns to paint.' --max-tokens 256 "$@" > "$OUTD/gen35-$tag.out" 2> "$OUTD/gen35-$tag.err"   # (stdout is the text, stderr the ids and the summary)
   grep -a '^ids:' "$OUTD/gen35-$tag.err" > "$OUTD/gen35-$tag.ids"
   grep -aE "finish=|steps=" "$OUTD/gen35-$tag.err"
@@ -91,6 +91,21 @@ stage_graphproof() {
   else
     echo "GRAPH != EAGER: token ids DIFFER"; cmp "$OUTD/gen35-eager.ids" "$OUTD/gen35-graph.ids" | head -3
   fi
+}
+
+# INTARSIA_NO_FUSION=1 (the container only forwards INTARSIA_HIP_* / INTARSIA_TP_*, so the variable is set with `env` inside it):
+# the unfused chain must still run, with the launch count of the base tree's own NO_FUSION run, and give the ids of the fused run
+stage_nofusion() {
+  echo "--- NO_FUSION generate (256 tokens)"; GEN_ENV="INTARSIA_NO_FUSION=1" gen35 nofusion
+  if [ -s "$OUTD/gen35-graph.ids" ] && cmp -s "$OUTD/gen35-nofusion.ids" "$OUTD/gen35-graph.ids"; then
+    echo "NO_FUSION == FUSED: the 256 generated token ids are identical"
+  else
+    echo "NO_FUSION != FUSED (or no fused run in this tree): ids DIFFER or are missing"; cmp "$OUTD/gen35-nofusion.ids" "$OUTD/gen35-graph.ids" | head -3
+  fi
+  echo "--- NO_FUSION profile, this tree"; PROF_PRE="env INTARSIA_NO_FUSION=1" stage_prof nofusion
+  echo "--- NO_FUSION profile, base tree"
+  ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
+    cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && PROF_PRE="env INTARSIA_NO_FUSION=1" stage_prof nofusion )
 }
 
 stage_envsweep() { # decode rate of a 256-token generation under CLR env knobs, graph and eager
@@ -152,7 +167,7 @@ stage_mutate() {
   # each mutation of a v2 kernel / fusion must make decode_v2 FAIL (kernel-level accuracy tests have teeth)
   local MUT="${INTARSIA_MUT_DIR:-$HOME/intarsiaml-hipperf2-mut}"
   local m
-  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round pair-nb0 pair-grid}; do
+  for m in ${MUTATIONS:-conv-state nvfp4-iteration topk-tiebreak rope-tail moe-down fp8-scale fp8-convert pair-block fp8-pair-scale glu-scale glu-round gated-order gated-round pair-nb0 pair-grid norm-skip-sum norm-skip-normed norm-sum-round norm-woff norm-order norm-pair-block norm-sync gn-round gn-woff gn-order gn-group gn-weight gn-silu}; do
     rm -rf "$MUT"; mkdir -p "$MUT"
     rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$MUT/"
     python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$MUT" $m || continue

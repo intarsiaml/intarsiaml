@@ -14,7 +14,13 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn_ref::run(call),
         // quantised matmuls and MoE reuse the f64 reference math (parallel over rows / tokens)
         Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
-        Op::MatmulPair | Op::MatmulFp8Pair | Op::MatmulNvfp4Glu | Op::GatedRmsnorm | Op::QkNormRopeKv => crate::fused_ref::run(call, run),
+        Op::MatmulPair
+        | Op::MatmulFp8Pair
+        | Op::MatmulNvfp4Glu
+        | Op::GatedRmsnorm
+        | Op::QkNormRopeKv
+        | Op::RmsNormAddMatmulPair
+        | Op::GatedRmsnormMatmulFp8 => crate::fused_ref::run(call, run),
         Op::Embedding => embedding(call),
         Op::RmsNorm | Op::QkNorm => rmsnorm(call),
         Op::RmsNormAdd => rmsnorm_add(call),

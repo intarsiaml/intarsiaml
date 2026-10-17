@@ -1,5 +1,5 @@
 //! Admission cases for the quantised-weight and MoE ops and the fused decode ops (`MatmulPair`, `MatmulFp8Pair`,
-//! `MatmulNvfp4Glu`, `GatedRmsnorm`): the `intarsia kernels test` sweep and the exact-shape
+//! `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`): the `intarsia kernels test` sweep and the exact-shape
 //! builders used by plan-time admission (`admission::case_from_call`). Data is generated through the format
 //! encoders so every case is valid (no e4m3 NaN encodings, finite scales, distinct experts per token).
 //!
@@ -150,6 +150,34 @@ pub fn matmul_pair_case(rng: &mut SplitMix64, m: usize, n0: usize, n1: usize, k:
     }
 }
 
+/// `RmsNormAddMatmulPair`: `x` and `res` summed and normed with a trained-like weight (`w_offset` 1.0 is the zero-centred
+/// norm of Qwen3.5, whose stored weights sit around zero), then the two dense projections of the normed row.
+#[allow(clippy::too_many_arguments)]
+pub fn rmsnorm_add_matmul_pair_case(
+    rng: &mut SplitMix64,
+    m: usize,
+    n0: usize,
+    n1: usize,
+    k: usize,
+    dt: DType,
+    w_offset: f32,
+) -> HostCall {
+    let centre = 1.0 - w_offset;
+    let nw: Vec<f32> = (0..k).map(|_| centre + 0.25 * rng.normal()).collect();
+    HostCall {
+        op: Op::RmsNormAddMatmulPair,
+        inputs: vec![
+            rand_t(rng, dt, &[m, k], 1.0),
+            rand_t(rng, dt, &[m, k], 1.0),
+            HostTensor::from_f32_as(dt, &[k], &nw),
+            rand_t(rng, dt, &[n0, k], 0.5),
+            rand_t(rng, dt, &[n1, k], 0.5),
+        ],
+        outputs: vec![OutSpec::new(dt, &[m, k]), OutSpec::new(dt, &[m, k]), OutSpec::new(dt, &[m, n0]), OutSpec::new(dt, &[m, n1])],
+        attrs: OpAttrs { eps: 1e-6, w_offset, ..OpAttrs::default() },
+    }
+}
+
 /// `MatmulFp8Pair`: two fp8 projections of one `x`; `aq0` / `aq1` select W8A8 (static input scale) per segment.
 #[allow(clippy::too_many_arguments)]
 pub fn matmul_fp8_pair_case(
@@ -202,6 +230,27 @@ pub fn gated_rmsnorm_case(rng: &mut SplitMix64, r: usize, d: usize, dt: DType) -
         op: Op::GatedRmsnorm,
         inputs: vec![rand_t(rng, dt, &[r, d], 1.0), rand_t(rng, dt, &[r, d], 2.0), HostTensor::from_f32_as(dt, &[d], &w)],
         outputs: vec![OutSpec::new(dt, &[r, d])],
+        attrs: OpAttrs { eps: 1e-6, ..OpAttrs::default() },
+    }
+}
+
+/// `GatedRmsnormMatmulFp8`: the GDN output norm over `r` rows of 128 (core `x`, gate `z`, weights around one) and the fp8
+/// projection `[n, r * 128]` of the result read as one row; `aq` selects W8A8 (static input scale).
+pub fn gated_rmsnorm_matmul_fp8_case(rng: &mut SplitMix64, r: usize, n: usize, aq: bool, dt: DType) -> HostCall {
+    let d = 128;
+    let nw: Vec<f32> = (0..d).map(|_| 1.0 + 0.25 * rng.normal()).collect();
+    let wq = fp8::random_rows(rng, n, r * d, aq);
+    let mut parts = wq.parts.into_iter();
+    HostCall {
+        op: Op::GatedRmsnormMatmulFp8,
+        inputs: vec![
+            rand_t(rng, dt, &[r, d], 1.0),
+            rand_t(rng, dt, &[r, d], 2.0),
+            HostTensor::from_f32_as(dt, &[d], &nw),
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+        ],
+        outputs: vec![OutSpec::new(dt, &[1, n])],
         attrs: OpAttrs { eps: 1e-6, ..OpAttrs::default() },
     }
 }
@@ -314,6 +363,41 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
             }
         }
+        Op::RmsNormAddMatmulPair => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 40] };
+            // (n0, n1, k): the GDN gate projections and the MoE router + shared-expert gate of Qwen3.6-35B-A3B at its
+            // hidden size, plus K narrower than the 256-thread block (K = 64, 96) and past it (4104: 513 vectors per row)
+            let mut nnk = vec![(64usize, 40usize, 64usize), (33, 1, 96), (9, 17, 40)];
+            if !quick {
+                nnk.extend([(32, 32, 2048), (256, 1, 2048), (300, 5, 520), (40, 24, 4104)]);
+            }
+            for &m in ms {
+                for &(n0, n1, k) in &nnk {
+                    for dt in ACT {
+                        for w_offset in [0.0f32, 1.0] {
+                            push(
+                                format!("M={m} N0={n0} N1={n1} K={k} {dt} w_offset={w_offset}"),
+                                rmsnorm_add_matmul_pair_case(&mut rng, m, n0, n1, k, dt, w_offset),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Op::GatedRmsnormMatmulFp8 => {
+            // (rows, n): the GDN out_proj of Qwen3.6-35B-A3B (32 value heads, N = hidden), and small shapes
+            let mut rn = vec![(4usize, 40usize), (1, 64), (7, 33)];
+            if !quick {
+                rn.extend([(32, 2048), (32, 1), (16, 520)]);
+            }
+            for (r, n) in rn {
+                for aq in [true, false] {
+                    for dt in ACT {
+                        push(format!("R={r} N={n} {dt} act_quant={aq}"), gated_rmsnorm_matmul_fp8_case(&mut rng, r, n, aq, dt));
+                    }
+                }
+            }
+        }
         Op::MatmulFp8Pair => {
             let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 40] };
             let mut nnk = vec![(64usize, 48usize, 64usize), (40, 96, 96), (17, 33, 48)];
@@ -416,6 +500,18 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].shape[1],
             i[0].dtype
         ),
+        Op::RmsNormAddMatmulPair => format!(
+            "M={} N0={} N1={} K={} {} w_offset={}",
+            i[0].shape[0].min(caps.rows),
+            i[3].shape[0].min(caps.n),
+            i[4].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            call.attrs.w_offset
+        ),
+        Op::GatedRmsnormMatmulFp8 => {
+            format!("R={} N={} {} act_quant={}", i[0].shape[0], i[3].shape[0].min(caps.n), i[0].dtype, "static")
+        }
         Op::MatmulFp8Pair => format!(
             "M={} N0={} N1={} K={} x={} out={} act_quant={}",
             i[0].shape[0].min(caps.rows),
@@ -469,6 +565,16 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             i[0].shape[1],
             i[0].dtype,
         ),
+        Op::RmsNormAddMatmulPair => rmsnorm_add_matmul_pair_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[3].shape[0].min(caps.n),
+            i[4].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            call.attrs.w_offset,
+        ),
+        Op::GatedRmsnormMatmulFp8 => gated_rmsnorm_matmul_fp8_case(rng, i[0].shape[0], i[3].shape[0].min(caps.n), true, i[0].dtype),
         Op::MatmulFp8Pair => matmul_fp8_pair_case(
             rng,
             i[0].shape[0].min(caps.rows),
@@ -508,6 +614,8 @@ mod tests {
             Op::MatmulFp8Pair,
             Op::MatmulNvfp4Glu,
             Op::GatedRmsnorm,
+            Op::RmsNormAddMatmulPair,
+            Op::GatedRmsnormMatmulFp8,
         ] {
             let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
             assert!(!cases.is_empty());

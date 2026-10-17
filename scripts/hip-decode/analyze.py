@@ -87,6 +87,8 @@ for (name, blocks), (c, t) in sorted(sh.items(), key=lambda kv: -kv[1][1]):
     if "pair" in name:
         r, w = int(args[0]), (int(args[3]) if len(args) > 3 else 8)
         rows, k = blocks * r * w, 2048
+    elif "gated" in name:  # fp8_gemv_gated_kernel<R, bf16>: the GDN out_proj with its norm folded in, K = 32 heads x 128
+        rows, k = blocks * int(args[0]) * 8, 4096
     else:
         rows, k = blocks * int(args[1]) * 8, 0
         k = 4096 if rows == 2048 else 2048
