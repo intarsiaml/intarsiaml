@@ -1,0 +1,4 @@
+acc short-c2048 exit 0 40 s: prefill floor [4bit]: top-1 98.33% (not gated for this class) ok | 21-way KL 6.306e-3 (need <= 3.0e-2) ok | tail mass ours 0.0175 vs ref 0.0176, exces | selected: 0 lines name the chunked kernel
+acc long-c2048 exit 1 95 s: prefill floor [4bit]: top-1 94.13% (not gated for this class) ok | 21-way KL 4.636e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0645 vs ref 0.0611, exc | selected: 0 lines name the chunked kernel
+acc short-c256 exit 0 38 s: prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 6.015e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, exces | selected: 0 lines name the chunked kernel
+acc long-c256 exit 1 107 s: prefill floor [4bit]: top-1 94.16% (not gated for this class) ok | 21-way KL 4.495e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0644 vs ref 0.0611, exc | selected: 0 lines name the chunked kernel

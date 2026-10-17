@@ -1,0 +1,16 @@
+unmutated: pass (1 tests)
+KILLED   no-interdecay (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.31s 
+KILLED   no-kd (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s 
+KILLED   mask-strict (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.74s 
+KILLED   no-solve (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.75s 
+KILLED   no-carry (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.29s 
+KILLED   tail-decay (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.77s 
+KILLED   no-intra-decay (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.90s 
+KILLED   no-qe (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.88s 
+KILLED   no-qscale (rc=101): result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s 
+admission rc=0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 27.31s
+  gdn_delta_rule gdn_delta_rule_bf16_chunked ok    max_abs=1.526e-5 rel_l2=5.631e-5 T=64 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_chunked ok    max_abs=7.629e-6 rel_l2=1.267e-5 T=130 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_chunked ok    max_abs=3.052e-5 rel_l2=3.307e-5 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_chunked ok    max_abs=6.104e-5 rel_l2=3.653e-5 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+gdn_delta_rule gdn_delta_rule_bf16_chunked      4      0    6.104e-5    5.631e-5  ADMITTED

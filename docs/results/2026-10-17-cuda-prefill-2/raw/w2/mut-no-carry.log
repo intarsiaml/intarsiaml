@@ -1,0 +1,32 @@
+
+running 3 tests
+test gdn_chunked_handles_correlated_keys ... correlated T=64 o: rel_l2 vs f64 reference: rows kernel 1.825e-7, chunked kernel 1.004e-4
+correlated T=64 state: rel_l2 vs f64 reference: rows kernel 5.130e-7, chunked kernel 6.359e-1
+
+thread 'gdn_chunked_handles_correlated_keys' panicked at crates/intarsia-backend-cuda/tests/gdn_chunked.rs:152:13:
+correlated T=64 state: chunked rel_l2 6.359e-1, rows kernel 5.130e-7
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test gdn_chunked_is_as_accurate_as_the_rows_kernel ... dk=128 dv=128 hv=32 T=64 dtb=0 o: rel_l2 vs f64 reference: rows kernel 5.015e-5, chunked kernel 6.436e-5
+dk=128 dv=128 hv=32 T=64 dtb=0 state: rel_l2 vs f64 reference: rows kernel 9.745e-8, chunked kernel 1.114e-6
+dk=128 dv=128 hv=32 T=64 dtb=-4 o: rel_l2 vs f64 reference: rows kernel 4.243e-5, chunked kernel 4.424e-5
+dk=128 dv=128 hv=32 T=64 dtb=-4 state: rel_l2 vs f64 reference: rows kernel 2.339e-7, chunked kernel 1.297e-1
+
+thread 'gdn_chunked_is_as_accurate_as_the_rows_kernel' panicked at crates/intarsia-backend-cuda/tests/gdn_chunked.rs:114:21:
+dk=128 dv=128 T=64 dtb=-4 state: chunked rel_l2 1.297e-1, rows kernel 2.339e-7
+FAILED
+test gdn_chunked_state_carries_across_calls ... split 70+59 dtb=0: o rel_l2 whole 3.571e-5 split 7.418e-4; state whole 4.226e-1 split 9.448e-7
+
+thread 'gdn_chunked_state_carries_across_calls' panicked at crates/intarsia-backend-cuda/tests/gdn_chunked.rs:205:5:
+split 70+59: outputs rel_l2 7.418e-4 (one call 3.571e-5)
+FAILED
+
+failures:
+
+failures:
+    gdn_chunked_handles_correlated_keys
+    gdn_chunked_is_as_accurate_as_the_rows_kernel
+    gdn_chunked_state_carries_across_calls
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.29s
+

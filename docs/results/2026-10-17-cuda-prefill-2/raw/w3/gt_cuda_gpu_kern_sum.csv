@@ -1,0 +1,7 @@
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+38.0,62409568,171,364968.2,29984.0,11200,6209888,1167825.0,"void <unnamed>::gdn_delta_rows_kernel<(int)128>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, float, __nv_bfloat16 *, float *, long, int, int, int)"
+24.3,39919840,171,233449.4,14560.0,4288,4088864,765790.4,"void <unnamed>::gdn_delta_lanes_kernel<(int)128, (int)4>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, float, __nv_bfloat16 *, float *, long, int, int, int)"
+20.6,33890240,69,491162.9,46944.0,46720,3778496,962688.2,"void <unnamed>::gdn_chunk_state_kernel<(int)128>(const __nv_bfloat16 *, const float *, __nv_bfloat16 *, float *, long, int, int, int, int)"
+11.6,19004480,69,275427.2,36096.0,35840,1796256,515369.2,"void <unnamed>::gdn_chunk_prep_kernel<(int)128>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, float, float *, long, int, int, int, int)"
+5.3,8725152,171,51024.3,10336.0,1888,744192,144761.6,"<unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long, int, int)"
+0.2,280992,171,1643.2,1376.0,1312,9920,1269.0,"<unnamed>::gdn_conv_state_kernel(const __nv_bfloat16 *, float *, long, int, int)"
