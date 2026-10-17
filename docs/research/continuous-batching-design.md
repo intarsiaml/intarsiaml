@@ -358,6 +358,7 @@ Core path M0-M3: **17-23 working days** (estimate). Optional M4-M6: +9-11. This 
 | 13 | **M2 SLO revisions adopted.** (2026-10-16 11:00 EDT, relayed by the Parallel tasks session) | Steady-state ITL p95 <= ~60 ms; prefill-overlap ITL p95 <= 150 ms judged on the scripted scenario, not the soak; TTFT limits stated at <= 60% of saturation; memory growth measured after warmup. B=8 soak passes all; `docs/results/2026-10-16-metal-cb-soak-batched.md`. |
 | 14 | **M4 (weight realignment) closed, no-go.** (2026-10-16 17:50 EDT) | Profile ceiling +2.3..2.8% aggregate at N=8 (bar 3%), +3.8 GB, not bitwise identical (fails Q1). Supersedes the 'shelved' status of Q8. `docs/results/2026-10-16-metal-cb-m45-profile.md`. |
 | 15 | **M5 (fused ragged attention) deferred.** (2026-10-16 17:50 EDT) | Per-row attention is 16..30% of a B=8 step, but the removable part over a bandwidth floor is 9..15% at 1k and 4..9% at 4k (gate 5%). Revisit when real traffic runs at B=4..8 regularly; a fused kernel must stay bitwise equal to solo. |
+| 16 | **M3 (batched verify) closed, no-go.** (2026-10-17 11:35 EDT) | Stage 0 projection: grounded +1.3% (B=2) / +1.2% (B=3) over the busy-probe gate, bar 10%; grounded streams rarely verify in the same iteration. The busy-probe gate (spec stops for low-acceptance requests while B>=2) plus `--spec-off-at 4` is the final spec+batch behaviour. `docs/results/2026-10-17-metal-cb-m3-verify-go.md`. |
 
 Only the slot layout part of 3 is still open.
 
