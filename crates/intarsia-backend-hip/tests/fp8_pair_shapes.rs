@@ -6,7 +6,7 @@
 //!
 //! Its own test binary with one test: it sets an environment variable, which no other test thread may read at the same time.
 //! scripts/hip-decode/mutate.py (`pair-nb0`, `pair-grid`) breaks the kernel's and the launcher's block arithmetic for the
-//! default shape; this file and fused_decode.rs must fail on both.
+//! default shape; fused_decode.rs fails on both (verified), this file is expected to as well.
 //!
 //! Needs a GPU: skips (passes) without one.
 #![cfg(ik_hip)]
