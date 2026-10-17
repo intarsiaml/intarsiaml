@@ -1,0 +1,18 @@
+--- end-idle 15:54:39
+gpu_usage [338, 0.016445433720946312] gpu_power 0.04 sys_power 10.3
+gpu_usage [338, 0.019215647131204605] gpu_power 0.06 sys_power 8.2
+25718  20.8   5632 01-19:50:48 macmon
+12707  16.8 201408    17:32:03 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+12698   9.6  49936    17:32:03 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+ 2572   7.7 2222240 20-21:47:18 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+  631   5.8  41520 20-22:01:46 /usr/sbin/coreaudiod
+  485   4.6 408992 20-22:01:47 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+20521   4.3 1094320 01-03:15:19 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+45150   3.9 289776    21:34:23 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+87301   3.1  93152 02-21:57:16 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+13571   2.5  68720 08-18:32:19 /Applications/Herdr.app/Contents/MacOS/Herdr
+22254   1.8  12480 01-16:12:58 /bin/sh
+ 2789   1.6  25920 20-21:47:16 /Users/josef/Applications/Hazl.app/Contents/MacOS/hazlUI
+vm.swapusage: total = 15360.00M  used = 14144.69M  free = 1215.31M  (encrypted)
+leftover servers: none
+tracked: 81300 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/service.py --run /Users/josef/Library/Application Support/missioncntrl/tensorfold/config.json;81302 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port 8019;81304 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/.local/share/tensorfold-mac-all/.venv/bin/tensorfold serve Vontra/Qwen3.8-27B-MLX-4bit --host 127.0.0.1 --port 8080 --context 65536 --prompt-cache-gib 8 --mlx-cache-gib 2 --snapshot-dir /Users/josef/Library/Application Support/missioncntrl/tensorfold/snapshots --parallel 1;81305 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/josef/Library/Application Support/missioncntrl/tensorfold/auth_proxy.py --listen 127.0.0.1:18180 --upstream http://127.0.0.1:8080 --key-file /Users/josef/Library/Application Support/missioncntrl/tensorfold/api-key;

@@ -1,0 +1,13 @@
+TTFT ms, median [min..max] over rounds
+ idle 10 s: base: 1116.8 [1110.1..1147.9] (n=6)   kw: 1096.8 [1068.3..1105.4] (n=6)
+ idle 40 s: base: 1126.1 [1115.8..1152.7] (n=6)   kw: 1069.3 [1064.9..1092.0] (n=6)
+paired TTFT difference vs base (ms), median [min..max]
+ idle 10 s kw-base: -29.6 [-71.3..-15.7] n=6
+ idle 40 s kw-base: -56.4 [-87.8..-23.9] n=6
+ITL ms (decode after idle): mean of chunks 2..33, and first 3 gaps median
+ idle 10 s base: mean-ITL 29.2 [28.6..30.1]  first-3 29.1 [28.6..30.2]
+ idle 10 s kw: mean-ITL 29.8 [28.9..30.4]  first-3 29.6 [28.8..30.5]
+ idle 40 s base: mean-ITL 28.8 [28.5..30.4]  first-3 28.7 [28.3..31.9]
+ idle 40 s kw: mean-ITL 29.2 [28.8..30.3]  first-3 29.0 [28.4..30.3]
+text identical across arms for the same prompt:
+  0 differing groups
