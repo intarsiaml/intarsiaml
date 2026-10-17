@@ -1,0 +1,28 @@
+--- start 22:45:07
+78526 128.5 339504       00:01 /opt/homebrew/Cellar/node/26.7.0/bin/node
+  485  33.3 416288 20-04:52:15 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+25718  18.0   9040 01-02:41:16 macmon
+  703  16.6  23856 20-04:52:10 /usr/libexec/searchpartyd
+76050  11.3 366000       00:48 /Users/josef/Library/Developer/CoreSimulator/Devices/B0BAFE9A-BE15-4845-BDDF-D309283758BC/data/Containers/Bundle/Applic
+75771  10.3 199008       00:51 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild
+57568  10.2 139056       06:51 /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntim
+78528   8.7  78656       00:00 /Users/josef/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-
+12707   7.3 272768       22:31 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+44484   6.9  11040    01:25:45 /usr/libexec/diagnosticd
+78206   6.2 512064       00:06 /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntim
+12698   6.0 139536       22:31 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+vm.swapusage: total = 11264.00M  used = 10272.50M  free = 991.50M  (encrypted)
+--- end (servers stopped) 23:07:39
+64451  35.1 942256    10:09:32 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+  485  34.5 417184 20-05:14:47 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+25718  19.8   9040 01-03:03:48 macmon
+12707  10.8 275488       45:03 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+12698   9.1 144096       45:03 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.98/Helpers/Go
+19500   4.4 344848    10:28:39 /Users/josef/Library/Application Support/Claude/claude-code/2.1.299/4fa9694b7975/claude.app/Contents/MacOS/claude
+  631   4.4  56048 20-05:14:46 /usr/sbin/coreaudiod
+13571   3.6  68448 08-01:45:19 /Applications/Herdr.app/Contents/MacOS/Herdr
+87301   3.4 156464 02-05:10:16 /Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+ 2929   3.2 612032 20-05:00:14 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python
+ 2572   2.7 1757712 20-05:00:18 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper
+17303   2.6 192160 12-06:26:03 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.We
+vm.swapusage: total = 11264.00M  used = 10272.50M  free = 991.50M  (encrypted)

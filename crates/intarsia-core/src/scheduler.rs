@@ -133,8 +133,10 @@ pub trait BatchSeq<M: BatchModel>: Send {
     fn on_prefill_start(&mut self, _chunk: usize, _decoding: usize) {}
     /// Plan this iteration's step. `spec_allowed` is the scheduler's speculation gate (false when `B >= spec_off_at`).
     /// A speculating sequence may run its verify pass here on its own slot (single-slot, exact by the G1 argument)
-    /// and return `Ready`; it must not draft when `spec_allowed` is false.
-    fn prepare(&mut self, model: &mut M, slot: usize, spec_allowed: bool) -> Result<SeqStep<M::Mode>>;
+    /// and return `Ready`; it must not draft when `spec_allowed` is false. `busy`: other sequences decode in this
+    /// iteration (`B >= 2`), so a verify pass is a whole extra weight pass beside the batched step; the sequence may
+    /// then decline drafts that do not pay (tokens never depend on it: verify is exact).
+    fn prepare(&mut self, model: &mut M, slot: usize, spec_allowed: bool, busy: bool) -> Result<SeqStep<M::Mode>>;
     /// The output of this sequence's row or final chunk: becomes the next token.
     fn accept(&mut self, out: M::Out) -> Result<()>;
     /// Account for the next token (stop ids / EOS, stop strings, streaming, `max_tokens`, client gone). `true`: done.
@@ -733,7 +735,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let mut failed: Vec<(RequestId, Error)> = Vec::new();
             for &i in &decoding {
                 let a = &mut self.active[i];
-                match a.seq.prepare(&mut self.model, a.slot, spec_allowed) {
+                match a.seq.prepare(&mut self.model, a.slot, spec_allowed, b > 1) {
                     Ok(SeqStep::Plain(token, mode)) => {
                         rows.push(Row { slot: a.slot, token, mode });
                         row_of.push(a.id);

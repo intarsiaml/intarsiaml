@@ -1,0 +1,58 @@
+ 2776   3792   0.0 20-00:32:27 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom install agent run --profile default
+ 2929 942016   0.6 20-00:32:25 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python -m headroom.cli proxy --host 127.0.0.1 --port 8787 --mode cache --backend anthrop
+11680   3104   0.0 09-11:29:59 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -c import 
+12319  83056   0.0    04:44:52 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+12322  49360   0.0    04:44:52 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+12349  97344   0.0    04:44:52 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+17760  82832   0.0    06:01:36 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+17763  34176   0.0    06:01:36 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+17766  98560   0.0    06:01:35 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+18253  82384   0.0    06:01:24 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+18256  33296   0.0    06:01:24 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+18286  97104   0.0    06:01:24 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+19537  82304   0.0    06:00:50 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+19541  34448   0.0    06:00:50 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+19573  94320   0.0    06:00:49 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+20049  70720   0.0    06:00:40 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+20052  27200   0.0    06:00:40 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+20166  87008   0.0    06:00:39 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+20578  76832   0.0    06:00:30 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+20581  30864   0.0    06:00:30 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+20584  79952   0.0    06:00:30 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+22590  84240   0.0    06:00:10 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+22597  34224   0.0    06:00:10 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+22605  99520   0.0    06:00:10 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+33221   4480   0.0 05-00:36:32 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/jos
+33226  15312   0.0 05-00:36:32 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/josef/
+33227   4368   0.0 05-00:36:32 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /Users/jos
+44338  18544   0.0 05-00:28:53 /opt/code/kev-serve/.venv/bin/python -m kev.serve --run jaredpalmer/kev-9b@2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c --host 127.0.0.1 --port
+45168  19488   0.0       19:33 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+45171  21856   0.0       19:33 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+45186  35984   0.0       19:33 /Users/josef/.cache/uv/archive-v0/7q1RmQYHcS9NexRT/bin/python /Users/josef/.cache/uv/archive-v0/7q1RmQYHcS9NexRT/bin/unifi-network-mcp
+50423  23648   0.0       17:25 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+50427  19040   0.0       17:25 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+50461  35456   0.0       17:25 /Users/josef/.cache/uv/archive-v0/7q1RmQYHcS9NexRT/bin/python /Users/josef/.cache/uv/archive-v0/7q1RmQYHcS9NexRT/bin/unifi-network-mcp
+52725  70864   0.0    05:47:08 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+52729  46176   0.0    05:47:08 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+52746  91472   0.0    05:47:07 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+56119  19568   0.0    03:58:42 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+56122  21792   0.0    03:58:42 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+56155  19280   0.0    03:58:41 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+56276  19440   0.0    03:58:37 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+56279  18960   0.0    03:58:37 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+56315  19296   0.0    03:58:36 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+57475  19424   0.0    03:58:09 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+57478  18976   0.0    03:58:09 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+57503  19216   0.0    03:58:09 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+64472  19568   0.0    05:41:43 /Users/josef/.local/share/uv/tools/headroom-ai/bin/python /Users/josef/.local/bin/headroom mcp serve
+64476  19024   0.0    05:41:43 /opt/homebrew/bin/uv tool uvx --python-preference system unifi-network-mcp==0.38.3
+64515  19328   0.0    05:41:43 /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/python /Users/josef/.cache/uv/archive-v0/Av2Z7Zc8_-xSmK32/bin/unifi-network-mcp
+66261   5712   0.0 09-08:04:51 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python -c import jso
+66619   4368   0.0 04-00:22:29 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /tmp/fake_
+84178  10656   0.1 04-17:23:21 /opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /opt/code/kue
+89891   2944   0.5       00:01 /bin/zsh -c source /Users/josef/.claude/shell-snapshots/snapshot-zsh-1792168795388-0q1on6.sh 2>/dev/null || true && export FLEETQ_OWNER=cla
+89893  30544   6.1       00:01 /Users/josef/.local/share/uv/tools/fleetq/bin/python3 /Users/josef/.local/bin/fleetq run --host endor --exclusive --mem 24 --label spec-bus
+89895   2928   1.1       00:01 /bin/zsh tools/cbm3_slot.sh client /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/trace-base 1
+89964   1232   0.0       00:00 tee -a /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/trace-base/slot.log
+93359  15216   0.0 03-04:27:05 /Applications/Dropbox.app/Contents/MacOS/Dropbox -type:crashpad-handler --no-upload-gzip --no-rate-limit --capture-python --no-identify-cli
+93360  15280   0.0 03-04:27:05 /Applications/Dropbox.app/Contents/MacOS/Dropbox -type:exit-monitor -method:collectupload -python-version:3.11.14 -process-type:main -sessi

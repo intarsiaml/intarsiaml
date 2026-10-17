@@ -1,0 +1,1 @@
+/opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/server-batched-reuseon.log: 204 requests, admitted 202 (reused 27), done 184, cancelled q/p/d 2/0/18, failed 0, rejected 0, chunks 1085 (contested 666): OK

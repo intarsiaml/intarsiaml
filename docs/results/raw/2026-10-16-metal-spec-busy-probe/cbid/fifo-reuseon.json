@@ -1,0 +1,20 @@
+[
+ {
+  "log": "/opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/cbid/server-batched-reuseon.log",
+  "coverage": {
+   "admitted": 202,
+   "reused": 27,
+   "contested_chunks": 666,
+   "cancel_queued": 2,
+   "cancel_prefill": 0,
+   "cancel_decode": 18,
+   "done": 184,
+   "failed": 0,
+   "rejected": 0,
+   "chunks": 1085,
+   "first_tokens": 202,
+   "requests": 204
+  },
+  "violations": []
+ }
+]

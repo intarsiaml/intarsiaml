@@ -1,0 +1,15 @@
+1792196221 round 1 arm off pos 1
+1792196411 round 1 arm baseon pos 2
+1792196572 round 1 arm on pos 3
+1792196730 round 2 arm on pos 1
+1792196888 round 2 arm baseon pos 2
+1792197049 round 2 arm off pos 3
+1792197238 round 3 arm off pos 1
+1792197428 round 3 arm baseon pos 2
+1792197590 round 3 arm on pos 3
+1792197748 round 4 arm on pos 1
+1792197906 round 4 arm baseon pos 2
+1792198068 round 4 arm off pos 3
+1792198258 round 5 arm off pos 1
+1792198449 round 5 arm baseon pos 2
+1792198612 round 5 arm on pos 3

@@ -1,0 +1,202 @@
+{
+ "arm": "off",
+ "round": 2,
+ "url": "http://127.0.0.1:8141",
+ "model": "Qwen3-8B",
+ "t_start": 1792195086.020524,
+ "scenarios": {
+  "grounded-n2": {
+   "reqs": [
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792195115.588574,
+     "t_first": 1792195115.6946309,
+     "t_last": 1792195122.849319,
+     "t_end": 1792195122.8493319,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 388,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 35.64096655606295
+    },
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792195115.588634,
+     "t_first": 1792195115.86588,
+     "t_last": 1792195122.903446,
+     "t_end": 1792195122.903459,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 388,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 36.234118718838815
+    }
+   ],
+   "tokens": 512,
+   "wall_s": 7.314923048019409,
+   "agg_tok_s": 69.99390104843677,
+   "counters_delta": {
+    "intarsia_spec_steps_total": 0.0,
+    "intarsia_spec_proposed_tokens_total": 0.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 257.0
+   }
+  },
+  "grounded-n3": {
+   "reqs": [
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792195122.904491,
+     "t_first": 1792195123.010336,
+     "t_last": 1792195130.484776,
+     "t_end": 1792195130.484788,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 387,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 34.11626779573152
+    },
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792195122.904555,
+     "t_first": 1792195123.1825979,
+     "t_last": 1792195130.540035,
+     "t_end": 1792195130.540046,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 386,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 34.65880786516155
+    },
+    {
+     "kind": "grounded",
+     "max_tokens": 256,
+     "t_send": 1792195122.9046242,
+     "t_first": 1792195123.3592262,
+     "t_last": 1792195130.594409,
+     "t_end": 1792195130.594423,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 386,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 35.24444487209686
+    }
+   ],
+   "tokens": 768,
+   "wall_s": 7.68998908996582,
+   "agg_tok_s": 99.87010267701349,
+   "counters_delta": {
+    "intarsia_spec_steps_total": 0.0,
+    "intarsia_spec_proposed_tokens_total": 0.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 259.0
+   }
+  },
+  "open-n2": {
+   "reqs": [
+    {
+     "kind": "open",
+     "max_tokens": 256,
+     "t_send": 1792195130.5954611,
+     "t_first": 1792195130.7187462,
+     "t_last": 1792195137.7735739,
+     "t_end": 1792195137.77359,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 57,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 36.14546112259468
+    },
+    {
+     "kind": "open",
+     "max_tokens": 256,
+     "t_send": 1792195130.595527,
+     "t_first": 1792195130.644002,
+     "t_last": 1792195137.745641,
+     "t_end": 1792195137.745655,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 53,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 35.90720379308257
+    }
+   ],
+   "tokens": 512,
+   "wall_s": 7.178174018859863,
+   "agg_tok_s": 71.32733180538341,
+   "counters_delta": {
+    "intarsia_spec_steps_total": 0.0,
+    "intarsia_spec_proposed_tokens_total": 0.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 256.0
+   }
+  },
+  "open-n3": {
+   "reqs": [
+    {
+     "kind": "open",
+     "max_tokens": 256,
+     "t_send": 1792195137.774625,
+     "t_first": 1792195137.82767,
+     "t_last": 1792195145.312665,
+     "t_end": 1792195145.3126762,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 54,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 34.068159538546176
+    },
+    {
+     "kind": "open",
+     "max_tokens": 256,
+     "t_send": 1792195137.774688,
+     "t_first": 1792195137.904098,
+     "t_last": 1792195145.34095,
+     "t_end": 1792195145.34096,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 56,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 34.28870182491143
+    },
+    {
+     "kind": "open",
+     "max_tokens": 256,
+     "t_send": 1792195137.774751,
+     "t_first": 1792195137.981602,
+     "t_last": 1792195145.3683908,
+     "t_end": 1792195145.368404,
+     "tokens": 256,
+     "chunks": 256,
+     "prompt_tokens": 56,
+     "finish": "length",
+     "error": null,
+     "decode_tok_s": 34.52108965730844
+    }
+   ],
+   "tokens": 768,
+   "wall_s": 7.5938239097595215,
+   "agg_tok_s": 101.13481812673751,
+   "counters_delta": {
+    "intarsia_spec_steps_total": 0.0,
+    "intarsia_spec_proposed_tokens_total": 0.0,
+    "intarsia_spec_accepted_tokens_total": 0.0,
+    "intarsia_batch_decode_steps_total": 257.0
+   }
+  }
+ },
+ "t_end": 1792195145.3689878
+}

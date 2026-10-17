@@ -7,7 +7,8 @@
 # MODE client    tools/cbm3.py scenarios (env SCEN, default the cbm3.py default set)
 # MODE localeval localeval speed --sizes 1024 --gen 512 --reps 3 --concurrency 1,2,4,8 (deepeval-decode-agg: has aggregate_decode_tok_s)
 # env: BIN (intarsia binary, required), COOLDOWN (seconds idle before each server start, default 0; thermal throttling was seen), LE_CONC (localeval concurrency levels, default 1,2,4,8), SERVER_ENV (extra VAR=val words for the server, e.g. INTARSIA_SPEC_TRACE=1), ARMS (default "off on"), MODEL, PORT, SCEN, MAXMIN (no new arm after this many minutes, 38)
-# Arm names: off | on | offatN (= --spec ngram --spec-off-at N). Round r runs the arms in order, reversed on even rounds, with a
+# Arm names: off | on | offatN (= --spec ngram --spec-off-at N) | baseon (= on, with the binary BIN_BASE instead of BIN, to compare two
+# builds in one slot) | wWtT (= on, with INTARSIA_SPEC_GATE=6,2,32,2,W,T: busy_warmup W, busy_min_accept T, see spec::GateParams). Round r runs the arms in order, reversed on even rounds, with a
 # fresh server per arm. macmon logs the GPU (100 ms) for the whole slot.
 set -u
 MODE=${1:?usage: cbm3_slot.sh client|localeval OUTDIR [ROUNDS]}; OUT=${2:?outdir}; ROUNDS=${3:-3}
@@ -29,8 +30,9 @@ stop_server() { if [ -n "$SPID" ] && kill -0 "$SPID" 2>/dev/null; then kill "$SP
 cleanup() { stop_server; [ -n "$MPID" ] && kill "$MPID" 2>/dev/null; }
 trap cleanup EXIT
 trap "exit 143" INT TERM
-arm_flags() { case $1 in off) echo "--spec off";; on) echo "--spec ngram";; offat*) echo "--spec ngram --spec-off-at ${1#offat}";; *) echo "bad arm $1" >&2; return 1;; esac; }
+arm_flags() { case $1 in off) echo "--spec off";; on|baseon|w[0-9]*t[0-9]*) echo "--spec ngram";; offat*) echo "--spec ngram --spec-off-at ${1#offat}";; *) echo "bad arm $1" >&2; return 1;; esac; }
 START=$(date +%s)
+[ -n "${BIN_BASE:-}" ] && echo "base binary $BIN_BASE sha256 $(shasum -a 256 "$BIN_BASE" | cut -c1-16)"
 echo "slot job $FLEETQ_JOB $(date); mode $MODE; binary $BIN sha256 $(shasum -a 256 "$BIN" | cut -c1-16); arms $ARMS rounds $ROUNDS scen $SCEN"
 ps -axo pid,rss,%cpu,etime,command | grep -iE "kev|tensorfold|omlx|splash|llama|vllm|mlx|ollama|intarsia|python" | grep -v "grep\|ps -axo" | cut -c1-170 > "$OUT/ps-start.txt"
 macmon pipe -i 100 > "$OUT/macmon.jsonl" 2>/dev/null &
@@ -44,8 +46,13 @@ for r in $(seq 1 $ROUNDS); do
     [ "${COOLDOWN:-0}" -gt 0 ] && sleep ${COOLDOWN}
     echo "=== round $r arm $c (position $pos) $(date +%T)"
     FL=$(arm_flags $c) || exit 4
+    ABIN=$BIN; AENV=""
+    case $c in
+      baseon) ABIN=${BIN_BASE:?set BIN_BASE for arm baseon};;
+      w[0-9]*t[0-9]*) rest=${c#w}; AENV="INTARSIA_SPEC_GATE=6,2,32,2,${rest%%t*},${rest#*t}";;
+    esac
     echo "$(date +%s) round $r arm $c pos $pos" >> "$OUT/arm-times.txt"
-    env INTARSIA_CB_TRACE=0 ${=SERVER_ENV:-} "$BIN" serve --model "$MODEL" --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui \
+    env INTARSIA_CB_TRACE=0 ${=SERVER_ENV:-} ${=AENV} "$ABIN" serve --model "$MODEL" --backend metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui \
       --host 127.0.0.1 --port $PORT --max-batch 8 ${=FL} > "$OUT/server-$c-$r.log" 2>&1 &
     SPID=$!
     ok=0

@@ -1,0 +1,7 @@
+slot job 2234 Fri Oct 16 18:39:50 EDT 2026; mode client; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-base-5cd03a5 sha256 9bb825d494889da6; arms on rounds 1 scen solo-grounded,solo-open
+=== round 1 arm on (position 1) 18:39:51
+[cbm3] on r1 solo-grounded: decode_tok_s_median=136.5, decode_tok_s_mean=136.2  spec_steps_total=192 spec_proposed_tokens_total=768 spec_accepted_tokens_total=567 batch_decode_steps_total=6
+[cbm3] on r1 solo-open: decode_tok_s_median=36.9, decode_tok_s_mean=36.8  spec_steps_total=48 spec_proposed_tokens_total=190 spec_accepted_tokens_total=8 batch_decode_steps_total=709
+analyze rc=0
+no intarsia serve left
+done Fri Oct 16 18:41:28 EDT 2026

@@ -1,0 +1,20 @@
+fleetq: #2249 waiting (#4 in line): in line behind #2244 "spec-busy-probe: cargo test intarsia-backend-metal --release" (claude-0e8026c5) on endor
+fleetq:   #2244 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2244 set, or it will wait for #2244 to be released.
+fleetq: #2249 waiting (#2 in line): in line behind #2248 "spec-busy-probe: B=4 grounded repeat, off/base/new, 8 rounds" (claude-0e8026c5) on endor
+fleetq:   #2248 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2248 set, or it will wait for #2248 to be released.
+fleetq: #2249 waiting (#1 in line): endor is held exclusively by #2248 "spec-busy-probe: B=4 grounded repeat, off/base/new, 8 rounds" (claude-0e8026c5)
+fleetq:   #2248 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2248 set, or it will wait for #2248 to be released.
+fleetq: #2249 running on endor: env CHAINS=120 'BS=2 3 8' /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/slot_partB.sh /opt/code/intarsiaml-specprobe/docs/results/raw/2026-10-16-metal-spec-busy-probe/partB
+fleetq job 2249; binary /private/tmp/claude-501/-opt-code-intarsiaml/0e8026c5-6dd0-4b83-b375-5ff0a66894fc/scratchpad/bin/intarsia-new-0c7ef42 (8f700c591876fd12); git 41cd1f4
+server ref pid 78841 ready on 8101
+gen: exit 0
+server batched pid 8216 ready on 8101
+run B=2: exit 0
+run B=3: exit 0
+run B=8: exit 0
+compare B=2: exit 0
+compare B=3: exit 0
+compare B=8: exit 0
+spectrace: exit 0
+no intarsia serve left
+fleetq: #2249 done (exit 0)

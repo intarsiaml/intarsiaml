@@ -833,6 +833,8 @@ pub(crate) struct Seq {
     spec_k: usize,
     /// The batching scheduler withholds drafting (batch too large); set per step by [`Seq::set_spec_allowed`].
     spec_paused: bool,
+    /// Other sequences decode in the same scheduler step; set per step by [`Seq::set_spec_allowed`] (solo: false).
+    spec_busy: bool,
     pending: std::collections::VecDeque<u32>,
     /// The next token must come from a plain step (a verify row inside the min_tokens mask chose a stop id).
     plain_next: bool,
@@ -914,6 +916,7 @@ impl Seq {
             spec_on,
             spec_k,
             spec_paused: false,
+            spec_busy: false,
             pending: std::collections::VecDeque::new(),
             plain_next: false,
             ctx,
@@ -949,9 +952,12 @@ impl Seq {
         self.reason = Some(FinishReason::Cancelled);
     }
 
-    /// Whether speculation may draft on the next step (the batching scheduler turns it off at larger batch sizes).
-    pub(crate) fn set_spec_allowed(&mut self, allowed: bool) {
+    /// Whether speculation may draft on the next step (the batching scheduler turns it off at larger batch sizes), and
+    /// whether other sequences decode in that step (`busy`: the drafter gate then also stops a request whose drafts
+    /// rarely pay, see [`crate::spec::SpecGate::allow`]).
+    pub(crate) fn set_spec_allowed(&mut self, allowed: bool, busy: bool) {
         self.spec_paused = !allowed;
+        self.spec_busy = busy;
     }
 
     /// The outcome of a request that ended before it held any state (cancelled while queued).
@@ -1123,7 +1129,7 @@ impl Seq {
         if let Some(t) = self.pending.pop_front() {
             return Next::Emit(t);
         }
-        if self.spec_on && !self.spec_paused && !std::mem::take(&mut self.plain_next) && self.gate.allow() {
+        if self.spec_on && !self.spec_paused && !std::mem::take(&mut self.plain_next) && self.gate.allow(self.spec_busy) {
             // verify feeds 1 + d tokens: keep them inside the context window
             let room = st.cap.saturating_sub(st.len + 1);
             let drafts = crate::spec::propose_min(&self.ctx, self.spec_k.min(room), self.gate.min_n());
