@@ -25,6 +25,7 @@ Gates: `cargo test -p intarsia-core` 71+2+21 passed, and with `--features fault-
 | Commit | What | Touches `crates/*/src` |
 |---|---|---|
 | `58c52a9` | the `fault-inject` feature: `crates/intarsia-core/src/fault.rs`, the scheduler hook, the Metal `synchronize` hook, feature wiring in three `Cargo.toml`, tests | **yes**: `intarsia-core/src/{fault,lib,scheduler}.rs`, `intarsia-backend-metal/src/lib.rs`, all `#[cfg(feature = "fault-inject")]` |
+| `e9c969a` | test-only fix to `crates/intarsia-backend-metal/tests/fault_inject.rs`: the two tests share the process-wide armed flag and an `upload`'s `synchronize` could consume the other test's fault, so they now run behind one lock (found in review; the first run in #2276 happened to pass) | no (`tests/` only) |
 | `28dab7f` | `tools/cbfault_e2e.py` (driver), `tools/cbfault_slot.sh` (slot wrapper) | no |
 | this doc and `docs/results/raw/2026-10-17-metal-cb-fault-inject/` | results | no |
 
@@ -111,11 +112,12 @@ fleetq run --host endor --exclusive --mem 24 --label "cb fault-inject e2e" -- to
 # env: BIN (default target/release/intarsia), MODES=err,panic, CASES=nosup,sup, SKIP_CARGO=1
 ```
 
-fleetq jobs on endor: **#2276** (the full run: four cases, then both cargo test runs; all of the above), after two smoke runs, #2270 (`err`/`nosup`, ended on a harness bug in the cleanup, `os.killpg(pgid, 0)` raising `PermissionError` on macOS, fixed) and #2271 (`panic`/`sup` and `nosup`, 26/26 each). Raw: `docs/results/raw/2026-10-17-metal-cb-fault-inject/` (`slot.log`, `e2e/<mode>-<sup|nosup>/result.json` with every client's record and the metrics before and after, the server logs, `cargo-metal*.log`, `hygiene.txt`).
+fleetq jobs on endor: **#2287** (rerun of `tests/fault_inject.rs` in the Metal crate alone, 5 times, 2 passed each time, after the test-only lock fix `e9c969a`; this one test ran outside the main slot, the e2e results and the 110 existing Metal tests in #2276 stand as they are; log `cargo-metal-fault-rerun.log`), **#2276** (the full run: four cases, then both cargo test runs; all of the above), after two smoke runs, #2270 (`err`/`nosup`, ended on a harness bug in the cleanup, `os.killpg(pgid, 0)` raising `PermissionError` on macOS, fixed) and #2271 (`panic`/`sup` and `nosup`, 26/26 each). Raw: `docs/results/raw/2026-10-17-metal-cb-fault-inject/` (`slot.log`, `e2e/<mode>-<sup|nosup>/result.json` with every client's record and the metrics before and after, the server logs, `cargo-metal*.log`, `hygiene.txt`).
 
 ## Not done
 
 * Not run: `tools/cbidentity.py` (hook is compiled out; see "Feature off"). `fault-inject` is not wired into the CPU backend: the CPU path is covered by the mock tests only.
 * The injection is a synthetic error at the right place, not a GPU that really faults; it does not cover a hung command buffer (that is the watchdog's `stalled` path, untouched here).
+* The `after=N` trigger ran on the mock only; on hardware only `mixed=R` was used. `after=N` counts every decode step, including 1-row ones, not only batched steps of 2 or more rows.
 * Only the decode step is a trigger point. A prefill-chunk failure takes the same `fail_all` route (`is_fatal` for `Error::Backend`, covered by the mock), but was not injected on hardware.
 * Not covered: the Anthropic-flavour endpoint (`/v1/messages`) error shape; only `/v1/completions` and `/v1/chat/completions` were driven.
