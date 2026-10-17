@@ -47,7 +47,7 @@ kv_dtype = "bf16"
 # is opt-in: without `--max-batch` the engine serves one sequence at a time.
 max_batch = 8
 
-# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CUDA/HIP/CPU are unchanged).
+# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CUDA/CPU are unchanged).
 # 2048 on Metal: plain prefill on Qwen3-8B BF16 / M5 Max goes 459 -> 386 ms at 1k (973 tokens), 1725 -> 1448 ms at 4k
 # (4062 tokens), 12998 -> 12532 ms at 16k (medians of 3), for about +220 MiB peak process footprint at max-seq 18432; 1024
 # is within noise of 2048 at 1k and 4k (docs/results/2026-10-14-metal-prefill-p3-final.md). The chunk is part of the
@@ -55,4 +55,10 @@ max_batch = 8
 # golden's longest prompt is 700 tokens, so `qualify`'s prefix-reuse gate (needs a split >= one chunk) is skipped, and a
 # skip is not a pass, at any chunk above 350; a long golden with 4k prompts is needed (same document).
 [tuning.metal]
+prefill_chunk = 2048
+
+# 2048 on HIP (R9700, Qwen3-8B BF16): prefill at 1k / 4k goes 3416 / 3124 tok/s (256) to 4444 / 3993 (2048); 4096 is 4412 / 4041,
+# within 1.2 % of 2048. Same known gap as Metal for `qualify`'s prefix-reuse gate on the 700-token long golden
+# (docs/results/2026-10-17-hip-prefill.md).
+[tuning.hip]
 prefill_chunk = 2048

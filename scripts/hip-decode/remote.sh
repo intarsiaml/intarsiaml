@@ -48,7 +48,7 @@ serve_bench() { # serve_bench <name> <model dir> <gb-per-token> <tag> [extra ser
     ${SERVE_ENV:-} \
     -v "$INTARSIA_REPO":/work -v /data/models/intarsia:/models:ro -v "$(TARGET_VOL)":/target -w /work \
     $IMG $B serve --backend hip --model "$model" --profile-every "${PE:-0}" "$@" \
-    --host 0.0.0.0 --port $port --served-model-name "$name" --max-seq 8192 >/dev/null
+    --host 0.0.0.0 --port $port --served-model-name "$name" --max-seq ${MAXSEQ:-8192} >/dev/null
   local up=0 i
   for i in $(seq 1 200); do
     if curl -sf -m 2 http://127.0.0.1:$port/health >/dev/null 2>&1; then up=1; break; fi
@@ -58,7 +58,7 @@ serve_bench() { # serve_bench <name> <model dir> <gb-per-token> <tag> [extra ser
   if [ "$up" != 1 ]; then echo "serve did not come up"; docker logs intarsia-serve 2>&1 | tail -30; docker rm -f intarsia-serve >/dev/null; return 1; fi
   echo "up after ~$((i*3))s"
   docker exec intarsia-serve $B bench speed --url http://127.0.0.1:$port --model "$name" \
-    --sizes 128,1024,4096 --gen 128 --reps 5 --gb-per-token "$gb" --bandwidth-gbs 627 \
+    --sizes ${SIZES:-128,1024,4096} --gen ${GEN:-128} --reps ${REPS:-5} --gb-per-token "$gb" --bandwidth-gbs 627 \
     --label "$tag" --out-dir /work/bench-out --thinking off 2>&1 | tail -22
   curl -s http://127.0.0.1:$port/metrics | grep -iE "graph|eager" | head
   docker rm -f intarsia-serve >/dev/null
@@ -72,6 +72,32 @@ stage_bench35ng() { serve_bench qwen36-35b-intarsia-hip $M35 2.2 "hipdecode-35b-
 stage_bench8ng() { serve_bench qwen3-8b-intarsia-hip $M8 16.38 "hipdecode-8b-${1:-base}-eager" --no-graphs; }
 stage_bench35pe16() { PE=16 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "hipdecode-35b-${1:-base}-pe16" --mem-budget 29; }
 stage_bench8pe16() { PE=16 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "hipdecode-8b-${1:-base}-pe16"; }
+
+# Prefill (perf/hip-prefill). pfprof:<tag>[:chunk] = rocprofv3 kernel trace of ONE prefill of a ~4k-token prompt (35B, max-tokens 1),
+# per-kernel table by analyze_prefill.py. The prompt is scripts/hip-decode/prompt4k.txt.
+stage_pfprof() {
+  local tag=${1%%:*} chunk="" ex=""   # arg is <tag>[:<chunk>] (the stage runner passes everything after the first colon)
+  [[ "$1" == *:* ]] && chunk=${1#*:}
+  [ -n "$chunk" ] && ex="--prefill-chunk $chunk"
+  printf '%s\n' "${PROF_PRE:-} $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos $ex -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 1" > "$OUTD/pfgen.sh"
+  local gen="bash /work/bench-out/pfgen.sh"
+  echo "--- unprofiled (one prefill, includes the cold start)"
+  $D bash -c "$gen" 2>&1 | grep -aE "prompt:|finish="
+  rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
+  local tv; tv=$(TARGET_VOL)
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
+    $D bash -c "rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- $gen" 2>&1 | grep -aE "prompt:|finish=|rror"
+  local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
+  [ -n "$csv" ] && python3 "$INTARSIA_REPO/scripts/hip-decode/analyze_prefill.py" "$csv" > "$OUTD/prof/$tag/table.txt" && cat "$OUTD/prof/$tag/table.txt"
+}
+# chunk35:<chunk> / chunk8:<chunk>: serve with --prefill-chunk, prefill speed at 128/1024/4096 (gen 16, 3 reps)
+stage_chunk35() { GEN=16 REPS=3 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
+stage_chunk8() { GEN=16 REPS=3 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pfchunk-8b-${1}" --prefill-chunk "${1}"; }
+# chunk35l:<chunk>: does that chunk fit at 16k context (max-seq 17408, one 16384-token prompt)
+stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-16k-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
+# pf35[:tag] / pf8[:tag]: A/B speed, prefill 128/1024/4096/16384 and decode 128 (the serve's own recipe chunk)
+stage_pf35() { MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
+stage_pf8() { MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file
   local tag=$1; shift
@@ -191,8 +217,14 @@ stage_kernels() {
 acc() { # acc <model> <golden> [args]
   local m=$1 g=$2; shift 2
   echo "--- accuracy $g $*"
-  $D $B accuracy --backend hip --model "$m" --golden "$G/$g" --mode both --mem-budget 29 --allow-unstamped --allow-dirty "$@" 2>&1 | tail -22
+  mkdir -p "$OUTD/acc"
+  $D $B accuracy --backend hip --model "$m" --golden "$G/$g" --mode ${ACC_MODE:-both} --mem-budget 29 --allow-unstamped --allow-dirty "$@" 2>&1 | tee "$OUTD/acc/${ACC_TAG:-acc}-${g%%.*}.log" | tail -${ACC_TAIL:-22}
 }
+# Prefill chunk (perf/hip-prefill): acc35c:<chunk> short golden, acc35l:<chunk> long golden with the prefix-reuse gate (--mode all),
+# acc8c:<chunk> the two 8B fp32 goldens. Full logs in bench-out/acc/.
+stage_acc35c() { ACC_TAG="c$1" acc $M35 qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096 --prefill-chunk "$1"; }
+stage_acc35l() { ACC_TAG="c$1" ACC_MODE=all ACC_TAIL=40 acc $M35 qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk "$1"; }
+stage_acc8c() { ACC_TAG="c$1" acc $M8 qwen3-8b-fp32.safetensors --prefill-chunk "$1"; ACC_TAG="c$1" acc $M8 qwen3-8b-long-fp32.safetensors --prefill-chunk "$1"; }
 stage_acc35() { acc $M35 qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096; }  # sha b6b51e1b1699c66c: the golden the CUDA numbers use
 stage_acc8() {
   acc $M8 qwen3-8b-fp32.safetensors
