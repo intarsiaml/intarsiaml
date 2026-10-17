@@ -1,0 +1,8 @@
+== all: 22777 decode phases, spec-off phases 2904 (with a verify pass: 0), gate value != (b<4): 0, on->off 1, off->on 1 (drafting resumed after 1), drafted 17444 accepted 13847 in 4366 passes
+   b: 1: 1450ph/285vp/1140dr/804ac, 2: 11516ph/2213vp/8842dr/7094ac, 3: 6907ph/1868vp/7462dr/5949ac, 4: 26ph/0vp/0dr/0ac, 5: 23ph/0vp/0dr/0ac, 6: 121ph/0vp/0dr/0ac, 7: 541ph/0vp/0dr/0ac, 8: 2193ph/0vp/0dr/0ac
+== b2: 11835 decode phases, spec-off phases 0 (with a verify pass: 0), gate value != (b<4): 0, on->off 0, off->on 0 (drafting resumed after 0), drafted 9166 accepted 7232 in 2294 passes
+   b: 1: 1177ph/247vp/988dr/664ac, 2: 10658ph/2047vp/8178dr/6568ac
+== b3: 7884 decode phases, spec-off phases 0 (with a verify pass: 0), gate value != (b<4): 0, on->off 0, off->on 0 (drafting resumed after 0), drafted 8178 accepted 6519 in 2047 passes
+   b: 1: 152ph/22vp/88dr/76ac, 2: 855ph/165vp/660dr/522ac, 3: 6877ph/1860vp/7430dr/5921ac
+== b8: 3058 decode phases, spec-off phases 2904 (with a verify pass: 0), gate value != (b<4): 0, on->off 1, off->on 1 (drafting resumed after 1), drafted 100 accepted 96 in 25 passes
+   b: 1: 121ph/16vp/64dr/64ac, 2: 3ph/1vp/4dr/4ac, 3: 30ph/8vp/32dr/28ac, 4: 26ph/0vp/0dr/0ac, 5: 23ph/0vp/0dr/0ac, 6: 121ph/0vp/0dr/0ac, 7: 541ph/0vp/0dr/0ac, 8: 2193ph/0vp/0dr/0ac
