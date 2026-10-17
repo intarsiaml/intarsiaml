@@ -1,0 +1,126 @@
+[burst] job 2280; stages: fusedtest fp8sweep prof:pair1; stopping radiance 2026-10-17 11:51:36
+[burst] radiance stopped 2026-10-17 11:51:39
+################ stage fusedtest start 11:51:39
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=9 K=16 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=300 K=4112 x=bf16 out=bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=256 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=256 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=256 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=1.526e-6 rel_l2=8.836e-8 R=960 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=7.774e-5 rel_l2=3.924e-6 R=960 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=960 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=7.940e-6 rel_l2=3.586e-7 R=960 D=256 bf16
+op             kernel                      cases   fail     max_abs      rel_l2  result
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.02s
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+test matmul_fp8_pair_every_block_shape_is_bitwise_v2 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+################ stage fusedtest end 11:52:07
+################ stage fp8sweep start 11:52:07
+case                               config            hot us   cold us    GB/s
+o_proj/out_proj 2048x4096          v2                  18.1      17.2     488
+attn q 8192x2048                   v2                  32.5      31.1     540
+k or v 512x2048                    v2                   5.7       5.6     187
+scale N=16 (0.03 MB)               v2                   4.0       3.6       9
+scale N=256 (0.52 MB)              v2                   5.7       4.8     109
+scale N=1024 (2.10 MB)             v2                   7.3       7.1     297
+scale N=2048 (4.19 MB)             v2                  11.5      11.1     377
+scale N=4096 (8.39 MB)             v2                  18.7      17.9     468
+scale N=8192 (16.78 MB)            v2                  32.1      30.9     542
+scale N=16384 (33.55 MB)           v2                  58.5      57.1     588
+scale N=32768 (67.11 MB)           v2                 110.8     109.4     613
+pair qkv+z 12288x2048              pair 1,4            45.7      44.2     569
+pair qkv+z 12288x2048              pair 1,8            44.2      43.3     581
+pair qkv+z 12288x2048              pair 1,16           44.5      43.8     574
+pair qkv+z 12288x2048              pair 2,4            47.4      46.7     538
+pair qkv+z 12288x2048              pair 2,8            46.7      45.9     548
+pair qkv+z 12288x2048              pair 2,16           45.8      45.1     557
+pair qkv+z 12288x2048              pair 4,4            53.7      53.0     475
+pair qkv+z 12288x2048              pair 4,8            51.6      50.8     495
+pair qkv+z 12288x2048              pair 4,16           51.9      51.2     491
+pair k+v 1024x2048                 pair 1,4             8.6       8.3     252
+pair k+v 1024x2048                 pair 1,8             7.7       7.2     292
+pair k+v 1024x2048                 pair 1,16            7.3       7.0     299
+pair k+v 1024x2048                 pair 2,4             8.4       8.1     258
+pair k+v 1024x2048                 pair 2,8             7.7       7.4     282
+pair k+v 1024x2048                 pair 2,16            8.9       8.6     244
+pair k+v 1024x2048                 pair 4,4            11.2      11.0     191
+pair k+v 1024x2048                 pair 4,8            10.4      10.1     208
+pair k+v 1024x2048                 pair 4,16            9.2       8.8     237
+################ stage fp8sweep end 11:52:12
+################ stage prof:pair1 start 11:52:12
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 90 ms (266.4 tok/s) | decode 1169 ms (135.96 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 94 ms (256.1 tok/s) | decode 1339 ms (118.76 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+/home/josef/intarsiaml-fp8gemv/bench-out/prof/pair1/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(677, 159), (2231, 1)]
+decode steps analysed: 157, launches/step 677
+per step: kernel time 6.286 ms, step wall (first start to last end) 8.411 ms, idle inside step 2.125 ms (25.3% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 8.420 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 3080 p99 3400 max 97611; sum/step 2.125 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        40.0    1377.0    34.4  21.9%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             50.0     999.0    20.0  15.9%
+moe_gate_up_p1_v2_kernel<false, 4>                                         40.0     838.3    21.0  13.3%
+moe_down_reduce_p1_v2_kernel<bf16, false>                                  40.0     625.4    15.6   9.9%
+nvfp4_gemv_v2_kernel<1, bf16, false>                                       40.0     478.7    12.0   7.6%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     460.2   460.2   7.3%
+gdn_delta_rows_kernel<128, 2>                                              30.0     257.2     8.6   4.1%
+gemv_pair_kernel<1, 8, bf16>                                               70.0     175.3     2.5   2.8%
+nvfp4_glu_kernel                                                           40.0     171.9     4.3   2.7%
+rmsnorm_kernel<true, true>                                                 80.0     166.6     2.1   2.7%
+moe_topk_v2_kernel                                                         40.0     158.7     4.0   2.5%
+splitkv_kernel<8, 32, 2>                                                   10.0     122.8    12.3   2.0%
+rope_kernel                                                                20.0     112.9     5.6   1.8%
+gated_rmsnorm_kernel<true>                                                 30.0      64.0     2.1   1.0%
+moe_combine_kernel<bf16>                                                   40.0      62.2     1.6   1.0%
+gdn_conv_kernel<true>                                                      30.0      60.6     2.0   1.0%
+argmax_kernel<float>                                                        1.0      44.8    44.8   0.7%
+rmsnorm_kernel<false, true>                                                21.0      36.8     1.8   0.6%
+kv_append_kernel<bf16, 8>                                                  20.0      28.5     1.4   0.5%
+combine_kernel<256>                                                        10.0      15.7     1.6   0.3%
+gate_split_kernel                                                          10.0      10.4     1.0   0.2%
+sigmoid_mul_kernel                                                         10.0      10.1     1.0   0.2%
+__amd_rocclr_copyBuffer                                                     3.0       7.0     2.3   0.1%
+embedding_kernel<true>                                                      1.0       1.9     1.9   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    44.0    0.00               1319.9
+fp8_gemv_kernel<1, 2, bf16, 2> g128                  40.0    17.1    8.39    489   78%    685.7
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.3   16.78    536   85%    313.3
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g128             10.0     5.7    8.39   1470  234%     57.1
+################ stage prof:pair1 end 11:52:22
+[burst] stages done 2026-10-17 11:52:22 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 11:52:22
+[burst] radiance answers 2026-10-17 11:52:32 (after 15 s)

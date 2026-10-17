@@ -1,5 +1,5 @@
 //! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
-//! `QkNormRopeKv`).
+//! `QkNormRopeKv`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`).
 //! Each is defined as the composition of the ops it replaces, so the oracle of a fused kernel is exactly "the
 //! unfused path, including the output rounding of every intermediate tensor". `sub` is the executor of the
 //! constituent ops: the f64 reference for `ref_*`, the f32 kernels for `cpu_f32_*`.
@@ -41,6 +41,21 @@ pub fn run(call: &OpCall, sub: fn(&OpCall) -> Result<()>) -> Result<()> {
             let normed = tmp(&o[0], &o[0].shape);
             step(sub, Op::RmsNorm, vec![i[0].clone(), i[2].clone()], vec![normed.clone()], a.clone())?;
             step(sub, Op::SiluGlu, vec![i[1].clone(), normed], vec![o[0].clone()], d())
+        }
+        Op::RmsNormAddMatmulPair => {
+            // the normed row is stored in the activation dtype between the norm and the GEMVs, like the unfused path
+            step(sub, Op::RmsNormAdd, vec![i[0].clone(), i[1].clone(), i[2].clone()], vec![o[0].clone(), o[1].clone()], a.clone())?;
+            step(sub, Op::Matmul, vec![o[0].clone(), i[3].clone()], vec![o[2].clone()], d())?;
+            step(sub, Op::Matmul, vec![o[0].clone(), i[4].clone()], vec![o[3].clone()], d())
+        }
+        Op::GatedRmsnormMatmulFp8 => {
+            // gated norm over the `R` rows, then the fp8 matmul of the result read as one row `[1, R * D]`
+            let k = i[0].shape[0] * i[0].shape[1];
+            let normed = tmp(&i[0], &i[0].shape);
+            step(sub, Op::RmsNorm, vec![i[0].clone(), i[2].clone()], vec![normed.clone()], a.clone())?;
+            let gated = tmp(&i[0], &i[0].shape);
+            step(sub, Op::SiluGlu, vec![i[1].clone(), normed], vec![gated.clone()], d())?;
+            step(sub, Op::MatmulFp8, vec![gated.reshaped(&[1, k]), i[3].clone(), i[4].clone()], vec![o[0].clone()], d())
         }
         Op::QkNormRopeKv => {
             // intermediates are in the activation dtype (the unfused path stores each op's output in its tensor), the

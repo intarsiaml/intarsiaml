@@ -113,6 +113,7 @@ impl Model {
         out: &TensorRef,
         t: usize,
         profile: bool,
+        fold: Option<&NormFold>,
     ) -> Result<()> {
         let x = self.ws.x.gdn.as_ref().ok_or_else(|| Error::invalid("GatedDeltaNet workspace missing"))?;
         let l = &g.lin;
@@ -135,6 +136,20 @@ impl Model {
         let core = self.view(&x.core, act, &[t, hv, dv]);
         let normed = self.view(&x.normed, act, &[t, hv, dv]);
 
+        // `n` is not computed yet when `fold` is set (the residual add + norm in front of the block). The b and a gates
+        // (dense, tiny) take the norm into their launch when the backend has the fused kernel, so they run first (they do
+        // not depend on the other projections); otherwise the norm runs here unfused, before anything reads `n`.
+        let mut ba_fused = false;
+        if let Some(f) = fold {
+            if let (BF16, BF16) = (g.in_b.format, g.in_a.format) {
+                let (inputs, outputs) = f.pair(n, &g.in_b.parts[0], &g.in_a.parts[0], &b, &a);
+                ba_fused = self.try_fused(Op::RmsNormAddMatmulPair, inputs, outputs, f.attrs.clone(), profile)?;
+            }
+            if !ba_fused {
+                let (inputs, outputs) = f.unfused(n);
+                self.exec(Op::RmsNormAdd, inputs, outputs, f.attrs.clone(), profile)?;
+            }
+        }
         // The four projections read the same activation. qkv and z (fp8) go through one launch, and so do the b and a
         // gates (dense), when the backend has the fused pair kernels; otherwise each runs on its own.
         let qz_fused = match (g.in_qkv.format, g.in_z.format) {
@@ -151,16 +166,17 @@ impl Model {
             self.proj(n, &g.in_qkv, &qkv, profile)?;
             self.proj(n, &g.in_z, &z, profile)?;
         }
-        let ba_fused = match (g.in_b.format, g.in_a.format) {
-            (BF16, BF16) => self.try_fused(
-                Op::MatmulPair,
-                vec![n.clone(), g.in_b.parts[0].clone(), g.in_a.parts[0].clone()],
-                vec![b.clone(), a.clone()],
-                OpAttrs::default(),
-                profile,
-            )?,
-            _ => false,
-        };
+        let ba_fused = ba_fused
+            || match (g.in_b.format, g.in_a.format) {
+                (BF16, BF16) => self.try_fused(
+                    Op::MatmulPair,
+                    vec![n.clone(), g.in_b.parts[0].clone(), g.in_a.parts[0].clone()],
+                    vec![b.clone(), a.clone()],
+                    OpAttrs::default(),
+                    profile,
+                )?,
+                _ => false,
+            };
         if !ba_fused {
             self.proj(n, &g.in_b, &b, profile)?;
             self.proj(n, &g.in_a, &a, profile)?;
@@ -183,6 +199,19 @@ impl Model {
         // gated RMSNorm: rmsnorm(core, w) * silu(z), over rows of dv (the weight is never zero-centred)
         let rows = [t * hv, dv];
         let norm_attrs = OpAttrs { eps: self.dims.rms_eps, ..Default::default() };
+        // the norm folded into the fp8 out_proj when the backend has that kernel: the block's output in one launch
+        if g.out.format == FP8_E4M3 {
+            let folded = self.try_fused(
+                Op::GatedRmsnormMatmulFp8,
+                vec![core.reshaped(&rows), z.reshaped(&rows), g.norm.clone(), g.out.parts[0].clone(), g.out.parts[1].clone()],
+                vec![out.clone()],
+                norm_attrs.clone(),
+                profile,
+            )?;
+            if folded {
+                return Ok(());
+            }
+        }
         // one launch for both when the backend has it (the result then lands in `normed`, not `core`)
         let gated = self.try_fused(
             Op::GatedRmsnorm,

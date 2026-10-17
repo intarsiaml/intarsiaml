@@ -32,6 +32,8 @@
 //! | `MatmulFp8Pair` | x `[M,K]`, (w0 `[N0,K]`, scales0 `[2]`), (w1 `[N1,K]`, scales1 `[2]`) fp8 | `[M,N0]`, `[M,N1]` (= two `MatmulFp8`s) | fused, see `quant::fused` |
 //! | `MatmulNvfp4Glu` | x `[M,K]`, gate (w, block scales, global), up (w, block scales, global), nvfp4 `[N,K]` each | `[M,N]` (= `SiluGlu(MatmulNvfp4(gate), MatmulNvfp4(up))`) | fused, see `quant::fused` |
 //! | `GatedRmsnorm` | x `[R,D]`, z `[R,D]`, w `[D]` | `[R,D]` (= `SiluGlu(z, RmsNorm(x, w))`) | eps, w_offset; fused, see `quant::fused` |
+//! | `RmsNormAddMatmulPair` | x `[1,K]`, res `[1,K]`, norm w `[K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | normed `[1,K]`, sum `[1,K]`, `[1,N0]`, `[1,N1]` (= `RmsNormAdd(x, res, w)`, then `MatmulPair` of the normed row) | eps, w_offset; fused decode norm + GEMV pair, see `quant::fused` |
+//! | `GatedRmsnormMatmulFp8` | x `[R,128]`, z `[R,128]`, norm w `[128]`, w `[N,R*128]` fp8, scales `[2]` | `[1,N]` (= `MatmulFp8(GatedRmsnorm(x, z, w) as [1,R*128], w)`) | eps, w_offset; fused decode norm + GEMV, see `quant::fused` |
 //! | `QkNormRopeKv` | q `[T,N,D]`, k `[T,Nkv,D]`, v `[T,Nkv,D]`, q_w `[D]`, k_w `[D]` (all one float dtype) | q_out `[T,N,D]`, k cache, v cache `[Nkv,cap,D]` (**in place**) | eps, w_offset, theta, rotary_dim, pos0 (or `OpCall::pos`); fused attention prologue, see below |
 //!
 //! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The five
@@ -83,10 +85,12 @@ pub enum Op {
     MatmulNvfp4Glu,
     GatedRmsnorm,
     QkNormRopeKv,
+    RmsNormAddMatmulPair,
+    GatedRmsnormMatmulFp8,
 }
 
 impl Op {
-    pub const ALL: [Op; 28] = [
+    pub const ALL: [Op; 30] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -115,6 +119,8 @@ impl Op {
         Op::MatmulNvfp4Glu,
         Op::GatedRmsnorm,
         Op::QkNormRopeKv,
+        Op::RmsNormAddMatmulPair,
+        Op::GatedRmsnormMatmulFp8,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -148,6 +154,8 @@ impl Op {
             Op::MatmulNvfp4Glu => "matmul_nvfp4_glu",
             Op::GatedRmsnorm => "gated_rmsnorm",
             Op::QkNormRopeKv => "qk_norm_rope_kv",
+            Op::RmsNormAddMatmulPair => "rmsnorm_add_matmul_pair",
+            Op::GatedRmsnormMatmulFp8 => "gated_rmsnorm_matmul_fp8",
         }
     }
 
@@ -184,6 +192,8 @@ impl Op {
             Op::MatmulNvfp4Glu => (7, 1),
             Op::GatedRmsnorm => (3, 1),
             Op::QkNormRopeKv => (5, 3),
+            Op::RmsNormAddMatmulPair => (5, 4),
+            Op::GatedRmsnormMatmulFp8 => (5, 1),
         }
     }
 }
@@ -449,7 +459,9 @@ impl OpCall {
             | Op::MatmulPair
             | Op::MatmulFp8Pair
             | Op::MatmulNvfp4Glu
-            | Op::GatedRmsnorm => crate::quant::ops::check(self)?,
+            | Op::GatedRmsnorm
+            | Op::RmsNormAddMatmulPair
+            | Op::GatedRmsnormMatmulFp8 => crate::quant::ops::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::check(self)?,
         }
         Ok(())
@@ -541,7 +553,9 @@ impl ShapeInfo {
             | Op::MatmulPair
             | Op::MatmulFp8Pair
             | Op::MatmulNvfp4Glu
-            | Op::GatedRmsnorm => crate::quant::ops::shape(call, &mut s),
+            | Op::GatedRmsnorm
+            | Op::RmsNormAddMatmulPair
+            | Op::GatedRmsnormMatmulFp8 => crate::quant::ops::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::shape(call, &mut s),
         }
         let _ = o;

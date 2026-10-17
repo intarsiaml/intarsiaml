@@ -136,6 +136,38 @@ pub trait OpRunner {
     }
 }
 
+/// The residual add and norm in front of a block (`RmsNormAdd(blk, res, w) -> (n, sum)`), handed to the block that reads `n`
+/// instead of being run before it: the block folds them into its first GEMV pair when the backend has the fused kernel
+/// (`Op::RmsNormAddMatmulPair`, which also stores `n` and `sum` for the block's other readers) and otherwise runs them
+/// unfused first. Either way the norm runs exactly once, before the first read of `n`.
+#[derive(Clone, Debug)]
+pub struct NormFold {
+    /// The previous block's output (the `x` of the add).
+    pub blk: TensorRef,
+    /// The residual stream before this block's add.
+    pub res: TensorRef,
+    /// The norm weight.
+    pub w: TensorRef,
+    /// The residual stream after the add: the other output of the norm.
+    pub sum: TensorRef,
+    pub attrs: OpAttrs,
+}
+
+impl NormFold {
+    /// Inputs and outputs of the fused op for the projections `w0` / `w1` into `o0` / `o1`, with the normed row in `n`.
+    pub fn pair(&self, n: &TensorRef, w0: &TensorRef, w1: &TensorRef, o0: &TensorRef, o1: &TensorRef) -> (Vec<TensorRef>, Vec<TensorRef>) {
+        (
+            vec![self.blk.clone(), self.res.clone(), self.w.clone(), w0.clone(), w1.clone()],
+            vec![n.clone(), self.sum.clone(), o0.clone(), o1.clone()],
+        )
+    }
+
+    /// The unfused norm: `n` and `sum` from one `RmsNormAdd`.
+    pub fn unfused(&self, n: &TensorRef) -> (Vec<TensorRef>, Vec<TensorRef>) {
+        (vec![self.blk.clone(), self.res.clone(), self.w.clone()], vec![n.clone(), self.sum.clone()])
+    }
+}
+
 fn view(t: &TensorRef, rows: usize) -> TensorRef {
     let mut shape = t.shape.clone();
     shape[0] = rows;
@@ -193,6 +225,12 @@ impl MoeWeights {
 
     /// `out[t, :] = moe(n[t, :])` for the first `t = n.shape[0]` rows (`t <= ws.max_tokens`). `out` must not alias `n`.
     pub fn forward(&self, run: &dyn OpRunner, ws: &MoeScratch, n: &TensorRef, out: &TensorRef) -> Result<()> {
+        self.forward_folded(run, ws, None, n, out)
+    }
+
+    /// [`MoeWeights::forward`] where `n` is not computed yet: `fold` is the norm that produces it (`n` and the new residual
+    /// stream), which this runs first, as one launch with the router and shared-gate projections when the backend has it.
+    pub fn forward_folded(&self, run: &dyn OpRunner, ws: &MoeScratch, fold: Option<&NormFold>, n: &TensorRef, out: &TensorRef) -> Result<()> {
         let c = &self.cfg;
         let t = n.shape[0];
         if t == 0 || t > ws.max_tokens || n.shape != [t, c.hidden] || out.shape != [t, c.hidden] || n.dtype != ws.act {
@@ -210,7 +248,22 @@ impl MoeWeights {
         let (so, sl) = (view(&ws.sh_out, t), view(&ws.sh_logit, t));
         let mut gate_logit_done = false;
         let mut router_done = false;
-        if let Some(sh) = self.shared.as_ref().filter(|sh| self.router.format == BF16 && sh.gate_logit.format == BF16) {
+        let pair = self.shared.as_ref().filter(|sh| self.router.format == BF16 && sh.gate_logit.format == BF16);
+        let mut norm = fold;
+        if let (Some(sh), Some(f)) = (pair, norm) {
+            // the norm is the first launch of the block: fold it into the router + shared-gate pair
+            let (inputs, outputs) = f.pair(n, &self.router.parts[0], &sh.gate_logit.parts[0], &logits, &sl);
+            router_done = run.run_fused(Op::RmsNormAddMatmulPair, inputs, outputs, f.attrs.clone())?;
+            if router_done {
+                norm = None;
+                gate_logit_done = true;
+            }
+        }
+        if let Some(f) = norm {
+            let (inputs, outputs) = f.unfused(n);
+            run.run(Op::RmsNormAdd, inputs, outputs, f.attrs.clone())?;
+        }
+        if let (Some(sh), false) = (pair, router_done) {
             router_done = run.run_fused(
                 Op::MatmulPair,
                 vec![n.clone(), self.router.parts[0].clone(), sh.gate_logit.parts[0].clone()],

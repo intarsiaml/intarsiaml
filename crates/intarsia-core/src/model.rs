@@ -17,7 +17,7 @@ use crate::dtype::DType;
 use crate::error::{Error, Result};
 use crate::memplan::MemoryPlan;
 use crate::ops::{Op, OpAttrs, OpCall, ShapeInfo};
-use crate::quant::moe::{MoeScratch, MoeWeights, OpRunner};
+use crate::quant::moe::{MoeScratch, MoeWeights, NormFold, OpRunner};
 use crate::quant::{Fp8Act, QTensor, QuantLoadOpts};
 use crate::recipe::{LinearDims, ModelDims, Recipe};
 use crate::registry::Registry;
@@ -1318,6 +1318,15 @@ impl Model {
             Ok(())
         };
 
+        // The GatedDeltaNet and MoE blocks take the norm in front of them (`NormFold`) so that they can fold it into their
+        // first GEMV pair; it flips the residual buffers the way `norm_in` does and the block runs the norm exactly once.
+        let fold = |pre: &TensorRef, cur: &mut usize| -> NormFold {
+            let next = 1 - *cur;
+            let f = NormFold { blk: blkv.clone(), res: hv(*cur), w: pre.clone(), sum: hv(next), attrs: eps_attrs.clone() };
+            *cur = next;
+            f
+        };
+
         for blocks in &self.layers {
             for block in blocks {
                 match block {
@@ -1329,23 +1338,31 @@ impl Model {
                         }
                     }
                     Block::Gdn(g) => {
-                        norm_in(&g.pre_norm, pending, &mut cur)?;
                         let Seqs::One(st) = seqs else {
+                            norm_in(&g.pre_norm, pending, &mut cur)?;
                             return Err(Error::Unsupported("batched decode of a recurrent block".into()));
                         };
-                        self.gdn_block(g, st, &nv, &blkv, t, profile)?;
+                        let f = pending.then(|| fold(&g.pre_norm, &mut cur));
+                        if f.is_none() {
+                            norm_in(&g.pre_norm, false, &mut cur)?;
+                        }
+                        self.gdn_block(g, st, &nv, &blkv, t, profile, f.as_ref())?;
                     }
                     Block::Ffn(f) => {
                         norm_in(&f.pre_norm, pending, &mut cur)?;
                         self.ffn_block(f, &nv, &blkv, t, profile)?;
                     }
                     Block::Moe(m) => {
-                        norm_in(&m.pre_norm, pending, &mut cur)?;
                         if matches!(seqs, Seqs::Batch(_)) {
+                            norm_in(&m.pre_norm, pending, &mut cur)?;
                             return Err(Error::Unsupported("batched decode of a mixture-of-experts block".into()));
                         }
                         let ws = self.ws.moe.as_ref().ok_or_else(|| Error::invalid("moe block without workspace"))?;
-                        m.w.forward(&ExecRunner { m: self, profile }, ws, &nv, &blkv)?;
+                        let f = pending.then(|| fold(&m.pre_norm, &mut cur));
+                        if f.is_none() {
+                            norm_in(&m.pre_norm, false, &mut cur)?;
+                        }
+                        m.w.forward_folded(&ExecRunner { m: self, profile }, ws, f.as_ref(), &nv, &blkv)?;
                     }
                 }
                 pending = true;

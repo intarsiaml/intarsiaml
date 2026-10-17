@@ -1,0 +1,47 @@
+[burst] job 2294; stages: qual35:pair1 qual8:pair1; stopping radiance 2026-10-17 12:12:10
+[burst] radiance stopped 2026-10-17 12:12:12
+################ stage qual35:pair1 start 12:12:12
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/bench-out/qualify-35b-pair1
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.6s (AMD Radeon Graphics (gfx1201), 38 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     14s] plan: PASS in 13.4s (28 ops resolved, exactness deterministic, loaded in 13.4s)
+[qualify     14s] == kernels [kernels test on the model's shapes]
+[qualify     42s] kernels: PASS in 27.8s (38 kernels, 613 cases in 27.6s)
+[qualify     42s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     50s] gate: PASS in 7.5s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     50s] == acc-short [short accuracy against a golden]
+[qualify     59s] acc-short: PASS in 9.3s (prefill top-1 98.54% KL 6.56e-3; decode top-1 99.38% KL 9.96e-3)
+[qualify     59s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify     65s] server up in 6s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify     97s] bench: PASS in 37.8s (decode 136.8 tok/s at 128 tokens (49% of the byte floor))
+QUICK DONE: /work/bench-out/qualify-35b-pair1/quick-report.md
+[qualify     97s] exit code 0
+################ stage qual35:pair1 end 12:13:49
+################ stage qual8:pair1 start 12:13:49
+[qualify      0s] Qwen3-8B on hip, report directory /work/bench-out/qualify-8b-pair1
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.6s (AMD Radeon Graphics (gfx1201), 38 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     54s] plan: PASS in 53.6s (16 ops resolved, exactness deterministic, loaded in 53.6s)
+[qualify     54s] == kernels [kernels test on the model's shapes]
+[qualify    102s] kernels: PASS in 47.9s (38 kernels, 626 cases in 47.8s)
+[qualify    102s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    111s] gate: PASS in 9.0s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    111s] == acc-short [short accuracy against a golden]
+[qualify    119s] acc-short: PASS in 7.8s (prefill top-1 100.00% KL 2.34e-4; decode top-1 100.00% KL 3.63e-4)
+[qualify    119s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    161s] server up in 42s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    224s] bench: PASS in 105.4s (decode 38.0 tok/s at 128 tokens (92% of the byte floor))
+QUICK DONE: /work/bench-out/qualify-8b-pair1/quick-report.md
+[qualify    224s] exit code 0
+################ stage qual8:pair1 end 12:17:34
+[burst] stages done 2026-10-17 12:17:34 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 12:17:34
+[burst] radiance answers 2026-10-17 12:17:44 (after 15 s)

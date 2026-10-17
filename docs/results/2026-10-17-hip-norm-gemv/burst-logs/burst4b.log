@@ -1,0 +1,26 @@
+[burst] job 2322; stages: mutate; stopping radiance 2026-10-17 12:51:32
+[burst] radiance stopped 2026-10-17 12:51:35
+################ stage mutate start 12:51:35
+applied norm-order to /home/josef/intarsiaml-normgemv-mut/kernels/hip/matmul.hip
+norm-order         test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s 
+applied gn-round to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+gn-round           thread 'gated_rmsnorm_matmul_fp8_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s 
+applied gn-woff to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+gn-woff            thread 'gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s error: test failed, to rerun pass `-p intarsia-backend-hip --test fused_decode` 
+applied gn-order to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+gn-order           test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s 
+applied gn-group to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+gn-group           thread 'gated_rmsnorm_matmul_fp8_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s 
+applied gn-weight to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+gn-weight          thread 'gated_rmsnorm_matmul_fp8_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s 
+applied gn-silu to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+gn-silu            thread 'gated_rmsnorm_matmul_fp8_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: thread 'gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv' panicked at crates/intarsia-backend-hip/tests/fused_decode.rs:55:9: test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s 
+applied fp8-scale to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+fp8-scale          thread 'fp8_gemv_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/decode_v2.rs:47:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s error: test failed, to rerun pass `-p intarsia-backend-hip --test decode_v2` 
+applied fp8-convert to /home/josef/intarsiaml-normgemv-mut/kernels/hip/fp8.hip
+fp8-convert        thread 'fp8_gemv_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/decode_v2.rs:47:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.92s error: test failed, to rerun pass `-p intarsia-backend-hip --test decode_v2` 
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+################ stage mutate end 12:55:17
+[burst] stages done 2026-10-17 12:55:17 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-17 12:55:17
+[burst] radiance answers 2026-10-17 12:55:27 (after 15 s)
