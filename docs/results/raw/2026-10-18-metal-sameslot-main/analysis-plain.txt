@@ -1,0 +1,41 @@
+| run | order | prefill ms | tok/s | GPU idle (median of 3) | GPU MHz (macmon sample over the run) | macmon samples | GPU power W | GPU temp C |
+|---|---|---|---|---|---|---|---|---|
+| cand-01 | 1 | 1208 | 3361.4 | 14 | 1617 | 1 | 100 | 58 |
+| cand-04 | 4 | 1206 | 3368.5 | 12 | 1617 | 1 | 98 | 51 |
+| cand-05 | 5 | 1211 | 3353.5 | 17 | 1617 | 1 | 98 | 54 |
+| cand-08 | 8 | 1194 | 3401.1 | 15 | 1617 | 1 | 100 | 65 |
+| cand-09 | 9 | 1232 | 3298.1 | 13 | 1617 | 1 | 96 | 53 |
+| cand-12 | 12 | 1206 | 3367.2 | 21 | 1617 | 1 | 98 | 51 |
+| cand-13 | 13 | 1215 | 3342.5 | 10 | 1617 | 1 | 96 | 55 |
+| cand-16 | 16 | 1223 | 3322.4 | 0 | 1617 | 1 | 97 | 65 |
+| main-02 | 2 | 1201 | 3381.1 | 14 | 1617 | 1 | 99 | 60 |
+| main-03 | 3 | 1186 | 3423.5 | 14 | 1617 | 1 | 122 | 62 |
+| main-06 | 6 | 1206 | 3367.8 | 20 | 1617 | 1 | 98 | 60 |
+| main-07 | 7 | 1258 | 3228.5 | 24 | 1617 | 1 | 97 | 63 |
+| main-10 | 10 | 1179 | 3444.1 | 13 | 1617 | 1 | 99 | 59 |
+| main-11 | 11 | 1203 | 3375.5 | 12 | 1617 | 1 | 99 | 62 |
+| main-14 | 14 | 1210 | 3355.9 | 12 | 1617 | 1 | 99 | 58 |
+| main-15 | 15 | 1209 | 3359.2 | 23 | 1617 | 1 | 98 | 63 |
+(discarded warm-cand: 1226 ms, 3312.7 tok/s)
+(discarded warm-main: 1181 ms, 3439.6 tok/s)
+
+CAND: n=8 prefill ms median 1209.5 IQR 1206.0-1217.0 (min 1194 max 1232); tok/s median 3357.4 IQR 3337.5-3367.5
+main: n=8 prefill ms median 1204.5 IQR 1197.2-1209.2 (min 1179 max 1258); tok/s median 3371.7 IQR 3358.4-3391.7
+
+| round | order | CAND ms | main ms | main - CAND ms | main vs CAND % (ms) | CAND MHz | main MHz | MHz diff (main-CAND) | CAND temp | main temp |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | C M | 1208 | 1201 | -7 | -0.58 % | 1617 | 1617 | +0 | 58 | 60 |
+| 2 | M C | 1206 | 1186 | -20 | -1.66 % | 1617 | 1617 | +0 | 51 | 62 |
+| 3 | C M | 1211 | 1206 | -5 | -0.41 % | 1617 | 1617 | +0 | 54 | 60 |
+| 4 | M C | 1194 | 1258 | +64 | +5.36 % | 1617 | 1617 | +0 | 65 | 63 |
+| 5 | C M | 1232 | 1179 | -53 | -4.30 % | 1617 | 1617 | +0 | 53 | 59 |
+| 6 | M C | 1206 | 1203 | -3 | -0.25 % | 1617 | 1617 | +0 | 51 | 62 |
+| 7 | C M | 1215 | 1210 | -5 | -0.41 % | 1617 | 1617 | +0 | 55 | 58 |
+| 8 | M C | 1223 | 1209 | -14 | -1.14 % | 1617 | 1617 | +0 | 65 | 63 |
+
+paired per-round difference main vs CAND (prefill ms): median -0.50 %, mean -0.42 %, range -4.30 to +5.36 %; main slower in 1/8 rounds, faster in 7/8, equal 0/8
+medians: main/CAND ms 0.9959
+paired diff (%) vs paired clock diff (MHz): r = +nan (nan = clock identical in every run); vs paired temp diff: r = -0.43 (n=8)
+all 16 runs: prefill ms vs clock r = +nan; vs GPU temp r = -0.01; vs GPU power r = -0.43; clock range 1617-1617 MHz, temp range 51-65 C
+CAND mean clock 1617 MHz, mean temp 56.7 C, median idle 14 %
+main mean clock 1617 MHz, mean temp 60.8 C, median idle 14 %

@@ -1,6 +1,6 @@
 # Metal same-slot re-measurement of origin/main: intarsia vs mlx-lm vs llama.cpp
 
-Qwen3-8B BF16, endor (Apple M5 Max, macOS 27.0 build 26A428). 2026-10-18, 17:35-18:00 EDT. Branch `metal-sameslot-main`. Raw data: `docs/results/raw/2026-10-18-metal-sameslot-main/` (`sameslot.sh`, `sameslot-retry.sh`, `sameslot-control.sh`, `compare/`, `analysis-control.txt`, `analyze.py`, `analysis-main.txt`, `analysis-retry.txt`, `analysis-pooled.txt`, `*-gpu-idle.txt`, `*-macmon.tsv`, `localeval-results/`).
+Qwen3-8B BF16, endor (Apple M5 Max, macOS 27.0 build 26A428). 2026-10-18, 17:35-18:00 EDT. Branch `metal-sameslot-main`. Raw data: `docs/results/raw/2026-10-18-metal-sameslot-main/` (`sameslot.sh`, `sameslot-retry.sh`, `sameslot-control.sh`, `plain-abba.sh`, `analyze_plain.py`, `plain/`, `compare/`, `analysis-control.txt`, `analyze.py`, `analysis-main.txt`, `analysis-retry.txt`, `analysis-pooled.txt`, `*-gpu-idle.txt`, `*-macmon.tsv`, `localeval-results/`).
 
 Repeat of `docs/results/2026-10-15-metal-final-sameslot.md` (same method, same server flags, same models, same localeval arguments; scripts reused with paths and the run order adapted, plus a macmon clock sampler added). Compared with that doc's **SAFE** (`spike/metal` a2102bf, chunk 256) and **CAND** (`metal-candidate2`, chunk 2048) figures.
 
@@ -101,7 +101,7 @@ Thresholds as in 2026-10-15: prefill committed >= 50 % of mlx-lm, target >= 65 %
 
 - intarsia: origin/main 5eabb1a7490243d1da888e785269be40d4d2eba6, binary md5 9810733ce9a084dcf83542a9065abe22, built in 35 s from a detached worktree. Serve flags: `--backend metal --device 0 --max-seq 8192 --profile-every 0 --no-supervisor --no-ui`, env `INTARSIA_CPU_FREE_MEM_GB=60`, chunk 2048 from `recipes/qwen3.toml` (not overridden).
 - Tools unchanged from 2026-10-15: mlx 0.32.1, mlx-lm 0.31.3, mlx-metal 0.32.1 (`/Users/josef/.local/bin/mlx_lm.server`, `/Users/josef/models/Qwen3-8B`, `--prompt-cache-size 1`, `enable_thinking=false`); llama.cpp `llama-server` 0.6.0 build 11429 commit d81235049, BF16 GGUF `-ngl 999 -fa on -c 8192 --cache-ram 0`; macOS 27.0 (26A428); localeval 0.2.1, deepeval head 69c7a848bba836b70782aced73d278ee4b4d2fa6.
-- fleetq: #2466 (batch 1), #2470 (batch 2) and #2473 (control run, section 5), all `--host endor --exclusive --mem 40 --expect 60`, released by the script trap, status done.
+- fleetq: #2466 (batch 1), #2470 (batch 2), #2473 (control run, section 5) and #2474 (plain-prefill ABBA, section 6), all `--host endor --exclusive --mem 40 --expect 60`, released by the script trap, status done.
 - localeval run ids: tables in section 1; result dirs copied to `docs/results/raw/2026-10-18-metal-sameslot-main/localeval-results/`.
 - unanimis records (logged by localeval): main-1 96a90dea-4a8b-4dca-9bc9-793a2c7c14c0, main-mlx-lm 2eebf97d-4462-43bb-859c-88fc0b942a27, main-llamacpp 1aca5558-d894-4209-8a67-1d2f69d49ed3, main-2 5ed15dee-c7e1-4c43-9c81-d466b24a4ac4, retry-1 920ecf3b-1d20-43d2-9611-e265d725aa4c, retry-mlx-lm 86b40ea9-13fb-4cc4-96b5-610737c83c34, retry-llamacpp a87c4a01-c9fb-4951-ab14-69b9406c2476, retry-2 b41ff9fb-0ced-4c91-ae16-e66cf19320ff.
 - Method differences from 2026-10-15: order ABBA with one intarsia build instead of SAFE/CAND/mlx-lm/llama.cpp/CAND/SAFE; run labels `main-*` / `retry-*`; macmon sampler added (raw JSON reduced to `*-macmon.tsv`); two batches instead of one. Everything else (ports 8093 / 8092 / 8091, server commands, idle gate, 5 s gap between arms, `analyze.py` formulas, the 40.6 floor) is as before. `sameslot-retry.sh` is `sameslot.sh` with the label prefix and output file names changed.
@@ -134,8 +134,40 @@ Verdict:
 
 - **Decode, including 4k: machine state, not a regression.** Every decode comparison is noise (under 3 %), main/CAND is +0.3 / -0.2 / -0.4 % across 128 / 1k / 4k, and the old CAND binary itself now decodes 34.2 tok/s at 4k against 35.55 on 2026-10-15 (-3.9 %), the same loss main shows (34.0 vs CAND's 35.55 then, -4.3 %). The 4k decode floor FAIL in sections 1-3 (84.4-84.7 % of 40.6) is therefore the machine today: CAND at 34.16 is 84.1 % of the floor in this same slot. Under today's conditions the 85 % gate cannot be met by either build.
 - **1k prefill: no difference** (+2.2 %, both pairs noise).
-- **4k prefill: not resolved, leaning no regression.** The means put main 12.6 % (marginal) / 9.9 % (tok/s) below CAND, but that is carried entirely by the second pair: the adjacent first pair is +1.6 %, and `localeval compare` flags the second pair as slower (-20 to -25 %) at the same time as it flags main-1 to main-2 (the same binary) as slower by -14 to -17 %, while CAND against itself moved +10 to +13 %. The run-to-run spread of one binary at 4k (13-17 %) is as large as the main-versus-CAND gap, so it cannot be attributed to the code from four runs. One pattern to keep in view: in all three ABBA sequences of this report the second main run was the slow one at 4k (3406 to 2494, 3283 to 2344, 3250 to 2700 marginal), so a small real 4k prefill loss in main, or a position effect in the sequence, is not excluded. Plain-prefill ABBA (`generate --max-tokens 1`, the lower-noise measure in the 2026-10-15 gates) with more alternations would settle it; not run.
+- **4k prefill: not resolved, leaning no regression.** The means put main 12.6 % (marginal) / 9.9 % (tok/s) below CAND, but that is carried entirely by the second pair: the adjacent first pair is +1.6 %, and `localeval compare` flags the second pair as slower (-20 to -25 %) at the same time as it flags main-1 to main-2 (the same binary) as slower by -14 to -17 %, while CAND against itself moved +10 to +13 %. The run-to-run spread of one binary at 4k (13-17 %) is as large as the main-versus-CAND gap, so it cannot be attributed to the code from four runs. One pattern to keep in view: in all three ABBA sequences of this report the second main run was the slow one at 4k (3406 to 2494, 3283 to 2344, 3250 to 2700 marginal), so a small real 4k prefill loss in main, or a position effect in the sequence, is not excluded. Plain-prefill ABBA (`generate --max-tokens 1`, the lower-noise measure in the 2026-10-15 gates) with more alternations would settle it; that was run afterwards and is section 6 (no difference).
 
-## 6. Not done
+## 6. Plain-prefill ABBA at 4k: CAND versus main (fleetq #2474)
 
-No gates (cargo test, kernels test, accuracy, greedy-id identity, plain-prefill ABBA, `qualify`): this was a speed re-measurement only. No 16k serve-path speed. mlx-lm and llama.cpp ran once per batch and were not part of the control run. The cause of the 4k serve-path prefill spread (and whether main is a few percent slower than CAND there) is not isolated.
+Settles the 4k serve-path prefill question left open in section 5. One exclusive fleetq slot (#2474, 18:15-18:23 EDT), `generate --max-tokens 1 --profile-every 0 --max-seq 20000 --temperature 0 --backend metal` (the flags of `gates.sh` `prun()`), no chunk override (both builds log `prefill chunk 2048 (recipe qwen3, metal)`), the P1 4k prompt `docs/results/raw/2026-10-14-metal-phase-c/prompt-4k.txt` (4062 tokens, cached 0). Binaries as in section 5 (CAND md5 0db48d81362233c9c8c44d69d9d092bf, main md5 9810733ce9a084dcf83542a9065abe22). One discarded warm-up per binary (CAND 1226 ms, main 1181 ms), then 8 rounds, order flipped each round (C M, M C, C M, ..., i.e. C M M C C M M C C M M C C M M C), 20 s between runs, 8 measurements per binary. Script `plain-abba.sh`, analysis `analyze_plain.py`, raw `plain/` (stderr, idle, 100 ms macmon trace per run, `run-times.txt`), `analysis-plain.txt`.
+
+Per-binary prefill, 8 runs each:
+
+| binary | prefill ms median | IQR | min-max | tok/s median | IQR |
+|---|---|---|---|---|---|
+| CAND (2026-10-15) | 1209.5 | 1206.0-1217.0 | 1194-1232 | 3357.4 | 3337.5-3367.5 |
+| main 5eabb1a7 | 1204.5 | 1197.2-1209.2 | 1179-1258 | 3371.7 | 3358.4-3391.7 |
+
+main/CAND = 0.996 on median prefill ms (main 0.4 % faster), tok/s +0.4 %. The two IQRs overlap.
+
+Paired per-round differences (main minus CAND within each round, prefill ms):
+
+| round | order | CAND ms | main ms | main - CAND ms | main vs CAND % (ms) | CAND MHz | main MHz | MHz diff (main-CAND) | CAND temp | main temp |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | C M | 1208 | 1201 | -7 | -0.58 % | 1617 | 1617 | +0 | 58 | 60 |
+| 2 | M C | 1206 | 1186 | -20 | -1.66 % | 1617 | 1617 | +0 | 51 | 62 |
+| 3 | C M | 1211 | 1206 | -5 | -0.41 % | 1617 | 1617 | +0 | 54 | 60 |
+| 4 | M C | 1194 | 1258 | +64 | +5.36 % | 1617 | 1617 | +0 | 65 | 63 |
+| 5 | C M | 1232 | 1179 | -53 | -4.30 % | 1617 | 1617 | +0 | 53 | 59 |
+| 6 | M C | 1206 | 1203 | -3 | -0.25 % | 1617 | 1617 | +0 | 51 | 62 |
+| 7 | C M | 1215 | 1210 | -5 | -0.41 % | 1617 | 1617 | +0 | 55 | 58 |
+| 8 | M C | 1223 | 1209 | -14 | -1.14 % | 1617 | 1617 | +0 | 65 | 63 |
+
+Median paired gap -0.50 % (main faster), mean -0.42 %, range -4.30 % to +5.36 %. Main slower in **1 of 8** rounds (round 4, +64 ms, main-07 at 1258 ms, the slowest run of the 16), faster in 7 of 8, none equal.
+
+Clock, temperature, idle: macmon at `-i 100` returned a single sample per run (it covers the run, with GPU utilisation 99.8 %), so the clock is one figure per run, not a trace. It read 1617 MHz in all 16 runs, the ceiling seen in the earlier traces, so there is no clock variation for the gap to follow (correlation undefined). GPU temperature read 51-65 C, CAND mean 56.7 C, main 60.8 C; prefill ms against temperature r = -0.01 over the 16 runs, paired gap against paired temperature difference r = -0.43 over 8 rounds (not significant at n = 8, and the sign is the opposite of heat slowing main). GPU power 96-100 W except main-03 (122 W, 1186 ms). GPU idle before each run (median of 3 ioreg samples; the first of the three reads 70-97 % in every run, an ioreg artefact also present in the earlier gates, which the median discards): 0-24 %, median 14 % for both binaries. So the box was as contended as in sections 1-5, but the contention was spread evenly over both binaries by the alternation. `pgrep zoom.us` empty.
+
+Verdict by the stated rule (regression only if main is slower in at least 7 of 8 rounds and the median paired gap is above 3 %): main is slower in 1 of 8 rounds and the median gap is -0.5 %, so **noise, no regression**. Plain prefill at 4k is the same for both builds to within 1 %, with a one-run spread of up to 5 % either way. The 4k serve-path differences in sections 1 and 5 (main 12.6 % below CAND on the mean, second main run slow in every sequence) were therefore not a prefill compute difference; they came from the serve path's run-to-run variation (the same binary moved 13-29 % between runs there) and the order of runs, not from the engine's prefill kernels. Clock and temperature do not explain the residual spread here (clock constant, temperature uncorrelated).
+
+## 7. Not done
+
+No gates (cargo test, kernels test, accuracy, greedy-id identity, `qualify`): this was a speed re-measurement only. No 16k serve-path speed, and plain prefill was measured at 4k only (1k and 16k not repeated). mlx-lm and llama.cpp ran once per batch and were not part of the control or plain-prefill runs. The cause of the serve-path 4k run-to-run spread (section 1 drift) is not isolated.
