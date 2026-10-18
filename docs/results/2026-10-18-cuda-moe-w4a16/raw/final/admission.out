@@ -1,2 +1,39 @@
 fleetq: #2485 waiting (#2 in line): in line behind #2484 "w4a16 fetch window B logs (retry)" (claude-f31ccf91) on spark1
 fleetq:   #2484 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2484 set, or it will wait for #2484 to be released.
+fleetq: #2485 running on spark1: scripts/cuda-moe-w4a16/admission.sh
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+  moe_experts    moe_experts_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=16 K=4 H=128 I=48 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=36 E=16 K=4 H=128 I=128 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=4.195e-4 rel_l2=2.009e-5 T=4 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=3.145e-3 rel_l2=8.001e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.857e-3 rel_l2=7.599e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=4.178e-5 rel_l2=1.216e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=1.592e-3 rel_l2=5.147e-5 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=1.126e-3 rel_l2=4.851e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.976e-3 rel_l2=8.956e-5 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.475e-3 rel_l2=4.887e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_decode_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_decode_bf16 ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_decode_v2_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_decode_v2_bf16 ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=36 E=16 K=4 H=128 I=128 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=7.862e-4 rel_l2=1.501e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=6.684e-4 rel_l2=2.247e-5 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=3.185e-3 rel_l2=1.245e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=5.631e-4 rel_l2=3.216e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=2.976e-3 rel_l2=1.135e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=2.475e-3 rel_l2=5.867e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_nvfp4_mma_bf16 ok    max_abs=1.683e-1 rel_l2=1.628e-1 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_w4a16_bf16 ok    max_abs=2.475e-3 rel_l2=5.867e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_bf16         2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_bf16            7      0    3.185e-3    1.245e-4  ADMITTED
+moe_experts    moe_experts_nvfp4_mma_bf16      1      0    1.683e-1    1.628e-1  ADMITTED
+moe_experts    moe_experts_w4a16_bf16          1      0    2.475e-3    5.867e-5  ADMITTED
+6 kernels, 25 cases in 9.8s
+fleetq: #2485 done (exit 0)
