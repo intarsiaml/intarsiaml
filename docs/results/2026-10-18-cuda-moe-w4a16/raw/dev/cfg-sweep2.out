@@ -1,0 +1,35 @@
+fleetq: #2458 running on spark1: scripts/cuda-moe-w4a16/bench.sh 1024,2048,4096 'INTARSIA_BENCH_KERNEL=bf16,v2 INTARSIA_W4_CFG=10' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=11' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=12' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=13' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=14' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=15'
+== round 1: INTARSIA_BENCH_KERNEL=bf16,v2 INTARSIA_W4_CFG=10
+T            kernel                               us       TFLOPS
+1024         moe_experts_mma_bf16             3034.2         17.0
+1024         moe_experts_w4a16_bf16           3198.3         16.1
+2048         moe_experts_mma_bf16             4204.0         24.5
+2048         moe_experts_w4a16_bf16           3605.3         28.6
+4096         moe_experts_mma_bf16             6977.4         29.5
+4096         moe_experts_w4a16_bf16           5249.7         39.3
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=11
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3100.8         16.6
+2048         moe_experts_w4a16_bf16           3580.0         28.8
+4096         moe_experts_w4a16_bf16           5947.8         34.7
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=12
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2999.9         17.2
+2048         moe_experts_w4a16_bf16           3678.7         28.0
+4096         moe_experts_w4a16_bf16           6098.9         33.8
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=13
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3199.3         16.1
+2048         moe_experts_w4a16_bf16           3666.9         28.1
+4096         moe_experts_w4a16_bf16           6078.5         33.9
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=14
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3040.6         17.0
+2048         moe_experts_w4a16_bf16           3839.2         26.8
+4096         moe_experts_w4a16_bf16           6519.8         31.6
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=15
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3053.9         16.9
+2048         moe_experts_w4a16_bf16           4209.3         24.5
+4096         moe_experts_w4a16_bf16           7270.0         28.4
+fleetq: #2458 done (exit 0)

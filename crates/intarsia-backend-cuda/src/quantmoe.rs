@@ -5,7 +5,7 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::{moe_nvfp4_priority, opt_in_priority, ARCH};
+use crate::kernels::{moe_nvfp4_priority, moe_w4a16_priority, opt_in_priority, ARCH};
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
@@ -23,6 +23,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_decode_v2_bf16", Op::MoeExperts),
     ("moe_experts_mma_bf16", Op::MoeExperts),
     ("moe_experts_nvfp4_mma_bf16", Op::MoeExperts),
+    ("moe_experts_w4a16_bf16", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
     // fused decode launchers (docs/results/2026-10-14-cuda-decode-fusion.md): each is bitwise the chain of launches it
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
@@ -75,6 +76,11 @@ pub const NVFP4_ACT_TOL: Tol = Tol::new(0.30, 0.20);
 /// 6 to 14 % slower at T <= 512 (the two activation-quantisation launches are a fixed cost), about even at 1024
 /// (2910 vs 2980 us and 3001 vs 3037 us in two rounds) and 22 to 40 % faster at 2048 and 4096.
 pub const NVFP4_MIN_TOKENS: usize = 1024;
+
+/// Fewest tokens for `moe_experts_w4a16_bf16` (kernels/cuda/moe_w4a16.cu), from the measured crossover against
+/// `moe_experts_mma_bf16` on spark1 (docs/results/2026-10-18-cuda-moe-w4a16.md): 2 to 8 % slower at T <= 768, even at 1024,
+/// 9 % faster at 1536 and 15 to 24 % faster at 2048 and 4096.
+pub const W4A16_MIN_TOKENS: usize = 1024;
 
 /// Scratch bytes of `moe_experts_nvfp4_mma_bf16`: the grouped kernel's, plus the quantised activations
 /// (`xq` u8 `[T,H/2]`, `xs` e4m3 `[T,H/16]`, `xg` f32 `[T]`, and the same three for the sorted `h` `[P,I]`), each region
@@ -232,6 +238,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(NVFP4_ACT_TOL)
                     .scratch(moe_experts_nvfp4_scratch)
                     .priority(moe_nvfp4_priority(20)),
+                // The same grouped experts with the weights dequantised in registers (kernels/cuda/moe_w4a16.cu): bitwise the
+                // results of `moe_experts_mma_bf16`, a different schedule (two blocks per SM, no bf16 weight tile in shared memory).
+                "moe_experts_w4a16_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.m >= W4A16_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_mma_scratch)
+                    .priority(moe_w4a16_priority(15)),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces
                 // (tests/fused_decode.rs), so the budget is that of the kernels it is built from.

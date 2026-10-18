@@ -1,0 +1,30 @@
+fleetq: #2463 running on spark1: scripts/cuda-moe-w4a16/build-bench.sh 1024,2048,4096 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=7' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=8' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=9'
+stamp: head=a5bb569 code-tree=fbe80b2ba3d7 dirty=no
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 12.26s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 38099064 Oct 18 17:32 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=7
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2969.4         17.4
+2048         moe_experts_w4a16_bf16           3627.6         28.4
+4096         moe_experts_w4a16_bf16           6264.8         32.9
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=8
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3428.2         15.0
+2048         moe_experts_w4a16_bf16           5517.0         18.7
+4096         moe_experts_w4a16_bf16           9711.4         21.2
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=9
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3338.5         15.4
+2048         moe_experts_w4a16_bf16           5540.4         18.6
+4096         moe_experts_w4a16_bf16           9757.7         21.1
+fleetq: #2463 done (exit 0)

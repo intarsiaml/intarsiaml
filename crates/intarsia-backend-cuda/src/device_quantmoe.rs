@@ -55,6 +55,20 @@ extern "C" {
         s: S,
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_w4a16_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
     fn ik_moe_experts_nvfp4_mma_bf16(
         x: T,
         ids: T,
@@ -185,6 +199,19 @@ impl CudaBackend {
                     s,
                 ),
                 "moe_experts_mma_bf16" => ik_moe_experts_mma_bf16(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_w4a16_bf16" => ik_moe_experts_w4a16_bf16(
                     i(0),
                     i(1),
                     i(2),

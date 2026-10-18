@@ -1,0 +1,35 @@
+fleetq: #2460 running on spark1: scripts/cuda-moe-w4a16/build-bench.sh 1024,2048,4096 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10 INTARSIA_W4_PFS=0' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10 INTARSIA_W4_PFS=16' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10 INTARSIA_W4_PFS=28'
+stamp: head=69fcdc2 code-tree=057dede4ea61 dirty=no
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 11.84s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 37303680 Oct 18 17:30 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3232.5         15.9
+2048         moe_experts_w4a16_bf16           3549.1         29.0
+4096         moe_experts_w4a16_bf16           5273.9         39.1
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10 INTARSIA_W4_PFS=0
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           4001.9         12.9
+2048         moe_experts_w4a16_bf16           4293.8         24.0
+4096         moe_experts_w4a16_bf16           5902.3         34.9
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10 INTARSIA_W4_PFS=16
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3295.7         15.6
+2048         moe_experts_w4a16_bf16           3986.0         25.9
+4096         moe_experts_w4a16_bf16           5794.8         35.6
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=10 INTARSIA_W4_PFS=28
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2833.9         18.2
+2048         moe_experts_w4a16_bf16           3767.2         27.4
+4096         moe_experts_w4a16_bf16           5677.9         36.3
+fleetq: #2460 done (exit 0)

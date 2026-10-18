@@ -1,0 +1,3 @@
+fleetq: #2484 waiting (#1 in line): spark1 is held exclusively by #2482 "DSv4.1-Flash-1017 EXL3 TP=2 tuning run + NCCL_CUMEM_HOST_ENABLE=0 test" (claude-9f7eaa70)
+fleetq: #2484 running on spark1: scripts/cuda-moe-w4a16/fetch.sh w4B
+fleetq: #2484 done (exit 0)

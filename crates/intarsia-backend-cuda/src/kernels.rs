@@ -117,6 +117,23 @@ pub fn moe_nvfp4_priority(on: i32) -> i32 {
     }
 }
 
+/// The register-dequantising grouped experts kernel (`moe_experts_w4a16_bf16`, bitwise the results of
+/// `moe_experts_mma_bf16`, docs/results/2026-10-18-cuda-moe-w4a16.md) is selected for prefill-shaped MoE batches by default;
+/// `INTARSIA_CUDA_MOE_W4A16=0` falls back to `moe_experts_mma_bf16`.
+pub fn moe_w4a16() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_MOE_W4A16").map_or(true, |v| v != "0"))
+}
+
+/// Priority of the W4A16 experts kernel: `on` unless switched off, below everything then.
+pub fn moe_w4a16_priority(on: i32) -> i32 {
+    if moe_w4a16() {
+        on
+    } else {
+        -10
+    }
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     let mut v = Vec::new();
@@ -229,6 +246,42 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// The grouped experts kernel the registry picks for a MoE call of `m` tokens at the 35B layer shape (256 experts, top-8,
+    /// H 2048, I 512) with the default environment: `moe_experts_w4a16_bf16` from 1024 tokens, `moe_experts_mma_bf16` for
+    /// 32..1023, the warp-per-row decode kernel below. A kernel that is bitwise the old one cannot be told apart by an
+    /// accuracy gate, so this is the check that it is the one in use.
+    #[test]
+    fn moe_experts_selection_by_batch_size() {
+        let pick = |m: usize| {
+            let s = ShapeInfo {
+                m,
+                n: 1024,
+                k: 2048,
+                experts: 256,
+                top_k: 8,
+                act: Some(DType::Bf16),
+                weight: Some(DType::U8),
+                out: Some(DType::Bf16),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        if std::env::var("INTARSIA_CUDA_MOE_W4A16").is_ok() || std::env::var("INTARSIA_CUDA_MOE_NVFP4").is_ok() {
+            return; // the default selection is what is pinned
+        }
+        assert_eq!(pick(2048), Some("moe_experts_w4a16_bf16".to_string()));
+        assert_eq!(pick(4096), Some("moe_experts_w4a16_bf16".to_string()));
+        assert_eq!(pick(1024), Some("moe_experts_w4a16_bf16".to_string()));
+        assert_eq!(pick(1023), Some("moe_experts_mma_bf16".to_string()));
+        assert_eq!(pick(256), Some("moe_experts_mma_bf16".to_string()));
     }
 
     #[test]

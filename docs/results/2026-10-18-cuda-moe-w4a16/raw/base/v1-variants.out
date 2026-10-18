@@ -1,0 +1,63 @@
+fleetq: #2448 running on spark1: scripts/cuda-moe-w4a16/build-bench.sh 2048,4096 'INTARSIA_BENCH_KERNEL=bf16x INTARSIA_MOE_EXP=0' INTARSIA_MOE_EXP=1 INTARSIA_MOE_EXP=2 INTARSIA_MOE_EXP=3 INTARSIA_MOE_EXP=4 INTARSIA_MOE_EXP=5 INTARSIA_MOE_EXP=6 INTARSIA_MOE_EXP=7
+stamp: head=2aff219 code-tree=cf611f07cb4a dirty=yes
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 9.98s
+  Executable tests/fused_decode.rs (target/acc/release/deps/fused_decode-e845ae99c338ffe2)
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 32931672 Oct 18 17:07 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+== round 1: INTARSIA_BENCH_KERNEL=bf16x INTARSIA_MOE_EXP=0
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             4263.5         24.2
+2048         moe_experts_nvfp4_mma_bf16       3323.9         31.0
+4096         moe_experts_mma_bf16             7107.3         29.0
+4096         moe_experts_nvfp4_mma_bf16       4256.2         48.4
+== round 1: INTARSIA_MOE_EXP=1
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             3925.3         26.3
+2048         moe_experts_nvfp4_mma_bf16       3305.6         31.2
+4096         moe_experts_mma_bf16             6098.3         33.8
+4096         moe_experts_nvfp4_mma_bf16       4189.9         49.2
+== round 1: INTARSIA_MOE_EXP=2
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             3657.9         28.2
+2048         moe_experts_nvfp4_mma_bf16       3404.3         30.3
+4096         moe_experts_mma_bf16             5422.8         38.0
+4096         moe_experts_nvfp4_mma_bf16       4331.1         47.6
+== round 1: INTARSIA_MOE_EXP=3
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             3751.8         27.5
+2048         moe_experts_nvfp4_mma_bf16       3345.7         30.8
+4096         moe_experts_mma_bf16             5314.0         38.8
+4096         moe_experts_nvfp4_mma_bf16       4297.0         48.0
+== round 1: INTARSIA_MOE_EXP=4
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             3904.8         26.4
+2048         moe_experts_nvfp4_mma_bf16       3361.4         30.7
+4096         moe_experts_mma_bf16             6651.2         31.0
+4096         moe_experts_nvfp4_mma_bf16       4060.6         50.8
+== round 1: INTARSIA_MOE_EXP=5
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             3207.9         32.1
+2048         moe_experts_nvfp4_mma_bf16       3271.2         31.5
+4096         moe_experts_mma_bf16             5478.4         37.6
+4096         moe_experts_nvfp4_mma_bf16       4212.3         48.9
+== round 1: INTARSIA_MOE_EXP=6
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             2539.1         40.6
+2048         moe_experts_nvfp4_mma_bf16       3344.0         30.8
+4096         moe_experts_mma_bf16             4247.2         48.5
+4096         moe_experts_nvfp4_mma_bf16       4299.1         48.0
+== round 1: INTARSIA_MOE_EXP=7
+T            kernel                               us       TFLOPS
+2048         moe_experts_mma_bf16             1856.0         55.5
+2048         moe_experts_nvfp4_mma_bf16       3329.0         31.0
+4096         moe_experts_mma_bf16             3129.7         65.9
+4096         moe_experts_nvfp4_mma_bf16       4272.4         48.3
+fleetq: #2448 done (exit 0)

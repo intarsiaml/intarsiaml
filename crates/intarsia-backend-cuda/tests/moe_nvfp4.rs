@@ -219,9 +219,19 @@ fn bench_moe_nvfp4_real_shapes() {
     let ts: Vec<usize> = std::env::var("INTARSIA_BENCH_T")
         .map(|v| v.split(',').filter_map(|x| x.parse().ok()).collect())
         .unwrap_or_else(|_| vec![64, 256, 1024, 2048, 4096]);
+    // INTARSIA_BENCH_KERNEL=bf16,fp4,v2 (any subset, comma separated) picks the kernels; default: bf16 (the grouped kernel),
+    // fp4 and v2 (moe_experts_w4a16_bf16)
     let kernels: Vec<&str> = match std::env::var("INTARSIA_BENCH_KERNEL") {
-        Ok(v) if v == "fp4" => vec![KERNEL],
-        _ => vec!["moe_experts_mma_bf16", KERNEL],
+        Ok(v) if v != "both" => v
+            .split(',')
+            .filter_map(|k| match k {
+                "fp4" => Some(KERNEL),
+                "bf16" => Some("moe_experts_mma_bf16"),
+                "v2" => Some("moe_experts_w4a16_bf16"),
+                _ => None,
+            })
+            .collect(),
+        _ => vec!["moe_experts_mma_bf16", KERNEL, "moe_experts_w4a16_bf16"],
     };
     for t in ts {
         let mut hc = big.clone();

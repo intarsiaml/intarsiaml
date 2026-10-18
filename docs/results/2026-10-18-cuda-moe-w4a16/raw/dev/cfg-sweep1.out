@@ -1,0 +1,32 @@
+fleetq: #2456 running on spark1: scripts/cuda-moe-w4a16/bench.sh 1024,2048,4096 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=0' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=1' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=3' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=4' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=5' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=6'
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=0
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3016.6         17.1
+2048         moe_experts_w4a16_bf16           3542.9         29.1
+4096         moe_experts_w4a16_bf16           5345.4         38.6
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=1
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2984.5         17.3
+2048         moe_experts_w4a16_bf16           3608.2         28.6
+4096         moe_experts_w4a16_bf16           6167.7         33.4
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=3
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3042.2         16.9
+2048         moe_experts_w4a16_bf16           3620.7         28.5
+4096         moe_experts_w4a16_bf16           6132.9         33.6
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=4
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3003.7         17.2
+2048         moe_experts_w4a16_bf16           4007.7         25.7
+4096         moe_experts_w4a16_bf16           6746.2         30.6
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=5
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3274.6         15.7
+2048         moe_experts_w4a16_bf16           4796.4         21.5
+4096         moe_experts_w4a16_bf16           8500.1         24.3
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=6
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3184.4         16.2
+2048         moe_experts_w4a16_bf16           4691.6         22.0
+4096         moe_experts_w4a16_bf16           8179.2         25.2
+fleetq: #2456 done (exit 0)

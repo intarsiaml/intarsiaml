@@ -1,0 +1,175 @@
+fleetq: #2469 waiting (#2 in line): in line behind #2468 "DSv4.1-Flash-1017 EXL3 TP=2 tuning rerun after spark2 reboot" (claude-9f7eaa70) on spark1
+fleetq: #2469 waiting (#1 in line): spark1 is held exclusively by #2468 "DSv4.1-Flash-1017 EXL3 TP=2 tuning rerun after spark2 reboot" (claude-9f7eaa70)
+fleetq: #2469 running on spark1: scripts/cuda-decode/gpu-test.sh w4-dev -- --test-threads=1
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.40s
+     Running unittests src/lib.rs (target/acc/release/deps/intarsia_backend_cuda-eb13275dd2d9552a)
+
+running 5 tests
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admission.rs (target/acc/release/deps/admission-47fa24c8024b63b2)
+
+running 4 tests
+test backend_is_usable_from_other_threads ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_cuda_kernel_matches_the_reference ... ok
+test info_reports_the_device ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.39s
+
+     Running tests/attention.rs (target/acc/release/deps/attention-1f3f7fe05bbcd025)
+
+running 2 tests
+test attention_kernels_match_reference_on_random_shapes ... ok
+test attention_throughput ... ignored
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.26s
+
+     Running tests/fused_decode.rs (target/acc/release/deps/fused_decode-e845ae99c338ffe2)
+
+running 9 tests
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_heavy_tail_rows_bitwise ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.09s
+
+     Running tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+
+running 2 tests
+test gdn_lanes_is_as_accurate_as_the_rows_kernel ... ok
+test gdn_lanes_state_carries_across_calls ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+
+     Running tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+
+running 1 test
+test gdn_kernels_timing_at_35b_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+
+running 5 tests
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+     Running tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+
+running 6 tests
+test bench_moe_nvfp4_real_shapes ... ignored
+test moe_nvfp4_at_the_real_prefill_shape ... ok
+test moe_nvfp4_handles_range_zero_rows_and_odd_routing ... ok
+test moe_nvfp4_is_independent_of_tile_height ... ok
+test moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference ... ok
+test moe_nvfp4_matches_the_quantised_reference ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.24s
+
+     Running tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+
+running 3 tests
+test activation_quantisation_error_is_inside_the_registered_tolerance ... ok
+test e2m1_rounding_is_nearest_even_and_saturates ... ok
+test quant_row_reproduces_the_row_within_the_grid_step_and_handles_zeros ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+
+     Running tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+
+running 4 tests
+test moe_experts_w4a16_is_as_accurate_as_old_kernel ... ok
+test moe_w4a16_is_bitwise_at_the_real_prefill_shape ... ok
+test moe_w4a16_is_bitwise_on_odd_routing ... ok
+test moe_w4a16_is_bitwise_the_grouped_kernel ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.90s
+
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 13 tests
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+
+test result: ok. 10 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 5.72s
+
+   Doc-tests intarsia_backend_cuda
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+fleetq: #2469 done (exit 0)

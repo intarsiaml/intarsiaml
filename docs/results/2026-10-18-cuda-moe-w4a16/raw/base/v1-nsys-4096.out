@@ -1,0 +1,34 @@
+fleetq: #2449 running on spark1: scripts/cuda-moe-w4a16/prof.sh 4096 both INTARSIA_MOE_EXP=0 INTARSIA_MOE_EXP=7
+== T=4096 kernel=both INTARSIA_MOE_EXP=0
+Generating '/tmp/nsys-report-e5a4.qdstrm'
+[1/1] [0%                          ] w4prof_2449.nsys-rep[1/1] [0%                          ] w4prof_2449.nsys-rep[1/1] [=========46%                ] w4prof_2449.nsys-rep[1/1] [================70%         ] w4prof_2449.nsys-rep[1/1] [=======================93%  ] w4prof_2449.nsys-rep[1/1] [=======================94%  ] w4prof_2449.nsys-rep[1/1] [=======================95%  ] w4prof_2449.nsys-rep[1/1] [========================100%] w4prof_2449.nsys-rep[1/1] [========================100%] w4prof_2449.nsys-rep
+Generated:
+	/tmp/w4prof_2449.nsys-rep
+Generating SQLite file /tmp/w4prof_2449.sqlite from /tmp/w4prof_2449.nsys-rep
+Processing [/tmp/w4prof_2449.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_gpu_kern_sum.py]... 
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+33.6,75385248,20,3769262.4,3647440.0,3601440,4442880,254378.1,"void <unnamed>::moe_mma_kernel<(int)2
+23.2,52009664,20,2600483.2,2535424.0,2471104,3011328,161993.5,"void <unnamed>::moe_mma_kernel<(int)2
+15.9,35759936,20,1787996.8,1755472.0,1738784,2040448,78145.5,"void <unnamed>::moe_nvfp4_kernel<(int)2
+13.5,30250848,20,1512542.4,1469952.0,1457952,1996224,124634.7,"void <unnamed>::moe_nvfp4_kernel<(int)2
+11.1,24961120,40,624028.0,620992.0,583232,727552,20277.0,"void <unnamed>::moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *
+2.2,4843136,40,121078.4,126512.0,77952,166432,41371.2,"<unnamed>::act_quant_kernel(const __nv_bfloat16 *
+0.6,1423040,40,35576.0,34928.0,33824,45152,2454.9,"<unnamed>::moe_group_tiles_kernel(const int *
+
+== T=4096 kernel=both INTARSIA_MOE_EXP=7
+Generating '/tmp/nsys-report-ebe6.qdstrm'
+[1/1] [0%                          ] w4prof_2449.nsys-rep[1/1] [0%                          ] w4prof_2449.nsys-rep[1/1] [=========46%                ] w4prof_2449.nsys-rep[1/1] [================69%         ] w4prof_2449.nsys-rep[1/1] [=======================93%  ] w4prof_2449.nsys-rep[1/1] [=======================94%  ] w4prof_2449.nsys-rep[1/1] [=======================95%  ] w4prof_2449.nsys-rep[1/1] [========================100%] w4prof_2449.nsys-rep[1/1] [========================100%] w4prof_2449.nsys-rep
+Generated:
+	/tmp/w4prof_2449.nsys-rep
+Generating SQLite file /tmp/w4prof_2449.sqlite from /tmp/w4prof_2449.nsys-rep
+Processing [/tmp/w4prof_2449.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_gpu_kern_sum.py]... 
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+25.1,37119200,20,1855960.0,1761792.0,1741024,2272832,171067.2,"void <unnamed>::moe_nvfp4_kernel<(int)2
+20.5,30308576,20,1515428.8,1467120.0,1439136,1912448,112394.3,"void <unnamed>::moe_nvfp4_kernel<(int)2
+19.3,28481536,20,1424076.8,1420224.0,1389760,1495360,19647.5,"void <unnamed>::moe_mma_kernel<(int)2
+17.0,25152320,40,628808.0,624192.0,590912,759808,24717.0,"void <unnamed>::moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *
+13.8,20449472,20,1022473.6,988432.0,976192,1401952,99582.2,"void <unnamed>::moe_mma_kernel<(int)2
+3.3,4919936,40,122998.4,125136.0,76000,178464,42650.4,"<unnamed>::act_quant_kernel(const __nv_bfloat16 *
+0.9,1372928,40,34323.2,33824.0,32608,45024,2484.2,"<unnamed>::moe_group_tiles_kernel(const int *
+
+fleetq: #2449 done (exit 0)

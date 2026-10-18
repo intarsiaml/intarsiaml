@@ -1,0 +1,14 @@
+fleetq: #2459 running on spark1: scripts/cuda-moe-w4a16/stream.sh
+run   32 B per row per unit:   4.120 ms    65.2 GB/s
+run   64 B per row per unit:   1.522 ms   176.4 GB/s
+run  128 B per row per unit:   1.610 ms   166.7 GB/s
+run  256 B per row per unit:   1.386 ms   193.7 GB/s
+run  512 B per row per unit:   1.036 ms   259.2 GB/s
+run 1024 B per row per unit:   1.033 ms   260.0 GB/s
+run   32 B per row per unit:   3.747 ms    71.6 GB/s
+run   64 B per row per unit:   1.559 ms   172.2 GB/s
+run  128 B per row per unit:   1.569 ms   171.1 GB/s
+run  256 B per row per unit:   1.420 ms   189.1 GB/s
+run  512 B per row per unit:   1.041 ms   258.0 GB/s
+run 1024 B per row per unit:   1.037 ms   259.0 GB/s
+fleetq: #2459 done (exit 0)

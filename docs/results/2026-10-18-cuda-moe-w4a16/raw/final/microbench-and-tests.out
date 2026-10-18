@@ -1,0 +1,143 @@
+fleetq: #2475 running on spark1: scripts/cuda-moe-w4a16/final.sh
+=== dev (build, resources, tests)
+stamp: head=6daada9 code-tree=0187c14f1ac9 dirty=no
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 6.36s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 33594824 Oct 18 18:34 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+== resources
+ Function moe_w4a16_kernelILi128ELi4ELi4ELi1ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:162 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function moe_w4a16_kernelILi128ELi4ELi4ELi0ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:166 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function moe_w4a16_kernelILi128ELi2ELi4ELi1ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:124 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function moe_w4a16_kernelILi128ELi2ELi4ELi0ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:128 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN45_GLOBAL__N__068a084a_12_moe_w4a16_cu_e2ea37c317moe_reduce_kernelI13__nv_bfloat16EEvPKS1_PKiPKfPT_iii:
+  REG:40 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:940 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN45_GLOBAL__N__068a084a_12_moe_w4a16_cu_e2ea37c322moe_group_tiles_kernelEPKiiiiPiS2_S2_P4int2:
+  REG:38 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:952 TEXTURE:0 SURFACE:0 SAMPLER:0
+== tests
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+
+running 4 tests
+test moe_experts_w4a16_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 w4a16 0.0014; rel_l2 old 8.005e-5 w4a16 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 w4a16 0.0025; rel_l2 old 1.123e-4 w4a16 1.751e-4
+ok
+test moe_w4a16_is_bitwise_at_the_real_prefill_shape ... ok
+test moe_w4a16_is_bitwise_on_odd_routing ... ok
+test moe_w4a16_is_bitwise_the_grouped_kernel ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.36s
+
+=== microbench, 3 rounds
+== round 1: default
+T            kernel                               us       TFLOPS
+256          moe_experts_mma_bf16             2515.3          5.1
+256          moe_experts_nvfp4_mma_bf16       2729.4          4.7
+256          moe_experts_w4a16_bf16           2617.8          4.9
+512          moe_experts_mma_bf16             2647.2          9.7
+512          moe_experts_nvfp4_mma_bf16       2740.5          9.4
+512          moe_experts_w4a16_bf16           2830.2          9.1
+1024         moe_experts_mma_bf16             3119.5         16.5
+1024         moe_experts_nvfp4_mma_bf16       2938.5         17.5
+1024         moe_experts_w4a16_bf16           3063.5         16.8
+1536         moe_experts_mma_bf16             3553.4         21.8
+1536         moe_experts_nvfp4_mma_bf16       3253.8         23.8
+1536         moe_experts_w4a16_bf16           3134.5         24.7
+2048         moe_experts_mma_bf16             4240.6         24.3
+2048         moe_experts_nvfp4_mma_bf16       3350.2         30.8
+2048         moe_experts_w4a16_bf16           3632.7         28.4
+3072         moe_experts_mma_bf16             5563.4         27.8
+3072         moe_experts_nvfp4_mma_bf16       3940.6         39.2
+3072         moe_experts_w4a16_bf16           4353.8         35.5
+4096         moe_experts_mma_bf16             6911.2         29.8
+4096         moe_experts_nvfp4_mma_bf16       4304.8         47.9
+4096         moe_experts_w4a16_bf16           5422.7         38.0
+== round 2: default
+T            kernel                               us       TFLOPS
+256          moe_experts_mma_bf16             2497.0          5.2
+256          moe_experts_nvfp4_mma_bf16       2744.2          4.7
+256          moe_experts_w4a16_bf16           2602.8          5.0
+512          moe_experts_mma_bf16             2655.9          9.7
+512          moe_experts_nvfp4_mma_bf16       2734.9          9.4
+512          moe_experts_w4a16_bf16           2783.3          9.3
+1024         moe_experts_mma_bf16             3217.1         16.0
+1024         moe_experts_nvfp4_mma_bf16       2949.2         17.5
+1024         moe_experts_w4a16_bf16           3044.1         16.9
+1536         moe_experts_mma_bf16             3353.2         23.1
+1536         moe_experts_nvfp4_mma_bf16       3217.2         24.0
+1536         moe_experts_w4a16_bf16           3213.9         24.1
+2048         moe_experts_mma_bf16             4248.8         24.3
+2048         moe_experts_nvfp4_mma_bf16       3405.4         30.3
+2048         moe_experts_w4a16_bf16           3545.1         29.1
+3072         moe_experts_mma_bf16             5636.3         27.4
+3072         moe_experts_nvfp4_mma_bf16       3674.1         42.1
+3072         moe_experts_w4a16_bf16           4340.4         35.6
+4096         moe_experts_mma_bf16             6861.2         30.0
+4096         moe_experts_nvfp4_mma_bf16       4284.5         48.1
+4096         moe_experts_w4a16_bf16           5359.1         38.5
+== round 3: default
+T            kernel                               us       TFLOPS
+256          moe_experts_mma_bf16             2499.7          5.2
+256          moe_experts_nvfp4_mma_bf16       2677.5          4.8
+256          moe_experts_w4a16_bf16           2601.1          5.0
+512          moe_experts_mma_bf16             2637.8          9.8
+512          moe_experts_nvfp4_mma_bf16       2660.4          9.7
+512          moe_experts_w4a16_bf16           2735.8          9.4
+1024         moe_experts_mma_bf16             3120.1         16.5
+1024         moe_experts_nvfp4_mma_bf16       2920.8         17.6
+1024         moe_experts_w4a16_bf16           3052.1         16.9
+1536         moe_experts_mma_bf16             3495.8         22.1
+1536         moe_experts_nvfp4_mma_bf16       3242.0         23.8
+1536         moe_experts_w4a16_bf16           3153.8         24.5
+2048         moe_experts_mma_bf16             4200.5         24.5
+2048         moe_experts_nvfp4_mma_bf16       3398.1         30.3
+2048         moe_experts_w4a16_bf16           3591.6         28.7
+3072         moe_experts_mma_bf16             5513.0         28.0
+3072         moe_experts_nvfp4_mma_bf16       3836.0         40.3
+3072         moe_experts_w4a16_bf16           4321.0         35.8
+4096         moe_experts_mma_bf16             6898.8         29.9
+4096         moe_experts_nvfp4_mma_bf16       4211.7         48.9
+4096         moe_experts_w4a16_bf16           5382.3         38.3
+=== layout simulation (w4-exp, timing only)
+== round 1: INTARSIA_BENCH_KERNEL=v2
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2941.6         17.5
+2048         moe_experts_w4a16_bf16           3597.5         28.7
+4096         moe_experts_w4a16_bf16           5355.0         38.5
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_SIM=1
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2532.8         20.3
+2048         moe_experts_w4a16_bf16           3179.8         32.4
+4096         moe_experts_w4a16_bf16           5187.6         39.7
+== round 2: INTARSIA_BENCH_KERNEL=v2
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2999.7         17.2
+2048         moe_experts_w4a16_bf16           3624.6         28.4
+4096         moe_experts_w4a16_bf16           5414.1         38.1
+== round 2: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_SIM=1
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2513.2         20.5
+2048         moe_experts_w4a16_bf16           3194.2         32.3
+4096         moe_experts_w4a16_bf16           5209.2         39.6
+== round 3: INTARSIA_BENCH_KERNEL=v2
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2999.8         17.2
+2048         moe_experts_w4a16_bf16           3592.0         28.7
+4096         moe_experts_w4a16_bf16           5355.8         38.5
+== round 3: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_SIM=1
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           2536.2         20.3
+2048         moe_experts_w4a16_bf16           3212.5         32.1
+4096         moe_experts_w4a16_bf16           5118.8         40.3
+fleetq: #2475 done (exit 0)

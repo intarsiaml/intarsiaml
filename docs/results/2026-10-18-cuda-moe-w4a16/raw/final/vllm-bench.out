@@ -1,0 +1,38 @@
+fleetq: #2477 running on spark1: scripts/cuda-moe-w4a16/vllm-bench.sh
+  size   4096 rep: prompt=4071 gen=128 ttft=0.61s prefill=6627 tok/s decode=76.9 tok/s
+  size  16384 rep: prompt=16628 gen=128 ttft=2.58s prefill=6444 tok/s decode=74.7 tok/s
+  size  16384 rep: prompt=16649 gen=128 ttft=2.58s prefill=6461 tok/s decode=74.4 tok/s
+  size  16384 rep: prompt=16580 gen=128 ttft=2.58s prefill=6428 tok/s decode=73.1 tok/s
+  size  16384 rep: prompt=16598 gen=128 ttft=2.62s prefill=6338 tok/s decode=73.8 tok/s
+  size  16384 rep: prompt=16590 gen=128 ttft=2.61s prefill=6361 tok/s decode=73.7 tok/s
+wrote /home/nvidia/intarsia-decfuse/out/w4vllm/vllm-r1/prefillcuda-vllm-r1.json
+prefillcuda-vllm-r1  model=guidance  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      974     0.173         5599        77.7      128
+    4096     4061     0.613         6627        76.9      128
+   16384    16598     2.580         6428        73.8      128
+  size   4096 rep: prompt=4107 gen=128 ttft=0.64s prefill=6418 tok/s decode=75.4 tok/s
+  size  16384 rep: prompt=16712 gen=128 ttft=2.62s prefill=6384 tok/s decode=72.9 tok/s
+  size  16384 rep: prompt=16576 gen=128 ttft=2.56s prefill=6480 tok/s decode=74.5 tok/s
+  size  16384 rep: prompt=16592 gen=128 ttft=2.56s prefill=6492 tok/s decode=74.4 tok/s
+  size  16384 rep: prompt=16697 gen=128 ttft=2.59s prefill=6452 tok/s decode=74.2 tok/s
+  size  16384 rep: prompt=16711 gen=128 ttft=2.59s prefill=6448 tok/s decode=74.1 tok/s
+wrote /home/nvidia/intarsia-decfuse/out/w4vllm/vllm-r2/prefillcuda-vllm-r2.json
+prefillcuda-vllm-r2  model=guidance  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      998     0.178         5606        75.5      128
+    4096     4099     0.632         6470        76.2      128
+   16384    16697     2.588         6452        74.2      128
+  size   4096 rep: prompt=4071 gen=128 ttft=0.62s prefill=6572 tok/s decode=77.2 tok/s
+  size  16384 rep: prompt=16594 gen=128 ttft=2.57s prefill=6455 tok/s decode=74.2 tok/s
+  size  16384 rep: prompt=16587 gen=128 ttft=2.56s prefill=6488 tok/s decode=74.5 tok/s
+  size  16384 rep: prompt=16621 gen=128 ttft=2.58s prefill=6452 tok/s decode=74.5 tok/s
+  size  16384 rep: prompt=16590 gen=128 ttft=2.56s prefill=6482 tok/s decode=74.5 tok/s
+  size  16384 rep: prompt=16612 gen=128 ttft=2.57s prefill=6457 tok/s decode=74.4 tok/s
+wrote /home/nvidia/intarsia-decfuse/out/w4vllm/vllm-r3/prefillcuda-vllm-r3.json
+prefillcuda-vllm-r3  model=guidance  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      977     0.175         5595        78.4      128
+    4096     4071     0.619         6572        77.2      128
+   16384    16594     2.571         6457        74.5      128
+fleetq: #2477 done (exit 0)

@@ -1,0 +1,48 @@
+diff --git a/kernels/cuda/moe_grouped.cu b/kernels/cuda/moe_grouped.cu
+index 94171eeb..ec632fb4 100644
+--- a/kernels/cuda/moe_grouped.cu
++++ b/kernels/cuda/moe_grouped.cu
+@@ -28,6 +28,7 @@
+ 
+ namespace {
+ 
++static int g_xp = getenv("INTARSIA_MOE_EXP") ? atoi(getenv("INTARSIA_MOE_EXP")) : 0;
+ constexpr int BK = 64;         // k per pipeline step
+ constexpr int LDS = BK + 8;    // padded smem row stride (bf16 elements): conflict-free fragment loads
+ constexpr int kWRows = 128;    // weight rows per block (64 gate + 64 up, or 128 down rows): one per thread
+@@ -56,7 +57,7 @@ __global__ void __launch_bounds__(128 * WM)
+ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
+                const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+                const int2* __restrict__ tiles, const int* __restrict__ ntiles, ik_bf16* __restrict__ out, int H, int I,
+-               int K) {
++               int K, int xp) {
+     constexpr int BM = 16 * MT * WM;
+     constexpr int NTHREADS = 128 * WM;
+     constexpr int RQ = 512 / NTHREADS;  // 16-byte raw chunks per thread and unit (128 rows x 4)
+@@ -180,13 +181,16 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
+     for (int s = 0; s < S; ++s) {
+         ik_cp_async_wait_group<1>();  // groups 0..s complete: A(s), and the raw unit of step s+1
+         __syncthreads();              // visible to all; everyone is done with step s-1's buffers
++        if (!(xp & 4)) {
+         if (s + 2 < S) issue_a(s + 2, (s + 2) % 3);
+         if ((s & 1) && (s + 3) / 2 < U) issue_raw((s + 3) / 2, ((s + 3) / 2) & 1);
++        }
+         ik_cp_async_commit();
+-        if (s + 1 < S) dequant(s + 1, (s + 1) & 1);
++        if (s + 1 < S && !(xp & 1)) dequant(s + 1, (s + 1) & 1);
+         if (s + 2 < S) load_sc(s + 2);
+         const ik_bf16* x = xs(s % 3);
+         const ik_bf16* wt = ws(s & 1);
++        if (!(xp & 2))
+ #pragma unroll
+         for (int kk = 0; kk < BK; kk += 16) {
+             uint32_t b[4][2];
+@@ -315,7 +319,7 @@ void launch_mma(const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const flo
+     }();
+     (void)attr_set;
+     const unsigned ny = MODE == 0 ? (unsigned)(I / 64) : (unsigned)(H / 128);
+-    moe_mma_kernel<MT, WM, MODE><<<dim3(ny, tiles_ub), 128 * WM, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
++    moe_mma_kernel<MT, WM, MODE><<<dim3(ny, tiles_ub), 128 * WM, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K, g_xp);
+ }
+ 
+ template <int MT, int WM>
