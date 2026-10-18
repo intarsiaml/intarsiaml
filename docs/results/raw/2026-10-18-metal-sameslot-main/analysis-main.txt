@@ -1,0 +1,25 @@
+| run | run id | prompt tok (128/1k/4k) | decode 128 | decode 1k | decode 4k | marginal prefill 1k | marginal prefill 4k | prefill tok/s 1k | prefill tok/s 4k |
+|---|---|---|---|---|---|---|---|---|---|
+| main-1 | 20261018-173600-adhoc-main-1 | 113/990/4086 | 33.4 (32.8-35.0) | 34.9 (34.4-35.0) | 34.3 (33.8-34.4) | 3716 | 3406 | 3352 (3239-3433) | 3393 (3319-3464) |
+| main-mlx-lm | 20261018-173726-adhoc-main-mlx-lm | 134/991/4088 | 33.8 (33.8-33.9) | 33.4 (33.2-33.4) | 31.9 (31.7-32.1) | 4160 | 3426 | 2324 (2251-2331) | 3078 (2930-3087) |
+| main-llamacpp | 20261018-173857-adhoc-main-llamacpp | 116/990/4087 | 34.9 (34.8-35.0) | 34.6 (34.3-34.7) | 33.5 (33.5-33.6) | 2933 | 2456 | 2545 (2470-2563) | 2474 (2472-2488) |
+| main-2 | 20261018-174234-adhoc-main-2 | 115/990/4088 | 36.1 (35.9-36.4) | 34.9 (34.9-35.9) | 34.5 (33.6-34.5) | 4397 | 2494 | 3946 (3816-3974) | 2737 (2334-3415) |
+
+## MAIN (mean of two runs)
+prefill 1k: marginal 4057 = 97.5% mlx-lm (4160), 138.3% llama.cpp (2933); prefill tok/s 3649 = 157.0% mlx (2324), 143.4% llama (2545)
+prefill 4k: marginal 2950 = 86.1% mlx-lm (3426), 120.1% llama.cpp (2456); prefill tok/s 3065 = 99.6% mlx (3078), 123.9% llama (2474)
+decode 128: 34.73 = 85.5% floor, 102.6% mlx (33.8), 99.5% llama (34.9)
+decode 1k: 34.90 = 86.0% floor, 104.5% mlx (33.4), 100.8% llama (34.6)
+decode 4k: 34.38 = 84.7% floor, 107.9% mlx (31.9), 102.6% llama (33.5)
+drift 128: decode 33.4->36.1 (+8.2%)
+drift 1k: decode 34.9->34.9 (+0.2%); marginal prefill 3716->4397 (+18.3%); prefill tok/s 3352->3946 (+17.7%)
+drift 4k: decode 34.3->34.5 (+0.6%); marginal prefill 3406->2494 (-26.8%); prefill tok/s 3393->2737 (-19.3%)
+
+## Marginal prefill bounds (per-rep TTFT is not stored by localeval, only min/median/max, so the range is the extreme bound:
+## dtok / (ttft_max[i] - ttft_min[i-1]) .. dtok / (ttft_min[i] - ttft_max[i-1]); the median column is the localeval figure)
+| run | marginal 1k median (bound) | marginal 4k median (bound) |
+|---|---|---|
+| main-1 | 3716 (3480-3846) | 3406 (3283-3534) |
+| main-mlx-lm | 4160 (3826-4534) | 3426 (3189-3503) |
+| main-llamacpp | 2933 (2828-3155) | 2456 (2439-2492) |
+| main-2 | 4397 (4227-4464) | 2494 (2064-3303) |

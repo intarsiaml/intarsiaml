@@ -1,0 +1,11 @@
+date: 2026-10-18T17:35:09-04:00
+fleetq job: 2466
+main head: 5eabb1a7490243d1da888e785269be40d4d2eba6
+binary: -rwxr-xr-x@ 1 josef  wheel  18234912 Oct 18 17:34 /private/tmp/claude-501/-opt-code-intarsiaml/31e10c55-edcb-4c6c-8a85-99bab193d028/scratchpad/intarsia-main
+binary md5: 9810733ce9a084dcf83542a9065abe22
+{'mlx': '0.32.1', 'mlx-lm': '0.31.3', 'mlx-metal': '0.32.1'}
+version: 0.6.0 (build 11429, commit d81235049)
+built with AppleClang 21.0.0.21000334 for Darwin arm64
+localeval: version = "0.2.1"
+deepeval head: 69c7a848bba836b70782aced73d278ee4b4d2fa6
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 

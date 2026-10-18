@@ -1,0 +1,84 @@
+== sample set 2026-10-18T17:50:47-04:00
+"Device Utilization %"=96
+"Device Utilization %"=20
+"Device Utilization %"=22
+median=22
+zoom: 
+idle util 22 > 10, waiting 10s (try 0)
+== sample set 2026-10-18T17:51:00-04:00
+"Device Utilization %"=22
+"Device Utilization %"=22
+"Device Utilization %"=21
+median=22
+zoom: 
+idle util 22 > 10, waiting 10s (try 1)
+== sample set 2026-10-18T17:51:13-04:00
+"Device Utilization %"=19
+"Device Utilization %"=21
+"Device Utilization %"=19
+median=19
+zoom: 
+idle util 19 > 10, waiting 10s (try 2)
+== sample set 2026-10-18T17:51:26-04:00
+"Device Utilization %"=29
+"Device Utilization %"=12
+"Device Utilization %"=12
+median=12
+zoom: 
+idle util 12 > 10, waiting 10s (try 3)
+== sample set 2026-10-18T17:51:39-04:00
+"Device Utilization %"=14
+"Device Utilization %"=31
+"Device Utilization %"=32
+median=31
+zoom: 
+idle util 31 > 10, waiting 10s (try 4)
+== sample set 2026-10-18T17:51:52-04:00
+"Device Utilization %"=20
+"Device Utilization %"=17
+"Device Utilization %"=17
+median=17
+zoom: 
+idle util 17 > 10, waiting 10s (try 5)
+== sample set 2026-10-18T17:52:06-04:00
+"Device Utilization %"=22
+"Device Utilization %"=0
+"Device Utilization %"=27
+median=22
+zoom: 
+idle util 22 > 10, waiting 10s (try 6)
+== sample set 2026-10-18T17:52:19-04:00
+"Device Utilization %"=26
+"Device Utilization %"=25
+"Device Utilization %"=18
+median=25
+zoom: 
+idle util 25 > 10, waiting 10s (try 7)
+== sample set 2026-10-18T17:52:32-04:00
+"Device Utilization %"=23
+"Device Utilization %"=0
+"Device Utilization %"=12
+median=12
+zoom: 
+idle util 12 > 10, waiting 10s (try 8)
+== sample set 2026-10-18T17:52:45-04:00
+"Device Utilization %"=20
+"Device Utilization %"=13
+"Device Utilization %"=15
+median=15
+zoom: 
+idle util 15 > 10, waiting 10s (try 9)
+== sample set 2026-10-18T17:52:58-04:00
+"Device Utilization %"=12
+"Device Utilization %"=11
+"Device Utilization %"=0
+median=11
+zoom: 
+idle util 11 > 10, waiting 10s (try 10)
+== sample set 2026-10-18T17:53:11-04:00
+"Device Utilization %"=11
+"Device Utilization %"=10
+"Device Utilization %"=0
+median=10
+zoom: 
+FINAL median=10 tries=11
