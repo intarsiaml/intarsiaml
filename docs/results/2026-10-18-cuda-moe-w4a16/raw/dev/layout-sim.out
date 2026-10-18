@@ -1,0 +1,29 @@
+fleetq: #2472 waiting (#3 in line): in line behind #2469 "w4a16 full CUDA crate suite (vLLM up)" (claude-f31ccf91) on spark1
+fleetq:   #2469 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2469 set, or it will wait for #2469 to be released.
+fleetq: #2472 running on spark1: scripts/cuda-moe-w4a16/build-bench.sh 1024,2048,4096 INTARSIA_BENCH_KERNEL=v2 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_SIM=1'
+stamp: head=03f7ea2 code-tree=b50f00c30bb3 dirty=no
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/w4-exp/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/w4-exp/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/w4-exp/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-exp/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 15.85s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 33595184 Oct 18 18:34 /home/nvidia/intarsia-decfuse/w4-exp/target/acc/release/intarsia
+== round 1: INTARSIA_BENCH_KERNEL=v2
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3267.6         15.8
+2048         moe_experts_w4a16_bf16           3986.9         25.9
+4096         moe_experts_w4a16_bf16           6154.2         33.5
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_SIM=1
+T            kernel                               us       TFLOPS
+1024         moe_experts_w4a16_bf16           3150.6         16.4
+2048         moe_experts_w4a16_bf16           3276.8         31.5
+4096         moe_experts_w4a16_bf16           5502.7         37.5
+fleetq: #2472 done (exit 0)

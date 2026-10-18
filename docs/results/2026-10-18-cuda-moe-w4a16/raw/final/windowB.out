@@ -1,0 +1,75 @@
+18:52:04 fleetq status:
+fleetq · 18:52:04 · last health check 6s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 8, free 44 · box reports 48.5 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+  RUNNING #2479 "NCCL all-reduce smoke: default vs NCCL_CUMEM_HOST_ENABLE=0 (no model load, vLLM up)" (claude-9f7eaa70) running on spark1, spark2 spark1 8 GB, spark2 8 GB for 40s
+fleetq: #2481 waiting (#1 in line): needs spark1 to itself; running there: #2479 "NCCL all-reduce smoke: default vs NCCL_CUMEM_HOST_ENABLE=0 (no model load, vLLM up)" (claude-9f7eaa70)
+18:52:49 lease 2481 held
+18:52:51 memory freed: 111 GB available
+18:52:51 running $HOME/intarsia-decfuse/w4-dev/scripts/cuda-moe-w4a16/wB-ab.sh (cap 11 min)
+MemAvailable 111 GB
+base: intarsia 0.0.1  dev: intarsia 0.0.1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+2392 MHz, [N/A], 43, 7.35 W
+== round 1 (470 s left) 18:52:52
+MemAvailable 111 GB
+== 35b round 1 arm base (tree w4-base env '') 18:52:52
+wrote /home/nvidia/intarsia-decfuse/out/w4B/ab/35b-base-r1/cudadecode-35b-base-r1.json
+cudadecode-35b-base-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1006     0.254         3955        81.3      128
+    4096     4110     0.911         4512        78.5      128
+   16384    16756     3.828         4378        71.0      128
+== 35b round 1 arm dev (tree w4-dev env '') 18:54:03
+wrote /home/nvidia/intarsia-decfuse/out/w4B/ab/35b-dev-r1/cudadecode-35b-dev-r1.json
+cudadecode-35b-dev-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      994     0.254         3920        81.3      128
+    4096     4088     0.825         4958        78.5      128
+   16384    16696     3.550         4703        70.8      128
+== w-ab 35b round 1 done 18:55:12
+round 1 took 140 s
+== round 2 (330 s left) 18:55:12
+MemAvailable 112 GB
+== 35b round 2 arm dev (tree w4-dev env '') 18:55:12
+wrote /home/nvidia/intarsia-decfuse/out/w4B/ab/35b-dev-r2/cudadecode-35b-dev-r2.json
+cudadecode-35b-dev-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1012     0.255         3970        80.8      128
+    4096     4117     0.835         4936        77.9      128
+   16384    16723     3.565         4690        70.9      128
+== 35b round 2 arm base (tree w4-base env '') 18:56:18
+wrote /home/nvidia/intarsia-decfuse/out/w4B/ab/35b-base-r2/cudadecode-35b-base-r2.json
+cudadecode-35b-base-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      999     0.253         3951        80.8      128
+    4096     4080     0.860         4744        77.9      128
+   16384    16662     3.823         4358        70.8      128
+== w-ab 35b round 2 done 18:57:26
+round 2 took 134 s
+== round 3 (196 s left) 18:57:26
+MemAvailable 112 GB
+== 35b round 3 arm base (tree w4-base env '') 18:57:26
+wrote /home/nvidia/intarsia-decfuse/out/w4B/ab/35b-base-r3/cudadecode-35b-base-r3.json
+cudadecode-35b-base-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      999     0.254         3936        81.0      128
+    4096     4104     0.892         4604        78.1      128
+   16384    16719     3.826         4370        70.8      128
+== 35b round 3 arm dev (tree w4-dev env '') 18:58:33
+wrote /home/nvidia/intarsia-decfuse/out/w4B/ab/35b-dev-r3/cudadecode-35b-dev-r3.json
+cudadecode-35b-dev-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      976     0.249         3911        81.6      128
+    4096     4053     0.802         5054        78.8      128
+   16384    16450     3.495         4706        71.5      128
+== w-ab 35b round 3 done 18:59:42
+round 3 took 136 s
+== w4B done, 60 s left 18:59:42
+18:59:42 script exit 0
+18:59:42 killing leftover processes of ours under ~/intarsia-decfuse
+18:59:45 starting missioncntrl-guidance and waiting for /v1/models
+19:02:52 vLLM is serving again
+19:02:52 releasing fleetq job 2481
+19:02:52 done (status 0)

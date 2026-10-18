@@ -1,0 +1,73 @@
+fleetq: #2467 running on spark1: scripts/cuda-moe-w4a16/mutcheck.sh
+--- unmutated
+unmutated: pass (5 tests)
+--- sign-lo
+applied sign-lo: sign bit of elements 0 and 1 dropped (r0 = magnitudes only)
+KILLED sign-lo: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s 
+--- sign-hi-shift
+applied sign-hi-shift: sign bit of element 2 moved to the wrong position
+KILLED sign-hi-shift: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s 
+--- lut-hi
+applied lut-hi: bf16 high byte of the magnitude 2.0 is 0 (LUT entry 4)
+KILLED lut-hi: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s 
+--- lut-lo
+applied lut-lo: bf16 low byte of the magnitude 3.0 is 0x80 (LUT entry 5)
+KILLED lut-lo: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s 
+--- interleave
+applied interleave: low and high bytes of the first bf16 pair swapped
+KILLED interleave: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s 
+--- byte-select
+applied byte-select: the second packed word is read at byte t+1 instead of byte t
+KILLED byte-select: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s 
+--- scale-byte
+applied scale-byte: k16 blocks 0/1 and 2/3 of a step use each other's block scale
+KILLED scale-byte: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s 
+--- scale-step
+applied scale-step: the second k64 step of a unit reuses the scales of the first
+KILLED scale-step: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s 
+--- raw-slot
+applied raw-slot: the packed ring slot of the odd steps is off by one unit
+KILLED raw-slot: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s 
+--- raw-ring
+applied raw-ring: the packed ring has one slot (the next unit overwrites the one in use)
+KILLED raw-ring: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s 
+--- a-ring
+applied a-ring: the A ring is one slot short
+KILLED a-ring: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s 
+--- accumulate-in-mma
+applied accumulate-in-mma: k16 products accumulated inside the mma instead of formed from zero and added (the original accuracy bug)
+KILLED accumulate-in-mma: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s 
+--- skip-partial
+applied skip-partial: the m16 tile that is only partly filled is skipped
+KILLED skip-partial: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s 
+--- a-col
+applied a-col: A chunk columns swapped in pairs
+KILLED a-col: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s 
+--- raw-unit
+applied raw-unit: packed weights of unit u read from unit u^1
+KILLED raw-unit: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s 
+--- scale-unit
+applied scale-unit: scales of unit u read from unit u^1
+KILLED scale-unit: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s 
+--- up-rows
+applied up-rows: up projection computed from the gate rows
+KILLED up-rows: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s 
+--- up-uses-gate-scale
+applied up-uses-gate-scale: up projection multiplied by the gate's global scale
+KILLED up-uses-gate-scale: moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s 
+--- silu-sign
+applied silu-sign: SiLU with the wrong sign: g / (1 + exp(g))
+KILLED silu-sign: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s 
+--- gather
+applied gather: token index of a pair computed with the wrong divisor
+KILLED gather: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s 
+--- scatter
+applied scatter: down output written in sorted order instead of scattered to the pair's (token, slot) row
+KILLED scatter: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s 
+--- valid-rows
+applied valid-rows: one row past the tile's last pair is written as well
+KILLED valid-rows: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s 
+--- frag-col
+applied frag-col: gate/up epilogue column offset of the lane (2 * t4) replaced by t4
+KILLED frag-col: moe_experts_w4a16_is_as_accurate_as_old_kernel moe_w4a16_is_bitwise_at_the_real_prefill_shape moe_w4a16_is_bitwise_on_odd_routing moe_w4a16_is_bitwise_the_grouped_kernel result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s 
+fleetq: #2467 done (exit 0)

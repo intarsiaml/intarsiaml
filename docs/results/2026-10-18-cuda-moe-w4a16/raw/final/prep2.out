@@ -1,0 +1,10 @@
+fleetq: #2476 running on spark1: scripts/cuda-moe-w4a16/prep.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/base-export
+stamp: w4a16-base
+    Finished `release` profile [optimized] target(s) in 0.07s
+-rwxrwxr-x 2 nvidia nvidia 32865008 Oct 18 18:34 /home/nvidia/intarsia-decfuse/w4-base/target/acc/release/intarsia
+stamp: head=5df53af code-tree=5b1231f424e0 dirty=no
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 9.93s
+-rwxrwxr-x 2 nvidia nvidia 33594896 Oct 18 18:37 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+fleetq: #2476 done (exit 0)

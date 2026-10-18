@@ -1,0 +1,16 @@
+fleetq: #2471 waiting (#2 in line): in line behind #2469 "w4a16 full CUDA crate suite (vLLM up)" (claude-f31ccf91) on spark1
+fleetq:   #2469 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2469 set, or it will wait for #2469 to be released.
+fleetq: #2471 running on spark1: scripts/cuda-moe-w4a16/prep.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/base-export
+stamp: w4a16-base
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/w4-base/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/w4-base/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/w4-base/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-base/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 15.66s
+-rwxrwxr-x 2 nvidia nvidia 32865008 Oct 18 18:34 /home/nvidia/intarsia-decfuse/w4-base/target/acc/release/intarsia
+stamp: head=17046f1 code-tree=c161cd26ebd7 dirty=no
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 12.86s
+-rwxrwxr-x 2 nvidia nvidia 33594888 Oct 18 18:34 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+fleetq: #2471 done (exit 0)

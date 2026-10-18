@@ -1,0 +1,67 @@
+fleetq: #2465 running on spark1: scripts/cuda-moe-w4a16/dev.sh
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 9.84s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 33594960 Oct 18 17:34 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+== resources
+ Function moe_w4a16_kernelILi128ELi4ELi4ELi1ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:162 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function moe_w4a16_kernelILi128ELi4ELi4ELi0ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:166 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function moe_w4a16_kernelILi128ELi2ELi4ELi1ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:124 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function moe_w4a16_kernelILi128ELi2ELi4ELi0ELi2ELi2ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS9_PK4int2S9_PS1_iii:
+  REG:128 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN45_GLOBAL__N__068a084a_12_moe_w4a16_cu_e2ea37c317moe_reduce_kernelI13__nv_bfloat16EEvPKS1_PKiPKfPT_iii:
+  REG:40 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:940 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN45_GLOBAL__N__068a084a_12_moe_w4a16_cu_e2ea37c322moe_group_tiles_kernelEPKiiiiPiS2_S2_P4int2:
+  REG:38 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:952 TEXTURE:0 SURFACE:0 SAMPLER:0
+== tests
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/moe_w4a16.rs:101:45
+    |
+101 |     let hot: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+101 -     let hot: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+101 +     let hot: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "moe_w4a16") generated 1 warning (run `cargo fix --test "moe_w4a16"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+
+running 4 tests
+test moe_experts_w4a16_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 w4a16 0.0014; rel_l2 old 8.005e-5 w4a16 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 w4a16 0.0025; rel_l2 old 1.123e-4 w4a16 1.751e-4
+ok
+test moe_w4a16_is_bitwise_at_the_real_prefill_shape ... ok
+test moe_w4a16_is_bitwise_on_odd_routing ... ok
+test moe_w4a16_is_bitwise_the_grouped_kernel ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.47s
+
+== microbench
+== round 1: default
+T            kernel                               us       TFLOPS
+1024         moe_experts_mma_bf16             3073.8         16.8
+1024         moe_experts_nvfp4_mma_bf16       2957.6         17.4
+1024         moe_experts_w4a16_bf16           2961.9         17.4
+2048         moe_experts_mma_bf16             4179.8         24.7
+2048         moe_experts_nvfp4_mma_bf16       3310.0         31.1
+2048         moe_experts_w4a16_bf16           3545.8         29.1
+4096         moe_experts_mma_bf16             6860.0         30.1
+4096         moe_experts_nvfp4_mma_bf16       4212.3         48.9
+4096         moe_experts_w4a16_bf16           5256.7         39.2
+fleetq: #2465 done (exit 0)

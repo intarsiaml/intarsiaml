@@ -1,0 +1,109 @@
+fleetq: #2454 running on spark1: scripts/cuda-moe-w4a16/exp.sh 2048,4096 '3 11 19 27'
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 33925048 Oct 18 17:21 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+== T=2048 kernel=v2 INTARSIA_MOE_EXP=3
+Generating '/tmp/nsys-report-48b7.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========41%                 ] w4prof_2454.nsys-rep[1/1] [================68%         ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+58.8,20,2075995.2,"moe_w4a16_kernel<4, 4, 0, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+32.6,20,1148489.6,"moe_w4a16_kernel<4, 4, 1, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+8.1,20,284694.4,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, int
+0.5,20,18536.0,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+== T=2048 kernel=v2 INTARSIA_MOE_EXP=11
+Generating '/tmp/nsys-report-3b42.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========41%                 ] w4prof_2454.nsys-rep[1/1] [================68%         ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+56.7,20,1766595.2,"moe_w4a16_kernel<4, 4, 0, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+33.7,20,1049980.8,"moe_w4a16_kernel<4, 4, 1, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+9.0,20,281070.4,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, int
+0.6,20,17867.2,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+== T=2048 kernel=v2 INTARSIA_MOE_EXP=19
+Generating '/tmp/nsys-report-ecfe.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========41%                 ] w4prof_2454.nsys-rep[1/1] [================68%         ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+43.4,20,860977.6,"moe_w4a16_kernel<4, 4, 0, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned ch
+40.6,20,805724.8,"moe_w4a16_kernel<4, 4, 1, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned ch
+15.0,20,298080.0,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, in
+0.9,20,17873.6,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+== T=2048 kernel=v2 INTARSIA_MOE_EXP=27
+Generating '/tmp/nsys-report-8e0d.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========41%                 ] w4prof_2454.nsys-rep[1/1] [================68%         ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+43.5,20,803936.0,"moe_w4a16_kernel<4, 4, 0, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned ch
+39.7,20,732884.8,"moe_w4a16_kernel<4, 4, 1, 2>(const __nv_bfloat16 *, const unsigned char *, const unsigned ch
+15.8,20,291380.8,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, in
+1.0,20,17870.4,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+== T=4096 kernel=v2 INTARSIA_MOE_EXP=3
+Generating '/tmp/nsys-report-2206.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========41%                 ] w4prof_2454.nsys-rep[1/1] [================68%         ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+50.2,20,2552620.8,"moe_w4a16_kernel<8, 2, 0, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+36.9,20,1875036.8,"moe_w4a16_kernel<8, 2, 1, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+12.2,20,622745.6,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, in
+0.7,20,34182.4,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+== T=4096 kernel=v2 INTARSIA_MOE_EXP=11
+Generating '/tmp/nsys-report-0fcc.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========40%                 ] w4prof_2454.nsys-rep[1/1] [===============67%          ] w4prof_2454.nsys-rep[1/1] [=======================94%  ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================97% ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+46.4,20,2081990.4,"moe_w4a16_kernel<8, 2, 0, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+38.8,20,1739390.4,"moe_w4a16_kernel<8, 2, 1, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+14.0,20,626760.0,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, in
+0.8,20,34900.8,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+== T=4096 kernel=v2 INTARSIA_MOE_EXP=19
+Generating '/tmp/nsys-report-88d4.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========41%                 ] w4prof_2454.nsys-rep[1/1] [================68%         ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+45.6,20,1959033.6,"moe_w4a16_kernel<8, 2, 0, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+39.1,20,1677067.2,"moe_w4a16_kernel<8, 2, 1, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+14.5,20,623387.2,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, in
+0.8,20,34214.4,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+== T=4096 kernel=v2 INTARSIA_MOE_EXP=27
+Generating '/tmp/nsys-report-d41c.qdstrm'
+[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [0%                          ] w4prof_2454.nsys-rep[1/1] [========41%                 ] w4prof_2454.nsys-rep[1/1] [================68%         ] w4prof_2454.nsys-rep[1/1] [=======================95%  ] w4prof_2454.nsys-rep[1/1] [=======================96%  ] w4prof_2454.nsys-rep[1/1] [========================97% ] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep[1/1] [========================100%] w4prof_2454.nsys-rep
+Generated:
+	/tmp/w4prof_2454.nsys-rep
+Generating SQLite file /tmp/w4prof_2454.sqlite from /tmp/w4prof_2454.nsys-rep
+Processing [/tmp/w4prof_2454.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_g
+Time (%),Instances,Avg (ns),Name
+44.8,20,1790168.0,"moe_w4a16_kernel<8, 2, 0, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+38.6,20,1541539.2,"moe_w4a16_kernel<8, 2, 1, 1>(const __nv_bfloat16 *, const unsigned char *, const unsigned c
+15.7,20,627198.4,"moe_reduce_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const int *, const float *, T1 *, in
+0.9,20,35588.8,"<unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)"
+
+fleetq: #2454 done (exit 0)

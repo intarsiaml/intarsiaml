@@ -1,0 +1,43 @@
+18:40:02 fleetq status:
+fleetq · 18:40:02 · last health check 5s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 47.3 free, GPU 96% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+fleetq: #2478 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+18:40:27 lease 2478 held
+18:40:29 memory freed: 112 GB available
+18:40:29 running $HOME/intarsia-decfuse/w4-dev/scripts/cuda-moe-w4a16/wA-accuracy.sh (cap 10 min)
+MemAvailable 112 GB
+dev: intarsia 0.0.1  base: intarsia 0.0.1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+383 MHz, [N/A], 48, 6.18 W
+b6b51e1b1699c66c
+== start 18:40:30
+== done, 112 s left 18:48:08
+acc dev-short-c2048 exit 0 50 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces | 0 lines name the w4a16 kernel, 0 the grouped one
+reuse dev exit 0 93 s: long_docs_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries|long_code_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries|chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok|
+gen dev-v2-eager: finish=length prompt=1497 (cached 0) completion=256 | prefill 604 ms (2480.4 tok/s) | decode 4271 ms (59.70 tok/s)|steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 ga|
+reuse base exit 0 99 s: long_docs_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries|long_code_4k       both      skipped: split 2000 is below one prefill chunk (2048): nothing to reuse across chunk boundaries|chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok|
+gen dev-v2-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 617 ms (2424.4 tok/s) | decode 3713 ms (68.68 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 ga|
+acc base-short-c2048 exit 0 42 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces | 0 lines name the w4a16 kernel, 0 the grouped one
+acc dev-long-c2048 exit 1 106 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc | 0 lines name the w4a16 kernel, 0 the grouped one
+acc base-long-c2048 exit 1 104 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc | 0 lines name the w4a16 kernel, 0 the grouped one
+gen dev-off-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 647 ms (2314.3 tok/s) | decode 3667 ms (69.54 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 ga|
+acc8 short exit 0 70 s: prefill chunk 256 (default)|prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8|prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <=|decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess|
+acc8 long exit 0 88 s: prefill chunk 256 (default)|prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10|prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= |decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess|
+== lane 2 done, 144 s left 18:47:36
+gen base-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 560 ms (2675.3 tok/s) | decode 3166 ms (80.54 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 ga|
+== lane 1 done, 112 s left 18:48:08
+dev-v2-eager: 255 ids
+dev-v2-graph: 255 ids
+dev-off-graph: 255 ids
+base-graph: 255 ids
+v2 eager == v2 graph ids
+v2 == v1 (kernel off) ids
+dev == BASE ids
+18:48:08 script exit 0
+18:48:08 killing leftover processes of ours under ~/intarsia-decfuse
+18:48:12 starting missioncntrl-guidance and waiting for /v1/models
+18:51:24 vLLM is serving again
+18:51:24 releasing fleetq job 2478
+18:51:24 done (status 0)

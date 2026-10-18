@@ -1,0 +1,27 @@
+fleetq: #2464 running on spark1: scripts/cuda-moe-w4a16/bench.sh 64,128,256,512,768,1024,1536 'INTARSIA_BENCH_KERNEL=bf16,v2 INTARSIA_W4_CFG=1' 'INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=0'
+== round 1: INTARSIA_BENCH_KERNEL=bf16,v2 INTARSIA_W4_CFG=1
+T            kernel                               us       TFLOPS
+64           moe_experts_mma_bf16             2066.4          1.6
+64           moe_experts_w4a16_bf16           2241.8          1.4
+128          moe_experts_mma_bf16             2354.1          2.7
+128          moe_experts_w4a16_bf16           2446.3          2.6
+256          moe_experts_mma_bf16             2477.6          5.2
+256          moe_experts_w4a16_bf16           2570.6          5.0
+512          moe_experts_mma_bf16             2628.8          9.8
+512          moe_experts_w4a16_bf16           2693.9          9.6
+768          moe_experts_mma_bf16             2746.0         14.1
+768          moe_experts_w4a16_bf16           2830.7         13.7
+1024         moe_experts_mma_bf16             2971.9         17.3
+1024         moe_experts_w4a16_bf16           2977.7         17.3
+1536         moe_experts_mma_bf16             3388.6         22.8
+1536         moe_experts_w4a16_bf16           3079.5         25.1
+== round 1: INTARSIA_BENCH_KERNEL=v2 INTARSIA_W4_CFG=0
+T            kernel                               us       TFLOPS
+64           moe_experts_w4a16_bf16           2239.9          1.4
+128          moe_experts_w4a16_bf16           2455.5          2.6
+256          moe_experts_w4a16_bf16           2561.2          5.0
+512          moe_experts_w4a16_bf16           2734.1          9.4
+768          moe_experts_w4a16_bf16           2803.8         13.8
+1024         moe_experts_w4a16_bf16           3027.9         17.0
+1536         moe_experts_w4a16_bf16           3352.1         23.1
+fleetq: #2464 done (exit 0)

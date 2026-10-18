@@ -1,0 +1,25 @@
+fleetq: #2447 running on spark1: scripts/cuda-moe-w4a16/build-bench.sh 1024,2048,4096 ''
+stamp: head=2aff219 code-tree=8c5d600e8497 dirty=yes
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/w4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 12.82s
+  Executable tests/fused_decode.rs (target/acc/release/deps/fused_decode-e845ae99c338ffe2)
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 32864728 Oct 18 17:06 /home/nvidia/intarsia-decfuse/w4-dev/target/acc/release/intarsia
+== round 1: default
+T            kernel                               us       TFLOPS
+1024         moe_experts_mma_bf16             3022.2         17.1
+1024         moe_experts_nvfp4_mma_bf16       3015.5         17.1
+2048         moe_experts_mma_bf16             4185.8         24.6
+2048         moe_experts_nvfp4_mma_bf16       3341.2         30.9
+4096         moe_experts_mma_bf16             6977.4         29.5
+4096         moe_experts_nvfp4_mma_bf16       4169.8         49.4
+fleetq: #2447 done (exit 0)
