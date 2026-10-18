@@ -70,10 +70,11 @@ const DECODE_MAX_TOKENS: usize = 1;
 /// the quantised arithmetic is tested separately (tests/moe_nvfp4.rs).
 pub const NVFP4_ACT_TOL: Tol = Tol::new(0.30, 0.20);
 
-/// Fewest tokens for the FP4 experts kernel. A chosen value, not a measured crossover: the two activation-quantisation
-/// launches are a fixed cost that small batches would not amortise, and 128 keeps the admission shapes T = 130 and 256 in
-/// the sweep. The break-even was not measured below 2048 tokens (docs/results/2026-10-17-cuda-moe-nvfp4-mma.md, section 6).
-pub const NVFP4_MIN_TOKENS: usize = 128;
+/// Fewest tokens for the FP4 experts kernel, from the measured crossover against `moe_experts_mma_bf16` on spark1
+/// (3 rounds, T = 64 .. 4096, docs/results/2026-10-17-cuda-moe-nvfp4-mma/raw/final/microbench.out): the FP4 kernel is
+/// 6 to 14 % slower at T <= 512 (the two activation-quantisation launches are a fixed cost), about even at 1024
+/// (2910 vs 2980 us and 3001 vs 3037 us in two rounds) and 22 to 40 % faster at 2048 and 4096.
+pub const NVFP4_MIN_TOKENS: usize = 1024;
 
 /// Scratch bytes of `moe_experts_nvfp4_mma_bf16`: the grouped kernel's, plus the quantised activations
 /// (`xq` u8 `[T,H/2]`, `xs` e4m3 `[T,H/16]`, `xg` f32 `[T]`, and the same three for the sorted `h` `[P,I]`), each region

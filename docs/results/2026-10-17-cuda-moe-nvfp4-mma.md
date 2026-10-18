@@ -46,7 +46,7 @@ Memory order equals hardware k order, so a row of packed fp4 (low nibble = even 
   * **Grouped GEMM** `moe_nvfp4_kernel<MT,WM,MODE,NS>`: tile table, `BM` 16/32/64 chosen from pairs/expert, 4 x WM warps, a block = one tile x (64 gate + 64 up) columns (gate_up) or 128 columns (down), as in `moe_grouped.cu`. A unit is 128 k = 64 bytes of fp4 per weight row (the DRAM-friendly run length of `moe_grouped.cu`) + 8 scale bytes, copied with `cp.async` into an `NS`-stage ring (default 2: two blocks per SM; `INTARSIA_NVFP4_STAGES=3|4` for experiments). Fragments come straight from the staged bytes (conflict-free: 80-byte row stride). Each k64 mma starts from a zero accumulator and is added to the fp32 accumulator, as in the bf16 kernel. Epilogue: `acc * (amax/2688 * weight_global_scale)` (the global scale of the checkpoint, applied in fp32 per row) then the same SiLU-GLU with the reference rounding points; `h` is written in sorted pair order as bf16, quantised by the same kernel (per row of `[P, I]`), and the down GEMM scatters `y[pair]`.
   * Stub when `IK_SM120A=0`.
 * `crates/intarsia-backend-cuda/src/{quantmoe,kernels,device_quantmoe}.rs`: registration (`TABLE`, `moe_nvfp4()`, `moe_nvfp4_priority`: priority 20 with `INTARSIA_CUDA_MOE_NVFP4=1`, -10 otherwise, so it is registered and admitted but never selected by default), predicate `cfg!(ik_sm120a) && m >= 128 && experts <= 1024 && k % 128 == 0 && n % 128 == 0`, scratch function (`moe_experts_nvfp4_scratch` = the grouped kernel's plus the quantised copies of x and h), FFI. The launcher is declared in a new `kernels/cuda/ik_cuda_abi.h` (the CUDA twin of `kernels/hip/ik_hip_abi.h`), not in the shared `kernels/abi/ik_abi.h`.
-* Minimum 128 tokens: a **chosen** value, not a measured crossover. The microbench was only run at 2048 and 4096 tokens (section 6); I do not know where FP4 stops winning below that, but the end-to-end 1024-token prefill got faster (section 8). 128 keeps the admission shapes T = 130 and T = 256 in the sweep.
+* Minimum tokens (superseded 2026-10-18, see section 12: now **1024, measured**). Originally 128, a **chosen** value, not a measured crossover. The microbench was only run at 2048 and 4096 tokens (section 6); I do not know where FP4 stops winning below that, but the end-to-end 1024-token prefill got faster (section 8). 128 keeps the admission shapes T = 130 and T = 256 in the sweep.
 * **Admission** (`intarsia kernels test` sweep, `every_cuda_kernel_matches_the_reference`): `moe_experts_nvfp4_mma_bf16 ... ADMITTED` (per-case figures not kept). This is a *weak* gate by construction: the op's reference is the bf16-activation `ref_moe_experts`, and the kernel differs from it by the activation quantisation, so its registered tolerance is `NVFP4_ACT_TOL = (max_abs 0.30, rel_l2 0.20)`, derived on the Mac, before any GPU number, by `tests/moe_nvfp4_cpu.rs` (the quantised arithmetic in plain Rust vs the bf16 cpu reference over the admission shapes: rel_l2 0.163 .. 0.166, max_abs 0.14 .. 0.19 of max(1, max|ref|); about 8 % per e2m1 rounding, two of them) plus a 20 % / 50 % margin. The real check of the arithmetic is the exact test below, not admission.
 
 ## 5. Kernel tests (`crates/intarsia-backend-cuda/tests/moe_nvfp4.rs`, `moe_nvfp4_cpu.rs`, `moe_nvfp4_ref/`)
@@ -138,3 +138,35 @@ Changed outside `crates/intarsia-backend-cuda` and `kernels/cuda` (`git diff --s
 * The kernel is memory bound at 2048 tokens; a persistent/fused version (section 6) is the next step.
 * `sm_120` (RTX 50xx) is wired but untested. The 128-token minimum was not tuned. The E2E gain vs microbench is unexplained.
 * KL baseline spread comes from the prefill-2 doc; only chunk 2048 was re-measured here.
+
+## 12. Final checks, 2026-10-18 (closes the open items of section 11)
+
+These ran in small-GPU slots on spark1 with vLLM up, plus one tatooine burst. The coordinator session ran them after the agent's session ended.
+
+* **Run:** `scripts/cuda-moe-nvfp4/final.sh` as fleetq #2441, 16:50 to 16:53, exit 0. Outputs are in `raw/final/`.
+  * **Layout probe** (`omma-tile.out`): 20 of 20 trials have worst error / sum|terms| = 0, and the run ends with `PASS`. The SASS contains `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`.
+  * **SASS** (`sass.out`): every object except the new kernel file is IDENTICAL to base, and none is DIFFERENT.
+  * **Mutations** (`mutcheck.out`): **14 of 14 killed**: `sfa-rows`, `sfa-lane`, `sfb-step`, `b-second-half`, `no-ginv`, `up-uses-gate-scale`, `silu-sign`, `quant-scale`, `quant-nibbles`, `quant-ignores-scale-rounding`, `a-unit-offset`, `valid-rows`, `up-rows`, `scatter`. The unmutated FP4 tests pass: 5 passed, 1 ignored (the bench).
+* **Microbench crossover** (`microbench.out`, 3 rounds, stages 2, us per call, bf16 `moe_experts_mma_bf16` vs FP4):
+
+  | T | bf16 | FP4 | FP4 vs bf16 |
+  |---|---|---|---|
+  | 64 | ~2085 | ~2373 | 14 % slower |
+  | 128 | ~2300 | ~2568 | 12 % slower |
+  | 256 | ~2470 | ~2690 | 9 % slower |
+  | 512 | ~2560 | ~2700 | 6 % slower |
+  | 1024 | 2980 / 3037 | 2910 / 3001 | about even (1 to 2 % faster) |
+  | 2048 | ~4220 | ~3300 | 22 % faster |
+  | 4096 | ~6910 | ~4100 | 40 % faster |
+
+* **Change:** `NVFP4_MIN_TOKENS` is now **1024** (`crates/intarsia-backend-cuda/src/quantmoe.rs`). Below 1024 tokens per chunk, the opt-in kernel no longer runs, because it would be slower there.
+* **Admission side effect:** no MoE admission shape reached 1024 tokens, so the FP4 kernel showed `NO CASES (untested)` and the CUDA admission test failed. This was the expected result and was confirmed on spark1.
+* **Fix, a shared-code change:** add one case to the MoE admission sweep in `crates/intarsia-core/src/quant/cases.rs`, `(T=1024, E=16, K=8, H=256, I=128)`. Small H and I keep the cpu reference cheap. It is in the non-quick sweep, so every backend runs it.
+  * **CUDA** (fleetq #2443, `raw/final/admission-min1024.out`): admission 4 passed. `moe_experts_nvfp4_mma_bf16` is ADMITTED on 1 case (rel_l2 1.628e-1, within `NVFP4_ACT_TOL` 0.30). `moe_experts_bf16` and `moe_experts_mma_bf16` pass the new case (rel_l2 4.9e-5 / 5.9e-5). The FP4 tests pass 5 of 5.
+  * **HIP** (tatooine burst, fleetq #2445, radiance down 17:00:09 to 17:01:33, 1.4 min, answered after 15 s): `cargo test --release -p intarsia-backend-hip` is all green, including the GPU admission test.
+  * **Metal:** not run.
+  * **Mac:** `INTARSIA_CPU_FREE_MEM_GB=8 cargo test --workspace` 465 passed, 0 failed. `cargo check --workspace` and `cargo check -p intarsia-cli --features hip` are clean.
+* **Caveats from the new minimum:**
+  * The section 8 A/B and the section 7 accuracy ran at minimum 128. At chunk 2048 every 1024-, 4096- and 16384-token prompt has chunks of at least 1024 tokens, except a tail chunk shorter than 1024, which now runs bf16. So the end-to-end numbers should change little but were not re-measured.
+  * The section 7 graph-vs-eager ids check used a 921-token prompt, which is now below the minimum. It no longer exercises the FP4 path and must be redone with a prompt of 1024 tokens or more before anyone turns this on by default.
+* **Still unverified:** the CUTLASS / PTX ISA / vLLM citations (section 11).

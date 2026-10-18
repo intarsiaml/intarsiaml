@@ -1,0 +1,20 @@
+base: nv-base/target/acc/release/build/intarsia-backend-cuda-d6b0b58a6dc492b2/out
+dev:  nv-dev/target/acc/release/build/intarsia-backend-cuda-d6b0b58a6dc492b2/out
+argmax.o: IDENTICAL (2210 lines)
+attention_flash.o: IDENTICAL (7334 lines)
+attention.o: IDENTICAL (5426 lines)
+attention_splitkv.o: IDENTICAL (60938 lines)
+elementwise.o: IDENTICAL (8158 lines)
+fp8_gemm_f8.o: IDENTICAL (6174 lines)
+fp8_gemm.o: IDENTICAL (11142 lines)
+fp8.o: IDENTICAL (28490 lines)
+gdn.o: IDENTICAL (18522 lines)
+ik_runtime.o: IDENTICAL (10 lines)
+matmul.o: IDENTICAL (16098 lines)
+moe_decode.o: IDENTICAL (19802 lines)
+moe_grouped.o: IDENTICAL (16682 lines)
+moe.o: IDENTICAL (15202 lines)
+norm.o: IDENTICAL (8802 lines)
+nvfp4_gemm.o: IDENTICAL (15138 lines)
+nvfp4.o: IDENTICAL (58998 lines)
+moe_nvfp4_mma_sm120a.o: only in dev

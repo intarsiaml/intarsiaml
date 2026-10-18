@@ -1,0 +1,44 @@
+--- unmutated
+unmutated: pass (6 tests)
+--- sfa-rows
+applied sfa-rows: A scales of rows g+8 taken from row g (lane t == 1 supplies the wrong row)
+KILLED sfa-rows: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_independent_of_tile_height moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 0 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.09s 
+--- sfa-lane
+applied sfa-lane: only lane t == 0 supplies A scales (rows g+8 get zero scales)
+KILLED sfa-lane: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_independent_of_tile_height moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 0 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.09s 
+--- sfb-step
+applied sfb-step: B scales of the second k64 step of a unit read from the first
+KILLED sfb-step: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.15s 
+--- b-second-half
+applied b-second-half: B fragment register b1 read from the first 16 bytes of the step (k 32..63 replaced by k 0..31 again)
+KILLED b-second-half: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.16s 
+--- no-ginv
+applied no-ginv: epilogue does not undo the per-row activation scale
+KILLED no-ginv: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.14s 
+--- up-uses-gate-scale
+applied up-uses-gate-scale: up projection multiplied by the gate's global scale
+KILLED up-uses-gate-scale: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_matches_the_quantised_reference result: FAILED. 2 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.25s 
+--- silu-sign
+applied silu-sign: SiLU with the wrong sign: g / (1 + exp(g))
+KILLED silu-sign: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.24s 
+--- quant-scale
+applied quant-scale: activation block scale from amax / 7 instead of amax / 6
+KILLED quant-scale: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.17s 
+--- quant-nibbles
+applied quant-nibbles: e2m1 pairs packed high nibble first (the two elements of every byte swapped)
+KILLED quant-nibbles: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.13s 
+--- quant-ignores-scale-rounding
+applied quant-ignores-scale-rounding: inverse block scale computed with the unrounded scale (gx / (amax * gx / 6)) instead of the e4m3 one
+KILLED quant-ignores-scale-rounding: moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_matches_the_quantised_reference result: FAILED. 3 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.22s 
+--- a-unit-offset
+applied a-unit-offset: activation bytes of unit u read from u * 32 instead of u * 64
+KILLED a-unit-offset: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.10s 
+--- valid-rows
+applied valid-rows: rows past the end of an expert's pair list are read as real pairs (tile tail not masked)
+KILLED valid-rows: moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_independent_of_tile_height moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.26s 
+--- up-rows
+applied up-rows: up projection rows taken from the gate rows
+KILLED up-rows: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 1 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.16s 
+--- scatter
+applied scatter: down output written in sorted order instead of scattered to the pair's (token, slot) row
+KILLED scatter: moe_nvfp4_at_the_real_prefill_shape moe_nvfp4_handles_range_zero_rows_and_odd_routing moe_nvfp4_is_independent_of_tile_height moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference moe_nvfp4_matches_the_quantised_reference result: FAILED. 0 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.16s 

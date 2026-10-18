@@ -332,6 +332,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 shapes.extend([(60, 16, 8, 2048, 512), (45, 16, 4, 640, 384)]);
                 // the real expert count (Qwen3.6-35B-A3B: 256 experts, top-8) at a prefill-sized batch
                 shapes.push((256, 256, 8, 2048, 512));
+                // a batch at the CUDA FP4 experts kernel's minimum (NVFP4_MIN_TOKENS = 1024), small H/I to keep the cpu reference cheap
+                shapes.push((1024, 16, 8, 256, 128));
             }
             for (t, e, k, h, i) in shapes {
                 for dt in ACT {
