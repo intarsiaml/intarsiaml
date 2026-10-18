@@ -2,10 +2,10 @@
 # Window A (spark1, vLLM down, INSIDE scripts/cuda-decode/window.sh): accuracy and gates of the W4A16 MoE kernel
 # (default on in w4-dev) against the vLLM golden (sha b6b51e1b1699c66c); w4-base = perf/cuda-moe-nvfp4-mma (2aff2199), FP4 off.
 #   lane 1: dev prefill KL21 on 35b-short and 35b-long at chunk 2048 (the production chunk: every MoE call is T = 2048), greedy
-#           ids (256 tokens, ~1230-token prompt): dev eager vs graph, dev with INTARSIA_CUDA_MOE_W4A16=0, base; 8B short golden
+#           ids (256 tokens, ~1500-token prompt): dev eager vs graph, dev with INTARSIA_CUDA_MOE_W4A16=0, base; 8B short golden
 #   lane 2: prefix-reuse gate (`accuracy --mode reuse`, long golden, chunk 2048) for dev and base, 8B long golden, base KL21
 #           at chunk 2048 (short, long) to confirm the base numbers on this box
-# Steps are skipped when the budget (W_BUDGET_MIN, default 8.5) is near. Output ~/intarsia-decfuse/out/w4A
+# Steps are skipped when the budget (W_BUDGET_MIN, default 9) is near. Output ~/intarsia-decfuse/out/w4A
 set -u
 P=$HOME/intarsia-decfuse
 DEV=$P/w4-dev/target/acc/release/intarsia
@@ -15,7 +15,7 @@ M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/sn
 M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
 GD=$HOME/intarsiaml-golden
 S=$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; L=$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
-DEADLINE=$(( $(date +%s) + ${W_BUDGET_MIN:-8}*60 + 30 ))
+DEADLINE=$(( $(date +%s) + ${W_BUDGET_MIN:-9}*60 + 30 ))
 left() { echo $(( DEADLINE - $(date +%s) )); }   # seconds
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 90 )) || { echo "ABORT: memory"; exit 1; }
 echo "dev: $($DEV --version 2>&1 | head -1)  base: $($BASE --version 2>&1 | head -1)"
@@ -41,30 +41,30 @@ reuse() { # reuse <tag> <bin> <env>
   env $envs timeout $(( $(left) < 240 ? $(left) : 240 )) $bin accuracy --model $M35 --backend cuda --golden $L --mode reuse --max-seq 16384 --mem-budget 40 --prefill-chunk 2048 --allow-dirty > $O/reuse-$tag.log 2>&1
   echo "reuse $tag exit $? $(( $(date +%s) - t0 )) s: $(grep -aiE 'reuse' $O/reuse-$tag.log | grep -aiE 'pass|fail|skip|identical|diverg|ok' | head -3 | cut -c1-200 | tr '\n' '|')" >> $O/lanes.log
 }
-gen() { # gen <tag> <bin> <env> [extra args]; ~1230-token prompt: above the 1024-token minimum of the W4A16 kernel
+gen() { # gen <tag> <bin> <env> [extra args]; ~1500-token prompt: above the 1024-token minimum of the W4A16 kernel
   local tag=$1 bin=$2 envs=$3; shift 3
   (( $(left) > 60 )) || { echo "gen $tag SKIPPED: $(left) s left" >> $O/lanes.log; return; }
   env $envs timeout 150 $bin generate -m $M35 --backend cuda --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
-    -p "$(head -c 4200 $P/w4-dev/tools/prompts/corpus_docs.txt)" --max-tokens 256 "$@" > $O/gen-$tag.out 2> $O/gen-$tag.err
+    -p "$(head -c 5000 $P/w4-dev/tools/prompts/corpus_docs.txt)" --max-tokens 256 "$@" > $O/gen-$tag.out 2> $O/gen-$tag.err
   grep -a '^ids:' $O/gen-$tag.err > $O/gen-$tag.ids
   echo "gen $tag: $(grep -aE 'finish=|steps=' $O/gen-$tag.err | head -2 | cut -c1-160 | tr '\n' '|')" >> $O/lanes.log
 }
 (
   acc dev-short-c2048 $DEV $S 2048 INTARSIA_X=0
-  acc dev-long-c2048 $DEV $L 2048 INTARSIA_X=0
   gen dev-v2-eager $DEV INTARSIA_X=0 --no-graphs
   gen dev-v2-graph $DEV INTARSIA_X=0
+  acc dev-long-c2048 $DEV $L 2048 INTARSIA_X=0
   gen dev-off-graph $DEV INTARSIA_CUDA_MOE_W4A16=0
-  gen base-graph $BASE INTARSIA_X=0
   acc8 short qwen3-8b-fp32.safetensors
+  gen base-graph $BASE INTARSIA_X=0
   echo "== lane 1 done, $(left) s left $(date +%T)" >> $O/lanes.log
 ) &
 (
   reuse dev $DEV INTARSIA_X=0
   reuse base $BASE INTARSIA_X=0
-  acc8 long qwen3-8b-long-fp32.safetensors
   acc base-short-c2048 $BASE $S 2048 INTARSIA_X=0
   acc base-long-c2048 $BASE $L 2048 INTARSIA_X=0
+  acc8 long qwen3-8b-long-fp32.safetensors
   echo "== lane 2 done, $(left) s left $(date +%T)" >> $O/lanes.log
 ) &
 wait
