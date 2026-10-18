@@ -1,0 +1,107 @@
+fleetq: #2402 running on spark1: scripts/cuda-moe-nvfp4/dev1.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/base
+stamp: nvfp4-base
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/nv-base/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/nv-base/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/nv-base/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/nv-base/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 12.57s
+-rwxrwxr-x 2 nvidia nvidia 31648616 Oct 17 15:46 /home/nvidia/intarsia-decfuse/nv-base/target/acc/release/intarsia
+stamp: head=acef8a8 code-tree=128bd68042d9 dirty=yes
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/nv-dev/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/nv-dev/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/nv-dev/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/nv-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 12.96s
+  Executable tests/admission.rs (target/acc/release/deps/admission-47fa24c8024b63b2)
+  Executable tests/attention.rs (target/acc/release/deps/attention-1f3f7fe05bbcd025)
+  Executable tests/fused_decode.rs (target/acc/release/deps/fused_decode-e845ae99c338ffe2)
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 31648512 Oct 17 15:46 /home/nvidia/intarsia-decfuse/nv-dev/target/acc/release/intarsia
+== single-tile OMMA layout check
+kernels/cuda_checks/omma_tile.cu:24:2: error: #error "needs -arch=sm_120a or sm_121a"
+   24 | #error "needs -arch=sm_120a or sm_121a"
+      |  ^~~~~
+== SASS hashes per object (cargo build output)
+1,17c1,17
+< argmax.o 5ac36e65c54e
+< attention_flash.o e4aec44589fb
+< attention.o 3a5c825fe4bc
+< attention_splitkv.o 12a72453ca9a
+< elementwise.o 42e77a820e4a
+< fp8_gemm_f8.o 5079a60e2542
+< fp8_gemm.o 68017b12995c
+< fp8.o e09ad311e706
+< gdn.o 82b69b3aebe4
+< ik_runtime.o bee03f3462b8
+< matmul.o c909d3fbd8a0
+< moe_decode.o ee5bae182f9e
+< moe_grouped.o 79dc5f4af521
+< moe.o ffffbc7000c5
+< norm.o 693bae972da9
+< nvfp4_gemm.o 764c718c560f
+< nvfp4.o f00850cdd5a8
+---
+> argmax.o e27ffe01ca50
+> attention_flash.o 1493b94ddcb9
+> attention.o bb91330acbcc
+> attention_splitkv.o 16909dff89ad
+> elementwise.o a7ffd87ace46
+> fp8_gemm_f8.o 2a5beebefd67
+> fp8_gemm.o 2b100ed2a6f1
+> fp8.o 0b24a9522f09
+> gdn.o f1d79f99b32e
+> ik_runtime.o e1634381dadb
+> matmul.o 0afb4664e633
+> moe_decode.o 34c03da24e16
+> moe_grouped.o 4ffd9b7071d4
+> moe.o 7646ec4a0855
+> norm.o c104560bf9fb
+> nvfp4_gemm.o e3876bb962c6
+> nvfp4.o d713a3c2521f
+SASS differs (lines above; moe_group.cuh refactor / new files expected)
+== vLLM MoE backend (read-only log grep)
+(APIServer pid=1) WARNING 10-10 12:08:25 [envs.py:2164] Unknown vLLM environment variable detected: VLLM_NVFP4_GEMM_BACKEND
+(APIServer pid=1) WARNING 10-10 12:08:25 [envs.py:2164] Unknown vLLM environment variable detected: VLLM_USE_FLASHINFER_MOE_FP4
+(EngineCore pid=272) INFO 10-10 12:08:48 [core.py:121] Initializing a V1 LLM engine (v0.26.1rc1.dev602+g65b7662d3) with config: model='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=32768, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=modelopt_mixed, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=fp8, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='qwen3', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=guidance, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 4, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore pid=272) INFO 10-10 12:08:55 [__init__.py:1032] Using MarlinNvFp4LinearKernel for NVFP4 GEMM
+(EngineCore pid=272) INFO 10-10 12:08:55 [nvfp4.py:291] Using 'MARLIN' NvFp4 MoE backend out of potential backends: ['FLASHINFER_TRTLLM', 'FLASHINFER_CUTEDSL', 'FLASHINFER_CUTEDSL_BATCHED', 'FLASHINFER_CUTLASS', 'VLLM_CUTLASS', 'MARLIN', 'HUMMING', 'EMULATION'].
+(EngineCore pid=272) WARNING 10-10 12:11:39 [marlin.py:34] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+(EngineCore pid=272) WARNING 10-10 12:11:39 [marlin_utils_fp4.py:354] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+(EngineCore pid=272) INFO 10-10 12:11:39 [nvfp4.py:564] Using MoEPrepareAndFinalizeNoDPEPModular
+(EngineCore pid=272) INFO 10-10 12:13:23 [qwen_triton_warmup.py:270] Warming up Qwen Triton kernels for model_type=qwen3_5_moe_text.
+(APIServer pid=1) WARNING 10-12 19:32:49 [envs.py:2164] Unknown vLLM environment variable detected: VLLM_NVFP4_GEMM_BACKEND
+(APIServer pid=1) WARNING 10-12 19:32:49 [envs.py:2164] Unknown vLLM environment variable detected: VLLM_USE_FLASHINFER_MOE_FP4
+(EngineCore pid=172) INFO 10-12 19:33:04 [core.py:121] Initializing a V1 LLM engine (v0.26.1rc1.dev602+g65b7662d3) with config: model='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=32768, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=modelopt_mixed, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=fp8, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='qwen3', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=guidance, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 4, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+== quantmoe + admission tests (dev)
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_cuda_kernel_matches_the_reference ... ok
+test info_reports_the_device ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.19s
+
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 13 tests
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+
+test result: ok. 10 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 4.70s
+
+fleetq: #2402 done (exit 0)
+
+[exited with code 0]

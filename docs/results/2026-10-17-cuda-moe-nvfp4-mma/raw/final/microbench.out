@@ -1,0 +1,48 @@
+### round 1
+== INTARSIA_NVFP4_STAGES=2
+64           moe_experts_mma_bf16             2118.2          1.5
+64           moe_experts_nvfp4_mma_bf16       2383.4          1.4
+128          moe_experts_mma_bf16             2348.8          2.7
+128          moe_experts_nvfp4_mma_bf16       2612.2          2.5
+256          moe_experts_mma_bf16             2469.2          5.2
+256          moe_experts_nvfp4_mma_bf16       2684.8          4.8
+512          moe_experts_mma_bf16             2600.9          9.9
+512          moe_experts_nvfp4_mma_bf16       2717.6          9.5
+1024         moe_experts_mma_bf16             3013.2         17.1
+1024         moe_experts_nvfp4_mma_bf16       2993.3         17.2
+2048         moe_experts_mma_bf16             4183.1         24.6
+2048         moe_experts_nvfp4_mma_bf16       3303.1         31.2
+4096         moe_experts_mma_bf16             6816.3         30.2
+4096         moe_experts_nvfp4_mma_bf16       4250.5         48.5
+### round 2
+== INTARSIA_NVFP4_STAGES=2
+64           moe_experts_mma_bf16             2090.2          1.5
+64           moe_experts_nvfp4_mma_bf16       2375.9          1.4
+128          moe_experts_mma_bf16             2278.0          2.8
+128          moe_experts_nvfp4_mma_bf16       2570.8          2.5
+256          moe_experts_mma_bf16             2477.2          5.2
+256          moe_experts_nvfp4_mma_bf16       2691.7          4.8
+512          moe_experts_mma_bf16             2525.5         10.2
+512          moe_experts_nvfp4_mma_bf16       2668.2          9.7
+1024         moe_experts_mma_bf16             2980.2         17.3
+1024         moe_experts_nvfp4_mma_bf16       2910.5         17.7
+2048         moe_experts_mma_bf16             4181.3         24.7
+2048         moe_experts_nvfp4_mma_bf16       3248.1         31.7
+4096         moe_experts_mma_bf16             6896.8         29.9
+4096         moe_experts_nvfp4_mma_bf16       4152.4         49.6
+### round 3
+== INTARSIA_NVFP4_STAGES=2
+64           moe_experts_mma_bf16             2080.5          1.5
+64           moe_experts_nvfp4_mma_bf16       2369.8          1.4
+128          moe_experts_mma_bf16             2331.5          2.8
+128          moe_experts_nvfp4_mma_bf16       2566.0          2.5
+256          moe_experts_mma_bf16             2460.1          5.2
+256          moe_experts_nvfp4_mma_bf16       2689.3          4.8
+512          moe_experts_mma_bf16             2592.7          9.9
+512          moe_experts_nvfp4_mma_bf16       2741.1          9.4
+1024         moe_experts_mma_bf16             3036.6         17.0
+1024         moe_experts_nvfp4_mma_bf16       3000.6         17.2
+2048         moe_experts_mma_bf16             4254.6         24.2
+2048         moe_experts_nvfp4_mma_bf16       3360.9         30.7
+4096         moe_experts_mma_bf16             6933.1         29.7
+4096         moe_experts_nvfp4_mma_bf16       4045.9         51.0

@@ -1,0 +1,2 @@
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+2067 MHz, [N/A], 43, 8.84 W

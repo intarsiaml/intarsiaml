@@ -55,6 +55,16 @@ fn main() {
     }
     let arch = std::env::var("INTARSIA_CUDA_ARCH").unwrap_or_else(|_| "sm_121".into());
     println!("cargo:rustc-env=IK_CUDA_ARCH={arch}");
+    // Files named `*_sm120a.cu` use block-scaled FP4 tensor-core instructions (`mma ... kind::mxf4nvf4.block_scale`),
+    // which nvcc only accepts for the architecture-specific targets sm_120a / sm_121a (plain `sm_121` rejects them).
+    // Only those files are built for the `a` target; every other kernel keeps `arch`. On any other arch the files are
+    // built as stubs (-DIK_SM120A=0) and the Rust side does not register their kernels (cfg `ik_sm120a`).
+    let sm120a_arch = match arch.as_str() {
+        "sm_120" | "sm_121" => Some(format!("{arch}a")),
+        "sm_120a" | "sm_121a" => Some(arch.clone()),
+        _ => None,
+    };
+    println!("cargo:rustc-check-cfg=cfg(ik_sm120a)");
 
     if std::env::var("INTARSIA_NO_CUDA").map(|v| v == "1").unwrap_or(false) {
         println!("cargo:warning=intarsia-backend-cuda: INTARSIA_NO_CUDA=1, building the stub");
@@ -86,9 +96,21 @@ fn main() {
     let mut objects = Vec::new();
     for src in &sources {
         let obj = out.join(src.file_stem().unwrap()).with_extension("o");
+        let is_a = src.file_stem().unwrap().to_string_lossy().ends_with("_sm120a");
+        // every other translation unit gets exactly the command line it had before
+        // (`-arch=sm_121a` would also emit compute_121 PTX, which lacks the instruction and is rejected: gencode only the a target)
+        let (arch_args, a_def) = match (&sm120a_arch, is_a) {
+            (Some(a), true) => (
+                vec![format!("-gencode=arch={},code={a}", a.replace("sm_", "compute_"))],
+                Some("-DIK_SM120A=1"),
+            ),
+            (None, true) => (vec![format!("-arch={arch}")], Some("-DIK_SM120A=0")),
+            _ => (vec![format!("-arch={arch}")], None),
+        };
         let child = Command::new(&nvcc)
             .args(["-c", "-O3", "--std=c++17", "-lineinfo", "--expt-relaxed-constexpr"])
-            .arg(format!("-arch={arch}"))
+            .args(&arch_args)
+            .args(a_def)
             .args(["-Xcompiler", "-fPIC,-Wall"])
             .arg("-I")
             .arg(&kroot)
@@ -110,6 +132,9 @@ fn main() {
     assert!(st.success(), "nvcc -lib failed");
 
     println!("cargo:rustc-cfg=ik_cuda");
+    if sm120a_arch.is_some() {
+        println!("cargo:rustc-cfg=ik_sm120a");
+    }
     println!("cargo:rustc-link-search=native={}", out.display());
     println!("cargo:rustc-link-lib=static=intarsia_kernels");
     for d in lib_dirs(&nvcc) {

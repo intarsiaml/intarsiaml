@@ -1,0 +1,9 @@
+== INTARSIA_BENCH_KERNEL=fp4 INTARSIA_NVFP4_STAGES=3
+2048         moe_experts_nvfp4_mma_bf16       3497.6         29.5
+4096         moe_experts_nvfp4_mma_bf16       4867.6         42.4
+== INTARSIA_BENCH_KERNEL=fp4 INTARSIA_NVFP4_STAGES=4
+2048         moe_experts_nvfp4_mma_bf16       3484.8         29.6
+4096         moe_experts_nvfp4_mma_bf16       4848.9         42.5
+== INTARSIA_BENCH_KERNEL=fp4 INTARSIA_NVFP4_STAGES=2
+2048         moe_experts_nvfp4_mma_bf16       3387.9         30.4
+4096         moe_experts_nvfp4_mma_bf16       4478.7         46.0

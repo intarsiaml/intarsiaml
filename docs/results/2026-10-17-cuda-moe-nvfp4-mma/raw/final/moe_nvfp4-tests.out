@@ -1,0 +1,25 @@
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+
+running 6 tests
+test bench_moe_nvfp4_real_shapes ... ignored
+test moe_nvfp4_at_the_real_prefill_shape ... T=1024 E=256 K=8 H=2048 I=512: fp4 vs bf16 kernel rel_l2 0.1634
+ok
+test moe_nvfp4_handles_range_zero_rows_and_odd_routing ... row magnitudes 1e3 / 1e-3 / 0 / 5e4 / 3e-6 / 1e-37 / 1e-33: vs quantised reference rel_l2 0.000e0, 0/12288 elements differ
+duplicate, invalid and hot-expert routing: vs quantised reference rel_l2 0.000e0, 0/12288 elements differ
+T=1 real shape: vs quantised reference rel_l2 0.000e0, 0/2048 elements differ
+ok
+test moe_nvfp4_is_independent_of_tile_height ... ok
+test moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference ... T=64 E=16 K=8 H=256 I=128: fp4 vs bf16 reference rel_l2 0.1627 max_abs 0.4570 (bf16 kernel: 0.0e0)
+T=100 E=8 K=4 H=2048 I=512: fp4 vs bf16 reference rel_l2 0.1653 max_abs 0.6172 (bf16 kernel: 1.2e-4)
+ok
+test moe_nvfp4_matches_the_quantised_reference ... random T=40 E=64 K=8 H=256 I=128: vs quantised reference rel_l2 0.000e0, 0/10240 elements differ
+random T=64 E=32 K=8 H=256 I=128: vs quantised reference rel_l2 0.000e0, 0/16384 elements differ
+random T=128 E=16 K=8 H=256 I=256: vs quantised reference rel_l2 0.000e0, 0/32768 elements differ
+random T=33 E=8 K=4 H=128 I=128: vs quantised reference rel_l2 0.000e0, 0/4224 elements differ
+random T=96 E=16 K=2 H=384 I=128: vs quantised reference rel_l2 0.000e0, 0/36864 elements differ
+random T=50 E=4 K=4 H=2048 I=512: vs quantised reference rel_l2 0.000e0, 0/102400 elements differ
+ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.04s
+

@@ -1,0 +1,10 @@
+Based on the provided text, here is the continuation and completion of the **IntarsiaML architecture plan (v0.2)**. The text cuts off at the "Language and build" table, so I will complete that table and proceed with the logical next sections (Architecture, Kernel Packs, Phasing, and Governance) consistent with the tone, constraints, and goals outlined in the prompt.
+
+---
+
+| Layer | Choice | Why |
+|---|---|---|
+| Host: server, scheduler, KV manager, loaders, metrics, UI server, CLI | **Rust** (stable, edition 2021) | Native speed, zero-cost abstractions, fearless concurrency for scheduler/KV, and easy FFI to C kernels. No GC pauses during serving. |
+| Kernel ABI | **C (extern "C")** | Universal interop. CUDA, HIP, Metal, SYCL, and Rust can all call C. No C++ name mangling issues. Simple header-based contract. |
+| Kernel Implementation | **C/CUDA/HIP/Metal** | Direct hardware access. No Python overhead. Each platform gets a native implementation. |
+| Reference/Testing | **Python (NumPy/JAX)** |

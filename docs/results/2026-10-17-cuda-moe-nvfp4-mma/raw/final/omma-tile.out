@@ -1,0 +1,22 @@
+trial  0: worst error / sum|terms| = 0  ok
+trial  1: worst error / sum|terms| = 0  ok
+trial  2: worst error / sum|terms| = 0  ok
+trial  3: worst error / sum|terms| = 0  ok
+trial  4: worst error / sum|terms| = 0  ok
+trial  5: worst error / sum|terms| = 0  ok
+trial  6: worst error / sum|terms| = 0  ok
+trial  7: worst error / sum|terms| = 0  ok
+trial  8: worst error / sum|terms| = 0  ok
+trial  9: worst error / sum|terms| = 0  ok
+trial 10: worst error / sum|terms| = 0  ok
+trial 11: worst error / sum|terms| = 0  ok
+trial 12: worst error / sum|terms| = 0  ok
+trial 13: worst error / sum|terms| = 0  ok
+trial 14: worst error / sum|terms| = 0  ok
+trial 15: worst error / sum|terms| = 0  ok
+trial 16: worst error / sum|terms| = 0  ok
+trial 17: worst error / sum|terms| = 0  ok
+trial 18: worst error / sum|terms| = 0  ok
+trial 19: worst error / sum|terms| = 0  ok
+PASS
+        /*0290*/                   OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X R4, R4, R14, RZ, R10, R17, URZ ;  /* 0x71100a0e0404747f */
