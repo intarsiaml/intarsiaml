@@ -1,0 +1,28 @@
+== sample set 2026-10-18T18:06:05-04:00
+"Device Utilization %"=98
+"Device Utilization %"=12
+"Device Utilization %"=0
+median=12
+zoom: 
+idle util 12 > 10, waiting 10s (try 0)
+== sample set 2026-10-18T18:06:18-04:00
+"Device Utilization %"=14
+"Device Utilization %"=22
+"Device Utilization %"=10
+median=14
+zoom: 
+idle util 14 > 10, waiting 10s (try 1)
+== sample set 2026-10-18T18:06:31-04:00
+"Device Utilization %"=18
+"Device Utilization %"=21
+"Device Utilization %"=22
+median=21
+zoom: 
+idle util 21 > 10, waiting 10s (try 2)
+== sample set 2026-10-18T18:06:45-04:00
+"Device Utilization %"=23
+"Device Utilization %"=0
+"Device Utilization %"=10
+median=10
+zoom: 
+FINAL median=10 tries=3

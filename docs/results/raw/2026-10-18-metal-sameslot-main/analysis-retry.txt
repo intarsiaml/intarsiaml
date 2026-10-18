@@ -1,0 +1,25 @@
+| run | run id | prompt tok (128/1k/4k) | decode 128 | decode 1k | decode 4k | marginal prefill 1k | marginal prefill 4k | prefill tok/s 1k | prefill tok/s 4k |
+|---|---|---|---|---|---|---|---|---|---|
+| retry-1 | 20261018-174636-adhoc-retry-1 | 111/992/4088 | 36.3 (35.6-36.4) | 36.0 (35.8-36.2) | 34.7 (34.7-35.0) | 4472 | 3283 | 3974 (3891-3981) | 3425 (2641-3541) |
+| retry-mlx-lm | 20261018-174918-adhoc-retry-mlx-lm | 113/990/4088 | 33.7 (33.6-33.9) | 33.2 (33.1-33.4) | 31.4 (31.2-31.7) | 4237 | 2781 | 2293 (2282-2339) | 2647 (2431-2866) |
+| retry-llamacpp | 20261018-175315-adhoc-retry-llamacpp | 135/993/4090 | 34.5 (34.4-34.7) | 33.6 (33.4-34.4) | 32.0 (31.7-32.4) | 3178 | 1869 | 2542 (2448-2544) | 1999 (1641-2309) |
+| retry-2 | 20261018-175749-adhoc-retry-2 | 113/991/4090 | 35.6 (35.4-36.0) | 35.4 (34.9-35.4) | 33.8 (33.3-33.9) | 4390 | 2344 | 3923 (3767-3923) | 2596 (2310-3375) |
+
+## MAIN (mean of two runs)
+prefill 1k: marginal 4431 = 104.6% mlx-lm (4237), 139.4% llama.cpp (3178); prefill tok/s 3948 = 172.2% mlx (2293), 155.3% llama (2542)
+prefill 4k: marginal 2814 = 101.2% mlx-lm (2781), 150.5% llama.cpp (1869); prefill tok/s 3011 = 113.8% mlx (2647), 150.6% llama (1999)
+decode 128: 35.92 = 88.5% floor, 106.7% mlx (33.7), 104.1% llama (34.5)
+decode 1k: 35.70 = 87.9% floor, 107.5% mlx (33.2), 106.1% llama (33.6)
+decode 4k: 34.26 = 84.4% floor, 109.2% mlx (31.4), 107.0% llama (32.0)
+drift 128: decode 36.3->35.6 (-2.0%)
+drift 1k: decode 36.0->35.4 (-1.9%); marginal prefill 4472->4390 (-1.8%); prefill tok/s 3974->3923 (-1.3%)
+drift 4k: decode 34.7->33.8 (-2.6%); marginal prefill 3283->2344 (-28.6%); prefill tok/s 3425->2596 (-24.2%)
+
+## Marginal prefill bounds (per-rep TTFT is not stored by localeval, only min/median/max, so the range is the extreme bound:
+## dtok / (ttft_max[i] - ttft_min[i-1]) .. dtok / (ttft_min[i] - ttft_max[i-1]); the median column is the localeval figure)
+| run | marginal 1k median (bound) | marginal 4k median (bound) |
+|---|---|---|
+| retry-1 | 4472 (4340-4495) | 3283 (2385-3444) |
+| retry-mlx-lm | 4237 (4079-4474) | 2781 (2463-3120) |
+| retry-llamacpp | 3178 (3011-3190) | 1869 (1473-2264) |
+| retry-2 | 4390 (4181-4434) | 2344 (2044-3266) |

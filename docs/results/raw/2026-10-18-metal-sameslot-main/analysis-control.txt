@@ -1,0 +1,22 @@
+| run | decode 128 | decode 1k | decode 4k | marginal 1k | marginal 4k | prefill tok/s 4k (range) |
+|---|---|---|---|---|---|---|
+| ctl-cand-1 | 36.0 (35.9-36.3) | 35.3 (35.2-35.9) | 33.7 (33.3-33.7) | 4320 | 3198 | 3338 (2558-3456) |
+| ctl-main-1 | 36.0 (36.0-36.1) | 35.7 (35.0-35.8) | 34.3 (33.3-34.4) | 4402 | 3250 | 3392 (2464-3511) |
+| ctl-main-2 | 36.0 (35.9-36.2) | 35.1 (35.1-35.8) | 33.8 (33.6-33.9) | 4454 | 2700 | 2925 (2090-3387) |
+| ctl-cand-2 | 35.8 (35.8-36.2) | 35.6 (35.4-35.9) | 34.7 (34.4-35.0) | 4342 | 3613 | 3673 (3578-3717) |
+
+decode 128: CAND 35.90  main 36.00  main/CAND +0.3%
+decode 1k: CAND 35.47  main 35.42  main/CAND -0.2%
+decode 4k: CAND 34.16  main 34.03  main/CAND -0.4%
+marginal 1k: CAND 4330.90  main 4428.25  main/CAND +2.2%
+marginal 4k: CAND 3405.60  main 2974.80  main/CAND -12.6%
+prefill tok/s 4k: CAND 3505.57  main 3158.72  main/CAND -9.9%
+
+same-binary run1->run2:
+CAND decode4k 33.7->34.7 (+3.0%) marginal4k 3198->3613 (+13.0%)
+main decode4k 34.3->33.8 (-1.3%) marginal4k 3250->2700 (-16.9%)
+
+ctl-cand-1: n=67 active=67 MHz med 1283 p10 1190 min 1075, power med 14 W, temp 60-92 C
+ctl-main-1: n=67 active=66 MHz med 1293 p10 1218 min 912, power med 14 W, temp 59-91 C
+ctl-main-2: n=68 active=66 MHz med 1284 p10 1211 min 1001, power med 14 W, temp 59-91 C
+ctl-cand-2: n=66 active=66 MHz med 1339 p10 1254 min 1168, power med 15 W, temp 61-90 C
