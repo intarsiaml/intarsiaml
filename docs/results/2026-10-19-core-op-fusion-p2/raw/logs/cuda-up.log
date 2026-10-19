@@ -1,0 +1,27 @@
+fleetq: #2711 running on spark1: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/cuda-up.sh
+local HEAD 9665bf35
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 34403784 Oct 19 06:16 /home/nvidia/intarsia-decfuse/fp2-dev/target/acc/release/intarsia
+== fusion-noop-up start 06:16:18
+== plans 06:16:18
+plan A 35b exit 0
+plan A 8b exit 0
+plan B 35b exit 0
+plan B 8b exit 0
+PLAN 35b JSON IDENTICAL (26379bc9beb2)
+PLAN 8b JSON IDENTICAL (d1847a362f17)
+== 35b: launches per decode step A 525 -> B 525 (+0); scratch 83963392 -> 83963392
+   36 (op, kernel) rows identical, 0 present on one side only
+== 8b: launches per decode step A 544 -> B 544 (+0); scratch 748800 -> 748800
+   16 (op, kernel) rows identical, 0 present on one side only
+== admission 06:19:40
+kernels test A 35b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+kernels test A 8b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+kernels test B 35b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+kernels test B 8b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+ADMISSION 35b IDENTICAL (timing lines aside)
+ADMISSION 8b IDENTICAL (timing lines aside)
+== fusion-noop-up done 06:19:44
+fleetq: #2711 done (exit 0)

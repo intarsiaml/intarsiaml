@@ -1,0 +1,279 @@
+[window] job 2702; gpu0: adm r:acc35 r:acc35l:4096 r:ids4k idsoff r:acc8; gpu1: tests mutrun plans; stopping radiance 2026-10-19 05:58:12
+[window] radiance stopped 2026-10-19 05:58:15
+################ stage adm start 05:58:15
+adm fp2 35b exit 0: 51 kernels, 899 cases in 37.7s | FAIL/REJECT lines: 0
+adm fp2 8b exit 0: 51 kernels, 912 cases in 57.7s | FAIL/REJECT lines: 0
+[window] gpu1 lane done 2026-10-19 06:00:27 (exit 0)
+adm base 35b exit 0: 49 kernels, 853 cases in 36.7s | FAIL/REJECT lines: 0
+adm base 8b exit 0: 49 kernels, 866 cases in 55.9s | FAIL/REJECT lines: 0
+gate_split_qk_norm_rope_kv gate_split_qk_norm_rope_kv_bf16     36      0    1.645e-3    3.037e-5  ADMITTED
+gdn_conv_delta gdn_conv_delta_bf16            10      0    1.221e-4    6.802e-5  ADMITTED
+################ stage adm end 06:01:25
+################ stage r:acc35 start 06:01:25
+################ stage acc35 start 06:01:25
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.61   7.626e-3   7.417e-3   7.150e-1   0.0176   0.0174    91.30     31.0%      0
+prefill floor [4bit]: top-1 98.61% (not gated for this class) ok | 21-way KL 7.417e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.361e-3   1.547e-3   5.664e-3   0.0209   0.0217    92.50     16/16      0
+story                 39    16   100.00   1.157e-2   1.045e-2   3.817e-2   0.0971   0.0977    96.25     16/16      0
+code                  87    16   100.00   1.588e-3   1.592e-3   8.598e-3   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   1.122e-2   1.081e-2   3.358e-2   0.0460   0.0483    96.25     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   7.532e-3   7.830e-3   5.002e-2   0.0421   0.0380    86.25     16/16      0
+chat_multiturn        58    16   100.00   4.813e-2   4.822e-2   7.315e-1   0.0014   0.0009    92.50     16/16      0
+chat_reasoning        90    16   100.00   2.927e-2   2.933e-2   1.171e-1   0.0011   0.0007    95.00     16/16      0
+long_prose_300       300    16   100.00   7.283e-5   7.957e-5   2.573e-4   0.0002   0.0002    93.75     16/16      0
+long_prose_700       700    16   100.00   1.919e-3   1.928e-3   1.032e-2   0.0007   0.0008    85.00     16/16      0
+OVERALL                    160    98.75   1.176e-2   1.172e-2   7.315e-1   0.0258   0.0254    92.88     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.172e-2 (need <= 3.0e-2) ok | tail mass ours 0.0254 vs ref 0.0258, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 36.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35 end 06:01:36
+################ stage r:acc35 end 06:01:36
+################ stage r:acc35l:4096 start 06:01:36
+################ stage acc35l:4096 start 06:01:36
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+long_docs_4k        4064  4064    93.63   1.886e-2   1.674e-2    1.866e0   0.0944   0.0970    90.94    0/4064      0
+long_code_4k        4064  4064    97.19   8.532e-3   7.775e-3   8.041e-1   0.0370   0.0381    91.76   25/4064      0
+chat_reuse_4k       4631  4631    88.92   2.195e-1   2.479e-1    2.763e1   0.0688   0.0840    88.25    7/4631      0
+long_docs_12k      12064 12064    92.90   2.318e-2   2.071e-2    9.886e0   0.0839   0.0848    90.35   5/12064      0
+long_code_12k      12064 12064    97.08   9.730e-3   9.045e-3    3.757e0   0.0323   0.0328    91.01  33/12064      0
+OVERALL                  36887    94.32   4.133e-2   4.356e-2    2.763e1   0.0611   0.0639    90.52      0.2%      0
+prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.356e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0639 vs ref 0.0611, excess +0.0028 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    95.31   1.260e-2   1.191e-2   9.301e-2   0.0185   0.0194    90.31     45/64      0
+long_code_4k        4064    64    96.88   1.217e-2   1.024e-2   1.507e-1   0.0481   0.0510    91.25     28/64      0
+chat_reuse_4k       4631    64    98.44   2.051e-3   2.052e-3   2.592e-2   0.0000   0.0000    90.62     51/64      0
+long_docs_12k      12064    64    95.31   1.560e-2   1.474e-2   3.075e-1   0.0399   0.0408    88.75      7/64      0
+long_code_12k      12064    64    98.44   7.586e-3   7.412e-3   1.412e-1   0.0085   0.0078    89.69     11/64      0
+OVERALL                    320    96.88   1.000e-2   9.273e-3   3.075e-1   0.0230   0.0238    90.12     44.4%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 9.273e-3 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 44.4% of positions before the first argmax divergence, worst prompt 10.9% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l:4096 end 06:03:27
+################ stage r:acc35l:4096 end 06:03:27
+################ stage r:ids4k start 06:03:27
+################ stage ids4k start 06:03:27
+--- this tree 
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 548 ms (8050.8 tok/s) | decode 1757 ms (145.09 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 558 ms (7899.1 tok/s) | decode 1774 ms (143.74 tok/s)
+ids: 255 / 255 commas
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4k end 06:03:38
+################ stage r:ids4k end 06:03:38
+################ stage idsoff start 06:03:38
+################ stage ids4k start 06:03:38
+--- this tree INTARSIA_HIP_DISABLE=gate_split_qk_norm_rope_kv_bf16,gdn_conv_delta_bf16
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 561 ms (7850.7 tok/s) | decode 1772 ms (143.90 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 547 ms (8058.9 tok/s) | decode 1773 ms (143.82 tok/s)
+ids: 255 / 255 commas
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4k end 06:03:49
+################ stage idsoff end 06:03:49
+################ stage r:acc8 start 06:03:49
+################ stage acc8 start 06:03:49
+--- accuracy qwen3-8b-fp32.safetensors 
+chat_multiturn        58    58   100.00   2.128e-4   1.947e-4   2.392e-3   0.0340   0.0340    99.31     58/58      0
+chat_reasoning        90    90   100.00   1.708e-4   1.595e-4   2.592e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.335e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.626e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy qwen3-8b-long-fp32.safetensors 
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 3.966e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc8 end 06:04:15
+################ stage r:acc8 end 06:04:15
+[window] gpu0 lane done 2026-10-19 06:04:15 (exit 0)
+[gpu1] ################ stage tests start 05:58:15
+[gpu1] --- fusion_p2 INTARSIA_HIP_GDN_PD=1
+[gpu1] test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+[gpu1] test gdn_conv_delta_conv_state_survives_skewed_blocks ... ok
+[gpu1] test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... INTARSIA_HIP_GDN_PD=1
+[gpu1] test gdn_conv_delta_many_draws_bitwise ... P3: 220 draws bitwise
+[gpu1] test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+[gpu1] test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.20s
+[gpu1] --- fusion_p2 INTARSIA_HIP_GDN_PD=2
+[gpu1] test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+[gpu1] test gdn_conv_delta_conv_state_survives_skewed_blocks ... ok
+[gpu1] test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... INTARSIA_HIP_GDN_PD=2
+[gpu1] test gdn_conv_delta_many_draws_bitwise ... P3: 220 draws bitwise
+[gpu1] test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+[gpu1] test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.13s
+[gpu1] --- fusion_p2 INTARSIA_HIP_GDN_PD=4
+[gpu1] test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+[gpu1] test gdn_conv_delta_conv_state_survives_skewed_blocks ... ok
+[gpu1] test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... INTARSIA_HIP_GDN_PD=4
+[gpu1] test gdn_conv_delta_many_draws_bitwise ... P3: 220 draws bitwise
+[gpu1] test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+[gpu1] test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.99s
+[gpu1] test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+[gpu1] test kernels::tests::arch_is_a_gfx12_target ... ok
+[gpu1] test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+[gpu1] test kernels::tests::names_unique_and_ops_covered ... ok
+[gpu1] test kernels::tests::op_prefix_matches_launcher_name ... ok
+[gpu1] test kernels::tests::phase1_fold_selection_is_pinned ... ok
+[gpu1] test kernels::tests::phase2_fold_selection_is_pinned ... ok
+[gpu1] test kernels::tests::round4_selection_is_pinned ... ok
+[gpu1] test kernels::tests::round5_attention_selection_is_pinned ... ok
+[gpu1] test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+[gpu1] test quantmoe::tests::fp8_f8_is_the_default ... ok
+[gpu1] test quantmoe::tests::fp8_folds_follow_the_staging_defaults ... ok
+[gpu1] test quantmoe::tests::fp8_selection_is_pinned ... ok
+[gpu1] test quantmoe::tests::fp8_v2_scratch_stays_below_the_moe_workspace ... ok
+[gpu1] test quantmoe::tests::moe_experts_selection_is_pinned ... ok
+[gpu1] test quantmoe::tests::moe_v3_is_opt_in ... ok
+[gpu1] test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gpu1] test fp8_gemv_v2_is_bitwise_v1 ... ok
+[gpu1] test fused_conv_state_and_rope_tail_match_the_reference ... ok
+[gpu1] test moe_experts_v2_is_bitwise_v1 ... ok
+[gpu1] test moe_topk_v2_is_bitwise_v1 ... ok
+[gpu1] test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+[gpu1] test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+[gpu1] test attention_decode_device_position_is_bitwise_the_host_position ... ok
+[gpu1] test graph_replay_follows_the_device_position ... ok
+[gpu1] test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+[gpu1] test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+[gpu1] test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+[gpu1] test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+[gpu1] test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+[gpu1] test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+[gpu1] test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+[gpu1] test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+[gpu1] test matmul_pair_is_bitwise_two_gemvs ... ok
+[gpu1] test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+[gpu1] test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+[gpu1] test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.28s
+[gpu1] test out_of_range_shapes_are_refused ... ok
+[gpu1] test rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair ... P5: 24 cases bitwise
+[gpu1] test shared_down_combine_is_bitwise_down_then_combine ... P2a: 48 cases bitwise
+[gpu1] test sigmoid_mul_matmul_fp8_is_bitwise_gate_then_gemv ... P4b: 14 cases bitwise
+[gpu1] test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+[gpu1] test gdn_v2_is_bitwise_the_rows_kernel ... gdn v2 (pd default): 19 shapes bitwise
+[gpu1] test gdn_v2_timing ... ignored
+[gpu1] test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.35s
+[gpu1] test moe_pair_tile_does_not_change_a_bit ... ok
+[gpu1] test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s
+[gpu1] test qk_norm_rope_kv_is_bitwise_the_unfused_chain ... qk_norm_rope_kv: 240 cases bitwise
+[gpu1] test qk_norm_rope_kv_many_draws_bitwise ... qk_norm_rope_kv: 60 draws of 17 rows bitwise
+[gpu1] test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.37s
+[gpu1] test bench_decode_variants ... ignored
+[gpu1] test bench_fp8_sweep ... ignored
+[gpu1] test bench_prefill_shapes ... ignored
+[gpu1] test bench_real_shapes ... ignored
+[gpu1] test moe_experts_batch_invariance ... batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+[gpu1] batch invariance: strict=true, tokens differing from T=1 in the tensor-core path: 0
+[gpu1] test moe_experts_batch_invariance ... ok
+[gpu1] test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.30s
+[gpu1] test moe_experts_skewed_and_invalid_routing ... ok
+[gpu1] test quant_f32_outputs_meet_the_f32_tolerance ... f32-output quant matmuls: 39 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+[gpu1] test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.07s
+[gpu1] ################ stage tests end 05:59:22
+[gpu1] ################ stage mutrun start 05:59:22
+[gpu1] p2-ga-gate       thread 'gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:49:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.09s exit=101 
+[gpu1] p2-ga-qstride    thread 'gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:49:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.49s exit=101 
+[gpu1] p2-ga-woff       thread 'gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:49:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.66s exit=101 
+[gpu1] p2-ga-fp8        thread 'gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:49:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s exit=101 
+[gpu1] p2-ga-vpos       thread 'gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:49:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.58s exit=101 
+[gpu1] p2-cd-writer0    thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_is_bitwise_conv_then_delta_rule' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s 
+[gpu1] p2-cd-noreset    thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_is_bitwise_conv_then_delta_rule' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s 
+[gpu1] p2-cd-novstate   thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_is_bitwise_conv_then_delta_rule' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s 
+[gpu1] p2-cd-round      thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_is_bitwise_conv_then_delta_rule' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_without_a_slot_is_bitwise_too' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: 
+[gpu1] p2-cd-tap        thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_is_bitwise_conv_then_delta_rule' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_without_a_slot_is_bitwise_too' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: 
+[gpu1] p2-cd-contract   thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s exit=101 
+[gpu1] p2-cd-hist       thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_is_bitwise_conv_then_delta_rule' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: thread 'gdn_conv_delta_without_a_slot_is_bitwise_too' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: 
+[gpu1] p2-cd-slotstate  thread 'gdn_conv_delta_without_a_slot_is_bitwise_too' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9: test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.96s exit=101 
+[gpu1] moe-z-step       thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:96:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.35s exit=101 
+[gpu1] pairs-sred       thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:96:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s exit=101 
+[gpu1] pairs-xrow       thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:96:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s exit=101 
+[gpu1] pairs-out        thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:96:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s exit=101 
+[gpu1] ################ stage mutrun end 06:00:02
+[gpu1] ################ stage plans start 06:00:02
+[gpu1] plan fp2 35b: exit 0 12988 bytes
+[gpu1] plan fp2 8b: exit 0 8343 bytes
+[gpu1] plan base 35b: exit 0 12960 bytes
+[gpu1] plan base 8b: exit 0 8343 bytes
+[gpu1] == 35b: launches per decode step base 415 -> fp2 375 (-40); scratch 167905792 -> 167905792
+[gpu1]    gate_split                   gate_split_bf16                          base   10  fp2    -
+[gpu1]    gate_split_qk_norm_rope_kv   gate_split_qk_norm_rope_kv_bf16          base    -  fp2   10
+[gpu1]    gdn_conv                     gdn_conv_bf16                            base   30  fp2    0
+[gpu1]    gdn_conv_delta               gdn_conv_delta_bf16                      base    -  fp2   30
+[gpu1]    gdn_delta_rule               gdn_delta_rule_bf16_v2                   base   30  fp2    0
+[gpu1]    qk_norm_rope_kv              qk_norm_rope_kv_bf16                     base   10  fp2    -
+[gpu1]    27 (op, kernel) rows identical, 4 present on one side only
+[gpu1] == 8b: launches per decode step base 364 -> fp2 364 (+0); scratch 748800 -> 748800
+[gpu1]    14 (op, kernel) rows identical, 0 present on one side only
+[gpu1] ################ stage plans end 06:00:27
+[window] starting radiance 2026-10-19 06:04:15
+[window] radiance answers 2026-10-19 06:04:25 (after 15 s)
