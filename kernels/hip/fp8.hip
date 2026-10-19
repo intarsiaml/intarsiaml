@@ -66,6 +66,61 @@ IK_DEVI uint4 gated_norm_chunk(const ik_bf16* __restrict__ x, const ik_bf16* __r
     return ik_pack8(f);
 }
 
+// The attention input norm folded into the k / v staging (PRO == 3, core-op fusion P5): rmsnorm_kernel<true, true> for one row
+// of K values, statement for statement (the same 8-element chunk per thread and iteration, the bf16 rounding of the sum before
+// it is squared and normalised, ik_block_sum over the same 256 threads: the block size launch_rows picks for every K >= 2048;
+// for a narrower row its extra threads contribute exact zeros). `xs` holds the rounded sum, then the normalised row; the block
+// with `writer` also stores both, into buffers that are not the x / res every block reads. Every thread of the block must call
+// it (block barriers). The staging loop afterwards reads each chunk back on the thread that wrote it.
+__device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res,
+                                               const ik_bf16* __restrict__ nw, ik_bf16* __restrict__ normed,
+                                               ik_bf16* __restrict__ sum, uint4* xs, int K, float eps, float woff,
+                                               bool writer) {
+    __shared__ float red[32];
+    const int64_t nv = K / 8;
+    float ss = 0.f;
+    for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+        float f[8], g[8];
+        ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(x) + i), f);
+        ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(res) + i), g);
+#pragma unroll
+        for (int k = 0; k < 8; ++k) f[k] += g[k];
+        const uint4 p = ik_pack8(f);
+        if (writer) reinterpret_cast<uint4*>(sum)[i] = p;
+        xs[i] = p;  // the rounded sum, until the second loop replaces it with the normalised row
+        ik_unpack8(p, f);  // continue from the bf16-rounded sum
+#pragma unroll
+        for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
+    }
+    ss = ik_block_sum(ss, red);
+    const float r = rsqrtf(ss / (float)K + eps);
+    for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+        float f[8], g[8];
+        ik_unpack8(xs[i], f);
+        ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(nw) + i), g);
+#pragma unroll
+        for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
+        const uint4 p = ik_pack8(f);
+        xs[i] = p;
+        if (writer) reinterpret_cast<uint4*>(normed)[i] = p;
+    }
+    __syncthreads();
+}
+
+// The attention output gate folded into the o_proj staging (PRO == 4, core-op fusion P4b): chunk `i8` of
+// sigmoid_mul(a, gate) as sigmoid_mul_kernel (elementwise.hip) stores it, element by element: bf16(a * (1 / (1 + exp(-g)))).
+IK_DEVI uint4 sigmoid_mul_chunk(const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ gate, int i8) {
+    float f[8], g[8];
+    ik_unpack8(reinterpret_cast<const uint4*>(a)[i8], f);
+    ik_unpack8(reinterpret_cast<const uint4*>(gate)[i8], g);
+#pragma unroll
+    for (int k = 0; k < 8; ++k) {
+        const float gv = g[k];
+        f[k] = f[k] * (1.f / (1.f + expf(-gv)));
+    }
+    return ik_pack8(f);
+}
+
 // Q selects how the block stages the activations (everything after the prologue is shared):
 //   0  the original: one bf16 per thread-iteration, software e4m3 conversion
 //   1  v2: eight bf16 per thread (one 16-byte load, one 16-byte shared store), same software conversion (bit-identical)
@@ -78,13 +133,19 @@ IK_DEVI uint4 gated_norm_chunk(const ik_bf16* __restrict__ x, const ik_bf16* __r
 // for the pair kernel below, which therefore runs this very code (its staging uses the segment's own scales).
 // PRO == 2 stages the output of the GDN gated rmsnorm of `x` (the core, rows of 128) and `pz` (the gate) with weight `pnw`
 // instead of reading `x` as it is (M == 1, Q == 2); PRO == 0 is the plain kernel.
+// PRO == 3 (core-op fusion P5) stages rmsnorm_add(x, res = pz, pnw): the block first runs rmsnorm_kernel<true, true> for the
+// row into its LDS (norm_add_stage above), and the block with `pwriter` also stores the sum (`psum`) and the normalised row
+// (`pnormed`). PRO == 4 (P4b) stages sigmoid_mul(x, gate = pz), sigmoid_mul_kernel's expression per element. Both then
+// quantise the staged chunk exactly as PRO == 0 quantises the chunk it reads from global memory.
 template <int M, int R, typename OutT, int Q, int W = kWarps, int PRO = 0>
 __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w,
                                               const float* __restrict__ sc, OutT* __restrict__ out, int N, int K,
                                               int64_t blk, const ik_bf16* __restrict__ pz = nullptr,
                                               const ik_bf16* __restrict__ pnw = nullptr, float peps = 0.f,
-                                              float pwoff = 0.f) {
-    static_assert(PRO == 0 || (M == 1 && Q == 2), "the folded norm is the default single-row staging");
+                                              float pwoff = 0.f, ik_bf16* __restrict__ pnormed = nullptr,
+                                              ik_bf16* __restrict__ psum = nullptr, bool pwriter = false) {
+    static_assert(PRO == 0 || (M == 1 && Q == 2), "the folded prologues are the default single-row staging");
+    static_assert(PRO != 3 || W == kWarps, "the folded norm reduces over rmsnorm_kernel's 256 threads");
     extern __shared__ __align__(16) unsigned char smem[];
     ik_bf16* xs = reinterpret_cast<ik_bf16*>(smem);  // [M][K] bf16: x, or (W8A8) xq as fp16 bits (exact)
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
@@ -107,6 +168,7 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
     const bool actq = sc[1] > 0.f;
     const float s_in = actq ? sc[1] : 1.f;
     const float s_out = sc[0] * s_in;
+    if constexpr (PRO == 3) norm_add_stage(x, pz, pnw, pnormed, psum, reinterpret_cast<uint4*>(xs), K, peps, pwoff, pwriter);
     if constexpr (Q == 0) {
         for (int i = threadIdx.x; i < M * K; i += blockDim.x) {
             const ik_bf16 v = x[i];
@@ -122,6 +184,8 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
         for (int i8 = threadIdx.x; i8 < M * K / 8; i8 += blockDim.x) {
             uint4 v;
             if constexpr (PRO == 2) v = gated_norm_chunk(x, pz, pnw, i8, peps, pwoff);
+            else if constexpr (PRO == 3) v = reinterpret_cast<const uint4*>(xs)[i8];  // this thread's own chunk of the normed row
+            else if constexpr (PRO == 4) v = sigmoid_mul_chunk(x, pz, i8);
             else v = reinterpret_cast<const uint4*>(x)[i8];
             uint4 o;
             if (!actq) {
@@ -643,9 +707,115 @@ int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, fl
     return ik_launch_status();
 }
 
+// ---- core-op fusion phase 1 (docs/results/2026-10-19-core-op-fusion-p1.md): P5 and P4b -----------------------------------
+// P5 rmsnorm_add_matmul_fp8_pair: the attention block's input norm (rmsnorm_add) and its k / v pair GEMV as one launch. Every
+// block recomputes the norm of the one row in its prologue (norm_add_stage), block 0 alone stores `sum` and `normed`; the GEMV
+// is fp8_gemv_pair_kernel's (Q = 2 staging, the default) on the normalised row in LDS. Each output row is one warp's
+// reduction, independent of the rows per warp and of the block count, so the bits equal ik_rmsnorm_add_bf16 followed by
+// ik_matmul_fp8_pair_gemv.
+template <int R>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_norm_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res, const ik_bf16* __restrict__ nw,
+                          float eps, float woff, ik_bf16* __restrict__ normed, ik_bf16* __restrict__ sum,
+                          const uint8_t* __restrict__ w0, const float* __restrict__ sc0, ik_bf16* __restrict__ o0, int N0,
+                          const uint8_t* __restrict__ w1, const float* __restrict__ sc1, ik_bf16* __restrict__ o1, int N1,
+                          int K) {
+    constexpr int per = kWarps * R;
+    const int nb0 = (N0 + per - 1) / per;
+    const bool writer = blockIdx.x == 0;
+    if ((int)blockIdx.x < nb0)
+        fp8_gemv_body<1, R, ik_bf16, 2, kWarps, 3>(x, w0, sc0, o0, N0, K, (int64_t)blockIdx.x, res, nw, eps, woff, normed, sum,
+                                                   writer);
+    else
+        fp8_gemv_body<1, R, ik_bf16, 2, kWarps, 3>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0, res, nw, eps, woff, normed,
+                                                   sum, writer);
+}
+
+// x, res [1, K], nw [K], w0 [N0, K], w1 [N1, K] fp8 + scales, normed / sum [1, K], o0 [1, N0], o1 [1, N1]; bf16, 16-byte
+// aligned.
+int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, float eps, float woff, const ik_tensor* w0,
+              const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1, ik_tensor* normed, ik_tensor* sum, ik_tensor* o0,
+              ik_tensor* o1, void* stream) {
+    IK_TRY(check(x, w0, sc0, o0));
+    IK_TRY(check(x, w1, sc1, o1));
+    IK_TRY(ik_check(res, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(nw, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(normed, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(sum, IK_DTYPE_BF16, 2));
+    if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (M != 1 || K % 16 != 0 || K * 2 > 49152 || res->shape[0] != 1 || res->shape[1] != K || nw->shape[0] != K ||
+        normed->shape[0] != 1 || normed->shape[1] != K || sum->shape[0] != 1 || sum->shape[1] != K)
+        return IK_ERR_SHAPE;
+    if (!ik_aligned16(res->data) || !ik_aligned16(nw->data) || !ik_aligned16(normed->data) || !ik_aligned16(sum->data))
+        return IK_ERR_SHAPE;
+    if (K == 0 || N0 == 0 || N1 == 0) return IK_ERR_SHAPE;  // (nothing the model produces; the unfused ops handle empty shapes)
+    if (N0 > 0x7fffffffLL || N1 > 0x7fffffffLL) return IK_ERR_SHAPE;
+    constexpr int R = 1, per = kWarps * R;  // fp8_gemv_pair_kernel's default shape (pair_cfg: one row per warp, eight warps)
+    const unsigned grid = (unsigned)((N0 + per - 1) / per + (N1 + per - 1) / per);
+    fp8_gemv_norm_pair_kernel<R><<<grid, kWarps * IK_WARP, (size_t)K * 2, IK_STREAM(stream)>>>(
+        (const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)nw->data, eps, woff, (ik_bf16*)normed->data,
+        (ik_bf16*)sum->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data, (int)N0,
+        (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, (int)N1, (int)K);
+    return ik_launch_status();
+}
+
+// P4b sigmoid_mul_matmul_fp8: the attention output gate and o_proj as one launch. Every block computes sigmoid_mul of the row
+// as it stages it (sigmoid_mul_chunk); the GEMV is matmul_fp8_gemv_v2's (Q = 2, rows per warp as gemv_rows picks them), so
+// the bits equal ik_sigmoid_mul_bf16 followed by ik_matmul_fp8_gemv_v2.
+template <int R>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_sigmoid_kernel(const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ gate, const uint8_t* __restrict__ w,
+                        const float* __restrict__ sc, ik_bf16* __restrict__ out, int N, int K) {
+    fp8_gemv_body<1, R, ik_bf16, 2, kWarps, 4>(a, w, sc, out, N, K, (int64_t)blockIdx.x, gate);
+}
+
+template <int R>
+void sigmoid_run(const ik_bf16* a, const ik_bf16* g, const uint8_t* w, const float* sc, ik_bf16* out, int64_t N, int64_t K,
+                 hipStream_t s) {
+    const unsigned grid = (unsigned)((N + kWarps * R - 1) / (kWarps * R));
+    fp8_gemv_sigmoid_kernel<R><<<grid, kWarps * IK_WARP, (size_t)K * 2, s>>>(a, g, w, sc, out, (int)N, (int)K);
+}
+
+// a, gate [1, K] bf16 (16-byte aligned), w [N, K] fp8 + scales, out [1, N] bf16.
+int sigmoid_matmul(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                   void* stream) {
+    IK_TRY(check(a, w, scales, out));
+    IK_TRY(ik_check(gate, IK_DTYPE_BF16, 2));
+    if (out->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    const int64_t M = a->shape[0], K = a->shape[1], N = w->shape[0];
+    if (M != 1 || K % 16 != 0 || K * 2 > 49152 || gate->shape[0] != M || gate->shape[1] != K) return IK_ERR_SHAPE;
+    if (!ik_aligned16(gate->data)) return IK_ERR_SHAPE;
+    if (N == 0 || K == 0) return IK_ERR_SHAPE;  // (nothing the model produces; the unfused ops handle empty shapes)
+    if (N > 0x7fffffffLL) return IK_ERR_SHAPE;
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16 *ap = (const ik_bf16*)a->data, *gp = (const ik_bf16*)gate->data;
+    const uint8_t* wp = (const uint8_t*)w->data;
+    const float* sp = (const float*)scales->data;
+    ik_bf16* op = (ik_bf16*)out->data;
+    switch (gemv_rows(N, true)) {
+        case 1: sigmoid_run<1>(ap, gp, wp, sp, op, N, K, s); break;
+        case 4: sigmoid_run<4>(ap, gp, wp, sp, op, N, K, s); break;
+        default: sigmoid_run<2>(ap, gp, wp, sp, op, N, K, s); break;
+    }
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
+
+int ik_rmsnorm_add_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
+                                        const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                        const ik_tensor* scales1, ik_tensor* normed, ik_tensor* sum, ik_tensor* out0,
+                                        ik_tensor* out1, void* stream) {
+    return norm_pair(x, res, w, eps, w_offset, w0, scales0, w1, scales1, normed, sum, out0, out1, stream);
+}
+
+int ik_sigmoid_mul_matmul_fp8_gemv(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w, const ik_tensor* scales,
+                                   ik_tensor* out, void* stream) {
+    return sigmoid_matmul(a, gate, w, scales, out, stream);
+}
 
 int ik_gated_rmsnorm_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float w_offset,
                                      const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {

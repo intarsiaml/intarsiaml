@@ -536,6 +536,26 @@ impl Backend for HipBackend {
                     o.add(3),
                     s,
                 ),
+                "rmsnorm_add_matmul_fp8_pair_gemv" => ffi::ik_rmsnorm_add_matmul_fp8_pair_gemv(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.eps,
+                    a.w_offset,
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3),
+                    s,
+                ),
+                "sigmoid_mul_matmul_fp8_gemv" => ffi::ik_sigmoid_mul_matmul_fp8_gemv(i(0), i(1), i(2), i(3), o, s),
+                "shared_down_combine_nvfp4_gemv" => {
+                    ffi::ik_shared_down_combine_nvfp4_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, s)
+                }
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
                 "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),
                 other => return Err(Error::NoKernel(format!("hip kernel '{other}' has no dispatch entry"))),

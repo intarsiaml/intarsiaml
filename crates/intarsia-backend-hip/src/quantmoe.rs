@@ -31,6 +31,10 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gated_rmsnorm_bf16", Op::GatedRmsnorm),
     ("rmsnorm_add_matmul_pair_bf16_gemv", Op::RmsNormAddMatmulPair),
     ("gated_rmsnorm_matmul_fp8_gemv", Op::GatedRmsnormMatmulFp8),
+    // core-op fusion phase 1 (kernels/hip/ik_hip_abi.h): row-local folds, each bitwise the two launches it replaces
+    ("rmsnorm_add_matmul_fp8_pair_gemv", Op::RmsNormAddMatmulFp8Pair),
+    ("sigmoid_mul_matmul_fp8_gemv", Op::SigmoidMulMatmulFp8),
+    ("shared_down_combine_nvfp4_gemv", Op::SharedDownCombine),
 ];
 
 /// Admission budget of the bf16-rounded outputs of every kernel here (a one-ulp flip, up to 7.8e-3 of the
@@ -225,6 +229,30 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .priority(10),
                 // norm prologue + pair GEMV: the row is staged in LDS (K <= 8192, K % 8 == 0); bitwise rmsnorm_add + pair
+                // phase-1 folds. The fp8 ones serve one row (decode; the LDS holds the row, K <= 24576), the nvfp4 one the
+                // 1..=8 rows of matmul_nvfp4_gemv_v2. HIP has no batched step (no row-exact kernels), so the one-row limit
+                // never meets the batch-consistency rule; a row count without a kernel runs the unfused ops.
+                "rmsnorm_add_matmul_fp8_pair_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "sigmoid_mul_matmul_fp8_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "shared_down_combine_nvfp4_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=8).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
                 "rmsnorm_add_matmul_pair_bf16_gemv" => k
                     .acts(bf)
                     .weights(bf)

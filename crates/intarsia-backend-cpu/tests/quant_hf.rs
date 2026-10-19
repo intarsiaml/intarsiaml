@@ -228,13 +228,14 @@ fn moe_block_fused_path_is_bitwise_the_unfused_one() {
     for dt in [DType::F32, DType::Bf16] {
         for t in [1usize, 5] {
             let x = HostTensor::from_f32_as(dt, &[t, 256], &e["moe.x"].to_f32()[..t * 256]);
-            let ws = MoeScratch::new(&b, &cfg, 8, dt).unwrap();
             let xt = to_dev(&b, &x);
             for prefix in ["ref_", "cpu_f32_"] {
+                // a fresh workspace for each run, so the fused run cannot pass on what the unfused one left behind
+                let (ws1, ws2) = (MoeScratch::new(&b, &cfg, 8, dt).unwrap(), MoeScratch::new(&b, &cfg, 8, dt).unwrap());
                 let (o1, o2) = (to_dev(&b, &HostTensor::zeros(dt, &[t, 256])), to_dev(&b, &HostTensor::zeros(dt, &[t, 256])));
-                moe.forward(&Runner { b: &b, prefix }, &ws, &xt, &o1).unwrap();
+                moe.forward(&Runner { b: &b, prefix }, &ws1, &xt, &o1).unwrap();
                 let fr = FusingRunner { b: &b, prefix, ops: Default::default() };
-                moe.forward(&fr, &ws, &xt, &o2).unwrap();
+                moe.forward(&fr, &ws2, &xt, &o2).unwrap();
                 assert_eq!(dl(&b, &o1).data, dl(&b, &o2).data, "{prefix} {dt} t={t}: fused MoE block differs from unfused");
                 let ops = fr.ops.borrow();
                 let n = |op: Op| ops.iter().filter(|&&o| o == op).count();
