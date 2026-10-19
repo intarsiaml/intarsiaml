@@ -14,6 +14,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv_v2", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_mma_f8", Op::MatmulFp8),
+    ("matmul_fp8_mma_v2", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemv_v2", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
@@ -97,6 +98,20 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k + 16)
                     .priority(if fp8_f8_enabled() { 5 } else { -10 }),
+                // matmul_fp8_mma with the W8A8 activations quantised once per call into scratch (not once per block along N)
+                // and the weights decoded by the fp8 conversion instruction: the same bf16 tiles and WMMA order, so bitwise
+                // matmul_fp8_mma (tests/fp8_mma_v2.rs), the kernel of every shape the GEMVs do not take. The scratch (M * K
+                // bytes, 16 MB at a 4096-token chunk of K = 4096) is far below the MoE experts' (about 170 MB there), so the plan's
+                // workspace (the largest of all) does not grow (docs/results/2026-10-19-hip-round3.md).
+                "matmul_fp8_mma_v2" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k + 16)
+                    .priority(1),
                 "matmul_nvfp4_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])
@@ -186,4 +201,67 @@ pub fn all() -> Vec<KernelImpl> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use intarsia_core::ShapeInfo;
+
+    fn fp8_shape(m: usize, n: usize, k: usize) -> ShapeInfo {
+        ShapeInfo { m, n, k, act: Some(DType::Bf16), weight: Some(DType::Fp8E4m3), out: Some(DType::Bf16), ..Default::default() }
+    }
+
+    /// The MatmulFp8 kernel `Registry::select` picks for this shape: the highest priority among the registrations that
+    /// accept it (ties: registration order).
+    fn pick(ks: &[KernelImpl], s: &ShapeInfo) -> String {
+        let mut best: Option<&KernelImpl> = None;
+        for k in ks.iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(s)) {
+            if best.is_none_or(|b| k.priority > b.priority) {
+                best = Some(k);
+            }
+        }
+        best.expect("a MatmulFp8 kernel for every shape").name.clone()
+    }
+
+    /// Pins the fp8 selection: the GEMVs for decode rows, `matmul_fp8_mma_v2` for every other shape (prefill chunks, tails,
+    /// verify rows), `matmul_fp8_mma_f8` above it only when opted in. `matmul_fp8_mma` stays registered (admission sweeps it, and
+    /// it is the bitwise reference of tests/fp8_mma_v2.rs) but is never chosen.
+    #[test]
+    fn fp8_selection_is_pinned() {
+        let ks = all();
+        let gemm = if fp8_f8_enabled() { "matmul_fp8_mma_f8" } else { "matmul_fp8_mma_v2" };
+        // the 35B's dense fp8 projections (N x K): qkv / q, z, o_proj / out_proj, k / v
+        for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
+            for m in [5usize, 16, 17, 312, 1024, 4096] {
+                assert_eq!(pick(&ks, &fp8_shape(m, n, k)), gemm, "m={m} n={n} k={k}");
+            }
+            for m in 1..=4 {
+                assert_eq!(pick(&ks, &fp8_shape(m, n, k)), "matmul_fp8_gemv_v2", "m={m} n={n} k={k}");
+            }
+        }
+        // decode rows too long to stage for the GEMV (M * K * 2 > 48 KB) take the GEMM; the e4m3 one serves M >= 5 only
+        assert_eq!(pick(&ks, &fp8_shape(4, 1024, 8192)), "matmul_fp8_mma_v2");
+        let v1 = ks.iter().find(|k| k.name == "matmul_fp8_mma").unwrap();
+        let v2 = ks.iter().find(|k| k.name == "matmul_fp8_mma_v2").unwrap();
+        assert!(v2.priority > v1.priority);
+        for s in [fp8_shape(5, 17, 48), fp8_shape(4096, 8192, 2048), fp8_shape(1, 512, 2048), fp8_shape(64, 512, 2056)] {
+            assert_eq!(v1.accepts(&s), v2.accepts(&s), "v2 must take exactly the shapes v1 takes");
+        }
+        assert!(!v2.accepts(&fp8_shape(64, 512, 2056)), "K % 16 != 0");
+    }
+
+    /// The v2 workspace is the quantised activations (M * K bytes), and at every chunk of the 35B it stays below what the
+    /// MoE experts reserve for the same chunk, so the plan's workspace (the largest declared scratch) does not grow.
+    #[test]
+    fn fp8_v2_scratch_stays_below_the_moe_workspace() {
+        let ks = all();
+        let v2 = ks.iter().find(|k| k.name == "matmul_fp8_mma_v2").unwrap();
+        assert_eq!(v2.scratch_bytes(&fp8_shape(4096, 2048, 4096)), 4096 * 4096 + 16);
+        let moe = ks.iter().find(|k| k.name == "moe_experts_bf16_v2").unwrap();
+        for t in [5usize, 16, 256, 1024, 2048, 4096, 8192] {
+            let m = ShapeInfo { m: t, n: 512, k: 2048, experts: 256, top_k: 8, act: Some(DType::Bf16), ..Default::default() };
+            assert!(v2.scratch_bytes(&fp8_shape(t, 2048, 4096)) < moe.scratch_bytes(&m), "chunk {t}");
+        }
+    }
 }

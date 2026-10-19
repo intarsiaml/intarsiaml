@@ -15,6 +15,12 @@ extern "C" {
 int ik_matmul_fp8_mma_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                          const ik_scratch* scratch, void* stream);
 
+/* matmul_fp8_mma_v2 (docs/results/2026-10-19-hip-round3.md): matmul_fp8_mma with the W8A8 activations quantised once per
+ * call into scratch (M * K bytes, 16-byte aligned) and the weights decoded by the gfx12 fp8 conversion instruction; same
+ * bf16 tiles and WMMA order, so bitwise matmul_fp8_mma for every shape and both activation modes. */
+int ik_matmul_fp8_mma_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                         const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

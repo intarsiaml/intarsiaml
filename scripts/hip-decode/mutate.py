@@ -125,12 +125,50 @@ MUTATIONS = {
     "f8-noexit": ("kernels/hip/ik_f8_gemm.h", [("    if (!(sc[1] > 0.f)) return;  // weight-only activations: the bf16 kernel handles this launch\n", "")]),
     # a block steps through the further pair tiles of a busy expert by one more than the grid's z
     "moe-z-step": ("kernels/hip/moe_wmma.h", [("pt += gridDim.z)", "pt += gridDim.z + 1)")]),
+    # --- round 3 (perf/hip-round3): matmul_fp8_mma_v2 (tests/fp8_mma_v2.rs) and the 64-pair MoE tile (tests/moe_pairs.rs) ---
+    # the e4m3 -> bf16 conversion decodes the low byte pair twice (bytes 2, 3 of the low word lost)
+    "v2-wsel": ("kernels/hip/ik_quant.h", [(
+        "make_uint4(ik_e4m3x2_to_bf16x2(lo, false), ik_e4m3x2_to_bf16x2(lo, true),",
+        "make_uint4(ik_e4m3x2_to_bf16x2(lo, false), ik_e4m3x2_to_bf16x2(lo, false),")]),
+    # the bf16 is taken from the low half of the converted f32 (truncation from the wrong end)
+    "v2-perm": ("kernels/hip/ik_quant.h", [(
+        "return __builtin_amdgcn_perm(__float_as_uint(f[1]), __float_as_uint(f[0]), 0x07060302u);",
+        "return __builtin_amdgcn_perm(__float_as_uint(f[1]), __float_as_uint(f[0]), 0x05040100u);")]),
+    # the second 8 weights of each 16-byte chunk repeat the first 8
+    "v2-whi": ("kernels/hip/fp8.hip", [("hi = ik_e4m3x8_to_bf16(r.z, r.w);", "hi = ik_e4m3x8_to_bf16(r.x, r.y);")]),
+    # the quantised activation rows are addressed with the bf16 row stride
+    "v2-xstride": ("kernels/hip/fp8.hip", [("a.xq + (int64_t)m * a.K + k", "a.xq + (int64_t)m * a.K * 2 + k")]),
+    # the quantiser covers only the first half of the activations (the rest of the scratch is stale)
+    "v2-quant-half": ("kernels/hip/fp8.hip", [("sp, n8);\n    DqArgs a;\n    a.x = (const ik_bf16*)x->data;\n    a.w = (const uint8_t*)w->data;",
+                                              "sp, n8 / 2);\n    DqArgs a;\n    a.x = (const ik_bf16*)x->data;\n    a.w = (const uint8_t*)w->data;")]),
+    # W8A8 activations are not quantised at all (read and used as bf16)
+    "v2-noquant": ("kernels/hip/fp8.hip", [
+        ("        if (s.actq) {\n            const uint2 q", "        if (false) {\n            const uint2 q"),
+        ("IK_DEVI uint4 xprep(const State& s, uint4 v) { return s.actq ? ik_e4m3x8_to_bf16(v.x, v.y) : v; }",
+         "IK_DEVI uint4 xprep(const State& s, uint4 v) { return v; }")]),
+    # the quantised activations are decoded as if they were bf16 (the decode step dropped)
+    "v2-nodecode": ("kernels/hip/fp8.hip", [(
+        "IK_DEVI uint4 xprep(const State& s, uint4 v) { return s.actq ? ik_e4m3x8_to_bf16(v.x, v.y) : v; }",
+        "IK_DEVI uint4 xprep(const State& s, uint4 v) { return v; }")]),
+    # 64-pair tile: the up accumulators are handed to the gate waves with the 32-pair stride (fragments overwrite each other)
+    "pairs-sred": ("kernels/hip/moe_wmma.h", [(
+        "sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];", "sred[(fw * 32 + lane) * 16 + j * 8 + i] = acc[j][i];")]),
+    # 64-pair tile: the second activation row of each thread is stored 16 rows down instead of 32
+    "pairs-xrow": ("kernels/hip/moe_wmma.h", [(
+        "*reinterpret_cast<uint4*>(&sx[buf][(xr + 32 * r) * kMwLD + xch * 8]) = rx[r];",
+        "*reinterpret_cast<uint4*>(&sx[buf][(xr + 16 * r) * kMwLD + xch * 8]) = rx[r];")]),
+    # 64-pair tile: only the first two 16-pair fragments are written out
+    "pairs-out": ("kernels/hip/moe_wmma.h", [(
+        "        for (int j = 0; j < J; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;",
+        "        for (int j = 0; j < 2; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
 TESTS["moe-z-step"] = "quantmoe"
+TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
+TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target

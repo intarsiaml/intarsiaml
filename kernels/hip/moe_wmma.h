@@ -22,7 +22,10 @@
  * up accumulators go through shared memory to the gate waves, which apply the activation); down: 8 waves, 128
  * features. Each wave holds one A fragment row per step, which keeps the register count low enough for many waves.
  *
- * Grid: (active expert slot, output-feature tile, pair tile of 32). Pair tiles beyond the expert's pair count
+ * PAIRS (32 or 64) pairs per block: each dequantised weight fragment feeds PAIRS / 16 WMMAs, so a 64-pair tile halves the
+ * decode ALU work per WMMA (the e2m1 lookups, scale multiplies and permutes) when the experts are busy enough to fill it.
+ *
+ * Grid: (active expert slot, output-feature tile, pair tile of PAIRS). Pair tiles beyond the expert's pair count
  * exit; a block steps through further pair tiles by gridDim.z when an expert has more pairs than the grid covers.
  * Every output element accumulates over k in the same order whatever else is in the tile, so a pair's result does
  * not depend on the grouping (deterministic run to run). Requires the reduction dimension to be a multiple of 64.
@@ -56,7 +59,7 @@ IK_DEVI uint4 ik_fp4x8_scaled_bf16(uint32_t c, float sc, const float* lut) {
 
 constexpr int kMwKB = 64;            // k elements per block
 constexpr int kMwLD = kMwKB + 8;     // padded LDS row of the activation tile (elements): 144 B
-constexpr int kMwPairs = 32;         // pairs per block
+constexpr int kMwPairs = 32;         // pairs per block (the PAIRS template argument: 32, or 64 for busy experts, moe.hip)
 constexpr int kMwThreads = 256;      // 8 waves
 constexpr int kMwRing = 3;           // weight blocks in flight per lane
 constexpr int kMwFeatGateUp = 64;    // output features per block
@@ -67,14 +70,17 @@ struct MwW {  // one 64-k block of weights of this lane: 16 code bytes and 2 sca
     uint32_t s;
 };
 
-template <bool GATEUP>
+template <bool GATEUP, int PAIRS>
 __global__ void __launch_bounds__(kMwThreads)
 moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
                 const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
                 const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk) {
     constexpr int FEAT = GATEUP ? kMwFeatGateUp : kMwFeatDown;
-    __shared__ __align__(16) uint16_t sx[2][kMwPairs * kMwLD];
-    __shared__ __align__(16) float sred[GATEUP ? 4 * 32 * 16 : 1];  // up accumulators -> gate waves
+    constexpr int J = PAIRS / 16;   // 16-pair B fragments per weight fragment (each dequantised A fragment feeds J WMMAs)
+    constexpr int XR = PAIRS / 32;  // activation rows each thread stages
+    static_assert(PAIRS % 32 == 0, "pair tile");
+    __shared__ __align__(16) uint16_t sx[2][PAIRS * kMwLD];
+    __shared__ __align__(16) float sred[GATEUP ? 4 * 32 * J * 8 : 1];  // up accumulators -> gate waves
     IK_FP4_LUT(lut);
 
     const int slot = blockIdx.x;
@@ -108,26 +114,33 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
         return r;
     };
 
-    for (int pt = blockIdx.z; pt * kMwPairs < cnt; pt += gridDim.z) {
-        // this thread's activation row (pair) and 8-element column chunk of the 64-wide tile
+    for (int pt = blockIdx.z; pt * PAIRS < cnt; pt += gridDim.z) {
+        // this thread's activation rows (pairs xr + 32 * r) and 8-element column chunk of the 64-wide tile
         const int xr = tid >> 3, xch = tid & 7;
-        const ik_bf16* xrow = nullptr;
-        {
-            const int p_idx = pt * kMwPairs + xr;
+        const ik_bf16* xrow[XR];
+#pragma unroll
+        for (int r = 0; r < XR; ++r) {
+            xrow[r] = nullptr;
+            const int p_idx = pt * PAIRS + xr + 32 * r;
             if (p_idx < cnt) {
                 const int pair = pairs[begin + p_idx];
-                xrow = src + (int64_t)(GATEUP ? pair / topk : pair) * Kd;  // token row (gate_up) / own row (down)
+                xrow[r] = src + (int64_t)(GATEUP ? pair / topk : pair) * Kd;  // token row (gate_up) / own row (down)
             }
         }
-        uint4 rx;
+        uint4 rx[XR];
         auto loadX = [&](int kb) {
-            rx = xrow ? *reinterpret_cast<const uint4*>(xrow + kb * kMwKB + xch * 8) : make_uint4(0, 0, 0, 0);
-        };
-        auto storeX = [&](int buf) { *reinterpret_cast<uint4*>(&sx[buf][xr * kMwLD + xch * 8]) = rx; };
-
-        ik_mw_v8f acc[2];
 #pragma unroll
-        for (int j = 0; j < 2; ++j)
+            for (int r = 0; r < XR; ++r)
+                rx[r] = xrow[r] ? *reinterpret_cast<const uint4*>(xrow[r] + kb * kMwKB + xch * 8) : make_uint4(0, 0, 0, 0);
+        };
+        auto storeX = [&](int buf) {
+#pragma unroll
+            for (int r = 0; r < XR; ++r) *reinterpret_cast<uint4*>(&sx[buf][(xr + 32 * r) * kMwLD + xch * 8]) = rx[r];
+        };
+
+        ik_mw_v8f acc[J];
+#pragma unroll
+        for (int j = 0; j < J; ++j)
 #pragma unroll
             for (int i = 0; i < 8; ++i) acc[j][i] = 0.f;
 
@@ -138,7 +151,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
                 const float sc = ik_e4m3_to_f((W.s >> (8 * (s >> 1))) & 0xffu);
                 const uint4 af = ik_fp4x8_scaled_bf16(cw[s], sc, lut);
 #pragma unroll
-                for (int j = 0; j < 2; ++j) {
+                for (int j = 0; j < J; ++j) {
                     const uint4 bf = *reinterpret_cast<const uint4*>(&sx[buf][(j * 16 + lr) * kMwLD + h * 32 + s * 8]);
                     acc[j] = ik_mw_wmma(af, bf, acc[j]);
                 }
@@ -172,17 +185,17 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
         if (GATEUP) {
             if (part == 1) {
 #pragma unroll
-                for (int j = 0; j < 2; ++j)
+                for (int j = 0; j < J; ++j)
 #pragma unroll
-                    for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * 16 + j * 8 + i] = acc[j][i];
+                    for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
             }
             __syncthreads();
             if (part == 1) continue;
         }
         const int f0 = n0 + fw * 16 + h * 8;
 #pragma unroll
-        for (int j = 0; j < 2; ++j) {
-            const int pi = pt * kMwPairs + j * 16 + lr;
+        for (int j = 0; j < J; ++j) {
+            const int pi = pt * PAIRS + j * 16 + lr;
             if (pi >= cnt || f0 >= Nd) continue;
             const int pair = pairs[begin + pi];
             float v[8];
@@ -190,7 +203,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
             for (int i = 0; i < 8; ++i) {
                 if (GATEUP) {
                     const float g = ik_round_bf16(acc[j][i] * g0);
-                    const float u = ik_round_bf16(sred[(fw * 32 + lane) * 16 + j * 8 + i] * g1);
+                    const float u = ik_round_bf16(sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] * g1);
                     const float a = ik_round_bf16(g / (1.f + expf(-g)));
                     v[i] = a * u;
                 } else {

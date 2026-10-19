@@ -19,7 +19,9 @@
  *   Raw   load(const DqArgs&, int64_t n, int k)   16 elements of row n starting at element k (in range)
  *   Raw   zero()
  *   void  dequant(const State&, const Raw&, uint4& lo, uint4& hi)   16 bf16 = elements 0..7, 8..15
- *   uint4 xprep(const State&, uint4 x8)             optional activation transform (W8A8: quantise to e4m3)
+ *   uint4 xload(const DqArgs&, const State&, int m, int k)   optional: the 8 activations of row m from k (in range); without
+ *                                    it they are the bf16 x[m, k .. k + 7] (dq_xload below)
+ *   uint4 xprep(const State&, uint4 x8)             activation transform of what xload gave (W8A8: quantise to e4m3)
  *   float out_scale(const State&)
  */
 #ifndef IK_DQ_GEMM_H
@@ -32,6 +34,7 @@ struct DqArgs {
     const uint8_t* w;
     const uint8_t* bs;  // block scales (nvfp4)
     const float* sc;    // fp8: (weight_scale, input_scale); nvfp4: (global scale)
+    const uint8_t* xq;  // matmul_fp8_mma_v2: the activations pre-quantised to e4m3 bytes [M, K] (Fp8PolicyQ only)
     int M;
     int64_t N;
     int K;
@@ -44,6 +47,16 @@ typedef float ik_dq_v8f __attribute__((ext_vector_type(8)));
 IK_DEVI ik_dq_v8f ik_dq_wmma(const uint4& a, const uint4& b, ik_dq_v8f c) {
     return __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32_gfx12(__builtin_bit_cast(ik_dq_v8bf, a),
                                                              __builtin_bit_cast(ik_dq_v8bf, b), c);
+}
+
+/* A policy's xload if it has one (overload resolution prefers the int argument), else the bf16 activation row. */
+template <class P>
+IK_DEVI auto dq_xload(const DqArgs& a, const typename P::State& st, int m, int k, int) -> decltype(P::xload(a, st, m, k)) {
+    return P::xload(a, st, m, k);
+}
+template <class P>
+IK_DEVI uint4 dq_xload(const DqArgs& a, const typename P::State&, int m, int k, long) {
+    return *reinterpret_cast<const uint4*>(a.x + (int64_t)m * a.K + k);
 }
 
 constexpr int kDqBK = 32;
@@ -82,8 +95,7 @@ __global__ void __launch_bounds__(WN * WM * 32) dq_gemm_kernel(DqArgs a, OutT* _
             const int idx = tid + c * NT, r = idx >> 2, ch = idx & 3;
             const int m = m_blk + r;
             const int k = k0 + ch * 8;
-            rx[c] = (idx < CHX && m < a.M && k < a.K) ? *reinterpret_cast<const uint4*>(a.x + (int64_t)m * a.K + k)
-                                                      : make_uint4(0, 0, 0, 0);
+            rx[c] = (idx < CHX && m < a.M && k < a.K) ? dq_xload<P>(a, st, m, k, 0) : make_uint4(0, 0, 0, 0);
         }
     };
     auto sstore = [&](int buf) {

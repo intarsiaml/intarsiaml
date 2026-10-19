@@ -57,6 +57,35 @@ int moe_zmul() {
     return n;
 }
 
+// INTARSIA_HIP_MOE_PAIRS = 32 | 64 | 0 (auto, the default): pairs per block of the grouped projections (moe_wmma.h, PAIRS). A
+// 64-pair tile feeds each dequantised weight fragment to four WMMAs instead of two; auto takes it when the average expert has
+// at least kMwPairsAuto pairs. Every pair's result is independent of the grouping, so all settings give the same bits.
+// Read at every launch (the bitwise test of tests/moe_pairs.rs switches it in one process); part of the backend fingerprint.
+constexpr int64_t kMwPairsAuto = 32;  // bench_prefill_shapes at the 35B's shape: 64 wins from T = 1024 (average 32), loses at T = 312 (10)
+int moe_pairs(int64_t avg) {
+    const char* e = getenv("INTARSIA_HIP_MOE_PAIRS");
+    const int n = e ? atoi(e) : 0;
+    if (n == 32 || n == 64) return n;
+    return avg >= kMwPairsAuto ? 64 : 32;
+}
+
+template <int PAIRS>
+void moe_wmma_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int64_t K, unsigned slots, const ik_bf16* x,
+                     const uint8_t* guw, const uint8_t* gus, const uint8_t* dw, const uint8_t* ds, const float* gsc,
+                     const int* pairs, const int* offsets, const int* active, ik_bf16* hbuf, ik_bf16* ybuf, hipStream_t s) {
+    unsigned zt = (unsigned)((T + PAIRS - 1) / PAIRS);
+    if (moe_zmul() > 0) {
+        const int64_t avg = (P + E - 1) / E;  // pairs per expert, on average
+        const unsigned cap = (unsigned)std::max<int64_t>(1, ((int64_t)moe_zmul() * avg + PAIRS - 1) / PAIRS);
+        if (cap < zt) zt = cap;
+    }
+    moe_wmma_kernel<true, PAIRS><<<dim3(slots, (unsigned)((I + kMwFeatGateUp - 1) / kMwFeatGateUp), zt), kMwThreads, 0, s>>>(
+        x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
+    if (ik_launch_status() != IK_OK) return;
+    moe_wmma_kernel<false, PAIRS><<<dim3(slots, (unsigned)((H + kMwFeatDown - 1) / kMwFeatDown), zt), kMwThreads, 0, s>>>(
+        hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
+}
+
 IK_DEVI float round_bf16(float v) { return ik_round_bf16(v); }
 
 // ---- top-k ---------------------------------------------------------------------------------------------------------
@@ -898,19 +927,15 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     moe_group_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>((const int*)ids->data, (int)P, (int)E, pairs, offsets, active);
     IK_TRY(ik_launch_status());
     if (T >= kMwMinTokens && H % kMwKB == 0 && I % kMwKB == 0 && wmma_aligned && moe_wmma_enabled()) {  // prefill-sized: tensor-core grouped projections
-        unsigned zt = (unsigned)((T + kMwPairs - 1) / kMwPairs);
-        if (moe_zmul() > 0) {
-            const int64_t avg = (P + E - 1) / E;  // pairs per expert, on average
-            const unsigned cap = (unsigned)std::max<int64_t>(1, ((int64_t)moe_zmul() * avg + kMwPairs - 1) / kMwPairs);
-            if (cap < zt) zt = cap;
-        }
-        moe_wmma_kernel<true><<<dim3(slots, (unsigned)((I + kMwFeatGateUp - 1) / kMwFeatGateUp), zt), kMwThreads, 0, s>>>(
-            (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,
-            (const float*)gscales->data, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
-        IK_TRY(ik_launch_status());
-        moe_wmma_kernel<false><<<dim3(slots, (unsigned)((H + kMwFeatDown - 1) / kMwFeatDown), zt), kMwThreads, 0, s>>>(
-            hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data, pairs,
-            offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
+        const int64_t avg = (P + E - 1) / E;  // pairs per expert, on average
+        if (moe_pairs(avg) == 64)
+            moe_wmma_launch<64>(T, P, E, H, I, K, slots, (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
+                                (const uint8_t*)gate_up_s->data, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
+                                (const float*)gscales->data, pairs, offsets, active, hbuf, ybuf, s);
+        else
+            moe_wmma_launch<32>(T, P, E, H, I, K, slots, (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
+                                (const uint8_t*)gate_up_s->data, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
+                                (const float*)gscales->data, pairs, offsets, active, hbuf, ybuf, s);
         IK_TRY(ik_launch_status());
     } else {
         moe_gate_up_kernel<<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
