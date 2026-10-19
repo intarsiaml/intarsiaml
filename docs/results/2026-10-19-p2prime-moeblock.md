@@ -315,37 +315,44 @@ The 8B is unchanged. The 1024 prefill -1.38 % is inside the rounds' own spread (
 
 ## 9. CUDA no-op (spark1)
 
-**Status: the spark1 run is PENDING. It could not run in this session.**
-- Another session's exclusive job, #2726 (an EXL3 TP2 runbook test with a spark2 reboot), held spark1 and spark2 from about
-  09:50.
-- spark1 then went OFFLINE at about 11:09.
-- My two queued build jobs (#2727, #2728) never started and were cancelled. Nothing ran on spark1, and vLLM there was never
-  touched by this work. It was already down under #2726.
+**Status: PASSED on spark1 (2026-10-19, 14:32 to 14:36 EDT). Everything is identical to base.**
 
-**What is shown without spark1** (this Mac, `raw/logs/mac-checks.log`):
-* `moe_block_is_absent_and_the_unfused_selection_is_pinned` passes on both pins:
-  - the CUDA pin (`intarsia-backend-cuda/src/kernels.rs`): no CUDA kernel implements `Op::MoeBlock`, and the MoE chain's
-    kernels are still selected;
-  - the Metal pin (`intarsia-backend-metal/src/kernels.rs`): the same for Metal.
-* Why the CUDA plan cannot change:
-  - `fused_ok` needs a selectable kernel, and CUDA has none, so the call site falls through to the unchanged chain before
-    any CUDA launch.
-  - The only `ShapeInfo` change (`head_dim` = IS) is in the `MoeBlock` arm of `ShapeInfo::from_call`, which a CUDA plan never
-    reaches.
-  - `MoeBlock` is not in `PER_ROW_OPS`.
-* The diff from `34fdbbc6` to HEAD is empty over `crates/intarsia-core`, `crates/intarsia-backend-cuda`, `kernels/abi`,
-  `kernels/cuda`, `crates/intarsia-cli` and `crates/intarsia-models/src`. The tree prepared for the CUDA build (`34fdbbc6`)
-  has the same CUDA-relevant code as HEAD.
+The first attempt (previous sessions) could not run, because another session's exclusive job #2726 held spark1.
+It ran once #2726 released the box, with vLLM left up (no takedown). The slots were taken in this order:
 
-**To run when spark1 is back** (vLLM stays up; the phase-2 pattern, `scripts/cuda-decode/`):
-1. Export 6ef5faaa into `<dirA>` and this branch's HEAD into `<dirB>`. Use `archive`, as phase 2 did.
-2. Build each tree:
-   - `fleetq run --host spark1 --mem 16 --label "p2prime M5: build CUDA tree p2p-base (vLLM up)" -- env SRC_DIR=<dirA> INTARSIA_STAMP=6ef5faaa scripts/cuda-decode/build.sh p2p-base`;
-   - the same for `p2p-dev` with `<dirB>` and the HEAD sha.
-3. Compare the plans: `fleetq run --host spark1 --mem 30 --label "p2prime M5: CUDA no-op plans + kernels test --quick (vLLM up)" -- ssh spark1 'NOOP_A=p2p-base NOOP_B=p2p-dev bash ~/intarsia-decfuse/p2p-dev/scripts/cuda-decode/fusion-noop-up.sh'`.
-   Expect `PLAN 35b JSON IDENTICAL` and `PLAN 8b JSON IDENTICAL`, and equal `kernels test --quick` counts. Phase 2 had 50
-   kernels and 149 cases.
-4. Run the pin tests on spark1 in the p2p-dev tree: `cargo test --release -p intarsia-backend-cuda moe_block`.
+| step | fleetq job | `--mem` | result |
+|---|---|---|---|
+| build `p2p-base` (export of `6ef5faaa`, `INTARSIA_STAMP=6ef5faaa`) | #2737 | 16 | exit 0 |
+| build `p2p-dev` (export of `0d449c5d`, `INTARSIA_STAMP=0d449c5d`) | #2738 | 16 | exit 0 |
+| `fusion-noop-up.sh` (`NOOP_A=p2p-base NOOP_B=p2p-dev`) | #2739 | 30 | exit 0 |
+| `cargo test --release -p intarsia-backend-cuda moe_block` in `p2p-dev` | #2741 | 16 | exit 0 |
+| fetch the no-op output dir from spark1 (read only, `--mem 0`) | #2742 | 0 | exit 0 |
+
+The two trees were plain `git archive` exports (no `.git`), synced by `scripts/cuda-decode/build.sh` with `SRC_DIR`.
+No slot is held.
+
+**Plans** (verbatim from `raw/logs/cuda-m5/3-noop.log`):
+```
+PLAN 35b JSON IDENTICAL (26379bc9beb2)
+PLAN 8b JSON IDENTICAL (d1847a362f17)
+== 35b: launches per decode step A 525 -> B 525 (+0); scratch 83963392 -> 83963392
+   36 (op, kernel) rows identical, 0 present on one side only
+== 8b: launches per decode step A 544 -> B 544 (+0); scratch 748800 -> 748800
+   16 (op, kernel) rows identical, 0 present on one side only
+```
+
+**`kernels test --quick`** (`raw/logs/cuda-m5/kernels-quick/`): all four runs (base and dev, 35B and 8B) exit 0 with
+`50 kernels, 149 cases` and the same "incomplete: 9 kernel(s) had no cases in this sweep (--quick)" line. This matches phase 2.
+The script's own `ADMISSION 35b IDENTICAL` and `ADMISSION 8b IDENTICAL` lines agree (timing lines aside).
+
+**Pin test** (`raw/logs/cuda-m5/4-pintest.log`):
+`test kernels::tests::moe_block_is_absent_and_the_unfused_selection_is_pinned ... ok` (1 passed, 0 failed).
+
+Raw logs: `raw/logs/cuda-m5/` (build logs, no-op log, pin test log, both kernels-test sets, and the plan JSON and `.err` files).
+
+**Earlier evidence without spark1** (this Mac, `raw/logs/mac-checks.log`): the same pin test passes on both the CUDA and Metal
+pins. The CUDA plan cannot change, because `fused_ok` needs a selectable kernel and CUDA has none, so the call site falls
+through to the unchanged chain. `MoeBlock` is not in `PER_ROW_OPS`.
 
 ## 10. Metal no-op check to run (Metal spike session, endor)
 
