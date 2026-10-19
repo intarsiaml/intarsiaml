@@ -1,0 +1,1 @@
+fleetq: #2623 waiting (#1 in line): spark1 is held exclusively by #2610 "dgx-spark-network-tests: model heat test, Qwen3.8-Flash-Next TP=2, 2 rails vs 4 rails, fleet vLLM down ~80 min" (claude-4f14040f)

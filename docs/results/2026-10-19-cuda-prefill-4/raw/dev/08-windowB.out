@@ -1,13 +1,148 @@
-23:05:39 fleetq status:
-fleetq · 23:05:39 · last health check 14s ago
+01:13:09 fleetq status:
+fleetq · 01:13:09 · last health check 10s ago
 
-spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 52.5 free, GPU 0% busy
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 4, free 48 · box reports 52.4 free, GPU 0% busy
   + spark1-vllm              flight, guidance, capcom     64 GB  up
-  QUEUED 1. #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f): needs spark2 to itself; running there: #2564 "spark2: pin 6.17.0-1029 as default kernel + linux-tools" (josef@endor)
-  QUEUED 2. #2575 "intarsiaml cuda-prefill-4: read 35B config.json (read-only)" (claude-f31ccf91): in line behind #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f) on spark1
-fleetq: #2578 waiting (#3 in line): in line behind #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f) on spark1
-fleetq: #2578 waiting (#2 in line): in line behind #2575 "intarsiaml cuda-prefill-4: read 35B config.json (read-only)" (claude-f31ccf91) on spark1
-fleetq:   #2575 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2575 set, or it will wait for #2575 to be released.
-fleetq: #2578 waiting (#1 in line): spark1 is held exclusively by #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f)
-23:38:35 exiting with status 143, restoring the box
-23:38:35 done (status 143)
+  RUNNING #2601 "CX-7 blog follow-up: reverse rails, event-mode rates, NCCL soak thermals" (claude-43662d06) running on spark1, spark2 4 GB for 37m
+fleetq: #2608 waiting (#1 in line): needs spark1 to itself; running there: #2601 "CX-7 blog follow-up: reverse rails, event-mode rates, NCCL soak thermals" (claude-43662d06)
+01:48:12 lease 2608 held
+01:48:23 memory freed: 111 GB available
+01:48:23 running /home/nvidia/intarsia-decfuse/p4-dev/scripts/cuda-prefill4/wBC.sh (cap 15 min)
+== W-B speed A/B 01:48:23
+MemAvailable 111 GB
+bin: intarsia 0.0.1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+208 MHz, [N/A], 43, 4.12 W
+== round 1 (680 s left) 01:48:23
+MemAvailable 111 GB
+== 35b round 1 arm base (tree p4-base env 'INTARSIA_X=0') 01:48:23
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-base-r1/cudadecode-35b-base-r1.json
+cudadecode-35b-base-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      993     0.241         4112        80.7      128
+    4096     4046     0.765         5286        77.9      128
+   16384    16719     3.415         4896        70.5      128
+== 35b round 1 arm split (tree p4-dev env 'INTARSIA_X=0') 01:49:35
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-split-r1/cudadecode-35b-split-r1.json
+cudadecode-35b-split-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      998     0.225         4445        82.7      128
+    4096     4109     0.724         5681        80.5      128
+   16384    16731     3.112         5375        72.6      128
+== 35b round 1 arm f8 (tree p4-dev env 'INTARSIA_CUDA_GDN_SPLIT=0 INTARSIA_CUDA_FP8_GEMM_F8=1') 01:50:39
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-f8-r1/cudadecode-35b-f8-r1.json
+cudadecode-35b-f8-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      991     0.234         4226        80.7      128
+    4096     4070     0.730         5577        77.9      128
+   16384    16701     3.244         5149        70.5      128
+== w-ab 35b round 1 done 01:51:47
+round 1 took 204 s
+== round 2 (476 s left) 01:51:47
+MemAvailable 111 GB
+== 35b round 2 arm f8 (tree p4-dev env 'INTARSIA_CUDA_GDN_SPLIT=0 INTARSIA_CUDA_FP8_GEMM_F8=1') 01:51:47
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-f8-r2/cudadecode-35b-f8-r2.json
+cudadecode-35b-f8-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      995     0.237         4196        81.1      128
+    4096     4077     0.731         5579        78.5      128
+   16384    16669     3.251         5127        71.1      128
+== 35b round 2 arm split (tree p4-dev env 'INTARSIA_X=0') 01:52:48
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-split-r2/cudadecode-35b-split-r2.json
+cudadecode-35b-split-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      999     0.224         4455        82.2      128
+    4096     4077     0.692         5889        79.7      128
+   16384    16666     3.098         5380        72.4      128
+== 35b round 2 arm base (tree p4-base env 'INTARSIA_X=0') 01:53:54
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-base-r2/cudadecode-35b-base-r2.json
+cudadecode-35b-base-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1015     0.244         4164        80.8      128
+    4096     4103     0.795         5168        78.0      128
+   16384    16730     3.385         4943        70.7      128
+== w-ab 35b round 2 done 01:54:56
+round 2 took 189 s
+== round 3 (287 s left) 01:54:56
+MemAvailable 111 GB
+== 35b round 3 arm base (tree p4-base env 'INTARSIA_X=0') 01:54:56
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-base-r3/cudadecode-35b-base-r3.json
+cudadecode-35b-base-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      990     0.240         4122        81.5      128
+    4096     4071     0.784         5191        78.7      128
+   16384    16745     3.410         4910        71.3      128
+== 35b round 3 arm split (tree p4-dev env 'INTARSIA_X=0') 01:56:04
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-split-r3/cudadecode-35b-split-r3.json
+cudadecode-35b-split-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      973     0.221         4398        82.3      128
+    4096     4063     0.689         5896        79.9      128
+   16384    16544     3.082         5368        72.3      128
+== 35b round 3 arm f8 (tree p4-dev env 'INTARSIA_CUDA_GDN_SPLIT=0 INTARSIA_CUDA_FP8_GEMM_F8=1') 01:57:11
+wrote /home/nvidia/intarsia-decfuse/out/p4B/ab/35b-f8-r3/cudadecode-35b-f8-r3.json
+cudadecode-35b-f8-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1013     0.239         4232        81.1      128
+    4096     4098     0.756         5427        78.2      128
+   16384    16694     3.246         5143        70.6      128
+== w-ab 35b round 3 done 01:58:12
+round 3 took 196 s
+== p4B done, 91 s left 01:58:12
+== W-C localeval servers 01:58:12
+MemAvailable 111 GB
+bin: intarsia 0.0.1
+== arm dev env 'INTARSIA_X=0' 01:58:12
+READY dev 01:58:46
+01:58:48 localeval arm dev (job 2608)
+[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=993 ttft=0.24s prefill=4139 tok/s decode=82.1 tok/s peak=83.1 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.23s prefill=4243 tok/s decode=82.0 tok/s peak=82.7 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=992 ttft=0.24s prefill=4166 tok/s decode=82.0 tok/s peak=83.5 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4090 ttft=0.72s prefill=5709 tok/s decode=79.5 tok/s peak=80.3 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4092 ttft=0.72s prefill=5699 tok/s decode=79.5 tok/s peak=80.7 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4088 ttft=0.72s prefill=5667 tok/s decode=79.4 tok/s peak=80.6 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16655 ttft=3.15s prefill=5281 tok/s decode=72.3 tok/s peak=73.0 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16658 ttft=3.14s prefill=5301 tok/s decode=72.2 tok/s peak=72.9 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16658 ttft=3.16s prefill=5270 tok/s decode=72.0 tok/s peak=73.2 tok/s out=128
+# localeval: adhoc — 2026-10-19T01:58
+
+- model: `intarsia-35b` on ? (?), url `http://spark-4e77:8090/v1`
+- thinking: off; run kind: speed; label: intarsia-prefill4-dev
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8090/v1 --model intarsia-35b --thinking off --sizes 1024,4096,16384 --gen 128 --reps 3 --label intarsia-prefill4-dev`
+- result file: `results/20261019-015849-adhoc-intarsia-prefill4-dev/result.json`
+
+## Speed sweep
+
+served `intarsia-35b`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.24 | 4166 (4139–4243) * | - | 82.0 (82.0–82.1) | 83.1 (82.7–83.5) | - | - | 128 |
+| 4090 | 0.72 | 5699 (5667–5709) | 6454 | 79.5 (79.4–79.5) | 80.6 (80.3–80.7) | - | - | 128 |
+| 16658 | 3.15 | 5281 (5270–5301) | 5159 | 72.2 (72.0–72.3) | 73.0 (72.9–73.2) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261019-015849-adhoc-intarsia-prefill4-dev/result.json
+[localeval] logged to unanimis: 962ef7c8-b4c3-4126-b8ae-081196d30afb
+01:59:18 localeval arm dev exit 0
+arm dev done 01:59:19
+== p4C done 01:59:22
+01:59:22 script exit 0
+01:59:22 killing leftover processes of ours under ~/intarsia-decfuse
+01:59:26 starting missioncntrl-guidance and waiting for /v1/models
+02:02:53 vLLM is serving again
+02:02:53 releasing fleetq job 2608
+02:02:53 done (status 0)
+02:02:53 window exit 0

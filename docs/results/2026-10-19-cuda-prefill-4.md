@@ -37,7 +37,8 @@ Branch `perf/cuda-prefill-4`, on `origin/main` 8638db03 (PR #16, prefill-3 merge
     `chat_reuse_4k` results as `origin/main`.
   - **Speed.** The kernel is 1.6x faster at T = 2048 (2834 -> 1697 us per layer call) and 2.2x faster at T = 1
     (14.4 -> 6.6 us).
-  - **End-to-end.** UNMEASURED (section 6 A/B pending).
+  - **End-to-end** (interleaved A/B, 3 rounds, same window): prefill **+7.8 / +13.4 / +9.5 %** at 1k / 4k / 16k,
+    decode **+1.9 / +2.4 / +2.4 %** (section 6).
 - **Why the opt-in lanes kernel failed the bars (Part 2).** The cause is not a bug. The lanes kernel sums the two dot
   products of the recurrence (`S^T k`, `S^T q`) in a different order. The 35B's bars are this sensitive to a change of
   fp32 rounding:
@@ -189,7 +190,36 @@ Setup:
 
 ## 6. Speed A/B
 
-PENDING (window B not run; arms ready in `scripts/cuda-prefill4/wBC.sh`). Single generate runs inside the accuracy slot (vLLM up, one each, NOT an A/B; `raw/dev/05-acc-driver.out`): 1497-token prompt prefill base 749 ms, split 550 ms, ks 524 ms, f8 533 ms; decode 78.0 / 77.1 / 81.7 / 80.9 tok/s: too noisy to conclude anything.
+Window B (vLLM down, fleetq #2608, `scripts/cuda-decode/window.sh` -> `scripts/cuda-prefill4/wBC.sh` -> `wB-ab.sh`; log
+`raw/dev/08-windowB.out`, per-run JSON / logs `raw/p4B/ab/`). `intarsia bench speed` against a fresh `serve` per arm
+(`scripts/cuda-decode/w-ab.sh`, unmodified), sizes 1024 / 4096 / 16384, gen 128, 2 reps per size, 3 rounds interleaved
+(order base, split, f8 / f8, split, base / base, split, f8). base = tree `p4-base` (origin/main 8638db03 as built; main
+456e6e7d differs from it only in HIP and docs), split = `p4-dev` default, f8 = `p4-dev` with
+`INTARSIA_CUDA_GDN_SPLIT=0 INTARSIA_CUDA_FP8_GEMM_F8=1`.
+
+Prefill tok/s (r1, r2, r3; change vs base paired per round):
+
+| prompt | base | split (default) | change, median (paired) | f8 (opt-in, fails accuracy) | change, median (paired) |
+|---|---|---|---|---|---|
+| 1024 | 4112, 4164, 4122 | 4445, 4455, 4398 | **+7.8 %** (+8.1, +7.0, +6.7) | 4226, 4196, 4232 | +2.5 % (+2.8, +0.8, +2.7) |
+| 4096 | 5286, 5168, 5191 | 5681, 5889, 5896 | **+13.4 %** (+7.5, +14.0, +13.6) | 5577, 5579, 5427 | +7.4 % (+5.5, +8.0, +4.5) |
+| 16384 | 4896, 4943, 4910 | 5375, 5380, 5368 | **+9.5 %** (+9.8, +8.8, +9.3) | 5149, 5127, 5143 | +4.7 % (+5.2, +3.7, +4.7) |
+
+Decode tok/s:
+
+| prompt | base | split | change, median (paired) | f8 | change |
+|---|---|---|---|---|---|
+| 1024 | 80.7, 80.8, 81.5 | 82.7, 82.2, 82.3 | **+1.9 %** (+2.5, +1.7, +1.0) | 80.7, 81.1, 81.1 | +0.4 % |
+| 4096 | 77.9, 78.0, 78.7 | 80.5, 79.7, 79.9 | **+2.4 %** (+3.3, +2.2, +1.5) | 77.9, 78.5, 78.2 | +0.3 % |
+| 16384 | 70.5, 70.7, 71.3 | 72.6, 72.4, 72.3 | **+2.4 %** (+3.0, +2.4, +1.4) | 70.5, 71.1, 70.6 | -0.1 % |
+
+- No regression in either phase: the split kernel serves prefill and decode, and both improve in every round.
+- The base arm reproduces round 3's dev figures (4113 / 5294 / 4912 prefill, 80.8 / 78.0 / 70.4 decode) within the
+  run-to-run spread, as it must (same code).
+- Prompt lengths differ by a few tokens per arm (the bench's prompt; 993 / 998 / 991 etc., in the JSON), as in round 3.
+- f8 alone gives about half the prefill gain of split (its GEMM is 21 % faster per chunk, round 3) and nothing in decode
+  (decode uses the gemv); it is not shipped (section 5).
+- The A/B took 9.8 of the window's 14.6 minutes (01:48:23 .. 01:58:12); localeval of dev followed in the same window (section 2).
 
 ## 7. Part 2 diagnosis: why the lanes kernel diverges
 
@@ -233,8 +263,8 @@ nsys decode-step profile, graph decode, 64 greedy tokens, exclusive slot with vL
 - **Levers, not done here:**
   - FP8 KV cache: a numerics change, needing its own accuracy round;
   - a faster split-KV kernel at long context (its bandwidth headroom is PENDING, see above).
-- **The split GDN kernel's effect on decode** is UNMEASURED end to end (section 6 pending; T = 1 kernel 14.4 -> 6.6 us x 30 layers, about 0.23 ms per
-  step at most in the hot-cache microbench).
+- **The split GDN kernel's effect on decode** (section 6): 70.7 -> 72.4 tok/s at 16k (+2.4 %), from the T = 1 kernel
+  (14.4 -> 6.6 us x 30 layers). The remaining 16k gap to vLLM is the attention share above.
 
 ## 9. Mutation check
 
