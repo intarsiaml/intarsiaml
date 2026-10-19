@@ -1,4 +1,4 @@
-<!-- DRAFT correction for https://github.com/ROCm/rocm-systems/issues/13775. NOT POSTED. Review, replace <repo link>, then post. -->
+<!-- DRAFT correction for https://github.com/ROCm/rocm-systems/issues/13775. NOT POSTED. Review, then post. -->
 
 **Proposed new title:** gfx1201: ~260 µs idle after dispatches ≥ 1 ms (opens one dispatch later without a profiler; rocprofv3 shifts it)
 
@@ -43,7 +43,7 @@ three 1-thread kernels that only take two timestamps (`LPPP`), repeated 25 times
 ## Corrected minimal repro
 
 ```bash
-git clone <repo link> && cd intarsiaml/kernels/hip_checks/gap_repro      # gap_repro.hip: 160 lines, HIP only
+git clone -b tools/rocm-gap-repro https://github.com/intarsiaml/intarsiaml && cd intarsiaml/kernels/hip_checks/gap_repro      # gap_repro.hip: 160 lines, HIP only
 hipcc -O3 --offload-arch=gfx1201 gap_repro.hip -o gap_repro
 ./gap_repro pat | grep -E '^(seq|LPPP +2.00 steady)'                                    # no profiler
 rocprofv3 --kernel-trace --output-format csv -d prof -o run -- ./gap_repro pat | grep -E '^(seq|LPPP +2.00 steady)'   # same in-kernel stamps under the profiler
