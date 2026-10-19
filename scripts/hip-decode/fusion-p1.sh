@@ -42,7 +42,8 @@ stage_mutrun() {  # GPU: every mutant binary must FAIL (or hang -> killed by the
   local m
   for m in ${MUTATIONS:-$P1MUT $V3MUT}; do
     printf '%-16s ' "$m"
-    HIP_VISIBLE_DEVICES=${MUT_GPU:-0} $D bash -c "timeout -s KILL ${MUT_TIMEOUT:-150} /target/p1mut/$m --test-threads=1; echo exit=\$?" 2>&1 \
+    local to=${MUT_TIMEOUT:-90}; [ "$m" = v3-ticket ] && to=45  # v3-ticket hangs by design: the timeout is its kill
+    HIP_VISIBLE_DEVICES=${MUT_GPU:-0} $D bash -c "timeout -s KILL $to /target/p1mut/$m --test-threads=1; echo exit=\$?" 2>&1 \
       | grep -aE "^test result|panicked at|^exit=|launches, " | head -4 | cut -c1-200 | tr '\n' ' '
     echo
   done
@@ -86,6 +87,28 @@ stage_plans() {  # GPU (TEST_GPU): plan show --json of both trees for the 35B an
     done
   done
   python3 "$INTARSIA_REPO/scripts/hip-decode/plan_diff.py" "$O" 2>&1 | tee "$O/diff.txt"
+}
+
+stage_adm() {  # GPU (TEST_GPU): FULL admission sweeps (no --quick) of the 35B and the 8B shapes, branch and base tree
+  local O="$INTARSIA_REPO/bench-out/adm" t m
+  mkdir -p "$O"
+  for t in fusion base; do
+    for m in 35b 8b; do
+      local repo="$INTARSIA_REPO" vol="$INTARSIA_TARGET_VOL" mp=$M35
+      [ $t = base ] && repo="$BASE_REPO" && vol="$BASE_VOL"
+      [ $m = 8b ] && mp=$M8
+      INTARSIA_REPO="$repo" INTARSIA_TARGET_VOL="$vol" HIP_VISIBLE_DEVICES=${TEST_GPU:-0} \
+        $D $B kernels test --backend hip --model $mp > "$O/$t-$m.log" 2>&1
+      echo "adm $t $m exit $?: $(grep -a ' kernels, ' "$O/$t-$m.log" | tail -1) | FAIL/REJECT lines: $(grep -acE 'FAIL|REJECT' "$O/$t-$m.log")"
+    done
+  done
+  grep -aE "rmsnorm_add_matmul_fp8_pair|sigmoid_mul_matmul_fp8|shared_down_combine" "$O/fusion-35b.log" | cut -c1-200 | head -12
+}
+
+# ids4k with the three folds switched off through INTARSIA_HIP_DISABLE (the kill switch), against the base tree's ids
+stage_idsoff() {
+  IDS_NEW_ENV="INTARSIA_HIP_DISABLE=rmsnorm_add_matmul_fp8_pair_gemv,sigmoid_mul_matmul_fp8_gemv,shared_down_combine_nvfp4_gemv" \
+    bash "$INTARSIA_REPO/scripts/hip-decode/remote.sh" ids4k
 }
 
 for s in "$@"; do

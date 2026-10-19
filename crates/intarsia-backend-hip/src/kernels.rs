@@ -378,5 +378,18 @@ mod tests {
         let mut f32_out = sh(1, 2048, 512, u8_);
         f32_out.out = Some(DType::F32);
         assert_eq!(p(Op::SharedDownCombine, f32_out), None);
+        // what each fold replaces resolves to the kernels its device test (tests/fusion_p1.rs) compares against, at the 35B
+        // decode shapes and default env: a fold mirrors those kernels' arithmetic, so a different pick would make it bitwise
+        // against the wrong chain
+        for (op, s, want) in [
+            (Op::RmsNormAdd, sh(1, 0, 2048, None), "rmsnorm_add_bf16"),
+            (Op::MatmulFp8Pair, sh(1, 512, 2048, f8), "matmul_fp8_pair_gemv"),
+            (Op::SigmoidMul, sh(1, 0, 4096, None), "sigmoid_mul_bf16"),
+            (Op::MatmulFp8, sh(1, 2048, 4096, f8), "matmul_fp8_gemv_v2"),
+            (Op::MatmulNvfp4, sh(1, 2048, 512, u8_), "matmul_nvfp4_gemv_v2"),
+            (Op::MoeCombine, sh(1, 0, 2048, None), "moe_combine_bf16"),
+        ] {
+            assert_eq!(p(op, s).as_deref(), Some(want), "{op}");
+        }
     }
 }
