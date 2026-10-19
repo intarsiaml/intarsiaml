@@ -235,6 +235,18 @@ Decode tok/s:
    kernel's order costs nothing in speed. So the fix is to keep the order. Making the sums more accurate (Kahan, f64)
    would still change bits, and would face the same coin flip against the bars.
 
+## 7b. Tried and dropped
+
+- **Split kernel v1, state read per lane from global memory** (no coalesced tile): T = 1 was 14.4 us, no faster than
+  the rows kernel (`raw/dev/01-split-first.out`). The padded shared-memory tile made it 6.5 us.
+- **4 and 8 lanes per row:** slower than 2 at T = 1 (8.2 vs 6.5 us) and, for 8, at T = 2048 (4064 vs 1699 us)
+  (`raw/dev/02-split-coalesced.out`). Kept only as an A/B switch.
+- **`matmul_fp8_gemm_f8` as default:** dropped, fails 35b-short KL21, 35b-long chunk 256 and greedy ids (section 5).
+- **Repairing the lanes kernel in place:** not done. Any change to its summation tree changes bits, so it cannot meet
+  the bitwise bars; it remains opt-in (`INTARSIA_CUDA_GDN_LANES=1`) and still fails them. The split kernel supersedes it:
+  as fast for T >= 16, 7 % faster at T = 2048, 0.4 us slower at T = 1 (section 4.1).
+- **More accurate sums (Kahan / f64) in the recurrence:** not tried, for the reason in section 7 point 4.
+
 ## 8. Part 3: decode at 16k
 
 nsys decode-step profile, graph decode, 64 greedy tokens, exclusive slot with vLLM up and idle. Script
@@ -250,15 +262,15 @@ nsys decode-step profile, graph decode, 64 greedy tokens, exclusive slot with vL
 - **The cost is memory traffic.** The checkpoint's config (`raw/dev/12-config.out`): 40 layers, full attention every 4th
   (10 layers), 16 query / 2 KV heads, head_dim 256. bf16 K + V = 2 x 2 x 256 x 2 B = 2 KiB per position per layer, so
   one layer at 16026 positions reads 32.8 MB in 181.6 us = **181 GB/s**; at 1034 positions 2.1 MB in 14.6 us = 145 GB/s.
-  GB10's LPDDR5X peak is about 273 GB/s, so the kernel runs at about 66 % of peak at 16k (arithmetic, not a counter
-  measurement).
+  Against GB10's published LPDDR5X peak of about 273 GB/s (spec figure, not measured here) that is about 66 % at 16k
+  (arithmetic from byte counts, not a counter measurement).
 - **vLLM's side, NOT verified.** The checkpoint declares an FP8 KV cache (`kv_cache_quant_algo FP8`; `plan show`
   notes that we deviate from it and use bf16). If vLLM honours it, its attention reads half the bytes, which would cover
   most of the remaining 16k decode gap (72.2 vs 74.2 tok/s localeval = 13.9 vs 13.5 ms per token, 0.4 ms; our 16k
   attention is 1.8 ms). This is an inference from byte counts; vLLM's KV dtype and kernel times were not inspected.
 - **Levers, not done here:**
   - FP8 KV cache: a numerics change, needing its own accuracy round;
-  - a faster split-KV kernel at long context: at most about 1.5x headroom (66 % of peak bandwidth).
+  - a faster split-KV kernel at long context: at most about 1.5x headroom if the 273 GB/s spec peak holds.
 - **The split GDN kernel's effect on decode** (section 6): 70.7 -> 72.4 tok/s at 16k (+2.4 %), from the T = 1 kernel
   (14.4 -> 6.6 us x 30 layers). The remaining 16k gap to vLLM is the attention share above.
 
@@ -269,7 +281,7 @@ nsys decode-step profile, graph decode, 64 greedy tokens, exclusive slot with vL
 Unmutated: pass. **26 mutants: 23 non-equivalent, all killed; 3 equivalent, survived as expected.**
 
 - **22 killed by the bitwise tests:** both group-dot contraction orders, both carry orders, a tree instead of the chain,
-  delta sign, decay of z / w dropped, update with q, output from the wrong lane, the three tile / staging pad offsets
+  delta sign, decay of z / w dropped, update with q, output from the wrong lane, the four tile / staging pad offsets
   (`tile-pad`, `tile-mine`, `stage-pad`, `stage-first`), prefetch of t + 1, next token into the current buffer, the
   prologue prefetch, the store guard and `nrows` (partial last block), `__expf`, q with k's norm, v = 0, beta = 1.
 - **1 killed by racecheck, not by the tests: `no-loop-sync`** (the `__syncwarp` at the top of each token removed). The
@@ -341,4 +353,5 @@ per block are on-chip.
   - The in-engine A/B ran with the base arm from `p4-base` (8638db03) and dev from `p4-dev`; main moved to 10eef81c
     with HIP-only changes, so the CUDA code compared is the same.
   - The 16k decode attribution to vLLM's FP8 KV cache is an inference, not measured.
-- `git diff --name-only 8638db03` (CUDA base) at the final HEAD is in the final report; `raw/` holds 100+ log files.
+- Diff from the merge base (origin/main 10eef81c, three-dot): 25 code / script / doc files plus 115 raw log files
+  under `docs/results/2026-10-19-cuda-prefill-4/raw/`.
