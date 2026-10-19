@@ -63,6 +63,14 @@ pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
     Ok(Arc::new(device::HipBackend::new(ordinal)?))
 }
 
+/// True when split-KV attention stage 1 runs at 8 waves per SIMD (`splitkv_kernel_o8`, round 9; INTARSIA_HIP_SPLITKV_OCC=0
+/// selects the 7-wave kernel; read at every launch). Host-only; pinned by tests/splitkv_occ.rs.
+#[cfg(ik_hip)]
+pub fn splitkv_occ_selected() -> bool {
+    // SAFETY: a plain host function of the kernel library without arguments
+    unsafe { ffi::ik_hip_splitkv_occ() != 0 }
+}
+
 /// Test seam (tests/staging.rs, round 9): open HIP device `ordinal`, plus a function that keeps the backend's stream 0 busy
 /// for about the given number of microseconds (a 1-thread kernel spinning on the wall clock).
 #[cfg(ik_hip)]

@@ -57,8 +57,8 @@ inline bool splitkv_r8() {
 }
 
 template <int GP, int TPK, int KB>
-__global__ void __launch_bounds__(kBlock)
-splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+__device__ __forceinline__ void
+splitkv_body(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
                float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
                float qscale, int nsplit, const int32_t* pos_dev) {
     // `nsplit` is the grid's split count and the stride of the partials. The splits actually used follow from the key
@@ -192,6 +192,32 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, co
     }
 }
 
+template <int GP, int TPK, int KB>
+__global__ void __launch_bounds__(kBlock)
+splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+               float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
+               float qscale, int nsplit, const int32_t* pos_dev) {
+    splitkv_body<GP, TPK, KB>(q, kc, vc, pacc, pml, N, G, cap, pos0_host, qscale, nsplit, pos_dev);
+}
+
+// Round 9 (docs/results/2026-10-19-hip-round9.md): the same body with the register budget of 8 waves per SIMD. GP = 8
+// (the 35B: 16 q heads over 2 kv heads) takes 212 VGPRs, i.e. 7 waves per SIMD, so of the 128 blocks of 8 waves a
+// long-context decode launches (64 splits x 2 kv heads) only 112 are resident and 16 run as a second round. At <= 192 VGPRs
+// all 128 fit. Same instructions in the same order, only allocated differently: the same bits (tests/splitkv_r8.rs, ids).
+// INTARSIA_HIP_SPLITKV_OCC=0 selects the kernel above.
+template <int GP, int TPK, int KB>
+__global__ void __launch_bounds__(kBlock) __attribute__((amdgpu_waves_per_eu(8)))
+splitkv_kernel_o8(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+                  float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
+                  float qscale, int nsplit, const int32_t* pos_dev) {
+    splitkv_body<GP, TPK, KB>(q, kc, vc, pacc, pml, N, G, cap, pos0_host, qscale, nsplit, pos_dev);  // (8 waves)
+}
+
+inline bool splitkv_occ() {
+    const char* e = getenv("INTARSIA_HIP_SPLITKV_OCC");
+    return !(e && e[0] == '0' && e[1] == 0);
+}
+
 template <int D, int kCombBatch>
 __global__ void __launch_bounds__(D)
 combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, ik_bf16* __restrict__ out, int nsplit,
@@ -239,8 +265,12 @@ void launch_split(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, float*
                   int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
                   const int32_t* pos_dev, hipStream_t s) {
     dim3 grid(nsplit, (unsigned)NKV, (unsigned)T);
-    splitkv_kernel<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
-                                                        qscale, nsplit, pos_dev);
+    if (splitkv_occ())
+        splitkv_kernel_o8<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
+                                                               qscale, nsplit, pos_dev);
+    else
+        splitkv_kernel<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
+                                                            qscale, nsplit, pos_dev);
 }
 
 template <int D>
@@ -323,6 +353,9 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
 }  // namespace
 
 extern "C" {
+
+// ik_hip_abi.h (round 9 pin, tests/splitkv_occ.rs): 1 when stage 1 runs as splitkv_kernel_o8 (INTARSIA_HIP_SPLITKV_OCC)
+int ik_hip_splitkv_occ(void) { return splitkv_occ() ? 1 : 0; }
 
 int ik_attn_decode_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
                                 float scale, ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos,

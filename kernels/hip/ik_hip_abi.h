@@ -50,6 +50,8 @@ int ik_hip_moe_mw_down(int pairs);
 /* round 9 (docs/results/2026-10-19-hip-round9.md): the number of launch pieces ik_split_pieces (ik_hip.h) gives a launch
  * estimated at `est_us` with at most `max_pieces` pieces, under the current INTARSIA_HIP_SPLIT_US / _SPLIT_MIN_US. Host-only. */
 int ik_hip_split_pieces(double est_us, int64_t max_pieces);
+/* round 9: 1 when split-KV stage 1 runs at 8 waves per SIMD (splitkv_kernel_o8; INTARSIA_HIP_SPLITKV_OCC=0 = 0). Host-only. */
+int ik_hip_splitkv_occ(void);
 
 /* moe_experts_bf16_v3 (docs/results/2026-10-19-hip-round5.md): ik_moe_experts_bf16_v2 with the decode path (T * K <= 16)
  * in one launch (gate_up and down + reduce blocks in one grid, the down blocks wait on a per-stream counter); the same

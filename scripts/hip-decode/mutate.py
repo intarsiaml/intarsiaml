@@ -495,6 +495,19 @@ MUTATIONS.update({
     "r9-trig-incl": ("kernels/hip/ik_hip.h", [("est_us <= trigger ||", "est_us < trigger ||")]),
     "r9-trig-def": ("kernels/hip/ik_hip.h", [("atof(m) : 950.0;", "atof(m) : 600.0;")]),
 })
+# Round 9 split-KV stage 1 at 8 waves per SIMD (attention_splitkv.hip splitkv_kernel_o8, INTARSIA_HIP_SPLITKV_OCC)
+SKV = "kernels/hip/attention_splitkv.hip"
+MUTATIONS.update({
+    # the 7-wave kernel stays the default
+    "r9-occ-def": (SKV, [("return !(e && e[0] == '0' && e[1] == 0);\n}\n\ntemplate <int D, int kCombBatch>",
+                          "return e && e[0] == '1' && e[1] == 0;\n}\n\ntemplate <int D, int kCombBatch>")]),
+    # the 8-wave launch gets K and V swapped
+    "r9-occ-kv": (SKV, [("splitkv_kernel_o8<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, kc, vc,",
+                         "splitkv_kernel_o8<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, vc, kc,")]),
+    # the 8-wave wrapper passes one query head too few per group
+    "r9-occ-g": (SKV, [("N, G, cap, pos0_host, qscale, nsplit, pos_dev);  // (8 waves)",
+                        "N, G > 1 ? G - 1 : G, cap, pos0_host, qscale, nsplit, pos_dev);  // (8 waves)")]),
+})
 
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
@@ -521,6 +534,7 @@ TESTS.update({n: "gdn_v2" for n in ("r8-gdn-out", "r8-gdn-in", "r8-gdn-gate", "r
 TESTS.update({n: "splitkv_r8" for n in ("r8-cb-skip", "r8-cb-ml")})
 TESTS.update({n: "staging" for n in ("r9-st-nowait", "r9-st-pageable", "r9-st-noadvance", "r9-st-noevent", "r9-st-dlorder")})
 TESTS.update({n: "split_trigger" for n in ("r9-trig-off", "r9-trig-incl", "r9-trig-def")})
+TESTS.update({n: "splitkv_occ" for n in ("r9-occ-def", "r9-occ-kv", "r9-occ-g")})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target
