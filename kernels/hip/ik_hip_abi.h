@@ -40,6 +40,11 @@ int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik
  * v1 kernel's instructions for its rows, so bitwise v1. */
 int ik_attn_prefill_bf16_flash_v2(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                                   ik_tensor* out, void* stream);
+/* Kernel-variant selection inside one op (docs/results/2026-10-19-hip-round6.md), for the registry pins: the query heads per
+ * block flash v2 starts from (INTARSIA_HIP_FLASH_HPB, default 4), and the grouped MoE projections' variant bits for a pair
+ * tile of `pairs` (INTARSIA_HIP_MOE_MW; default 5 at 64 pairs, 0 at 32). Host-only, no device needed. */
+int ik_hip_flash_hpb(void);
+int ik_hip_moe_mw(int pairs);
 
 /* moe_experts_bf16_v3 (docs/results/2026-10-19-hip-round5.md): ik_moe_experts_bf16_v2 with the decode path (T * K <= 16)
  * in one launch (gate_up and down + reduce blocks in one grid, the down blocks wait on a per-stream counter); the same

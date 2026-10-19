@@ -27,7 +27,13 @@ fn device() -> Option<Arc<dyn Backend>> {
 }
 
 fn run(hip: &dyn Backend, hc: &HostCall, pairs: &str) -> HostTensor {
+    run_mw(hip, hc, pairs, "0")
+}
+
+/// with the projection variant bits INTARSIA_HIP_MOE_MW (moe_wmma.h: skip empty fragments, byte table, occupancy)
+fn run_mw(hip: &dyn Backend, hc: &HostCall, pairs: &str, mw: &str) -> HostTensor {
     std::env::set_var("INTARSIA_HIP_MOE_PAIRS", pairs);
+    std::env::set_var("INTARSIA_HIP_MOE_MW", mw);
     run_host(hip, "moe_experts_bf16_v2", hc).unwrap().remove(0)
 }
 
@@ -57,8 +63,16 @@ fn moe_pair_tile_does_not_change_a_bit() {
         let c = run(&*hip, hc, "0");
         assert!(a.data == b.data, "{what}: the 64-pair tile changed the output");
         assert!(a.data == c.data, "{what}: the auto tile changed the output");
+        // every projection variant at both tile sizes (variant 0 at 32 pairs = a, the reference)
+        for mw in [1, 4, 5] {
+            for pairs in ["32", "64"] {
+                let v = run_mw(&*hip, hc, pairs, &mw.to_string());
+                assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs changed the output");
+            }
+        }
         differing_from_zero += a.to_f32().iter().filter(|v| **v != 0.0).count();
     }
     std::env::remove_var("INTARSIA_HIP_MOE_PAIRS");
+    std::env::remove_var("INTARSIA_HIP_MOE_MW");
     assert!(differing_from_zero > 0, "all outputs zero: nothing was computed");
 }

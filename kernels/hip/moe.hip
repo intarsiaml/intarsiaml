@@ -72,6 +72,34 @@ int moe_pairs(int64_t avg) {
     return avg >= kMwPairsAuto ? 64 : 32;
 }
 
+// INTARSIA_HIP_MOE_MW = 0 | 1 | 4 | 5: variant bits of the grouped projections (moe_wmma.h moe_wmma_kernel_v: 1 skip empty
+// fragments, 4 occupancy; 0 = the round-5 moe_wmma_kernel); every value gives the same bits (tests/moe_pairs.rs). Unset or
+// any other value: kMwDefault64 for the 64-pair tile, kMwDefault32 for the 32-pair one (docs/results/2026-10-19-hip-round6.md).
+// Read at every launch (the bitwise test switches it in one process); part of the backend fingerprint (kernels.rs).
+constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;
+int moe_mw_variant(int pairs) {
+    const int def = pairs == 64 ? kMwDefault64 : kMwDefault32;
+    const char* e = getenv("INTARSIA_HIP_MOE_MW");
+    const int v = e && e[0] ? atoi(e) : def;
+    return (v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc)) ? v : def;
+}
+
+template <int PAIRS, int V>
+void moe_wmma_launch_v(int64_t H, int64_t I, unsigned slots, unsigned zt, int64_t E, int64_t K, const ik_bf16* x,
+                       const uint8_t* guw, const uint8_t* gus, const uint8_t* dw, const uint8_t* ds, const float* gsc,
+                       const int* pairs, const int* offsets, const int* active, ik_bf16* hbuf, ik_bf16* ybuf, hipStream_t s) {
+    const dim3 gu(slots, (unsigned)((I + kMwFeatGateUp - 1) / kMwFeatGateUp), zt), dn(slots, (unsigned)((H + kMwFeatDown - 1) / kMwFeatDown), zt);
+    if constexpr (V == 0) {  // the round-5 kernel, unchanged
+        moe_wmma_kernel<true, PAIRS><<<gu, kMwThreads, 0, s>>>(x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
+        if (ik_launch_status() != IK_OK) return;
+        moe_wmma_kernel<false, PAIRS><<<dn, kMwThreads, 0, s>>>(hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
+    } else {
+        moe_wmma_kernel_v<true, PAIRS, V><<<gu, kMwThreads, 0, s>>>(x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
+        if (ik_launch_status() != IK_OK) return;
+        moe_wmma_kernel_v<false, PAIRS, V><<<dn, kMwThreads, 0, s>>>(hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
+    }
+}
+
 template <int PAIRS>
 void moe_wmma_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int64_t K, unsigned slots, const ik_bf16* x,
                      const uint8_t* guw, const uint8_t* gus, const uint8_t* dw, const uint8_t* ds, const float* gsc,
@@ -82,11 +110,15 @@ void moe_wmma_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int6
         const unsigned cap = (unsigned)std::max<int64_t>(1, ((int64_t)moe_zmul() * avg + PAIRS - 1) / PAIRS);
         if (cap < zt) zt = cap;
     }
-    moe_wmma_kernel<true, PAIRS><<<dim3(slots, (unsigned)((I + kMwFeatGateUp - 1) / kMwFeatGateUp), zt), kMwThreads, 0, s>>>(
-        x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
-    if (ik_launch_status() != IK_OK) return;
-    moe_wmma_kernel<false, PAIRS><<<dim3(slots, (unsigned)((H + kMwFeatDown - 1) / kMwFeatDown), zt), kMwThreads, 0, s>>>(
-        hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
+#define IK_MW_V(V) \
+    moe_wmma_launch_v<PAIRS, V>(H, I, slots, zt, E, K, x, guw, gus, dw, ds, gsc, pairs, offsets, active, hbuf, ybuf, s)
+    switch (moe_mw_variant(PAIRS)) {
+        case kMwSkip: IK_MW_V(kMwSkip); break;
+        case kMwOcc: IK_MW_V(kMwOcc); break;
+        case kMwSkip | kMwOcc: IK_MW_V(kMwSkip | kMwOcc); break;
+        default: IK_MW_V(0); break;
+    }
+#undef IK_MW_V
 }
 
 IK_DEVI float round_bf16(float v) { return ik_round_bf16(v); }
@@ -1206,6 +1238,8 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
 }  // namespace
 
 extern "C" {
+
+int ik_hip_moe_mw(int pairs) { return moe_mw_variant(pairs); }  // ik_hip_abi.h (registry pin)
 
 int ik_moe_topk_bf16(const ik_tensor* logits, int top_k, int norm, ik_tensor* weights, ik_tensor* ids, void* stream) {
     return moe_topk_impl(logits, top_k, norm, weights, ids, stream, false);

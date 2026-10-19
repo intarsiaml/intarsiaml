@@ -33,6 +33,8 @@
 #ifndef IK_MOE_WMMA_H
 #define IK_MOE_WMMA_H
 
+#include <type_traits>
+
 #include "ik_quant.h"
 
 typedef __bf16 ik_mw_v8bf __attribute__((ext_vector_type(8)));
@@ -180,6 +182,183 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
                 }
                 __syncthreads();
             }
+        }
+
+        if (GATEUP) {
+            if (part == 1) {
+#pragma unroll
+                for (int j = 0; j < J; ++j)
+#pragma unroll
+                    for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
+            }
+            __syncthreads();
+            if (part == 1) continue;
+        }
+        const int f0 = n0 + fw * 16 + h * 8;
+#pragma unroll
+        for (int j = 0; j < J; ++j) {
+            const int pi = pt * PAIRS + j * 16 + lr;
+            if (pi >= cnt || f0 >= Nd) continue;
+            const int pair = pairs[begin + pi];
+            float v[8];
+#pragma unroll
+            for (int i = 0; i < 8; ++i) {
+                if (GATEUP) {
+                    const float g = ik_round_bf16(acc[j][i] * g0);
+                    const float u = ik_round_bf16(sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] * g1);
+                    const float a = ik_round_bf16(g / (1.f + expf(-g)));
+                    v[i] = a * u;
+                } else {
+                    v[i] = acc[j][i] * g0;
+                }
+            }
+            *reinterpret_cast<uint4*>(dst + (int64_t)pair * Nd + f0) = ik_pack8(v);
+        }
+    }
+}
+
+/* moe_wmma_kernel_v: moe_wmma_kernel with variant bits V (INTARSIA_HIP_MOE_MW, moe.hip; V = 0 runs moe_wmma_kernel
+ * itself). Every variant runs the same float operations in the same order for each output, so all of them give the same
+ * bits (tests/moe_pairs.rs):
+ *   kMwSkip  a pair tile's 16-pair B fragments that hold no pair (the last tile of an expert) skip their LDS reads and
+ *            WMMAs: the tile runs ceil(remaining pairs / 16) fragments instead of J (the skipped accumulators stay 0 and
+ *            are never stored);
+ *   kMwOcc   the up accumulators reuse the activation tiles' LDS (free after the k loop; the k loop's last barrier orders
+ *            it) and the kernel is compiled for 8 waves per SIMD (<= 192 VGPRs), so a WGP can hold 4 gate_up blocks
+ *            instead of 3.
+ * At the 35B's 4408-token prefill (docs/results/2026-10-19-hip-round6.md) both bits together take gate_up<64> from 108.7 to
+ * 96.6 ms and down<64> from 56.0 to 51.9 ms; at 32 pairs every variant was slower than moe_wmma_kernel. A byte-indexed fp4
+ * table (one LDS read per two weights) was slower still (bank conflicts) and was dropped. */
+constexpr int kMwSkip = 1, kMwOcc = 4;
+
+template <bool GATEUP, int PAIRS, int V>
+__global__ void __launch_bounds__(kMwThreads) __attribute__((amdgpu_waves_per_eu((V & kMwOcc) ? 8 : 1)))
+moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
+                  const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+                  const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk) {
+    constexpr int FEAT = GATEUP ? kMwFeatGateUp : kMwFeatDown;
+    constexpr int J = PAIRS / 16;   // 16-pair B fragments per weight fragment (each dequantised A fragment feeds J WMMAs)
+    constexpr int XR = PAIRS / 32;  // activation rows each thread stages
+    constexpr bool SKIP = (V & kMwSkip) != 0, ALIAS = GATEUP && (V & kMwOcc) != 0;
+    static_assert(PAIRS % 32 == 0, "pair tile");
+    constexpr int kRed = 4 * 32 * J * 8;  // up accumulators of one tile (floats)
+    static_assert(2 * PAIRS * kMwLD * 2 >= kRed * 4, "the up accumulators fit in the activation tiles");
+    __shared__ __align__(16) uint16_t sx[2][PAIRS * kMwLD];
+    __shared__ __align__(16) float sred_own[(GATEUP && !ALIAS) ? kRed : 1];  // up accumulators -> gate waves
+    float* const sred = ALIAS ? reinterpret_cast<float*>(&sx[0][0]) : sred_own;
+    IK_FP4_LUT(lut);
+
+    const int slot = blockIdx.x;
+    if (slot >= active[E]) return;  // block-uniform
+    const int e = active[slot];
+    const int begin = offsets[e], cnt = offsets[e + 1] - begin;
+    const int n0 = blockIdx.y * FEAT;
+    const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
+    const int lr = lane & 15, h = lane >> 4;
+    const int part = GATEUP ? (wave >> 2) : 0;  // gate_up: 0 = gate rows, 1 = up rows
+    const int fw = GATEUP ? (wave & 3) : wave;  // 16-feature slice of the tile
+    const float g0 = gscales[e * 3 + (GATEUP ? 0 : 2)];
+    const float g1 = GATEUP ? gscales[e * 3 + 1] : 0.f;
+    const int64_t kb2 = Kd / 2, kb16 = Kd / 16;  // bytes of packed codes / block scales per weight row
+    const int nkb = Kd / kMwKB;
+
+    // this lane's weight row (feature n of the gate/up or down matrix), pointing at its half of the k block
+    const int n = n0 + fw * 16 + lr;
+    const int64_t wrow = GATEUP ? ((int64_t)e * 2 + part) * Nd + n : (int64_t)e * Nd + n;
+    const uint8_t* wcode = n < Nd ? w + wrow * kb2 + h * 16 : nullptr;
+    const uint8_t* wsc = n < Nd ? ws + wrow * kb16 + h * 2 : nullptr;
+    auto loadW = [&](int kb) {
+        MwW r;
+        if (wcode) {
+            r.c = *reinterpret_cast<const uint4*>(wcode + (int64_t)kb * 32);
+            r.s = *reinterpret_cast<const uint16_t*>(wsc + (int64_t)kb * 4);
+        } else {
+            r.c = make_uint4(0, 0, 0, 0);
+            r.s = 0;
+        }
+        return r;
+    };
+
+    for (int pt = blockIdx.z; pt * PAIRS < cnt; pt += gridDim.z) {
+        // this thread's activation rows (pairs xr + 32 * r) and 8-element column chunk of the 64-wide tile
+        const int xr = tid >> 3, xch = tid & 7;
+        const ik_bf16* xrow[XR];
+#pragma unroll
+        for (int r = 0; r < XR; ++r) {
+            xrow[r] = nullptr;
+            const int p_idx = pt * PAIRS + xr + 32 * r;
+            if (p_idx < cnt) {
+                const int pair = pairs[begin + p_idx];
+                xrow[r] = src + (int64_t)(GATEUP ? pair / topk : pair) * Kd;  // token row (gate_up) / own row (down)
+            }
+        }
+        uint4 rx[XR];
+        auto loadX = [&](int kb) {
+#pragma unroll
+            for (int r = 0; r < XR; ++r)
+                rx[r] = xrow[r] ? *reinterpret_cast<const uint4*>(xrow[r] + kb * kMwKB + xch * 8) : make_uint4(0, 0, 0, 0);
+        };
+        auto storeX = [&](int buf) {
+#pragma unroll
+            for (int r = 0; r < XR; ++r) *reinterpret_cast<uint4*>(&sx[buf][(xr + 32 * r) * kMwLD + xch * 8]) = rx[r];
+        };
+
+        ik_mw_v8f acc[J];
+#pragma unroll
+        for (int j = 0; j < J; ++j)
+#pragma unroll
+            for (int i = 0; i < 8; ++i) acc[j][i] = 0.f;
+
+        // the k loop over JN of the J fragments (JN < J only for a tile whose last fragments hold no pair, kMwSkip)
+        auto kloop = [&](auto jn_c) {
+            constexpr int JN = decltype(jn_c)::value;
+            auto compute = [&](const MwW& W, int buf) {
+                const uint32_t cw[4] = {W.c.x, W.c.y, W.c.z, W.c.w};
+#pragma unroll
+                for (int s = 0; s < 4; ++s) {
+                    const float sc = ik_e4m3_to_f((W.s >> (8 * (s >> 1))) & 0xffu);
+                    const uint4 af = ik_fp4x8_scaled_bf16(cw[s], sc, lut);
+#pragma unroll
+                    for (int j = 0; j < JN; ++j) {
+                        const uint4 bf = *reinterpret_cast<const uint4*>(&sx[buf][(j * 16 + lr) * kMwLD + h * 32 + s * 8]);
+                        acc[j] = ik_mw_wmma(af, bf, acc[j]);
+                    }
+                }
+            };
+
+            __syncthreads();  // the previous pair tile's last reads of sx / sred are done
+            MwW W[kMwRing];
+            loadX(0);
+#pragma unroll
+            for (int i = 0; i < kMwRing; ++i)
+                if (i < nkb) W[i] = loadW(i);
+            storeX(0);
+            if (nkb > 1) loadX(1);
+            __syncthreads();
+            for (int kb0 = 0; kb0 < nkb; kb0 += kMwRing) {
+#pragma unroll
+                for (int i = 0; i < kMwRing; ++i) {
+                    const int kb = kb0 + i;
+                    if (kb >= nkb) break;
+                    compute(W[i], kb & 1);
+                    if (kb + kMwRing < nkb) W[i] = loadW(kb + kMwRing);
+                    if (kb + 1 < nkb) {
+                        storeX((kb + 1) & 1);
+                        if (kb + 2 < nkb) loadX(kb + 2);
+                    }
+                    __syncthreads();
+                }
+            }
+        };
+        if constexpr (SKIP && J > 1) {
+            const int rem = cnt - pt * PAIRS;  // > 0, block-uniform
+            const int jn = rem >= PAIRS ? J : (rem + 15) >> 4;
+            if (jn >= J) kloop(std::integral_constant<int, J>{});
+            else if (jn == 1) kloop(std::integral_constant<int, 1>{});
+            else if (J == 4 && jn == 2) kloop(std::integral_constant<int, (J == 4 ? 2 : 1)>{});
+            else kloop(std::integral_constant<int, (J == 4 ? 3 : 1)>{});
+        } else {
+            kloop(std::integral_constant<int, J>{});
         }
 
         if (GATEUP) {

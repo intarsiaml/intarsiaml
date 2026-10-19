@@ -346,13 +346,15 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, 
     }
 }
 
-// INTARSIA_HIP_FLASH_HPB = 1 | 2 | 4 (default 2): query heads per block of flash v2 (capped by the GQA group); every value
-// gives the same bits.
+// INTARSIA_HIP_FLASH_HPB = 1 | 2 | 4 (default 4): query heads per block of flash v2 (capped by the GQA group); every value
+// gives the same bits. Default 4 since round 6 (docs/results/2026-10-19-hip-round6.md): at the 35B's D = 256 the HPB 2 kernel
+// spills (236 B scratch per lane), HPB 4 does not, and the 4408-token prefill's flash time drops 54 -> 37 ms.
+constexpr int kFlashHpbDefault = 4;
 int flash_hpb() {
     static const int v = [] {
         const char* e = getenv("INTARSIA_HIP_FLASH_HPB");
-        const int x = e ? atoi(e) : 2;
-        return (x == 1 || x == 4) ? x : 2;
+        const int x = e ? atoi(e) : kFlashHpbDefault;
+        return (x == 1 || x == 2 || x == 4) ? x : kFlashHpbDefault;
     }();
     return v;
 }
@@ -414,6 +416,8 @@ extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* k
                                           float scale, ik_tensor* out, void* stream) {
     return flash_impl(q, kc, vc, pos0, scale, out, stream, false);
 }
+
+extern "C" int ik_hip_flash_hpb(void) { return flash_hpb(); }  // ik_hip_abi.h (registry pin)
 
 // v2 (HIP only, ik_hip_abi.h): flash_hpb_kernel, bitwise ik_attn_prefill_bf16_flash
 extern "C" int ik_attn_prefill_bf16_flash_v2(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
