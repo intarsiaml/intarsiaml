@@ -60,16 +60,24 @@ fn moe_pair_tile_does_not_change_a_bit() {
     // every finite e4m3 block-scale byte (subnormals, zero, negative; random_rows only draws 0x30..0x41), at both projections:
     // the round-7 fp4 decode (moe_wmma_r7.h kMwCvt) folds 2^6 into the scale, which must stay exact for all of them
     let mut scl = experts_case(&mut rng, 300, 16, 4, 256, 128, DType::Bf16);
-    let finite = |j: usize| -> u8 {
-        let b = (j % 254) as u8;
-        if b < 0x7f { b } else { b + 1 }  // skip the NaN bytes 0x7f and 0xff
-    };
+    // 0..=253 -> every byte but the NaNs 0x7f and 0xff
+    let finite = |j: usize| -> u8 { (j % 254) as u8 + u8::from(j % 254 >= 0x7f) };
     for idx in [4usize, 6] {
         for (j, b) in scl.inputs[idx].data.iter_mut().enumerate() {
             *b = finite(j.wrapping_mul(97) + j / 254);
         }
     }
     cases.push(("all finite scale bytes".into(), scl));
+    // a few NaN scale bytes (0x7f / 0xff) among ordinary ones: NaN outputs, whose bits the variants that decode the scales
+    // through the fp8 conversion (kMwScv) are not required to match (reported only)
+    let mut nan = experts_case(&mut rng, 64, 16, 4, 256, 128, DType::Bf16);
+    for idx in [4usize, 6] {
+        let n = nan.inputs[idx].data.len();
+        for j in (0..n).step_by(997) {
+            nan.inputs[idx].data[j] = if j % 2 == 0 { 0x7f } else { 0xff };
+        }
+    }
+    cases.push(("NaN scale bytes".into(), nan));
     let mut differing_from_zero = 0usize;
     for (what, hc) in &cases {
         let a = run(&*hip, hc, "32");
@@ -78,12 +86,27 @@ fn moe_pair_tile_does_not_change_a_bit() {
         assert!(a.data == b.data, "{what}: the 64-pair tile changed the output");
         assert!(a.data == c.data, "{what}: the auto tile changed the output");
         // every projection variant at both tile sizes (variant 0 at 32 pairs = a, the reference): round 6's 1, 4, 5
-        // (moe_wmma.h) and round 7's 9, 13, 25, 29 (moe_wmma_r7.h: fp8-conversion fp4 decode, two A fragments per wave)
-        for mw in [1, 4, 5, 9, 13, 25, 29] {
+        // (moe_wmma.h) and round 7's (moe_wmma_r7.h: 8 fp8-conversion fp4 decode, 16 two A fragments in down, 32 six weight
+        // blocks in flight, 64 scales by the fp8 conversion)
+        for mw in [1, 4, 5, 8, 9, 13, 25, 29, 40, 41, 45, 61, 93, 125] {
             for pairs in ["32", "64"] {
                 let v = run_mw(&*hip, hc, pairs, &mw.to_string());
+                if mw & 64 != 0 && what.starts_with("NaN") {
+                    println!("{what}: INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs: {}", if a.data == v.data { "identical" } else { "differs" });
+                    continue;
+                }
                 assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs changed the output");
             }
+        }
+        // the round-7 defaults (no knob) and gate_up / down set apart, at both tiles
+        for (pairs, mw) in [("32", None), ("64", None), ("32", Some("0:25")), ("64", Some("45:0")), ("64", Some("5:41"))] {
+            std::env::set_var("INTARSIA_HIP_MOE_PAIRS", pairs);
+            match mw {
+                Some(m) => std::env::set_var("INTARSIA_HIP_MOE_MW", m),
+                None => std::env::remove_var("INTARSIA_HIP_MOE_MW"),
+            }
+            let v = run_host(&*hip, "moe_experts_bf16_v2", hc).unwrap().remove(0);
+            assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw:?} at {pairs} pairs changed the output");
         }
         differing_from_zero += a.to_f32().iter().filter(|v| **v != 0.0).count();
     }

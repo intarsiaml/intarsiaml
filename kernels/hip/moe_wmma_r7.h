@@ -1,6 +1,6 @@
-/* Round 7 (docs/results/2026-10-19-hip-round7.md): the grouped bf16-WMMA expert projections of moe_wmma.h with two more
- * variant bits (INTARSIA_HIP_MOE_MW, moe.hip). moe_wmma_kernel_r7 is moe_wmma_kernel_v (moe_wmma.h, left untouched as the
- * bitwise reference and the rollback) plus:
+/* Round 7 (docs/results/2026-10-19-hip-round7.md): the grouped bf16-WMMA expert projections of moe_wmma.h with more variant
+ * bits (INTARSIA_HIP_MOE_MW, moe.hip). moe_wmma_kernel_r7 is moe_wmma_kernel_v (moe_wmma.h, left untouched as the bitwise
+ * reference and the rollback) plus:
  *
  *   kMwCvt  the e2m1 weights are decoded without the shared-memory table: each nibble's sign and 3 magnitude bits are moved
  *           into an e4m3 byte, (s << 7) | (mag << 2), whose value is exactly the e2m1 value * 2^-6 (mag 1 = 0x04 is the e4m3
@@ -11,26 +11,30 @@
  *           the exact, representable product, sign of zero included: the sign rule of the multiply is the same), so the bf16
  *           fragments and every WMMA are bit for bit those of moe_wmma_kernel_v. Per 8 weights: 7 integer ops, 4 conversions,
  *           8 multiplies and 4 permutes, no LDS read (the table path: 8 LDS reads and ~2 index ops per weight).
- *   kMwTwo  each wave holds two A fragments, so every B (activation) fragment read from LDS feeds two WMMAs. gate_up: the
- *           gate row and the up row of the same 16 features sit in one wave (8 waves = 128 features per block), so
- *           silu(gate) * up is formed in registers with the same expressions as the reference's epilogue and the up
- *           accumulators no longer go through shared memory; down: two 16-row fragments per wave (256 features per block).
- *           Every output still accumulates the same WMMAs over k in the same order.
+ *   kMwTwo  down only: each wave holds two 16-row A fragments (256 features per block), so every B (activation) fragment
+ *           read from LDS feeds two WMMAs. Every output still accumulates the same WMMAs over k in the same order. (A gate_up
+ *           with the gate and the up fragment of the same features in one wave was built and measured slower, round-7 doc.)
+ *   kMwDeep six weight blocks in flight per lane instead of three (kMwRing).
+ *   kMwScv  the two block-scale bytes of a k block through the same fp8 conversion (one instruction) instead of
+ *           ik_e4m3_to_f; the same f32 for every non-NaN byte.
  *
- * kMwSkip and kMwOcc mean what they mean in moe_wmma_kernel_v (kMwOcc's aliasing only exists for the one-fragment gate_up;
- * with kMwTwo there are no up accumulators in shared memory and the bit only sets 8 waves per SIMD).
+ * kMwSkip and kMwOcc mean what they mean in moe_wmma_kernel_v; kMwOcc does not cap the two-fragment down's registers.
  */
 #ifndef IK_MOE_WMMA_R7_H
 #define IK_MOE_WMMA_R7_H
 
 #include "moe_wmma.h"
 
-constexpr int kMwCvt = 8, kMwTwo = 16;
+constexpr int kMwCvt = 8, kMwTwo = 16, kMwDeep = 32, kMwScv = 64;
 
+/* kMwTwo is a down-projection bit (gate_up ignores it) */
+constexpr bool mw_r7_two(bool gateup, int v) { return !gateup && (v & kMwTwo) != 0; }
 /* features per block of moe_wmma_kernel_r7 (grid y of the launch) */
 constexpr int mw_r7_feat(bool gateup, int v) {
-    return gateup ? ((v & kMwTwo) ? 2 * kMwFeatGateUp : kMwFeatGateUp) : ((v & kMwTwo) ? 2 * kMwFeatDown : kMwFeatDown);
+    return gateup ? kMwFeatGateUp : (mw_r7_two(gateup, v) ? 2 * kMwFeatDown : kMwFeatDown);
 }
+/* waves per SIMD the kernel is compiled for: kMwOcc's 8, except for the two-fragment down (it spills at 192 VGPRs) */
+constexpr int mw_r7_waves(bool gateup, int v) { return ((v & kMwOcc) && !mw_r7_two(gateup, v)) ? 8 : 1; }
 
 /* e2m1 codes of one 32-bit word (element j = nibble j) -> the e4m3 bytes of value * 2^-6, even elements (0, 2, 4, 6) in
  * `ev`, odd ones (1, 3, 5, 7) in `od`, byte i holding element 2i (+1) */
@@ -40,8 +44,8 @@ IK_DEVI void ik_fp4x8_to_e4m3(uint32_t c, uint32_t& ev, uint32_t& od) {
 }
 
 /* 8 fp4 codes times a block scale -> 8 bf16, bitwise ik_fp4x8_scaled_bf16(c, sc, lut) for sc64 = sc * 64 (see the top). */
-#if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8)
 typedef float ik_mw7_v2f __attribute__((ext_vector_type(2)));
+#if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8)
 IK_DEVI uint4 ik_fp4x8_scaled_bf16_cvt(uint32_t c, float sc64) {
     uint32_t ev, od;
     ik_fp4x8_to_e4m3(c, ev, od);
@@ -73,14 +77,27 @@ IK_DEVI uint4 ik_fp4x8_scaled_bf16_cvt(uint32_t c, float sc64) {
 }
 #endif
 
+/* byte `i` (0 or 1) of `s` as e4m3 -> f32 through the hardware conversion (kMwScv); one instruction gives both scale bytes of
+ * a k block. Bitwise ik_e4m3_to_f for every non-NaN byte (tests/fp8_mma_v2.rs runs all 254 through ik_e4m3x2_to_bf16x2, the
+ * same instruction; tests/moe_pairs.rs runs every finite scale byte through the kernels). */
+IK_DEVI float ik_e4m3x2_lo_to_f(uint32_t s, int i) {
+#if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8)
+    const ik_mw7_v2f f = __builtin_amdgcn_cvt_pk_f32_fp8((int)s, false);
+    return f[i];
+#else
+    return ik_e4m3_to_f((s >> (8 * i)) & 0xffu);
+#endif
+}
+
 template <bool GATEUP, int PAIRS, int V>
-__global__ void __launch_bounds__(kMwThreads) __attribute__((amdgpu_waves_per_eu((V & kMwOcc) ? 8 : 1)))
+__global__ void __launch_bounds__(kMwThreads) __attribute__((amdgpu_waves_per_eu(mw_r7_waves(GATEUP, V))))
 moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
                    const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
                    const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk) {
-    constexpr bool SKIP = (V & kMwSkip) != 0, CVT = (V & kMwCvt) != 0, TWO = (V & kMwTwo) != 0;
-    constexpr bool SRED = GATEUP && !TWO;              // up accumulators go to the gate waves through shared memory
-    constexpr bool ALIAS = SRED && (V & kMwOcc) != 0;  // ... in the activation tiles' LDS (moe_wmma_kernel_v's kMwOcc)
+    constexpr bool SKIP = (V & kMwSkip) != 0, CVT = (V & kMwCvt) != 0, TWO = mw_r7_two(GATEUP, V);
+    constexpr bool SCV = CVT && (V & kMwScv) != 0;     // block scales through the fp8 conversion too
+    constexpr int RING = (V & kMwDeep) ? 6 : kMwRing;  // weight blocks in flight per lane
+    constexpr bool ALIAS = GATEUP && (V & kMwOcc) != 0;  // up accumulators in the activation tiles' LDS (kMwOcc)
     constexpr int RF = TWO ? 2 : 1;                    // A fragments per wave
     constexpr int FEAT = mw_r7_feat(GATEUP, V);
     constexpr int J = PAIRS / 16;   // 16-pair B fragments per weight fragment (each dequantised A fragment feeds J WMMAs)
@@ -89,7 +106,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
     constexpr int kRed = 4 * 32 * J * 8;  // up accumulators of one tile (floats)
     static_assert(2 * PAIRS * kMwLD * 2 >= kRed * 4, "the up accumulators fit in the activation tiles");
     __shared__ __align__(16) uint16_t sx[2][PAIRS * kMwLD];
-    __shared__ __align__(16) float sred_own[(SRED && !ALIAS) ? kRed : 1];
+    __shared__ __align__(16) float sred_own[(GATEUP && !ALIAS) ? kRed : 1];  // up accumulators -> gate waves
     float* const sred = ALIAS ? reinterpret_cast<float*>(&sx[0][0]) : sred_own;
     __shared__ float lut[16];
     if constexpr (!CVT) {  // IK_FP4_LUT, before any early return (it has a barrier)
@@ -104,10 +121,10 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
     const int n0 = blockIdx.y * FEAT;
     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
     const int lr = lane & 15, h = lane >> 4;
-    const int part = SRED ? (wave >> 2) : 0;  // one-fragment gate_up: 0 = gate rows, 1 = up rows
-    // first feature of this wave's fragment f (16 features; the gate and the up fragment of a TWO gate_up share them)
+    const int part = GATEUP ? (wave >> 2) : 0;  // gate_up: 0 = gate rows, 1 = up rows
+    // first feature of this wave's fragment f (16 features)
     auto fbase = [&](int f) {
-        if constexpr (GATEUP) return n0 + (TWO ? wave : (wave & 3)) * 16;
+        if constexpr (GATEUP) return n0 + (wave & 3) * 16;
         else return n0 + (wave * RF + f) * 16;
     };
     const float g0 = gscales[e * 3 + (GATEUP ? 0 : 2)];
@@ -121,8 +138,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
 #pragma unroll
     for (int f = 0; f < RF; ++f) {
         const int n = fbase(f) + lr;
-        const int pf = TWO && GATEUP ? f : part;  // which matrix of gate_up the fragment reads
-        const int64_t wrow = GATEUP ? ((int64_t)e * 2 + pf) * Nd + n : (int64_t)e * Nd + n;
+        const int64_t wrow = GATEUP ? ((int64_t)e * 2 + part) * Nd + n : (int64_t)e * Nd + n;
         wcode[f] = n < Nd ? w + wrow * kb2 + h * 16 : nullptr;
         wsc[f] = n < Nd ? ws + wrow * kb16 + h * 2 : nullptr;
     }
@@ -180,7 +196,9 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
 #pragma unroll
                     for (int f = 0; f < RF; ++f) {
                         const uint32_t cw[4] = {Wi[f].c.x, Wi[f].c.y, Wi[f].c.z, Wi[f].c.w};
-                        const float sc = ik_e4m3_to_f((Wi[f].s >> (8 * (s >> 1))) & 0xffu);
+                        float sc;
+                        if constexpr (SCV) sc = ik_e4m3x2_lo_to_f(Wi[f].s, s >> 1);
+                        else sc = ik_e4m3_to_f((Wi[f].s >> (8 * (s >> 1))) & 0xffu);
                         if constexpr (CVT) af[f] = ik_fp4x8_scaled_bf16_cvt(cw[s], sc * 64.f);
                         else af[f] = ik_fp4x8_scaled_bf16(cw[s], sc, lut);
                     }
@@ -194,25 +212,25 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
             };
 
             __syncthreads();  // the previous pair tile's last reads of sx / sred are done
-            MwW W[kMwRing][RF];
+            MwW W[RING][RF];
             loadX(0);
 #pragma unroll
-            for (int i = 0; i < kMwRing; ++i)
+            for (int i = 0; i < RING; ++i)
                 if (i < nkb)
 #pragma unroll
                     for (int f = 0; f < RF; ++f) W[i][f] = loadW(f, i);
             storeX(0);
             if (nkb > 1) loadX(1);
             __syncthreads();
-            for (int kb0 = 0; kb0 < nkb; kb0 += kMwRing) {
+            for (int kb0 = 0; kb0 < nkb; kb0 += RING) {
 #pragma unroll
-                for (int i = 0; i < kMwRing; ++i) {
+                for (int i = 0; i < RING; ++i) {
                     const int kb = kb0 + i;
                     if (kb >= nkb) break;
                     compute(W[i], kb & 1);
-                    if (kb + kMwRing < nkb)
+                    if (kb + RING < nkb)
 #pragma unroll
-                        for (int f = 0; f < RF; ++f) W[i][f] = loadW(f, kb + kMwRing);
+                        for (int f = 0; f < RF; ++f) W[i][f] = loadW(f, kb + RING);
                     if (kb + 1 < nkb) {
                         storeX((kb + 1) & 1);
                         if (kb + 2 < nkb) loadX(kb + 2);
@@ -232,7 +250,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
             kloop(std::integral_constant<int, J>{});
         }
 
-        if constexpr (SRED) {
+        if constexpr (GATEUP) {
             if (part == 1) {
 #pragma unroll
                 for (int j = 0; j < J; ++j)
@@ -242,9 +260,8 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
             __syncthreads();
             if (part == 1) continue;
         }
-        constexpr int NOUT = GATEUP ? 1 : RF;  // output fragments of this wave (gate_up: gate and up fragments make one)
 #pragma unroll
-        for (int f = 0; f < NOUT; ++f) {
+        for (int f = 0; f < RF; ++f) {
             const int f0 = fbase(f) + h * 8;
 #pragma unroll
             for (int j = 0; j < J; ++j) {
@@ -256,10 +273,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
                 for (int i = 0; i < 8; ++i) {
                     if constexpr (GATEUP) {
                         const float g = ik_round_bf16(acc[0][j][i] * g0);
-                        float uacc;
-                        if constexpr (TWO) uacc = acc[RF - 1][j][i];  // the up fragment of the same lane and slot
-                        else uacc = sred[((wave & 3) * 32 + lane) * (J * 8) + j * 8 + i];
-                        const float u = ik_round_bf16(uacc * g1);
+                        const float u = ik_round_bf16(sred[((wave & 3) * 32 + lane) * (J * 8) + j * 8 + i] * g1);
                         const float a = ik_round_bf16(g / (1.f + expf(-g)));
                         v[i] = a * u;
                     } else {

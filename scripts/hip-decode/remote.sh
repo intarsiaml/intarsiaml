@@ -413,7 +413,10 @@ stage_r5test() {
   timeout 400 $D cargo test --release -p intarsia-backend-hip --test attention -- --test-threads=1 2>&1 | grep -aE "^test |test result|panicked" | cut -c1-300
 }
 # pfprofenv:<tag>:<NAME=value>: the 4408-token prefill profile (pfprof) with one INTARSIA_HIP_* knob set
-stage_pfprofenv() { local tag=${1%%:*} kv=${1#*:}; ( export "$kv"; echo "--- $kv"; stage_pfprof "$tag" ); }
+stage_pfprofenv() {  # pfprofenv:<tag>:<NAME=value>[,<NAME=value>...] (round 7: several knobs)
+  local tag=${1%%:*} kvs=${1#*:} kv
+  ( for kv in ${kvs//,/ }; do export "$kv"; done; echo "--- $kvs"; stage_pfprof "$tag" )
+}
 # pf8x:<tag>: 8B A/B in one server: prefill 1024 / 4160 (just over the 4096 recipe chunk) / 16384 and decode, 3 reps, gen 64
 stage_pf8x() { export SERVE_ENV=""; MAXSEQ=17408 SIZES=1024,4160,16384 GEN=64 REPS=3 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf8x-${1:-base}"; }
 # acc35f8off: the 35B short golden under the f8 kill switch (INTARSIA_HIP_FP8_F8=0, must reproduce the v2 numbers)
@@ -474,15 +477,15 @@ stage_r6test() {
       | grep -aE "^test |test result|panicked|differs|bitwise v1 on|HPB=" | cut -c1-300
   done
 }
-# Round 7 (perf/hip-round7, docs/results/2026-10-19-hip-round7.md): MoE projections moe_wmma_r7.h (INTARSIA_HIP_MOE_MW 9/13/25/29).
+# Round 7 (perf/hip-round7, docs/results/2026-10-19-hip-round7.md): MoE projections moe_wmma_r7.h (INTARSIA_HIP_MOE_MW 8..125).
 # r7test: the bitwise variant test (every MW value at both tiles against the round-5 kernel, all finite scale bytes), the
 # selection pin and the cpu-reference accuracy tests of quantmoe
 stage_r7test() {
   timeout 400 $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test moe_pairs --test quantmoe --test round6_selection -- --nocapture --test-threads=1 2>&1 \
-    | grep -aE "^test |test result|FAILED|panicked|differ|changed" | cut -c1-300 | tail -40
+    | grep -aE "^test |test result|FAILED|panicked|differ|changed|NaN scale" | cut -c1-300 | tail -40
 }
 # round-7 mutants (mutate.py; built by mutbuild7 in a CPU slot, run by mutrun7 in a GPU window)
-R7MUT="r7-even r7-odd r7-esign r7-osign r7-x64 r7-hiword r7-swap r7-uprow r7-upacc r7-dnrow r7-grid r7-jn r7-lastsync mw-jn mw-lastsync mw-def64 mw-def32 mw-tile mw-range"
+R7MUT="r7-even r7-odd r7-esign r7-osign r7-x64 r7-hiword r7-swap r7-deep r7-scv r7-dnrow r7-grid r7-jn r7-lastsync mw-jn mw-lastsync mw-def64 mw-def32 mw-tile mw-range r7-def64dn r7-def32dn r7-colon"
 stage_mutbuild7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r7-mut" stage_mutbuild; }
 stage_mutrun7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" stage_mutrun; }
 
