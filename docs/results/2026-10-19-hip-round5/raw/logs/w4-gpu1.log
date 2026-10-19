@@ -1,0 +1,91 @@
+################ stage r5test start 00:31:43
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+
+     Running tests/device_pos.rs (/target/release/deps/device_pos-3c8eb3ac90869ced)
+--
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests/fp8_f8.rs (/target/release/deps/fp8_f8-ef4cdc9593b2e158)
+--
+test f8_is_not_the_bf16_path ... f8 vs matmul_fp8_mma: 724518 elements differ in the last bits (f32 out)
+ok
+test f8_matches_cpu_reference_tightly ... f8 vs cpu reference: worst rel_l2 f32 out 5.000e-7, bf16 out 1.916e-4
+ok
+test f8_rows_do_not_depend_on_m ... ok
+test f8_weight_only_is_the_bf16_path ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.11s
+
+     Running tests/fp8_mma_v2.rs (/target/release/deps/fp8_mma_v2-1d978f1acba7349e)
+--
+test v2_close_to_cpu_reference ... v2 vs cpu reference: worst rel_l2 (f32 out) W8A8 5.559e-7, weight-only 2.188e-6
+ok
+test v2_decodes_every_e4m3_code ... ok
+test v2_is_bitwise_mma ... v2 == matmul_fp8_mma bit for bit on 104 cases
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s
+
+     Running tests/fused_decode.rs (/target/release/deps/fused_decode-eff5df608cb32afa)
+--
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.28s
+
+     Running tests/moe_pairs.rs (/target/release/deps/moe_pairs-c73bccbb72670486)
+--
+test moe_pair_tile_does_not_change_a_bit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+     Running tests/moe_v3.rs (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+--
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_waits_for_every_gate_up_role ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.43s
+
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=1
+INTARSIA_HIP_FLASH_HPB=Some("1")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=2
+INTARSIA_HIP_FLASH_HPB=Some("2")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=4
+INTARSIA_HIP_FLASH_HPB=Some("4")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+test attention_causal_and_chunk_edges_are_exact ... ok
+test attention_kernels_match_reference_on_random_shapes ... ok
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 47.79s
+################ stage r5test end 00:32:55
+################ stage mutrun start 00:32:55
+v3-early         thread 'v3_waits_for_every_gate_up_role' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:195:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.29s exit=101 
+v3-ticket        
+################ stage mutrun end 00:35:03

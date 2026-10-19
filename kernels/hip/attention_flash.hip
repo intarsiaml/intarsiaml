@@ -16,6 +16,7 @@
 // Causality / chunking: query row r of the call sees keys 0 .. pos0 + r. Tiles that lie fully below the first
 // row of the block are processed without a mask. Blocks are issued longest-first.
 #include "ik_hip.h"
+#include <stdlib.h>
 
 namespace {
 
@@ -191,10 +192,189 @@ int launch_flash(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_bf16
     return ik_launch_status();
 }
 
+// ---- v2: HPB query heads of one kv head per block ---------------------------------------------------------------------
+// flash_kernel with the block widened to HPB groups of 4 waves, group g taking query head blockIdx.y * HPB + g (all HPB
+// heads share the kv head: the GQA group is a multiple of HPB). Every K / V tile is staged into LDS once for HPB heads
+// instead of once per head, and the block keeps the same LDS (one tile) for HPB times the waves, so a CU holds HPB times
+// as many waves at the same shared-memory footprint (the 35B's D = 256 tile is ~37 KB, which bounded flash_kernel to a
+// few blocks per WGP). Each wave runs exactly flash_kernel's instructions for its 16 rows (same Q fragments, same tiles,
+// same WMMA and softmax order), so the output is bitwise flash_kernel's.
+template <int D, int BK, int HPB>
+__global__ void __launch_bounds__(kThreads * HPB)
+flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+                 ik_bf16* __restrict__ out, int T, int N, int G, int64_t cap, int64_t pos0, float sl2) {
+    constexpr int LDK = D + 8;
+    constexpr int LDV = BK + 8;
+    constexpr int NKS = D / 16;
+    constexpr int NKB = BK / 16;
+    constexpr int NDB = D / 16;
+    constexpr int CH = D / 8;
+    constexpr int NT = kThreads * HPB;
+
+    __shared__ __align__(16) uint16_t Ks[BK * LDK];
+    __shared__ __align__(16) uint16_t Vt[D * LDV];
+
+    const int tid = threadIdx.x, warp = tid >> 5, lane = tid & 31;
+    const int lr = lane & 15, lk = (lane >> 4) * 8;
+    const int qt = (int)gridDim.x - 1 - (int)blockIdx.x;  // longest blocks first
+    const int h = blockIdx.y * HPB + (warp >> 2), kvh = (blockIdx.y * HPB) / G;
+    const int q0 = qt * kBQ;
+    const int qrow = q0 + (warp & 3) * 16 + lr;
+
+    const ik_bf16* kb = kc + (int64_t)kvh * cap * D;
+    const ik_bf16* vb = vc + (int64_t)kvh * cap * D;
+
+    const int q_last = (q0 + kBQ < T ? q0 + kBQ : T) - 1;
+    const int64_t kv_end = pos0 + q_last + 1;
+    const int ntiles = (int)((kv_end + BK - 1) / BK);
+    const int64_t mask_from = pos0 + q0 + 1;
+
+    uint4 qb[NKS];
+#pragma unroll
+    for (int ks = 0; ks < NKS; ++ks) {
+        qb[ks] = make_uint4(0, 0, 0, 0);
+        if (qrow < T) {
+            const uint32_t* p = reinterpret_cast<const uint32_t*>(q + ((int64_t)qrow * N + h) * D + ks * 16 + lk);
+            qb[ks] = make_uint4(p[0], p[1], p[2], p[3]);
+        }
+    }
+
+    ik_v8f o[NDB];
+#pragma unroll
+    for (int i = 0; i < NDB; ++i)
+#pragma unroll
+        for (int e = 0; e < 8; ++e) o[i][e] = 0.f;
+    float m = -INFINITY, l = 0.f;
+
+    for (int kt = 0; kt < ntiles; ++kt) {
+        __syncthreads();
+        for (int idx = tid; idx < BK * CH; idx += NT) {
+            const int r = idx / CH, ch = idx % CH;
+            const int64_t key = (int64_t)kt * BK + r;
+            uint4 kv = make_uint4(0, 0, 0, 0), vv = make_uint4(0, 0, 0, 0);
+            if (key < kv_end) {
+                kv = *reinterpret_cast<const uint4*>(kb + key * D + ch * 8);
+                vv = *reinterpret_cast<const uint4*>(vb + key * D + ch * 8);
+            }
+            *reinterpret_cast<uint4*>(&Ks[r * LDK + ch * 8]) = kv;
+            const uint32_t vw[4] = {vv.x, vv.y, vv.z, vv.w};
+#pragma unroll
+            for (int e = 0; e < 4; ++e) {
+                Vt[(ch * 8 + 2 * e) * LDV + r] = (uint16_t)(vw[e] & 0xffffu);
+                Vt[(ch * 8 + 2 * e + 1) * LDV + r] = (uint16_t)(vw[e] >> 16);
+            }
+        }
+        __syncthreads();
+
+        ik_v8f sacc[NKB];
+#pragma unroll
+        for (int b = 0; b < NKB; ++b)
+#pragma unroll
+            for (int e = 0; e < 8; ++e) sacc[b][e] = 0.f;
+#pragma unroll
+        for (int ks = 0; ks < NKS; ++ks) {
+#pragma unroll
+            for (int b = 0; b < NKB; ++b) {
+                const uint4 a = *reinterpret_cast<const uint4*>(&Ks[(b * 16 + lr) * LDK + ks * 16 + lk]);
+                sacc[b] = wmma_bf16(a, qb[ks], sacc[b]);
+            }
+        }
+
+        const bool need_mask = (int64_t)(kt + 1) * BK > mask_from;
+        float mx = -INFINITY;
+#pragma unroll
+        for (int b = 0; b < NKB; ++b) {
+#pragma unroll
+            for (int e = 0; e < 8; ++e) {
+                float v = sacc[b][e] * sl2;
+                if (need_mask) {
+                    const int64_t key = (int64_t)kt * BK + b * 16 + lk + e;
+                    if (key > pos0 + qrow) v = -INFINITY;
+                }
+                sacc[b][e] = v;
+                mx = fmaxf(mx, v);
+            }
+        }
+        mx = fmaxf(mx, __shfl_xor(mx, 16, 32));
+        const float mn = fmaxf(m, mx);
+        const float mu = mn == -INFINITY ? 0.f : mn;
+        const float cr = exp2f(m - mu);
+        m = mn;
+        float ps = 0.f;
+        uint4 pb[NKB];
+#pragma unroll
+        for (int b = 0; b < NKB; ++b) {
+            float pv[8];
+#pragma unroll
+            for (int e = 0; e < 8; ++e) {
+                pv[e] = exp2f(sacc[b][e] - mu);
+                ps += pv[e];
+            }
+            pb[b] = ik_pack8(pv);
+        }
+        l = l * cr + ps;
+#pragma unroll
+        for (int i = 0; i < NDB; ++i)
+#pragma unroll
+            for (int e = 0; e < 8; ++e) o[i][e] *= cr;
+
+#pragma unroll
+        for (int b = 0; b < NKB; ++b) {
+#pragma unroll
+            for (int db = 0; db < NDB; ++db) {
+                const uint4 a = *reinterpret_cast<const uint4*>(&Vt[(db * 16 + lr) * LDV + b * 16 + lk]);
+                o[db] = wmma_bf16(a, pb[b], o[db]);
+            }
+        }
+    }
+
+    l += __shfl_xor(l, 16, 32);
+    const float inv = 1.f / l;
+    if (qrow < T) {
+#pragma unroll
+        for (int db = 0; db < NDB; ++db) {
+            float v[8];
+#pragma unroll
+            for (int e = 0; e < 8; ++e) v[e] = o[db][e] * inv;
+            const uint4 u = ik_pack8(v);
+            uint32_t* po = reinterpret_cast<uint32_t*>(out + ((int64_t)qrow * N + h) * D + db * 16 + lk);
+            po[0] = u.x;
+            po[1] = u.y;
+            po[2] = u.z;
+            po[3] = u.w;
+        }
+    }
+}
+
+// INTARSIA_HIP_FLASH_HPB = 1 | 2 | 4 (default 2): query heads per block of flash v2 (capped by the GQA group); every value
+// gives the same bits.
+int flash_hpb() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_FLASH_HPB");
+        const int x = e ? atoi(e) : 2;
+        return (x == 1 || x == 4) ? x : 2;
+    }();
+    return v;
+}
+
+template <int D, int BK>
+int launch_flash_v2(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_bf16* out, int T, int N, int NKV,
+                    int64_t cap, int64_t pos0, float scale, hipStream_t s) {
+    const int G = N / NKV;
+    int hpb = flash_hpb();
+    while (hpb > 1 && G % hpb != 0) hpb /= 2;
+    const dim3 grid((T + kBQ - 1) / kBQ, N / hpb);
+    const float sl2 = scale * kLog2e;
+    if (hpb == 4) flash_hpb_kernel<D, BK, 4><<<grid, kThreads * 4, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
+    else if (hpb == 2) flash_hpb_kernel<D, BK, 2><<<grid, kThreads * 2, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
+    else flash_hpb_kernel<D, BK, 1><<<grid, kThreads, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
+    return ik_launch_status();
+}
+
 }  // namespace
 
-extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
-                                          float scale, ik_tensor* out, void* stream) {
+static int flash_impl(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale, ik_tensor* out,
+                      void* stream, bool v2) {
     IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
     IK_TRY(ik_check(kc, IK_DTYPE_BF16, 3));
     IK_TRY(ik_check(vc, IK_DTYPE_BF16, 3));
@@ -216,9 +396,27 @@ extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* k
     const ik_bf16* kp = (const ik_bf16*)kc->data;
     const ik_bf16* vp = (const ik_bf16*)vc->data;
     ik_bf16* op = (ik_bf16*)out->data;
+    if (v2) {
+        switch (D) {
+            case 64: return launch_flash_v2<64, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+            case 128: return launch_flash_v2<128, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+            default: return launch_flash_v2<256, 32>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+        }
+    }
     switch (D) {
         case 64: return launch_flash<64, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
         case 128: return launch_flash<128, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
         default: return launch_flash<256, 32>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
     }
+}
+
+extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                          float scale, ik_tensor* out, void* stream) {
+    return flash_impl(q, kc, vc, pos0, scale, out, stream, false);
+}
+
+// v2 (HIP only, ik_hip_abi.h): flash_hpb_kernel, bitwise ik_attn_prefill_bf16_flash
+extern "C" int ik_attn_prefill_bf16_flash_v2(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                             float scale, ik_tensor* out, void* stream) {
+    return flash_impl(q, kc, vc, pos0, scale, out, stream, true);
 }

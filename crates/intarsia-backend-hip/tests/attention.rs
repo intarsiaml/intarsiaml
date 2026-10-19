@@ -163,7 +163,7 @@ fn attention_kernels_match_reference_on_random_shapes() {
         }
     }
     println!("cases per kernel: {runs:?}");
-    for name in ["attn_prefill_bf16", "attn_decode_bf16", "attn_prefill_bf16_flash", "attn_prefill_bf16_splitkv", "attn_decode_bf16_splitkv"] {
+    for name in ["attn_prefill_bf16", "attn_decode_bf16", "attn_prefill_bf16_flash", "attn_prefill_bf16_flash_v2", "attn_prefill_bf16_splitkv", "attn_decode_bf16_splitkv"] {
         assert!(runs.get(name).copied().unwrap_or(0) > 0, "{name} ran no cases");
     }
 }
@@ -315,7 +315,7 @@ fn attention_causal_and_chunk_edges_are_exact() {
         }
     }
     println!("edge cases per kernel: {runs:?}");
-    for name in ["attn_prefill_bf16", "attn_decode_bf16", "attn_prefill_bf16_flash", "attn_prefill_bf16_splitkv", "attn_decode_bf16_splitkv"] {
+    for name in ["attn_prefill_bf16", "attn_decode_bf16", "attn_prefill_bf16_flash", "attn_prefill_bf16_flash_v2", "attn_prefill_bf16_splitkv", "attn_decode_bf16_splitkv"] {
         assert!(runs.get(name).copied().unwrap_or(0) > 0, "{name} ran no edge cases");
     }
 }

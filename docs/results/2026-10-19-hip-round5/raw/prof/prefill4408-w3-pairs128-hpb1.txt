@@ -1,0 +1,52 @@
+################ stage pfprofenv:h1:INTARSIA_HIP_FLASH_HPB=1 start 00:19:39
+--- INTARSIA_HIP_FLASH_HPB=1
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 1227 ms (3591.1 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 1234 ms (3570.9 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2914 (of 3476), span 1234.0 ms, kernel time 1175.2 ms, idle 4.8 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel<true, 128>                                                          40   533.32  13333.0  45.4%  65536x8x2 x 256
+moe_wmma_kernel<false, 128>                                                         40   236.93   5923.3  20.2%  65536x16x2 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 90    96.97   1077.4   8.3%  256x32x1 x 32
+flash_hpb_kernel<256, 32, 1>                                                        20    82.07   4103.4   7.0%  8192x16x1 x 128
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    73.28    281.8   6.2%  8192x64x1 x 256
+moe_wmma_kernel<true, 32>                                                           40    30.37    759.1   2.6%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    24.75    103.1   2.1%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    23.06    288.2   2.0%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.03     43.0   1.0%  8192x1x1 x 256
+moe_wmma_kernel<false, 32>                                                          40    10.93    273.2   0.9%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.17    152.9   0.8%  8192x128x1 x 128
+rmsnorm_kernel<true, true>                                                         171     7.11     41.6   0.6%  1048576x1x1 x 256
+f8_actq_kernel                                                                     260     6.97     26.8   0.6%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.76     95.9   0.5%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.13     42.7   0.4%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.77     92.3   0.2%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.15     71.7   0.2%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.73     57.6   0.1%  16777216x1x1 x 256
+moe_experts_p1_v3_kernel<4>                                                         40     1.48     37.0   0.1%  196608x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.37     34.3   0.1%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.18      9.8   0.1%  131072x1x1 x 128
+splitkv_kernel<8, 32, 2, true>                                                      10     0.99     99.3   0.1%  16384x2x1 x 256
+moe_group_kernel                                                                    80     0.87     10.8   0.1%  1024x1x1 x 1024
+silu_glu_kernel<true>                                                               80     0.59      7.3   0.0%  262144x1x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.59     19.5   0.0%  32768x1x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.57      2.2   0.0%  8192x64x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.0%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.49     12.2   0.0%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.0%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    458.7   0.0%  7946240x1x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.1   0.0%  8448x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.21      6.9   0.0%  8192x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.5   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.2   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     39.8   0.0%  1048576x1x1 x 256
+embedding_kernel<true>                                                               3     0.12     38.8   0.0%  1048576x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.1   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.05     46.4   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.3   0.0%  2048x1x1 x 256
+################ stage pfprofenv:h1:INTARSIA_HIP_FLASH_HPB=1 end 00:19:48

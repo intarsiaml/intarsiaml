@@ -484,6 +484,9 @@ impl Backend for HipBackend {
                     ffi::ik_attn_prefill_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
                 }
                 "attn_prefill_bf16_flash" => ffi::ik_attn_prefill_bf16_flash(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
+                "attn_prefill_bf16_flash_v2" => {
+                    ffi::ik_attn_prefill_bf16_flash_v2(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s)
+                }
                 "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
                 "gdn_conv_bf16" => ffi::ik_gdn_conv_bf16(i(0), i(1), o, o.add(1), s),
                 "gdn_delta_rule_bf16" => {
@@ -507,6 +510,9 @@ impl Backend for HipBackend {
                 }
                 "moe_experts_bf16_v2" => {
                     ffi::ik_moe_experts_bf16_v2(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
+                }
+                "moe_experts_bf16_v3" => {
+                    ffi::ik_moe_experts_bf16_v3(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
                 }
                 "moe_combine_bf16" => ffi::ik_moe_combine_bf16(i(0), i(1), i(2), o, s),
                 "matmul_pair_bf16_gemv" => ffi::ik_matmul_pair_bf16_gemv(i(0), i(1), i(2), o, o.add(1), s),

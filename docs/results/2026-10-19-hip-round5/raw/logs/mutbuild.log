@@ -1,0 +1,39 @@
+################ stage mutbuild5 start 00:09:22
+applied v3-noreset to /home/josef/intarsiaml-r5-mut/kernels/hip/moe.hip
+v3-noreset: test moe_v3 built (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+applied v3-early to /home/josef/intarsiaml-r5-mut/kernels/hip/moe.hip
+v3-early: test moe_v3 built (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+applied v3-nowait to /home/josef/intarsiaml-r5-mut/kernels/hip/moe.hip
+v3-nowait: test moe_v3 built (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+applied v3-hrow to /home/josef/intarsiaml-r5-mut/kernels/hip/moe.hip
+v3-hrow: test moe_v3 built (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+applied v3-gurow to /home/josef/intarsiaml-r5-mut/kernels/hip/moe.hip
+v3-gurow: test moe_v3 built (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+applied v3-nofence to /home/josef/intarsiaml-r5-mut/kernels/hip/moe.hip
+v3-nofence: test moe_v3 built (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+applied fl2-head to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_flash.hip
+fl2-head: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+applied fl2-kvh to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_flash.hip
+fl2-kvh: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+applied fl2-row to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_flash.hip
+fl2-row: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+applied fl2-stride to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_flash.hip
+fl2-stride: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+applied p128-xr to /home/josef/intarsiaml-r5-mut/kernels/hip/moe_wmma.h
+p128-xr: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied p128-sred to /home/josef/intarsiaml-r5-mut/kernels/hip/moe_wmma.h
+p128-sred: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied p128-sync to /home/josef/intarsiaml-r5-mut/kernels/hip/moe_wmma.h
+p128-sync: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied skv-noreset to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_splitkv.hip
+skv-noreset: test splitkv_v2 built (/target/release/deps/splitkv_v2-50ece6af5dcab8ab)
+applied skv-first to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_splitkv.hip
+skv-first: test splitkv_v2 built (/target/release/deps/splitkv_v2-50ece6af5dcab8ab)
+applied skv-group to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_splitkv.hip
+skv-group: test splitkv_v2 built (/target/release/deps/splitkv_v2-50ece6af5dcab8ab)
+applied skv-nofence to /home/josef/intarsiaml-r5-mut/kernels/hip/attention_splitkv.hip
+skv-nofence: test splitkv_v2 built (/target/release/deps/splitkv_v2-50ece6af5dcab8ab)
+applied v3-ticket to /home/josef/intarsiaml-r5-mut/kernels/hip/moe.hip
+v3-ticket: test moe_v3 built (/target/release/deps/moe_v3-2d80476edeb4d8bd)
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+################ stage mutbuild5 end 00:16:45

@@ -120,7 +120,10 @@ Tuning knobs (read once per process; every one that is set is part of the backen
 `INTARSIA_HIP_GEMV=R,U` (GEMV rows per warp / loads in flight: only the instantiated variants `1,{2,4,8,16}`, `2,{2,4,8}`, `4,{2,4,8}` are accepted, anything
 else prints a warning and keeps `1,8`; a launch that matched no instantiation returns `IK_ERR_INVALID_ARG` instead of reporting success),
 `INTARSIA_HIP_GEMM_TILE=1..8` (forces a GEMM tile, default auto), `INTARSIA_HIP_FP8_ROWS=1|2|4` (rows per warp of the FP8 GEMV),
-`INTARSIA_HIP_MOE_WMMA=0` (batch-invariant MoE, see "MoE and batch size"), `INTARSIA_HIP_DISABLE=name1,name2` (hides kernels from the registry for A/B runs).
+`INTARSIA_HIP_MOE_WMMA=0` (batch-invariant MoE, see "MoE and batch size"), `INTARSIA_HIP_DISABLE=name1,name2` (hides kernels from the registry for A/B runs),
+`INTARSIA_HIP_FP8_F8=0` (kill switch for the default W8A8 prefill GEMM `matmul_fp8_mma_f8`: the fp8 projections with M >= 5 go back to
+`matmul_fp8_mma_v2` (bf16 tiles on the bf16 WMMA); default on since `docs/results/2026-10-19-hip-round5.md`, not bitwise v2, KL21
+numbers in `docs/results/2026-10-19-hip-round4.md` section 14).
 
 ## Admission cache
 

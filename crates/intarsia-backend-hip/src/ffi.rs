@@ -112,6 +112,7 @@ extern "C" {
     pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_flash(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
+    pub fn ik_attn_prefill_bf16_flash_v2(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_f32(logits: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_bf16(logits: T, out: TM, s: S) -> c_int;
@@ -184,6 +185,20 @@ extern "C" {
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_moe_experts_bf16_v2(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: SC,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_moe_experts_bf16_v3(
         x: T,
         ids: T,
         weights: T,

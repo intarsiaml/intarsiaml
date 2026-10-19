@@ -1,0 +1,5 @@
+f8-optin: thread 'quantmoe::tests::fp8_f8_is_the_default' (123367657) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:266:9: test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+f8-nokill: thread 'quantmoe::tests::fp8_f8_is_the_default' (123367906) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:269:9: test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+f8-prio: thread 'quantmoe::tests::fp8_selection_is_pinned' (123368150) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:284:13: test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+v3-default: thread 'quantmoe::tests::moe_v3_is_opt_in' (123368417) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:325:9: test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+v3-prio: thread 'quantmoe::tests::moe_experts_selection_is_pinned' (123368659) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:346:13: test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 

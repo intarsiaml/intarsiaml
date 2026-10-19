@@ -1,0 +1,7 @@
+# radiance downtime per GPU window (fleetq --takes-down radiance), from the [burst] lines of logs/w*.log
+# window  job   stopping radiance     radiance answers      minutes  stages
+W1        2584  2026-10-18 23:31:18   2026-10-18 23:41:08   9.83     pf8o x3 interleaved (56da3172 vs 36b3cf1f) + pf8o:Boff, profenv:xs, profenv:v1, prof:r5base
+W2        2587  2026-10-18 23:54:24   2026-10-19 00:01:20   6.93     acc35/acc35f8off/acc35l/acc8/k35/kernels/plans/pfprof on the f8-default base, r5test (moe v3), prof:r5v3, ids4k, pf35 A1/B1
+W3        2590  2026-10-19 00:17:56   2026-10-19 00:24:52   6.93     r5test, pfb, pfprof x4 (pairs 128 / 64, HPB 1 / 2 / 4), prof, ids4k (DIFFER), mutrun5 on GPU 1; stopped early in pf35:B2 (branch had the slow 128-pair tile, A/B moot)
+W4        2593  2026-10-19 00:31:31   2026-10-19 00:43:37   12.10    admission (8B full 821, 35B full 808), acc35l/acc35/acc8, ids4k, prof, pfprof, pf35 A/B x3; r5test + 2 mutants on GPU 1 in parallel
+W5        2602  2026-10-19 00:44:57   2026-10-19 00:53:30   8.55     pf8x A/B: A1 B1 A2 B2 A3 complete, B3 cut by the 500 s cap (BURST_CAP, kept to stay under 45 min total)

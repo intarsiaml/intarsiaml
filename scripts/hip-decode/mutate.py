@@ -213,6 +213,41 @@ MUTATIONS = {
     "gdn2-dot": ("kernels/hip/gdn.hip", [("float t = __builtin_fmaf(s.x, k.x, s.y * k.y);", "float t = __builtin_fmaf(s.y, k.y, s.x * k.x);")]),
     # delta rule v2: the value is halved
     "gdn2-v": ("kernels/hip/gdn.hip", [("const float v = valid ? ik_b2f(r.v) : 0.f;", "const float v = valid ? ik_b2f(r.v) * 0.5f : 0.f;")]),
+    # --- round 5: the f8 default (unit tests of the selection, no GPU: `cargo test -p intarsia-backend-hip --lib`) ---
+    # back to the round-4 opt-in (unset = v2)
+    "f8-optin": ("crates/intarsia-backend-hip/src/quantmoe.rs", [('    v != Some("0")\n', '    v == Some("1")\n')]),
+    # the kill switch is ignored ("0" keeps f8)
+    "f8-nokill": ("crates/intarsia-backend-hip/src/quantmoe.rs", [('    v != Some("0")\n', '    v != Some("off")\n')]),
+    # f8 registered below v2 (v2 would stay the GEMM although f8 is "on")
+    # v3 selected by default again (the opt-in ignored)
+    "v3-default": ("crates/intarsia-backend-hip/src/quantmoe.rs", [('    v == Some("1")\n', '    v != Some("0")\n')]),
+    # v3 registered above v2 whatever the knob says
+    "v3-prio": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("                                -10\n", "                                30\n")]),
+    "f8-prio": ("crates/intarsia-backend-hip/src/quantmoe.rs", [(".priority(if fp8_f8_enabled() { 5 } else { -10 })", ".priority(if fp8_f8_enabled() { 0 } else { -10 })")]),
+    # --- round 5: moe experts v3 (one-launch decode; tests/moe_v3.rs) ---
+    # the arrive counter is not reset: the next launch's down blocks pass the wait at once and read the previous h
+    "v3-noreset": ("kernels/hip/moe.hip", [("            __hip_atomic_store(sync, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);\n", "")]),
+    # the wait ends one gate_up block early
+    "v3-early": ("kernels/hip/moe.hip", [("< (unsigned)NG) __builtin_amdgcn_s_sleep(1);", "< (unsigned)NG - 1) __builtin_amdgcn_s_sleep(1);")]),
+    # no wait at all
+    "v3-nowait": ("kernels/hip/moe.hip", [("        while (__hip_atomic_load(sync, __ATOMIC_ACQUIRE, __HIP_MEMORY_SCOPE_AGENT) < (unsigned)NG) __builtin_amdgcn_s_sleep(1);\n", "")]),
+    # the ticket counter is not reset: the next launch has only down roles (no gate_up) and hangs (killed by the timeout)
+    "v3-ticket": ("kernels/hip/moe.hip", [("            __hip_atomic_store(sync + 2, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);\n", "")]),
+    # the down projection's first lane-iteration reads expert 0's intermediate row for every expert
+    "v3-hrow": ("kernels/hip/moe.hip", [("                hload(k < K ? k : 0, lane, h0, h1);", "                hload(0, lane, h0, h1);")]),
+    # the gate_up role stores its row in the neighbouring row's slot (h permuted)
+    "v3-gurow": ("kernels/hip/moe.hip", [("            if (lane == 0) h[(int64_t)p * I + r] = ik_f2b(a * uu);", "            if (lane == 0) h[(int64_t)p * I + (r ^ 1)] = ik_f2b(a * uu);")]),
+    # the acquire fence before the h reads is dropped (may survive: the L0 / L1 lines of h are rarely stale in practice)
+    # --- round 5: flash v2 (tests/flash_v2.rs, run at the default HPB = 2) ---
+    # every wave group takes the block's first head
+    "fl2-head": ("kernels/hip/attention_flash.hip", [("    const int h = blockIdx.y * HPB + (warp >> 2), kvh = (blockIdx.y * HPB) / G;", "    const int h = blockIdx.y * HPB, kvh = (blockIdx.y * HPB) / G;")]),
+    # the kv head from the block index instead of the block's first query head (equivalent only at HPB = 1)
+    "fl2-kvh": ("kernels/hip/attention_flash.hip", [("    const int h = blockIdx.y * HPB + (warp >> 2), kvh = (blockIdx.y * HPB) / G;", "    const int h = blockIdx.y * HPB + (warp >> 2), kvh = blockIdx.y / G;")]),
+    # rows from the wave index (group 1 computes rows 64.. of the tile, past the block)
+    "fl2-row": ("kernels/hip/attention_flash.hip", [("    const int qrow = q0 + (warp & 3) * 16 + lr;", "    const int qrow = q0 + warp * 16 + lr;")]),
+    # the tile load skips every other stride of chunks
+    "fl2-stride": ("kernels/hip/attention_flash.hip", [("        for (int idx = tid; idx < BK * CH; idx += NT) {", "        for (int idx = tid; idx < BK * CH; idx += 2 * NT) {")]),
+    "v3-nofence": ("kernels/hip/moe.hip", [('    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");  // every wave: h is read only after this\n', "")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -222,6 +257,9 @@ TESTS["moe-z-step"] = "quantmoe"
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
+TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio")})
+TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
+TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 
 tree, name = sys.argv[1], sys.argv[2]

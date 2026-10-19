@@ -1,0 +1,173 @@
+[burst] job 2602; stages: pf8x@base:A1 pf8x:B1 pf8x@base:A2 pf8x:B2 pf8x@base:A3 pf8x:B3; stopping radiance 2026-10-19 00:44:57
+[burst] radiance stopped 2026-10-19 00:45:00
+################ stage pf8x@base:A1 start 00:45:00
+--- serve qwen3-8b-intarsia-hip [00:45:00]
+up after ~60s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 48 base tokens, 20.82 tokens per filler sentence
+  size   1024 rep: prompt=988 gen=64 ttft=0.22s prefill=4467 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=1012 gen=64 ttft=0.22s prefill=4517 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=1007 gen=64 ttft=0.22s prefill=4537 tok/s decode=38.3 tok/s
+  size   4160 rep: prompt=4215 gen=64 ttft=1.03s prefill=4085 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4170 gen=64 ttft=1.03s prefill=4043 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4175 gen=64 ttft=1.03s prefill=4037 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16760 gen=64 ttft=5.86s prefill=2859 tok/s decode=33.1 tok/s
+  size  16384 rep: prompt=16648 gen=64 ttft=5.86s prefill=2840 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16651 gen=64 ttft=5.87s prefill=2835 tok/s decode=33.2 tok/s
+wrote /work/bench-out/pf8x-A1.json
+pf8x-A1  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024     1007     0.222         4517        38.3       64      100.0
+    4160     4175     1.032         4043        37.0       64       96.8
+   16384    16651     5.862         2840        33.1       64       86.6
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x@base:A1 end 00:46:44
+################ stage pf8x:B1 start 00:46:44
+--- serve qwen3-8b-intarsia-hip [00:46:44]
+up after ~57s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 46 base tokens, 21.05 tokens per filler sentence
+  size   1024 rep: prompt=976 gen=64 ttft=0.21s prefill=4541 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=987 gen=64 ttft=0.22s prefill=4522 tok/s decode=38.4 tok/s
+  size   1024 rep: prompt=987 gen=64 ttft=0.22s prefill=4554 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4122 gen=64 ttft=0.97s prefill=4258 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4170 gen=64 ttft=0.98s prefill=4268 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4155 gen=64 ttft=0.97s prefill=4266 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16599 gen=64 ttft=5.06s prefill=3284 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16541 gen=64 ttft=5.06s prefill=3267 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16532 gen=64 ttft=5.07s prefill=3260 tok/s decode=33.2 tok/s
+wrote /work/bench-out/pf8x-B1.json
+pf8x-B1  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      987     0.217         4541        38.4       64      100.3
+    4160     4155     0.974         4266        37.1       64       96.8
+   16384    16541     5.064         3267        33.2       64       86.8
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x:B1 end 00:48:21
+################ stage pf8x@base:A2 start 00:48:21
+--- serve qwen3-8b-intarsia-hip [00:48:21]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 44 base tokens, 20.73 tokens per filler sentence
+  size   1024 rep: prompt=1011 gen=64 ttft=0.22s prefill=4560 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=991 gen=64 ttft=0.22s prefill=4502 tok/s decode=38.4 tok/s
+  size   1024 rep: prompt=991 gen=64 ttft=0.22s prefill=4492 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4217 gen=64 ttft=1.03s prefill=4089 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4188 gen=64 ttft=1.03s prefill=4058 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4190 gen=64 ttft=1.03s prefill=4059 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16821 gen=64 ttft=5.91s prefill=2846 tok/s decode=33.1 tok/s
+  size  16384 rep: prompt=16744 gen=64 ttft=5.87s prefill=2853 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16868 gen=64 ttft=5.95s prefill=2837 tok/s decode=33.1 tok/s
+wrote /work/bench-out/pf8x-A2.json
+pf8x-A2  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      991     0.221         4502        38.4       64      100.3
+    4160     4190     1.032         4059        37.1       64       96.8
+   16384    16821     5.910         2846        33.1       64       86.6
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x@base:A2 end 00:49:58
+################ stage pf8x:B2 start 00:49:58
+--- serve qwen3-8b-intarsia-hip [00:49:58]
+up after ~57s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 46 base tokens, 20.83 tokens per filler sentence
+  size   1024 rep: prompt=997 gen=64 ttft=0.22s prefill=4525 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=1015 gen=64 ttft=0.22s prefill=4623 tok/s decode=38.4 tok/s
+  size   1024 rep: prompt=991 gen=64 ttft=0.22s prefill=4567 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4176 gen=64 ttft=0.98s prefill=4283 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4204 gen=64 ttft=0.98s prefill=4301 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4220 gen=64 ttft=0.98s prefill=4322 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16666 gen=64 ttft=5.11s prefill=3264 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16659 gen=64 ttft=5.12s prefill=3255 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16679 gen=64 ttft=5.12s prefill=3255 tok/s decode=33.2 tok/s
+wrote /work/bench-out/pf8x-B2.json
+pf8x-B2  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      997     0.220         4567        38.4       64      100.3
+    4160     4204     0.976         4301        37.1       64       96.8
+   16384    16666     5.118         3255        33.2       64       86.6
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x:B2 end 00:51:35
+################ stage pf8x@base:A3 start 00:51:35
+--- serve qwen3-8b-intarsia-hip [00:51:35]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 46 base tokens, 20.89 tokens per filler sentence
+  size   1024 rep: prompt=1003 gen=64 ttft=0.22s prefill=4549 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=1003 gen=64 ttft=0.22s prefill=4539 tok/s decode=38.4 tok/s
+  size   1024 rep: prompt=1004 gen=64 ttft=0.22s prefill=4514 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4186 gen=64 ttft=1.03s prefill=4063 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4157 gen=64 ttft=1.03s prefill=4049 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4165 gen=64 ttft=1.03s prefill=4059 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16764 gen=64 ttft=5.86s prefill=2862 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16727 gen=64 ttft=5.87s prefill=2851 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16665 gen=64 ttft=5.87s prefill=2839 tok/s decode=33.2 tok/s
+wrote /work/bench-out/pf8x-A3.json
+pf8x-A3  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024     1003     0.221         4539        38.4       64      100.2
+    4160     4165     1.027         4059        37.1       64       96.8
+   16384    16727     5.868         2851        33.2       64       86.6
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x@base:A3 end 00:53:12
+################ stage pf8x:B3 start 00:53:12
+--- serve qwen3-8b-intarsia-hip [00:53:12]
+Terminated
+[burst] stages done 2026-10-19 00:53:20 (timeout/cap exit 124)
+[burst] starting radiance 2026-10-19 00:53:20
+[burst] radiance answers 2026-10-19 00:53:30 (after 15 s)
