@@ -272,7 +272,7 @@ MUTATIONS = {
     # P5: the squares are summed from the unrounded sum (rmsnorm_kernel continues from the bf16-rounded one)
     "p1-n5-round": ("kernels/hip/fp8.hip", [("        ik_unpack8(p, f);  // continue from the bf16-rounded sum\n", "")]),
     # P5: the norm weight offset is dropped (zero-centred norms)
-    "p1-n5-woff": ("kernels/hip/fp8.hip", [("        for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);\n        const uint4 p = ik_pack8(f);\n        xs[i] = p;", "        for (int k = 0; k < 8; ++k) f[k] = f[k] * r * g[k];\n        const uint4 p = ik_pack8(f);\n        xs[i] = p;")]),
+    "p1-n5-woff": ("kernels/hip/fp8.hip", [("f[k] = f[k] * r * (g[k] + w_off);", "f[k] = f[k] * r * g[k];")]),
     # P5: the GEMV stages the raw x instead of the normed row
     "p1-n5-stage": ("kernels/hip/fp8.hip", [("else if constexpr (PRO == 3) v = reinterpret_cast<const uint4*>(xs)[i8];", "else if constexpr (PRO == 3) v = reinterpret_cast<const uint4*>(x)[i8];")]),
     # P4b: sigmoid of the negated gate

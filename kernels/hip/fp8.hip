@@ -74,7 +74,7 @@ IK_DEVI uint4 gated_norm_chunk(const ik_bf16* __restrict__ x, const ik_bf16* __r
 // it (block barriers). The staging loop afterwards reads each chunk back on the thread that wrote it.
 __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res,
                                                const ik_bf16* __restrict__ nw, ik_bf16* __restrict__ normed,
-                                               ik_bf16* __restrict__ sum, uint4* xs, int K, float eps, float woff,
+                                               ik_bf16* __restrict__ sum, uint4* xs, int K, float eps, float w_off,
                                                bool writer) {
     __shared__ float red[32];
     const int64_t nv = K / 8;
@@ -99,7 +99,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
         ik_unpack8(xs[i], f);
         ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(nw) + i), g);
 #pragma unroll
-        for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
+        for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + w_off);  // (named apart from gated_norm_chunk's line: mutate.py gn-woff)
         const uint4 p = ik_pack8(f);
         xs[i] = p;
         if (writer) reinterpret_cast<uint4*>(normed)[i] = p;

@@ -595,4 +595,47 @@ mod tests {
         eprintln!("PINS\n{}", got.join("\n"));
         assert_eq!(got, PHASE1_PINS, "the selection of the unfused ops moved");
     }
+
+    #[rustfmt::skip]
+    const MAIN_KERNEL_LIST: &[&str] = &[
+        "add_bf16:add",
+        "argmax_bf16:argmax",
+        "argmax_f32:argmax",
+        "attn_decode_bf16:attn_decode",
+        "attn_decode_bf16_splitkv:attn_decode",
+        "attn_prefill_bf16:attn_prefill",
+        "attn_prefill_bf16_flash:attn_prefill",
+        "attn_prefill_bf16_flash_nax:attn_prefill",
+        "attn_prefill_bf16_splitkv_rows:attn_prefill",
+        "embedding_bf16:embedding",
+        "kv_append_bf16:kv_append",
+        "logits_bf16:logits",
+        "logits_bf16_gemv:logits",
+        "logits_bf16_gemv_rows:logits",
+        "matmul_bf16:matmul",
+        "matmul_bf16_gemv:matmul",
+        "matmul_bf16_gemv_rows:matmul",
+        "matmul_bf16_nax:matmul",
+        "matmul_pair_bf16_gemv:matmul_pair",
+        "matmul_pair_bf16_gemv_rows:matmul_pair",
+        "matmul_pair_bf16_nax:matmul_pair",
+        "qk_norm_bf16:qk_norm",
+        "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
+        "rmsnorm_add_bf16:rmsnorm_add",
+        "rmsnorm_bf16:rmsnorm",
+        "rope_bf16:rope",
+        "silu_glu_bf16:silu_glu",
+    ];
+
+    /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
+    /// origin/main's (`4962d8fa`), so the plan has the same candidates as before.
+    #[test]
+    fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
+        let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
+        got.sort();
+        if MAIN_KERNEL_LIST.is_empty() {
+            panic!("LIST {}", got.join(" "));
+        }
+        assert_eq!(got, MAIN_KERNEL_LIST);
+    }
 }
