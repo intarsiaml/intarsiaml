@@ -1,0 +1,332 @@
+{
+ "arm": "blk",
+ "url": "http://127.0.0.1:8090",
+ "started": "2026-10-19 14:47:20",
+ "soak_s": 600.0,
+ "sample": 40,
+ "criteria": {
+  "metrics_invariants_and_drain": true,
+  "no_hang": true,
+  "identity_vs_solo": true,
+  "no_drift_solo_vs_solo": true
+ },
+ "decode_tps_sentinel": [
+  164.58429156435383,
+  164.65492895093792,
+  164.7036451907284
+ ],
+ "ref_rc": 0,
+ "ref_cases": 42,
+ "ref_bad": [],
+ "load_wall_s": 633.5,
+ "cbsoak_rc": 0,
+ "replays": [
+  {
+   "file": "c00-b4-mixed-s1.0.jsonl",
+   "n": 42,
+   "b": 4,
+   "stream": "mixed",
+   "arrival_scale": 1.0,
+   "wall_s": 69.5,
+   "peak_client_inflight": 4,
+   "errors": [],
+   "slow": [],
+   "cancelled": 1,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 1.34,
+    "p99": 4.89,
+    "max": 4.89
+   }
+  },
+  {
+   "file": "c01-b8-mixed-s0.5.jsonl",
+   "n": 42,
+   "b": 8,
+   "stream": "mixed",
+   "arrival_scale": 0.5,
+   "wall_s": 36.8,
+   "peak_client_inflight": 8,
+   "errors": [],
+   "slow": [],
+   "cancelled": 4,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 3.59,
+    "p99": 7.36,
+    "max": 7.36
+   }
+  },
+  {
+   "file": "c02-b8-on-s0.0.jsonl",
+   "n": 42,
+   "b": 8,
+   "stream": "on",
+   "arrival_scale": 0.0,
+   "wall_s": 31.1,
+   "peak_client_inflight": 8,
+   "errors": [],
+   "slow": [],
+   "cancelled": 3,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 5.33,
+    "p99": 8.99,
+    "max": 8.99
+   }
+  },
+  {
+   "file": "c03-b4-off-s1.0.jsonl",
+   "n": 42,
+   "b": 4,
+   "stream": "off",
+   "arrival_scale": 1.0,
+   "wall_s": 69.5,
+   "peak_client_inflight": 4,
+   "errors": [],
+   "slow": [],
+   "cancelled": 1,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 1.35,
+    "p99": 3.59,
+    "max": 3.59
+   }
+  },
+  {
+   "file": "c04-b8-mixed-s0.0.jsonl",
+   "n": 42,
+   "b": 8,
+   "stream": "mixed",
+   "arrival_scale": 0.0,
+   "wall_s": 33.6,
+   "peak_client_inflight": 8,
+   "errors": [],
+   "slow": [],
+   "cancelled": 3,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 6.48,
+    "p99": 9.23,
+    "max": 9.23
+   }
+  },
+  {
+   "file": "c05-b4-on-s0.25.jsonl",
+   "n": 42,
+   "b": 4,
+   "stream": "on",
+   "arrival_scale": 0.25,
+   "wall_s": 32.7,
+   "peak_client_inflight": 4,
+   "errors": [],
+   "slow": [],
+   "cancelled": 3,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 3.07,
+    "p99": 5.69,
+    "max": 5.69
+   }
+  },
+  {
+   "file": "c06-b4-mixed-s1.0.jsonl",
+   "n": 42,
+   "b": 4,
+   "stream": "mixed",
+   "arrival_scale": 1.0,
+   "wall_s": 69.5,
+   "peak_client_inflight": 4,
+   "errors": [],
+   "slow": [],
+   "cancelled": 1,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 1.11,
+    "p99": 3.87,
+    "max": 3.87
+   }
+  },
+  {
+   "file": "c07-b8-mixed-s0.5.jsonl",
+   "n": 42,
+   "b": 8,
+   "stream": "mixed",
+   "arrival_scale": 0.5,
+   "wall_s": 37.9,
+   "peak_client_inflight": 8,
+   "errors": [],
+   "slow": [],
+   "cancelled": 4,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 4.31,
+    "p99": 7.16,
+    "max": 7.16
+   }
+  },
+  {
+   "file": "c08-b8-on-s0.0.jsonl",
+   "n": 42,
+   "b": 8,
+   "stream": "on",
+   "arrival_scale": 0.0,
+   "wall_s": 29.8,
+   "peak_client_inflight": 8,
+   "errors": [],
+   "slow": [],
+   "cancelled": 3,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 5.21,
+    "p99": 8.98,
+    "max": 8.98
+   }
+  },
+  {
+   "file": "c09-b4-off-s1.0.jsonl",
+   "n": 42,
+   "b": 4,
+   "stream": "off",
+   "arrival_scale": 1.0,
+   "wall_s": 70.2,
+   "peak_client_inflight": 4,
+   "errors": [],
+   "slow": [],
+   "cancelled": 1,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 1.35,
+    "p99": 5.8,
+    "max": 5.8
+   }
+  },
+  {
+   "file": "c10-b8-mixed-s0.0.jsonl",
+   "n": 42,
+   "b": 8,
+   "stream": "mixed",
+   "arrival_scale": 0.0,
+   "wall_s": 32.7,
+   "peak_client_inflight": 8,
+   "errors": [],
+   "slow": [],
+   "cancelled": 3,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 6.1,
+    "p99": 9.81,
+    "max": 9.81
+   }
+  },
+  {
+   "file": "c11-b4-on-s0.25.jsonl",
+   "n": 42,
+   "b": 4,
+   "stream": "on",
+   "arrival_scale": 0.25,
+   "wall_s": 39.0,
+   "peak_client_inflight": 4,
+   "errors": [],
+   "slow": [],
+   "cancelled": 3,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 3.8,
+    "p99": 6.0,
+    "max": 6.0
+   }
+  },
+  {
+   "file": "c12-b4-mixed-s1.0.jsonl",
+   "n": 42,
+   "b": 4,
+   "stream": "mixed",
+   "arrival_scale": 1.0,
+   "wall_s": 69.5,
+   "peak_client_inflight": 4,
+   "errors": [],
+   "slow": [],
+   "cancelled": 1,
+   "cached_tokens_sum": 0,
+   "latency_s": {
+    "p50": 1.04,
+    "p99": 4.65,
+    "max": 4.65
+   }
+  }
+ ],
+ "cbsoak": {
+  "counts": {
+   "planned": 197,
+   "sent": 197,
+   "ok": 166,
+   "cancelled": 31,
+   "shed": 0,
+   "shed_429": 0,
+   "shed_503": 0,
+   "error": 0,
+   "client_dropped": 0
+  },
+  "error_kinds": {},
+  "http_status": {
+   "200": 197
+  },
+  "ttft_ms": {
+   "n": 173,
+   "mean": 2356.0910174075375,
+   "p50": 1949.9915660126135,
+   "p95": 6442.2173302155,
+   "p99": 8420.145866163075,
+   "max": 9150.859940913506
+  },
+  "itl_ms": {
+   "n": 23045,
+   "mean": 6.149050174008212,
+   "p50": 6.129855057224631,
+   "p95": 6.224788818508387,
+   "p99": 6.366524249315262,
+   "max": 25.45498195104301
+  },
+  "rates": {
+   "offered_req_s": 0.3283333333333333,
+   "completed_req_s": 0.276738336825573,
+   "out_tok_s": 38.7833775175309,
+   "busy_window_s": 599.8446109930519,
+   "shed_rate": 0.0,
+   "error_rate": 0.0,
+   "cancel_rate": 0.15736040609137056,
+   "goodput": 0.8426395939086294,
+   "chunks_per_completion_token": 0.997928674351585,
+   "long_prefill_arrivals": 5
+  }
+ },
+ "idle_invariants": {
+  "running": 0.0,
+  "waiting": 0.0,
+  "requests_total": 848.0,
+  "finished": {
+   "cancelled": 62.0,
+   "length": 654.0,
+   "stop": 132.0
+  },
+  "finished_sum": 848.0,
+  "rejected": 0.0,
+  "engine_failed": 0.0,
+  "drained_after_s": 0.0,
+  "problems": []
+ },
+ "ref2_rc": 0,
+ "compare_rc": 0,
+ "compare_ref2_rc": 0,
+ "poll": {
+  "samples": 348,
+  "max_waiting": 12.0,
+  "max_running": 1.0,
+  "violations": [],
+  "decode_tps_median": 161.61672180410255
+ },
+ "finished": "2026-10-19 14:59:08",
+ "fails": [],
+ "pass": true
+}

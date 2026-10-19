@@ -1,0 +1,9 @@
+head 0cea68fc 2026-10-19 15:09:08
+cargo test --workspace: 105 result lines, passed 501, failed 0, exit 0
+cargo check --workspace: exit 0     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.12s
+cargo check --workspace --features hip: exit 0     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.34s
+cargo check -p intarsia-cli --features metal: exit 0     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.12s
+cargo build -p intarsia-backend-metal: exit 0     Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.47s
+cargo test -p intarsia-backend-cuda -p intarsia-backend-metal moe_block: exit 0 2 tests ok
+cargo test -p intarsia-backend-hip --lib moe_block: exit 0 test quantmoe::tests::moe_block_is_default_on_and_its_shapes_are_pinned ... ok 
+done

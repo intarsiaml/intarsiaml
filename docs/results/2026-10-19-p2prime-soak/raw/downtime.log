@@ -1,0 +1,4 @@
+window	job	radiance stopped	radiance answers	minutes	what
+W1	2743	14:47:19	14:59:37	12.30	soak: 35B serve max-batch 1, P2 on (GPU0) vs off (GPU1), 10.6/10.8 min of load per arm
+W2	2745	15:05:00	15:08:21	3.35	quick gates with the default on (KL21 short/long, prefix reuse, 8B goldens, ids4k, plans) + =0 control
+total				15.65	45 min cap; windows < 20 min; 5.35 min of radiance serving between W1 and W2

@@ -1,0 +1,75 @@
+# cbsoak report
+
+http://127.0.0.1:8090  model `qwen36-35b-intarsia-hip`  started 2026-10-19T14:58:09-04:00  wall 600 s  planned rate 0.3 req/s over 600.0 s  seed 7
+
+## Totals
+
+| sent | ok | cancelled | shed (429/503) | error | client_dropped |
+|---|---|---|---|---|---|
+| 197 | 166 | 31 | 0 (0/0) | 0 | 0 |
+
+offered 0.328 req/s, completed 0.277 req/s, output 38.8 tok/s (over the 600 s from first send to last completion); shed rate 0.00%, error rate 0.00%, cancel rate 15.74%, goodput 84.26%; chunks per completion token 0.998 (1.0 means ITL is per token).
+
+## Latency
+
+| metric | n | mean | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| TTFT (ms) | 173 | 2356.1 | 1950.0 | 6442.2 | 8420.1 | 9150.9 |
+| ITL (ms) | 23045 | 6.1 | 6.1 | 6.2 | 6.4 | 25.5 |
+| per-stream decode (tok/s) | 166 | 162.5 | 162.9 | 164.2 | 164.5 | 164.6 |
+
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (5 such prompts): n 571, p50 6.1, p95 6.2, p99 6.2, max 8.1 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
+TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n 29, p50 163.2, p95 3545.8, max 4134.8 ms; all other requests: n 144, p50 2385.5, p95 6568.4 ms.
+
+## By prompt length
+
+solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).
+
+| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 128 | 145 | 42 | 34 | 0 | 0 | 618.2 | 6249.8 | 74.1 (17) | 6.1 | 6.1 |
+| 512 | 529 | 70 | 61 | 0 | 0 | 2318.9 | 6691.9 | 341.2 (26) | 6.1 | 6.2 |
+| 1024 | 1052 | 50 | 42 | 0 | 0 | 1613.9 | 5333.9 | 171.2 (26) | 6.1 | 6.2 |
+| 2048 | 2173 | 28 | 25 | 0 | 0 | 2591.2 | 6515.2 | 998.4 (9) | 6.2 | 6.2 |
+| 4096 | 4142 | 7 | 4 | 0 | 0 | 2470.2 | 3591.8 | 547.7 (2) | 6.4 | 6.4 |
+
+## Per 30 s window (requests by send time, ITL and tok/s by chunk arrival time)
+
+| window | t0 (s) | sent | ok | shed | err | canc | tok/s | TTFT p50 | TTFT p95 | ITL p50 | ITL p95 | ITL p99 | queue max | mem (MB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 9 | 9 | 0 | 0 | 0 | 40.4 | 678 | 4474 | 6.1 | 6.2 | 6.2 | 3 | - |
+| 1 | 30 | 7 | 7 | 0 | 0 | 0 | 39.4 | 898 | 3171 | 6.1 | 6.2 | 6.2 | 4 | - |
+| 2 | 60 | 8 | 6 | 0 | 0 | 2 | 36.7 | 1984 | 2928 | 6.1 | 6.4 | 6.4 | 5 | - |
+| 3 | 90 | 12 | 5 | 0 | 0 | 7 | 21.3 | 6187 | 6647 | 6.1 | 6.2 | 6.2 | 13 | - |
+| 4 | 120 | 9 | 9 | 0 | 0 | 0 | 52.2 | 3332 | 6028 | 6.1 | 6.2 | 6.2 | 10 | - |
+| 5 | 150 | 6 | 6 | 0 | 0 | 0 | 22.7 | 148 | 684 | 6.1 | 6.2 | 6.2 | 1 | - |
+| 6 | 180 | 12 | 10 | 0 | 0 | 2 | 33.7 | 1797 | 2723 | 6.1 | 6.2 | 6.3 | 4 | - |
+| 7 | 210 | 12 | 9 | 0 | 0 | 3 | 31.2 | 6253 | 8473 | 6.1 | 6.2 | 6.2 | 10 | - |
+| 8 | 240 | 8 | 4 | 0 | 0 | 4 | 21.8 | 2440 | 3733 | 6.1 | 6.2 | 6.2 | 6 | - |
+| 9 | 270 | 8 | 8 | 0 | 0 | 0 | 49.0 | 318 | 2844 | 6.1 | 6.2 | 6.2 | 6 | - |
+| 10 | 300 | 13 | 13 | 0 | 0 | 0 | 53.3 | 2591 | 3628 | 6.1 | 6.4 | 6.4 | 4 | - |
+| 11 | 330 | 14 | 12 | 0 | 0 | 2 | 45.7 | 1897 | 3880 | 6.1 | 6.2 | 6.2 | 5 | - |
+| 12 | 360 | 7 | 5 | 0 | 0 | 2 | 38.4 | 4018 | 5361 | 6.1 | 6.2 | 6.2 | 11 | - |
+| 13 | 390 | 7 | 3 | 0 | 0 | 4 | 27.7 | 4135 | 4860 | 6.1 | 6.2 | 6.2 | 8 | - |
+| 14 | 420 | 9 | 9 | 0 | 0 | 0 | 33.9 | 163 | 1330 | 6.1 | 6.2 | 6.4 | 0 | - |
+| 15 | 450 | 12 | 11 | 0 | 0 | 1 | 49.5 | 846 | 3564 | 6.1 | 6.3 | 6.4 | 5 | - |
+| 16 | 480 | 10 | 9 | 0 | 0 | 1 | 37.2 | 3516 | 8654 | 6.1 | 6.1 | 6.2 | 9 | - |
+| 17 | 510 | 11 | 10 | 0 | 0 | 1 | 52.2 | 4226 | 5462 | 6.2 | 6.2 | 6.2 | 10 | - |
+| 18 | 540 | 11 | 10 | 0 | 0 | 1 | 42.5 | 3483 | 5334 | 6.1 | 6.2 | 6.2 | 5 | - |
+| 19 | 570 | 12 | 11 | 0 | 0 | 1 | 43.8 | 317 | 1399 | 6.1 | 6.4 | 6.4 | 1 | - |
+| 20 | 600 | 0 | 0 | 0 | 0 | 0 | 1.2 | - | - | 6.2 | 6.2 | 6.2 | 0 | - |
+
+## Memory
+
+no process memory samples (run without --pid, or the process could not be sampled).
+
+Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start 21096 MB, end 21160 MB, max 21224 MB; slope 0.00 MB/min (r2 0.02), fitted growth 0 MB. Leak suspect: **no**.
+
+## Server (/metrics)
+
+121 samples. running: max 1.0 / mean 0.84. queue depth: max 13.0 / mean 3.42. step EWMA ms: -. KV bytes used: max 159784960.0 / mean 98743389.09 of 223 MB. rejected (delta): 0. server TTFT mean 203.6 ms, ITL mean 7.2 ms. prefill chunks (delta) -.
+
+## SLO
+
+no thresholds given (informational run).

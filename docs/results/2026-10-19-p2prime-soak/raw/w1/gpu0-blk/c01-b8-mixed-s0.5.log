@@ -1,0 +1,45 @@
+concurrent: 42 cases -> http://127.0.0.1:8090, B=8, stream=mixed
+token ids: requested (http://127.0.0.1:8090)
+  [  1/42] cb000 N stop 2 0.1s
+  [  2/42] cb002 N length 96 0.9s
+  [  3/42] cb001 N stop 92 1.8s
+  [  4/42] cb003 N length 16 1.4s
+  [  5/42] cb004 N length 96 3.8s
+  [  6/42] cb006 S cancelled 352 4.0s
+  [  7/42] cb010 S stop 14 3.3s
+  [  8/42] cb016 S length 32 2.2s
+  [  9/42] cb018 N length 48 1.2s
+  [ 10/42] cb028 S length 48 2.5s
+  [ 11/42] cb034 S length 48 3.6s
+  [ 12/42] cb044 N stop 14 2.5s
+  [ 13/42] cb043 S length 128 3.8s
+  [ 14/42] cb048 N length 32 3.5s
+  [ 15/42] cb050 N length 48 3.6s
+  [ 16/42] cb058 S length 64 2.8s
+  [ 17/42] cb061 N stop 25 3.1s
+  [ 18/42] cb068 N length 64 2.6s
+  [ 19/42] cb072 S stop 2 2.7s
+  [ 20/42] cb076 S length 16 3.7s
+  [ 21/42] cb080 N length 96 4.5s
+  [ 22/42] cb083 S length 16 3.7s
+  [ 23/42] cb086 S length 48 3.3s
+  [ 24/42] cb093 S cancelled 0 4.0s
+  [ 25/42] cb104 S length 96 2.9s
+  [ 26/42] cb108 S stop 17 2.9s
+  [ 27/42] cb112 S length 64 3.6s
+  [ 28/42] cb110 S length 48 4.6s
+  [ 29/42] cb116 S length 128 4.8s
+  [ 30/42] cb120 S length 160 6.1s
+  [ 31/42] cb124 N length 48 6.6s
+  [ 32/42] cb139 N length 96 6.9s
+  [ 33/42] cb142 N stop 4 6.5s
+  [ 34/42] cb176 S cancelled 0 1.5s
+  [ 35/42] cb143 N length 128 7.0s
+  [ 36/42] cb153 S cancelled 25 7.1s
+  [ 37/42] cb156 S length 32 7.4s
+  [ 38/42] cb163 N length 32 6.8s
+  [ 39/42] cb166 N stop 7 6.9s
+  [ 40/42] cb177 N length 48 5.5s
+  [ 41/42] cb200 N length 64 2.0s
+  [ 42/42] cb201 N length 64 2.9s
+wrote /home/josef/p2p-soak/w1/gpu0-blk/c01-b8-mixed-s0.5.jsonl: 42 records, 0 errors, wall 36.8s, peak client in-flight 8

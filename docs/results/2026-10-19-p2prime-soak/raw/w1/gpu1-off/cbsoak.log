@@ -1,0 +1,97 @@
+cbsoak: warmup 128 tokens -> ok ttft=2006 ms
+cbsoak: warmup 4096 tokens -> ok ttft=3588 ms
+cbsoak: http://127.0.0.1:8091 model=qwen36-35b-intarsia-hip rate=0.3/s duration=600.0s -> 197 requests planned, chars/token={'docs': 3.28, 'code': 3.76}
+cbsoak: t=    30s sent=10 done=9 inflight=1
+cbsoak: t=    63s sent=17 done=16 inflight=1
+cbsoak: t=    94s sent=28 done=24 inflight=4
+cbsoak: t=   124s sent=37 done=35 inflight=2
+cbsoak: t=   155s sent=47 done=46 inflight=1
+cbsoak: t=   186s sent=53 done=51 inflight=2
+cbsoak: t=   220s sent=67 done=64 inflight=3
+cbsoak: t=   263s sent=78 done=77 inflight=1
+cbsoak: t=   297s sent=90 done=89 inflight=1
+cbsoak: t=   328s sent=103 done=102 inflight=1
+cbsoak: t=   359s sent=117 done=114 inflight=3
+cbsoak: t=   393s sent=126 done=125 inflight=1
+cbsoak: t=   427s sent=134 done=133 inflight=1
+cbsoak: t=   459s sent=145 done=144 inflight=1
+cbsoak: t=   491s sent=159 done=158 inflight=1
+cbsoak: t=   521s sent=166 done=163 inflight=3
+cbsoak: t=   552s sent=179 done=176 inflight=3
+cbsoak: t=   586s sent=192 done=191 inflight=1
+# cbsoak report
+
+http://127.0.0.1:8091  model `qwen36-35b-intarsia-hip`  started 2026-10-19T14:58:13-04:00  wall 600 s  planned rate 0.3 req/s over 600.0 s  seed 7
+
+## Totals
+
+| sent | ok | cancelled | shed (429/503) | error | client_dropped |
+|---|---|---|---|---|---|
+| 197 | 164 | 33 | 0 (0/0) | 0 | 0 |
+
+offered 0.328 req/s, completed 0.273 req/s, output 36.9 tok/s (over the 600 s from first send to last completion); shed rate 0.00%, error rate 0.00%, cancel rate 16.75%, goodput 83.25%; chunks per completion token 0.998 (1.0 means ITL is per token).
+
+## Latency
+
+| metric | n | mean | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| TTFT (ms) | 171 | 3053.6 | 2972.8 | 7123.3 | 8320.0 | 10007.3 |
+| ITL (ms) | 21939 | 6.7 | 6.7 | 6.8 | 6.9 | 27.6 |
+| per-stream decode (tok/s) | 164 | 149.1 | 149.7 | 150.9 | 151.1 | 151.2 |
+
+ITL of running streams during the prefill of an arriving >= 3000-token prompt (5 such prompts): n 526, p50 6.7, p95 6.7, p99 6.7, max 9.7 ms (gaps overlapping [send, send + TTFT] of another request; with max_batch 1 the window includes queue wait and the running stream is not stalled, so this is ordinary ITL there).
+
+TTFT of requests that arrived after > 3 s with no request open (server idle: weights are re-wired, ~170 ms extra): n 23, p50 457.5, p95 3422.8, max 6088.0 ms; all other requests: n 148, p50 3414.0, p95 7302.2 ms.
+
+## By prompt length
+
+solo TTFT = requests that found no other request open on the client when they were sent (queue-free reference).
+
+| bucket (tokens) | prompt tok (mean) | n | ok | shed | err | TTFT p50 | TTFT p95 | solo TTFT p50 (n) | ITL p50 | ITL p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 128 | 145 | 42 | 31 | 0 | 0 | 2774.2 | 5919.6 | 694.6 (14) | 6.6 | 6.7 |
+| 512 | 528 | 70 | 63 | 0 | 0 | 3322.5 | 6836.9 | 2211.2 (24) | 6.7 | 6.7 |
+| 1024 | 1055 | 50 | 40 | 0 | 0 | 1728.1 | 6175.0 | 154.6 (19) | 6.7 | 6.7 |
+| 2048 | 2182 | 28 | 25 | 0 | 0 | 4121.6 | 7699.2 | 1278.2 (6) | 6.7 | 6.8 |
+| 4096 | 4185 | 7 | 5 | 0 | 0 | 2469.4 | 3830.1 | 1150.4 (3) | 6.9 | 6.9 |
+
+## Per 30 s window (requests by send time, ITL and tok/s by chunk arrival time)
+
+| window | t0 (s) | sent | ok | shed | err | canc | tok/s | TTFT p50 | TTFT p95 | ITL p50 | ITL p95 | ITL p99 | queue max | mem (MB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 9 | 8 | 0 | 0 | 1 | 40.4 | 863 | 2564 | 6.7 | 6.7 | 6.7 | 2 | - |
+| 1 | 30 | 7 | 7 | 0 | 0 | 0 | 39.4 | 1146 | 4175 | 6.7 | 6.8 | 6.8 | 5 | - |
+| 2 | 60 | 8 | 6 | 0 | 0 | 2 | 26.0 | 2428 | 5712 | 6.6 | 6.9 | 6.9 | 5 | - |
+| 3 | 90 | 12 | 6 | 0 | 0 | 6 | 30.9 | 5872 | 6778 | 6.7 | 6.7 | 6.7 | 13 | - |
+| 4 | 120 | 9 | 9 | 0 | 0 | 0 | 47.1 | 4914 | 7221 | 6.7 | 6.7 | 6.8 | 10 | - |
+| 5 | 150 | 6 | 6 | 0 | 0 | 0 | 27.7 | 149 | 879 | 6.7 | 6.7 | 6.8 | 1 | - |
+| 6 | 180 | 12 | 10 | 0 | 0 | 2 | 33.8 | 3269 | 4022 | 6.7 | 6.8 | 6.8 | 5 | - |
+| 7 | 210 | 12 | 8 | 0 | 0 | 4 | 26.7 | 6808 | 9639 | 6.7 | 6.7 | 6.7 | 10 | - |
+| 8 | 240 | 8 | 4 | 0 | 0 | 4 | 20.0 | 3924 | 3967 | 6.7 | 6.7 | 6.7 | 12 | - |
+| 9 | 270 | 8 | 8 | 0 | 0 | 0 | 45.9 | 1465 | 4660 | 6.7 | 6.7 | 6.8 | 7 | - |
+| 10 | 300 | 13 | 13 | 0 | 0 | 0 | 47.9 | 2896 | 4075 | 6.7 | 6.9 | 6.9 | 5 | - |
+| 11 | 330 | 14 | 12 | 0 | 0 | 2 | 51.2 | 2938 | 5487 | 6.7 | 6.7 | 6.8 | 6 | - |
+| 12 | 360 | 7 | 5 | 0 | 0 | 2 | 38.8 | 3461 | 7822 | 6.7 | 6.8 | 6.8 | 9 | - |
+| 13 | 390 | 7 | 3 | 0 | 0 | 4 | 14.0 | 5211 | 7272 | 6.6 | 6.8 | 6.8 | 11 | - |
+| 14 | 420 | 9 | 9 | 0 | 0 | 0 | 35.1 | 515 | 2458 | 6.7 | 6.8 | 6.9 | 4 | - |
+| 15 | 450 | 12 | 11 | 0 | 0 | 1 | 39.3 | 1406 | 4515 | 6.7 | 6.9 | 6.9 | 6 | - |
+| 16 | 480 | 10 | 9 | 0 | 0 | 1 | 39.6 | 2055 | 7107 | 6.7 | 6.7 | 6.8 | 9 | - |
+| 17 | 510 | 11 | 11 | 0 | 0 | 0 | 55.8 | 4310 | 6767 | 6.7 | 6.8 | 6.8 | 9 | - |
+| 18 | 540 | 11 | 9 | 0 | 0 | 2 | 41.4 | 3867 | 5748 | 6.7 | 6.7 | 6.7 | 6 | - |
+| 19 | 570 | 12 | 10 | 0 | 0 | 2 | 33.9 | 1130 | 4386 | 6.7 | 6.9 | 6.9 | 4 | - |
+| 20 | 600 | 0 | 0 | 0 | 0 | 0 | 2.1 | - | - | 6.7 | 6.7 | 6.7 | 0 | - |
+
+## Memory
+
+no process memory samples (run without --pid, or the process could not be sampled).
+
+Device memory from /metrics (total - free, system-wide; the process footprint above does not include GPU buffers): start 21096 MB, end 21160 MB, max 21224 MB; slope 0.00 MB/min (r2 0.00), fitted growth 0 MB. Leak suspect: **no**.
+
+## Server (/metrics)
+
+121 samples. running: max 1.0 / mean 0.87. queue depth: max 13.0 / mean 3.88. step EWMA ms: -. KV bytes used: max 158760960.0 / mean 104202578.51 of 223 MB. rejected (delta): 0. server TTFT mean 203.2 ms, ITL mean 7.7 ms. prefill chunks (delta) -.
+
+## SLO
+
+no thresholds given (informational run).
+

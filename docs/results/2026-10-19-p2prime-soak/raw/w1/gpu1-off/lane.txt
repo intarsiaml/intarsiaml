@@ -1,0 +1,2 @@
+[lane off gpu1] starting soak-off-gpu1 INTARSIA_HIP_MOE_BLOCK=0 at 2026-10-19 14:47:19
+[lane off gpu1] done 2026-10-19 14:59:27 rc=0

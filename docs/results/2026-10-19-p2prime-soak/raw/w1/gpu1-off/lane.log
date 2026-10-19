@@ -1,0 +1,18 @@
+[14:47:36] decode speed sentinel (tok/s): [149.6264614269792, 151.17763563003655, 151.3702128207743]
+[14:47:36] solo reference
+[14:48:07] starting cbsoak: run --url http://127.0.0.1:8091 --rate 0.3 --duration 600.0 --cancel-frac 0.3 --max-seq 8192 --no-footprint --seed 7 --timeout 60 --request-timeout 180 --drain-s 120 --out /home/josef/p2p-soak/w1/gpu1-off/cbsoak
+[14:48:07] replay c00-b4-mixed-s1.0 (t+0s)
+[14:49:17] replay c01-b8-mixed-s0.5 (t+70s)
+[14:49:56] replay c02-b8-on-s0.0 (t+109s)
+[14:50:29] replay c03-b4-off-s1.0 (t+142s)
+[14:51:44] replay c04-b8-mixed-s0.0 (t+217s)
+[14:52:20] replay c05-b4-on-s0.25 (t+253s)
+[14:52:53] replay c06-b4-mixed-s1.0 (t+287s)
+[14:54:05] replay c07-b8-mixed-s0.5 (t+358s)
+[14:54:44] replay c08-b8-on-s0.0 (t+397s)
+[14:55:16] replay c09-b4-off-s1.0 (t+429s)
+[14:56:26] replay c10-b8-mixed-s0.0 (t+499s)
+[14:56:59] replay c11-b4-on-s0.25 (t+533s)
+[14:57:46] replay c12-b4-mixed-s1.0 (t+579s)
+[14:58:56] solo reference again (drift)
+[14:59:27] lane off: PASS []
