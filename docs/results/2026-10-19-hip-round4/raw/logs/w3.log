@@ -1,0 +1,49 @@
+[burst] job 2555; stages: gdndiag ids4kx; stopping radiance 2026-10-18 22:08:16
+[burst] radiance stopped 2026-10-18 22:08:19
+################ stage gdndiag start 22:08:19
+diag dbg=0 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=0 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=0 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=0 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+diag dbg=1 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=1 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=1 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=1 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+diag dbg=2 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=2 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=2 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=2 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+diag dbg=3 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=3 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=3 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=3 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+diag dbg=4 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=4 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=4 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=4 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+diag dbg=5 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=5 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=5 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=5 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+diag dbg=6 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=6 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=6 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=6 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+diag dbg=7 t=1: out differ 1/4096 first Some(3366) Some((-7.56979e-6, -7.599592e-6)); state differ 0/524288 max rel 0.000e0
+diag dbg=7 t=2: out differ 3/8192 first Some(2742) Some((-9.685755e-7, -9.611249e-7)); state differ 0/524288 max rel 0.000e0
+diag dbg=7 t=5: out differ 1/20480 first Some(18284) Some((-0.00012779236, -0.00012683868)); state differ 0/524288 max rel 0.000e0
+diag dbg=7 t=64: out differ 18/262144 first Some(91) Some((0.0008163452, 0.0008125305)); state differ 0/524288 max rel 0.000e0
+################ stage gdndiag end 22:08:23
+################ stage ids4kx start 22:08:23
+--- this tree INTARSIA_HIP_DISABLE=gdn_delta_rule_bf16_v2
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 838 ms (5260.1 tok/s) | decode 1829 ms (139.45 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 841 ms (5243.0 tok/s) | decode 1879 ms (135.69 tok/s)
+ids: 255 / 255 commas
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4kx end 22:08:36
+[burst] stages done 2026-10-18 22:08:36 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-18 22:08:36
+[burst] radiance answers 2026-10-18 22:08:46 (after 15 s)

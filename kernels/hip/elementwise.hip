@@ -194,6 +194,110 @@ __global__ void sigmoid_mul_kernel(const ik_bf16* __restrict__ a, const ik_bf16*
     out[i] = ik_f2b(ik_b2f(a[i]) * (1.f / (1.f + expf(-gv))));
 }
 
+// ---- qk_norm + rope + kv_append (Op::QkNormRopeKv) ---------------------------------------
+// The attention prologue in one launch instead of six (q norm, q rope, k norm, k rope, k append, v append). Grid (T, Nkv),
+// block G + 1 waves (G = N / Nkv query heads per kv head): wave w < G takes query head kvh * G + w, wave G the k head kvh
+// and the v copy. Each wave repeats, for its head, the arithmetic of the launch it replaces:
+//  * qk_norm = rmsnorm_kernel<false, true> on one row of D: a 32-thread block (launch_rows' size for D / 8 <= 32 items),
+//    lane i sums the squares of values 8i..8i+7, ik_block_sum of one wave is 0 + the warp sum; the normalised row is
+//    rounded to bf16 (what qk_norm stores) and kept in LDS;
+//  * rope_kernel on that bf16 row: the angle of each (token, frequency) in double, narrowed to float (computed once per
+//    block here, as rope_kernel computes it once per group of heads), the same two products per pair, the un-rotated
+//    tail RD..D-1 passed through;
+//  * kv_append of the roped k and of v: a bf16 copy, or f32_to_e4m3 for an fp8 cache.
+// So every output bit is the unfused chain's (tests/qk_rope_kv.rs). Needs D % 8 == 0, D <= 256 and 16-byte aligned rows
+// (the unfused qk_norm's vector path; the launcher refuses anything else).
+constexpr int kQkrMaxGroup = 8;
+constexpr int kQkrMaxD = 256;
+
+template <typename CacheT>
+IK_DEVI void qkr_store(CacheT* c, ik_bf16 v) {
+    if constexpr (sizeof(CacheT) == 2) *reinterpret_cast<ik_bf16*>(c) = v;
+    else *reinterpret_cast<uint8_t*>(c) = f32_to_e4m3(ik_b2f(v));
+}
+
+template <typename CacheT>
+__global__ void __launch_bounds__((kQkrMaxGroup + 1) * IK_WARP)
+qk_norm_rope_kv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ k, const ik_bf16* __restrict__ v,
+                       const ik_bf16* __restrict__ qw, const ik_bf16* __restrict__ kw, ik_bf16* __restrict__ q_out,
+                       CacheT* __restrict__ kcache, CacheT* __restrict__ vcache, int N, int NKV, int D, int RD,
+                       int64_t cap, float eps, float woff, float theta, int64_t pos0_host, const int32_t* pos_dev) {
+    __shared__ __align__(16) ik_bf16 nrm[kQkrMaxGroup + 1][kQkrMaxD];
+    __shared__ float fsn[kQkrMaxD / 2], fcs[kQkrMaxD / 2];
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
+    const int64_t t = blockIdx.x;
+    const int kvh = blockIdx.y;
+    const int G = N / NKV;
+    const int lane = threadIdx.x % IK_WARP, w = threadIdx.x / IK_WARP;
+    const int half = RD / 2;
+    for (int f = threadIdx.x; f < half; f += blockDim.x) {
+        const double inv = pow((double)theta, -2.0 * (double)f / (double)RD);
+        double sd, cd;
+        sincos((double)(pos0 + t) * inv, &sd, &cd);
+        fsn[f] = (float)sd;
+        fcs[f] = (float)cd;
+    }
+    const bool is_k = w == G;
+    const ik_bf16* xr = is_k ? k + (t * NKV + kvh) * D : q + (t * N + (int64_t)kvh * G + w) * D;
+    const ik_bf16* wt = is_k ? kw : qw;
+    ik_bf16* nr = nrm[w];
+    const int nv = D / 8;
+    float ss = 0.f;
+    for (int i = lane; i < nv; i += IK_WARP) {
+        float f[8];
+        ik_unpack8(reinterpret_cast<const uint4*>(xr)[i], f);
+#pragma unroll
+        for (int e = 0; e < 8; ++e) ss += f[e] * f[e];
+    }
+    ss = ik_warp_sum(ss);
+    float tot = 0.f;  // ik_block_sum over one wave: 0 + the wave's sum
+    tot += ss;
+    const float r = rsqrtf(tot / (float)D + eps);
+    for (int i = lane; i < nv; i += IK_WARP) {
+        float f[8], g[8];
+        ik_unpack8(reinterpret_cast<const uint4*>(xr)[i], f);
+        ik_unpack8(reinterpret_cast<const uint4*>(wt)[i], g);
+#pragma unroll
+        for (int e = 0; e < 8; ++e) f[e] = f[e] * r * (g[e] + woff);
+        reinterpret_cast<uint4*>(nr)[i] = ik_pack8(f);
+    }
+    __syncthreads();
+    ik_bf16 *dst_q = nullptr;
+    CacheT* dst_k = nullptr;
+    if (is_k) dst_k = kcache + ((int64_t)kvh * cap + pos0 + t) * D;
+    else dst_q = q_out + (t * N + (int64_t)kvh * G + w) * D;
+    for (int f = lane; f < half; f += IK_WARP) {
+        const float a = ik_b2f(nr[f]), b = ik_b2f(nr[f + half]);
+        const float fs = fsn[f], fc = fcs[f];
+        // rope_kernel's contraction, spelled out (its ISA: lo = fma(a, fc, -(b * fs)), hi = fma(b, fc, a * fs)); left to
+        // the compiler, this kernel fused the other product of hi and flipped a bf16 rounding now and then
+        float lof, hif;
+        {
+#pragma clang fp contract(off)
+            lof = __builtin_fmaf(a, fc, -(b * fs));
+            hif = __builtin_fmaf(b, fc, a * fs);
+        }
+        const ik_bf16 lo = ik_f2b(lof);
+        const ik_bf16 hi = ik_f2b(hif);
+        if (is_k) {
+            qkr_store(dst_k + f, lo);
+            qkr_store(dst_k + f + half, hi);
+        } else {
+            dst_q[f] = lo;
+            dst_q[f + half] = hi;
+        }
+    }
+    for (int m = RD + lane; m < D; m += IK_WARP) {
+        if (is_k) qkr_store(dst_k + m, nr[m]);
+        else dst_q[m] = nr[m];
+    }
+    if (is_k) {
+        const ik_bf16* vr = v + (t * NKV + kvh) * D;
+        CacheT* dv = vcache + ((int64_t)kvh * cap + pos0 + t) * D;
+        for (int m = lane; m < D; m += IK_WARP) qkr_store(dv + m, vr[m]);
+    }
+}
+
 inline unsigned blocks(int64_t n) { return (unsigned)((n + kThreads - 1) / kThreads); }
 
 }  // namespace
@@ -299,6 +403,55 @@ int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_d
     dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
     rope_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
                                           pos0, theta, pos_dev, copy_tail ? 1 : 0);
+    return ik_launch_status();
+}
+
+int ik_qk_norm_rope_kv_bf16(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* qw,
+                            const ik_tensor* kw, float eps, float w_offset, int64_t pos0, float theta, int64_t rotary_dim,
+                            ik_tensor* q_out, ik_tensor* kcache, ik_tensor* vcache, const ik_tensor* pos, void* stream) {
+    IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(k, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(v, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(qw, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(kw, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(q_out, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check_pos(pos));
+    const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
+    if (!kcache || !vcache) return IK_ERR_INVALID_ARG;
+    if ((kcache->dtype != IK_DTYPE_BF16 && kcache->dtype != IK_DTYPE_FP8_E4M3) || vcache->dtype != kcache->dtype)
+        return IK_ERR_DTYPE;
+    IK_TRY(ik_check(kcache, kcache->dtype, 3));
+    IK_TRY(ik_check(vcache, vcache->dtype, 3));
+    const int64_t T = q->shape[0], N = q->shape[1], D = q->shape[2], NKV = k->shape[1], cap = kcache->shape[1];
+    const int64_t RD = rotary_dim == 0 ? D : rotary_dim;
+    if (k->shape[0] != T || k->shape[2] != D || v->shape[0] != T || v->shape[1] != NKV || v->shape[2] != D ||
+        q_out->shape[0] != T || q_out->shape[1] != N || q_out->shape[2] != D || qw->shape[0] != D || kw->shape[0] != D ||
+        kcache->shape[0] != NKV || kcache->shape[2] != D || vcache->shape[0] != NKV || vcache->shape[1] != cap ||
+        vcache->shape[2] != D || pos0 < 0 || pos0 + T > cap)
+        return IK_ERR_SHAPE;
+    if (NKV <= 0 || N % NKV != 0 || N / NKV > kQkrMaxGroup || D % 8 != 0 || D > kQkrMaxD || RD < 0 || RD > D || RD % 2 != 0)
+        return IK_ERR_UNSUPPORTED;
+    if (T == 0 || N == 0) return IK_OK;
+    // the unfused qk_norm takes its vector path only for 16-byte aligned rows; this kernel is that path
+    if (!ik_aligned16(q->data) || !ik_aligned16(k->data) || !ik_aligned16(qw->data) || !ik_aligned16(kw->data) ||
+        !ik_aligned16(q_out->data))
+        return IK_ERR_STRIDE;
+    if (T > 0x7fffffffLL) return IK_ERR_SHAPE;
+    const dim3 grid((unsigned)T, (unsigned)NKV);
+    const unsigned threads = (unsigned)((N / NKV + 1) * IK_WARP);
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16 *qp = (const ik_bf16*)q->data, *kp = (const ik_bf16*)k->data, *vp = (const ik_bf16*)v->data;
+    const ik_bf16 *qwp = (const ik_bf16*)qw->data, *kwp = (const ik_bf16*)kw->data;
+    if (kcache->dtype == IK_DTYPE_BF16)
+        qk_norm_rope_kv_kernel<ik_bf16><<<grid, threads, 0, s>>>(qp, kp, vp, qwp, kwp, (ik_bf16*)q_out->data,
+                                                                  (ik_bf16*)kcache->data, (ik_bf16*)vcache->data, (int)N,
+                                                                  (int)NKV, (int)D, (int)RD, cap, eps, w_offset, theta, pos0,
+                                                                  pos_dev);
+    else
+        qk_norm_rope_kv_kernel<uint8_t><<<grid, threads, 0, s>>>(qp, kp, vp, qwp, kwp, (ik_bf16*)q_out->data,
+                                                                  (uint8_t*)kcache->data, (uint8_t*)vcache->data, (int)N,
+                                                                  (int)NKV, (int)D, (int)RD, cap, eps, w_offset, theta, pos0,
+                                                                  pos_dev);
     return ik_launch_status();
 }
 

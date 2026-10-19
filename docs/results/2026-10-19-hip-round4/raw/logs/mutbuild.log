@@ -1,0 +1,43 @@
+fleetq: #2560 running on tatooine-r9700, tatooine-r9700-2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rt.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mutbuild.sh
+applied qkr-sum to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-sum: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-woff to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-woff: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-angle to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-angle: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-sign to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-sign: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-hifma to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-hifma: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-tail to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-tail: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-v to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-v: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-kpos to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-kpos: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-fp8 to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-fp8: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied qkr-head to /home/josef/intarsiaml-r4-mut/kernels/hip/elementwise.hip
+qkr-head: test qk_rope_kv built (/target/release/deps/qk_rope_kv-8bf47408eb783f93)
+applied gdn2-knorm to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-knorm: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-ring to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-ring: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-gate to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-gate: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-batch to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-batch: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-x16 to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-x16: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-x1 to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-x1: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-kreg to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-kreg: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-dot to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-dot: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied gdn2-v to /home/josef/intarsiaml-r4-mut/kernels/hip/gdn.hip
+gdn2-v: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+    Finished `release` profile [optimized] target(s) in 29.75s
+    Finished `release` profile [optimized] target(s) in 3.14s
+f8-actq gdn2-batch gdn2-dot gdn2-gate gdn2-knorm gdn2-kreg gdn2-ring gdn2-v gdn2-x1 gdn2-x16 moe-z-step pairs-out pairs-sred pairs-xrow qkr-angle qkr-fp8 qkr-head qkr-hifma qkr-kpos qkr-sign qkr-sum qkr-tail qkr-v qkr-woff v2-nodecode v2-noquant v2-perm v2-quant-half v2-whi v2-wsel v2-xstride fleetq: #2560 done (exit 0)

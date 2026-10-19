@@ -161,6 +161,58 @@ MUTATIONS = {
     "pairs-out": ("kernels/hip/moe_wmma.h", [(
         "        for (int j = 0; j < J; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;",
         "        for (int j = 0; j < 2; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;")]),
+    # --- round 4 (docs/results/2026-10-19-hip-round4.md) ---
+    # qk_norm_rope_kv: the sum of squares misses the last value of each 8-value chunk
+    "qkr-sum": ("kernels/hip/elementwise.hip", [(
+        "for (int e = 0; e < 8; ++e) ss += f[e] * f[e];\n    }\n    ss = ik_warp_sum(ss);",
+        "for (int e = 0; e < 7; ++e) ss += f[e] * f[e];\n    }\n    ss = ik_warp_sum(ss);")]),
+    # qk_norm_rope_kv: the zero-centred weight offset is dropped
+    "qkr-woff": ("kernels/hip/elementwise.hip", [(
+        "for (int e = 0; e < 8; ++e) f[e] = f[e] * r * (g[e] + woff);\n        reinterpret_cast<uint4*>(nr)[i]",
+        "for (int e = 0; e < 8; ++e) f[e] = f[e] * r * g[e];\n        reinterpret_cast<uint4*>(nr)[i]")]),
+    # qk_norm_rope_kv: every row of a chunk is rotated by the first row's angle
+    "qkr-angle": ("kernels/hip/elementwise.hip", [(
+        "sincos((double)(pos0 + t) * inv, &sd, &cd);\n        fsn[f]", "sincos((double)(pos0) * inv, &sd, &cd);\n        fsn[f]")]),
+    # qk_norm_rope_kv: the rotation's first half adds the sine term instead of subtracting it
+    "qkr-sign": ("kernels/hip/elementwise.hip", [(
+        "lof = __builtin_fmaf(a, fc, -(b * fs));", "lof = __builtin_fmaf(a, fc, b * fs);")]),
+    # qk_norm_rope_kv: hi fuses the other product (the contraction rope_kernel does not use; flips a bf16 rounding rarely)
+    "qkr-hifma": ("kernels/hip/elementwise.hip", [(
+        "hif = __builtin_fmaf(b, fc, a * fs);", "hif = __builtin_fmaf(a, fs, b * fc);")]),
+    # qk_norm_rope_kv: the un-rotated tail is passed through for every other lane only
+    "qkr-tail": ("kernels/hip/elementwise.hip", [(
+        "for (int m = RD + lane; m < D; m += IK_WARP) {", "for (int m = RD + lane; m < D; m += 2 * IK_WARP) {")]),
+    # qk_norm_rope_kv: only the first half of each v row is appended
+    "qkr-v": ("kernels/hip/elementwise.hip", [(
+        "for (int m = lane; m < D; m += IK_WARP) qkr_store(dv + m, vr[m]);", "for (int m = lane; m < D / 2; m += IK_WARP) qkr_store(dv + m, vr[m]);")]),
+    # qk_norm_rope_kv: every k row of a chunk lands in the cache row of the first
+    "qkr-kpos": ("kernels/hip/elementwise.hip", [(
+        "dst_k = kcache + ((int64_t)kvh * cap + pos0 + t) * D;", "dst_k = kcache + ((int64_t)kvh * cap + pos0) * D;")]),
+    # qk_norm_rope_kv: the fp8 cache gets half the value
+    "qkr-fp8": ("kernels/hip/elementwise.hip", [(
+        "else *reinterpret_cast<uint8_t*>(c) = f32_to_e4m3(ik_b2f(v));", "else *reinterpret_cast<uint8_t*>(c) = f32_to_e4m3(ik_b2f(v) * 0.5f);")]),
+    # qk_norm_rope_kv: each query wave normalises the next head of its group
+    "qkr-head": ("kernels/hip/elementwise.hip", [(
+        "const ik_bf16* xr = is_k ? k + (t * NKV + kvh) * D : q + (t * N + (int64_t)kvh * G + w) * D;",
+        "const ik_bf16* xr = is_k ? k + (t * NKV + kvh) * D : q + (t * N + (int64_t)kvh * G + (w + 1) % G) * D;")]),
+    # delta rule v2: the key norm sums q * k instead of k * k
+    "gdn2-knorm": ("kernels/hip/gdn.hip", [("kk += kr[i] * kr[i];", "kk += qr[i] * kr[i];")]),
+    # delta rule v2: a ring slot reloads its own token instead of the one PD ahead
+    "gdn2-ring": ("kernels/hip/gdn.hip", [("load(r, t + PD);  // this slot's next token", "load(r, t + PD - 1);  // this slot's next token")]),
+    # delta rule v2: the gate of the token one later is read (lane + 1)
+    "gdn2-gate": ("kernels/hip/gdn.hip", [("const int gl = (int)(t & 31);", "const int gl = (int)((t + 1) & 31);")]),
+    # delta rule v2: the next gate batch is loaded one token late
+    "gdn2-batch": ("kernels/hip/gdn.hip", [("load_gates(t0 + 32);", "load_gates(t0 + 33);")]),
+    # delta rule v2: the xor-16 step of the warp sum is dropped (half the q/k norm)
+    "gdn2-x16": ("kernels/hip/gdn.hip", [("    v += gdn_xor16(v);\n", "")]),
+    # delta rule v2: the xor-1 DPP partner is lane ^ 2 (the row split adds the wrong half)
+    "gdn2-x1": ("kernels/hip/gdn.hip", [("        kv += gdn_xorrow<1>(kv);", "        kv += gdn_xorrow<2>(kv);")]),
+    # delta rule v2: the update loop reuses k of the first float4 only
+    "gdn2-kreg": ("kernels/hip/gdn.hip", [("const float4 kk4 = kreg[i], qq4 = q4[i];", "const float4 kk4 = kreg[0], qq4 = q4[i];")]),
+    # delta rule v2: the dot products fuse the other product of the first pair (one bf16 output in ~10^4 moves)
+    "gdn2-dot": ("kernels/hip/gdn.hip", [("float t = __builtin_fmaf(s.x, k.x, s.y * k.y);", "float t = __builtin_fmaf(s.y, k.y, s.x * k.x);")]),
+    # delta rule v2: the value is halved
+    "gdn2-v": ("kernels/hip/gdn.hip", [("const float v = valid ? ik_b2f(r.v) : 0.f;", "const float v = valid ? ik_b2f(r.v) * 0.5f : 0.f;")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -169,6 +221,8 @@ TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail
 TESTS["moe-z-step"] = "quantmoe"
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
+TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
+TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target

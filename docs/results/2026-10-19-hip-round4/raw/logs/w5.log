@@ -1,0 +1,328 @@
+[burst] job 2562; stages: mutrun admission kernels plan35 plan35@base acc35 acc35@base acc8 acc8@base acc35l:4096 acc35l@base:4096; stopping radiance 2026-10-18 22:29:51
+[burst] radiance stopped 2026-10-18 22:29:54
+################ stage mutrun start 22:29:54
+qkr-sum          thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:133:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-woff         thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:133:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-angle        thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:133:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-sign         thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:133:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-hifma        thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:133:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-tail         thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:133:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-v            thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:135:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-kpos         thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:134:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-fp8          thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:134:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+qkr-head         thread 'qk_norm_rope_kv_is_bitwise_the_unfused_chain' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:133:25: thread 'qk_norm_rope_kv_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/qk_rope_kv.rs:159:9: 
+gdn2-knorm       thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s 
+gdn2-ring        thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.19s 
+gdn2-gate        thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.19s 
+gdn2-batch       thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.28s 
+gdn2-x16         thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.19s 
+gdn2-x1          thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s 
+gdn2-kreg        thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s 
+gdn2-dot         thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s 
+gdn2-v           thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s 
+################ stage mutrun end 22:30:04
+################ stage admission start 22:30:04
+  moe_experts    moe_experts_bf16       ok    max_abs=3.145e-3 rel_l2=6.709e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=7.143e-4 rel_l2=1.914e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=3.342e-4 rel_l2=9.808e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=3.185e-3 rel_l2=2.773e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=1.126e-3 rel_l2=3.570e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.976e-3 rel_l2=1.602e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.475e-3 rel_l2=6.169e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=16 K=4 H=128 I=48 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=0.000e0 rel_l2=0.000e0 T=36 E=16 K=4 H=128 I=128 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=4.195e-4 rel_l2=2.009e-5 T=4 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=3.145e-3 rel_l2=6.709e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=7.143e-4 rel_l2=1.914e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=3.342e-4 rel_l2=9.808e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=3.185e-3 rel_l2=2.773e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=1.126e-3 rel_l2=3.570e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=2.976e-3 rel_l2=1.602e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=2.475e-3 rel_l2=6.169e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+matmul_fp8     matmul_fp8_mma                 60      0    4.329e-3    1.479e-4  ADMITTED
+matmul_fp8     matmul_fp8_mma_f8              36      0    4.329e-3    1.479e-4  ADMITTED
+matmul_fp8     matmul_fp8_mma_v2              60      0    4.329e-3    1.479e-4  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.00s
+################ stage admission end 22:30:32
+################ stage kernels start 22:30:32
+moe_experts    moe_experts_bf16_v2             3      0     0.000e0     0.000e0  ADMITTED
+moe_combine    moe_combine_bf16                2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 183 cases in 0.2s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'hip'
+SKIPPED: kernel gdn_delta_rule_bf16_v2 ran 0 cases on backend 'hip'
+Error: kernel admission failed
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16             16      0    7.774e-5    3.924e-6  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv     14      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+44 kernels, 794 cases in 50.8s
+################ stage kernels end 22:31:24
+################ stage plan35 start 22:31:24
+act bf16  kv bf16  prefill chunk 4096 (recipe qwen3_5_moe, hip)  scratch 167905792 B  require_admitted false  reference_only false
+op             kernel                     exactness     admitted  calls/step   scratch
+matmul_fp8     matmul_fp8_gemv_v2         deterministic no        20 0
+matmul_fp8     matmul_fp8_mma_v2          deterministic no        0 16777232
+moe_experts    moe_experts_bf16_v2        deterministic no        40 167905792
+matmul_fp8_pair matmul_fp8_pair_gemv       deterministic no        40 0
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv deterministic no        30 0
+################ stage plan35 end 22:31:28
+################ stage plan35@base start 22:31:28
+act bf16  kv bf16  prefill chunk 4096 (recipe qwen3_5_moe, hip)  scratch 167905792 B  require_admitted false  reference_only false
+op             kernel                     exactness     admitted  calls/step   scratch
+matmul_fp8     matmul_fp8_gemv_v2         deterministic no        20 0
+matmul_fp8     matmul_fp8_mma_v2          deterministic no        0 16777232
+moe_experts    moe_experts_bf16_v2        deterministic no        40 167905792
+matmul_fp8_pair matmul_fp8_pair_gemv       deterministic no        40 0
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv deterministic no        30 0
+################ stage plan35@base end 22:31:32
+################ stage acc35 start 22:31:32
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35 end 22:31:40
+################ stage acc35@base start 22:31:40
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35@base end 22:31:49
+################ stage acc8 start 22:31:49
+--- accuracy qwen3-8b-fp32.safetensors 
+chat_multiturn        58    58   100.00   2.128e-4   1.947e-4   2.392e-3   0.0340   0.0340    99.31     58/58      0
+chat_reasoning        90    90   100.00   1.708e-4   1.595e-4   2.592e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.335e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.626e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy qwen3-8b-long-fp32.safetensors 
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 3.966e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc8 end 22:32:16
+################ stage acc8@base start 22:32:16
+--- accuracy qwen3-8b-fp32.safetensors 
+chat_multiturn        58    58   100.00   2.128e-4   1.947e-4   2.392e-3   0.0340   0.0340    99.31     58/58      0
+chat_reasoning        90    90   100.00   1.708e-4   1.595e-4   2.592e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.335e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.626e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy qwen3-8b-long-fp32.safetensors 
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 3.966e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc8@base end 22:32:38
+################ stage acc35l:4096 start 22:32:38
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.85   1.955e-2   1.751e-2    1.909e0   0.0944   0.0966    90.72    0/4064      0
+long_code_4k        4064  4064    96.97   8.102e-3   7.374e-3   8.864e-1   0.0370   0.0383    91.72   10/4064      0
+chat_reuse_4k       4631  4631    87.80   2.360e-1   2.679e-1    2.729e1   0.0688   0.0857    87.54   20/4631      0
+long_docs_12k      12064 12064    92.97   2.271e-2   2.034e-2    1.166e1   0.0839   0.0850    90.18   5/12064      0
+long_code_12k      12064 12064    97.10   9.198e-3   8.552e-3    1.722e0   0.0323   0.0328    90.99  10/12064      0
+OVERALL                  36887    94.21   4.311e-2   4.583e-2    2.729e1   0.0611   0.0641    90.34      0.1%      0
+prefill floor [4bit]: top-1 94.21% (not gated for this class) ok | 21-way KL 4.583e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.735e-2   1.657e-2   2.116e-1   0.0185   0.0176    90.62     44/64      0
+long_code_4k        4064    64    95.31   1.068e-2   9.378e-3   7.260e-2   0.0481   0.0510    89.38     28/64      0
+chat_reuse_4k       4631    64   100.00   3.960e-3   3.961e-3   6.174e-2   0.0000   0.0000    92.50     64/64      0
+long_docs_12k      12064    64    96.88   1.608e-2   1.496e-2   1.810e-1   0.0399   0.0420    89.69      7/64      0
+long_code_12k      12064    64    98.44   6.213e-3   6.149e-3   9.011e-2   0.0085   0.0083    87.81      3/64      0
+OVERALL                    320    96.88   1.086e-2   1.020e-2   2.116e-1   0.0230   0.0238    90.00     45.6%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 1.020e-2 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 45.6% of positions before the first argmax divergence, worst prompt 4.7% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     22/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 22: warm took 48794 cold took 1414; shared rows differ by 1.452 (before) / 0.345 (here) nats of log-probability, KL up to 2.9e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.262, cold margin 0.270; legacy criterion (>= 16 leading tokens): ok)
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l:4096 end 22:34:52
+################ stage acc35l@base:4096 start 22:34:52
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.85   1.955e-2   1.751e-2    1.909e0   0.0944   0.0966    90.72    0/4064      0
+long_code_4k        4064  4064    96.97   8.102e-3   7.374e-3   8.864e-1   0.0370   0.0383    91.72   10/4064      0
+chat_reuse_4k       4631  4631    87.80   2.360e-1   2.679e-1    2.729e1   0.0688   0.0857    87.54   20/4631      0
+long_docs_12k      12064 12064    92.97   2.271e-2   2.034e-2    1.166e1   0.0839   0.0850    90.18   5/12064      0
+long_code_12k      12064 12064    97.10   9.198e-3   8.552e-3    1.722e0   0.0323   0.0328    90.99  10/12064      0
+OVERALL                  36887    94.21   4.311e-2   4.583e-2    2.729e1   0.0611   0.0641    90.34      0.1%      0
+prefill floor [4bit]: top-1 94.21% (not gated for this class) ok | 21-way KL 4.583e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.735e-2   1.657e-2   2.116e-1   0.0185   0.0176    90.62     44/64      0
+long_code_4k        4064    64    95.31   1.068e-2   9.378e-3   7.260e-2   0.0481   0.0510    89.38     28/64      0
+chat_reuse_4k       4631    64   100.00   3.960e-3   3.961e-3   6.174e-2   0.0000   0.0000    92.50     64/64      0
+long_docs_12k      12064    64    96.88   1.608e-2   1.496e-2   1.810e-1   0.0399   0.0420    89.69      7/64      0
+long_code_12k      12064    64    98.44   6.213e-3   6.149e-3   9.011e-2   0.0085   0.0083    87.81      3/64      0
+OVERALL                    320    96.88   1.086e-2   1.020e-2   2.116e-1   0.0230   0.0238    90.00     45.6%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 1.020e-2 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 45.6% of positions before the first argmax divergence, worst prompt 4.7% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     22/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 22: warm took 48794 cold took 1414; shared rows differ by 1.452 (before) / 0.345 (here) nats of log-probability, KL up to 2.9e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.262, cold margin 0.270; legacy criterion (>= 16 leading tokens): ok)
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l@base:4096 end 22:37:10
+[burst] stages done 2026-10-18 22:37:10 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-18 22:37:10
+[burst] radiance answers 2026-10-18 22:37:20 (after 15 s)

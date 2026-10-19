@@ -1,0 +1,19 @@
+################ stage gdnbench start 22:13:31
+=== INTARSIA_HIP_GDN_PD=1
+gdn T=1      gdn_delta_rule_bf16       9.4 us (9.43 us/token)  gdn_delta_rule_bf16_v2       8.6 us (8.61 us/token)
+gdn T=312    gdn_delta_rule_bf16     650.6 us (2.09 us/token)  gdn_delta_rule_bf16_v2     263.8 us (0.85 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2348.9 us (2.29 us/token)  gdn_delta_rule_bf16_v2     845.3 us (0.83 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4404.6 us (2.15 us/token)  gdn_delta_rule_bf16_v2    1806.2 us (0.88 us/token)
+gdn T=4096   gdn_delta_rule_bf16    8397.0 us (2.05 us/token)  gdn_delta_rule_bf16_v2    3252.3 us (0.79 us/token)
+=== INTARSIA_HIP_GDN_PD=2
+gdn T=1      gdn_delta_rule_bf16       9.3 us (9.30 us/token)  gdn_delta_rule_bf16_v2       6.3 us (6.30 us/token)
+gdn T=312    gdn_delta_rule_bf16     650.3 us (2.08 us/token)  gdn_delta_rule_bf16_v2     261.7 us (0.84 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2280.2 us (2.23 us/token)  gdn_delta_rule_bf16_v2     839.5 us (0.82 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4379.0 us (2.14 us/token)  gdn_delta_rule_bf16_v2    1795.8 us (0.88 us/token)
+gdn T=4096   gdn_delta_rule_bf16    7970.4 us (1.95 us/token)  gdn_delta_rule_bf16_v2    3175.7 us (0.78 us/token)
+=== INTARSIA_HIP_GDN_PD=4
+gdn T=1      gdn_delta_rule_bf16       9.3 us (9.33 us/token)  gdn_delta_rule_bf16_v2       6.3 us (6.30 us/token)
+gdn T=312    gdn_delta_rule_bf16     650.7 us (2.09 us/token)  gdn_delta_rule_bf16_v2     262.9 us (0.84 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2342.6 us (2.29 us/token)  gdn_delta_rule_bf16_v2     842.7 us (0.82 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4409.9 us (2.15 us/token)  gdn_delta_rule_bf16_v2    1797.1 us (0.88 us/token)
+gdn T=4096   gdn_delta_rule_bf16    8429.1 us (2.06 us/token)  gdn_delta_rule_bf16_v2    3226.6 us (0.79 us/token)

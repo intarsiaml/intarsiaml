@@ -12,6 +12,7 @@
 //    2 * Hv*dv*dk*4 bytes per layer.
 #include "ik_hip.h"
 #include <math.h>
+#include <stdlib.h>
 
 namespace {
 
@@ -253,6 +254,201 @@ __global__ void __launch_bounds__(32) gdn_delta_rows_kernel(
     }
 }
 
+// ---- delta rule v2: gdn_delta_rows_kernel without its stalls ----------------------------------------------------------
+// The same block (one wave = 32 / SPLIT value rows of one head), the same lane-to-element map and the same float operations
+// in the same order as gdn_delta_rows_kernel, so every output and state bit is that kernel's (tests/gdn_v2.rs). The ISA
+// of gdn_delta_rows_kernel (docs/results/2026-10-19-hip-round4.md) shows where its ~1.8 us per token goes, and v2 removes
+// each item without touching the arithmetic:
+//  * its next-token prefetch sits in `if (t + 1 < T)` and is converted to float inside that branch, so the wave waits for
+//    the load right after issuing it (s_wait_loadcnt 0): the prefetch hides nothing. v2 keeps the raw bf16 bits of the
+//    next PD tokens in a register ring (the token loop is unrolled by PD, so each slot has its own registers), loads
+//    unconditionally (the index clamped to the last token) and converts a slot when its token runs;
+//  * each __syncthreads is a workgroup fence on global memory as well: s_wait_loadcnt 0 (the in-flight prefetch again)
+//    plus global_inv. v2 fences LDS only (the block is one wave, the barrier only orders the sq / sk staging);
+//  * the warp sums go through ds_bpermute, five LDS round trips per sum; v2 fetches the same partner values with
+//    v_permlanex16 (xor 16) and DPP row_xmask (xor 8, 4, 2, 1) and adds them in ik_warp_sum's order;
+//  * beta and decay are computed per token on the scalar unit (about 230 SALU instructions per token); v2 computes them
+//    for 32 tokens at once, one per lane, and reads each token's with v_readlane;
+//  * k of the token is read from LDS once (the update loop reuses the registers of the kv loop).
+IK_DEVI float gdn_xor16(float v) {  // the value of lane ^ 16 (swap the two 16-lane rows)
+    return __uint_as_float(__builtin_amdgcn_permlanex16(__float_as_uint(v), __float_as_uint(v), 0x76543210u, 0xfedcba98u,
+                                                        false, false));
+}
+template <int K>
+IK_DEVI float gdn_xorrow(float v) {  // the value of lane ^ K, K < 16 (DPP row_xmask)
+    return __int_as_float(__builtin_amdgcn_update_dpp(0, __float_as_int(v), 0x160 + K, 0xf, 0xf, false));
+}
+// ik_warp_sum: v += partner(xor 16), then xor 8, 4, 2, 1
+IK_DEVI float gdn_warp_sum(float v) {
+    v += gdn_xor16(v);
+    v += gdn_xorrow<8>(v);
+    v += gdn_xorrow<4>(v);
+    v += gdn_xorrow<2>(v);
+    v += gdn_xorrow<1>(v);
+    return v;
+}
+// s.k as gdn_delta_rows_kernel compiles `s.x * k.x + s.y * k.y + s.z * k.z + s.w * k.w` (its ISA: x fused onto the
+// rounded y product, then z and w fused). Left to the compiler, v2 fused the other product of the first pair in the
+// output dot and flipped about one bf16 output in 10^4 (the state matched: the kv dot happened to agree).
+IK_DEVI float gdn_dot4(float4 s, float4 k) {
+#pragma clang fp contract(off)
+    float t = __builtin_fmaf(s.x, k.x, s.y * k.y);
+    t = __builtin_fmaf(s.z, k.z, t);
+    return __builtin_fmaf(s.w, k.w, t);
+}
+// orders the sq / sk staging of a one-wave block: LDS only, no global-memory fence
+IK_DEVI void gdn_lds_sync() {
+    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup", "local");
+    __builtin_amdgcn_s_barrier();
+    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "workgroup", "local");
+}
+
+template <int PL>
+struct GdnRaw {  // raw bf16 inputs of one token for one lane
+    ik_bf16 q[PL], k[PL], v;
+};
+
+template <int DK, int SPLIT, int PD>
+__global__ void __launch_bounds__(32) gdn_delta_rows_v2_kernel(
+    const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
+    const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
+    float* __restrict__ state, int64_t T, int Hk, int Hv, int dv) {
+    static_assert(SPLIT == 2, "the xor-1 partner of the row split is DPP row_xmask:1");
+    static_assert(32 % PD == 0, "a 32-token gate batch starts at the first slot of the ring");
+    constexpr int PL = DK / 32;      // q/k elements per lane (cooperative load)
+    constexpr int EL = DK / SPLIT;   // state elements per thread
+    constexpr int ROWS = 32 / SPLIT; // value rows per wave
+    __shared__ __align__(16) float sq[DK];
+    __shared__ __align__(16) float sk[DK];
+    const int lane = threadIdx.x;
+    const int part = lane % SPLIT;
+    const int j = blockIdx.x * ROWS + lane / SPLIT;
+    const bool valid = j < dv;
+    const int jl = valid ? j : dv - 1;  // a row that exists, for the unconditional loads of idle lanes
+    const int h = blockIdx.y;
+    const int kh = h / (Hv / Hk);
+    const int C = 2 * Hk * DK + Hv * dv;
+    const float scale = rsqrtf((float)DK);
+    const float neg_a = -expf(ik_b2f(a_log[h]));
+    const float dtb = ik_b2f(dt_bias[h]);
+    const int64_t last = T - 1;
+
+    float s[EL];
+    float4* sv = reinterpret_cast<float4*>(s);
+    if (valid) {
+        const float4* src = reinterpret_cast<const float4*>(state + ((int64_t)h * dv + j) * DK + part * EL);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) sv[i] = src[i];
+    }
+
+    auto load = [&](GdnRaw<PL>& r, int64_t t) {
+        const ik_bf16* row = qkv + (t < last ? t : last) * C;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            r.q[i] = row[kh * DK + lane + 32 * i];
+            r.k[i] = row[Hk * DK + kh * DK + lane + 32 * i];
+        }
+        r.v = row[2 * Hk * DK + h * dv + jl];
+    };
+    // gates of a batch of 32 tokens, lane l holding token g0 + l's; the raw a / b of the next batch are in flight
+    ik_bf16 ga, gb;
+    auto load_gates = [&](int64_t g0) {
+        const int64_t t = g0 + lane < last ? g0 + lane : last;
+        ga = a[t * Hv + h];
+        gb = b[t * Hv + h];
+    };
+    float gbeta = 0.f, gdecay = 0.f;
+
+    GdnRaw<PL> ring[PD];
+#pragma unroll
+    for (int d = 0; d < PD; ++d) load(ring[d], d);
+    load_gates(0);
+
+    auto step = [&](GdnRaw<PL>& r, int64_t t) {
+        float qr[PL], kr[PL];
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qr[i] = ik_b2f(r.q[i]);
+            kr[i] = ik_b2f(r.k[i]);
+        }
+        const float v = valid ? ik_b2f(r.v) : 0.f;
+        load(r, t + PD);  // this slot's next token, in flight for the next PD tokens
+        float qq = 0.f, kk = 0.f;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qq += qr[i] * qr[i];
+            kk += kr[i] * kr[i];
+        }
+        qq = gdn_warp_sum(qq);
+        kk = gdn_warp_sum(kk);
+        const float qn = rsqrtf(qq + eps) * scale, kn = rsqrtf(kk + eps);
+        gdn_lds_sync();  // the previous token's reads of sq/sk are done
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            sq[lane + 32 * i] = qr[i] * qn;
+            sk[lane + 32 * i] = kr[i] * kn;
+        }
+        gdn_lds_sync();
+        const int gl = (int)(t & 31);
+        const float beta = __int_as_float(__builtin_amdgcn_readlane(__float_as_int(gbeta), gl));
+        const float decay = __int_as_float(__builtin_amdgcn_readlane(__float_as_int(gdecay), gl));
+        float kv = 0.f;
+        float4 kreg[EL / 4];
+        const float4* k4 = reinterpret_cast<const float4*>(sk) + part * (EL / 4);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) {
+            const float4 kk4 = k4[i];
+            kreg[i] = kk4;
+            sv[i].x *= decay; sv[i].y *= decay; sv[i].z *= decay; sv[i].w *= decay;
+            kv += gdn_dot4(sv[i], kk4);
+        }
+        kv += gdn_xorrow<1>(kv);
+        const float delta = (v - kv) * beta;
+        float out = 0.f;
+        const float4* q4 = reinterpret_cast<const float4*>(sq) + part * (EL / 4);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) {
+            const float4 kk4 = kreg[i], qq4 = q4[i];
+            sv[i].x = __builtin_fmaf(kk4.x, delta, sv[i].x);
+            sv[i].y = __builtin_fmaf(kk4.y, delta, sv[i].y);
+            sv[i].z = __builtin_fmaf(kk4.z, delta, sv[i].z);
+            sv[i].w = __builtin_fmaf(kk4.w, delta, sv[i].w);
+            out += gdn_dot4(sv[i], qq4);
+        }
+        out += gdn_xorrow<1>(out);
+        if (valid && part == 0) o[(t * Hv + h) * dv + j] = ik_f2b(out);
+    };
+
+    auto gates = [&](int64_t t0) {
+        if ((t0 & 31) == 0) {
+            // gdn_delta_rows_kernel's per-token beta / decay, for tokens t0 .. t0 + 31 (one per lane)
+            const float ar = ik_b2f(ga), br = ik_b2f(gb);
+            gbeta = sigmoidf(br);
+            gdecay = expf(neg_a * softplus(ar + dtb));
+            load_gates(t0 + 32);
+        }
+    };
+    // whole groups of PD tokens without a branch between the slots: a skipped slot would leave the previous slot's load
+    // the youngest on that path, and the wait counter pass would make every slot wait for all loads (no prefetch)
+    const int64_t full = T - T % PD;
+    for (int64_t t0 = 0; t0 < full; t0 += PD) {
+        gates(t0);
+#pragma unroll
+        for (int d = 0; d < PD; ++d) step(ring[d], t0 + d);
+    }
+    if (full < T) {
+        gates(full);
+#pragma unroll
+        for (int d = 0; d < PD; ++d)
+            if (full + d < T) step(ring[d], full + d);
+    }
+    if (valid) {
+        float4* dst = reinterpret_cast<float4*>(state + ((int64_t)h * dv + j) * DK + part * EL);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) dst[i] = sv[i];
+    }
+}
+
 }  // namespace
 
 extern "C" {
@@ -327,6 +523,47 @@ int ik_gdn_delta_rule_bf16(const ik_tensor* qkv, const ik_tensor* a, const ik_te
     gdn_delta_kernel<8><<<grid, block, 0, s>>>(
         (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,
         (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, T, (int)Hk, (int)Hv, (int)dv);
+    return ik_launch_status();
+}
+
+// gdn_delta_rows_kernel<128, 2> without its stalls (bitwise that kernel); dk = 128 only (the 35B's).
+int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                              const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream) {
+    IK_TRY(ik_check(qkv, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(b, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a_log, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(dt_bias, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(o, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(state, IK_DTYPE_F32, 3));
+    const int64_t T = qkv->shape[0], C = qkv->shape[1];
+    const int64_t Hv = o->shape[1], dv = o->shape[2], dk = state->shape[2];
+    if (dk == 0 || dv == 0 || Hv == 0 || C <= Hv * dv || (C - Hv * dv) % (2 * dk) != 0) return IK_ERR_SHAPE;
+    const int64_t Hk = (C - Hv * dv) / (2 * dk);
+    if (Hv % Hk != 0 || o->shape[0] != T || state->shape[0] != Hv || state->shape[1] != dv ||
+        a->shape[0] != T || a->shape[1] != Hv || b->shape[0] != T || b->shape[1] != Hv || a_log->shape[0] != Hv ||
+        dt_bias->shape[0] != Hv)
+        return IK_ERR_SHAPE;
+    if (dk != 128) return IK_ERR_UNSUPPORTED;
+    if (T == 0) return IK_OK;
+    constexpr int SPLIT = 2, ROWS = 32 / SPLIT;
+    const dim3 grid((unsigned)((dv + ROWS - 1) / ROWS), (unsigned)Hv);
+    // INTARSIA_HIP_GDN_PD = 1 | 2 | 4 (tokens prefetched ahead; default 2): a measurement knob, every value gives the same
+    // bits
+    static const int pd = [] {
+        const char* e = getenv("INTARSIA_HIP_GDN_PD");
+        const int c = e ? atoi(e) : 0;
+        return (c == 1 || c == 4) ? c : 2;
+    }();
+    hipStream_t s = IK_STREAM(stream);
+#define IK_GDN_V2(PD)                                                                                                   \
+    gdn_delta_rows_v2_kernel<128, SPLIT, PD><<<grid, 32, 0, s>>>(                                                     \
+        (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,      \
+        (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, T, (int)Hk, (int)Hv, (int)dv)
+    if (pd == 1) IK_GDN_V2(1);
+    else if (pd == 4) IK_GDN_V2(4);
+    else IK_GDN_V2(2);
+#undef IK_GDN_V2
     return ik_launch_status();
 }
 
