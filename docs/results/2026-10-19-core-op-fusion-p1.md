@@ -257,7 +257,7 @@ so the decision belongs to the user. Options:
 |---|---|---|---|---|
 | HIP (W2, full sweep, no `--quick`) | 35B | 46 / 808, 0 FAIL | 49 / 853, 0 FAIL | +3 kernels, +45 cases (15 + 10 + 20), all ADMITTED. P5 and P2a max error 0; P4b 1.9e-9 vs cpu-ref, inside tolerance |
 | HIP (W2, full sweep) | 8B | 46 / 821 | 49 / 866 | the same +3 / +45 (the sweep is per kernel) |
-| CUDA (`--quick`, vLLM-up slot) | 35B, 8B | 46 / 143, 0 FAIL | 46 / 143, 0 FAIL | none; logs identical apart from timing; 3 pre-existing SKIPPED kernels on both |
+| CUDA (`--quick`, vLLM-up slot) | 35B, 8B | 46 / 143, 0 FAIL | 46 / 143, 0 FAIL | none; logs identical apart from timing; 39 ADMITTED / 7 SKIPPED / 0 FAIL per model on both trees (the 7 SKIPPED are pre-existing) |
 | Metal | - | not run here (endor) | | registers none of the three ops (pinned by `phase1_folds_are_absent_...`) |
 
 The plans on HIP select the new kernels at the decode shapes only (section 1). The 8B plan is identical to base.
@@ -289,8 +289,11 @@ log in `raw/logs/cuda-window2.log`):
   - Scratch is unchanged: 83963392 and 748800.
 * **`kernels test --backend cuda --quick`:** 46 kernels, 143 cases, 0 FAIL, for the 35B and the 8B, on both trees. The logs are
   identical apart from timing lines.
-  - Both trees exit 1 with the same three SKIPPED kernels (`matmul_fp8_gemm_reg`, `moe_experts_nvfp4_mma_bf16` and
-    `moe_experts_w4a16_bf16` ran 0 quick cases). That is pre-existing and identical on A and B.
+  - Both trees exit 1 ("kernel admission failed") with the same seven SKIPPED kernels, which ran 0 quick cases on `cuda`:
+    `attn_prefill_bf16_flash`, `gdn_delta_rule_bf16_lanes`, `matmul_fp8_gemm`, `matmul_fp8_gemm_f8`, `matmul_fp8_gemm_reg`,
+    `moe_experts_nvfp4_mma_bf16` and `moe_experts_w4a16_bf16`. Per model and tree: 39 ADMITTED, 7 SKIPPED, 0 FAIL
+    (`raw/cuda/adm/{A,B}-{35b,8b}.log`). That is pre-existing and identical on A and B. (An earlier version of this doc said
+    three SKIPPED kernels; the logs show seven.)
   - The full (non-quick) CUDA sweep was not run.
 
 ## 10. Every shared file touched, and what changes per backend
