@@ -1,0 +1,15 @@
+[burst] job 2577; stages: ids4koff; stopping radiance 2026-10-18 23:04:00
+[burst] radiance stopped 2026-10-18 23:04:03
+################ stage ids4koff start 23:04:03
+--- this tree INTARSIA_HIP_DISABLE=gdn_delta_rule_bf16_v2,qk_norm_rope_kv_bf16
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 842 ms (5235.0 tok/s) | decode 1879 ms (135.69 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 838 ms (5262.7 tok/s) | decode 1875 ms (135.99 tok/s)
+ids: 255 / 255 commas
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4koff end 23:04:18
+[burst] stages done 2026-10-18 23:04:18 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-18 23:04:18
+[burst] radiance answers 2026-10-18 23:04:28 (after 15 s)
