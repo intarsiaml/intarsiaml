@@ -118,6 +118,11 @@ fn moe_weights() -> MemWeights {
 }
 
 fn load(backend: Arc<dyn Backend>, w: &MemWeights, act: DType) -> Model {
+    load_on(vec![backend], w, act)
+}
+
+/// `load` on one backend, or tensor-parallel over several (`HostCommGroup`).
+fn load_on(backends: Vec<Arc<dyn Backend>>, w: &MemWeights, act: DType) -> Model {
     let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
     let mut cfg: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(fixture_dir().join("config.json")).unwrap()).unwrap();
@@ -138,7 +143,11 @@ fn load(backend: Arc<dyn Backend>, w: &MemWeights, act: DType) -> Model {
         fp8_act: Some(Fp8Act::None),
         ..Default::default()
     };
-    Model::load(backend, &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap()
+    if backends.len() == 1 {
+        return Model::load(backends[0].clone(), &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap();
+    }
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    Model::load_tp(backends, comms, &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap()
 }
 
 /// Logit rows of a 12-token prefill (two chunks) followed by 6 single-token decode steps, and the ops of the last step.
@@ -211,4 +220,21 @@ fn moe_block_is_bitwise_the_unfused_chain() {
         // 1 launch against the 4 (topk, experts, glu, down+combine) the P2a chain runs per layer
         assert_eq!(o2.len() - of.len(), 3 * LAYERS, "{label}: launches per decode step {} (MoeBlock) vs {} (P2a chain)", of.len(), o2.len());
     }
+}
+
+/// TP > 1: the fold is off. Two layers of protection, both pinned here:
+/// * `Model::fused_ok` refuses every fused op when `tp.world > 1` (the routed and shared outputs are partial sums before the
+///   all-reduce, so a fused combine would be wrong under a partition);
+/// * a TP load of this model family is refused outright today (GatedDeltaNet blocks are not sharded), so no TP plan can
+///   hold `MoeBlock` at all. If that changes, this test fails and the TP2 run below must be turned into a launch count.
+#[test]
+fn moe_block_is_off_under_tp2() {
+    let w = moe_weights();
+    let (r0, r1) = (rec(&[]), rec(&[]));
+    assert!(r0.kernels().iter().any(|k| k.op == Op::MoeBlock), "the cpu backend must offer MoeBlock for this test to mean anything");
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        load_on(vec![r0.clone() as Arc<dyn Backend>, r1.clone() as Arc<dyn Backend>], &w, DType::F32)
+    }));
+    assert!(r.is_err(), "a TP2 load of the hybrid MoE model now succeeds: replace this with a MoeBlock launch count of 0 per rank");
+    assert!(r0.ops.lock().unwrap().iter().all(|&o| o != Op::MoeBlock) && r1.ops.lock().unwrap().iter().all(|&o| o != Op::MoeBlock));
 }

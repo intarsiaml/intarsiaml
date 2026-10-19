@@ -12,7 +12,7 @@ export INTARSIA_REPO="${INTARSIA_REPO:-$HOME/intarsiaml-p2p}"
 export INTARSIA_TARGET_VOL="${INTARSIA_TARGET_VOL:-intarsia-cargo-target-p2s0}"
 cd "$INTARSIA_REPO"
 D=deploy/tatooine/dev.sh
-P2PMUT="${P2PMUT:-p2p-gu-nofence p2p-sh-nofence p2p-nofence p2p-norefresh p2p-noorder p2p-ticket p2p-wait-short p2p-wait-routed p2p-swap p2p-noreset p2p-topk-rank p2p-sdc-noround}"
+P2PMUT="${P2PMUT:-p2p-gu-nofence p2p-sh-nofence p2p-nofence p2p-norefresh p2p-noorder p2p-ticket p2p-wait-short p2p-wait-routed p2p-swap p2p-noreset p2p-topk-rank p2p-sdc-noround p2p-topk-wround}"
 ts() { date +%T; }
 
 stage_bench() {  # GPU: the M1 microbench (tests/moe_block.rs moe_block_timing)
@@ -141,6 +141,8 @@ for s in "$@"; do
     unset "${s#unenv:}"; echo "unset ${s#unenv:}"
   elif [[ "$s" == filter:* ]]; then
     export RUN_FILTER="${s#filter:}"; echo "RUN_FILTER=$RUN_FILTER"
+  elif [[ "$s" == mut:* ]]; then  # mut:<name>:<name>...: mutrun for these mutants only (one lane's share)
+    m="${s#mut:}"; MUTATIONS="${m//:/ }" stage_mutrun
   elif [[ "$s" == t:* ]]; then
     stage_t "${s#t:}"
   else
