@@ -1,0 +1,5 @@
+Mac checks, branch perf/p2prime-step0 at 52b7ba99 (code identical to the parent of the commit adding this log), 2026-10-19 ~08:25 EDT
+cargo test --workspace: exit 0; 103 test binaries "test result: ok", 0 "FAILED"
+cargo check --workspace --features hip: exit 0 (Finished `dev` profile)
+Note: on the Mac the hip build script finds no hipcc, so cfg(ik_hip) is off and tests/moe_v3.rs compiles to nothing here;
+it was compiled (and run) on tatooine: raw/logs/build.log, window-*.log.
