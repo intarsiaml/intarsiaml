@@ -1,0 +1,11 @@
+fleetq: #2737 waiting (#1 in line): spark1 is offline
+fleetq: #2737 waiting (#1 in line): spark1 is held exclusively by #2726 "styles01 dsv41-1017 EXL3 TP2 runbook test (spark2 reboot by Josef, then boot + kit_bench)" (claude-52a52beb)
+fleetq: #2737 running on spark1: env SRC_DIR=/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/p2p-base INTARSIA_STAMP=6ef5faaa scripts/cuda-decode/build.sh p2p-base
+stamp: 6ef5faaa
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-base/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-base/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-base/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-base/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 14.49s
+-rwxrwxr-x 2 nvidia nvidia 37436496 Oct 19 14:32 /home/nvidia/intarsia-decfuse/p2p-base/target/acc/release/intarsia
+fleetq: #2737 done (exit 0)

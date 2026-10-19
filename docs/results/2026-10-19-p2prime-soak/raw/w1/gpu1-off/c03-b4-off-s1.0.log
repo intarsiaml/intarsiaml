@@ -1,0 +1,45 @@
+concurrent: 42 cases -> http://127.0.0.1:8091, B=4, stream=off
+token ids: requested (http://127.0.0.1:8091)
+  [  1/42] cb000 N stop 2 0.6s
+  [  2/42] cb002 N length 96 1.4s
+  [  3/42] cb001 N stop 92 2.4s
+  [  4/42] cb003 N length 16 1.4s
+  [  5/42] cb004 N length 96 3.3s
+  [  6/42] cb006 S length 128 3.6s
+  [  7/42] cb010 N stop 14 3.0s
+  [  8/42] cb016 N length 32 3.1s
+  [  9/42] cb018 N length 48 0.6s
+  [ 10/42] cb028 N length 48 1.0s
+  [ 11/42] cb034 N length 48 1.4s
+  [ 12/42] cb044 N stop 14 0.7s
+  [ 13/42] cb043 N length 128 2.0s
+  [ 14/42] cb048 N length 32 1.3s
+  [ 15/42] cb050 N length 48 1.1s
+  [ 16/42] cb058 N length 64 0.6s
+  [ 17/42] cb061 N stop 25 0.8s
+  [ 18/42] cb068 N length 64 0.5s
+  [ 19/42] cb072 N stop 2 0.1s
+  [ 20/42] cb076 N length 16 0.4s
+  [ 21/42] cb080 N length 96 1.1s
+  [ 22/42] cb083 N length 16 0.2s
+  [ 23/42] cb086 N length 48 0.4s
+  [ 24/42] cb093 S length 128 1.4s
+  [ 25/42] cb104 N length 96 1.0s
+  [ 26/42] cb108 N stop 17 0.7s
+  [ 27/42] cb112 N length 64 1.4s
+  [ 28/42] cb110 N length 48 2.3s
+  [ 29/42] cb116 N length 128 2.0s
+  [ 30/42] cb120 N length 160 3.4s
+  [ 31/42] cb124 N length 48 3.6s
+  [ 32/42] cb139 N length 96 3.5s
+  [ 33/42] cb142 N stop 4 3.3s
+  [ 34/42] cb143 N length 128 5.3s
+  [ 35/42] cb153 S cancelled 25 3.8s
+  [ 36/42] cb156 N length 32 3.4s
+  [ 37/42] cb163 N length 32 4.0s
+  [ 38/42] cb166 N stop 7 3.4s
+  [ 39/42] cb176 S stop 98 0.7s
+  [ 40/42] cb177 N length 48 1.1s
+  [ 41/42] cb200 N length 64 1.5s
+  [ 42/42] cb201 N length 64 2.4s
+wrote /home/josef/p2p-soak/w1/gpu1-off/c03-b4-off-s1.0.jsonl: 42 records, 0 errors, wall 70.1s, peak client in-flight 4

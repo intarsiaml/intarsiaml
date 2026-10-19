@@ -1,0 +1,5 @@
+7327,7328c7327
+< 	s_clause 0x2
+< 	global_store_b32 v1, v1, s[34:35] scope:SCOPE_DEV
+---
+> 	s_clause 0x1

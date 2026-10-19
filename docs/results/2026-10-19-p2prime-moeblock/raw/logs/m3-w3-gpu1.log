@@ -1,0 +1,213 @@
+################ stage mut:p2p-gu-nofence:p2p-sh-nofence:p2p-nofence:p2p-norefresh:p2p-noorder:p2p-wait-short:p2p-wait-routed:p2p-swap:p2p-noreset:p2p-topk-rank:p2p-sdc-noround:p2p-topk-wround start 09:59:47
+p2p-gu-nofence     test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ... moe_block_dispatch_order: 90 launches bitwise test moe_block_graph_replay_is_bitwise_eager ... ok test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 44 cases bitwise test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0  moe_block_sentinel_stress: 6000 launches, 0 differ from the chain test moe_block_timing ... ok test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.43s exit=0 
+p2p-sh-nofence     test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ... moe_block_dispatch_order: 90 launches bitwise test moe_block_graph_replay_is_bitwise_eager ... ok test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 44 cases bitwise test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0  moe_block_sentinel_stress: 6000 launches, 0 differ from the chain test moe_block_timing ... ok test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.34s exit=0 
+p2p-nofence        test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ... moe_block_dispatch_order: 90 launches bitwise test moe_block_graph_replay_is_bitwise_eager ... ok test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 44 cases bitwise test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0  moe_block_sentinel_stress: 6000 launches, 0 differ from the chain test moe_block_timing ... ok test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.05s exit=0 
+p2p-norefresh      test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ... moe_block_dispatch_order: 90 launches bitwise test moe_block_graph_replay_is_bitwise_eager ... ok test moe_block_is_bitwise_the_chain ... ok test moe_block_sentinel_stress ... moe_block_is_bitwise_the_chain: 44 cases bitwise moe_block_sentinel_stress: 6000 launches, 3161 differ from the chain test moe_block_timing ... ok test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.55s exit=101 
+  [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+p2p-noorder        test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ... moe_block_dispatch_order: 90 launches bitwise test moe_block_graph_replay_is_bitwise_eager ... ok test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 44 cases bitwise test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 moe_block_sentinel_stress: 6000 launches, 3163 differ from the chain test moe_block_timing ... ok test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.95s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+p2p-wait-short     test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ...  test moe_block_graph_replay_is_bitwise_eager ...  test moe_block_is_bitwise_the_chain ...  test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 moe_block_sentinel_stress: 6000 launches, 2644 differ from the chain test moe_block_timing ... ok test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.84s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 39 differ (39 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+p2p-wait-routed    test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ...  test moe_block_graph_replay_is_bitwise_eager ...  test moe_block_is_bitwise_the_chain ...  test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 moe_block_sentinel_stress: 6000 launches, 3398 differ from the chain test moe_block_timing ... ok test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.75s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 40 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 40 differ (40 NaN); stream 1: 40 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 39 differ (39 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 40 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+p2p-swap           test moe_block_counters_reset_between_launches ...  test moe_block_dispatch_order ...  test moe_block_graph_replay_is_bitwise_eager ...  test moe_block_is_bitwise_the_chain ...  test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 4 moe_block_sentinel_stress: 6000 launches, 6000 differ from the chain test moe_block_timing ... ok test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.96s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+p2p-noreset        test moe_block_counters_reset_between_launches ... ok test moe_block_dispatch_order ...  test moe_block_graph_replay_is_bitwise_eager ...  test moe_block_is_bitwise_the_chain ...  test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 moe_block_sentinel_stress: 6000 launches, 3400 differ from the chain test moe_block_timing ... ok test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.09s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 39 differ (39 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 40 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 40 differ (40 NaN); stream 1: 40 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 40 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+p2p-topk-rank      test moe_block_counters_reset_between_launches ...  test moe_block_dispatch_order ...  test moe_block_graph_replay_is_bitwise_eager ...  test moe_block_is_bitwise_the_chain ...  test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20:  moe_block_sentinel_stress: 6000 launches, 6000 differ from the chain test moe_block_timing ... ok test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.34s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 120 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 120 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (40 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 120 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (40 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 120 differ
+p2p-sdc-noround    test moe_block_counters_reset_between_launches ...  test moe_block_dispatch_order ...  test moe_block_graph_replay_is_bitwise_eager ...  test moe_block_is_bitwise_the_chain ...  test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 4 moe_block_sentinel_stress: 6000 launches, 6000 differ from the chain test moe_block_timing ... ok test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.93s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+p2p-topk-wround    test moe_block_counters_reset_between_launches ...  test moe_block_dispatch_order ...  test moe_block_graph_replay_is_bitwise_eager ...  test moe_block_is_bitwise_the_chain ...  test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 4 moe_block_sentinel_stress: 6000 launches, 6000 differ from the chain test moe_block_timing ... ok test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.98s exit=101 
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 20: 40 differ (0 NaN), skew 40: 40 differ (0 NaN); stream 1: 120 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 40 differ (0 NaN), skew 2: 40 differ (0 NaN), skew 6: 40 differ (0 NaN); stream 1: 120 differ
+################ stage mut:p2p-gu-nofence:p2p-sh-nofence:p2p-nofence:p2p-norefresh:p2p-noorder:p2p-wait-short:p2p-wait-routed:p2p-swap:p2p-noreset:p2p-topk-rank:p2p-sdc-noround:p2p-topk-wround end 10:02:28
+################ stage ids start 10:02:28
+################ stage ids4k start 10:02:28
+--- this tree INTARSIA_HIP_MOE_BLOCK=1
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 555 ms (7946.8 tok/s) | decode 1611 ms (158.25 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 547 ms (8061.1 tok/s) | decode 1749 ms (145.82 tok/s)
+cp: '/home/josef/intarsiaml-p2p/bench-out/ids4k-base.ids' and '/home/josef/intarsiaml-p2p/bench-out/ids4k-base.ids' are the same file
+ids: 255 / 255 commas
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4k end 10:02:42
+################ stage ids end 10:02:42
+################ stage env:MUT_TIMEOUT=90 start 10:02:42
+export MUT_TIMEOUT=90
+################ stage env:MUT_TIMEOUT=90 end 10:02:42
+################ stage mut:p2p-ticket start 10:02:42
+p2p-ticket         test moe_block_counters_reset_between_launches ... bash: line 1:     7 Killed                  timeout -s KILL 90 /target/p2pmut/p2p-ticket  exit=137 
+################ stage mut:p2p-ticket end 10:04:13

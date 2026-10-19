@@ -1,0 +1,2 @@
+[lane blk gpu0] starting soak-blk-gpu0 INTARSIA_HIP_MOE_BLOCK=1 at 2026-10-19 14:47:19
+[lane blk gpu0] done 2026-10-19 14:59:09 rc=0

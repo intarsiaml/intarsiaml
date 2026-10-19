@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::ARCH;
-use intarsia_core::quant::ops::moe_experts_scratch;
+use intarsia_core::quant::ops::{moe_block_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
@@ -24,6 +24,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_bf16_v2", Op::MoeExperts),
     ("moe_experts_bf16_v3", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
+    // P2' (docs/results/2026-10-19-p2prime-moeblock.md): default ON, INTARSIA_HIP_MOE_BLOCK=0 disables
+    ("moe_block_bf16", Op::MoeBlock),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
@@ -107,6 +109,37 @@ pub fn moe_v3_enabled() -> bool {
 /// The value of INTARSIA_HIP_MOE_V3 -> v3 selected: only exactly "1".
 pub fn moe_v3_from(v: Option<&str>) -> bool {
     v == Some("1")
+}
+
+/// `moe_block_bf16` (P2', `Op::MoeBlock`: top-k, routed experts, shared expert and combine in one launch, bitwise the default
+/// chain) is ON BY DEFAULT: admissible unless INTARSIA_HIP_MOE_BLOCK=0 (the kill switch; docs/results/2026-10-19-p2prime-moeblock.md). Off, its
+/// `when` is false, so `fused_ok` finds no kernel and the model runs the unfused chain exactly as before. Registered either
+/// way, so the tests can launch it by name.
+pub fn moe_block_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| moe_block_from(std::env::var("INTARSIA_HIP_MOE_BLOCK").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_MOE_BLOCK -> MoeBlock admissible: only exactly "0" disables; unset or anything else enables.
+pub fn moe_block_from(v: Option<&str>) -> bool {
+    v != Some("0")
+}
+
+/// The shapes `moe_block_bf16` serves: those the default chain runs with its decode kernels (T * K <= 16, K <= 8, the
+/// experts' p1/v2 path; E <= 512, the top-k kernel's), H / I / IS multiples of 16 (`n` = I, `head_dim` = IS for this op).
+pub fn moe_block_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
+    s.m >= 1
+        && (1..=8).contains(&s.top_k)
+        && s.m * s.top_k <= 16
+        && s.top_k <= s.experts
+        && s.experts <= 512
+        && s.k % 16 == 0
+        && s.n % 16 == 0
+        && s.head_dim % 16 == 0
+        && s.k > 0
+        && s.n > 0
+        && s.head_dim > 0
+        && s.out == Some(DType::Bf16)
 }
 
 pub fn all() -> Vec<KernelImpl> {
@@ -224,6 +257,17 @@ pub fn all() -> Vec<KernelImpl> {
                         _ => 0,
                     }),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
+                // P2' (kernels/hip/moe_block.hip, tests/moe_block.rs): ON by default (INTARSIA_HIP_MOE_BLOCK=0 disables), see `moe_block_enabled`. Bitwise the chain
+                // moe_topk_bf16_v2 -> moe_experts_bf16_v2 -> matmul_nvfp4_glu_gemv (gate / up gemv + silu_glu at T > 1) ->
+                // shared_down_combine_nvfp4_gemv at every shape it takes; scratch: h [T * K, I] and sa [T, IS] bf16.
+                "moe_block_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| moe_block_enabled() && moe_block_shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_block_scratch)
+                    .priority(10),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces (tests/
                 // fused_decode.rs), so the budget is that of the kernels it is built from.
                 "matmul_pair_bf16_gemv" => k
@@ -388,6 +432,44 @@ mod tests {
         assert!(!fp8_staging_default_from(Some("3"), None));
         assert!(!fp8_staging_default_from(None, Some("2,8")));
         assert!(!fp8_staging_default_from(None, Some("1,16")));
+    }
+
+    /// P2' is on by default: `moe_block_bf16` is admissible unless INTARSIA_HIP_MOE_BLOCK=0 (only "0" disables), and then exactly at the shapes the
+    /// default chain serves with its decode kernels (T * K <= 16, K <= 8, E <= 512, H / I / IS multiples of 16).
+    #[test]
+    fn moe_block_is_default_on_and_its_shapes_are_pinned() {
+        assert!(moe_block_from(None));
+        assert!(!moe_block_from(Some("0")));
+        assert!(moe_block_from(Some("")));
+        assert!(moe_block_from(Some("true")));
+        assert!(moe_block_from(Some("1")));
+        assert_eq!(moe_block_enabled(), std::env::var("INTARSIA_HIP_MOE_BLOCK").as_deref() != Ok("0"));
+        let ks = all();
+        let k = ks.iter().find(|k| k.name == "moe_block_bf16").unwrap();
+        let sh = |m: usize, e: usize, top_k: usize, h: usize, i: usize, is: usize| ShapeInfo {
+            m,
+            k: h,
+            n: i,
+            head_dim: is,
+            experts: e,
+            top_k,
+            act: Some(DType::Bf16),
+            weight: Some(DType::U8),
+            out: Some(DType::Bf16),
+            ..Default::default()
+        };
+        // the 35B's decode step (T = 1) and T = 2; not T = 3 (the chain's experts leave the decode kernels at T * K > 16)
+        for (m, ok) in [(1usize, true), (2, true), (3, false), (4096, false)] {
+            assert_eq!(moe_block_shape_ok(&sh(m, 256, 8, 2048, 512, 512)), ok, "m={m}");
+            assert_eq!(k.accepts(&sh(m, 256, 8, 2048, 512, 512)), ok && moe_block_enabled(), "m={m}");
+        }
+        assert!(moe_block_shape_ok(&sh(4, 16, 4, 128, 32, 48)));
+        assert!(!moe_block_shape_ok(&sh(1, 16, 9, 128, 32, 48)), "K > 8");
+        assert!(!moe_block_shape_ok(&sh(1, 1024, 8, 2048, 512, 512)), "E > 512");
+        assert!(!moe_block_shape_ok(&sh(1, 256, 8, 2048, 512, 520)), "IS % 16");
+        // scratch: h [T * K, I] and sa [T, IS] bf16, each rounded up to 256 bytes
+        assert_eq!(k.scratch_bytes(&sh(1, 256, 8, 2048, 512, 512)), 8 * 512 * 2 + 512 * 2);
+        assert_eq!(k.scratch_bytes(&sh(1, 16, 2, 256, 16, 32)), 256 + 256);
     }
 
     #[test]

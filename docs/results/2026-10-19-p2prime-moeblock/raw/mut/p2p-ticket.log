@@ -1,0 +1,4 @@
+
+running 6 tests
+test moe_block_counters_reset_between_launches ... bash: line 1:     7 Killed                  timeout -s KILL 90 /target/p2pmut/p2p-ticket --test-threads=1 --nocapture
+exit=137

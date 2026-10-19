@@ -1,0 +1,24 @@
+
+== coverage (from the reference run) ==
+cases 42  prompt tokens min/max [131, 4434]
+prompt-token histogram: {'<=192': 5, '193-384': 5, '385-768': 6, '769-1.5k': 6, '1.5k-2.5k': 6, '2.5k-3.5k': 8, '>3.5k': 6}
+reference finish: {'stop (EOS)': 6, 'stop (stop string armed: stop string or EOS)': 4, 'length': 32}
+tags: {'cancel': 4, 'chat': 13, 'chat_greedy': 3, 'chat_sampled': 2, 'eos': 3, 'golden_4k': 2, 'greedy': 32, 'ignore_eos': 2, 'min_tokens': 3, 'raw': 29, 'raw_greedy': 12, 'raw_sampled': 6, 'sampled': 10, 'stop': 5}
+
+== identity vs reference ==
+run        cases  pass  mismatch  ref_err  stream/non  cancel(out>0)/cases  cut short  ids cmp  cached!=  mism+cached!=
+B=4 mixed  42     42    0         0        21/21       1(1)/4               1          42       0         0            
+B=8 mixed  42     42    0         0        21/21       4(3)/4               4          41       0         0            
+B=8 on     42     42    0         0        42/0        3(1)/4               3          40       0         0            
+B=4 off    42     42    0         0        4/38        1(1)/4               1          42       0         0            
+B=8 mixed  42     42    0         0        21/21       3(1)/4               3          40       0         0            
+B=4 on     42     42    0         0        42/0        3(2)/4               3          41       0         0            
+B=4 mixed  42     42    0         0        21/21       4(4)/4               4          42       0         0            
+B=8 mixed  42     42    0         0        21/21       4(1)/4               4          39       0         0            
+B=8 on     42     42    0         0        42/0        3(2)/4               3          41       0         0            
+B=4 off    42     42    0         0        4/38        2(1)/4               2          41       0         0            
+B=8 mixed  42     42    0         0        21/21       3(2)/4               3          41       0         0            
+B=4 on     42     42    0         0        42/0        3(1)/4               3          40       0         0            
+B=4 mixed  42     42    0         0        21/21       2(2)/4               2          42       0         0            
+report: /home/josef/p2p-soak/w1/gpu1-off/compare.json
+RESULT: IDENTICAL, 0 mismatches

@@ -1,0 +1,9 @@
+fleetq: #2738 running on spark1: env SRC_DIR=/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/p2p-dev INTARSIA_STAMP=0d449c5d scripts/cuda-decode/build.sh p2p-dev
+stamp: 0d449c5d
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-dev/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-dev/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-dev/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p2p-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 13.43s
+-rwxrwxr-x 2 nvidia nvidia 37436792 Oct 19 14:33 /home/nvidia/intarsia-decfuse/p2p-dev/target/acc/release/intarsia
+fleetq: #2738 done (exit 0)

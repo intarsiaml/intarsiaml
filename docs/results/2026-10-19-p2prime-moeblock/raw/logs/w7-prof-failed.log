@@ -1,0 +1,14 @@
+[window] job 2735; gpu0: env:INTARSIA_HIP_MOE_BLOCK=1 r:prof:blk; gpu1: r:prof:def; stopping radiance 2026-10-19 10:48:21
+[window] radiance stopped 2026-10-19 10:48:24
+################ stage env:INTARSIA_HIP_MOE_BLOCK=1 start 10:48:24
+export INTARSIA_HIP_MOE_BLOCK=1
+################ stage env:INTARSIA_HIP_MOE_BLOCK=1 end 10:48:24
+################ stage r:prof:blk start 10:48:24
+################ stage prof:blk start 10:48:24
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 76 ms (315.6 tok/s) | decode 968 ms (164.19 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+--- rocprofv3 (kernel trace)
+[window] gpu0 lane done 2026-10-19 10:56:24 (exit 124)
+[window] starting radiance 2026-10-19 10:56:24
+[window] radiance answers 2026-10-19 10:56:34 (after 15 s)

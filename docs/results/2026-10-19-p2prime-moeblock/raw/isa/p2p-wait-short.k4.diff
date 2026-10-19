@@ -1,0 +1,11 @@
+3471a3472
+> 	s_add_co_i32 s5, s31, -1
+3475c3476,3477
+< 	v_cmp_le_u32_e32 vcc_lo, s31, v55
+---
+> 	s_wait_alu 0xfffe
+> 	v_cmp_le_u32_e32 vcc_lo, s5, v55
+3482c3484
+< 	v_cmp_gt_u32_e32 vcc_lo, s31, v55
+---
+> 	v_cmp_gt_u32_e32 vcc_lo, s5, v55

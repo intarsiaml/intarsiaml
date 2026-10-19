@@ -1,0 +1,6 @@
+[window] job 2743; gpu0=blk gpu1=off SOAK_S=600; stopping radiance 2026-10-19 14:47:17
+[window] radiance stopped 2026-10-19 14:47:19
+[window] lanes done 2026-10-19 14:59:27
+[window] starting radiance 2026-10-19 14:59:27
+[window] radiance answers 2026-10-19 14:59:37 (after 15 s)
+[window] containers now: radiance 

@@ -255,6 +255,8 @@ extern "C" {
     ) -> c_int;
     pub fn ik_sigmoid_mul_matmul_fp8_gemv(a: T, gate: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_shared_down_combine_nvfp4_gemv(x: T, w: T, bs: T, gs: T, routed: T, logit: T, out: TM, s: S) -> c_int;
+    /// P2' (kernels/hip/moe_block.hip): `inputs` points at the 17 `Op::MoeBlock` inputs, contiguous and in order.
+    pub fn ik_moe_block_bf16(inputs: T, top_k: c_int, norm: c_int, out: TM, scratch: SC, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_gate_split_qk_norm_rope_kv_bf16(
         qg: T,

@@ -1,0 +1,22 @@
+fleetq: #2739 running on spark1: ssh spark1 'NOOP_A=p2p-base NOOP_B=p2p-dev bash ~/intarsia-decfuse/p2p-dev/scripts/cuda-decode/fusion-noop-up.sh'
+== fusion-noop-up start 14:33:26
+== plans 14:33:26
+plan A 35b exit 0
+plan A 8b exit 0
+plan B 35b exit 0
+plan B 8b exit 0
+PLAN 35b JSON IDENTICAL (26379bc9beb2)
+PLAN 8b JSON IDENTICAL (d1847a362f17)
+== 35b: launches per decode step A 525 -> B 525 (+0); scratch 83963392 -> 83963392
+   36 (op, kernel) rows identical, 0 present on one side only
+== 8b: launches per decode step A 544 -> B 544 (+0); scratch 748800 -> 748800
+   16 (op, kernel) rows identical, 0 present on one side only
+== admission 14:36:01
+kernels test A 35b exit 0: incomplete: 9 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels test A 8b exit 0: incomplete: 9 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels test B 35b exit 0: incomplete: 9 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels test B 8b exit 0: incomplete: 9 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+ADMISSION 35b IDENTICAL (timing lines aside)
+ADMISSION 8b IDENTICAL (timing lines aside)
+== fusion-noop-up done 14:36:04
+fleetq: #2739 done (exit 0)

@@ -1,0 +1,7 @@
+3490,3492c3490,3491
+< 	global_inv scope:SCOPE_SE
+< 	s_wait_loadcnt 0x0
+< 	global_inv scope:SCOPE_DEV
+---
+> 	;;#ASMSTART
+> 	;;#ASMEND

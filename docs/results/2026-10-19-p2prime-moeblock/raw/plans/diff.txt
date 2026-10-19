@@ -1,0 +1,9 @@
+== 35b: launches per decode step def 375 -> blk 255 (-120); scratch 167905792 -> 167905792
+   matmul_nvfp4_glu             matmul_nvfp4_glu_gemv                    def   40  blk    -
+   moe_block                    moe_block_bf16                           def    -  blk   40
+   moe_experts                  moe_experts_bf16_v2                      def   40  blk    0
+   moe_topk                     moe_topk_bf16_v2                         def   40  blk    0
+   shared_down_combine          shared_down_combine_nvfp4_gemv           def   40  blk    -
+   27 (op, kernel) rows identical, 3 present on one side only
+== 8b: launches per decode step def 364 -> blk 364 (+0); scratch 748800 -> 748800
+   14 (op, kernel) rows identical, 0 present on one side only

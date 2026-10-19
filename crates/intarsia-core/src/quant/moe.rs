@@ -276,6 +276,19 @@ impl MoeWeights {
             let call = self.router.call(n.clone(), logits.clone());
             run.run(call.op, call.inputs, call.outputs, call.attrs)?;
         }
+        // P2' (docs/results/2026-10-19-p2prime-moeblock.md): everything after the router logits as one op when the backend has
+        // it. Only tried when the shared-gate logit is already computed (folded into the router pair above) and the shared
+        // expert is NVFP4 throughout; otherwise, or when no kernel is selectable, the unfused ops below run unchanged.
+        if let Some(sh) = self.shared.as_ref().filter(|sh| {
+            gate_logit_done && sh.gate.format == NVFP4 && sh.up.format == NVFP4 && sh.down.format == NVFP4
+        }) {
+            let mut inputs = vec![n.clone(), logits.clone(), sl.clone()];
+            inputs.extend([e.gate_up_w.clone(), e.gate_up_s.clone(), e.down_w.clone(), e.down_s.clone(), e.gscales.clone()]);
+            inputs.extend(sh.gate.parts.iter().chain(&sh.up.parts).chain(&sh.down.parts).cloned());
+            if run.run_fused(Op::MoeBlock, inputs, vec![out.clone()], attrs())? {
+                return Ok(());
+            }
+        }
         run.run(Op::MoeTopk, vec![logits], vec![tw.clone(), ti.clone()], attrs())?;
         run.run(
             Op::MoeExperts,

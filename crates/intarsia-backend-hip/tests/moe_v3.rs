@@ -16,6 +16,8 @@
 //! * `v3_sentinel_stress_narrow`: the same with only the last gate_up role late, with and without the second stream, so
 //!   fewer other blocks refresh the down blocks' caches (the test `v3-noorder` must fail; P2' step 0,
 //!   docs/results/2026-10-19-p2prime-step0.md).
+//! * `v3_sentinel_stress_multitoken`: the narrow stress at T = 2..8 with token 0's (or every token's) last gate_up role
+//!   late (P2' M0, docs/results/2026-10-19-p2prime-moeblock.md).
 //!
 //! Needs a GPU: skips (passes) without one.
 #![cfg(ik_hip)]
@@ -238,7 +240,7 @@ fn v3_graph_replay_is_bitwise_eager() {
 #[test]
 fn v3_sentinel_stress() {
     let Some(be) = device() else { return };
-    let cfg = Stress { name: "all-late", seed: 55, skew_all: true, skews: ["0", "2", "6"], side: true };
+    let cfg = Stress { name: "all-late", seed: 55, skew_all: true, skews: ["0", "2", "6"], side: true, tok: None, shapes: SHAPES };
     let (launches, bad) = sentinel_stress(&*be, &cfg, stress_rounds());
     eprintln!("v3_sentinel_stress: {launches} launches, {} differ from v2", bad.len());
     assert!(bad.is_empty(), "{} of {launches} launches read h early or stale:\n{}", bad.len(), bad[..bad.len().min(12)].join("\n"));
@@ -257,8 +259,8 @@ fn v3_sentinel_stress_narrow() {
     let rounds = stress_rounds();
     let (mut launches, mut bad) = (0usize, Vec::new());
     for cfg in [
-        Stress { name: "last-late, no side", seed: 56, skew_all: false, skews: ["0", "20", "40"], side: false },
-        Stress { name: "last-late, side", seed: 57, skew_all: false, skews: ["0", "20", "40"], side: true },
+        Stress { name: "last-late, no side", seed: 56, skew_all: false, skews: ["0", "20", "40"], side: false, tok: None, shapes: SHAPES },
+        Stress { name: "last-late, side", seed: 57, skew_all: false, skews: ["0", "20", "40"], side: true, tok: None, shapes: SHAPES },
     ] {
         let (n, b) = sentinel_stress(&*be, &cfg, rounds);
         eprintln!("v3_sentinel_stress_narrow [{}]: {n} launches, {} differ from v2", cfg.name, b.len());
@@ -269,7 +271,41 @@ fn v3_sentinel_stress_narrow() {
     assert!(bad.is_empty(), "{} of {launches} launches read h early or stale:\n{}", bad.len(), bad[..bad.len().min(12)].join("\n"));
 }
 
-/// One configuration of the sentinel stress (`v3_sentinel_stress`, `v3_sentinel_stress_narrow`).
+/// The narrow stress at T >= 2 (P2' M0, docs/results/2026-10-19-p2prime-moeblock.md). In `v3_sentinel_stress_narrow` the
+/// late role is the LAST gate_up role, which writes the LAST token's h; at T >= 2 that token's down roles hold the last down
+/// tickets, so they are mostly not resident yet when the store lands (the down roles of the earlier tokens fill the free
+/// slots and spin), and they read h only after it is written: no stale read is possible there (step 0: 0 kills at T = 2).
+/// Here the late role is the last gate_up role of token 0 (`INTARSIA_HIP_MOE_V3_SKEW_TOK=0`), whose down roles take the first
+/// down tickets, or the last role of every token (`=all`), at T = 2..8 (P = T * K <= 16, the shapes v3 serves), with and
+/// without the stream-1 instance. Same PREREAD, poison and bitwise comparison; a control row keeps the old last-role skew.
+#[test]
+fn v3_sentinel_stress_multitoken() {
+    let Some(be) = device() else { return };
+    let rounds = stress_rounds();
+    let (mut launches, mut bad) = (0usize, Vec::new());
+    for cfg in [
+        Stress { name: "tok0-late, no side", seed: 58, skew_all: false, skews: ["0", "20", "40"], side: false, tok: Some("0"), shapes: SHAPES_T2 },
+        Stress { name: "every-token-last-late, no side", seed: 59, skew_all: false, skews: ["0", "20", "40"], side: false, tok: Some("all"), shapes: SHAPES_T2 },
+        Stress { name: "tok0-late, side", seed: 60, skew_all: false, skews: ["0", "20", "40"], side: true, tok: Some("0"), shapes: SHAPES_T2 },
+        Stress { name: "last-late (control), no side", seed: 61, skew_all: false, skews: ["0", "20", "40"], side: false, tok: None, shapes: SHAPES_T2 },
+    ] {
+        let (n, b) = sentinel_stress(&*be, &cfg, rounds);
+        eprintln!("v3_sentinel_stress_multitoken [{}]: {n} launches, {} differ from v2", cfg.name, b.len());
+        launches += n;
+        bad.extend(b);
+    }
+    eprintln!("v3_sentinel_stress_multitoken: {launches} launches, {} differ from v2", bad.len());
+    assert!(bad.is_empty(), "{} of {launches} launches read h early or stale:\n{}", bad.len(), bad[..bad.len().min(12)].join("\n"));
+}
+
+type Shape = (usize, usize, usize, usize, usize);
+/// (t, e, k, h, i) of `v3_sentinel_stress` / `_narrow` (unchanged since step 0)
+const SHAPES: &[Shape] = &[(1, 256, 8, 2048, 512), (2, 256, 8, 2048, 512), (1, 64, 8, 1024, 256), (1, 16, 2, 256, 16)];
+/// multi-token decode shapes v3 serves (T * K <= 16): the 35B's T = 2, and smaller grids / more tokens
+const SHAPES_T2: &[Shape] =
+    &[(2, 256, 8, 2048, 512), (2, 64, 8, 1024, 256), (4, 64, 4, 1024, 256), (3, 32, 4, 512, 128), (4, 16, 2, 256, 16), (8, 16, 2, 256, 16)];
+
+/// One configuration of the sentinel stress (`v3_sentinel_stress`, `v3_sentinel_stress_narrow`, `_multitoken`).
 struct Stress {
     name: &'static str,
     seed: u64,
@@ -279,6 +315,9 @@ struct Stress {
     skews: [&'static str; 3],
     /// a second v3 instance on stream 1 at the same time (contention, and its gate_up roles' barriers on more CUs)
     side: bool,
+    /// INTARSIA_HIP_MOE_V3_SKEW_TOK (which role is late when `skew_all` is off): None = the last role
+    tok: Option<&'static str>,
+    shapes: &'static [Shape],
 }
 
 fn stress_rounds() -> usize {
@@ -314,11 +353,13 @@ fn sentinel_stress(be: &dyn Backend, cfg: &Stress, rounds: usize) -> (usize, Vec
         std::env::remove_var("INTARSIA_HIP_MOE_V3_SKEW_ALL");
     }
     std::env::set_var("INTARSIA_HIP_MOE_V3_PREREAD", "1");
+    match cfg.tok {
+        Some(t) => std::env::set_var("INTARSIA_HIP_MOE_V3_SKEW_TOK", t),
+        None => std::env::remove_var("INTARSIA_HIP_MOE_V3_SKEW_TOK"),
+    }
     let mut bad: Vec<String> = Vec::new();
     let mut launches = 0usize;
-    for (t, e, k, h, i) in
-        [(1usize, 256usize, 8usize, 2048usize, 512usize), (2, 256, 8, 2048, 512), (1, 64, 8, 1024, 256), (1, 16, 2, 256, 16)]
-    {
+    for &(t, e, k, h, i) in cfg.shapes {
         let a = experts_case(&mut rng, t, e, k, h, i, DType::Bf16);
         let mut b = a.clone();
         b.inputs[0] =
@@ -367,7 +408,7 @@ fn sentinel_stress(be: &dyn Backend, cfg: &Stress, rounds: usize) -> (usize, Vec
             side_bad.1
         );
     }
-    for v in ["INTARSIA_HIP_MOE_V3_SKEW", "INTARSIA_HIP_MOE_V3_SKEW_ALL", "INTARSIA_HIP_MOE_V3_PREREAD"] {
+    for v in ["INTARSIA_HIP_MOE_V3_SKEW", "INTARSIA_HIP_MOE_V3_SKEW_ALL", "INTARSIA_HIP_MOE_V3_PREREAD", "INTARSIA_HIP_MOE_V3_SKEW_TOK"] {
         std::env::remove_var(v);
     }
     (launches, bad)

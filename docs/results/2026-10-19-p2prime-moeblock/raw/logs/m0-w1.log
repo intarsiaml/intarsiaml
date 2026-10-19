@@ -1,0 +1,214 @@
+[window] job 2720; gpu0: filter:v3_sentinel_stress_multitoken run:2:base run:3:v3-noorder; gpu1: filter:v3_sentinel_stress_multitoken run:3:v3-noorder run:2:v3-nofence pre:1 run:2:v3-noorder; stopping radiance 2026-10-19 09:27:52
+[window] radiance stopped 2026-10-19 09:27:55
+################ stage filter:v3_sentinel_stress_multitoken start 09:27:55
+RUN_FILTER=v3_sentinel_stress_multitoken
+################ stage filter:v3_sentinel_stress_multitoken end 09:27:55
+################ stage run:2:base start 09:27:55
+--- base run 1 [09:27:55] GPU 0
+test v3_sentinel_stress_multitoken ...   [tok0-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [tok0-late, no side]: 720 launches, 0 differ from v2
+  [every-token-last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [every-token-last-late, no side]: 720 launches, 0 differ from v2
+  [tok0-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [tok0-late, side]: 1440 launches, 0 differ from v2
+  [last-late (control), no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [last-late (control), no side]: 720 launches, 0 differ from v2
+v3_sentinel_stress_multitoken: 3600 launches, 0 differ from v2
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.97s
+exit=0
+--- base run 2 [09:28:00] GPU 0
+test v3_sentinel_stress_multitoken ...   [tok0-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [tok0-late, no side]: 720 launches, 0 differ from v2
+  [every-token-last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [every-token-last-late, no side]: 720 launches, 0 differ from v2
+  [tok0-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [tok0-late, side]: 1440 launches, 0 differ from v2
+  [last-late (control), no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [last-late (control), no side]: 720 launches, 0 differ from v2
+v3_sentinel_stress_multitoken: 3600 launches, 0 differ from v2
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.93s
+exit=0
+################ stage run:2:base end 09:28:06
+################ stage run:3:v3-noorder start 09:28:06
+--- v3-noorder run 1 [09:28:06] GPU 0
+test v3_sentinel_stress_multitoken ...   [tok0-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [tok0-late, no side]: 720 launches, 483 differ from v2
+  [every-token-last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [every-token-last-late, no side]: 720 launches, 483 differ from v2
+  [tok0-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+v3_sentinel_stress_multitoken [tok0-late, side]: 1440 launches, 960 differ from v2
+  [last-late (control), no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 2 differ (2 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [last-late (control), no side]: 720 launches, 245 differ from v2
+v3_sentinel_stress_multitoken: 3600 launches, 2171 differ from v2
+thread 'v3_sentinel_stress_multitoken' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:298:5:
+2171 of 3600 launches read h early or stale:
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (1341 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (1328 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (1328 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (1331 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (1328 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1313 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (1331 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1348 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1333 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (1313 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (1324 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 17: differs from v2 (1335 NaN outputs)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.96s
+exit=101
+--- v3-noorder run 2 [09:28:11] GPU 0
+test v3_sentinel_stress_multitoken ...   [tok0-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 39 differ (39 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [tok0-late, no side]: 720 launches, 482 differ from v2
+  [every-token-last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [every-token-last-late, no side]: 720 launches, 483 differ from v2
+  [tok0-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+v3_sentinel_stress_multitoken [tok0-late, side]: 1440 launches, 960 differ from v2
+  [last-late (control), no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 3 differ (3 NaN), skew 20: 0 differ (0 NaN), skew 40: 2 differ (2 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [last-late (control), no side]: 720 launches, 246 differ from v2
+v3_sentinel_stress_multitoken: 3600 launches, 2171 differ from v2
+thread 'v3_sentinel_stress_multitoken' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:298:5:
+2171 of 3600 launches read h early or stale:
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (1331 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (1318 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (1350 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (1332 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (1324 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1312 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (1339 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1337 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1331 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (1324 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (1340 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 17: differs from v2 (1332 NaN outputs)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.96s
+exit=101
+--- v3-noorder run 3 [09:28:16] GPU 0
+test v3_sentinel_stress_multitoken ...   [tok0-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [tok0-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [tok0-late, no side]: 720 launches, 483 differ from v2
+  [every-token-last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [every-token-last-late, no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 4 differ (4 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [every-token-last-late, no side]: 720 launches, 486 differ from v2
+  [tok0-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+  [tok0-late, side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 80 differ (80 NaN)
+v3_sentinel_stress_multitoken [tok0-late, side]: 1440 launches, 960 differ from v2
+  [last-late (control), no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=2 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=64 k=4 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=3 e=32 k=4 h=512 i=128, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=4 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late (control), no side] t=8 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 3 differ (3 NaN), skew 40: 1 differ (1 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_multitoken [last-late (control), no side]: 720 launches, 247 differ from v2
+v3_sentinel_stress_multitoken: 3600 launches, 2176 differ from v2
+thread 'v3_sentinel_stress_multitoken' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:298:5:
+2176 of 3600 launches read h early or stale:
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (1324 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (1343 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (1328 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (1342 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (1340 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1314 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (1339 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1311 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1339 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (1328 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (1343 NaN outputs)
+tok0-late, no side: t=2 e=256 k=8 h=2048 i=512 launch 17: differs from v2 (1324 NaN outputs)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.96s
+exit=101
+################ stage run:3:v3-noorder end 09:28:21
+[window] gpu0 lane done 2026-10-19 09:28:21 (exit 0)
+[window] starting radiance 2026-10-19 09:28:32
+[window] radiance answers 2026-10-19 09:28:42 (after 15 s)

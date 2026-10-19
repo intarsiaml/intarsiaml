@@ -1,6 +1,6 @@
 //! Admission cases for the quantised-weight and MoE ops and the fused decode ops (`MatmulPair`, `MatmulFp8Pair`,
 //! `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`,
-//! `SigmoidMulMatmulFp8`, `SharedDownCombine`): the `intarsia kernels test` sweep and the exact-shape
+//! `SigmoidMulMatmulFp8`, `SharedDownCombine`, `MoeBlock`): the `intarsia kernels test` sweep and the exact-shape
 //! builders used by plan-time admission (`admission::case_from_call`). Data is generated through the format
 //! encoders so every case is valid (no e4m3 NaN encodings, finite scales, distinct experts per token).
 //!
@@ -328,6 +328,56 @@ pub fn shared_down_combine_case(rng: &mut SplitMix64, m: usize, n: usize, k: usi
     }
 }
 
+/// `MoeBlock` with `norm_topk` on: see [`moe_block_case_with`].
+#[allow(clippy::too_many_arguments)]
+pub fn moe_block_case(rng: &mut SplitMix64, t: usize, e: usize, k: usize, h: usize, i: usize, is: usize, dtype: DType) -> HostCall {
+    moe_block_case_with(rng, t, e, k, h, i, is, dtype, true)
+}
+
+/// `MoeBlock`: the whole MoE block after the router logits. `n` `[t,h]`, router `logits` `[t,e]` (every row a shuffle of
+/// distinct, dtype-exact values, so the top-`k` set and its order have no ties at any dtype), shared-gate logit `sl`
+/// `[t,1]`, the five routed-expert tensors (`e` experts, intermediate `i`), the shared gate / up (`[is,h]`) and down
+/// (`[h,is]`) NVFP4 projections, all in the dtype `dtype`; `out` `[t,h]`.
+#[allow(clippy::too_many_arguments)]
+pub fn moe_block_case_with(
+    rng: &mut SplitMix64,
+    t: usize,
+    e: usize,
+    k: usize,
+    h: usize,
+    i: usize,
+    is: usize,
+    dtype: DType,
+    norm_topk: bool,
+) -> HostCall {
+    let n = rand_t(rng, dtype, &[t, h], 1.0);
+    // distinct logits: multiples of 1/32 (exactly representable in bf16 / f16 for |v| < 8), a fresh shuffle per row
+    let step = if e <= 256 { 1.0 / 32.0 } else { (e as f32 / 256.0) / 32.0 };
+    let mut logits = Vec::with_capacity(t * e);
+    for _ in 0..t {
+        let mut pool: Vec<usize> = (0..e).collect();
+        for j in 0..e {
+            let r = j + (rng.next_u64() % (e - j) as u64) as usize;
+            pool.swap(j, r);
+        }
+        logits.extend(pool.iter().map(|&p| (p as f32 - (e / 2) as f32) * step));
+    }
+    let logits = HostTensor::from_f32_as(dtype, &[t, e], &logits);
+    let sl = rand_t(rng, dtype, &[t, 1], 2.0);
+    let ex = random_experts(rng, e, h, i);
+    let (g, u, d) = (nvfp4::random_rows(rng, is, h), nvfp4::random_rows(rng, is, h), nvfp4::random_rows(rng, h, is));
+    let mut inputs = vec![n, logits, sl, ex.gate_up_w, ex.gate_up_s, ex.down_w, ex.down_s, ex.gscales];
+    for q in [g, u, d] {
+        inputs.extend(q.parts);
+    }
+    HostCall {
+        op: Op::MoeBlock,
+        inputs,
+        outputs: vec![OutSpec::new(dtype, &[t, h])],
+        attrs: OpAttrs { top_k: k, norm_topk, ..OpAttrs::default() },
+    }
+}
+
 const ACT: [DType; 2] = [DType::Bf16, DType::F32];
 
 /// The sweep for one of the new ops, or `None` for any other op.
@@ -585,6 +635,33 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
             }
         }
+        Op::MoeBlock => {
+            // (T, E, K, H, I, IS): small and odd shapes (H = 208 is a multiple of 16 but not of 32, IS < I), and the 35B's
+            // decode shape (256 experts, top-8, H = 2048, I = IS = 512) at one and two tokens
+            let mut shapes: Vec<(usize, usize, usize, usize, usize, usize)> =
+                vec![(1, 16, 2, 256, 16, 32), (2, 32, 4, 256, 48, 64), (1, 16, 8, 208, 64, 16)];
+            if !quick {
+                shapes.extend([(2, 16, 2, 256, 16, 32), (5, 32, 4, 256, 48, 64), (3, 16, 8, 208, 64, 16)]);
+            }
+            for (t, e, k, h, i, is) in shapes {
+                for dt in ACT {
+                    for norm in [true, false] {
+                        push(
+                            format!("T={t} E={e} K={k} H={h} I={i} IS={is} {dt} norm={norm}"),
+                            moe_block_case_with(&mut rng, t, e, k, h, i, is, dt, norm),
+                        );
+                    }
+                }
+            }
+            if !quick {
+                for (t, norm) in [(1, true), (1, false), (2, true)] {
+                    push(
+                        format!("T={t} E=256 K=8 H=2048 I=512 IS=512 {} norm={norm}", DType::Bf16),
+                        moe_block_case_with(&mut rng, t, 256, 8, 2048, 512, 512, DType::Bf16, norm),
+                    );
+                }
+            }
+        }
         _ => return None,
     }
     Some(cases)
@@ -697,6 +774,17 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].dtype,
             o[0].dtype
         ),
+        Op::MoeBlock => format!(
+            "T={} E={} K={} H={} I={} IS={} {} norm={}",
+            i[0].shape[0].min(caps.rows),
+            i[3].shape[0].min(32).max(call.attrs.top_k),
+            call.attrs.top_k,
+            i[0].shape[1],
+            i[3].shape[1] / 2,
+            i[8].shape[0],
+            i[0].dtype,
+            call.attrs.norm_topk
+        ),
         _ => return None,
     };
     Some(format!("{} {}", call.op, s))
@@ -780,6 +868,20 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
         Op::SharedDownCombine => {
             shared_down_combine_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
         }
+        Op::MoeBlock => {
+            let k = call.attrs.top_k;
+            moe_block_case_with(
+                rng,
+                i[0].shape[0].min(caps.rows),
+                i[3].shape[0].min(32).max(k),
+                k,
+                i[0].shape[1],
+                i[3].shape[1] / 2,
+                i[8].shape[0],
+                i[0].dtype,
+                call.attrs.norm_topk,
+            )
+        }
         _ => return None,
     };
     Some((hc, label))
@@ -809,6 +911,7 @@ mod tests {
             Op::RmsNormAddMatmulFp8Pair,
             Op::SigmoidMulMatmulFp8,
             Op::SharedDownCombine,
+            Op::MoeBlock,
         ] {
             let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
             assert!(!cases.is_empty());

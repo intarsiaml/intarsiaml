@@ -14,7 +14,7 @@ M35=/models/Qwen3.6-35B-A3B-NVFP4
 M8=/models/Qwen3-8B
 G=/models/golden
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
-OUTD=$INTARSIA_REPO/bench-out
+OUTD=${OUTD:-$INTARSIA_REPO/bench-out}  # OUTD=...: another output dir (accuracy logs of two lanes at once)
 ts() { date +%T; }
 trap 'docker rm -f intarsia-serve >/dev/null 2>&1' EXIT
 mkdir -p "$OUTD"
@@ -129,11 +129,11 @@ stage_pfbench() {
 # chunk35l:<chunk>: does that chunk fit at 16k context (max-seq 17408, one 16384-token prompt)
 stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-16k-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
 # pf35[:tag] / pf8[:tag]: A/B speed, prefill 128/1024/4096/16384 and decode 128 (the serve's own recipe chunk)
-stage_pf35() { export SERVE_ENV=""; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
+stage_pf35() { export SERVE_ENV="${PF_ENV:-}"; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
 # pf35one[:tag]: one size whose actual prompt stays below the 4096-token prefill chunk (round 7: target 4096 drew 4079..4120
 # tokens, and the runs past 4096 paid a second chunk)
 stage_pf35one() { export SERVE_ENV=""; MAXSEQ=8192 SIZES=3968 GEN=16 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf1-35b-${1:-base}" --mem-budget 29; }
-stage_pf8() { export SERVE_ENV=""; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
+stage_pf8() { export SERVE_ENV="${PF_ENV:-}"; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file
   local tag=$1; shift
@@ -421,7 +421,7 @@ stage_pfprofenv() {  # pfprofenv:<tag>:<NAME=value>[,<NAME=value>...] (round 7: 
   ( for kv in ${kvs//,/ }; do export "$kv"; done; echo "--- $kvs"; stage_pfprof "$tag" )
 }
 # pf8x:<tag>: 8B A/B in one server: prefill 1024 / 4160 (just over the 4096 recipe chunk) / 16384 and decode, 3 reps, gen 64
-stage_pf8x() { export SERVE_ENV=""; MAXSEQ=17408 SIZES=1024,4160,16384 GEN=64 REPS=3 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf8x-${1:-base}"; }
+stage_pf8x() { export SERVE_ENV="${PF_ENV:-}"; MAXSEQ=17408 SIZES=1024,4160,16384 GEN=64 REPS=3 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf8x-${1:-base}"; }
 # acc35f8off: the 35B short golden under the f8 kill switch (INTARSIA_HIP_FP8_F8=0, must reproduce the v2 numbers)
 stage_acc35f8off() { INTARSIA_HIP_FP8_F8=0 ACC_TAG=f8off stage_acc35; }
 # round-5 GPU mutants (built by mutbuild in a CPU slot, run by mutrun in a GPU window): MUTATIONS="$R5MUT"

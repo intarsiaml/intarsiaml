@@ -197,10 +197,12 @@ fn moe_block_matches_hf() {
     }
 }
 
-/// A runner that also runs the fused ops (the cpu backend registers every one) and records the ops it ran.
+/// A runner that also runs the fused ops (the cpu backend registers every one) and records the ops it ran. `moe_block: false`
+/// declines `Op::MoeBlock` (runs nothing, returns false) like a backend that does not register it.
 struct FusingRunner<'a> {
     b: &'a CpuBackend,
     prefix: &'a str,
+    moe_block: bool,
     ops: std::cell::RefCell<Vec<Op>>,
 }
 
@@ -210,6 +212,9 @@ impl OpRunner for FusingRunner<'_> {
         Runner { b: self.b, prefix: self.prefix }.run(op, inputs, outputs, attrs)
     }
     fn run_fused(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<bool> {
+        if op == Op::MoeBlock && !self.moe_block {
+            return Ok(false);
+        }
         self.run(op, inputs, outputs, attrs)?;
         Ok(true)
     }
@@ -217,7 +222,8 @@ impl OpRunner for FusingRunner<'_> {
 
 /// The MoE block's fused path (router + shared-gate pair, shared gate/up glu, and the phase-1 `SharedDownCombine`: the shared
 /// down projection with the combine as its epilogue) gives the bits of the unfused ops, on both cpu executors, and runs
-/// `SharedDownCombine` in place of the shared-down matmul and the combine.
+/// `SharedDownCombine` in place of the shared-down matmul and the combine. P2' (`MoeBlock`, offered first) is declined here;
+/// `moe_block_op_is_bitwise_the_unfused_chain` covers it.
 #[test]
 fn moe_block_fused_path_is_bitwise_the_unfused_one() {
     let s = load_st("qwen36_quant_slices.safetensors");
@@ -234,13 +240,47 @@ fn moe_block_fused_path_is_bitwise_the_unfused_one() {
                 let (ws1, ws2) = (MoeScratch::new(&b, &cfg, 8, dt).unwrap(), MoeScratch::new(&b, &cfg, 8, dt).unwrap());
                 let (o1, o2) = (to_dev(&b, &HostTensor::zeros(dt, &[t, 256])), to_dev(&b, &HostTensor::zeros(dt, &[t, 256])));
                 moe.forward(&Runner { b: &b, prefix }, &ws1, &xt, &o1).unwrap();
-                let fr = FusingRunner { b: &b, prefix, ops: Default::default() };
+                let fr = FusingRunner { b: &b, prefix, moe_block: false, ops: Default::default() };
                 moe.forward(&fr, &ws2, &xt, &o2).unwrap();
                 assert_eq!(dl(&b, &o1).data, dl(&b, &o2).data, "{prefix} {dt} t={t}: fused MoE block differs from unfused");
                 let ops = fr.ops.borrow();
                 let n = |op: Op| ops.iter().filter(|&&o| o == op).count();
                 assert_eq!(n(Op::SharedDownCombine), 1, "{prefix}: {ops:?}");
-                assert_eq!((n(Op::MoeCombine), n(Op::MatmulNvfp4)), (0, 0), "{prefix}: {ops:?}");
+                assert_eq!((n(Op::MoeCombine), n(Op::MatmulNvfp4), n(Op::MoeBlock)), (0, 0, 0), "{prefix}: {ops:?}");
+                assert_eq!((n(Op::MoeTopk), n(Op::MoeExperts)), (1, 1), "{prefix}: the chain MoeBlock replaces runs when it is declined: {ops:?}");
+            }
+        }
+    }
+}
+
+/// P2' (docs/results/2026-10-19-p2prime-moeblock.md): the whole block after the router logits as one `MoeBlock` gives the bits
+/// of the unfused chain, on both cpu executors and both dtypes, and replaces every op of it (top-k, experts, shared gate / up
+/// / glu / down, combine).
+#[test]
+fn moe_block_op_is_bitwise_the_unfused_chain() {
+    let s = load_st("qwen36_quant_slices.safetensors");
+    let e = load_st("qwen36_quant_expected.safetensors");
+    let b = CpuBackend::new();
+    let cfg = MoeConfig { hidden: 256, experts: 8, top_k: 2, inter: 64, shared_inter: 64, norm_topk: true };
+    let moe = MoeWeights::load(&b, &moe_weights(&s), "model.language_model.layers.1.mlp", &cfg, &QuantLoadOpts::default()).unwrap();
+    for dt in [DType::F32, DType::Bf16] {
+        for t in [1usize, 5] {
+            let x = HostTensor::from_f32_as(dt, &[t, 256], &e["moe.x"].to_f32()[..t * 256]);
+            let xt = to_dev(&b, &x);
+            for prefix in ["ref_", "cpu_f32_"] {
+                let (ws1, ws2) = (MoeScratch::new(&b, &cfg, 8, dt).unwrap(), MoeScratch::new(&b, &cfg, 8, dt).unwrap());
+                let (o1, o2) = (to_dev(&b, &HostTensor::zeros(dt, &[t, 256])), to_dev(&b, &HostTensor::zeros(dt, &[t, 256])));
+                let unfused = FusingRunner { b: &b, prefix, moe_block: false, ops: Default::default() };
+                moe.forward(&unfused, &ws1, &xt, &o1).unwrap();
+                let fused = FusingRunner { b: &b, prefix, moe_block: true, ops: Default::default() };
+                moe.forward(&fused, &ws2, &xt, &o2).unwrap();
+                assert_eq!(dl(&b, &o1).data, dl(&b, &o2).data, "{prefix} {dt} t={t}: MoeBlock differs from the unfused chain");
+                let ops = fused.ops.borrow();
+                let n = |op: Op| ops.iter().filter(|&&o| o == op).count();
+                assert_eq!(n(Op::MoeBlock), 1, "{prefix}: {ops:?}");
+                for op in [Op::MoeTopk, Op::MoeExperts, Op::MatmulNvfp4, Op::MatmulNvfp4Glu, Op::SiluGlu, Op::SharedDownCombine, Op::MoeCombine] {
+                    assert_eq!(n(op), 0, "{prefix}: {op} still runs next to MoeBlock: {ops:?}");
+                }
             }
         }
     }
@@ -250,7 +290,7 @@ fn moe_block_fused_path_is_bitwise_the_unfused_one() {
 fn kernels_pass_admission_sweep_and_are_registered() {
     use intarsia_core::admission::{run_admission, AdmissionOpts, SweepConfig};
     let b = CpuBackend::new();
-    let ops = [Op::MatmulFp8, Op::MatmulNvfp4, Op::MoeTopk, Op::MoeExperts, Op::MoeCombine];
+    let ops = [Op::MatmulFp8, Op::MatmulNvfp4, Op::MoeTopk, Op::MoeExperts, Op::MoeCombine, Op::MoeBlock];
     for op in ops {
         let names: Vec<_> = b.kernels().into_iter().filter(|k| k.op == op).map(|k| k.name.to_string()).collect();
         assert!(names.iter().any(|n| n.starts_with("ref_")) && names.iter().any(|n| n.starts_with("cpu_f32_")), "{op}: {names:?}");
@@ -281,6 +321,7 @@ fn plan_time_cases_are_built_for_every_new_op() {
         Op::RmsNormAddMatmulFp8Pair,
         Op::SigmoidMulMatmulFp8,
         Op::SharedDownCombine,
+        Op::MoeBlock,
     ] {
         let case = sweep(op, &SweepConfig { quick: true, ..Default::default() }).remove(0);
         // a planned call: device tensors with the case's shapes and dtypes
