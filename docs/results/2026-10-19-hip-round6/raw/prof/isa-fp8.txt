@@ -1,0 +1,8 @@
+_Z14f8_gemm_kernelILi4ELi1ELi2ELi1EfEvPKhS1_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usage]      vgpr   85 scratch    0 lds  23040 occ 5
+_Z14f8_gemm_kernelILi4ELi1ELi2ELi2EfEvPKhS1_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usage]      vgpr  109 scratch    0 lds  25600 occ 5
+_Z14f8_gemm_kernelILi2ELi2ELi4ELi2EfEvPKhS1_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usage]      vgpr  161 scratch    0 lds  30720 occ 4
+_Z14f8_gemm_kernelILi4ELi2ELi2ELi4EfEvPKhS1_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usage]      vgpr  147 scratch    0 lds  40960 occ 6
+_Z14f8_gemm_kernelILi4ELi1ELi2ELi1E7ik_bf16EvPKhS2_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usag vgpr   85 scratch    0 lds  23040 occ 5
+_Z14f8_gemm_kernelILi4ELi1ELi2ELi2E7ik_bf16EvPKhS2_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usag vgpr  109 scratch    0 lds  25600 occ 5
+_Z14f8_gemm_kernelILi2ELi2ELi4ELi2E7ik_bf16EvPKhS2_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usag vgpr  161 scratch    0 lds  30720 occ 4
+_Z14f8_gemm_kernelILi4ELi2ELi2ELi4E7ik_bf16EvPKhS2_PKfPT3_ilii [-Rpass-analysis=kernel-resource-usag vgpr  147 scratch    0 lds  40960 occ 6

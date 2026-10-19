@@ -1,0 +1,4 @@
+# Mac checks on the rebased branch (origin/main b0109efe + 4 round-6 commits, sources as of 58a66e76)
+cargo check --workspace                    exit 0   Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s
+cargo check -p intarsia-cli --features hip exit 0   Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.40s
+cargo test --workspace                     exit 0   97 test binaries, 475 passed, 0 failed (mac-test.log)

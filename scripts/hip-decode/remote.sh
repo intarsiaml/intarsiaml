@@ -6,7 +6,7 @@
 # lease). Profiling runs in the derived image intarsia-hip-prof (deploy/tatooine/Dockerfile.hip-prof) against the same
 # cargo target volume as the dev image.
 set -uo pipefail
-export INTARSIA_REPO="${INTARSIA_REPO:-$HOME/intarsiaml-hipperf}" HIP_VISIBLE_DEVICES=0
+export INTARSIA_REPO="${INTARSIA_REPO:-$HOME/intarsiaml-hipperf}" HIP_VISIBLE_DEVICES="${RS_GPU:-0}"  # RS_GPU=1: the second R9700 (tests in parallel)
 cd "$INTARSIA_REPO"
 D=deploy/tatooine/dev.sh
 B=/target/release/intarsia
@@ -426,6 +426,54 @@ stage_mutrun5() { MUTATIONS="$R5MUT" stage_mutrun; }
 # plan8 / plan35: the resolved plan (which kernel serves each op) of the 8B / 35B, every line, to see whether the fp8 GEMM appears
 stage_plan8() { $D $B plan show --backend hip --model $M8 --max-seq 17408 2>&1 | grep -aE "matmul|scratch|rror" | cut -c1-200 | head -40; }
 stage_plan35f() { $D $B plan show --backend hip --model $M35 --mem-budget 29 --max-seq 17408 2>&1 | grep -aE "matmul_fp8|moe_experts|scratch|rror" | cut -c1-200 | head -40; }
+
+# Round 6 (perf/hip-round6, docs/results/2026-10-19-hip-round6.md).
+# pf35env:<tag>[:NAME=value] / pf8env:<tag>[:NAME=value]: the pf35 / pf8x A/B runs with one INTARSIA_HIP_* knob set in the server
+stage_pf35env() {
+  local tag=${1%%:*} kv=""; [[ "$1" == *:* ]] && kv=${1#*:}
+  export SERVE_ENV=""; [ -n "$kv" ] && export SERVE_ENV="-e $kv"
+  echo "--- serve env: ${kv:-none}"
+  MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-$tag" --mem-budget 29
+}
+stage_pf8env() {
+  local tag=${1%%:*} kv=""; [[ "$1" == *:* ]] && kv=${1#*:}
+  export SERVE_ENV=""; [ -n "$kv" ] && export SERVE_ENV="-e $kv"
+  echo "--- serve env: ${kv:-none}"
+  MAXSEQ=17408 SIZES=1024,4160,16384 GEN=64 REPS=3 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf8x-$tag"
+}
+# round-6 mutants (mutate.py; built by mutbuild6 in a CPU slot, run by mutrun6 in a GPU window)
+R6MUT="mw-jn mw-full mw-two mw-lastsync mw-def64 mw-def32 mw-tile mw-range hpb-def hpb-two fl2-head fl2-kvh fl2-row fl2-stride"
+stage_mutbuild6() { MUTATIONS="$R6MUT" stage_mutbuild; }
+stage_mutrun6() { MUTATIONS="$R6MUT" stage_mutrun; }
+# bg:<name>:<stage>,<stage>,...: run those stages on the second R9700 (RS_GPU=1) in the background, log bench-out/<name>.log;
+# bgwait: wait for it and print its log (both inside the same window, so the GPU-1 work counts against the same downtime)
+stage_bg() {
+  local name=${1%%:*} st=${1#*:}
+  ( RS_GPU=1 bash "$INTARSIA_REPO/scripts/hip-decode/remote.sh" ${st//,/ } > "$OUTD/$name.log" 2>&1 ) &
+  echo "$! $name" > "$OUTD/bg.pid"; echo "bg $name on GPU 1: pid $! stages ${st//,/ }"
+}
+stage_bgwait() {
+  local pid name; read -r pid name < "$OUTD/bg.pid"
+  while kill -0 "$pid" 2>/dev/null; do sleep 2; done
+  echo "--- bg $name done $(ts)"; cat "$OUTD/$name.log"
+}
+# r6bench: MoE projection variants (INTARSIA_HIP_MOE_MW 0..7, bench_prefill_shapes; the sweep switch must be INTARSIA_HIP_* to reach dev.sh)
+stage_r6bench() {
+  INTARSIA_HIP_MW_SWEEP=1 timeout 300 $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_prefill_shapes 2>&1 \
+    | grep -aE "^env|^moe|panicked|FAILED" | cut -c1-260
+}
+# r6test: round 6's bitwise tests (MoE variants at both tiles, delta rule v2 / pipelined, flash v2 at HPB 2 / 4) and the
+# accuracy tests of the kernels they replace
+stage_r6test() {
+  timeout 300 $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test moe_pairs --test quantmoe --test round6_selection -- --nocapture --test-threads=1 2>&1 \
+    | grep -aE "^test |test result|FAILED|panicked|differ|changed" | cut -c1-300 | tail -40
+  local hpb
+  for hpb in 1 2 4; do
+    echo "--- flash_v2 INTARSIA_HIP_FLASH_HPB=$hpb"
+    INTARSIA_HIP_FLASH_HPB=$hpb timeout 300 $D cargo test --release -p intarsia-backend-hip --test flash_v2 -- --nocapture 2>&1 \
+      | grep -aE "^test |test result|panicked|differs|bitwise v1 on|HPB=" | cut -c1-300
+  done
+}
 
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}

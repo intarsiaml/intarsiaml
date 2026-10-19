@@ -1,0 +1,41 @@
+fleetq: #2629 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/job-sel.sh
+=== build 02:30:21
+    Finished `release` profile [optimized] target(s) in 29.91s
+    Finished `release` profile [optimized] target(s) in 1.23s
+=== moe: 306 remarks
+=== attention_flash: 108 remarks
+=== devices visible in the no-GPU container: ls: cannot access '/dev/kfd': No such file or directory ls: cannot access '/dev/dri': No such file or directory 
+=== real pin test (final build, no GPU)
+/target/release/deps/round6_selection-79ce4650aba3cb50
+test print_inner_variants ... ignored
+test round6_inner_variants_are_pinned ... ok
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+=== mutbuild 02:31:00
+applied mw-def64 to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-def64: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-def32 to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-def32: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-tile to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-tile: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-range to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-range: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied hpb-def to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+hpb-def: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied hpb-two to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+hpb-two: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+=== mutrun (no GPU) 02:33:36
+mw-def64     thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:40:5: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s 
+mw-def32     thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:40:5: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s 
+mw-tile      thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:40:5: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s 
+mw-range     thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:48:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.12s 
+hpb-def      thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:40:5: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s 
+hpb-two      thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:43:9: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s 
+=== rebuild 02:33:37
+    Finished `release` profile [optimized] target(s) in 30.81s
+    Finished `release` profile [optimized] target(s) in 3.27s
+=== real pin test again after the rebuild (no GPU)
+test print_inner_variants ... ignored
+test round6_inner_variants_are_pinned ... ok
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+=== done 02:34:12
+fleetq: #2629 done (exit 0)

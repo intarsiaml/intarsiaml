@@ -113,6 +113,8 @@ extern "C" {
     pub fn ik_attn_prefill_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_flash(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_flash_v2(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
+    pub fn ik_hip_flash_hpb() -> c_int;
+    pub fn ik_hip_moe_mw(pairs: c_int) -> c_int;
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_f32(logits: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_bf16(logits: T, out: TM, s: S) -> c_int;

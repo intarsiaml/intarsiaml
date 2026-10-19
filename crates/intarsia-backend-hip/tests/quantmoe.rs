@@ -378,6 +378,17 @@ fn bench_prefill_shapes() {
         }
         std::env::remove_var("INTARSIA_HIP_MOE_PAIRS");
         println!("{line}");
+        // projection variant bits (INTARSIA_HIP_MOE_MW, moe_wmma.h) at the auto tile, when INTARSIA_HIP_MW_SWEEP is set
+        if std::env::var("INTARSIA_HIP_MW_SWEEP").is_ok() {
+            let mut line = format!("moe_mw T={t}:");
+            for mw in [0, 1, 4, 5] {
+                std::env::set_var("INTARSIA_HIP_MOE_MW", mw.to_string());
+                let secs = bench_hot(&*hip, "moe_experts_bf16_v2", &hc, 10);
+                line += &format!("  mw{mw} {:.0} us", secs * 1e6);
+            }
+            std::env::remove_var("INTARSIA_HIP_MOE_MW");
+            println!("{line}");
+        }
     }
 }
 

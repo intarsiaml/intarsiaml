@@ -29,6 +29,15 @@ use std::sync::Arc;
 /// True when this build contains the HIP kernels (a ROCm toolchain was found at build time).
 pub const AVAILABLE: bool = cfg!(ik_hip);
 
+/// Kernel variants chosen inside one op, as the kernel library resolves them in this process (environment knobs included;
+/// host-only, no device): (query heads per block of flash v2, MoE projection variant bits at 64 pairs, at 32 pairs).
+/// docs/results/2026-10-19-hip-round6.md; pinned by tests/round6_selection.rs.
+#[cfg(ik_hip)]
+pub fn inner_variants() -> (i32, i32, i32) {
+    // SAFETY: plain host functions of the kernel library without arguments that point anywhere
+    unsafe { (ffi::ik_hip_flash_hpb(), ffi::ik_hip_moe_mw(64), ffi::ik_hip_moe_mw(32)) }
+}
+
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {

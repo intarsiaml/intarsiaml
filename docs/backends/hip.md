@@ -124,6 +124,11 @@ else prints a warning and keeps `1,8`; a launch that matched no instantiation re
 `INTARSIA_HIP_FP8_F8=0` (kill switch for the default W8A8 prefill GEMM `matmul_fp8_mma_f8`: the fp8 projections with M >= 5 go back to
 `matmul_fp8_mma_v2` (bf16 tiles on the bf16 WMMA); default on since `docs/results/2026-10-19-hip-round5.md`, not bitwise v2, KL21
 numbers in `docs/results/2026-10-19-hip-round4.md` section 14).
+`INTARSIA_HIP_FLASH_HPB=1|2|4` (query heads per block of flash v2, capped to divide the GQA group; default 4 since
+`docs/results/2026-10-19-hip-round6.md`, every value bitwise), `INTARSIA_HIP_MOE_MW=0|1|4|5` (variant bits of the grouped MoE
+prefill projections, `moe_wmma.h`: 1 skips the empty 16-pair fragments of a tail tile, 4 aliases the up accumulators onto the
+activation tiles and compiles for 8 waves per SIMD, 0 is the round-5 kernel; default 5 at 64 pairs per tile and 0 at 32, every
+value bitwise; read at every launch).
 
 ## Admission cache
 

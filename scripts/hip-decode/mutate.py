@@ -248,6 +248,22 @@ MUTATIONS = {
     # the tile load skips every other stride of chunks
     "fl2-stride": ("kernels/hip/attention_flash.hip", [("        for (int idx = tid; idx < BK * CH; idx += NT) {", "        for (int idx = tid; idx < BK * CH; idx += 2 * NT) {")]),
     "v3-nofence": ("kernels/hip/moe.hip", [('    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");  // every wave: h is read only after this\n', "")]),
+    # round 6: MoE projection variants (moe_wmma.h moe_wmma_kernel_v; tests/moe_pairs.rs runs every variant against 0)
+    # a partly filled tail tile computes one fragment too few (rem >> 4 instead of rounding up)
+    "mw-jn": ("kernels/hip/moe_wmma.h", [("const int jn = rem >= PAIRS ? J : (rem + 15) >> 4;", "const int jn = rem >= PAIRS ? J : rem >> 4;")]),
+    # a full tile skips its last fragment
+    "mw-full": ("kernels/hip/moe_wmma.h", [("if (jn >= J) kloop(std::integral_constant<int, J>{});", "if (jn >= J) kloop(std::integral_constant<int, J - 1>{});")]),
+    # a tile with two filled fragments computes one
+    "mw-two": ("kernels/hip/moe_wmma.h", [("else if (J == 4 && jn == 2) kloop(std::integral_constant<int, (J == 4 ? 2 : 1)>{});", "else if (J == 4 && jn == 2) kloop(std::integral_constant<int, (J == 4 ? 1 : 1)>{});")]),
+    # aliased up accumulators: the last k block's barrier dropped, so the up waves may overwrite activations still being read
+    "mw-lastsync": ("kernels/hip/moe_wmma.h", [("                    __syncthreads();\n", "                    if (!ALIAS || kb + 1 < nkb) __syncthreads();\n")]),
+    # round 6 selection pins (tests/round6_selection.rs)
+    "mw-def64": ("kernels/hip/moe.hip", [("constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;", "constexpr int kMwDefault64 = kMwSkip, kMwDefault32 = 0;")]),
+    "mw-def32": ("kernels/hip/moe.hip", [("constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;", "constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = kMwSkip;")]),
+    "mw-tile": ("kernels/hip/moe.hip", [("const int def = pairs == 64 ? kMwDefault64 : kMwDefault32;", "const int def = pairs == 32 ? kMwDefault64 : kMwDefault32;")]),
+    "mw-range": ("kernels/hip/moe.hip", [("return (v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc)) ? v : def;", "return (v >= 0 && v <= 7) ? v : def;")]),
+    "hpb-def": ("kernels/hip/attention_flash.hip", [("constexpr int kFlashHpbDefault = 4;", "constexpr int kFlashHpbDefault = 2;")]),
+    "hpb-two": ("kernels/hip/attention_flash.hip", [("return (x == 1 || x == 2 || x == 4) ? x : kFlashHpbDefault;", "return (x == 1 || x == 4) ? x : kFlashHpbDefault;")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -259,6 +275,8 @@ TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")}
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
 TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio")})
 TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
+TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsync")})
+TESTS.update({n: "round6_selection" for n in ("mw-def64", "mw-def32", "mw-tile", "mw-range", "hpb-def", "hpb-two")})
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 
