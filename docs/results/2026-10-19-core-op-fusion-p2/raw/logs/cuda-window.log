@@ -1,0 +1,71 @@
+06:20:40 fleetq status:
+fleetq · 06:20:40 · last health check 1s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 53 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+06:20:40 lease 2712 held
+06:20:52 memory freed: 112 GB available
+06:20:52 running ~/intarsia-decfuse/fp2-dev/scripts/cuda-decode/fusion-noop-p2.sh (cap 16 min)
+== fusion-noop start 06:20:52
+MemAvailable 112 GB
+b6b51e1b1699c66c
+A=fp2-base intarsia 0.0.1
+B=fp2-dev intarsia 0.0.1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+208 MHz, [N/A], 42, 4.09 W
+== lanes start 06:20:52
+== lanes done 06:28:45, 1 min left
+acc35 A exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.271e-3 (need <= 3.0e-2) ok | tail mass ours 0.0173 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [4bit]: top-1 98.12% (not gated for this class) ok | 21-way KL 1.556e-2 (need <= 3.0e-2) ok | tail mass ours 0.0235 vs ref 0.0258, excess -0.0022 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+acc35 B exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.271e-3 (need <= 3.0e-2) ok | tail mass ours 0.0173 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [4bit]: top-1 98.12% (not gated for this class) ok | 21-way KL 1.556e-2 (need <= 3.0e-2) ok | tail mass ours 0.0235 vs ref 0.0258, excess -0.0022 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+lane1 done 06:22:26
+gen 35b A-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 310 ms (77.5 tok/s) | decode 4363 ms (58.44 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 35b B-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 374 ms (64.1 tok/s) | decode 4132 ms (61.71 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 35b A-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 285 ms (84.3 tok/s) | decode 3404 ms (74.92 tok/s) steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 35b B-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 274 ms (87.6 tok/s) | decode 3377 ms (75.50 tok/s) steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+gen 8b A-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 261 ms (92.0 tok/s) | decode 16783 ms (15.19 tok/s) steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+gen 8b B-graph: finish=length prompt=24 (cached 0) completion=256 | prefill 260 ms (92.3 tok/s) | decode 16767 ms (15.21 tok/s) steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+gen 8b A-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 260 ms (92.3 tok/s) | decode 17075 ms (14.93 tok/s) steps=256 graph replays=0 (captures 0) eager decode steps=255 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+gen 8b B-eager: finish=length prompt=24 (cached 0) completion=256 | prefill 270 ms (88.9 tok/s) | decode 17067 ms (14.94 tok/s) steps=256 graph replays=0 (captures 0) eager decode steps=255 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 kv_append=0ms/18432 
+acc8 8b-short exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+acc8 8b-long exit 0
+prefill chunk 256 (default)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+lane2 done 06:28:45
+IDS 35b B-graph == A-graph (255 commas)
+IDS 35b A-eager == A-graph (255 commas)
+IDS 35b B-eager == A-graph (255 commas)
+IDS 8b B-graph == A-graph (255 commas)
+IDS 8b A-eager == A-graph (255 commas)
+IDS 8b B-eager == A-graph (255 commas)
+60 tensors in /home/nvidia/intarsia-decfuse/out/noop-fp2-dev/A.dump.safetensors, 60 in /home/nvidia/intarsia-decfuse/out/noop-fp2-dev/B.dump.safetensors: 0 differ
+per-position TSV identical
+== w-noop done 06:28:45, 1 min left
+== fusion-noop done 06:28:45
+06:28:45 script exit 0
+06:28:45 killing leftover processes of ours under ~/intarsia-decfuse
+06:28:48 starting missioncntrl-guidance and waiting for /v1/models
+06:32:11 vLLM is serving again
+06:32:11 releasing fleetq job 2712
+06:32:11 done (status 0)

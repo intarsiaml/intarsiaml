@@ -49,6 +49,10 @@ pub struct SpeedArgs {
     /// Prompt size (tokens) for the concurrency rows.
     #[arg(long, default_value_t = 1024)]
     pub conc_size: usize,
+    /// Prompts never exceed their size (aim ~2 % under, redo a rep the server counted longer): for A/B runs at a size
+    /// equal to the prefill chunk.
+    #[arg(long)]
+    pub at_most: bool,
     /// Weight GB read per decoded token (e.g. 16.4 for Qwen3-8B bf16); enables % of floor.
     #[arg(long)]
     pub gb_per_token: Option<f64>,
@@ -150,6 +154,7 @@ fn speed(a: SpeedArgs) -> Result<()> {
         timeout_s: a.timeout_s,
         out_dir: Some(a.out_dir.display().to_string()),
         fingerprint: fp,
+        at_most: a.at_most,
     };
     let res = run_speed(&cfg)?;
     if !a.no_save {

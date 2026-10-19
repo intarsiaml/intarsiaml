@@ -273,8 +273,9 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
 }
 
 /// Ops a batched step runs once per sequence (the attention core on that sequence's own cache); every other op runs once
-/// for all rows.
-const PER_ROW_OPS: [Op; 5] = [Op::QkNormRopeKv, Op::QkNorm, Op::Rope, Op::KvAppend, Op::AttnDecode];
+/// for all rows. `GateSplitQkNormRopeKv` holds the per-row cache append like `QkNormRopeKv`, so it is listed, although
+/// `Model::enable_batch` rejects gated attention today and no batched plan can contain it.
+const PER_ROW_OPS: [Op; 6] = [Op::QkNormRopeKv, Op::GateSplitQkNormRopeKv, Op::QkNorm, Op::Rope, Op::KvAppend, Op::AttnDecode];
 
 /// A batched step must be the solo decode step with its row-parallel ops widened: the same op multiset, the per-row
 /// attention ops `rows` times. A different fusion choice (a fused pair in the solo step, two projections in the batch)

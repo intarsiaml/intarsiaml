@@ -74,10 +74,17 @@ pub const TABLE: &[(&str, Op)] = &[
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
+    // core-op fusion phase 2 (docs/results/2026-10-19-core-op-fusion-p2.md)
+    ("gate_split_qk_norm_rope_kv_bf16", Op::GateSplitQkNormRopeKv),
+    ("gdn_conv_delta_bf16", Op::GdnConvDelta),
 ];
 
 /// Ops this backend does not implement (sampling stays on the cpu).
 pub const UNIMPLEMENTED: &[Op] = &[Op::Sample];
+
+/// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
+/// short prefill tails; longer chunks keep gdn_conv_bf16 + gdn_delta_rule_bf16_v2.
+pub const GDN_CONV_DELTA_MAX_TOKENS: usize = 32;
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (same budget as the cpu backend).
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
@@ -221,6 +228,36 @@ pub fn all() -> Vec<KernelImpl> {
                 .acts(bf)
                 .weights(bf)
                 .when(|s| s.head_dim == 128 && s.m >= GDN_V2_MIN_TOKENS && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(10),
+            // P4a: gate_split_bf16 + qk_norm_rope_kv_bf16 in one launch, bitwise those two (tests/fusion_p2.rs); the prologue's
+            // constraints (head_dim is the split-off query's)
+            "gate_split_qk_norm_rope_kv_bf16" => k
+                .acts(bf)
+                .when(|s| {
+                    s.head_dim % 8 == 0
+                        && (8..=256).contains(&s.head_dim)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                        && s.n_heads / s.n_kv_heads <= 8
+                        && matches!(s.weight, Some(DType::Bf16) | Some(DType::Fp8E4m3))
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(10),
+            // P3: gdn_conv_bf16 + gdn_delta_rule_bf16_v2 in one launch, bitwise those two incl. both states
+            // (tests/fusion_p2.rs); dk = 128, 4 taps, up to GDN_CONV_DELTA_MAX_TOKENS tokens
+            "gdn_conv_delta_bf16" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| {
+                    s.head_dim == 128
+                        && s.k == 4
+                        && (GDN_V2_MIN_TOKENS..=GDN_CONV_DELTA_MAX_TOKENS).contains(&s.m)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                })
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
@@ -391,5 +428,54 @@ mod tests {
         ] {
             assert_eq!(p(op, s).as_deref(), Some(want), "{op}");
         }
+    }
+
+    /// Core-op fusion phase 2: the two folds at the 35B's shapes (gated attention 16 / 2 heads of 256, bf16 and fp8 cache;
+    /// GatedDeltaNet 16 key / 32 value heads of 128, 4 taps), their limits, and the kernels the chains they replace resolve
+    /// to (the ones tests/fusion_p2.rs compares against: a fold mirrors those kernels' arithmetic).
+    #[test]
+    fn phase2_fold_selection_is_pinned() {
+        let bf = Some(DType::Bf16);
+        let heads = |m: usize, n: usize, nkv: usize, d: usize, cache: DType| ShapeInfo {
+            m,
+            n_heads: n,
+            n_kv_heads: nkv,
+            head_dim: d,
+            k: d,
+            act: bf,
+            out: bf,
+            weight: Some(cache),
+            ..Default::default()
+        };
+        let gdn = |m: usize, dk: usize, taps: usize| ShapeInfo {
+            m,
+            n: 128,
+            k: taps,
+            n_heads: 32,
+            n_kv_heads: 16,
+            head_dim: dk,
+            act: bf,
+            out: bf,
+            weight: bf,
+            ..Default::default()
+        };
+        for m in [1usize, 2, 16, 312, 4096] {
+            for cache in [DType::Bf16, DType::Fp8E4m3] {
+                let s = heads(m, 16, 2, 256, cache);
+                assert_eq!(pick(Op::GateSplitQkNormRopeKv, &s).as_deref(), Some("gate_split_qk_norm_rope_kv_bf16"), "m={m} {cache}");
+                assert_eq!(pick(Op::QkNormRopeKv, &s).as_deref(), Some("qk_norm_rope_kv_bf16"), "m={m} {cache}");
+                assert_eq!(pick(Op::GateSplit, &s).as_deref(), Some("gate_split_bf16"));
+            }
+        }
+        assert_eq!(pick(Op::GateSplitQkNormRopeKv, &heads(1, 32, 2, 128, DType::Bf16)), None, "16 query heads per kv head");
+        for m in [1usize, 2, 5, 17, 32] {
+            assert_eq!(pick(Op::GdnConvDelta, &gdn(m, 128, 4)).as_deref(), Some("gdn_conv_delta_bf16"), "m={m}");
+            assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 128, 128)).as_deref(), Some("gdn_delta_rule_bf16_v2"), "m={m}");
+            let conv = ShapeInfo { m, n: 8192, k: 4, act: bf, out: bf, weight: bf, ..Default::default() };
+            assert_eq!(pick(Op::GdnConv, &conv).as_deref(), Some("gdn_conv_bf16"), "m={m}");
+        }
+        assert_eq!(pick(Op::GdnConvDelta, &gdn(33, 128, 4)), None, "longer than the conv's single tile");
+        assert_eq!(pick(Op::GdnConvDelta, &gdn(1, 64, 4)), None, "dk = 64");
+        assert_eq!(pick(Op::GdnConvDelta, &gdn(1, 128, 3)), None, "3 taps");
     }
 }

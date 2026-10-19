@@ -36,6 +36,10 @@ pub struct SpeedConfig {
     pub out_dir: Option<String>,
     /// Free-form host fingerprint merged into the JSON (`doctor` output, `key=value` pairs).
     pub fingerprint: Map<String, Value>,
+    /// Prompts never exceed their size: sized ~2 % under it, and a measured rep whose prompt the server counted longer is
+    /// redone with fewer sentences (a fresh nonce, so no prefix reuse). For A/B runs at a size equal to the prefill chunk,
+    /// where a prompt a few tokens over the size takes a second chunk.
+    pub at_most: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -456,6 +460,8 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
     let (base, per) = calibrate(&c).context("calibrating prompt size")?;
     eprintln!("calibration: {base:.0} base tokens, {per:.2} tokens per filler sentence");
     let sentences_for = |size: usize| ((size as f64 - base).max(0.0) / per).round() as usize;
+    // --at-most: aim 2 % under the size (the random words spread a 4096-token prompt over about +-1.2 %)
+    let sentences_at_most = |size: usize| ((size as f64 * 0.98 - base).max(0.0) / per).floor() as usize;
     // Estimated prompt tokens of a request sized `size`, plus `gen` generated, against the context window.
     let too_long = |size: usize, gen: usize| -> Option<String> {
         let ctx = c.ctx?;
@@ -478,7 +484,7 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
             }));
             continue;
         }
-        let n = sentences_for(size);
+        let n = if cfg.at_most { sentences_at_most(size) } else { sentences_for(size) };
         for _ in 0..cfg.warmup {
             let mut rng = Rng::from_clock();
             let w = c.chat(&make_prompt(n, &mut rng), cfg.gen.min(8), true);
@@ -487,11 +493,27 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
             }
         }
         let mut res = vec![];
+        let (mut n_rep, mut redone) = (n, 0usize);
         let g0 = c.fetch_graph_counters();
         for _ in 0..cfg.reps {
-            let mut rng = Rng::from_clock();
-            let p = make_prompt(n, &mut rng);
-            let x = c.chat(&p, cfg.gen, true);
+            let mut tries = 0;
+            let x = loop {
+                let mut rng = Rng::from_clock();
+                let p = make_prompt(n_rep, &mut rng);
+                let x = c.chat(&p, cfg.gen, true);
+                let over = (x.prompt_tokens as usize).saturating_sub(size);
+                if !(cfg.at_most && x.ok && over > 0) {
+                    break x;
+                }
+                if tries == 8 {
+                    warnings.push(format!("size {size}: a prompt still came out at {} tokens after 8 redos", x.prompt_tokens));
+                    break x;
+                }
+                eprintln!("  size {size:>6} rep: prompt={} > {size}: redone with fewer sentences", x.prompt_tokens);
+                n_rep = n_rep.saturating_sub(((over as f64 / per).ceil() as usize).max(1));
+                tries += 1;
+                redone += 1;
+            };
             eprintln!(
                 "  size {size:>6} rep: {}",
                 match &x {
@@ -542,6 +564,8 @@ pub fn run_speed(cfg: &SpeedConfig) -> Result<Value> {
             "pct_of_floor": r(pct, 1),
             "reps_ok": ok.len(),
             "errors": errors,
+            "at_most": cfg.at_most,
+            "reps_redone_over_size": redone,
             "graph": graph,
         }));
     }
@@ -794,7 +818,7 @@ mod tests {
         let cfg = SpeedConfig {
             url: fake_server(), model: "fake".into(), api_key: None, sizes: vec![128, 512], gen: 10, reps: 2, warmup: 1,
             concurrency: vec![1, 2], conc_size: 128, gb_per_token: Some(1.0), bandwidth_gbs: Some(100.0),
-            label: "t".into(), thinking: None, timeout_s: 20, out_dir: None, fingerprint: Map::new(),
+            label: "t".into(), thinking: None, timeout_s: 20, out_dir: None, fingerprint: Map::new(), at_most: false,
         };
         let res = run_speed(&cfg).unwrap();
         let rows = res["rows"].as_array().unwrap();
@@ -822,7 +846,7 @@ mod tests {
         let cfg = SpeedConfig {
             url: fake_server_opt(true), model: "fake".into(), api_key: None, sizes: vec![128, 512], gen: 10, reps: 3,
             warmup: 2, concurrency: vec![1], conc_size: 128, gb_per_token: None, bandwidth_gbs: None, label: "t".into(),
-            thinking: None, timeout_s: 20, out_dir: None, fingerprint: Map::new(),
+            thinking: None, timeout_s: 20, out_dir: None, fingerprint: Map::new(), at_most: false,
         };
         let res = run_speed(&cfg).unwrap();
         for row in res["rows"].as_array().unwrap() {
@@ -854,14 +878,22 @@ mod tests {
     /// whose prompt is over `limit` tokens gets HTTP 400 with a length message. Returns the URL and the prompt
     /// sizes of the chat calls it received.
     fn ctx_server(limit: usize, advertise: bool) -> (String, Arc<Mutex<Vec<usize>>>) {
+        ctx_server_jitter(limit, advertise, false)
+    }
+
+    /// `jitter`: from the 4th chat call on, every other one counts 200 tokens more (a prompt the tokenizer made longer
+    /// than the sentence count predicts), deterministically.
+    fn ctx_server_jitter(limit: usize, advertise: bool, jitter: bool) -> (String, Arc<Mutex<Vec<usize>>>) {
         let l = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = l.local_addr().unwrap();
         let seen = Arc::new(Mutex::new(Vec::new()));
         let seen2 = seen.clone();
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         std::thread::spawn(move || {
             for stream in l.incoming() {
                 let Ok(mut s) = stream else { break };
                 let seen = seen2.clone();
+                let calls = calls.clone();
                 std::thread::spawn(move || {
                     let mut buf = vec![0u8; 1 << 20];
                     let mut got = 0;
@@ -893,7 +925,8 @@ mod tests {
                         );
                         return;
                     }
-                    let pt = txt.matches("Note ").count() * 12 + 20;
+                    let k = calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let pt = txt.matches("Note ").count() * 12 + 20 + if jitter && k >= 3 && k % 2 == 1 { 200 } else { 0 };
                     seen.lock().unwrap().push(pt);
                     if pt > limit {
                         let body = format!("{{\"error\":{{\"message\":\"This model's maximum context length is {limit} tokens. However, you requested {pt} tokens.\"}}}}");
@@ -919,8 +952,30 @@ mod tests {
         SpeedConfig {
             url, model: "fake".into(), api_key: None, sizes, gen: 10, reps: 1, warmup: 0, concurrency: vec![1],
             conc_size: 128, gb_per_token: None, bandwidth_gbs: None, label: "t".into(), thinking: None, timeout_s: 20,
-            out_dir: None, fingerprint: Map::new(),
+            out_dir: None, fingerprint: Map::new(), at_most: false,
         }
+    }
+
+    #[test]
+    fn at_most_prompts_never_exceed_the_size() {
+        let (url, seen) = ctx_server_jitter(100_000, true, true);
+        let mut cfg = cfg_for(url, vec![1000, 4096]);
+        cfg.reps = 6;
+        cfg.at_most = true;
+        let res = run_speed(&cfg).unwrap();
+        for row in res["rows"].as_array().unwrap() {
+            assert_eq!(row["reps_ok"], 6, "{row:?}");
+            assert_eq!(row["at_most"], true);
+        }
+        // every over-size call was redone (so no measured rep is over its size), and the redo path ran
+        let rows = res["rows"].as_array().unwrap();
+        assert!(rows[1]["prompt_tokens"].as_f64().unwrap() <= 4096.0, "{:?}", rows[1]);
+        assert!(rows[1]["prompt_tokens"].as_f64().unwrap() > 4096.0 * 0.95, "{:?}", rows[1]);
+        let calls = seen.lock().unwrap().clone();
+        let redone: u64 = rows.iter().map(|r| r["reps_redone_over_size"].as_u64().unwrap()).sum();
+        let over = calls.iter().filter(|&&pt| (1000 < pt && pt < 2000) || pt > 4096).count() as u64;
+        assert!(redone > 0, "{calls:?}");
+        assert_eq!(over, redone, "every over-size call was redone: {calls:?}");
     }
 
     #[test]

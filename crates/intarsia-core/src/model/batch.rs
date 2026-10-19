@@ -212,7 +212,7 @@ impl Model {
         profile: bool,
     ) -> Result<()> {
         let b = sts.len();
-        let (qc0, gate) = self.attn_project(a, n, b, kv_done, profile)?;
+        let (qc0, gate) = self.attn_project(a, n, b, kv_done, false, profile)?;
         debug_assert!(gate.is_none(), "enable_batch rejects gated attention");
         let bufs = self.attn_bufs(b);
         // the one-row calls are the solo step's: not row-exact kernels, whose row count would be wrong
@@ -221,7 +221,7 @@ impl Model {
             let mut qc_end = None;
             for (r, st) in sts.iter().enumerate() {
                 let slot = Self::attn_slot(st, a)?;
-                let (_, qc) = self.attn_rows(a, slot, &bufs.row(r), qc0, 1, st.len, None, profile)?;
+                let (_, qc) = self.attn_rows(a, slot, &bufs.row(r), qc0, 1, st.len, None, None, profile)?;
                 if *qc_end.get_or_insert(qc) != qc {
                     return Err(Error::invalid("batched rows chose different attention paths"));
                 }

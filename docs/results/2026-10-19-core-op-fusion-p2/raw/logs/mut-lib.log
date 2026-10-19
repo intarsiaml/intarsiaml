@@ -1,0 +1,6 @@
+applied p2-sel-m33 to /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mutlib/crates/intarsia-backend-hip/src/kernels.rs
+test kernels::tests::phase2_fold_selection_is_pinned ... FAILED
+thread 'kernels::tests::phase2_fold_selection_is_pinned' (125030477) panicked at crates/intarsia-backend-hip/src/kernels.rs:477:9:
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[exited with code 0]

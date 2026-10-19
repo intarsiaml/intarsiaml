@@ -1,0 +1,1 @@
+2026-10-19 job=2712 stop=06:20:40 up=06:32:11 down=11.5 min label="core-op-fusion P2 CUDA no-op (vLLM down, cap 16 min): greedy ids 35B/8B graphs+eager, 35b-short golden A/B, self-golden cmp, 8B goldens" serving=1

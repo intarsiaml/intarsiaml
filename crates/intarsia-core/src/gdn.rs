@@ -28,6 +28,9 @@
 //!   ```
 //!   The state is stored **transposed**, `[Hv, dv, dk]` (dk contiguous), f32, updated in place.
 //!   `o` is `[T, Hv, dv]` in the activation dtype. softplus uses PyTorch's threshold 20.
+//! * `GdnConvDelta` (an optional fused op, core-op fusion P3): `GdnConv` of `x [T,C]`, then `GdnDeltaRule` of its
+//!   output, which is rounded to the activation dtype in between exactly as the unfused path stores it. Inputs `x`,
+//!   taps, a, b, A_log, dt_bias; outputs `o`, the delta-rule state, the conv state (both in place).
 
 use crate::error::{Error, Result};
 use crate::ops::{Op, OpCall, ShapeInfo};
@@ -135,6 +138,12 @@ pub fn check(call: &OpCall) -> Result<()> {
                 return bad("recurrent state must be f32".into());
             }
         }
+        // the two ops it composes, each checked as its own call (the conv output it never stores has x's shape)
+        Op::GdnConvDelta => {
+            let (conv, delta) = conv_delta_parts(call, &i[0]);
+            check(&conv)?;
+            check(&delta)?;
+        }
         _ => unreachable!("gdn::check called for {}", call.op),
     }
     Ok(())
@@ -170,9 +179,34 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.n = d.dv;
             s.weight = Some(i[3].dtype);
         }
+        // the delta rule's facts, except `k`: the conv taps K (the delta rule's dk is in `head_dim`), and the taps' dtype
+        Op::GdnConvDelta => {
+            let d = DeltaDims::from_call(call);
+            s.m = d.t;
+            s.n_heads = d.hv;
+            s.n_kv_heads = d.hk;
+            s.head_dim = d.dk;
+            s.k = i[1].shape.get(1).copied().unwrap_or(0);
+            s.n = d.dv;
+            s.weight = Some(i[1].dtype);
+        }
         _ => unreachable!(),
     }
     let _ = o;
+}
+
+/// `GdnConvDelta` as the `(GdnConv, GdnDeltaRule)` pair it composes, with `y` as the conv output / delta-rule input (the
+/// oracle passes its intermediate tensor; `check` passes x, whose shape the conv output has).
+pub fn conv_delta_parts(call: &OpCall, y: &crate::backend::TensorRef) -> (OpCall, OpCall) {
+    let (i, o) = (&call.inputs, &call.outputs);
+    let conv = OpCall::new(Op::GdnConv, vec![i[0].clone(), i[1].clone()], vec![y.clone(), o[2].clone()], Default::default());
+    let delta = OpCall::new(
+        Op::GdnDeltaRule,
+        vec![y.clone(), i[2].clone(), i[3].clone(), i[4].clone(), i[5].clone()],
+        vec![o[0].clone(), o[1].clone()],
+        call.attrs.clone(),
+    );
+    (conv, delta)
 }
 
 fn silu(x: f64) -> f64 {

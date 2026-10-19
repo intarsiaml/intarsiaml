@@ -1,0 +1,7 @@
+HEAD 60847700 (dirty)
+cargo test --workspace: 103 binaries, passed 494, failed 0
+cargo test exit 0
+cargo check --workspace: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.04s
+cargo check -p intarsia-cli --features hip: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.80s
+cargo check -p intarsia-cli --features metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.67s
+cargo build -p intarsia-backend-metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.47s

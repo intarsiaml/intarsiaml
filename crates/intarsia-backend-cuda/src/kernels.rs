@@ -541,7 +541,16 @@ mod tests {
         // ops are registered (quantmoe.rs) and the model still falls back to the unfused ops for an exact call without one.
         // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers. The phase-1 folds
         // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
-        const NOT_ON_CUDA: [Op; 5] = [Op::Sample, Op::QkNormRopeKv, Op::RmsNormAddMatmulFp8Pair, Op::SigmoidMulMatmulFp8, Op::SharedDownCombine];
+        // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`).
+        const NOT_ON_CUDA: [Op; 7] = [
+            Op::Sample,
+            Op::QkNormRopeKv,
+            Op::RmsNormAddMatmulFp8Pair,
+            Op::SigmoidMulMatmulFp8,
+            Op::SharedDownCombine,
+            Op::GateSplitQkNormRopeKv,
+            Op::GdnConvDelta,
+        ];
         for op in Op::ALL {
             if !NOT_ON_CUDA.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
@@ -691,5 +700,93 @@ mod tests {
             panic!("LIST {}", got.join(" "));
         }
         assert_eq!(got, MAIN_KERNEL_LIST);
+    }
+
+    const PHASE2_PINS: &[&str] = &[
+        "35b m=1 gate split: gate_split_bf16",
+        "35b m=1 q norm: qk_norm_bf16",
+        "35b m=1 k norm: qk_norm_bf16",
+        "35b m=1 rope: rope_bf16",
+        "35b m=1 kv append: kv_append_bf16",
+        "35b m=1 prologue: -",
+        "35b m=1 fold P4a: -",
+        "35b m=1 gdn conv: gdn_conv_bf16",
+        "35b m=1 gdn delta: gdn_delta_rule_bf16_split",
+        "35b m=1 fold P3: -",
+        "35b m=32 gate split: gate_split_bf16",
+        "35b m=32 q norm: qk_norm_bf16",
+        "35b m=32 k norm: qk_norm_bf16",
+        "35b m=32 rope: rope_bf16",
+        "35b m=32 kv append: kv_append_bf16",
+        "35b m=32 prologue: -",
+        "35b m=32 fold P4a: -",
+        "35b m=32 gdn conv: gdn_conv_bf16",
+        "35b m=32 gdn delta: gdn_delta_rule_bf16_split",
+        "35b m=32 fold P3: -",
+    ];
+
+    /// Core-op fusion phase 2 (docs/results/2026-10-19-core-op-fusion-p2.md): this backend registers neither new op
+    /// (`GateSplitQkNormRopeKv`, `GdnConvDelta`), so `Model::fused_ok` is false for both and the model runs the chains it
+    /// ran before. The selection of the ops those chains consist of, at the Qwen3.6-35B-A3B decode shapes (gated attention:
+    /// 16 query / 2 kv heads of 256, bf16 cache; GatedDeltaNet: 16 key / 32 value heads of 128, conv width 8192, 4 taps),
+    /// and at a 32-token chunk (the longest the HIP fold takes), is pinned below: the names origin/main's table resolves.
+    #[test]
+    fn phase2_folds_are_absent_and_the_unfused_selection_is_pinned() {
+        use intarsia_core::ShapeInfo;
+        let ks = all();
+        for op in [Op::GateSplitQkNormRopeKv, Op::GdnConvDelta] {
+            assert!(!ks.iter().any(|k| k.op == op), "{op} is registered: the model would take the fused path here");
+        }
+        let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
+            let mut best: Option<&KernelImpl> = None;
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+                if best.is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.clone())
+        };
+        let bf = Some(DType::Bf16);
+        let heads = |m: usize, n: usize, nkv: usize, d: usize| ShapeInfo {
+            m,
+            n_heads: n,
+            n_kv_heads: nkv,
+            head_dim: d,
+            k: d,
+            act: bf,
+            out: bf,
+            weight: bf,
+            ..Default::default()
+        };
+        let gdn = |m: usize, k: usize| ShapeInfo {
+            m,
+            n: 128,
+            k,
+            n_heads: 32,
+            n_kv_heads: 16,
+            head_dim: 128,
+            act: bf,
+            out: bf,
+            weight: bf,
+            ..Default::default()
+        };
+        let mut cases: Vec<(String, Op, ShapeInfo)> = Vec::new();
+        for m in [1usize, 32] {
+            cases.extend([
+                (format!("35b m={m} gate split"), Op::GateSplit, heads(m, 16, 0, 256)),
+                (format!("35b m={m} q norm"), Op::QkNorm, heads(m, 16, 0, 256)),
+                (format!("35b m={m} k norm"), Op::QkNorm, heads(m, 2, 0, 256)),
+                (format!("35b m={m} rope"), Op::Rope, heads(m, 16, 0, 256)),
+                (format!("35b m={m} kv append"), Op::KvAppend, heads(m, 2, 0, 256)),
+                (format!("35b m={m} prologue"), Op::QkNormRopeKv, heads(m, 16, 2, 256)),
+                (format!("35b m={m} fold P4a"), Op::GateSplitQkNormRopeKv, heads(m, 16, 2, 256)),
+                (format!("35b m={m} gdn conv"), Op::GdnConv, ShapeInfo { m, n: 8192, k: 4, act: bf, out: bf, weight: bf, ..Default::default() }),
+                (format!("35b m={m} gdn delta"), Op::GdnDeltaRule, gdn(m, 128)),
+                (format!("35b m={m} fold P3"), Op::GdnConvDelta, gdn(m, 4)),
+            ]);
+        }
+        let got: Vec<String> = cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
+        eprintln!("PINS\n{}", got.join("\n"));
+        assert_eq!(got, PHASE2_PINS, "the selection of the unfused ops moved");
     }
 }

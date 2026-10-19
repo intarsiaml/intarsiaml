@@ -4,6 +4,14 @@ each mutation must make `cargo test -p intarsia-backend-hip --test decode_v2` FA
 catch a wrong accumulation, a skipped iteration, a flipped tie-break, or a dropped state / tail write."""
 import sys
 
+# moe_wmma.h holds two kernels with the same body text: moe_wmma_kernel (round 5: MW = 0, the 32-pair gate_up default) and
+# moe_wmma_kernel_v (round 6: MW = 1 / 4 / 5). A pattern found in both is aimed at one of them by a third element (index,
+# count): the file must hold exactly `count` matches, and the `index`-th (0-based) is replaced. The round-6 `moe-z-step` /
+# `pairs-*` mutants take the second, moe_wmma_kernel_v. Since round 7 (moe_wmma_r7.h is the 64-pair default) that kernel
+# runs only under INTARSIA_HIP_MOE_MW = 1 / 4 / 5, so their test is moe_pairs, which runs exactly those against MW 0 at 32
+# pairs, its hot-experts case with more pair tiles than the grid (the z-step loop) included.
+V_KERNEL = (1, 2)
+
 MUTATIONS = {
     # fused single-tile conv: the thread's new state is written doubled
     "conv-state": ("kernels/hip/gdn.hip", [(
@@ -124,7 +132,7 @@ MUTATIONS = {
     # the e4m3 kernel does not step aside for weight-only activations (the bf16 kernel runs after it, so this one is expected to survive)
     "f8-noexit": ("kernels/hip/ik_f8_gemm.h", [("    if (!(sc[1] > 0.f)) return;  // weight-only activations: the bf16 kernel handles this launch\n", "")]),
     # a block steps through the further pair tiles of a busy expert by one more than the grid's z
-    "moe-z-step": ("kernels/hip/moe_wmma.h", [("pt += gridDim.z)", "pt += gridDim.z + 1)")]),
+    "moe-z-step": ("kernels/hip/moe_wmma.h", [("pt += gridDim.z)", "pt += gridDim.z + 1)", V_KERNEL)]),
     # --- round 3 (perf/hip-round3): matmul_fp8_mma_v2 (tests/fp8_mma_v2.rs) and the 64-pair MoE tile (tests/moe_pairs.rs) ---
     # the e4m3 -> bf16 conversion decodes the low byte pair twice (bytes 2, 3 of the low word lost)
     "v2-wsel": ("kernels/hip/ik_quant.h", [(
@@ -152,15 +160,15 @@ MUTATIONS = {
         "IK_DEVI uint4 xprep(const State& s, uint4 v) { return v; }")]),
     # 64-pair tile: the up accumulators are handed to the gate waves with the 32-pair stride (fragments overwrite each other)
     "pairs-sred": ("kernels/hip/moe_wmma.h", [(
-        "sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];", "sred[(fw * 32 + lane) * 16 + j * 8 + i] = acc[j][i];")]),
+        "sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];", "sred[(fw * 32 + lane) * 16 + j * 8 + i] = acc[j][i];", V_KERNEL)]),
     # 64-pair tile: the second activation row of each thread is stored 16 rows down instead of 32
     "pairs-xrow": ("kernels/hip/moe_wmma.h", [(
         "*reinterpret_cast<uint4*>(&sx[buf][(xr + 32 * r) * kMwLD + xch * 8]) = rx[r];",
-        "*reinterpret_cast<uint4*>(&sx[buf][(xr + 16 * r) * kMwLD + xch * 8]) = rx[r];")]),
+        "*reinterpret_cast<uint4*>(&sx[buf][(xr + 16 * r) * kMwLD + xch * 8]) = rx[r];", V_KERNEL)]),
     # 64-pair tile: only the first two 16-pair fragments are written out
     "pairs-out": ("kernels/hip/moe_wmma.h", [(
         "        for (int j = 0; j < J; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;",
-        "        for (int j = 0; j < 2; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;")]),
+        "        for (int j = 0; j < 2; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;", V_KERNEL)]),
     # --- round 4 (docs/results/2026-10-19-hip-round4.md) ---
     # qk_norm_rope_kv: the sum of squares misses the last value of each 8-value chunk
     "qkr-sum": ("kernels/hip/elementwise.hip", [(
@@ -257,11 +265,8 @@ MUTATIONS = {
     "mw-two": ("kernels/hip/moe_wmma.h", [("else if (J == 4 && jn == 2) kloop(std::integral_constant<int, (J == 4 ? 2 : 1)>{});", "else if (J == 4 && jn == 2) kloop(std::integral_constant<int, (J == 4 ? 1 : 1)>{});")]),
     # aliased up accumulators: the last k block's barrier dropped, so the up waves may overwrite activations still being read
     "mw-lastsync": ("kernels/hip/moe_wmma.h", [("                    __syncthreads();\n", "                    if (!ALIAS || kb + 1 < nkb) __syncthreads();\n")]),
-    # round 6 selection pins (tests/round6_selection.rs)
-    "mw-def64": ("kernels/hip/moe.hip", [("constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;", "constexpr int kMwDefault64 = kMwSkip, kMwDefault32 = 0;")]),
-    "mw-def32": ("kernels/hip/moe.hip", [("constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;", "constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = kMwSkip;")]),
-    "mw-tile": ("kernels/hip/moe.hip", [("const int def = pairs == 64 ? kMwDefault64 : kMwDefault32;", "const int def = pairs == 32 ? kMwDefault64 : kMwDefault32;")]),
-    "mw-range": ("kernels/hip/moe.hip", [("return (v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc)) ? v : def;", "return (v >= 0 && v <= 7) ? v : def;")]),
+    # round 6 selection pins (tests/round6_selection.rs); the moe.hip ones (mw-def64 / mw-def32 / mw-tile / mw-range) were
+    # dropped in core-op fusion phase 2: round 7 replaced their lines, and r7-def* / r7-tile / r7-range mutate the new ones
     "hpb-def": ("kernels/hip/attention_flash.hip", [("constexpr int kFlashHpbDefault = 4;", "constexpr int kFlashHpbDefault = 2;")]),
     "hpb-two": ("kernels/hip/attention_flash.hip", [("return (x == 1 || x == 2 || x == 4) ? x : kFlashHpbDefault;", "return (x == 1 || x == 4) ? x : kFlashHpbDefault;")]),
     # --- core-op fusion phase 1 (tests/fusion_p1.rs; docs/results/2026-10-19-core-op-fusion-p1.md) ---
@@ -309,7 +314,8 @@ MUTATIONS = {
                     .when(|s| (1..=9).contains(&s.m)""")]),
     # --- round 7 (docs/results/2026-10-19-hip-round7.md): moe_wmma_r7.h (kMwCvt fp8-conversion fp4 decode, kMwTwo two A
     # fragments per wave in down, kMwDeep six weight blocks in flight) and the per-projection selection in moe.hip. The round-6
-    # entries mw-def64 / mw-def32 / mw-tile / mw-range mutate lines round 7 replaced; r7-def* / r7-tile / r7-range cover them.
+    # entries mw-def64 / mw-def32 / mw-tile / mw-range mutated lines round 7 replaced (now dropped); r7-def* / r7-tile /
+    # r7-range cover them.
     # even elements' magnitude one bit off / odd elements' magnitude one bit off
     "r7-even": ("kernels/hip/moe_wmma_r7.h", [("ev = ((c << 2) & 0x1C1C1C1Cu)", "ev = ((c << 1) & 0x1C1C1C1Cu)")]),
     "r7-odd": ("kernels/hip/moe_wmma_r7.h", [("od = ((c >> 2) & 0x1C1C1C1Cu)", "od = ((c >> 3) & 0x1C1C1C1Cu)")]),
@@ -340,21 +346,54 @@ MUTATIONS = {
     "r7-tile": ("kernels/hip/moe.hip", [("const int def = pairs == 64 ? (down ? kMwDefault64Dn : kMwDefault64) : (down ? kMwDefault32Dn : kMwDefault32);", "const int def = pairs == 32 ? (down ? kMwDefault64Dn : kMwDefault64) : (down ? kMwDefault32Dn : kMwDefault32);")]),
     "r7-range": ("kernels/hip/moe.hip", [("    return mw_accepted(v) ? v : def;", "    return (v >= 0 && v <= 7) ? v : def;")]),
     "r7-colon": ("kernels/hip/moe.hip", [("const char* f = down && colon ? colon + 1 : e;", "const char* f = e;")]),
+    # core-op fusion phase 2 (tests/fusion_p2.rs, docs/results/2026-10-19-core-op-fusion-p2.md)
+    # P4a gate_split_qk_norm_rope_kv: the gate copied from the query half
+    "p2-ga-gate": ("kernels/hip/gate_qkr.hip", [("gate[qrow * D + m] = qg[qrow * 2 * D + D + m];", "gate[qrow * D + m] = qg[qrow * 2 * D + m];")]),
+    # the query read with the split-off row's stride (D) instead of the gated row's (2D)
+    "p2-ga-qstride": ("kernels/hip/gate_qkr.hip", [("k + (t * NKV + kvh) * D : qg + qrow * 2 * D;", "k + (t * NKV + kvh) * D : qg + qrow * D;")]),
+    # the zero-centred norm's +1 dropped
+    "p2-ga-woff": ("kernels/hip/gate_qkr.hip", [("f[e] = f[e] * r * (g[e] + woff);", "f[e] = f[e] * r * g[e];")]),
+    # the fp8 cache value halved before the conversion
+    "p2-ga-fp8": ("kernels/hip/gate_qkr.hip", [("gqr_f32_to_e4m3(ik_b2f(v));", "gqr_f32_to_e4m3(ik_b2f(v) * 0.5f);")]),
+    # every token's v row written to the first new cache row
+    "p2-ga-vpos": ("kernels/hip/gate_qkr.hip", [("CacheT* dv = vcache + ((int64_t)kvh * cap + pos0 + t) * D;", "CacheT* dv = vcache + ((int64_t)kvh * cap + pos0) * D;")]),
+    # P3 gdn_conv_delta: the FIRST block of a key head stores its new q / k conv state (siblings may still read the old one)
+    "p2-cd-writer0": ("kernels/hip/gdn_fused.hip", [("qk_writer = tk_ == nblk - 1;", "qk_writer = tk_ == 0;")]),
+    # the key-head counter is not put back to 0: the next launch's tickets never reach nblk - 1
+    "p2-cd-noreset": ("kernels/hip/gdn_fused.hip", [("        if (qk_writer && lane == 0) __hip_atomic_store(sync + kh, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);\n", "")]),
+    # the v channels' new conv state not stored
+    "p2-cd-novstate": ("kernels/hip/gdn_fused.hip", [("for (int t = 0; t < KH; ++t) cstate[(int64_t)cv * KH + t] = hv[t];", "for (int t = 0; t < KH; ++t) (void)hv[t];")]),
+    # the conv output not rounded to bf16 before the delta rule reads it (the unfused path stores y in bf16)
+    "p2-cd-round": ("kernels/hip/gdn_fused.hip", [("const float y = ik_b2f(ik_f2b(silu(acc)));", "const float y = silu(acc);")]),
+    # the current input multiplied by the first tap instead of the last
+    "p2-cd-tap": ("kernels/hip/gdn_fused.hip", [("        acc = cd_tap(tp, K - 1) * cur;", "        acc = cd_tap(tp, 0) * cur;")]),
+    # the conv accumulation left to the contraction (the W2 finding: about 1 conv output in 3e5 flips its bf16 rounding)
+    "p2-cd-contract": ("kernels/hip/gdn_fused.hip", [
+        ("#pragma clang fp contract(off)\n        acc = cd_tap(tp, K - 1) * cur;", "        acc = cd_tap(tp, K - 1) * cur;"),
+        ("acc = __builtin_fmaf(cd_tap(tp, j), hh[j * S], acc);", "acc += cd_tap(tp, j) * hh[j * S];")]),
+    # the conv history not shifted between tokens
+    "p2-cd-hist": ("kernels/hip/gdn_fused.hip", [("    for (int j = 0; j < K - 2; ++j) hh[j * S] = hh[(j + 1) * S];\n", "")]),
+    # the two-launch form (no counter slot) skips its conv-state launch
+    "p2-cd-slotstate": ("kernels/hip/gdn_fused.hip", [("    if (slot >= 0) return ik_launch_status();", "    return ik_launch_status();")]),
+    # selection: the fold admitted one token past the conv's single tile
+    "p2-sel-m33": ("crates/intarsia-backend-hip/src/kernels.rs", [("pub const GDN_CONV_DELTA_MAX_TOKENS: usize = 32;", "pub const GDN_CONV_DELTA_MAX_TOKENS: usize = 33;")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
-TESTS["moe-z-step"] = "quantmoe"
+TESTS["moe-z-step"] = "moe_pairs"  # was quantmoe: since round 7 its default-env case runs moe_wmma_r7.h
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
 TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio", "p1-sel-m2", "p1-sel-dc9")})
 TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
 TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsync")})
-TESTS.update({n: "round6_selection" for n in ("mw-def64", "mw-def32", "mw-tile", "mw-range", "hpb-def", "hpb-two")})
+TESTS.update({n: "round6_selection" for n in ("hpb-def", "hpb-two")})
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
+TESTS.update({n: "fusion_p2" for n in ("p2-ga-gate", "p2-ga-qstride", "p2-ga-woff", "p2-ga-fp8", "p2-ga-vpos", "p2-cd-writer0", "p2-cd-noreset", "p2-cd-novstate", "p2-cd-round", "p2-cd-tap", "p2-cd-contract", "p2-cd-hist", "p2-cd-slotstate")})
+TESTS["p2-sel-m33"] = "lib"
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 TESTS.update({n: "moe_pairs" for n in ("r7-even", "r7-odd", "r7-esign", "r7-osign", "r7-x64", "r7-hiword", "r7-swap", "r7-deep", "r7-dnrow", "r7-grid", "r7-jn", "r7-lastsync")})
 TESTS.update({n: "round6_selection" for n in ("r7-def64", "r7-def32", "r7-def64dn", "r7-def32dn", "r7-tile", "r7-range", "r7-colon")})
@@ -366,9 +405,14 @@ if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test 
 path, pairs = MUTATIONS[name]
 p = f"{tree}/{path}"
 s = open(p).read()
-for old, new in pairs:
-    if s.count(old) != 1:
-        sys.exit(f"mutation {name}: pattern not found exactly once in {path}: {old[:60]!r} ({s.count(old)})")
-    s = s.replace(old, new)
+for pair in pairs:
+    old, new = pair[0], pair[1]
+    idx, want = pair[2] if len(pair) > 2 else (0, 1)  # (index, count): see V_KERNEL
+    if s.count(old) != want:
+        sys.exit(f"mutation {name}: pattern not found exactly {want} time(s) in {path}: {old[:60]!r} ({s.count(old)})")
+    at = -1
+    for _ in range(idx + 1):
+        at = s.index(old, at + 1)
+    s = s[:at] + new + s[at + len(old):]
 open(p, "w").write(s)
 print(f"applied {name} to {p}")

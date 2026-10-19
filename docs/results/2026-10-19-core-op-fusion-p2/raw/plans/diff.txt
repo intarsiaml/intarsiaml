@@ -1,0 +1,10 @@
+== 35b: launches per decode step base 415 -> fp2 375 (-40); scratch 167905792 -> 167905792
+   gate_split                   gate_split_bf16                          base   10  fp2    -
+   gate_split_qk_norm_rope_kv   gate_split_qk_norm_rope_kv_bf16          base    -  fp2   10
+   gdn_conv                     gdn_conv_bf16                            base   30  fp2    0
+   gdn_conv_delta               gdn_conv_delta_bf16                      base    -  fp2   30
+   gdn_delta_rule               gdn_delta_rule_bf16_v2                   base   30  fp2    0
+   qk_norm_rope_kv              qk_norm_rope_kv_bf16                     base   10  fp2    -
+   27 (op, kernel) rows identical, 4 present on one side only
+== 8b: launches per decode step base 364 -> fp2 364 (+0); scratch 748800 -> 748800
+   14 (op, kernel) rows identical, 0 present on one side only
