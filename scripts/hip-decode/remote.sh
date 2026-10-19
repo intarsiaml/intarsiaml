@@ -31,7 +31,7 @@ stage_prof() { # prof <tag>: rocprofv3 kernel trace of a 160-token 35B decode + 
   rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
   local tv; tv=$(TARGET_VOL)   # (computed first: inside the env-prefix list it would see INTARSIA_IMAGE)
   INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
-    $D bash -c "rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- $gen" 2>&1 | grep -E "finish=|steps=|rror"
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- $gen" 2>&1 | grep -E "finish=|steps=|rror"
   find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -2
   local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
   [ -n "$csv" ] && python3 "$INTARSIA_REPO/scripts/hip-decode/analyze.py" "$csv" > "$OUTD/prof/$tag/table.txt" && cat "$OUTD/prof/$tag/table.txt"
@@ -86,7 +86,7 @@ stage_pfprof() {
   rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
   local tv; tv=$(TARGET_VOL)
   INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
-    $D bash -c "rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- $gen" 2>&1 | grep -aE "prompt:|finish=|rror"
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- $gen" 2>&1 | grep -aE "prompt:|finish=|rror"
   local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
   [ -n "$csv" ] && python3 "$INTARSIA_REPO/scripts/hip-decode/analyze_prefill.py" "$csv" > "$OUTD/prof/$tag/table.txt" && cat "$OUTD/prof/$tag/table.txt"
 }
@@ -277,7 +277,7 @@ stage_prof4k() {
   rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
   local tv; tv=$(TARGET_VOL)
   INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
-    $D bash -c "rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- bash /work/bench-out/dec4k.sh" 2>&1 | grep -aE "finish=|rror"
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- bash /work/bench-out/dec4k.sh" 2>&1 | grep -aE "finish=|rror"
   local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
   [ -n "$csv" ] && python3 "$INTARSIA_REPO/scripts/hip-decode/analyze.py" "$csv" > "$OUTD/prof/$tag/table.txt" && cat "$OUTD/prof/$tag/table.txt"
 }
@@ -346,7 +346,7 @@ stage_mutrun() {
   for m in ${MUTATIONS:-$R3MUT}; do
     printf '%-16s ' "$m"
     # (a mutant that hangs a kernel is killed by the timeout: exit 124, no "test result" line)
-    $D bash -c "timeout 120 /target/r3mut/$m --test-threads=1; echo exit=\$?" 2>&1 | grep -aE "^test result|panicked at|^exit=" | head -3 | cut -c1-200 | tr '\n' ' '
+    $D bash -c "timeout ${MUT_TIMEOUT:-120} /target/r3mut/$m --test-threads=1; echo exit=\$?" 2>&1 | grep -aE "^test result|panicked at|^exit=" | head -3 | cut -c1-200 | tr '\n' ' '
     echo
   done
 }
@@ -491,6 +491,70 @@ stage_r7test() {
 R7MUT="r7-even r7-odd r7-esign r7-osign r7-x64 r7-hiword r7-swap r7-deep r7-dnrow r7-grid r7-jn r7-lastsync r7-def64 r7-def32 r7-def64dn r7-def32dn r7-tile r7-range r7-colon"
 stage_mutbuild7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r7-mut" stage_mutbuild; }
 stage_mutrun7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" stage_mutrun; }
+
+# Round 8 (perf/hip-round8, docs/results/2026-10-19-hip-round8.md).
+# round-8 mutants (mutate.py; built by mutbuild8 in a CPU slot, run by mutrun8 in a GPU window)
+R8MUT="r8-y0 r8-y0r5 r8-y0v r8-lastpiece r8-ytile r8-gdn-out r8-gdn-in r8-gdn-gate r8-gdn-len r8-rd-col r8-rd-round r8-rd-lastk r8-cb-skip r8-cb-ml"
+stage_mutbuild8() { MUTATIONS="${R8MUT_SEL:-$R8MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r8-mut" stage_mutbuild; }
+stage_mutrun8() { MUTATIONS="${R8MUT_SEL:-$R8MUT}" MUT_TIMEOUT=${MUT_TIMEOUT:-400} stage_mutrun; }
+# prof16k:<tag>: rocprofv3 kernel trace of a 160-token 35B decode after four copies of the ~4.4k-token prompt (~17.6k tokens of
+# context), per-step table (decode at long context: where the 16k decode time goes)
+stage_prof16k() {
+  local tag=${1:-base}
+  printf '%s\n' "p=\"\$(cat /work/scripts/hip-decode/prompt4k.txt)\"; $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 18432 --profile-every 0 --ignore-eos -p \"\$p\$p\$p\$p\" --max-tokens 160" > "$OUTD/dec16k.sh"
+  echo "--- unprofiled"
+  $D bash -c "bash /work/bench-out/dec16k.sh" 2>&1 | grep -aE "prompt:|finish=|steps=|WARNING"
+  rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
+  local tv; tv=$(TARGET_VOL)
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- bash /work/bench-out/dec16k.sh" 2>&1 | grep -aE "finish=|rror"
+  local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
+  [ -n "$csv" ] && python3 "$INTARSIA_REPO/scripts/hip-decode/analyze.py" "$csv" > "$OUTD/prof/$tag/table.txt" && cat "$OUTD/prof/$tag/table.txt"
+}
+# pfapi:<tag>: pfprof's 4408-token prefill under rocprofv3 with the HIP runtime API trace as well as the kernel trace (where the
+# host is when the GPU idles between kernels); csvs in bench-out/prof/<tag>/
+stage_pfapi() {
+  local tag=${1:-api}
+  printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 1" > "$OUTD/pfgen.sh"
+  rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
+  local tv; tv=$(TARGET_VOL)
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --hip-runtime-trace --memory-copy-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- bash /work/bench-out/pfgen.sh" 2>&1 | grep -aE "prompt:|finish=|rror"
+  ls "$OUTD/prof/$tag"
+}
+# pfenv:<NAME=value>[,<NAME=value>...]: the unprofiled 4408-token prefill, twice, with any env exported inside the container
+# (runtime knobs such as HSA_ENABLE_INTERRUPT, which dev.sh does not forward)
+stage_pfenv() {
+  local ex="" kv
+  for kv in ${1//,/ }; do ex="$ex export $kv;"; done
+  printf '%s\n' "$ex $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 1" > "$OUTD/pfenv.sh"
+  echo "--- env: ${1:-none}"
+  $D bash -c "bash /work/bench-out/pfenv.sh; bash /work/bench-out/pfenv.sh" 2>&1 | grep -aE "^finish="
+}
+# d16env:<NAME=value>[,...]: prof16k's unprofiled run (160 decode tokens after ~17.6k prompt tokens) with env exported inside
+# the container, twice
+stage_d16env() {
+  local ex="" kv
+  for kv in ${1//,/ }; do ex="$ex export $kv;"; done
+  printf '%s\n' "$ex p=\"\$(cat /work/scripts/hip-decode/prompt4k.txt)\"; $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 18432 --profile-every 0 --ignore-eos -p \"\$p\$p\$p\$p\" --max-tokens 160" > "$OUTD/d16env.sh"
+  echo "--- env: ${1:-none}"
+  $D bash -c "bash /work/bench-out/d16env.sh; bash /work/bench-out/d16env.sh" 2>&1 | grep -aE "^finish="
+}
+# t:<test file>[+<test file>...]: hip crate test binaries, single-threaded, with output (round 8: moe_pairs+gdn_v2 ...)
+stage_t() {
+  local f args=""
+  for f in ${1//+/ }; do args="$args --test $f"; done
+  timeout ${T_TIMEOUT:-600} $D cargo test --release -p intarsia-backend-hip --no-fail-fast $args -- --nocapture --test-threads=1 2>&1 \
+    | grep -aE "^test |test result|FAILED|panicked|differ|changed|bitwise" | cut -c1-260 | tail -${T_TAIL:-60}
+}
+# dtrace:<copies>: per-kernel GPU time without rocprofv3 (INTARSIA_HIP_TRACE=1, event pair per launch, eager --no-graphs), a
+# 160-token decode after <copies> copies of the ~4.4k-token prompt (0: the short story prompt); the table covers prefill + decode
+stage_dtrace() {
+  local n=${1:-0} p="'Write a long story about a robot who learns to paint.'"
+  [ "$n" != 0 ] && p="\"\$(for i in \$(seq $n); do cat /work/scripts/hip-decode/prompt4k.txt; done)\""
+  printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 18432 --profile-every 0 --ignore-eos --no-graphs -p $p --max-tokens 160" > "$OUTD/dtrace.sh"
+  INTARSIA_HIP_TRACE=1 $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} bash /work/bench-out/dtrace.sh" 2>&1 | grep -avE "^ids:" | tail -${DTRACE_TAIL:-60}
+}
 
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}

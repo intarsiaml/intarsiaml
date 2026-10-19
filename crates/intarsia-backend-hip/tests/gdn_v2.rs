@@ -64,11 +64,22 @@ fn gdn_v2_is_bitwise_the_rows_kernel() {
     let mut nonzero = 0usize;
     for &(t, hk, hv, dv) in &shapes {
         let hc = case(&mut rng, t, hk, hv, dv);
+        std::env::set_var("INTARSIA_HIP_SPLIT_US", "0");
         let a = run_host(&*hip, "gdn_delta_rule_bf16", &hc).unwrap();
         let b = run_host(&*hip, "gdn_delta_rule_bf16_v2", &hc).unwrap();
         let what = format!("pd {chunk}: t={t} hk={hk} hv={hv} dv={dv}");
         assert!(a[0].data == b[0].data, "{what}: output rows differ");
         assert!(a[1].data == b[1].data, "{what}: final state differs");
+        // round 8: v2 as consecutive token ranges, each continuing the state the previous one stored (INTARSIA_HIP_SPLIT_US,
+        // kernels/hip/ik_hip.h): 1 = one token per launch, 7 / 40 = ranges that are no multiple of the prefetch depth or
+        // of the 32-token gate batch
+        for split in ["1", "7", "40"] {
+            std::env::set_var("INTARSIA_HIP_SPLIT_US", split);
+            let c = run_host(&*hip, "gdn_delta_rule_bf16_v2", &hc).unwrap();
+            assert!(a[0].data == c[0].data, "{what}: INTARSIA_HIP_SPLIT_US={split}: output rows differ");
+            assert!(a[1].data == c[1].data, "{what}: INTARSIA_HIP_SPLIT_US={split}: final state differs");
+        }
+        std::env::remove_var("INTARSIA_HIP_SPLIT_US");
         assert!(a[1].data != hc.outputs[1].init.as_ref().unwrap().data, "{what}: the state did not move");
         nonzero += a[0].to_f32().iter().filter(|v| **v != 0.0).count();
     }

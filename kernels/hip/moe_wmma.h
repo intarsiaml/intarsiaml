@@ -76,7 +76,7 @@ template <bool GATEUP, int PAIRS>
 __global__ void __launch_bounds__(kMwThreads)
 moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
                 const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
-                const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk) {
+                const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk, int y0) {
     constexpr int FEAT = GATEUP ? kMwFeatGateUp : kMwFeatDown;
     constexpr int J = PAIRS / 16;   // 16-pair B fragments per weight fragment (each dequantised A fragment feeds J WMMAs)
     constexpr int XR = PAIRS / 32;  // activation rows each thread stages
@@ -89,7 +89,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
     if (slot >= active[E]) return;  // block-uniform
     const int e = active[slot];
     const int begin = offsets[e], cnt = offsets[e + 1] - begin;
-    const int n0 = blockIdx.y * FEAT;
+    const int n0 = ((int)blockIdx.y + y0) * FEAT;  // y0: first feature tile of this launch (round 8 split)
     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
     const int lr = lane & 15, h = lane >> 4;
     const int part = GATEUP ? (wave >> 2) : 0;  // gate_up: 0 = gate rows, 1 = up rows
@@ -236,7 +236,7 @@ template <bool GATEUP, int PAIRS, int V>
 __global__ void __launch_bounds__(kMwThreads) __attribute__((amdgpu_waves_per_eu((V & kMwOcc) ? 8 : 1)))
 moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
                   const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
-                  const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk) {
+                  const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk, int y0) {
     constexpr int FEAT = GATEUP ? kMwFeatGateUp : kMwFeatDown;
     constexpr int J = PAIRS / 16;   // 16-pair B fragments per weight fragment (each dequantised A fragment feeds J WMMAs)
     constexpr int XR = PAIRS / 32;  // activation rows each thread stages
@@ -253,7 +253,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
     if (slot >= active[E]) return;  // block-uniform
     const int e = active[slot];
     const int begin = offsets[e], cnt = offsets[e + 1] - begin;
-    const int n0 = blockIdx.y * FEAT;
+    const int n0 = ((int)blockIdx.y + y0) * FEAT;  // y0: first feature tile of this launch (round 8 split)
     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
     const int lr = lane & 15, h = lane >> 4;
     const int part = GATEUP ? (wave >> 2) : 0;  // gate_up: 0 = gate rows, 1 = up rows

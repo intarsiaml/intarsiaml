@@ -434,6 +434,41 @@ MUTATIONS = {
     "p2p-sel-p24": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("        && s.m * s.top_k <= 16\n", "        && s.m * s.top_k <= 24\n")]),
 }
 
+# Round 8 (docs/results/2026-10-19-hip-round8.md): sub-millisecond launch pieces (MoE down over feature tiles, the GDN delta
+# rule over token ranges) and the split-KV double buffer / batched combine.
+N0_Y0 = "    const int n0 = ((int)blockIdx.y + y0) * FEAT;"
+N0_NOY0 = "    const int n0 = (int)blockIdx.y * FEAT;"
+MUTATIONS.update({
+    # a piece's blocks ignore its first feature tile (every piece recomputes tiles 0..): r7 / round-5 / round-6 kernels
+    "r8-y0": ("kernels/hip/moe_wmma_r7.h", [(N0_Y0, N0_NOY0)]),
+    "r8-y0r5": ("kernels/hip/moe_wmma.h", [(N0_Y0, N0_NOY0, (0, 2))]),
+    "r8-y0v": ("kernels/hip/moe_wmma.h", [(N0_Y0, N0_NOY0, (1, 2))]),
+    # the last piece is never launched
+    "r8-lastpiece": ("kernels/hip/moe.hip", [("    for (int i = 0; i < pieces; ++i) {\n        const int y0",
+                                              "    for (int i = 0; i < pieces - (pieces > 1); ++i) {\n        const int y0")]),
+    # every piece but the last stops one feature tile short
+    "r8-ytile": ("kernels/hip/moe.hip", [("y1 = (int)(Y * (i + 1) / pieces);", "y1 = (int)(Y * (i + 1) / pieces) - (i + 1 < pieces);")]),
+    # GDN pieces: the output rows, the qkv rows, the gate rows not offset to the piece's first token; the piece's length
+    # taken as its end (runs past the piece into the next one's tokens with the wrong state)
+    "r8-gdn-out": ("kernels/hip/gdn.hip", [("        op + t0 * Hv * dv, (float*)state->data", "        op, (float*)state->data")]),
+    "r8-gdn-in": ("kernels/hip/gdn.hip", [("        qkvp + t0 * C, ap", "        qkvp, ap")]),
+    "r8-gdn-gate": ("kernels/hip/gdn.hip", [("ap + t0 * Hv, bp + t0 * Hv,", "ap + t0 * Hv, bp,")]),
+    "r8-gdn-len": ("kernels/hip/gdn.hip", [("(float*)state->data, t1 - t0, (int)Hk", "(float*)state->data, t1 - t0 + (i + 1 < pieces), (int)Hk")]),
+    # moe_reduce_v8_kernel: odd threads compute their even neighbour's 8 features (theirs are never written); the product not
+    # rounded to bf16 before the sum; the last expert of the token dropped
+    "r8-rd-col": ("kernels/hip/moe.hip", [("    const int c = (blockIdx.y * 256 + threadIdx.x) * 8;\n    if (c >= H) return;\n    float acc[8];",
+                                           "    const int c = (blockIdx.y * 256 + (threadIdx.x & ~1)) * 8;\n    if (c >= H) return;\n    float acc[8];")]),
+    "r8-rd-round": ("kernels/hip/moe.hip", [("            for (int e = 0; e < 8; ++e) acc[e] += round_bf16(v[e] * wk);",
+                                             "            for (int e = 0; e < 8; ++e) acc[e] += v[e] * wk;")]),
+    "r8-rd-lastk": ("kernels/hip/moe.hip", [("            if (k >= K) break;\n            const int id = ids[(int64_t)t * K + k];",
+                                             "            if (k >= K - 1) break;\n            const int id = ids[(int64_t)t * K + k];")]),
+    # combine_kernel<D, 16>: the padded slots of the last batch are not skipped (split s0 counted again); every slot of a
+    # batch weighted with the batch's first split's (m, l)
+    "r8-cb-skip": ("kernels/hip/attention_splitkv.hip", [("            if (s0 + u >= nsplit_eff || v[u].x == -INFINITY) continue;",
+                                                         "            if (v[u].x == -INFINITY) continue;")]),
+    "r8-cb-ml": ("kernels/hip/attention_splitkv.hip", [("            v[u] = ml[s];", "            v[u] = ml[s0];")]),
+})
+
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
@@ -454,6 +489,9 @@ TESTS["p2p-sel-p24"] = "lib"
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 TESTS.update({n: "moe_pairs" for n in ("r7-even", "r7-odd", "r7-esign", "r7-osign", "r7-x64", "r7-hiword", "r7-swap", "r7-deep", "r7-dnrow", "r7-grid", "r7-jn", "r7-lastsync")})
 TESTS.update({n: "round6_selection" for n in ("r7-def64", "r7-def32", "r7-def64dn", "r7-def32dn", "r7-tile", "r7-range", "r7-colon")})
+TESTS.update({n: "moe_pairs" for n in ("r8-y0", "r8-y0r5", "r8-y0v", "r8-lastpiece", "r8-ytile", "r8-rd-col", "r8-rd-round", "r8-rd-lastk")})
+TESTS.update({n: "gdn_v2" for n in ("r8-gdn-out", "r8-gdn-in", "r8-gdn-gate", "r8-gdn-len")})
+TESTS.update({n: "splitkv_r8" for n in ("r8-cb-skip", "r8-cb-ml")})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target
