@@ -728,4 +728,65 @@ mod tests {
         eprintln!("PINS\n{}", got.join("\n"));
         assert_eq!(got, PHASE2_PINS, "the selection of the unfused ops moved");
     }
+
+    const MOE_BLOCK_PINS: &[&str] = &[
+        "35b m=1 topk: -",
+        "35b m=1 experts: -",
+        "35b m=1 shared glu: -",
+        "35b m=1 shared gate: -",
+        "35b m=1 silu glu: silu_glu_bf16",
+        "35b m=1 shared down: -",
+        "35b m=1 shared down combine: -",
+        "35b m=1 combine: -",
+        "35b m=1 fold P2': -",
+        "35b m=2 topk: -",
+        "35b m=2 experts: -",
+        "35b m=2 shared glu: -",
+        "35b m=2 shared gate: -",
+        "35b m=2 silu glu: silu_glu_bf16",
+        "35b m=2 shared down: -",
+        "35b m=2 shared down combine: -",
+        "35b m=2 combine: -",
+        "35b m=2 fold P2': -",
+    ];
+
+    /// Core-op fusion P2' (docs/results/2026-10-19-p2prime-moeblock.md): this backend does not register `MoeBlock`, so
+    /// `Model::fused_ok` is false for it and `MoeWeights::forward_folded` runs the chain it ran before. The selection of the
+    /// ops that chain consists of, at the Qwen3.6-35B-A3B decode shapes (256 experts, top-8, hidden 2048, routed and shared
+    /// intermediate 512; one row and the two-row batched step), is pinned below: the names origin/main's table resolves.
+    #[test]
+    fn moe_block_is_absent_and_the_unfused_selection_is_pinned() {
+        use intarsia_core::ShapeInfo;
+        let ks = all();
+        assert!(!ks.iter().any(|k| k.op == Op::MoeBlock), "MoeBlock is registered: the model would take the fused path here");
+        let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
+            let mut best: Option<&KernelImpl> = None;
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+                if best.is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.clone())
+        };
+        let (bf, u8_) = (Some(DType::Bf16), Some(DType::U8));
+        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
+        let moe = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { experts: 256, top_k: 8, ..sh(m, n, k, w) };
+        let mut cases: Vec<(String, Op, ShapeInfo)> = Vec::new();
+        for m in [1usize, 2] {
+            cases.extend([
+                (format!("35b m={m} topk"), Op::MoeTopk, ShapeInfo { k: 256, ..moe(m, 256, 256, None) }),
+                (format!("35b m={m} experts"), Op::MoeExperts, moe(m, 512, 2048, u8_)),
+                (format!("35b m={m} shared glu"), Op::MatmulNvfp4Glu, sh(m, 512, 2048, u8_)),
+                (format!("35b m={m} shared gate"), Op::MatmulNvfp4, sh(m, 512, 2048, u8_)),
+                (format!("35b m={m} silu glu"), Op::SiluGlu, sh(m, 0, 512, None)),
+                (format!("35b m={m} shared down"), Op::MatmulNvfp4, sh(m, 2048, 512, u8_)),
+                (format!("35b m={m} shared down combine"), Op::SharedDownCombine, sh(m, 2048, 512, u8_)),
+                (format!("35b m={m} combine"), Op::MoeCombine, sh(m, 0, 2048, None)),
+                (format!("35b m={m} fold P2'"), Op::MoeBlock, moe(m, 512, 2048, u8_)),
+            ]);
+        }
+        let got: Vec<String> = cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
+        eprintln!("PINS\n{}", got.join("\n"));
+        assert_eq!(got, MOE_BLOCK_PINS, "the selection of the unfused ops moved");
+    }
 }

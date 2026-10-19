@@ -1,16 +1,21 @@
 //! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
 //! `QkNormRopeKv`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`,
-//! `SharedDownCombine`, `GateSplitQkNormRopeKv`, `GdnConvDelta`).
+//! `SharedDownCombine`, `GateSplitQkNormRopeKv`, `GdnConvDelta`, `MoeBlock`).
 //! Each is defined as the composition of the ops it replaces, so the oracle of a fused kernel is exactly "the
 //! unfused path, including the output rounding of every intermediate tensor". `sub` is the executor of the
 //! constituent ops: the f64 reference for `ref_*`, the f32 kernels for `cpu_f32_*`.
 
 use crate::mem::CpuBuffer;
-use intarsia_core::{Buffer, Error, Op, OpAttrs, OpCall, Result, TensorRef};
+use intarsia_core::{Buffer, DType, Error, Op, OpAttrs, OpCall, Result, TensorRef};
 
 fn tmp(like: &TensorRef, shape: &[usize]) -> TensorRef {
     let bytes = shape.iter().product::<usize>() * like.dtype.size_bytes();
     TensorRef::new(Buffer::new(CpuBuffer::zeroed(bytes)), like.dtype, shape)
+}
+
+fn tmp_dt(dtype: DType, shape: &[usize]) -> TensorRef {
+    let bytes = shape.iter().product::<usize>() * dtype.size_bytes();
+    TensorRef::new(Buffer::new(CpuBuffer::zeroed(bytes)), dtype, shape)
 }
 
 fn step(sub: fn(&OpCall) -> Result<()>, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<()> {
@@ -111,6 +116,29 @@ pub fn run(call: &OpCall, sub: fn(&OpCall) -> Result<()>) -> Result<()> {
             sub(&conv)?;
             delta.check()?;
             sub(&delta)
+        }
+        Op::MoeBlock => {
+            // exactly the chain `MoeWeights::forward_folded` runs without the op: MoeTopk -> MoeExperts (routed output in the
+            // activation dtype) -> shared gate / up NVFP4 matmuls -> SiluGlu -> SharedDownCombine's own composition
+            let (t, h, k) = (i[0].shape[0], i[0].shape[1], a.top_k);
+            let (is, act) = (i[8].shape[0], o[0].dtype);
+            let (tw, ti) = (tmp_dt(DType::F32, &[t, k]), tmp_dt(DType::I32, &[t, k]));
+            step(sub, Op::MoeTopk, vec![i[1].clone()], vec![tw.clone(), ti.clone()], a.clone())?;
+            let routed = tmp_dt(act, &[t, h]);
+            let experts = vec![i[0].clone(), ti, tw, i[3].clone(), i[4].clone(), i[5].clone(), i[6].clone(), i[7].clone()];
+            step(sub, Op::MoeExperts, experts, vec![routed.clone()], a.clone())?;
+            let (g, u, act_sh) = (tmp_dt(act, &[t, is]), tmp_dt(act, &[t, is]), tmp_dt(act, &[t, is]));
+            step(sub, Op::MatmulNvfp4, vec![i[0].clone(), i[8].clone(), i[9].clone(), i[10].clone()], vec![g.clone()], d())?;
+            step(sub, Op::MatmulNvfp4, vec![i[0].clone(), i[11].clone(), i[12].clone(), i[13].clone()], vec![u.clone()], d())?;
+            step(sub, Op::SiluGlu, vec![g, u], vec![act_sh.clone()], d())?;
+            let down = OpCall::new(
+                Op::SharedDownCombine,
+                vec![act_sh, i[14].clone(), i[15].clone(), i[16].clone(), routed, i[2].clone()],
+                vec![o[0].clone()],
+                d(),
+            );
+            down.check()?;
+            run(&down, sub)
         }
         other => Err(Error::invalid(format!("fused_ref cannot run {other}"))),
     }

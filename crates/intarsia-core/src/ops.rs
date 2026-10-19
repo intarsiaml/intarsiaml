@@ -100,10 +100,12 @@ pub enum Op {
     // appended (2026-10-19, core-op fusion phase 2), for the same reason
     GateSplitQkNormRopeKv,
     GdnConvDelta,
+    // appended (2026-10-19, core-op fusion P2'): the whole MoE block after the router logits, for the same reason
+    MoeBlock,
 }
 
 impl Op {
-    pub const ALL: [Op; 35] = [
+    pub const ALL: [Op; 36] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -139,6 +141,7 @@ impl Op {
         Op::SharedDownCombine,
         Op::GateSplitQkNormRopeKv,
         Op::GdnConvDelta,
+        Op::MoeBlock,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -179,6 +182,7 @@ impl Op {
             Op::SharedDownCombine => "shared_down_combine",
             Op::GateSplitQkNormRopeKv => "gate_split_qk_norm_rope_kv",
             Op::GdnConvDelta => "gdn_conv_delta",
+            Op::MoeBlock => "moe_block",
         }
     }
 
@@ -222,6 +226,7 @@ impl Op {
             Op::SharedDownCombine => (6, 1),
             Op::GateSplitQkNormRopeKv => (5, 4),
             Op::GdnConvDelta => (6, 3),
+            Op::MoeBlock => (17, 1),
         }
     }
 }
@@ -304,7 +309,7 @@ impl OpCall {
     }
 
     /// The same call on `rows` rows, for the row-local fused decode ops whose activation tensors all lead with the row
-    /// count (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`); `None` for any other op. Only the
+    /// count (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`, `MoeBlock`); `None` for any other op. Only the
     /// shapes change (the views keep their buffers), so the result is a `Registry::select` probe, never a launch: the
     /// model asks whether a batched step of `rows` rows would select a kernel for the op too, and does not fuse the solo
     /// step when it would not (the batch must run the solo step's op multiset, `plan::check_batch_ops`).
@@ -313,6 +318,7 @@ impl OpCall {
             Op::RmsNormAddMatmulFp8Pair => (&[0, 1], &[0, 1, 2, 3]),
             Op::SigmoidMulMatmulFp8 => (&[0, 1], &[0]),
             Op::SharedDownCombine => (&[0, 4, 5], &[0]),
+            Op::MoeBlock => (&[0, 1, 2], &[0]),
             _ => return None,
         };
         let mut c = self.clone();
@@ -551,7 +557,8 @@ impl OpCall {
             | Op::GatedRmsnormMatmulFp8
             | Op::RmsNormAddMatmulFp8Pair
             | Op::SigmoidMulMatmulFp8
-            | Op::SharedDownCombine => crate::quant::ops::check(self)?,
+            | Op::SharedDownCombine
+            | Op::MoeBlock => crate::quant::ops::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::check(self)?,
         }
         Ok(())
@@ -657,7 +664,8 @@ impl ShapeInfo {
             | Op::GatedRmsnormMatmulFp8
             | Op::RmsNormAddMatmulFp8Pair
             | Op::SigmoidMulMatmulFp8
-            | Op::SharedDownCombine => crate::quant::ops::shape(call, &mut s),
+            | Op::SharedDownCombine
+            | Op::MoeBlock => crate::quant::ops::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::shape(call, &mut s),
         }
         let _ = o;
@@ -833,6 +841,95 @@ mod tests {
         assert!(with_pos.check().is_err(), "the GDN ops take no device position");
         // neither is a row-local fold of phase 1
         assert!(p4a.with_rows(2).is_none() && p3.with_rows(2).is_none());
+    }
+
+    /// P2' `MoeBlock`: arity, the composed checks, the shape facts (IS rides in `head_dim`) and the row-local probe.
+    #[test]
+    fn check_moeblock() {
+        let b = |s: &[usize]| t(DType::Bf16, s);
+        let (u8_, f8, f32_) = (|s: &[usize]| t(DType::U8, s), |s: &[usize]| t(DType::Fp8E4m3, s), |s: &[usize]| t(DType::F32, s));
+        // T = 2, E = 8, K = 2, H = 64, I = 32, IS = 48
+        let (tt, e, k, h, i, is) = (2usize, 8usize, 2usize, 64usize, 32usize, 48usize);
+        let attrs = OpAttrs { top_k: k, norm_topk: true, ..OpAttrs::default() };
+        let call = OpCall::new(
+            Op::MoeBlock,
+            vec![
+                b(&[tt, h]),
+                b(&[tt, e]),
+                b(&[tt, 1]),
+                u8_(&[e, 2 * i, h / 2]),
+                f8(&[e, 2 * i, h / 16]),
+                u8_(&[e, h, i / 2]),
+                f8(&[e, h, i / 16]),
+                f32_(&[e, 3]),
+                u8_(&[is, h / 2]),
+                f8(&[is, h / 16]),
+                f32_(&[1]),
+                u8_(&[is, h / 2]),
+                f8(&[is, h / 16]),
+                f32_(&[1]),
+                u8_(&[h, is / 2]),
+                f8(&[h, is / 16]),
+                f32_(&[1]),
+            ],
+            vec![b(&[tt, h])],
+            attrs,
+        );
+        assert_eq!(Op::MoeBlock.arity(), (17, 1));
+        assert_eq!(Op::MoeBlock.as_str(), "moe_block");
+        assert_eq!(Op::ALL.last(), Some(&Op::MoeBlock), "appended at the end");
+        call.check().unwrap();
+        let s = ShapeInfo::from_call(&call);
+        assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));
+        assert_eq!((s.act, s.weight, s.out), (Some(DType::Bf16), Some(DType::U8), Some(DType::Bf16)));
+        assert_eq!(crate::quant::ops::moe_block_scratch(&s), crate::quant::ops::moe_block_scratch_bytes(tt, k, i, is));
+        // h region: 2*2*32*2 = 256 bytes; sa region: 2*48*2 = 192 -> 256
+        assert_eq!(crate::quant::ops::moe_block_scratch(&s), 512);
+        let r1 = call.with_rows(1).unwrap();
+        assert_eq!((r1.inputs[0].shape.clone(), r1.inputs[1].shape.clone(), r1.inputs[2].shape.clone()), (vec![1, h], vec![1, e], vec![1, 1]));
+        assert_eq!((r1.inputs[3].shape.clone(), r1.outputs[0].shape.clone()), (vec![e, 2 * i, h / 2], vec![1, h]));
+        r1.check().unwrap();
+        // every tensor is checked
+        let breaks: Vec<(usize, TensorRef)> = vec![
+            (1, b(&[tt, e + 1])),
+            (2, b(&[tt, 2])),
+            (3, u8_(&[e, 2 * i, h / 2 + 1])),
+            (4, f8(&[e, 2 * i, h / 16 + 1])),
+            (5, u8_(&[e, h, i / 2 + 1])),
+            (6, t(DType::F32, &[e, h, i / 16])),
+            (7, f32_(&[e, 2])),
+            (8, u8_(&[is, h / 2 + 1])),
+            (9, f8(&[is + 16, h / 16])),
+            (10, f32_(&[2])),
+            (11, u8_(&[is + 16, h / 2])),
+            (12, f8(&[is, h / 16 + 1])),
+            (13, b(&[1])),
+            (14, u8_(&[h, is / 2 + 1])),
+            (15, f8(&[h + 1, is / 16])),
+            (16, f32_(&[1, 1])),
+        ];
+        for (idx, bad_t) in breaks {
+            let mut bad = call.clone();
+            bad.inputs[idx] = bad_t;
+            assert!(bad.check().is_err(), "input {idx} not checked");
+        }
+        let mut bad = call.clone();
+        bad.outputs[0] = b(&[tt, h + 16]);
+        assert!(bad.check().is_err());
+        for top_k in [0, e + 1] {
+            let mut bad = call.clone();
+            bad.attrs.top_k = top_k;
+            assert!(bad.check().is_err(), "top_k {top_k}");
+        }
+        // the shared intermediate must be a multiple of 16
+        let mut bad = call.clone();
+        bad.inputs[8] = u8_(&[40, h / 2]);
+        bad.inputs[9] = f8(&[40, h / 16]);
+        bad.inputs[11] = u8_(&[40, h / 2]);
+        bad.inputs[12] = f8(&[40, h / 16]);
+        bad.inputs[14] = u8_(&[h, 20]);
+        bad.inputs[15] = f8(&[h, 2]);
+        assert!(bad.check().is_err());
     }
 
     #[test]
