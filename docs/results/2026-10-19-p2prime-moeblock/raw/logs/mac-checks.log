@@ -1,0 +1,7 @@
+HEAD cea2e18b
+cargo test --workspace: 105 binaries, passed 501, failed 0
+cargo test exit 0
+cargo check --workspace: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s
+cargo check -p intarsia-cli --features hip: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.43s
+cargo check -p intarsia-cli --features metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.27s
+cargo build -p intarsia-backend-metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.58s
