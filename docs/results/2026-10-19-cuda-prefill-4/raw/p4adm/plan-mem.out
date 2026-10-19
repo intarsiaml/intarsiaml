@@ -1,0 +1,8 @@
+device.mem_total                         130663231488  130663231488  130663231488
+kv_dtype                                 bf16  bf16  bf16
+scratch_bytes                            83963392  83963392  83963392
+plan-base.json matmul_fp8 matmul_fp8_gemm scratch None
+plan-base.json matmul_fp8 matmul_fp8_gemm_reg scratch None
+plan-dev.json matmul_fp8 matmul_fp8_gemm scratch None
+plan-dev.json matmul_fp8 matmul_fp8_gemm_reg scratch None
+plan-f8.json matmul_fp8 matmul_fp8_gemm_f8 scratch None

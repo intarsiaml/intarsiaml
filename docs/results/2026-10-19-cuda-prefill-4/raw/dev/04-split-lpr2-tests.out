@@ -1,0 +1,174 @@
+fleetq: #2539 running on spark1: scripts/cuda-prefill4/dev.sh
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/p4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 10.42s
+  Executable tests/gdn_split.rs (target/acc/release/deps/gdn_split-1e27769768d3706f)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 34260464 Oct 18 21:48 /home/nvidia/intarsia-decfuse/p4-dev/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 46, 11.08 W, 0 %
+== gdn_split, INTARSIA_GDN_SPLIT_LPR=2
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+== gdn_split, INTARSIA_GDN_SPLIT_LPR=4
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+== gdn_split, INTARSIA_GDN_SPLIT_LPR=8
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+== gdn_lanes
+test gdn_lanes_is_as_accurate_as_the_rows_kernel ... ok
+test gdn_lanes_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+== gdn_timing round 1, INTARSIA_GDN_SPLIT_LPR=2 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            6.7 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.5 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          16.5 us/launch
+gdn_conv_bf16          T=128         32.7 us/launch
+gdn_delta_rule_bf16    T=128        159.7 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.2 us/launch
+gdn_delta_rule_bf16_split T=128         98.3 us/launch
+gdn_conv_bf16          T=512         86.3 us/launch
+gdn_delta_rule_bf16    T=512        588.2 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.0 us/launch
+gdn_delta_rule_bf16_split T=512        377.4 us/launch
+gdn_conv_bf16          T=2048       366.0 us/launch
+gdn_delta_rule_bf16    T=2048      2833.6 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1833.1 us/launch
+gdn_delta_rule_bf16_split T=2048      1696.5 us/launch
+== gdn_timing round 2, INTARSIA_GDN_SPLIT_LPR=2 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            6.6 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          31.6 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          16.5 us/launch
+gdn_conv_bf16          T=128         32.6 us/launch
+gdn_delta_rule_bf16    T=128        162.4 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.9 us/launch
+gdn_delta_rule_bf16_split T=128        103.9 us/launch
+gdn_conv_bf16          T=512         85.1 us/launch
+gdn_delta_rule_bf16    T=512        598.5 us/launch
+gdn_delta_rule_bf16_lanes T=512        377.2 us/launch
+gdn_delta_rule_bf16_split T=512        377.3 us/launch
+gdn_conv_bf16          T=2048       454.9 us/launch
+gdn_delta_rule_bf16    T=2048      2796.5 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1836.6 us/launch
+gdn_delta_rule_bf16_split T=2048      1717.9 us/launch
+== lib tests, env INTARSIA_X=0
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::moe_experts_selection_by_batch_size ... ok
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test kernels::tests::gdn_delta_rule_selection ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== lib tests, env INTARSIA_CUDA_GDN_SPLIT=0
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::moe_experts_selection_by_batch_size ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test kernels::tests::gdn_delta_rule_selection ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== lib tests, env INTARSIA_CUDA_FP8_GEMM_F8=1
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::moe_experts_selection_by_batch_size ... ok
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::gdn_delta_rule_selection ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== lib tests, env INTARSIA_CUDA_GDN_LANES=1
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::moe_experts_selection_by_batch_size ... ok
+test kernels::tests::gdn_delta_rule_selection ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== wq tests, env INTARSIA_X=0
+test fp8_gemm_reg_35b_shapes ... ok
+test fp8_gemm_reg_every_e4m3_code ... ok
+test fp8_gemm_reg_is_bitwise_the_gemm ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test bench_wq_prefill_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 f8 gemm 2.323e-5; elements off: 0.0011 / 0.0001
+act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 f8 gemm 1.163e-7; elements off: 0.9799 / 0.7553
+act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 f8 gemm 9.521e-6; elements off: 0.0003 / 0.0001
+act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 2.928e-5 f8 gemm 2.928e-5; elements off: 0.0003 / 0.0003
+act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 1.212e-4 f8 gemm 1.212e-4; elements off: 0.0017 / 0.0017
+act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.226e-6 f8 gemm 1.226e-6; elements off: 0.9885 / 0.9885
+act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 5.217e-5 f8 gemm 5.217e-5; elements off: 0.0004 / 0.0004
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 new 0.0014; rel_l2 old 8.005e-5 new 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 new 0.0025; rel_l2 old 1.123e-4 new 1.751e-4
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 4.72s
+== wq tests, env INTARSIA_CUDA_FP8_GEMM_F8=1
+test fp8_gemm_reg_35b_shapes ... ok
+test fp8_gemm_reg_every_e4m3_code ... ok
+test fp8_gemm_reg_is_bitwise_the_gemm ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test bench_wq_prefill_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 f8 gemm 2.323e-5; elements off: 0.0011 / 0.0001
+act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 f8 gemm 1.163e-7; elements off: 0.9799 / 0.7553
+act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 f8 gemm 9.521e-6; elements off: 0.0003 / 0.0001
+act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 2.928e-5 f8 gemm 2.928e-5; elements off: 0.0003 / 0.0003
+act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 1.212e-4 f8 gemm 1.212e-4; elements off: 0.0017 / 0.0017
+act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.226e-6 f8 gemm 1.226e-6; elements off: 0.9885 / 0.9885
+act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 5.217e-5 f8 gemm 5.217e-5; elements off: 0.0004 / 0.0004
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 new 0.0014; rel_l2 old 8.005e-5 new 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 new 0.0025; rel_l2 old 1.123e-4 new 1.751e-4
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 4.75s
+fleetq: #2539 done (exit 0)

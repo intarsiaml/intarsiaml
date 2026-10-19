@@ -1,0 +1,195 @@
+fleetq: #2536 running on spark1: scripts/cuda-prefill4/dev.sh
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/p4-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p4-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 9.68s
+  Executable tests/gdn_split.rs (target/acc/release/deps/gdn_split-1e27769768d3706f)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 34260464 Oct 18 21:46 /home/nvidia/intarsia-decfuse/p4-dev/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 45, 11.05 W, 0 %
+== gdn_split, INTARSIA_GDN_SPLIT_LPR=2
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+== gdn_split, INTARSIA_GDN_SPLIT_LPR=4
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+== gdn_split, INTARSIA_GDN_SPLIT_LPR=8
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+== gdn_lanes
+test gdn_lanes_is_as_accurate_as_the_rows_kernel ... ok
+test gdn_lanes_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
+== gdn_timing round 1, INTARSIA_GDN_SPLIT_LPR=2 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            6.5 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          31.6 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          16.6 us/launch
+gdn_conv_bf16          T=128         32.5 us/launch
+gdn_delta_rule_bf16    T=128        159.7 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.2 us/launch
+gdn_delta_rule_bf16_split T=128         98.3 us/launch
+gdn_conv_bf16          T=512        106.1 us/launch
+gdn_delta_rule_bf16    T=512        618.7 us/launch
+gdn_delta_rule_bf16_lanes T=512        375.7 us/launch
+gdn_delta_rule_bf16_split T=512        377.4 us/launch
+gdn_conv_bf16          T=2048       365.6 us/launch
+gdn_delta_rule_bf16    T=2048      2944.8 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1987.7 us/launch
+gdn_delta_rule_bf16_split T=2048      1699.3 us/launch
+== gdn_timing round 1, INTARSIA_GDN_SPLIT_LPR=4 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.3 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            8.2 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.0 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          18.5 us/launch
+gdn_conv_bf16          T=128         32.6 us/launch
+gdn_delta_rule_bf16    T=128        161.8 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.2 us/launch
+gdn_delta_rule_bf16_split T=128        112.7 us/launch
+gdn_conv_bf16          T=512         85.5 us/launch
+gdn_delta_rule_bf16    T=512        591.4 us/launch
+gdn_delta_rule_bf16_lanes T=512        377.0 us/launch
+gdn_delta_rule_bf16_split T=512        433.0 us/launch
+gdn_conv_bf16          T=2048       367.0 us/launch
+gdn_delta_rule_bf16    T=2048      2864.1 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1998.5 us/launch
+gdn_delta_rule_bf16_split T=2048      1865.1 us/launch
+== gdn_timing round 1, INTARSIA_GDN_SPLIT_LPR=8 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            8.2 us/launch
+gdn_conv_bf16          T=16          16.5 us/launch
+gdn_delta_rule_bf16    T=16          32.2 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          30.8 us/launch
+gdn_conv_bf16          T=128         32.7 us/launch
+gdn_delta_rule_bf16    T=128        162.4 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.2 us/launch
+gdn_delta_rule_bf16_split T=128        209.2 us/launch
+gdn_conv_bf16          T=512         86.6 us/launch
+gdn_delta_rule_bf16    T=512        635.1 us/launch
+gdn_delta_rule_bf16_lanes T=512        377.1 us/launch
+gdn_delta_rule_bf16_split T=512        795.3 us/launch
+gdn_conv_bf16          T=2048       419.8 us/launch
+gdn_delta_rule_bf16    T=2048      2888.9 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1837.1 us/launch
+gdn_delta_rule_bf16_split T=2048      4063.6 us/launch
+== gdn_timing round 2, INTARSIA_GDN_SPLIT_LPR=2 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.0 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.0 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.4 us/launch
+gdn_delta_rule_bf16_split T=16          16.5 us/launch
+gdn_conv_bf16          T=128         32.6 us/launch
+gdn_delta_rule_bf16    T=128        158.0 us/launch
+gdn_delta_rule_bf16_lanes T=128        104.5 us/launch
+gdn_delta_rule_bf16_split T=128         98.3 us/launch
+gdn_conv_bf16          T=512         89.1 us/launch
+gdn_delta_rule_bf16    T=512        591.3 us/launch
+gdn_delta_rule_bf16_lanes T=512        377.1 us/launch
+gdn_delta_rule_bf16_split T=512        377.5 us/launch
+gdn_conv_bf16          T=2048       394.2 us/launch
+gdn_delta_rule_bf16    T=2048      2787.3 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1834.7 us/launch
+gdn_delta_rule_bf16_split T=2048      1866.4 us/launch
+== gdn_timing round 2, INTARSIA_GDN_SPLIT_LPR=4 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.8 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.3 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.4 us/launch
+gdn_delta_rule_bf16_split T=16          18.5 us/launch
+gdn_conv_bf16          T=128         32.7 us/launch
+gdn_delta_rule_bf16    T=128        159.4 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.4 us/launch
+gdn_delta_rule_bf16_split T=128        112.6 us/launch
+gdn_conv_bf16          T=512         85.7 us/launch
+gdn_delta_rule_bf16    T=512        609.7 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.5 us/launch
+gdn_delta_rule_bf16_split T=512        436.1 us/launch
+gdn_conv_bf16          T=2048       364.1 us/launch
+gdn_delta_rule_bf16    T=2048      2821.8 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1833.7 us/launch
+gdn_delta_rule_bf16_split T=2048      1863.8 us/launch
+== gdn_timing round 2, INTARSIA_GDN_SPLIT_LPR=8 (lanes kernel at its default LPR 4)
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            8.2 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.2 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          30.8 us/launch
+gdn_conv_bf16          T=128         32.5 us/launch
+gdn_delta_rule_bf16    T=128        158.8 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.2 us/launch
+gdn_delta_rule_bf16_split T=128        208.5 us/launch
+gdn_conv_bf16          T=512         85.9 us/launch
+gdn_delta_rule_bf16    T=512        589.6 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.8 us/launch
+gdn_delta_rule_bf16_split T=512        796.2 us/launch
+gdn_conv_bf16          T=2048       429.9 us/launch
+gdn_delta_rule_bf16    T=2048      2889.9 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1831.7 us/launch
+gdn_delta_rule_bf16_split T=2048      4047.1 us/launch
+== resources (gdn.o)
+ Function gdn_delta_split_kernelILi64ELi4EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:79 STACK:0 SHARED:4864 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_split_kernelILi64ELi8EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:80 STACK:0 SHARED:4096 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_split_kernelILi64ELi2EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:125 STACK:0 SHARED:6784 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_split_kernelILi128ELi4EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:144 STACK:0 SHARED:7936 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_split_kernelILi128ELi8EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:117 STACK:0 SHARED:6144 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_split_kernelILi128ELi2EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:209 STACK:0 SHARED:11904 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_lanes_kernelILi64ELi4EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:78 STACK:0 SHARED:1536 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_lanes_kernelILi64ELi8EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:70 STACK:0 SHARED:1536 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_lanes_kernelILi64ELi2EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:123 STACK:0 SHARED:1536 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_lanes_kernelILi128ELi4EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:118 STACK:0 SHARED:2048 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_lanes_kernelILi128ELi8EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:80 STACK:0 SHARED:2048 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_lanes_kernelILi128ELi2EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:168 STACK:0 SHARED:2048 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_kernelILi8EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:72 STACK:0 SHARED:0 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_rows_kernelILi128EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:255 STACK:232 SHARED:2048 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_rows_kernelILi64EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:184 STACK:0 SHARED:1536 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_delta_rows_kernelILi32EEEvPK13__nv_bfloat16S3_S3_S3_S3_fPS1_Pfliii:
+  REG:108 STACK:0 SHARED:1280 LOCAL:0 CONSTANT[0]:980 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_conv_state_kernelEPK13__nv_bfloat16Pflii:
+  REG:40 STACK:32 SHARED:0 LOCAL:0 CONSTANT[0]:928 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gdn_conv_kernelEPK13__nv_bfloat16S2_PS0_PKflii:
+  REG:54 STACK:0 SHARED:0 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+fleetq: #2536 done (exit 0)

@@ -1,0 +1,9 @@
+fleetq: #2537 running on spark1: scripts/cuda-decode/build.sh p4-base
+stamp: head=8638db0 code-tree=origin-main dirty=no
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/p4-base/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/p4-base/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/p4-base/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p4-base/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 12.81s
+-rwxrwxr-x 2 nvidia nvidia 33795824 Oct 18 21:48 /home/nvidia/intarsia-decfuse/p4-base/target/acc/release/intarsia
+fleetq: #2537 done (exit 0)

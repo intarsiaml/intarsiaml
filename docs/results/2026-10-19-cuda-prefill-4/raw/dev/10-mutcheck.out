@@ -1,0 +1,82 @@
+fleetq: #2641 running on spark1: scripts/cuda-prefill4/mutcheck.sh
+--- unmutated
+unmutated: pass (3 tests)
+--- kv-group-order
+applied kv-group-order: kv group sum contracted the other way (FMUL x, FFMA y instead of FMUL y, FFMA x)
+KILLED kv-group-order: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- out-group-order
+applied out-group-order: output group sum contracted the other way
+KILLED out-group-order: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s 
+--- kv-carry-order
+applied kv-carry-order: kv carry handed over in reverse lane order (groups summed in another order)
+KILLED kv-carry-order: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s 
+--- out-carry-order
+applied out-carry-order: output carry handed over in reverse lane order
+KILLED out-carry-order: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s 
+--- group-chain-tree
+applied group-chain-tree: a lane's groups added as two halves (a tree) instead of left to right, in both dot products
+KILLED group-chain-tree: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- delta-sign
+applied delta-sign: delta = (kv - v) * beta
+KILLED delta-sign: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- decay-zw
+applied decay-zw: the decay is not applied to the z / w components of the state
+KILLED decay-zw: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- update-uses-q
+applied update-uses-q: the x component of the update uses q instead of k
+KILLED update-uses-q: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s 
+--- out-lane
+applied out-lane: the output is written by the first lane of a row (which holds a partial sum only)
+KILLED out-lane: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- tile-pad
+applied tile-pad: the state tile slot of the coalesced load / store ignores the pad float4 (disagrees with the lane's own slots)
+KILLED tile-pad: gdn_split_is_bitwise_the_rows_kernel gdn_split_state_carries_across_calls result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s 
+--- tile-mine
+applied tile-mine: a lane reads / writes its own state slots without the pad float4
+KILLED tile-mine: gdn_split_is_bitwise_the_rows_kernel gdn_split_state_carries_across_calls result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s 
+--- stage-pad
+applied stage-pad: q / k staged without the pad float4 (the reads expect it)
+KILLED stage-pad: gdn_split_is_bitwise_the_rows_kernel gdn_split_state_carries_across_calls result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s 
+--- stage-first
+applied stage-first: a lane reads its staged q / k groups without the pad float4
+KILLED stage-first: gdn_split_is_bitwise_the_rows_kernel gdn_split_state_carries_across_calls result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- prefetch-index
+applied prefetch-index: the raw inputs prefetched for token t + 1 instead of t + 2 (the next token's norm sees the wrong token)
+KILLED prefetch-index: gdn_split_is_bitwise_the_rows_kernel gdn_split_state_carries_across_calls result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- prep-buffer
+applied prep-buffer: the next token's q / k written into the current buffer
+KILLED prep-buffer: gdn_split_is_bitwise_the_rows_kernel gdn_split_state_carries_across_calls result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s 
+--- prologue-prefetch
+applied prologue-prefetch: the prologue prefetches token 0 again instead of token 1
+KILLED prologue-prefetch: gdn_split_is_bitwise_the_rows_kernel gdn_split_state_carries_across_calls result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s 
+--- store-guard
+applied store-guard: the coalesced store writes every row of the last block, past dv (into the next head's rows)
+KILLED store-guard: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s 
+--- nrows
+applied nrows: a block always takes RPW rows (the partial last block of a head reads / writes the next head's rows)
+KILLED nrows: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s 
+--- fast-exp
+applied fast-exp: the decay uses __expf (fast approximate exp) instead of expf
+KILLED fast-exp: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s 
+--- q-norm
+applied q-norm: q staged with k's norm
+KILLED q-norm: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s 
+--- v-zero
+applied v-zero: v is zero
+KILLED v-zero: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s 
+--- beta-one
+applied beta-one: beta = 1 (the sigmoid of b dropped)
+KILLED beta-one: gdn_split_is_bitwise_the_rows_kernel result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s 
+--- no-loop-sync
+applied no-loop-sync: no __syncwarp at the top of a token (the double buffer is unordered; a race that may go unseen)
+SURVIVED no-loop-sync: the tests passed on the mutated kernel
+--- EQ-add-commute
+applied EQ-add-commute: EQUIVALENT: c + g written as g + c (IEEE addition is commutative: same bits)
+SURVIVED EQ-add-commute: the tests passed on the mutated kernel
+--- EQ-last-shuffle
+applied EQ-last-shuffle: EQUIVALENT: the output's last stage also shuffles (from lane LPR - 1 itself: the writer already holds the value)
+SURVIVED EQ-last-shuffle: the tests passed on the mutated kernel
+--- EQ-lpr-default
+applied EQ-lpr-default: EQUIVALENT: 4 lanes per row by default instead of 2 (the bits do not depend on it; slower)
+SURVIVED EQ-lpr-default: the tests passed on the mutated kernel
+fleetq: #2641 done (exit 1)

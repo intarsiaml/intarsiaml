@@ -338,6 +338,157 @@ __global__ void __launch_bounds__(32) gdn_delta_lanes_kernel(
     }
 }
 
+// ---- delta rule, the rows kernel's arithmetic split over LPR lanes per state row ------------
+// BITWISE the same as gdn_delta_rows_kernel: the same fp32 operations in the same order, written with explicit
+// round-to-nearest intrinsics so nvcc cannot contract them differently. The order is the one nvcc 13.0 -O3 emits for
+// the rows kernel (cuobjdump -sass, docs/results/2026-10-19-cuda-prefill-4.md):
+//   * decay: s = s * decay (FMUL), element-wise;
+//   * a float4 group's dot product s.x*k.x + s.y*k.y + s.z*k.z + s.w*k.w is FMUL(y), then FFMA x, z, w;
+//   * kv (and out) = ((0 + g0) + g1) + ... + g_{DK/4-1}, the group sums added left to right (FADD chain);
+//   * delta = (v - kv) * beta; the update s = fma(k, delta, s); the output dot product as for kv, on the updated s.
+// The element-wise work (decay, update, group sums: 3/4 of the rows kernel's instructions) is split over LPR lanes;
+// lane l of a row owns the CONTIGUOUS groups [l*NG, (l+1)*NG), so the left-to-right sum is a carry handed lane to lane
+// (LPR stages of NG adds and one shuffle). q/k are staged in shared memory with one pad float4 after every NG groups
+// (the LPR lanes of a row then read distinct banks), double-buffered: the next token's l2 norm (two warp reductions)
+// is computed during the current token's update instead of before it. Different summation trees (the lanes kernel
+// above) change the 35B's greedy tokens and KL (docs/results/2026-10-19-cuda-prefill-3.md); this kernel does not.
+template <int DK, int LPR>
+__global__ void __launch_bounds__(32) gdn_delta_split_kernel(
+    const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
+    const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
+    float* __restrict__ state, int64_t T, int Hk, int Hv, int dv) {
+    constexpr int PL = DK / 32;            // raw q/k elements per lane for the cooperative load + l2 norm
+    constexpr int NG = DK / (4 * LPR);     // float4 groups of the state row per lane (contiguous)
+    constexpr int RPW = 32 / LPR;          // state rows per warp
+    constexpr int SW = 4 * (DK / 4 + LPR); // floats per staged vector: one pad float4 after every NG groups
+    __shared__ __align__(16) float sq[2][SW];
+    __shared__ __align__(16) float sk[2][SW];
+    const int lane = threadIdx.x;
+    const int l = lane % LPR, r = lane / LPR;
+    const int row0 = r * LPR;              // first lane of this row
+    const int j = blockIdx.x * RPW + r;
+    const bool valid = j < dv;
+    const int h = blockIdx.y;
+    const int kh = h / (Hv / Hk);
+    const int C = 2 * Hk * DK + Hv * dv;
+    const float scale = rsqrtf((float)DK);
+    const float neg_a = -expf(ik_b2f(a_log[h]));
+    const float dtb = ik_b2f(dt_bias[h]);
+
+    // The warp's RPW state rows are contiguous in memory: they are loaded (and stored at the end) coalesced, float4 q of
+    // the block by lane q % 32, through a padded shared-memory tile (one pad float4 after every NG groups and per row, so
+    // the lanes that read a row's contiguous groups hit distinct banks).
+    __shared__ __align__(16) float4 sst[RPW * (DK / 4 + LPR)];
+    float4* const blk = reinterpret_cast<float4*>(state + ((int64_t)h * dv + (int64_t)blockIdx.x * RPW) * DK);
+    const int nrows = min(RPW, dv - (int)blockIdx.x * RPW);
+    auto tile_at = [&](int q) {  // the tile slot of float4 q of the block (row q / (DK/4), group q % (DK/4))
+        const int rr = q / (DK / 4), gi = q % (DK / 4);
+        return rr * (DK / 4 + LPR) + (gi / NG) * (NG + 1) + gi % NG;
+    };
+#pragma unroll
+    for (int m = 0; m < NG; ++m) {
+        const int q = lane + 32 * m;
+        sst[tile_at(q)] = q / (DK / 4) < nrows ? blk[q] : make_float4(0.f, 0.f, 0.f, 0.f);
+    }
+    __syncwarp();
+    float4 s[NG];
+    const int mine = r * (DK / 4 + LPR) + l * (NG + 1);
+#pragma unroll
+    for (int i = 0; i < NG; ++i) s[i] = sst[mine + i];
+
+    float qr_[PL], kr_[PL], vraw = 0.f, araw = 0.f, braw = 0.f;
+    auto load_raw = [&](int64_t t) {
+        const ik_bf16* row = qkv + t * C;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qr_[i] = ik_b2f(row[kh * DK + lane + 32 * i]);
+            kr_[i] = ik_b2f(row[Hk * DK + kh * DK + lane + 32 * i]);
+        }
+        vraw = valid ? ik_b2f(row[2 * Hk * DK + h * dv + j]) : 0.f;
+        araw = ik_b2f(a[t * Hv + h]);
+        braw = ik_b2f(b[t * Hv + h]);
+    };
+    // normalise the loaded raw token into buffer `buf` and its scalars (the rows kernel's code, unchanged)
+    float nv = 0.f, nbeta = 0.f, ndecay = 0.f;
+    auto prep = [&](int buf) {
+        float qq = 0.f, kk = 0.f;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qq += qr_[i] * qr_[i];
+            kk += kr_[i] * kr_[i];
+        }
+        qq = ik_warp_sum(qq);
+        kk = ik_warp_sum(kk);
+        const float qn = rsqrtf(qq + eps) * scale, kn = rsqrtf(kk + eps);
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            const int e = lane + 32 * i, g = e >> 2;
+            const int at = 4 * (g + g / NG) + (e & 3);
+            sq[buf][at] = qr_[i] * qn;
+            sk[buf][at] = kr_[i] * kn;
+        }
+        nv = vraw;
+        nbeta = sigmoidf(braw);
+        ndecay = expf(neg_a * softplus(araw + dtb));
+    };
+    load_raw(0);
+    prep(0);
+    load_raw(T > 1 ? 1 : 0);
+    const int first = l * (NG + 1);        // this lane's first staged float4
+    for (int64_t t = 0; t < T; ++t) {
+        const int cur = (int)(t & 1);
+        __syncwarp();  // buffer `cur` (written last token) is visible; the reads of buffer cur ^ 1 are done
+        const float v = nv, beta = nbeta, decay = ndecay;
+        // the next token's norm, off the critical path; on the last token it redoes the last token (never read)
+        prep(cur ^ 1);
+        load_raw(t + 2 < T ? t + 2 : T - 1);
+        const float4* k4 = reinterpret_cast<const float4*>(sk[cur]) + first;
+        const float4* q4 = reinterpret_cast<const float4*>(sq[cur]) + first;
+        float g[NG];
+#pragma unroll
+        for (int i = 0; i < NG; ++i) {
+            const float4 kk4 = k4[i];
+            s[i].x = __fmul_rn(s[i].x, decay); s[i].y = __fmul_rn(s[i].y, decay);
+            s[i].z = __fmul_rn(s[i].z, decay); s[i].w = __fmul_rn(s[i].w, decay);
+            g[i] = __fmaf_rn(s[i].w, kk4.w, __fmaf_rn(s[i].z, kk4.z, __fmaf_rn(s[i].x, kk4.x, __fmul_rn(s[i].y, kk4.y))));
+        }
+        float kv = 0.f;
+#pragma unroll
+        for (int st = 0; st < LPR; ++st) {
+            float c = kv;
+#pragma unroll
+            for (int i = 0; i < NG; ++i) c = __fadd_rn(c, g[i]);
+            kv = __shfl_sync(0xffffffffu, c, row0 + st);
+        }
+        const float delta = __fmul_rn(__fsub_rn(v, kv), beta);
+#pragma unroll
+        for (int i = 0; i < NG; ++i) {
+            const float4 kk4 = k4[i], qq4 = q4[i];
+            s[i].x = __fmaf_rn(kk4.x, delta, s[i].x); s[i].y = __fmaf_rn(kk4.y, delta, s[i].y);
+            s[i].z = __fmaf_rn(kk4.z, delta, s[i].z); s[i].w = __fmaf_rn(kk4.w, delta, s[i].w);
+            g[i] = __fmaf_rn(s[i].w, qq4.w, __fmaf_rn(s[i].z, qq4.z, __fmaf_rn(s[i].x, qq4.x, __fmul_rn(s[i].y, qq4.y))));
+        }
+        float out = 0.f;
+#pragma unroll
+        for (int st = 0; st < LPR; ++st) {
+            float c = out;
+#pragma unroll
+            for (int i = 0; i < NG; ++i) c = __fadd_rn(c, g[i]);
+            out = st + 1 < LPR ? __shfl_sync(0xffffffffu, c, row0 + st) : c;  // the last stage: lane LPR - 1 holds it
+        }
+        if (valid && l == LPR - 1) o[(t * Hv + h) * dv + j] = ik_f2b(out);
+    }
+    __syncwarp();  // every lane's initial tile reads are long done; make the ordering explicit before reusing the tile
+#pragma unroll
+    for (int i = 0; i < NG; ++i) sst[mine + i] = s[i];
+    __syncwarp();
+#pragma unroll
+    for (int m = 0; m < NG; ++m) {
+        const int q = lane + 32 * m;
+        if (q / (DK / 4) < nrows) blk[q] = sst[tile_at(q)];
+    }
+}
+
 }  // namespace
 
 extern "C" {
@@ -449,6 +600,52 @@ int ik_gdn_delta_rule_bf16_lanes(const ik_tensor* qkv, const ik_tensor* a, const
         else IK_GDN_LANES(64, 4);
     }
 #undef IK_GDN_LANES
+    return ik_launch_status();
+}
+
+// Same contract as ik_gdn_delta_rule_bf16 and bitwise the same results; dk in {64, 128}. INTARSIA_GDN_SPLIT_LPR=4|8
+// picks other lanes per row than the default 2 (A/B only: the bits do not depend on it; 2 was fastest at T = 1..2048,
+// docs/results/2026-10-19-cuda-prefill-4.md).
+int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                                 const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream) {
+    IK_TRY(ik_check(qkv, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(b, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a_log, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(dt_bias, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(o, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(state, IK_DTYPE_F32, 3));
+    const int64_t T = qkv->shape[0], C = qkv->shape[1];
+    const int64_t Hv = o->shape[1], dv = o->shape[2], dk = state->shape[2];
+    if (dk == 0 || dv == 0 || Hv == 0 || C <= Hv * dv || (C - Hv * dv) % (2 * dk) != 0) return IK_ERR_SHAPE;
+    const int64_t Hk = (C - Hv * dv) / (2 * dk);
+    if (Hv % Hk != 0 || o->shape[0] != T || state->shape[0] != Hv || state->shape[1] != dv ||
+        a->shape[0] != T || a->shape[1] != Hv || b->shape[0] != T || b->shape[1] != Hv || a_log->shape[0] != Hv ||
+        dt_bias->shape[0] != Hv)
+        return IK_ERR_SHAPE;
+    if (dk != 64 && dk != 128) return IK_ERR_UNSUPPORTED;
+    if (!ik_aligned16(state->data)) return IK_ERR_INVALID_ARG;
+    if (T == 0) return IK_OK;
+    static const int lpr_env = [] {
+        const char* v = getenv("INTARSIA_GDN_SPLIT_LPR");
+        const int n = v ? atoi(v) : 0;
+        return (n == 2 || n == 4 || n == 8) ? n : 2;
+    }();
+    cudaStream_t s = IK_STREAM(stream);
+#define IK_GDN_SPLIT(DK, LPR)                                                                                        \
+    gdn_delta_split_kernel<DK, LPR><<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv), 32, 0, s>>>( \
+        (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,    \
+        (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, T, (int)Hk, (int)Hv, (int)dv)
+    if (dk == 128) {
+        if (lpr_env == 4) IK_GDN_SPLIT(128, 4);
+        else if (lpr_env == 8) IK_GDN_SPLIT(128, 8);
+        else IK_GDN_SPLIT(128, 2);
+    } else {
+        if (lpr_env == 4) IK_GDN_SPLIT(64, 4);
+        else if (lpr_env == 8) IK_GDN_SPLIT(64, 8);
+        else IK_GDN_SPLIT(64, 2);
+    }
+#undef IK_GDN_SPLIT
     return ik_launch_status();
 }
 

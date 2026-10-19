@@ -1,0 +1,1 @@
+2026-10-19 job=2608 stop=01:48:12 up=02:02:53 down=14.6 min label="intarsiaml cuda-prefill-4 window B: A/B base/split/f8 x3 rounds + localeval dev (vLLM down <=17 min)" serving=1

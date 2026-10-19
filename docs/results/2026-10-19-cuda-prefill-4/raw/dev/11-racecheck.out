@@ -1,0 +1,21 @@
+fleetq: #2643 running on spark1: scripts/cuda-prefill4/racecheck.sh
+--- unmutated
+      1 ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 2.93s
+unmutated: racecheck clean
+--- no-loop-sync
+applied no-loop-sync: no __syncwarp at the top of a token (the double buffer is unordered; a race that may go unseen)
+      1 test gdn_split_state_carries_across_calls ... ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x844 in block (2,6,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x840 in block (0,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x841 in block (0,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x842 in block (0,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x843 in block (0,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x844 in block (0,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x844 in block (2,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x845 in block (0,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x845 in block (2,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x845 in block (2,6,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x846 in block (0,2,0) :
+      1 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ 0x846 in block (2,2,0) :
+KILLED no-loop-sync: racecheck reports 12 hazard(s)
+fleetq: #2643 done (exit 0)
