@@ -36,7 +36,7 @@ if has sass; then
 fi
 if has probe; then
   echo "== kv_stream probe"
-  rsh "cd $R/$TREE && mkdir -p target/probe && nvcc -O3 -gencode arch=compute_121,code=sm_121 kernels/cuda_checks/kv_stream.cu -o target/probe/kv_stream && for c in ${CAPS:-1024 4096 16384 32768}; do target/probe/kv_stream \$c; done"
+  rsh "cd $R/$TREE && mkdir -p target/probe && nvcc -O3 -gencode arch=compute_121,code=sm_121 kernels/cuda_checks/kv_stream.cu -o target/probe/kv_stream && for c in ${CAPS:-1024 4096 16384 32768}; do for d in ${PROBE_DATA:-memset rand}; do target/probe/kv_stream \$c \$d; done; done"
 fi
 if has att; then
   echo "== attention_throughput (one cache, repeated)"
@@ -80,6 +80,10 @@ if has kq; then
     echo "== kernels test --backend cuda --quick -m $(basename $(dirname $(dirname $m)))"
     rsh "cd $R/$TREE && target/acc/release/intarsia kernels test --backend cuda --quick -m $m > /tmp/kq_\$\$.out 2>&1; echo \"exit \$?\"; grep -cE ' ADMITTED\$' /tmp/kq_\$\$.out | sed 's/^/ADMITTED: /'; grep -cE 'NO CASES' /tmp/kq_\$\$.out | sed 's/^/NO CASES: /'; grep -cE ' REJECTED\$' /tmp/kq_\$\$.out | sed 's/^/REJECTED: /'; grep -E 'incomplete:|kernels, |^Error|SKIPPED' /tmp/kq_\$\$.out | cut -c1-160; rm -f /tmp/kq_\$\$.out"
   done
+fi
+if has kvs; then
+  echo "== KV-cache scale tensors in the 35B checkpoint (index keys; read-only)"
+  rsh "python3 $R/$TREE/scripts/cuda-round5/kv_scales.py"
 fi
 if has fi; then
   echo "== FlashInfer decode planning in the vLLM container (read-only)"

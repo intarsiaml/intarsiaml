@@ -6,7 +6,8 @@
 //              KB keys of K and V per thread per iteration) with no arithmetic: the ceiling of that access pattern
 //   pattern+N  the same, N iterations of loads in flight per thread (prefetch depth)
 // Prints us per layer and GB/s for each mode.
-//   nvcc -O3 -gencode arch=compute_121,code=sm_121 kernels/cuda_checks/kv_stream.cu -o kv_stream && ./kv_stream [cap]
+//   nvcc -O3 -gencode arch=compute_121,code=sm_121 kernels/cuda_checks/kv_stream.cu -o kv_stream && ./kv_stream [cap] [rand]
+// (rand: hash-filled caches instead of a memset; DRAM traffic of constant data may be cheaper than of real data)
 #include <cstdio>
 #include <cstdlib>
 #include <cuda_runtime.h>
@@ -68,13 +69,27 @@ __global__ void __launch_bounds__(256) pattern_rd(const uint16_t* __restrict__ k
     if (acc == 0x9e3779b9u) atomicAdd(sink, 1u);
 }
 
+// fill with a per-element hash (random-looking bf16 bit patterns, finite): what a real cache holds, unlike a memset
+__global__ void fill_hash(uint32_t* p, size_t n32, uint32_t seed) {
+    for (size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x; i < n32; i += (size_t)gridDim.x * blockDim.x) {
+        uint32_t x = (uint32_t)i * 0x9e3779b1u ^ seed;
+        x ^= x >> 15; x *= 0x85ebca6bu; x ^= x >> 13; x *= 0xc2b2ae35u; x ^= x >> 16;
+        p[i] = x & 0xbfffbfffu;  // clear each half's exponent MSB: finite bf16 values
+    }
+}
+
 int main(int argc, char** argv) {
     const int64_t cap = argc > 1 ? atoll(argv[1]) : 16384;
     const size_t per = (size_t)NKV * cap * D * 2;  // bytes of K (or V) per layer
     uint16_t *k[LAYERS], *v[LAYERS];
     for (int l = 0; l < LAYERS; ++l) {
         cudaMalloc(&k[l], per); cudaMalloc(&v[l], per);
-        cudaMemset(k[l], 0x11, per); cudaMemset(v[l], 0x22, per);
+        if (argc > 2 && argv[2][0] == 'r') {
+            fill_hash<<<1024, 256>>>((uint32_t*)k[l], per / 4, 2 * l + 1);
+            fill_hash<<<1024, 256>>>((uint32_t*)v[l], per / 4, 2 * l + 2);
+        } else {
+            cudaMemset(k[l], 0x11, per); cudaMemset(v[l], 0x22, per);
+        }
     }
     uint32_t* sink; cudaMalloc(&sink, 4);
     int sms = 0; cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, 0);
@@ -85,6 +100,8 @@ int main(int argc, char** argv) {
     if (nsplit > fill) nsplit = fill;
     if (nsplit > 64) nsplit = 64;
     int64_t chunk = (kv_len + nsplit - 1) / nsplit; chunk = (chunk + 63) / 64 * 64;
+    cudaDeviceSynchronize();
+    printf("[%s data] ", argc > 2 && argv[2][0] == 'r' ? "random" : "memset");
     printf("cap %lld: %d SMs, %.1f MB per layer (K+V), nsplit %lld, chunk %lld\n", (long long)cap, sms, 2.0 * per / 1e6,
            (long long)nsplit, (long long)chunk);
     auto timeit = [&](const char* name, auto launch) {
