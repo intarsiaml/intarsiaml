@@ -72,6 +72,12 @@ int ik_sigmoid_mul_matmul_fp8_gemv(const ik_tensor* a, const ik_tensor* gate, co
 int ik_shared_down_combine_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik_tensor* gs,
                                       const ik_tensor* routed, const ik_tensor* logit, ik_tensor* out, void* stream);
 
+/* P2' (docs/results/2026-10-19-p2prime-moeblock.md), moe_block.hip: Op::MoeBlock in one launch, bitwise moe_topk_bf16_v2 ->
+ * moe_experts_bf16_v2 -> matmul_nvfp4_glu_gemv (gate / up gemv + silu_glu at T > 1) -> shared_down_combine_nvfp4_gemv.
+ * `in` = the op's 17 inputs as one contiguous array; T * K <= 16, K <= 8, E <= 512; scratch ik_moe_block_scratch_bytes. */
+int ik_moe_block_bf16(const ik_tensor* in, int top_k, int norm, ik_tensor* out, const ik_scratch* scratch, void* stream);
+int64_t ik_moe_block_scratch_bytes(int64_t T, int64_t K, int64_t I, int64_t IS);
+
 /* Core-op fusion phase 2 (docs/results/2026-10-19-core-op-fusion-p2.md), each bitwise the two launches it replaces:
  *   gate_split_qk_norm_rope_kv_bf16 (P4a, gate_qkr.hip): ik_gate_split_bf16 then ik_qk_norm_rope_kv_bf16 of the split-off
  *     query; qg [T,N,2D], gate out [T,N,D]; the prologue's constraints.

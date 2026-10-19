@@ -536,6 +536,8 @@ impl Backend for HipBackend {
                     ffi::ik_moe_experts_bf16_v3(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
                 }
                 "moe_combine_bf16" => ffi::ik_moe_combine_bf16(i(0), i(1), i(2), o, s),
+                // the 17 inputs as one array: `inp` is a contiguous Vec, i(0) its first element
+                "moe_block_bf16" => ffi::ik_moe_block_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, sc, s),
                 "matmul_pair_bf16_gemv" => ffi::ik_matmul_pair_bf16_gemv(i(0), i(1), i(2), o, o.add(1), s),
                 "matmul_fp8_pair_gemv" => ffi::ik_matmul_fp8_pair_gemv(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
                 "matmul_nvfp4_glu_gemv" => ffi::ik_matmul_nvfp4_glu_gemv(i(0), i(1), i(2), i(3), i(4), i(5), i(6), o, s),

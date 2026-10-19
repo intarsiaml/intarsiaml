@@ -80,7 +80,7 @@ pub const TABLE: &[(&str, Op)] = &[
 ];
 
 /// Ops this backend does not implement (sampling stays on the cpu; `MoeBlock` until its kernel is registered, core-op fusion P2').
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MoeBlock];
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
 /// short prefill tails; longer chunks keep gdn_conv_bf16 + gdn_delta_rule_bf16_v2.
