@@ -254,7 +254,8 @@ MUTATIONS = {
     "v3-hrow": ("kernels/hip/moe.hip", [("                hload(k < K ? k : 0, lane, h0, h1);", "                hload(0, lane, h0, h1);")]),
     # the gate_up role stores its row in the neighbouring row's slot (h permuted)
     "v3-gurow": ("kernels/hip/moe.hip", [("            if (lane == 0) h[(int64_t)p * I + r] = ik_f2b(a * uu);", "            if (lane == 0) h[(int64_t)p * I + (r ^ 1)] = ik_f2b(a * uu);")]),
-    # the acquire fence before the h reads is dropped (may survive: the L0 / L1 lines of h are rarely stale in practice)
+    # the acquire fence before the h reads is dropped (survives: equivalent on gfx1201, the barrier's global_inv
+    # scope:SCOPE_SE still runs in every wave; docs/results/2026-10-19-p2prime-step0.md; v3-noorder is the killed one)
     # --- round 5: flash v2 (tests/flash_v2.rs, run at the default HPB = 2) ---
     # every wave group takes the block's first head
     "fl2-head": ("kernels/hip/attention_flash.hip", [("    const int h = blockIdx.y * HPB + (warp >> 2), kvh = (blockIdx.y * HPB) / G;", "    const int h = blockIdx.y * HPB, kvh = (blockIdx.y * HPB) / G;")]),
