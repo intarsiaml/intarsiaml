@@ -1,0 +1,24 @@
+   job wait min  run min  label
+  2657      2.7      0.1  cuda-round5: read vLLM config (read-only)
+  2661      0.0     16.6  cuda-round5 dev: build, splitkv resources, bw probe, racecheck wiring
+  2667      0.0     17.2  cuda-round5 dev: splitkv pipe build, bitwise tests, timing, racecheck parser
+  2675      0.0     17.4  cuda-round5 dev: head-split splitkv, timing, racecheck, kernels --quick exit
+  2677      0.0      0.4  cuda-round5 dev: probe memset vs random data, kv scales (read-only)
+  2682      0.0      2.1  cuda-round5 dev: build base+fp8kv trees, sass identity, f8kv tests/timing
+  2684      0.0      1.0  cuda-round5 dev: fp8 flash staging build, sass identity, f8kv tests/timing
+  2685      0.0      1.0  cuda-round5 dev: fp8 flash in-tile staging, sass identity, f8kv tests/timing
+  2686      0.0     22.4  cuda-round5 acc: KL21 base range vs fp8 KV, greedy ids, reuse, 8B goldens
+  2687     22.2      4.7  cuda-round5 dev: f8kv racecheck + mutation check
+  2690      0.0      0.0  cuda-round5 fetch r5A
+  2691      0.0      0.2  cuda-round5: sync+build r5-f8 before window
+  2692      0.0     14.2  intarsiaml cuda-round5 window 1: A/B base/dev/f8kv x3 rounds + localeval f8kv (vLLM down <
+  2700      0.0      0.0  cuda-round5 fetch r5B r5C
+  2701      0.0      8.8  cuda-round5 prof: decode + prefill nsys, bf16 vs fp8 KV (vLLM up, idle)
+  2703      0.0      0.1  cuda-round5 fetch prof
+  2704      0.0      0.6  localeval speed spark-guidance vllm-round5-sameday
+  2705      0.0      0.1  cuda-round5: sync r5-f8 before window 2
+  2706      0.0      5.8  intarsiaml cuda-round5 window 2: localeval base + dev (vLLM down <=10 min)
+  2708      0.0      1.8  cuda-round5 admission: attn sweeps, quick sweep, plan admit dev/f8
+  2709      0.0      0.5  localeval speed spark-guidance vllm-round5-sameday-2
+  2710      0.0      0.0  cuda-round5 fetch r5adm r5C
+total: wait 24.9 min, run 114.8 min over 22 jobs

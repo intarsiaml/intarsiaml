@@ -1,0 +1,4 @@
+    Checking intarsia-cli v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a5b3c881bb3be5c2f/crates/intarsia-cli)
+    Checking intarsia-backend-hip v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a5b3c881bb3be5c2f/crates/intarsia-backend-hip)
+    Checking intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a5b3c881bb3be5c2f/crates/intarsia-backend-cuda)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
