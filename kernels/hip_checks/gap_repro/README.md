@@ -1,8 +1,10 @@
 # GPU idle gap after >= ~1 ms kernels (gfx1201, ROCm 7.2.4)
 
-> **Correction (HIP round 9, `./gap_repro pat`, see "Where the stall sits" below).** The stall is NOT a profiler artifact: unprofiled, it is
-> there too, one dispatch later. The sweep below measures only `start[i+1] - end[i]`, which sees it under `rocprofv3` (it sits before the
-> dispatch right after the long kernel) and misses it unprofiled (there it sits inside that dispatch's own start..end interval).
+> **Correction (HIP round 9, `./gap_repro pat`, see "Where the stall sits" below).** The stall is not created by the profiler: unprofiled it
+> exists too, one dispatch later, whenever a SHORT dispatch (under ~260 us) follows a kernel of >= 1.05 ms. The sweep below measures
+> `start[i+1] - end[i]` with the next dispatch always as long as 0.5 ms or more, which overlaps the unprofiled window, so there the
+> unprofiled run really loses nothing and `rocprofv3`, which moves the window in front of the next dispatch, really adds ~265 us per long
+> kernel. The numbers below are right; the reading "only a profiler artifact" was wrong.
 
 Standalone HIP reproducer, no dependencies. `gap_repro.hip` queues 100 back-to-back launches of a spin kernel on one stream (no host
 sync, so the next dispatch was enqueued long before) for 0.5, 0.9, 1.0, 1.1, 1.5, 2, 3 ms and a mixed 2 ms / 0.5 ms sequence, in three
@@ -46,8 +48,9 @@ Median gap after a kernel, us (alu, 32 blocks; mem and wmma, other grids and the
   (measured duration; the cut-off follows kernel duration, not the nominal label: grid 64 at 0.9 ms runs 1.3 ms and has it), none
   after shorter ones, in all modes and grids. The knobs do not change it (279 us in each).
 * The kernels' own timestamps show the same gap, so it is real GPU idle while the profiler is attached, not a trace artifact.
-* Without the profiler the gap `start[i+1] - end[i]` after long kernels is 16-17 us (11-12 us for 0.9-1.0 ms, 2-3 us for 0.5 ms; but the
-  stall is still there, inside the next dispatch's own interval, see "Where the stall sits"): two small steps, 0.5 -> 0.9 ms
+* Without the profiler the gap `start[i+1] - end[i]` after long kernels is 16-17 us (11-12 us for 0.9-1.0 ms, 2-3 us for 0.5 ms; there the next
+  dispatch is a long one, so it overlaps the unprofiled window and nothing is lost; with a short next dispatch the stall shows, see "Where
+  the stall sits"): two small steps, 0.5 -> 0.9 ms
   (+9 us) and 1.0 -> 1.1 ms (+5 us), the second at the same duration as the 265 us step under the profiler. Only 5-6 of 7128 gaps
   per run exceed 100 us (single 276-308 us events, not tied to duration).
 * The runs used GPU 1 of two (`HIP_VISIBLE_DEVICES=1`) inside the dev image, whose launcher sets `GPU_MAX_HW_QUEUES=1` (listed in `env.txt`),
