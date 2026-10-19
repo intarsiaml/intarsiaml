@@ -6,7 +6,7 @@ Branch `perf/p2prime-default` on `perf/p2prime-moeblock` (`2adb9f29`). Not pushe
 
 **PASS. P2' is on by default on HIP, `INTARSIA_HIP_MOE_BLOCK=0` is the kill switch.** Default-flip commit: `0cea68fc`.
 
-* **No hang, no stall, no restart, no error.** 13 queueing replays plus an open-loop cancel load ran on each arm for 10.5 to 10.8 minutes. The slowest request took 9.8 s (P2') and 11.4 s (control), against a 60 s limit. 0 HTTP 429/503, 0 stream errors, `/health` 200 in every one of ~350 polls per arm, `engine_steps_total` never stuck, uptime monotonic, container exit 0 with 0 restarts, `journalctl -k` GPU filter empty.
+* **No hang, no stall, no restart, no error.** 13 queueing replays plus an open-loop cancel load ran on each arm for 10.5 to 10.8 minutes. The slowest request end to end took 10.1 s (P2') and 11.7 s (control) over replays and open-loop load, against a 60 s limit. 0 HTTP 429/503, 0 stream errors, `/health` 200 in every one of ~350 polls per arm, `engine_steps_total` never stuck, uptime monotonic, container exit 0 with 0 restarts, `journalctl -k` GPU filter empty.
 * **Identity.** Every one of 546 replayed requests per arm (42 distinct prompts, 32 greedy and 10 seeded-sampled; 131 to 4434 prompt tokens) has the same generated token ids as its solo run on the same server (client-cancelled streams are compared on the prefix received). A second solo pass after the soak is bitwise identical to the first. P2' and control solo ids are also identical to each other for all 42 prompts.
 * **Metrics.** After the load both arms drained to `requests_running = 0`, `requests_waiting = 0`, `requests_total = sum(finished)` (848 = 848 on each), `rejected = 0`, `engine_failed = 0`; 62 (P2') and 69 (control) requests finished as `cancelled`.
 * **Control.** Flag off passes every criterion too, so there is no pre-existing issue to report separately.
@@ -111,7 +111,7 @@ Mac checks on the final head (`raw/mac-checks.log`): `cargo test --workspace`, `
 | W1 | 2743 | 14:47:19 | 14:59:37 | 12.30 | soak: 35B serve max-batch 1, P2' on (GPU0) and off (GPU1) |
 | W2 | 2745 | 15:05:00 | 15:08:21 | 3.35 | quick gates with the default on, `=0` control, ids, plans |
 
-Total 15.65 min of the 45 allowed; no window over 20 min; 5.35 min of radiance serving between the two windows. Radiance answered `/v1/models` before each release; `docker ps` showed only `radiance` (both soak containers were removed by the window trap) before each release. CPU-only slots (radiance up): 2740 (binary check), 2744 (flip build). Nothing was run on spark1 or spark2. `raw/downtime.log` has the same rows.
+Total 15.65 min of the 45 allowed; no window over 20 min; 5.35 min of radiance serving between the two windows. The fleetq lease for W2 (job 2745) was taken at 15:01:20, so fleetq listed radiance as down for about 1.7 min before it was actually stopped (15:05:00); the 5.35 min above is physical serving time. Radiance answered `/v1/models` before each release; `docker ps` showed only `radiance` (both soak containers were removed by the window trap) before each release. CPU-only slots (radiance up): 2740 (binary check), 2744 (flip build). Nothing was run on spark1 or spark2. `raw/downtime.log` has the same rows.
 
 ## 9. Caveats
 
@@ -122,7 +122,7 @@ Total 15.65 min of the 45 allowed; no window over 20 min; 5.35 min of radiance s
 * One box, one window of about 11 minutes per arm (about 550 replayed requests and about 850 total per arm). It is a soak, not a multi-day run; the cross-block wait mechanism's ISA-level risk (parent doc, sections 5 and 13) is the same as before. The kill switch is the mitigation.
 * `dmesg` is not readable for the user on tatooine, so GPU hang and reset lines were taken from `journalctl -k --since <window start>` filtered for amdgpu, kfd, gpu, reset, timeout, fault, hang, ring (empty on both arms).
 * Seeded-sampled cases are in the identity counts; all 10 per replay matched.
-* The hang rule is "no data for 60 s" (client timeout) plus "total time over 60 s"; the longest request in any replay took 11.4 s, but all 8 queued requests wait behind each other, so latency under B = 8 is queue time, not stall time.
+* The hang rule is "no data for 60 s" (client timeout) plus "total time over 60 s"; the longest request in any replay or in the open-loop load took 11.7 s, but all 8 queued requests wait behind each other, so latency under B = 8 is queue time, not stall time.
 * Parent doc item "35b-long prefill FAIL" and CUDA/Metal no-op (spark1 section 9 on `2adb9f29`) are unchanged by this branch.
 
 ## 10. Files

@@ -172,7 +172,7 @@ is shown by mutant `p2p-ticket` (consumers first): it hangs at the 35B shape and
 - `when` = `moe_block_enabled() && moe_block_shape_ok(s)`.
 - `moe_block_enabled()` is `INTARSIA_HIP_MOE_BLOCK` == `"1"`, read once.
 - Off, `fused_ok` finds no kernel and the chain runs.
-- `moe_block_is_opt_in_and_its_shapes_are_pinned` pins the env parse, the T limit (1, 2 yes; 3, 4096 no), K, E, IS and the
+- `moe_block_is_default_on_and_its_shapes_are_pinned` pins the env parse, the T limit (1, 2 yes; 3, 4096 no), K, E, IS and the
   scratch bytes.
 
 ## 5. Edges and mutants (W3, job 2730, final build; `raw/mut/*.log`, ISA in `raw/isa/`)
@@ -211,7 +211,7 @@ The mutant table below covers every mutant and its outcome. To summarize:
 | `p2p-topk-rank` | gate_up takes the next rank's expert | routed | killed (5 tests) | 6000 / 6000 |
 | `p2p-sdc-noround` | routed row not rounded to bf16 before the combine | - | killed (5 tests) | 6000 / 6000 |
 | `p2p-topk-wround` | weights' bf16 rounding dropped in the recomputed top-k | - | killed (5 tests) | 6000 / 6000 |
-| `p2p-sel-p24` (lib, Mac) | admitted at T * K <= 24 | selection | killed (`moe_block_is_opt_in_and_its_shapes_are_pinned`) | - |
+| `p2p-sel-p24` (lib, Mac) | admitted at T * K <= 24 | selection | killed (`moe_block_is_default_on_and_its_shapes_are_pinned`) | - |
 
 Per-config kills (from `raw/mut/p2p-noorder.log` and `p2p-norefresh.log`):
 - every configuration fails, at 40 / 40 skewed launches per skew value;
@@ -392,7 +392,7 @@ session takes a bundle:
 
 ## 12. Decisions for the user
 
-*Note 2026-10-19: the default was flipped ON (`INTARSIA_HIP_MOE_BLOCK=0` is the kill switch) on branch perf/p2prime-default, pending the soak (docs/results/2026-10-19-p2prime-soak.md).*
+*Note 2026-10-19: the default was flipped ON (`INTARSIA_HIP_MOE_BLOCK=0` is the kill switch) on branch perf/p2prime-default after the max-batch-1 serve soak passed (docs/results/2026-10-19-p2prime-soak.md); the unit test that pins the env parse is now named `moe_block_is_default_on_and_its_shapes_are_pinned`.*
 
 1. **Make P2' default on HIP?** It is +8.8 to +9.5 % decode at every size and bitwise the default output. Every non-equivalent
    mutant is killed. The risk is the new cross-block wait, the same mechanism as v3. To make it default, flip
