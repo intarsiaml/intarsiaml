@@ -358,6 +358,10 @@ stage_r4test() {
   $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test qk_rope_kv --test device_pos --test fused_decode --test attention -- --nocapture --test-threads=1 2>&1 \
     | grep -E "^test |test result|FAILED|panicked|differ|bitwise" | cut -c1-300 | tail -40
 }
+# k35: the full admission sweep on the 35B's shapes (the quick sweep has no dk = 128 GDN case and no flash-sized prefill,
+# so it leaves gdn_delta_rule_bf16_v2 and attn_prefill_bf16_flash untested and fails, on the base tree too); k35q: the quick one
+stage_k35() { $D $B kernels test --backend hip --model $M35 2>&1 | grep -aE "gdn|qk_norm|rope|kv_append|kernels,|FAIL|REJECT|SKIPPED|rror"; }
+stage_k35q() { $D $B kernels test --backend hip --model $M35 --quick 2>&1 | grep -aE "kernels,|FAIL|REJECT|SKIPPED|rror"; }
 # ids4kx: ids4k with this tree's delta rule v2 disabled (the fused prologue alone)
 stage_ids4kx() { IDS_NEW_ENV="INTARSIA_HIP_DISABLE=gdn_delta_rule_bf16_v2" stage_ids4k; }
 # gdnbench: the delta-rule kernels at the 35B's decode and prefill shapes (us per launch), per prefetch depth

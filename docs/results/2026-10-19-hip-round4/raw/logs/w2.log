@@ -1,0 +1,275 @@
+[burst] job 2551; stages: r4test gdnbench pfprof:r4 prof4k:r4 prof:r4 prof@base:base ids4k; stopping radiance 2026-10-18 22:02:07
+[burst] radiance stopped 2026-10-18 22:02:09
+################ stage r4test start 22:02:09
+test gdn_v2_is_bitwise_the_rows_kernel ... 
+thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9:
+FAILED
+test gdn_v2_timing ... ignored
+    gdn_v2_is_bitwise_the_rows_kernel
+test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test gdn_v2_is_bitwise_the_rows_kernel ... 
+thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9:
+FAILED
+test gdn_v2_timing ... ignored
+    gdn_v2_is_bitwise_the_rows_kernel
+test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test gdn_v2_is_bitwise_the_rows_kernel ... 
+thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:70:9:
+FAILED
+test gdn_v2_timing ... ignored
+    gdn_v2_is_bitwise_the_rows_kernel
+test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 42.62s
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.25s
+test qk_norm_rope_kv_is_bitwise_the_unfused_chain ... qk_norm_rope_kv: 240 cases bitwise
+test qk_norm_rope_kv_many_draws_bitwise ... qk_norm_rope_kv: 60 draws of 17 rows bitwise
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.45s
+################ stage r4test end 22:03:13
+################ stage gdnbench start 22:03:13
+=== INTARSIA_HIP_GDN_PD=1
+gdn T=1      gdn_delta_rule_bf16       9.2 us (9.25 us/token)  gdn_delta_rule_bf16_v2       8.7 us (8.70 us/token)
+gdn T=312    gdn_delta_rule_bf16     650.3 us (2.08 us/token)  gdn_delta_rule_bf16_v2     262.5 us (0.84 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2344.9 us (2.29 us/token)  gdn_delta_rule_bf16_v2     855.0 us (0.83 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4415.7 us (2.16 us/token)  gdn_delta_rule_bf16_v2    1790.1 us (0.87 us/token)
+gdn T=4096   gdn_delta_rule_bf16    8439.8 us (2.06 us/token)  gdn_delta_rule_bf16_v2    3199.6 us (0.78 us/token)
+=== INTARSIA_HIP_GDN_PD=2
+gdn T=1      gdn_delta_rule_bf16       9.3 us (9.28 us/token)  gdn_delta_rule_bf16_v2       6.2 us (6.23 us/token)
+gdn T=312    gdn_delta_rule_bf16     651.2 us (2.09 us/token)  gdn_delta_rule_bf16_v2     267.7 us (0.86 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2355.3 us (2.30 us/token)  gdn_delta_rule_bf16_v2     858.2 us (0.84 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4425.3 us (2.16 us/token)  gdn_delta_rule_bf16_v2    1815.3 us (0.89 us/token)
+gdn T=4096   gdn_delta_rule_bf16    8465.1 us (2.07 us/token)  gdn_delta_rule_bf16_v2    3240.4 us (0.79 us/token)
+=== INTARSIA_HIP_GDN_PD=4
+gdn T=1      gdn_delta_rule_bf16       9.2 us (9.19 us/token)  gdn_delta_rule_bf16_v2       6.3 us (6.33 us/token)
+gdn T=312    gdn_delta_rule_bf16     649.8 us (2.08 us/token)  gdn_delta_rule_bf16_v2     260.0 us (0.83 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2348.4 us (2.29 us/token)  gdn_delta_rule_bf16_v2     844.3 us (0.82 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4413.3 us (2.15 us/token)  gdn_delta_rule_bf16_v2    1782.0 us (0.87 us/token)
+gdn T=4096   gdn_delta_rule_bf16    8477.6 us (2.07 us/token)  gdn_delta_rule_bf16_v2    3193.5 us (0.78 us/token)
+################ stage gdnbench end 22:03:18
+################ stage pfprof:r4 start 22:03:18
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 701 ms (6286.2 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 706 ms (6240.6 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2704 (of 3266), span 706.0 ms, kernel time 637.6 ms, idle 9.7 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+dq_gemm_kernel<Fp8PolicyQ, 4, 2, 2, 4, bf16>                                       260   139.67    537.2  21.9%  8192x64x1 x 256
+moe_wmma_kernel<true, 64>                                                           40   104.95   2623.9  16.5%  65536x8x4 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 60   102.49   1708.2  16.1%  256x32x1 x 32
+flash_kernel<256, 32>                                                               20    84.87   4243.4  13.3%  8192x16x1 x 128
+moe_wmma_kernel<false, 64>                                                          40    55.17   1379.1   8.7%  65536x16x4 x 256
+moe_wmma_kernel<true, 32>                                                           40    30.06    751.6   4.7%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.79    107.5   4.0%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.78    259.7   3.3%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    11.34     40.5   1.8%  8192x1x1 x 256
+moe_wmma_kernel<false, 32>                                                          40    10.82    270.6   1.7%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.27    154.6   1.5%  8192x128x1 x 128
+rmsnorm_kernel<true, true>                                                         171     7.29     42.6   1.1%  1048576x1x1 x 256
+f8_actq_kernel                                                                     260     7.02     27.0   1.1%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.86     97.6   0.9%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.32     44.4   0.8%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.93     97.8   0.5%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.18     72.5   0.3%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.71     56.9   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.36     33.9   0.2%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.17      9.7   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.90     11.2   0.1%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.84     21.0   0.1%  2048x64x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     15.9   0.1%  256x256x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.3   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.56      7.0   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.1%  1024x1x1 x 512
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.47     11.7   0.1%  65536x1x1 x 256
+embedding_kernel<true>                                                               3     0.47    155.7   0.1%  1048576x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    460.0   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.8   0.0%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.1   0.0%  8448x1x1 x 256
+gdn_delta_rows_kernel<128, 2>                                                       30     0.27      9.1   0.0%  256x32x1 x 32
+__amd_rocclr_fillBufferAligned                                                      30     0.18      6.2   0.0%  8192x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.4   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.12      2.1   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     39.7   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.1   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.04     44.8   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.4   0.0%  2048x1x1 x 256
+################ stage pfprof:r4 end 22:03:27
+################ stage prof4k:r4 start 22:03:27
+--- unprofiled
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=160 | prefill 702 ms (6282.8 tok/s) | decode 1138 ms (139.74 tok/s)
+steps=162 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/20 embedding=0ms/162 gate_split=0ms/1620
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+head_dimfinish=length prompt=4408 (cached 0) completion=160 | prefill 708 ms (6222.5 tok/s) | decode 1274 ms (124.80 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+steps: 160 launch-count histogram (top): [(528, 159), (3265, 1)]
+decode steps analysed: 157, launches/step 528
+per step: kernel time 6.330 ms, step wall (first start to last end) 8.002 ms, idle inside step 1.672 ms (20.9% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 8.012 ms
+intra-step gaps (ns): p10 2960 p50 3000 p90 3120 p99 3360 max 88331; sum/step 1.672 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        40.0    1358.5    34.0  21.5%
+moe_gate_up_p1_v2_kernel<false, 4>                                         40.0     830.1    20.8  13.1%
+moe_down_reduce_p1_v2_kernel<bf16, false>                                  40.0     626.5    15.7   9.9%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     576.2    19.2   9.1%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             20.0     470.4    23.5   7.4%
+nvfp4_gemv_v2_kernel<1, bf16, false>                                       40.0     467.0    11.7   7.4%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     459.4   459.4   7.3%
+splitkv_kernel<8, 32, 2>                                                   10.0     304.2    30.4   4.8%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     274.9     4.0   4.3%
+gdn_delta_rows_kernel<128, 2>                                              30.0     259.0     8.6   4.1%
+nvfp4_glu_kernel                                                           40.0     173.4     4.3   2.7%
+moe_topk_v2_kernel                                                         40.0     156.1     3.9   2.5%
+combine_kernel<256>                                                        10.0     100.2    10.0   1.6%
+moe_combine_kernel<bf16>                                                   40.0      62.0     1.6   1.0%
+gdn_conv_kernel<true>                                                      30.0      61.3     2.0   1.0%
+qk_norm_rope_kv_kernel<bf16>                                               10.0      48.7     4.9   0.8%
+argmax_kernel<float>                                                        1.0      45.2    45.2   0.7%
+rmsnorm_kernel<true, true>                                                 11.0      23.5     2.1   0.4%
+sigmoid_mul_kernel                                                         10.0      10.2     1.0   0.2%
+gate_split_kernel                                                          10.0      10.1     1.0   0.2%
+__amd_rocclr_copyBuffer                                                     3.0       7.4     2.5   0.1%
+rmsnorm_kernel<false, true>                                                 1.0       2.0     2.0   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.9     1.9   0.0%
+embedding_kernel<true>                                                      1.0       1.9     1.9   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    43.4   25.17    580   93%   1301.6
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.2    8.39    437   70%    576.2
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.5   16.78    533   85%    314.6
+fp8_gemv_kernel<1, 2, bf16, 2> g128                  10.0    15.6    8.39    538   86%    155.8
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g128             10.0     5.7    2.10    369   59%     56.9
+################ stage prof4k:r4 end 22:03:38
+################ stage prof:r4 start 22:03:38
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 67 ms (360.0 tok/s) | decode 1101 ms (144.47 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 73 ms (330.7 tok/s) | decode 1243 ms (127.96 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+/home/josef/intarsiaml-r4/bench-out/prof/r4/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(528, 159), (2162, 1)]
+decode steps analysed: 157, launches/step 528
+per step: kernel time 6.121 ms, step wall (first start to last end) 7.806 ms, idle inside step 1.685 ms (21.6% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 7.815 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 3160 p99 4240 max 124532; sum/step 1.685 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        40.0    1374.4    34.4  22.5%
+moe_gate_up_p1_v2_kernel<false, 4>                                         40.0     839.0    21.0  13.7%
+moe_down_reduce_p1_v2_kernel<bf16, false>                                  40.0     626.0    15.7  10.2%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     582.7    19.4   9.5%
+nvfp4_gemv_v2_kernel<1, bf16, false>                                       40.0     494.0    12.3   8.1%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             20.0     474.7    23.7   7.8%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     459.9   459.9   7.5%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     272.2     3.9   4.4%
+gdn_delta_rows_kernel<128, 2>                                              30.0     257.0     8.6   4.2%
+nvfp4_glu_kernel                                                           40.0     171.8     4.3   2.8%
+moe_topk_v2_kernel                                                         40.0     156.9     3.9   2.6%
+splitkv_kernel<8, 32, 2>                                                   10.0     123.0    12.3   2.0%
+moe_combine_kernel<bf16>                                                   40.0      61.5     1.5   1.0%
+gdn_conv_kernel<true>                                                      30.0      61.4     2.0   1.0%
+qk_norm_rope_kv_kernel<bf16>                                               10.0      48.3     4.8   0.8%
+argmax_kernel<float>                                                        1.0      44.9    44.9   0.7%
+rmsnorm_kernel<true, true>                                                 11.0      23.3     2.1   0.4%
+combine_kernel<256>                                                        10.0      16.1     1.6   0.3%
+gate_split_kernel                                                          10.0      10.7     1.1   0.2%
+sigmoid_mul_kernel                                                         10.0      10.2     1.0   0.2%
+__amd_rocclr_copyBuffer                                                     3.0       7.4     2.5   0.1%
+rmsnorm_kernel<false, true>                                                 1.0       2.0     2.0   0.0%
+embedding_kernel<true>                                                      1.0       1.9     1.9   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.8     1.8   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    43.9   25.17    573   91%   1317.6
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.4    8.39    432   69%    582.7
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.5   16.78    533   85%    314.7
+fp8_gemv_kernel<1, 2, bf16, 2> g128                  10.0    16.0    8.39    524   84%    160.0
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g128             10.0     5.7    2.10    369   59%     56.8
+################ stage prof:r4 end 22:03:47
+################ stage prof@base:base start 22:03:47
+--- unprofiled
+The boredom began on a Tuesday, during the restoration of a 21st-century abstract expressionistfinish=length prompt=24 (cached 0) completion=160 | prefill 71 ms (338.0 tok/s) | decode 1132 ms (140.41 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 73 ms (327.5 tok/s) | decode 1285 ms (123.78 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split=0ms/1610
+/home/josef/intarsiaml-r3/bench-out/prof/base/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(578, 159), (2262, 1)]
+decode steps analysed: 157, launches/step 578
+per step: kernel time 6.235 ms, step wall (first start to last end) 8.069 ms, idle inside step 1.834 ms (22.7% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 8.079 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 3120 p99 3720 max 83041; sum/step 1.834 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        40.0    1376.4    34.4  22.1%
+moe_gate_up_p1_v2_kernel<false, 4>                                         40.0     838.7    21.0  13.5%
+moe_down_reduce_p1_v2_kernel<bf16, false>                                  40.0     626.8    15.7  10.1%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     583.1    19.4   9.4%
+nvfp4_gemv_v2_kernel<1, bf16, false>                                       40.0     477.4    11.9   7.7%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             20.0     475.2    23.8   7.6%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     460.2   460.2   7.4%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     272.8     4.0   4.4%
+gdn_delta_rows_kernel<128, 2>                                              30.0     257.0     8.6   4.1%
+nvfp4_glu_kernel                                                           40.0     172.0     4.3   2.8%
+moe_topk_v2_kernel                                                         40.0     155.6     3.9   2.5%
+splitkv_kernel<8, 32, 2>                                                   10.0     123.1    12.3   2.0%
+rope_kernel                                                                20.0     113.1     5.7   1.8%
+moe_combine_kernel<bf16>                                                   40.0      61.4     1.5   1.0%
+gdn_conv_kernel<true>                                                      30.0      61.3     2.0   1.0%
+argmax_kernel<float>                                                        1.0      44.8    44.8   0.7%
+rmsnorm_kernel<false, true>                                                21.0      36.9     1.8   0.6%
+kv_append_kernel<bf16, 8>                                                  20.0      28.6     1.4   0.5%
+rmsnorm_kernel<true, true>                                                 11.0      23.4     2.1   0.4%
+combine_kernel<256>                                                        10.0      15.9     1.6   0.3%
+gate_split_kernel                                                          10.0      10.3     1.0   0.2%
+sigmoid_mul_kernel                                                         10.0      10.1     1.0   0.2%
+__amd_rocclr_copyBuffer                                                     3.0       7.3     2.4   0.1%
+embedding_kernel<true>                                                      1.0       1.9     1.9   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.8     1.8   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    44.0   25.17    573   91%   1318.7
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.4    8.39    432   69%    583.1
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.5   16.78    533   85%    314.7
+fp8_gemv_kernel<1, 2, bf16, 2> g128                  10.0    16.0    8.39    523   83%    160.5
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g128             10.0     5.8    2.10    364   58%     57.7
+################ stage prof@base:base end 22:03:56
+################ stage ids4k start 22:03:56
+--- this tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 706 ms (6244.4 tok/s) | decode 1824 ms (139.80 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 834 ms (5282.4 tok/s) | decode 1876 ms (135.90 tok/s)
+ids: 255 / 255 commas
+IDS4K DIFFER
+/home/josef/intarsiaml-r4/bench-out/ids4k-new.ids /home/josef/intarsiaml-r4/bench-out/ids4k-base.ids differ: byte 79, line 1
+################ stage ids4k end 22:04:08
+[burst] stages done 2026-10-18 22:04:08 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-18 22:04:08
+[burst] radiance answers 2026-10-18 22:04:18 (after 15 s)
