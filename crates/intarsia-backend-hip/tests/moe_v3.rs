@@ -231,11 +231,11 @@ fn v3_graph_replay_is_bitwise_eager() {
 /// * two activations alternate, a second v3 instance runs on stream 1 at the same time (its own counter slot and scratch)
 ///   for CU contention, and the skew cycles through 0 / 2 / 6 (different overlap of stores and reads).
 ///
-/// Every launch of both streams is compared bitwise with v2. `INTARSIA_V3_STRESS_ROUNDS` (default 120) launches per shape.
+/// Every launch of both streams is compared bitwise with v2. `INTARSIA_HIP_V3_STRESS_ROUNDS` (default 120) launches per shape.
 #[test]
 fn v3_sentinel_stress() {
     let Some(be) = device() else { return };
-    let rounds: usize = std::env::var("INTARSIA_V3_STRESS_ROUNDS").ok().and_then(|v| v.parse().ok()).unwrap_or(120);
+    let rounds: usize = std::env::var("INTARSIA_HIP_V3_STRESS_ROUNDS").ok().and_then(|v| v.parse().ok()).unwrap_or(120);
     let mut rng = SplitMix64::new(55);
     let set_x = |d: &Dev, x: &HostTensor, s: u32| be.upload(&d.call.inputs[0].buf, d.call.inputs[0].offset, &x.data, s).unwrap();
     let poison = |d: &Dev, s: u32| {

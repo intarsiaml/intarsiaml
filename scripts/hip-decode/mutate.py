@@ -289,6 +289,24 @@ MUTATIONS = {
     "p1-dc-tail": ("kernels/hip/moe_shared.hip", [("for (int u = lane + IK_WARP * kPre; u < nu; u += IK_WARP) {  // K > 2048", "for (int u = lane + IK_WARP * (kPre + 1); u < nu; u += IK_WARP) {  // K > 2048")]),
     # P2a: every row combines with row 0's routed values and writes row 0
     "p1-dc-row": ("kernels/hip/moe_shared.hip", [("const int64_t i = (int64_t)m * N + n;", "const int64_t i = n;")]),
+    # P5 selection: the one-row fold also taken for two rows (a prefill / verify shape it was never checked on)
+    "p1-sel-m2": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("""                "rmsnorm_add_matmul_fp8_pair_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| {
+                        s.m == 1""", """                "rmsnorm_add_matmul_fp8_pair_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| {
+                        s.m <= 2""")]),
+    # P2a selection: nine rows (the GEMV launcher refuses them: the plan would fail instead of falling back)
+    "p1-sel-dc9": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("""                "shared_down_combine_nvfp4_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=8).contains(&s.m)""", """                "shared_down_combine_nvfp4_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=9).contains(&s.m)""")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -298,7 +316,7 @@ TESTS["moe-z-step"] = "quantmoe"
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
-TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio")})
+TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio", "p1-sel-m2", "p1-sel-dc9")})
 TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
 TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsync")})
 TESTS.update({n: "round6_selection" for n in ("mw-def64", "mw-def32", "mw-tile", "mw-range", "hpb-def", "hpb-two")})
