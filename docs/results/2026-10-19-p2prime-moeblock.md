@@ -8,11 +8,12 @@ tatooine). Proposal: `docs/proposals/2026-10-19-core-op-fusion.md` section 5. Ga
 
 * **Qwen3.6-35B-A3B NVFP4 decode on one R9700, with `INTARSIA_HIP_MOE_BLOCK=1`: 150.6 -> 164.9 tok/s at a 128-token prompt
   (+9.49 %).** At 1024 / 4096 / 16384 the gain is +9.38 / +9.06 / +8.76 %. Prefill is unchanged: -0.36 to +1.28 %, inside the
-  round spread, because prefill chunks never take the op. These are 3 interleaved rounds in one window (W5) with
+  round spread. Prefill chunks of 3+ tokens never take the op; a 1- or 2-token tail chunk does, bitwise. These are 3 interleaved rounds in one window (W5) with
   `bench speed --at-most` on both sides. In decode, every round of the opt-in is above every round of the default at every size.
 * **120 fewer calls per 35B decode step: 375 -> 255** (`plan show --json`). Each of the 40 MoE layers replaces
   `moe_topk`, `moe_experts` (2 kernels), `matmul_nvfp4_glu` and `shared_down_combine` with one `moe_block`. That is 5 GPU
-  kernels down to 1, so 160 fewer kernel launches. Qwen3-8B: 364 -> 364.
+  kernels down to 1, so 160 fewer kernel launches (from the `moe.hip` source: both v2 decode branches launch gate_up +
+  down_reduce, xstage defaults off; not a profiler count). Qwen3-8B: 364 -> 364.
 * **Bitwise the default chain.** Evidence:
   - 44 on-device cases, including ties, E = 512, K = E and T * K = 16;
   - 200 back-to-back launches and graph replay;
@@ -37,7 +38,7 @@ tatooine). Proposal: `docs/proposals/2026-10-19-core-op-fusion.md` section 5. Ga
 | M0 T >= 2 stress variant | **done**, kills `v3-noorder` at T = 2..8 (own commit `1d0dafef`) | section 2 |
 | M1 microbench gate | **passed**: projected +4.3 % (needed +1 %); measured end to end +9.5 % | section 3 |
 | M2 P2' opt-in build | **done**: `Op::MoeBlock`, CPU oracle, admission cases, HIP kernel, `try_fused` site, env `INTARSIA_HIP_MOE_BLOCK=1`, off under TP > 1 | section 4 |
-| M3 prove it | **done**: both edges at T = 1 / 2 / 4, 14 mutants + 1 lib mutant, bitwise device tests, KL21 short/long, ids, prefix reuse, 8B goldens, full admission | sections 5, 6 |
+| M3 prove it | **done**: both edges at T = 1 / 2 / 4, 13 GPU mutants + 1 lib mutant, bitwise device tests, KL21 short/long, ids, prefix reuse, 8B goldens, full admission | sections 5, 6 |
 | M4 measure | **done**: 35B A/B x3 (default / P2' / v3), 8B A/B x3, launches per step | section 7 |
 | M5 CUDA no-op | see section 9 (spark1 plan JSON, pin tests); Metal checklist in section 10 | sections 9, 10 |
 
@@ -244,7 +245,14 @@ Per-config kills (from `raw/mut/p2p-noorder.log` and `p2p-norefresh.log`):
 | full admission sweep, 35B / 8B shapes (`kernels test`, no `--quick`) | 52 kernels, 899 / 912 cases, 0 FAIL | 52 kernels, 910 / 923 cases, 0 FAIL; `moe_block_bf16` 11 cases ADMITTED, max rel err 8.8e-4 vs the cpu oracle |
 
 The 35b-long prefill floor FAIL (4.356e-2 against 3.0e-2) is pre-existing. The p2 doc reports the same digits for its base and
-branch. Prefill never takes `MoeBlock`.
+branch.
+
+Prefill chunks of 3+ tokens do not take `MoeBlock`. A 1- or 2-token tail chunk does. At T = 2 the default chain is:
+- `moe_topk_bf16_v2` and `moe_experts_bf16_v2`;
+- gate and up `matmul_nvfp4_gemv_v2` (priority 20, m <= 8; `matmul_nvfp4_glu_gemv` takes m = 1 only), then `silu_glu_bf16`;
+- `shared_down_combine_nvfp4_gemv` (m <= 8).
+
+That is exactly the chain the device tests compare against at T = 2, 3 and 4. Those cases are bitwise.
 
 Logs: `raw/logs/m3-w3*.log` (tests, ids, plans, admission), `raw/logs/m3-w4*.log` (accuracy), `raw/adm/`, `raw/plans/`.
 
@@ -272,7 +280,7 @@ The arms are the same binary with different env in the serve container: default,
 | 16384 | 7730 / 7671 / 7672 (7691) | 7683 / 7688 / 7672 (7681) | -0.13 % | 134.0 / 133.6 / 134.2 (133.9) | 133.8 / 134.4 / 134.9 (134.4) | +0.34 % |
 
 Prefill: the 128-token prefill moves +1.3 / +1.85 % on both opt-ins, but the default's own rounds spread 1720..1778 (3.4 %). It
-is noise. No prefill chunk takes either op (T * K > 16).
+is noise. Prefill chunks of 3+ tokens take neither op (T * K > 16 at K = 8).
 
 **8B, P2' vs default** (W6; no MoE layer, so the op is never tried; expected 0)
 
@@ -374,7 +382,7 @@ session takes a bundle:
 |---|---|---|
 | `INTARSIA_HIP_MOE_BLOCK=1` | off | admits `moe_block_bf16` (P2') |
 | `INTARSIA_HIP_MOE_V3=1` | off | v3 one-launch experts (unchanged) |
-| `INTARSIA_NO_FUSION=1` | off | every fused op off (existing kill switch); `INTARSIA_HIP_DISABLE=moe_block_bf16` also works |
+| `INTARSIA_NO_FUSION=1` | off | every fused op off (existing kill switch). The generic `INTARSIA_HIP_DISABLE=moe_block_bf16` hides the kernel too; that mechanism exists but was not separately tested for this kernel |
 | `INTARSIA_HIP_MOE_BLOCK_{SKEW,SKEW_ALL,SKEW_ROLE,PREREAD,SCRAMBLE}` | off | test seams (section 4) |
 | `INTARSIA_HIP_MOE_BLOCK_BENCH=1`, `_BENCH_LAYERS`, `_STRESS_ROUNDS` | off / 16 / 120 | microbench and stress size |
 | `INTARSIA_HIP_MOE_V3_SKEW_TOK=n\|all` | off | M0 seam: token n's (or every token's) last gate_up role late |
