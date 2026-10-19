@@ -12,6 +12,15 @@ import sys
 # pairs, its hot-experts case with more pair tiles than the grid (the z-step loop) included.
 V_KERNEL = (1, 2)
 
+# the v3 consumer's wait (moe.hip moe_experts_p1_v3_kernel, down roles): thread 0's spin, the barrier, the per-wave fence
+V3_SPIN_ACQ = "        while (__hip_atomic_load(sync, __ATOMIC_ACQUIRE, __HIP_MEMORY_SCOPE_AGENT) < (unsigned)NG) __builtin_amdgcn_s_sleep(1);\n"
+V3_SPIN_RLX = "        while (__hip_atomic_load(sync, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT) < (unsigned)NG) __builtin_amdgcn_s_sleep(1);\n"
+V3_FENCE = '    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");  // every wave: h is read only after this\n'
+V3_BAR_FENCE = "    __syncthreads();\n" + V3_FENCE
+V3_BAR_NOACQ = ('    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup");  // mutant: __syncthreads() without its acquire half\n'
+                "    __builtin_amdgcn_s_barrier();\n"
+                '    __asm__ volatile("" ::: "memory");  // mutant: compiler-only ordering\n')
+
 MUTATIONS = {
     # fused single-tile conv: the thread's new state is written doubled
     "conv-state": ("kernels/hip/gdn.hip", [(
@@ -256,6 +265,20 @@ MUTATIONS = {
     # the tile load skips every other stride of chunks
     "fl2-stride": ("kernels/hip/attention_flash.hip", [("        for (int idx = tid; idx < BK * CH; idx += NT) {", "        for (int idx = tid; idx < BK * CH; idx += 2 * NT) {")]),
     "v3-nofence": ("kernels/hip/moe.hip", [('    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");  // every wave: h is read only after this\n', "")]),
+    # P2' step 0 (docs/results/2026-10-19-p2prime-step0.md): v3-nofence survives because two more acquires are left on the
+    # consumer side: thread 0's spin load (acquire, agent: global_inv scope:SCOPE_DEV after each load) and the acquire half of
+    # the __syncthreads() after it (workgroup: global_inv scope:SCOPE_SE in every wave). These mutants take them out as a 2 x 2
+    # (fence always gone), plus a control. A barrier "without acquire" keeps __syncthreads()'s release half (the s_wait before
+    # s_barrier: the LDS lut written before it must still be complete) and a compiler-only fence after it (asm memory
+    # clobber: no instruction, but the h reads stay below the barrier, so a stale read is the hardware's, not the compiler's).
+    # v3-noorder: no consumer ordering at all (relaxed spin, barrier without acquire, no fence)
+    "v3-noorder": ("kernels/hip/moe.hip", [(V3_SPIN_ACQ, V3_SPIN_RLX), (V3_BAR_FENCE, V3_BAR_NOACQ)]),
+    # v3-nobaracq: fence and barrier acquire gone, the spin's acquire kept (only wave 0 invalidates, after its load)
+    "v3-nobaracq": ("kernels/hip/moe.hip", [(V3_BAR_FENCE, V3_BAR_NOACQ)]),
+    # v3-nospinacq: fence and spin acquire gone, __syncthreads() kept (every wave's SE-scope invalidate)
+    "v3-nospinacq": ("kernels/hip/moe.hip", [(V3_SPIN_ACQ, V3_SPIN_RLX), (V3_BAR_FENCE, "    __syncthreads();\n")]),
+    # v3-fenceonly (control, expected to pass): spin relaxed, barrier without acquire, the per-wave agent fence kept
+    "v3-fenceonly": ("kernels/hip/moe.hip", [(V3_SPIN_ACQ, V3_SPIN_RLX), (V3_BAR_FENCE, V3_BAR_NOACQ + V3_FENCE)]),
     # round 6: MoE projection variants (moe_wmma.h moe_wmma_kernel_v; tests/moe_pairs.rs runs every variant against 0)
     # a partly filled tail tile computes one fragment too few (rem >> 4 instead of rounding up)
     "mw-jn": ("kernels/hip/moe_wmma.h", [("const int jn = rem >= PAIRS ? J : (rem + 15) >> 4;", "const int jn = rem >= PAIRS ? J : rem >> 4;")]),
@@ -390,7 +413,7 @@ TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default
 TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
 TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsync")})
 TESTS.update({n: "round6_selection" for n in ("hpb-def", "hpb-two")})
-TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
+TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence", "v3-noorder", "v3-nobaracq", "v3-nospinacq", "v3-fenceonly")})
 TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
 TESTS.update({n: "fusion_p2" for n in ("p2-ga-gate", "p2-ga-qstride", "p2-ga-woff", "p2-ga-fp8", "p2-ga-vpos", "p2-cd-writer0", "p2-cd-noreset", "p2-cd-novstate", "p2-cd-round", "p2-cd-tap", "p2-cd-contract", "p2-cd-hist", "p2-cd-slotstate")})
 TESTS["p2-sel-m33"] = "lib"
