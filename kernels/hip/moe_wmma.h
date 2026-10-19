@@ -226,10 +226,10 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
  *   kMwOcc   the up accumulators reuse the activation tiles' LDS (free after the k loop; the k loop's last barrier orders
  *            it) and the kernel is compiled for 8 waves per SIMD (<= 192 VGPRs), so a WGP can hold 4 gate_up blocks
  *            instead of 3.
- * At the 35B's 4408-token prefill (docs/results/2026-10-19-hip-round6.md, same-window profiles) both bits together take
- * gate_up<64> from 105.1 to 96.6 ms and down<64> from 53.3 to 51.9 ms. The 32-pair tile keeps moe_wmma_kernel (its variants
- * were not A/B'd on their own; it is the short tail chunk). A byte-indexed fp4 table (one LDS read per two weights) made
- * gate_up<64> slower (116.7 ms with kMwSkip) and was dropped. */
+ * At the 35B's 4408-token prefill (docs/results/2026-10-19-hip-round6.md; profiles of different windows) both bits together
+ * take gate_up<64> from 108.7 ms (moe_wmma_kernel, round 5) to 99.0 ms and down<64> from 56.0 to 52.4 ms. The 32-pair tile
+ * keeps moe_wmma_kernel: variant 5 there ran 33.7 ms against moe_wmma_kernel's 30.1-30.5 ms. A byte-indexed fp4 table (one
+ * LDS read per two weights) made gate_up<64> slower (116.7 ms with kMwSkip) and was dropped. */
 constexpr int kMwSkip = 1, kMwOcc = 4;
 
 template <bool GATEUP, int PAIRS, int V>
