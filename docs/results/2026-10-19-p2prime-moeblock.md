@@ -364,7 +364,8 @@ session takes a bundle:
 
 ## 13. Caveats
 
-* **The end-to-end gain is twice the microbench projection** (section 3). It was not root-caused. Both numbers favour the
+* **The end-to-end gain is twice the microbench projection** (section 3). It was not root-caused. A rocprofv3 attempt (W7)
+  failed (section 15). Both numbers favour the
   change, and the ids and KL digits rule out skipped work.
 * **One day, one box, one A/B window per model.** The 3 interleaved rounds are tight (decode spread <= 0.4 %), but this is not
   a multi-day measurement.
@@ -397,9 +398,19 @@ session takes a bundle:
 | W4 | 2731 | 10:09:56 | 10:12:36 | 2.67 | M3: accuracy both arms (two GPUs) |
 | W5 | 2732 | 10:18:01 | 10:25:25 | 7.40 | M4: 35B A/B x3, three arms |
 | W6 | 2733 | 10:30:44 | 10:41:03 | 10.32 | M4: 8B A/B x3 |
-| **total** | | | | **26.2 of 45** | every window < 20 min, >= 5 min of serving between windows, `/v1/models` answered before each release |
+| W7 | 2735 | 10:48:21 | 10:56:34 | 8.22 | optional rocprofv3 trace to explain section 3's gap: **failed** (below) |
+| **total** | | | | **34.5 of 45** | every window < 20 min, >= 5 min of serving between windows, `/v1/models` answered before each release |
 
 Per-window log: `raw/downtime.log`.
+
+**W7 failed and cost 8.2 minutes.**
+- The P2' trace (`remote.sh prof`) did not finish inside the lane's 8-minute cap.
+- Its rocprofv3 container outlived the lane's `timeout`. It was still running on GPU 0 when radiance came back, and it was
+  removed about 40 s later.
+- `/v1/models` was re-checked before the release.
+- The default-arm lane died at once in `analyze.py` (IndexError).
+- No profile data came out. Fix for next time: run `prof` under `docker run --rm` with its own timeout inside the container,
+  so it cannot outlive the lane.
 
 CPU-only slots (radiance up), all on tatooine: 2719 (M0 build), 2721 (compile check), 2722 (build), 2725 (resource usage,
 mutant builds, ISA), 2729 (`topk-wround` build, ISA), 2734 (final resource usage). spark1 (vLLM up, never taken down): see section 9.
