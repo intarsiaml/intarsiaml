@@ -4,12 +4,12 @@ each mutation must make `cargo test -p intarsia-backend-hip --test decode_v2` FA
 catch a wrong accumulation, a skipped iteration, a flipped tie-break, or a dropped state / tail write."""
 import sys
 
-# moe_wmma.h holds two kernels with the same body text: moe_wmma_kernel (round 5: the 32-pair tile, and INTARSIA_HIP_MOE_MW=0)
-# and moe_wmma_kernel_v (round 6: the 64-pair tile at the default MW=5). A pattern found in both is aimed at one of them by a
-# third element (index, count): the file must hold exactly `count` matches, and the `index`-th (0-based) is replaced. The
-# round-6 `moe-z-step` / `pairs-*` mutants take the second, moe_wmma_kernel_v: the kernel their tests select at default env
-# (quantmoe's hot-experts case averages >= 32 pairs per expert, so the auto tile is 64; moe_pairs runs MW 1 / 4 / 5 at 64
-# pairs against MW 0 at 32).
+# moe_wmma.h holds two kernels with the same body text: moe_wmma_kernel (round 5: MW = 0, the 32-pair gate_up default) and
+# moe_wmma_kernel_v (round 6: MW = 1 / 4 / 5). A pattern found in both is aimed at one of them by a third element (index,
+# count): the file must hold exactly `count` matches, and the `index`-th (0-based) is replaced. The round-6 `moe-z-step` /
+# `pairs-*` mutants take the second, moe_wmma_kernel_v. Since round 7 (moe_wmma_r7.h is the 64-pair default) that kernel
+# runs only under INTARSIA_HIP_MOE_MW = 1 / 4 / 5, so their test is moe_pairs, which runs exactly those against MW 0 at 32
+# pairs, its hot-experts case with more pair tiles than the grid (the z-step loop) included.
 V_KERNEL = (1, 2)
 
 MUTATIONS = {
@@ -265,11 +265,8 @@ MUTATIONS = {
     "mw-two": ("kernels/hip/moe_wmma.h", [("else if (J == 4 && jn == 2) kloop(std::integral_constant<int, (J == 4 ? 2 : 1)>{});", "else if (J == 4 && jn == 2) kloop(std::integral_constant<int, (J == 4 ? 1 : 1)>{});")]),
     # aliased up accumulators: the last k block's barrier dropped, so the up waves may overwrite activations still being read
     "mw-lastsync": ("kernels/hip/moe_wmma.h", [("                    __syncthreads();\n", "                    if (!ALIAS || kb + 1 < nkb) __syncthreads();\n")]),
-    # round 6 selection pins (tests/round6_selection.rs)
-    "mw-def64": ("kernels/hip/moe.hip", [("constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;", "constexpr int kMwDefault64 = kMwSkip, kMwDefault32 = 0;")]),
-    "mw-def32": ("kernels/hip/moe.hip", [("constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;", "constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = kMwSkip;")]),
-    "mw-tile": ("kernels/hip/moe.hip", [("const int def = pairs == 64 ? kMwDefault64 : kMwDefault32;", "const int def = pairs == 32 ? kMwDefault64 : kMwDefault32;")]),
-    "mw-range": ("kernels/hip/moe.hip", [("return (v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc)) ? v : def;", "return (v >= 0 && v <= 7) ? v : def;")]),
+    # round 6 selection pins (tests/round6_selection.rs); the moe.hip ones (mw-def64 / mw-def32 / mw-tile / mw-range) were
+    # dropped in core-op fusion phase 2: round 7 replaced their lines, and r7-def* / r7-tile / r7-range mutate the new ones
     "hpb-def": ("kernels/hip/attention_flash.hip", [("constexpr int kFlashHpbDefault = 4;", "constexpr int kFlashHpbDefault = 2;")]),
     "hpb-two": ("kernels/hip/attention_flash.hip", [("return (x == 1 || x == 2 || x == 4) ? x : kFlashHpbDefault;", "return (x == 1 || x == 4) ? x : kFlashHpbDefault;")]),
     # --- core-op fusion phase 1 (tests/fusion_p1.rs; docs/results/2026-10-19-core-op-fusion-p1.md) ---
@@ -317,7 +314,8 @@ MUTATIONS = {
                     .when(|s| (1..=9).contains(&s.m)""")]),
     # --- round 7 (docs/results/2026-10-19-hip-round7.md): moe_wmma_r7.h (kMwCvt fp8-conversion fp4 decode, kMwTwo two A
     # fragments per wave in down, kMwDeep six weight blocks in flight) and the per-projection selection in moe.hip. The round-6
-    # entries mw-def64 / mw-def32 / mw-tile / mw-range mutate lines round 7 replaced; r7-def* / r7-tile / r7-range cover them.
+    # entries mw-def64 / mw-def32 / mw-tile / mw-range mutated lines round 7 replaced (now dropped); r7-def* / r7-tile /
+    # r7-range cover them.
     # even elements' magnitude one bit off / odd elements' magnitude one bit off
     "r7-even": ("kernels/hip/moe_wmma_r7.h", [("ev = ((c << 2) & 0x1C1C1C1Cu)", "ev = ((c << 1) & 0x1C1C1C1Cu)")]),
     "r7-odd": ("kernels/hip/moe_wmma_r7.h", [("od = ((c >> 2) & 0x1C1C1C1Cu)", "od = ((c >> 3) & 0x1C1C1C1Cu)")]),
@@ -380,14 +378,14 @@ MUTATIONS = {
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
-TESTS["moe-z-step"] = "quantmoe"
+TESTS["moe-z-step"] = "moe_pairs"  # was quantmoe: since round 7 its default-env case runs moe_wmma_r7.h
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
 TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio", "p1-sel-m2", "p1-sel-dc9")})
 TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
 TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsync")})
-TESTS.update({n: "round6_selection" for n in ("mw-def64", "mw-def32", "mw-tile", "mw-range", "hpb-def", "hpb-two")})
+TESTS.update({n: "round6_selection" for n in ("hpb-def", "hpb-two")})
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
 TESTS.update({n: "fusion_p2" for n in ("p2-ga-gate", "p2-ga-qstride", "p2-ga-woff", "p2-ga-fp8", "p2-ga-vpos", "p2-cd-writer0", "p2-cd-noreset", "p2-cd-novstate", "p2-cd-round", "p2-cd-tap", "p2-cd-hist", "p2-cd-slotstate")})
