@@ -1,6 +1,7 @@
 # Core-op fusion, phase 1: P5 + P2a + P4b as three sync-free fused ops (HIP kernels), and the `v3-nofence` stress test, 2026-10-19
 
-Branch `perf/core-op-fusion`, rebased on origin/main `10eef81c` (HIP round 6 merged). Plan: the proposal
+Branch `perf/core-op-fusion`, final rebase on origin/main `4962d8fa` (CUDA prefill-4 merged). All GPU numbers were measured
+on the branch rebased on `10eef81c` (HIP round 6 merged), against a `10eef81c` base (section 12 has what the last rebase changes). Plan: the proposal
 `docs/proposals/2026-10-19-core-op-fusion.md` (user decision "fuse yes", 2026-10-19 01:12 EDT), section 11 steps 0 and 1. Raw
 material: `docs/results/2026-10-19-core-op-fusion-p1/raw/`. Every number below is measured unless marked "derived" or "not
 measured".
@@ -326,6 +327,10 @@ Base `10eef81c` vs this branch's HEAD (section 14):
   v3. v3 is opt-in and was not re-benched.
 * **Gain vs proposal:** the +2.3 % exceeds the proposal's derived +1.2 %. The per-launch price the proposal calibrated does not
   carry over to this set, and no profile was taken (not measured).
+* **Last rebase, not re-measured on a GPU:** `10eef81c` -> `4962d8fa` brings only CUDA code (`kernels/cuda/gdn.cu`, the CUDA
+  crate's GDN split for prefill) and docs / scripts, with no HIP or core file. So every HIP number carries over to the final tree
+  unchanged. The CUDA no-op ran against `10eef81c`; on the final tree only the Mac checks ran. They pass: `cargo test --workspace`
+  is 100 binaries, 482 passed, 0 failed, with the CUDA pin test included (`raw/logs/mac-checks-final.log`).
 * **Round-6 defaults** are in both A and B: `INTARSIA_HIP_FLASH_HPB=4`, `INTARSIA_HIP_MOE_MW=5`.
 
 ## 13. Next phases (not done here, proposal sections 7, 5, 6, 3)
@@ -353,4 +358,15 @@ Every window was released only after `/v1/models` answered.
 
 ## 15. Final HEAD
 
-FINAL_HEAD_PLACEHOLDER
+The final commit of `perf/core-op-fusion` (not pushed) is the commit that adds this line. Code tree `scripts/tree-stamp.sh`
+`code-tree=fc6d0eecbecd` (docs excluded); the code is the same as in `d89e85ae`.
+
+* **Measured tree:** the same commits on `10eef81c` (`60d19bfe`). Synced to tatooine `~/intarsiaml-fusion` and spark1
+  `~/intarsia-decfuse/fusion-dev`.
+* **Mac checks on both trees:**
+  - `cargo test --workspace`
+  - `cargo check --workspace`
+  - `cargo check -p intarsia-cli --features hip`
+  - `cargo check -p intarsia-cli --features metal`
+  - `cargo build -p intarsia-backend-metal` (it builds on this Mac)
+  - Logs: `raw/logs/mac-checks.log` and `mac-checks-final.log`.
