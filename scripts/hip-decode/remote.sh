@@ -485,7 +485,7 @@ stage_r7test() {
     | grep -aE "^test |test result|FAILED|panicked|differ|changed|NaN scale" | cut -c1-300 | tail -40
 }
 # round-7 mutants (mutate.py; built by mutbuild7 in a CPU slot, run by mutrun7 in a GPU window)
-R7MUT="r7-even r7-odd r7-esign r7-osign r7-x64 r7-hiword r7-swap r7-deep r7-dnrow r7-grid r7-jn r7-lastsync mw-jn mw-lastsync mw-def64 mw-def32 mw-tile mw-range r7-def64dn r7-def32dn r7-colon"
+R7MUT="r7-even r7-odd r7-esign r7-osign r7-x64 r7-hiword r7-swap r7-deep r7-dnrow r7-grid r7-jn r7-lastsync r7-def64 r7-def32 r7-def64dn r7-def32dn r7-tile r7-range r7-colon"
 stage_mutbuild7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r7-mut" stage_mutbuild; }
 stage_mutrun7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" stage_mutrun; }
 
