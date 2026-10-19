@@ -26,6 +26,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_prefill_bf16_flash", Op::AttnPrefill),
     ("attn_prefill_bf16_splitkv", Op::AttnPrefill),
     ("attn_decode_bf16_splitkv", Op::AttnDecode),
+    ("attn_prefill_bf16_splitkv_pipe", Op::AttnPrefill),
+    ("attn_decode_bf16_splitkv_pipe", Op::AttnDecode),
     ("silu_glu_bf16", Op::SiluGlu),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
@@ -194,6 +196,24 @@ pub fn gdn_split_priority(on: i32) -> i32 {
     }
 }
 
+/// The pipelined split-KV attention (`attn_decode_bf16_splitkv_pipe` / `attn_prefill_bf16_splitkv_pipe`: the split-KV
+/// kernels' arithmetic with the K / V rows streamed ahead through a cp.async ring, BITWISE the same outputs,
+/// docs/results/2026-10-19-cuda-round5.md) is on by default; `INTARSIA_CUDA_SPLITKV_PIPE=0` switches it off (the split-KV
+/// kernels then serve decode and short prefill chunks again).
+pub fn splitkv_pipe() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_SPLITKV_PIPE").map_or(true, |v| v != "0"))
+}
+
+/// Priority of the pipelined split-KV kernels: `on` unless switched off, below everything then.
+pub fn splitkv_pipe_priority(on: i32) -> i32 {
+    if splitkv_pipe() {
+        on
+    } else {
+        -10
+    }
+}
+
 /// Every kernel this backend registers.
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
@@ -248,6 +268,17 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10)
+                .scratch(splitkv_scratch),
+            // DEFAULT (INTARSIA_CUDA_SPLITKV_PIPE=0 switches it off, see `splitkv_pipe`): the split-KV kernels above, the
+            // same partition and fp32 operations in the same order, loads streamed ahead through a cp.async ring; bitwise
+            // the same outputs, so it replaces them for every shape they take (same scratch).
+            "attn_decode_bf16_splitkv_pipe" | "attn_prefill_bf16_splitkv_pipe" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| splitkv_ok(s) && s.m <= SPLITKV_MAX_ROWS)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(splitkv_pipe_priority(11))
                 .scratch(splitkv_scratch),
             "gate_split_bf16" | "sigmoid_mul_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gdn_conv_bf16" => k.acts(bf).weights(bf).when(|s| (2..=8).contains(&s.k)).exact(Exactness::Deterministic).tol(BF16_TOL),
@@ -462,6 +493,53 @@ mod tests {
                 assert_eq!(pick(m, k).as_deref(), Some(big), "M={m} K={k}");
             }
         }
+    }
+
+    /// The attention kernel the registry picks at the 35B shape (16 heads, 2 kv heads, head_dim 256) and the 8B one
+    /// (32 / 8 / 128) for decode (T = 1) and short prefill / verify chunks (T = 2 .. 16): the pipelined split-KV kernels
+    /// (bitwise the split-KV kernels) by default, the split-KV kernels with `INTARSIA_CUDA_SPLITKV_PIPE=0`, the flash
+    /// prefill kernel above 16 rows either way. A bitwise kernel cannot be told apart by an accuracy gate: this pins it.
+    #[test]
+    fn attention_selection() {
+        let pick = |op: Op, m: usize, n: usize, nkv: usize, d: usize, kv: usize| {
+            let s = ShapeInfo {
+                m,
+                n_heads: n,
+                n_kv_heads: nkv,
+                head_dim: d,
+                k: d,
+                kv_len: kv,
+                act: Some(DType::Bf16),
+                weight: Some(DType::Bf16),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        let pipe = std::env::var("INTARSIA_CUDA_SPLITKV_PIPE").map_or(true, |v| v != "0");
+        let (dec, pre) = if pipe {
+            ("attn_decode_bf16_splitkv_pipe", "attn_prefill_bf16_splitkv_pipe")
+        } else {
+            ("attn_decode_bf16_splitkv", "attn_prefill_bf16_splitkv")
+        };
+        for (n, nkv, d) in [(16, 2, 256), (32, 8, 128)] {
+            for kv in [1, 1034, 4096, 16026, 32768] {
+                assert_eq!(pick(Op::AttnDecode, 1, n, nkv, d, kv).as_deref(), Some(dec), "decode {n}/{nkv}/{d} kv={kv}");
+            }
+            for m in [1, 2, 5, 16] {
+                assert_eq!(pick(Op::AttnPrefill, m, n, nkv, d, 4096).as_deref(), Some(pre), "prefill {n}/{nkv}/{d} T={m}");
+            }
+            for m in [17, 256, 2048] {
+                assert_eq!(pick(Op::AttnPrefill, m, n, nkv, d, 4096).as_deref(), Some("attn_prefill_bf16_flash"), "T={m}");
+            }
+        }
+        // a group above 8 has no split-KV kernel: the SIMT decode kernel
+        assert_eq!(pick(Op::AttnDecode, 1, 64, 4, 128, 4096).as_deref(), Some("attn_decode_bf16"));
     }
 
     #[test]

@@ -126,8 +126,8 @@ fn attention_decode_device_position_is_bitwise_the_host_position() {
             kv_cap: cap,
             ..OpAttrs::default()
         };
-        for kernel in ["attn_decode_bf16", "attn_decode_bf16_splitkv"] {
-            if kernel.ends_with("splitkv") && n / nkv > 8 {
+        for kernel in ["attn_decode_bf16", "attn_decode_bf16_splitkv", "attn_decode_bf16_splitkv_pipe"] {
+            if kernel.contains("splitkv") && n / nkv > 8 {
                 continue;
             }
             for &p in &POSITIONS {

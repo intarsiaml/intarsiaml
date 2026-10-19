@@ -1,0 +1,118 @@
+fleetq: #2657 waiting (#1 in line): spark1 is held exclusively by #2652 "core-op-fusion P1 CUDA no-op: greedy ids + goldens, fusion-dev vs fusion-base (10eef81c)" (claude-f31ccf91)
+fleetq:   #2652 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2652 set, or it will wait for #2652 to be released.
+fleetq: #2657 running on spark1: /opt/code/intarsiaml/.claude/worktrees/agent-a5b3c881bb3be5c2f/scripts/cuda-round5/vllm-info.sh
+== container state / image / command
+running started=2026-10-19T07:40:27.94518203Z image=f733c5dd166c
+["vllm"] ["serve","nvidia/Qwen3.6-35B-A3B-NVFP4","--host","100.120.88.104","--port","8000","--served-model-name","guidance","capcom","--quantization","modelopt_fp4","--max-model-len","32768","--max-num-seqs","2","--max-num-batched-tokens","8192","--kv-cache-dtype","fp8","--gpu-memory-utilization","0.50","--enable-prefix-caching","--enable-prompt-tokens-details","--enable-chunked-prefill","--enable-auto-tool-choice","--tool-call-parser","qwen3_xml","--reasoning-parser","qwen3"] ["serve","nvidia/Qwen3.6-35B-A3B-NVFP4","--host","100.120.88.104","--port","8000","--served-model-name","guidance","capcom","--quantization","modelopt_fp4","--max-model-len","32768","--max-num-seqs","2","--max-num-batched-tokens","8192","--kv-cache-dtype","fp8","--gpu-memory-utilization","0.50","--enable-prefix-caching","--enable-prompt-tokens-details","--enable-chunked-prefill","--enable-auto-tool-choice","--tool-call-parser","qwen3_xml","--reasoning-parser","qwen3"]
+== container env (VLLM_* / FLASHINFER* / CUDA*, secrets filtered)
+VLLM_LOGGING_LEVEL=INFO
+VLLM_NVFP4_GEMM_BACKEND=flashinfer-cutlass
+VLLM_USE_FLASHINFER_MOE_FP4=0
+VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel
+CUDA_VERSION=13.0.2
+VLLM_ENABLE_CUDA_COMPATIBILITY=0
+TORCH_CUDA_ARCH_LIST=8.0 8.7 8.9 9.0 10.0 11.0 12.0
+VLLM_USAGE_SOURCE=production-docker-image
+VLLM_BUILD_COMMIT=65b7662d3fcb773afaf751ab29ac6960a0cf011d
+VLLM_BUILD_PIPELINE=019d130e-464e-4ff7-b84b-492992c0c06b
+VLLM_BUILD_URL=https://buildkite.com/vllm/release-v2/builds/4994
+VLLM_IMAGE_TAG=vllm/vllm-openai:nightly-65b7662d3fcb773afaf751ab29ac6960a0cf011d
+== mounts
+/home/nvidia/.cache/huggingface -> /root/.cache/huggingface
+
+== startup log lines
+95393:(EngineCore pid=172) INFO 10-19 07:07:51 [gpu_model_runner.py:6756] Profiling CUDA graph memory: PIECEWISE=3 (largest=4), FULL=2 (largest=2)
+95394:(EngineCore pid=172) INFO 10-19 07:07:52 [gpu_model_runner.py:6881] Estimated CUDA graph memory: 0.55 GiB total
+95395:(EngineCore pid=172) INFO 10-19 07:07:52 [gpu_worker.py:564] Available KV cache memory: 34.84 GiB
+95396:(EngineCore pid=172) INFO 10-19 07:07:52 [gpu_worker.py:579] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.5000 is equivalent to --gpu-memory-utilization=0.4955 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.5045. To disable, set VLLM_MEMORY_PROFILER_E
+95397:(EngineCore pid=172) INFO 10-19 07:07:52 [kv_cache_utils.py:1882] GPU KV cache size: 2,596,119 tokens, Maximum concurrency for 32,768 tokens per request: 79.23x
+95399:(EngineCore pid=172) INFO 10-19 07:07:54 [kernel_warmup.py:256] Using FlashInfer autotune cache file: /root/.cache/vllm/flashinfer_autotune_cache/0.6.16.post3/121a/f4b38759702aa51efc21b1ba305ee3e9e8df922bfb4cfa5de82e69a77642fb9d/autotune_configs.json
+95404:(EngineCore pid=172) INFO 10-19 07:07:54 [gpu_model_runner.py:6942] Rank 0: Torch profiler disabled for CUDA graph capture
+95405:(EngineCore pid=172) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/3 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 3/3 [00:00<00:00, 21.71it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 3/3 [00:00<00:00, 21.69it/s]
+95406:(EngineCore pid=172) Capturing CUDA graphs (decode, FULL):   0%|          | 0/2 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 2/2 [00:00<00:00, 17.34it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 2/2 [00:00<00:00, 17.32it/s]
+95408:(EngineCore pid=172) INFO 10-19 07:07:55 [gpu_worker.py:727] CUDA graph pool memory: 0.61 GiB (actual), 0.55 GiB (estimated), difference: 0.06 GiB (10.6%).
+95409:(EngineCore pid=172) INFO 10-19 07:07:55 [gpu_worker.py:790] Free memory on device (109.15/121.69 GiB) on startup. Desired GPU memory utilization is (0.5, 60.84 GiB). Actual usage is 24.07 GiB for consumed memory (weights + non-torch), 1.93 GiB for peak activation, and 0.61 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=36600555008` (34.09 GiB) to fit
+95412:(EngineCore pid=172) INFO 10-19 07:07:56 [core.py:344] init engine (profile, create kv cache, warmup model) took 20.12 s (compilation: 8.75 s)
+95427:(APIServer pid=1) INFO 10-19 07:08:09 [launcher.py:60] Route: /version, Methods: GET
+95467:(APIServer pid=1) INFO 10-19 07:08:40 [loggers.py:310] Engine 000: Avg prompt throughput: 550.9 tokens/s, Avg generation throughput: 13.0 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+95479:(APIServer pid=1) INFO 10-19 07:08:50 [loggers.py:310] Engine 000: Avg prompt throughput: 1424.9 tokens/s, Avg generation throughput: 58.6 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.3%, Prefix cache hit rate: 0.0%
+95486:(APIServer pid=1) INFO 10-19 07:09:00 [loggers.py:310] Engine 000: Avg prompt throughput: 3330.8 tokens/s, Avg generation throughput: 31.0 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+95490:(APIServer pid=1) INFO 10-19 07:09:10 [loggers.py:310] Engine 000: Avg prompt throughput: 1665.8 tokens/s, Avg generation throughput: 12.8 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+95492:(APIServer pid=1) INFO 10-19 07:09:20 [loggers.py:310] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+95676:(APIServer pid=1) INFO 10-19 07:29:19 [api_utils.py:345]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.26.1rc1.dev602+g65b7662d3
+95680:(APIServer pid=1) INFO 10-19 07:29:19 [api_utils.py:273] non-default args: {'model_tag': 'nvidia/Qwen3.6-35B-A3B-NVFP4', 'enable_auto_tool_choice': True, 'tool_call_parser': 'qwen3_xml', 'enable_prompt_tokens_details': True, 'host': '100.120.88.104', 'model': 'nvidia/Qwen3.6-35B-A3B-NVFP4', 'max_model_len': 32768, 'quantization': 'modelopt_fp4', 'served_model_name': ['guidance', 'capcom'], '
+95683:(APIServer pid=1) WARNING 10-19 07:29:19 [envs.py:2164] Unknown vLLM environment variable detected: VLLM_USE_FLASHINFER_MOE_FP4
+95688:(APIServer pid=1) INFO 10-19 07:29:21 [cache.py:282] Using fp8 data type to store kv cache. It reduces the GPU memory footprint and boosts the performance. Meanwhile, it may cause accuracy drop without a proper scaling factor
+95691:(APIServer pid=1) WARNING 10-19 07:29:21 [modelopt.py:379] Detected ModelOpt fp8 checkpoint (quant_algo=FP8). Please note that the format is experimental and could change.
+95694:(APIServer pid=1) WARNING 10-19 07:29:21 [modelopt.py:1676] Detected ModelOpt MXFP8 checkpoint. Please note that the format is experimental and could change in future.
+95696:(APIServer pid=1) [transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+95697:(EngineCore pid=172) INFO 10-19 07:29:33 [core.py:121] Initializing a V1 LLM engine (v0.26.1rc1.dev602+g65b7662d3) with config: model='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b
+95702:(EngineCore pid=172) INFO 10-19 07:29:34 [topk_topp_sampler.py:62] Using FlashInfer for top-p & top-k sampling.
+95703:(EngineCore pid=172) [transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+95705:(EngineCore pid=172) INFO 10-19 07:29:39 [cuda.py:541] Using backend AttentionBackendEnum.FLASH_ATTN for vit attention
+95706:(EngineCore pid=172) INFO 10-19 07:29:39 [mm_encoder_attention.py:375] Using AttentionBackendEnum.FLASH_ATTN for MMEncoderAttention.
+95707:(EngineCore pid=172) INFO 10-19 07:29:39 [__init__.py:692] Selected CutlassFP8ScaledMMLinearKernel for ModelOptFp8LinearMethod
+95713:(EngineCore pid=172) INFO 10-19 07:29:39 [nvfp4.py:291] Using 'MARLIN' NvFp4 MoE backend out of potential backends: ['FLASHINFER_TRTLLM', 'FLASHINFER_CUTEDSL', 'FLASHINFER_CUTEDSL_BATCHED', 'FLASHINFER_CUTLASS', 'VLLM_CUTLASS', 'MARLIN', 'HUMMING', 'EMULATION'].
+95714:(EngineCore pid=172) INFO 10-19 07:29:39 [cuda.py:482] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'TRITON_ATTN'].
+95724:(EngineCore pid=172) WARNING 10-19 07:31:32 [marlin.py:34] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+95725:(EngineCore pid=172) WARNING 10-19 07:31:32 [marlin_utils_fp4.py:354] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+95735:(EngineCore pid=172) INFO 10-19 07:31:50 [flashinfer.py:826] FlashInfer resolved query dtypes: prefill=torch.bfloat16, decode=torch.bfloat16, decode_backend=flashinfer-native, kv_cache_dtype=torch.float8_e4m3fn, arch=sm121
+95736:(EngineCore pid=172) INFO 10-19 07:31:50 [gpu_model_runner.py:6756] Profiling CUDA graph memory: PIECEWISE=3 (largest=4), FULL=2 (largest=2)
+95737:(EngineCore pid=172) INFO 10-19 07:31:51 [gpu_model_runner.py:6881] Estimated CUDA graph memory: 0.56 GiB total
+95738:(EngineCore pid=172) INFO 10-19 07:31:51 [gpu_worker.py:564] Available KV cache memory: 34.94 GiB
+95739:(EngineCore pid=172) INFO 10-19 07:31:51 [gpu_worker.py:579] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.5000 is equivalent to --gpu-memory-utilization=0.4954 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.5046. To disable, set VLLM_MEMORY_PROFILER_E
+95740:(EngineCore pid=172) INFO 10-19 07:31:51 [kv_cache_utils.py:1882] GPU KV cache size: 2,602,077 tokens, Maximum concurrency for 32,768 tokens per request: 79.41x
+95742:(EngineCore pid=172) INFO 10-19 07:31:52 [kernel_warmup.py:256] Using FlashInfer autotune cache file: /root/.cache/vllm/flashinfer_autotune_cache/0.6.16.post3/121a/f4b38759702aa51efc21b1ba305ee3e9e8df922bfb4cfa5de82e69a77642fb9d/autotune_configs.json
+95747:(EngineCore pid=172) INFO 10-19 07:31:52 [gpu_model_runner.py:6942] Rank 0: Torch profiler disabled for CUDA graph capture
+95748:(EngineCore pid=172) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/3 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 3/3 [00:00<00:00, 21.79it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 3/3 [00:00<00:00, 21.77it/s]
+95749:(EngineCore pid=172) Capturing CUDA graphs (decode, FULL):   0%|          | 0/2 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 2/2 [00:00<00:00, 17.63it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 2/2 [00:00<00:00, 17.60it/s]
+95751:(EngineCore pid=172) INFO 10-19 07:31:54 [gpu_worker.py:727] CUDA graph pool memory: 0.6 GiB (actual), 0.56 GiB (estimated), difference: 0.05 GiB (7.8%).
+95752:(EngineCore pid=172) INFO 10-19 07:31:54 [gpu_worker.py:790] Free memory on device (108.5/121.69 GiB) on startup. Desired GPU memory utilization is (0.5, 60.84 GiB). Actual usage is 23.97 GiB for consumed memory (weights + non-torch), 1.94 GiB for peak activation, and 0.6 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=36712506880` (34.19 GiB) to fit i
+95755:(EngineCore pid=172) INFO 10-19 07:31:54 [core.py:344] init engine (profile, create kv cache, warmup model) took 18.21 s (compilation: 9.19 s)
+95770:(APIServer pid=1) INFO 10-19 07:32:07 [launcher.py:60] Route: /version, Methods: GET
+95825:(APIServer pid=1) INFO 10-19 07:40:32 [api_utils.py:345]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.26.1rc1.dev602+g65b7662d3
+95829:(APIServer pid=1) INFO 10-19 07:40:32 [api_utils.py:273] non-default args: {'model_tag': 'nvidia/Qwen3.6-35B-A3B-NVFP4', 'enable_auto_tool_choice': True, 'tool_call_parser': 'qwen3_xml', 'enable_prompt_tokens_details': True, 'host': '100.120.88.104', 'model': 'nvidia/Qwen3.6-35B-A3B-NVFP4', 'max_model_len': 32768, 'quantization': 'modelopt_fp4', 'served_model_name': ['guidance', 'capcom'], '
+95832:(APIServer pid=1) WARNING 10-19 07:40:32 [envs.py:2164] Unknown vLLM environment variable detected: VLLM_USE_FLASHINFER_MOE_FP4
+95837:(APIServer pid=1) INFO 10-19 07:40:34 [cache.py:282] Using fp8 data type to store kv cache. It reduces the GPU memory footprint and boosts the performance. Meanwhile, it may cause accuracy drop without a proper scaling factor
+95840:(APIServer pid=1) WARNING 10-19 07:40:34 [modelopt.py:379] Detected ModelOpt fp8 checkpoint (quant_algo=FP8). Please note that the format is experimental and could change.
+95843:(APIServer pid=1) WARNING 10-19 07:40:34 [modelopt.py:1676] Detected ModelOpt MXFP8 checkpoint. Please note that the format is experimental and could change in future.
+95845:(APIServer pid=1) [transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+95846:(EngineCore pid=174) INFO 10-19 07:40:46 [core.py:121] Initializing a V1 LLM engine (v0.26.1rc1.dev602+g65b7662d3) with config: model='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b
+95851:(EngineCore pid=174) INFO 10-19 07:40:47 [topk_topp_sampler.py:62] Using FlashInfer for top-p & top-k sampling.
+95852:(EngineCore pid=174) [transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+95854:(EngineCore pid=174) INFO 10-19 07:40:52 [cuda.py:541] Using backend AttentionBackendEnum.FLASH_ATTN for vit attention
+95855:(EngineCore pid=174) INFO 10-19 07:40:52 [mm_encoder_attention.py:375] Using AttentionBackendEnum.FLASH_ATTN for MMEncoderAttention.
+95856:(EngineCore pid=174) INFO 10-19 07:40:52 [__init__.py:692] Selected CutlassFP8ScaledMMLinearKernel for ModelOptFp8LinearMethod
+95862:(EngineCore pid=174) INFO 10-19 07:40:52 [nvfp4.py:291] Using 'MARLIN' NvFp4 MoE backend out of potential backends: ['FLASHINFER_TRTLLM', 'FLASHINFER_CUTEDSL', 'FLASHINFER_CUTEDSL_BATCHED', 'FLASHINFER_CUTLASS', 'VLLM_CUTLASS', 'MARLIN', 'HUMMING', 'EMULATION'].
+95863:(EngineCore pid=174) INFO 10-19 07:40:52 [cuda.py:482] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'TRITON_ATTN'].
+95873:(EngineCore pid=174) WARNING 10-19 07:43:05 [marlin.py:34] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+95874:(EngineCore pid=174) WARNING 10-19 07:43:05 [marlin_utils_fp4.py:354] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+95884:(EngineCore pid=174) INFO 10-19 07:43:23 [flashinfer.py:826] FlashInfer resolved query dtypes: prefill=torch.bfloat16, decode=torch.bfloat16, decode_backend=flashinfer-native, kv_cache_dtype=torch.float8_e4m3fn, arch=sm121
+95885:(EngineCore pid=174) INFO 10-19 07:43:23 [gpu_model_runner.py:6756] Profiling CUDA graph memory: PIECEWISE=3 (largest=4), FULL=2 (largest=2)
+95886:(EngineCore pid=174) INFO 10-19 07:43:24 [gpu_model_runner.py:6881] Estimated CUDA graph memory: 0.56 GiB total
+95887:(EngineCore pid=174) INFO 10-19 07:43:24 [gpu_worker.py:564] Available KV cache memory: 34.83 GiB
+95888:(EngineCore pid=174) INFO 10-19 07:43:24 [gpu_worker.py:579] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.5000 is equivalent to --gpu-memory-utilization=0.4954 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.5046. To disable, set VLLM_MEMORY_PROFILER_E
+95889:(EngineCore pid=174) INFO 10-19 07:43:24 [kv_cache_utils.py:1882] GPU KV cache size: 2,594,629 tokens, Maximum concurrency for 32,768 tokens per request: 79.18x
+95891:(EngineCore pid=174) INFO 10-19 07:43:26 [kernel_warmup.py:256] Using FlashInfer autotune cache file: /root/.cache/vllm/flashinfer_autotune_cache/0.6.16.post3/121a/f4b38759702aa51efc21b1ba305ee3e9e8df922bfb4cfa5de82e69a77642fb9d/autotune_configs.json
+95896:(EngineCore pid=174) INFO 10-19 07:43:26 [gpu_model_runner.py:6942] Rank 0: Torch profiler disabled for CUDA graph capture
+95897:(EngineCore pid=174) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/3 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 3/3 [00:00<00:00, 21.66it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 3/3 [00:00<00:00, 21.63it/s]
+95898:(EngineCore pid=174) Capturing CUDA graphs (decode, FULL):   0%|          | 0/2 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 2/2 [00:00<00:00, 17.02it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 2/2 [00:00<00:00, 17.00it/s]
+95900:(EngineCore pid=174) INFO 10-19 07:43:27 [gpu_worker.py:727] CUDA graph pool memory: 0.6 GiB (actual), 0.56 GiB (estimated), difference: 0.05 GiB (7.9%).
+95901:(EngineCore pid=174) INFO 10-19 07:43:27 [gpu_worker.py:790] Free memory on device (108.57/121.69 GiB) on startup. Desired GPU memory utilization is (0.5, 60.84 GiB). Actual usage is 24.08 GiB for consumed memory (weights + non-torch), 1.94 GiB for peak activation, and 0.6 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=36591519232` (34.08 GiB) to fit 
+95904:(EngineCore pid=174) INFO 10-19 07:43:28 [core.py:344] init engine (profile, create kv cache, warmup model) took 18.96 s (compilation: 9.23 s)
+95919:(APIServer pid=1) INFO 10-19 07:43:41 [launcher.py:60] Route: /version, Methods: GET
+== vllm / flashinfer versions in the image (only if the container is running)
+0.26.1rc1.dev602+g65b7662d3 2.13.0+cu130
+flashinfer 0.6.16.post3
+== 35B config.json / hf_quant_config.json
+num_hidden_layers 40
+full_attention_interval 4
+num_attention_heads 16
+num_key_value_heads 2
+head_dim 256
+hidden_size 2048
+max_position_embeddings 262144
+layer_types {'full_attention': 10, 'linear_attention': 30}
+quantization_config {"config_groups": {"group_0": {"input_activations": {"dynamic": false, "num_bits": 8, "type": "float"}, "weights": {"dynamic": false, "num_bits": 8, "type": "float"}, "targets": ["model.language_model.layers.0.linear_attn.in_proj_qkv", "model.language_model.layers.0.linear_attn.in_proj_z", "model.language_model.layers.0.linear_attn.out_proj", "model.language_model.layers.1.linear_attn.in_proj_qkv", "model.language_model.layers.1.linear_attn.in_proj_z", "model.language_model.layers.1.linear_attn.out_proj", "model.language_model.layers.10.linear_attn.in_proj_qkv", "model.language_model.layers.10.linear_attn.in_proj_z", "model.language_model.layers.10.linear_attn.out_proj", "model.language_mode
+hf_quant_config {"producer": {"name": "modelopt", "version": "0.44.0"}, "quantization": {"quant_algo": "MIXED_PRECISION", "kv_cache_quant_algo": "FP8", "quantized_layers": {"model.language_model.layers.0.linear_attn.out_proj": {"quant_algo": "FP8"}, "model.language_model.layers.0.linear_attn.in_proj_qkv": {"quant_algo": "FP8"}, "model.language_model.layers.0.linear_attn.in_proj_z": {"quant_algo": "FP8"}, "model.language_model.layers.0.mlp.experts": {"quant_algo": "W4A16_NVFP4", "group_size": 16}, "model.language_model.layers.0.mlp.shared_expert.gate_proj": {"quant_algo": "W4A16_NVFP4", "group_size": 16}, "model.language_model.layers.0.mlp.shared_expert.up_proj": {"quant_algo": "W4A16_NVFP4", "group_size": 1
+fleetq: #2657 done (exit 0)

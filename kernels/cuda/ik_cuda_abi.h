@@ -38,6 +38,14 @@ int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tens
 int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                                  const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 
+/* attn_decode_bf16_splitkv_pipe / attn_prefill_bf16_splitkv_pipe: ik_attn_decode_bf16_splitkv / ik_attn_prefill_bf16_splitkv
+ * (same arguments, same scratch, bitwise the same outputs) with the K / V rows streamed ahead of the arithmetic through a
+ * cp.async ring in shared memory, see kernels/cuda/attention_splitkv.cu. */
+int ik_attn_decode_bf16_splitkv_pipe(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                     ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, void* stream);
+int ik_attn_prefill_bf16_splitkv_pipe(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                      ik_tensor* out, const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

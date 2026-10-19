@@ -264,10 +264,11 @@ impl Backend for CudaBackend {
     fn kernels(&self) -> Vec<KernelImpl> {
         let mut v = kernels::all();
         // A/B and debugging aid: INTARSIA_CUDA_DISABLE=name1,name2 hides kernels from the registry, so the
-        // plan falls back to the next candidate (e.g. the SIMT attention kernels instead of flash / split-KV)
+        // plan falls back to the next candidate (e.g. the SIMT attention kernels instead of flash / split-KV); a disabled
+        // kernel's bitwise twin is hidden with it (disable::TWINS)
         if let Ok(list) = std::env::var("INTARSIA_CUDA_DISABLE") {
-            let off: Vec<&str> = list.split(',').map(str::trim).filter(|x| !x.is_empty()).collect();
-            v.retain(|k| !off.contains(&k.name.as_str()));
+            let off = crate::disable::expand(&list);
+            v.retain(|k| !off.contains(&k.name));
         }
         v
     }
@@ -336,6 +337,12 @@ impl Backend for CudaBackend {
                 }
                 "attn_prefill_bf16_splitkv" => {
                     ffi::ik_attn_prefill_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
+                }
+                "attn_decode_bf16_splitkv_pipe" => {
+                    ffi::ik_attn_decode_bf16_splitkv_pipe(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, pos, s)
+                }
+                "attn_prefill_bf16_splitkv_pipe" => {
+                    ffi::ik_attn_prefill_bf16_splitkv_pipe(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
                 }
                 "attn_prefill_bf16_flash" => ffi::ik_attn_prefill_bf16_flash(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
                 "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
