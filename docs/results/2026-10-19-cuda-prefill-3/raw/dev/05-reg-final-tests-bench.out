@@ -1,0 +1,305 @@
+fleetq: #2499 running on spark1: scripts/cuda-prefill3/dev.sh
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/p3-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p3-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 10.25s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 33795624 Oct 18 20:30 /home/nvidia/intarsia-decfuse/p3-dev/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 45, 11.11 W, 0 %
+== resources
+-- fp8_gemm
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi4ELi3E13__nv_bfloat16EEvPKS2_S4_PKhPKfPT1_iiiii:
+  REG:128 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi4ELi3EfEEvPK13__nv_bfloat16S4_PKhPKfPT1_iiiii:
+  REG:135 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function actq_kernelEPK13__nv_bfloat16PS0_PKfl:
+  REG:25 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:928 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi2ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:75 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:60 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi1E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi2ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:52 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi1EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+-- fp8_gemm_f8
+ Function gemm_kernelILi2ELi2E13__nv_bfloat16EEvPKhS3_PKfPT1_iiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi4ELi2E13__nv_bfloat16EEvPKhS3_PKfPT1_iiii:
+  REG:108 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi2ELi2EfEEvPKhS2_PKfPT1_iiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi4ELi2EfEEvPKhS2_PKfPT1_iiii:
+  REG:108 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function actq8_kernelEPK13__nv_bfloat16PhPKfl:
+  REG:24 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:928 TEXTURE:0 SURFACE:0 SAMPLER:0
+-- nvfp4_gemm
+ Function gemm_kernelILi0ELi2ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:64 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi1E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi2ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:74 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:64 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi1EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:72 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+== wq tests
+-- env INTARSIA_X=0
+test fp8_gemm_reg_35b_shapes ... ok
+test fp8_gemm_reg_every_e4m3_code ... ok
+test fp8_gemm_reg_is_bitwise_the_gemm ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test bench_wq_prefill_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 f8 gemm 2.323e-5; elements off: 0.0011 / 0.0001
+act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 f8 gemm 1.163e-7; elements off: 0.9799 / 0.7553
+act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 f8 gemm 9.521e-6; elements off: 0.0003 / 0.0001
+act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 2.928e-5 f8 gemm 2.928e-5; elements off: 0.0003 / 0.0003
+act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 1.212e-4 f8 gemm 1.212e-4; elements off: 0.0017 / 0.0017
+act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.226e-6 f8 gemm 1.226e-6; elements off: 0.9885 / 0.9885
+act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 5.217e-5 f8 gemm 5.217e-5; elements off: 0.0004 / 0.0004
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 new 0.0014; rel_l2 old 8.005e-5 new 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 new 0.0025; rel_l2 old 1.123e-4 new 1.751e-4
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 4.75s
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm,matmul_fp8_gemm_reg,matmul_fp8_gemm_f8 INTARSIA_BENCH_M=256,512,1024,2048,4096
+M=256 gdn in_proj_qkv    matmul_fp8_gemm            169.1 us   50.8 TFLOPS
+M=256 gdn in_proj_z      matmul_fp8_gemm             89.0 us   48.2 TFLOPS
+M=256 gdn out_proj       matmul_fp8_gemm            114.6 us   37.5 TFLOPS
+M=256 attn q_proj+gate   matmul_fp8_gemm            169.2 us   50.8 TFLOPS
+M=256 attn k/v_proj      matmul_fp8_gemm             33.2 us   16.2 TFLOPS
+M=256 attn o_proj        matmul_fp8_gemm            114.5 us   37.5 TFLOPS
+M=256 fp8 per-chunk total matmul_fp8_gemm          14682.9 us
+M=256 gdn in_proj_qkv    matmul_fp8_gemm_reg        129.5 us   66.4 TFLOPS
+M=256 gdn in_proj_z      matmul_fp8_gemm_reg         89.4 us   48.0 TFLOPS
+M=256 gdn out_proj       matmul_fp8_gemm_reg         84.9 us   50.6 TFLOPS
+M=256 attn q_proj+gate   matmul_fp8_gemm_reg        129.5 us   66.3 TFLOPS
+M=256 attn k/v_proj      matmul_fp8_gemm_reg         33.2 us   16.2 TFLOPS
+M=256 attn o_proj        matmul_fp8_gemm_reg         84.8 us   50.6 TFLOPS
+M=256 fp8 per-chunk total matmul_fp8_gemm_reg      11919.4 us
+M=256 gdn in_proj_qkv    matmul_fp8_gemm_f8         131.4 us   65.4 TFLOPS
+M=256 gdn in_proj_z      matmul_fp8_gemm_f8          72.2 us   59.5 TFLOPS
+M=256 gdn out_proj       matmul_fp8_gemm_f8          79.5 us   54.0 TFLOPS
+M=256 attn q_proj+gate   matmul_fp8_gemm_f8         131.4 us   65.4 TFLOPS
+M=256 attn k/v_proj      matmul_fp8_gemm_f8          26.0 us   20.6 TFLOPS
+M=256 attn o_proj        matmul_fp8_gemm_f8          79.5 us   54.0 TFLOPS
+M=256 fp8 per-chunk total matmul_fp8_gemm_f8       11124.4 us
+M=512 gdn in_proj_qkv    matmul_fp8_gemm            317.6 us   54.1 TFLOPS
+M=512 gdn in_proj_z      matmul_fp8_gemm            171.8 us   50.0 TFLOPS
+M=512 gdn out_proj       matmul_fp8_gemm            168.9 us   50.9 TFLOPS
+M=512 attn q_proj+gate   matmul_fp8_gemm            318.9 us   53.9 TFLOPS
+M=512 attn k/v_proj      matmul_fp8_gemm             34.9 us   30.8 TFLOPS
+M=512 attn o_proj        matmul_fp8_gemm            168.6 us   50.9 TFLOPS
+M=512 fp8 per-chunk total matmul_fp8_gemm          25322.9 us
+M=512 gdn in_proj_qkv    matmul_fp8_gemm_reg        265.3 us   64.8 TFLOPS
+M=512 gdn in_proj_z      matmul_fp8_gemm_reg        130.6 us   65.8 TFLOPS
+M=512 gdn out_proj       matmul_fp8_gemm_reg        168.3 us   51.1 TFLOPS
+M=512 attn q_proj+gate   matmul_fp8_gemm_reg        263.9 us   65.1 TFLOPS
+M=512 attn k/v_proj      matmul_fp8_gemm_reg         34.3 us   31.3 TFLOPS
+M=512 attn o_proj        matmul_fp8_gemm_reg        168.2 us   51.1 TFLOPS
+M=512 fp8 per-chunk total matmul_fp8_gemm_reg      21933.2 us
+M=512 gdn in_proj_qkv    matmul_fp8_gemm_f8         244.6 us   70.2 TFLOPS
+M=512 gdn in_proj_z      matmul_fp8_gemm_f8         132.4 us   64.9 TFLOPS
+M=512 gdn out_proj       matmul_fp8_gemm_f8         119.1 us   72.1 TFLOPS
+M=512 attn q_proj+gate   matmul_fp8_gemm_f8         246.0 us   69.8 TFLOPS
+M=512 attn k/v_proj      matmul_fp8_gemm_f8          27.1 us   39.6 TFLOPS
+M=512 attn o_proj        matmul_fp8_gemm_f8         118.7 us   72.4 TFLOPS
+M=512 fp8 per-chunk total matmul_fp8_gemm_f8       19073.0 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm            626.2 us   54.9 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm            312.8 us   54.9 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm            370.0 us   46.4 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm            639.7 us   53.7 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm             66.0 us   32.5 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm            369.0 us   46.6 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm          50678.0 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        498.8 us   68.9 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        266.5 us   64.5 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        300.2 us   57.2 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        535.6 us   64.1 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         50.9 us   42.2 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        300.1 us   57.3 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      41338.5 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_f8         412.8 us   83.2 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_f8         218.1 us   78.8 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_f8         198.3 us   86.6 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_f8         414.4 us   82.9 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_f8          43.4 us   49.4 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_f8         199.9 us   85.9 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_f8       31890.1 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1295.6 us   53.0 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            649.8 us   52.9 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            711.7 us   48.3 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1286.1 us   53.4 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm            110.0 us   39.0 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            714.5 us   48.1 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm         101918.5 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1022.3 us   67.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        536.7 us   64.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        595.6 us   57.7 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1008.7 us   68.1 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        105.7 us   40.6 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        617.3 us   55.7 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      83011.4 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         836.1 us   82.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         419.3 us   81.9 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         446.2 us   77.0 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         840.9 us   81.7 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          83.2 us   51.6 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         450.7 us   76.2 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       65628.2 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm           2503.2 us   54.9 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm           1416.4 us   48.5 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm           1492.3 us   46.1 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm           2504.8 us   54.9 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm            285.3 us   30.1 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm           1533.2 us   44.8 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm         208443.0 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       1937.8 us   70.9 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1059.2 us   64.9 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1205.0 us   57.0 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       1932.3 us   71.1 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        246.0 us   34.9 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1167.1 us   58.9 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     161972.3 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_f8        1580.9 us   86.9 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_f8         865.8 us   79.4 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_f8         906.1 us   75.8 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_f8        1573.9 us   87.3 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_f8         208.1 us   41.3 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_f8         889.3 us   77.3 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_f8      129377.0 us
+== wq bench round 2: INTARSIA_BENCH_WQ=matmul_fp8_gemm,matmul_fp8_gemm_reg,matmul_fp8_gemm_f8 INTARSIA_BENCH_M=256,512,1024,2048,4096
+M=256 gdn in_proj_qkv    matmul_fp8_gemm            168.8 us   50.9 TFLOPS
+M=256 gdn in_proj_z      matmul_fp8_gemm             89.4 us   48.1 TFLOPS
+M=256 gdn out_proj       matmul_fp8_gemm            114.9 us   37.4 TFLOPS
+M=256 attn q_proj+gate   matmul_fp8_gemm            170.2 us   50.5 TFLOPS
+M=256 attn k/v_proj      matmul_fp8_gemm             35.0 us   15.3 TFLOPS
+M=256 attn o_proj        matmul_fp8_gemm            114.5 us   37.5 TFLOPS
+M=256 fp8 per-chunk total matmul_fp8_gemm          14740.0 us
+M=256 gdn in_proj_qkv    matmul_fp8_gemm_reg        129.7 us   66.2 TFLOPS
+M=256 gdn in_proj_z      matmul_fp8_gemm_reg         90.0 us   47.7 TFLOPS
+M=256 gdn out_proj       matmul_fp8_gemm_reg         86.1 us   49.9 TFLOPS
+M=256 attn q_proj+gate   matmul_fp8_gemm_reg        129.7 us   66.2 TFLOPS
+M=256 attn k/v_proj      matmul_fp8_gemm_reg         33.2 us   16.2 TFLOPS
+M=256 attn o_proj        matmul_fp8_gemm_reg         85.1 us   50.5 TFLOPS
+M=256 fp8 per-chunk total matmul_fp8_gemm_reg      11984.5 us
+M=256 gdn in_proj_qkv    matmul_fp8_gemm_f8         132.3 us   65.0 TFLOPS
+M=256 gdn in_proj_z      matmul_fp8_gemm_f8          73.5 us   58.4 TFLOPS
+M=256 gdn out_proj       matmul_fp8_gemm_f8          79.9 us   53.8 TFLOPS
+M=256 attn q_proj+gate   matmul_fp8_gemm_f8         131.9 us   65.1 TFLOPS
+M=256 attn k/v_proj      matmul_fp8_gemm_f8          26.2 us   20.5 TFLOPS
+M=256 attn o_proj        matmul_fp8_gemm_f8          80.4 us   53.4 TFLOPS
+M=256 fp8 per-chunk total matmul_fp8_gemm_f8       11214.7 us
+M=512 gdn in_proj_qkv    matmul_fp8_gemm            320.0 us   53.7 TFLOPS
+M=512 gdn in_proj_z      matmul_fp8_gemm            172.1 us   49.9 TFLOPS
+M=512 gdn out_proj       matmul_fp8_gemm            169.2 us   50.8 TFLOPS
+M=512 attn q_proj+gate   matmul_fp8_gemm            317.1 us   54.2 TFLOPS
+M=512 attn k/v_proj      matmul_fp8_gemm             35.1 us   30.6 TFLOPS
+M=512 attn o_proj        matmul_fp8_gemm            168.9 us   50.9 TFLOPS
+M=512 fp8 per-chunk total matmul_fp8_gemm          25396.5 us
+M=512 gdn in_proj_qkv    matmul_fp8_gemm_reg        264.4 us   65.0 TFLOPS
+M=512 gdn in_proj_z      matmul_fp8_gemm_reg        131.3 us   65.4 TFLOPS
+M=512 gdn out_proj       matmul_fp8_gemm_reg        168.1 us   51.1 TFLOPS
+M=512 attn q_proj+gate   matmul_fp8_gemm_reg        265.4 us   64.7 TFLOPS
+M=512 attn k/v_proj      matmul_fp8_gemm_reg         35.1 us   30.6 TFLOPS
+M=512 attn o_proj        matmul_fp8_gemm_reg        168.3 us   51.1 TFLOPS
+M=512 fp8 per-chunk total matmul_fp8_gemm_reg      21951.7 us
+M=512 gdn in_proj_qkv    matmul_fp8_gemm_f8         246.1 us   69.8 TFLOPS
+M=512 gdn in_proj_z      matmul_fp8_gemm_f8         132.1 us   65.0 TFLOPS
+M=512 gdn out_proj       matmul_fp8_gemm_f8         120.0 us   71.6 TFLOPS
+M=512 attn q_proj+gate   matmul_fp8_gemm_f8         245.8 us   69.9 TFLOPS
+M=512 attn k/v_proj      matmul_fp8_gemm_f8          27.1 us   39.6 TFLOPS
+M=512 attn o_proj        matmul_fp8_gemm_f8         119.8 us   71.7 TFLOPS
+M=512 fp8 per-chunk total matmul_fp8_gemm_f8       19143.9 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm            623.9 us   55.1 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm            310.9 us   55.3 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm            366.1 us   46.9 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm            634.3 us   54.2 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm             67.8 us   31.7 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm            366.5 us   46.9 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm          50391.3 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        500.2 us   68.7 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        263.2 us   65.3 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        302.1 us   56.9 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        504.1 us   68.2 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         50.4 us   42.6 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        299.0 us   57.5 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      41006.2 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_f8         406.9 us   84.4 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_f8         219.6 us   78.2 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_f8         200.7 us   85.6 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_f8         409.4 us   83.9 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_f8          43.9 us   48.9 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_f8         201.5 us   85.3 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_f8       31801.6 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1262.3 us   54.4 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            651.1 us   52.8 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            712.8 us   48.2 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1284.7 us   53.5 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm            109.0 us   39.4 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            728.9 us   47.1 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm         101100.6 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        998.0 us   68.9 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        532.2 us   64.6 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        590.3 us   58.2 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg        966.6 us   71.1 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        108.1 us   39.7 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        595.0 us   57.7 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      81390.3 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         769.9 us   89.3 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         421.5 us   81.5 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         452.2 us   76.0 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         772.4 us   89.0 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          83.8 us   51.2 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         447.5 us   76.8 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       63184.2 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm           2512.7 us   54.7 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm           1424.4 us   48.2 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm           1534.9 us   44.8 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm           2513.9 us   54.7 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm            289.8 us   29.6 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm           1486.5 us   46.2 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm         209962.1 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       1943.1 us   70.7 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1084.2 us   63.4 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1166.7 us   58.9 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       1938.1 us   70.9 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        246.0 us   34.9 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1157.3 us   59.4 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     161694.0 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_f8        1577.8 us   87.1 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_f8         838.1 us   82.0 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_f8         898.7 us   76.5 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_f8        1580.7 us   86.9 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_f8         204.1 us   42.1 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_f8         922.9 us   74.5 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_f8      128555.3 us
+fleetq: #2499 done (exit 0)
+
+[exited with code 0]

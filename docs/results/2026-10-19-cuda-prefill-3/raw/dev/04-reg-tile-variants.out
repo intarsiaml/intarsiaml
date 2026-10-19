@@ -1,0 +1,119 @@
+fleetq: #2498 running on spark1: scripts/cuda-prefill3/dev.sh
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/p3-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p3-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 9.88s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 34194480 Oct 18 20:26 /home/nvidia/intarsia-decfuse/p3-dev/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 45, 11.20 W, 0 %
+== resources
+-- fp8_gemm
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi4ELi2E13__nv_bfloat16EEvPKS2_S4_PKhPKfPT1_iiiii:
+  REG:128 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi8ELi2E13__nv_bfloat16EEvPKS2_S4_PKhPKfPT1_iiiii:
+  REG:126 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi4ELi3E13__nv_bfloat16EEvPKS2_S4_PKhPKfPT1_iiiii:
+  REG:128 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi4ELi2EfEEvPK13__nv_bfloat16S4_PKhPKfPT1_iiiii:
+  REG:124 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi8ELi2EfEEvPK13__nv_bfloat16S4_PKhPKfPT1_iiiii:
+  REG:126 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__9fca814f_11_fp8_gemm_cu_ae694c2e3reg15gemm_reg_kernelILi4ELi3EfEEvPK13__nv_bfloat16S4_PKhPKfPT1_iiiii:
+  REG:135 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:956 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function actq_kernelEPK13__nv_bfloat16PS0_PKfl:
+  REG:25 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:928 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi2ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:75 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:60 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi1E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi2ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:52 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi1EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+-- fp8_gemm_f8
+ Function gemm_kernelILi2ELi2E13__nv_bfloat16EEvPKhS3_PKfPT1_iiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi4ELi2E13__nv_bfloat16EEvPKhS3_PKfPT1_iiii:
+  REG:108 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi2ELi2EfEEvPKhS2_PKfPT1_iiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi4ELi2EfEEvPKhS2_PKfPT1_iiii:
+  REG:108 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function actq8_kernelEPK13__nv_bfloat16PhPKfl:
+  REG:24 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:928 TEXTURE:0 SURFACE:0 SAMPLER:0
+-- nvfp4_gemm
+ Function gemm_kernelILi0ELi2ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:64 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi1E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi2ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:74 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:64 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi1EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiii:
+  REG:72 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE:0 SAMPLER:0
+== wq tests
+-- env INTARSIA_FP8_REG_CFG=2
+test fp8_gemm_reg_35b_shapes ... ok
+test fp8_gemm_reg_every_e4m3_code ... ok
+test fp8_gemm_reg_is_bitwise_the_gemm ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s
+-- env INTARSIA_FP8_REG_CFG=3
+test fp8_gemm_reg_35b_shapes ... ok
+test fp8_gemm_reg_every_e4m3_code ... ok
+test fp8_gemm_reg_is_bitwise_the_gemm ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm,matmul_fp8_gemm_reg,matmul_fp8_gemm_f8 INTARSIA_FP8_REG_CFG=1
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1253.9 us   54.8 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            648.3 us   53.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            727.8 us   47.2 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1212.8 us   56.7 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm            106.5 us   40.3 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            724.3 us   47.4 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm         100399.5 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1001.4 us   68.6 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        565.4 us   60.8 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        600.5 us   57.2 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1034.1 us   66.5 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        105.6 us   40.7 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        608.5 us   56.5 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      83556.9 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         832.9 us   82.5 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         420.6 us   81.7 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         455.3 us   75.5 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         826.4 us   83.2 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          83.7 us   51.3 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         451.3 us   76.1 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       65713.9 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_FP8_REG_CFG=2
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1022.4 us   67.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        557.3 us   61.7 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        608.2 us   56.5 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg        975.0 us   70.5 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        107.2 us   40.1 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        582.0 us   59.0 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      83350.6 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_FP8_REG_CFG=3
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1139.8 us   60.3 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        568.0 us   60.5 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        653.6 us   52.6 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1105.0 us   62.2 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        109.4 us   39.3 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        648.1 us   53.0 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      90563.7 us
+fleetq: #2498 done (exit 0)
+
+[exited with code 0]

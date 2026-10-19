@@ -1,0 +1,15 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 20480 tokens
+calibration: 47 base tokens, 22.09 tokens per filler sentence
+  size   1024 rep: prompt=987 gen=128 ttft=0.24s prefill=4101 tok/s decode=81.0 tok/s
+  size   1024 rep: prompt=989 gen=128 ttft=0.24s prefill=4124 tok/s decode=81.0 tok/s
+  size   4096 rep: prompt=4084 gen=128 ttft=0.77s prefill=5312 tok/s decode=77.9 tok/s
+  size   4096 rep: prompt=4016 gen=128 ttft=0.76s prefill=5276 tok/s decode=78.3 tok/s
+  size  16384 rep: prompt=16457 gen=128 ttft=3.34s prefill=4921 tok/s decode=70.7 tok/s
+  size  16384 rep: prompt=16478 gen=128 ttft=3.36s prefill=4903 tok/s decode=70.5 tok/s
+wrote /home/nvidia/intarsia-decfuse/out/p3B/ab/35b-reg-r1/cudadecode-35b-reg-r1.json
+cudadecode-35b-reg-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      988     0.240         4113        81.0      128
+    4096     4050     0.765         5294        78.1      128
+   16384    16468     3.353         4912        70.6      128

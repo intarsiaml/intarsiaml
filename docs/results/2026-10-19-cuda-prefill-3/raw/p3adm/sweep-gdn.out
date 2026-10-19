@@ -1,0 +1,39 @@
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=5.960e-8 rel_l2=7.605e-8 T=1 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.037e-7 rel_l2=6.317e-8 T=7 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=5.960e-8 rel_l2=8.090e-8 T=64 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=6.104e-5 rel_l2=2.229e-5 T=130 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.192e-7 rel_l2=7.331e-8 T=1 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.192e-7 rel_l2=9.151e-8 T=7 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=5.960e-8 rel_l2=6.094e-8 T=64 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=7.451e-8 rel_l2=9.581e-8 T=130 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=8.941e-8 rel_l2=9.726e-8 T=1 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=8.941e-8 rel_l2=1.757e-7 T=7 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.526e-5 rel_l2=3.242e-5 T=64 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.384e-7 rel_l2=3.958e-7 T=130 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.980e-8 rel_l2=7.128e-8 T=1 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=4.470e-8 rel_l2=9.427e-8 T=7 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.980e-8 rel_l2=7.032e-8 T=64 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.980e-8 rel_l2=6.300e-8 T=130 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.192e-7 rel_l2=6.561e-8 T=1 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=9.537e-7 rel_l2=1.295e-6 T=7 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=3.052e-5 rel_l2=1.844e-5 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.221e-4 rel_l2=3.773e-5 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.192e-7 rel_l2=7.382e-8 T=1 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.192e-7 rel_l2=9.118e-8 T=7 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=7.629e-6 rel_l2=9.432e-6 T=64 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=5.960e-8 rel_l2=9.315e-8 T=130 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=8.941e-8 rel_l2=9.741e-8 T=1 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=8.941e-8 rel_l2=1.739e-7 T=7 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.526e-5 rel_l2=3.242e-5 T=64 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=4.470e-8 rel_l2=7.823e-8 T=130 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.192e-7 rel_l2=6.548e-8 T=1 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.526e-5 rel_l2=1.690e-5 T=7 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.221e-4 rel_l2=4.646e-5 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=6.104e-5 rel_l2=1.769e-5 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    3.773e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_lanes      12      0    1.221e-4    4.646e-5  ADMITTED
+2 kernels, 32 cases in 0.4s
+exit 0
