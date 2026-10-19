@@ -1,0 +1,20 @@
+Here is the continuation and completion of the IntarsiaML architecture plan, picking up from the `mermaid` diagram and proceeding through the remaining sections of the v0.2 specification.
+
+---
+
+```mermaid
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    SCHED["Scheduler: Preemption, KV-cache management, speculative decoding"]
+    MODEL["Model: Block composition, recipe loading, weight mapping"]
+    KERNEL["Kernel Dispatch: Dynamic selection based on op type, shape, and platform"]
+    MEM["Memory: Unified buffer management, zero-copy between host/device"]
+  end
+  subgraph Kernels["Kernel Packs (MIT/Apache-2.0)"]
+    TF["TensorFold: High-performance GEMM, MoE, FlashAttention"]
+    RAD["Radiance: Optimized for RDNA3/Ada, quant-aware kernels"]
+    PORT["Portable: Elementwise, Norm, Rope, Sampling (CUDA/HIP shared)"]
+  end
+  subgraph Tools["Offline Tools (Python)"]
+    GOLD["Golden Ref: HF Transformers logits comparison"]
+    CONV["Converters: GGUF, Safetensors -> Int

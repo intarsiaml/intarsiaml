@@ -1,0 +1,21 @@
+Here is the continuation and completion of the IntarsiaML architecture plan, picking up from the `mermaid` diagram and proceeding through the remaining sections of the v0.2 specification.
+
+---
+
+```mermaid
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    CFG["Config: Model recipe, KV cache, Quant map"]
+    SCHED["Scheduler: Pre-fill, Decode, Prefetch"]
+    KV["KV Manager: Paged, Swap, Async"]
+    DISPATCH["Dispatcher: Op routing, Kernel selection"]
+  end
+  subgraph Kernels["Kernel Packs (Crate: intarsia-kernels)"]
+    TF["TensorFold (MIT): CUDA/HIP GEMM, MoE, FlashAttn"]
+    RAD["Radiance (Apache-2.0): HIP/RDMA optimized, NVFP4"]
+    PORT["Portable: Norm, Rope, Sampling, Elementwise"]
+  end
+  subgraph Utils["Offline Tools (Python/uv)"]
+    GOLD["Golden Ref: HF Transformers"]
+    CONV["Converters: GGUF, Safetensors"]
+    BENCH["Benchmarks: Latency,
