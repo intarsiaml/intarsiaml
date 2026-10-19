@@ -249,7 +249,7 @@ so the decision belongs to the user. Options:
 |---|---|---|---|---|
 | HIP (W2, full sweep, no `--quick`) | 35B | 46 / 808, 0 FAIL | 49 / 853, 0 FAIL | +3 kernels, +45 cases (15 + 10 + 20), all ADMITTED. P5 and P2a max error 0; P4b 1.9e-9 vs cpu-ref, inside tolerance |
 | HIP (W2, full sweep) | 8B | 46 / 821 | 49 / 866 | the same +3 / +45 (the sweep is per kernel) |
-| CUDA | 35B, 8B | see section 9 | | registers none of the three ops |
+| CUDA (`--quick`, vLLM-up slot) | 35B, 8B | 46 / 143, 0 FAIL | 46 / 143, 0 FAIL | none; logs identical apart from timing; 3 pre-existing SKIPPED kernels on both |
 | Metal | - | not run here (endor) | | registers none of the three ops (pinned by `phase1_folds_are_absent_...`) |
 
 The plans on HIP select the new kernels at the decode shapes only (section 1). The 8B plan is identical to base.
@@ -262,7 +262,28 @@ are still allocated, so nothing was freed either. The same weight tensors are lo
 
 ## 9. CUDA no-op (spark1, `fusion-base` = `10eef81c` export vs `fusion-dev` = this branch)
 
-CUDA_RESULTS_PLACEHOLDER
+Two parts, both measured on the same pair of trees, built on spark1 (job 2628, vLLM up).
+
+**vLLM-down window** (job 2652, `scripts/cuda-decode/fusion-noop.sh` = `w-noop.sh fusion-base fusion-dev nospeed`;
+log in `raw/logs/cuda-window2.log`):
+
+* **Greedy ids, 256 tokens, 35B and 8B:** B-graph, A-eager and B-eager all match A-graph. That is "IDS ... == A-graph" for all 6
+  comparisons.
+* **35b-short golden (prefill chunk 256), A and B:** the same KL21, 6.271e-3 prefill and 1.556e-2 decode. PASS on both.
+  - These are CUDA's own digits; the HIP digits in section 4 come from a different backend.
+* **Self-golden dump compare:** 60 tensors per tree, per-position TSV identical.
+* **8B fp32 goldens on B:** short 2.897e-4 / 3.238e-4, long 4.004e-4 / 3.332e-4 (full-vocab KL prefill / decode). PASS.
+
+**vLLM-up slot** (job 2660, `scripts/cuda-decode/fusion-noop-up.sh`, `raw/cuda/`):
+
+* **`plan show --json`, 35B and 8B:** byte-identical between A and B (md5 prefixes `58a6100d2900` and `d1847a362f17`).
+  - 35B: 525 launches per decode step on both; 8B: 544 on both.
+  - Scratch is unchanged: 83963392 and 748800.
+* **`kernels test --backend cuda --quick`:** 46 kernels, 143 cases, 0 FAIL, for the 35B and the 8B, on both trees. The logs are
+  identical apart from timing lines.
+  - Both trees exit 1 with the same three SKIPPED kernels (`matmul_fp8_gemm_reg`, `moe_experts_nvfp4_mma_bf16` and
+    `moe_experts_w4a16_bf16` ran 0 quick cases). That is pre-existing and identical on A and B.
+  - The full (non-quick) CUDA sweep was not run.
 
 ## 10. Every shared file touched, and what changes per backend
 
@@ -324,7 +345,8 @@ Base `10eef81c` vs this branch's HEAD (section 14):
 | radiance | W3: A/B x3, 35B and 8B | 2646 | 03:15:58 -> 03:30:35 | 14.6 |
 | **radiance total** | | | | **31.6 of 45** |
 | vLLM guidance (spark1) | CUDA window 1 (failed at once, exit 126) | 2647 | 03:29:05 -> 03:32:08 | 3.0 |
-| vLLM guidance | CUDA window 2 | CUDA_JOB | CUDA_TIMES | CUDA_MIN |
+| vLLM guidance | CUDA window 2: ids, goldens, dump compare | 2652 | 03:32:22 -> 03:43:44 | 11.3 |
+| **vLLM total** | | | | **14.3** (one 11.3-min window that measured, plus the 3.0-min failed start) |
 
 Builds and mutant builds ran in CPU-only tatooine slots (jobs 2627, 2635, 2637), and CUDA builds in a vLLM-up spark1 slot (2628).
 Every window was released only after `/v1/models` answered.
