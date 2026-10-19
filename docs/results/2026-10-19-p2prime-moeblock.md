@@ -40,7 +40,7 @@ tatooine). Proposal: `docs/proposals/2026-10-19-core-op-fusion.md` section 5. Ga
 | M2 P2' opt-in build | **done**: `Op::MoeBlock`, CPU oracle, admission cases, HIP kernel, `try_fused` site, env `INTARSIA_HIP_MOE_BLOCK=1`, off under TP > 1 | section 4 |
 | M3 prove it | **done**: both edges at T = 1 / 2 / 4, 13 GPU mutants + 1 lib mutant, bitwise device tests, KL21 short/long, ids, prefix reuse, 8B goldens, full admission | sections 5, 6 |
 | M4 measure | **done**: 35B A/B x3 (default / P2' / v3), 8B A/B x3, launches per step | section 7 |
-| M5 CUDA no-op | see section 9 (spark1 plan JSON, pin tests); Metal checklist in section 10 | sections 9, 10 |
+| M5 CUDA no-op | **partial**: CUDA and Metal pin tests pass (Mac); the spark1 `plan show` byte-identity check is **pending** (spark1 held by #2726, then offline). Metal checklist written | sections 9, 10 |
 
 ## 2. M0: the T >= 2 stress (`v3_sentinel_stress_multitoken`, `tests/moe_v3.rs`)
 
@@ -315,7 +315,37 @@ The 8B is unchanged. The 1024 prefill -1.38 % is inside the rounds' own spread (
 
 ## 9. CUDA no-op (spark1)
 
-CUDA_SECTION
+**Status: the spark1 run is PENDING. It could not run in this session.**
+- Another session's exclusive job, #2726 (an EXL3 TP2 runbook test with a spark2 reboot), held spark1 and spark2 from about
+  09:50.
+- spark1 then went OFFLINE at about 11:09.
+- My two queued build jobs (#2727, #2728) never started and were cancelled. Nothing ran on spark1, and vLLM there was never
+  touched by this work. It was already down under #2726.
+
+**What is shown without spark1** (this Mac, `raw/logs/mac-checks.log`):
+* `moe_block_is_absent_and_the_unfused_selection_is_pinned` passes on both pins:
+  - the CUDA pin (`intarsia-backend-cuda/src/kernels.rs`): no CUDA kernel implements `Op::MoeBlock`, and the MoE chain's
+    kernels are still selected;
+  - the Metal pin (`intarsia-backend-metal/src/kernels.rs`): the same for Metal.
+* Why the CUDA plan cannot change:
+  - `fused_ok` needs a selectable kernel, and CUDA has none, so the call site falls through to the unchanged chain before
+    any CUDA launch.
+  - The only `ShapeInfo` change (`head_dim` = IS) is in the `MoeBlock` arm of `ShapeInfo::from_call`, which a CUDA plan never
+    reaches.
+  - `MoeBlock` is not in `PER_ROW_OPS`.
+* The diff from `34fdbbc6` to HEAD is empty over `crates/intarsia-core`, `crates/intarsia-backend-cuda`, `kernels/abi`,
+  `kernels/cuda`, `crates/intarsia-cli` and `crates/intarsia-models/src`. The tree prepared for the CUDA build (`34fdbbc6`)
+  has the same CUDA-relevant code as HEAD.
+
+**To run when spark1 is back** (vLLM stays up; the phase-2 pattern, `scripts/cuda-decode/`):
+1. Export 6ef5faaa into `<dirA>` and this branch's HEAD into `<dirB>`. Use `archive`, as phase 2 did.
+2. Build each tree:
+   - `fleetq run --host spark1 --mem 16 --label "p2prime M5: build CUDA tree p2p-base (vLLM up)" -- env SRC_DIR=<dirA> INTARSIA_STAMP=6ef5faaa scripts/cuda-decode/build.sh p2p-base`;
+   - the same for `p2p-dev` with `<dirB>` and the HEAD sha.
+3. Compare the plans: `fleetq run --host spark1 --mem 30 --label "p2prime M5: CUDA no-op plans + kernels test --quick (vLLM up)" -- ssh spark1 'NOOP_A=p2p-base NOOP_B=p2p-dev bash ~/intarsia-decfuse/p2p-dev/scripts/cuda-decode/fusion-noop-up.sh'`.
+   Expect `PLAN 35b JSON IDENTICAL` and `PLAN 8b JSON IDENTICAL`, and equal `kernels test --quick` counts. Phase 2 had 50
+   kernels and 149 cases.
+4. Run the pin tests on spark1 in the p2p-dev tree: `cargo test --release -p intarsia-backend-cuda moe_block`.
 
 ## 10. Metal no-op check to run (Metal spike session, endor)
 
@@ -413,4 +443,5 @@ Per-window log: `raw/downtime.log`.
   so it cannot outlive the lane.
 
 CPU-only slots (radiance up), all on tatooine: 2719 (M0 build), 2721 (compile check), 2722 (build), 2725 (resource usage,
-mutant builds, ISA), 2729 (`topk-wround` build, ISA), 2734 (final resource usage). spark1 (vLLM up, never taken down): see section 9.
+mutant builds, ISA), 2729 (`topk-wround` build, ISA), 2734 (final resource usage). spark1: #2727 and #2728 were queued and cancelled
+without starting (section 9). No spark1 or vLLM downtime from this work. No slot is held.
