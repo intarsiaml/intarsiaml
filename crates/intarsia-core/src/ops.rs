@@ -38,6 +38,8 @@
 //! | `RmsNormAddMatmulFp8Pair` | x `[M,K]`, res `[M,K]`, norm w `[K]`, (w0 `[N0,K]`, scales0 `[2]`), (w1 `[N1,K]`, scales1 `[2]`) fp8 | normed `[M,K]`, sum `[M,K]`, `[M,N0]`, `[M,N1]` (= `RmsNormAdd(x, res, w)`, then `MatmulFp8Pair` of the normed rows) | eps, w_offset; the attention input norm folded into the k / v projections (P5) |
 //! | `SigmoidMulMatmulFp8` | a `[M,K]`, gate `[M,K]`, w `[N,K]` fp8, scales `[2]` | `[M,N]` (= `MatmulFp8(SigmoidMul(a, gate), w)`) | the attention output gate folded into the o_proj input (P4b) |
 //! | `SharedDownCombine` | x `[M,K]`, w `[N,K/2]` u8, block scales `[N,K/16]` fp8, global `[1]` f32 (nvfp4), routed `[M,N]`, shared-gate logit `[M,1]` | `[M,N]` (= `MoeCombine(routed, MatmulNvfp4(x, w), logit)`) | the MoE shared-expert down projection with the combine as its epilogue (P2a) |
+//! | `GateSplitQkNormRopeKv` | q+gate `[T,N,2D]` (per head: `D` query values then `D` gate values), k `[T,Nkv,D]`, v `[T,Nkv,D]`, q_w `[D]`, k_w `[D]` | q_out `[T,N,D]`, gate `[T,N,D]`, k cache, v cache `[Nkv,cap,D]` (**in place**) (= `GateSplit`, then `QkNormRopeKv` of the split-off query) | as `QkNormRopeKv`; the gated attention's split folded into the prologue (P4a) |
+//! | `GdnConvDelta` | x `[T,C]` (the projection, before the conv), taps `[C,K]`, a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32, conv state `[C,K-1]` f32 (both **in place**) (= `GdnConv(x, taps)`, then `GdnDeltaRule` of its output) | eps (l2norm); the conv folded into the delta rule (P3) |
 //!
 //! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The fused ops
 //! above are optional: a backend registers kernels for them only when it has a fast path, and the model
@@ -95,10 +97,13 @@ pub enum Op {
     RmsNormAddMatmulFp8Pair,
     SigmoidMulMatmulFp8,
     SharedDownCombine,
+    // appended (2026-10-19, core-op fusion phase 2), for the same reason
+    GateSplitQkNormRopeKv,
+    GdnConvDelta,
 }
 
 impl Op {
-    pub const ALL: [Op; 33] = [
+    pub const ALL: [Op; 35] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -132,6 +137,8 @@ impl Op {
         Op::RmsNormAddMatmulFp8Pair,
         Op::SigmoidMulMatmulFp8,
         Op::SharedDownCombine,
+        Op::GateSplitQkNormRopeKv,
+        Op::GdnConvDelta,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -170,6 +177,8 @@ impl Op {
             Op::RmsNormAddMatmulFp8Pair => "rmsnorm_add_matmul_fp8_pair",
             Op::SigmoidMulMatmulFp8 => "sigmoid_mul_matmul_fp8",
             Op::SharedDownCombine => "shared_down_combine",
+            Op::GateSplitQkNormRopeKv => "gate_split_qk_norm_rope_kv",
+            Op::GdnConvDelta => "gdn_conv_delta",
         }
     }
 
@@ -211,6 +220,8 @@ impl Op {
             Op::RmsNormAddMatmulFp8Pair => (7, 4),
             Op::SigmoidMulMatmulFp8 => (4, 1),
             Op::SharedDownCombine => (6, 1),
+            Op::GateSplitQkNormRopeKv => (5, 4),
+            Op::GdnConvDelta => (6, 3),
         }
     }
 }
@@ -318,6 +329,26 @@ impl OpCall {
         Some(c)
     }
 
+    /// `GateSplitQkNormRopeKv` as the `QkNormRopeKv` call it ends in: the query input is the first half of each head of
+    /// the gated row (`[T,N,D]` over `[T,N,2D]`; the view keeps the buffer, only the shape is the split-off query's, so
+    /// its row stride is not that view's and the call is a shape / dtype probe, not a launch), the gate output dropped.
+    /// Attributes and the device position carry over. Panics for any other op.
+    pub fn gate_split_inner(&self) -> OpCall {
+        assert_eq!(self.op, Op::GateSplitQkNormRopeKv, "gate_split_inner of {}", self.op);
+        let mut q = self.inputs[0].clone();
+        if let [_, _, d2] = q.shape[..] {
+            q.shape[2] = d2 / 2;
+        }
+        let mut inputs = self.inputs.clone();
+        inputs[0] = q;
+        let mut outputs = self.outputs.clone();
+        outputs.remove(1);
+        let mut c = OpCall::new(Op::QkNormRopeKv, inputs, outputs, self.attrs.clone());
+        c.pos = self.pos.clone();
+        c.exact_rows = self.exact_rows;
+        c
+    }
+
     /// Validate arity, ranks, shapes, dtypes and bounds. Backends and the
     /// harness call this so every implementation sees well-formed calls.
     pub fn check(&self) -> Result<()> {
@@ -335,7 +366,7 @@ impl OpCall {
         }
         if let Some(p) = &self.pos {
             p.check_bounds()?;
-            if !matches!(self.op, Op::Rope | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) {
+            if !matches!(self.op, Op::Rope | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv) {
                 return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
             }
             if p.dtype != DType::I32 || p.numel() != 1 {
@@ -479,6 +510,19 @@ impl OpCall {
                     }
                 }
             }
+            Op::GateSplitQkNormRopeKv => {
+                // GateSplit's checks on the gated row, then QkNormRopeKv's on the split-off query (same checks, same message)
+                rank(&i[0], 3, "q+gate")?;
+                rank(&o[1], 3, "gate")?;
+                let (t, n, d2) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+                if d2 % 2 != 0 {
+                    return bad(format!("last dim {d2} must be even (query + gate)"));
+                }
+                if o[1].shape != [t, n, d2 / 2] || o[1].dtype != i[0].dtype {
+                    return bad(format!("gate {} {:?} must be {} [{t},{n},{}]", o[1].dtype, o[1].shape, i[0].dtype, d2 / 2));
+                }
+                self.gate_split_inner().check()?;
+            }
             Op::Argmax => {
                 rank(&i[0], 2, "logits")?;
                 if o[0].dtype != DType::I32 || o[0].shape != [i[0].shape[0]] {
@@ -508,7 +552,7 @@ impl OpCall {
             | Op::RmsNormAddMatmulFp8Pair
             | Op::SigmoidMulMatmulFp8
             | Op::SharedDownCombine => crate::quant::ops::check(self)?,
-            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::check(self)?,
+            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::check(self)?,
         }
         Ok(())
     }
@@ -578,6 +622,15 @@ impl ShapeInfo {
                 s.n_kv_heads = i[1].shape[1];
                 s.weight = Some(o[1].dtype); // kv cache dtype
             }
+            // QkNormRopeKv's facts for the split-off query (head_dim is half the gated row)
+            Op::GateSplitQkNormRopeKv => {
+                s.m = i[0].shape[0];
+                s.n_heads = i[0].shape[1];
+                s.head_dim = i[0].shape[2] / 2;
+                s.k = s.head_dim;
+                s.n_kv_heads = i[1].shape[1];
+                s.weight = Some(o[2].dtype); // kv cache dtype
+            }
             Op::AttnPrefill | Op::AttnDecode => {
                 s.m = i[0].shape[0];
                 s.n_heads = i[0].shape[1];
@@ -605,7 +658,7 @@ impl ShapeInfo {
             | Op::RmsNormAddMatmulFp8Pair
             | Op::SigmoidMulMatmulFp8
             | Op::SharedDownCombine => crate::quant::ops::shape(call, &mut s),
-            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::shape(call, &mut s),
+            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -719,6 +772,67 @@ mod tests {
         assert!(bad.check().is_err());
         // ops outside the phase-1 folds are never re-shaped
         assert!(OpCall::new(Op::Matmul, vec![b(&[1, 8]), b(&[4, 8])], vec![b(&[1, 4])], OpAttrs::default()).with_rows(2).is_none());
+    }
+
+    /// The phase-2 folds: each is checked as the chain it replaces (with the same messages), takes a device position only
+    /// where that chain does (the prologue), and reports the shape facts its kernels select on.
+    #[test]
+    fn check_phase2_folds() {
+        let b = |s: &[usize]| t(DType::Bf16, s);
+        let f = |s: &[usize]| t(DType::F32, s);
+        let attrs = OpAttrs { pos0: 3, kv_cap: 16, rotary_dim: 16, ..OpAttrs::default() };
+        let (n, nkv, d) = (4, 2, 64);
+        let p4a = OpCall::new(
+            Op::GateSplitQkNormRopeKv,
+            vec![b(&[2, n, 2 * d]), b(&[2, nkv, d]), b(&[2, nkv, d]), b(&[d]), b(&[d])],
+            vec![b(&[2, n, d]), b(&[2, n, d]), b(&[nkv, 16, d]), b(&[nkv, 16, d])],
+            attrs.clone(),
+        );
+        p4a.check().unwrap();
+        let inner = p4a.gate_split_inner();
+        assert_eq!((inner.op, inner.inputs[0].shape.clone(), inner.outputs.len()), (Op::QkNormRopeKv, vec![2, n, d], 3));
+        let s = ShapeInfo::from_call(&p4a);
+        assert_eq!((s.m, s.n_heads, s.n_kv_heads, s.head_dim, s.weight), (2, n, nkv, d, Some(DType::Bf16)));
+        // a device position (graph replay) is accepted, as for QkNormRopeKv; without it the decode graph would never fuse
+        let mut with_pos = p4a.clone();
+        with_pos.pos = Some(t(DType::I32, &[1]));
+        with_pos.check().unwrap();
+        assert!(with_pos.gate_split_inner().pos.is_some());
+        let mut bad = p4a.clone();
+        bad.outputs[1] = b(&[2, n, d + 2]); // the gate is not the split-off half
+        assert!(bad.check().is_err());
+        let mut bad = p4a.clone();
+        bad.inputs[0] = b(&[2, n, 2 * d + 1]); // odd gated row
+        assert!(bad.check().is_err());
+        let mut bad = p4a.clone();
+        bad.attrs.pos0 = 15; // the 2 rows run past the cache (QkNormRopeKv's check)
+        assert!(bad.check().is_err());
+
+        // GdnConvDelta: Hk = 1, Hv = 2, dk = 32, dv = 16 -> C = 96; K = 4
+        let (tt, c, hv, dv, dk, k) = (3, 96, 2, 16, 32, 4);
+        let p3 = OpCall::new(
+            Op::GdnConvDelta,
+            vec![b(&[tt, c]), b(&[c, k]), b(&[tt, hv]), b(&[tt, hv]), b(&[hv]), b(&[hv])],
+            vec![b(&[tt, hv, dv]), f(&[hv, dv, dk]), f(&[c, k - 1])],
+            OpAttrs { eps: 1e-6, ..OpAttrs::default() },
+        );
+        p3.check().unwrap();
+        let s = ShapeInfo::from_call(&p3);
+        assert_eq!((s.m, s.n, s.k, s.head_dim, s.n_heads, s.n_kv_heads), (tt, dv, k, dk, hv, 1));
+        let mut bad = p3.clone();
+        bad.outputs[2] = f(&[c, k]); // conv state [C, K-1]
+        assert!(bad.check().is_err());
+        let mut bad = p3.clone();
+        bad.outputs[2] = b(&[c, k - 1]); // conv state must be f32
+        assert!(bad.check().is_err());
+        let mut bad = p3.clone();
+        bad.outputs[1] = f(&[hv, dv, dk + 1]); // delta state does not split the qkv row
+        assert!(bad.check().is_err());
+        let mut with_pos = p3.clone();
+        with_pos.pos = Some(t(DType::I32, &[1]));
+        assert!(with_pos.check().is_err(), "the GDN ops take no device position");
+        // neither is a row-local fold of phase 1
+        assert!(p4a.with_rows(2).is_none() && p3.with_rows(2).is_none());
     }
 
     #[test]

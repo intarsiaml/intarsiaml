@@ -1,6 +1,6 @@
 //! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
 //! `QkNormRopeKv`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`,
-//! `SharedDownCombine`).
+//! `SharedDownCombine`, `GateSplitQkNormRopeKv`, `GdnConvDelta`).
 //! Each is defined as the composition of the ops it replaces, so the oracle of a fused kernel is exactly "the
 //! unfused path, including the output rounding of every intermediate tensor". `sub` is the executor of the
 //! constituent ops: the f64 reference for `ref_*`, the f32 kernels for `cpu_f32_*`.
@@ -86,6 +86,31 @@ pub fn run(call: &OpCall, sub: fn(&OpCall) -> Result<()>) -> Result<()> {
             let down = tmp(&o[0], &o[0].shape);
             step(sub, Op::MatmulNvfp4, vec![i[0].clone(), i[1].clone(), i[2].clone(), i[3].clone()], vec![down.clone()], d())?;
             step(sub, Op::MoeCombine, vec![i[4].clone(), down, i[5].clone()], vec![o[0].clone()], d())
+        }
+        Op::GateSplitQkNormRopeKv => {
+            // the split-off query is stored in the activation dtype (the unfused path's `GateSplit` output), the gate goes
+            // straight to its output; then QkNormRopeKv's own composition
+            let (t, n, d2) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+            let q = tmp(&i[0], &[t, n, d2 / 2]);
+            step(sub, Op::GateSplit, vec![i[0].clone()], vec![q.clone(), o[1].clone()], d())?;
+            let prologue = OpCall::new(
+                Op::QkNormRopeKv,
+                vec![q, i[1].clone(), i[2].clone(), i[3].clone(), i[4].clone()],
+                vec![o[0].clone(), o[2].clone(), o[3].clone()],
+                a.clone(),
+            );
+            prologue.check()?;
+            run(&prologue, sub)
+        }
+        Op::GdnConvDelta => {
+            // the conv output is stored in the activation dtype (the unfused path's `GdnConv` output tensor) and read back by
+            // the delta rule; the conv state is updated in place by the conv, the delta-rule state by the delta rule
+            let y = tmp(&i[0], &i[0].shape);
+            let (conv, delta) = intarsia_core::gdn::conv_delta_parts(call, &y);
+            conv.check()?;
+            sub(&conv)?;
+            delta.check()?;
+            sub(&delta)
         }
         other => Err(Error::invalid(format!("fused_ref cannot run {other}"))),
     }

@@ -77,7 +77,7 @@ pub const TABLE: &[(&str, Op)] = &[
 ];
 
 /// Ops this backend does not implement (sampling stays on the cpu).
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample];
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::GateSplitQkNormRopeKv, Op::GdnConvDelta];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (same budget as the cpu backend).
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);

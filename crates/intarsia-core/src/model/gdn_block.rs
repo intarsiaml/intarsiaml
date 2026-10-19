@@ -181,21 +181,27 @@ impl Model {
             self.proj(n, &g.in_b, &b, profile)?;
             self.proj(n, &g.in_a, &a, profile)?;
         }
-        self.exec(
-            Op::GdnConv,
-            vec![qkv, g.conv.clone()],
-            vec![conv.clone(), conv_state],
-            OpAttrs::default(),
+        // HF l2norm epsilon (a constant of the architecture, not rms_norm_eps)
+        let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
+        // the conv folded into the delta rule (`GdnConvDelta`: the conv output is never stored) when the backend has it;
+        // otherwise the two ops as before, in the same order
+        let folded = self.try_fused(
+            Op::GdnConvDelta,
+            vec![qkv.clone(), g.conv.clone(), a.clone(), b.clone(), g.a_log.clone(), g.dt_bias.clone()],
+            vec![core.clone(), s_state.clone(), conv_state.clone()],
+            delta_attrs.clone(),
             profile,
         )?;
-        self.exec(
-            Op::GdnDeltaRule,
-            vec![conv, a, b, g.a_log.clone(), g.dt_bias.clone()],
-            vec![core.clone(), s_state],
-            // HF l2norm epsilon (a constant of the architecture, not rms_norm_eps)
-            OpAttrs { eps: 1e-6, ..Default::default() },
-            profile,
-        )?;
+        if !folded {
+            self.exec(
+                Op::GdnConv,
+                vec![qkv, g.conv.clone()],
+                vec![conv.clone(), conv_state],
+                OpAttrs::default(),
+                profile,
+            )?;
+            self.exec(Op::GdnDeltaRule, vec![conv, a, b, g.a_log.clone(), g.dt_bias.clone()], vec![core.clone(), s_state], delta_attrs, profile)?;
+        }
         // gated RMSNorm: rmsnorm(core, w) * silu(z), over rows of dv (the weight is never zero-centred)
         let rows = [t * hv, dv];
         let norm_attrs = OpAttrs { eps: self.dims.rms_eps, ..Default::default() };

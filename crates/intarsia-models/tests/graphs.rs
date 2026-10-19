@@ -287,13 +287,22 @@ fn the_recording_contains_the_position_dependent_ops_with_a_device_position() {
     decode(&m, &mut st, f, 2);
     let last = rec.last.lock().unwrap();
     let count = |op: Op| last.iter().filter(|(o, _)| *o == op).count();
-    // 2 full-attention layers, one decode attention each. The cpu backend registers the fused `QkNormRopeKv`, which takes
-    // over q and k rope and the k and v appends of a layer (a backend without it runs 4 rope + 4 kv_append here).
-    assert_eq!((count(Op::Rope), count(Op::KvAppend), count(Op::QkNormRopeKv), count(Op::AttnDecode)), (0, 0, 2, 2));
+    // 2 full-attention layers, one decode attention each. The cpu backend registers the fused prologue; the fixture's
+    // attention is gated, so it takes `GateSplitQkNormRopeKv` (core-op fusion phase 2), which takes over the gate split,
+    // q and k rope and the k and v appends of a layer (a backend with only `QkNormRopeKv` runs 2 gate_split + 2 of that;
+    // one with neither 4 rope + 4 kv_append here).
+    assert_eq!(
+        (count(Op::Rope), count(Op::KvAppend), count(Op::QkNormRopeKv), count(Op::GateSplitQkNormRopeKv), count(Op::AttnDecode)),
+        (0, 0, 0, 2, 2)
+    );
+    assert_eq!(count(Op::GateSplit), 0);
     assert_eq!(count(Op::AttnPrefill), 0);
     for (op, has_pos) in last.iter() {
-        let needs = matches!(op, Op::Rope | Op::KvAppend | Op::QkNormRopeKv | Op::AttnDecode);
-        assert_eq!(*has_pos, needs, "{op}: device position expected exactly on rope / kv_append / qk_norm_rope_kv / attn_decode");
+        let needs = matches!(op, Op::Rope | Op::KvAppend | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv | Op::AttnDecode);
+        assert_eq!(
+            *has_pos, needs,
+            "{op}: device position expected exactly on rope / kv_append / (gate_split_)qk_norm_rope_kv / attn_decode"
+        );
     }
     assert_eq!(count(Op::Embedding), 1);
     assert_eq!(count(Op::Argmax), 1);

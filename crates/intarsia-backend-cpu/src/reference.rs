@@ -65,7 +65,9 @@ pub fn run(call: &OpCall) -> Result<()> {
         | Op::GatedRmsnormMatmulFp8
         | Op::RmsNormAddMatmulFp8Pair
         | Op::SigmoidMulMatmulFp8
-        | Op::SharedDownCombine => crate::fused_ref::run(call, run),
+        | Op::SharedDownCombine
+        | Op::GateSplitQkNormRopeKv
+        | Op::GdnConvDelta => crate::fused_ref::run(call, run),
         Op::Embedding => {
             let ids = {
                 let b = crate::mem::bytes(&i[0])?;

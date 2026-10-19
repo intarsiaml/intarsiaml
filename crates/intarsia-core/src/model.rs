@@ -1562,15 +1562,70 @@ impl Model {
         Ok(true)
     }
 
+    /// The gated attention's split folded into the fused prologue (`Op::GateSplitQkNormRopeKv`, P4a): the call that
+    /// replaces `GateSplit` + `QkNormRopeKv` for the `t` rows of a gated block, reading the q+gate projection
+    /// ([`Model::gated_q_buffers`]) and writing the normed and roped q to `bufs.q[1]` (where the unfused split + prologue
+    /// leave it, `qc` = 1), the gate to the gate buffer the output gate reads, and the new k / v rows to the caches.
+    /// `None` when the block is not gated or lacks a q or k norm (like [`Model::qkv_fold`]). The caller decides with
+    /// [`Model::fused_ok`] before the projections, because the split it replaces runs right after the q projection.
+    #[allow(clippy::too_many_arguments)]
+    fn gate_qkv_call(
+        &self,
+        a: &AttnBlock,
+        slot: &crate::state::AttnKvState,
+        bufs: &AttnBufs,
+        t: usize,
+        pos0: usize,
+        dpos: Option<&TensorRef>,
+    ) -> Option<OpCall> {
+        let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) else { return None };
+        if !a.gated {
+            return None;
+        }
+        let d = &self.ldims;
+        let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
+        let (qg, gate) = self.gated_q_buffers(t);
+        let cache_shape = [nkv, slot.cap, hd];
+        let attrs = OpAttrs {
+            eps: d.rms_eps,
+            w_offset: self.recipe.model.norm_offset,
+            pos0,
+            theta: d.rope_theta,
+            head_dim: hd,
+            rotary_dim: a.rotary_dim,
+            n_heads: nh,
+            n_kv_heads: nkv,
+            kv_cap: slot.cap,
+            ..Default::default()
+        };
+        let mut call = OpCall::new(
+            Op::GateSplitQkNormRopeKv,
+            vec![qg.reshaped(&[t, nh, 2 * hd]), bufs.k[0].clone(), bufs.v.clone(), qw.clone(), kw.clone()],
+            vec![
+                bufs.q[1].clone(),
+                gate,
+                self.view(&slot.k, slot.dtype, &cache_shape),
+                self.view(&slot.v, slot.dtype, &cache_shape),
+            ],
+            attrs,
+        );
+        call.pos = dpos.cloned();
+        Some(call)
+    }
+
     /// The q, k and v projections of an attention block for the `t` rows of `n`: q into `ws.q[0]` (with the output
     /// gate split off when the block has one), k into `ws.k[0]`, v into `ws.v`. Returns the index of the buffer
     /// holding q (always 0) and the gate. `kv_done`: k and v were already projected with the norm ([`Model::attn_norm_kv`]).
+    /// `split_folded`: the gated block's split runs in the fused prologue ([`Model::gate_qkv_call`]), so only the q+gate
+    /// projection runs here (the gate buffer is returned all the same; the prologue fills it).
+    #[allow(clippy::too_many_arguments)]
     fn attn_project(
         &self,
         a: &AttnBlock,
         n: &TensorRef,
         t: usize,
         kv_done: bool,
+        split_folded: bool,
         profile: bool,
     ) -> Result<(usize, Option<TensorRef>)> {
         let d = &self.ldims;
@@ -1581,13 +1636,15 @@ impl Model {
         let gate = if a.gated {
             let (qg, gate) = self.gated_q_buffers(t);
             self.proj(n, &a.wq, &qg, profile)?;
-            self.exec(
-                Op::GateSplit,
-                vec![qg.reshaped(&[t, nh, 2 * hd])],
-                vec![self.view(&ws.q[qc], act, &[t, nh, hd]), gate.clone()],
-                OpAttrs::default(),
-                profile,
-            )?;
+            if !split_folded {
+                self.exec(
+                    Op::GateSplit,
+                    vec![qg.reshaped(&[t, nh, 2 * hd])],
+                    vec![self.view(&ws.q[qc], act, &[t, nh, hd]), gate.clone()],
+                    OpAttrs::default(),
+                    profile,
+                )?;
+            }
             Some(gate)
         } else {
             self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &[t, nh * hd]), profile)?;
@@ -1630,6 +1687,7 @@ impl Model {
         t: usize,
         pos0: usize,
         dpos: Option<&TensorRef>,
+        prologue: Option<OpCall>,
         profile: bool,
     ) -> Result<(TensorRef, usize)> {
         let d = &self.ldims;
@@ -1640,8 +1698,17 @@ impl Model {
         let kcache = self.view(&slot.k, slot.dtype, &cache_shape);
         let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
         let append = OpAttrs { pos0, kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
-        // qk-norm + rope + kv-append as one op when the backend has it (needs both norms); else the ops one by one
-        let folded = self.qkv_fold(a, bufs, &mut qc, t, pos0, dpos, &kcache, &vcache, slot.cap, profile)?;
+        // the gated split + prologue in one op ([`Model::gate_qkv_call`], decided by the caller); else qk-norm + rope +
+        // kv-append as one op when the backend has it (needs both norms); else the ops one by one
+        let folded = match prologue {
+            Some(c) => {
+                debug_assert_eq!(qc, 0, "the folded split leaves q in bufs.q[1]");
+                self.exec_pos(c.op, c.inputs, c.outputs, c.attrs, dpos, profile)?;
+                qc = 1 - qc;
+                true
+            }
+            None => self.qkv_fold(a, bufs, &mut qc, t, pos0, dpos, &kcache, &vcache, slot.cap, profile)?,
+        };
         if !folded {
             if let Some(w) = &a.q_norm {
                 self.exec(
@@ -1767,10 +1834,13 @@ impl Model {
         kv_done: bool,
         profile: bool,
     ) -> Result<()> {
-        let (qc, gate) = self.attn_project(a, n, t, kv_done, profile)?;
         let slot = Self::attn_slot(st, a)?;
         let bufs = self.attn_bufs(t);
-        let (attn_out, qc) = self.attn_rows(a, slot, &bufs, qc, t, pos0, dpos, profile)?;
+        // the gated split folded into the prologue (P4a) when the backend has the fused op for this exact call: decided
+        // here, before the q projection the split follows; otherwise the split, then the prologue as before
+        let prologue = self.gate_qkv_call(a, slot, &bufs, t, pos0, dpos).filter(|c| self.fused_ok(c));
+        let (qc, gate) = self.attn_project(a, n, t, kv_done, prologue.is_some(), profile)?;
+        let (attn_out, qc) = self.attn_rows(a, slot, &bufs, qc, t, pos0, dpos, prologue, profile)?;
         self.attn_out_proj(a, &attn_out, gate, qc, out, t, profile)
     }
 
