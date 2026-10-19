@@ -1,0 +1,12 @@
+# radiance downtime per GPU window (fleetq --takes-down radiance), from the [burst] lines of logs/w*.log (tatooine clock)
+# window  job   stopping radiance     radiance answers      minutes  stages
+W1        2772  2026-10-19 17:37:55   2026-10-19 17:41:29   3.57     base ab887732 re-profile (4408-token prefill, decode); stall stamps split on/off (unprofiled + rocprofv3); staging on/off 4408-token generate x2; serve under rocprofv3 (server hung on SIGINT, containers killed inside the slot, no data); GPU 1: tests/staging.rs
+W2        2774  2026-10-19 17:47:08   2026-10-19 17:49:15   2.12     split trigger at 1024-token chunks on/off x2, stamps at 1024-token chunks, 35B serve bench staging on/off x2 (--at-most); GPU 1: split_trigger, staging, gdn_v2, moe_pairs
+W3        2776  2026-10-19 17:56:31   2026-10-19 17:57:07   0.60     decode GEMV rows per warp 2 / 1 / 4 (profiles); GPU 1: round-9 mutants (staging, trigger), split_trigger + staging tests
+W4        2778  2026-10-19 18:02:25   2026-10-19 18:03:18   0.88     decode GEMV loads in flight UN 4 vs 8 x2 (profiles), ids with UN=8 vs base; GPU 1: fused_decode + fusion_p1 with UN=8 and default
+W5        2781  2026-10-19 18:10:42   2026-10-19 18:11:55   1.22     split-KV stage 1 8 vs 7 waves/SIMD at ~17.6k x2 (profiles + unprofiled), ids with OCC=1 vs base; GPU 1: splitkv_r8, attention, device_pos, decode_v2 with OCC=1
+W6        2784  2026-10-19 18:16:58   2026-10-19 18:28:13   11.25    acceptance: admission (kernels, k35, quick), KL21 35b-short + 35b-long (4096 and 1024 chunks) branch and base, 8B goldens, ids4k + ids4kc:1024, pfprof final; GPU 1: 14 test files + admission + round-9 mutants (mutrun9), then tboth comm
+W7        2785  2026-10-19 18:33:31   2026-10-19 18:38:55   5.40     35B interleaved A/B x3 vs base (pf35x, --at-most)
+W8        2786  2026-10-19 18:44:12   2026-10-19 18:55:25   11.22    split-KV 8 vs 7 waves at short context: 35B serve 128/1024/2048 x2 + 160-token decode profiles; 8B interleaved A/B x3 vs base (pf8x, lever 3 still on)
+W9        2788  2026-10-19 19:00:43   2026-10-19 19:17:27   16.73    final 5bf91f0f: k35 admission, acc35, ids4k; split trigger at 2048/4096-token chunks x2; 35B + 8B interleaved A/B x3 vs base (--at-most); GPU 1: splitkv_occ/trigger/attention tests, admission, occ mutants
+# total 52.98 min (cap 60); longest window 16.73 min (cap 20); radiance-serving gaps between windows (answers -> next stop), min: 5.65 7.27 5.30 7.40 5.05 5.30 5.28 5.30

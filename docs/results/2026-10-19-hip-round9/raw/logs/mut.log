@@ -1,0 +1,26 @@
+fleetq: #2775 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/job-mut.sh
+synced r9 tree (ab887732 + worktree changes)
+=== mutbuild9 17:50:08
+applied r9-st-nowait to /home/josef/intarsiaml-r9-mut/crates/intarsia-backend-hip/src/device.rs
+r9-st-nowait: test staging built (/target/release/deps/staging-619617908ae26040)
+applied r9-st-pageable to /home/josef/intarsiaml-r9-mut/crates/intarsia-backend-hip/src/device.rs
+r9-st-pageable: test staging built (/target/release/deps/staging-619617908ae26040)
+applied r9-st-noadvance to /home/josef/intarsiaml-r9-mut/crates/intarsia-backend-hip/src/device.rs
+r9-st-noadvance: test staging built (/target/release/deps/staging-619617908ae26040)
+applied r9-st-noevent to /home/josef/intarsiaml-r9-mut/crates/intarsia-backend-hip/src/device.rs
+r9-st-noevent: test staging built (/target/release/deps/staging-619617908ae26040)
+applied r9-st-dlorder to /home/josef/intarsiaml-r9-mut/crates/intarsia-backend-hip/src/device.rs
+r9-st-dlorder: test staging built (/target/release/deps/staging-619617908ae26040)
+applied r9-trig-off to /home/josef/intarsiaml-r9-mut/kernels/hip/ik_hip.h
+r9-trig-off: test split_trigger built (/target/release/deps/split_trigger-310538a967eb5300)
+applied r9-trig-incl to /home/josef/intarsiaml-r9-mut/kernels/hip/ik_hip.h
+r9-trig-incl: test split_trigger built (/target/release/deps/split_trigger-310538a967eb5300)
+applied r9-trig-def to /home/josef/intarsiaml-r9-mut/kernels/hip/ik_hip.h
+r9-trig-def: test split_trigger built (/target/release/deps/split_trigger-310538a967eb5300)
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+=== r9 rebuild 17:51:35
+    Finished `release` profile [optimized] target(s) in 30.89s
+    Finished `release` profile [optimized] target(s) in 3.60s
+=== done 17:52:10
+fleetq: #2775 done (exit 0)
+exit 0 17:52:10

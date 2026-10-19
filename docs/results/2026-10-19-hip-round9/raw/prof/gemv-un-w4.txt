@@ -1,0 +1,170 @@
+################ stage prof:u4a start 18:02:25
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 59 ms (408.2 tok/s) | decode 962 ms (165.34 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 67 ms (359.3 tok/s) | decode 1026 ms (155.00 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+/home/josef/intarsiaml-r9/bench-out/prof/u4a/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(268, 159), (1992, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 5.606 ms, step wall (first start to last end) 6.443 ms, idle inside step 0.837 ms (13.0% of wall)
+inter-step gap (argmax end -> next step start): median 8 us, mean 9 us
+=> full per-token period ~ 6.451 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 3080 p99 6640 max 88041; sum/step 0.837 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1910.7    47.8  34.1%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1325.6    44.2  23.6%
+fp8_gemv_gated_kernel<2, bf16, 4>                                          30.0     583.3    19.4  10.4%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     459.0   459.0   8.2%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     315.9    31.6   5.6%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     275.3     4.0   4.9%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     236.6     7.9   4.2%
+fp8_gemv_sigmoid_kernel<2, 4>                                              10.0     171.0    17.1   3.1%
+splitkv_kernel<8, 32, 2>                                                   10.0     124.4    12.4   2.2%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      68.0     6.8   1.2%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      54.5     5.4   1.0%
+argmax_kernel<float>                                                        1.0      44.9    44.9   0.8%
+combine_kernel<256, 16>                                                    10.0      21.5     2.1   0.4%
+__amd_rocclr_copyBuffer                                                     3.0       7.1     2.4   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.3     2.3   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.1     2.1   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.9     1.9   0.0%
+embedding_kernel<true>                                                      1.0       1.7     1.7   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    44.2   25.17    570   91%   1325.6
+fp8_gemv_gated_kernel<2, bf16, 4> g128               30.0    19.4    8.39    431   69%    583.3
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.6   16.78    531   85%    315.9
+fp8_gemv_sigmoid_kernel<2, 4> g128                   10.0    17.1    8.39    491   78%    171.0
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.8    2.10    308   49%     68.0
+################ stage prof:u4a end 18:02:35
+################ stage profenv:u8a:INTARSIA_HIP_FP8_UN=8 start 18:02:35
+--- INTARSIA_HIP_FP8_UN=8
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 60 ms (401.3 tok/s) | decode 974 ms (163.25 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+--- rocprofv3 (kernel trace)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+/home/josef/intarsiaml-r9/bench-out/prof/u8a/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(268, 159), (1992, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 5.731 ms, step wall (first start to last end) 6.570 ms, idle inside step 0.838 ms (12.8% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 6.579 ms
+intra-step gaps (ns): p10 2960 p50 3000 p90 3080 p99 6680 max 51880; sum/step 0.838 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1908.0    47.7  33.3%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1326.7    44.2  23.1%
+fp8_gemv_gated_kernel<2, bf16, 8>                                          30.0     677.3    22.6  11.8%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     458.8   458.8   8.0%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     316.2    31.6   5.5%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     276.3     4.0   4.8%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     237.4     7.9   4.1%
+fp8_gemv_sigmoid_kernel<2, 8>                                              10.0     200.8    20.1   3.5%
+splitkv_kernel<8, 32, 2>                                                   10.0     124.6    12.5   2.2%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      68.5     6.8   1.2%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      55.1     5.5   1.0%
+argmax_kernel<float>                                                        1.0      44.9    44.9   0.8%
+combine_kernel<256, 16>                                                    10.0      21.7     2.2   0.4%
+__amd_rocclr_copyBuffer                                                     3.0       7.2     2.4   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.3     2.3   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.1     2.1   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.9     1.9   0.0%
+embedding_kernel<true>                                                      1.0       1.7     1.7   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    44.2   25.17    569   91%   1326.7
+fp8_gemv_gated_kernel<2, bf16, 8> g128               30.0    22.6    8.39    372   59%    677.3
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.6   16.78    531   85%    316.2
+fp8_gemv_sigmoid_kernel<2, 8> g128                   10.0    20.1   16.78    835  133%    200.8
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.8    2.10    306   49%     68.5
+################ stage profenv:u8a:INTARSIA_HIP_FP8_UN=8 end 18:02:42
+################ stage prof:u4b start 18:02:42
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 59 ms (404.3 tok/s) | decode 956 ms (166.36 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 64 ms (375.4 tok/s) | decode 1027 ms (154.83 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+/home/josef/intarsiaml-r9/bench-out/prof/u4b/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(268, 159), (1992, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 5.612 ms, step wall (first start to last end) 6.449 ms, idle inside step 0.837 ms (13.0% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 6.458 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 3080 p99 6640 max 49861; sum/step 0.837 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1912.8    47.8  34.1%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1325.2    44.2  23.6%
+fp8_gemv_gated_kernel<2, bf16, 4>                                          30.0     585.6    19.5  10.4%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     459.3   459.3   8.2%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     315.5    31.6   5.6%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     276.2     4.0   4.9%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     237.3     7.9   4.2%
+fp8_gemv_sigmoid_kernel<2, 4>                                              10.0     170.5    17.0   3.0%
+splitkv_kernel<8, 32, 2>                                                   10.0     124.6    12.5   2.2%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      68.5     6.8   1.2%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      54.7     5.5   1.0%
+argmax_kernel<float>                                                        1.0      45.2    45.2   0.8%
+combine_kernel<256, 16>                                                    10.0      21.6     2.2   0.4%
+__amd_rocclr_copyBuffer                                                     3.0       6.9     2.3   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.2     2.2   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.1     2.1   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.9     1.9   0.0%
+embedding_kernel<true>                                                      1.0       1.8     1.8   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    44.2   25.17    570   91%   1325.2
+fp8_gemv_gated_kernel<2, bf16, 4> g128               30.0    19.5    8.39    430   69%    585.6
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.6   16.78    532   85%    315.5
+fp8_gemv_sigmoid_kernel<2, 4> g128                   10.0    17.0    8.39    492   78%    170.5
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.8    2.10    306   49%     68.5
+################ stage prof:u4b end 18:02:50
+################ stage profenv:u8b:INTARSIA_HIP_FP8_UN=8 start 18:02:50
+--- INTARSIA_HIP_FP8_UN=8
+--- unprofiled
+finish=length prompt=24 (cached 0) completion=160 | prefill 60 ms (403.0 tok/s) | decode 976 ms (162.95 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 64 ms (376.8 tok/s) | decode 1046 ms (152.07 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+/home/josef/intarsiaml-r9/bench-out/prof/u8b/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(268, 159), (1992, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 5.730 ms, step wall (first start to last end) 6.566 ms, idle inside step 0.836 ms (12.7% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 6.576 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 3080 p99 6640 max 56120; sum/step 0.836 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1909.7    47.7  33.3%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1325.4    44.2  23.1%
+fp8_gemv_gated_kernel<2, bf16, 8>                                          30.0     677.4    22.6  11.8%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     459.3   459.3   8.0%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     315.2    31.5   5.5%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     275.5     4.0   4.8%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     237.4     7.9   4.1%
+fp8_gemv_sigmoid_kernel<2, 8>                                              10.0     200.7    20.1   3.5%
+splitkv_kernel<8, 32, 2>                                                   10.0     124.6    12.5   2.2%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      68.3     6.8   1.2%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      54.7     5.5   1.0%
+argmax_kernel<float>                                                        1.0      45.1    45.1   0.8%
+combine_kernel<256, 16>                                                    10.0      21.6     2.2   0.4%
+__amd_rocclr_copyBuffer                                                     3.0       7.0     2.3   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.3     2.3   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.1     2.1   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.9     1.9   0.0%
+embedding_kernel<true>                                                      1.0       1.7     1.7   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    44.2   25.17    570   91%   1325.4
+fp8_gemv_gated_kernel<2, bf16, 8> g128               30.0    22.6    8.39    371   59%    677.4
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.5   16.78    532   85%    315.2
+fp8_gemv_sigmoid_kernel<2, 8> g128                   10.0    20.1   16.78    836  133%    200.7
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.8    2.10    307   49%     68.3
+################ stage profenv:u8b:INTARSIA_HIP_FP8_UN=8 end 18:02:58
+################ stage ids4ke:INTARSIA_HIP_FP8_UN=8 start 18:02:58

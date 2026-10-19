@@ -1,0 +1,14 @@
+# embgaps.py on round 8's base 4408-token prefill trace (pf) and ~17.6k-context trace (base16k): every embedding launch
+## pf
+[593] t= 2610.447 ms emb   104.8 us; gap   1356.8 us after __amd_rocclr_copyBuffer; 2609140.5 us after last compute kernel [0] __amd_rocclr_fillBufferAligned (592 runtime ops between)
+[1786] t= 3060.099 ms emb    14.4 us; gap    170.4 us after __amd_rocclr_copyBuffer;    515.1 us after last compute kernel [1754] void (anonymous namespace)::rmsnorm_kernel<t (31 runtime ops between)
+[2980] t= 3144.746 ms emb     2.5 us; gap   3514.2 us after __amd_rocclr_copyBuffer;   3986.5 us after last compute kernel [2947] void (anonymous namespace)::rmsnorm_kernel<t (32 runtime ops between)
+## base16k (first 8 lines)
+[593] t= 2627.767 ms emb    46.7 us; gap   1461.8 us after __amd_rocclr_copyBuffer; 2626153.1 us after last compute kernel [0] __amd_rocclr_fillBufferAligned (592 runtime ops between)
+[1786] t= 3078.950 ms emb    25.9 us; gap    135.6 us after __amd_rocclr_copyBuffer;    481.8 us after last compute kernel [1754] void (anonymous namespace)::rmsnorm_kernel<t (31 runtime ops between)
+[2979] t= 3575.876 ms emb    26.0 us; gap    111.9 us after __amd_rocclr_copyBuffer;    459.0 us after last compute kernel [2947] void (anonymous namespace)::rmsnorm_kernel<t (31 runtime ops between)
+[4172] t= 4127.316 ms emb    25.9 us; gap    106.9 us after __amd_rocclr_copyBuffer;    452.0 us after last compute kernel [4140] void (anonymous namespace)::rmsnorm_kernel<t (31 runtime ops between)
+[5365] t= 4734.972 ms emb     9.5 us; gap    104.6 us after __amd_rocclr_copyBuffer;    450.8 us after last compute kernel [5333] void (anonymous namespace)::rmsnorm_kernel<t (31 runtime ops between)
+[6559] t= 4966.606 ms emb     2.4 us; gap   3606.9 us after __amd_rocclr_copyBuffer;   4092.9 us after last compute kernel [6526] void (anonymous namespace)::rmsnorm_kernel<t (32 runtime ops between)
+[6827] t= 4974.160 ms emb     2.2 us; gap     21.8 us after __amd_rocclr_copyBuffer;    130.8 us after last compute kernel [6823] void (anonymous namespace)::argmax_kernel<fl (3 runtime ops between)
+[7095] t= 4981.570 ms emb     2.2 us; gap     20.5 us after __amd_rocclr_copyBuffer;    109.6 us after last compute kernel [7091] void (anonymous namespace)::argmax_kernel<fl (3 runtime ops between)

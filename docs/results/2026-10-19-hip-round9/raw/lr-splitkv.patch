@@ -1,0 +1,53 @@
+diff --git a/kernels/hip/attention_splitkv.hip b/kernels/hip/attention_splitkv.hip
+index 51a025b2..850e06ed 100644
+--- a/kernels/hip/attention_splitkv.hip
++++ b/kernels/hip/attention_splitkv.hip
+@@ -56,7 +56,10 @@ inline bool splitkv_r8() {
+     return !(e && e[0] == '0' && e[1] == 0);
+ }
+ 
+-template <int GP, int TPK, int KB>
++// LR (round 9, the 8-wave kernel only): V stays packed and each element is unpacked where it is used, instead of all KB x 8
++// unpacked values living across the head loop (8 fewer VGPRs). The unpack is exact and the arithmetic is the same, in the
++// same order.
++template <int GP, int TPK, int KB, bool LR = false>
+ __device__ __forceinline__ void
+ splitkv_body(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+                float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
+@@ -133,8 +136,10 @@ splitkv_body(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
+             }
+         }
+         float vf[KB][8];
++        if constexpr (!LR) {
+ #pragma unroll
+-        for (int u = 0; u < KB; ++u) ik_unpack8(vv[u], vf[u]);
++            for (int u = 0; u < KB; ++u) ik_unpack8(vv[u], vf[u]);
++        }
+ #pragma unroll
+         for (int g = 0; g < GP; ++g) {
+             float tmax = sc[0][g];
+@@ -155,7 +160,14 @@ splitkv_body(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
+             for (int e = 0; e < 8; ++e) {
+                 float a = acc[g][e] * corr;
+ #pragma unroll
+-                for (int u = 0; u < KB; ++u) a += p[u] * vf[u][e];
++                for (int u = 0; u < KB; ++u) {
++                    if constexpr (LR) {
++                        const uint32_t w = e < 2 ? vv[u].x : e < 4 ? vv[u].y : e < 6 ? vv[u].z : vv[u].w;
++                        a += p[u] * __uint_as_float((e & 1) ? (w & 0xffff0000u) : (w << 16));  // = ik_unpack8's element e
++                    } else {
++                        a += p[u] * vf[u][e];
++                    }
++                }
+                 acc[g][e] = a;
+             }
+         }
+@@ -210,7 +222,7 @@ __global__ void __launch_bounds__(kBlock) __attribute__((amdgpu_waves_per_eu(8))
+ splitkv_kernel_o8(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+                   float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
+                   float qscale, int nsplit, const int32_t* pos_dev) {
+-    splitkv_body<GP, TPK, KB>(q, kc, vc, pacc, pml, N, G, cap, pos0_host, qscale, nsplit, pos_dev);  // (8 waves)
++    splitkv_body<GP, TPK, KB, true>(q, kc, vc, pacc, pml, N, G, cap, pos0_host, qscale, nsplit, pos_dev);  // (8 waves)
+ }
+ 
+ inline bool splitkv_occ() {

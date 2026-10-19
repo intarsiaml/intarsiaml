@@ -1,0 +1,4 @@
+son.txt: 670 stamps, span 495.1 ms; down32 40 ops 10.42 ms, down64 40 ops 49.09 ms, flash 20 ops 37.98 ms, gate_up32 40 ops 30.91 ms, gate_up64 40 ops 86.31 ms, gdn_delta 60 ops 103.98 ms; sum 318.69 ms
+soff.txt: 480 stamps, span 506.7 ms; down32 40 ops 10.46 ms, down64 40 ops 46.27 ms, flash 20 ops 37.55 ms, gate_up32 40 ops 30.92 ms, gate_up64 40 ops 86.15 ms, gdn_delta 60 ops 102.12 ms; sum 313.48 ms
+son-prof.txt: 670 stamps, span 499.6 ms; down32 40 ops 10.58 ms, down64 40 ops 49.44 ms, flash 20 ops 40.46 ms, gate_up32 40 ops 30.95 ms, gate_up64 40 ops 96.33 ms, gdn_delta 60 ops 104.59 ms; sum 332.35 ms
+soff-prof.txt: 480 stamps, span 510.3 ms; down32 40 ops 10.52 ms, down64 40 ops 56.18 ms, flash 20 ops 40.27 ms, gate_up32 40 ops 30.88 ms, gate_up64 40 ops 95.95 ms, gdn_delta 60 ops 109.47 ms; sum 343.27 ms

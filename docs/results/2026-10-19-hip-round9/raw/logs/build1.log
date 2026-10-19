@@ -1,0 +1,16 @@
+fleetq: #2770 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/rjob.sh --sync-base /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/job-build.sh base
+synced r9 tree ( + worktree changes)
+synced r9base tree (ab887732)
+volume r9 cloned from r8
+volume r9base cloned from r8
+=== r9base build 17:33:02
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+    Finished `release` profile [optimized] target(s) in 31.10s
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:58:48
+   --> crates/intarsia-backend-hip/tests/admission.rs:106:25
+    Finished `release` profile [optimized] target(s) in 3.59s
+=== done 17:33:37
+fleetq: #2770 done (exit 0)
+exit 0 17:33:37

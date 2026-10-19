@@ -1,0 +1,19 @@
+stretch                         n      a ms      b ms  b - a ms
+-- inside op
+down32                         40     10.42     10.46     +0.04
+gate_up32                      40     30.91     30.92     +0.01
+gate_up64                      40     86.31     86.15     -0.16
+flash                          20     37.98     37.55     -0.43
+gdn_delta                      60    103.98    102.12     -1.85
+down64                         40     49.09     46.27     -2.82
+-- between ops
+gdn_delta -> gate_up64         30     24.96     32.64     +7.68
+down64 -> gdn_delta            30     82.46     89.54     +7.08
+down64 -> flash                10     24.67     27.00     +2.33
+gate_up32 -> down32            40      0.11      0.13     +0.01
+gdn_delta -> gate_up32         30      4.32      4.32     -0.00
+flash -> gate_up32             10      1.42      1.42     -0.00
+down32 -> gdn_delta            29     13.41     13.39     -0.02
+down32 -> flash                10      4.01      3.99     -0.02
+gate_up64 -> down64            40     10.11     10.08     -0.03
+flash -> gate_up64             10     10.89     10.68     -0.21

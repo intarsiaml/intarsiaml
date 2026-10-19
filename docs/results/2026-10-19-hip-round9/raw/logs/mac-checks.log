@@ -1,0 +1,8 @@
+HEAD 5bf91f0f
+cargo test --workspace: 109 binaries, passed 501, failed 0
+cargo test exit 0
+cargo check --workspace: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.28s
+cargo check -p intarsia-cli --features hip: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.61s
+cargo check -p intarsia-cli --features metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+cargo build -p intarsia-backend-metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+exit 0
