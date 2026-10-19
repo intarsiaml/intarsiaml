@@ -13,6 +13,9 @@
 //!   replays (the decode graph's use) equals v2 run eagerly every time.
 //! * `v3_sentinel_stress`: the h lines pre-read by the down waves before the wait, every gate_up role late, a NaN sentinel
 //!   in h before every launch, a second v3 on another stream; every launch bitwise v2's (the test `v3-nofence` must fail).
+//! * `v3_sentinel_stress_narrow`: the same with only the last gate_up role late, with and without the second stream, so
+//!   fewer other blocks refresh the down blocks' caches (the test `v3-noorder` must fail; P2' step 0,
+//!   docs/results/2026-10-19-p2prime-step0.md).
 //!
 //! Needs a GPU: skips (passes) without one.
 #![cfg(ik_hip)]
@@ -235,8 +238,58 @@ fn v3_graph_replay_is_bitwise_eager() {
 #[test]
 fn v3_sentinel_stress() {
     let Some(be) = device() else { return };
-    let rounds: usize = std::env::var("INTARSIA_HIP_V3_STRESS_ROUNDS").ok().and_then(|v| v.parse().ok()).unwrap_or(120);
-    let mut rng = SplitMix64::new(55);
+    let cfg = Stress { name: "all-late", seed: 55, skew_all: true, skews: ["0", "2", "6"], side: true };
+    let (launches, bad) = sentinel_stress(&*be, &cfg, stress_rounds());
+    eprintln!("v3_sentinel_stress: {launches} launches, {} differ from v2", bad.len());
+    assert!(bad.is_empty(), "{} of {launches} launches read h early or stale:\n{}", bad.len(), bad[..bad.len().min(12)].join("\n"));
+}
+
+/// The sentinel stress with fewer cache refreshes from other blocks (docs/results/2026-10-19-p2prime-step0.md). In
+/// `v3_sentinel_stress` every gate_up role is late, and each one's own barriers after its h store invalidate the near caches
+/// of the CU it runs on, which refreshes any down block that shares that CU; the side instance on stream 1 adds more of
+/// them. Here only the LAST gate_up role is late (SKEW without SKEW_ALL, 0 / 20 / 40, up to ~0.15 ms), so one store lands
+/// late and only one CU is refreshed after it, while every down block of that token already holds the sentinel line; run
+/// once without the side instance (the down blocks alone with the late role) and once with it. Same PREREAD, poison and
+/// bitwise comparison as above. `INTARSIA_HIP_V3_STRESS_ROUNDS` launches per shape and configuration.
+#[test]
+fn v3_sentinel_stress_narrow() {
+    let Some(be) = device() else { return };
+    let rounds = stress_rounds();
+    let (mut launches, mut bad) = (0usize, Vec::new());
+    for cfg in [
+        Stress { name: "last-late, no side", seed: 56, skew_all: false, skews: ["0", "20", "40"], side: false },
+        Stress { name: "last-late, side", seed: 57, skew_all: false, skews: ["0", "20", "40"], side: true },
+    ] {
+        let (n, b) = sentinel_stress(&*be, &cfg, rounds);
+        eprintln!("v3_sentinel_stress_narrow [{}]: {n} launches, {} differ from v2", cfg.name, b.len());
+        launches += n;
+        bad.extend(b);
+    }
+    eprintln!("v3_sentinel_stress_narrow: {launches} launches, {} differ from v2", bad.len());
+    assert!(bad.is_empty(), "{} of {launches} launches read h early or stale:\n{}", bad.len(), bad[..bad.len().min(12)].join("\n"));
+}
+
+/// One configuration of the sentinel stress (`v3_sentinel_stress`, `v3_sentinel_stress_narrow`).
+struct Stress {
+    name: &'static str,
+    seed: u64,
+    /// INTARSIA_HIP_MOE_V3_SKEW_ALL: every gate_up role late (1 to 4 times the skew), else only the last role
+    skew_all: bool,
+    /// the INTARSIA_HIP_MOE_V3_SKEW values, cycled per launch
+    skews: [&'static str; 3],
+    /// a second v3 instance on stream 1 at the same time (contention, and its gate_up roles' barriers on more CUs)
+    side: bool,
+}
+
+fn stress_rounds() -> usize {
+    std::env::var("INTARSIA_HIP_V3_STRESS_ROUNDS").ok().and_then(|v| v.parse().ok()).unwrap_or(120)
+}
+
+/// `rounds` launches per shape with PREREAD on and the h scratch filled with the bf16 NaN 0x7fc0 before every launch;
+/// returns (launches, the launches that differ from v2). Prints one tally line per shape: per skew, the launches that
+/// differ and how many of them carry NaN outputs (a stale h read is the sentinel, so it shows up as NaN).
+fn sentinel_stress(be: &dyn Backend, cfg: &Stress, rounds: usize) -> (usize, Vec<String>) {
+    let mut rng = SplitMix64::new(cfg.seed);
     let set_x = |d: &Dev, x: &HostTensor, s: u32| be.upload(&d.call.inputs[0].buf, d.call.inputs[0].offset, &x.data, s).unwrap();
     let poison = |d: &Dev, s: u32| {
         let sc = d.call.scratch.as_ref().unwrap();
@@ -250,11 +303,16 @@ fn v3_sentinel_stress() {
         be.download(&o.buf, o.offset, &mut v, s).unwrap();
         v
     };
-    // the contending instance (stream 1): the 35B's T = 2 decode shape
+    let nans = |v: &[u8]| v.chunks(2).filter(|c| (u16::from_le_bytes([c[0], c[1]]) & 0x7fff) > 0x7f80).count();
+    // the contending instance (stream 1): the 35B's T = 2 decode shape (drawn even when unused, so the shapes' draws do not move)
     let side = experts_case(&mut rng, 2, 256, 8, 2048, 512, DType::Bf16);
-    let side_want = run_host(&*be, "moe_experts_bf16_v2", &side).unwrap().remove(0).data;
-    let ds = Dev::new(&*be, "moe_experts_bf16_v3", &side);
-    std::env::set_var("INTARSIA_HIP_MOE_V3_SKEW_ALL", "1");
+    let side_want = run_host(be, "moe_experts_bf16_v2", &side).unwrap().remove(0).data;
+    let ds = Dev::new(be, "moe_experts_bf16_v3", &side);
+    if cfg.skew_all {
+        std::env::set_var("INTARSIA_HIP_MOE_V3_SKEW_ALL", "1");
+    } else {
+        std::env::remove_var("INTARSIA_HIP_MOE_V3_SKEW_ALL");
+    }
     std::env::set_var("INTARSIA_HIP_MOE_V3_PREREAD", "1");
     let mut bad: Vec<String> = Vec::new();
     let mut launches = 0usize;
@@ -266,30 +324,51 @@ fn v3_sentinel_stress() {
         b.inputs[0] =
             HostTensor::from_f32_as(DType::Bf16, &b.inputs[0].shape, &rng.normal_vec(b.inputs[0].numel(), 1.0));
         let want: Vec<Vec<u8>> =
-            [&a, &b].iter().map(|hc| run_host(&*be, "moe_experts_bf16_v2", hc).unwrap().remove(0).data).collect();
+            [&a, &b].iter().map(|hc| run_host(be, "moe_experts_bf16_v2", hc).unwrap().remove(0).data).collect();
         let xs = [a.inputs[0].clone(), b.inputs[0].clone()];
-        let d = Dev::new(&*be, "moe_experts_bf16_v3", &a);
+        let d = Dev::new(be, "moe_experts_bf16_v3", &a);
+        let mut tally = [(0usize, 0usize); 3]; // per skew: (launches that differ, of them with NaN outputs)
+        let mut side_bad = (0usize, 0usize);
         for j in 0..rounds {
-            std::env::set_var("INTARSIA_HIP_MOE_V3_SKEW", ["0", "2", "6"][j % 3]);
+            std::env::set_var("INTARSIA_HIP_MOE_V3_SKEW", cfg.skews[j % 3]);
             poison(&d, 0);
             set_x(&d, &xs[j % 2], 0);
-            poison(&ds, 1);
-            be.launch("moe_experts_bf16_v3", &ds.call, 1).unwrap();
+            if cfg.side {
+                poison(&ds, 1);
+                be.launch("moe_experts_bf16_v3", &ds.call, 1).unwrap();
+                launches += 1;
+            }
             be.launch("moe_experts_bf16_v3", &d.call, 0).unwrap();
-            launches += 2;
+            launches += 1;
             let got = out_on(&d, 0);
             if got != want[j % 2] {
-                let nan = got.chunks(2).filter(|c| (u16::from_le_bytes([c[0], c[1]]) & 0x7fff) > 0x7f80).count();
-                bad.push(format!("t={t} e={e} k={k} h={h} i={i} launch {j}: differs from v2 ({nan} NaN outputs)"));
+                let n = nans(&got);
+                tally[j % 3].0 += 1;
+                tally[j % 3].1 += (n > 0) as usize;
+                bad.push(format!("{}: t={t} e={e} k={k} h={h} i={i} launch {j}: differs from v2 ({n} NaN outputs)", cfg.name));
             }
-            if out_on(&ds, 1) != side_want {
-                bad.push(format!("stream 1 (t=2 e=256) launch {j}: differs from v2"));
+            if cfg.side {
+                let got = out_on(&ds, 1);
+                if got != side_want {
+                    let n = nans(&got);
+                    side_bad.0 += 1;
+                    side_bad.1 += (n > 0) as usize;
+                    bad.push(format!("{}: stream 1 (t=2 e=256) launch {j}: differs from v2 ({n} NaN outputs)", cfg.name));
+                }
             }
         }
+        let per: Vec<String> =
+            (0..3).map(|s| format!("skew {}: {} differ ({} NaN)", cfg.skews[s], tally[s].0, tally[s].1)).collect();
+        eprintln!(
+            "  [{}] t={t} e={e} k={k} h={h} i={i}, {rounds} rounds: {}; stream 1: {} differ ({} NaN)",
+            cfg.name,
+            per.join(", "),
+            side_bad.0,
+            side_bad.1
+        );
     }
     for v in ["INTARSIA_HIP_MOE_V3_SKEW", "INTARSIA_HIP_MOE_V3_SKEW_ALL", "INTARSIA_HIP_MOE_V3_PREREAD"] {
         std::env::remove_var(v);
     }
-    eprintln!("v3_sentinel_stress: {launches} launches, {} differ from v2", bad.len());
-    assert!(bad.is_empty(), "{} of {launches} launches read h early or stale:\n{}", bad.len(), bad[..bad.len().min(12)].join("\n"));
+    (launches, bad)
 }
