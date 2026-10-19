@@ -33,6 +33,11 @@ int ik_moe_experts_nvfp4_mma_bf16(const ik_tensor* x, const ik_tensor* ids, cons
 int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                            const ik_scratch* scratch, void* stream);
 
+/* gdn_delta_rule_bf16_split: ik_gdn_delta_rule_bf16 (same arguments, bitwise the same outputs and state) with each state
+ * row's element-wise work split over several lanes, see kernels/cuda/gdn.cu. dk in {64, 128}; state 16-byte aligned. */
+int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                                 const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

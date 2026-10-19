@@ -32,6 +32,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_lanes", Op::GdnDeltaRule),
+    ("gdn_delta_rule_bf16_split", Op::GdnDeltaRule),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
@@ -89,15 +90,6 @@ fn flash_ok(s: &ShapeInfo) -> bool {
 pub fn fast_prefill() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok_and(|v| v == "1"))
-}
-
-/// Priority of an opt-in kernel: above everything it replaces when `fast_prefill()`, below everything otherwise.
-pub fn opt_in_priority(on: i32) -> i32 {
-    if fast_prefill() {
-        on
-    } else {
-        -10
-    }
 }
 
 /// `INTARSIA_CUDA_GDN_LANES=1` selects the several-lanes-per-row GatedDeltaNet recurrence (`gdn_delta_rule_bf16_lanes`,
@@ -162,6 +154,40 @@ pub fn fp8_gemm_reg() -> bool {
 /// Priority of the register-dequantising fp8 GEMM: `on` unless switched off, below everything then.
 pub fn fp8_gemm_reg_priority(on: i32) -> i32 {
     if fp8_gemm_reg() {
+        on
+    } else {
+        -10
+    }
+}
+
+/// `INTARSIA_CUDA_FP8_GEMM_F8=1` selects the e4m3 tensor-core W8A8 GEMM (`matmul_fp8_gemm_f8`, every M >= 5) without the
+/// lanes GDN kernel that `INTARSIA_CUDA_FAST_PREFILL=1` also turns on; `INTARSIA_CUDA_FAST_PREFILL=1` still selects it as
+/// before. Opt-in: docs/results/2026-10-19-cuda-prefill-4.md.
+pub fn fp8_gemm_f8() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FP8_GEMM_F8").is_ok_and(|v| v == "1") || fast_prefill())
+}
+
+/// Priority of the e4m3 tensor-core fp8 GEMM: `on` when `fp8_gemm_f8()`, below everything otherwise.
+pub fn fp8_gemm_f8_priority(on: i32) -> i32 {
+    if fp8_gemm_f8() {
+        on
+    } else {
+        -10
+    }
+}
+
+/// `gdn_delta_rule_bf16_split` (the one-thread-per-row GatedDeltaNet recurrence's arithmetic split over several lanes per
+/// row, BITWISE the same results, docs/results/2026-10-19-cuda-prefill-4.md) is on by default; `INTARSIA_CUDA_GDN_SPLIT=0`
+/// switches it off (the one-thread-per-row kernel `gdn_delta_rule_bf16` then serves dk 64 / 128 again).
+pub fn gdn_split() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_GDN_SPLIT").map_or(true, |v| v != "0"))
+}
+
+/// Priority of the split GDN kernel: `on` unless switched off, below everything then.
+pub fn gdn_split_priority(on: i32) -> i32 {
+    if gdn_split() {
         on
     } else {
         -10
@@ -248,6 +274,21 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(gdn_lanes_priority(10)),
+            // DEFAULT (INTARSIA_CUDA_GDN_SPLIT=0 switches it off, see `gdn_split`). The one-thread-per-row kernel's fp32
+            // operations in the same order (kernels/cuda/gdn.cu), the element-wise part split over several lanes per row:
+            // bitwise the same outputs and state for every T, so it replaces `gdn_delta_rule_bf16` for dk 64 / 128 in
+            // prefill and decode. Below the opt-in lanes kernel (`INTARSIA_CUDA_GDN_LANES=1`), which is not bitwise.
+            "gdn_delta_rule_bf16_split" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| {
+                    matches!(s.head_dim, 64 | 128)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(gdn_split_priority(5)),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
@@ -320,17 +361,18 @@ mod tests {
     }
 
     /// The GatedDeltaNet recurrence kernel the registry picks at the 35B shape (dk = dv = 128, 16 key heads, 32 value heads)
-    /// for decode (T = 1) and a prefill chunk (T = 2048): the one-warp-per-row kernel by default, the lanes kernel with
-    /// `INTARSIA_CUDA_GDN_LANES=1` or `INTARSIA_CUDA_FAST_PREFILL=1` (the switch is read once per process, so the test pins
-    /// whichever the environment of this run asks for).
+    /// for decode (T = 1) and a prefill chunk (T = 2048), and at dk = 64: the split kernel (bitwise the one-thread-per-row
+    /// kernel) by default, the one-thread-per-row kernel with `INTARSIA_CUDA_GDN_SPLIT=0`, the lanes kernel with
+    /// `INTARSIA_CUDA_GDN_LANES=1` or `INTARSIA_CUDA_FAST_PREFILL=1` (the switches are read once per process, so the test
+    /// pins whichever the environment of this run asks for). dk 32 and 256 always get `gdn_delta_rule_bf16`.
     #[test]
     fn gdn_delta_rule_selection() {
-        let pick = |m: usize| {
+        let pick_dk = |m: usize, dk: usize| {
             let s = ShapeInfo {
                 m,
                 n: 128,
                 k: 128,
-                head_dim: 128,
+                head_dim: dk,
                 n_heads: 32,
                 n_kv_heads: 16,
                 act: Some(DType::Bf16),
@@ -346,17 +388,29 @@ mod tests {
             }
             best.map(|k| k.name.to_string())
         };
+        let pick = |m: usize| pick_dk(m, 128);
         let lanes = std::env::var("INTARSIA_CUDA_GDN_LANES").is_ok_and(|v| v == "1")
             || std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok_and(|v| v == "1");
-        let want = if lanes { "gdn_delta_rule_bf16_lanes" } else { "gdn_delta_rule_bf16" };
-        for m in [1, 2048] {
+        let split = std::env::var("INTARSIA_CUDA_GDN_SPLIT").map_or(true, |v| v != "0");
+        let want = if lanes {
+            "gdn_delta_rule_bf16_lanes"
+        } else if split {
+            "gdn_delta_rule_bf16_split"
+        } else {
+            "gdn_delta_rule_bf16"
+        };
+        for m in [1, 2, 2048] {
             assert_eq!(pick(m), Some(want.to_string()), "T={m}");
+            assert_eq!(pick_dk(m, 64), Some(want.to_string()), "dk=64 T={m}");
+            // head dims the split and lanes kernels do not take stay on the one-thread / one-warp-per-row kernel
+            assert_eq!(pick_dk(m, 32), Some("gdn_delta_rule_bf16".to_string()), "dk=32 T={m}");
+            assert_eq!(pick_dk(m, 256), Some("gdn_delta_rule_bf16".to_string()), "dk=256 T={m}");
         }
     }
 
     /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096): the gemv for 1..4 tokens, the mma
     /// kernel for 5..32, `matmul_fp8_gemm` for 33..255, `matmul_fp8_gemm_reg` from 256 (the 2048-token chunk included), unless
-    /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FAST_PREFILL=1`. The
+    /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FP8_GEMM_F8=1` / `INTARSIA_CUDA_FAST_PREFILL=1` (then `matmul_fp8_gemm_f8` from 5). The
     /// kernel is bitwise `matmul_fp8_gemm`, so no accuracy gate can tell which one ran: this pins it.
     #[test]
     fn fp8_gemm_selection_by_batch_size() {
@@ -378,8 +432,17 @@ mod tests {
             }
             best.map(|k| k.name.to_string())
         };
-        if std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok() {
-            return; // the default selection is what is pinned
+        if std::env::var("INTARSIA_CUDA_FP8_GEMM_F8").is_ok_and(|v| v == "1")
+            || std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok_and(|v| v == "1")
+        {
+            // the e4m3 tensor-core GEMM serves every M the gemv does not (one rounding for every chunk length)
+            for k in [2048, 4096] {
+                assert_eq!(pick(4, k).as_deref(), Some("matmul_fp8_gemv"));
+                for m in [5, 32, 33, 255, 256, 2048, 4096] {
+                    assert_eq!(pick(m, k).as_deref(), Some("matmul_fp8_gemm_f8"), "f8 gate: M={m} K={k}");
+                }
+            }
+            return;
         }
         let big = if std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0") {
             "matmul_fp8_gemm"

@@ -5,7 +5,7 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::{fp8_gemm_reg_priority, moe_nvfp4_priority, moe_w4a16_priority, opt_in_priority, ARCH};
+use crate::kernels::{fp8_gemm_f8_priority, fp8_gemm_reg_priority, moe_nvfp4_priority, moe_w4a16_priority, ARCH};
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
@@ -135,7 +135,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(10),
-                // OPT-IN (INTARSIA_CUDA_FAST_PREFILL=1, see `kernels::fast_prefill`).
+                // OPT-IN (INTARSIA_CUDA_FP8_GEMM_F8=1 or INTARSIA_CUDA_FAST_PREFILL=1, see `kernels::fp8_gemm_f8`).
                 // the same on e4m3 tensor cores (no weight dequantisation); W8A16 batches fall back inside the launcher.
                 // Serves every M the gemv does not (>= 5), the shapes `*_mma` and `*_gemm` shared: one rounding for every
                 // chunk length (a tail chunk of 5..32 tokens must give the bits a full chunk gives its rows).
@@ -147,7 +147,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
-                    .priority(opt_in_priority(20)),
+                    .priority(fp8_gemm_f8_priority(20)),
                 // The same GEMM with the weights dequantised in registers and 128 x 128 tiles (kernels/cuda/fp8_gemm.cu): bitwise
                 // the results of `matmul_fp8_gemm`; INTARSIA_CUDA_FP8_GEMM_REG=0 falls back to it.
                 "matmul_fp8_gemm_reg" => k
