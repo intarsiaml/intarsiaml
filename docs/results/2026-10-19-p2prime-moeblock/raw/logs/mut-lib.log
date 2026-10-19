@@ -1,0 +1,3 @@
+test quantmoe::tests::moe_block_is_opt_in_and_its_shapes_are_pinned ... FAILED
+thread 'quantmoe::tests::moe_block_is_opt_in_and_its_shapes_are_pinned' (126817404) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:463:13:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s

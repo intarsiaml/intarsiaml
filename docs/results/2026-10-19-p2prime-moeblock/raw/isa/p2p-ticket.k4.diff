@@ -1,0 +1,92 @@
+66c66
+< 	v_dual_mov_b32 v2, 0 :: v_dual_and_b32 v33, 31, v0
+---
+> 	s_add_co_i32 s31, s59, s58
+70a71,73
+> 	s_add_co_i32 s0, s31, s28
+> 	v_dual_mov_b32 v2, 0 :: v_dual_and_b32 v33, 31, v0
+> 	s_abs_i32 s0, s0
+71a75
+> 	s_cvt_f32_u32 s1, s0
+76c80,81
+< 	s_add_co_i32 s31, s59, s58
+---
+> 	v_rcp_iflag_f32_e32 v3, s1
+> 	s_sub_co_i32 s4, 0, s0
+78c83,85
+< 	s_mov_b32 s0, -1
+---
+> 	s_delay_alu instid0(TRANS32_DEP_1)
+> 	v_readfirstlane_b32 s1, v3
+> 	s_mul_f32 s1, s1, 0x4f7ffffe
+80,82c87,122
+< 	v_cmp_le_i32_e32 vcc_lo, s31, v1
+< 	v_readfirstlane_b32 s29, v1
+< 	s_cbranch_vccz .LBB_369
+---
+> 	v_readfirstlane_b32 s3, v1
+> 	s_wait_alu 0xfffe
+> 	s_cvt_u32_f32 s1, s1
+> 	s_wait_alu 0xfffe
+> 	s_delay_alu instid0(SALU_CYCLE_2)
+> 	s_mul_i32 s4, s4, s1
+> 	s_add_co_i32 s3, s31, s3
+> 	s_wait_alu 0xfffe
+> 	s_mul_hi_u32 s4, s1, s4
+> 	s_abs_i32 s5, s3
+> 	s_wait_alu 0xfffe
+> 	s_add_co_i32 s1, s1, s4
+> 	s_ashr_i32 s3, s3, 31
+> 	s_wait_alu 0xfffe
+> 	s_mul_hi_u32 s1, s5, s1
+> 	s_wait_alu 0xfffe
+> 	s_mul_i32 s1, s1, s0
+> 	s_wait_alu 0xfffe
+> 	s_sub_co_i32 s1, s5, s1
+> 	s_wait_alu 0xfffe
+> 	s_sub_co_i32 s4, s1, s0
+> 	s_cmp_ge_u32 s1, s0
+> 	s_wait_alu 0xfffe
+> 	s_cselect_b32 s1, s4, s1
+> 	s_wait_alu 0xfffe
+> 	s_sub_co_i32 s4, s1, s0
+> 	s_cmp_ge_u32 s1, s0
+> 	s_wait_alu 0xfffe
+> 	s_cselect_b32 s0, s4, s1
+> 	s_wait_alu 0xfffe
+> 	s_xor_b32 s0, s0, s3
+> 	s_wait_alu 0xfffe
+> 	s_sub_co_i32 s29, s0, s3
+> 	s_mov_b32 s0, -1
+> 	s_cmp_ge_i32 s29, s31
+> 	s_cbranch_scc0 .LBB_369
+85a126
+> 	s_wait_alu 0xfffe
+87a129
+> 	s_wait_alu 0xfffe
+89c131
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+---
+> 	s_wait_alu 0xfffe
+90a133
+> 	s_wait_alu 0xfffe
+92c135
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+---
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_4) | instid1(SALU_CYCLE_1)
+93a137
+> 	s_wait_alu 0xfffe
+96c140
+< 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(NEXT) | instid1(TRANS32_DEP_1)
+---
+> 	s_wait_alu 0xfffe
+97a142
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_2) | instid1(SALU_CYCLE_2)
+101d145
+< 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+103a148
+> 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+105d149
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+106a151
+> 	s_delay_alu instid0(SALU_CYCLE_1)

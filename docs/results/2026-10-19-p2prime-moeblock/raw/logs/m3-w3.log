@@ -1,0 +1,90 @@
+[window] job 2730; gpu0: t:moe_block bench plans adm; gpu1: mut:p2p-gu-nofence:p2p-sh-nofence:p2p-nofence:p2p-norefresh:p2p-noorder:p2p-wait-short:p2p-wait-routed:p2p-swap:p2p-noreset:p2p-topk-rank:p2p-sdc-noround:p2p-topk-wround ids env:MUT_TIMEOUT=90 mut:p2p-ticket; stopping radiance 2026-10-19 09:59:44
+[window] radiance stopped 2026-10-19 09:59:47
+################ stage t:moe_block start 09:59:47
+test moe_block_counters_reset_between_launches ... ok
+test moe_block_dispatch_order ... moe_block_dispatch_order: 90 launches bitwise
+test moe_block_graph_replay_is_bitwise_eager ... ok
+test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 44 cases bitwise
+test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+moe_block_sentinel_stress: 6000 launches, 0 differ from the chain
+test moe_block_timing ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.33s
+################ stage t:moe_block end 10:00:04
+################ stage bench start 10:00:04
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/moe_block.rs (/target/release/deps/moe_block-f5e45b49f7fb48bd)
+test moe_block_timing ... moe_block_timing: 16 layers, 50 replays per round, median us per layer, 3 rounds:
+  chain (v2 default)        64.29    60.39    60.55
+  chain (v3)                59.21    59.53    59.56
+  moe_block (fused)         53.43    53.52    53.42
+  tiny launch                3.90     3.94     3.93
+  topk_v2 alone              6.66     6.71     6.70
+  experts_v2 alone          35.56    35.57    35.50
+  glu alone                  6.75     6.78     6.74
+  sdc alone                 14.73    14.86    14.66
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.79s
+################ stage bench end 10:00:07
+################ stage plans start 10:00:07
+plan def 35b: exit 0 12988 bytes
+plan def 8b: exit 0 8343 bytes
+plan blk 35b: exit 0 12732 bytes
+plan blk 8b: exit 0 8343 bytes
+== 35b: launches per decode step def 375 -> blk 255 (-120); scratch 167905792 -> 167905792
+   matmul_nvfp4_glu             matmul_nvfp4_glu_gemv                    def   40  blk    -
+   moe_block                    moe_block_bf16                           def    -  blk   40
+   moe_experts                  moe_experts_bf16_v2                      def   40  blk    0
+   moe_topk                     moe_topk_bf16_v2                         def   40  blk    0
+   shared_down_combine          shared_down_combine_nvfp4_gemv           def   40  blk    -
+   27 (op, kernel) rows identical, 3 present on one side only
+== 8b: launches per decode step def 364 -> blk 364 (+0); scratch 748800 -> 748800
+   14 (op, kernel) rows identical, 0 present on one side only
+################ stage plans end 10:00:32
+################ stage adm start 10:00:32
+adm def 35b exit 0: 52 kernels, 899 cases in 38.0s | FAIL/REJECT lines: 0
+adm def 8b exit 0: 52 kernels, 912 cases in 58.3s | FAIL/REJECT lines: 0
+adm blk 35b exit 0: 52 kernels, 910 cases in 37.5s | FAIL/REJECT lines: 0
+adm blk 8b exit 0: 52 kernels, 923 cases in 58.4s | FAIL/REJECT lines: 0
+moe_block      moe_block_bf16                 11      0    8.803e-4    5.843e-5  ADMITTED
+################ stage adm end 10:03:46
+[window] gpu0 lane done 2026-10-19 10:03:46 (exit 0)
+[window] starting radiance 2026-10-19 10:04:13
+[window] radiance answers 2026-10-19 10:04:23 (after 15 s)

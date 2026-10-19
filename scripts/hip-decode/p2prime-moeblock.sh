@@ -74,9 +74,12 @@ stage_mutrun() {  # GPU: every mutant binary must FAIL (or hang -> killed by the
   local m
   for m in ${MUTATIONS:-$P2PMUT}; do
     printf '%-18s ' "$m"
-    HIP_VISIBLE_DEVICES=${MUT_GPU:-0} $D bash -c "timeout -s KILL ${MUT_TIMEOUT:-150} /target/p2pmut/$m ${RUN_FILTER:-} --test-threads=1 --nocapture; echo exit=\$?" 2>&1 \
-      | grep -aE "^test result|panicked at|^exit=|differ from the chain, |launches, " | head -5 | cut -c1-200 | tr '\n' ' '
+    mkdir -p "$INTARSIA_REPO/bench-out/mut"
+    HIP_VISIBLE_DEVICES=${MUT_GPU:-0} $D bash -c "timeout -s KILL ${MUT_TIMEOUT:-150} /target/p2pmut/$m ${RUN_FILTER:-} --test-threads=1 --nocapture; echo exit=\$?" \
+      > "$INTARSIA_REPO/bench-out/mut/$m.log" 2>&1
+    grep -aE "^test |^test result|^exit=|differ from the chain|launches, " "$INTARSIA_REPO/bench-out/mut/$m.log" | cut -c1-140 | tr '\n' ' '
     echo
+    grep -aE "^  \[" "$INTARSIA_REPO/bench-out/mut/$m.log" | grep -avE "skew [0-9]+: 0 differ \(0 NaN\), skew [0-9]+: 0 differ \(0 NaN\), skew [0-9]+: 0 differ" | cut -c1-200 | head -20
   done
 }
 
@@ -114,7 +117,7 @@ stage_adm() {  # GPU (TEST_GPU): FULL admission sweeps (no --quick), 35B and 8B 
 }
 
 stage_ids() {  # 256 greedy ids after the 4408-token prompt: INTARSIA_HIP_MOE_BLOCK=1 ("new") vs default ("base"), same tree
-  BASE_REPO="$INTARSIA_REPO" BASE_VOL="$INTARSIA_TARGET_VOL" IDS_NEW_ENV="INTARSIA_HIP_MOE_BLOCK=1" \
+  RS_GPU=${TEST_GPU:-0} BASE_REPO="$INTARSIA_REPO" BASE_VOL="$INTARSIA_TARGET_VOL" IDS_NEW_ENV="INTARSIA_HIP_MOE_BLOCK=1" \
     bash "$INTARSIA_REPO/scripts/hip-decode/remote.sh" ids4k
 }
 
@@ -130,7 +133,9 @@ arm_env() {
 for s in "$@"; do
   echo "################ stage $s start $(ts)"
   if [[ "$s" == r:* ]]; then
-    bash "$INTARSIA_REPO/scripts/hip-decode/remote.sh" "${s#r:}"
+    # dev.sh stages only on GPU 1 (serve pins GPU 0); accuracy logs per lane and arm (bench-out/acc-gpu<n>-<blk|def>/acc)
+    o="$INTARSIA_REPO/bench-out"; [[ "${s#r:}" == acc* ]] && o="$INTARSIA_REPO/bench-out/acc-gpu${TEST_GPU:-0}-$([ "${INTARSIA_HIP_MOE_BLOCK:-}" = 1 ] && echo blk || echo def)"
+    mkdir -p "$o"; OUTD="$o" RS_GPU=${TEST_GPU:-0} bash "$INTARSIA_REPO/scripts/hip-decode/remote.sh" "${s#r:}"
   elif [[ "$s" == ab:* || "$s" == ab8:* ]]; then  # ab:<arm>:<tag> / ab8:<arm>:<tag>
     IFS=: read -r kind arm tag <<< "$s"
     st=pf35; [ "$kind" = ab8 ] && st=pf8x

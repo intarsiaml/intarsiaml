@@ -14,7 +14,7 @@ M35=/models/Qwen3.6-35B-A3B-NVFP4
 M8=/models/Qwen3-8B
 G=/models/golden
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
-OUTD=$INTARSIA_REPO/bench-out
+OUTD=${OUTD:-$INTARSIA_REPO/bench-out}  # OUTD=...: another output dir (accuracy logs of two lanes at once)
 ts() { date +%T; }
 trap 'docker rm -f intarsia-serve >/dev/null 2>&1' EXIT
 mkdir -p "$OUTD"

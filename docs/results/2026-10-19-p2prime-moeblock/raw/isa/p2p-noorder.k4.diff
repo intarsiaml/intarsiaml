@@ -1,0 +1,15 @@
+3474d3473
+< 	global_inv scope:SCOPE_DEV
+3481d3479
+< 	global_inv scope:SCOPE_DEV
+3487c3485
+< 	s_wait_loadcnt_dscnt 0x0
+---
+> 	s_wait_dscnt 0x0
+3490,3492c3488,3489
+< 	global_inv scope:SCOPE_SE
+< 	s_wait_loadcnt 0x0
+< 	global_inv scope:SCOPE_DEV
+---
+> 	;;#ASMSTART
+> 	;;#ASMEND

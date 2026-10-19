@@ -1,0 +1,715 @@
+451c451
+< 	s_and_not1_b32 s59, 31, s9
+---
+> 	s_and_not1_b32 s72, 31, s9
+453,454c453,454
+< 	v_cmp_eq_u32_e32 vcc_lo, s59, v33
+< 	s_and_saveexec_b32 s59, vcc_lo
+---
+> 	v_cmp_eq_u32_e32 vcc_lo, s72, v33
+> 	s_and_saveexec_b32 s72, vcc_lo
+457c457
+< 	s_lshr_b32 s72, s78, 5
+---
+> 	s_lshr_b32 s73, s78, 5
+460d459
+< 	s_cmp_lg_u32 s72, 1
+461a461
+> 	s_cmp_lg_u32 s73, 1
+464c464
+< 	s_cmp_lg_u32 s72, 2
+---
+> 	s_cmp_lg_u32 s73, 2
+468c468
+< 	s_cmp_lg_u32 s72, 3
+---
+> 	s_cmp_lg_u32 s73, 3
+472c472
+< 	s_cmp_lg_u32 s72, 4
+---
+> 	s_cmp_lg_u32 s73, 4
+476c476
+< 	s_cmp_lg_u32 s72, 5
+---
+> 	s_cmp_lg_u32 s73, 5
+480c480
+< 	s_cmp_lg_u32 s72, 6
+---
+> 	s_cmp_lg_u32 s73, 6
+484c484
+< 	s_cmp_lg_u32 s72, 7
+---
+> 	s_cmp_lg_u32 s73, 7
+492,494c492,494
+< 	s_or_b32 exec_lo, exec_lo, s59
+< 	s_and_b32 s59, s9, 0xffff0000
+< 	s_brev_b32 s72, 1
+---
+> 	s_or_b32 exec_lo, exec_lo, s72
+> 	s_and_b32 s72, s9, 0xffff0000
+> 	s_brev_b32 s73, 1
+496d495
+< 	s_cselect_b32 s9, 0xffff0000, s72
+498,499c497,499
+< 	s_xor_b32 s81, s9, s59
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_3)
+---
+> 	s_cselect_b32 s9, 0xffff0000, s73
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+> 	s_xor_b32 s81, s9, s72
+501c501,502
+< 	s_mul_f32 s59, s9, 0x3fb8aa3b
+---
+> 	s_delay_alu instid0(SALU_CYCLE_3) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+> 	s_mul_f32 s72, s9, 0x3fb8aa3b
+503,506c504,507
+< 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_3) | instid1(SALU_CYCLE_1)
+< 	s_xor_b32 s72, s59, 0x80000000
+< 	s_rndne_f32 s73, s59
+< 	s_fmamk_f32 s72, s9, 0x3fb8aa3b, s72
+---
+> 	s_xor_b32 s73, s72, 0x80000000
+> 	s_rndne_f32 s74, s72
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s73, s9, 0x3fb8aa3b, s73
+508,510c509,511
+< 	s_sub_f32 s59, s59, s73
+< 	s_delay_alu instid0(SALU_CYCLE_1)
+< 	s_fmamk_f32 s72, s9, 0x32a5705f, s72
+---
+> 	s_sub_f32 s72, s72, s74
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s73, s9, 0x32a5705f, s73
+514,515c515,516
+< 	s_add_f32 s59, s59, s72
+< 	s_cvt_i32_f32 s72, s73
+---
+> 	s_add_f32 s72, s72, s73
+> 	s_cvt_i32_f32 s73, s74
+518c519
+< 	v_s_exp_f32 s59, s59
+---
+> 	v_s_exp_f32 s72, s72
+520c521
+< 	v_ldexp_f32 v1, s59, s72
+---
+> 	v_ldexp_f32 v1, s72, s73
+584c585
+< 	s_and_not1_b32 s59, 31, s9
+---
+> 	s_and_not1_b32 s72, 31, s9
+587,588c588,589
+< 	v_cmp_eq_u32_e32 vcc_lo, s59, v33
+< 	s_and_saveexec_b32 s59, vcc_lo
+---
+> 	v_cmp_eq_u32_e32 vcc_lo, s72, v33
+> 	s_and_saveexec_b32 s72, vcc_lo
+591c592
+< 	s_lshr_b32 s72, s79, 5
+---
+> 	s_lshr_b32 s73, s79, 5
+595c596
+< 	s_cmp_lg_u32 s72, 1
+---
+> 	s_cmp_lg_u32 s73, 1
+598c599
+< 	s_cmp_lg_u32 s72, 2
+---
+> 	s_cmp_lg_u32 s73, 2
+602c603
+< 	s_cmp_lg_u32 s72, 3
+---
+> 	s_cmp_lg_u32 s73, 3
+606c607
+< 	s_cmp_lg_u32 s72, 4
+---
+> 	s_cmp_lg_u32 s73, 4
+610c611
+< 	s_cmp_lg_u32 s72, 5
+---
+> 	s_cmp_lg_u32 s73, 5
+614c615
+< 	s_cmp_lg_u32 s72, 6
+---
+> 	s_cmp_lg_u32 s73, 6
+618c619
+< 	s_cmp_lg_u32 s72, 7
+---
+> 	s_cmp_lg_u32 s73, 7
+626,628c627,629
+< 	s_or_b32 exec_lo, exec_lo, s59
+< 	s_and_b32 s59, s9, 0xffff0000
+< 	s_brev_b32 s72, 1
+---
+> 	s_or_b32 exec_lo, exec_lo, s72
+> 	s_and_b32 s72, s9, 0xffff0000
+> 	s_brev_b32 s73, 1
+631,635c632,636
+< 	s_cselect_b32 s9, 0xffff0000, s72
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_2) | instid1(SALU_CYCLE_3)
+< 	s_xor_b32 s59, s9, s59
+< 	s_wait_alu 0xfffe
+< 	s_sub_f32 s9, s59, s81
+---
+> 	s_cselect_b32 s9, 0xffff0000, s73
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+> 	s_xor_b32 s84, s9, s72
+> 	s_sub_f32 s9, s84, s81
+> 	s_delay_alu instid0(SALU_CYCLE_3) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+638d638
+< 	s_delay_alu instid0(SALU_CYCLE_2)
+670c670
+< 	s_mov_b32 s84, 0
+---
+> 	s_mov_b32 s85, 0
+677c677
+< 	s_mov_b32 s85, 0
+---
+> 	s_mov_b32 s86, 0
+690,691c690,691
+< 	s_mov_b32 s89, -1
+< 	s_mov_b32 s94, 0
+---
+> 	s_mov_b32 s90, -1
+> 	s_mov_b32 s95, 0
+697,698c697,698
+< 	s_mov_b32 s91, -1
+< 	s_mov_b32 s95, 0
+---
+> 	s_mov_b32 s92, -1
+> 	s_mov_b32 s96, 0
+708c708
+< 	s_mov_b32 s59, 0
+---
+> 	s_mov_b32 s84, 0
+817,818c817,818
+< 	s_xor_b32 s84, s9, s72
+< 	s_sub_f32 s9, s84, s81
+---
+> 	s_xor_b32 s85, s9, s72
+> 	s_sub_f32 s9, s85, s81
+954,955c954,955
+< 	s_xor_b32 s85, s9, s72
+< 	s_sub_f32 s9, s85, s81
+---
+> 	s_xor_b32 s86, s9, s72
+> 	s_sub_f32 s9, s86, s81
+1097c1097
+< 	s_rndne_f32 s86, s72
+---
+> 	s_rndne_f32 s87, s72
+1101c1101
+< 	s_sub_f32 s72, s72, s86
+---
+> 	s_sub_f32 s72, s72, s87
+1108c1108
+< 	s_cvt_i32_f32 s73, s86
+---
+> 	s_cvt_i32_f32 s73, s87
+1180c1180
+< 	s_and_not1_b32 s89, 0xffff, s9
+---
+> 	s_and_not1_b32 s90, 0xffff, s9
+1186,1187c1186,1187
+< 	s_lshr_b32 s86, s89, 5
+< 	s_cmp_gt_u32 s89, 31
+---
+> 	s_lshr_b32 s87, s90, 5
+> 	s_cmp_gt_u32 s90, 31
+1189c1189
+< 	s_cmp_lg_u32 s86, 1
+---
+> 	s_cmp_lg_u32 s87, 1
+1193c1193
+< 	s_cmp_lg_u32 s86, 2
+---
+> 	s_cmp_lg_u32 s87, 2
+1197c1197
+< 	s_cmp_lg_u32 s86, 3
+---
+> 	s_cmp_lg_u32 s87, 3
+1201c1201
+< 	s_cmp_lg_u32 s86, 4
+---
+> 	s_cmp_lg_u32 s87, 4
+1205c1205
+< 	s_cmp_lg_u32 s86, 5
+---
+> 	s_cmp_lg_u32 s87, 5
+1209c1209
+< 	s_cmp_lg_u32 s86, 6
+---
+> 	s_cmp_lg_u32 s87, 6
+1213c1213
+< 	s_cmp_lg_u32 s86, 7
+---
+> 	s_cmp_lg_u32 s87, 7
+1223c1223
+< 	s_brev_b32 s86, 1
+---
+> 	s_brev_b32 s87, 1
+1225c1225
+< 	s_cselect_b32 s9, 0xffff0000, s86
+---
+> 	s_cselect_b32 s9, 0xffff0000, s87
+1227c1227
+< 	s_xor_b32 s94, s9, s72
+---
+> 	s_xor_b32 s95, s9, s72
+1229c1229
+< 	s_sub_f32 s9, s94, s81
+---
+> 	s_sub_f32 s9, s95, s81
+1233,1235c1233,1235
+< 	s_xor_b32 s86, s72, 0x80000000
+< 	s_rndne_f32 s87, s72
+< 	s_fmamk_f32 s86, s9, 0x3fb8aa3b, s86
+---
+> 	s_xor_b32 s87, s72, 0x80000000
+> 	s_rndne_f32 s88, s72
+> 	s_fmamk_f32 s87, s9, 0x3fb8aa3b, s87
+1237c1237
+< 	s_sub_f32 s72, s72, s87
+---
+> 	s_sub_f32 s72, s72, s88
+1239c1239
+< 	s_fmamk_f32 s86, s9, 0x32a5705f, s86
+---
+> 	s_fmamk_f32 s87, s9, 0x32a5705f, s87
+1243,1244c1243,1244
+< 	s_add_f32 s72, s72, s86
+< 	s_cvt_i32_f32 s86, s87
+---
+> 	s_add_f32 s72, s72, s87
+> 	s_cvt_i32_f32 s87, s88
+1249c1249
+< 	v_ldexp_f32 v10, s72, s86
+---
+> 	v_ldexp_f32 v10, s72, s87
+1315,1316c1315,1316
+< 	s_and_not1_b32 s86, 31, s9
+< 	s_and_not1_b32 s91, 0xffff, s9
+---
+> 	s_and_not1_b32 s87, 31, s9
+> 	s_and_not1_b32 s92, 0xffff, s9
+1318,1319c1318,1319
+< 	v_cmp_eq_u32_e32 vcc_lo, s86, v33
+< 	s_and_saveexec_b32 s86, vcc_lo
+---
+> 	v_cmp_eq_u32_e32 vcc_lo, s87, v33
+> 	s_and_saveexec_b32 s87, vcc_lo
+1322,1323c1322,1323
+< 	s_lshr_b32 s87, s91, 5
+< 	s_cmp_gt_u32 s91, 31
+---
+> 	s_lshr_b32 s88, s92, 5
+> 	s_cmp_gt_u32 s92, 31
+1324a1325
+> 	s_cmp_lg_u32 s88, 1
+1326d1326
+< 	s_cmp_lg_u32 s87, 1
+1329c1329
+< 	s_cmp_lg_u32 s87, 2
+---
+> 	s_cmp_lg_u32 s88, 2
+1333c1333
+< 	s_cmp_lg_u32 s87, 3
+---
+> 	s_cmp_lg_u32 s88, 3
+1337c1337
+< 	s_cmp_lg_u32 s87, 4
+---
+> 	s_cmp_lg_u32 s88, 4
+1341c1341
+< 	s_cmp_lg_u32 s87, 5
+---
+> 	s_cmp_lg_u32 s88, 5
+1345c1345
+< 	s_cmp_lg_u32 s87, 6
+---
+> 	s_cmp_lg_u32 s88, 6
+1349c1349
+< 	s_cmp_lg_u32 s87, 7
+---
+> 	s_cmp_lg_u32 s88, 7
+1357,1359c1357,1359
+< 	s_or_b32 exec_lo, exec_lo, s86
+< 	s_and_b32 s86, s9, 0xffff0000
+< 	s_brev_b32 s87, 1
+---
+> 	s_or_b32 exec_lo, exec_lo, s87
+> 	s_and_b32 s87, s9, 0xffff0000
+> 	s_brev_b32 s88, 1
+1360a1361
+> 	s_cselect_b32 s9, 0xffff0000, s88
+1362,1370c1363,1366
+< 	s_cselect_b32 s9, 0xffff0000, s87
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+< 	s_xor_b32 s95, s9, s86
+< 	s_sub_f32 s9, s95, s81
+< 	s_delay_alu instid0(SALU_CYCLE_3) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+< 	s_mul_f32 s86, s9, 0x3fb8aa3b
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s87, s86, 0x80000000
+< 	s_rndne_f32 s88, s86
+---
+> 	s_xor_b32 s96, s9, s87
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_3)
+> 	s_sub_f32 s9, s96, s81
+> 	s_mul_f32 s87, s9, 0x3fb8aa3b
+1372c1368,1371
+< 	s_fmamk_f32 s87, s9, 0x3fb8aa3b, s87
+---
+> 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_3) | instid1(SALU_CYCLE_1)
+> 	s_xor_b32 s88, s87, 0x80000000
+> 	s_rndne_f32 s89, s87
+> 	s_fmamk_f32 s88, s9, 0x3fb8aa3b, s88
+1374,1376c1373,1375
+< 	s_sub_f32 s86, s86, s88
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s87, s9, 0x32a5705f, s87
+---
+> 	s_sub_f32 s87, s87, s89
+> 	s_delay_alu instid0(SALU_CYCLE_1)
+> 	s_fmamk_f32 s88, s9, 0x32a5705f, s88
+1380,1381c1379,1380
+< 	s_add_f32 s86, s86, s87
+< 	s_cvt_i32_f32 s87, s88
+---
+> 	s_add_f32 s87, s87, s88
+> 	s_cvt_i32_f32 s88, s89
+1384c1383
+< 	v_s_exp_f32 s86, s86
+---
+> 	v_s_exp_f32 s87, s87
+1386c1385
+< 	v_ldexp_f32 v10, s86, s87
+---
+> 	v_ldexp_f32 v10, s87, s88
+1396c1395
+< 	s_mov_b32 s96, 0
+---
+> 	s_mov_b32 s97, 0
+1399c1398
+< 	s_mov_b32 s92, -1
+---
+> 	s_mov_b32 s94, -1
+1404c1403
+< 	s_brev_b32 s87, 1
+---
+> 	s_brev_b32 s88, 1
+1456,1459c1455,1458
+< 	v_readfirstlane_b32 s86, v2
+< 	s_and_not1_b32 s92, 0xffff, s86
+< 	s_and_b32 s88, s86, 0xffff0000
+< 	s_cmp_gt_i32 s86, -1
+---
+> 	v_readfirstlane_b32 s87, v2
+> 	s_and_not1_b32 s94, 0xffff, s87
+> 	s_and_b32 s89, s87, 0xffff0000
+> 	s_cmp_gt_i32 s87, -1
+1461c1460
+< 	s_cselect_b32 s86, 0xffff0000, s87
+---
+> 	s_cselect_b32 s87, 0xffff0000, s88
+1463c1462
+< 	s_xor_b32 s96, s86, s88
+---
+> 	s_xor_b32 s97, s87, s89
+1465c1464
+< 	s_sub_f32 s86, s96, s81
+---
+> 	s_sub_f32 s87, s97, s81
+1467c1466
+< 	s_mul_f32 s87, s86, 0x3fb8aa3b
+---
+> 	s_mul_f32 s88, s87, 0x3fb8aa3b
+1469,1476c1468,1476
+< 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_3) | instid1(SALU_CYCLE_1)
+< 	s_xor_b32 s88, s87, 0x80000000
+< 	s_rndne_f32 s90, s87
+< 	s_fmamk_f32 s88, s86, 0x3fb8aa3b, s88
+< 	s_cmp_nlt_f32 s86, 0xc2ce8ed0
+< 	s_sub_f32 s87, s87, s90
+< 	s_delay_alu instid0(SALU_CYCLE_1)
+< 	s_fmamk_f32 s88, s86, 0x32a5705f, s88
+---
+> 	s_delay_alu instid0(SALU_CYCLE_2)
+> 	s_xor_b32 s89, s88, 0x80000000
+> 	s_rndne_f32 s91, s88
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s89, s87, 0x3fb8aa3b, s89
+> 	s_cmp_nlt_f32 s87, 0xc2ce8ed0
+> 	s_sub_f32 s88, s88, s91
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s89, s87, 0x32a5705f, s89
+1478c1478
+< 	s_cmp_ngt_f32 s86, 0x42b17218
+---
+> 	s_cmp_ngt_f32 s87, 0x42b17218
+1480,1481c1480,1481
+< 	s_add_f32 s87, s87, s88
+< 	s_cvt_i32_f32 s88, s90
+---
+> 	s_add_f32 s88, s88, s89
+> 	s_cvt_i32_f32 s89, s91
+1484c1484
+< 	v_s_exp_f32 s87, s87
+---
+> 	v_s_exp_f32 s88, s88
+1486c1486
+< 	v_ldexp_f32 v2, s87, s88
+---
+> 	v_ldexp_f32 v2, s88, s89
+1711c1711
+< 	s_lshl_b32 s90, s0, 16
+---
+> 	s_lshl_b32 s91, s0, 16
+1713c1713
+< 	s_mov_b32 s88, 0
+---
+> 	s_mov_b32 s89, 0
+1717c1717
+< 	s_sub_f32 s0, s59, s81
+---
+> 	s_sub_f32 s0, s84, s81
+1787c1787
+< 	s_lshl_b32 s88, s0, 16
+---
+> 	s_lshl_b32 s89, s0, 16
+1789c1789
+< 	s_mov_b32 s87, 0
+---
+> 	s_mov_b32 s88, 0
+1794c1794
+< 	s_mov_b32 s86, 0
+---
+> 	s_mov_b32 s87, 0
+1798c1798
+< 	s_sub_f32 s0, s85, s81
+---
+> 	s_sub_f32 s0, s86, s81
+1868c1868
+< 	s_lshl_b32 s86, s0, 16
+---
+> 	s_lshl_b32 s87, s0, 16
+1870c1870
+< 	s_mov_b32 s85, 0
+---
+> 	s_mov_b32 s86, 0
+1875c1875
+< 	s_mov_b32 s84, 0
+---
+> 	s_mov_b32 s85, 0
+1879c1879
+< 	s_sub_f32 s0, s94, s81
+---
+> 	s_sub_f32 s0, s95, s81
+1949c1949
+< 	s_lshl_b32 s84, s0, 16
+---
+> 	s_lshl_b32 s85, s0, 16
+1951c1951
+< 	s_mov_b32 s59, 0
+---
+> 	s_mov_b32 s84, 0
+2145c2145
+< 	s_mov_b32 s90, 0
+---
+> 	s_mov_b32 s91, 0
+2147c2147
+< 	s_mov_b32 s88, 0
+---
+> 	s_mov_b32 s89, 0
+2152c2152
+< 	s_mov_b32 s87, 0
+---
+> 	s_mov_b32 s88, 0
+2156c2156
+< 	s_sub_f32 s0, s84, s81
+---
+> 	s_sub_f32 s0, s85, s81
+2226c2226
+< 	s_lshl_b32 s87, s0, 16
+---
+> 	s_lshl_b32 s88, s0, 16
+2228c2228
+< 	s_mov_b32 s86, 0
+---
+> 	s_mov_b32 s87, 0
+2233c2233
+< 	s_mov_b32 s85, 0
+---
+> 	s_mov_b32 s86, 0
+2307c2307
+< 	s_lshl_b32 s85, s0, 16
+---
+> 	s_lshl_b32 s86, s0, 16
+2309c2309
+< 	s_mov_b32 s84, 0
+---
+> 	s_mov_b32 s85, 0
+2314c2314
+< 	s_mov_b32 s59, 0
+---
+> 	s_mov_b32 s84, 0
+2318c2318
+< 	s_sub_f32 s0, s95, s81
+---
+> 	s_sub_f32 s0, s96, s81
+2388c2388
+< 	s_lshl_b32 s59, s0, 16
+---
+> 	s_lshl_b32 s84, s0, 16
+2394c2394
+< 	s_sub_f32 s0, s96, s81
+---
+> 	s_sub_f32 s0, s97, s81
+2669c2669
+< 	s_cmp_gt_i32 s89, -1
+---
+> 	s_cmp_gt_i32 s90, -1
+2672c2672
+< 	s_cmp_lt_i32 s89, s52
+---
+> 	s_cmp_lt_i32 s90, s52
+2682c2682
+< 	s_mul_i32 s4, s89, 3
+---
+> 	s_mul_i32 s4, s90, 3
+2690c2690
+< 	v_mad_co_u64_u32 v[4:5], null, s89, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s90, s70, v[2:3]
+2692c2692
+< 	v_mad_co_u64_u32 v[5:6], null, s89, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[5:6], null, s90, s71, v[5:6]
+2703c2703
+< 	s_cmp_gt_i32 s91, -1
+---
+> 	s_cmp_gt_i32 s92, -1
+2706c2706
+< 	s_cmp_lt_i32 s91, s52
+---
+> 	s_cmp_lt_i32 s92, s52
+2719c2719
+< 	s_mul_i32 s4, s91, 3
+---
+> 	s_mul_i32 s4, s92, 3
+2727c2727
+< 	v_mad_co_u64_u32 v[4:5], null, s91, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s92, s70, v[2:3]
+2729c2729
+< 	v_mad_co_u64_u32 v[8:9], null, s91, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[8:9], null, s92, s71, v[5:6]
+2740c2740
+< 	s_cmp_gt_i32 s92, -1
+---
+> 	s_cmp_gt_i32 s94, -1
+2743c2743
+< 	s_cmp_lt_i32 s92, s52
+---
+> 	s_cmp_lt_i32 s94, s52
+2753c2753
+< 	s_mul_i32 s4, s92, 3
+---
+> 	s_mul_i32 s4, s94, 3
+2761c2761
+< 	v_mad_co_u64_u32 v[3:4], null, s92, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[3:4], null, s94, s70, v[2:3]
+2763c2763
+< 	v_mad_co_u64_u32 v[4:5], null, s92, s71, v[4:5]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s94, s71, v[4:5]
+2958c2958
+< 	s_ashr_i32 s91, s4, 4
+---
+> 	s_ashr_i32 s92, s4, 4
+2961c2961
+< 	v_cmp_gt_i32_e64 s0, s91, v33
+---
+> 	v_cmp_gt_i32_e64 s0, s92, v33
+2978c2978
+< 	v_mad_co_i64_i32 v[2:3], null, v2, s91, s[50:51]
+---
+> 	v_mad_co_i64_i32 v[2:3], null, v2, s92, s[50:51]
+2996c2996
+< 	v_readfirstlane_b32 s89, v34
+---
+> 	v_readfirstlane_b32 s90, v34
+3446c3446
+< 	v_cmp_le_i32_e64 s4, s91, v71
+---
+> 	v_cmp_le_i32_e64 s4, s92, v71
+3475c3475
+< 	v_cmp_le_u32_e32 vcc_lo, s31, v55
+---
+> 	v_cmp_le_u32_e32 vcc_lo, s59, v55
+3482c3482
+< 	v_cmp_gt_u32_e32 vcc_lo, s31, v55
+---
+> 	v_cmp_gt_u32_e32 vcc_lo, s59, v55
+3493c3493
+< 	s_and_saveexec_b32 s92, s1
+---
+> 	s_and_saveexec_b32 s59, s1
+5875c5875
+< 	s_delay_alu instid0(SALU_CYCLE_1)
+---
+> 	s_wait_alu 0xfffe
+5953c5953
+< 	v_mul_f32_e32 v23, s90, v22
+---
+> 	v_mul_f32_e32 v23, s91, v22
+6057c6057
+< 	v_mul_f32_e32 v19, s88, v18
+---
+> 	v_mul_f32_e32 v19, s89, v18
+6163c6163
+< 	v_mul_f32_e32 v19, s87, v18
+---
+> 	v_mul_f32_e32 v19, s88, v18
+6270c6270
+< 	v_mul_f32_e32 v15, s86, v14
+---
+> 	v_mul_f32_e32 v15, s87, v14
+6376c6376
+< 	v_mul_f32_e32 v15, s85, v14
+---
+> 	v_mul_f32_e32 v15, s86, v14
+6483c6483
+< 	v_mul_f32_e32 v11, s84, v10
+---
+> 	v_mul_f32_e32 v11, s85, v10
+6589c6589
+< 	v_mul_f32_e32 v11, s59, v10
+---
+> 	v_mul_f32_e32 v11, s84, v10
+6871c6871
+< 	v_cmpx_gt_i32_e64 s91, v32
+---
+> 	v_cmpx_gt_i32_e64 s92, v32
+6892c6892
+< 	v_cmpx_gt_i32_e64 s91, v32
+---
+> 	v_cmpx_gt_i32_e64 s92, v32
+7045c7045
+< 	v_cmp_le_i32_e64 s0, s91, v9
+---
+> 	v_cmp_le_i32_e64 s0, s92, v9
+7137c7137
+< 	s_lshl_b32 s0, s89, 16
+---
+> 	s_lshl_b32 s0, s90, 16
+7289c7289
+< 	s_or_b32 exec_lo, exec_lo, s92
+---
+> 	s_or_b32 exec_lo, exec_lo, s59
+11976c11976
+< 		.amdhsa_next_free_sgpr 97
+---
+> 		.amdhsa_next_free_sgpr 98
