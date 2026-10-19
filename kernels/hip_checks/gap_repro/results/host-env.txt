@@ -1,0 +1,4 @@
+host kernel: 7.0.0-38-generic
+host amdgpu: cat: /sys/module/amdgpu/version: No such file or directory
+/sys/class/drm/card0/device/vbios_version: 113-APM107573-101
+/sys/class/drm/card1/device/vbios_version: 113-APM107573-101

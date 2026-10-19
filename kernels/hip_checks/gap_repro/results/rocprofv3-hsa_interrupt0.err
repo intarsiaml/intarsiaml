@@ -1,0 +1,8 @@
+W20261019 21:23:41.517866 135094906188544 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000400 sec
+W20261019 21:23:41.517982 135094906188544 simple_timer.cpp:55] [rocprofv3] './gap_repro' ::     0.000000 sec
+W20261019 21:23:41.528854 135094906188544 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+W20261019 21:23:54.055781 135094906188544 simple_timer.cpp:55] [rocprofv3] './gap_repro' ::    12.537799 sec
+E20261019 21:23:54.061616 135094906188544 output_stream.cpp:111] Opened result file: results/prof-hsa_interrupt0/run_kernel_trace.csv
+E20261019 21:23:54.070749 135094906188544 output_stream.cpp:111] Opened result file: results/prof-hsa_interrupt0/run_agent_info.csv
+W20261019 21:23:54.071451 135094906188544 simple_timer.cpp:55] [rocprofv3] output generation ::     0.015307 sec
+W20261019 21:23:54.071476 135094906188544 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.015355 sec
