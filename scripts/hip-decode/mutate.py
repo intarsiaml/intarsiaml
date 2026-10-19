@@ -4,6 +4,14 @@ each mutation must make `cargo test -p intarsia-backend-hip --test decode_v2` FA
 catch a wrong accumulation, a skipped iteration, a flipped tie-break, or a dropped state / tail write."""
 import sys
 
+# moe_wmma.h holds two kernels with the same body text: moe_wmma_kernel (round 5: the 32-pair tile, and INTARSIA_HIP_MOE_MW=0)
+# and moe_wmma_kernel_v (round 6: the 64-pair tile at the default MW=5). A pattern found in both is aimed at one of them by a
+# third element (index, count): the file must hold exactly `count` matches, and the `index`-th (0-based) is replaced. The
+# round-6 `moe-z-step` / `pairs-*` mutants take the second, moe_wmma_kernel_v: the kernel their tests select at default env
+# (quantmoe's hot-experts case averages >= 32 pairs per expert, so the auto tile is 64; moe_pairs runs MW 1 / 4 / 5 at 64
+# pairs against MW 0 at 32).
+V_KERNEL = (1, 2)
+
 MUTATIONS = {
     # fused single-tile conv: the thread's new state is written doubled
     "conv-state": ("kernels/hip/gdn.hip", [(
@@ -124,7 +132,7 @@ MUTATIONS = {
     # the e4m3 kernel does not step aside for weight-only activations (the bf16 kernel runs after it, so this one is expected to survive)
     "f8-noexit": ("kernels/hip/ik_f8_gemm.h", [("    if (!(sc[1] > 0.f)) return;  // weight-only activations: the bf16 kernel handles this launch\n", "")]),
     # a block steps through the further pair tiles of a busy expert by one more than the grid's z
-    "moe-z-step": ("kernels/hip/moe_wmma.h", [("pt += gridDim.z)", "pt += gridDim.z + 1)")]),
+    "moe-z-step": ("kernels/hip/moe_wmma.h", [("pt += gridDim.z)", "pt += gridDim.z + 1)", V_KERNEL)]),
     # --- round 3 (perf/hip-round3): matmul_fp8_mma_v2 (tests/fp8_mma_v2.rs) and the 64-pair MoE tile (tests/moe_pairs.rs) ---
     # the e4m3 -> bf16 conversion decodes the low byte pair twice (bytes 2, 3 of the low word lost)
     "v2-wsel": ("kernels/hip/ik_quant.h", [(
@@ -152,15 +160,15 @@ MUTATIONS = {
         "IK_DEVI uint4 xprep(const State& s, uint4 v) { return v; }")]),
     # 64-pair tile: the up accumulators are handed to the gate waves with the 32-pair stride (fragments overwrite each other)
     "pairs-sred": ("kernels/hip/moe_wmma.h", [(
-        "sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];", "sred[(fw * 32 + lane) * 16 + j * 8 + i] = acc[j][i];")]),
+        "sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];", "sred[(fw * 32 + lane) * 16 + j * 8 + i] = acc[j][i];", V_KERNEL)]),
     # 64-pair tile: the second activation row of each thread is stored 16 rows down instead of 32
     "pairs-xrow": ("kernels/hip/moe_wmma.h", [(
         "*reinterpret_cast<uint4*>(&sx[buf][(xr + 32 * r) * kMwLD + xch * 8]) = rx[r];",
-        "*reinterpret_cast<uint4*>(&sx[buf][(xr + 16 * r) * kMwLD + xch * 8]) = rx[r];")]),
+        "*reinterpret_cast<uint4*>(&sx[buf][(xr + 16 * r) * kMwLD + xch * 8]) = rx[r];", V_KERNEL)]),
     # 64-pair tile: only the first two 16-pair fragments are written out
     "pairs-out": ("kernels/hip/moe_wmma.h", [(
         "        for (int j = 0; j < J; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;",
-        "        for (int j = 0; j < 2; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;")]),
+        "        for (int j = 0; j < 2; ++j) {\n            const int pi = pt * PAIRS + j * 16 + lr;", V_KERNEL)]),
     # --- round 4 (docs/results/2026-10-19-hip-round4.md) ---
     # qk_norm_rope_kv: the sum of squares misses the last value of each 8-value chunk
     "qkr-sum": ("kernels/hip/elementwise.hip", [(
@@ -366,9 +374,14 @@ if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test 
 path, pairs = MUTATIONS[name]
 p = f"{tree}/{path}"
 s = open(p).read()
-for old, new in pairs:
-    if s.count(old) != 1:
-        sys.exit(f"mutation {name}: pattern not found exactly once in {path}: {old[:60]!r} ({s.count(old)})")
-    s = s.replace(old, new)
+for pair in pairs:
+    old, new = pair[0], pair[1]
+    idx, want = pair[2] if len(pair) > 2 else (0, 1)  # (index, count): see V_KERNEL
+    if s.count(old) != want:
+        sys.exit(f"mutation {name}: pattern not found exactly {want} time(s) in {path}: {old[:60]!r} ({s.count(old)})")
+    at = -1
+    for _ in range(idx + 1):
+        at = s.index(old, at + 1)
+    s = s[:at] + new + s[at + len(old):]
 open(p, "w").write(s)
 print(f"applied {name} to {p}")
