@@ -540,6 +540,14 @@ stage_d16env() {
   echo "--- env: ${1:-none}"
   $D bash -c "bash /work/bench-out/d16env.sh; bash /work/bench-out/d16env.sh" 2>&1 | grep -aE "^finish="
 }
+# pf35s:<tag>: serve bench of the 35B at PF_SIZES (default 1024,2048), PF_REPS reps, --at-most if AT_MOST; a tag starting with
+# "off" runs the server with INTARSIA_HIP_SPLIT_US=0 (one launch per kernel)
+stage_pf35s() {
+  local tag=${1:-x}
+  export SERVE_ENV=""
+  [[ "$tag" == off* ]] && export SERVE_ENV="-e INTARSIA_HIP_SPLIT_US=0"
+  MAXSEQ=8192 SIZES=${PF_SIZES:-1024,2048} REPS=${PF_REPS:-3} serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf35s-$tag" --mem-budget 29
+}
 # t:<test file>[+<test file>...]: hip crate test binaries, single-threaded, with output (round 8: moe_pairs+gdn_v2 ...)
 stage_t() {
   local f args=""

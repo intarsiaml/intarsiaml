@@ -1,0 +1,125 @@
+fleetq: #2763 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/job-w8.sh
+synced r8 tree (a97d4086 + worktree changes)
+[burst] job 2763; stages: pf35s:on1 pf35s:off1 pf35s:on2 pf35s:off2; stopping radiance 2026-10-19 17:06:41
+[burst] radiance stopped 2026-10-19 17:06:43
+################ stage pf35s:on1 start 17:06:43
+--- serve qwen36-35b-intarsia-hip [17:06:43]
+up after ~18s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen36-35b-intarsia-hip
+server context window: 8192 tokens
+calibration: 48 base tokens, 21.86 tokens per filler sentence
+  size   1024 rep: prompt=940 gen=128 ttft=0.15s prefill=6421 tok/s decode=163.8 tok/s
+  size   1024 rep: prompt=961 gen=128 ttft=0.15s prefill=6586 tok/s decode=163.9 tok/s
+  size   1024 rep: prompt=962 gen=128 ttft=0.15s prefill=6584 tok/s decode=163.9 tok/s
+  size   2048 rep: prompt=1929 gen=128 ttft=0.21s prefill=9025 tok/s decode=163.1 tok/s
+  size   2048 rep: prompt=1982 gen=128 ttft=0.22s prefill=9091 tok/s decode=162.8 tok/s
+  size   2048 rep: prompt=1931 gen=128 ttft=0.21s prefill=9035 tok/s decode=162.2 tok/s
+wrote /work/bench-out/pf35s-on1.json
+pf35s-on1  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      961     0.146         6584       163.9      128       57.5
+    2048     1931     0.214         9035       162.8      128       57.1
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 786
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35s:on1 end 17:07:06
+################ stage pf35s:off1 start 17:07:06
+--- serve qwen36-35b-intarsia-hip [17:07:06]
+up after ~15s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen36-35b-intarsia-hip
+server context window: 8192 tokens
+calibration: 47 base tokens, 21.80 tokens per filler sentence
+  size   1024 rep: prompt=951 gen=128 ttft=0.14s prefill=6600 tok/s decode=163.7 tok/s
+  size   1024 rep: prompt=951 gen=128 ttft=0.14s prefill=6572 tok/s decode=163.8 tok/s
+  size   1024 rep: prompt=958 gen=128 ttft=0.14s prefill=6640 tok/s decode=163.9 tok/s
+  size   2048 rep: prompt=1923 gen=128 ttft=0.22s prefill=8698 tok/s decode=163.2 tok/s
+  size   2048 rep: prompt=1965 gen=128 ttft=0.22s prefill=8806 tok/s decode=163.0 tok/s
+  size   2048 rep: prompt=1935 gen=128 ttft=0.22s prefill=8764 tok/s decode=163.1 tok/s
+wrote /work/bench-out/pf35s-off1.json
+pf35s-off1  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      951     0.144         6600       163.8      128       57.5
+    2048     1935     0.221         8764       163.1      128       57.2
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 786
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35s:off1 end 17:07:25
+################ stage pf35s:on2 start 17:07:25
+--- serve qwen36-35b-intarsia-hip [17:07:25]
+up after ~15s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen36-35b-intarsia-hip
+server context window: 8192 tokens
+calibration: 47 base tokens, 21.70 tokens per filler sentence
+  size   1024 rep: prompt=993 gen=128 ttft=0.15s prefill=6659 tok/s decode=163.6 tok/s
+  size   1024 rep: prompt=987 gen=128 ttft=0.15s prefill=6614 tok/s decode=163.8 tok/s
+  size   1024 rep: prompt=989 gen=128 ttft=0.15s prefill=6596 tok/s decode=164.0 tok/s
+  size   2048 rep: prompt=1979 gen=128 ttft=0.22s prefill=9048 tok/s decode=163.1 tok/s
+  size   2048 rep: prompt=1972 gen=128 ttft=0.22s prefill=9044 tok/s decode=163.0 tok/s
+  size   2048 rep: prompt=1957 gen=128 ttft=0.22s prefill=9006 tok/s decode=163.1 tok/s
+wrote /work/bench-out/pf35s-on2.json
+pf35s-on2  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      989     0.149         6614       163.8      128       57.5
+    2048     1972     0.218         9044       163.1      128       57.2
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 786
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35s:on2 end 17:07:44
+################ stage pf35s:off2 start 17:07:44
+--- serve qwen36-35b-intarsia-hip [17:07:44]
+up after ~15s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen36-35b-intarsia-hip
+server context window: 8192 tokens
+calibration: 49 base tokens, 21.80 tokens per filler sentence
+  size   1024 rep: prompt=969 gen=128 ttft=0.15s prefill=6611 tok/s decode=163.5 tok/s
+  size   1024 rep: prompt=948 gen=128 ttft=0.14s prefill=6539 tok/s decode=163.8 tok/s
+  size   1024 rep: prompt=962 gen=128 ttft=0.15s prefill=6575 tok/s decode=164.1 tok/s
+  size   2048 rep: prompt=1928 gen=128 ttft=0.22s prefill=8676 tok/s decode=163.4 tok/s
+  size   2048 rep: prompt=1939 gen=128 ttft=0.22s prefill=8701 tok/s decode=163.3 tok/s
+  size   2048 rep: prompt=1931 gen=128 ttft=0.22s prefill=8689 tok/s decode=163.3 tok/s
+wrote /work/bench-out/pf35s-off2.json
+pf35s-off2  model=qwen36-35b-intarsia-hip  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      962     0.146         6575       163.8      128       57.5
+    2048     1931     0.222         8689       163.3      128       57.3
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 786
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35s:off2 end 17:08:03
+[burst] stages done 2026-10-19 17:08:03 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-19 17:08:03
+[burst] radiance answers 2026-10-19 17:08:13 (after 15 s)
+fleetq: #2763 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0 17:08:13

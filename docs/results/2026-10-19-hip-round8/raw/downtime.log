@@ -7,5 +7,6 @@ W4        2752  2026-10-19 16:11:07   2026-10-19 16:13:03   1.93     split v2 (d
 W5        2754  2026-10-19 16:18:21   2026-10-19 16:19:36   1.25     moe_reduce_v8 + combine only: prefill on/off x2, profile, 17.6k decode on/off; GPU 1: moe_pairs, gdn_v2, splitkv_r8
 W6        2758  2026-10-19 16:31:05   2026-10-19 16:37:55   6.83     acceptance, branch a97d4086 vs base 13cde333: admission (8B quick + full, 35B full), KL 35B short/long both trees (+ prefix reuse), 8B goldens, ids4k, final profile; GPU 1: round-8 + neighbouring bitwise tests, admission test, mutrun8 (14 mutants)
 W7        2761  2026-10-19 16:43:23   2026-10-19 16:58:26   15.05    interleaved A/B x3, --at-most both sides: 35B prefill + decode 128/1024/4096/16384 (pf35), 8B (pf8x)
-# total 27.91 min (cap 60; every window under 20 min; >= 5 min of radiance serving between windows, shortest 5:08 W1->W2);
+W8        2763  2026-10-19 17:06:41   2026-10-19 17:08:13   1.53     branch, split on vs INTARSIA_HIP_SPLIT_US=0 x2, 35B serve bench at 1024 / 2048 tokens (pf35s, --at-most)
+# total 29.44 min (cap 60; every window under 20 min; >= 5 min of radiance serving between windows, shortest 5:08 W1->W2);
 # every window ended with radiance answering /v1/models (burst.sh) before fleetq released the slot; CPU builds ran in --mem 0 slots
