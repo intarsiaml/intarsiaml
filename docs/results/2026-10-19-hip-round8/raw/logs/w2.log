@@ -1,0 +1,95 @@
+fleetq: #2748 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/job-w2.sh
+synced r8 tree (13cde333 + worktree changes)
+[burst] job 2748; stages: pfprof@base:pf pfapi@base:api pfenv@base:X=0 pfenv@base:HSA_ENABLE_INTERRUPT=0 pfenv@base:ROC_ACTIVE_WAIT_TIMEOUT=5000 pfenv@base:GPU_MAX_HW_QUEUES=4 pfenv@base:X=1; stopping radiance 2026-10-19 15:53:07
+[burst] radiance stopped 2026-10-19 15:53:10
+################ stage pfprof@base:pf start 15:53:10
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 536 ms (8217.2 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 543 ms (8117.2 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2684 (of 3246), span 542.7 ms, kernel time 488.8 ms, idle 9.9 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 60   101.01   1683.5  20.7%  256x32x1 x 32
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    86.05   2151.3  17.6%  65536x8x4 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    69.87    268.7  14.3%  8192x64x1 x 256
+moe_wmma_kernel_r7<false, 64, 25>                                                   40    45.53   1138.3   9.3%  65536x8x4 x 256
+flash_hpb_kernel<256, 32, 4>                                                        20    37.17   1858.4   7.6%  32768x4x1 x 512
+moe_wmma_kernel<true, 32>                                                           40    30.18    754.4   6.2%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.79    107.4   5.3%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.85    260.7   4.3%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.30     43.9   2.5%  8192x1x1 x 256
+moe_wmma_kernel_r7<false, 32, 41>                                                   40    10.08    252.1   2.1%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.35    155.9   1.9%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.14     27.4   1.5%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         161     7.08     44.0   1.4%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.92     98.7   1.2%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                            80     5.34     66.8   1.1%  8388608x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   30     3.33    111.1   0.7%  1179648x2x1 x 288
+moe_block_kernel<4, 8>                                                              40     1.97     49.2   0.4%  212992x1x1 x 256
+sigmoid_mul_kernel                                                                  20     1.77     88.6   0.4%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.31     43.7   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                  80     1.03     12.9   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.90     11.3   0.2%  1024x1x1 x 1024
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.59     19.6   0.1%  32768x1x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.58      2.2   0.1%  8192x64x1 x 256
+silu_glu_kernel<true>                                                               80     0.56      7.1   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.5   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.6   0.1%  16384x2x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      10     0.31     31.2   0.1%  131072x1x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.1   0.1%  8448x1x1 x 256
+gdn_conv_delta_kernel<128, 2, 1, 4>                                                 30     0.26      8.5   0.1%  256x32x1 x 32
+__amd_rocclr_fillBufferAligned                                                      30     0.17      5.6   0.0%  8192x1x1 x 256
+fp8_gemv_sigmoid_kernel<2>                                                          10     0.17     16.9   0.0%  32768x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.2   0.0%  8192x1x1 x 128
+embedding_kernel<true>                                                               3     0.12     40.6   0.0%  1048576x1x1 x 256
+rmsnorm_kernel<false, true>                                                          3     0.12     40.5   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+fp8_gemv_norm_pair_kernel<1>                                                        10     0.07      6.9   0.0%  32768x1x1 x 256
+argmax_kernel<float>                                                                 1     0.05     45.3   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.4   0.0%  2048x1x1 x 256
+################ stage pfprof@base:pf end 15:53:19
+################ stage pfapi@base:api start 15:53:19
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 552 ms (7987.0 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+run_agent_info.csv
+run_hip_api_trace.csv
+run_kernel_trace.csv
+run_memory_copy_trace.csv
+################ stage pfapi@base:api end 15:53:23
+################ stage pfenv@base:X=0 start 15:53:23
+--- env: X=0
+finish=length prompt=4408 (cached 0) completion=1 | prefill 538 ms (8193.3 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 538 ms (8195.3 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv@base:X=0 end 15:53:30
+################ stage pfenv@base:HSA_ENABLE_INTERRUPT=0 start 15:53:30
+--- env: HSA_ENABLE_INTERRUPT=0
+finish=length prompt=4408 (cached 0) completion=1 | prefill 538 ms (8194.7 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 538 ms (8188.4 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv@base:HSA_ENABLE_INTERRUPT=0 end 15:53:37
+################ stage pfenv@base:ROC_ACTIVE_WAIT_TIMEOUT=5000 start 15:53:37
+--- env: ROC_ACTIVE_WAIT_TIMEOUT=5000
+finish=length prompt=4408 (cached 0) completion=1 | prefill 539 ms (8173.3 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 540 ms (8163.5 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv@base:ROC_ACTIVE_WAIT_TIMEOUT=5000 end 15:53:43
+################ stage pfenv@base:GPU_MAX_HW_QUEUES=4 start 15:53:43
+--- env: GPU_MAX_HW_QUEUES=4
+finish=length prompt=4408 (cached 0) completion=1 | prefill 540 ms (8158.3 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 540 ms (8168.2 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv@base:GPU_MAX_HW_QUEUES=4 end 15:53:50
+################ stage pfenv@base:X=1 start 15:53:50
+--- env: X=1
+finish=length prompt=4408 (cached 0) completion=1 | prefill 540 ms (8156.6 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 541 ms (8152.8 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv@base:X=1 end 15:53:57
+[burst] stages done 2026-10-19 15:53:57 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-19 15:53:57
+[burst] radiance answers 2026-10-19 15:54:07 (after 15 s)
+fleetq: #2748 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0 15:54:07

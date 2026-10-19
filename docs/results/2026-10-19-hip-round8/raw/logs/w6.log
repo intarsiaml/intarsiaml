@@ -1,0 +1,419 @@
+fleetq: #2758 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/rjob.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/job-w6.sh
+[burst] job 2758; stages: bg:w6g1:t:moe_pairs+gdn_v2+splitkv_r8+attention+round6_selection+moe_block+quantmoe+decode_v2+device_pos,admission,mutrun8 kernels k35 acc35 acc35@base acc35l:4096 acc35l@base:4096 acc8 ids4k pfprof:r8final bgwait; stopping radiance 2026-10-19 16:31:05
+[burst] radiance stopped 2026-10-19 16:31:08
+################ stage bg:w6g1:t:moe_pairs+gdn_v2+splitkv_r8+attention+round6_selection+moe_block+quantmoe+decode_v2+device_pos,admission,mutrun8 start 16:31:08
+bg w6g1 on GPU 1: pid 3580046 stages t:moe_pairs+gdn_v2+splitkv_r8+attention+round6_selection+moe_block+quantmoe+decode_v2+device_pos admission mutrun8
+################ stage bg:w6g1:t:moe_pairs+gdn_v2+splitkv_r8+attention+round6_selection+moe_block+quantmoe+decode_v2+device_pos,admission,mutrun8 end 16:31:08
+################ stage kernels start 16:31:08
+moe_block      moe_block_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+52 kernels, 223 cases in 0.2s
+incomplete: 3 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv     14      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv     15      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv     10      0    1.946e-9   3.146e-10  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv     20      0     0.000e0     0.000e0  ADMITTED
+52 kernels, 923 cases in 58.9s
+################ stage kernels end 16:32:08
+################ stage k35 start 16:32:08
+qk_norm        qk_norm_bf16                   18      0     0.000e0     0.000e0  ADMITTED
+rope           rope_bf16                      36      0    2.959e-5    9.571e-7  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16           36      0    3.165e-3    1.382e-4  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.773e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    4.551e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_v2          8      0    1.221e-4    4.551e-5  ADMITTED
+gate_split_qk_norm_rope_kv gate_split_qk_norm_rope_kv_bf16     36      0    1.645e-3    3.037e-5  ADMITTED
+gdn_conv_delta gdn_conv_delta_bf16            10      0    1.221e-4    6.802e-5  ADMITTED
+52 kernels, 910 cases in 38.8s
+################ stage k35 end 16:32:47
+################ stage acc35 start 16:32:47
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.61   7.626e-3   7.417e-3   7.150e-1   0.0176   0.0174    91.30     31.0%      0
+prefill floor [4bit]: top-1 98.61% (not gated for this class) ok | 21-way KL 7.417e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.361e-3   1.547e-3   5.664e-3   0.0209   0.0217    92.50     16/16      0
+story                 39    16   100.00   1.157e-2   1.045e-2   3.817e-2   0.0971   0.0977    96.25     16/16      0
+code                  87    16   100.00   1.588e-3   1.592e-3   8.598e-3   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   1.122e-2   1.081e-2   3.358e-2   0.0460   0.0483    96.25     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   7.532e-3   7.830e-3   5.002e-2   0.0421   0.0380    86.25     16/16      0
+chat_multiturn        58    16   100.00   4.813e-2   4.822e-2   7.315e-1   0.0014   0.0009    92.50     16/16      0
+chat_reasoning        90    16   100.00   2.927e-2   2.933e-2   1.171e-1   0.0011   0.0007    95.00     16/16      0
+long_prose_300       300    16   100.00   7.283e-5   7.957e-5   2.573e-4   0.0002   0.0002    93.75     16/16      0
+long_prose_700       700    16   100.00   1.919e-3   1.928e-3   1.032e-2   0.0007   0.0008    85.00     16/16      0
+OVERALL                    160    98.75   1.176e-2   1.172e-2   7.315e-1   0.0258   0.0254    92.88     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.172e-2 (need <= 3.0e-2) ok | tail mass ours 0.0254 vs ref 0.0258, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 36.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35 end 16:32:59
+################ stage acc35@base start 16:32:59
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.61   7.626e-3   7.417e-3   7.150e-1   0.0176   0.0174    91.30     31.0%      0
+prefill floor [4bit]: top-1 98.61% (not gated for this class) ok | 21-way KL 7.417e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.361e-3   1.547e-3   5.664e-3   0.0209   0.0217    92.50     16/16      0
+story                 39    16   100.00   1.157e-2   1.045e-2   3.817e-2   0.0971   0.0977    96.25     16/16      0
+code                  87    16   100.00   1.588e-3   1.592e-3   8.598e-3   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   1.122e-2   1.081e-2   3.358e-2   0.0460   0.0483    96.25     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   7.532e-3   7.830e-3   5.002e-2   0.0421   0.0380    86.25     16/16      0
+chat_multiturn        58    16   100.00   4.813e-2   4.822e-2   7.315e-1   0.0014   0.0009    92.50     16/16      0
+chat_reasoning        90    16   100.00   2.927e-2   2.933e-2   1.171e-1   0.0011   0.0007    95.00     16/16      0
+long_prose_300       300    16   100.00   7.283e-5   7.957e-5   2.573e-4   0.0002   0.0002    93.75     16/16      0
+long_prose_700       700    16   100.00   1.919e-3   1.928e-3   1.032e-2   0.0007   0.0008    85.00     16/16      0
+OVERALL                    160    98.75   1.176e-2   1.172e-2   7.315e-1   0.0258   0.0254    92.88     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.172e-2 (need <= 3.0e-2) ok | tail mass ours 0.0254 vs ref 0.0258, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 36.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35@base end 16:33:08
+################ stage acc35l:4096 start 16:33:08
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+long_docs_4k        4064  4064    93.63   1.886e-2   1.674e-2    1.866e0   0.0944   0.0970    90.94    0/4064      0
+long_code_4k        4064  4064    97.19   8.532e-3   7.775e-3   8.041e-1   0.0370   0.0381    91.76   25/4064      0
+chat_reuse_4k       4631  4631    88.92   2.195e-1   2.479e-1    2.763e1   0.0688   0.0840    88.25    7/4631      0
+long_docs_12k      12064 12064    92.90   2.318e-2   2.071e-2    9.886e0   0.0839   0.0848    90.35   5/12064      0
+long_code_12k      12064 12064    97.08   9.730e-3   9.045e-3    3.757e0   0.0323   0.0328    91.01  33/12064      0
+OVERALL                  36887    94.32   4.133e-2   4.356e-2    2.763e1   0.0611   0.0639    90.52      0.2%      0
+prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.356e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0639 vs ref 0.0611, excess +0.0028 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    95.31   1.260e-2   1.191e-2   9.301e-2   0.0185   0.0194    90.31     45/64      0
+long_code_4k        4064    64    96.88   1.217e-2   1.024e-2   1.507e-1   0.0481   0.0510    91.25     28/64      0
+chat_reuse_4k       4631    64    98.44   2.051e-3   2.052e-3   2.592e-2   0.0000   0.0000    90.62     51/64      0
+long_docs_12k      12064    64    95.31   1.560e-2   1.474e-2   3.075e-1   0.0399   0.0408    88.75      7/64      0
+long_code_12k      12064    64    98.44   7.586e-3   7.412e-3   1.412e-1   0.0085   0.0078    89.69     11/64      0
+OVERALL                    320    96.88   1.000e-2   9.273e-3   3.075e-1   0.0230   0.0238    90.12     44.4%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 9.273e-3 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 44.4% of positions before the first argmax divergence, worst prompt 10.9% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l:4096 end 16:34:59
+################ stage acc35l@base:4096 start 16:34:59
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.63   1.886e-2   1.674e-2    1.866e0   0.0944   0.0970    90.94    0/4064      0
+long_code_4k        4064  4064    97.19   8.532e-3   7.775e-3   8.041e-1   0.0370   0.0381    91.76   25/4064      0
+chat_reuse_4k       4631  4631    88.92   2.195e-1   2.479e-1    2.763e1   0.0688   0.0840    88.25    7/4631      0
+long_docs_12k      12064 12064    92.90   2.318e-2   2.071e-2    9.886e0   0.0839   0.0848    90.35   5/12064      0
+long_code_12k      12064 12064    97.08   9.730e-3   9.045e-3    3.757e0   0.0323   0.0328    91.01  33/12064      0
+OVERALL                  36887    94.32   4.133e-2   4.356e-2    2.763e1   0.0611   0.0639    90.52      0.2%      0
+prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.356e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0639 vs ref 0.0611, excess +0.0028 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    95.31   1.260e-2   1.191e-2   9.301e-2   0.0185   0.0194    90.31     45/64      0
+long_code_4k        4064    64    96.88   1.217e-2   1.024e-2   1.507e-1   0.0481   0.0510    91.25     28/64      0
+chat_reuse_4k       4631    64    98.44   2.051e-3   2.052e-3   2.592e-2   0.0000   0.0000    90.62     51/64      0
+long_docs_12k      12064    64    95.31   1.560e-2   1.474e-2   3.075e-1   0.0399   0.0408    88.75      7/64      0
+long_code_12k      12064    64    98.44   7.586e-3   7.412e-3   1.412e-1   0.0085   0.0078    89.69     11/64      0
+OVERALL                    320    96.88   1.000e-2   9.273e-3   3.075e-1   0.0230   0.0238    90.12     44.4%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 9.273e-3 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 44.4% of positions before the first argmax divergence, worst prompt 10.9% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l@base:4096 end 16:36:50
+################ stage acc8 start 16:36:50
+--- accuracy qwen3-8b-fp32.safetensors 
+chat_multiturn        58    58   100.00   2.128e-4   1.947e-4   2.392e-3   0.0340   0.0340    99.31     58/58      0
+chat_reasoning        90    90   100.00   1.708e-4   1.595e-4   2.592e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.335e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.626e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy qwen3-8b-long-fp32.safetensors 
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 3.966e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc8 end 16:37:20
+################ stage ids4k start 16:37:20
+--- this tree 
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 565 ms (7807.2 tok/s) | decode 1646 ms (154.94 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 554 ms (7958.9 tok/s) | decode 1614 ms (157.96 tok/s)
+ids: 255 / 255 commas
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4k end 16:37:38
+################ stage pfprof:r8final start 16:37:38
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 521 ms (8459.7 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 527 ms (8369.4 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2874 (of 3436), span 526.3 ms, kernel time 488.4 ms, idle 7.2 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                210   104.43    497.3  21.4%  256x32x1 x 32
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    87.30   2182.4  17.9%  65536x8x4 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    70.30    270.4  14.4%  8192x64x1 x 256
+moe_wmma_kernel_r7<false, 64, 25>                                                   80    48.58    607.3   9.9%  65536x4x4 x 256
+flash_hpb_kernel<256, 32, 4>                                                        20    38.11   1905.5   7.8%  32768x4x1 x 512
+moe_wmma_kernel<true, 32>                                                           40    30.16    753.9   6.2%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.92    108.0   5.3%  8192x4x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.11     43.3   2.5%  8192x1x1 x 256
+moe_reduce_v8_kernel                                                                80    10.56    131.9   2.2%  1048576x1x1 x 256
+moe_wmma_kernel_r7<false, 32, 41>                                                   40    10.25    256.2   2.1%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.67    161.2   2.0%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.28     28.0   1.5%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         161     7.04     43.7   1.4%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     6.07    101.2   1.2%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                            80     5.46     68.2   1.1%  8388608x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   30     3.42    113.9   0.7%  1179648x2x1 x 288
+moe_block_kernel<4, 8>                                                              40     1.93     48.3   0.4%  212992x1x1 x 256
+sigmoid_mul_kernel                                                                  20     1.79     89.3   0.4%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.31     43.7   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                  80     1.04     13.0   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.92     11.5   0.2%  1024x1x1 x 1024
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.60      2.3   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.59     19.6   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.1   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.50      7.6   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.8   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.7   0.1%  16384x2x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      10     0.31     31.2   0.1%  131072x1x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.1   0.1%  8448x1x1 x 256
+gdn_conv_delta_kernel<128, 2, 1, 4>                                                 30     0.26      8.5   0.1%  256x32x1 x 32
+__amd_rocclr_fillBufferAligned                                                      30     0.22      7.5   0.0%  8192x1x1 x 256
+fp8_gemv_sigmoid_kernel<2>                                                          10     0.17     16.9   0.0%  32768x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.1   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     38.6   0.0%  1048576x1x1 x 256
+embedding_kernel<true>                                                               3     0.11     38.2   0.0%  1048576x1x1 x 256
+fp8_gemv_norm_pair_kernel<1>                                                        10     0.07      7.0   0.0%  32768x1x1 x 256
+combine_kernel<256, 16>                                                             10     0.06      6.4   0.0%  4096x1x1 x 256
+argmax_kernel<float>                                                                 1     0.05     45.1   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.3   0.0%  2048x1x1 x 256
+################ stage pfprof:r8final end 16:37:45
+################ stage bgwait start 16:37:45
+--- bg w6g1 done 16:37:45
+################ stage t:moe_pairs+gdn_v2+splitkv_r8+attention+round6_selection+moe_block+quantmoe+decode_v2+device_pos start 16:31:08
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_flash_v2": 3310, "attn_prefill_bf16_splitkv": 2
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_flash_v2": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 51.61s
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.85s
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+test gdn_v2_is_bitwise_the_rows_kernel ... gdn v2 (pd default): 19 shapes bitwise
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test moe_block_counters_reset_between_launches ... ok
+test moe_block_dispatch_order ... ok
+test moe_block_graph_replay_is_bitwise_eager ... moe_block_dispatch_order: 90 launches bitwise
+test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 44 cases bitwise
+test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+moe_block_sentinel_stress: 6000 launches, 0 differ from the chain
+test moe_block_timing ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.62s
+test moe_pair_tile_does_not_change_a_bit ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s
+test bench_decode_variants ... ignored
+test bench_fp8_sweep ... ignored
+test bench_prefill_shapes ... ignored
+test bench_real_shapes ... ignored
+test moe_experts_batch_invariance ... batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+batch invariance: strict=true, tokens differing from T=1 in the tensor-core path: 0
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.29s
+test moe_experts_skewed_and_invalid_routing ... ok
+test quant_f32_outputs_meet_the_f32_tolerance ... f32-output quant matmuls: 39 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.07s
+test print_inner_variants ... ignored
+test round6_inner_variants_are_pinned ... ok
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test splitkv_round8_loops_are_bitwise_the_old_ones ... splitkv round 8: 130 cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.86s
+################ stage t:moe_pairs+gdn_v2+splitkv_r8+attention+round6_selection+moe_block+quantmoe+decode_v2+device_pos end 16:32:29
+################ stage admission start 16:32:29
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=7.143e-4 rel_l2=1.914e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=3.342e-4 rel_l2=9.808e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=3.185e-3 rel_l2=2.773e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=1.126e-3 rel_l2=3.570e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=2.976e-3 rel_l2=1.602e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=2.475e-3 rel_l2=6.169e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=16 K=4 H=128 I=48 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=0.000e0 rel_l2=0.000e0 T=36 E=16 K=4 H=128 I=128 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=4.195e-4 rel_l2=2.009e-5 T=4 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=3.145e-3 rel_l2=6.709e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=7.143e-4 rel_l2=1.914e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=3.342e-4 rel_l2=9.808e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=3.185e-3 rel_l2=2.773e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=1.126e-3 rel_l2=3.570e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=2.976e-3 rel_l2=1.602e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=2.475e-3 rel_l2=6.169e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+matmul_fp8     matmul_fp8_mma                 63      0    4.329e-3    1.479e-4  ADMITTED
+matmul_fp8     matmul_fp8_mma_f8              39      0    4.329e-3    1.479e-4  ADMITTED
+matmul_fp8     matmul_fp8_mma_v2              63      0    4.329e-3    1.479e-4  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.52s
+################ stage admission end 16:33:07
+################ stage mutrun8 start 16:33:07
+r8-y0            thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:123:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s exit=101 
+r8-y0r5          thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:123:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s exit=101 
+r8-y0v           thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:123:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s exit=101 
+r8-lastpiece     thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:123:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s exit=101 
+r8-ytile         thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:38:46: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s exit=101 
+r8-gdn-out       thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:79:13: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.20s exit=101 
+r8-gdn-in        thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:79:13: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.20s exit=101 
+r8-gdn-gate      thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:79:13: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.20s exit=101 
+r8-gdn-len       thread 'gdn_v2_is_bitwise_the_rows_kernel' panicked at crates/intarsia-backend-hip/tests/gdn_v2.rs:79:13: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.20s exit=101 
+r8-rd-col        thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:92:9: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s exit=101 
+r8-rd-round      thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:92:9: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s exit=101 
+r8-rd-lastk      thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:92:9: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s exit=101 
+r8-cb-skip       thread 'splitkv_round8_loops_are_bitwise_the_old_ones' panicked at crates/intarsia-backend-hip/tests/splitkv_r8.rs:73:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s exit=101 
+r8-cb-ml         thread 'splitkv_round8_loops_are_bitwise_the_old_ones' panicked at crates/intarsia-backend-hip/tests/splitkv_r8.rs:73:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s exit=101 
+################ stage mutrun8 end 16:33:20
+################ stage bgwait end 16:37:45
+[burst] stages done 2026-10-19 16:37:45 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-19 16:37:45
+[burst] radiance answers 2026-10-19 16:37:55 (after 15 s)
+fleetq: #2758 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0 16:37:55

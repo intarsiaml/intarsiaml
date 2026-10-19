@@ -118,7 +118,7 @@ void moe_wmma_launch_p(int64_t N, int64_t P, unsigned slots, unsigned zt, const 
     const double est_us = (double)P * (double)(GATEUP ? 2 * N : N) * (double)Kd / (PAIRS == 64 ? kMwMacPerUs64 : kMwMacPerUs32);
     // gate_up is never split: its pieces each paid the launch's load-imbalance tail (an expert with many more pairs than
     // the grid's z covers runs longest), 4 pieces took 114.1 ms against 85.7 for one launch in the 4408-token prefill (W3),
-    // far more than the ~11 ms of gaps they removed. down's two pieces cost +2.2 ms against ~11 ms of gaps.
+    // far more than the ~11 ms of gaps they removed. down's two pieces cost +3.0 ms against ~10.7 ms of gaps.
     const int pieces = GATEUP ? 1 : ik_split_pieces(est_us, Y);
     for (int i = 0; i < pieces; ++i) {
         const int y0 = (int)(Y * i / pieces), y1 = (int)(Y * (i + 1) / pieces);

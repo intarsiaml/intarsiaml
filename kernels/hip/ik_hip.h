@@ -161,7 +161,7 @@ static inline int ik_launch_status() { return hipGetLastError() == hipSuccess ? 
 /* Sub-millisecond launches (round 8, docs/results/2026-10-19-hip-round8.md). On the R9700 (gfx1201, ROCm 7.2) every dispatch
  * that runs longer than about 1 ms is followed by ~275 us in which the GPU starts nothing, although the next dispatch is
  * long queued (the host is 10+ ms ahead); shorter dispatches are followed by the usual ~3 us. The prefill's long kernels
- * (MoE gate_up / down at 64 pairs, the GDN delta rule) are therefore launched as several pieces, each estimated below
+ * (MoE down at 64 pairs, the GDN delta rule; gate_up is not split, moe.hip) are therefore launched as pieces, each estimated below
  * INTARSIA_HIP_SPLIT_US microseconds (default 600; 0 = never split). A piece computes exactly what its part of the single
  * launch computed (independent output tiles, or a token range that continues the in-place recurrent state), so every
  * value gives the same bits. Read at every launch (the bitwise tests switch it in one process); a small value forces the
