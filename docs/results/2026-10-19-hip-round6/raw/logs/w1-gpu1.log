@@ -1,0 +1,33 @@
+################ stage r6test start 01:30:06
+test moe_pair_tile_does_not_change_a_bit ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.96s
+test bench_decode_variants ... ignored
+test bench_fp8_sweep ... ignored
+test bench_prefill_shapes ... ignored
+test bench_real_shapes ... ignored
+test moe_experts_batch_invariance ... batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+batch invariance: strict=true, tokens differing from T=1 in the tensor-core path: 0
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.29s
+test moe_experts_skewed_and_invalid_routing ... ok
+test quant_f32_outputs_meet_the_f32_tolerance ... f32-output quant matmuls: 39 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.04s
+--- gdn_v2 INTARSIA_HIP_GDN_PIPE=0
+test gdn_v2_is_bitwise_the_rows_kernel ... gdn v2 (pd default): 19 shapes bitwise
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.46s
+--- gdn_v2 INTARSIA_HIP_GDN_PIPE=1
+test gdn_v2_is_bitwise_the_rows_kernel ... gdn v2 (pd default): 19 shapes bitwise
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.48s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=2
+INTARSIA_HIP_FLASH_HPB=Some("2")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=4
+INTARSIA_HIP_FLASH_HPB=Some("4")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+################ stage r6test end 01:30:14

@@ -1,0 +1,731 @@
+[burst] job 2616; stages: bg:w1-gpu1:r6test r6bench pfprofenv:mw0:INTARSIA_HIP_MOE_MW=0 pfprofenv:mw1:INTARSIA_HIP_MOE_MW=1 pfprofenv:mw3:INTARSIA_HIP_MOE_MW=3 pfprofenv:mw5:INTARSIA_HIP_MOE_MW=5 pfprofenv:mw7:INTARSIA_HIP_MOE_MW=7 pfprofenv:pipe1:INTARSIA_HIP_GDN_PIPE=1 pfprofenv:hpb4:INTARSIA_HIP_FLASH_HPB=4 pf35env@base:hA1 pf35env@base:hB1:INTARSIA_HIP_FLASH_HPB=4 pf35env@base:hA2 pf35env@base:hB2:INTARSIA_HIP_FLASH_HPB=4 pf35env@base:hA3 pf35env@base:hB3:INTARSIA_HIP_FLASH_HPB=4 pf8env@base:hA1 pf8env@base:hB1:INTARSIA_HIP_FLASH_HPB=4 bgwait; stopping radiance 2026-10-19 01:30:03
+[burst] radiance stopped 2026-10-19 01:30:06
+################ stage bg:w1-gpu1:r6test start 01:30:06
+bg w1-gpu1 on GPU 1: pid 3055776 stages r6test
+################ stage bg:w1-gpu1:r6test end 01:30:06
+################ stage r6bench start 01:30:06
+env: MOE_Z=None MOE_WMMA=None
+moe_experts T=312:  pairs 32 1825 us 8.6 TFLOPS  pairs 64 1393 us 11.3 TFLOPS
+moe_experts T=1024:  pairs 32 2739 us 18.8 TFLOPS  pairs 64 1665 us 30.9 TFLOPS
+moe_experts T=2048:  pairs 32 4578 us 22.5 TFLOPS  pairs 64 2934 us 35.1 TFLOPS
+moe_experts T=4096:  pairs 32 7761 us 26.6 TFLOPS  pairs 64 5032 us 41.0 TFLOPS
+=== INTARSIA_HIP_GDN_PIPE=0
+gdn T=1      gdn_delta_rule_bf16       9.2 us (9.23 us/token)  gdn_delta_rule_bf16_v2       6.4 us (6.35 us/token)
+gdn T=312    gdn_delta_rule_bf16     652.2 us (2.09 us/token)  gdn_delta_rule_bf16_v2     263.2 us (0.84 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2338.0 us (2.28 us/token)  gdn_delta_rule_bf16_v2     846.0 us (0.83 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4404.2 us (2.15 us/token)  gdn_delta_rule_bf16_v2    1773.3 us (0.87 us/token)
+gdn T=4096   gdn_delta_rule_bf16    8437.8 us (2.06 us/token)  gdn_delta_rule_bf16_v2    3179.3 us (0.78 us/token)
+=== INTARSIA_HIP_GDN_PIPE=1
+gdn T=1      gdn_delta_rule_bf16       9.3 us (9.34 us/token)  gdn_delta_rule_bf16_v2       6.2 us (6.19 us/token)
+gdn T=312    gdn_delta_rule_bf16     649.6 us (2.08 us/token)  gdn_delta_rule_bf16_v2     248.9 us (0.80 us/token)
+gdn T=1024   gdn_delta_rule_bf16    2339.1 us (2.28 us/token)  gdn_delta_rule_bf16_v2     798.4 us (0.78 us/token)
+gdn T=2048   gdn_delta_rule_bf16    4425.8 us (2.16 us/token)  gdn_delta_rule_bf16_v2    1719.5 us (0.84 us/token)
+gdn T=4096   gdn_delta_rule_bf16    8427.6 us (2.06 us/token)  gdn_delta_rule_bf16_v2    3083.2 us (0.75 us/token)
+################ stage r6bench end 01:30:14
+################ stage pfprofenv:mw0:INTARSIA_HIP_MOE_MW=0 start 01:30:14
+--- INTARSIA_HIP_MOE_MW=0
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 627 ms (7035.3 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 599 ms (7363.9 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2964 (of 3526), span 598.2 ms, kernel time 539.3 ms, idle 9.9 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel<true, 64, 0>                                                        40   105.09   2627.3  19.5%  65536x8x4 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 90   100.61   1117.9  18.7%  256x32x1 x 32
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    69.77    268.4  12.9%  8192x64x1 x 256
+flash_hpb_kernel<256, 32, 2>                                                        20    54.26   2713.1  10.1%  16384x8x1 x 256
+moe_wmma_kernel<false, 64, 0>                                                       40    53.26   1331.6   9.9%  65536x16x4 x 256
+moe_wmma_kernel<true, 32, 0>                                                        40    34.87    871.6   6.5%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.78    107.4   4.8%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.78    259.7   3.9%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    11.96     42.7   2.2%  8192x1x1 x 256
+moe_wmma_kernel<false, 32, 0>                                                       40    10.79    269.6   2.0%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.48    157.9   1.8%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.34     28.2   1.4%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         171     7.14     41.8   1.3%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.88     97.9   1.1%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.31     44.2   1.0%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.91     96.9   0.5%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.17     72.4   0.4%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.73     57.5   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.36     34.0   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.20     10.0   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.89     11.1   0.2%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.87     21.7   0.2%  2048x64x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     16.1   0.1%  256x256x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.59      2.3   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.3   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.1   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.48     11.9   0.1%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.6   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.3   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     32.2   0.1%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.1   0.1%  8448x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.21      7.1   0.0%  8192x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.5   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.2   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     39.1   0.0%  1048576x1x1 x 256
+embedding_kernel<true>                                                               3     0.12     38.7   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.11     10.6   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.1   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.05     47.0   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.4   0.0%  2048x1x1 x 256
+################ stage pfprofenv:mw0:INTARSIA_HIP_MOE_MW=0 end 01:30:26
+################ stage pfprofenv:mw1:INTARSIA_HIP_MOE_MW=1 start 01:30:26
+--- INTARSIA_HIP_MOE_MW=1
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 582 ms (7572.6 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 589 ms (7487.7 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2964 (of 3526), span 588.3 ms, kernel time 530.4 ms, idle 9.8 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 90   100.34   1114.8  18.9%  256x32x1 x 32
+moe_wmma_kernel<true, 64, 1>                                                        40    99.10   2477.4  18.7%  65536x8x4 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    69.75    268.3  13.2%  8192x64x1 x 256
+flash_hpb_kernel<256, 32, 2>                                                        20    54.11   2705.3  10.2%  16384x8x1 x 256
+moe_wmma_kernel<false, 64, 1>                                                       40    51.80   1295.0   9.8%  65536x16x4 x 256
+moe_wmma_kernel<true, 32, 1>                                                        40    33.99    849.7   6.4%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.74    107.3   4.9%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.82    260.2   3.9%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.33     44.0   2.3%  8192x1x1 x 256
+moe_wmma_kernel<false, 32, 1>                                                       40    10.16    254.1   1.9%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.26    154.3   1.7%  8192x128x1 x 128
+rmsnorm_kernel<true, true>                                                         171     7.14     41.8   1.3%  1048576x1x1 x 256
+f8_actq_kernel                                                                     260     7.11     27.3   1.3%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.87     97.9   1.1%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.50     45.9   1.0%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.91     97.1   0.5%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.19     72.9   0.4%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.72     57.2   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.37     34.1   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.19      9.9   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.89     11.2   0.2%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.86     21.4   0.2%  2048x64x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     16.0   0.1%  256x256x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.59      2.3   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.3   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.1   0.1%  262144x1x1 x 256
+embedding_kernel<true>                                                               3     0.55    183.7   0.1%  1048576x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.47     11.8   0.1%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.2   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.9   0.1%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.0   0.1%  8448x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.23      7.7   0.0%  8192x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.4   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.2   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     39.4   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.1   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.05     45.0   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.3   0.0%  2048x1x1 x 256
+################ stage pfprofenv:mw1:INTARSIA_HIP_MOE_MW=1 end 01:30:34
+################ stage pfprofenv:mw3:INTARSIA_HIP_MOE_MW=3 start 01:30:34
+--- INTARSIA_HIP_MOE_MW=3
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 607 ms (7264.6 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 613 ms (7193.0 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2964 (of 3526), span 612.5 ms, kernel time 553.7 ms, idle 9.6 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel<true, 64, 3>                                                        40   116.73   2918.1  21.1%  65536x8x4 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 90   100.13   1112.6  18.1%  256x32x1 x 32
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    70.01    269.3  12.6%  8192x64x1 x 256
+moe_wmma_kernel<false, 64, 3>                                                       40    55.44   1385.9  10.0%  65536x16x4 x 256
+flash_hpb_kernel<256, 32, 2>                                                        20    53.54   2676.8   9.7%  16384x8x1 x 256
+moe_wmma_kernel<true, 32, 3>                                                        40    35.54    888.6   6.4%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.56    106.5   4.6%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.51    256.4   3.7%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.14     43.4   2.2%  8192x1x1 x 256
+moe_wmma_kernel<false, 32, 3>                                                       40    11.91    297.7   2.2%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.30    155.0   1.7%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.13     27.4   1.3%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         171     7.10     41.5   1.3%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.88     98.0   1.1%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.31     44.2   1.0%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.88     95.9   0.5%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.17     72.3   0.4%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.76     58.8   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.36     34.0   0.2%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.19      9.9   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.89     11.1   0.2%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.85     21.2   0.2%  2048x64x1 x 256
+embedding_kernel<true>                                                               3     0.77    256.8   0.1%  1048576x1x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     15.9   0.1%  256x256x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.58      2.2   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.3   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.1   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.47     11.9   0.1%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.9   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.8   0.1%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.0   0.0%  8448x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.4   0.0%  16384x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.13      4.5   0.0%  8192x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.1   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.11     38.0   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.0   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.05     45.3   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.3   0.0%  2048x1x1 x 256
+################ stage pfprofenv:mw3:INTARSIA_HIP_MOE_MW=3 end 01:30:41
+################ stage pfprofenv:mw5:INTARSIA_HIP_MOE_MW=5 start 01:30:41
+--- INTARSIA_HIP_MOE_MW=5
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 580 ms (7596.0 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 586 ms (7520.7 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2964 (of 3526), span 585.8 ms, kernel time 528.0 ms, idle 9.9 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 90   101.34   1126.0  19.2%  256x32x1 x 32
+moe_wmma_kernel<true, 64, 5>                                                        40    96.58   2414.6  18.3%  65536x8x4 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    69.88    268.8  13.2%  8192x64x1 x 256
+flash_hpb_kernel<256, 32, 2>                                                        20    54.10   2705.1  10.2%  16384x8x1 x 256
+moe_wmma_kernel<false, 64, 5>                                                       40    51.85   1296.1   9.8%  65536x16x4 x 256
+moe_wmma_kernel<true, 32, 5>                                                        40    33.66    841.6   6.4%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.81    107.5   4.9%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.51    256.3   3.9%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.25     43.7   2.3%  8192x1x1 x 256
+moe_wmma_kernel<false, 32, 5>                                                       40    10.11    252.7   1.9%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.34    155.7   1.8%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.18     27.6   1.4%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         171     7.17     41.9   1.4%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.93     98.8   1.1%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.29     44.1   1.0%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.92     97.4   0.6%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.19     73.1   0.4%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.74     58.1   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.36     34.0   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.19      9.9   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.89     11.1   0.2%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.85     21.2   0.2%  2048x64x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     15.9   0.1%  256x256x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.59      2.3   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.3   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.1   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.47     11.8   0.1%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.0   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.8   0.1%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.0   0.1%  8448x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.21      7.1   0.0%  8192x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.4   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.2   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     39.1   0.0%  1048576x1x1 x 256
+embedding_kernel<true>                                                               3     0.11     38.2   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.0   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.04     44.9   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.3   0.0%  2048x1x1 x 256
+################ stage pfprofenv:mw5:INTARSIA_HIP_MOE_MW=5 end 01:30:48
+################ stage pfprofenv:mw7:INTARSIA_HIP_MOE_MW=7 start 01:30:48
+--- INTARSIA_HIP_MOE_MW=7
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 606 ms (7277.5 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 614 ms (7182.7 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2964 (of 3526), span 613.3 ms, kernel time 554.2 ms, idle 9.6 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel<true, 64, 7>                                                        40   115.66   2891.6  20.9%  65536x8x4 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 90   100.51   1116.8  18.1%  256x32x1 x 32
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    70.09    269.6  12.6%  8192x64x1 x 256
+moe_wmma_kernel<false, 64, 7>                                                       40    56.16   1404.0  10.1%  65536x16x4 x 256
+flash_hpb_kernel<256, 32, 2>                                                        20    53.80   2689.8   9.7%  16384x8x1 x 256
+moe_wmma_kernel<true, 32, 7>                                                        40    35.57    889.2   6.4%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.71    107.1   4.6%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.46    255.8   3.7%  1048576x8x1 x 256
+moe_wmma_kernel<false, 32, 7>                                                       40    11.93    298.3   2.2%  65536x16x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    11.90     42.5   2.1%  8192x1x1 x 256
+gdn_conv_kernel<false>                                                              60     9.55    159.2   1.7%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.16     27.5   1.3%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         171     7.14     41.8   1.3%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.90     98.3   1.1%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.24     43.6   0.9%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.89     96.5   0.5%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.16     71.8   0.4%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.73     57.8   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.36     34.0   0.2%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.19      9.9   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.89     11.2   0.2%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.87     21.6   0.2%  2048x64x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     16.0   0.1%  256x256x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.58      2.2   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.3   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.1   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.5   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.47     11.8   0.1%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    458.7   0.1%  7946240x1x1 x 256
+embedding_kernel<true>                                                               3     0.45    149.3   0.1%  1048576x1x1 x 256
+rmsnorm_kernel<false, true>                                                          3     0.42    138.5   0.1%  1048576x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.9   0.1%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.0   0.1%  8448x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.4   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.1   0.0%  8192x1x1 x 128
+__amd_rocclr_fillBufferAligned                                                      30     0.12      4.0   0.0%  8192x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.0   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.05     45.6   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.4   0.0%  2048x1x1 x 256
+################ stage pfprofenv:mw7:INTARSIA_HIP_MOE_MW=7 end 01:30:55
+################ stage pfprofenv:pipe1:INTARSIA_HIP_GDN_PIPE=1 start 01:30:55
+--- INTARSIA_HIP_GDN_PIPE=1
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 594 ms (7427.1 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 599 ms (7356.9 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2964 (of 3526), span 598.8 ms, kernel time 540.4 ms, idle 9.8 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel<true, 64, 0>                                                        40   106.51   2662.7  19.7%  65536x8x4 x 256
+gdn_delta_rows_v2p_kernel<128, 2>                                                   90    99.27   1103.0  18.4%  256x32x1 x 32
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    70.10    269.6  13.0%  8192x64x1 x 256
+flash_hpb_kernel<256, 32, 2>                                                        20    54.67   2733.3  10.1%  16384x8x1 x 256
+moe_wmma_kernel<false, 64, 0>                                                       40    53.39   1334.7   9.9%  65536x16x4 x 256
+moe_wmma_kernel<true, 32, 0>                                                        40    34.57    864.2   6.4%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.91    108.0   4.8%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.83    260.3   3.9%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    11.99     42.8   2.2%  8192x1x1 x 256
+moe_wmma_kernel<false, 32, 0>                                                       40    10.72    268.0   2.0%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.56    159.3   1.8%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.39     28.4   1.4%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         171     7.13     41.7   1.3%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.98     99.6   1.1%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.32     44.3   1.0%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.92     97.4   0.5%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.18     72.6   0.4%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.76     58.7   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.36     34.0   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.19      9.9   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.90     11.2   0.2%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.87     21.6   0.2%  2048x64x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     15.9   0.1%  256x256x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.59      2.3   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.4   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.1   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.49      7.6   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.47     11.8   0.1%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.4   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.8   0.1%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.0   0.1%  8448x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.23      7.5   0.0%  8192x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.4   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.2   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     40.1   0.0%  1048576x1x1 x 256
+embedding_kernel<true>                                                               3     0.11     37.8   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.0   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.05     45.2   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.3   0.0%  2048x1x1 x 256
+################ stage pfprofenv:pipe1:INTARSIA_HIP_GDN_PIPE=1 end 01:31:03
+################ stage pfprofenv:hpb4:INTARSIA_HIP_FLASH_HPB=4 start 01:31:03
+--- INTARSIA_HIP_FLASH_HPB=4
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 578 ms (7630.3 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 583 ms (7555.6 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2964 (of 3526), span 583.1 ms, kernel time 527.8 ms, idle 9.5 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel<true, 64, 0>                                                        40   107.86   2696.5  20.4%  65536x8x4 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 90   102.00   1133.3  19.3%  256x32x1 x 32
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    70.30    270.4  13.3%  8192x64x1 x 256
+moe_wmma_kernel<false, 64, 0>                                                       40    53.54   1338.4  10.1%  65536x16x4 x 256
+flash_hpb_kernel<256, 32, 4>                                                        20    37.33   1866.7   7.1%  32768x4x1 x 512
+moe_wmma_kernel<true, 32, 0>                                                        40    34.66    866.5   6.6%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    26.12    108.9   4.9%  8192x4x1 x 256
+moe_reduce_kernel<bf16>                                                             80    20.57    257.1   3.9%  1048576x8x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.09     43.2   2.3%  8192x1x1 x 256
+moe_wmma_kernel<false, 32, 0>                                                       40    10.76    268.9   2.0%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.57    159.6   1.8%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.21     27.7   1.4%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         171     7.10     41.5   1.3%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.98     99.6   1.1%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           120     5.39     44.9   1.0%  8388608x1x1 x 256
+qk_norm_rope_kv_kernel<bf16>                                                        30     2.92     97.3   0.6%  1179648x2x1 x 288
+gate_split_kernel                                                                   30     2.18     72.5   0.4%  16777216x1x1 x 256
+sigmoid_mul_kernel                                                                  30     1.75     58.2   0.3%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 40     1.36     33.9   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                 120     1.19     10.0   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.90     11.2   0.2%  1024x1x1 x 1024
+moe_gate_up_p1_v2_kernel<false, 4>                                                  40     0.85     21.2   0.2%  2048x64x1 x 256
+moe_down_reduce_p1_v2_kernel<bf16, false>                                           40     0.64     16.0   0.1%  256x256x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.59      2.3   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.58     19.4   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.57      7.2   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.50      7.7   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, bf16, false>                                                40     0.47     11.8   0.1%  65536x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      20     0.47     23.5   0.1%  131072x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.7   0.1%  7946240x1x1 x 256
+embedding_kernel<true>                                                               3     0.46    153.1   0.1%  1048576x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.8   0.1%  16384x2x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.0   0.1%  8448x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.19      6.2   0.0%  8192x1x1 x 256
+nvfp4_glu_kernel                                                                    40     0.18      4.4   0.0%  16384x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.13      2.2   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     40.1   0.0%  1048576x1x1 x 256
+combine_kernel<256>                                                                 10     0.10     10.4   0.0%  4096x1x1 x 256
+gdn_conv_kernel<true>                                                               30     0.06      2.0   0.0%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.04     44.1   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.4   0.0%  2048x1x1 x 256
+################ stage pfprofenv:hpb4:INTARSIA_HIP_FLASH_HPB=4 end 01:31:10
+################ stage pf35env@base:hA1 start 01:31:10
+--- serve env: none
+--- serve qwen36-35b-intarsia-hip [01:31:10]
+up after ~15s
+  size   1024 rep: prompt=1004 gen=128 ttft=0.15s prefill=6531 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=994 gen=128 ttft=0.15s prefill=6509 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=982 gen=128 ttft=0.15s prefill=6356 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=997 gen=128 ttft=0.15s prefill=6493 tok/s decode=146.1 tok/s
+  size   4096 rep: prompt=4135 gen=128 ttft=0.55s prefill=7540 tok/s decode=142.2 tok/s
+  size   4096 rep: prompt=4117 gen=128 ttft=0.54s prefill=7639 tok/s decode=142.3 tok/s
+  size   4096 rep: prompt=4060 gen=128 ttft=0.49s prefill=8211 tok/s decode=141.9 tok/s
+  size   4096 rep: prompt=4081 gen=128 ttft=0.50s prefill=8228 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4057 gen=128 ttft=0.50s prefill=8193 tok/s decode=141.8 tok/s
+  size  16384 rep: prompt=16668 gen=128 ttft=2.57s prefill=6478 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16624 gen=128 ttft=2.55s prefill=6514 tok/s decode=129.2 tok/s
+  size  16384 rep: prompt=16605 gen=128 ttft=2.55s prefill=6500 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16746 gen=128 ttft=2.58s prefill=6487 tok/s decode=129.0 tok/s
+  size  16384 rep: prompt=16674 gen=128 ttft=2.58s prefill=6466 tok/s decode=129.0 tok/s
+wrote /work/bench-out/pf-35b-hA1.json
+pf-35b-hA1  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      131     0.068         1939       146.9      128       51.6
+    1024      997     0.154         6508       146.1      128       51.3
+    4096     4081     0.496         8193       142.1      128       49.9
+   16384    16668     2.573         6487       129.1      128       45.3
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35env@base:hA1 end 01:32:01
+################ stage pf35env@base:hB1:INTARSIA_HIP_FLASH_HPB=4 start 01:32:01
+--- serve env: INTARSIA_HIP_FLASH_HPB=4
+--- serve qwen36-35b-intarsia-hip [01:32:01]
+up after ~15s
+  size   1024 rep: prompt=984 gen=128 ttft=0.15s prefill=6415 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=970 gen=128 ttft=0.15s prefill=6365 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=996 gen=128 ttft=0.15s prefill=6527 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=974 gen=128 ttft=0.15s prefill=6370 tok/s decode=146.1 tok/s
+  size   4096 rep: prompt=4041 gen=128 ttft=0.48s prefill=8376 tok/s decode=141.6 tok/s
+  size   4096 rep: prompt=4048 gen=128 ttft=0.48s prefill=8374 tok/s decode=141.7 tok/s
+  size   4096 rep: prompt=4053 gen=128 ttft=0.48s prefill=8397 tok/s decode=141.7 tok/s
+  size   4096 rep: prompt=4026 gen=128 ttft=0.48s prefill=8430 tok/s decode=141.3 tok/s
+  size   4096 rep: prompt=3986 gen=128 ttft=0.48s prefill=8377 tok/s decode=140.7 tok/s
+  size  16384 rep: prompt=16506 gen=128 ttft=2.35s prefill=7035 tok/s decode=129.0 tok/s
+  size  16384 rep: prompt=16561 gen=128 ttft=2.35s prefill=7037 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16633 gen=128 ttft=2.36s prefill=7049 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16602 gen=128 ttft=2.36s prefill=7048 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16543 gen=128 ttft=2.35s prefill=7030 tok/s decode=129.0 tok/s
+wrote /work/bench-out/pf-35b-hB1.json
+pf-35b-hB1  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.067         1958       146.9      128       51.5
+    1024      974     0.153         6384       146.1      128       51.3
+    4096     4041     0.482         8377       141.6      128       49.7
+   16384    16561     2.353         7037       129.1      128       45.3
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35env@base:hB1:INTARSIA_HIP_FLASH_HPB=4 end 01:32:50
+################ stage pf35env@base:hA2 start 01:32:50
+--- serve env: none
+--- serve qwen36-35b-intarsia-hip [01:32:50]
+up after ~15s
+  size   1024 rep: prompt=993 gen=128 ttft=0.16s prefill=6377 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=1007 gen=128 ttft=0.15s prefill=6499 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=998 gen=128 ttft=0.15s prefill=6462 tok/s decode=146.1 tok/s
+  size   1024 rep: prompt=986 gen=128 ttft=0.15s prefill=6365 tok/s decode=146.0 tok/s
+  size   4096 rep: prompt=4138 gen=128 ttft=0.55s prefill=7521 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4092 gen=128 ttft=0.50s prefill=8175 tok/s decode=142.3 tok/s
+  size   4096 rep: prompt=4078 gen=128 ttft=0.50s prefill=8201 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4087 gen=128 ttft=0.50s prefill=8200 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4101 gen=128 ttft=0.51s prefill=8031 tok/s decode=142.1 tok/s
+  size  16384 rep: prompt=16727 gen=128 ttft=2.58s prefill=6482 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16759 gen=128 ttft=2.59s prefill=6480 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16678 gen=128 ttft=2.58s prefill=6467 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16685 gen=128 ttft=2.58s prefill=6464 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16768 gen=128 ttft=2.59s prefill=6473 tok/s decode=129.0 tok/s
+wrote /work/bench-out/pf-35b-hA2.json
+pf-35b-hA2  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      127     0.065         1942       146.8      128       51.5
+    1024      993     0.155         6377       146.0      128       51.2
+    4096     4092     0.501         8175       142.1      128       49.9
+   16384    16727     2.581         6473       129.1      128       45.3
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35env@base:hA2 end 01:33:41
+################ stage pf35env@base:hB2:INTARSIA_HIP_FLASH_HPB=4 start 01:33:41
+--- serve env: INTARSIA_HIP_FLASH_HPB=4
+--- serve qwen36-35b-intarsia-hip [01:33:41]
+up after ~15s
+  size   1024 rep: prompt=1012 gen=128 ttft=0.16s prefill=6515 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=1007 gen=128 ttft=0.15s prefill=6557 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=999 gen=128 ttft=0.15s prefill=6553 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=1005 gen=128 ttft=0.15s prefill=6553 tok/s decode=146.0 tok/s
+  size   4096 rep: prompt=4057 gen=128 ttft=0.48s prefill=8408 tok/s decode=141.8 tok/s
+  size   4096 rep: prompt=4063 gen=128 ttft=0.48s prefill=8407 tok/s decode=141.9 tok/s
+  size   4096 rep: prompt=4122 gen=128 ttft=0.53s prefill=7781 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4113 gen=128 ttft=0.52s prefill=7861 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4069 gen=128 ttft=0.49s prefill=8376 tok/s decode=141.8 tok/s
+  size  16384 rep: prompt=16663 gen=128 ttft=2.36s prefill=7060 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16599 gen=128 ttft=2.36s prefill=7047 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16671 gen=128 ttft=2.36s prefill=7050 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16638 gen=128 ttft=2.36s prefill=7040 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16733 gen=128 ttft=2.37s prefill=7068 tok/s decode=129.0 tok/s
+pf-35b-hB2  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      129     0.067         1941       146.8      128       51.5
+    1024     1005     0.153         6553       146.0      128       51.2
+    4096     4069     0.486         8376       141.9      128       49.8
+   16384    16663     2.364         7050       129.1      128       45.3
+bandwidth floor: 285.0 tok/s
+wrote /work/bench-out/pf-35b-hB2.json
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35env@base:hB2:INTARSIA_HIP_FLASH_HPB=4 end 01:34:31
+################ stage pf35env@base:hA3 start 01:34:31
+--- serve env: none
+--- serve qwen36-35b-intarsia-hip [01:34:31]
+up after ~15s
+  size   1024 rep: prompt=1009 gen=128 ttft=0.15s prefill=6521 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=1002 gen=128 ttft=0.15s prefill=6514 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=1018 gen=128 ttft=0.16s prefill=6535 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=996 gen=128 ttft=0.15s prefill=6493 tok/s decode=146.0 tok/s
+  size   4096 rep: prompt=4068 gen=128 ttft=0.50s prefill=8197 tok/s decode=141.9 tok/s
+  size   4096 rep: prompt=4090 gen=128 ttft=0.50s prefill=8192 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4105 gen=128 ttft=0.52s prefill=7891 tok/s decode=142.1 tok/s
+  size   4096 rep: prompt=4073 gen=128 ttft=0.50s prefill=8178 tok/s decode=141.9 tok/s
+  size   4096 rep: prompt=4090 gen=128 ttft=0.50s prefill=8184 tok/s decode=142.0 tok/s
+  size  16384 rep: prompt=16772 gen=128 ttft=2.58s prefill=6492 tok/s decode=129.0 tok/s
+  size  16384 rep: prompt=16645 gen=128 ttft=2.57s prefill=6469 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16708 gen=128 ttft=2.58s prefill=6468 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16800 gen=128 ttft=2.59s prefill=6476 tok/s decode=129.0 tok/s
+  size  16384 rep: prompt=16646 gen=128 ttft=2.58s prefill=6454 tok/s decode=129.1 tok/s
+wrote /work/bench-out/pf-35b-hA3.json
+pf-35b-hA3  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.068         1937       146.8      128       51.5
+    1024     1002     0.155         6514       146.0      128       51.2
+    4096     4090     0.499         8184       142.0      128       49.8
+   16384    16708     2.583         6469       129.1      128       45.3
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35env@base:hA3 end 01:35:22
+################ stage pf35env@base:hB3:INTARSIA_HIP_FLASH_HPB=4 start 01:35:22
+--- serve env: INTARSIA_HIP_FLASH_HPB=4
+--- serve qwen36-35b-intarsia-hip [01:35:22]
+up after ~15s
+  size   1024 rep: prompt=964 gen=128 ttft=0.15s prefill=6344 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=999 gen=128 ttft=0.15s prefill=6528 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=979 gen=128 ttft=0.15s prefill=6369 tok/s decode=146.0 tok/s
+  size   1024 rep: prompt=959 gen=128 ttft=0.15s prefill=6348 tok/s decode=146.0 tok/s
+  size   4096 rep: prompt=4017 gen=128 ttft=0.48s prefill=8377 tok/s decode=141.0 tok/s
+  size   4096 rep: prompt=4071 gen=128 ttft=0.49s prefill=8389 tok/s decode=141.7 tok/s
+  size   4096 rep: prompt=4033 gen=128 ttft=0.48s prefill=8431 tok/s decode=141.2 tok/s
+  size   4096 rep: prompt=4049 gen=128 ttft=0.48s prefill=8426 tok/s decode=141.3 tok/s
+  size   4096 rep: prompt=4039 gen=128 ttft=0.48s prefill=8378 tok/s decode=141.1 tok/s
+  size  16384 rep: prompt=16475 gen=128 ttft=2.34s prefill=7028 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16450 gen=128 ttft=2.34s prefill=7034 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16418 gen=128 ttft=2.33s prefill=7038 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16479 gen=128 ttft=2.35s prefill=7016 tok/s decode=129.1 tok/s
+  size  16384 rep: prompt=16433 gen=128 ttft=2.34s prefill=7017 tok/s decode=129.1 tok/s
+wrote /work/bench-out/pf-35b-hB3.json
+pf-35b-hB3  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      128     0.065         1946       146.8      128       51.5
+    1024      972     0.153         6363       146.0      128       51.2
+    4096     4039     0.480         8389       141.2      128       49.5
+   16384    16450     2.342         7028       129.1      128       45.3
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35env@base:hB3:INTARSIA_HIP_FLASH_HPB=4 end 01:36:11
+################ stage pf8env@base:hA1 start 01:36:11
+--- serve env: none
+--- serve qwen3-8b-intarsia-hip [01:36:11]
+up after ~60s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 48 base tokens, 20.94 tokens per filler sentence
+  size   1024 rep: prompt=995 gen=64 ttft=0.22s prefill=4589 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=1023 gen=64 ttft=0.22s prefill=4649 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=990 gen=64 ttft=0.22s prefill=4556 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4101 gen=64 ttft=0.93s prefill=4390 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4153 gen=64 ttft=0.97s prefill=4264 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4097 gen=64 ttft=0.91s prefill=4498 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16618 gen=64 ttft=5.06s prefill=3282 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16675 gen=64 ttft=5.12s prefill=3258 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16623 gen=64 ttft=5.08s prefill=3271 tok/s decode=33.2 tok/s
+wrote /work/bench-out/pf8x-hA1.json
+pf8x-hA1  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      995     0.217         4589        38.3       64      100.1
+    4160     4101     0.934         4390        37.1       64       96.8
+   16384    16623     5.082         3271        33.2       64       86.7
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 589
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8env@base:hA1 end 01:37:51
+################ stage pf8env@base:hB1:INTARSIA_HIP_FLASH_HPB=4 start 01:37:51
+--- serve env: INTARSIA_HIP_FLASH_HPB=4
+--- serve qwen3-8b-intarsia-hip [01:37:51]
+up after ~57s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 48 base tokens, 20.86 tokens per filler sentence
+  size   1024 rep: prompt=977 gen=64 ttft=0.21s prefill=4548 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=1015 gen=64 ttft=0.22s prefill=4642 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=994 gen=64 ttft=0.22s prefill=4590 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4149 gen=64 ttft=0.96s prefill=4330 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4159 gen=64 ttft=0.96s prefill=4325 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4182 gen=64 ttft=0.97s prefill=4332 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16721 gen=64 ttft=4.95s prefill=3380 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16653 gen=64 ttft=4.95s prefill=3362 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16740 gen=64 ttft=4.96s prefill=3372 tok/s decode=33.1 tok/s
+wrote /work/bench-out/pf8x-hB1.json
+pf8x-hB1  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      994     0.217         4590        38.3       64      100.1
+    4160     4159     0.962         4330        37.1       64       96.8
+   16384    16721     4.954         3372        33.2       64       86.6
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8env@base:hB1:INTARSIA_HIP_FLASH_HPB=4 end 01:39:28
+################ stage bgwait start 01:39:28
+--- bg w1-gpu1 done 01:39:28
+################ stage r6test start 01:30:06
+test moe_pair_tile_does_not_change_a_bit ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.96s
+test bench_decode_variants ... ignored
+test bench_fp8_sweep ... ignored
+test bench_prefill_shapes ... ignored
+test bench_real_shapes ... ignored
+test moe_experts_batch_invariance ... batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+batch invariance: strict=true, tokens differing from T=1 in the tensor-core path: 0
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.29s
+test moe_experts_skewed_and_invalid_routing ... ok
+test quant_f32_outputs_meet_the_f32_tolerance ... f32-output quant matmuls: 39 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.04s
+--- gdn_v2 INTARSIA_HIP_GDN_PIPE=0
+test gdn_v2_is_bitwise_the_rows_kernel ... gdn v2 (pd default): 19 shapes bitwise
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.46s
+--- gdn_v2 INTARSIA_HIP_GDN_PIPE=1
+test gdn_v2_is_bitwise_the_rows_kernel ... gdn v2 (pd default): 19 shapes bitwise
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.48s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=2
+INTARSIA_HIP_FLASH_HPB=Some("2")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=4
+INTARSIA_HIP_FLASH_HPB=Some("4")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+################ stage r6test end 01:30:14
+################ stage bgwait end 01:39:28
+[burst] stages done 2026-10-19 01:39:28 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-19 01:39:28
+[burst] radiance answers 2026-10-19 01:39:38 (after 15 s)

@@ -1,0 +1,43 @@
+fleetq: #2618 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/job-mut.sh
+=== build 01:40:37
+    Finished `release` profile [optimized] target(s) in 29.19s
+    Finished `release` profile [optimized] target(s) in 1.00s
+=== moe: 306 remarks
+=== attention_flash: 108 remarks
+=== mutbuild 01:41:14
+################ stage mutbuild start 01:41:14
+applied mw-jn to /home/josef/intarsiaml-r6-mut/kernels/hip/moe_wmma.h
+mw-jn: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied mw-full to /home/josef/intarsiaml-r6-mut/kernels/hip/moe_wmma.h
+mw-full: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied mw-two to /home/josef/intarsiaml-r6-mut/kernels/hip/moe_wmma.h
+mw-two: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied mw-lastsync to /home/josef/intarsiaml-r6-mut/kernels/hip/moe_wmma.h
+mw-lastsync: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied mw-def64 to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-def64: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-def32 to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-def32: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-tile to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-tile: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-range to /home/josef/intarsiaml-r6-mut/kernels/hip/moe.hip
+mw-range: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied hpb-def to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+hpb-def: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied hpb-two to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+hpb-two: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied fl2-head to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+fl2-head: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+applied fl2-kvh to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+fl2-kvh: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+applied fl2-row to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+fl2-row: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+applied fl2-stride to /home/josef/intarsiaml-r6-mut/kernels/hip/attention_flash.hip
+fl2-stride: test flash_v2 built (/target/release/deps/flash_v2-073cbe32b53e1a48)
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+################ stage mutbuild end 01:47:05
+=== rebuild 01:47:05
+    Finished `release` profile [optimized] target(s) in 29.57s
+    Finished `release` profile [optimized] target(s) in 3.16s
+=== done 01:47:38
+fleetq: #2618 done (exit 0)

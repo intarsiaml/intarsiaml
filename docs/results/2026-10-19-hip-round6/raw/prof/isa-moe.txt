@@ -1,0 +1,16 @@
+_Z17moe_wmma_kernel_vILb1ELi64ELi1EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  186 scratch    0 lds  34880 occ 6
+_Z17moe_wmma_kernel_vILb0ELi64ELi1EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  185 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb1ELi64ELi4EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  185 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb0ELi64ELi4EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  184 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb1ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  186 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb0ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  185 scratch    0 lds  18496 occ 8
+_Z15moe_wmma_kernelILb1ELi64EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-resource vgpr  235 scratch    0 lds  34880 occ 6
+_Z15moe_wmma_kernelILb0ELi64EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-resource vgpr  234 scratch    0 lds  18496 occ 6
+_Z17moe_wmma_kernel_vILb1ELi32ELi1EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  133 scratch    0 lds  17472 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi1EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  132 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb1ELi32ELi4EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  132 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi4EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  131 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb1ELi32ELi5EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  133 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi5EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-re vgpr  132 scratch    0 lds   9280 occ 10
+_Z15moe_wmma_kernelILb1ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-resource vgpr  161 scratch    0 lds  17472 occ 9
+_Z15moe_wmma_kernelILb0ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0_iiii [-Rpass-analysis=kernel-resource vgpr  160 scratch    0 lds   9280 occ 9

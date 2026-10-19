@@ -1,0 +1,51 @@
+################ stage r6test start 02:11:50
+test moe_pair_tile_does_not_change_a_bit ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s
+test bench_decode_variants ... ignored
+test bench_fp8_sweep ... ignored
+test bench_prefill_shapes ... ignored
+test bench_real_shapes ... ignored
+test moe_experts_batch_invariance ... batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+batch invariance: strict=true, tokens differing from T=1 in the tensor-core path: 0
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.33s
+test moe_experts_skewed_and_invalid_routing ... ok
+test quant_f32_outputs_meet_the_f32_tolerance ... f32-output quant matmuls: 39 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.14s
+test print_inner_variants ... ignored
+test round6_inner_variants_are_pinned ... 
+thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:25:91:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=1
+INTARSIA_HIP_FLASH_HPB=Some("1")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=2
+INTARSIA_HIP_FLASH_HPB=Some("2")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+--- flash_v2 INTARSIA_HIP_FLASH_HPB=4
+INTARSIA_HIP_FLASH_HPB=Some("4")
+flash v2 bitwise v1 on 51 cases
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+################ stage r6test end 02:11:58
+################ stage mutrun6 start 02:11:58
+mw-jn            thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:70:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s exit=101 
+mw-full          thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:70:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s exit=101 
+mw-two           thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:70:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s exit=101 
+mw-lastsync      thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:70:17: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s exit=101 
+mw-def64         thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:25:91: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s exit=101 
+mw-def32         thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:25:91: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s exit=101 
+mw-tile          thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:25:91: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s exit=101 
+mw-range         thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:25:91: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s exit=101 
+hpb-def          thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:25:91: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s exit=101 
+hpb-two          thread 'round6_inner_variants_are_pinned' panicked at crates/intarsia-backend-hip/tests/round6_selection.rs:25:91: test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s exit=101 
+fl2-head         thread 'flash_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/flash_v2.rs:65:13: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s exit=101 
+fl2-kvh          thread 'flash_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/flash_v2.rs:65:13: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s exit=101 
+fl2-row          thread 'flash_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/flash_v2.rs:65:13: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s exit=101 
+fl2-stride       thread 'flash_v2_is_bitwise_v1' panicked at crates/intarsia-backend-hip/tests/flash_v2.rs:65:13: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s exit=101 
+################ stage mutrun6 end 02:12:07

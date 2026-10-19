@@ -19,8 +19,9 @@ fn child(env: &[(&str, &str)]) -> (i32, i32, i32) {
     }
     let out = c.output().unwrap();
     let text = String::from_utf8_lossy(&out.stdout);
-    // libtest prints "test print_inner_variants ... " first, so the values can share that line
-    const TAG: &str = "inner_variants ";
+    // libtest prints "test print_inner_variants ... " first, so the values can share that line (and the test's own name
+    // contains "inner_variants": the tag must not)
+    const TAG: &str = "R6SEL ";
     let at = text.find(TAG).unwrap_or_else(|| panic!("no output: {text}"));
     let v: Vec<i32> = text[at + TAG.len()..].split_whitespace().take(3).map(|x| x.parse().unwrap()).collect();
     (v[0], v[1], v[2])
@@ -30,7 +31,7 @@ fn child(env: &[(&str, &str)]) -> (i32, i32, i32) {
 #[ignore]
 fn print_inner_variants() {
     let (a, b, c) = intarsia_backend_hip::inner_variants();
-    println!("inner_variants {a} {b} {c}");
+    println!("R6SEL {a} {b} {c}");
 }
 
 #[test]

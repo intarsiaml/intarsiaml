@@ -1,0 +1,8 @@
+_ZN12_GLOBAL__N_121gdn_delta_rows_kernelILi32ELi1EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpass-analy vgpr   86 scratch    0 lds    256 occ 16
+_ZN12_GLOBAL__N_121gdn_delta_rows_kernelILi64ELi1EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpass-analy vgpr  152 scratch    0 lds    512 occ 9
+_ZN12_GLOBAL__N_121gdn_delta_rows_kernelILi128ELi2EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpass-anal vgpr  126 scratch    0 lds   1024 occ 10
+_ZN12_GLOBAL__N_116gdn_delta_kernelILi8EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpass-analysis=kernel vgpr   69 scratch    0 lds      0 occ 16
+_ZN12_GLOBAL__N_125gdn_delta_rows_v2p_kernelILi128ELi2EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpass- vgpr  187 scratch    0 lds   2048 occ 8
+_ZN12_GLOBAL__N_124gdn_delta_rows_v2_kernelILi128ELi2ELi1EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpa vgpr  173 scratch    0 lds   1024 occ 8
+_ZN12_GLOBAL__N_124gdn_delta_rows_v2_kernelILi128ELi2ELi4EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpa vgpr  214 scratch    0 lds   1024 occ 7
+_ZN12_GLOBAL__N_124gdn_delta_rows_v2_kernelILi128ELi2ELi2EEEvPK7ik_bf16S3_S3_S3_S3_fPS1_Pfliii [-Rpa vgpr  184 scratch    0 lds   1024 occ 8

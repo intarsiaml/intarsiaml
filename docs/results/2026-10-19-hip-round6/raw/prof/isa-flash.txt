@@ -1,0 +1,12 @@
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi64ELi64ELi4EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ker vgpr  188 scratch    0 lds  18432 occ 8
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi64ELi64ELi2EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ker vgpr  194 scratch    0 lds  18432 occ 7
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi64ELi64ELi1EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ker vgpr  194 scratch    0 lds  18432 occ 7
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi128ELi64ELi4EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ke vgpr  256 scratch   28 lds  35840 occ 5
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi128ELi64ELi2EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ke vgpr  256 scratch   28 lds  35840 occ 5
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi128ELi64ELi1EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ke vgpr  256 scratch   28 lds  35840 occ 3
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi256ELi32ELi4EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ke vgpr  253 scratch    0 lds  37376 occ 5
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi256ELi32ELi2EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ke vgpr  256 scratch  236 lds  37376 occ 5
+_ZN12_GLOBAL__N_116flash_hpb_kernelILi256ELi32ELi1EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=ke vgpr  253 scratch    0 lds  37376 occ 3
+_ZN12_GLOBAL__N_112flash_kernelILi64ELi64EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=kernel-reso vgpr  194 scratch    0 lds  18432 occ 7
+_ZN12_GLOBAL__N_112flash_kernelILi128ELi64EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=kernel-res vgpr  256 scratch   28 lds  35840 occ 3
+_ZN12_GLOBAL__N_112flash_kernelILi256ELi32EEEvPK7ik_bf16S3_S3_PS1_iiillf [-Rpass-analysis=kernel-res vgpr  253 scratch    0 lds  37376 occ 3
