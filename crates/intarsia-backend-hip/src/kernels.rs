@@ -358,4 +358,25 @@ mod tests {
     fn arch_is_a_gfx12_target() {
         assert!(ARCH.starts_with("gfx12"), "the WMMA kernels need a gfx12 arch, got {ARCH}");
     }
+
+    /// Core-op fusion phase 1: the fold kernels serve the 35B's decode shapes (one row for the fp8 folds, 1..=8 rows for the
+    /// nvfp4 one) and nothing else, so prefill and every other row count keep the unfused ops.
+    #[test]
+    fn phase1_fold_selection_is_pinned() {
+        let (bf, f8, u8_) = (Some(DType::Bf16), Some(DType::Fp8E4m3), Some(DType::U8));
+        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
+        let p = |op: Op, s: ShapeInfo| pick(op, &s);
+        assert_eq!(p(Op::RmsNormAddMatmulFp8Pair, sh(1, 512, 2048, f8)).as_deref(), Some("rmsnorm_add_matmul_fp8_pair_gemv"));
+        assert_eq!(p(Op::RmsNormAddMatmulFp8Pair, sh(2, 512, 2048, f8)), None);
+        assert_eq!(p(Op::RmsNormAddMatmulFp8Pair, sh(1, 512, 32768, f8)), None, "a row larger than the LDS stage");
+        assert_eq!(p(Op::SigmoidMulMatmulFp8, sh(1, 2048, 4096, f8)).as_deref(), Some("sigmoid_mul_matmul_fp8_gemv"));
+        assert_eq!(p(Op::SigmoidMulMatmulFp8, sh(4, 2048, 4096, f8)), None);
+        for m in 1..=8 {
+            assert_eq!(p(Op::SharedDownCombine, sh(m, 2048, 512, u8_)).as_deref(), Some("shared_down_combine_nvfp4_gemv"));
+        }
+        assert_eq!(p(Op::SharedDownCombine, sh(9, 2048, 512, u8_)), None);
+        let mut f32_out = sh(1, 2048, 512, u8_);
+        f32_out.out = Some(DType::F32);
+        assert_eq!(p(Op::SharedDownCombine, f32_out), None);
+    }
 }

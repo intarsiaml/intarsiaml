@@ -537,4 +537,62 @@ mod tests {
             assert!(shader_names().contains(&s), "{s}");
         }
     }
+
+    // Metal has no fp8 / nvfp4 / MoE kernels: the 35B NVFP4 checkpoint does not load here (the '-' rows), before or after
+    const PHASE1_PINS: &[&str] = &[
+        "35b attn input norm: rmsnorm_add_bf16",
+        "35b k/v pair: -",
+        "35b k proj: -",
+        "35b output gate: -",
+        "35b o_proj: -",
+        "35b shared down: -",
+        "35b combine: -",
+        "35b fold P5: -",
+        "35b fold P4b: -",
+        "35b fold P2a: -",
+        "8b attn input norm: rmsnorm_add_bf16",
+        "8b k/v pair: matmul_pair_bf16_gemv",
+    ];
+
+    /// Core-op fusion phase 1 (docs/results/2026-10-19-core-op-fusion-p1.md): this backend registers none of the three new
+    /// ops, so `Model::try_fused` returns false for each and the model runs the unfused chain it ran before (the selection of
+    /// those ops at the Qwen3.6-35B-A3B and Qwen3-8B decode shapes is pinned below: the names origin/main's table resolves).
+    #[test]
+    fn phase1_folds_are_absent_and_the_unfused_selection_is_pinned() {
+        use intarsia_core::ShapeInfo;
+        let ks = all();
+        for op in [Op::RmsNormAddMatmulFp8Pair, Op::SigmoidMulMatmulFp8, Op::SharedDownCombine] {
+            assert!(!ks.iter().any(|k| k.op == op), "{op} is registered: the model would take the fused path here");
+        }
+        let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
+            let mut best: Option<&KernelImpl> = None;
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+                if best.is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.clone())
+        };
+        let (bf, f8, u8_) = (Some(DType::Bf16), Some(DType::Fp8E4m3), Some(DType::U8));
+        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
+        // (what, op, shape): the ops each fold replaces, at the 35B decode shapes (hidden 2048, k / v 2 x 256, o_proj 2048 x
+        // 4096, shared down 2048 x 512), and the 8B's input norm (hidden 4096, bf16 weights: no fold applies to the 8B)
+        let cases: Vec<(&str, Op, ShapeInfo)> = vec![
+            ("35b attn input norm", Op::RmsNormAdd, sh(1, 0, 2048, None)),
+            ("35b k/v pair", Op::MatmulFp8Pair, sh(1, 512, 2048, f8)),
+            ("35b k proj", Op::MatmulFp8, sh(1, 512, 2048, f8)),
+            ("35b output gate", Op::SigmoidMul, sh(1, 0, 4096, None)),
+            ("35b o_proj", Op::MatmulFp8, sh(1, 2048, 4096, f8)),
+            ("35b shared down", Op::MatmulNvfp4, sh(1, 2048, 512, u8_)),
+            ("35b combine", Op::MoeCombine, sh(1, 0, 2048, None)),
+            ("35b fold P5", Op::RmsNormAddMatmulFp8Pair, sh(1, 512, 2048, f8)),
+            ("35b fold P4b", Op::SigmoidMulMatmulFp8, sh(1, 2048, 4096, f8)),
+            ("35b fold P2a", Op::SharedDownCombine, sh(1, 2048, 512, u8_)),
+            ("8b attn input norm", Op::RmsNormAdd, sh(1, 0, 4096, None)),
+            ("8b k/v pair", Op::MatmulPair, sh(1, 1024, 4096, bf)),
+        ];
+        let got: Vec<String> = cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
+        eprintln!("PINS\n{}", got.join("\n"));
+        assert_eq!(got, PHASE1_PINS, "the selection of the unfused ops moved");
+    }
 }

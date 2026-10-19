@@ -11,6 +11,8 @@
 //!   must still be v2's (a down role that waited for all but one gate_up role would read that role's h rows unwritten);
 //! * `v3_graph_replay_is_bitwise_eager`: one captured launch replayed 20 times with new activations uploaded between
 //!   replays (the decode graph's use) equals v2 run eagerly every time.
+//! * `v3_sentinel_stress`: the h lines pre-read by the down waves before the wait, every gate_up role late, a NaN sentinel
+//!   in h before every launch, a second v3 on another stream; every launch bitwise v2's (the test `v3-nofence` must fail).
 //!
 //! Needs a GPU: skips (passes) without one.
 #![cfg(ik_hip)]
@@ -215,4 +217,79 @@ fn v3_graph_replay_is_bitwise_eager() {
         let want = run_host(&*be, "moe_experts_bf16_v2", &h).unwrap().remove(0).data;
         assert!(got == want, "replay {rep} differs from v2 run eagerly");
     }
+}
+
+/// The test the `v3-nofence` mutant (the per-wave acquire fence before the h reads dropped) must fail
+/// (docs/results/2026-10-19-core-op-fusion-p1.md). A stale h read needs an h line already in a down block's caches when the
+/// gate_up roles store it, so with the default-off seams on:
+///
+/// * `INTARSIA_HIP_MOE_V3_PREREAD=1`: every down wave reads its h lines *before* the wait (into its caches);
+/// * `INTARSIA_HIP_MOE_V3_SKEW_ALL=1` + `..._SKEW`: every gate_up role starts late (1 to 4 times the skew, per role), so the
+///   h stores land while the down roles hold those lines;
+/// * the h scratch is filled with a bf16 NaN sentinel (0x7fc0) before every launch: a stale read is the sentinel, and NaN
+///   propagates to the output row, so it cannot pass as a right value;
+/// * two activations alternate, a second v3 instance runs on stream 1 at the same time (its own counter slot and scratch)
+///   for CU contention, and the skew cycles through 0 / 2 / 6 (different overlap of stores and reads).
+///
+/// Every launch of both streams is compared bitwise with v2. `INTARSIA_V3_STRESS_ROUNDS` (default 120) launches per shape.
+#[test]
+fn v3_sentinel_stress() {
+    let Some(be) = device() else { return };
+    let rounds: usize = std::env::var("INTARSIA_V3_STRESS_ROUNDS").ok().and_then(|v| v.parse().ok()).unwrap_or(120);
+    let mut rng = SplitMix64::new(55);
+    let set_x = |d: &Dev, x: &HostTensor, s: u32| be.upload(&d.call.inputs[0].buf, d.call.inputs[0].offset, &x.data, s).unwrap();
+    let poison = |d: &Dev, s: u32| {
+        let sc = d.call.scratch.as_ref().unwrap();
+        let pat: Vec<u8> = (0..sc.nbytes()).map(|i| if i % 2 == 0 { 0xc0 } else { 0x7f }).collect();
+        be.upload(&sc.buf, sc.offset, &pat, s).unwrap();
+    };
+    let out_on = |d: &Dev, s: u32| {
+        let o = &d.call.outputs[0];
+        let mut v = vec![0u8; o.nbytes()];
+        be.synchronize(s).unwrap();
+        be.download(&o.buf, o.offset, &mut v, s).unwrap();
+        v
+    };
+    // the contending instance (stream 1): the 35B's T = 2 decode shape
+    let side = experts_case(&mut rng, 2, 256, 8, 2048, 512, DType::Bf16);
+    let side_want = run_host(&*be, "moe_experts_bf16_v2", &side).unwrap().remove(0).data;
+    let ds = Dev::new(&*be, "moe_experts_bf16_v3", &side);
+    std::env::set_var("INTARSIA_HIP_MOE_V3_SKEW_ALL", "1");
+    std::env::set_var("INTARSIA_HIP_MOE_V3_PREREAD", "1");
+    let mut bad: Vec<String> = Vec::new();
+    let mut launches = 0usize;
+    for (t, e, k, h, i) in
+        [(1usize, 256usize, 8usize, 2048usize, 512usize), (2, 256, 8, 2048, 512), (1, 64, 8, 1024, 256), (1, 16, 2, 256, 16)]
+    {
+        let a = experts_case(&mut rng, t, e, k, h, i, DType::Bf16);
+        let mut b = a.clone();
+        b.inputs[0] =
+            HostTensor::from_f32_as(DType::Bf16, &b.inputs[0].shape, &rng.normal_vec(b.inputs[0].numel(), 1.0));
+        let want: Vec<Vec<u8>> =
+            [&a, &b].iter().map(|hc| run_host(&*be, "moe_experts_bf16_v2", hc).unwrap().remove(0).data).collect();
+        let xs = [a.inputs[0].clone(), b.inputs[0].clone()];
+        let d = Dev::new(&*be, "moe_experts_bf16_v3", &a);
+        for j in 0..rounds {
+            std::env::set_var("INTARSIA_HIP_MOE_V3_SKEW", ["0", "2", "6"][j % 3]);
+            poison(&d, 0);
+            set_x(&d, &xs[j % 2], 0);
+            poison(&ds, 1);
+            be.launch("moe_experts_bf16_v3", &ds.call, 1).unwrap();
+            be.launch("moe_experts_bf16_v3", &d.call, 0).unwrap();
+            launches += 2;
+            let got = out_on(&d, 0);
+            if got != want[j % 2] {
+                let nan = got.chunks(2).filter(|c| (u16::from_le_bytes([c[0], c[1]]) & 0x7fff) > 0x7f80).count();
+                bad.push(format!("t={t} e={e} k={k} h={h} i={i} launch {j}: differs from v2 ({nan} NaN outputs)"));
+            }
+            if out_on(&ds, 1) != side_want {
+                bad.push(format!("stream 1 (t=2 e=256) launch {j}: differs from v2"));
+            }
+        }
+    }
+    for v in ["INTARSIA_HIP_MOE_V3_SKEW", "INTARSIA_HIP_MOE_V3_SKEW_ALL", "INTARSIA_HIP_MOE_V3_PREREAD"] {
+        std::env::remove_var(v);
+    }
+    eprintln!("v3_sentinel_stress: {launches} launches, {} differ from v2", bad.len());
+    assert!(bad.is_empty(), "{} of {launches} launches read h early or stale:\n{}", bad.len(), bad[..bad.len().min(12)].join("\n"));
 }

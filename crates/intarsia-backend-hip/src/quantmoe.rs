@@ -63,6 +63,33 @@ pub fn fp8_f8_enabled() -> bool {
     *ON.get_or_init(|| fp8_f8_from(std::env::var("INTARSIA_HIP_FP8_F8").ok().as_deref()))
 }
 
+/// Whether the fp8 GEMV staging knobs are at their defaults (INTARSIA_HIP_FP8_Q = 2, INTARSIA_HIP_FP8_PAIR = 1,8; see
+/// kernels/hip/fp8.hip staging_q / pair_cfg). The phase-1 fp8 folds hardcode those defaults, so with either knob moved the
+/// unfused chain they must equal runs a different staging; the folds are then not selected (the model runs the unfused ops).
+pub fn fp8_staging_default() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| {
+        fp8_staging_default_from(std::env::var("INTARSIA_HIP_FP8_Q").ok().as_deref(), std::env::var("INTARSIA_HIP_FP8_PAIR").ok().as_deref())
+    })
+}
+
+/// [`fp8_staging_default`] on given values: Q is 2 unless it parses to 1 or 3 (the C++ rule); PAIR is the default unless it
+/// parses as two integers other than (1, 8).
+pub fn fp8_staging_default_from(q: Option<&str>, pair: Option<&str>) -> bool {
+    let q_default = !matches!(q.and_then(|v| v.trim().parse::<i32>().ok()), Some(1) | Some(3));
+    let pair_default = match pair {
+        None => true,
+        Some(v) => {
+            let mut it = v.split(',').map(|x| x.trim().parse::<i32>());
+            match (it.next(), it.next()) {
+                (Some(Ok(r)), Some(Ok(w))) => (r, w) == (1, 8),
+                _ => true, // sscanf fails: pair_cfg keeps the default
+            }
+        }
+    };
+    q_default && pair_default
+}
+
 /// The value of INTARSIA_HIP_FP8_F8 -> f8 on: on unless it is exactly "0".
 pub fn fp8_f8_from(v: Option<&str>) -> bool {
     v != Some("0")
@@ -235,14 +262,18 @@ pub fn all() -> Vec<KernelImpl> {
                 "rmsnorm_add_matmul_fp8_pair_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| {
+                        s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                    })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
                 "sigmoid_mul_matmul_fp8_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| {
+                        s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                    })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -348,6 +379,17 @@ mod tests {
     }
 
     /// v3 is opt-in: only INTARSIA_HIP_MOE_V3=1 selects it.
+    #[test]
+    fn fp8_folds_follow_the_staging_defaults() {
+        assert!(fp8_staging_default_from(None, None));
+        assert!(fp8_staging_default_from(Some("2"), Some("1,8")));
+        assert!(fp8_staging_default_from(Some("7"), Some("junk")));
+        assert!(!fp8_staging_default_from(Some("1"), None));
+        assert!(!fp8_staging_default_from(Some("3"), None));
+        assert!(!fp8_staging_default_from(None, Some("2,8")));
+        assert!(!fp8_staging_default_from(None, Some("1,16")));
+    }
+
     #[test]
     fn moe_v3_is_opt_in() {
         assert!(!moe_v3_from(None));
