@@ -408,6 +408,69 @@ fn bench_real_shapes() {
     let _ = (moe_experts_scratch, Op::MoeTopk, OutSpec::new(DType::F32, &[1]));
 }
 
+/// Prefill-shaped dense projections of the 35B (docs/results/2026-10-19-cuda-prefill-3.md): the fp8 W8A8 projections
+/// (GatedDeltaNet in_proj_qkv / in_proj_z / out_proj, attention q (with gate) / k / v / o) and the NVFP4 shared expert
+/// (gate, up, down), one call each at M tokens (INTARSIA_BENCH_M, comma separated, default 2048), per kernel in
+/// INTARSIA_BENCH_WQ (comma separated; default `matmul_fp8_gemm,matmul_fp8_gemm_f8`; nvfp4 rows use `matmul_nvfp4_gemm`).
+/// Prints us and TFLOPS per call and the per-chunk total (30 GDN layers x 3 + 10 attention layers x 4 fp8 calls, 40 x 3
+/// nvfp4 calls). Median of INTARSIA_BENCH_REPS (default 5) timings of 10 launches each.
+#[test]
+#[ignore]
+fn bench_wq_prefill_shapes() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(11);
+    let ms: Vec<usize> = std::env::var("INTARSIA_BENCH_M")
+        .unwrap_or_else(|_| "2048".into())
+        .split(',')
+        .filter_map(|v| v.trim().parse().ok())
+        .collect();
+    let reps: usize = std::env::var("INTARSIA_BENCH_REPS").ok().and_then(|v| v.parse().ok()).unwrap_or(5);
+    let kernels: Vec<String> = std::env::var("INTARSIA_BENCH_WQ")
+        .unwrap_or_else(|_| "matmul_fp8_gemm,matmul_fp8_gemm_f8".into())
+        .split(',')
+        .map(|s| s.to_string())
+        .collect();
+    let time = |kern: &str, hc: &HostCall| {
+        let mut v: Vec<f64> = (0..reps).map(|_| bench(&*cuda, kern, hc, 10)).collect();
+        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        v[v.len() / 2]
+    };
+    // (name, N, K, calls per 2048-token chunk)
+    let fp8 = [
+        ("gdn in_proj_qkv", 8192usize, 2048usize, 30usize),
+        ("gdn in_proj_z", 4096, 2048, 30),
+        ("gdn out_proj", 2048, 4096, 30),
+        ("attn q_proj+gate", 8192, 2048, 10),
+        ("attn k/v_proj", 512, 2048, 20),
+        ("attn o_proj", 2048, 4096, 10),
+    ];
+    let nv = [("shared gate/up", 512usize, 2048usize, 80usize), ("shared down", 2048, 512, 40)];
+    for &m in &ms {
+        for kern in kernels.iter().filter(|k| k.starts_with("matmul_fp8")) {
+            let mut total = 0.0;
+            for (name, n, k, calls) in fp8 {
+                let hc = matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
+                let s = time(kern, &hc);
+                total += s * calls as f64;
+                let tf = 2.0 * (m * n * k) as f64 / s / 1e12;
+                println!("M={m} {name:<18} {kern:<22} {:>9.1} us {:>6.1} TFLOPS", s * 1e6, tf);
+            }
+            println!("M={m} fp8 per-chunk total {kern:<22} {:>9.1} us", total * 1e6);
+        }
+        for kern in kernels.iter().filter(|k| k.starts_with("matmul_nvfp4")) {
+            let mut total = 0.0;
+            for (name, n, k, calls) in nv {
+                let hc = matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::Bf16);
+                let s = time(kern, &hc);
+                total += s * calls as f64;
+                let tf = 2.0 * (m * n * k) as f64 / s / 1e12;
+                println!("M={m} {name:<18} {kern:<22} {:>9.1} us {:>6.1} TFLOPS", s * 1e6, tf);
+            }
+            println!("M={m} nvfp4 per-chunk total {kern:<22} {:>9.1} us", total * 1e6);
+        }
+    }
+}
+
 /// The grouped kernel must be about as close to the exact result as the warp-per-row kernel it replaces. The two
 /// round differently inside (the old one sums fp32 products in order, this one runs bf16 mma), but the old kernel's
 /// outputs differ from the exact (cpu reference) bf16 outputs in roughly 0.1 % of the elements. Accumulating the

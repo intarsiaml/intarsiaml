@@ -5,7 +5,7 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::{moe_nvfp4_priority, moe_w4a16_priority, opt_in_priority, ARCH};
+use crate::kernels::{fp8_gemm_reg_priority, moe_nvfp4_priority, moe_w4a16_priority, opt_in_priority, ARCH};
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
@@ -14,6 +14,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_gemm", Op::MatmulFp8),
     ("matmul_fp8_gemm_f8", Op::MatmulFp8),
+    ("matmul_fp8_gemm_reg", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemm", Op::MatmulNvfp4),
@@ -59,6 +60,10 @@ const F8_MIN_TOKENS: usize = 5;
 
 /// Fewest tokens for which the dense dequantise-once GEMMs are preferred over `*_mma`.
 const GEMM_MIN_TOKENS: usize = 33;
+
+/// Fewest tokens for `matmul_fp8_gemm_reg` (bitwise `matmul_fp8_gemm`, 128-row tiles), from the measured crossover on
+/// spark1 (docs/results/2026-10-19-cuda-prefill-3.md).
+pub const FP8_REG_MIN_TOKENS: usize = 33;
 
 /// Most tokens for which the two-launch decode experts kernel is preferred (45 us vs 59 us at 1 token; slower than
 /// the grouping kernel from 2 tokens on, 130 us vs 119 us).
@@ -142,6 +147,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(opt_in_priority(20)),
+                // The same GEMM with the weights dequantised in registers and 128 x 128 tiles (kernels/cuda/fp8_gemm.cu): bitwise
+                // the results of `matmul_fp8_gemm`; INTARSIA_CUDA_FP8_GEMM_REG=0 falls back to it.
+                "matmul_fp8_gemm_reg" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2)
+                    .priority(fp8_gemm_reg_priority(15)),
                 "matmul_nvfp4_gemm" => k
                     .acts(bf)
                     .weights([DType::U8])

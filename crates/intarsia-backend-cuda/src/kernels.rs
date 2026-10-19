@@ -151,6 +151,23 @@ pub fn moe_w4a16_priority(on: i32) -> i32 {
     }
 }
 
+/// The register-dequantising fp8 GEMM (`matmul_fp8_gemm_reg`, bitwise the results of `matmul_fp8_gemm`,
+/// docs/results/2026-10-19-cuda-prefill-3.md) is selected for prefill-shaped fp8 projections by default;
+/// `INTARSIA_CUDA_FP8_GEMM_REG=0` falls back to `matmul_fp8_gemm`.
+pub fn fp8_gemm_reg() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").map_or(true, |v| v != "0"))
+}
+
+/// Priority of the register-dequantising fp8 GEMM: `on` unless switched off, below everything then.
+pub fn fp8_gemm_reg_priority(on: i32) -> i32 {
+    if fp8_gemm_reg() {
+        on
+    } else {
+        -10
+    }
+}
+
 /// Every kernel this backend registers.
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
@@ -334,6 +351,53 @@ mod tests {
         let want = if lanes { "gdn_delta_rule_bf16_lanes" } else { "gdn_delta_rule_bf16" };
         for m in [1, 2048] {
             assert_eq!(pick(m), Some(want.to_string()), "T={m}");
+        }
+    }
+
+    /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096): the gemv for 1..4 tokens, the mma
+    /// kernel for 5..32, `matmul_fp8_gemm_reg` from `FP8_REG_MIN_TOKENS` (the 2048-token prefill chunk included), unless
+    /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FAST_PREFILL=1`. The
+    /// kernel is bitwise `matmul_fp8_gemm`, so no accuracy gate can tell which one ran: this pins it.
+    #[test]
+    fn fp8_gemm_selection_by_batch_size() {
+        let pick = |m: usize, k: usize| {
+            let s = ShapeInfo {
+                m,
+                n: 8192,
+                k,
+                act: Some(DType::Bf16),
+                weight: Some(DType::Fp8E4m3),
+                out: Some(DType::Bf16),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        if std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok() {
+            return; // the default selection is what is pinned
+        }
+        let big = if std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0") {
+            "matmul_fp8_gemm"
+        } else {
+            "matmul_fp8_gemm_reg"
+        };
+        let min = crate::quantmoe::FP8_REG_MIN_TOKENS;
+        for k in [2048, 4096] {
+            assert_eq!(pick(1, k).as_deref(), Some("matmul_fp8_gemv"));
+            assert_eq!(pick(4, k).as_deref(), Some("matmul_fp8_gemv"));
+            assert_eq!(pick(5, k).as_deref(), Some("matmul_fp8_mma"));
+            assert_eq!(pick(32, k).as_deref(), Some("matmul_fp8_mma"));
+            if min > 33 {
+                assert_eq!(pick(min - 1, k).as_deref(), Some("matmul_fp8_gemm"));
+            }
+            for m in [min, 2048, 4096] {
+                assert_eq!(pick(m, k).as_deref(), Some(big), "M={m} K={k}");
+            }
         }
     }
 

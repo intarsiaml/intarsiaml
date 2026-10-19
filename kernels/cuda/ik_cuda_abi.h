@@ -27,6 +27,12 @@ int ik_moe_experts_nvfp4_mma_bf16(const ik_tensor* x, const ik_tensor* ids, cons
                                   const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                                   const ik_scratch* scratch, void* stream);
 
+/* matmul_fp8_gemm_reg: matmul_fp8_gemm (same arguments, same scratch, bitwise the same outputs for finite e4m3 weights)
+ * with the weights dequantised in registers instead of a bf16 shared-memory tile and a 128 x 128 block tile, see
+ * kernels/cuda/fp8_gemm.cu. Needs K % 128 == 0. */
+int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                           const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif
