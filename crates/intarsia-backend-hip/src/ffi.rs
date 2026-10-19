@@ -234,6 +234,26 @@ extern "C" {
         out1: TM,
         s: S,
     ) -> c_int;
+    // core-op fusion phase 1 (kernels/hip/ik_hip_abi.h)
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_rmsnorm_add_matmul_fp8_pair_gemv(
+        x: T,
+        res: T,
+        w: T,
+        eps: f32,
+        w_offset: f32,
+        w0: T,
+        sc0: T,
+        w1: T,
+        sc1: T,
+        normed: TM,
+        sum: TM,
+        out0: TM,
+        out1: TM,
+        s: S,
+    ) -> c_int;
+    pub fn ik_sigmoid_mul_matmul_fp8_gemv(a: T, gate: T, w: T, scales: T, out: TM, s: S) -> c_int;
+    pub fn ik_shared_down_combine_nvfp4_gemv(x: T, w: T, bs: T, gs: T, routed: T, logit: T, out: TM, s: S) -> c_int;
 }
 
 /// Name of an `enum ik_status` value.

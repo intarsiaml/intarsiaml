@@ -264,6 +264,49 @@ MUTATIONS = {
     "mw-range": ("kernels/hip/moe.hip", [("return (v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc)) ? v : def;", "return (v >= 0 && v <= 7) ? v : def;")]),
     "hpb-def": ("kernels/hip/attention_flash.hip", [("constexpr int kFlashHpbDefault = 4;", "constexpr int kFlashHpbDefault = 2;")]),
     "hpb-two": ("kernels/hip/attention_flash.hip", [("return (x == 1 || x == 2 || x == 4) ? x : kFlashHpbDefault;", "return (x == 1 || x == 4) ? x : kFlashHpbDefault;")]),
+    # --- core-op fusion phase 1 (tests/fusion_p1.rs; docs/results/2026-10-19-core-op-fusion-p1.md) ---
+    # P5: the second segment (v) reads the first segment's scales
+    "p1-n5-sc0": ("kernels/hip/fp8.hip", [("(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0, res, nw", "(x, w1, sc0, o1, N1, K, (int64_t)blockIdx.x - nb0, res, nw")]),
+    # P5: no block stores normed and sum
+    "p1-n5-nowrite": ("kernels/hip/fp8.hip", [("    const bool writer = blockIdx.x == 0;\n", "    const bool writer = false;\n")]),
+    # P5: the squares are summed from the unrounded sum (rmsnorm_kernel continues from the bf16-rounded one)
+    "p1-n5-round": ("kernels/hip/fp8.hip", [("        ik_unpack8(p, f);  // continue from the bf16-rounded sum\n", "")]),
+    # P5: the norm weight offset is dropped (zero-centred norms)
+    "p1-n5-woff": ("kernels/hip/fp8.hip", [("f[k] = f[k] * r * (g[k] + w_off);", "f[k] = f[k] * r * g[k];")]),
+    # P5: the GEMV stages the raw x instead of the normed row
+    "p1-n5-stage": ("kernels/hip/fp8.hip", [("else if constexpr (PRO == 3) v = reinterpret_cast<const uint4*>(xs)[i8];", "else if constexpr (PRO == 3) v = reinterpret_cast<const uint4*>(x)[i8];")]),
+    # P4b: sigmoid of the negated gate
+    "p1-g4-sig": ("kernels/hip/fp8.hip", [("f[k] = f[k] * (1.f / (1.f + expf(-gv)));", "f[k] = f[k] * (1.f / (1.f + expf(gv)));")]),
+    # P4b: the gate chunk read from a
+    "p1-g4-gate": ("kernels/hip/fp8.hip", [("ik_unpack8(reinterpret_cast<const uint4*>(gate)[i8], g);", "ik_unpack8(reinterpret_cast<const uint4*>(a)[i8], g);")]),
+    # P2a: every row uses row 0's shared-gate logit
+    "p1-dc-logit0": ("kernels/hip/moe_shared.hip", [("const float gl = ik_b2f(logit[m]);", "const float gl = ik_b2f(logit[0]);")]),
+    # P2a: the sigmoid of the gate is not rounded to bf16 (moe_combine_kernel rounds it)
+    "p1-dc-sground": ("kernels/hip/moe_shared.hip", [("const float sg = ik_round_bf16(1.f / (1.f + expf(-gl)));", "const float sg = 1.f / (1.f + expf(-gl));")]),
+    # P2a: the down projection is not rounded to bf16 before the combine (the unfused path stores it)
+    "p1-dc-soround": ("kernels/hip/moe_shared.hip", [("const float so = ik_round_bf16(s * g);", "const float so = s * g;")]),
+    # P2a: the first lane-iteration after the prefetch window is skipped (K > 2048 only)
+    "p1-dc-tail": ("kernels/hip/moe_shared.hip", [("for (int u = lane + IK_WARP * kPre; u < nu; u += IK_WARP) {  // K > 2048", "for (int u = lane + IK_WARP * (kPre + 1); u < nu; u += IK_WARP) {  // K > 2048")]),
+    # P2a: every row combines with row 0's routed values and writes row 0
+    "p1-dc-row": ("kernels/hip/moe_shared.hip", [("const int64_t i = (int64_t)m * N + n;", "const int64_t i = n;")]),
+    # P5 selection: the one-row fold also taken for two rows (a prefill / verify shape it was never checked on)
+    "p1-sel-m2": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("""                "rmsnorm_add_matmul_fp8_pair_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| {
+                        s.m == 1""", """                "rmsnorm_add_matmul_fp8_pair_gemv" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| {
+                        s.m <= 2""")]),
+    # P2a selection: nine rows (the GEMV launcher refuses them: the plan would fail instead of falling back)
+    "p1-sel-dc9": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("""                "shared_down_combine_nvfp4_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=8).contains(&s.m)""", """                "shared_down_combine_nvfp4_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=9).contains(&s.m)""")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -273,11 +316,12 @@ TESTS["moe-z-step"] = "quantmoe"
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
-TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio")})
+TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio", "p1-sel-m2", "p1-sel-dc9")})
 TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
 TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsync")})
 TESTS.update({n: "round6_selection" for n in ("mw-def64", "mw-def32", "mw-tile", "mw-range", "hpb-def", "hpb-two")})
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
+TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 
 tree, name = sys.argv[1], sys.argv[2]

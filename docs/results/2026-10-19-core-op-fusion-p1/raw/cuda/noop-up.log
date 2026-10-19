@@ -1,0 +1,20 @@
+== fusion-noop-up start 03:45:21
+== plans 03:45:21
+plan A 35b exit 0
+plan A 8b exit 0
+plan B 35b exit 0
+plan B 8b exit 0
+PLAN 35b JSON IDENTICAL (58a6100d2900)
+PLAN 8b JSON IDENTICAL (d1847a362f17)
+== 35b: launches per decode step A 525 -> B 525 (+0); scratch 83963392 -> 83963392
+   36 (op, kernel) rows identical, 0 present on one side only
+== 8b: launches per decode step A 544 -> B 544 (+0); scratch 748800 -> 748800
+   16 (op, kernel) rows identical, 0 present on one side only
+== admission 03:47:58
+kernels test A 35b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+kernels test A 8b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+kernels test B 35b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+kernels test B 8b exit 1: SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+ADMISSION 35b IDENTICAL (timing lines aside)
+ADMISSION 8b IDENTICAL (timing lines aside)
+== fusion-noop-up done 03:48:02

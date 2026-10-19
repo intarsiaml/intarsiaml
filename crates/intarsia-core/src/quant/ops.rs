@@ -1,6 +1,6 @@
 //! Validation and shape facts of the quantised-weight and MoE ops (`Op::MatmulFp8` ... `Op::MoeCombine`) and of the
 //! fused decode ops (`Op::MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`,
-//! `GatedRmsnormMatmulFp8`).
+//! `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`).
 //! Called from `OpCall::check` / `ShapeInfo::from_call`; the table of signatures is in `ops.rs`.
 
 use crate::backend::TensorRef;
@@ -242,6 +242,78 @@ pub fn check(call: &OpCall) -> Result<()> {
                 return bad(op, format!("out {:?} != [1,{n}]", o[0].shape));
             }
         }
+        Op::RmsNormAddMatmulFp8Pair => {
+            rank(&i[0], 2, "x")?;
+            let (m, k) = (i[0].shape[0], i[0].shape[1]);
+            if i[1].shape != [m, k] || i[2].shape != [k] || o[0].shape != [m, k] || o[1].shape != [m, k] {
+                return bad(
+                    op,
+                    format!("shapes x {:?} res {:?} norm w {:?} normed {:?} sum {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape, o[1].shape),
+                );
+            }
+            if !act(&i[0]) || !act(&i[1]) || !act(&i[2]) || !act(&o[0]) || !act(&o[1]) {
+                return bad(op, "x, res, norm w, normed and sum must be bf16/f16/f32".into());
+            }
+            for j in 0..2 {
+                let (w, sc, out) = (&i[3 + 2 * j], &i[4 + 2 * j], &o[2 + j]);
+                rank(w, 2, "w")?;
+                let n = w.shape[0];
+                if w.dtype != DType::Fp8E4m3 || w.shape[1] != k {
+                    return bad(op, format!("w{j} must be fp8_e4m3 [N,{k}], got {} {:?}", w.dtype, w.shape));
+                }
+                if sc.dtype != DType::F32 || sc.shape != [2] {
+                    return bad(op, format!("scales{j} must be f32 [2] = (weight_scale, input_scale)"));
+                }
+                if !act(out) || out.shape != [m, n] {
+                    return bad(op, format!("out{j} {:?} != [{m},{n}]", out.shape));
+                }
+            }
+        }
+        Op::SigmoidMulMatmulFp8 => {
+            rank(&i[0], 2, "a")?;
+            rank(&i[2], 2, "w")?;
+            rank(&o[0], 2, "out")?;
+            let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[2].shape[0]);
+            if i[1].shape != [m, k] {
+                return bad(op, format!("gate {:?} != a {:?}", i[1].shape, i[0].shape));
+            }
+            if !act(&i[0]) || !act(&i[1]) || !act(&o[0]) {
+                return bad(op, "a, gate and out must be bf16/f16/f32".into());
+            }
+            if i[2].dtype != DType::Fp8E4m3 || i[2].shape != [n, k] {
+                return bad(op, format!("w must be fp8_e4m3 [N,{k}], got {} {:?}", i[2].dtype, i[2].shape));
+            }
+            if i[3].dtype != DType::F32 || i[3].shape != [2] {
+                return bad(op, "scales must be f32 [2] = (weight_scale, input_scale)".into());
+            }
+            if o[0].shape != [m, n] {
+                return bad(op, format!("out {:?} != [{m},{n}]", o[0].shape));
+            }
+        }
+        Op::SharedDownCombine => {
+            rank(&i[0], 2, "x")?;
+            rank(&i[1], 2, "w")?;
+            rank(&o[0], 2, "out")?;
+            let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
+            if !act(&i[0]) || !act(&i[4]) || !act(&i[5]) || !act(&o[0]) {
+                return bad(op, "x, routed, gate logit and out must be bf16/f16/f32".into());
+            }
+            if k % 16 != 0 {
+                return bad(op, format!("K={k} must be a multiple of 16"));
+            }
+            if i[1].dtype != DType::U8 || i[1].shape != [n, k / 2] {
+                return bad(op, format!("w must be u8 [N,K/2]=[{n},{}], got {} {:?}", k / 2, i[1].dtype, i[1].shape));
+            }
+            if i[2].dtype != DType::Fp8E4m3 || i[2].shape != [n, k / 16] {
+                return bad(op, format!("block scales must be fp8_e4m3 [N,K/16]=[{n},{}], got {:?}", k / 16, i[2].shape));
+            }
+            if i[3].dtype != DType::F32 || i[3].shape != [1] {
+                return bad(op, "global scale must be f32 [1]".into());
+            }
+            if i[4].shape != [m, n] || i[5].shape != [m, 1] || o[0].shape != [m, n] {
+                return bad(op, format!("shapes routed {:?} gate {:?} out {:?} for [{m},{n}]", i[4].shape, i[5].shape, o[0].shape));
+            }
+        }
         _ => unreachable!("quant::ops::check called for {op}"),
     }
     Ok(())
@@ -307,6 +379,25 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
         Op::GatedRmsnorm => {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1];
+        }
+        // the norm is over k, the first GEMV's weight gives n and the weight dtype (like RmsNormAddMatmulPair)
+        Op::RmsNormAddMatmulFp8Pair => {
+            s.m = i[0].shape[0];
+            s.k = i[0].shape[1];
+            s.n = i[3].shape[0];
+            s.weight = Some(i[3].dtype);
+        }
+        Op::SigmoidMulMatmulFp8 => {
+            s.m = i[0].shape[0];
+            s.k = i[0].shape[1];
+            s.n = i[2].shape[0];
+            s.weight = Some(i[2].dtype);
+        }
+        Op::SharedDownCombine => {
+            s.m = i[0].shape[0];
+            s.k = i[0].shape[1];
+            s.n = i[1].shape[0];
+            s.weight = Some(i[1].dtype);
         }
         _ => {}
     }

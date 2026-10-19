@@ -35,9 +35,12 @@
 //! | `RmsNormAddMatmulPair` | x `[1,K]`, res `[1,K]`, norm w `[K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | normed `[1,K]`, sum `[1,K]`, `[1,N0]`, `[1,N1]` (= `RmsNormAdd(x, res, w)`, then `MatmulPair` of the normed row) | eps, w_offset; fused decode norm + GEMV pair, see `quant::fused` |
 //! | `GatedRmsnormMatmulFp8` | x `[R,128]`, z `[R,128]`, norm w `[128]`, w `[N,R*128]` fp8, scales `[2]` | `[1,N]` (= `MatmulFp8(GatedRmsnorm(x, z, w) as [1,R*128], w)`) | eps, w_offset; fused decode norm + GEMV, see `quant::fused` |
 //! | `QkNormRopeKv` | q `[T,N,D]`, k `[T,Nkv,D]`, v `[T,Nkv,D]`, q_w `[D]`, k_w `[D]` (all one float dtype) | q_out `[T,N,D]`, k cache, v cache `[Nkv,cap,D]` (**in place**) | eps, w_offset, theta, rotary_dim, pos0 (or `OpCall::pos`); fused attention prologue, see below |
+//! | `RmsNormAddMatmulFp8Pair` | x `[M,K]`, res `[M,K]`, norm w `[K]`, (w0 `[N0,K]`, scales0 `[2]`), (w1 `[N1,K]`, scales1 `[2]`) fp8 | normed `[M,K]`, sum `[M,K]`, `[M,N0]`, `[M,N1]` (= `RmsNormAdd(x, res, w)`, then `MatmulFp8Pair` of the normed rows) | eps, w_offset; the attention input norm folded into the k / v projections (P5) |
+//! | `SigmoidMulMatmulFp8` | a `[M,K]`, gate `[M,K]`, w `[N,K]` fp8, scales `[2]` | `[M,N]` (= `MatmulFp8(SigmoidMul(a, gate), w)`) | the attention output gate folded into the o_proj input (P4b) |
+//! | `SharedDownCombine` | x `[M,K]`, w `[N,K/2]` u8, block scales `[N,K/16]` fp8, global `[1]` f32 (nvfp4), routed `[M,N]`, shared-gate logit `[M,1]` | `[M,N]` (= `MoeCombine(routed, MatmulNvfp4(x, w), logit)`) | the MoE shared-expert down projection with the combine as its epilogue (P2a) |
 //!
-//! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The five
-//! fused ops above are optional: a backend registers kernels for them only when it has a fast path, and the model
+//! The quantised-weight ops are specified in `quant/` (the reference is `intarsia-backend-cpu`'s `ref_*`). The fused ops
+//! above are optional: a backend registers kernels for them only when it has a fast path, and the model
 //! falls back to the unfused ops it replaces when `Registry::select` finds none.
 //!
 //! Attention is causal GQA: query `t` sits at absolute position `pos0 + t` and
@@ -87,10 +90,15 @@ pub enum Op {
     QkNormRopeKv,
     RmsNormAddMatmulPair,
     GatedRmsnormMatmulFp8,
+    // appended (2026-10-19, core-op fusion phase 1): new ops go at the end, because admission sweeps seed their case data
+    // from the op's discriminant (`quant::cases::sweep`), so inserting one would change every later op's cases
+    RmsNormAddMatmulFp8Pair,
+    SigmoidMulMatmulFp8,
+    SharedDownCombine,
 }
 
 impl Op {
-    pub const ALL: [Op; 30] = [
+    pub const ALL: [Op; 33] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -121,6 +129,9 @@ impl Op {
         Op::QkNormRopeKv,
         Op::RmsNormAddMatmulPair,
         Op::GatedRmsnormMatmulFp8,
+        Op::RmsNormAddMatmulFp8Pair,
+        Op::SigmoidMulMatmulFp8,
+        Op::SharedDownCombine,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -156,6 +167,9 @@ impl Op {
             Op::QkNormRopeKv => "qk_norm_rope_kv",
             Op::RmsNormAddMatmulPair => "rmsnorm_add_matmul_pair",
             Op::GatedRmsnormMatmulFp8 => "gated_rmsnorm_matmul_fp8",
+            Op::RmsNormAddMatmulFp8Pair => "rmsnorm_add_matmul_fp8_pair",
+            Op::SigmoidMulMatmulFp8 => "sigmoid_mul_matmul_fp8",
+            Op::SharedDownCombine => "shared_down_combine",
         }
     }
 
@@ -194,6 +208,9 @@ impl Op {
             Op::QkNormRopeKv => (5, 3),
             Op::RmsNormAddMatmulPair => (5, 4),
             Op::GatedRmsnormMatmulFp8 => (5, 1),
+            Op::RmsNormAddMatmulFp8Pair => (7, 4),
+            Op::SigmoidMulMatmulFp8 => (4, 1),
+            Op::SharedDownCombine => (6, 1),
         }
     }
 }
@@ -273,6 +290,32 @@ pub struct OpCall {
 impl OpCall {
     pub fn new(op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> OpCall {
         OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false }
+    }
+
+    /// The same call on `rows` rows, for the row-local fused decode ops whose activation tensors all lead with the row
+    /// count (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`); `None` for any other op. Only the
+    /// shapes change (the views keep their buffers), so the result is a `Registry::select` probe, never a launch: the
+    /// model asks whether a batched step of `rows` rows would select a kernel for the op too, and does not fuse the solo
+    /// step when it would not (the batch must run the solo step's op multiset, `plan::check_batch_ops`).
+    pub fn with_rows(&self, rows: usize) -> Option<OpCall> {
+        let (ins, outs): (&[usize], &[usize]) = match self.op {
+            Op::RmsNormAddMatmulFp8Pair => (&[0, 1], &[0, 1, 2, 3]),
+            Op::SigmoidMulMatmulFp8 => (&[0, 1], &[0]),
+            Op::SharedDownCombine => (&[0, 4, 5], &[0]),
+            _ => return None,
+        };
+        let mut c = self.clone();
+        for &i in ins {
+            if let Some(t) = c.inputs.get_mut(i).filter(|t| !t.shape.is_empty()) {
+                t.shape[0] = rows;
+            }
+        }
+        for &o in outs {
+            if let Some(t) = c.outputs.get_mut(o).filter(|t| !t.shape.is_empty()) {
+                t.shape[0] = rows;
+            }
+        }
+        Some(c)
     }
 
     /// Validate arity, ranks, shapes, dtypes and bounds. Backends and the
@@ -461,7 +504,10 @@ impl OpCall {
             | Op::MatmulNvfp4Glu
             | Op::GatedRmsnorm
             | Op::RmsNormAddMatmulPair
-            | Op::GatedRmsnormMatmulFp8 => crate::quant::ops::check(self)?,
+            | Op::GatedRmsnormMatmulFp8
+            | Op::RmsNormAddMatmulFp8Pair
+            | Op::SigmoidMulMatmulFp8
+            | Op::SharedDownCombine => crate::quant::ops::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::check(self)?,
         }
         Ok(())
@@ -555,7 +601,10 @@ impl ShapeInfo {
             | Op::MatmulNvfp4Glu
             | Op::GatedRmsnorm
             | Op::RmsNormAddMatmulPair
-            | Op::GatedRmsnormMatmulFp8 => crate::quant::ops::shape(call, &mut s),
+            | Op::GatedRmsnormMatmulFp8
+            | Op::RmsNormAddMatmulFp8Pair
+            | Op::SigmoidMulMatmulFp8
+            | Op::SharedDownCombine => crate::quant::ops::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn::shape(call, &mut s),
         }
         let _ = o;
@@ -618,6 +667,58 @@ mod tests {
             OpAttrs::default(),
         );
         assert_eq!(ShapeInfo::from_call(&f32_out).out, Some(DType::F32));
+    }
+
+    /// The phase-1 folds: shapes and dtypes are checked like the ops they replace, the shape facts follow the first GEMV,
+    /// and `with_rows` re-shapes exactly the row-leading tensors (weights, scales and the norm weight keep theirs).
+    #[test]
+    fn check_phase1_folds() {
+        let b = |s: &[usize]| t(DType::Bf16, s);
+        let f8 = |s: &[usize]| t(DType::Fp8E4m3, s);
+        let sc = || t(DType::F32, &[2]);
+        let norm_kv = OpCall::new(
+            Op::RmsNormAddMatmulFp8Pair,
+            vec![b(&[1, 64]), b(&[1, 64]), b(&[64]), f8(&[16, 64]), sc(), f8(&[8, 64]), sc()],
+            vec![b(&[1, 64]), b(&[1, 64]), b(&[1, 16]), b(&[1, 8])],
+            OpAttrs::default(),
+        );
+        norm_kv.check().unwrap();
+        let s = ShapeInfo::from_call(&norm_kv);
+        assert_eq!((s.m, s.n, s.k, s.weight), (1, 16, 64, Some(DType::Fp8E4m3)));
+        let r3 = norm_kv.with_rows(3).unwrap();
+        let shapes: Vec<_> = r3.inputs.iter().chain(&r3.outputs).map(|t| t.shape.clone()).collect();
+        assert_eq!(
+            shapes,
+            [vec![3, 64], vec![3, 64], vec![64], vec![16, 64], vec![2], vec![8, 64], vec![2], vec![3, 64], vec![3, 64], vec![3, 16], vec![3, 8]]
+        );
+        let mut bad = norm_kv.clone();
+        bad.inputs[5] = b(&[8, 64]); // a bf16 weight
+        assert!(bad.check().is_err());
+
+        let gate_o = OpCall::new(Op::SigmoidMulMatmulFp8, vec![b(&[1, 64]), b(&[1, 64]), f8(&[32, 64]), sc()], vec![b(&[1, 32])], OpAttrs::default());
+        gate_o.check().unwrap();
+        assert_eq!(ShapeInfo::from_call(&gate_o).n, 32);
+        let mut bad = gate_o.clone();
+        bad.inputs[1] = b(&[1, 32]); // gate not the shape of a
+        assert!(bad.check().is_err());
+        assert_eq!(gate_o.with_rows(2).unwrap().outputs[0].shape, [2, 32]);
+
+        let down = OpCall::new(
+            Op::SharedDownCombine,
+            vec![b(&[2, 32]), t(DType::U8, &[64, 16]), t(DType::Fp8E4m3, &[64, 2]), t(DType::F32, &[1]), b(&[2, 64]), b(&[2, 1])],
+            vec![b(&[2, 64])],
+            OpAttrs::default(),
+        );
+        down.check().unwrap();
+        let s = ShapeInfo::from_call(&down);
+        assert_eq!((s.m, s.n, s.k, s.weight), (2, 64, 32, Some(DType::U8)));
+        let r1 = down.with_rows(1).unwrap();
+        assert_eq!((r1.inputs[0].shape.clone(), r1.inputs[1].shape.clone(), r1.inputs[5].shape.clone()), (vec![1, 32], vec![64, 16], vec![1, 1]));
+        let mut bad = down.clone();
+        bad.inputs[5] = b(&[2, 2]); // the logit is one value per row
+        assert!(bad.check().is_err());
+        // ops outside the phase-1 folds are never re-shaped
+        assert!(OpCall::new(Op::Matmul, vec![b(&[1, 8]), b(&[4, 8])], vec![b(&[1, 4])], OpAttrs::default()).with_rows(2).is_none());
     }
 
     #[test]

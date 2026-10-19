@@ -53,6 +53,23 @@ int ik_moe_experts_bf16_v3(const ik_tensor* x, const ik_tensor* ids, const ik_te
                            const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
                            const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
+/* Core-op fusion phase 1 (docs/results/2026-10-19-core-op-fusion-p1.md): three row-local folds, no cross-block wait, each
+ * bitwise the two launches it replaces. M == 1 (decode) for the fp8 ones, 1 <= M <= 8 for the nvfp4 one; bf16 activations.
+ *   rmsnorm_add_matmul_fp8_pair_gemv (P5, fp8.hip): ik_rmsnorm_add_bf16 then ik_matmul_fp8_pair_gemv on the normed row
+ *     (the attention block's input norm and its k / v projections); also stores normed and sum.
+ *   sigmoid_mul_matmul_fp8_gemv (P4b, fp8.hip): ik_sigmoid_mul_bf16 then ik_matmul_fp8_gemv_v2 (the attention output gate
+ *     and o_proj).
+ *   shared_down_combine_nvfp4_gemv (P2a, moe_shared.hip): ik_matmul_nvfp4_gemv_v2 then ik_moe_combine_bf16 (the MoE
+ *     shared-expert down projection and the combine). */
+int ik_rmsnorm_add_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
+                                        const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                        const ik_tensor* scales1, ik_tensor* normed, ik_tensor* sum, ik_tensor* out0,
+                                        ik_tensor* out1, void* stream);
+int ik_sigmoid_mul_matmul_fp8_gemv(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w, const ik_tensor* scales,
+                                   ik_tensor* out, void* stream);
+int ik_shared_down_combine_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik_tensor* gs,
+                                      const ik_tensor* routed, const ik_tensor* logit, ik_tensor* out, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

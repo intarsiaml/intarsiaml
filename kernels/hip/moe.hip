@@ -836,9 +836,12 @@ moe_experts_p1_v3_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
     const int bid = ticket;  // the role
     if (bid < NG) {
         // test seam (INTARSIA_HIP_MOE_V3_SKEW, default 0): the last gate_up role starts late, so a down role that does not wait
-        // for every gate_up role reads h before it is written (tests/moe_v3.rs v3_waits_for_every_gate_up_role)
-        if (skew > 0 && bid == NG - 1)
-            for (int i = 0; i < skew; ++i) __builtin_amdgcn_s_sleep(127);
+        // for every gate_up role reads h before it is written (tests/moe_v3.rs v3_waits_for_every_gate_up_role). Bit 16
+        // (INTARSIA_HIP_MOE_V3_SKEW_ALL=1): every gate_up role starts late, by 1 to 4 times the skew (tests/moe_v3.rs
+        // v3_sentinel_stress: the h stores land while the down roles already hold the sentinel lines).
+        const int sk = skew & 0xffff;
+        const int nsleep = ((skew >> 16) & 1) ? sk * (1 + bid % 4) : (bid == NG - 1 ? sk : 0);
+        for (int i = 0; i < nsleep; ++i) __builtin_amdgcn_s_sleep(127);
         // ---- gate_up: moe_gate_up_p1_v2_kernel<false, PRE> with blockIdx = (role / GY, role % GY) ----
         const int GY = (I + kRowWarps - 1) / kRowWarps;
         const int p = bid / GY;
@@ -943,6 +946,21 @@ moe_experts_p1_v3_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
         sb[k] = in ? sd[k][lane] : 0u;
     }
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+    // test seam (bit 17, INTARSIA_HIP_MOE_V3_PREREAD=1; default off): every wave reads the h lines it will use before the
+    // wait, so they sit in this block's caches when the gate_up roles store h. Only the acquire below makes the later reads
+    // see the stores (tests/moe_v3.rs v3_sentinel_stress, the test that the v3-nofence mutant must fail).
+    if (((skew >> 17) & 1) && rv) {
+        uint32_t t = 0;
+        for (int k = 0; k < kP1MaxK; ++k) {
+            if (!wd[k]) continue;
+            for (int u = lane; u < nu; u += IK_WARP) {
+                const uint4* hp = reinterpret_cast<const uint4*>(hrow + (int64_t)k * I + u * 16);
+                const uint4 a = hp[0], b = hp[1];
+                t ^= a.x ^ a.y ^ a.z ^ a.w ^ b.x ^ b.y ^ b.z ^ b.w;
+            }
+        }
+        __asm__ volatile("" ::"v"(t));
+    }
     if (threadIdx.x == 0) {
         while (__hip_atomic_load(sync, __ATOMIC_ACQUIRE, __HIP_MEMORY_SCOPE_AGENT) < (unsigned)NG) __builtin_amdgcn_s_sleep(1);
     }
@@ -1150,8 +1168,11 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
             const bool xs = xstage_enabled() && xb <= 32768 && hb <= 32768;
             if (v3 && !xs) {  // one launch (moe_experts_p1_v3_kernel), bit-identical to the two below
                 const int slot = moe_sync_slot(s);
-                const char* sk = getenv("INTARSIA_HIP_MOE_V3_SKEW");  // test seam, read at every launch; unset = 0
-                const int skew = sk ? atoi(sk) : 0;
+                // test seams, read at every launch (unset = off): SKEW (bits 0..15), SKEW_ALL (bit 16), PREREAD (bit 17)
+                const char* sk = getenv("INTARSIA_HIP_MOE_V3_SKEW");
+                int skew = sk ? (atoi(sk) & 0xffff) : 0;
+                if (const char* a = getenv("INTARSIA_HIP_MOE_V3_SKEW_ALL"); a && a[0] == '1') skew |= 1 << 16;
+                if (const char* q = getenv("INTARSIA_HIP_MOE_V3_PREREAD"); q && q[0] == '1') skew |= 1 << 17;
                 const int64_t NG = P * ((I + kRowWarps - 1) / kRowWarps), ND = T * ((H + kRowWarps - 1) / kRowWarps);
                 if (slot >= 0 && NG + ND <= 0x7fffffffLL) {
 #define IK_EX_V3(PRE)                                                                                                 \

@@ -197,6 +197,55 @@ fn moe_block_matches_hf() {
     }
 }
 
+/// A runner that also runs the fused ops (the cpu backend registers every one) and records the ops it ran.
+struct FusingRunner<'a> {
+    b: &'a CpuBackend,
+    prefix: &'a str,
+    ops: std::cell::RefCell<Vec<Op>>,
+}
+
+impl OpRunner for FusingRunner<'_> {
+    fn run(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<()> {
+        self.ops.borrow_mut().push(op);
+        Runner { b: self.b, prefix: self.prefix }.run(op, inputs, outputs, attrs)
+    }
+    fn run_fused(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<bool> {
+        self.run(op, inputs, outputs, attrs)?;
+        Ok(true)
+    }
+}
+
+/// The MoE block's fused path (router + shared-gate pair, shared gate/up glu, and the phase-1 `SharedDownCombine`: the shared
+/// down projection with the combine as its epilogue) gives the bits of the unfused ops, on both cpu executors, and runs
+/// `SharedDownCombine` in place of the shared-down matmul and the combine.
+#[test]
+fn moe_block_fused_path_is_bitwise_the_unfused_one() {
+    let s = load_st("qwen36_quant_slices.safetensors");
+    let e = load_st("qwen36_quant_expected.safetensors");
+    let b = CpuBackend::new();
+    let cfg = MoeConfig { hidden: 256, experts: 8, top_k: 2, inter: 64, shared_inter: 64, norm_topk: true };
+    let moe = MoeWeights::load(&b, &moe_weights(&s), "model.language_model.layers.1.mlp", &cfg, &QuantLoadOpts::default()).unwrap();
+    for dt in [DType::F32, DType::Bf16] {
+        for t in [1usize, 5] {
+            let x = HostTensor::from_f32_as(dt, &[t, 256], &e["moe.x"].to_f32()[..t * 256]);
+            let xt = to_dev(&b, &x);
+            for prefix in ["ref_", "cpu_f32_"] {
+                // a fresh workspace for each run, so the fused run cannot pass on what the unfused one left behind
+                let (ws1, ws2) = (MoeScratch::new(&b, &cfg, 8, dt).unwrap(), MoeScratch::new(&b, &cfg, 8, dt).unwrap());
+                let (o1, o2) = (to_dev(&b, &HostTensor::zeros(dt, &[t, 256])), to_dev(&b, &HostTensor::zeros(dt, &[t, 256])));
+                moe.forward(&Runner { b: &b, prefix }, &ws1, &xt, &o1).unwrap();
+                let fr = FusingRunner { b: &b, prefix, ops: Default::default() };
+                moe.forward(&fr, &ws2, &xt, &o2).unwrap();
+                assert_eq!(dl(&b, &o1).data, dl(&b, &o2).data, "{prefix} {dt} t={t}: fused MoE block differs from unfused");
+                let ops = fr.ops.borrow();
+                let n = |op: Op| ops.iter().filter(|&&o| o == op).count();
+                assert_eq!(n(Op::SharedDownCombine), 1, "{prefix}: {ops:?}");
+                assert_eq!((n(Op::MoeCombine), n(Op::MatmulNvfp4)), (0, 0), "{prefix}: {ops:?}");
+            }
+        }
+    }
+}
+
 #[test]
 fn kernels_pass_admission_sweep_and_are_registered() {
     use intarsia_core::admission::{run_admission, AdmissionOpts, SweepConfig};
@@ -223,7 +272,16 @@ fn plan_time_cases_are_built_for_every_new_op() {
     let b = CpuBackend::new();
     let caps = ShapeCaps { rows: 4, n: 512, pos0: 8, emb_vocab: 512 };
     let mut rng = intarsia_core::rng::SplitMix64::new(3);
-    for op in [Op::MatmulFp8, Op::MatmulNvfp4, Op::MoeTopk, Op::MoeExperts, Op::MoeCombine] {
+    for op in [
+        Op::MatmulFp8,
+        Op::MatmulNvfp4,
+        Op::MoeTopk,
+        Op::MoeExperts,
+        Op::MoeCombine,
+        Op::RmsNormAddMatmulFp8Pair,
+        Op::SigmoidMulMatmulFp8,
+        Op::SharedDownCombine,
+    ] {
         let case = sweep(op, &SweepConfig { quick: true, ..Default::default() }).remove(0);
         // a planned call: device tensors with the case's shapes and dtypes
         let inputs: Vec<TensorRef> = case.call.inputs.iter().map(|t| to_dev(&b, t)).collect();

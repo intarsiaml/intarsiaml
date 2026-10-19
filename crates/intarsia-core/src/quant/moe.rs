@@ -313,6 +313,21 @@ impl MoeWeights {
             }
             run.run(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default())?;
         }
+        // the shared-expert down projection with the combine as its epilogue (`SharedDownCombine`, row-local: no wait) when the
+        // backend has it. Only tried when the gate logit is already computed (folded into the router pair above), so the unfused
+        // fallback below keeps today's op order exactly; `so` is then not written (nothing else reads it).
+        if gate_logit_done && sh.down.format == NVFP4 {
+            let pd = &sh.down.parts;
+            let folded = run.run_fused(
+                Op::SharedDownCombine,
+                vec![a.clone(), pd[0].clone(), pd[1].clone(), pd[2].clone(), routed.clone(), sl.clone()],
+                vec![out.clone()],
+                OpAttrs::default(),
+            )?;
+            if folded {
+                return Ok(());
+            }
+        }
         let call = sh.down.call(a, so.clone());
         run.run(call.op, call.inputs, call.outputs, call.attrs)?;
         if !gate_logit_done {

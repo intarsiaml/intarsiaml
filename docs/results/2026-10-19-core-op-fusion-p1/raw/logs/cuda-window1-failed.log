@@ -1,0 +1,21 @@
+03:16:17 fleetq status:
+fleetq · 03:16:17 · last health check 15s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 12, free 40 · box reports 45.9 free, GPU 96% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+  RUNNING #2643 "intarsiaml cuda-prefill-4: compute-sanitizer racecheck of gdn_split, unmutated + no-loop-sync mutant (vLLM up)" (claude-f31ccf91) running on spark1 12 GB for 3m
+fleetq: #2647 waiting (#1 in line): needs spark1 to itself; running there: #2643 "intarsiaml cuda-prefill-4: compute-sanitizer racecheck of gdn_split, unmutated + no-loop-sync mutant (vLLM up)" (claude-f31ccf91)
+fleetq:   #2643 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2643 set, or it will wait for #2643 to be released.
+fleetq: #2647 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+03:29:05 lease 2647 held
+03:29:08 memory freed: 111 GB available
+03:29:08 running bash ~/intarsia-decfuse/fusion-dev/scripts/cuda-decode/fusion-noop.sh (cap 14 min)
+/usr/bin/bash: /usr/bin/bash: cannot execute binary file
+03:29:08 script exit 126
+03:29:08 exiting with status 126, restoring the box
+03:29:08 killing leftover processes of ours under ~/intarsia-decfuse
+03:29:12 starting missioncntrl-guidance and waiting for /v1/models
+03:32:08 vLLM is serving again
+03:32:08 releasing fleetq job 2647
+03:32:09 done (status 126)
+exit 126

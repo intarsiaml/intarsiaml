@@ -471,9 +471,11 @@ mod tests {
         assert_eq!(names.len(), table.len());
         // Sample is not implemented on the device (the engine samples on the host from f32 logits); the six fused decode
         // ops are registered (quantmoe.rs) and the model still falls back to the unfused ops for an exact call without one.
-        // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers.
+        // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers. The phase-1 folds
+        // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
+        const NOT_ON_CUDA: [Op; 5] = [Op::Sample, Op::QkNormRopeKv, Op::RmsNormAddMatmulFp8Pair, Op::SigmoidMulMatmulFp8, Op::SharedDownCombine];
         for op in Op::ALL {
-            if op != Op::Sample && op != Op::QkNormRopeKv {
+            if !NOT_ON_CUDA.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }
         }
@@ -497,5 +499,125 @@ mod tests {
         for (name, op) in full_table() {
             assert!(name.starts_with(op.as_str()), "{name} is not named after op {op}");
         }
+    }
+
+    const PHASE1_PINS: &[&str] = &[
+        "35b attn input norm: rmsnorm_add_bf16",
+        "35b k/v pair: matmul_fp8_pair_gemv",
+        "35b k proj: matmul_fp8_gemv",
+        "35b output gate: sigmoid_mul_bf16",
+        "35b o_proj: matmul_fp8_gemv",
+        "35b shared down: matmul_nvfp4_gemv",
+        "35b combine: moe_combine_bf16",
+        "35b fold P5: -",
+        "35b fold P4b: -",
+        "35b fold P2a: -",
+        "8b attn input norm: rmsnorm_add_bf16",
+        "8b k/v pair: matmul_pair_bf16_gemv",
+    ];
+
+    /// Core-op fusion phase 1 (docs/results/2026-10-19-core-op-fusion-p1.md): this backend registers none of the three new
+    /// ops, so `Model::try_fused` returns false for each and the model runs the unfused chain it ran before (the selection of
+    /// those ops at the Qwen3.6-35B-A3B and Qwen3-8B decode shapes is pinned below: the names origin/main's table resolves).
+    #[test]
+    fn phase1_folds_are_absent_and_the_unfused_selection_is_pinned() {
+        use intarsia_core::ShapeInfo;
+        let ks = all();
+        for op in [Op::RmsNormAddMatmulFp8Pair, Op::SigmoidMulMatmulFp8, Op::SharedDownCombine] {
+            assert!(!ks.iter().any(|k| k.op == op), "{op} is registered: the model would take the fused path here");
+        }
+        let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
+            let mut best: Option<&KernelImpl> = None;
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+                if best.is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.clone())
+        };
+        let (bf, f8, u8_) = (Some(DType::Bf16), Some(DType::Fp8E4m3), Some(DType::U8));
+        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
+        // (what, op, shape): the ops each fold replaces, at the 35B decode shapes (hidden 2048, k / v 2 x 256, o_proj 2048 x
+        // 4096, shared down 2048 x 512), and the 8B's input norm (hidden 4096, bf16 weights: no fold applies to the 8B)
+        let cases: Vec<(&str, Op, ShapeInfo)> = vec![
+            ("35b attn input norm", Op::RmsNormAdd, sh(1, 0, 2048, None)),
+            ("35b k/v pair", Op::MatmulFp8Pair, sh(1, 512, 2048, f8)),
+            ("35b k proj", Op::MatmulFp8, sh(1, 512, 2048, f8)),
+            ("35b output gate", Op::SigmoidMul, sh(1, 0, 4096, None)),
+            ("35b o_proj", Op::MatmulFp8, sh(1, 2048, 4096, f8)),
+            ("35b shared down", Op::MatmulNvfp4, sh(1, 2048, 512, u8_)),
+            ("35b combine", Op::MoeCombine, sh(1, 0, 2048, None)),
+            ("35b fold P5", Op::RmsNormAddMatmulFp8Pair, sh(1, 512, 2048, f8)),
+            ("35b fold P4b", Op::SigmoidMulMatmulFp8, sh(1, 2048, 4096, f8)),
+            ("35b fold P2a", Op::SharedDownCombine, sh(1, 2048, 512, u8_)),
+            ("8b attn input norm", Op::RmsNormAdd, sh(1, 0, 4096, None)),
+            ("8b k/v pair", Op::MatmulPair, sh(1, 1024, 4096, bf)),
+        ];
+        let got: Vec<String> = cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
+        eprintln!("PINS\n{}", got.join("\n"));
+        assert_eq!(got, PHASE1_PINS, "the selection of the unfused ops moved");
+    }
+
+    #[rustfmt::skip]
+    const MAIN_KERNEL_LIST: &[&str] = &[
+        "add_bf16:add",
+        "argmax_bf16:argmax",
+        "argmax_f32:argmax",
+        "attn_decode_bf16:attn_decode",
+        "attn_decode_bf16_splitkv:attn_decode",
+        "attn_prefill_bf16:attn_prefill",
+        "attn_prefill_bf16_flash:attn_prefill",
+        "attn_prefill_bf16_splitkv:attn_prefill",
+        "embedding_bf16:embedding",
+        "gate_split_bf16:gate_split",
+        "gated_rmsnorm_bf16:gated_rmsnorm",
+        "gated_rmsnorm_matmul_fp8_gemv:gated_rmsnorm_matmul_fp8",
+        "gdn_conv_bf16:gdn_conv",
+        "gdn_delta_rule_bf16:gdn_delta_rule",
+        "gdn_delta_rule_bf16_lanes:gdn_delta_rule",
+        "gdn_delta_rule_bf16_split:gdn_delta_rule",
+        "kv_append_bf16:kv_append",
+        "logits_bf16:logits",
+        "logits_bf16_gemv:logits",
+        "matmul_bf16:matmul",
+        "matmul_bf16_gemv:matmul",
+        "matmul_fp8_gemm:matmul_fp8",
+        "matmul_fp8_gemm_f8:matmul_fp8",
+        "matmul_fp8_gemm_reg:matmul_fp8",
+        "matmul_fp8_gemv:matmul_fp8",
+        "matmul_fp8_mma:matmul_fp8",
+        "matmul_fp8_pair_gemv:matmul_fp8_pair",
+        "matmul_nvfp4_gemm:matmul_nvfp4",
+        "matmul_nvfp4_gemv:matmul_nvfp4",
+        "matmul_nvfp4_glu_gemv:matmul_nvfp4_glu",
+        "matmul_nvfp4_mma:matmul_nvfp4",
+        "matmul_pair_bf16_gemv:matmul_pair",
+        "moe_combine_bf16:moe_combine",
+        "moe_experts_bf16:moe_experts",
+        "moe_experts_decode_bf16:moe_experts",
+        "moe_experts_decode_v2_bf16:moe_experts",
+        "moe_experts_mma_bf16:moe_experts",
+        "moe_experts_nvfp4_mma_bf16:moe_experts",
+        "moe_experts_w4a16_bf16:moe_experts",
+        "moe_topk_bf16:moe_topk",
+        "qk_norm_bf16:qk_norm",
+        "rmsnorm_add_bf16:rmsnorm_add",
+        "rmsnorm_add_matmul_pair_bf16_gemv:rmsnorm_add_matmul_pair",
+        "rmsnorm_bf16:rmsnorm",
+        "rope_bf16:rope",
+        "sigmoid_mul_bf16:sigmoid_mul",
+        "silu_glu_bf16:silu_glu",
+    ];
+
+    /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
+    /// origin/main's (`4962d8fa`), so the plan has the same candidates as before.
+    #[test]
+    fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
+        let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
+        got.sort();
+        if MAIN_KERNEL_LIST.is_empty() {
+            panic!("LIST {}", got.join(" "));
+        }
+        assert_eq!(got, MAIN_KERNEL_LIST);
     }
 }

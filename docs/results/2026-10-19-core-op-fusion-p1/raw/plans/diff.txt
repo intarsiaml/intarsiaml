@@ -1,0 +1,13 @@
+== 35b: launches per decode step base 475 -> fusion 415 (-60); scratch 167905792 -> 167905792
+   matmul_fp8                   matmul_fp8_gemv_v2                       base   20  fusion   10
+   matmul_fp8_pair              matmul_fp8_pair_gemv                     base   40  fusion   30
+   matmul_nvfp4                 matmul_nvfp4_gemv_v2                     base   41  fusion    1
+   moe_combine                  moe_combine_bf16                         base   40  fusion    0
+   rmsnorm_add                  rmsnorm_add_bf16                         base   11  fusion    1
+   rmsnorm_add_matmul_fp8_pair  rmsnorm_add_matmul_fp8_pair_gemv         base    -  fusion   10
+   shared_down_combine          shared_down_combine_nvfp4_gemv           base    -  fusion   40
+   sigmoid_mul                  sigmoid_mul_bf16                         base   10  fusion    0
+   sigmoid_mul_matmul_fp8       sigmoid_mul_matmul_fp8_gemv              base    -  fusion   10
+   22 (op, kernel) rows identical, 3 present on one side only
+== 8b: launches per decode step base 364 -> fusion 364 (+0); scratch 748800 -> 748800
+   14 (op, kernel) rows identical, 0 present on one side only
