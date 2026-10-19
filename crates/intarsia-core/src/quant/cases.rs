@@ -281,6 +281,16 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     }
                 }
             }
+            if !quick {
+                // a prefill-shaped batch (M and N tails, 75 tiles of 128 x 128): the CUDA matmul_fp8_gemm_reg kernel
+                // accepts M >= 256 only. Appended after the cases above, so their random data is unchanged.
+                for (xdt, odt, aq) in [(DType::Bf16, DType::Bf16, true), (DType::Bf16, DType::Bf16, false), (DType::Bf16, DType::F32, true)] {
+                    push(
+                        format!("M=300 N=3080 K=256 x={xdt} out={odt} act_quant={aq}"),
+                        matmul_fp8_case(&mut rng, 300, 3080, 256, aq, xdt, odt),
+                    );
+                }
+            }
         }
         Op::MatmulNvfp4 => {
             let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 8, 9, 40] };
