@@ -264,6 +264,89 @@ stage_acc8() {
   acc $M8 qwen3-8b-long-fp32.safetensors
 }
 
+# Round 3 (perf/hip-round3, docs/results/2026-10-19-hip-round3.md).
+# prof4k:<tag>: rocprofv3 kernel trace of a 160-token 35B decode after the ~4.4k-token prompt (decode at 4k context), per-step table
+stage_prof4k() {
+  local tag=${1:-base}
+  printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 160" > "$OUTD/dec4k.sh"
+  echo "--- unprofiled"
+  $D bash -c "bash /work/bench-out/dec4k.sh" 2>&1 | grep -aE "prompt:|finish=|steps="
+  rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
+  local tv; tv=$(TARGET_VOL)
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
+    $D bash -c "rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- bash /work/bench-out/dec4k.sh" 2>&1 | grep -aE "finish=|rror"
+  local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
+  [ -n "$csv" ] && python3 "$INTARSIA_REPO/scripts/hip-decode/analyze.py" "$csv" > "$OUTD/prof/$tag/table.txt" && cat "$OUTD/prof/$tag/table.txt"
+}
+# ids4k: greedy ids of 256 tokens after the ~4.4k-token prompt (two prefill chunks), this tree and the base tree; must be identical
+gen35l() { # gen35l <outfile prefix>
+  printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos --show-ids -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 256" > "$OUTD/ids4k.sh"
+  $D bash -c "bash /work/bench-out/ids4k.sh" > "$1.out" 2> "$1.err"
+  grep -a '^ids:' "$1.err" > "$1.ids"
+  grep -aE "prompt:|finish=" "$1.err"
+}
+stage_ids4k() {
+  echo "--- this tree"; gen35l "$OUTD/ids4k-new"
+  echo "--- base tree"
+  ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
+    cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && gen35l "$OUTD/ids4k-base" && cp "$OUTD/ids4k-base.ids" "${OUTD_NEW:-$HOME/intarsiaml-r3/bench-out}/ids4k-base.ids" )
+  echo "ids: $(tr -cd ',' < "$OUTD/ids4k-new.ids" | wc -c) / $(tr -cd ',' < "$OUTD/ids4k-base.ids" | wc -c) commas"
+  if [ -s "$OUTD/ids4k-new.ids" ] && cmp -s "$OUTD/ids4k-new.ids" "$OUTD/ids4k-base.ids"; then
+    echo "IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree"
+  else
+    echo "IDS4K DIFFER"; cmp "$OUTD/ids4k-new.ids" "$OUTD/ids4k-base.ids" | head -3
+  fi
+}
+# pfb: bench_prefill_shapes once (default env): fp8 mma / mma_v2 / mma_f8, W8A8 and weight-only; MoE experts at 32 and 64 pairs
+stage_pfb() {
+  $D cargo test --release -p intarsia-backend-hip --test quantmoe -- --ignored --nocapture bench_prefill_shapes 2>&1 \
+    | grep -E "^env|^fp8|^moe|panicked|FAILED" | cut -c1-260
+}
+# r3test: the new kernels' bitwise tests, the MoE accuracy tests (both tile sizes), the f8 tests (they compare against matmul_fp8_mma)
+stage_r3test() {
+  $D cargo test --release -p intarsia-backend-hip --test fp8_mma_v2 --test moe_pairs --test quantmoe --test fp8_f8 -- --nocapture --test-threads=1 2>&1 \
+    | grep -E "^test |test result|FAILED|panicked|differ|v2 |worst" | cut -c1-300 | tail -40
+}
+stage_admission() {
+  $D cargo test --release -p intarsia-backend-hip --test admission -- --nocapture --test-threads=1 2>&1 \
+    | grep -E "^test |test result|FAILED|panicked|REJECT|FAIL|fp8_mma|moe_experts|repeat checks" | cut -c1-220 | tail -30
+}
+# Mutations of round 3, built in a CPU slot (mutbuild, no GPU) and run in a GPU window (mutrun): the kernel library is static, so
+# each mutant's test binary, copied to /target/r3mut/<name>, is self-contained and the window only runs them.
+R3MUT="v2-wsel v2-perm v2-whi v2-xstride v2-quant-half v2-noquant v2-nodecode pairs-sred pairs-xrow pairs-out moe-z-step f8-actq"
+stage_mutbuild() {
+  local MUT="${INTARSIA_MUT_DIR:-$HOME/intarsiaml-r3-mut}" m t exe
+  for m in ${MUTATIONS:-$R3MUT}; do
+    rm -rf "$MUT"; mkdir -p "$MUT"
+    rsync -a --exclude target --exclude bench-out --exclude prof-out "$INTARSIA_REPO/" "$MUT/"
+    python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" "$MUT" "$m" || continue
+    t=$(python3 "$INTARSIA_REPO/scripts/hip-decode/mutate.py" x --test-of "$m")
+    exe=$(INTARSIA_REPO="$MUT" $D cargo test --release -p intarsia-backend-hip --test "$t" --no-run --message-format=json 2>/dev/null \
+      | python3 -c 'import json,sys
+for l in sys.stdin:
+    try: d = json.loads(l)
+    except Exception: continue
+    if d.get("reason") == "compiler-artifact" and d.get("executable") and d["target"]["kind"] == ["test"]: print(d["executable"])' | tail -1)
+    if [ -z "$exe" ]; then echo "$m: BUILD FAILED"; continue; fi
+    INTARSIA_REPO="$MUT" $D bash -c "mkdir -p /target/r3mut && cp '$exe' /target/r3mut/$m"
+    echo "$m: test $t built ($exe)"
+  done
+  rm -rf "$MUT"
+  find "$INTARSIA_REPO/kernels" "$INTARSIA_REPO/crates" -type f -exec touch {} +
+  echo "NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume"
+}
+stage_mutrun() {
+  local m
+  for m in ${MUTATIONS:-$R3MUT}; do
+    printf '%-16s ' "$m"
+    $D bash -c "/target/r3mut/$m --test-threads=1" 2>&1 | grep -aE "^test result|panicked at" | head -2 | cut -c1-200 | tr '\n' ' '
+    echo
+  done
+}
+
+# plan35: the resolved plan of the 35B (kernel per op, the workspace size) at the recipe chunk
+stage_plan35() { $D $B plan show --backend hip --model $M35 --mem-budget 29 --max-seq 17408 2>&1 | grep -aE "scratch|fp8|moe_experts|rror" | cut -c1-200; }
+
 stage_qualify() { # qualify <model-dir> <tag>
   local m=$1 tag=$2
   $D $B qualify --model "$m" --backend hip --quick-only --gen 128 --reps 5 --no-unim --out /work/bench-out/qualify-$tag --golden-dir $G --mem-budget 29 2>&1 | tail -40

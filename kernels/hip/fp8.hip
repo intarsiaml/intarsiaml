@@ -376,6 +376,28 @@ struct Fp8PolicyW16 : Fp8Policy {
     IK_DEVI bool skip(const DqArgs& a) { return a.sc[1] > 0.f; }
 };
 
+// matmul_fp8_mma_v2: the GEMM of matmul_fp8_mma with the two conversions of its tile loop made cheap, bitwise the same.
+//  * W8A8 activations arrive quantised (f8_actq_kernel, once per call: the rounding of Fp8Policy::xprep, as e4m3 bytes in
+//    scratch) instead of being divided, rounded and decoded again by every block along N (64 times at N = 8192), which was
+//    most of the ALU work of the tile loop; they are decoded to the same bf16 when the tile is stored. Weight-only
+//    activations (input_scale <= 0: the quantiser exits) are read as bf16, as before.
+//  * the weight chunk is decoded by the gfx12 conversion instruction (ik_e4m3x8_to_bf16) instead of in software.
+// The LDS tiles hold the same bf16 values and the WMMAs run in the same order, so the output bits are matmul_fp8_mma's.
+struct Fp8PolicyQ : Fp8Policy {
+    IK_DEVI uint4 xload(const DqArgs& a, const State& s, int m, int k) {
+        if (s.actq) {
+            const uint2 q = *reinterpret_cast<const uint2*>(a.xq + (int64_t)m * a.K + k);
+            return make_uint4(q.x, q.y, 0u, 0u);
+        }
+        return *reinterpret_cast<const uint4*>(a.x + (int64_t)m * a.K + k);
+    }
+    IK_DEVI void dequant(const State&, const Raw& r, uint4& lo, uint4& hi) {
+        lo = ik_e4m3x8_to_bf16(r.x, r.y);
+        hi = ik_e4m3x8_to_bf16(r.z, r.w);
+    }
+    IK_DEVI uint4 xprep(const State& s, uint4 v) { return s.actq ? ik_e4m3x8_to_bf16(v.x, v.y) : v; }
+};
+
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
 int check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* out) {
@@ -459,6 +481,35 @@ int launch_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, i
         f8_gemm_run<ik_bf16>(xq, wp, sp, (ik_bf16*)out->data, (int)M, N, (int)K, vec_out, s);
         dq_gemm_run<Fp8PolicyW16>(a, (ik_bf16*)out->data, s);
     }
+    return ik_launch_status();
+}
+
+// matmul_fp8_mma_v2 (HIP only: ik_hip_abi.h): Fp8PolicyQ above. Needs scratch: M * K bytes (the quantised activations).
+int launch_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
+              void* stream) {
+    IK_TRY(check(x, w, scales, out));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (M == 0 || N == 0 || K == 0) return launch(x, w, scales, out, stream, 0);
+    if (M > 0x7fffffffLL || N > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (!scratch || !scratch->data || (int64_t)scratch->bytes < M * K) return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+    hipStream_t s = IK_STREAM(stream);
+    uint8_t* xq = (uint8_t*)scratch->data;
+    const float* sp = (const float*)scales->data;
+    const int64_t n8 = M * K / 8;
+    f8_actq_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>((const ik_bf16*)x->data, xq, sp, n8);
+    DqArgs a;
+    a.x = (const ik_bf16*)x->data;
+    a.w = (const uint8_t*)w->data;
+    a.bs = nullptr;
+    a.sc = sp;
+    a.xq = xq;
+    a.M = (int)M;
+    a.N = N;
+    a.K = (int)K;
+    a.vec_out = (N % 8 == 0) && ik_aligned16(out->data);
+    if (out->dtype == IK_DTYPE_F32) dq_gemm_run<Fp8PolicyQ>(a, (float*)out->data, s);
+    else dq_gemm_run<Fp8PolicyQ>(a, (ik_bf16*)out->data, s);
     return ik_launch_status();
 }
 
@@ -613,6 +664,10 @@ int ik_matmul_fp8_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tenso
 }
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, 0);
+}
+int ik_matmul_fp8_mma_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                         const ik_scratch* scratch, void* stream) {
+    return launch_v2(x, w, scales, out, scratch, stream);
 }
 int ik_matmul_fp8_mma_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                          const ik_scratch* scratch, void* stream) {

@@ -7,7 +7,7 @@
  *     activation is exact; the global/tensor scale is applied once, after the f32 accumulation;
  *   - everything accumulates in f32 in a fixed order (deterministic run to run).
  *
- * RDNA4 has no fp4/fp8 conversion instructions, so both formats are decoded in registers with integer/float
+ * RDNA4 has no fp4 conversion instructions (fp8 ones it has: ik_e4m3x8_to_bf16), so both formats are decoded in registers with integer/float
  * bit arithmetic (e4m3) or a 16-entry shared-memory table (e2m1). The e4m3 decode is OCP e4m3fn (not fnuz).
  */
 #ifndef IK_HIP_QUANT_H
@@ -62,6 +62,33 @@ IK_DEVI void ik_fp8x16_to_f32(const uint4& u, float* f) {
         for (int j = 0; j < 4; ++j) f[4 * i + j] = ik_e4m3_to_f((w[i] >> (8 * j)) & 0xffu);
     }
 }
+
+/* 8 e4m3 bytes (two words, element 0 in the low byte of `lo`) -> 8 bf16 (one uint4, element 0 in the low half of .x).
+ * gfx12 does have fp8 -> f32 conversion instructions (v_cvt_pk_f32_fp8, OCP e4m3): every e4m3 value is exact in f32 and in
+ * bf16, so the bf16 is the top half of the converted f32 (one byte permute per pair): ~2 ALU ops per pair instead of ~25 for
+ * ik_e4m3_to_f + ik_pack8. Bitwise that pair for every non-NaN code (tests/fp8_mma_v2.rs runs all 254 of them). The software
+ * decode is the fallback of a compiler without the builtin. */
+#if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8)
+typedef float ik_q_v2f __attribute__((ext_vector_type(2)));
+IK_DEVI uint32_t ik_e4m3x2_to_bf16x2(uint32_t w, bool hi_word) {
+    const ik_q_v2f f = hi_word ? __builtin_amdgcn_cvt_pk_f32_fp8((int)w, true) : __builtin_amdgcn_cvt_pk_f32_fp8((int)w, false);
+    return __builtin_amdgcn_perm(__float_as_uint(f[1]), __float_as_uint(f[0]), 0x07060302u);
+}
+IK_DEVI uint4 ik_e4m3x8_to_bf16(uint32_t lo, uint32_t hi) {
+    return make_uint4(ik_e4m3x2_to_bf16x2(lo, false), ik_e4m3x2_to_bf16x2(lo, true), ik_e4m3x2_to_bf16x2(hi, false),
+                      ik_e4m3x2_to_bf16x2(hi, true));
+}
+#else
+IK_DEVI uint4 ik_e4m3x8_to_bf16(uint32_t lo, uint32_t hi) {
+    float f[8];
+#pragma unroll
+    for (int j = 0; j < 4; ++j) {
+        f[j] = ik_e4m3_to_f((lo >> (8 * j)) & 0xffu);
+        f[4 + j] = ik_e4m3_to_f((hi >> (8 * j)) & 0xffu);
+    }
+    return ik_pack8(f);
+}
+#endif
 
 /* ---- e2m1 (fp4): 0 .5 1 1.5 2 3 4 6, sign in bit 3 ------------------------------------------------------- */
 

@@ -355,22 +355,29 @@ fn bench_prefill_shapes() {
     let mut rng = SplitMix64::new(5);
     println!("env: MOE_Z={:?} MOE_WMMA={:?}", std::env::var("INTARSIA_HIP_MOE_Z").ok(), std::env::var("INTARSIA_HIP_MOE_WMMA").ok());
     for (name, n, k) in [("qkv 8192x2048", 8192usize, 2048usize), ("z 4096x2048", 4096, 2048), ("o_proj 2048x4096", 2048, 4096), ("k 512x2048", 512, 2048)] {
-        for m in [312usize, 4096] {
-            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
+        for (m, aq) in [(312usize, true), (4096, true), (4096, false)] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, m, n, k, aq, DType::Bf16, DType::Bf16);
             let flops = 2.0 * (m * n * k) as f64;
-            let mut line = format!("fp8 {name} M={m}:");
-            for kern in ["matmul_fp8_mma", "matmul_fp8_mma_f8"] {
+            let mut line = format!("fp8 {name} M={m}{}:", if aq { "" } else { " weight-only" });
+            for kern in ["matmul_fp8_mma", "matmul_fp8_mma_v2", "matmul_fp8_mma_f8"] {
                 let t = bench_hot(&*hip, kern, &hc, 20);
                 line += &format!("  {kern} {:.0} us {:.1} TFLOPS", t * 1e6, flops / t / 1e12);
             }
             println!("{line}");
         }
     }
+    // INTARSIA_HIP_MOE_PAIRS is read at every launch: both pair tiles in this process (the test is ignored, so nothing races)
     for t in [312usize, 1024, 2048, 4096] {
         let hc = experts_case(&mut rng, t, 256, 8, 2048, 512, DType::Bf16);
-        let secs = bench_hot(&*hip, "moe_experts_bf16_v2", &hc, 10);
         let flops = (t * 8) as f64 * (2.0 * 2.0 * 512.0 * 2048.0 + 2.0 * 2048.0 * 512.0);
-        println!("moe_experts T={t}: {:.0} us {:.1} TFLOPS", secs * 1e6, flops / secs / 1e12);
+        let mut line = format!("moe_experts T={t}:");
+        for pairs in ["32", "64"] {
+            std::env::set_var("INTARSIA_HIP_MOE_PAIRS", pairs);
+            let secs = bench_hot(&*hip, "moe_experts_bf16_v2", &hc, 10);
+            line += &format!("  pairs {pairs} {:.0} us {:.1} TFLOPS", secs * 1e6, flops / secs / 1e12);
+        }
+        std::env::remove_var("INTARSIA_HIP_MOE_PAIRS");
+        println!("{line}");
     }
 }
 
