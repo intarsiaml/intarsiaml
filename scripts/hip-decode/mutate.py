@@ -348,6 +348,33 @@ MUTATIONS = {
     "r7-tile": ("kernels/hip/moe.hip", [("const int def = pairs == 64 ? (down ? kMwDefault64Dn : kMwDefault64) : (down ? kMwDefault32Dn : kMwDefault32);", "const int def = pairs == 32 ? (down ? kMwDefault64Dn : kMwDefault64) : (down ? kMwDefault32Dn : kMwDefault32);")]),
     "r7-range": ("kernels/hip/moe.hip", [("    return mw_accepted(v) ? v : def;", "    return (v >= 0 && v <= 7) ? v : def;")]),
     "r7-colon": ("kernels/hip/moe.hip", [("const char* f = down && colon ? colon + 1 : e;", "const char* f = e;")]),
+    # core-op fusion phase 2 (tests/fusion_p2.rs, docs/results/2026-10-19-core-op-fusion-p2.md)
+    # P4a gate_split_qk_norm_rope_kv: the gate copied from the query half
+    "p2-ga-gate": ("kernels/hip/gate_qkr.hip", [("gate[qrow * D + m] = qg[qrow * 2 * D + D + m];", "gate[qrow * D + m] = qg[qrow * 2 * D + m];")]),
+    # the query read with the split-off row's stride (D) instead of the gated row's (2D)
+    "p2-ga-qstride": ("kernels/hip/gate_qkr.hip", [("k + (t * NKV + kvh) * D : qg + qrow * 2 * D;", "k + (t * NKV + kvh) * D : qg + qrow * D;")]),
+    # the zero-centred norm's +1 dropped
+    "p2-ga-woff": ("kernels/hip/gate_qkr.hip", [("f[e] = f[e] * r * (g[e] + woff);", "f[e] = f[e] * r * g[e];")]),
+    # the fp8 cache value halved before the conversion
+    "p2-ga-fp8": ("kernels/hip/gate_qkr.hip", [("gqr_f32_to_e4m3(ik_b2f(v));", "gqr_f32_to_e4m3(ik_b2f(v) * 0.5f);")]),
+    # every token's v row written to the first new cache row
+    "p2-ga-vpos": ("kernels/hip/gate_qkr.hip", [("CacheT* dv = vcache + ((int64_t)kvh * cap + pos0 + t) * D;", "CacheT* dv = vcache + ((int64_t)kvh * cap + pos0) * D;")]),
+    # P3 gdn_conv_delta: the FIRST block of a key head stores its new q / k conv state (siblings may still read the old one)
+    "p2-cd-writer0": ("kernels/hip/gdn_fused.hip", [("qk_writer = tk_ == nblk - 1;", "qk_writer = tk_ == 0;")]),
+    # the key-head counter is not put back to 0: the next launch's tickets never reach nblk - 1
+    "p2-cd-noreset": ("kernels/hip/gdn_fused.hip", [("        if (qk_writer && lane == 0) __hip_atomic_store(sync + kh, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);\n", "")]),
+    # the v channels' new conv state not stored
+    "p2-cd-novstate": ("kernels/hip/gdn_fused.hip", [("for (int t = 0; t < KH; ++t) cstate[(int64_t)cv * KH + t] = hv[t];", "for (int t = 0; t < KH; ++t) (void)hv[t];")]),
+    # the conv output not rounded to bf16 before the delta rule reads it (the unfused path stores y in bf16)
+    "p2-cd-round": ("kernels/hip/gdn_fused.hip", [("const float y = ik_b2f(ik_f2b(silu(acc)));", "const float y = silu(acc);")]),
+    # the current input multiplied by the first tap instead of the last
+    "p2-cd-tap": ("kernels/hip/gdn_fused.hip", [("float acc = tp[K - 1] * cur;", "float acc = tp[0] * cur;")]),
+    # the conv history not shifted between tokens
+    "p2-cd-hist": ("kernels/hip/gdn_fused.hip", [("    for (int j = 0; j < K - 2; ++j) hh[j] = hh[j + 1];\n", "")]),
+    # the two-launch form (no counter slot) skips its conv-state launch
+    "p2-cd-slotstate": ("kernels/hip/gdn_fused.hip", [("    if (slot >= 0) return ik_launch_status();", "    return ik_launch_status();")]),
+    # selection: the fold admitted one token past the conv's single tile
+    "p2-sel-m33": ("crates/intarsia-backend-hip/src/kernels.rs", [("pub const GDN_CONV_DELTA_MAX_TOKENS: usize = 32;", "pub const GDN_CONV_DELTA_MAX_TOKENS: usize = 33;")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -363,6 +390,8 @@ TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsyn
 TESTS.update({n: "round6_selection" for n in ("mw-def64", "mw-def32", "mw-tile", "mw-range", "hpb-def", "hpb-two")})
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
+TESTS.update({n: "fusion_p2" for n in ("p2-ga-gate", "p2-ga-qstride", "p2-ga-woff", "p2-ga-fp8", "p2-ga-vpos", "p2-cd-writer0", "p2-cd-noreset", "p2-cd-novstate", "p2-cd-round", "p2-cd-tap", "p2-cd-hist", "p2-cd-slotstate")})
+TESTS["p2-sel-m33"] = "lib"
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 TESTS.update({n: "moe_pairs" for n in ("r7-even", "r7-odd", "r7-esign", "r7-osign", "r7-x64", "r7-hiword", "r7-swap", "r7-deep", "r7-dnrow", "r7-grid", "r7-jn", "r7-lastsync")})
 TESTS.update({n: "round6_selection" for n in ("r7-def64", "r7-def32", "r7-def64dn", "r7-def32dn", "r7-tile", "r7-range", "r7-colon")})

@@ -670,8 +670,9 @@ fn gdn_sweep(op: Op, cfg: &SweepConfig, rng: &mut SplitMix64) -> Vec<Case> {
 }
 
 /// One `GdnConvDelta` case: random projection rows `x`, taps, gates, and non-zero initial states (conv state and delta
-/// state both carry: a kernel that ignores either fails).
-fn gdn_conv_delta_case(rng: &mut SplitMix64, t: usize, hk: usize, hv: usize, dk: usize, dv: usize, ks: usize, dt: DType) -> HostCall {
+/// state both carry: a kernel that ignores either fails). Public for the backends' device tests.
+#[allow(clippy::too_many_arguments)]
+pub fn gdn_conv_delta_case(rng: &mut SplitMix64, t: usize, hk: usize, hv: usize, dk: usize, dv: usize, ks: usize, dt: DType) -> HostCall {
     let c = 2 * hk * dk + hv * dv;
     HostCall {
         op: Op::GdnConvDelta,

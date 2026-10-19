@@ -480,6 +480,27 @@ impl Backend for HipBackend {
                     pos,
                     s,
                 ),
+                "gate_split_qk_norm_rope_kv_bf16" => ffi::ik_gate_split_qk_norm_rope_kv_bf16(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    a.eps,
+                    a.w_offset,
+                    a.pos0 as i64,
+                    a.theta,
+                    a.rotary_dim as i64,
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3),
+                    pos,
+                    s,
+                ),
+                "gdn_conv_delta_bf16" => {
+                    ffi::ik_gdn_conv_delta_bf16(i(0), i(1), i(2), i(3), i(4), i(5), a.eps, o, o.add(1), o.add(2), s)
+                }
                 "attn_prefill_bf16_splitkv" => {
                     ffi::ik_attn_prefill_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
                 }

@@ -255,6 +255,27 @@ extern "C" {
     ) -> c_int;
     pub fn ik_sigmoid_mul_matmul_fp8_gemv(a: T, gate: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_shared_down_combine_nvfp4_gemv(x: T, w: T, bs: T, gs: T, routed: T, logit: T, out: TM, s: S) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_gate_split_qk_norm_rope_kv_bf16(
+        qg: T,
+        k: T,
+        v: T,
+        qw: T,
+        kw: T,
+        eps: f32,
+        w_offset: f32,
+        pos0: i64,
+        theta: f32,
+        rotary_dim: i64,
+        q_out: TM,
+        gate: TM,
+        kcache: TM,
+        vcache: TM,
+        pos: T,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_gdn_conv_delta_bf16(x: T, taps: T, a: T, b: T, a_log: T, dt_bias: T, eps: f32, o: TM, state: TM, cstate: TM, s: S) -> c_int;
 }
 
 /// Name of an `enum ik_status` value.

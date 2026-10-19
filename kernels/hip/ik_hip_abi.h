@@ -72,6 +72,20 @@ int ik_sigmoid_mul_matmul_fp8_gemv(const ik_tensor* a, const ik_tensor* gate, co
 int ik_shared_down_combine_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik_tensor* gs,
                                       const ik_tensor* routed, const ik_tensor* logit, ik_tensor* out, void* stream);
 
+/* Core-op fusion phase 2 (docs/results/2026-10-19-core-op-fusion-p2.md), each bitwise the two launches it replaces:
+ *   gate_split_qk_norm_rope_kv_bf16 (P4a, gate_qkr.hip): ik_gate_split_bf16 then ik_qk_norm_rope_kv_bf16 of the split-off
+ *     query; qg [T,N,2D], gate out [T,N,D]; the prologue's constraints.
+ *   gdn_conv_delta_bf16 (P3, gdn_fused.hip): ik_gdn_conv_bf16 then ik_gdn_delta_rule_bf16_v2 of its output, both states in
+ *     place; dk = 128, K = 4, T <= 32. The q / k conv state is stored by the last block of each key head (a per-stream
+ *     ticket counter, no wait); without a free counter slot, a second launch stores it. */
+int ik_gate_split_qk_norm_rope_kv_bf16(const ik_tensor* qg, const ik_tensor* k, const ik_tensor* v, const ik_tensor* qw,
+                                       const ik_tensor* kw, float eps, float w_offset, int64_t pos0, float theta,
+                                       int64_t rotary_dim, ik_tensor* q_out, ik_tensor* gate, ik_tensor* kcache,
+                                       ik_tensor* vcache, const ik_tensor* pos, void* stream);
+int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* a, const ik_tensor* b,
+                           const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
+                           ik_tensor* cstate, void* stream);
+
 #ifdef __cplusplus
 }
 #endif
