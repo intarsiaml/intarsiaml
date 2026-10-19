@@ -355,7 +355,7 @@ mod tests {
     }
 
     /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096): the gemv for 1..4 tokens, the mma
-    /// kernel for 5..32, `matmul_fp8_gemm_reg` from `FP8_REG_MIN_TOKENS` (the 2048-token prefill chunk included), unless
+    /// kernel for 5..32, `matmul_fp8_gemm` for 33..255, `matmul_fp8_gemm_reg` from 256 (the 2048-token chunk included), unless
     /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FAST_PREFILL=1`. The
     /// kernel is bitwise `matmul_fp8_gemm`, so no accuracy gate can tell which one ran: this pins it.
     #[test]
@@ -386,16 +386,16 @@ mod tests {
         } else {
             "matmul_fp8_gemm_reg"
         };
-        let min = crate::quantmoe::FP8_REG_MIN_TOKENS;
+        // the measured threshold (docs/results/2026-10-19-cuda-prefill-3.md), as a literal so a change shows up here
+        assert_eq!(crate::quantmoe::FP8_REG_MIN_TOKENS, 256);
         for k in [2048, 4096] {
             assert_eq!(pick(1, k).as_deref(), Some("matmul_fp8_gemv"));
             assert_eq!(pick(4, k).as_deref(), Some("matmul_fp8_gemv"));
             assert_eq!(pick(5, k).as_deref(), Some("matmul_fp8_mma"));
             assert_eq!(pick(32, k).as_deref(), Some("matmul_fp8_mma"));
-            if min > 33 {
-                assert_eq!(pick(min - 1, k).as_deref(), Some("matmul_fp8_gemm"));
-            }
-            for m in [min, 2048, 4096] {
+            assert_eq!(pick(33, k).as_deref(), Some("matmul_fp8_gemm"));
+            assert_eq!(pick(255, k).as_deref(), Some("matmul_fp8_gemm"));
+            for m in [256, 2048, 4096] {
                 assert_eq!(pick(m, k).as_deref(), Some(big), "M={m} K={k}");
             }
         }

@@ -95,8 +95,8 @@ call each, summed over one 2048-token chunk (30 GDN layers x 3 + 10 attention la
 TFLOPS, 48 SMs, 100 KB shared memory per SM. One chunk of fp8 projections is 5.24 TFLOP, so the bf16 floor is 43 ms and the
 e4m3 floor 21 ms.
 
-Variant bisect of the old kernel at M = 2048 (instrumentation patch `scripts/cuda-prefill3/exp-wq-variants.patch`, not
-shipped; vLLM up, so relative only):
+Variant bisect of the old kernel at M = 2048 (instrumentation patch `scripts/cuda-prefill3/exp-wq-variants.patch` on
+`kernels/cuda/wq_gemm.cuh` of ce5209c7, not shipped; vLLM up, so relative only):
 
 | variant | fp8 ms / chunk |
 |---|---|
@@ -143,14 +143,15 @@ No weight re-layout and no extra memory: the kernel reads the same e4m3 `[N, K]`
 * Selection: priority 15 (above `matmul_fp8_gemm`'s 10) for `m >= FP8_REG_MIN_TOKENS = 256 && k % 128 == 0`; below 256
   tokens `matmul_fp8_gemm` stays (the reg kernel was not measured faster there). Kill switch `INTARSIA_CUDA_FP8_GEMM_REG=0`.
   Registry test `kernels::tests::fp8_gemm_selection_by_batch_size` pins gemv 1..4, mma 5..32, the reg kernel at 256, 2048 and
-  4096 tokens for K = 2048 and 4096, and `matmul_fp8_gemm` with the switch off.
+  4096 tokens for K = 2048 and 4096, `matmul_fp8_gemm` at 33 and 255, the threshold as a literal (256), and `matmul_fp8_gemm` with
+  the switch off.
 
 **Numerics: bitwise `matmul_fp8_gemm`.** Same A fragments (the same ldmatrix loads of the same bf16 / e4m3-valued bf16
 activations), each B register holds the same two bf16 values that ldmatrix of the old dequantised tile gives, every output
 element goes through the same chain of m16n8k16 mma in the same k order with its position inside the m16n8 fragment
 unchanged (tile origins are multiples of 16 rows and 128 columns), and the epilogue is the same scale and rounding. The one
-difference: the NaN codes 0x7F / 0xFF become +-480 instead of NaN (no checkpoint has NaN weights; the tests use every
-finite code).
+difference: the NaN codes 0x7F / 0xFF become +-480 instead of NaN. ModelOpt fp8 export saturates at +-448, and on the 35B
+every end-to-end output matched base; the tests use every finite code.
 
 Microbench (exclusive slot, vLLM up, `raw/dev/05-reg-final-tests-bench.out`, 2 rounds, round 1 shown, round 2 within 2 %):
 
@@ -166,7 +167,8 @@ At 2048 tokens that is 19 ms per chunk, 63 TFLOPS (52 % of the bf16 peak).
 
 ## 4. Tried and dropped
 
-* **Register-dequant bisect** of the new kernel (`scripts/cuda-prefill3/exp-reg-variants.patch`, `raw/dev/03-reg-bisect-noisy.out`,
+* **Register-dequant bisect** of the new kernel (`scripts/cuda-prefill3/exp-reg-variants.patch`, applies to b0abf6df, the
+  kernel before it was templated; `raw/dev/03-reg-bisect-noisy.out`,
   vLLM up and not exclusive, relative only): no dequant -9 %, no cp.async loads -11 %, no mma -34 %, no mma and no loads
   -54 %.
   The mma stream (with its A ldmatrix) is now the ceiling: further dequant tricks cannot buy more than about 9 %.
@@ -181,7 +183,8 @@ At 2048 tokens that is 19 ms per chunk, 63 TFLOPS (52 % of the bf16 peak).
 
 ## 5. Accuracy
 
-Window A (vLLM down, one binary for every arm, golden sha b6b51e1b1699c66c = `vllm-top20` goldens, `raw/p3A/`):
+Window A (vLLM down, one binary for every arm, golden sha b6b51e1b1699c66c = `vllm-top20` goldens, `raw/p3A/`,
+driver log `raw/final/windowA.out`):
 
 | gate | base (same window) | reg (Part B, default) | lanes (Part A, opt-in) | bar |
 |---|---|---|---|---|
@@ -287,7 +290,8 @@ kernel declares no scratch and uses the same state tensors. No weight re-layout.
 ## 10. vLLM downtime
 
 Two exclusive windows through the unmodified `scripts/cuda-decode/window.sh` (only `DOWNTIME_LOG` set; `--takes-down
-guidance`, no `--force`, no `--no-queue`), logged in `downtime.log` in this directory:
+guidance`, no `--force`, no `--no-queue`), logged in `downtime.log` in this directory; driver logs `raw/final/windowA.out`
+and `raw/final/windowBC.out`:
 
 | window | job | stop -> serving again | down |
 |---|---|---|---|
@@ -302,7 +306,8 @@ of; the profile job (#2519) waited for one in-flight vLLM request before it star
 
 ## 11. PR handoff
 
-**Shared-code file list** (`git diff --name-only origin/main`, origin/main = 56da3172):
+**Changed-file list** (`git diff --name-only origin/main`, origin/main = 56da3172; the 93+ raw-log paths under this
+doc's folder are collapsed into one line):
 
 ```
 crates/intarsia-backend-cuda/src/device_quantmoe.rs
@@ -370,6 +375,10 @@ Mac checks after the rebase onto 56da3172 (`raw/mac/`): `INTARSIA_CPU_FREE_MEM_G
   kernel, model or selection code changed between the windows. All measurements ran on the tree before the final rebase;
   the rebase brought only HIP and docs changes (no diff in core, the CUDA crate, models or CLI).
 * The A/B ran 2 reps per size per round (the existing window script), not 5.
+* "base" in every window is this branch's binary with the kill switch (`INTARSIA_CUDA_FP8_GEMM_REG=0`), not an origin/main
+  build. Its gates match the origin/main base of docs/results/2026-10-18-cuda-moe-w4a16.md to every digit (35b-short KL21
+  5.430e-3 at 2048, 6.271e-3 at 256; 35b-long 4.576e-2 at 2048, 4.273e-2 at 256), which is
+  good evidence the kill-switch base is equivalent.
 * The NaN e4m3 codes (0x7F, 0xFF) give +-480 in the new kernel instead of NaN; no checkpoint has NaN weights.
 * 8B fp32 short golden ran with lanes + reg on, 8B long with the dev default; the 8B has neither kernel's op, so these are
   sanity checks only.
