@@ -143,9 +143,30 @@ fn p3_unfused(dev: &dyn Backend, hc: &HostCall) -> Vec<HostTensor> {
     vec![d[0].clone(), d[1].clone(), c[1].clone()]
 }
 
-/// A chain of P3 launches with the token counts `ts`, both paths carrying their own states; every launch compared.
+/// (elements differing in bits, max |difference|, first differing index) of two tensors of one shape.
+fn diff(got: &HostTensor, want: &HostTensor) -> (usize, f32, usize) {
+    assert_eq!(got.shape, want.shape);
+    let (g, w) = (got.to_f32(), want.to_f32());
+    let mut out = (0usize, 0f32, usize::MAX);
+    for (i, (a, b)) in g.iter().zip(&w).enumerate() {
+        if a.to_bits() != b.to_bits() {
+            out.0 += 1;
+            out.1 = out.1.max((a - b).abs());
+            out.2 = out.2.min(i);
+        }
+    }
+    out
+}
+
+const P3_OUTS: [&str; 3] = ["o", "delta state", "conv state"];
+
+/// A chain of P3 launches with the token counts `ts`, both paths carrying their own states; every launch compared, all
+/// three tensors reported before the step fails. Under the race seam (INTARSIA_HIP_GDN_CD_SKEW set) each step also runs
+/// the fused kernel without the seam on the same inputs: fused(skew) == fused(no skew) != unfused is arithmetic,
+/// fused(skew) != fused(no skew) is timing.
 fn p3_chain(hip: &dyn Backend, rng: &mut SplitMix64, shape: (usize, usize, usize, usize), ts: &[usize], label: &str) {
     let (hk, hv, dk, dv) = shape;
+    let skew = std::env::var("INTARSIA_HIP_GDN_CD_SKEW").ok();
     let mut fused_states: Option<(HostTensor, HostTensor)> = None;
     let mut plain_states: Option<(HostTensor, HostTensor)> = None;
     for (step, &t) in ts.iter().enumerate() {
@@ -163,15 +184,52 @@ fn p3_chain(hip: &dyn Backend, rng: &mut SplitMix64, shape: (usize, usize, usize
         }
         let got = run_host(hip, "gdn_conv_delta_bf16", &f).unwrap_or_else(|e| panic!("{lab}: {e}"));
         let want = p3_unfused(hip, &hc);
-        for (i, what) in ["o", "delta state", "conv state"].iter().enumerate() {
-            bits_eq(&lab, what, &got[i], &want[i]);
+        let mut bad = Vec::new();
+        for (i, what) in P3_OUTS.iter().enumerate() {
+            let (n, m, first) = diff(&got[i], &want[i]);
+            if n > 0 {
+                bad.push(format!("{what}: {n} of {} differ, max |d| {m:e}, first at {first}", got[i].shape.iter().product::<usize>()));
+            }
         }
+        if let Some(sk) = &skew {
+            std::env::remove_var("INTARSIA_HIP_GDN_CD_SKEW");
+            let calm = run_host(hip, "gdn_conv_delta_bf16", &f).unwrap();
+            std::env::set_var("INTARSIA_HIP_GDN_CD_SKEW", sk);
+            for (i, what) in P3_OUTS.iter().enumerate() {
+                let (n, m, first) = diff(&got[i], &calm[i]);
+                if n > 0 {
+                    bad.push(format!("TIMING: {what} skewed vs unskewed fused: {n} differ, max |d| {m:e}, first at {first}"));
+                }
+            }
+            if !bad.is_empty() {
+                for (i, what) in P3_OUTS.iter().enumerate() {
+                    let (n, m, _) = diff(&calm[i], &want[i]);
+                    bad.push(format!("unskewed fused vs unfused: {what}: {n} differ, max |d| {m:e}"));
+                }
+            }
+        }
+        assert!(bad.is_empty(), "{lab}: {}", bad.join("; "));
         if step == 0 {
             near_reference(Op::GdnConvDelta, &f, &got, 2e-2, &lab);
         }
         fused_states = Some((got[1].clone(), got[2].clone()));
         plain_states = Some((want[1].clone(), want[2].clone()));
     }
+}
+
+/// Many fresh draws at the 35B's shape (one token: the decode step; 32: the longest chunk), no seam: a rounding difference
+/// that only some inputs expose (one bf16 rounding of a conv output flipping) shows here.
+#[test]
+fn gdn_conv_delta_many_draws_bitwise() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(95);
+    for d in 0..200 {
+        p3_chain(&*hip, &mut rng, P3_SHAPES[0], &[1], &format!("P3 draw {d}"));
+    }
+    for d in 0..20 {
+        p3_chain(&*hip, &mut rng, P3_SHAPES[0], &[32], &format!("P3 draw32 {d}"));
+    }
+    eprintln!("P3: 220 draws bitwise");
 }
 
 const P3_SHAPES: [(usize, usize, usize, usize); 5] = [

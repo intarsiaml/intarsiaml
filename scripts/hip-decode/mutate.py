@@ -366,7 +366,11 @@ MUTATIONS = {
     # the conv output not rounded to bf16 before the delta rule reads it (the unfused path stores y in bf16)
     "p2-cd-round": ("kernels/hip/gdn_fused.hip", [("const float y = ik_b2f(ik_f2b(silu(acc)));", "const float y = silu(acc);")]),
     # the current input multiplied by the first tap instead of the last
-    "p2-cd-tap": ("kernels/hip/gdn_fused.hip", [("float acc = cd_tap(tp, K - 1) * cur;", "float acc = cd_tap(tp, 0) * cur;")]),
+    "p2-cd-tap": ("kernels/hip/gdn_fused.hip", [("        acc = cd_tap(tp, K - 1) * cur;", "        acc = cd_tap(tp, 0) * cur;")]),
+    # the conv accumulation left to the contraction (the W2 finding: about 1 conv output in 3e5 flips its bf16 rounding)
+    "p2-cd-contract": ("kernels/hip/gdn_fused.hip", [
+        ("#pragma clang fp contract(off)\n        acc = cd_tap(tp, K - 1) * cur;", "        acc = cd_tap(tp, K - 1) * cur;"),
+        ("acc = __builtin_fmaf(cd_tap(tp, j), hh[j * S], acc);", "acc += cd_tap(tp, j) * hh[j * S];")]),
     # the conv history not shifted between tokens
     "p2-cd-hist": ("kernels/hip/gdn_fused.hip", [("    for (int j = 0; j < K - 2; ++j) hh[j * S] = hh[(j + 1) * S];\n", "")]),
     # the two-launch form (no counter slot) skips its conv-state launch
@@ -388,7 +392,7 @@ TESTS.update({n: "moe_pairs" for n in ("mw-jn", "mw-full", "mw-two", "mw-lastsyn
 TESTS.update({n: "round6_selection" for n in ("hpb-def", "hpb-two")})
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
-TESTS.update({n: "fusion_p2" for n in ("p2-ga-gate", "p2-ga-qstride", "p2-ga-woff", "p2-ga-fp8", "p2-ga-vpos", "p2-cd-writer0", "p2-cd-noreset", "p2-cd-novstate", "p2-cd-round", "p2-cd-tap", "p2-cd-hist", "p2-cd-slotstate")})
+TESTS.update({n: "fusion_p2" for n in ("p2-ga-gate", "p2-ga-qstride", "p2-ga-woff", "p2-ga-fp8", "p2-ga-vpos", "p2-cd-writer0", "p2-cd-noreset", "p2-cd-novstate", "p2-cd-round", "p2-cd-tap", "p2-cd-contract", "p2-cd-hist", "p2-cd-slotstate")})
 TESTS["p2-sel-m33"] = "lib"
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 TESTS.update({n: "moe_pairs" for n in ("r7-even", "r7-odd", "r7-esign", "r7-osign", "r7-x64", "r7-hiword", "r7-swap", "r7-deep", "r7-dnrow", "r7-grid", "r7-jn", "r7-lastsync")})

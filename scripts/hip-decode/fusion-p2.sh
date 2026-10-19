@@ -10,7 +10,7 @@ export INTARSIA_TARGET_VOL="${INTARSIA_TARGET_VOL:-intarsia-cargo-target-fp2}"
 export BASE_REPO="${BASE_REPO:-$HOME/intarsiaml-fp2base}" BASE_VOL="${BASE_VOL:-intarsia-cargo-target-fp2base}"
 cd "$INTARSIA_REPO"
 D=deploy/tatooine/dev.sh
-P2MUT="p2-ga-gate p2-ga-qstride p2-ga-woff p2-ga-fp8 p2-ga-vpos p2-cd-writer0 p2-cd-noreset p2-cd-novstate p2-cd-round p2-cd-tap p2-cd-hist p2-cd-slotstate"  # p2-sel-m33 is a lib test (no GPU): run on the Mac
+P2MUT="p2-ga-gate p2-ga-qstride p2-ga-woff p2-ga-fp8 p2-ga-vpos p2-cd-writer0 p2-cd-noreset p2-cd-novstate p2-cd-round p2-cd-tap p2-cd-contract p2-cd-hist p2-cd-slotstate"  # p2-sel-m33 is a lib test (no GPU): run on the Mac
 # the round-6 moe_wmma.h mutants re-enabled by the mutate.py occurrence index (they matched twice since round 6)
 R6MUT="moe-z-step pairs-sred pairs-xrow pairs-out"
 ts() { date +%T; }

@@ -80,8 +80,17 @@ IK_DEVI float cd_tap(const uint2& tp, int j) {
 template <int K, int S = 1>
 IK_DEVI float cd_conv(const uint2& tp, float* hh, float cur) {
     static_assert(K == 4, "4 taps: one uint2 per channel");
-    float acc = cd_tap(tp, K - 1) * cur;
-    for (int j = 0; j < K - 1; ++j) acc += cd_tap(tp, j) * hh[j * S];
+    // gdn_conv_kernel's arithmetic spelled out: its tap loop (K is a runtime value there) compiles to one rounded multiply
+    // (the current tap) and one fma per history tap into that accumulator (v_mul_f32 + v_fmac_f32, gfx1201). Written as
+    // `acc = a*b; acc += c*d; ...` with K known, the first add sees two products and the contraction may fuse either one
+    // (fma(a, b, c*d) rounds differently from fma(c, d, a*b)): about 1 conv output in 3e5 then flipped its bf16 rounding
+    // (tests/fusion_p2.rs, many draws). So no contraction here, and the fmas explicit.
+    float acc;
+    {
+#pragma clang fp contract(off)
+        acc = cd_tap(tp, K - 1) * cur;
+        for (int j = 0; j < K - 1; ++j) acc = __builtin_fmaf(cd_tap(tp, j), hh[j * S], acc);
+    }
     const float y = ik_b2f(ik_f2b(silu(acc)));
     for (int j = 0; j < K - 2; ++j) hh[j * S] = hh[(j + 1) * S];
     hh[(K - 2) * S] = cur;

@@ -1,0 +1,107 @@
+[window] job 2694; gpu0: tests; gpu1: ; stopping radiance 2026-10-19 05:44:08
+[window] radiance stopped 2026-10-19 05:44:11
+################ stage tests start 05:44:11
+--- fusion_p2 INTARSIA_HIP_GDN_PD=1
+test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+test gdn_conv_delta_conv_state_survives_skewed_blocks ... 
+thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9:
+P3 skewed step 1 T=1 Hk=16 Hv=32 dv=128: o: 15 of 4096 differ, max |d| 1.5258789e-5, first at 3846; delta state: 32047 of 524288 differ, max |d| 3.029108e-4, first at 491520; unskewed fused vs unfused: o: 15 differ, max |d| 1.5258789e-5; unskewed fused vs unfused: delta state: 32047 differ, max |d| 
+FAILED
+test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... INTARSIA_HIP_GDN_PD=1
+test gdn_conv_delta_many_draws_bitwise ... 
+thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9:
+P3 draw 34 step 0 T=1 Hk=16 Hv=32 dv=128: o: 1 of 4096 differ, max |d| 1.5258789e-5, first at 1438; unskewed fused vs unfused: o: 1 differ, max |d| 1.5258789e-5; unskewed fused vs unfused: delta state: 0 differ, max |d| 0e0; unskewed fused vs unfused: conv state: 0 differ, max |d| 0e0
+FAILED
+test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+--- fusion_p2 INTARSIA_HIP_GDN_PD=2
+test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+test gdn_conv_delta_conv_state_survives_skewed_blocks ... 
+thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9:
+P3 skewed step 1 T=1 Hk=16 Hv=32 dv=128: o: 15 of 4096 differ, max |d| 1.5258789e-5, first at 3846; delta state: 32047 of 524288 differ, max |d| 3.029108e-4, first at 491520; unskewed fused vs unfused: o: 15 differ, max |d| 1.5258789e-5; unskewed fused vs unfused: delta state: 32047 differ, max |d| 
+FAILED
+test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... ok
+test gdn_conv_delta_many_draws_bitwise ... INTARSIA_HIP_GDN_PD=2
+thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9:
+P3 draw 34 step 0 T=1 Hk=16 Hv=32 dv=128: o: 1 of 4096 differ, max |d| 1.5258789e-5, first at 1438; unskewed fused vs unfused: o: 1 differ, max |d| 1.5258789e-5; unskewed fused vs unfused: delta state: 0 differ, max |d| 0e0; unskewed fused vs unfused: conv state: 0 differ, max |d| 0e0
+FAILED
+test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+--- fusion_p2 INTARSIA_HIP_GDN_PD=4
+test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+test gdn_conv_delta_conv_state_survives_skewed_blocks ... 
+thread 'gdn_conv_delta_conv_state_survives_skewed_blocks' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9:
+P3 skewed step 1 T=1 Hk=16 Hv=32 dv=128: o: 15 of 4096 differ, max |d| 1.5258789e-5, first at 3846; delta state: 32047 of 524288 differ, max |d| 3.029108e-4, first at 491520; unskewed fused vs unfused: o: 15 differ, max |d| 1.5258789e-5; unskewed fused vs unfused: delta state: 32047 differ, max |d| 
+FAILED
+test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... INTARSIA_HIP_GDN_PD=4
+test gdn_conv_delta_many_draws_bitwise ... 
+thread 'gdn_conv_delta_many_draws_bitwise' panicked at crates/intarsia-backend-hip/tests/fusion_p2.rs:211:9:
+P3 draw 34 step 0 T=1 Hk=16 Hv=32 dv=128: o: 1 of 4096 differ, max |d| 1.5258789e-5, first at 1438; unskewed fused vs unfused: o: 1 differ, max |d| 1.5258789e-5; unskewed fused vs unfused: delta state: 0 differ, max |d| 0e0; unskewed fused vs unfused: conv state: 0 differ, max |d| 0e0
+FAILED
+test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::arch_is_a_gfx12_target ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::phase1_fold_selection_is_pinned ... ok
+test kernels::tests::phase2_fold_selection_is_pinned ... ok
+test kernels::tests::round4_selection_is_pinned ... ok
+test kernels::tests::round5_attention_selection_is_pinned ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test quantmoe::tests::fp8_f8_is_the_default ... ok
+test quantmoe::tests::fp8_folds_follow_the_staging_defaults ... ok
+test quantmoe::tests::fp8_selection_is_pinned ... ok
+test quantmoe::tests::fp8_v2_scratch_stays_below_the_moe_workspace ... ok
+test quantmoe::tests::moe_experts_selection_is_pinned ... ok
+test quantmoe::tests::moe_v3_is_opt_in ... ok
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.25s
+test out_of_range_shapes_are_refused ... ok
+test rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair ... P5: 24 cases bitwise
+test shared_down_combine_is_bitwise_down_then_combine ... P2a: 48 cases bitwise
+test sigmoid_mul_matmul_fp8_is_bitwise_gate_then_gemv ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered outP4b: 14 cases bitwise
+test gdn_v2_is_bitwise_the_rows_kernel ... gdn v2 (pd default): 19 shapes bitwise
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test moe_pair_tile_does_not_change_a_bit ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s
+test qk_norm_rope_kv_is_bitwise_the_unfused_chain ... qk_norm_rope_kv: 240 cases bitwise
+test qk_norm_rope_kv_many_draws_bitwise ... qk_norm_rope_kv: 60 draws of 17 rows bitwise
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.31s
+test bench_decode_variants ... ignored
+test bench_fp8_sweep ... ignored
+test bench_prefill_shapes ... ignored
+test bench_real_shapes ... ignored
+test moe_experts_batch_invariance ... batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+batch invariance: strict=true, tokens differing from T=1 in the tensor-core path: 0
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.28s
+test moe_experts_skewed_and_invalid_routing ... ok
+test quant_f32_outputs_meet_the_f32_tolerance ... f32-output quant matmuls: 39 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.02s
+################ stage tests end 05:44:41
+[window] gpu0 lane done 2026-10-19 05:44:41 (exit 0)
+[window] starting radiance 2026-10-19 05:44:41
+[window] radiance answers 2026-10-19 05:44:51 (after 15 s)
