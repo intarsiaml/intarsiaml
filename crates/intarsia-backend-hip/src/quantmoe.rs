@@ -24,7 +24,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_bf16_v2", Op::MoeExperts),
     ("moe_experts_bf16_v3", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
-    // P2' (docs/results/2026-10-19-p2prime-moeblock.md): opt-in, INTARSIA_HIP_MOE_BLOCK=1
+    // P2' (docs/results/2026-10-19-p2prime-moeblock.md): default ON, INTARSIA_HIP_MOE_BLOCK=0 disables
     ("moe_block_bf16", Op::MoeBlock),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
@@ -112,7 +112,7 @@ pub fn moe_v3_from(v: Option<&str>) -> bool {
 }
 
 /// `moe_block_bf16` (P2', `Op::MoeBlock`: top-k, routed experts, shared expert and combine in one launch, bitwise the default
-/// chain) is OPT-IN: admissible only with INTARSIA_HIP_MOE_BLOCK=1 (docs/results/2026-10-19-p2prime-moeblock.md). Off, its
+/// chain) is ON BY DEFAULT: admissible unless INTARSIA_HIP_MOE_BLOCK=0 (the kill switch; docs/results/2026-10-19-p2prime-moeblock.md). Off, its
 /// `when` is false, so `fused_ok` finds no kernel and the model runs the unfused chain exactly as before. Registered either
 /// way, so the tests can launch it by name.
 pub fn moe_block_enabled() -> bool {
@@ -120,9 +120,9 @@ pub fn moe_block_enabled() -> bool {
     *ON.get_or_init(|| moe_block_from(std::env::var("INTARSIA_HIP_MOE_BLOCK").ok().as_deref()))
 }
 
-/// The value of INTARSIA_HIP_MOE_BLOCK -> MoeBlock admissible: only exactly "1".
+/// The value of INTARSIA_HIP_MOE_BLOCK -> MoeBlock admissible: only exactly "0" disables; unset or anything else enables.
 pub fn moe_block_from(v: Option<&str>) -> bool {
-    v == Some("1")
+    v != Some("0")
 }
 
 /// The shapes `moe_block_bf16` serves: those the default chain runs with its decode kernels (T * K <= 16, K <= 8, the
@@ -257,7 +257,7 @@ pub fn all() -> Vec<KernelImpl> {
                         _ => 0,
                     }),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
-                // P2' (kernels/hip/moe_block.hip, tests/moe_block.rs): OPT-IN, see `moe_block_enabled`. Bitwise the chain
+                // P2' (kernels/hip/moe_block.hip, tests/moe_block.rs): ON by default (INTARSIA_HIP_MOE_BLOCK=0 disables), see `moe_block_enabled`. Bitwise the chain
                 // moe_topk_bf16_v2 -> moe_experts_bf16_v2 -> matmul_nvfp4_glu_gemv (gate / up gemv + silu_glu at T > 1) ->
                 // shared_down_combine_nvfp4_gemv at every shape it takes; scratch: h [T * K, I] and sa [T, IS] bf16.
                 "moe_block_bf16" => k
@@ -434,16 +434,16 @@ mod tests {
         assert!(!fp8_staging_default_from(None, Some("1,16")));
     }
 
-    /// P2' is opt-in: `moe_block_bf16` is admissible only with INTARSIA_HIP_MOE_BLOCK=1, and then exactly at the shapes the
+    /// P2' is on by default: `moe_block_bf16` is admissible unless INTARSIA_HIP_MOE_BLOCK=0 (only "0" disables), and then exactly at the shapes the
     /// default chain serves with its decode kernels (T * K <= 16, K <= 8, E <= 512, H / I / IS multiples of 16).
     #[test]
-    fn moe_block_is_opt_in_and_its_shapes_are_pinned() {
-        assert!(!moe_block_from(None));
+    fn moe_block_is_default_on_and_its_shapes_are_pinned() {
+        assert!(moe_block_from(None));
         assert!(!moe_block_from(Some("0")));
-        assert!(!moe_block_from(Some("")));
-        assert!(!moe_block_from(Some("true")));
+        assert!(moe_block_from(Some("")));
+        assert!(moe_block_from(Some("true")));
         assert!(moe_block_from(Some("1")));
-        assert_eq!(moe_block_enabled(), std::env::var("INTARSIA_HIP_MOE_BLOCK").as_deref() == Ok("1"));
+        assert_eq!(moe_block_enabled(), std::env::var("INTARSIA_HIP_MOE_BLOCK").as_deref() != Ok("0"));
         let ks = all();
         let k = ks.iter().find(|k| k.name == "moe_block_bf16").unwrap();
         let sh = |m: usize, e: usize, top_k: usize, h: usize, i: usize, is: usize| ShapeInfo {

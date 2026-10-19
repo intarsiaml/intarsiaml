@@ -86,44 +86,46 @@ stage_mutrun() {  # GPU: every mutant binary must FAIL (or hang -> killed by the
 M35=/models/Qwen3.6-35B-A3B-NVFP4
 M8=/models/Qwen3-8B
 B=/target/release/intarsia
-stage_plans() {  # GPU (TEST_GPU): plan show --json default vs INTARSIA_HIP_MOE_BLOCK=1, 35B and 8B, kernel-per-op diff
+stage_plans() {  # GPU (TEST_GPU): plan show --json default (P2' on since the flip) vs INTARSIA_HIP_MOE_BLOCK=0 (off), 35B and 8B, kernel-per-op diff
   local O="$INTARSIA_REPO/bench-out/plans" t m
   mkdir -p "$O"
-  for t in def blk; do
+  for t in def off; do
     for m in 35b 8b; do
       local mp=$M35 extra="--mem-budget 29"
       [ $m = 8b ] && mp=$M8 && extra=""
-      ( [ $t = blk ] && export INTARSIA_HIP_MOE_BLOCK=1
+      ( [ $t = off ] && export INTARSIA_HIP_MOE_BLOCK=0
         HIP_VISIBLE_DEVICES=${TEST_GPU:-0} $D $B plan show --backend hip --model $mp $extra --max-seq 4096 --json > "$O/$t-$m.json" 2> "$O/$t-$m.err" )
       echo "plan $t $m: exit $? $(wc -c < "$O/$t-$m.json") bytes"
     done
   done
-  python3 "$INTARSIA_REPO/scripts/hip-decode/plan_diff.py" "$O" blk def 2>&1 | tee "$O/diff.txt"
+  python3 "$INTARSIA_REPO/scripts/hip-decode/plan_diff.py" "$O" def off 2>&1 | tee "$O/diff.txt"
 }
 
 stage_adm() {  # GPU (TEST_GPU): FULL admission sweeps (no --quick), 35B and 8B shapes, default and INTARSIA_HIP_MOE_BLOCK=1
   local O="$INTARSIA_REPO/bench-out/adm" t m
   mkdir -p "$O"
-  for t in def blk; do
+  for t in def off; do
     for m in 35b 8b; do
       local mp=$M35
       [ $m = 8b ] && mp=$M8
-      ( [ $t = blk ] && export INTARSIA_HIP_MOE_BLOCK=1
+      ( [ $t = off ] && export INTARSIA_HIP_MOE_BLOCK=0
         HIP_VISIBLE_DEVICES=${TEST_GPU:-0} $D $B kernels test --backend hip --model $mp > "$O/$t-$m.log" 2>&1 )
       echo "adm $t $m exit $?: $(grep -a ' kernels, ' "$O/$t-$m.log" | tail -1) | FAIL/REJECT lines: $(grep -acE 'FAIL|REJECT' "$O/$t-$m.log")"
     done
   done
-  grep -aE "moe_block" "$O/blk-35b.log" | cut -c1-200 | head -12
+  grep -aE "moe_block" "$O/def-35b.log" | cut -c1-200 | head -12
 }
 
-stage_ids() {  # 256 greedy ids after the 4408-token prompt: INTARSIA_HIP_MOE_BLOCK=1 ("new") vs default ("base"), same tree
-  RS_GPU=${TEST_GPU:-0} BASE_REPO="$INTARSIA_REPO" BASE_VOL="$INTARSIA_TARGET_VOL" IDS_NEW_ENV="INTARSIA_HIP_MOE_BLOCK=1" \
+stage_ids() {  # 256 greedy ids after the 4408-token prompt: INTARSIA_HIP_MOE_BLOCK=0 ("new", the chain) vs default ("base", P2' on), same tree
+  RS_GPU=${TEST_GPU:-0} BASE_REPO="$INTARSIA_REPO" BASE_VOL="$INTARSIA_TARGET_VOL" IDS_NEW_ENV="INTARSIA_HIP_MOE_BLOCK=0" \
     bash "$INTARSIA_REPO/scripts/hip-decode/remote.sh" ids4k
 }
 
 arm_env() {
   case "$1" in
+    # def = no env (P2' ON since the default flip), blk = explicit on (same as def), off = INTARSIA_HIP_MOE_BLOCK=0 (the pre-flip chain)
     def) echo "" ;;
+    off) echo "-e INTARSIA_HIP_MOE_BLOCK=0" ;;
     blk) echo "-e INTARSIA_HIP_MOE_BLOCK=1" ;;
     v3) echo "-e INTARSIA_HIP_MOE_V3=1" ;;
     *) echo "BAD-ARM" ;;

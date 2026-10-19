@@ -392,6 +392,8 @@ session takes a bundle:
 
 ## 12. Decisions for the user
 
+*Note 2026-10-19: the default was flipped ON (`INTARSIA_HIP_MOE_BLOCK=0` is the kill switch) on branch perf/p2prime-default, pending the soak (docs/results/2026-10-19-p2prime-soak.md).*
+
 1. **Make P2' default on HIP?** It is +8.8 to +9.5 % decode at every size and bitwise the default output. Every non-equivalent
    mutant is killed. The risk is the new cross-block wait, the same mechanism as v3. To make it default, flip
    `moe_block_from` to "on unless 0", and do it after one more stress window on a second day.
@@ -418,7 +420,7 @@ session takes a bundle:
 
 | var | default | effect |
 |---|---|---|
-| `INTARSIA_HIP_MOE_BLOCK=1` | off | admits `moe_block_bf16` (P2') |
+| `INTARSIA_HIP_MOE_BLOCK` | on (unset or any value but `0`) | admits `moe_block_bf16` (P2'); `=0` is the kill switch (unfused chain); `INTARSIA_HIP_DISABLE=moe_block_bf16` unchanged |
 | `INTARSIA_HIP_MOE_V3=1` | off | v3 one-launch experts (unchanged) |
 | `INTARSIA_NO_FUSION=1` | off | every fused op off (existing kill switch). The generic `INTARSIA_HIP_DISABLE=moe_block_bf16` hides the kernel too; that mechanism exists but was not separately tested for this kernel |
 | `INTARSIA_HIP_MOE_BLOCK_{SKEW,SKEW_ALL,SKEW_ROLE,PREREAD,SCRAMBLE}` | off | test seams (section 4) |
