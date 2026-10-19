@@ -18,9 +18,12 @@ gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "
 for spec in "$@"; do
   arm=${spec%%:*}; rest=${spec#*:}; tree=${rest%%:*}; envs=""; [[ "$rest" == *:* ]] && envs=${rest#*:}; envs=${envs//,/ }
   bin=$P/$tree/target/acc/release/intarsia
+  # SERVE_ARGS=--a=b+--c=d among the env entries: extra `serve` arguments ('+' separates them), not an environment variable
+  sargs=""; for e in $envs; do [[ $e == SERVE_ARGS=* ]] && sargs=${e#SERVE_ARGS=}; done; sargs=${sargs//+/ }
+  envs=$(for e in $envs; do [[ $e == SERVE_ARGS=* ]] || printf '%s ' "$e"; done)
   out=$AB/$MODEL-$arm-r$RND; rm -rf $out; mkdir -p $out
   echo "== $MODEL round $RND arm $arm (tree $tree env '$envs') $(date +%T)"
-  nohup env $envs $bin serve --backend cuda --model $M --port $PORT --host 127.0.0.1 --served-model-name $NAME --max-seq ${MAX_SEQ:-20480} --mem-budget $MEM --profile-every 0 > $out/serve.log 2>&1 < /dev/null &
+  nohup env $envs $bin serve --backend cuda --model $M --port $PORT --host 127.0.0.1 --served-model-name $NAME --max-seq ${MAX_SEQ:-20480} --mem-budget $MEM --profile-every 0 $sargs > $out/serve.log 2>&1 < /dev/null &
   spid=$!
   up=0; for i in $(seq 1 120); do curl -sf http://127.0.0.1:$PORT/health >/dev/null && { up=1; break; }; sleep 2; done
   [ $up = 1 ] || { echo "server did not come up, see $out/serve.log"; kill $spid; exit 1; }

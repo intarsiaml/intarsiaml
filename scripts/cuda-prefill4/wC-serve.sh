@@ -5,16 +5,19 @@
 # ~/intarsia-decfuse/out/p4C/<arm>.done (at most ARM_MAX_SEC, default 420 s), stop the server.
 set -u
 P=$HOME/intarsia-decfuse
-BIN=$P/p4-dev/target/acc/release/intarsia
+BIN=$P/${TREE:-p4-dev}/target/acc/release/intarsia
 M=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
-O=$P/out/p4C; mkdir -p $O; rm -f $O/*.done
+O=$P/out/${OUTNAME:-p4C}; mkdir -p $O; rm -f $O/*.done
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 60 )) || { echo "ABORT: memory"; exit 1; }
 echo "bin: $($BIN --version 2>&1 | head -1)"
 (( $# > 0 )) || { echo "usage: wC-serve.sh <name:ENV=V,..> ..."; exit 2; }
 for spec in "$@"; do
   arm=${spec%%:*}; envs=""; [[ "$spec" == *:* ]] && envs=${spec#*:}; envs=${envs//,/ }
   echo "== arm $arm env '$envs' $(date +%T)"
-  nohup env $envs $BIN serve --backend cuda --model $M --port 8090 --host 0.0.0.0 --served-model-name intarsia-35b --max-seq 20480 --mem-budget 45 --profile-every 0 > $O/serve-$arm.log 2>&1 < /dev/null &
+  # SERVE_ARGS=--a=b+--c=d among the env entries: extra `serve` arguments ('+' separates them), not an environment variable
+  sargs=""; for e in $envs; do [[ $e == SERVE_ARGS=* ]] && sargs=${e#SERVE_ARGS=}; done; sargs=${sargs//+/ }
+  envs=$(for e in $envs; do [[ $e == SERVE_ARGS=* ]] || printf '%s ' "$e"; done)
+  nohup env $envs $BIN serve --backend cuda --model $M --port 8090 --host 0.0.0.0 --served-model-name intarsia-35b --max-seq 20480 --mem-budget 45 --profile-every 0 $sargs > $O/serve-$arm.log 2>&1 < /dev/null &
   spid=$!
   up=0; for i in $(seq 1 120); do curl -sf http://127.0.0.1:8090/health >/dev/null && { up=1; break; }; sleep 2; done
   if [ $up = 1 ]; then

@@ -1,0 +1,177 @@
+fleetq: #2675 running on spark1: scripts/cuda-round5/dev.sh
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+  Executable tests/splitkv_pipe.rs (target/acc/release/deps/splitkv_pipe-332a4683eef4c4e3)
+-rwxrwxr-x 2 nvidia nvidia 41460408 Oct 19 04:27 /home/nvidia/intarsia-decfuse/r5-pipe/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 47, 11.26 W, 0 %
+== resources (attention_splitkv.o)
+ Function splitkv_pipe_kernelILi8ELi32ELi2ELi4:	  REG:207 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi32ELi2ELi3:	  REG:207 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi32ELi2ELi2:	  REG:206 SHARED:1088 LOCAL:0
+ Function splitkv_hs_kernelILi32:	  REG:123 SHARED:17536 LOCAL:0
+ Function splitkv_hs_kernelILi16:	  REG:123 SHARED:17664 LOCAL:0
+ Function splitkv_hs_kernelILi8:	  REG:123 SHARED:17920 LOCAL:0
+ Function splitkv_hs_kernelILi4:	  REG:123 SHARED:18432 LOCAL:0
+== splitkv_pipe tests, INTARSIA_X=0
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_pipe": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_pipe": 88}
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.87s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+test splitkv_pipe_graph_replay_is_bitwise_the_eager_base ... ok
+test splitkv_pipe_is_bitwise_the_splitkv_kernels ... bitwise cases: 533 (INTARSIA_SPLITKV_STAGES=None)
+test splitkv_pipe_matches_on_extreme_values ... ok
+test splitkv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.54s
+== splitkv_pipe tests, INTARSIA_SPLITKV_STAGES=3
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_pipe": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_pipe": 88}
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.08s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+test splitkv_pipe_graph_replay_is_bitwise_the_eager_base ... ok
+test splitkv_pipe_is_bitwise_the_splitkv_kernels ... bitwise cases: 533 (INTARSIA_SPLITKV_STAGES=Some("3"))
+test splitkv_pipe_matches_on_extreme_values ... ok
+test splitkv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.55s
+== splitkv_pipe tests, INTARSIA_SPLITKV_HS=1
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_pipe": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_pipe": 88}
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.85s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+test splitkv_pipe_graph_replay_is_bitwise_the_eager_base ... ok
+test splitkv_pipe_is_bitwise_the_splitkv_kernels ... bitwise cases: 533 (INTARSIA_SPLITKV_STAGES=None)
+test splitkv_pipe_matches_on_extreme_values ... ok
+test splitkv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.50s
+== splitkv timing round 1, INTARSIA_X=0
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    17.4 us  121.5 GB/s  splitkv_pipe    18.7 us  113.4 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    60.7 us  138.3 GB/s  splitkv_pipe    57.9 us  144.9 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   170.0 us  193.0 GB/s  splitkv_pipe   170.3 us  192.8 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   320.6 us  209.3 GB/s  splitkv_pipe   322.6 us  208.0 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   495.1 us   66.3 GB/s  splitkv_pipe   535.2 us   61.3 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    29.8 us  140.6 GB/s  splitkv_pipe    30.7 us  136.8 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    81.9 us  204.9 GB/s  splitkv_pipe    85.2 us  196.8 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   303.4 us  221.2 GB/s  splitkv_pipe   299.4 us  224.2 GB/s
+== splitkv timing round 1, INTARSIA_SPLITKV_STAGES=3
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    18.0 us  117.7 GB/s  splitkv_pipe    17.0 us  124.4 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    59.0 us  142.2 GB/s  splitkv_pipe    55.4 us  151.5 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   168.3 us  195.1 GB/s  splitkv_pipe   164.2 us  199.9 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   323.2 us  207.6 GB/s  splitkv_pipe   313.6 us  214.0 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   503.9 us   65.1 GB/s  splitkv_pipe   518.8 us   63.3 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    32.1 us  130.8 GB/s  splitkv_pipe    28.2 us  148.6 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    84.3 us  199.1 GB/s  splitkv_pipe    90.9 us  184.6 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   301.9 us  222.3 GB/s  splitkv_pipe   302.3 us  222.0 GB/s
+== splitkv timing round 1, INTARSIA_SPLITKV_HS=1
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    17.8 us  119.2 GB/s  splitkv_pipe    16.5 us  128.2 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    58.7 us  142.9 GB/s  splitkv_pipe    59.1 us  141.8 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   166.5 us  197.1 GB/s  splitkv_pipe   162.5 us  202.0 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   314.2 us  213.6 GB/s  splitkv_pipe   312.4 us  214.8 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   495.0 us   66.3 GB/s  splitkv_pipe   486.1 us   67.5 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    29.7 us  141.4 GB/s  splitkv_pipe    28.7 us  145.9 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    86.2 us  194.7 GB/s  splitkv_pipe    83.7 us  200.5 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   305.0 us  220.0 GB/s  splitkv_pipe   295.5 us  227.1 GB/s
+== splitkv timing round 2, INTARSIA_X=0
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    17.5 us  121.3 GB/s  splitkv_pipe    20.0 us  105.8 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    61.4 us  136.6 GB/s  splitkv_pipe    59.7 us  140.5 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   166.3 us  197.4 GB/s  splitkv_pipe   168.3 us  195.0 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   314.1 us  213.6 GB/s  splitkv_pipe   319.1 us  210.3 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   488.6 us   67.2 GB/s  splitkv_pipe   521.4 us   63.0 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    30.6 us  137.0 GB/s  splitkv_pipe    27.9 us  150.5 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    84.2 us  199.3 GB/s  splitkv_pipe    85.6 us  196.1 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   299.3 us  224.2 GB/s  splitkv_pipe   296.7 us  226.2 GB/s
+== splitkv timing round 2, INTARSIA_SPLITKV_STAGES=3
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    17.7 us  119.7 GB/s  splitkv_pipe    17.1 us  124.0 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    59.7 us  140.5 GB/s  splitkv_pipe    59.1 us  141.9 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   170.1 us  192.9 GB/s  splitkv_pipe   168.5 us  194.8 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   322.5 us  208.1 GB/s  splitkv_pipe   315.2 us  212.9 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   496.8 us   66.1 GB/s  splitkv_pipe   511.9 us   64.1 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    30.1 us  139.6 GB/s  splitkv_pipe    31.3 us  133.9 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    83.5 us  200.9 GB/s  splitkv_pipe    88.7 us  189.2 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   300.7 us  223.2 GB/s  splitkv_pipe   299.7 us  223.9 GB/s
+== splitkv timing round 2, INTARSIA_SPLITKV_HS=1
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    17.9 us  118.1 GB/s  splitkv_pipe    16.6 us  127.7 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    62.0 us  135.3 GB/s  splitkv_pipe    60.8 us  137.9 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   167.2 us  196.3 GB/s  splitkv_pipe   166.5 us  197.1 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   317.4 us  211.4 GB/s  splitkv_pipe   311.8 us  215.2 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   497.6 us   66.0 GB/s  splitkv_pipe   482.9 us   68.0 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    29.7 us  141.4 GB/s  splitkv_pipe    28.5 us  146.9 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    82.0 us  204.6 GB/s  splitkv_pipe    84.4 us  198.8 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   301.5 us  222.6 GB/s  splitkv_pipe   298.4 us  224.9 GB/s
+== gpu-test.sh r5-pipe --test gdn_split (+ racecheck)
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+== racecheck (scripts/cuda-checks/race-targets.txt)
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE gdn_split:gdn_split_state_carries_across_calls hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE splitkv_pipe:splitkv_pipe_matches_on_extreme_values hazards=0 test=ok
+gpu-test.sh exit 0
+== mutation harness (scripts/cuda-prefill4/mutcheck.sh), racecheck step
+--- unmutated
+unmutated: pass (3 tests)
+unmutated: racecheck clean
+--- no-loop-sync
+applied no-loop-sync: no __syncwarp at the top of a token (the double buffer is unordered; a race that may go unseen)
+      hazard lines: 100
+      (no summary; log tail:)
+      =========         Host Frame: start_thread in pthread_create.c:447 [0x8582b] in libc.so.6
+      =========         Host Frame: thread_start in clone3.S:76 [0xeba0b] in libc.so.6
+      ========= 
+           99 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ ADDR :
+            1 test gdn_split_state_carries_across_calls ... ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ ADDR :
+  RACE gdn_split:gdn_split_state_carries_across_calls hazards=100 test=missing
+KILLED no-loop-sync (racecheck): RACE gdn_split:gdn_split_state_carries_across_calls hazards=100 test=missing
+mutcheck exit 0
+== kernels test --backend cuda --quick -m models--nvidia--Qwen3.6-35B-A3B-NVFP4
+exit 0
+ADMITTED: 41
+NO CASES: 8
+REJECTED: 0
+49 kernels, 149 cases in 0.5s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_lanes ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_split ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_f8 ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_nvfp4_mma_bf16 ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+incomplete: 8 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+== kernels test --backend cuda --quick -m models--Qwen--Qwen3-8B
+exit 0
+ADMITTED: 41
+NO CASES: 8
+REJECTED: 0
+49 kernels, 149 cases in 0.4s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_lanes ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_split ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_f8 ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_nvfp4_mma_bf16 ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+incomplete: 8 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+fleetq: #2675 done (exit 0)

@@ -338,6 +338,13 @@ impl Backend for CudaBackend {
                     ffi::ik_attn_prefill_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
                 }
                 "attn_prefill_bf16_flash" => ffi::ik_attn_prefill_bf16_flash(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
+                "attn_decode_f8kv_splitkv" => {
+                    ffi::ik_attn_decode_f8kv_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, pos, s)
+                }
+                "attn_prefill_f8kv_splitkv" => {
+                    ffi::ik_attn_prefill_f8kv_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
+                }
+                "attn_prefill_f8kv_flash" => ffi::ik_attn_prefill_f8kv_flash(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
                 "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
                 "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),

@@ -1,0 +1,164 @@
+{
+ "steps": 64,
+ "launches": 625.0,
+ "span_us": 13843.184000000001,
+ "kernel_sum_us": 13783.408,
+ "kernels": [
+  {
+   "kernel": "void <unnamed>::fp8_gemv_pair_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const float *, T1 *, int, const unsigned char *, const float *, T1 *, int, int)",
+   "per_step": 40.0,
+   "us_step": 3348.574484375,
+   "avg_us": 83.714362109375
+  },
+  {
+   "kernel": "void <unnamed>::moe_dec_gate_up_kernel<(int)2>(const __nv_bfloat16 *, const unsigned char *, const unsigned char *, const float *, const int *, __nv_bfloat16 *, int, int, int, int)",
+   "per_step": 40.0,
+   "us_step": 1869.602,
+   "avg_us": 46.740050000000004
+  },
+  {
+   "kernel": "void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16>(const __nv_bfloat16 *, const T4 *, const T4 *, float *, float2 *, int, int, long, long, float, int, const int *)",
+   "per_step": 10.0,
+   "us_step": 1844.9305,
+   "avg_us": 184.49304999999998
+  },
+  {
+   "kernel": "void <unnamed>::nvfp4_gemv_kernel<(int)1, float>(const __nv_bfloat16 *, const unsigned char *, const unsigned char *, const float *, T2 *, long, int)",
+   "per_step": 1.0,
+   "us_step": 1283.205,
+   "avg_us": 1283.205
+  },
+  {
+   "kernel": "<unnamed>::fp8_gemv_gated_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, float, float, const unsigned char *, const float *, __nv_bfloat16 *, int, int)",
+   "per_step": 30.0,
+   "us_step": 1252.1095,
+   "avg_us": 41.73698333333333
+  },
+  {
+   "kernel": "void <unnamed>::fp8_gemv_kernel<(int)1, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const float *, T2 *, int, int)",
+   "per_step": 20.0,
+   "us_step": 1118.612,
+   "avg_us": 55.9306
+  },
+  {
+   "kernel": "void <unnamed>::moe_dec_down_v2_kernel<(int)4>(const __nv_bfloat16 *, const unsigned char *, const unsigned char *, const float *, const int *, const float *, __nv_bfloat16 *, int, int, int, int)",
+   "per_step": 40.0,
+   "us_step": 1094.46696875,
+   "avg_us": 27.36167421875
+  },
+  {
+   "kernel": "<unnamed>::rmsnorm_add_pair_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, float, float, const __nv_bfloat16 *, __nv_bfloat16 *, long, const __nv_bfloat16 *, __nv_bfloat16 *, long, long)",
+   "per_step": 69.0,
+   "us_step": 488.3005,
+   "avg_us": 7.07681884057971
+  },
+  {
+   "kernel": "void <unnamed>::gdn_delta_split_kernel<(int)128, (int)2>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, float, __nv_bfloat16 *, float *, long, int, int, int)",
+   "per_step": 30.0,
+   "us_step": 380.49,
+   "avg_us": 12.683
+  },
+  {
+   "kernel": "<unnamed>::nvfp4_glu_kernel(const __nv_bfloat16 *, const unsigned char *, const unsigned char *, const float *, const unsigned char *, const unsigned char *, const float *, __nv_bfloat16 *, long, int)",
+   "per_step": 40.0,
+   "us_step": 338.9335,
+   "avg_us": 8.4733375
+  },
+  {
+   "kernel": "void <unnamed>::nvfp4_gemv_kernel<(int)1, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const unsigned char *, const float *, T2 *, long, int)",
+   "per_step": 40.0,
+   "us_step": 166.385484375,
+   "avg_us": 4.159637109375001
+  },
+  {
+   "kernel": "<unnamed>::moe_topk_kernel(const __nv_bfloat16 *, int, int, int, int, float *, int *)",
+   "per_step": 40.0,
+   "us_step": 140.751,
+   "avg_us": 3.518775
+  },
+  {
+   "kernel": "<unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long, int, int)",
+   "per_step": 30.0,
+   "us_step": 131.902,
+   "avg_us": 4.396733333333334
+  },
+  {
+   "kernel": "<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *)",
+   "per_step": 20.0,
+   "us_step": 100.615484375,
+   "avg_us": 5.0307742187499995
+  },
+  {
+   "kernel": "void <unnamed>::combine_kernel<(int)256>(const float *, const float2 *, __nv_bfloat16 *, int, int, int, long, const int *)",
+   "per_step": 10.0,
+   "us_step": 64.6995,
+   "avg_us": 6.46995
+  },
+  {
+   "kernel": "void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)",
+   "per_step": 20.0,
+   "us_step": 62.491,
+   "avg_us": 3.12455
+  },
+  {
+   "kernel": "<unnamed>::gdn_conv_state_kernel(const __nv_bfloat16 *, float *, long, int, int)",
+   "per_step": 30.0,
+   "us_step": 49.873984375,
+   "avg_us": 1.6624661458333332
+  },
+  {
+   "kernel": "void <unnamed>::moe_combine_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, T1 *, long, long)",
+   "per_step": 40.0,
+   "us_step": 41.5515,
+   "avg_us": 1.0387875
+  },
+  {
+   "kernel": "void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)",
+   "per_step": 21.0,
+   "us_step": 37.4045,
+   "avg_us": 1.7811666666666668
+  },
+  {
+   "kernel": "void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)",
+   "per_step": 11.0,
+   "us_step": 25.055984375,
+   "avg_us": 2.2778167613636366
+  },
+  {
+   "kernel": "<unnamed>::rope_pass_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int)",
+   "per_step": 20.0,
+   "us_step": 17.068,
+   "avg_us": 0.8533999999999999
+  },
+  {
+   "kernel": "void <unnamed>::argmax_kernel<float>(const T1 *, int *, long)",
+   "per_step": 1.0,
+   "us_step": 15.36,
+   "avg_us": 15.36
+  },
+  {
+   "kernel": "<unnamed>::gate_split_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, int)",
+   "per_step": 10.0,
+   "us_step": 9.722,
+   "avg_us": 0.9722000000000001
+  },
+  {
+   "kernel": "<unnamed>::sigmoid_mul_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)",
+   "per_step": 10.0,
+   "us_step": 9.000984375,
+   "avg_us": 0.9000984375000001
+  },
+  {
+   "kernel": "void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat16 *, long, long)",
+   "per_step": 1.0,
+   "us_step": 4.409,
+   "avg_us": 4.409
+  },
+  {
+   "kernel": "<unnamed>::gemv_pair_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long, const __nv_bfloat16 *, __nv_bfloat16 *, long, long)",
+   "per_step": 1.0,
+   "us_step": 3.222,
+   "avg_us": 3.222
+  }
+ ]
+}

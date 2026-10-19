@@ -1,0 +1,195 @@
+fleetq: #2667 running on spark1: scripts/cuda-round5/dev.sh
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+  Executable tests/splitkv_pipe.rs (target/acc/release/deps/splitkv_pipe-332a4683eef4c4e3)
+-rwxrwxr-x 2 nvidia nvidia 40925688 Oct 19 04:04 /home/nvidia/intarsia-decfuse/r5-pipe/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 49, 11.48 W, 0 %
+== resources (attention_splitkv.o)
+ Function splitkv_pipe_kernelILi8ELi32ELi2ELi4:	  REG:207 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi32ELi2ELi3:	  REG:207 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi32ELi2ELi2:	  REG:206 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi32ELi4ELi3:	  REG:128 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi32ELi4ELi2:	  REG:128 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi32ELi4ELi3:	  REG:94 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi32ELi4ELi2:	  REG:94 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi32ELi4ELi3:	  REG:64 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi32ELi4ELi2:	  REG:64 SHARED:1088 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi16ELi2ELi4:	  REG:207 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi16ELi2ELi3:	  REG:207 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi16ELi2ELi2:	  REG:206 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi16ELi4ELi3:	  REG:128 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi16ELi4ELi2:	  REG:128 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi16ELi4ELi3:	  REG:96 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi16ELi4ELi2:	  REG:94 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi16ELi4ELi3:	  REG:64 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi16ELi4ELi2:	  REG:64 SHARED:1152 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi8ELi2ELi4:	  REG:207 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi8ELi2ELi3:	  REG:207 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi8ELi2ELi2:	  REG:206 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi8ELi4ELi3:	  REG:128 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi8ELi4ELi2:	  REG:128 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi8ELi4ELi3:	  REG:96 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi8ELi4ELi2:	  REG:94 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi8ELi4ELi3:	  REG:64 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi8ELi4ELi2:	  REG:64 SHARED:1280 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi4ELi2ELi4:	  REG:207 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi4ELi2ELi3:	  REG:207 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi8ELi4ELi2ELi2:	  REG:206 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi4ELi4ELi3:	  REG:128 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi4ELi4ELi4ELi2:	  REG:128 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi4ELi4ELi3:	  REG:96 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi2ELi4ELi4ELi2:	  REG:96 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi4ELi4ELi3:	  REG:64 SHARED:1536 LOCAL:0
+ Function splitkv_pipe_kernelILi1ELi4ELi4ELi2:	  REG:64 SHARED:1536 LOCAL:0
+ Function combine_kernelILi256EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:37 SHARED:1024 LOCAL:0
+ Function combine_kernelILi128EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:37 SHARED:1024 LOCAL:0
+ Function combine_kernelILi64EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:37 SHARED:1024 LOCAL:0
+ Function combine_kernelILi32EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:44 SHARED:1024 LOCAL:0
+ Function combine_pipe_kernelILi256EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:32 SHARED:1024 LOCAL:0
+ Function combine_pipe_kernelILi128EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:32 SHARED:1024 LOCAL:0
+ Function combine_pipe_kernelILi64EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:32 SHARED:1024 LOCAL:0
+ Function combine_pipe_kernelILi32EEEvPKfPK6float2P13__nv_bfloat16iiilPKi:	  REG:32 SHARED:1024 LOCAL:0
+== splitkv_pipe tests, INTARSIA_X=0
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_pipe": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_pipe": 88}
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.77s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+test splitkv_pipe_graph_replay_is_bitwise_the_eager_base ... ok
+test splitkv_pipe_is_bitwise_the_splitkv_kernels ... bitwise cases: 533 (INTARSIA_SPLITKV_STAGES=None)
+test splitkv_pipe_matches_on_extreme_values ... ok
+test splitkv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.46s
+== splitkv_pipe tests, INTARSIA_SPLITKV_STAGES=2
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_pipe": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_pipe": 88}
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.99s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+test splitkv_pipe_graph_replay_is_bitwise_the_eager_base ... ok
+test splitkv_pipe_is_bitwise_the_splitkv_kernels ... bitwise cases: 533 (INTARSIA_SPLITKV_STAGES=Some("2"))
+test splitkv_pipe_matches_on_extreme_values ... ok
+test splitkv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.57s
+== splitkv_pipe tests, INTARSIA_SPLITKV_STAGES=3
+test attention_kernels_match_reference_on_random_shapes ... 
+thread 'attention_kernels_match_reference_on_random_shapes' panicked at crates/intarsia-backend-cuda/tests/attention.rs:94:45:
+test attention_throughput ... ignored
+test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.42s
+== splitkv timing round 1, INTARSIA_X=0
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    17.9 us  118.1 GB/s  splitkv_pipe    18.3 us  115.8 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    60.4 us  138.9 GB/s  splitkv_pipe    59.8 us  140.2 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   168.9 us  194.4 GB/s  splitkv_pipe   170.7 us  192.3 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   320.9 us  209.1 GB/s  splitkv_pipe   323.0 us  207.8 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   502.8 us   65.3 GB/s  splitkv_pipe   527.7 us   62.2 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    30.3 us  138.3 GB/s  splitkv_pipe    28.8 us  145.4 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    86.3 us  194.4 GB/s  splitkv_pipe    86.9 us  193.1 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   300.7 us  223.2 GB/s  splitkv_pipe   300.4 us  223.4 GB/s
+== splitkv timing round 1, INTARSIA_SPLITKV_STAGES=2
+test splitkv_timing ... 35B decode N=16 Nkv=2 D=256 T=1 kv=  1034:  splitkv    17.3 us  122.3 GB/s  splitkv_pipe    16.4 us  129.0 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv=  4096:  splitkv    59.3 us  141.5 GB/s  splitkv_pipe    58.9 us  142.4 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 16026:  splitkv   169.7 us  193.4 GB/s  splitkv_pipe   166.0 us  197.7 GB/s
+35B decode N=16 Nkv=2 D=256 T=1 kv= 32768:  splitkv   321.1 us  209.0 GB/s  splitkv_pipe   319.0 us  210.4 GB/s
+35B verify N=16 Nkv=2 D=256 T=4 kv= 16026:  splitkv   496.1 us   66.2 GB/s  splitkv_pipe   500.8 us   65.5 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  1024:  splitkv    30.0 us  140.0 GB/s  splitkv_pipe    32.8 us  128.0 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv=  4096:  splitkv    82.6 us  203.1 GB/s  splitkv_pipe    82.2 us  204.2 GB/s
+8B decode  N=32 Nkv=8 D=128 T=1 kv= 16384:  splitkv   300.6 us  223.3 GB/s  splitkv_pipe   294.6 us  227.8 GB/s
+== splitkv timing round 1, INTARSIA_SPLITKV_STAGES=3
+thread 'splitkv_timing' panicked at crates/intarsia-backend-cuda/tests/splitkv_pipe.rs:239:40:
+== gpu-test.sh r5-pipe --test gdn_split (+ racecheck)
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s
+== racecheck (scripts/cuda-checks/race-targets.txt)
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+RACE gdn_split:gdn_split_state_carries_across_calls hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+RACE splitkv_pipe:splitkv_pipe_matches_on_extreme_values hazards=0 test=ok
+gpu-test.sh exit 0
+== mutation harness (scripts/cuda-prefill4/mutcheck.sh), racecheck step
+--- unmutated
+unmutated: pass (3 tests)
+unmutated: racecheck clean
+--- no-loop-sync
+applied no-loop-sync: no __syncwarp at the top of a token (the double buffer is unordered; a race that may go unseen)
+           99 ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ ADDR :
+            1 test gdn_split_state_carries_across_calls ... ========= Warning: (Warp Level Programming) Potential RAW hazard detected at __shared__ ADDR :
+  RACE gdn_split:gdn_split_state_carries_across_calls hazards=unknown test=missing
+HARNESS: no-loop-sync racecheck gave no hazard count
+mutcheck exit 1
+== FlashInfer decode planning in the vLLM container (read-only)
+file /usr/local/lib/python3.12/dist-packages/vllm/v1/attention/backends/flashinfer.py
+13:    BatchDecodeWithPagedKVCacheWrapper,
+252:        page_size: int,
+261:        kv_cache_dtype: torch.dtype,
+262:        prefill_fixed_split_size: int,
+263:        disable_split_kv: bool,
+274:            page_size=page_size,
+280:            kv_data_type=kv_cache_dtype,
+281:            fixed_split_size=prefill_fixed_split_size,
+282:            disable_split_kv=disable_split_kv,
+345:    supported_kv_cache_dtypes: ClassVar[list[CacheDType]] = [
+437:    def get_dtype_for_flashinfer(kv_cache_dtype: str) -> torch.dtype:
+438:        if kv_cache_dtype in ("fp8", "fp8_e4m3"):
+440:        elif kv_cache_dtype == "fp8_e5m2":
+442:        elif kv_cache_dtype.startswith("nvfp4"):
+445:            raise ValueError(f"Unrecognized dtype: {kv_cache_dtype}")
+448:    def supports_kv_cache_dtype(cls, kv_cache_dtype: CacheDType | None) -> bool:
+449:        if kv_cache_dtype is not None and kv_cache_dtype.startswith("nvfp4"):
+455:        return super().supports_kv_cache_dtype(kv_cache_dtype)
+514:    wrapper: BatchDecodeWithPagedKVCacheWrapper
+646:            self.decode_fixed_split_size = 2048
+647:            self.prefill_fixed_split_size = 4096
+648:            self.disable_split_kv = True
+650:            self.decode_fixed_split_size = -1
+651:            self.prefill_fixed_split_size = -1
+652:            self.disable_split_kv = False
+676:                int, BatchDecodeWithPagedKVCacheWrapper
+707:        self.page_size = self.kv_cache_spec.block_size
+727:                self.kv_cache_dtype = "nvfp4"
+729:                self.kv_cache_dtype = FlashInferBackend.get_dtype_for_flashinfer(
+736:            self.kv_cache_dtype = self.kv_cache_spec.dtype
+752:        assert self.page_size <= 64 or (
+756:        ), f"Unexpected FlashInfer page size {self.page_size} without trtllm-gen GQA"
+821:        decode_backend = (
+828:            "decode_backend=%s, kv_cache_dtype=%s, arch=%s",
+831:            decode_backend,
+832:            self.kv_cache_dtype,
+1033:            decode_wrapper = BatchDecodeWithPagedKVCacheWrapper(
+1043:                use_tensor_cores=True,
+1068:        page_size: int,
+1108:        paged_kv_last_page_len_np = seq_lens_np % page_size
+/usr/local/lib/python3.12/dist-packages/flashinfer
+-- split-size branch:
+        self._workspace_buffer = None
+        self._prefill_wrapper: (
+            BatchPrefillWithPagedKVCacheWrapper | BatchDCPPrefillWrapper | None
+        ) = None  # Wrapper for prefill/append
+        self._noncausal_prefill_wrapper: BatchPrefillWithPagedKVCacheWrapper | None = (
+            None  # Wrapper for non-causal prefill (DFlash)
+        )
+        self._decode_wrapper = None  # Wrapper for decode (general shape)
+
+        if envs.VLLM_BATCH_INVARIANT:
+            self.decode_fixed_split_size = 2048
+            self.prefill_fixed_split_size = 4096
+            self.disable_split_kv = True
+        else:
+            self.decode_fixed_split_size = -1
+            self.prefill_fixed_split_size = -1
+            self.disable_split_kv = False
+
+fleetq: #2667 done (exit 0)

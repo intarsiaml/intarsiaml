@@ -1,0 +1,58 @@
+fleetq: #2684 running on spark1: scripts/cuda-round5/dev.sh
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 37298520 Oct 19 05:02 /home/nvidia/intarsia-decfuse/r5-f8/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 45, 11.03 W, 0 %
+== resources (attention_splitkv.o)
+== attn_f8kv tests (+ attention, graph_pos)
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_splitkv": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88}
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.89s
+test f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel ... ok
+test f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache ... bitwise cases: {"attn_decode_f8kv_splitkv": 128, "attn_prefill_f8kv_flash": 56, "attn_prefill_f8kv_splitkv": 104}
+test f8kv_matches_with_nan_past_the_end ... ok
+test f8kv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 20.65s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+== f8kv timing round 1
+test f8kv_timing ... 35B decode  N=16 Nkv=2 D=256 T=   1 kv=  1034:  bf16     17.7 us  119.7 GB/s  f8kv     16.1 us   65.7 GB/s
+35B decode  N=16 Nkv=2 D=256 T=   1 kv=  4096:  bf16     59.2 us  141.6 GB/s  f8kv     48.2 us   87.1 GB/s
+35B decode  N=16 Nkv=2 D=256 T=   1 kv= 16026:  bf16    169.5 us  193.7 GB/s  f8kv    114.2 us  143.7 GB/s
+35B decode  N=16 Nkv=2 D=256 T=   1 kv= 32768:  bf16    321.5 us  208.8 GB/s  f8kv    207.9 us  161.4 GB/s
+35B chunk   N=16 Nkv=2 D=256 T=2048 kv=  2048:  bf16    611.7 us    6.9 GB/s  f8kv    790.0 us    2.7 GB/s
+35B chunk   N=16 Nkv=2 D=256 T=2048 kv= 16384:  bf16   7925.7 us    4.2 GB/s  f8kv  10198.7 us    1.6 GB/s
+8B decode   N=32 Nkv=8 D=128 T=   1 kv= 16384:  bf16    302.0 us  222.2 GB/s  f8kv    157.2 us  213.5 GB/s
+== SASS identity of the bf16 attention kernels: r5-base vs r5-f8
+== attention_splitkv.o
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi32ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (f8b3d39d7cea4adb = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi32ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (e4e6b4cd7c44ba06 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi32ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (06816d6f121742e9 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi32ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (66ed2e8685f15f2c = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi16ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (b00b997f721651d4 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi16ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (b9dcb08c5e8ab5df = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi16ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (98398637ca225036 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi16ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (4c9a0124b37e0d01 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi8ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (c880d71c3f2b87f5 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi8ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (b9401779f99668f6 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi8ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (525ba2b42ec382ab = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi8ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (ec8e40f7828863bb = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi4ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (c347b6bcb301ddff = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi4ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (70ff5602537d6cb3 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi4ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (8e66509e0fa81a31 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi4ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (8a32eb1fc3b62162 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi256EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (42e14e0b52f37ea4 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi128EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (829f82d1739dc9cc = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi64EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (53ca42965b487829 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi32EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (34f87e2d433d5a40 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+/opt/code/intarsiaml/.claude/worktrees/agent-a5b3c881bb3be5c2f/scripts/cuda-round5/sass-diff.sh: line 23: changed: unbound variable
+sass-diff exit 1
+fleetq: #2684 done (exit 0)

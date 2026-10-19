@@ -1,0 +1,8 @@
+# CUDA kernels with intra-block / intra-warp synchronisation and the test that drives each one under
+# `compute-sanitizer --tool racecheck` (scripts/cuda-checks/racecheck.sh). A dropped __syncthreads / __syncwarp can leave
+# every output bit unchanged on a converged warp, so the bitwise tests alone cannot catch it; racecheck can.
+# Add a line for every new kernel that synchronises through shared memory.
+# columns: <test binary> <test name (exact)> <kernel source>
+gdn_split gdn_split_state_carries_across_calls kernels/cuda/gdn.cu
+attn_f8kv f8kv_matches_with_nan_past_the_end kernels/cuda/attention_flash.cu
+attn_f8kv f8kv_matches_with_nan_past_the_end kernels/cuda/attention_splitkv.cu

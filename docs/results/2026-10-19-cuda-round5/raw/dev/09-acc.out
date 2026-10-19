@@ -1,0 +1,44 @@
+fleetq: #2686 running on spark1: scripts/cuda-round5/dev.sh
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 37364016 Oct 19 05:08 /home/nvidia/intarsia-decfuse/r5-f8/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 44, 11.03 W, 0 %
+MemAvailable 52 GB
+bin r5-base: intarsia 0.0.1
+bin r5-f8: intarsia 0.0.1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 44, 11.02 W, 0 %
+== start 05:08:04
+gen base-graph: prompt: 1497 tokens|finish=length prompt=1497 (cached 0) completion=256 | prefill 763 ms (1962.6 tok/s) | decode 3111 ms (81.96 tok/s)|
+gen dev-graph: prompt: 1497 tokens|finish=length prompt=1497 (cached 0) completion=256 | prefill 591 ms (2532.6 tok/s) | decode 3079 ms (82.83 tok/s)|
+gen dev-eager: prompt: 1497 tokens|finish=length prompt=1497 (cached 0) completion=256 | prefill 492 ms (3044.1 tok/s) | decode 3421 ms (74.54 tok/s)|
+gen f8-graph: prompt: 1497 tokens|finish=length prompt=1497 (cached 0) completion=256 | prefill 496 ms (3020.4 tok/s) | decode 3069 ms (83.10 tok/s)|
+gen f8-eager: prompt: 1497 tokens|finish=length prompt=1497 (cached 0) completion=256 | prefill 499 ms (3002.5 tok/s) | decode 3427 ms (74.41 tok/s)|
+acc base-short-c2048 exit 0 39 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc dev-short-c2048 exit 0 39 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc f8-short-c2048 exit 0 37 s: prefill floor [4bit]: top-1 97.85% (not gated for this class) ok | 21-way KL 5.880e-3 (need <= 3.0e-2) ok | tail mass ours 0.0171 vs ref 0.0176, exces
+acc base-short-c1024 exit 0 35 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc base-short-c256 exit 0 33 s: prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.271e-3 (need <= 3.0e-2) ok | tail mass ours 0.0173 vs ref 0.0176, exces
+acc f8-short-c256 exit 0 33 s: prefill floor [4bit]: top-1 97.64% (not gated for this class) ok | 21-way KL 6.157e-3 (need <= 3.0e-2) ok | tail mass ours 0.0170 vs ref 0.0176, exces
+acc base-long-c2048 exit 1 91 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc dev-long-c2048 exit 1 90 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc f8-long-c2048 exit 1 90 s: prefill floor [4bit]: top-1 94.43% (not gated for this class) ok | 21-way KL 4.359e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0642 vs ref 0.0611, exc
+acc base-long-c1024 exit 1 93 s: prefill floor [4bit]: top-1 94.24% (not gated for this class) ok | 21-way KL 4.421e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0640 vs ref 0.0611, exc
+acc base-long-c256 exit 1 101 s: prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.273e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc f8-long-c256 exit 1 102 s: prefill floor [4bit]: top-1 94.31% (not gated for this class) ok | 21-way KL 4.520e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0637 vs ref 0.0611, exc
+reuse base exit 0 74 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|
+reuse dev exit 0 75 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|
+reuse f8 exit 1 90 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: FAIL|
+acc8 short exit 0 47 s: prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <=|decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+acc8 long exit 0 49 s: prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= |decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+== done 05:30:15
+dev-graph vs base-graph: identical
+dev-eager vs base-graph: identical
+f8-graph vs base-graph: first difference at generated token 25 of 256
+f8-eager vs base-graph: first difference at generated token 25 of 256
+f8-eager vs f8-graph: identical
+fleetq: #2686 done (exit 0)

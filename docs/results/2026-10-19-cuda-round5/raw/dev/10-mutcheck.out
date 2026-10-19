@@ -1,0 +1,77 @@
+fleetq: #2687 waiting (#1 in line): needs 12 GB on spark1; 7 GB free of 116
+fleetq: #2687 running on spark1: scripts/cuda-round5/dev.sh
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 51, 11.69 W, 0 %
+== gpu-test.sh r5-f8 --test gdn_split (+ racecheck)
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE gdn_split:gdn_split_state_carries_across_calls hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE attn_f8kv:f8kv_matches_with_nan_past_the_end hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE attn_f8kv:f8kv_matches_with_nan_past_the_end hazards=0 test=ok
+gpu-test.sh exit 0
+== mutations of kernels/cuda/attention_splitkv.cu
+--- unmutated
+unmutated: pass (4 tests)
+unmutated: racecheck clean
+--- sk-unpack-swap
+applied sk-unpack-swap: e4m3 pairs unpacked in swapped order (dims 0/1 exchanged)
+KILLED sk-unpack-swap (tests): f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 0 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.00s 
+--- sk-unpack-hi
+applied sk-unpack-hi: the high pair of each word decoded from the low half
+KILLED sk-unpack-hi (tests): f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 0 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.99s 
+--- sk-zero-nan
+applied sk-zero-nan: keys that are not loaded hold e4m3 NaN instead of 0 (0 * NaN poisons the V sum)
+KILLED sk-zero-nan (tests): f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 0 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.00s 
+--- sk-load-narrow
+applied sk-load-narrow: only 4 of a thread's 8 bytes are loaded
+KILLED sk-load-narrow (tests): f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 0 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.00s 
+--- sk-dispatch-d
+applied sk-dispatch-d: the fp8 path dispatches head_dim 128 with the head_dim-64 lane count
+KILLED sk-dispatch-d (tests): f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.66s 
+--- sk-decode-flag
+applied sk-decode-flag: the fp8 decode launcher takes the prefill grid policy (decode = false)
+KILLED sk-decode-flag (tests): f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 0 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.01s 
+mutcheck attention_splitkv.cu exit 0
+== mutations of kernels/cuda/attention_flash.cu
+--- unmutated
+unmutated: pass (4 tests)
+unmutated: racecheck clean
+--- fl-no-land-k
+applied fl-no-land-k: K tiles are never converted into the bf16 tile (stale / zero K)
+KILLED fl-no-land-k (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.82s 
+--- fl-no-land-v
+applied fl-no-land-v: V tiles are never converted into the bf16 tile
+KILLED fl-no-land-v (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.84s 
+--- fl-land-v-after-sync
+applied fl-land-v-after-sync: RACE: V is converted after the barrier that publishes the tile (other warps may read it first)
+KILLED fl-land-v-after-sync (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.81s 
+--- fl-land-v-before-wait
+applied fl-land-v-before-wait: V staging is read before cp.async.wait_group (bytes may not have landed)
+KILLED fl-land-v-before-wait (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.97s 
+--- fl-src-offset
+applied fl-src-offset: a 16-byte copy reads the source at the bf16 chunk offset (ch * 8 bytes)
+KILLED fl-src-offset (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.76s 
+--- fl-half-swap
+applied fl-half-swap: the two 8-dim halves of a 16-byte group land in each other's place
+KILLED fl-half-swap (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.77s 
+--- fl-shared-staging
+applied fl-shared-staging: V is staged in the K tile (the K[kt+1] copy overwrites V[kt]'s bytes before they are converted)
+KILLED fl-shared-staging (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.82s 
+--- fl-read-past-end
+applied fl-read-past-end: rows past the visible keys are copied from the cache instead of zero-filled
+KILLED fl-read-past-end (tests): f8kv_matches_with_nan_past_the_end result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 20.68s 
+--- fl-land-no-sync
+applied fl-land-no-sync: RACE: no barrier between reading the staged bytes and writing the bf16 tile over them
+KILLED fl-land-no-sync (tests): f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache f8kv_matches_with_nan_past_the_end result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.82s 
+--- fl-staging-low
+applied fl-staging-low: the staging bytes sit at the start of the tile (a thread's bf16 store overwrites bytes not yet read)
+SURVIVED fl-staging-low: the tests passed on the mutated kernel and racecheck is clean
+mutcheck attention_flash.cu exit 1
+fleetq: #2687 done (exit 0)

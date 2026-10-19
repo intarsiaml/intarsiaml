@@ -1,0 +1,6 @@
+u
+Collecting data...
+Generating '/tmp/nsys-report-8009.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=15%                        ] nsys.nsys-rep[1/1] [13%                         ] nsys.nsys-rep[1/1] [11%                         ] nsys.nsys-rep[1/1] [==20%                       ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=17%                        ] nsys.nsys-rep[1/1] [====25%                     ] nsys.nsys-rep[1/1] [=====32%                    ] nsys.nsys-rep[1/1] [========40%                 ] nsys.nsys-rep[1/1] [==========48%               ] nsys.nsys-rep[1/1] [============56%             ] nsys.nsys-rep[1/1] [==============64%           ] nsys.nsys-rep[1/1] [=================72%        ] nsys.nsys-rep[1/1] [==================76%       ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/r5pprof-bf16-54000/nsys.nsys-rep

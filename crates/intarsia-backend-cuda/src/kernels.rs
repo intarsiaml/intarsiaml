@@ -26,6 +26,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_prefill_bf16_flash", Op::AttnPrefill),
     ("attn_prefill_bf16_splitkv", Op::AttnPrefill),
     ("attn_decode_bf16_splitkv", Op::AttnDecode),
+    ("attn_prefill_f8kv_flash", Op::AttnPrefill),
+    ("attn_prefill_f8kv_splitkv", Op::AttnPrefill),
+    ("attn_decode_f8kv_splitkv", Op::AttnDecode),
     ("silu_glu_bf16", Op::SiluGlu),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
@@ -249,6 +252,25 @@ pub fn all() -> Vec<KernelImpl> {
                 .tol(BF16_TOL)
                 .priority(10)
                 .scratch(splitkv_scratch),
+            // fp8_e4m3 KV cache (OPT-IN: only an fp8 cache, `--kv-dtype fp8_e4m3`, selects them; the default cache is bf16):
+            // the flash / split-KV kernels above over e4m3 K / V, converted exactly to bf16 / f32 on load. Bitwise the bf16
+            // kernels on the upcast cache (tests/attn_f8kv.rs); the accuracy cost is the cache's rounding to e4m3
+            // (docs/results/2026-10-19-cuda-round5.md).
+            "attn_prefill_f8kv_flash" => k
+                .acts(bf)
+                .weights([DType::Fp8E4m3])
+                .when(|s| flash_ok(s) && s.m > SPLITKV_MAX_ROWS)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(10),
+            "attn_decode_f8kv_splitkv" | "attn_prefill_f8kv_splitkv" => k
+                .acts(bf)
+                .weights([DType::Fp8E4m3])
+                .when(|s| splitkv_ok(s) && s.m <= SPLITKV_MAX_ROWS)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(10)
+                .scratch(splitkv_scratch),
             "gate_split_bf16" | "sigmoid_mul_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gdn_conv_bf16" => k.acts(bf).weights(bf).when(|s| (2..=8).contains(&s.k)).exact(Exactness::Deterministic).tol(BF16_TOL),
             // sequential recurrence, one warp per state row: fixed reduction order
@@ -464,6 +486,52 @@ mod tests {
         }
     }
 
+    /// The attention kernel the registry picks for the 35B (16 / 2 / 256) and 8B (32 / 8 / 128) heads by cache dtype: a bf16
+    /// cache keeps the split-KV (decode, <= 16 rows) and flash (> 16 rows) kernels, an fp8_e4m3 cache gets their f8kv twins;
+    /// no f8kv kernel can serve a bf16 cache (and the reverse).
+    #[test]
+    fn attention_selection_by_kv_dtype() {
+        let pick = |op: Op, m: usize, n: usize, nkv: usize, d: usize, kv: DType| {
+            let s = ShapeInfo {
+                m,
+                n_heads: n,
+                n_kv_heads: nkv,
+                head_dim: d,
+                k: d,
+                kv_len: 4096,
+                act: Some(DType::Bf16),
+                weight: Some(kv),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        for (n, nkv, d) in [(16, 2, 256), (32, 8, 128)] {
+            let bf = DType::Bf16;
+            let f8 = DType::Fp8E4m3;
+            assert_eq!(pick(Op::AttnDecode, 1, n, nkv, d, bf).as_deref(), Some("attn_decode_bf16_splitkv"));
+            assert_eq!(pick(Op::AttnDecode, 1, n, nkv, d, f8).as_deref(), Some("attn_decode_f8kv_splitkv"));
+            for m in [1, 5, 16] {
+                assert_eq!(pick(Op::AttnPrefill, m, n, nkv, d, bf).as_deref(), Some("attn_prefill_bf16_splitkv"), "T={m}");
+                assert_eq!(pick(Op::AttnPrefill, m, n, nkv, d, f8).as_deref(), Some("attn_prefill_f8kv_splitkv"), "T={m}");
+            }
+            for m in [17, 256, 2048] {
+                assert_eq!(pick(Op::AttnPrefill, m, n, nkv, d, bf).as_deref(), Some("attn_prefill_bf16_flash"), "T={m}");
+                assert_eq!(pick(Op::AttnPrefill, m, n, nkv, d, f8).as_deref(), Some("attn_prefill_f8kv_flash"), "T={m}");
+            }
+        }
+        for name in ["attn_prefill_f8kv_flash", "attn_prefill_f8kv_splitkv", "attn_decode_f8kv_splitkv"] {
+            let k = all().into_iter().find(|k| k.name == name).unwrap();
+            let s = ShapeInfo { m: 1, n_heads: 16, n_kv_heads: 2, head_dim: 256, k: 256, act: Some(DType::Bf16), weight: Some(DType::Bf16), ..Default::default() };
+            assert!(!k.accepts(&s), "{name} must not take a bf16 cache");
+        }
+    }
+
     #[test]
     fn names_unique_and_ops_covered() {
         let table = full_table();
@@ -565,9 +633,12 @@ mod tests {
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
         "attn_decode_bf16_splitkv:attn_decode",
+        "attn_decode_f8kv_splitkv:attn_decode",
         "attn_prefill_bf16:attn_prefill",
         "attn_prefill_bf16_flash:attn_prefill",
         "attn_prefill_bf16_splitkv:attn_prefill",
+        "attn_prefill_f8kv_flash:attn_prefill",
+        "attn_prefill_f8kv_splitkv:attn_prefill",
         "embedding_bf16:embedding",
         "gate_split_bf16:gate_split",
         "gated_rmsnorm_bf16:gated_rmsnorm",
@@ -610,7 +681,8 @@ mod tests {
     ];
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
-    /// origin/main's (`4962d8fa`), so the plan has the same candidates as before.
+    /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
+    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

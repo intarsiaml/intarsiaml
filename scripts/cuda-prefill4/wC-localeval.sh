@@ -6,7 +6,8 @@
 #   uv run localeval speed --url http://spark-4e77:8090/v1 --model intarsia-35b --thinking off --sizes $SIZES --gen 128 --reps 3
 # and creates the arm's done marker on spark1. Env: SIZES (1024,4096,16384), DOWNTIME_LOG (passed to window.sh), REMOTE
 # (the spark1 window script, default wBC.sh: the wB-ab.sh speed A/B, then wC-serve.sh; it must print READY <arm> for each
-# arm named in ARMS), LABEL (the fleetq label).
+# arm named in ARMS), LABEL (the fleetq label), OUTNAME (p4C: the done-marker directory under ~/intarsia-decfuse/out), LE_PREFIX
+# (intarsia-prefill4: the localeval label prefix).
 set -uo pipefail
 MAXMIN=${1:?max minutes}; LOG=${2:?output log}
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -23,9 +24,9 @@ while kill -0 $wpid 2>/dev/null; do
     [[ "$done_arms" == *" $arm "* ]] && continue
     echo "$(date +%T) localeval arm $arm (job $job)" >> "$LOG"
     (cd /opt/code/deepeval && FLEETQ_JOB=$job uv run localeval speed --url http://spark-4e77:8090/v1 --model intarsia-35b \
-      --thinking off --sizes "$SIZES" --gen 128 --reps 3 --label "intarsia-prefill4-$arm") >> "$LOG" 2>&1
+      --thinking off --sizes "$SIZES" --gen 128 --reps 3 --label "${LE_PREFIX:-intarsia-prefill4}-$arm") >> "$LOG" 2>&1
     echo "$(date +%T) localeval arm $arm exit $?" >> "$LOG"
-    FLEETQ_JOB=$job ssh -n -o BatchMode=yes spark1 "export FLEETQ_JOB=$job; touch ~/intarsia-decfuse/out/p4C/$arm.done"
+    FLEETQ_JOB=$job ssh -n -o BatchMode=yes spark1 "export FLEETQ_JOB=$job; touch ~/intarsia-decfuse/out/${OUTNAME:-p4C}/$arm.done"
     done_arms="$done_arms$arm "
   done
   sleep 3

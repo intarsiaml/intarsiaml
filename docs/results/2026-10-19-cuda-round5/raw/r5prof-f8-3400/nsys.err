@@ -1,0 +1,12 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 40.5s: 40 layers, hidden 2048, act bf16, kv fp8_e4m3, weights 20.83 GB, context 20480 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 1034 tokens
+ids: [8160, 369, 279, 39811, 321, 9463, 314, 279, 1286, 1506, 667, 2581, 17120, 3019, 318, 85, 15, 13, 17, 681, 20483, 685, 494, 279, 3799, 12105, 1406, 303, 10790, 220, 16, 13, 271, 4277, 271, 1076, 6649, 5262, 318, 27653, 66, 233963, 63, 14, 27653, 409, 87, 63, 681, 321, 92861, 12, 49134, 4417, 1510, 66, 643, 7941, 63, 14, 63, 34602, 1723, 7800]
+finish=length prompt=1034 (cached 0) completion=64 | prefill 693 ms (1493.0 tok/s) | decode 791 ms (79.61 tok/s)
+steps=65 graph replays=64 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65 gate_split=0ms/650
