@@ -1,0 +1,66 @@
+diff --git a/kernels/cuda/wq_gemm.cuh b/kernels/cuda/wq_gemm.cuh
+index fcb4949b..8560f93e 100644
+--- a/kernels/cuda/wq_gemm.cuh
++++ b/kernels/cuda/wq_gemm.cuh
+@@ -18,6 +18,7 @@
+ 
+ #include "ik_launch.h"
+ #include "ik_quant.cuh"
++#include <stdlib.h>
+ 
+ namespace wq {
+ 
+@@ -44,7 +45,7 @@ template <int FMT, int MT, int WM, typename OutT>
+ __global__ void __launch_bounds__(128 * WM)
+ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, const uint8_t* __restrict__ w,
+                const uint8_t* __restrict__ bs, const float* __restrict__ gs, OutT* __restrict__ out, int M, int N, int K,
+-               int vec_out, int nfast, int only_wo) {
++               int vec_out, int nfast, int only_wo, int exp) {
+     using F = Fmt<FMT>;
+     constexpr int BM = 16 * MT * WM;
+     constexpr int NTHREADS = 128 * WM;
+@@ -86,6 +87,7 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
+         rsrc[q] = w + (int64_t)(rvalid[q] ? n0 + r : 0) * row_bytes + rpart * 16;
+     }
+     auto issue_raw = [&](int u) {
++        if (exp & 8) return;
+         const int slot = u % RING;
+ #pragma unroll
+         for (int q = 0; q < RQ; ++q) {
+@@ -107,6 +109,7 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
+         }
+     };
+     auto dequant = [&](int st, int buf) {
++        if (exp & 1) return;
+         const int u = st / SPU;
+         if (FMT == FMT_NVFP4) {
+             const unsigned char* rp = rawu(u % RING) + wr * kRawStride + (st & 1) * 32 + khalf * 16;
+@@ -146,6 +149,7 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
+         arow[q] = avalid[q] ? a_src + (int64_t)(m0 + r) * K : a_src;
+     }
+     auto issue_a = [&](int st, int slot) {
++        if (exp & 4) return;
+ #pragma unroll
+         for (int q = 0; q < MT; ++q) {
+             const int r = (tid >> 3) + (NTHREADS / 8) * q;
+@@ -186,6 +190,7 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
+         if (s + 2 < S) load_sc(s + 2);
+         const ik_bf16* xt = xs(s % 3);
+         const ik_bf16* wt = ws(s & 1);
++        if (exp & 2) continue;
+ #pragma unroll
+         for (int kk = 0; kk < BK; kk += 16) {
+             uint32_t b[4][2];
+@@ -261,10 +266,11 @@ void launch_gemm(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const ui
+         return true;
+     }();
+     (void)attr_set;
++    static const int exp = [] { const char* v = getenv("INTARSIA_WQ_EXP"); return v ? atoi(v) : 0; }();
+     constexpr int BM = 16 * MT * WM;
+     const int64_t nblk = (int64_t)((M + BM - 1) / BM) * ((N + kWRows - 1) / kWRows);
+     wq_gemm_kernel<FMT, MT, WM, OutT><<<dim3((unsigned)nblk), 128 * WM, smem, s>>>(x, xq, w, bs, gs, out, M, N, K,
+-                                                                                    vec_out, nfast, only_wo);
++                                                                                    vec_out, nfast, only_wo, exp);
+ }
+ 
+ template <int FMT, typename OutT>

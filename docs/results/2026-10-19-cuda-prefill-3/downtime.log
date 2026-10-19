@@ -1,0 +1,2 @@
+2026-10-18 job=2500 stop=20:31:38 up=20:47:52 down=16.2 min label="prefill-3 W-A accuracy" serving=1
+2026-10-18 job=2513 stop=20:56:33 up=21:11:13 down=14.6 min label="prefill-3 W-BC speed A/B + localeval" serving=1

@@ -1,0 +1,5 @@
+    Checking intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-backend-cpu)
+    Checking intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-models)
+    Checking intarsia-cli v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.53s
+exit 0

@@ -1,0 +1,81 @@
+fleetq: #2506 running on spark1: scripts/cuda-prefill3/mutcheck.sh
+--- unmutated
+unmutated: pass (4 tests)
+--- sign-hi
+applied sign-hi: the sign of the second bf16 of each pair is dropped
+KILLED sign-hi: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s 
+--- shift
+applied shift: exponent:mantissa bits shifted by 3 instead of 4
+KILLED shift: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s 
+--- mant-mask
+applied mant-mask: lowest mantissa bit of the e4m3 value dropped
+KILLED mant-mask: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s 
+--- exp-scale
+applied exp-scale: bias restore multiplies by 2^119 in the high half
+KILLED exp-scale: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s 
+--- no-rebias
+applied no-rebias: no multiply by 2^120 (values stay 2^-120 of the weight)
+KILLED no-rebias: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s 
+--- byte-order
+applied byte-order: the two bytes of a pair swapped (k = 2t+1, 2t)
+KILLED byte-order: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s 
+--- pair-select
+applied pair-select: odd lanes read the pair at byte 0 of the word instead of byte 2
+KILLED pair-select: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s 
+--- word-select
+applied word-select: lanes t = 2, 3 read the first word of the 8-byte half
+KILLED word-select: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s 
+--- hi-offset
+applied hi-offset: the second B register reads k + 4 instead of k + 8
+KILLED hi-offset: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s 
+--- b-swap
+applied b-swap: b0 and b1 swapped in the mma
+KILLED b-swap: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s 
+--- b-row
+applied b-row: B rows of n8 tiles 1..3 read 4 rows apart instead of 8
+KILLED b-row: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s 
+--- a-row
+applied a-row: ldmatrix rows 8..15 of each m16 tile read rows 0..7
+KILLED a-row: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s 
+--- warp-col
+applied warp-col: warp columns 16 apart instead of 32 (B fragments)
+KILLED warp-col: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s 
+--- wait-depth
+applied wait-depth: the ring waits for one group fewer (stage s may not have landed)
+KILLED wait-depth: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s 
+--- slot
+applied slot: stage s computed from the slot of stage s + 1
+KILLED slot: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s 
+--- prefetch-dist
+applied prefetch-dist: the next load goes one stage early, into the slot being read
+KILLED prefetch-dist: fp8_gemm_reg_35b_shapes fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s 
+--- w-chunk
+applied w-chunk: weight copy chunks 8 bytes apart instead of 16
+KILLED w-chunk: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s 
+--- w-tail
+applied w-tail: weight row N - 1 is zero-filled as if it were past N (output column N - 1 wrong)
+KILLED w-tail: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s 
+--- a-tail
+applied a-tail: EQUIVALENT: activation rows past M are copied (row 0) instead of zero-filled (they feed only output rows past M, which are never stored)
+SURVIVED a-tail: the tests passed on the mutated kernel
+--- act-src
+applied act-src: W8A8 reads the raw activations instead of the e4m3-quantised ones
+KILLED act-src: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s 
+--- out-scale
+applied out-scale: the input scale is not applied in the epilogue
+KILLED out-scale: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s 
+--- tile-order
+applied tile-order: block -> tile map: the M index uses the other order
+KILLED tile-order: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s 
+--- vec-col
+applied vec-col: vectorised epilogue: columns of the second n8 tile half shifted
+KILLED vec-col: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s 
+--- scalar-col
+applied scalar-col: scalar epilogue: the second column of a pair is written to the first
+KILLED scalar-col: fp8_gemm_reg_35b_shapes fp8_gemm_reg_every_e4m3_code fp8_gemm_reg_is_bitwise_the_gemm result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s 
+--- fallback-off
+applied fallback-off: EQUIVALENT: the small-grid fallback to the 64-row kernel never taken (same bits, other schedule)
+SURVIVED fallback-off: the tests passed on the mutated kernel
+fleetq: #2506 done (exit 0)
+
+[exited with code 0]

@@ -80,12 +80,12 @@ fn flash_ok(s: &ShapeInfo) -> bool {
     matches!(s.head_dim, 64 | 128 | 256) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0
 }
 
-/// Every kernel this backend registers.
 /// `INTARSIA_CUDA_FAST_PREFILL=1` selects the two prefill kernels of docs/results/2026-10-13-prefill-cuda.md
 /// (`gdn_delta_rule_bf16_lanes`, `matmul_fp8_gemm_f8`) over the kernels they were measured against. Both pass admission
 /// and are faster, but each reorders fp32 sums, and the 35B accuracy gates (docs/accuracy.md) of the two together do not
 /// pass: the per-prompt limits are calibrated on an attention / prefill-chunk noise envelope that does not include GEMM or
-/// recurrence rounding. They stay registered and tested; they are not selected until that gate is re-calibrated.
+/// recurrence rounding. They stay registered and tested; they are not selected until that gate is re-calibrated. The GDN
+/// kernel alone has its own switch, `INTARSIA_CUDA_GDN_LANES` (see `gdn_lanes`).
 pub fn fast_prefill() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok_and(|v| v == "1"))
@@ -94,6 +94,23 @@ pub fn fast_prefill() -> bool {
 /// Priority of an opt-in kernel: above everything it replaces when `fast_prefill()`, below everything otherwise.
 pub fn opt_in_priority(on: i32) -> i32 {
     if fast_prefill() {
+        on
+    } else {
+        -10
+    }
+}
+
+/// `INTARSIA_CUDA_GDN_LANES=1` selects the several-lanes-per-row GatedDeltaNet recurrence (`gdn_delta_rule_bf16_lanes`,
+/// prefill and decode) without the e4m3 GEMM that `INTARSIA_CUDA_FAST_PREFILL=1` also turns on; `INTARSIA_CUDA_FAST_PREFILL=1`
+/// still selects it as before (docs/results/2026-10-19-cuda-prefill-3.md).
+pub fn gdn_lanes() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_GDN_LANES").is_ok_and(|v| v == "1") || fast_prefill())
+}
+
+/// Priority of the lanes GDN kernel: `on` when `gdn_lanes()`, below everything otherwise.
+pub fn gdn_lanes_priority(on: i32) -> i32 {
+    if gdn_lanes() {
         on
     } else {
         -10
@@ -134,6 +151,24 @@ pub fn moe_w4a16_priority(on: i32) -> i32 {
     }
 }
 
+/// The register-dequantising fp8 GEMM (`matmul_fp8_gemm_reg`, bitwise the results of `matmul_fp8_gemm`,
+/// docs/results/2026-10-19-cuda-prefill-3.md) is selected for prefill-shaped fp8 projections by default;
+/// `INTARSIA_CUDA_FP8_GEMM_REG=0` falls back to `matmul_fp8_gemm`.
+pub fn fp8_gemm_reg() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").map_or(true, |v| v != "0"))
+}
+
+/// Priority of the register-dequantising fp8 GEMM: `on` unless switched off, below everything then.
+pub fn fp8_gemm_reg_priority(on: i32) -> i32 {
+    if fp8_gemm_reg() {
+        on
+    } else {
+        -10
+    }
+}
+
+/// Every kernel this backend registers.
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     let mut v = Vec::new();
@@ -197,7 +232,7 @@ pub fn all() -> Vec<KernelImpl> {
                 .when(|s| matches!(s.head_dim, 32 | 64 | 128 | 256) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL),
-            // OPT-IN (INTARSIA_CUDA_FAST_PREFILL=1, see `fast_prefill`).
+            // OPT-IN (INTARSIA_CUDA_GDN_LANES=1 or INTARSIA_CUDA_FAST_PREFILL=1, see `gdn_lanes`).
             // several lanes per state row (kernels/cuda/gdn.cu): ~4x the threads of the one-thread-per-row kernel, 1.4x
             // faster at T = 2048 and 2.3x at T = 1. It serves EVERY T (decode included): the recurrence is token-sequential
             // and this kernel's per-token arithmetic does not depend on T, so a prompt gives the same bits however it is
@@ -212,7 +247,7 @@ pub fn all() -> Vec<KernelImpl> {
                 })
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
-                .priority(opt_in_priority(10)),
+                .priority(gdn_lanes_priority(10)),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
@@ -282,6 +317,88 @@ mod tests {
         assert_eq!(pick(1024), Some("moe_experts_w4a16_bf16".to_string()));
         assert_eq!(pick(1023), Some("moe_experts_mma_bf16".to_string()));
         assert_eq!(pick(256), Some("moe_experts_mma_bf16".to_string()));
+    }
+
+    /// The GatedDeltaNet recurrence kernel the registry picks at the 35B shape (dk = dv = 128, 16 key heads, 32 value heads)
+    /// for decode (T = 1) and a prefill chunk (T = 2048): the one-warp-per-row kernel by default, the lanes kernel with
+    /// `INTARSIA_CUDA_GDN_LANES=1` or `INTARSIA_CUDA_FAST_PREFILL=1` (the switch is read once per process, so the test pins
+    /// whichever the environment of this run asks for).
+    #[test]
+    fn gdn_delta_rule_selection() {
+        let pick = |m: usize| {
+            let s = ShapeInfo {
+                m,
+                n: 128,
+                k: 128,
+                head_dim: 128,
+                n_heads: 32,
+                n_kv_heads: 16,
+                act: Some(DType::Bf16),
+                weight: Some(DType::Bf16),
+                out: Some(DType::Bf16),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == Op::GdnDeltaRule && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        let lanes = std::env::var("INTARSIA_CUDA_GDN_LANES").is_ok_and(|v| v == "1")
+            || std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok_and(|v| v == "1");
+        let want = if lanes { "gdn_delta_rule_bf16_lanes" } else { "gdn_delta_rule_bf16" };
+        for m in [1, 2048] {
+            assert_eq!(pick(m), Some(want.to_string()), "T={m}");
+        }
+    }
+
+    /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096): the gemv for 1..4 tokens, the mma
+    /// kernel for 5..32, `matmul_fp8_gemm` for 33..255, `matmul_fp8_gemm_reg` from 256 (the 2048-token chunk included), unless
+    /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FAST_PREFILL=1`. The
+    /// kernel is bitwise `matmul_fp8_gemm`, so no accuracy gate can tell which one ran: this pins it.
+    #[test]
+    fn fp8_gemm_selection_by_batch_size() {
+        let pick = |m: usize, k: usize| {
+            let s = ShapeInfo {
+                m,
+                n: 8192,
+                k,
+                act: Some(DType::Bf16),
+                weight: Some(DType::Fp8E4m3),
+                out: Some(DType::Bf16),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        if std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok() {
+            return; // the default selection is what is pinned
+        }
+        let big = if std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0") {
+            "matmul_fp8_gemm"
+        } else {
+            "matmul_fp8_gemm_reg"
+        };
+        // the measured threshold (docs/results/2026-10-19-cuda-prefill-3.md), as a literal so a change shows up here
+        assert_eq!(crate::quantmoe::FP8_REG_MIN_TOKENS, 256);
+        for k in [2048, 4096] {
+            assert_eq!(pick(1, k).as_deref(), Some("matmul_fp8_gemv"));
+            assert_eq!(pick(4, k).as_deref(), Some("matmul_fp8_gemv"));
+            assert_eq!(pick(5, k).as_deref(), Some("matmul_fp8_mma"));
+            assert_eq!(pick(32, k).as_deref(), Some("matmul_fp8_mma"));
+            assert_eq!(pick(33, k).as_deref(), Some("matmul_fp8_gemm"));
+            assert_eq!(pick(255, k).as_deref(), Some("matmul_fp8_gemm"));
+            for m in [256, 2048, 4096] {
+                assert_eq!(pick(m, k).as_deref(), Some(big), "M={m} K={k}");
+            }
+        }
     }
 
     #[test]

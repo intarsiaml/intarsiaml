@@ -1,0 +1,82 @@
+fleetq: #2497 running on spark1: scripts/cuda-prefill3/dev.sh
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/p3-exp/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p3-exp/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 10.09s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 33861928 Oct 18 20:24 /home/nvidia/intarsia-decfuse/p3-exp/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 46, 11.24 W, 0 %
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1164.8 us   59.0 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        624.0 us   55.1 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        747.0 us   46.0 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1208.1 us   56.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        125.5 us   34.2 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        695.9 us   49.4 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      97624.1 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_WQ_EXP=1
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1111.0 us   61.9 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        567.9 us   60.5 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        636.0 us   54.0 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1096.1 us   62.7 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        115.1 us   37.3 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        631.8 us   54.4 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      89026.9 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_WQ_EXP=2
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        727.1 us   94.5 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        422.4 us   81.3 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        510.5 us   67.3 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg        809.8 us   84.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg         79.6 us   53.9 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        509.3 us   67.5 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      64583.9 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_WQ_EXP=4
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1035.9 us   66.3 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        565.4 us   60.8 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        640.9 us   53.6 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1038.6 us   66.2 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        122.9 us   35.0 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        643.8 us   53.4 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      86546.3 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_WQ_EXP=5
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        905.2 us   75.9 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        497.7 us   69.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        576.6 us   59.6 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg        904.9 us   75.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        111.9 us   38.4 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        572.3 us   60.0 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      76395.2 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_WQ_EXP=6
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        506.7 us  135.6 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        296.2 us  116.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        356.9 us   96.3 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg        510.5 us  134.6 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg         75.1 us   57.2 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        347.7 us   98.8 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      44878.6 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_WQ_EXP=16
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1257.3 us   54.7 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        663.8 us   51.8 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        694.4 us   49.5 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1290.9 us   53.2 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        126.3 us   34.0 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        694.6 us   49.5 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg     100844.4 us
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg INTARSIA_WQ_EXP=32
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1160.4 us   59.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        620.2 us   55.4 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        709.5 us   48.4 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1217.9 us   56.4 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        121.4 us   35.4 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        719.9 us   47.7 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      96507.4 us
+fleetq: #2497 done (exit 0)
+
+[exited with code 0]

@@ -1,0 +1,10 @@
+    Checking intarsia-core v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-core)
+    Checking intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-backend-cpu)
+    Checking intarsia-server v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-server)
+    Checking intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-backend-metal)
+    Checking intarsia-backend-hip v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-backend-hip)
+    Checking intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-backend-cuda)
+    Checking intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-models)
+    Checking intarsia-cli v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-ac3d9399c10f5b527/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.71s
+exit 0

@@ -1,0 +1,250 @@
+fleetq: #2491 running on spark1: scripts/cuda-prefill3/dev.sh
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/p3-exp/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/p3-exp/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 13.62s
+  Executable tests/gdn_lanes.rs (target/acc/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 33665320 Oct 18 20:14 /home/nvidia/intarsia-decfuse/p3-exp/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 45, 11.13 W, 0 %
+== mma_peak
+SMs 48, max smem per block (opt-in) 101376 B, per SM 102400 B, regs per SM 65536, clock 2418000 kHz
+bf16 m16n8k16,  4 warps/block, 384 blocks: 122.3 TFLOPS
+bf16 m16n8k16,  8 warps/block, 384 blocks: 122.5 TFLOPS
+bf16 m16n8k16, 16 warps/block, 384 blocks: 122.5 TFLOPS
+e4m3 m16n8k32,  4 warps/block, 384 blocks: 244.7 TFLOPS
+e4m3 m16n8k32,  8 warps/block, 384 blocks: 243.4 TFLOPS
+e4m3 m16n8k32, 16 warps/block, 384 blocks: 243.2 TFLOPS
+== gdn tests (lanes accuracy, timing)
+running 2 tests
+test gdn_lanes_is_as_accurate_as_the_rows_kernel ... dk=128 dv=128 T=1 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=128 T=1 state: rel_l2 vs f64 reference: rows kernel 7.371e-8, lanes kernel 7.343e-8
+dk=128 dv=128 T=7 o: rel_l2 vs f64 reference: rows kernel 4.235e-6, lanes kernel 4.233e-6
+dk=128 dv=128 T=7 state: rel_l2 vs f64 reference: rows kernel 9.546e-8, lanes kernel 9.565e-8
+dk=128 dv=128 T=16 o: rel_l2 vs f64 reference: rows kernel 2.405e-5, lanes kernel 2.101e-5
+dk=128 dv=128 T=16 state: rel_l2 vs f64 reference: rows kernel 9.695e-8, lanes kernel 9.704e-8
+dk=128 dv=128 T=17 o: rel_l2 vs f64 reference: rows kernel 9.428e-7, lanes kernel 1.498e-5
+dk=128 dv=128 T=17 state: rel_l2 vs f64 reference: rows kernel 9.966e-8, lanes kernel 9.973e-8
+dk=128 dv=128 T=130 o: rel_l2 vs f64 reference: rows kernel 2.396e-5, lanes kernel 1.620e-5
+dk=128 dv=128 T=130 state: rel_l2 vs f64 reference: rows kernel 9.524e-8, lanes kernel 9.530e-8
+dk=128 dv=128 T=513 o: rel_l2 vs f64 reference: rows kernel 2.917e-5, lanes kernel 1.890e-5
+dk=128 dv=128 T=513 state: rel_l2 vs f64 reference: rows kernel 8.385e-8, lanes kernel 8.377e-8
+dk=64 dv=40 T=1 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=64 dv=40 T=1 state: rel_l2 vs f64 reference: rows kernel 6.396e-8, lanes kernel 6.411e-8
+dk=64 dv=40 T=7 o: rel_l2 vs f64 reference: rows kernel 5.039e-6, lanes kernel 5.039e-6
+dk=64 dv=40 T=7 state: rel_l2 vs f64 reference: rows kernel 9.561e-8, lanes kernel 9.543e-8
+dk=64 dv=40 T=16 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=64 dv=40 T=16 state: rel_l2 vs f64 reference: rows kernel 9.517e-8, lanes kernel 9.599e-8
+dk=64 dv=40 T=17 o: rel_l2 vs f64 reference: rows kernel 7.275e-7, lanes kernel 7.275e-7
+dk=64 dv=40 T=17 state: rel_l2 vs f64 reference: rows kernel 9.152e-8, lanes kernel 9.143e-8
+dk=64 dv=40 T=130 o: rel_l2 vs f64 reference: rows kernel 3.069e-8, lanes kernel 2.854e-8
+dk=64 dv=40 T=130 state: rel_l2 vs f64 reference: rows kernel 1.417e-7, lanes kernel 1.416e-7
+dk=64 dv=40 T=513 o: rel_l2 vs f64 reference: rows kernel 5.659e-6, lanes kernel 5.487e-6
+dk=64 dv=40 T=513 state: rel_l2 vs f64 reference: rows kernel 8.010e-8, lanes kernel 7.979e-8
+dk=128 dv=72 T=1 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=72 T=1 state: rel_l2 vs f64 reference: rows kernel 5.044e-8, lanes kernel 5.018e-8
+dk=128 dv=72 T=7 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=72 T=7 state: rel_l2 vs f64 reference: rows kernel 1.130e-7, lanes kernel 1.130e-7
+dk=128 dv=72 T=16 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=72 T=16 state: rel_l2 vs f64 reference: rows kernel 7.417e-8, lanes kernel 7.373e-8
+dk=128 dv=72 T=17 o: rel_l2 vs f64 reference: rows kernel 4.778e-8, lanes kernel 4.778e-8
+dk=128 dv=72 T=17 state: rel_l2 vs f64 reference: rows kernel 7.732e-8, lanes kernel 7.818e-8
+dk=128 dv=72 T=130 o: rel_l2 vs f64 reference: rows kernel 2.580e-6, lanes kernel 2.580e-6
+dk=128 dv=72 T=130 state: rel_l2 vs f64 reference: rows kernel 7.845e-8, lanes kernel 7.830e-8
+dk=128 dv=72 T=513 o: rel_l2 vs f64 reference: rows kernel 2.485e-6, lanes kernel 1.991e-5
+dk=128 dv=72 T=513 state: rel_l2 vs f64 reference: rows kernel 1.104e-7, lanes kernel 1.084e-7
+ok
+test gdn_lanes_state_carries_across_calls ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s
+
+
+running 1 test
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.1 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          31.4 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_conv_bf16          T=512         85.5 us/launch
+gdn_delta_rule_bf16    T=512        592.3 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.5 us/launch
+gdn_conv_bf16          T=2048       371.4 us/launch
+gdn_delta_rule_bf16    T=2048      2947.6 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1896.4 us/launch
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+== resources
+-- fp8_gemm
+ Function actq_kernelEPK13__nv_bfloat16PS0_PKfl:
+  REG:25 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:928 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi2ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiiii:
+  REG:70 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiiii:
+  REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi1E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi2ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiiii:
+  REG:64 STACK:8 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiiii:
+  REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi1ELi1ELi1EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiiii:
+  REG:55 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+-- fp8_gemm_f8
+ Function gemm_kernelILi2ELi2E13__nv_bfloat16EEvPKhS3_PKfPT1_iiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi4ELi2E13__nv_bfloat16EEvPKhS3_PKfPT1_iiii:
+  REG:108 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi2ELi2EfEEvPKhS2_PKfPT1_iiii:
+  REG:80 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi4ELi2EfEEvPKhS2_PKfPT1_iiii:
+  REG:108 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:944 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function actq8_kernelEPK13__nv_bfloat16PhPKfl:
+  REG:24 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:928 TEXTURE:0 SURFACE:0 SAMPLER:0
+-- nvfp4_gemm
+ Function gemm_kernelILi0ELi2ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiiii:
+  REG:64 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi2E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiiii:
+  REG:62 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi1E13__nv_bfloat16EEvPKS1_S3_PKhS5_PKfPT2_iiiiiii:
+  REG:64 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi2ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiiii:
+  REG:64 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi2EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiiii:
+  REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function gemm_kernelILi0ELi1ELi1EfEEvPK13__nv_bfloat16S3_PKhS5_PKfPT2_iiiiiii:
+  REG:56 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:972 TEXTURE:0 SURFACE:0 SAMPLER:0
+== wq bench round 1: INTARSIA_BENCH_WQ=matmul_fp8_gemm,matmul_fp8_gemm_f8,matmul_nvfp4_gemm
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1318.9 us   52.1 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            700.8 us   49.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            839.7 us   40.9 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1297.2 us   53.0 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm            112.5 us   38.2 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            800.8 us   42.9 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm         109014.2 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         834.4 us   82.4 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         418.9 us   82.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         450.0 us   76.3 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         770.0 us   89.2 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          85.5 us   50.2 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         452.2 us   76.0 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       65031.3 us
+M=2048 shared gate/up     matmul_nvfp4_gemm           94.5 us   45.5 TFLOPS
+M=2048 shared down        matmul_nvfp4_gemm           98.5 us   43.6 TFLOPS
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm        11498.8 us
+== wq bench round 1: INTARSIA_WQ_EXP=1
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1084.3 us   63.4 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            570.1 us   60.3 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            639.5 us   53.7 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1100.6 us   62.4 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm             97.5 us   44.1 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            660.4 us   52.0 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm          88374.8 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         844.1 us   81.4 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         417.8 us   82.2 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         447.2 us   76.8 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         793.0 us   86.7 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          84.6 us   50.8 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         450.5 us   76.3 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       65400.8 us
+== wq bench round 1: INTARSIA_WQ_EXP=2
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm            941.2 us   73.0 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            484.9 us   70.9 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            560.4 us   61.3 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm            918.7 us   74.8 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm             84.2 us   51.0 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            561.5 us   61.2 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm          76083.2 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         768.2 us   89.5 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         417.3 us   82.3 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         440.6 us   78.0 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         772.8 us   88.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          83.0 us   51.7 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         440.3 us   78.0 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       62576.0 us
+== wq bench round 1: INTARSIA_WQ_EXP=3
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm            902.4 us   76.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            534.0 us   64.3 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            565.1 us   60.8 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm            904.7 us   76.0 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm             86.3 us   49.8 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            573.6 us   59.9 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm          76553.2 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         838.5 us   82.0 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         422.8 us   81.3 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         448.5 us   76.6 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         835.3 us   82.3 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          84.4 us   50.9 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         452.6 us   75.9 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       65861.6 us
+== wq bench round 1: INTARSIA_WQ_EXP=12
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1038.1 us   66.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            574.5 us   59.8 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            612.9 us   56.1 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1037.0 us   66.3 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm            108.8 us   39.5 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            611.7 us   56.2 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm          85426.1 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         764.9 us   89.8 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         426.0 us   80.6 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         459.8 us   74.7 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         841.3 us   81.7 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          82.0 us   52.4 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         451.5 us   76.1 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       64089.1 us
+== wq bench round 1: INTARSIA_WQ_EXP=13
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm            836.5 us   82.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            465.8 us   73.8 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            505.8 us   67.9 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm            841.6 us   81.6 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm             87.6 us   49.0 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            512.7 us   67.0 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm          69537.2 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         761.7 us   90.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         420.1 us   81.8 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         447.7 us   76.8 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         771.9 us   89.0 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          84.1 us   51.0 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         448.0 us   76.7 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       62766.8 us
+== wq bench round 1: INTARSIA_WQ_EXP=8
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1088.6 us   63.1 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            596.3 us   57.6 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            655.3 us   52.4 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1118.5 us   61.4 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm             99.6 us   43.1 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            653.7 us   52.6 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm          89919.6 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         839.2 us   81.9 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         418.8 us   82.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         450.8 us   76.2 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         838.7 us   81.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          83.8 us   51.2 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         445.5 us   77.1 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       65783.8 us
+== wq bench round 1: INTARSIA_WQ_EXP=4
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm           1162.5 us   59.1 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm            626.0 us   54.9 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm            684.0 us   50.2 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm           1202.4 us   57.2 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm            105.3 us   40.8 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm            708.6 us   48.5 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm          95388.5 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         833.3 us   82.5 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         422.4 us   81.3 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         442.6 us   77.6 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         757.4 us   90.7 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          84.0 us   51.1 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         443.6 us   77.5 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       64639.8 us
+fleetq: #2491 done (exit 0)
+
+[exited with code 0]
