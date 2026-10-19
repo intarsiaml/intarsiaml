@@ -6,8 +6,8 @@
 set -u
 D=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 AB_ARMS=${AB_ARMS:-"base:p3-dev:INTARSIA_CUDA_FP8_GEMM_REG=0 lanes:p3-dev:INTARSIA_CUDA_FP8_GEMM_REG=0,INTARSIA_CUDA_GDN_LANES=1 reg:p3-dev:INTARSIA_X=0"}
-LE_ARMS=${LE_ARMS:-"base:INTARSIA_CUDA_FP8_GEMM_REG=0 dev:INTARSIA_X=0"}
+LE_ARMS=${LE_ARMS:-"dev:INTARSIA_X=0"}
 echo "== W-B speed A/B $(date +%T)"
-ARMS="$AB_ARMS" W_BUDGET_SEC=${W_BUDGET_SEC:-700} bash $D/wB-ab.sh
+ARMS="$AB_ARMS" W_BUDGET_SEC=${W_BUDGET_SEC:-680} bash $D/wB-ab.sh
 echo "== W-C localeval servers $(date +%T)"
 bash $D/wC-serve.sh $LE_ARMS
