@@ -1,0 +1,11 @@
+1260d1259
+< 	global_inv scope:SCOPE_DEV
+1267d1265
+< 	global_inv scope:SCOPE_DEV
+1277,1278d1274
+< 	s_wait_loadcnt 0x0
+< 	global_inv scope:SCOPE_DEV
+5954c5950
+< 		.amdhsa_inst_pref_size 233
+---
+> 		.amdhsa_inst_pref_size 232

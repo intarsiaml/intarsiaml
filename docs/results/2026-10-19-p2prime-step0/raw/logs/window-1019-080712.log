@@ -1,0 +1,757 @@
+[window] job 2717; gpu0: run:5:base run:3:v3-noorder:v3-nobaracq; gpu1: run:5:base run:3:v3-nofence:v3-nospinacq:v3-fenceonly; stopping radiance 2026-10-19 08:07:12
+[window] radiance stopped 2026-10-19 08:07:14
+################ stage run:5:base start 08:07:14
+--- base run 1 [08:07:14] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 0 differ from v2
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+test v3_waits_for_every_gate_up_role ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.87s
+exit=0
+--- base run 2 [08:07:27] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 0 differ from v2
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+test v3_waits_for_every_gate_up_role ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.75s
+exit=0
+--- base run 3 [08:07:39] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 0 differ from v2
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+test v3_waits_for_every_gate_up_role ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.85s
+exit=0
+--- base run 4 [08:07:51] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 0 differ from v2
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+test v3_waits_for_every_gate_up_role ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.81s
+exit=0
+--- base run 5 [08:08:03] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 0 differ from v2
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+test v3_waits_for_every_gate_up_role ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.84s
+exit=0
+################ stage run:5:base end 08:08:15
+################ stage run:3:v3-noorder:v3-nobaracq start 08:08:15
+--- v3-noorder run 1 [08:08:15] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 39 differ (39 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 280 differ from v2
+thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:244:5:
+280 of 960 launches read h early or stale:
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (474 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (1065 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (1014 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (919 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (890 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (1018 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1107 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (981 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1008 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1006 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (1027 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (970 NaN outputs)
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 282 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 39 differ (39 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 280 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 562 differ from v2
+thread 'v3_sentinel_stress_narrow' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:269:5:
+562 of 1440 launches read h early or stale:
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (740 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (1298 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (1298 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (1310 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (1320 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (1314 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1327 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (1316 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1317 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1318 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (1306 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (1317 NaN outputs)
+test v3_waits_for_every_gate_up_role ... ok
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.85s
+exit=101
+--- v3-noorder run 2 [08:08:27] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 29 differ (29 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 270 differ from v2
+thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:244:5:
+270 of 960 launches read h early or stale:
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (534 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (988 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (965 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (961 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (992 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (982 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (933 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (992 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (947 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1001 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (899 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (898 NaN outputs)
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 6 differ (6 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 286 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 3 differ (3 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 39 differ (39 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 282 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 568 differ from v2
+thread 'v3_sentinel_stress_narrow' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:269:5:
+568 of 1440 launches read h early or stale:
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (709 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (1294 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (1294 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (1273 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (1291 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (1282 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1283 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (1271 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1274 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1279 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (1287 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (1284 NaN outputs)
+test v3_waits_for_every_gate_up_role ... ok
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.74s
+exit=101
+--- v3-noorder run 3 [08:08:39] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 28 differ (28 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 269 differ from v2
+thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:244:5:
+269 of 960 launches read h early or stale:
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (409 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (939 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (934 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (966 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (911 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (937 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1010 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (894 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1029 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (942 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (969 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (934 NaN outputs)
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 7 differ (7 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 287 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 2 differ (2 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 39 differ (39 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 281 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 568 differ from v2
+thread 'v3_sentinel_stress_narrow' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:269:5:
+568 of 1440 launches read h early or stale:
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (143 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (1263 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (1264 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 3: differs from v2 (101 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (1266 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (1270 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 6: differs from v2 (161 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (1264 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (1263 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (1263 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (1277 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (1266 NaN outputs)
+test v3_waits_for_every_gate_up_role ... ok
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.85s
+exit=101
+--- v3-nobaracq run 1 [08:08:51] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 29 differ (29 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 270 differ from v2
+thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:244:5:
+270 of 960 launches read h early or stale:
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (143 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (532 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (510 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (486 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (507 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (496 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (496 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (464 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (487 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (485 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (460 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (489 NaN outputs)
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 7 differ (7 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 287 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 39 differ (39 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 280 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 567 differ from v2
+thread 'v3_sentinel_stress_narrow' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:269:5:
+567 of 1440 launches read h early or stale:
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (342 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (658 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (656 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 3: differs from v2 (103 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (654 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (656 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (657 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (651 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (656 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (663 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (659 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (661 NaN outputs)
+test v3_waits_for_every_gate_up_role ... ok
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.75s
+exit=101
+--- v3-nobaracq run 2 [08:09:03] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 1 differ (1 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 19 differ (19 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 260 differ from v2
+thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:244:5:
+260 of 960 launches read h early or stale:
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (368 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (523 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (484 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (529 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (530 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (551 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (475 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (508 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (506 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (485 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (518 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (481 NaN outputs)
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 6 differ (6 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 286 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 39 differ (39 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 279 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 565 differ from v2
+thread 'v3_sentinel_stress_narrow' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:269:5:
+565 of 1440 launches read h early or stale:
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (181 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (645 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (653 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 3: differs from v2 (60 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (660 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (658 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (655 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (660 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (658 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (655 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (658 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (669 NaN outputs)
+test v3_waits_for_every_gate_up_role ... ok
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.79s
+exit=101
+--- v3-nobaracq run 3 [08:09:16] GPU 0
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 33 differ (33 NaN), skew 2: 40 differ (40 NaN), skew 6: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress: 960 launches, 273 differ from v2
+thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:244:5:
+273 of 960 launches read h early or stale:
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (488 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (483 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (484 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (513 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (499 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (464 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (508 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (510 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (493 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 14: differs from v2 (485 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 16: differs from v2 (533 NaN outputs)
+all-late: t=1 e=256 k=8 h=2048 i=512 launch 17: differs from v2 (490 NaN outputs)
+test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 4 differ (4 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 40 differ (40 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 284 differ from v2
+  [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+  [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 39 differ (39 NaN), skew 20: 40 differ (40 NaN), skew 40: 40 differ (40 NaN); stream 1: 0 differ (0 NaN)
+v3_sentinel_stress_narrow [last-late, side]: 960 launches, 279 differ from v2
+v3_sentinel_stress_narrow: 1440 launches, 563 differ from v2
+thread 'v3_sentinel_stress_narrow' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:269:5:
+563 of 1440 launches read h early or stale:
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 0: differs from v2 (238 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 1: differs from v2 (652 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 2: differs from v2 (650 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 4: differs from v2 (653 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 5: differs from v2 (655 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 6: differs from v2 (144 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 7: differs from v2 (653 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 8: differs from v2 (649 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 9: differs from v2 (204 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 10: differs from v2 (656 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 11: differs from v2 (664 NaN outputs)
+last-late, no side: t=1 e=256 k=8 h=2048 i=512 launch 13: differs from v2 (651 NaN outputs)
+test v3_waits_for_every_gate_up_role ... ok
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.84s
+exit=101
+################ stage run:3:v3-noorder:v3-nobaracq end 08:09:28
+[window] gpu0 lane done 2026-10-19 08:09:28 (exit 0)
+[window] gpu1 lane done 2026-10-19 08:10:02 (exit 0)
+[gpu1] ################ stage run:5:base start 08:07:14
+[gpu1] --- base run 1 [08:07:14] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.86s
+[gpu1] exit=0
+[gpu1] --- base run 2 [08:07:27] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.78s
+[gpu1] exit=0
+[gpu1] --- base run 3 [08:07:39] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.80s
+[gpu1] exit=0
+[gpu1] --- base run 4 [08:07:51] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.86s
+[gpu1] exit=0
+[gpu1] --- base run 5 [08:08:03] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.80s
+[gpu1] exit=0
+[gpu1] ################ stage run:5:base end 08:08:15
+[gpu1] ################ stage run:3:v3-nofence:v3-nospinacq:v3-fenceonly start 08:08:15
+[gpu1] --- v3-nofence run 1 [08:08:15] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.83s
+[gpu1] exit=0
+[gpu1] --- v3-nofence run 2 [08:08:27] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.82s
+[gpu1] exit=0
+[gpu1] --- v3-nofence run 3 [08:08:39] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.75s
+[gpu1] exit=0
+[gpu1] --- v3-nospinacq run 1 [08:08:51] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.77s
+[gpu1] exit=0
+[gpu1] --- v3-nospinacq run 2 [08:09:03] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.86s
+[gpu1] exit=0
+[gpu1] --- v3-nospinacq run 3 [08:09:16] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.75s
+[gpu1] exit=0
+[gpu1] --- v3-fenceonly run 1 [08:09:28] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.31s
+[gpu1] exit=0
+[gpu1] --- v3-fenceonly run 2 [08:09:39] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.29s
+[gpu1] exit=0
+[gpu1] --- v3-fenceonly run 3 [08:09:51] GPU 1
+[gpu1] test v3_counters_reset_between_launches ... ok
+[gpu1] test v3_graph_replay_is_bitwise_eager ... ok
+[gpu1] test v3_is_bitwise_v2 ... ok
+[gpu1] test v3_sentinel_stress ...   [all-late] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [all-late] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress: 960 launches, 0 differ from v2
+[gpu1] test v3_sentinel_stress_narrow ...   [last-late, no side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, no side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, no side]: 480 launches, 0 differ from v2
+[gpu1]   [last-late, side] t=1 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=2 e=256 k=8 h=2048 i=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=64 k=8 h=1024 i=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1]   [last-late, side] t=1 e=16 k=2 h=256 i=16, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ (0 NaN)
+[gpu1] v3_sentinel_stress_narrow [last-late, side]: 960 launches, 0 differ from v2
+[gpu1] v3_sentinel_stress_narrow: 1440 launches, 0 differ from v2
+[gpu1] test v3_waits_for_every_gate_up_role ... ok
+[gpu1] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.26s
+[gpu1] exit=0
+[gpu1] ################ stage run:3:v3-nofence:v3-nospinacq:v3-fenceonly end 08:10:02
+[window] starting radiance 2026-10-19 08:10:02
+[window] radiance answers 2026-10-19 08:10:12 (after 15 s)

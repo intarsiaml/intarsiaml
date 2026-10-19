@@ -1,0 +1,14 @@
+1260d1259
+< 	global_inv scope:SCOPE_DEV
+1267d1265
+< 	global_inv scope:SCOPE_DEV
+1276,1277c1274,1275
+< 	global_inv scope:SCOPE_SE
+< 	s_wait_loadcnt 0x0
+---
+> 	;;#ASMSTART
+> 	;;#ASMEND
+5698c5696
+< 		.amdhsa_inst_pref_size 222
+---
+> 		.amdhsa_inst_pref_size 221

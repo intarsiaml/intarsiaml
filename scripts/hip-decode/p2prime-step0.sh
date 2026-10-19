@@ -36,14 +36,21 @@ stage_isa() {  # CPU only: gfx1201 assembly of moe.hip for the base and every v3
     $D bash -c "cd /work && /opt/rocm/bin/hipcc -S -O3 -std=c++17 --offload-arch=gfx1201 --cuda-device-only \
       -I bench-out/p2s0/isa-src/$m/kernels/hip -o bench-out/p2s0/isa/$m.s bench-out/p2s0/isa-src/$m/kernels/hip/moe.hip" \
       > "$I/$m.hipcc.txt" 2>&1 || { echo "$m: hipcc FAILED"; cat "$I/$m.hipcc.txt" | head; continue; }
-    for p in 1 2 4; do  # one function body per PRE instantiation (the default PRE is 4: moe_pre())
-      awk -v pre="$p" '$0 ~ "^_Z[0-9]+moe_experts_p1_v3_kernelILi" pre "EEv.*:$" {on=1} on {print} on && /^\.Lfunc_end/ {exit}' \
-        "$I/$m.s" | sed -E 's/\.LBB[0-9]+_/.LBB_/g' > "$I/$m.k$p.s"
-    done
-    echo "$m: $(wc -l < "$I/$m.k4.s") lines in <4>; global_inv / barrier lines: $(grep -cE 'global_inv|s_barrier' "$I/$m.k4.s")"
     rm -rf "$src"
   done
   rmdir "$OUT/isa-src" 2>/dev/null
+  stage_isadiff
+}
+
+stage_isadiff() {  # the v3 kernels' bodies out of $OUT/isa/<name>.s, their diffs, and every invalidate / barrier / wait in them
+  local I="$OUT/isa" m p f
+  for m in base $V3MUT; do
+    for p in 1 2 4; do  # one function body per PRE instantiation (the default PRE is 4: moe_pre()); block labels renumbered
+      awk -v pre="$p" '$0 ~ ("^_Z[^ ]*moe_experts_p1_v3_kernelILi" pre "E[^ ]*: ") {on=1} on {print} on && /^\.Lfunc_end/ {exit}' \
+        "$I/$m.s" | sed -E 's/\.LBB[0-9]+_/.LBB_/g' > "$I/$m.k$p.s"
+    done
+    echo "$m: $(wc -l < "$I/$m.k4.s") lines in <4>; global_inv / barrier lines: $(grep -cE 'global_inv|s_barrier' "$I/$m.k4.s")"
+  done
   for m in $V3MUT; do
     for p in 1 2 4; do diff "$I/base.k$p.s" "$I/$m.k$p.s" > "$I/$m.k$p.diff"; done
     echo "=== $m vs base, <4> (diff lines: <1> $(grep -c '^[<>]' "$I/$m.k1.diff"), <2> $(grep -c '^[<>]' "$I/$m.k2.diff"), <4> $(grep -c '^[<>]' "$I/$m.k4.diff"))"
@@ -92,6 +99,9 @@ for s in "$@"; do
   if [[ "$s" == run:* ]]; then  # run:<reps>:<name>:<name>...: REPS and RUNS for one lane of fusion-window.sh
     IFS=: read -r _ reps names <<< "$s"
     REPS="$reps" RUNS="${names//:/ }" stage_run
+  elif [[ "$s" == pre:* ]]; then  # pre:<1|2|4>: INTARSIA_HIP_MOE_PRE (the v3 template instance) for the later stages of this lane
+    export INTARSIA_HIP_MOE_PRE="${s#pre:}"
+    echo "INTARSIA_HIP_MOE_PRE=$INTARSIA_HIP_MOE_PRE"
   else
     "stage_$s"
   fi

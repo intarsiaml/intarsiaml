@@ -1,0 +1,24 @@
+################ stage isa start 08:02:36
+base: 0 lines in <4>; global_inv / barrier lines: 0
+applied v3-nofence to /home/josef/intarsiaml-p2s0/bench-out/p2s0/isa-src/v3-nofence/kernels/hip/moe.hip
+v3-nofence: 0 lines in <4>; global_inv / barrier lines: 0
+applied v3-noorder to /home/josef/intarsiaml-p2s0/bench-out/p2s0/isa-src/v3-noorder/kernels/hip/moe.hip
+v3-noorder: 0 lines in <4>; global_inv / barrier lines: 0
+applied v3-nobaracq to /home/josef/intarsiaml-p2s0/bench-out/p2s0/isa-src/v3-nobaracq/kernels/hip/moe.hip
+v3-nobaracq: 0 lines in <4>; global_inv / barrier lines: 0
+applied v3-nospinacq to /home/josef/intarsiaml-p2s0/bench-out/p2s0/isa-src/v3-nospinacq/kernels/hip/moe.hip
+v3-nospinacq: 0 lines in <4>; global_inv / barrier lines: 0
+applied v3-fenceonly to /home/josef/intarsiaml-p2s0/bench-out/p2s0/isa-src/v3-fenceonly/kernels/hip/moe.hip
+v3-fenceonly: 0 lines in <4>; global_inv / barrier lines: 0
+=== v3-nofence vs base, <4> (diff lines: <1> 0, <2> 0, <4> 0)
+=== v3-noorder vs base, <4> (diff lines: <1> 0, <2> 0, <4> 0)
+=== v3-nobaracq vs base, <4> (diff lines: <1> 0, <2> 0, <4> 0)
+=== v3-nospinacq vs base, <4> (diff lines: <1> 0, <2> 0, <4> 0)
+=== v3-fenceonly vs base, <4> (diff lines: <1> 0, <2> 0, <4> 0)
+=== base <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+=== v3-nofence <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+=== v3-noorder <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+=== v3-nobaracq <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+=== v3-nospinacq <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+=== v3-fenceonly <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+################ stage isa end 08:03:34

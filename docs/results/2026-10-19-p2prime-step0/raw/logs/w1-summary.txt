@@ -1,0 +1,120 @@
+== base: 10 runs (gpu0 runs 5, gpu1 runs 5; exit=0 x10)
+   v3_sentinel_stress: 0 of 9600 launches differ
+   v3_sentinel_stress_narrow [last-late, no side]: 0 of 4800 launches differ
+   v3_sentinel_stress_narrow [last-late, side]: 0 of 9600 launches differ
+   v3_sentinel_stress_narrow: 0 of 14400 launches differ
+     [all-late] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] stream 1 (t=2 e=256): 0 (0 NaN)
+     [all-late] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [last-late, no side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, no side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+== v3-noorder: 3 runs (gpu0 runs 3; exit=101 x3)
+   v3_sentinel_stress: 819 of 2880 launches differ
+   v3_sentinel_stress_narrow [last-late, no side]: 855 of 1440 launches differ
+   v3_sentinel_stress_narrow [last-late, side]: 843 of 2880 launches differ
+   v3_sentinel_stress_narrow: 1698 of 4320 launches differ
+     [all-late] t=1 e=256 k=8 h=2048 i=512: skew 0: 3 (3 NaN); skew 2: 120 (120 NaN); skew 6: 120 (120 NaN)
+     [all-late] stream 1 (t=2 e=256): 0 (0 NaN)
+     [all-late] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 2: 120 (120 NaN); skew 6: 120 (120 NaN)
+     [all-late] t=1 e=16 k=2 h=256 i=16: skew 0: 96 (96 NaN); skew 2: 120 (120 NaN); skew 6: 120 (120 NaN)
+     [last-late, no side] t=1 e=256 k=8 h=2048 i=512: skew 0: 15 (15 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, no side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, no side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, no side] t=1 e=16 k=2 h=256 i=16: skew 0: 120 (120 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, side] t=1 e=256 k=8 h=2048 i=512: skew 0: 6 (6 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, side] t=1 e=16 k=2 h=256 i=16: skew 0: 117 (117 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+== v3-nobaracq: 3 runs (gpu0 runs 3; exit=101 x3)
+   v3_sentinel_stress: 803 of 2880 launches differ
+   v3_sentinel_stress_narrow [last-late, no side]: 857 of 1440 launches differ
+   v3_sentinel_stress_narrow [last-late, side]: 838 of 2880 launches differ
+   v3_sentinel_stress_narrow: 1695 of 4320 launches differ
+     [all-late] t=1 e=256 k=8 h=2048 i=512: skew 0: 2 (2 NaN); skew 2: 120 (120 NaN); skew 6: 120 (120 NaN)
+     [all-late] stream 1 (t=2 e=256): 0 (0 NaN)
+     [all-late] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 2: 120 (120 NaN); skew 6: 120 (120 NaN)
+     [all-late] t=1 e=16 k=2 h=256 i=16: skew 0: 81 (81 NaN); skew 2: 120 (120 NaN); skew 6: 120 (120 NaN)
+     [last-late, no side] t=1 e=256 k=8 h=2048 i=512: skew 0: 17 (17 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, no side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, no side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, no side] t=1 e=16 k=2 h=256 i=16: skew 0: 120 (120 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, side] t=1 e=256 k=8 h=2048 i=512: skew 0: 1 (1 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+     [last-late, side] t=1 e=16 k=2 h=256 i=16: skew 0: 117 (117 NaN); skew 20: 120 (120 NaN); skew 40: 120 (120 NaN)
+== v3-nofence: 3 runs (gpu1 runs 3; exit=0 x3)
+   v3_sentinel_stress: 0 of 2880 launches differ
+   v3_sentinel_stress_narrow [last-late, no side]: 0 of 1440 launches differ
+   v3_sentinel_stress_narrow [last-late, side]: 0 of 2880 launches differ
+   v3_sentinel_stress_narrow: 0 of 4320 launches differ
+     [all-late] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] stream 1 (t=2 e=256): 0 (0 NaN)
+     [all-late] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [last-late, no side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, no side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+== v3-nospinacq: 3 runs (gpu1 runs 3; exit=0 x3)
+   v3_sentinel_stress: 0 of 2880 launches differ
+   v3_sentinel_stress_narrow [last-late, no side]: 0 of 1440 launches differ
+   v3_sentinel_stress_narrow [last-late, side]: 0 of 2880 launches differ
+   v3_sentinel_stress_narrow: 0 of 4320 launches differ
+     [all-late] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] stream 1 (t=2 e=256): 0 (0 NaN)
+     [all-late] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [last-late, no side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, no side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+== v3-fenceonly: 3 runs (gpu1 runs 3; exit=0 x3)
+   v3_sentinel_stress: 0 of 2880 launches differ
+   v3_sentinel_stress_narrow [last-late, no side]: 0 of 1440 launches differ
+   v3_sentinel_stress_narrow [last-late, side]: 0 of 2880 launches differ
+   v3_sentinel_stress_narrow: 0 of 4320 launches differ
+     [all-late] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] stream 1 (t=2 e=256): 0 (0 NaN)
+     [all-late] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [all-late] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 2: 0 (0 NaN); skew 6: 0 (0 NaN)
+     [last-late, no side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, no side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, no side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] stream 1 (t=2 e=256): 0 (0 NaN)
+     [last-late, side] t=2 e=256 k=8 h=2048 i=512: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=64 k=8 h=1024 i=256: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)
+     [last-late, side] t=1 e=16 k=2 h=256 i=16: skew 0: 0 (0 NaN); skew 20: 0 (0 NaN); skew 40: 0 (0 NaN)

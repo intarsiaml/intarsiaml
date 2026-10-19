@@ -1,0 +1,224 @@
+################ stage isadiff start 08:03:58
+base: 6477 lines in <4>; global_inv / barrier lines: 20
+v3-nofence: 6475 lines in <4>; global_inv / barrier lines: 19
+v3-noorder: 6474 lines in <4>; global_inv / barrier lines: 16
+v3-nobaracq: 6476 lines in <4>; global_inv / barrier lines: 18
+v3-nospinacq: 6473 lines in <4>; global_inv / barrier lines: 17
+v3-fenceonly: 6475 lines in <4>; global_inv / barrier lines: 17
+=== v3-nofence vs base, <4> (diff lines: <1> 2, <2> 4, <4> 2)
+1284,1285d1283
+< 	s_wait_loadcnt 0x0
+< 	global_inv scope:SCOPE_DEV
+=== v3-noorder vs base, <4> (diff lines: <1> 9, <2> 9, <4> 7)
+1267d1266
+< 	global_inv scope:SCOPE_DEV
+1274d1272
+< 	global_inv scope:SCOPE_DEV
+1283,1285c1281,1282
+< 	global_inv scope:SCOPE_SE
+< 	s_wait_loadcnt 0x0
+< 	global_inv scope:SCOPE_DEV
+---
+> 	;;#ASMSTART
+> 	;;#ASMEND
+=== v3-nobaracq vs base, <4> (diff lines: <1> 7, <2> 7, <4> 5)
+1283,1285c1283,1284
+< 	global_inv scope:SCOPE_SE
+< 	s_wait_loadcnt 0x0
+< 	global_inv scope:SCOPE_DEV
+---
+> 	;;#ASMSTART
+> 	;;#ASMEND
+=== v3-nospinacq vs base, <4> (diff lines: <1> 6, <2> 6, <4> 4)
+1267d1266
+< 	global_inv scope:SCOPE_DEV
+1274d1272
+< 	global_inv scope:SCOPE_DEV
+1284,1285d1281
+< 	s_wait_loadcnt 0x0
+< 	global_inv scope:SCOPE_DEV
+=== v3-fenceonly vs base, <4> (diff lines: <1> 8, <2> 8, <4> 6)
+1267d1266
+< 	global_inv scope:SCOPE_DEV
+1274d1272
+< 	global_inv scope:SCOPE_DEV
+1283,1284c1281,1282
+< 	global_inv scope:SCOPE_SE
+< 	s_wait_loadcnt 0x0
+---
+> 	;;#ASMSTART
+> 	;;#ASMEND
+=== base <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+31:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:8 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+49:	s_barrier_signal -1
+50:	s_barrier_wait -1
+51:	global_inv scope:SCOPE_SE
+1265:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1267:	global_inv scope:SCOPE_DEV
+1271:	s_sleep 1
+1272:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1274:	global_inv scope:SCOPE_DEV
+1281:	s_barrier_signal -1
+1282:	s_barrier_wait -1
+1283:	global_inv scope:SCOPE_SE
+1285:	global_inv scope:SCOPE_DEV
+4573:	s_barrier_signal -1
+4574:	s_barrier_wait -1
+4575:	global_inv scope:SCOPE_SE
+4592:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:4 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+4594:	global_inv scope:SCOPE_DEV
+4609:	global_store_b32 v1, v1, s[28:29] scope:SCOPE_DEV
+4610:	global_store_b32 v1, v1, s[28:29] offset:4 scope:SCOPE_DEV
+4611:	global_store_b32 v1, v1, s[28:29] offset:8 scope:SCOPE_DEV
+4657:	s_sleep 0x7f
+5089:	s_barrier_signal -1
+5090:	s_barrier_wait -1
+5091:	global_inv scope:SCOPE_SE
+6408:	global_inv scope:SCOPE_DEV
+6410:	s_barrier_signal -1
+6411:	s_barrier_wait -1
+6412:	global_inv scope:SCOPE_SE
+6430:	global_atomic_add_u32 v0, v1, s[28:29] scope:SCOPE_DEV
+=== v3-nofence <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+31:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:8 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+49:	s_barrier_signal -1
+50:	s_barrier_wait -1
+51:	global_inv scope:SCOPE_SE
+1265:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1267:	global_inv scope:SCOPE_DEV
+1271:	s_sleep 1
+1272:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1274:	global_inv scope:SCOPE_DEV
+1281:	s_barrier_signal -1
+1282:	s_barrier_wait -1
+1283:	global_inv scope:SCOPE_SE
+4571:	s_barrier_signal -1
+4572:	s_barrier_wait -1
+4573:	global_inv scope:SCOPE_SE
+4590:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:4 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+4592:	global_inv scope:SCOPE_DEV
+4607:	global_store_b32 v1, v1, s[28:29] scope:SCOPE_DEV
+4608:	global_store_b32 v1, v1, s[28:29] offset:4 scope:SCOPE_DEV
+4609:	global_store_b32 v1, v1, s[28:29] offset:8 scope:SCOPE_DEV
+4655:	s_sleep 0x7f
+5087:	s_barrier_signal -1
+5088:	s_barrier_wait -1
+5089:	global_inv scope:SCOPE_SE
+6406:	global_inv scope:SCOPE_DEV
+6408:	s_barrier_signal -1
+6409:	s_barrier_wait -1
+6410:	global_inv scope:SCOPE_SE
+6428:	global_atomic_add_u32 v0, v1, s[28:29] scope:SCOPE_DEV
+=== v3-noorder <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+31:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:8 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+49:	s_barrier_signal -1
+50:	s_barrier_wait -1
+51:	global_inv scope:SCOPE_SE
+1265:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1270:	s_sleep 1
+1271:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1279:	s_barrier_signal -1
+1280:	s_barrier_wait -1
+4570:	s_barrier_signal -1
+4571:	s_barrier_wait -1
+4572:	global_inv scope:SCOPE_SE
+4589:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:4 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+4591:	global_inv scope:SCOPE_DEV
+4606:	global_store_b32 v1, v1, s[28:29] scope:SCOPE_DEV
+4607:	global_store_b32 v1, v1, s[28:29] offset:4 scope:SCOPE_DEV
+4608:	global_store_b32 v1, v1, s[28:29] offset:8 scope:SCOPE_DEV
+4654:	s_sleep 0x7f
+5086:	s_barrier_signal -1
+5087:	s_barrier_wait -1
+5088:	global_inv scope:SCOPE_SE
+6405:	global_inv scope:SCOPE_DEV
+6407:	s_barrier_signal -1
+6408:	s_barrier_wait -1
+6409:	global_inv scope:SCOPE_SE
+6427:	global_atomic_add_u32 v0, v1, s[28:29] scope:SCOPE_DEV
+=== v3-nobaracq <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+31:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:8 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+49:	s_barrier_signal -1
+50:	s_barrier_wait -1
+51:	global_inv scope:SCOPE_SE
+1265:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1267:	global_inv scope:SCOPE_DEV
+1271:	s_sleep 1
+1272:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1274:	global_inv scope:SCOPE_DEV
+1281:	s_barrier_signal -1
+1282:	s_barrier_wait -1
+4572:	s_barrier_signal -1
+4573:	s_barrier_wait -1
+4574:	global_inv scope:SCOPE_SE
+4591:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:4 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+4593:	global_inv scope:SCOPE_DEV
+4608:	global_store_b32 v1, v1, s[28:29] scope:SCOPE_DEV
+4609:	global_store_b32 v1, v1, s[28:29] offset:4 scope:SCOPE_DEV
+4610:	global_store_b32 v1, v1, s[28:29] offset:8 scope:SCOPE_DEV
+4656:	s_sleep 0x7f
+5088:	s_barrier_signal -1
+5089:	s_barrier_wait -1
+5090:	global_inv scope:SCOPE_SE
+6407:	global_inv scope:SCOPE_DEV
+6409:	s_barrier_signal -1
+6410:	s_barrier_wait -1
+6411:	global_inv scope:SCOPE_SE
+6429:	global_atomic_add_u32 v0, v1, s[28:29] scope:SCOPE_DEV
+=== v3-nospinacq <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+31:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:8 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+49:	s_barrier_signal -1
+50:	s_barrier_wait -1
+51:	global_inv scope:SCOPE_SE
+1265:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1270:	s_sleep 1
+1271:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1279:	s_barrier_signal -1
+1280:	s_barrier_wait -1
+1281:	global_inv scope:SCOPE_SE
+4569:	s_barrier_signal -1
+4570:	s_barrier_wait -1
+4571:	global_inv scope:SCOPE_SE
+4588:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:4 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+4590:	global_inv scope:SCOPE_DEV
+4605:	global_store_b32 v1, v1, s[28:29] scope:SCOPE_DEV
+4606:	global_store_b32 v1, v1, s[28:29] offset:4 scope:SCOPE_DEV
+4607:	global_store_b32 v1, v1, s[28:29] offset:8 scope:SCOPE_DEV
+4653:	s_sleep 0x7f
+5085:	s_barrier_signal -1
+5086:	s_barrier_wait -1
+5087:	global_inv scope:SCOPE_SE
+6404:	global_inv scope:SCOPE_DEV
+6406:	s_barrier_signal -1
+6407:	s_barrier_wait -1
+6408:	global_inv scope:SCOPE_SE
+6426:	global_atomic_add_u32 v0, v1, s[28:29] scope:SCOPE_DEV
+=== v3-fenceonly <4>: global_inv / s_barrier / s_wait_loadcnt / s_sleep / DEV-scope loads
+31:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:8 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+49:	s_barrier_signal -1
+50:	s_barrier_wait -1
+51:	global_inv scope:SCOPE_SE
+1265:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1270:	s_sleep 1
+1271:	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+1279:	s_barrier_signal -1
+1280:	s_barrier_wait -1
+1283:	global_inv scope:SCOPE_DEV
+4571:	s_barrier_signal -1
+4572:	s_barrier_wait -1
+4573:	global_inv scope:SCOPE_SE
+4590:	global_atomic_add_u32 v2, v2, v3, s[28:29] offset:4 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
+4592:	global_inv scope:SCOPE_DEV
+4607:	global_store_b32 v1, v1, s[28:29] scope:SCOPE_DEV
+4608:	global_store_b32 v1, v1, s[28:29] offset:4 scope:SCOPE_DEV
+4609:	global_store_b32 v1, v1, s[28:29] offset:8 scope:SCOPE_DEV
+4655:	s_sleep 0x7f
+5087:	s_barrier_signal -1
+5088:	s_barrier_wait -1
+5089:	global_inv scope:SCOPE_SE
+6406:	global_inv scope:SCOPE_DEV
+6408:	s_barrier_signal -1
+6409:	s_barrier_wait -1
+6410:	global_inv scope:SCOPE_SE
+6428:	global_atomic_add_u32 v0, v1, s[28:29] scope:SCOPE_DEV
+################ stage isadiff end 08:03:58
