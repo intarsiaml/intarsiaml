@@ -1,8 +1,8 @@
-W20261019 21:24:27.986833 137593835406080 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000383 sec
-W20261019 21:24:27.986951 137593835406080 simple_timer.cpp:55] [rocprofv3] './gap_repro' ::     0.000000 sec
-W20261019 21:24:27.998001 137593835406080 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
-W20261019 21:24:40.497008 137593835406080 simple_timer.cpp:55] [rocprofv3] './gap_repro' ::    12.510057 sec
-E20261019 21:24:40.502700 137593835406080 output_stream.cpp:111] Opened result file: results/prof-hwqueues4/run_kernel_trace.csv
-E20261019 21:24:40.511667 137593835406080 output_stream.cpp:111] Opened result file: results/prof-hwqueues4/run_agent_info.csv
-W20261019 21:24:40.512291 137593835406080 simple_timer.cpp:55] [rocprofv3] output generation ::     0.014960 sec
-W20261019 21:24:40.512309 137593835406080 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.015000 sec
+W20261019 21:29:43.601675 124202137912064 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000419 sec
+W20261019 21:29:43.601786 124202137912064 simple_timer.cpp:55] [rocprofv3] './gap_repro' ::     0.000000 sec
+W20261019 21:29:43.612692 124202137912064 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+W20261019 21:29:56.143285 124202137912064 simple_timer.cpp:55] [rocprofv3] './gap_repro' ::    12.541499 sec
+E20261019 21:29:56.149028 124202137912064 output_stream.cpp:111] Opened result file: results/prof-hwqueues4/run_kernel_trace.csv
+E20261019 21:29:56.158109 124202137912064 output_stream.cpp:111] Opened result file: results/prof-hwqueues4/run_agent_info.csv
+W20261019 21:29:56.158808 124202137912064 simple_timer.cpp:55] [rocprofv3] output generation ::     0.015205 sec
+W20261019 21:29:56.158828 124202137912064 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.015247 sec

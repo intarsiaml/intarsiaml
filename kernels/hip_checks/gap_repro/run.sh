@@ -7,7 +7,7 @@ cd "$(dirname "$0")"; R=results; mkdir -p $R
 hipcc -O3 --offload-arch=gfx1201 gap_repro.hip -o gap_repro || exit 1
 { echo "kernel: $(uname -r)"; echo "amdgpu: $(cat /sys/module/amdgpu/version 2>/dev/null || echo 'in-tree (no version file)')"
   for f in /sys/class/drm/card*/device/vbios_version; do echo "vbios $f: $(cat "$f" 2>/dev/null)"; done
-  echo "rocm: $(cat /opt/rocm/.info/version 2>/dev/null)"; hipcc --version | head -3
+  echo "env: $(env | grep -E '^(GPU_|HSA_|ROC|HIP_)' | tr '\n' ' ')"; echo "rocm: $(cat /opt/rocm/.info/version 2>/dev/null)"; hipcc --version | head -3
   rocminfo 2>/dev/null | grep -A2 gfx1201 | head -6; (amd-smi firmware 2>&1 || rocm-smi --showfwinfo 2>&1) | head -60; } > $R/env.txt 2>&1
 
 analyze() {  # rocprofv3 csv + launch plan -> gap table; gap = Start[i+1] - End[i] of consecutive dispatches of one experiment
