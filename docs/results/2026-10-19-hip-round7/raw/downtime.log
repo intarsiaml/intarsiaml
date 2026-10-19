@@ -3,3 +3,4 @@
 W1        2649  2026-10-19 03:31:10   2026-10-19 03:32:04   0.90     4408-token prefill profiles (branch build, MW unset / 13 / 25 / 9), MW sweep microbench; GPU 1: r7test (moe_pairs incl. MW 9/13/25/29, quantmoe, round6_selection)
 W2        2656  2026-10-19 03:38:28   2026-10-19 03:39:56   1.47     4408-token prefill profiles (branch, MW unset / 13 / 29 / 93 / 41 / 61 / 8 / 40 / 125), MW sweep microbench; GPU 1: r7test
 W3        2659  2026-10-19 03:42:16   2026-10-19 03:43:44   1.47     4408-token prefill profiles, INTARSIA_HIP_MOE_Z 0/2/4/8 x MW 5/61/29 (z=2 only for 61)
+W4        2670  2026-10-19 04:05:20   2026-10-19 04:12:08   6.80     (pre-rebase build on 10eef81c) admission, KL 35B short/long both trees, 8B goldens, ids4k, final profiles; GPU 1: r7test, admission, mutrun7
