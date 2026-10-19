@@ -1,0 +1,8 @@
+W20261019 23:43:35.983847 124339903390464 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000440 sec
+W20261019 23:43:35.983967 124339903390464 simple_timer.cpp:55] [rocprofv3] './gap_repro pat' ::     0.000000 sec
+W20261019 23:43:35.995018 124339903390464 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+W20261019 23:43:41.558409 124339903390464 simple_timer.cpp:55] [rocprofv3] './gap_repro pat' ::     5.574442 sec
+E20261019 23:43:41.564014 124339903390464 output_stream.cpp:111] Opened result file: results/prof-pat-active_wait/run_kernel_trace.csv
+E20261019 23:43:41.573081 124339903390464 output_stream.cpp:111] Opened result file: results/prof-pat-active_wait/run_agent_info.csv
+W20261019 23:43:41.573710 124339903390464 simple_timer.cpp:55] [rocprofv3] output generation ::     0.015001 sec
+W20261019 23:43:41.573731 124339903390464 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.015046 sec
