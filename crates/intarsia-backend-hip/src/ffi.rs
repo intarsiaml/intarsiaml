@@ -92,6 +92,16 @@ extern "C" {
     ) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
+    /// INTARSIA_HIP_STAMP diagnostics (ik_runtime.h): write the wall-clock stamps to the file; no-op when unset
+    pub fn ik_rt_stamp_dump() -> c_int;
+    /// round 9 pinned staging (device.rs `Staging`)
+    pub fn ik_rt_memcpy_h2d_pinned(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
+    pub fn ik_rt_memcpy_d2h_pinned(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
+    pub fn ik_rt_host_alloc(p: *mut *mut c_void, bytes: usize) -> c_int;
+    pub fn ik_rt_host_free(p: *mut c_void) -> c_int;
+    pub fn ik_rt_event_create_sync(ev: *mut S) -> c_int;
+    pub fn ik_rt_event_sync(ev: S) -> c_int;
+    pub fn ik_rt_spin(stream: S, us: u32) -> c_int;
 
     // ---- launchers (kernels/abi/ik_abi.h) ----
     pub fn ik_embedding_bf16(ids: T, table: T, out: TM, s: S) -> c_int;
@@ -116,6 +126,8 @@ extern "C" {
     pub fn ik_hip_flash_hpb() -> c_int;
     pub fn ik_hip_moe_mw(pairs: c_int) -> c_int;
     pub fn ik_hip_moe_mw_down(pairs: c_int) -> c_int;
+    pub fn ik_hip_split_pieces(est_us: c_double, max_pieces: i64) -> c_int;
+    pub fn ik_hip_splitkv_occ() -> c_int;
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_f32(logits: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_bf16(logits: T, out: TM, s: S) -> c_int;

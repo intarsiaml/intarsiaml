@@ -47,11 +47,42 @@ pub fn moe_down_variants() -> (i32, i32) {
     unsafe { (ffi::ik_hip_moe_mw_down(64), ffi::ik_hip_moe_mw_down(32)) }
 }
 
+/// The number of launch pieces the kernel library gives a launch estimated at `est_us` microseconds with at most `max_pieces`
+/// pieces, under the current INTARSIA_HIP_SPLIT_US / INTARSIA_HIP_SPLIT_MIN_US (round 8 split, round 9 trigger;
+/// docs/results/2026-10-19-hip-round9.md). Host-only; pinned by tests/split_trigger.rs.
+#[cfg(ik_hip)]
+pub fn split_pieces(est_us: f64, max_pieces: i64) -> i32 {
+    // SAFETY: a plain host function of the kernel library without pointer arguments
+    unsafe { ffi::ik_hip_split_pieces(est_us, max_pieces) }
+}
+
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
     disable::check_env()?;
     Ok(Arc::new(device::HipBackend::new(ordinal)?))
+}
+
+/// True when split-KV attention stage 1 runs at 8 waves per SIMD (`splitkv_kernel_o8`, round 9; opt-in with
+/// INTARSIA_HIP_SPLITKV_OCC=1, otherwise the 7-wave kernel; read at every launch). Host-only; pinned by tests/splitkv_occ.rs.
+#[cfg(ik_hip)]
+pub fn splitkv_occ_selected() -> bool {
+    // SAFETY: a plain host function of the kernel library without arguments
+    unsafe { ffi::ik_hip_splitkv_occ() != 0 }
+}
+
+/// Test seam (tests/staging.rs, round 9): open HIP device `ordinal`, plus a function that keeps the backend's stream 0 busy
+/// for about the given number of microseconds (a 1-thread kernel spinning on the wall clock).
+#[cfg(ik_hip)]
+#[doc(hidden)]
+#[allow(clippy::type_complexity)]
+pub fn create_with_spin(
+    ordinal: usize,
+) -> intarsia_core::Result<(Arc<dyn Backend>, Box<dyn Fn(u32) -> intarsia_core::Result<()>>)> {
+    disable::check_env()?;
+    let b = Arc::new(device::HipBackend::new(ordinal)?);
+    let b2 = b.clone();
+    Ok((b, Box::new(move |us| b2.spin(0, us))))
 }
 
 /// Open HIP device `ordinal` (stub: this build has no ROCm toolchain).

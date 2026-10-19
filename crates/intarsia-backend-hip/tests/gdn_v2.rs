@@ -75,11 +75,13 @@ fn gdn_v2_is_bitwise_the_rows_kernel() {
         // of the 32-token gate batch
         for split in ["1", "7", "40"] {
             std::env::set_var("INTARSIA_HIP_SPLIT_US", split);
+            std::env::set_var("INTARSIA_HIP_SPLIT_MIN_US", "0"); // round 9 trigger off: pieces at every size
             let c = run_host(&*hip, "gdn_delta_rule_bf16_v2", &hc).unwrap();
             assert!(a[0].data == c[0].data, "{what}: INTARSIA_HIP_SPLIT_US={split}: output rows differ");
             assert!(a[1].data == c[1].data, "{what}: INTARSIA_HIP_SPLIT_US={split}: final state differs");
         }
         std::env::remove_var("INTARSIA_HIP_SPLIT_US");
+        std::env::remove_var("INTARSIA_HIP_SPLIT_MIN_US");
         assert!(a[1].data != hc.outputs[1].init.as_ref().unwrap().data, "{what}: the state did not move");
         nonzero += a[0].to_f32().iter().filter(|v| **v != 0.0).count();
     }

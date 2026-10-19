@@ -1,0 +1,19 @@
+fleetq: #2783 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/job-mut2.sh
+synced r9 tree (ab887732 + worktree changes)
+=== mutbuild9 (occ) 18:14:38
+applied r9-occ-def to /home/josef/intarsiaml-r9-mut/kernels/hip/attention_splitkv.hip
+r9-occ-def: test splitkv_occ built (/target/release/deps/splitkv_occ-2fbf70da71ae49d8)
+applied r9-occ-kv to /home/josef/intarsiaml-r9-mut/kernels/hip/attention_splitkv.hip
+r9-occ-kv: test splitkv_occ built (/target/release/deps/splitkv_occ-2fbf70da71ae49d8)
+applied r9-occ-g to /home/josef/intarsiaml-r9-mut/kernels/hip/attention_splitkv.hip
+r9-occ-g: test splitkv_occ built (/target/release/deps/splitkv_occ-2fbf70da71ae49d8)
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+=== r9 rebuild 18:15:57
+    Finished `release` profile [optimized] target(s) in 31.06s
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:58:48
+   --> crates/intarsia-backend-hip/tests/admission.rs:106:25
+    Finished `release` profile [optimized] target(s) in 3.61s
+=== done 18:16:33
+fleetq: #2783 done (exit 0)
+exit 0 18:16:33

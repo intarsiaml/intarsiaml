@@ -1,0 +1,197 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "pf35x-B3",
+  "timestamp_unix": 1792449525,
+  "url": "http://127.0.0.1:8090",
+  "model": "qwen36-35b-intarsia-hip",
+  "config": {
+    "sizes": [
+      128,
+      1024,
+      2048,
+      4096,
+      16384
+    ],
+    "gen": 128,
+    "reps": 5,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 2.2,
+    "bandwidth_gbs": 627.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 48.0,
+    "tokens_per_filler_sentence": 21.77
+  },
+  "fingerprint": {},
+  "graph": {
+    "available": true,
+    "replays": 3328,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 110.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.0624,
+      "prefill_tok_s": 1760.1,
+      "decode_tok_s": 164.43,
+      "decode_tok_s_reps": [
+        163.48,
+        164.1,
+        164.43,
+        164.52,
+        164.47
+      ],
+      "decode_tok_s_min": 163.48,
+      "decode_tok_s_max": 164.52,
+      "decode_tok_s_stdev": 0.44,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 57.7,
+      "reps_ok": 5,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 954.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.1465,
+      "prefill_tok_s": 6513.0,
+      "decode_tok_s": 163.8,
+      "decode_tok_s_reps": [
+        163.77,
+        163.8,
+        163.82,
+        163.82,
+        163.74
+      ],
+      "decode_tok_s_min": 163.74,
+      "decode_tok_s_max": 163.82,
+      "decode_tok_s_stdev": 0.04,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 57.5,
+      "reps_ok": 5,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 2048,
+      "prompt_tokens": 1955.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.2196,
+      "prefill_tok_s": 8892.5,
+      "decode_tok_s": 163.19,
+      "decode_tok_s_reps": [
+        163.07,
+        163.22,
+        163.16,
+        163.43,
+        163.19
+      ],
+      "decode_tok_s_min": 163.07,
+      "decode_tok_s_max": 163.43,
+      "decode_tok_s_stdev": 0.13,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 57.3,
+      "reps_ok": 5,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4006.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.4267,
+      "prefill_tok_s": 9399.8,
+      "decode_tok_s": 159.37,
+      "decode_tok_s_reps": [
+        159.43,
+        159.27,
+        159.46,
+        159.37,
+        159.34
+      ],
+      "decode_tok_s_min": 159.27,
+      "decode_tok_s_max": 159.46,
+      "decode_tok_s_stdev": 0.08,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 55.9,
+      "reps_ok": 5,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 16384,
+      "prompt_tokens": 16321.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 2.0502,
+      "prefill_tok_s": 7960.8,
+      "decode_tok_s": 148.71,
+      "decode_tok_s_reps": [
+        148.68,
+        148.71,
+        148.78,
+        148.81,
+        148.39
+      ],
+      "decode_tok_s_min": 148.39,
+      "decode_tok_s_max": 148.81,
+      "decode_tok_s_stdev": 0.17,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 52.2,
+      "reps_ok": 5,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 1,
+      "graph": {
+        "available": true,
+        "replays": 768,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

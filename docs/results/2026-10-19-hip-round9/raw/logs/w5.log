@@ -1,0 +1,222 @@
+fleetq: #2781 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/job-w5.sh
+synced r9 tree (ab887732 + worktree changes)
+[burst] job 2781; stages: bg:w5g1:tenv:INTARSIA_HIP_SPLITKV_OCC=1:splitkv_r8+attention+device_pos+decode_v2 prof16k:o7a prof16kenv:o8a:INTARSIA_HIP_SPLITKV_OCC=1 prof16k:o7b prof16kenv:o8b:INTARSIA_HIP_SPLITKV_OCC=1 ids4ke:INTARSIA_HIP_SPLITKV_OCC=1 bgwait; stopping radiance 2026-10-19 18:10:40
+[burst] radiance stopped 2026-10-19 18:10:42
+################ stage bg:w5g1:tenv:INTARSIA_HIP_SPLITKV_OCC=1:splitkv_r8+attention+device_pos+decode_v2 start 18:10:42
+bg w5g1 on GPU 1: pid 3631714 stages tenv:INTARSIA_HIP_SPLITKV_OCC=1:splitkv_r8+attention+device_pos+decode_v2
+################ stage bg:w5g1:tenv:INTARSIA_HIP_SPLITKV_OCC=1:splitkv_r8+attention+device_pos+decode_v2 end 18:10:42
+################ stage prof16k:o7a start 18:10:42
+--- unprofiled
+prompt: 17632 tokens
+agrees with the cpu-ref oracle. The CUDA backend sits behind a torch-free C ABI. See `ARCHITECTfinish=length prompt=17632 (cached 0) completion=160 | prefill 2233 ms (7894.5 tok/s) | decode 1091 ms (145.80 tok/s)
+steps=165 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/50 embedding=0ms/165 gate_split_qk_norm_rope_kv=0ms/1650
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+agrees with the cpu-ref oracle. The CUDA backend sits behind a torch-free C ABI. See `ARCHITfinish=length prompt=17632 (cached 0) completion=160 | prefill 2254 ms (7824.2 tok/s) | decode 1161 ms (136.99 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+steps: 160 launch-count histogram (top): [(268, 159), (7614, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 6.436 ms, step wall (first start to last end) 7.288 ms, idle inside step 0.852 ms (11.7% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 7.298 ms
+intra-step gaps (ns): p10 2960 p50 3040 p90 3080 p99 6760 max 58120; sum/step 0.852 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1921.0    48.0  29.8%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1309.1    43.6  20.3%
+splitkv_kernel<8, 32, 2>                                                   10.0     898.4    89.8  14.0%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     585.0    19.5   9.1%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     457.4   457.4   7.1%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     315.5    31.5   4.9%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     283.0     4.1   4.4%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     241.6     8.1   3.8%
+fp8_gemv_sigmoid_kernel<2>                                                 10.0     167.3    16.7   2.6%
+combine_kernel<256, 16>                                                    10.0      70.4     7.0   1.1%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      69.1     6.9   1.1%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      57.1     5.7   0.9%
+argmax_kernel<float>                                                        1.0      46.0    46.0   0.7%
+__amd_rocclr_copyBuffer                                                     3.0       7.2     2.4   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.4     2.4   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.1     2.1   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       2.0     2.0   0.0%
+embedding_kernel<true>                                                      1.0       1.8     1.8   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    43.6   25.17    577   92%   1309.1
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.5    8.39    430   69%    585.0
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.5   16.78    532   85%    315.5
+fp8_gemv_sigmoid_kernel<2> g128                      10.0    16.7       -      -     -    167.3
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.9    2.10    304   48%     69.1
+################ stage prof16k:o7a end 18:10:57
+################ stage prof16kenv:o8a:INTARSIA_HIP_SPLITKV_OCC=1 start 18:10:57
+--- INTARSIA_HIP_SPLITKV_OCC=1
+--- unprofiled
+prompt: 17632 tokens
+finish=length prompt=17632 (cached 0) completion=160 | prefill 2245 ms (7854.0 tok/s) | decode 1074 ms (148.11 tok/s)
+steps=165 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/50 embedding=0ms/165 gate_split_qk_norm_rope_kv=0ms/1650
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+agrees with the cpu-ref oracle. The CUDA backend sits behind a torch-free C ABI. See `ARCHITfinish=length prompt=17632 (cached 0) completion=160 | prefill 2262 ms (7795.5 tok/s) | decode 1143 ms (139.08 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+steps: 160 launch-count histogram (top): [(268, 159), (7614, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 6.322 ms, step wall (first start to last end) 7.177 ms, idle inside step 0.855 ms (11.9% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 7.187 ms
+intra-step gaps (ns): p10 2960 p50 3000 p90 3080 p99 6761 max 90691; sum/step 0.855 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1919.9    48.0  30.4%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1309.6    43.7  20.7%
+splitkv_kernel_o8<8, 32, 2>                                                10.0     785.7    78.6  12.4%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     585.1    19.5   9.3%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     457.8   457.8   7.2%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     316.4    31.6   5.0%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     282.2     4.1   4.5%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     241.5     8.0   3.8%
+fp8_gemv_sigmoid_kernel<2>                                                 10.0     166.8    16.7   2.6%
+combine_kernel<256, 16>                                                    10.0      70.0     7.0   1.1%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      68.9     6.9   1.1%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      57.0     5.7   0.9%
+argmax_kernel<float>                                                        1.0      45.7    45.7   0.7%
+__amd_rocclr_copyBuffer                                                     3.0       7.2     2.4   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.4     2.4   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.2     2.2   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       2.0     2.0   0.0%
+embedding_kernel<true>                                                      1.0       1.9     1.9   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    43.7   25.17    576   92%   1309.6
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.5    8.39    430   69%    585.1
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.6   16.78    530   85%    316.4
+fp8_gemv_sigmoid_kernel<2> g128                      10.0    16.7       -      -     -    166.8
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.9    2.10    304   49%     68.9
+################ stage prof16kenv:o8a:INTARSIA_HIP_SPLITKV_OCC=1 end 18:11:10
+################ stage prof16k:o7b start 18:11:10
+--- unprofiled
+prompt: 17632 tokens
+finish=length prompt=17632 (cached 0) completion=160 | prefill 2254 ms (7822.8 tok/s) | decode 1091 ms (145.73 tok/s)
+steps=165 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/50 embedding=0ms/165 gate_split_qk_norm_rope_kv=0ms/1650
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+finish=length prompt=17632 (cached 0) completion=160 | prefill 2269 ms (7770.6 tok/s) | decode 1161 ms (136.95 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+steps: 160 launch-count histogram (top): [(268, 159), (7614, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 6.442 ms, step wall (first start to last end) 7.290 ms, idle inside step 0.848 ms (11.6% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 7.300 ms
+intra-step gaps (ns): p10 2960 p50 3000 p90 3080 p99 6800 max 85111; sum/step 0.848 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1923.8    48.1  29.9%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1308.5    43.6  20.3%
+splitkv_kernel<8, 32, 2>                                                   10.0     900.9    90.1  14.0%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     585.5    19.5   9.1%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     457.4   457.4   7.1%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     315.7    31.6   4.9%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     283.4     4.1   4.4%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     241.6     8.1   3.8%
+fp8_gemv_sigmoid_kernel<2>                                                 10.0     166.7    16.7   2.6%
+combine_kernel<256, 16>                                                    10.0      70.1     7.0   1.1%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      69.2     6.9   1.1%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      56.9     5.7   0.9%
+argmax_kernel<float>                                                        1.0      46.0    46.0   0.7%
+__amd_rocclr_copyBuffer                                                     3.0       7.5     2.5   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.4     2.4   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.2     2.2   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       2.0     2.0   0.0%
+embedding_kernel<true>                                                      1.0       1.8     1.8   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    43.6   25.17    577   92%   1308.5
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.5    8.39    430   69%    585.5
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.6   16.78    531   85%    315.7
+fp8_gemv_sigmoid_kernel<2> g128                      10.0    16.7       -      -     -    166.7
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.9    2.10    303   48%     69.2
+################ stage prof16k:o7b end 18:11:22
+################ stage prof16kenv:o8b:INTARSIA_HIP_SPLITKV_OCC=1 start 18:11:22
+--- INTARSIA_HIP_SPLITKV_OCC=1
+--- unprofiled
+prompt: 17632 tokens
+finish=length prompt=17632 (cached 0) completion=160 | prefill 2263 ms (7790.4 tok/s) | decode 1075 ms (147.92 tok/s)
+steps=165 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/50 embedding=0ms/165 gate_split_qk_norm_rope_kv=0ms/1650
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+finish=length prompt=17632 (cached 0) completion=160 | prefill 2278 ms (7741.1 tok/s) | decode 1145 ms (138.86 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+steps: 160 launch-count histogram (top): [(268, 159), (7614, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 6.339 ms, step wall (first start to last end) 7.188 ms, idle inside step 0.850 ms (11.8% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 7.198 ms
+intra-step gaps (ns): p10 2960 p50 3040 p90 3120 p99 6760 max 76691; sum/step 0.850 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1927.1    48.2  30.4%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1310.6    43.7  20.7%
+splitkv_kernel_o8<8, 32, 2>                                                10.0     791.4    79.1  12.5%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     586.1    19.5   9.2%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     457.7   457.7   7.2%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     316.2    31.6   5.0%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     282.9     4.1   4.5%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     242.0     8.1   3.8%
+fp8_gemv_sigmoid_kernel<2>                                                 10.0     166.8    16.7   2.6%
+combine_kernel<256, 16>                                                    10.0      70.0     7.0   1.1%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      69.4     6.9   1.1%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      57.2     5.7   0.9%
+argmax_kernel<float>                                                        1.0      45.8    45.8   0.7%
+__amd_rocclr_copyBuffer                                                     3.0       7.2     2.4   0.1%
+rmsnorm_kernel<true, true>                                                  1.0       2.4     2.4   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.1     2.1   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       2.0     2.0   0.0%
+embedding_kernel<true>                                                      1.0       1.8     1.8   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    43.7   25.17    576   92%   1310.6
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.5    8.39    429   68%    586.1
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.6   16.78    531   85%    316.2
+fp8_gemv_sigmoid_kernel<2> g128                      10.0    16.7       -      -     -    166.8
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.9    2.10    302   48%     69.4
+################ stage prof16kenv:o8b:INTARSIA_HIP_SPLITKV_OCC=1 end 18:11:35
+################ stage ids4ke:INTARSIA_HIP_SPLITKV_OCC=1 start 18:11:35
+--- this tree INTARSIA_HIP_SPLITKV_OCC=1
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 521 ms (8467.3 tok/s) | decode 1601 ms (159.27 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 537 ms (8215.4 tok/s) | decode 1599 ms (159.49 tok/s)
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4ke:INTARSIA_HIP_SPLITKV_OCC=1 end 18:11:45
+################ stage bgwait start 18:11:45
+--- bg w5g1 done 18:11:45
+################ stage tenv:INTARSIA_HIP_SPLITKV_OCC=1:splitkv_r8+attention+device_pos+decode_v2 start 18:10:42
+--- tests with INTARSIA_HIP_SPLITKV_OCC=1
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_flash_v2": 3310, "attn_prefill_bf16_splitkv": 2
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_flash_v2": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.09s
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+test splitkv_round8_loops_are_bitwise_the_old_ones ... splitkv round 8: 130 cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.59s
+################ stage tenv:INTARSIA_HIP_SPLITKV_OCC=1:splitkv_r8+attention+device_pos+decode_v2 end 18:11:34
+################ stage bgwait end 18:11:45
+[burst] stages done 2026-10-19 18:11:45 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-19 18:11:45
+[burst] radiance answers 2026-10-19 18:11:55 (after 15 s)
+fleetq: #2781 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0 18:11:55

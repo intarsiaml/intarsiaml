@@ -1,0 +1,209 @@
+fleetq: #2772 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/rjob.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r9/job-w1.sh
+[burst] job 2772; stages: bg:w1g1:t:staging pfprof@base:r9b pfstamp:son pfstamp:soff,INTARSIA_HIP_SPLIT_US=0 pfenv:X=0 pfenv:INTARSIA_HIP_STAGE=0 pfenv:X=0 pfenv:INTARSIA_HIP_STAGE=0 sprof@base:spb sprof:spr prof@base:r9d bgwait; stopping radiance 2026-10-19 17:37:52
+[burst] radiance stopped 2026-10-19 17:37:55
+################ stage bg:w1g1:t:staging start 17:37:55
+bg w1g1 on GPU 1: pid 3602261 stages t:staging
+################ stage bg:w1g1:t:staging end 17:37:55
+################ stage pfprof@base:r9b start 17:37:55
+--- unprofiled (one prefill, includes the cold start)
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 521 ms (8467.8 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=1 | prefill 521 ms (8454.8 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 2874 (of 3436), span 521.0 ms, kernel time 483.3 ms, idle 7.2 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                210   102.36    487.4  21.2%  256x32x1 x 32
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    86.23   2155.7  17.8%  65536x8x4 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   260    69.75    268.3  14.4%  8192x64x1 x 256
+moe_wmma_kernel_r7<false, 64, 25>                                                   80    48.09    601.1  10.0%  65536x4x4 x 256
+flash_hpb_kernel<256, 32, 4>                                                        20    37.47   1873.3   7.8%  32768x4x1 x 512
+moe_wmma_kernel<true, 32>                                                           40    30.25    756.3   6.3%  65536x8x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      240    25.47    106.1   5.3%  8192x4x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 280    12.16     43.4   2.5%  8192x1x1 x 256
+moe_reduce_v8_kernel                                                                80    10.57    132.1   2.2%  1048576x1x1 x 256
+moe_wmma_kernel_r7<false, 32, 41>                                                   40    10.27    256.8   2.1%  65536x16x1 x 256
+gdn_conv_kernel<false>                                                              60     9.56    159.4   2.0%  8192x128x1 x 128
+f8_actq_kernel                                                                     260     7.37     28.3   1.5%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         161     7.04     43.7   1.5%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          60     5.97     99.6   1.2%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                            80     5.59     69.9   1.2%  8388608x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   30     3.36    112.0   0.7%  1179648x2x1 x 288
+moe_block_kernel<4, 8>                                                              40     1.96     48.9   0.4%  212992x1x1 x 256
+sigmoid_mul_kernel                                                                  20     1.78     89.2   0.4%  16777216x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.31     43.6   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                  80     1.03     12.9   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    80     0.90     11.3   0.2%  1024x1x1 x 1024
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     260     0.59      2.3   0.1%  8192x64x1 x 256
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.59     19.5   0.1%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               80     0.56      7.0   0.1%  262144x1x1 x 256
+__amd_rocclr_copyBuffer                                                             65     0.50      7.7   0.1%  1024x1x1 x 512
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.1   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.32     31.9   0.1%  16384x2x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      10     0.31     31.2   0.1%  131072x1x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.28      4.1   0.1%  8448x1x1 x 256
+gdn_conv_delta_kernel<128, 2, 1, 4>                                                 30     0.26      8.5   0.1%  256x32x1 x 32
+__amd_rocclr_fillBufferAligned                                                      30     0.24      7.9   0.0%  8192x1x1 x 256
+fp8_gemv_sigmoid_kernel<2>                                                          10     0.17     16.8   0.0%  32768x1x1 x 256
+gdn_conv_state_kernel                                                               60     0.12      2.1   0.0%  8192x1x1 x 128
+rmsnorm_kernel<false, true>                                                          3     0.12     40.9   0.0%  1048576x1x1 x 256
+embedding_kernel<true>                                                               3     0.11     38.3   0.0%  1048576x1x1 x 256
+fp8_gemv_norm_pair_kernel<1>                                                        10     0.07      6.9   0.0%  32768x1x1 x 256
+combine_kernel<256, 16>                                                             10     0.06      6.5   0.0%  4096x1x1 x 256
+argmax_kernel<float>                                                                 1     0.05     46.6   0.0%  1024x1x1 x 1024
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.3   0.0%  2048x1x1 x 256
+################ stage pfprof@base:r9b end 17:38:04
+################ stage pfstamp:son start 17:38:04
+--- unprofiled, stamps (son)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 513 ms (8599.0 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3, stamps
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+finish=length prompt=4408 (cached 0) completion=1 | prefill 519 ms (8490.3 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+  671 /home/josef/intarsiaml-r9/bench-out/stamps/son.txt
+  671 /home/josef/intarsiaml-r9/bench-out/stamps/son-prof.txt
+ 1342 total
+################ stage pfstamp:son end 17:38:10
+################ stage pfstamp:soff,INTARSIA_HIP_SPLIT_US=0 start 17:38:10
+--- unprofiled, stamps (INTARSIA_HIP_SPLIT_US=0)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 526 ms (8379.9 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3, stamps
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+finish=length prompt=4408 (cached 0) completion=1 | prefill 555 ms (7939.7 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+  481 /home/josef/intarsiaml-r9/bench-out/stamps/soff.txt
+  481 /home/josef/intarsiaml-r9/bench-out/stamps/soff-prof.txt
+  962 total
+################ stage pfstamp:soff,INTARSIA_HIP_SPLIT_US=0 end 17:38:17
+################ stage pfenv:X=0 start 17:38:17
+--- env: X=0
+finish=length prompt=4408 (cached 0) completion=1 | prefill 515 ms (8553.9 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 511 ms (8626.7 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv:X=0 end 17:38:22
+################ stage pfenv:INTARSIA_HIP_STAGE=0 start 17:38:22
+--- env: INTARSIA_HIP_STAGE=0
+finish=length prompt=4408 (cached 0) completion=1 | prefill 525 ms (8395.0 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 517 ms (8533.5 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv:INTARSIA_HIP_STAGE=0 end 17:38:29
+################ stage pfenv:X=0 start 17:38:29
+--- env: X=0
+finish=length prompt=4408 (cached 0) completion=1 | prefill 519 ms (8495.1 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 514 ms (8578.5 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv:X=0 end 17:38:35
+################ stage pfenv:INTARSIA_HIP_STAGE=0 start 17:38:35
+--- env: INTARSIA_HIP_STAGE=0
+finish=length prompt=4408 (cached 0) completion=1 | prefill 517 ms (8526.5 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4408 (cached 0) completion=1 | prefill 522 ms (8442.1 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage pfenv:INTARSIA_HIP_STAGE=0 end 17:38:42
+################ stage sprof@base:spb start 17:38:42
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+W20261019 21:38:56.571808 140536157140416 simple_timer.cpp:55] [rocprofv3] '/target/release/intarsia bench speed --url http://127.0.0.1:8091 --model q --sizes 128,1024 --gen 32 --reps 2 --gb-per-token 2.2 --bandwidth-gbs 627 --at-most --label sprof --out-dir /work/bench-out/sprofb --thinking off' ::     2.116486 sec
+ 
+4096 .
+12288 ..
+4096 bench-out
+75234 Cargo.lock
+2850 Cargo.toml
+4096 crates
+4096 deploy
+4096 docs
+106 .gitignore
+4096 golden
+4096 kernels
+4096 LICENSES
+647 pyproject.toml
+5564 README.md
+4096 recipes
+4096 .rocprofv3
+45 rustfmt.toml
+4096 scripts
+4096 src
+4096 tools
+131 uv.lock
+4096 web
+################ stage sprof@base:spb end 17:40:37
+################ stage sprof:spr start 17:40:37
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+W20261019 21:40:52.122404 135781066745280 simple_timer.cpp:55] [rocprofv3] '/target/release/intarsia bench speed --url http://127.0.0.1:8091 --model q --sizes 128,1024 --gen 32 --reps 2 --gb-per-token 2.2 --bandwidth-gbs 627 --at-most --label sprof --out-dir /work/bench-out/sprofb --thinking off' ::     2.104835 sec
+ 
+4096 .
+12288 ..
+4096 bench-out
+75234 Cargo.lock
+2850 Cargo.toml
+4096 crates
+4096 deploy
+4096 docs
+106 .gitignore
+4096 golden
+4096 kernels
+4096 LICENSES
+647 pyproject.toml
+5564 README.md
+4096 recipes
+4096 .rocprofv3
+45 rustfmt.toml
+4096 scripts
+4096 src
+4096 tools
+131 uv.lock
+4096 web
+################ stage sprof:spr end 17:41:10
+################ stage prof@base:r9d start 17:41:10
+--- unprofiled
+For seven years, Seven had existed in the silent, climate-controlled hum of the Grand Library of Neo-Veridia. It moved with the silent grace of a spider, its multi-jointed arms manipulating micro-tools to stitch together torn pages of 14th-century poetry or clean the oxidation from a bronze astrolabefinish=length prompt=24 (cached 0) completion=160 | prefill 63 ms (382.0 tok/s) | decode 963 ms (165.03 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+--- rocprofv3 (kernel trace)
+finish=length prompt=24 (cached 0) completion=160 | prefill 68 ms (352.5 tok/s) | decode 1033 ms (153.90 tok/s)
+steps=161 graph replays=160 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/160 attn_decode=0ms/1600 attn_prefill=0ms/10 embedding=0ms/161 gate_split_qk_norm_rope_kv=0ms/1610
+/home/josef/intarsiaml-r9base/bench-out/prof/r9d/run_kernel_trace.csv
+steps: 160 launch-count histogram (top): [(268, 159), (1992, 1)]
+decode steps analysed: 157, launches/step 268
+per step: kernel time 5.604 ms, step wall (first start to last end) 6.488 ms, idle inside step 0.883 ms (13.6% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 6.497 ms
+intra-step gaps (ns): p10 2960 p50 3000 p90 3080 p99 19760 max 77361; sum/step 0.883 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+moe_block_kernel<4, 8>                                                     40.0    1909.3    47.7  34.1%
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        30.0    1323.9    44.1  23.6%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     584.4    19.5  10.4%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     459.0   459.0   8.2%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             10.0     315.6    31.6   5.6%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     274.8     4.0   4.9%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        30.0     235.9     7.9   4.2%
+fp8_gemv_sigmoid_kernel<2>                                                 10.0     171.3    17.1   3.1%
+splitkv_kernel<8, 32, 2>                                                   10.0     124.1    12.4   2.2%
+fp8_gemv_norm_pair_kernel<1>                                               10.0      68.0     6.8   1.2%
+gate_qk_norm_rope_kv_kernel<bf16>                                          10.0      54.8     5.5   1.0%
+argmax_kernel<float>                                                        1.0      45.0    45.0   0.8%
+combine_kernel<256, 16>                                                    10.0      21.4     2.1   0.4%
+__amd_rocclr_copyBuffer                                                     3.0       8.4     2.8   0.2%
+rmsnorm_kernel<true, true>                                                  1.0       2.2     2.2   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       2.1     2.1   0.0%
+embedding_kernel<true>                                                      1.0       2.0     2.0   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.9     1.9   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    44.1   25.17    570   91%   1323.9
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.5    8.39    431   69%    584.4
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.6   16.78    532   85%    315.6
+fp8_gemv_sigmoid_kernel<2> g128                      10.0    17.1       -      -     -    171.3
+fp8_gemv_norm_pair_kernel<1> g128                    10.0     6.8    2.10    308   49%     68.0
+################ stage prof@base:r9d end 17:41:18
+################ stage bgwait start 17:41:18
+--- bg w1g1 done 17:41:18
+################ stage t:staging start 17:37:55
+test staged_copies_land_in_order ... mode "": 40 of 40 uploads bitwise; first lap of 8 returned after 2.360658ms, the 9th took 297.673072ms
+mode "up": 40 of 40 uploads bitwise; first lap of 8 returned after 41.849µs, the 9th took 299.992141ms
+mode "0": 40 of 40 uploads bitwise; first lap of 8 returned after 300.560006ms, the 9th took 34.009µs
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+################ stage t:staging end 17:37:56
+################ stage bgwait end 17:41:18
+[burst] stages done 2026-10-19 17:41:18 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-19 17:41:18
+[burst] radiance answers 2026-10-19 17:41:29 (after 15 s)
+fleetq: #2772 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0 17:41:29

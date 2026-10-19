@@ -367,9 +367,11 @@ int launch_flash_v2(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_b
     while (hpb > 1 && G % hpb != 0) hpb /= 2;
     const dim3 grid((T + kBQ - 1) / kBQ, N / hpb);
     const float sl2 = scale * kLog2e;
+    ik_rt_stamp(s, "flash", -1);  // INTARSIA_HIP_STAMP only (round 9 diagnostics); otherwise launches nothing
     if (hpb == 4) flash_hpb_kernel<D, BK, 4><<<grid, kThreads * 4, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
     else if (hpb == 2) flash_hpb_kernel<D, BK, 2><<<grid, kThreads * 2, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
     else flash_hpb_kernel<D, BK, 1><<<grid, kThreads, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
+    ik_rt_stamp(s, "flash", 0);
     return ik_launch_status();
 }
 

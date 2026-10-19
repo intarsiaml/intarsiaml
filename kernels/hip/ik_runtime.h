@@ -35,6 +35,16 @@ int ik_rt_malloc(void** p, size_t bytes);
 int ik_rt_free(void* p);
 int ik_rt_memcpy_h2d(void* dst, const void* src, size_t n, void* stream); /* returns once `src` may be reused */
 int ik_rt_memcpy_d2h(void* dst, const void* src, size_t n, void* stream); /* blocks until done */
+/* round 9 pinned staging (device.rs `Staging`): `src` / `dst` are page-locked host memory. h2d returns at once (the caller
+ * keeps `src` unchanged until an event recorded after the copy completed); d2h waits for the stream. */
+int ik_rt_memcpy_h2d_pinned(void* dst, const void* src, size_t n, void* stream);
+int ik_rt_memcpy_d2h_pinned(void* dst, const void* src, size_t n, void* stream);
+int ik_rt_host_alloc(void** p, size_t bytes);
+int ik_rt_host_free(void* p);
+int ik_rt_event_create_sync(void** ev); /* an event without timing, for waiting on */
+int ik_rt_event_sync(void* ev);
+/* test seam (tests/staging.rs): a 1-thread kernel that spins on the wall clock for `us` microseconds */
+int ik_rt_spin(void* stream, unsigned us);
 int ik_rt_memcpy_d2d(void* dst, const void* src, size_t n, void* stream);
 int ik_rt_memset(void* dst, int value, size_t n, void* stream);
 int ik_rt_stream_create(void** stream);
@@ -63,6 +73,13 @@ int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem,
 /* D2D copy bandwidth in GB/s (read + write counted), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);
 const char* ik_rt_error_string(int code);
+/* Round 9, INTARSIA_HIP_STAMP=<file> (diagnostics only; unset = a no-op that launches nothing): a 1-thread kernel on
+ * `stream` that stores the GPU's constant-rate wall clock (wall_clock64) when it runs, tagged `tag` / `piece` on the host.
+ * Launch sites bracket the prefill's long dispatches with it, so the time between the stamps before and after a dispatch,
+ * minus that dispatch's own duration, is the stream's dead time around it without a profiler attached. Skipped while the
+ * stream is being captured. ik_rt_stamp_dump writes every stamp to the file (called when the backend is dropped). */
+int ik_rt_stamp(void* stream, const char* tag, int piece);
+int ik_rt_stamp_dump(void);
 
 #ifdef __cplusplus
 }
