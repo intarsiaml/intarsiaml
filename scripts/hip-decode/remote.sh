@@ -290,8 +290,9 @@ stage_ids4k() {
   # IDS_NEW_ENV="NAME=value": set for this tree's run only (e.g. INTARSIA_HIP_DISABLE of a kernel the base does not have)
   echo "--- this tree ${IDS_NEW_ENV:-}"; ( [ -n "${IDS_NEW_ENV:-}" ] && export "${IDS_NEW_ENV?}"; gen35l "$OUTD/ids4k-new" )
   echo "--- base tree"
+  local outd_new=${OUTD_NEW:-$OUTD}
   ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
-    cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && gen35l "$OUTD/ids4k-base" && cp "$OUTD/ids4k-base.ids" "${OUTD_NEW:-$HOME/intarsiaml-r3/bench-out}/ids4k-base.ids" )
+    cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && gen35l "$OUTD/ids4k-base" && cp "$OUTD/ids4k-base.ids" "$outd_new/ids4k-base.ids" )
   echo "ids: $(tr -cd ',' < "$OUTD/ids4k-new.ids" | wc -c) / $(tr -cd ',' < "$OUTD/ids4k-base.ids" | wc -c) commas"
   if [ -s "$OUTD/ids4k-new.ids" ] && cmp -s "$OUTD/ids4k-new.ids" "$OUTD/ids4k-base.ids"; then
     echo "IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree"
@@ -341,7 +342,8 @@ stage_mutrun() {
   local m
   for m in ${MUTATIONS:-$R3MUT}; do
     printf '%-16s ' "$m"
-    $D bash -c "/target/r3mut/$m --test-threads=1" 2>&1 | grep -aE "^test result|panicked at" | head -2 | cut -c1-200 | tr '\n' ' '
+    # (a mutant that hangs a kernel is killed by the timeout: exit 124, no "test result" line)
+    $D bash -c "timeout 120 /target/r3mut/$m --test-threads=1; echo exit=\$?" 2>&1 | grep -aE "^test result|panicked at|^exit=" | head -3 | cut -c1-200 | tr '\n' ' '
     echo
   done
 }
@@ -387,6 +389,43 @@ stage_qualify() { # qualify <model-dir> <tag>
 }
 stage_qual35() { stage_qualify $M35 "35b-${1:-base}"; }
 stage_qual8() { stage_qualify $M8 "8b-${1:-base}"; }
+
+# Round 5 (perf/hip-round5, docs/results/2026-10-19-hip-round5.md).
+# pf8o:<tag>: 8B prefill on prompts around and just over the 4096-token recipe chunk (targets 4000 / 4160 / 4400; bench speed
+# records each rep's prompt_tokens), gen 16. A tag containing "off" disables the fused attention prologue for that server.
+stage_pf8o() {
+  export SERVE_ENV=""; [[ "${1:-}" == *off* ]] && export SERVE_ENV="-e INTARSIA_HIP_DISABLE=qk_norm_rope_kv_bf16"
+  MAXSEQ=17408 SIZES=4000,4160,4400 GEN=16 REPS=5 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf8o-${1:-base}"
+}
+# profenv:<tag>:<NAME=value>: the decode profile (prof) with one INTARSIA_HIP_* knob set (dev.sh forwards it)
+stage_profenv() { local tag=${1%%:*} kv=${1#*:}; ( export "$kv"; echo "--- $kv"; stage_prof "$tag" ); }
+# r5test: round 5's new-kernel tests (moe_v3) and the tests of the paths next to them, then the f8 tests (now the default GEMM)
+stage_r5test() {
+  timeout 400 $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test moe_v3 --test decode_v2 --test device_pos --test fused_decode \
+    --test fp8_f8 --test fp8_mma_v2 --test moe_pairs -- --nocapture --test-threads=1 2>&1 \
+    | grep -aE -A2 "^test |test result|FAILED|panicked|differ|bitwise" | cut -c1-300 | tail -70
+  # flash v2 at every query-heads-per-block value (read once per process), then the attention sweeps (cpu reference, poison)
+  for hpb in 1 2 4; do
+    echo "--- flash_v2 INTARSIA_HIP_FLASH_HPB=$hpb"
+    INTARSIA_HIP_FLASH_HPB=$hpb timeout 300 $D cargo test --release -p intarsia-backend-hip --test flash_v2 -- --nocapture 2>&1 \
+      | grep -aE "^test |test result|panicked|differs|bitwise v1 on|HPB=" | cut -c1-300
+  done
+  timeout 400 $D cargo test --release -p intarsia-backend-hip --test attention -- --test-threads=1 2>&1 | grep -aE "^test |test result|panicked" | cut -c1-300
+}
+# pfprofenv:<tag>:<NAME=value>: the 4408-token prefill profile (pfprof) with one INTARSIA_HIP_* knob set
+stage_pfprofenv() { local tag=${1%%:*} kv=${1#*:}; ( export "$kv"; echo "--- $kv"; stage_pfprof "$tag" ); }
+# pf8x:<tag>: 8B A/B in one server: prefill 1024 / 4160 (just over the 4096 recipe chunk) / 16384 and decode, 3 reps, gen 64
+stage_pf8x() { export SERVE_ENV=""; MAXSEQ=17408 SIZES=1024,4160,16384 GEN=64 REPS=3 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf8x-${1:-base}"; }
+# acc35f8off: the 35B short golden under the f8 kill switch (INTARSIA_HIP_FP8_F8=0, must reproduce the v2 numbers)
+stage_acc35f8off() { INTARSIA_HIP_FP8_F8=0 ACC_TAG=f8off stage_acc35; }
+# round-5 GPU mutants (built by mutbuild in a CPU slot, run by mutrun in a GPU window): MUTATIONS="$R5MUT"
+# (v3-ticket hangs the kernel by design of the mutation: last, so a wedged queue cannot disturb the others)
+R5MUT="v3-noreset v3-early v3-nowait v3-hrow v3-gurow v3-nofence fl2-head fl2-kvh fl2-row fl2-stride v3-ticket"
+stage_mutbuild5() { MUTATIONS="$R5MUT" stage_mutbuild; }
+stage_mutrun5() { MUTATIONS="$R5MUT" stage_mutrun; }
+# plan8 / plan35: the resolved plan (which kernel serves each op) of the 8B / 35B, every line, to see whether the fp8 GEMM appears
+stage_plan8() { $D $B plan show --backend hip --model $M8 --max-seq 17408 2>&1 | grep -aE "matmul|scratch|rror" | cut -c1-200 | head -40; }
+stage_plan35f() { $D $B plan show --backend hip --model $M35 --mem-budget 29 --max-seq 17408 2>&1 | grep -aE "matmul_fp8|moe_experts|scratch|rror" | cut -c1-200 | head -40; }
 
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}

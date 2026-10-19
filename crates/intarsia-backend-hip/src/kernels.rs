@@ -25,6 +25,8 @@ pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_FP8_Q",
     "INTARSIA_HIP_FP8_ROWS",
     "INTARSIA_HIP_GDN_PD",
+    "INTARSIA_HIP_FLASH_HPB",
+    "INTARSIA_HIP_MOE_V3_SKEW",
     "INTARSIA_HIP_GEMM_TILE",
     "INTARSIA_HIP_GEMV",
     "INTARSIA_HIP_MOE_PAIRS",
@@ -59,6 +61,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_prefill_bf16", Op::AttnPrefill),
     ("attn_decode_bf16", Op::AttnDecode),
     ("attn_prefill_bf16_flash", Op::AttnPrefill),
+    ("attn_prefill_bf16_flash_v2", Op::AttnPrefill),
     ("attn_prefill_bf16_splitkv", Op::AttnPrefill),
     ("attn_decode_bf16_splitkv", Op::AttnDecode),
     ("silu_glu_bf16", Op::SiluGlu),
@@ -184,6 +187,14 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
+            // v2 (round 5): the same kernel with several query heads of one kv head per block, bitwise v1 (tests/flash_v2.rs)
+            "attn_prefill_bf16_flash_v2" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| flash_ok(s) && s.m > SPLITKV_MAX_ROWS)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(20),
             // split-KV (flash-decoding): decode and short q_len (verify); needs scratch
             "attn_decode_bf16_splitkv" | "attn_prefill_bf16_splitkv" => k
                 .acts(bf)
@@ -322,6 +333,23 @@ mod tests {
             assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 128)).as_deref(), Some("gdn_delta_rule_bf16_v2"), "m={m}");
             assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 64)).as_deref(), Some("gdn_delta_rule_bf16"), "m={m} dk=64");
         }
+    }
+
+    /// Round 5: prefill attention chunks (> 16 rows) go to flash v2 at the 35B's and the 8B's shapes, decode and verify rows
+    /// stay on the two-launch split-KV kernel (the one-launch variant was measured slower and dropped).
+    #[test]
+    fn round5_attention_selection_is_pinned() {
+        let bf = Some(DType::Bf16);
+        for (n, nkv, d) in [(16usize, 2usize, 256usize), (32, 8, 128), (8, 8, 64)] {
+            for m in [1usize, 2, 16, 17, 312, 4096] {
+                let s = ShapeInfo { m, n_heads: n, n_kv_heads: nkv, head_dim: d, act: bf, out: bf, weight: bf, ..Default::default() };
+                let want = if m > SPLITKV_MAX_ROWS { "attn_prefill_bf16_flash_v2" } else { "attn_prefill_bf16_splitkv" };
+                assert_eq!(pick(Op::AttnPrefill, &s).as_deref(), Some(want), "m={m} n={n} nkv={nkv} d={d}");
+            }
+            let dec = ShapeInfo { m: 1, n_heads: n, n_kv_heads: nkv, head_dim: d, act: bf, out: bf, weight: bf, ..Default::default() };
+            assert_eq!(pick(Op::AttnDecode, &dec).as_deref(), Some("attn_decode_bf16_splitkv"), "decode n={n} nkv={nkv} d={d}");
+        }
+        assert_eq!(SPLITKV_MAX_ROWS, 16);
     }
 
     #[test]

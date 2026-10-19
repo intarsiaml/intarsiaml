@@ -22,6 +22,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_topk_bf16_v2", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
     ("moe_experts_bf16_v2", Op::MoeExperts),
+    ("moe_experts_bf16_v3", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
@@ -154,7 +155,8 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
-                "moe_experts_bf16" | "moe_experts_bf16_v2" => k
+                // v3 (round 5): v2 with the decode path in one launch, bitwise v2 (tests/moe_v3.rs); same shapes, above v2
+                "moe_experts_bf16" | "moe_experts_bf16_v2" | "moe_experts_bf16_v3" => k
                     .acts(bf)
                     .weights([DType::U8])
                     .when(|s| {
@@ -163,7 +165,11 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .scratch(moe_experts_scratch)
-                    .priority(if *name == "moe_experts_bf16_v2" { 10 } else { 0 }),
+                    .priority(match *name {
+                        "moe_experts_bf16_v3" => 20,
+                        "moe_experts_bf16_v2" => 10,
+                        _ => 0,
+                    }),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces (tests/
                 // fused_decode.rs), so the budget is that of the kernels it is built from.
@@ -288,6 +294,35 @@ mod tests {
         for t in [5usize, 16, 256, 1024, 2048, 4096, 8192] {
             let m = ShapeInfo { m: t, n: 512, k: 2048, experts: 256, top_k: 8, act: Some(DType::Bf16), ..Default::default() };
             assert!(v2.scratch_bytes(&fp8_shape(t, 2048, 4096)) < moe.scratch_bytes(&m), "chunk {t}");
+        }
+    }
+
+    /// Pins the MoE experts selection (round 5): `moe_experts_bf16_v3` for every shape the 35B draws, decode (T = 1, 2) and
+    /// prefill chunks alike (v3 is v2 off the decode path), with the same shapes and the same scratch as v2, so the plan's
+    /// workspace does not change; v2 and v1 stay registered (the bitwise references of tests/moe_v3.rs and decode_v2.rs).
+    #[test]
+    fn moe_experts_selection_is_pinned() {
+        let ks = all();
+        let get = |n: &str| ks.iter().find(|k| k.name == n).unwrap();
+        let (v1, v2, v3) = (get("moe_experts_bf16"), get("moe_experts_bf16_v2"), get("moe_experts_bf16_v3"));
+        assert!(v3.priority > v2.priority && v2.priority > v1.priority);
+        for t in [1usize, 2, 3, 5, 16, 312, 4096] {
+            let m = ShapeInfo { m: t, n: 512, k: 2048, experts: 256, top_k: 8, act: Some(DType::Bf16), ..Default::default() };
+            let mut best: Option<&KernelImpl> = None;
+            for k in ks.iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&m)) {
+                if best.is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            assert_eq!(best.unwrap().name, "moe_experts_bf16_v3", "T = {t}");
+            assert_eq!(v3.scratch_bytes(&m), v2.scratch_bytes(&m), "T = {t}");
+        }
+        for s in [
+            ShapeInfo { m: 1, n: 512, k: 2048, experts: 2048, top_k: 8, act: Some(DType::Bf16), ..Default::default() },
+            ShapeInfo { m: 1, n: 520, k: 2048, experts: 256, top_k: 8, act: Some(DType::Bf16), ..Default::default() },
+            ShapeInfo { m: 1, n: 64, k: 16, experts: 16, top_k: 2, act: Some(DType::Bf16), ..Default::default() },
+        ] {
+            assert_eq!(v3.accepts(&s), v2.accepts(&s), "v3 must take exactly the shapes v2 takes");
         }
     }
 }

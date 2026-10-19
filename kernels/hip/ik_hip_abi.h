@@ -35,6 +35,19 @@ int ik_qk_norm_rope_kv_bf16(const ik_tensor* q, const ik_tensor* k, const ik_ten
 int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                               const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 
+/* attn_prefill_bf16_flash_v2 (docs/results/2026-10-19-hip-round5.md): ik_attn_prefill_bf16_flash with INTARSIA_HIP_FLASH_HPB
+ * (default 2) query heads of one kv head per block, so a K / V tile is staged once for all of them; every wave runs the
+ * v1 kernel's instructions for its rows, so bitwise v1. */
+int ik_attn_prefill_bf16_flash_v2(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                  ik_tensor* out, void* stream);
+
+/* moe_experts_bf16_v3 (docs/results/2026-10-19-hip-round5.md): ik_moe_experts_bf16_v2 with the decode path (T * K <= 16)
+ * in one launch (gate_up and down + reduce blocks in one grid, the down blocks wait on a per-stream counter); the same
+ * expressions in the same order, so bitwise v2 for every shape. */
+int ik_moe_experts_bf16_v3(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
+                           const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
+                           const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

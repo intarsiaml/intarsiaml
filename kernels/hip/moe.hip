@@ -25,7 +25,10 @@
 #include "moe_wmma.h"
 #include <algorithm>
 #include <math.h>
+#include <mutex>
 #include <stdlib.h>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -763,6 +766,233 @@ moe_down_reduce_p1_v2_kernel(const ik_bf16* __restrict__ h, const uint8_t* __res
     if (lane == 0) ik_store(out + (int64_t)t * H + r, o);
 }
 
+// ---- decode fast path, v3: one launch -------------------------------------------------------------------------------
+// The v2 pair as one grid of NG + ND blocks: roles [0, NG) are moe_gate_up_p1_v2_kernel<false, PRE>'s blocks (pair
+// p = b / GY, row tile b % GY), roles [NG, NG + ND) are moe_down_reduce_p1_v2_kernel<bf16, false>'s (token t = b / GD,
+// row tile b % GD), each with the same expressions in the same order, so every h value and every output is bit-identical
+// to v2's. What changes:
+//  * no kernel boundary between the two projections (about 3 us each inside a decode graph replay on gfx12,
+//    docs/results/2026-10-19-hip-round4.md), and
+//  * a down block requests its weights and block scales (all of them at I <= 512: one lane-iteration) before it waits for
+//    h, so the down projection's DRAM traffic overlaps the gate_up tail instead of following it.
+// Roles: a block's role is not its blockIdx but a ticket (thread 0: atomic add on sync[2] when the block starts): the first
+// NG tickets run gate_up, the rest down. A down role therefore exists only once every gate_up role is held by a block that
+// is already running, and gate_up blocks never wait, so the spin below cannot deadlock whatever order the hardware
+// dispatches workgroups in (the rocPRIM / CUB tile-ticket rule: blockIdx order is not guaranteed by HIP).
+// Synchronisation: every thread of a gate_up block fences (agent scope) after its h store, the block barrier, then thread 0
+// adds 1 to sync[0] (release). A down block's thread 0 spins (acquire, agent scope, s_sleep) until sync[0] >= NG, the
+// block barrier, then every thread fences (acquire, agent: drops stale L0 / L1 lines) before it reads h. The last down
+// block to finish (sync[1]) puts the three counters back to 0, so the next launch on the stream (which starts after this
+// one ends) finds them zeroed. sync is one 64-byte slot of g_moe_sync (module scope, zero when the code object loads), one
+// slot per (device, stream), so launches on two streams never share counters.
+constexpr int kMoeSyncSlots = 16;
+constexpr int kMoeSyncStride = 16;  // unsigned ints: one 64-byte line per slot
+__device__ unsigned int g_moe_sync[kMoeSyncSlots * kMoeSyncStride];
+
+template <int PRE>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP)
+moe_experts_p1_v3_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ guw, const uint8_t* __restrict__ gus,
+                         const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns, const float* __restrict__ gscales,
+                         const int* __restrict__ ids, const float* __restrict__ wts, ik_bf16* h, ik_bf16* __restrict__ out,
+                         int E, int H, int I, int K, int NG, int ND, int slot, int skew) {
+    __shared__ float lut[16];
+    __shared__ int ticket;
+    unsigned int* sync = g_moe_sync + slot * kMoeSyncStride;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    if (threadIdx.x == 0) ticket = (int)__hip_atomic_fetch_add(sync + 2, 1u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
+    __syncthreads();
+    const int bid = ticket;  // the role
+    if (bid < NG) {
+        // test seam (INTARSIA_HIP_MOE_V3_SKEW, default 0): the last gate_up role starts late, so a down role that does not wait
+        // for every gate_up role reads h before it is written (tests/moe_v3.rs v3_waits_for_every_gate_up_role)
+        if (skew > 0 && bid == NG - 1)
+            for (int i = 0; i < skew; ++i) __builtin_amdgcn_s_sleep(127);
+        // ---- gate_up: moe_gate_up_p1_v2_kernel<false, PRE> with blockIdx = (role / GY, role % GY) ----
+        const int GY = (I + kRowWarps - 1) / kRowWarps;
+        const int p = bid / GY;
+        const int e = ids[p];
+        const bool ok = e >= 0 && e < E;  // block-uniform
+        const int r = (bid % GY) * kRowWarps + warp;
+        const bool live = ok && r < I;
+        const int ee = ok ? e : 0, rr = r < I ? r : 0;
+        const uint2* wg = reinterpret_cast<const uint2*>(guw + ((int64_t)ee * 2 * I + rr) * (H / 2));
+        const uint2* wu = reinterpret_cast<const uint2*>(guw + ((int64_t)ee * 2 * I + I + rr) * (H / 2));
+        const uint8_t* sg = gus + ((int64_t)ee * 2 * I + rr) * (H / 16);
+        const uint8_t* su = gus + ((int64_t)ee * 2 * I + I + rr) * (H / 16);
+        const ik_bf16* xr = x + (int64_t)(p / K) * H;
+        const int nu = H / 16;
+        uint2 wgv[PRE], wuv[PRE];
+        uint32_t sgb[PRE], sub[PRE];
+        uint4 xv[PRE][2];
+#pragma unroll
+        for (int j = 0; j < PRE; ++j) {
+            const int u = lane + IK_WARP * j;
+            const bool in = u < nu;
+            wgv[j] = in ? ik_ldcs(wg + u) : make_uint2(0, 0);
+            wuv[j] = in ? ik_ldcs(wu + u) : make_uint2(0, 0);
+            sgb[j] = in ? sg[u] : 0u;
+            sub[j] = in ? su[u] : 0u;
+            const uint4* xp = reinterpret_cast<const uint4*>(xr + (in ? u : 0) * 16);
+            xv[j][0] = xp[0];
+            xv[j][1] = xp[1];
+        }
+        if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+        __syncthreads();
+        if (live) {
+            float ag = 0.f, au = 0.f;
+            auto step = [&](const uint2& g2, const uint2& u2, uint32_t gsb, uint32_t usb, const uint4& x0, const uint4& x1) {
+                const float sgv = ik_e4m3_to_f(gsb), suv = ik_e4m3_to_f(usb);
+                float fg[16], fu[16];
+                ik_fp4x8_to_f32(g2.x, lut, fg);
+                ik_fp4x8_to_f32(g2.y, lut, fg + 8);
+                ik_fp4x8_to_f32(u2.x, lut, fu);
+                ik_fp4x8_to_f32(u2.y, lut, fu + 8);
+                float xf[16];
+                ik_unpack8(x0, xf);
+                ik_unpack8(x1, xf + 8);
+                float pg = 0.f, pu = 0.f;
+#pragma unroll
+                for (int i = 0; i < 16; ++i) {
+                    pg = fmaf(fg[i], xf[i], pg);
+                    pu = fmaf(fu[i], xf[i], pu);
+                }
+                ag = fmaf(pg, sgv, ag);
+                au = fmaf(pu, suv, au);
+            };
+#pragma unroll
+            for (int j = 0; j < PRE; ++j) {
+                if (lane + IK_WARP * j >= nu) continue;
+                step(wgv[j], wuv[j], sgb[j], sub[j], xv[j][0], xv[j][1]);
+            }
+            for (int u = lane + IK_WARP * PRE; u < nu; u += IK_WARP) {
+                const uint4* xp = reinterpret_cast<const uint4*>(xr) + u * 2;
+                const uint4 x0 = xp[0], x1 = xp[1];
+                step(ik_ldcs(wg + u), ik_ldcs(wu + u), sg[u], su[u], x0, x1);
+            }
+            const float g = round_bf16(ik_warp_sum(ag) * gscales[e * 3 + 0]);
+            const float uu = round_bf16(ik_warp_sum(au) * gscales[e * 3 + 1]);
+            const float a = round_bf16(g / (1.f + expf(-g)));
+            if (lane == 0) h[(int64_t)p * I + r] = ik_f2b(a * uu);
+        }
+        __threadfence();
+        __syncthreads();
+        if (threadIdx.x == 0) __hip_atomic_fetch_add(sync, 1u, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_AGENT);
+        return;
+    }
+
+    // ---- down + reduce: moe_down_reduce_p1_v2_kernel<bf16, false> with blockIdx = (role / GD, role % GD) ----
+    const int bd = bid - NG;
+    const int GD = (H + kRowWarps - 1) / kRowWarps;
+    const int t = bd / GD;
+    const int r = (bd % GD) * kRowWarps + warp;
+    const bool rv = r < H;
+    const int rr = rv ? r : 0;
+    const int nu = I / 16;
+    const ik_bf16* hrow = h + (int64_t)t * K * I;  // the token's K intermediate rows [K][I]
+    const uint2* wd[kP1MaxK];
+    const uint8_t* sd[kP1MaxK];
+    float gd[kP1MaxK], acc[kP1MaxK];
+    uint2 wv[kP1MaxK];
+    uint32_t sb[kP1MaxK];
+#pragma unroll
+    for (int k = 0; k < kP1MaxK; ++k) {
+        const int id = k < K ? ids[(int64_t)t * K + k] : -1;
+        const bool okk = id >= 0 && id < E;
+        const int64_t row = okk ? (int64_t)id * H + rr : 0;
+        wd[k] = okk ? reinterpret_cast<const uint2*>(dnw + row * (I / 2)) : nullptr;
+        sd[k] = okk ? dns + row * (I / 16) : nullptr;
+        gd[k] = okk ? gscales[id * 3 + 2] : 0.f;
+        acc[k] = 0.f;
+    }
+#pragma unroll
+    for (int k = 0; k < kP1MaxK; ++k) {  // iteration u = lane of every expert, requested before the wait
+        const bool in = wd[k] && lane < nu;
+        wv[k] = in ? ik_ldcs(wd[k] + lane) : make_uint2(0, 0);
+        sb[k] = in ? sd[k][lane] : 0u;
+    }
+    if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+    if (threadIdx.x == 0) {
+        while (__hip_atomic_load(sync, __ATOMIC_ACQUIRE, __HIP_MEMORY_SCOPE_AGENT) < (unsigned)NG) __builtin_amdgcn_s_sleep(1);
+    }
+    __syncthreads();
+    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");  // every wave: h is read only after this
+    if (rv) {
+        auto hload = [&](int k, int u, uint4& h0, uint4& h1) {
+            const uint4* hp = reinterpret_cast<const uint4*>(hrow + (int64_t)k * I + u * 16);
+            h0 = hp[0];
+            h1 = hp[1];
+        };
+        auto step = [&](int k, const uint2& w2, uint32_t sbyte, const uint4& h0, const uint4& h1) {
+            float fw[16], hf[16];
+            ik_fp4x8_to_f32(w2.x, lut, fw);
+            ik_fp4x8_to_f32(w2.y, lut, fw + 8);
+            ik_unpack8(h0, hf);
+            ik_unpack8(h1, hf + 8);
+            float pp = 0.f;
+#pragma unroll
+            for (int i = 0; i < 16; ++i) pp = fmaf(fw[i], hf[i], pp);
+            acc[k] = fmaf(pp, ik_e4m3_to_f(sbyte), acc[k]);
+        };
+        if (lane < nu) {
+#pragma unroll
+            for (int k = 0; k < kP1MaxK; ++k) {
+                if (!wd[k]) continue;
+                uint4 h0, h1;
+                hload(k < K ? k : 0, lane, h0, h1);
+                step(k, wv[k], sb[k], h0, h1);
+            }
+        }
+        for (int u = lane + IK_WARP; u < nu; u += IK_WARP) {
+            uint2 wq[kP1MaxK];
+            uint32_t sq[kP1MaxK];
+#pragma unroll
+            for (int k = 0; k < kP1MaxK; ++k) {
+                wq[k] = wd[k] ? ik_ldcs(wd[k] + u) : make_uint2(0, 0);
+                sq[k] = wd[k] ? sd[k][u] : 0u;
+            }
+#pragma unroll
+            for (int k = 0; k < kP1MaxK; ++k) {
+                if (!wd[k]) continue;
+                uint4 h0, h1;
+                hload(k, u, h0, h1);
+                step(k, wq[k], sq[k], h0, h1);
+            }
+        }
+        float o = 0.f;
+#pragma unroll
+        for (int k = 0; k < kP1MaxK; ++k) {
+            if (!wd[k]) continue;
+            const float y = round_bf16(ik_warp_sum(acc[k]) * gd[k]);
+            o += round_bf16(y * wts[(int64_t)t * K + k]);
+        }
+        if (lane == 0) ik_store(out + (int64_t)t * H + r, o);
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        const unsigned done = __hip_atomic_fetch_add(sync + 1, 1u, __ATOMIC_ACQ_REL, __HIP_MEMORY_SCOPE_AGENT);
+        if (done == (unsigned)ND - 1) {  // every down block is past its wait: reset for the next launch on this stream
+            __hip_atomic_store(sync, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
+            __hip_atomic_store(sync + 1, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
+            __hip_atomic_store(sync + 2, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
+        }
+    }
+}
+
+// The g_moe_sync slot of the calling thread's (device, stream); -1 when all kMoeSyncSlots are taken (the caller then runs
+// the two v2 launches).
+int moe_sync_slot(hipStream_t s) {
+    static std::mutex mu;
+    static std::vector<std::pair<int, hipStream_t>> owners;
+    int dev = -1;
+    if (hipGetDevice(&dev) != hipSuccess) return -1;
+    std::lock_guard<std::mutex> g(mu);
+    for (size_t i = 0; i < owners.size(); ++i)
+        if (owners[i].first == dev && owners[i].second == s) return (int)i;
+    if ((int)owners.size() >= kMoeSyncSlots) return -1;
+    owners.emplace_back(dev, s);
+    return (int)owners.size() - 1;
+}
+
 // INTARSIA_HIP_XSTAGE=1 stages the activations in shared memory (when they fit); default 0
 bool xstage_enabled() {
     static const bool on = [] {
@@ -839,7 +1069,8 @@ int moe_topk_impl(const ik_tensor* logits, int top_k, int norm, ik_tensor* weigh
 
 int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
                      const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
-                     const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2) {
+                     const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2,
+                     bool v3 = false) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -885,6 +1116,24 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
         if (v2) {
             const size_t xb = (size_t)H * 2, hb = (size_t)K * I * 2;
             const bool xs = xstage_enabled() && xb <= 32768 && hb <= 32768;
+            if (v3 && !xs) {  // one launch (moe_experts_p1_v3_kernel), bit-identical to the two below
+                const int slot = moe_sync_slot(s);
+                const char* sk = getenv("INTARSIA_HIP_MOE_V3_SKEW");  // test seam, read at every launch; unset = 0
+                const int skew = sk ? atoi(sk) : 0;
+                const int64_t NG = P * ((I + kRowWarps - 1) / kRowWarps), ND = T * ((H + kRowWarps - 1) / kRowWarps);
+                if (slot >= 0 && NG + ND <= 0x7fffffffLL) {
+#define IK_EX_V3(PRE)                                                                                                 \
+    moe_experts_p1_v3_kernel<PRE><<<(unsigned)(NG + ND), kRowWarps * IK_WARP, 0, s>>>(                                \
+        (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,                    \
+        (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data, (const int*)ids->data, \
+        (const float*)weights->data, hbuf, (ik_bf16*)out->data, (int)E, (int)H, (int)I, (int)K, (int)NG, (int)ND, slot, skew)
+                    if (moe_pre() == 1) IK_EX_V3(1);
+                    else if (moe_pre() == 2) IK_EX_V3(2);
+                    else IK_EX_V3(4);
+#undef IK_EX_V3
+                    return ik_launch_status();
+                }
+            }
             if (xs)
                 moe_gate_up_p1_v2_kernel<true, 4><<<g1, kRowWarps * IK_WARP, xb, s>>>(
                     (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,
@@ -975,6 +1224,12 @@ int ik_moe_experts_bf16_v2(const ik_tensor* x, const ik_tensor* ids, const ik_te
                            const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
                            const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return moe_experts_impl(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true);
+}
+// v3 (HIP only, ik_hip_abi.h): decode (P <= 16) in one launch, bit-identical to v2; every other shape is v2
+int ik_moe_experts_bf16_v3(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
+                           const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
+                           const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return moe_experts_impl(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, true);
 }
 
 int ik_moe_combine_bf16(const ik_tensor* routed, const ik_tensor* shared, const ik_tensor* gate_logit, ik_tensor* out,
