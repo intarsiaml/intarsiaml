@@ -11,8 +11,9 @@ measured".
 * **Qwen3.6-35B-A3B NVFP4 decode on one R9700: 145.6 -> 149.0 tok/s at 128 tokens (+2.3 %), +2.2 to +2.4 % at every prompt
   size up to 16384.** This is an interleaved A/B over 3 rounds against `10eef81c`, in the same window. The plan has **60
   fewer launches per decode step: 475 -> 415.**
-  - **Accuracy:** the outputs are bitwise identical to base. The 256 greedy ids on a 4408-token prompt match base, and every
-    KL21 digit equals base (35b-short, 35b-long, 8B).
+  - **Accuracy:** each fold is bitwise the two launches it replaces (device tests). End to end, the 256 greedy ids on a
+    4408-token prompt match base, and every printed KL21 digit equals base (35b-short, 35b-long, 8B). HIP logits were not
+    compared directly.
   - **No regressions:** prefill is unchanged, and the 8B is unchanged (its weights are bf16, so no fold applies).
 * **New ops:** three `Op`s, each tried first, with the unfused chain as fallback.
   - `RmsNormAddMatmulFp8Pair` (P5): the attention input norm folded into the k / v projections.
@@ -44,7 +45,8 @@ errors 0, eager steps 0):
 | 4096 | 7976 / 8644 / 8023 (8214) | 8644 / 7960 / 8660 (8421) | +2.52 % (bimodal on both sides) | 140.4 / 140.9 / 140.5 (140.6) | 144.0 / 144.1 / 143.8 (144.0) | **+2.39 %** |
 | 16384 | 7229 / 7216 / 7238 (7227) | 7199 / 7236 / 7201 (7212) | -0.21 % | 128.1 / 128.2 / 128.0 (128.1) | 130.9 / 130.8 / 131.0 (130.9) | **+2.20 %** |
 
-Prefill does not run the folds: every fused kernel serves decode shapes only, one row for the fp8 folds. The prefill rows are noise.
+Prefill chunks above 8 rows run no fold. The fp8 folds take one row and the nvfp4 fold 1 to 8 rows, so only a short prefill
+tail chunk can select one, and it is bitwise anyway. The prefill rows are noise.
 - **1024:** the delta is one B1 outlier (6392); B2 and B3 sit with base.
 - **4096:** both sides alternate between ~7970 and ~8650.
 
@@ -142,7 +144,12 @@ row, gated row, shared-expert output).
   - A mutation that drops the residual-buffer flip fails it.
 * CPU `tests/quant_hf.rs`: the MoE block's fused path is bitwise the unfused one on both CPU executors, and runs
   `SharedDownCombine` in place of the matmul and the combine.
-* CUDA and Metal `src/kernels.rs`: `phase1_folds_are_absent_and_the_unfused_selection_is_pinned`.
+* CUDA and Metal `src/kernels.rs`, two tests each:
+  - `phase1_folds_are_absent_and_the_unfused_selection_is_pinned`: the three ops are absent, and the selection at 12
+    35B / 8B decode shapes is pinned.
+  - `kernel_list_is_unchanged_by_core_op_fusion_p1`: the full sorted (name, op) list, 47 CUDA kernels and 27 Metal, is
+    pinned. The branch's diff in both crates' `src/` is test code only (`git diff 4962d8fa -- crates/intarsia-backend-{cuda,metal}/src`),
+    so this list is main's.
 
 **Scripts**
 
@@ -180,7 +187,8 @@ row, gated row, shared-expert output).
 | 256 greedy ids after the 4408-token prompt | - | IDS4K IDENTICAL to base |
 | same, with the three folds disabled (`INTARSIA_HIP_DISABLE=...`, the kill switch) | - | IDS4K IDENTICAL to base |
 
-Every digit is equal; the bar is "bitwise or within base's range", and this is bitwise.
+Every printed digit is equal, and the ids are identical. Together with the per-kernel bitwise tests (section 5), the bar
+"bitwise, or accuracy within base's range" is met. HIP logits were not compared directly.
 
 The 35b-long prefill gate FAIL (KL21 4.356e-2 vs the 3.0e-2 gate) is the same number as base and as round 5. It is a pre-existing
 prefill property, untouched here: the folds run in decode only.
@@ -193,11 +201,10 @@ prefill property, untouched here: the folds run in decode only.
   - `p1-n5-sc0`, `-nowrite`, `-round`, `-woff`, `-stage`
   - `p1-g4-sig`, `-gate`
   - `p1-dc-logit0`, `-sground`, `-soround`, `-tail`, `-row`
-* **Selection mutants: 2 / 2 killed** by the lib tests on the Mac (`raw/logs/mut-lib.log`).
+* **Selection mutants: 2 / 2 killed** by the lib tests on the Mac, rerun on the final tree (`raw/logs/mut-lib.log`).
   - `p1-sel-m2`: the one-row P5 fold also taken for two rows.
   - `p1-sel-dc9`: the P2a fold also taken for nine rows.
-  - The same run kills `v3-default` and `v3-prio`. That run was on the pre-rebase tree; these are host-only selection tests that
-    round 6 did not touch.
+  - The same final-tree run kills `v3-default` and `v3-prio`.
 * **v3 mutants: 6 / 7 killed.**
   - `v3-noreset`, `v3-early`, `v3-nowait`, `v3-hrow` and `v3-gurow` fail, and the stress test is among the failing tests for
     noreset / early / nowait.
@@ -299,14 +306,22 @@ log in `raw/logs/cuda-window2.log`):
 | `crates/intarsia-backend-cpu/src/{fused_ref,fast,reference}.rs` | the oracle | - | - | - |
 | `crates/intarsia-backend-cuda/src/kernels.rs` (test only) | - | - | coverage test exempts the 3 ops; pin test | - |
 | `crates/intarsia-backend-metal/src/kernels.rs` (test only) | - | - | - | pin test |
-| HIP-only: `kernels/hip/{fp8.hip,moe_shared.hip,moe.hip,ik_hip_abi.h}`, `crates/intarsia-backend-hip/src/{ffi,device,quantmoe,kernels}.rs`, tests | - | kernels, registration, seams | - | - |
+| `crates/intarsia-backend-cpu/tests/quant_hf.rs` (fused MoE block test) | runs on every host | - | - | - |
+| `crates/intarsia-models/tests/fusion_p1.rs` (new; CPU backends only) | runs in every `cargo test --workspace`, Metal's and CUDA's hosts included | - | - | - |
+| HIP-only: `kernels/hip/{fp8.hip,moe_shared.hip,moe.hip,ik_hip_abi.h}`, `crates/intarsia-backend-hip/src/{ffi,device,quantmoe,kernels}.rs`, `tests/{fusion_p1,moe_v3}.rs` | - | kernels, registration, seams, tests | - | - |
+| scripts: `scripts/hip-decode/{fusion-p1.sh,fusion-window.sh,plan_diff.py,ab_table.py,mutate.py}`, `scripts/cuda-decode/{fusion-noop.sh,fusion-noop-up.sh}` | - | measurement only | measurement only | - |
 
 ## 11. Metal no-op check to run (Metal spike session, endor)
 
-Base `10eef81c` vs this branch's HEAD (section 14):
+Base origin/main `4962d8fa` (the branch's merge-base) vs this branch's HEAD (section 15).
+
+**Getting the branch:** `perf/core-op-fusion` is local and unpushed. Someone pushes it after review, or the Metal session takes a
+bundle: `git bundle create core-op-fusion-p1.bundle 4962d8fa..perf/core-op-fusion` on this Mac, then
+`git fetch core-op-fusion-p1.bundle perf/core-op-fusion` on endor.
+
 
 1. `cargo test --workspace` on endor. It includes `intarsia-models` `batch_metal`, `fusion_p1`, and the Metal
-   `phase1_folds_are_absent_and_the_unfused_selection_is_pinned`.
+   `phase1_folds_are_absent_and_the_unfused_selection_is_pinned` and `kernel_list_is_unchanged_by_core_op_fusion_p1`.
 2. `intarsia plan show --backend metal --model <Qwen3-8B> --json` on both trees. The JSON must be byte-identical. The 35B NVFP4
    checkpoint does not load on Metal before or after, since there are no fp8 / nvfp4 / MoE kernels.
 3. `intarsia kernels test --backend metal --model <Qwen3-8B>`: kernel and case counts equal on both trees.
@@ -330,7 +345,20 @@ Base `10eef81c` vs this branch's HEAD (section 14):
 * **Last rebase, not re-measured on a GPU:** `10eef81c` -> `4962d8fa` brings only CUDA code (`kernels/cuda/gdn.cu`, the CUDA
   crate's GDN split for prefill) and docs / scripts, with no HIP or core file. So every HIP number carries over to the final tree
   unchanged. The CUDA no-op ran against `10eef81c`; on the final tree only the Mac checks ran. They pass: `cargo test --workspace`
-  is 100 binaries, 482 passed, 0 failed, with the CUDA pin test included (`raw/logs/mac-checks-final.log`).
+  is 100 binaries, 484 passed, 0 failed, with the CUDA and Metal pin tests included (`raw/logs/mac-checks-final.log`).
+* **Speculative verify on HIP with the 35B:** not exercised. P2a admits 1 to 8 rows, so a verify step selects it (the verify
+  path sets `exact_rows`, and the kernel is deterministic and row-independent). The fp8 folds step aside above one row.
+* **Post-measurement edit:** in `fp8.hip`'s `norm_add_stage`, the parameter `woff` was renamed `w_off`. Its multiply line was
+  textually identical to `gated_norm_chunk`'s, which broke the older `gn-woff` mutant's anchor (2 matches). After the rename,
+  the gfx1201 ISA of `fp8.hip` is identical to the measured one apart from the per-file `__hip_cuid_` symbol (736197 lines,
+  CPU-slot job 2665/2666). `gn-woff` and `p1-n5-woff` apply and build again.
+* **Mutant anchors:** on the final tree all 105 `mutate.py` mutations apply except 4 pre-existing round-6 ones (`moe-z-step`,
+  `pairs-sred`, `pairs-xrow`, `pairs-out` in `moe_wmma.h`). Those match twice on origin/main already and are not touched here.
+  - **Rerun on GPU in this task:** the 12 p1 mutants and the 7 v3 mutants.
+  - **Rerun on the Mac:** the 4 lib mutants.
+  - **Not rerun:** the older sets (fp8, gdn, flash, qkr, and so on), whose kernels this task did not change. The exception is
+    `fp8.hip`'s shared GEMV body, which gained the two prologues; its existing users are covered by `fused_decode` and `decode_v2` in
+    the W2 test run, and by the identical ids and KL digits. The fp8 suites (`fp8_f8`, `fp8_pair_shapes`) were not rerun.
 * **Round-6 defaults** are in both A and B: `INTARSIA_HIP_FLASH_HPB=4`, `INTARSIA_HIP_MOE_MW=5`.
 
 ## 13. Next phases (not done here, proposal sections 7, 5, 6, 3)
@@ -359,7 +387,7 @@ Every window was released only after `/v1/models` answered.
 ## 15. Final HEAD
 
 The final commit of `perf/core-op-fusion` (not pushed) is the commit that adds this line. Code tree `scripts/tree-stamp.sh`
-`code-tree=fc6d0eecbecd` (docs excluded); the code is the same as in `d89e85ae`.
+`code-tree=20fb0fe6ea1b` (docs excluded); the code is the same as in `d6d20d3`.
 
 * **Measured tree:** the same commits on `10eef81c` (`60d19bfe`). Synced to tatooine `~/intarsiaml-fusion` and spark1
   `~/intarsia-decfuse/fusion-dev`.
