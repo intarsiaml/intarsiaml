@@ -118,6 +118,7 @@ fn moe_pair_tile_does_not_change_a_bit() {
         // round-5 kernel, 5 = moe_wmma_kernel_v, the r7 defaults and two r7 splits) at both tiles, against the single launch
         for split in ["1", "150"] {
             std::env::set_var("INTARSIA_HIP_SPLIT_US", split);
+            std::env::set_var("INTARSIA_HIP_SPLIT_MIN_US", "0"); // round 9 trigger off: pieces at every size
             for (pairs, mw) in [("32", "0"), ("64", "0"), ("32", "5"), ("64", "5"), ("32", "0:41"), ("64", "45:25"), ("64", "13:29")] {
                 let v = run_mw(&*hip, hc, pairs, mw);
                 assert!(
@@ -132,5 +133,6 @@ fn moe_pair_tile_does_not_change_a_bit() {
     std::env::remove_var("INTARSIA_HIP_MOE_PAIRS");
     std::env::remove_var("INTARSIA_HIP_MOE_MW");
     std::env::remove_var("INTARSIA_HIP_SPLIT_US");
+    std::env::remove_var("INTARSIA_HIP_SPLIT_MIN_US");
     assert!(differing_from_zero > 0, "all outputs zero: nothing was computed");
 }

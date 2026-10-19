@@ -47,6 +47,15 @@ pub fn moe_down_variants() -> (i32, i32) {
     unsafe { (ffi::ik_hip_moe_mw_down(64), ffi::ik_hip_moe_mw_down(32)) }
 }
 
+/// The number of launch pieces the kernel library gives a launch estimated at `est_us` microseconds with at most `max_pieces`
+/// pieces, under the current INTARSIA_HIP_SPLIT_US / INTARSIA_HIP_SPLIT_MIN_US (round 8 split, round 9 trigger;
+/// docs/results/2026-10-19-hip-round9.md). Host-only; pinned by tests/split_trigger.rs.
+#[cfg(ik_hip)]
+pub fn split_pieces(est_us: f64, max_pieces: i64) -> i32 {
+    // SAFETY: a plain host function of the kernel library without pointer arguments
+    unsafe { ffi::ik_hip_split_pieces(est_us, max_pieces) }
+}
+
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {

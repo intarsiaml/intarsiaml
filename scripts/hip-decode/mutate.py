@@ -488,6 +488,14 @@ MUTATIONS.update({
                              "                    std::ptr::copy_nonoverlapping(slot as *const u8, dst.as_mut_ptr(), dst.len());\n"
                              "                    check(\"download\", ffi::ik_rt_memcpy_d2h_pinned(slot as *mut c_void, p as *const c_void, dst.len(), s))?;")]),
 })
+# Round 9 split trigger (ik_hip.h ik_split_pieces, INTARSIA_HIP_SPLIT_MIN_US)
+MUTATIONS.update({
+    # the trigger ignored (round 8's rule) / inclusive / default at the budget
+    "r9-trig-off": ("kernels/hip/ik_hip.h", [("est_us <= budget || est_us <= trigger ||", "est_us <= budget ||")]),
+    "r9-trig-incl": ("kernels/hip/ik_hip.h", [("est_us <= trigger ||", "est_us < trigger ||")]),
+    "r9-trig-def": ("kernels/hip/ik_hip.h", [("atof(m) : 950.0;", "atof(m) : 600.0;")]),
+})
+
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
@@ -512,6 +520,7 @@ TESTS.update({n: "moe_pairs" for n in ("r8-y0", "r8-y0r5", "r8-y0v", "r8-lastpie
 TESTS.update({n: "gdn_v2" for n in ("r8-gdn-out", "r8-gdn-in", "r8-gdn-gate", "r8-gdn-len")})
 TESTS.update({n: "splitkv_r8" for n in ("r8-cb-skip", "r8-cb-ml")})
 TESTS.update({n: "staging" for n in ("r9-st-nowait", "r9-st-pageable", "r9-st-noadvance", "r9-st-noevent", "r9-st-dlorder")})
+TESTS.update({n: "split_trigger" for n in ("r9-trig-off", "r9-trig-incl", "r9-trig-def")})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target

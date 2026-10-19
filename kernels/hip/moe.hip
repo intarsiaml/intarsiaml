@@ -1364,6 +1364,8 @@ extern "C" {
 
 int ik_hip_moe_mw(int pairs) { return moe_mw_variant(pairs, false); }  // ik_hip_abi.h (registry pin): gate_up
 int ik_hip_moe_mw_down(int pairs) { return moe_mw_variant(pairs, true); }
+// ik_hip_abi.h (round 9 pin, tests/split_trigger.rs): the launch-piece count ik_split_pieces (ik_hip.h) gives
+int ik_hip_split_pieces(double est_us, int64_t max_pieces) { return ik_split_pieces(est_us, max_pieces); }
 
 int ik_moe_topk_bf16(const ik_tensor* logits, int top_k, int norm, ik_tensor* weights, ik_tensor* ids, void* stream) {
     return moe_topk_impl(logits, top_k, norm, weights, ids, stream, false);

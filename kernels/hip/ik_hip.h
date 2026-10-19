@@ -166,11 +166,19 @@ static inline int ik_launch_status() { return hipGetLastError() == hipSuccess ? 
  * INTARSIA_HIP_SPLIT_US microseconds (default 600; 0 = never split). A piece computes exactly what its part of the single
  * launch computed (independent output tiles, or a token range that continues the in-place recurrent state), so every
  * value gives the same bits. Read at every launch (the bitwise tests switch it in one process); a small value forces the
- * most pieces. Returns the number of pieces, 1 .. max_pieces. */
+ * most pieces. Returns the number of pieces, 1 .. max_pieces.
+ *
+ * Round 9 (docs/results/2026-10-19-hip-round9.md): a launch is only split when its estimate exceeds
+ * INTARSIA_HIP_SPLIT_MIN_US (default 950; 0 = round 8's rule, split whenever the estimate exceeds the piece budget). A
+ * launch of 600 us to ~1 ms does not stall, so its pieces were pure overhead (chunks of roughly 780 to 1230 tokens). Pieces
+ * are still sized by INTARSIA_HIP_SPLIT_US. Without a profiler the stall shows one dispatch later than under rocprofv3
+ * (round 9 wall-clock stamps), ~256 us after every >= 1 ms dispatch. */
 static inline int ik_split_pieces(double est_us, int64_t max_pieces) {
     const char* e = getenv("INTARSIA_HIP_SPLIT_US");
     const double budget = e && *e ? atof(e) : 600.0;
-    if (!(budget > 0.0) || est_us <= budget || max_pieces <= 1) return 1;
+    const char* m = getenv("INTARSIA_HIP_SPLIT_MIN_US");
+    const double trigger = m && *m ? atof(m) : 950.0;
+    if (!(budget > 0.0) || est_us <= budget || est_us <= trigger || max_pieces <= 1) return 1;
     const double n = est_us / budget;
     const int64_t p = n >= (double)max_pieces ? max_pieces : (int64_t)n + 1;
     return (int)(p < 1 ? 1 : p);
