@@ -43,17 +43,18 @@ if has att; then
   rsh "cd $R/$TREE && $CT --test attention -- --ignored --nocapture --test-threads=1 attention_throughput 2>&1 | grep -E 'decode|verify|panicked'"
 fi
 if has skv; then
-  # SKV_STAGES: ring depths to test (INTARSIA_SPLITKV_STAGES; "d" = the default, unset)
-  for st in ${SKV_STAGES:-d}; do
-    e="INTARSIA_X=0"; [[ $st != d ]] && e="INTARSIA_SPLITKV_STAGES=$st"
-    echo "== splitkv_pipe tests, $e"
-    rsh "cd $R/$TREE && env $e $CT --test splitkv_pipe --test graph_pos --test attention -- --nocapture --test-threads=1 2>&1 | grep -E '^test |panicked|differ|cases|result:' | tail -24"
+  # SKV_ENVS: space-separated env sets for the pipelined kernels ("d" = default; "A=1,B=2" = several), e.g.
+  #   "d INTARSIA_SPLITKV_STAGES=2 INTARSIA_SPLITKV_HS=1"
+  for e in ${SKV_ENVS:-d}; do
+    [[ $e == d ]] && e="INTARSIA_X=0"
+    echo "== splitkv_pipe tests, ${e//,/ }"
+    rsh "cd $R/$TREE && env ${e//,/ } $CT --test splitkv_pipe --test graph_pos --test attention -- --nocapture --test-threads=1 2>&1 | grep -E '^test |panicked|differ|cases|result:' | tail -24"
   done
   for round in $(seq 1 "${ROUNDS:-1}"); do
-    for st in ${SKV_STAGES:-d}; do
-      e="INTARSIA_X=0"; [[ $st != d ]] && e="INTARSIA_SPLITKV_STAGES=$st"
-      echo "== splitkv timing round $round, $e"
-      rsh "cd $R/$TREE && env $e $CT --test splitkv_pipe -- --ignored --nocapture --test-threads=1 splitkv_timing 2>&1 | grep -E ' us |panicked'"
+    for e in ${SKV_ENVS:-d}; do
+      [[ $e == d ]] && e="INTARSIA_X=0"
+      echo "== splitkv timing round $round, ${e//,/ }"
+      rsh "cd $R/$TREE && env ${e//,/ } $CT --test splitkv_pipe -- --ignored --nocapture --test-threads=1 splitkv_timing 2>&1 | grep -E ' us |panicked'"
     done
   done
 fi
@@ -69,6 +70,15 @@ if has unit; then
   for e in ${UNIT_ENVS:-INTARSIA_X=0}; do
     echo "== lib tests, env ${e//,/ }"
     rsh "cd $R/$TREE && env ${e//,/ } CARGO_BUILD_JOBS=6 CARGO_TARGET_DIR=target/acc cargo test --release -p intarsia-backend-cuda --lib 2>&1 | grep -E '^test |panicked|result:' | tail -16"
+  done
+fi
+if has kq; then
+  # `intarsia kernels test --backend cuda --quick` on the 35B and 8B shapes: the exit status and the summary lines
+  M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
+  M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
+  for m in $M35 $M8; do
+    echo "== kernels test --backend cuda --quick -m $(basename $(dirname $(dirname $m)))"
+    rsh "cd $R/$TREE && target/acc/release/intarsia kernels test --backend cuda --quick -m $m > /tmp/kq_\$\$.out 2>&1; echo \"exit \$?\"; grep -cE ' ADMITTED\$' /tmp/kq_\$\$.out | sed 's/^/ADMITTED: /'; grep -cE 'NO CASES' /tmp/kq_\$\$.out | sed 's/^/NO CASES: /'; grep -cE ' REJECTED\$' /tmp/kq_\$\$.out | sed 's/^/REJECTED: /'; grep -E 'incomplete:|kernels, |^Error|SKIPPED' /tmp/kq_\$\$.out | cut -c1-160; rm -f /tmp/kq_\$\$.out"
   done
 fi
 if has fi; then

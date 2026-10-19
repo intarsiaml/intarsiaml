@@ -423,6 +423,161 @@ combine_pipe_kernel(const float* __restrict__ pacc, const float2* __restrict__ p
     out[row * D + threadIdx.x] = ik_f2b(A / L);
 }
 
+// ---- head-split stage 1 (INTARSIA_SPLITKV_HS=1, group sizes 5 .. 8): the 8 heads of a key lane over two warps ----------
+//
+// splitkv_kernel<8, TPK, 2>'s arithmetic per head, unchanged: same partition, same key lanes (same keys, same KB = 2 steps),
+// same per-head online softmax and lane merge. The block has 2 x 256 threads: thread half h (0 / 1) holds heads
+// 4h .. 4h+3 of the lane, so each thread carries half the accumulators (registers <= 128: 16 warps per SM instead of 8),
+// and both halves load the lane's K / V rows (the second load of a row hits L1 / L2; DRAM reads them once).
+template <int TPK>
+__global__ void __launch_bounds__(2 * kBlock, 1)
+splitkv_hs_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+                  float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
+                  float qscale, int nsplit, const int32_t* pos_dev) {
+    constexpr int GP = 4, KB = 2;  // heads per thread half, keys per lane per step (as splitkv_kernel<8, TPK, 2>)
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
+    const int64_t kv_len = pos0 + gridDim.z;
+    const int nsplit_eff = splitkv_count(kv_len, gridDim.y, gridDim.z);
+    const int64_t chunk = splitkv_chunk(kv_len, nsplit_eff);
+    if ((int)blockIdx.x >= nsplit_eff) return;
+    constexpr int D = TPK * 8;
+    constexpr int NG = kBlock / TPK;
+    __shared__ __align__(16) float s_acc[2][NG * D];
+    __shared__ float s_m[2][NG], s_l[2][NG];
+
+    const int sp = blockIdx.x, kvh = blockIdx.y, t = blockIdx.z;
+    const int half = threadIdx.x / kBlock, lt = threadIdx.x % kBlock;
+    const int c = lt % TPK, gk = lt / TPK;
+    const int g0 = half * GP;  // first head of this half
+    const int64_t visible = pos0 + t + 1;
+    const int64_t start = (int64_t)sp * chunk;
+    int64_t end = start + chunk;
+    if (end > visible) end = visible;
+
+    const ik_bf16* kb = kc + (int64_t)kvh * cap * D + c * 8;
+    const ik_bf16* vb = vc + (int64_t)kvh * cap * D + c * 8;
+
+    float qr[GP][8];
+#pragma unroll
+    for (int g = 0; g < GP; ++g) {
+#pragma unroll
+        for (int e = 0; e < 8; ++e) {
+            qr[g][e] = 0.f;
+            if (g0 + g < G) qr[g][e] = ik_b2f(q[((int64_t)t * N + (int64_t)kvh * G + g0 + g) * D + c * 8 + e]) * qscale;
+        }
+    }
+
+    float m[GP], l[GP], acc[GP][8];
+#pragma unroll
+    for (int g = 0; g < GP; ++g) {
+        m[g] = -INFINITY;
+        l[g] = 0.f;
+#pragma unroll
+        for (int e = 0; e < 8; ++e) acc[g][e] = 0.f;
+    }
+
+    for (int64_t base = start; base < end; base += (int64_t)NG * KB) {
+        uint4 kk[KB], vv[KB];
+        bool ok[KB];
+#pragma unroll
+        for (int u = 0; u < KB; ++u) {
+            const int64_t j = base + (int64_t)u * NG + gk;
+            ok[u] = j < end;
+            kk[u] = make_uint4(0, 0, 0, 0);
+            vv[u] = make_uint4(0, 0, 0, 0);
+            if (ok[u]) {
+                kk[u] = __ldg(reinterpret_cast<const uint4*>(kb + j * D));
+                vv[u] = __ldg(reinterpret_cast<const uint4*>(vb + j * D));
+            }
+        }
+        // ---- splitkv_kernel's per-head arithmetic, for this half's heads ----
+        float sc[KB][GP];
+#pragma unroll
+        for (int u = 0; u < KB; ++u) {
+            float kf[8];
+            ik_unpack8(kk[u], kf);
+#pragma unroll
+            for (int g = 0; g < GP; ++g) {
+                float d = 0.f;
+#pragma unroll
+                for (int e = 0; e < 8; ++e) d += qr[g][e] * kf[e];
+#pragma unroll
+                for (int o = TPK / 2; o > 0; o >>= 1) d += __shfl_xor_sync(0xffffffffu, d, o);
+                sc[u][g] = ok[u] ? d : -INFINITY;
+            }
+        }
+        float vf[KB][8];
+#pragma unroll
+        for (int u = 0; u < KB; ++u) ik_unpack8(vv[u], vf[u]);
+#pragma unroll
+        for (int g = 0; g < GP; ++g) {
+            float tmax = sc[0][g];
+#pragma unroll
+            for (int u = 1; u < KB; ++u) tmax = fmaxf(tmax, sc[u][g]);
+            const float m_new = fmaxf(m[g], tmax);
+            const float m_use = (m_new == -INFINITY) ? 0.f : m_new;
+            const float corr = exp2f(m[g] - m_use);  // m == -inf -> 0
+            m[g] = m_new;
+            float p[KB], psum = 0.f;
+#pragma unroll
+            for (int u = 0; u < KB; ++u) {
+                p[u] = exp2f(sc[u][g] - m_use);
+                psum += p[u];
+            }
+            l[g] = l[g] * corr + psum;
+#pragma unroll
+            for (int e = 0; e < 8; ++e) {
+                float a = acc[g][e] * corr;
+#pragma unroll
+                for (int u = 0; u < KB; ++u) a += p[u] * vf[u][e];
+                acc[g][e] = a;
+            }
+        }
+    }
+
+    // merge the NG key lanes, two heads at a time (one per half), each with splitkv_kernel's merge arithmetic; the
+    // barriers are outside the head guard so that both halves always reach them
+#pragma unroll
+    for (int g = 0; g < GP; ++g) {
+        const bool live = g0 + g < G;
+        __syncthreads();  // hs: s_acc / s_m / s_l are reused for every head pair
+        if (live) {
+#pragma unroll
+            for (int e = 0; e < 8; ++e) s_acc[half][gk * D + c * 8 + e] = acc[g][e];
+            if (c == 0) {
+                s_m[half][gk] = m[g];
+                s_l[half][gk] = l[g];
+            }
+        }
+        __syncthreads();  // hs: every lane's partial of the pair is in s_acc / s_m / s_l
+        if (live && lt < D) {
+            const int64_t slot = ((int64_t)t * N + (int64_t)kvh * G + g0 + g) * nsplit + sp;
+            float M = -INFINITY;
+            for (int i = 0; i < NG; ++i) M = fmaxf(M, s_m[half][i]);
+            float A = 0.f, L = 0.f;
+            if (M != -INFINITY) {
+                for (int i = 0; i < NG; ++i) {
+                    const float w = exp2f(s_m[half][i] - M);  // empty lane: exp2(-inf) = 0, acc is 0 too
+                    L += s_l[half][i] * w;
+                    A += s_acc[half][i * D + lt] * w;
+                }
+            }
+            pacc[slot * D + lt] = A;
+            if (lt == 0) pml[slot] = make_float2(M, L);
+        }
+    }
+}
+
+// INTARSIA_SPLITKV_HS=1 (A/B): the head-split stage 1 for group sizes 5 .. 8 in the pipelined launchers. Read once.
+bool splitkv_hs() {
+    static int on = -1;
+    if (on < 0) {
+        const char* v = getenv("INTARSIA_SPLITKV_HS");
+        on = v && v[0] == '1' ? 1 : 0;
+    }
+    return on == 1;
+}
+
 // stage count of the ring: INTARSIA_SPLITKV_STAGES=2|3|4 (A/B only), else the default per step size. Read once.
 int pipe_stages(int KB) {
     static int env = -1;
@@ -488,6 +643,12 @@ int dispatch_group_pipe(int G, const ik_bf16* q, const ik_bf16* kc, const ik_bf1
     if (G <= 1) { IK_PIPE_CASE(1, 4) }
     if (G <= 2) { IK_PIPE_CASE(2, 4) }
     if (G <= 4) { IK_PIPE_CASE(4, 4) }
+    if (G <= 8 && splitkv_hs()) {
+        dim3 grid(nsplit, (unsigned)NKV, (unsigned)T);
+        splitkv_hs_kernel<TPK><<<grid, 2 * kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0, qscale,
+                                                          nsplit, pos_dev);
+        return IK_OK;
+    }
     if (G <= 8) { IK_PIPE_CASE(8, 2) }
 #undef IK_PIPE_CASE
     return IK_ERR_SHAPE;
