@@ -149,7 +149,7 @@ Scratch is unchanged: 167905792 bytes for the 35B, 748800 for the 8B.
 * `scripts/hip-decode/mutate.py`:
   - An occurrence index for patterns found twice; the 4 round-6 mutants now apply.
   - 13 `p2-*` mutants.
-  - The 4 obsolete `mw-*` moe.hip mutants are dropped (section 6).
+  - The 4 obsolete `mw-*` moe.hip mutants are dropped (section 3).
 * `fusion-p2.sh` (stages `mutbuild`, `mutrun`, `tests`, `adm`, `idsoff`, `plans`). `fusion-window.sh` takes `FUSION_SCRIPT`.
   `mac-checks.sh`.
 * `scripts/cuda-decode/fusion-noop-p2.sh`. `fusion-noop{,-up}.sh` take `NOOP_A` / `NOOP_B`.
@@ -242,7 +242,7 @@ Scratch is unchanged: 167905792 bytes for the 35B, 748800 for the 8B.
 | HIP, full sweep, 8B shapes | 49 kernels, 866 cases, 0 FAIL | 51 kernels, 912 cases, 0 FAIL |
 | CUDA, `kernels test --quick`, 35B / 8B (spark1, rebased trees) | 50 kernels, 149 cases, 0 FAIL; exit 0 with round 5's "incomplete: 9 kernel(s) had no cases" line | identical apart from timing lines |
 | CPU | the new ops' oracle is the composition of the unfused ops | - |
-| Metal | no new kernel; pin test only (section 11) | - |
+| Metal | no new kernel; pin test only (section 10) | - |
 
 ## 7. Memory
 
@@ -321,6 +321,8 @@ a bundle: `git bundle create core-op-fusion-p2.bundle 8d1f16a5..perf/core-op-fus
 * **P3 scope:** dk = 128, 4 taps, T <= 32, bf16. The decode step and prefill tails up to 32 tokens; the bulk of a long prefill
   keeps the unfused pair. The +0.4 % prefill comes mostly from P4a, which has no token limit. This is not separated by
   measurement.
+* **Speculative verify:** with `verifying()` true, `fused_ok` probes with `exact_rows`. P4a and P3 are registered
+  `Deterministic`, not row-exact, so verify passes run the unfused chain, as with phase 1's folds.
 * **Test seams (default off):** `INTARSIA_HIP_GDN_CD_SKEW=<n>` (every other block reads its state late) and
   `INTARSIA_HIP_GDN_CD_NOSLOT=1` (two-launch form). Both are read at each launch.
 * **`INTARSIA_HIP_GDN_PD`** still sets the unfused v2 kernel's prefetch depth. It does not apply to `gdn_conv_delta_bf16` (PD 1).
@@ -337,6 +339,10 @@ a bundle: `git bundle create core-op-fusion-p2.bundle 8d1f16a5..perf/core-op-fus
 | radiance | W3: final build, accuracy, tests, 17 mutants, plans | 2702 | 05:58:12 | 06:04:25 | 6.2 |
 | radiance | W4: interleaved A/B x3, 35B and 8B | 2707 | 06:04:57 | 06:19:43 | 14.8 |
 | **radiance total** | | | | | **30.3 of 45** |
+
+* **W3 and W4 ran back to back.** Radiance was up only from 06:04:25 to 06:04:57 between them, so the outage was nearly
+  continuous for about 21.5 min (05:58:12 to 06:19:43). Each window stayed under 20 min on its own, but together they exceed
+  the 20-min-per-window intent. This is disclosed here; it was not cleared with the radiance owner beforehand.
 | spark1 vLLM | CUDA no-op (`window.sh`; `/v1/models` on 100.120.88.104:8000 answered afterwards) | 2712 | 06:20:40 | 06:32:11 | 11.5 (of 20) |
 
 * CPU-only slots (radiance up): tatooine 2683, 2693, 2695 to 2698, 2699. spark1 with vLLM up: 2688 (build), 2711 and 2714
