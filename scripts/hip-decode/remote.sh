@@ -132,6 +132,8 @@ stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b
 stage_pf35() { export SERVE_ENV="${PF_ENV:-}"; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
 # pf35one[:tag]: one size whose actual prompt stays below the 4096-token prefill chunk (round 7: target 4096 drew 4079..4120
 # tokens, and the runs past 4096 paid a second chunk)
+# pf35x[:tag]: pf35 with 2048 as well (round 9 A/B: 128, 1024, 2048, 4096, 16384)
+stage_pf35x() { export SERVE_ENV="${PF_ENV:-}"; MAXSEQ=17408 SIZES=${PF_SIZES:-128,1024,2048,4096,16384} serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf35x-${1:-base}" --mem-budget 29; }
 stage_pf35one() { export SERVE_ENV=""; MAXSEQ=8192 SIZES=3968 GEN=16 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf1-35b-${1:-base}" --mem-budget 29; }
 stage_pf8() { export SERVE_ENV="${PF_ENV:-}"; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
 
@@ -402,6 +404,8 @@ stage_pf8o() {
 }
 # profenv:<tag>:<NAME=value>: the decode profile (prof) with one INTARSIA_HIP_* knob set (dev.sh forwards it)
 stage_profenv() { local tag=${1%%:*} kv=${1#*:}; ( export "$kv"; echo "--- $kv"; stage_prof "$tag" ); }
+# ids4ke:<NAME=value>: ids4k with NAME=value set for this tree's run only (round 9: decode GEMV shapes)
+stage_ids4ke() { IDS_NEW_ENV="$1" stage_ids4k; }
 # r5test: round 5's new-kernel tests (moe_v3) and the tests of the paths next to them, then the f8 tests (now the default GEMM)
 stage_r5test() {
   timeout 400 $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test moe_v3 --test decode_v2 --test device_pos --test fused_decode \
@@ -497,6 +501,10 @@ stage_mutrun7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" stage_mutrun; }
 R8MUT="r8-y0 r8-y0r5 r8-y0v r8-lastpiece r8-ytile r8-gdn-out r8-gdn-in r8-gdn-gate r8-gdn-len r8-rd-col r8-rd-round r8-rd-lastk r8-cb-skip r8-cb-ml"
 stage_mutbuild8() { MUTATIONS="${R8MUT_SEL:-$R8MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r8-mut" stage_mutbuild; }
 stage_mutrun8() { MUTATIONS="${R8MUT_SEL:-$R8MUT}" MUT_TIMEOUT=${MUT_TIMEOUT:-400} stage_mutrun; }
+# round-9 mutants (staging of small copies, split trigger; mutbuild9 in a CPU slot, mutrun9 in a GPU window)
+R9MUT="r9-st-nowait r9-st-pageable r9-st-noadvance r9-st-noevent r9-st-dlorder r9-trig-off r9-trig-incl r9-trig-def"
+stage_mutbuild9() { MUTATIONS="${R9MUT_SEL:-$R9MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r9-mut" stage_mutbuild; }
+stage_mutrun9() { MUTATIONS="${R9MUT_SEL:-$R9MUT}" MUT_TIMEOUT=${MUT_TIMEOUT:-120} stage_mutrun; }
 # prof16k:<tag>: rocprofv3 kernel trace of a 160-token 35B decode after four copies of the ~4.4k-token prompt (~17.6k tokens of
 # context), per-step table (decode at long context: where the 16k decode time goes)
 stage_prof16k() {
@@ -555,6 +563,8 @@ stage_t() {
   timeout ${T_TIMEOUT:-600} $D cargo test --release -p intarsia-backend-hip --no-fail-fast $args -- --nocapture --test-threads=1 2>&1 \
     | grep -aE "^test |test result|FAILED|panicked|differ|changed|bitwise" | cut -c1-260 | tail -${T_TAIL:-60}
 }
+# tenv:<NAME=value>:<test+test...>: stage_t with NAME=value in the container's environment (round 9: INTARSIA_HIP_FP8_UN=8)
+stage_tenv() { local kv=${1%%:*} ts=${1#*:}; ( export "$kv"; echo "--- tests with $kv"; stage_t "$ts" ); }
 # dtrace:<copies>: per-kernel GPU time without rocprofv3 (INTARSIA_HIP_TRACE=1, event pair per launch, eager --no-graphs), a
 # 160-token decode after <copies> copies of the ~4.4k-token prompt (0: the short story prompt); the table covers prefill + decode
 stage_dtrace() {
@@ -562,6 +572,61 @@ stage_dtrace() {
   [ "$n" != 0 ] && p="\"\$(for i in \$(seq $n); do cat /work/scripts/hip-decode/prompt4k.txt; done)\""
   printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 18432 --profile-every 0 --ignore-eos --no-graphs -p $p --max-tokens 160" > "$OUTD/dtrace.sh"
   INTARSIA_HIP_TRACE=1 $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} bash /work/bench-out/dtrace.sh" 2>&1 | grep -avE "^ids:" | tail -${DTRACE_TAIL:-60}
+}
+# pfstamp:<tag>[,NAME=value...]: the 4408-token prefill with INTARSIA_HIP_STAMP (wall-clock stamps around the long
+# dispatches, kernels/hip/ik_runtime.hip): once unprofiled (bench-out/stamps/<tag>.txt), once under rocprofv3 --kernel-trace
+# (<tag>-prof.txt + prof/<tag>-prof/ csv), any NAME=value exported inside the container for both. Round 9: is the ~275 us
+# stall after a >= 1 ms dispatch there without the profiler?
+stage_pfstamp() {
+  local tag=${1%%,*} ex="" kv
+  [[ "$1" == *,* ]] && for kv in $(echo "${1#*,}" | tr ',' ' '); do ex="$ex export $kv;"; done
+  mkdir -p "$OUTD/stamps"; rm -rf "$OUTD/prof/$tag-prof"; mkdir -p "$OUTD/prof/$tag-prof"
+  # (PF_CHUNK=<n> in the list: --prefill-chunk <n>; expanded inside the container)
+  local g="$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos \${PF_CHUNK:+--prefill-chunk \$PF_CHUNK} -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 1"
+  printf '%s\n' "$ex export INTARSIA_HIP_STAMP=/work/bench-out/stamps/$tag.txt; $g" > "$OUTD/pfstamp.sh"
+  printf '%s\n' "$ex export INTARSIA_HIP_STAMP=/work/bench-out/stamps/$tag-prof.txt; $g" > "$OUTD/pfstamp-prof.sh"
+  echo "--- unprofiled, stamps (${1#*,})"
+  $D bash -c "bash /work/bench-out/pfstamp.sh" 2>&1 | grep -aE "^finish="
+  local tv; tv=$(TARGET_VOL)
+  echo "--- rocprofv3, stamps"
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag-prof -o run -- bash /work/bench-out/pfstamp-prof.sh" 2>&1 | grep -aE "^finish=|rror"
+  wc -l "$OUTD/stamps/$tag.txt" "$OUTD/stamps/$tag-prof.txt" 2>&1 | head -3
+}
+# pfenvc:<chunk>[,NAME=value...]: pfenv's unprofiled 4408-token prefill with --prefill-chunk <chunk>, twice (round 9: the
+# split trigger at ~1024-token chunks)
+stage_pfenvc() {
+  local chunk=${1%%,*} ex="" kv
+  [[ "$1" == *,* ]] && for kv in $(echo "${1#*,}" | tr ',' ' '); do ex="$ex export $kv;"; done
+  printf '%s\n' "$ex $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos --prefill-chunk $chunk -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 1" > "$OUTD/pfenvc.sh"
+  echo "--- chunk $chunk, env: ${1#*,}"
+  $D bash -c "bash /work/bench-out/pfenvc.sh; bash /work/bench-out/pfenvc.sh" 2>&1 | grep -aE "^finish="
+}
+# pf35e:<tag>[,NAME=value...]: the 35B serve bench (sizes PF_SIZES, default 128,1024,4096; PF_REPS reps, default 3; --at-most
+# if AT_MOST) with NAME=value set in the server's environment (round 9: INTARSIA_HIP_STAGE=0 vs the default)
+stage_pf35e() {
+  local tag=${1%%,*} kv
+  export SERVE_ENV=""
+  [[ "$1" == *,* ]] && for kv in $(echo "${1#*,}" | tr ',' ' '); do SERVE_ENV="$SERVE_ENV -e $kv"; done
+  MAXSEQ=${PF_MAXSEQ:-8192} SIZES=${PF_SIZES:-128,1024,4096} REPS=${PF_REPS:-3} serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf35e-$tag" --mem-budget 29
+}
+# sprof:<tag>: the serve path under rocprofv3 (kernel + HIP API + memory copy trace): a 35B server in the prof container, then
+# `bench speed` against it at SPROF_SIZES (default 128,1024; --gen SPROF_GEN, 2 reps, --at-most), then SIGINT so the server
+# exits cleanly and rocprofv3 writes its csvs (one set per process, `run_<pid>`). Round 9: per-request host gaps in serve.
+stage_sprof() {
+  local tag=${1:-sprof}
+  cat > "$OUTD/sprof.sh" <<EOF
+$B serve --backend hip --model $M35 --profile-every 0 --mem-budget 29 --host 127.0.0.1 --port 8091 --served-model-name q --max-seq 8192 > /work/bench-out/sprof-serve.log 2>&1 &
+pid=\$!
+for i in \$(seq 1 100); do (exec 3<>/dev/tcp/127.0.0.1/8091) 2>/dev/null && break; sleep 3; done
+$B bench speed --url http://127.0.0.1:8091 --model q --sizes ${SPROF_SIZES:-128,1024} --gen ${SPROF_GEN:-32} --reps 2 --gb-per-token 2.2 --bandwidth-gbs 627 --at-most --label sprof --out-dir /work/bench-out/sprofb --thinking off 2>&1 | tail -8
+kill -INT \$pid; wait \$pid; echo "serve exit \$?"
+EOF
+  rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
+  local tv; tv=$(TARGET_VOL)
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --hip-runtime-trace --memory-copy-trace --output-format csv -d /work/bench-out/prof/$tag -o run_%pid% -- bash /work/bench-out/sprof.sh" 2>&1 | grep -aE "prompt=|serve exit|rror|size"
+  find "$OUTD/prof/$tag" -name '*.csv' | xargs ls -la | awk '{print $5, $9}'
 }
 
 for s in "$@"; do

@@ -568,6 +568,7 @@ int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik
     const ik_bf16* ap = (const ik_bf16*)a->data;
     const ik_bf16* bp = (const ik_bf16*)b->data;
     ik_bf16* op = (ik_bf16*)o->data;
+    ik_rt_stamp(s, "gdn_delta", -1);  // INTARSIA_HIP_STAMP only (round 9 diagnostics); otherwise launches nothing
     for (int i = 0; i < pieces; ++i) {
         const int64_t t0 = T * i / pieces, t1 = T * (i + 1) / pieces;
 #define IK_GDN_V2(PD)                                                                                                   \
@@ -578,6 +579,7 @@ int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik
         else if (pd == 4) IK_GDN_V2(4);
         else IK_GDN_V2(2);
 #undef IK_GDN_V2
+        ik_rt_stamp(s, "gdn_delta", i);
     }
     return ik_launch_status();
 }

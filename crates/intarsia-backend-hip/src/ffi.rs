@@ -92,6 +92,8 @@ extern "C" {
     ) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
+    /// INTARSIA_HIP_STAMP diagnostics (ik_runtime.h): write the wall-clock stamps to the file; no-op when unset
+    pub fn ik_rt_stamp_dump() -> c_int;
 
     // ---- launchers (kernels/abi/ik_abi.h) ----
     pub fn ik_embedding_bf16(ids: T, table: T, out: TM, s: S) -> c_int;

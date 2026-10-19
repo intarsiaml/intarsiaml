@@ -120,6 +120,8 @@ void moe_wmma_launch_p(int64_t N, int64_t P, unsigned slots, unsigned zt, const 
     // the grid's z covers runs longest), 4 pieces took 114.1 ms against 85.7 for one launch in the 4408-token prefill (W3),
     // far more than the ~11 ms of gaps they removed. down's two pieces cost +3.0 ms against ~10.7 ms of gaps.
     const int pieces = GATEUP ? 1 : ik_split_pieces(est_us, Y);
+    const char* stag = GATEUP ? (PAIRS == 64 ? "gate_up64" : "gate_up32") : (PAIRS == 64 ? "down64" : "down32");
+    ik_rt_stamp(s, stag, -1);  // INTARSIA_HIP_STAMP only (round 9 diagnostics); otherwise launches nothing
     for (int i = 0; i < pieces; ++i) {
         const int y0 = (int)(Y * i / pieces), y1 = (int)(Y * (i + 1) / pieces);
         const dim3 g(slots, (unsigned)(y1 - y0), zt);
@@ -129,6 +131,7 @@ void moe_wmma_launch_p(int64_t N, int64_t P, unsigned slots, unsigned zt, const 
             moe_wmma_kernel_v<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
         else
             moe_wmma_kernel_r7<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
+        ik_rt_stamp(s, stag, i);
     }
 }
 

@@ -113,6 +113,10 @@ struct Trace {
     totals: std::collections::HashMap<String, (f64, u64)>,
     batches: u64,
     wall_ms: f64,
+    /// Round 9: the gap from one launch's stop event to the next launch's start event, bucketed by how long the earlier
+    /// launch ran (< 0.1 ms, 0.1 to 1 ms, >= 1 ms): [bucket] = every gap in ms. Answers whether the ~275 us stall after
+    /// a >= 1 ms dispatch that rocprofv3 shows also happens without the profiler.
+    gaps: [Vec<f64>; 3],
 }
 
 impl Trace {
@@ -138,6 +142,11 @@ impl Trace {
                 let e = self.totals.entry(name.clone()).or_insert((0.0, 0));
                 e.0 += t;
                 e.1 += 1;
+            }
+        }
+        for w in p.windows(2) {
+            if let (Some(d), Some(g)) = (ms(w[0].1, w[0].2), ms(w[0].2, w[1].1)) {
+                self.gaps[if d >= 1.0 { 2 } else if d >= 0.1 { 1 } else { 0 }].push(g);
             }
         }
         if let (Some(first), Some(last)) = (p.first(), p.last()) {
@@ -168,11 +177,32 @@ impl Trace {
         for (name, (ms, n)) in rows {
             eprintln!("{:<30} {:>8} {:>10.2} {:>9.1} {:>5.1}%", name, n, ms, ms * 1e3 / *n as f64, 100.0 * ms / total.max(1e-9));
         }
+        for (i, label) in ["< 0.1 ms", "0.1 to 1 ms", ">= 1 ms"].iter().enumerate() {
+            let g = &mut self.gaps[i];
+            if g.is_empty() {
+                continue;
+            }
+            g.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let q = |f: f64| g[((g.len() - 1) as f64 * f) as usize] * 1e3;
+            eprintln!(
+                "hip trace gaps after launches of {label}: n {} sum {:.2} ms, us min {:.1} p10 {:.1} median {:.1} p90 {:.1} max {:.1}",
+                g.len(),
+                g.iter().sum::<f64>(),
+                q(0.0),
+                q(0.1),
+                q(0.5),
+                q(0.9),
+                q(1.0)
+            );
+        }
     }
 }
 
 impl Drop for HipBackend {
     fn drop(&mut self) {
+        let _ = self.bind();
+        // SAFETY: plain FFI call; a no-op unless INTARSIA_HIP_STAMP is set.
+        unsafe { ffi::ik_rt_stamp_dump() };
         if let Some(t) = &self.trace {
             let mut t = t.lock().unwrap();
             let _ = self.bind();

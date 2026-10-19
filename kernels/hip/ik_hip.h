@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "../abi/ik_abi.h"
+#include "ik_runtime.h"  // ik_rt_stamp (INTARSIA_HIP_STAMP diagnostics around the long prefill dispatches)
 
 #if defined(__AMDGCN_WAVEFRONT_SIZE__) && __AMDGCN_WAVEFRONT_SIZE__ != 32
 #error "kernels/hip requires wave32 (gfx12); do not pass -mwavefrontsize64"

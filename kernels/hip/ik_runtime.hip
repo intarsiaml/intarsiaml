@@ -1,6 +1,23 @@
 #include "ik_runtime.h"
 #include <hip/hip_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+/* INTARSIA_HIP_STAMP (ik_runtime.h): device ring of wall-clock stamps, host-side tags */
+namespace {
+constexpr unsigned kStampCap = 1u << 20;
+__global__ void ik_stamp_kernel(unsigned long long* buf, unsigned idx) { buf[idx] = wall_clock64(); }
+struct StampState {
+    int on = -1;  // -1: env not read yet
+    const char* path = nullptr;
+    unsigned long long* dev = nullptr;
+    unsigned n = 0;
+    const char** tags = nullptr;
+    int* pieces = nullptr;
+};
+StampState g_stamp;
+}  // namespace
 
 extern "C" {
 
@@ -168,5 +185,51 @@ int ik_rt_measure_bandwidth(double* gbs) {
 }
 
 const char* ik_rt_error_string(int code) { return hipGetErrorString((hipError_t)code); }
+
+int ik_rt_stamp(void* stream, const char* tag, int piece) {
+    StampState& g = g_stamp;
+    if (g.on == 0) return 0;
+    if (g.on < 0) {
+        const char* e = getenv("INTARSIA_HIP_STAMP");
+        g.on = (e && *e && strcmp(e, "0") != 0) ? 1 : 0;
+        if (!g.on) return 0;
+        g.path = e;
+        if (hipMalloc(&g.dev, sizeof(unsigned long long) * kStampCap) != hipSuccess) {
+            g.on = 0;
+            return 0;
+        }
+        g.tags = (const char**)calloc(kStampCap, sizeof(const char*));
+        g.pieces = (int*)calloc(kStampCap, sizeof(int));
+    }
+    hipStreamCaptureStatus cs = hipStreamCaptureStatusNone;
+    if (hipStreamIsCapturing((hipStream_t)stream, &cs) != hipSuccess || cs != hipStreamCaptureStatusNone) return 0;
+    if (g.n >= kStampCap) return 0;
+    g.tags[g.n] = tag;
+    g.pieces[g.n] = piece;
+    ik_stamp_kernel<<<1, 1, 0, (hipStream_t)stream>>>(g.dev, g.n);
+    g.n++;
+    return (int)hipGetLastError();
+}
+
+int ik_rt_stamp_dump(void) {
+    StampState& g = g_stamp;
+    if (g.on != 1 || g.n == 0) return 0;
+    (void)hipDeviceSynchronize();
+    unsigned long long* h = (unsigned long long*)malloc(sizeof(unsigned long long) * g.n);
+    hipError_t e = hipMemcpy(h, g.dev, sizeof(unsigned long long) * g.n, hipMemcpyDeviceToHost);
+    int khz = 0;
+    int dev = 0;
+    (void)hipGetDevice(&dev);
+    (void)hipDeviceGetAttribute(&khz, hipDeviceAttributeWallClockRate, dev);
+    FILE* f = fopen(g.path, "w");
+    if (f && e == hipSuccess) {
+        fprintf(f, "# wall_clock_khz %d stamps %u\n", khz, g.n);
+        for (unsigned i = 0; i < g.n; ++i) fprintf(f, "%llu %s %d\n", h[i], g.tags[i], g.pieces[i]);
+    }
+    if (f) fclose(f);
+    free(h);
+    g.n = 0;
+    return (int)e;
+}
 
 }  // extern "C"
