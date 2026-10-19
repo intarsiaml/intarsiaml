@@ -1,8 +1,9 @@
 # Core-op fusion, phase 2: P4a (gate split folded into the prologue) and P3 (GDN conv folded into the delta rule), 2026-10-19
 
-Branch `perf/core-op-fusion-p2` on origin/main `49973a51` (HIP round 7 merged; phase 1 `f3cbba21` included). All GPU numbers
-below are measured on the branch's final kernels against `49973a51` in the same windows; the base tree is `49973a51` plus the
-bench-client commit `06b5237d` (`bench speed --at-most`, no engine code). Plan: `docs/proposals/2026-10-19-core-op-fusion.md`
+Branch `perf/core-op-fusion-p2`, final rebase on origin/main `8d1f16a5` (CUDA round 5 merged; HIP round 7 `49973a51` and
+phase 1 `f3cbba21` included). The HIP numbers below are measured on the branch's final kernels against `49973a51` in the same
+windows. The base tree is `49973a51` plus the bench-client commit `06b5237d` (`bench speed --at-most`, no engine code).
+`49973a51..8d1f16a5` is CUDA, CLI and docs only, so the HIP base numbers stay valid; HIP was not re-measured after the rebase. Plan: `docs/proposals/2026-10-19-core-op-fusion.md`
 sections 5 (P4a) and 6 (P3). P2' and P1 are not started. Raw logs: `docs/results/2026-10-19-core-op-fusion-p2/raw/`.
 
 ## Headline
@@ -239,7 +240,7 @@ Scratch is unchanged: 167905792 bytes for the 35B, 748800 for the 8B.
 |---|---|---|
 | HIP, full sweep (not `--quick`), 35B shapes | 49 kernels, 853 cases, 0 FAIL | 51 kernels, 899 cases, 0 FAIL (`gate_split_qk_norm_rope_kv_bf16` 36 ADMITTED, `gdn_conv_delta_bf16` 10 ADMITTED) |
 | HIP, full sweep, 8B shapes | 49 kernels, 866 cases, 0 FAIL | 51 kernels, 912 cases, 0 FAIL |
-| CUDA, `kernels test --quick`, 35B / 8B (spark1) | identical logs apart from timing lines; both trees exit 1 on the same pre-existing SKIPPED kernels (`moe_experts_w4a16_bf16` ...) | the same |
+| CUDA, `kernels test --quick`, 35B / 8B (spark1, rebased trees) | 50 kernels, 149 cases, 0 FAIL; exit 0 with round 5's "incomplete: 9 kernel(s) had no cases" line | identical apart from timing lines |
 | CPU | the new ops' oracle is the composition of the unfused ops | - |
 | Metal | no new kernel; pin test only (section 11) | - |
 
@@ -268,25 +269,36 @@ Scratch is unchanged: 167905792 bytes for the 35B, 748800 for the 8B.
 | HIP only: `kernels/hip/{gate_qkr,gdn_fused}.hip`, `ik_hip_abi.h`, `crates/intarsia-backend-hip/src/{kernels,ffi,device}.rs`, `tests/fusion_p2.rs` | - | new kernels | - | - |
 | scripts: `scripts/hip-decode/{mutate.py,fusion-p2.sh,fusion-window.sh,mac-checks.sh,remote.sh}`, `scripts/cuda-decode/{fusion-noop.sh,fusion-noop-up.sh,fusion-noop-p2.sh}` | - | measurement only | measurement only | - |
 
-## 9. CUDA no-op (spark1, `fp2-base` = `49973a51` + bench commit vs `fp2-dev` = this branch)
+## 9. CUDA no-op (spark1, `fp2-base` vs `fp2-dev` = this branch)
 
-**vLLM-up slot** (job 2711, `fusion-noop-p2.sh up`, `raw/cuda/`):
+**vLLM-up slot on the rebased trees** (job 2714: `fp2-base` = `8d1f16a5` export, `fp2-dev` = HEAD `60847700`;
+`fusion-noop-p2.sh up`; `raw/logs/cuda-up-rebased.log`, `raw/cuda/adm/`):
 
-* **`plan show --json`, 35B and 8B:** byte-identical A / B (md5 prefixes `26379bc9beb2`, `d1847a362f17`). 35B: 525 launches per
-  decode step on both; 8B: 544 on both. Scratch unchanged.
-* **`kernels test --backend cuda --quick`, 35B and 8B:** identical apart from timing lines. Both trees exit 1 on the same
-  pre-existing SKIPPED kernels.
+* **`plan show --json`, 35B and 8B:** byte-identical A / B (md5 prefixes `26379bc9beb2`, `d1847a362f17`). This is the
+  `check_batch_ops` / `PER_ROW_OPS` trap check with real plan loads. 35B: 525 launches per decode step on both; 8B: 544 on both.
+  Scratch unchanged (83963392 / 748800).
+* **`kernels test --backend cuda --quick`, 35B and 8B:** 50 kernels, 149 cases on both trees, identical apart from timing lines.
+  Since round 5 the CLI exits 0 with an "incomplete: 9 kernel(s) had no cases" line. The scripts compare logs, not exit codes.
+* The same checks on the pre-rebase trees (job 2711: `49973a51` + bench commit vs the branch then) gave the same two md5
+  prefixes and identical admission logs (`raw/logs/cuda-up.log`).
 
-**vLLM-down window** (`fusion-noop-p2.sh` = `w-noop.sh fp2-base fp2-dev nospeed`; `raw/logs/cuda-window.log`):
+**vLLM-down window** (job 2712, pre-rebase trees: `fp2-base` = `49973a51` + bench commit, `fp2-dev` = the branch at `9665bf35`;
+`fusion-noop-p2.sh` = `w-noop.sh fp2-base fp2-dev nospeed`; `raw/logs/cuda-window.log`, `raw/cuda/`):
 
-CUDA_WINDOW_RESULTS
+* **Greedy ids, 256 tokens, 35B and 8B:** B-graph, A-eager and B-eager all match A-graph (6 of 6 comparisons "IDS ... == A-graph").
+* **35b-short golden (prefill chunk 256), A and B:** the same KL21, 6.271e-3 prefill / 1.556e-2 decode, PASS on both. These are
+  CUDA's own digits.
+* **Self-golden dump compare:** 60 tensors per tree, 0 differ, per-position TSV identical.
+* **8B fp32 goldens on B:** short 2.897e-4 / 3.238e-4, long 4.004e-4 / 3.332e-4 (full-vocab KL prefill / decode), PASS.
+* This window ran before the rebase onto `8d1f16a5`. It was not repeated: round 5's fp8 KV path is opt-in, the default CUDA
+  plan is what the rebased `plan show` compare covers, and it is byte-identical.
 
 ## 10. Metal no-op check to run (Metal spike session, endor)
 
-Base origin/main `49973a51` vs this branch's HEAD (section 14).
+Base origin/main `8d1f16a5` (the branch's merge-base) vs this branch's HEAD (section 14).
 
 **Getting the branch:** `perf/core-op-fusion-p2` is local and unpushed. Someone pushes it after review, or the Metal session takes
-a bundle: `git bundle create core-op-fusion-p2.bundle 49973a51..perf/core-op-fusion-p2` on this Mac, then
+a bundle: `git bundle create core-op-fusion-p2.bundle 8d1f16a5..perf/core-op-fusion-p2` on this Mac, then
 `git fetch core-op-fusion-p2.bundle perf/core-op-fusion-p2` on endor.
 
 1. `cargo test --workspace` on endor. It includes `intarsia-models` `batch_metal` and `fusion_p2`, plus the Metal
@@ -325,10 +337,11 @@ a bundle: `git bundle create core-op-fusion-p2.bundle 49973a51..perf/core-op-fus
 | radiance | W3: final build, accuracy, tests, 17 mutants, plans | 2702 | 05:58:12 | 06:04:25 | 6.2 |
 | radiance | W4: interleaved A/B x3, 35B and 8B | 2707 | 06:04:57 | 06:19:43 | 14.8 |
 | **radiance total** | | | | | **30.3 of 45** |
-| spark1 vLLM | CUDA no-op | CUDA_JOB | CUDA_DOWN | CUDA_UP | CUDA_MIN |
+| spark1 vLLM | CUDA no-op (`window.sh`; `/v1/models` on 100.120.88.104:8000 answered afterwards) | 2712 | 06:20:40 | 06:32:11 | 11.5 (of 20) |
 
-* CPU-only slots (radiance up): tatooine 2683, 2693, 2695 to 2698, 2699. spark1: 2688 (build) and 2711 (vLLM-up no-op).
-* Radiance answered `/v1/models` after every window. Every slot was released.
+* CPU-only slots (radiance up): tatooine 2683, 2693, 2695 to 2698, 2699. spark1 with vLLM up: 2688 (build), 2711 and 2714
+  (vLLM-up no-op).
+* Radiance answered `/v1/models` after every window, and spark1's vLLM after its window. Every slot was released.
 
 ## 13. Next phases (not done here)
 
@@ -336,4 +349,26 @@ P2' (the user's gate) and P1 (proposal sections 3 and 7) are not started.
 
 ## 14. Final HEAD
 
-FINAL_HEAD
+* Branch `perf/core-op-fusion-p2`, rebased on origin/main `8d1f16a5`, not pushed. Code HEAD `60847700`; the commit that adds
+  this document sits on top of it.
+* Commits, oldest first:
+  1. the `mutate.py` occurrence index (the 4 round-6 mutants);
+  2. core: the two `Op`s, call sites, oracle, admission, pins;
+  3. HIP kernels, tests, `p2-*` mutants, `fusion-p2.sh`;
+  4. P4a composed with phase 1 (model test), the P3 barrier, `mac-checks.sh`;
+  5. P3 without spill;
+  6. the obsolete `mw-*` mutants dropped;
+  7. `bench speed --at-most`;
+  8. the CUDA no-op tree names;
+  9. the W1 log and the `plans` stage fix;
+  10. P3 without contraction (the W2 fix);
+  11. `fusion-noop-p2.sh`;
+  12. docs.
+* `kernels/hip`, `crates/intarsia-backend-hip`, `crates/intarsia-core` and `crates/intarsia-models/src` on HEAD are identical
+  to the tree W3 and W4 measured (`git diff 9665bf35 HEAD` over those paths is empty; `9665bf35` is the pre-rebase commit
+  whose kernels were rsynced for W3).
+* Mac checks on HEAD `60847700` (`raw/logs/mac-checks-final.log`):
+  - `cargo test --workspace`: 103 binaries, 494 passed, 0 failed (CUDA, Metal and HIP pin tests included).
+  - `cargo check --workspace`, `cargo check -p intarsia-cli --features hip`, `cargo check -p intarsia-cli --features metal` and
+    `cargo build -p intarsia-backend-metal` all exit 0.
+  - All 134 `mutate.py` mutations apply.

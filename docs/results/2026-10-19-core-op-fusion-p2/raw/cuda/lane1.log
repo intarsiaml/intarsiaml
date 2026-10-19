@@ -1,0 +1,15 @@
+acc35 A exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.271e-3 (need <= 3.0e-2) ok | tail mass ours 0.0173 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [4bit]: top-1 98.12% (not gated for this class) ok | 21-way KL 1.556e-2 (need <= 3.0e-2) ok | tail mass ours 0.0235 vs ref 0.0258, excess -0.0022 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+acc35 B exit 0
+prefill chunk 256 (--prefill-chunk)
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 6.271e-3 (need <= 3.0e-2) ok | tail mass ours 0.0173 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [4bit]: top-1 98.12% (not gated for this class) ok | 21-way KL 1.556e-2 (need <= 3.0e-2) ok | tail mass ours 0.0235 vs ref 0.0258, excess -0.0022 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+lane1 done 06:22:26
