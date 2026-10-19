@@ -85,7 +85,7 @@ MUTATIONS = {
         [("wsrc[q] = w + (int64_t)(wv[q] ? n0 + r : 0) * K + (tid & 3) * 16;", "wsrc[q] = w + (int64_t)(wv[q] ? n0 + r : 0) * K + (tid & 3) * 8;", 1)],
     ),
     "w-tail": (
-        "weight rows past N are copied (row 0 instead of zeros) and N-tail rows are cut at N - 1",
+        "weight row N - 1 is zero-filled as if it were past N (output column N - 1 wrong)",
         [("wv[q] = n0 + r < N;", "wv[q] = n0 + r < N - 1;", 1)],
     ),
     "a-tail": (
