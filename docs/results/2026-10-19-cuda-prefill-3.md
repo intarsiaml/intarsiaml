@@ -306,7 +306,7 @@ of; the profile job (#2519) waited for one in-flight vLLM request before it star
 
 ## 11. PR handoff
 
-**Changed-file list** (`git diff --name-only origin/main`, origin/main = 56da3172; the 93+ raw-log paths under this
+**Changed-file list** (`git diff --name-only origin/main`, origin/main = 56da3172; the 94 raw-log paths under this
 doc's folder are collapsed into one line):
 
 ```
@@ -337,7 +337,7 @@ scripts/cuda-prefill3/wB-ab.sh
 scripts/cuda-prefill3/wBC.sh
 scripts/cuda-prefill3/wC-localeval.sh
 scripts/cuda-prefill3/wC-serve.sh
-+ 93 files under docs/results/2026-10-19-cuda-prefill-3/ (raw logs, downtime.log)
++ 94 files under docs/results/2026-10-19-cuda-prefill-3/ (raw logs, downtime.log)
 ```
 
 Outside `crates/intarsia-backend-cuda`, `kernels/cuda`, docs and scripts:
