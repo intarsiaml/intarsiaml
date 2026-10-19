@@ -471,9 +471,11 @@ mod tests {
         assert_eq!(names.len(), table.len());
         // Sample is not implemented on the device (the engine samples on the host from f32 logits); the six fused decode
         // ops are registered (quantmoe.rs) and the model still falls back to the unfused ops for an exact call without one.
-        // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers.
+        // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers. The phase-1 folds
+        // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
+        const NOT_ON_CUDA: [Op; 5] = [Op::Sample, Op::QkNormRopeKv, Op::RmsNormAddMatmulFp8Pair, Op::SigmoidMulMatmulFp8, Op::SharedDownCombine];
         for op in Op::ALL {
-            if op != Op::Sample && op != Op::QkNormRopeKv {
+            if !NOT_ON_CUDA.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }
         }

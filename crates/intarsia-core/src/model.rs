@@ -1331,10 +1331,17 @@ impl Model {
             for block in blocks {
                 match block {
                     Block::Attn(a) => {
-                        norm_in(&a.pre_norm, pending, &mut cur)?;
+                        // the residual add + norm folded into the k / v projections when the backend has the fused op (one
+                        // decision for the solo and the batched step: the call is the same, `t` rows of `n`)
+                        let kv_done = pending && self.attn_norm_kv(a, &blkv, &hv(cur), &hv(1 - cur), &nv, t, &eps_attrs, profile)?;
+                        if kv_done {
+                            cur = 1 - cur;
+                        } else {
+                            norm_in(&a.pre_norm, pending, &mut cur)?;
+                        }
                         match seqs {
-                            Seqs::One(st) => self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, profile)?,
-                            Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, profile)?,
+                            Seqs::One(st) => self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, kv_done, profile)?,
+                            Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, kv_done, profile)?,
                         }
                     }
                     Block::Gdn(g) => {
@@ -1401,12 +1408,34 @@ impl Model {
         if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
             return false;
         }
-        if self.verifying() {
-            let mut c = call.clone();
-            c.exact_rows = true;
-            return c.check().is_ok() && self.registry.select(&c).is_ok();
+        let select = |c: &OpCall| {
+            if self.verifying() {
+                let mut c = c.clone();
+                c.exact_rows = true;
+                return self.registry.select(&c).is_ok();
+            }
+            self.registry.select(c).is_ok()
+        };
+        if !call.check().is_ok() || !select(call) {
+            return false;
         }
-        call.check().is_ok() && self.registry.select(call).is_ok()
+        // The batch-consistency rule (`plan::check_batch_ops`): a batched step must run the solo step's op multiset, so with
+        // batching on a row-local fused op is taken only if a kernel is selectable at every row count a step can have; a
+        // kernel registered for one row only (the HIP decode GEMVs) then falls back to the unfused ops in the solo step too,
+        // instead of failing the plan load. Applies to the ops `OpCall::with_rows` knows (the phase-1 folds); the older
+        // fused ops keep their behaviour.
+        // (A batched pass marks its calls `exact_rows`, so the multi-row probes select the way it does.)
+        if self.batch_rows >= 2 {
+            for r in 2..=self.batch_rows {
+                if let Some(mut c) = call.with_rows(r) {
+                    c.exact_rows = true;
+                    if !self.registry.select(&c).is_ok() {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
     }
 
     /// Inside [`Model::forward_verify`].
@@ -1440,6 +1469,46 @@ impl Model {
             ),
             _ => Ok(false),
         }
+    }
+
+    /// The attention block's input norm (`RmsNormAdd(blk, res, pre_norm) -> (n, sum)`) folded into its fp8 k / v projections
+    /// (`Op::RmsNormAddMatmulFp8Pair`, the fp8 twin of `RmsNormAddMatmulPair`): on `true` `n` and `sum` hold the norm's
+    /// outputs and `ws.k[0]` / `ws.v` the k and v projections of the `t` rows of `n`, so the caller flips the residual
+    /// buffers and skips the norm and the k / v projections. On `false` nothing ran (no fp8 k / v, no kernel for the call,
+    /// fusion off) and the caller runs the norm, then the projections, as before.
+    #[allow(clippy::too_many_arguments)]
+    fn attn_norm_kv(
+        &self,
+        a: &AttnBlock,
+        blk: &TensorRef,
+        res: &TensorRef,
+        sum: &TensorRef,
+        n: &TensorRef,
+        t: usize,
+        eps: &OpAttrs,
+        profile: bool,
+    ) -> Result<bool> {
+        if (a.wk.format, a.wv.format) != (crate::quant::FP8_E4M3, crate::quant::FP8_E4M3) {
+            return Ok(false);
+        }
+        let d = &self.ldims;
+        let kvw = d.n_kv_heads * d.head_dim;
+        let (k_out, v_out) = (self.view(&self.ws.k[0], self.act, &[t, kvw]), self.view(&self.ws.v, self.act, &[t, kvw]));
+        self.try_fused(
+            Op::RmsNormAddMatmulFp8Pair,
+            vec![
+                blk.clone(),
+                res.clone(),
+                a.pre_norm.clone(),
+                a.wk.parts[0].clone(),
+                a.wk.parts[1].clone(),
+                a.wv.parts[0].clone(),
+                a.wv.parts[1].clone(),
+            ],
+            vec![n.clone(), sum.clone(), k_out, v_out],
+            eps.clone(),
+            profile,
+        )
     }
 
     /// The attention prologue as one op (`Op::QkNormRopeKv`): q-norm, rope and the k / v cache appends together, on
@@ -1495,8 +1564,15 @@ impl Model {
 
     /// The q, k and v projections of an attention block for the `t` rows of `n`: q into `ws.q[0]` (with the output
     /// gate split off when the block has one), k into `ws.k[0]`, v into `ws.v`. Returns the index of the buffer
-    /// holding q (always 0) and the gate.
-    fn attn_project(&self, a: &AttnBlock, n: &TensorRef, t: usize, profile: bool) -> Result<(usize, Option<TensorRef>)> {
+    /// holding q (always 0) and the gate. `kv_done`: k and v were already projected with the norm ([`Model::attn_norm_kv`]).
+    fn attn_project(
+        &self,
+        a: &AttnBlock,
+        n: &TensorRef,
+        t: usize,
+        kv_done: bool,
+        profile: bool,
+    ) -> Result<(usize, Option<TensorRef>)> {
         let d = &self.ldims;
         let act = self.act;
         let ws = &self.ws;
@@ -1519,7 +1595,7 @@ impl Model {
         };
         // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
         let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
-        if !self.kv_pair(a, n, &k_out, &v_out, profile)? {
+        if !kv_done && !self.kv_pair(a, n, &k_out, &v_out, profile)? {
             self.proj(n, &a.wk, &k_out, profile)?;
             self.proj(n, &a.wv, &v_out, profile)?;
         }
@@ -1634,6 +1710,22 @@ impl Model {
     ) -> Result<()> {
         let d = &self.ldims;
         let qshape = [t, d.n_heads * d.head_dim];
+        // the output gate folded into the fp8 o_proj's input (`SigmoidMulMatmulFp8`) when the backend has it; the gated
+        // product is then never stored
+        if let (Some(g), None) = (&gate, &self.ws.part) {
+            if a.wo.format == crate::quant::FP8_E4M3 {
+                let fused = self.try_fused(
+                    Op::SigmoidMulMatmulFp8,
+                    vec![attn_out.reshaped(&qshape), g.reshaped(&qshape), a.wo.parts[0].clone(), a.wo.parts[1].clone()],
+                    vec![out.clone()],
+                    OpAttrs::default(),
+                    profile,
+                )?;
+                if fused {
+                    return self.all_reduce(out, out, profile);
+                }
+            }
+        }
         let o_in = match gate {
             // output gate: attn_out * sigmoid(gate), into the (now free) roped-q buffer
             Some(g) => {
@@ -1672,9 +1764,10 @@ impl Model {
         t: usize,
         pos0: usize,
         dpos: Option<&TensorRef>,
+        kv_done: bool,
         profile: bool,
     ) -> Result<()> {
-        let (qc, gate) = self.attn_project(a, n, t, profile)?;
+        let (qc, gate) = self.attn_project(a, n, t, kv_done, profile)?;
         let slot = Self::attn_slot(st, a)?;
         let bufs = self.attn_bufs(t);
         let (attn_out, qc) = self.attn_rows(a, slot, &bufs, qc, t, pos0, dpos, profile)?;

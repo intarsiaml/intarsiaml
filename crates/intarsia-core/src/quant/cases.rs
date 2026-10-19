@@ -1,5 +1,6 @@
 //! Admission cases for the quantised-weight and MoE ops and the fused decode ops (`MatmulPair`, `MatmulFp8Pair`,
-//! `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`): the `intarsia kernels test` sweep and the exact-shape
+//! `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`,
+//! `SigmoidMulMatmulFp8`, `SharedDownCombine`): the `intarsia kernels test` sweep and the exact-shape
 //! builders used by plan-time admission (`admission::case_from_call`). Data is generated through the format
 //! encoders so every case is valid (no e4m3 NaN encodings, finite scales, distinct experts per token).
 //!
@@ -255,6 +256,78 @@ pub fn gated_rmsnorm_matmul_fp8_case(rng: &mut SplitMix64, r: usize, n: usize, a
     }
 }
 
+/// `RmsNormAddMatmulFp8Pair`: `x` and `res` summed and normed (trained-like weight, `w_offset` as in
+/// [`rmsnorm_add_matmul_pair_case`]), then the two fp8 projections of the normed row; `aq0` / `aq1` select W8A8 per segment.
+#[allow(clippy::too_many_arguments)]
+pub fn rmsnorm_add_matmul_fp8_pair_case(
+    rng: &mut SplitMix64,
+    m: usize,
+    n0: usize,
+    n1: usize,
+    k: usize,
+    aq0: bool,
+    aq1: bool,
+    dt: DType,
+    w_offset: f32,
+) -> HostCall {
+    let centre = 1.0 - w_offset;
+    let nw: Vec<f32> = (0..k).map(|_| centre + 0.25 * rng.normal()).collect();
+    let x = rand_t(rng, dt, &[m, k], 1.0);
+    let res = rand_t(rng, dt, &[m, k], 1.0);
+    let (a, b) = (fp8::random_rows(rng, n0, k, aq0), fp8::random_rows(rng, n1, k, aq1));
+    let (mut pa, mut pb) = (a.parts.into_iter(), b.parts.into_iter());
+    HostCall {
+        op: Op::RmsNormAddMatmulFp8Pair,
+        inputs: vec![
+            x,
+            res,
+            HostTensor::from_f32_as(dt, &[k], &nw),
+            pa.next().unwrap(),
+            pa.next().unwrap(),
+            pb.next().unwrap(),
+            pb.next().unwrap(),
+        ],
+        outputs: vec![OutSpec::new(dt, &[m, k]), OutSpec::new(dt, &[m, k]), OutSpec::new(dt, &[m, n0]), OutSpec::new(dt, &[m, n1])],
+        attrs: OpAttrs { eps: 1e-6, w_offset, ..OpAttrs::default() },
+    }
+}
+
+/// `SigmoidMulMatmulFp8`: the attention output `a` times `sigmoid(gate)`, then the fp8 projection `[n, k]` of the product;
+/// `aq` selects W8A8 (static input scale).
+pub fn sigmoid_mul_matmul_fp8_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, aq: bool, xdt: DType, odt: DType) -> HostCall {
+    let a = rand_t(rng, xdt, &[m, k], 1.0);
+    let gate = rand_t(rng, xdt, &[m, k], 2.0);
+    let q = fp8::random_rows(rng, n, k, aq);
+    let mut parts = q.parts.into_iter();
+    HostCall {
+        op: Op::SigmoidMulMatmulFp8,
+        inputs: vec![a, gate, parts.next().unwrap(), parts.next().unwrap()],
+        outputs: vec![OutSpec::new(odt, &[m, n])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+/// `SharedDownCombine`: the NVFP4 shared-expert down projection `[n, k]` of `x`, combined with the routed output through the
+/// shared-gate logit (`routed + sigmoid(logit) * down`).
+pub fn shared_down_combine_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt: DType, odt: DType) -> HostCall {
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let q = nvfp4::random_rows(rng, n, k);
+    let mut parts = q.parts.into_iter();
+    HostCall {
+        op: Op::SharedDownCombine,
+        inputs: vec![
+            x,
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+            rand_t(rng, xdt, &[m, n], 1.0),
+            rand_t(rng, xdt, &[m, 1], 2.0),
+        ],
+        outputs: vec![OutSpec::new(odt, &[m, n])],
+        attrs: OpAttrs::default(),
+    }
+}
+
 const ACT: [DType; 2] = [DType::Bf16, DType::F32];
 
 /// The sweep for one of the new ops, or `None` for any other op.
@@ -458,6 +531,60 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
             }
         }
+        Op::RmsNormAddMatmulFp8Pair => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 40] };
+            // (n0, n1, k): small and odd shapes, K narrower than the 256-thread block; Qwen3.6-35B-A3B's attention k + v at
+            // its hidden size and a K past one chunk per thread (4112: 514 chunks)
+            let mut nnk = vec![(64usize, 48usize, 64usize), (40, 96, 96), (17, 33, 48)];
+            if !quick {
+                nnk.extend([(512, 512, 2048), (24, 40, 4112)]);
+            }
+            for &m in ms {
+                for &(n0, n1, k) in &nnk {
+                    for (aq0, aq1, w_offset) in [(true, true, 1.0f32), (false, false, 0.0), (true, false, 1.0)] {
+                        for dt in ACT {
+                            push(
+                                format!("M={m} N0={n0} N1={n1} K={k} {dt} w_offset={w_offset} act_quant={aq0}/{aq1}"),
+                                rmsnorm_add_matmul_fp8_pair_case(&mut rng, m, n0, n1, k, aq0, aq1, dt, w_offset),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Op::SigmoidMulMatmulFp8 => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 40] };
+            // (n, k): small and odd shapes, the 35B's o_proj (2048 x 4096) and a tail case
+            let mut nk = vec![(64usize, 64usize), (40, 96), (17, 48)];
+            if !quick {
+                nk.extend([(2048, 4096), (520, 2064)]);
+            }
+            for &m in ms {
+                for &(n, k) in &nk {
+                    for (xdt, odt, aq) in [(DType::Bf16, DType::Bf16, true), (DType::Bf16, DType::Bf16, false), (DType::F32, DType::F32, true)] {
+                        push(
+                            format!("M={m} N={n} K={k} x={xdt} out={odt} act_quant={aq}"),
+                            sigmoid_mul_matmul_fp8_case(&mut rng, m, n, k, aq, xdt, odt),
+                        );
+                    }
+                }
+            }
+        }
+        Op::SharedDownCombine => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 5, 8, 9, 40] };
+            // (n, k): small and odd shapes, the 35B's shared-expert down projection (2048 x 512) and a long-K tail case
+            let mut nk = vec![(64usize, 64usize), (40, 96), (9, 16)];
+            if !quick {
+                nk.extend([(2048, 512), (300, 4112)]);
+            }
+            for &m in ms {
+                for &(n, k) in &nk {
+                    for (xdt, odt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32)] {
+                        push(format!("M={m} N={n} K={k} x={xdt} out={odt}"), shared_down_combine_case(&mut rng, m, n, k, xdt, odt));
+                    }
+                }
+            }
+        }
         _ => return None,
     }
     Some(cases)
@@ -543,6 +670,33 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             o[0].dtype
         ),
         Op::GatedRmsnorm => format!("R={} D={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        Op::RmsNormAddMatmulFp8Pair => format!(
+            "M={} N0={} N1={} K={} {} w_offset={} act_quant={}",
+            i[0].shape[0].min(caps.rows),
+            i[3].shape[0].min(caps.n),
+            i[5].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            call.attrs.w_offset,
+            "static/static"
+        ),
+        Op::SigmoidMulMatmulFp8 => format!(
+            "M={} N={} K={} x={} out={} act_quant={}",
+            i[0].shape[0].min(caps.rows),
+            i[2].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype,
+            "static"
+        ),
+        Op::SharedDownCombine => format!(
+            "M={} N={} K={} x={} out={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype
+        ),
         _ => return None,
     };
     Some(format!("{} {}", call.op, s))
@@ -602,6 +756,30 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             matmul_nvfp4_glu_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
         }
         Op::GatedRmsnorm => gated_rmsnorm_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
+        // plan time sees shapes, not values: grade the W8A8 mode, the one the checkpoint declares
+        Op::RmsNormAddMatmulFp8Pair => rmsnorm_add_matmul_fp8_pair_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[3].shape[0].min(caps.n),
+            i[5].shape[0].min(caps.n),
+            i[0].shape[1],
+            true,
+            true,
+            i[0].dtype,
+            call.attrs.w_offset,
+        ),
+        Op::SigmoidMulMatmulFp8 => sigmoid_mul_matmul_fp8_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[2].shape[0].min(caps.n),
+            i[0].shape[1],
+            true,
+            i[0].dtype,
+            o[0].dtype,
+        ),
+        Op::SharedDownCombine => {
+            shared_down_combine_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
+        }
         _ => return None,
     };
     Some((hc, label))
@@ -628,6 +806,9 @@ mod tests {
             Op::GatedRmsnorm,
             Op::RmsNormAddMatmulPair,
             Op::GatedRmsnormMatmulFp8,
+            Op::RmsNormAddMatmulFp8Pair,
+            Op::SigmoidMulMatmulFp8,
+            Op::SharedDownCombine,
         ] {
             let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
             assert!(!cases.is_empty());

@@ -1,5 +1,6 @@
 //! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
-//! `QkNormRopeKv`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`).
+//! `QkNormRopeKv`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`,
+//! `SharedDownCombine`).
 //! Each is defined as the composition of the ops it replaces, so the oracle of a fused kernel is exactly "the
 //! unfused path, including the output rounding of every intermediate tensor". `sub` is the executor of the
 //! constituent ops: the f64 reference for `ref_*`, the f32 kernels for `cpu_f32_*`.
@@ -67,6 +68,24 @@ pub fn run(call: &OpCall, sub: fn(&OpCall) -> Result<()>) -> Result<()> {
             step(sub, Op::Rope, vec![kn], vec![kr.clone()], a.clone())?;
             step(sub, Op::KvAppend, vec![kr], vec![o[1].clone()], a.clone())?;
             step(sub, Op::KvAppend, vec![i[2].clone()], vec![o[2].clone()], a.clone())
+        }
+        Op::RmsNormAddMatmulFp8Pair => {
+            // the normed rows are stored in the activation dtype between the norm and the GEMVs, like the unfused path
+            step(sub, Op::RmsNormAdd, vec![i[0].clone(), i[1].clone(), i[2].clone()], vec![o[0].clone(), o[1].clone()], a.clone())?;
+            step(sub, Op::MatmulFp8, vec![o[0].clone(), i[3].clone(), i[4].clone()], vec![o[2].clone()], d())?;
+            step(sub, Op::MatmulFp8, vec![o[0].clone(), i[5].clone(), i[6].clone()], vec![o[3].clone()], d())
+        }
+        Op::SigmoidMulMatmulFp8 => {
+            // the gated product is stored in the activation dtype (the unfused path's `SigmoidMul` output tensor)
+            let gated = tmp(&i[0], &i[0].shape);
+            step(sub, Op::SigmoidMul, vec![i[0].clone(), i[1].clone()], vec![gated.clone()], d())?;
+            step(sub, Op::MatmulFp8, vec![gated, i[2].clone(), i[3].clone()], vec![o[0].clone()], d())
+        }
+        Op::SharedDownCombine => {
+            // the down projection is stored in the output dtype (the unfused path's shared-expert output tensor)
+            let down = tmp(&o[0], &o[0].shape);
+            step(sub, Op::MatmulNvfp4, vec![i[0].clone(), i[1].clone(), i[2].clone(), i[3].clone()], vec![down.clone()], d())?;
+            step(sub, Op::MoeCombine, vec![i[4].clone(), down, i[5].clone()], vec![o[0].clone()], d())
         }
         other => Err(Error::invalid(format!("fused_ref cannot run {other}"))),
     }

@@ -208,10 +208,11 @@ impl Model {
         sts: &[&SequenceState],
         n: &TensorRef,
         out: &TensorRef,
+        kv_done: bool,
         profile: bool,
     ) -> Result<()> {
         let b = sts.len();
-        let (qc0, gate) = self.attn_project(a, n, b, profile)?;
+        let (qc0, gate) = self.attn_project(a, n, b, kv_done, profile)?;
         debug_assert!(gate.is_none(), "enable_batch rejects gated attention");
         let bufs = self.attn_bufs(b);
         // the one-row calls are the solo step's: not row-exact kernels, whose row count would be wrong
