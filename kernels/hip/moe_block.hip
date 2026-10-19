@@ -41,7 +41,10 @@ constexpr int kRowWarps = 8;            // moe.hip's (gate_up / down roles) and 
 constexpr int kMaxK = 8;                // moe.hip kP1MaxK
 constexpr int kTopkMaxPerLane = 16;     // moe.hip: E <= 512
 constexpr int kGluPre = 4;              // nvfp4.hip kPre (nvfp4_glu_kernel's window)
-constexpr int kSdcPre = 4;              // moe_shared.hip kPre (shared_down_combine_kernel's window)
+// shared_down_combine_kernel requests kPre = 4 lane-iterations before its table barrier; the fused down role requests only the
+// first (all of them at IS <= 512) before its wait and loads the rest as used: the same iterations in the same order, fewer
+// registers held across the wait (occupancy)
+constexpr int kSdcWin = 1;
 constexpr int kSyncSlots = 16;
 constexpr int kSyncStride = 16;         // unsigned ints: one 64-byte line per slot
 __device__ unsigned int g_moe_block_sync[kSyncSlots * kSyncStride];
@@ -61,16 +64,18 @@ IK_DEVI float topk_val(uint32_t key16) {
 // moe_topk_v2_kernel for one token in one wave: rounds 0..R-1 of the selection (R = K for the weights, kk + 1 for one id).
 // id[k] / val[k] are wave-uniform (the warp argmax leaves every lane with the round's key). WANT_W: also the softmax
 // weights w[k] = round_bf16(expf(val[k] - mx) / denom), the expression moe_topk_v2_kernel's lane k stores.
-template <bool WANT_W>
+// NPL = keys per lane: 8 when E <= 256, else 16 (moe_topk_v2_kernel's kTopkMaxPerLane): the slots j >= 8 hold e >= 256,
+// which do not exist when E <= 256 (key 0, never the maximum: a real expert's key has a non-zero low half), so the selection
+// and the softmax terms are the same; fewer registers. The softmax over all experts (norm = 0) re-reads the logits instead
+// of keeping them in registers: the same values, added in the same order.
+template <bool WANT_W, int NPL>
 IK_DEVI void wave_topk(const ik_bf16* __restrict__ lrow, int E, int K, int R, int norm, int lane, int (&id)[kMaxK],
                        float (&w)[kMaxK]) {
-    float v[kTopkMaxPerLane];
-    uint32_t key[kTopkMaxPerLane];
+    uint32_t key[NPL];
 #pragma unroll
-    for (int j = 0; j < kTopkMaxPerLane; ++j) {
+    for (int j = 0; j < NPL; ++j) {
         const int e = lane + IK_WARP * j;
         const ik_bf16 b = e < E ? lrow[e] : ik_bf16{0xff80u};  // -inf
-        v[j] = e < E ? ik_b2f(b) : -INFINITY;
         key[j] = e < E ? ((topk_key16(b.bits) << 16) | (0xffffu - (uint32_t)e)) : 0u;
     }
     float val[kMaxK];
@@ -82,15 +87,18 @@ IK_DEVI void wave_topk(const ik_bf16* __restrict__ lrow, int E, int K, int R, in
         if (kk >= R) continue;
         uint32_t best = key[0];
 #pragma unroll
-        for (int j = 1; j < kTopkMaxPerLane; ++j) best = max(best, key[j]);
+        for (int j = 1; j < NPL; ++j) best = max(best, key[j]);
 #pragma unroll
         for (int o = IK_WARP / 2; o > 0; o >>= 1) best = max(best, (uint32_t)__shfl_xor((int)best, o, IK_WARP));
+        // every lane holds the same key after the butterfly: keep it in a scalar register (the expert's weight addresses
+        // and scales are then scalar, as when the chain's kernels load ids from memory)
+        best = (uint32_t)__builtin_amdgcn_readfirstlane((int)best);
         const int bi = (int)(0xffffu - (best & 0xffffu));
         const float bv = topk_val(best >> 16);
         if (kk == 0) mx = bv;
         if ((bi & (IK_WARP - 1)) == lane) {
 #pragma unroll
-            for (int j = 0; j < kTopkMaxPerLane; ++j)
+            for (int j = 0; j < NPL; ++j)
                 if (j == (bi >> 5)) key[j] = 0u;
         }
         id[kk] = bi;
@@ -101,16 +109,16 @@ IK_DEVI void wave_topk(const ik_bf16* __restrict__ lrow, int E, int K, int R, in
         if (!norm) {  // softmax over all experts
             float part = 0.f;
 #pragma unroll
-            for (int j = 0; j < kTopkMaxPerLane; ++j) {
+            for (int j = 0; j < NPL; ++j) {
                 const int e = lane + IK_WARP * j;
-                if (e < E) part += expf(v[j] - mx);
+                if (e < E) part += expf(ik_b2f(lrow[e]) - mx);
             }
             denom = ik_warp_sum(part);
         }
 #pragma unroll
         for (int k = 0; k < kMaxK; ++k) {
             const float ww = expf(val[k] - mx) / denom;
-            w[k] = k < K ? round_bf16(ww) : 0.f;
+            w[k] = k < K ? __int_as_float(__builtin_amdgcn_readfirstlane(__float_as_int(round_bf16(ww)))) : 0.f;
         }
     }
     (void)K;
@@ -141,8 +149,8 @@ struct BlockArgs {
     int NS, NG, ND, slot, skew;
 };
 
-template <int PRE>
-__global__ void __launch_bounds__(kRowWarps * IK_WARP) moe_block_kernel(const BlockArgs a) {
+template <int PRE, int NPL>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP) __attribute__((amdgpu_waves_per_eu(12))) moe_block_kernel(const BlockArgs a) {
     __shared__ float lut[16];
     __shared__ int ticket;
     unsigned int* sync = g_moe_block_sync + a.slot * kSyncStride;
@@ -247,7 +255,7 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) moe_block_kernel(const Bl
         const ik_bf16* xr = a.x + (int64_t)t * H;
         int tid[kMaxK];
         float tw[kMaxK];
-        wave_topk<false>(a.logits + (int64_t)t * E, E, K, p % K + 1, a.norm, lane, tid, tw);
+        wave_topk<false, NPL>(a.logits + (int64_t)t * E, E, K, p % K + 1, a.norm, lane, tid, tw);
         int e = -1;
 #pragma unroll
         for (int k = 0; k < kMaxK; ++k)
@@ -332,7 +340,7 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) moe_block_kernel(const Bl
     const ik_bf16* sx = a.sa + (int64_t)t * IS;      // the token's shared activation [IS]
     int tid[kMaxK];
     float wts[kMaxK];
-    wave_topk<true>(a.logits + (int64_t)t * E, E, K, K, a.norm, lane, tid, wts);
+    wave_topk<true, NPL>(a.logits + (int64_t)t * E, E, K, K, a.norm, lane, tid, wts);
     const uint2* wd[kMaxK];
     const uint8_t* sd[kMaxK];
     float gd[kMaxK], acc[kMaxK];
@@ -358,10 +366,10 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) moe_block_kernel(const Bl
     const uint2* swr = reinterpret_cast<const uint2*>(a.sdw + (int64_t)rr * (IS / 2));
     const uint8_t* ssr = a.sds + (int64_t)rr * (IS / 16);
     const int snu = IS / 16;
-    uint2 swv[kSdcPre];
-    uint32_t ssb[kSdcPre];
+    uint2 swv[kSdcWin];
+    uint32_t ssb[kSdcWin];
 #pragma unroll
-    for (int j = 0; j < kSdcPre; ++j) {
+    for (int j = 0; j < kSdcWin; ++j) {
         const int u = lane + IK_WARP * j;
         const bool okj = u < snu;
         swv[j] = okj ? ik_ldcs(swr + u) : make_uint2(0, 0);
@@ -460,13 +468,13 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) moe_block_kernel(const Bl
             sacc = fmaf(s, sc, sacc);
         };
 #pragma unroll
-        for (int j = 0; j < kSdcPre; ++j) {
+        for (int j = 0; j < kSdcWin; ++j) {
             const int u = lane + IK_WARP * j;
             if (u >= snu) continue;
             const uint4* xp = reinterpret_cast<const uint4*>(sx + (int64_t)u * 16);
             sstep(swv[j], ssb[j], xp[0], xp[1]);
         }
-        for (int u = lane + IK_WARP * kSdcPre; u < snu; u += IK_WARP) {  // IS > 2048: the remaining iterations
+        for (int u = lane + IK_WARP * kSdcWin; u < snu; u += IK_WARP) {  // IS > 2048: the remaining iterations
             const uint4* xp = reinterpret_cast<const uint4*>(sx + (int64_t)u * 16);
             sstep(ik_ldcs(swr + u), ssr[u], xp[0], xp[1]);
         }
@@ -612,9 +620,13 @@ int ik_moe_block_bf16(const ik_tensor* in, int top_k, int norm, ik_tensor* out, 
     a.skew = skew;
     const unsigned grid = (unsigned)(a.NS + a.NG + a.ND);
     const int pre = block_pre();
-    if (pre == 1) moe_block_kernel<1><<<grid, kRowWarps * IK_WARP, 0, s>>>(a);
-    else if (pre == 2) moe_block_kernel<2><<<grid, kRowWarps * IK_WARP, 0, s>>>(a);
-    else moe_block_kernel<4><<<grid, kRowWarps * IK_WARP, 0, s>>>(a);
+#define IK_MB(PRE)                                                                                  \
+    if (E <= 8 * IK_WARP) moe_block_kernel<PRE, 8><<<grid, kRowWarps * IK_WARP, 0, s>>>(a);           \
+    else moe_block_kernel<PRE, kTopkMaxPerLane><<<grid, kRowWarps * IK_WARP, 0, s>>>(a)
+    if (pre == 1) IK_MB(1);
+    else if (pre == 2) IK_MB(2);
+    else IK_MB(4);
+#undef IK_MB
     return ik_launch_status();
 }
 

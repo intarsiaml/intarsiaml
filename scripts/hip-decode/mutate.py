@@ -20,6 +20,10 @@ V3_BAR_FENCE = "    __syncthreads();\n" + V3_FENCE
 V3_BAR_NOACQ = ('    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup");  // mutant: __syncthreads() without its acquire half\n'
                 "    __builtin_amdgcn_s_barrier();\n"
                 '    __asm__ volatile("" ::: "memory");  // mutant: compiler-only ordering\n')
+# the P2' consumer's wait (moe_block.hip moe_block_kernel, down roles), the same three parts
+P2P_SPIN_ACQ = "        while (__hip_atomic_load(sync, __ATOMIC_ACQUIRE, __HIP_MEMORY_SCOPE_AGENT) < (unsigned)(NS + NG)) __builtin_amdgcn_s_sleep(1);\n"
+P2P_FENCE = '    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");  // every wave: h and sa are read only after this\n'
+P2P_BAR_FENCE = "    __syncthreads();\n" + P2P_FENCE
 
 MUTATIONS = {
     # fused single-tile conv: the thread's new state is written doubled
@@ -401,6 +405,33 @@ MUTATIONS = {
     "p2-cd-slotstate": ("kernels/hip/gdn_fused.hip", [("    if (slot >= 0) return ik_launch_status();", "    return ik_launch_status();")]),
     # selection: the fold admitted one token past the conv's single tile
     "p2-sel-m33": ("crates/intarsia-backend-hip/src/kernels.rs", [("pub const GDN_CONV_DELTA_MAX_TOKENS: usize = 32;", "pub const GDN_CONV_DELTA_MAX_TOKENS: usize = 33;")]),
+    # ---- P2' MoeBlock (kernels/hip/moe_block.hip, tests/moe_block.rs; docs/results/2026-10-19-p2prime-moeblock.md) ----
+    # producer side, per edge: the agent-scope fence after the store dropped (routed h edge / shared sa edge)
+    "p2p-gu-nofence": ("kernels/hip/moe_block.hip", [("        __threadfence();  // routed producer: release half\n", "")]),
+    "p2p-sh-nofence": ("kernels/hip/moe_block.hip", [("            __threadfence();  // shared producer: release half\n", "")]),
+    # consumer side (one wait serves both edges): per-wave fence dropped / barrier without acquire and no fence (no per-wave
+    # refresh, step 0's nobaracq) / all ordering removed (spin relaxed too, step 0's noorder)
+    "p2p-nofence": ("kernels/hip/moe_block.hip", [(P2P_FENCE, "")]),
+    "p2p-norefresh": ("kernels/hip/moe_block.hip", [(P2P_BAR_FENCE, V3_BAR_NOACQ)]),
+    "p2p-noorder": ("kernels/hip/moe_block.hip", [(P2P_SPIN_ACQ, P2P_SPIN_ACQ.replace("__ATOMIC_ACQUIRE", "__ATOMIC_RELAXED")), (P2P_BAR_FENCE, V3_BAR_NOACQ)]),
+    # wrong ticket order: the down (consumer) roles take the FIRST tickets, the producers the last ones (deadlock when the
+    # spinning consumers fill the device before every producer runs)
+    "p2p-ticket": ("kernels/hip/moe_block.hip", [("    const int bid = ticket;  // the role\n", "    const int bid = (ticket + NS + NG) % (NS + NG + ND);  // mutant: consumers first\n")]),
+    # wait counts: one producer short; only NG of the NS + NG producers (the shared edge's count not waited for)
+    "p2p-wait-short": ("kernels/hip/moe_block.hip", [("< (unsigned)(NS + NG)) __builtin_amdgcn_s_sleep(1);", "< (unsigned)(NS + NG - 1)) __builtin_amdgcn_s_sleep(1);")]),
+    "p2p-wait-routed": ("kernels/hip/moe_block.hip", [("< (unsigned)(NS + NG)) __builtin_amdgcn_s_sleep(1);", "< (unsigned)NG) __builtin_amdgcn_s_sleep(1);")]),
+    # the down role reads the routed h scratch as the shared activation (shared / routed pointer swap)
+    "p2p-swap": ("kernels/hip/moe_block.hip", [("    const ik_bf16* sx = a.sa + (int64_t)t * IS;", "    const ik_bf16* sx = a.h + (int64_t)t * IS;")]),
+    # counters not reset by the last down role
+    "p2p-noreset": ("kernels/hip/moe_block.hip", [("            __hip_atomic_store(sync, 0u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);\n", "")]),
+    # the gate_up role's expert: the next rank's (recomputed top-k indexed wrong)
+    "p2p-topk-rank": ("kernels/hip/moe_block.hip", [("            if (k == p % K) e = tid[k];", "            if (k == (p + 1) % K) e = tid[k];")]),
+    # the routed row not rounded to bf16 before the combine (the chain stores it bf16)
+    "p2p-sdc-noround": ("kernels/hip/moe_block.hip", [("        const float routed = ik_round_bf16(o);", "        const float routed = o;")]),
+    # the softmax weights' bf16 rounding dropped in the recomputed top-k
+    "p2p-topk-wround": ("kernels/hip/moe_block.hip", [("__float_as_int(round_bf16(ww))", "__float_as_int(ww)")]),
+    # selection (lib, Mac): the fold admitted past the chain's decode kernels (T * K <= 16)
+    "p2p-sel-p24": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("        && s.m * s.top_k <= 16\n", "        && s.m * s.top_k <= 24\n")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -418,6 +449,8 @@ TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-t
 TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
 TESTS.update({n: "fusion_p2" for n in ("p2-ga-gate", "p2-ga-qstride", "p2-ga-woff", "p2-ga-fp8", "p2-ga-vpos", "p2-cd-writer0", "p2-cd-noreset", "p2-cd-novstate", "p2-cd-round", "p2-cd-tap", "p2-cd-contract", "p2-cd-hist", "p2-cd-slotstate")})
 TESTS["p2-sel-m33"] = "lib"
+TESTS.update({n: "moe_block" for n in ("p2p-gu-nofence", "p2p-sh-nofence", "p2p-nofence", "p2p-norefresh", "p2p-noorder", "p2p-ticket", "p2p-wait-short", "p2p-wait-routed", "p2p-swap", "p2p-noreset", "p2p-topk-rank", "p2p-sdc-noround", "p2p-topk-wround")})
+TESTS["p2p-sel-p24"] = "lib"
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 TESTS.update({n: "moe_pairs" for n in ("r7-even", "r7-odd", "r7-esign", "r7-osign", "r7-x64", "r7-hiword", "r7-swap", "r7-deep", "r7-dnrow", "r7-grid", "r7-jn", "r7-lastsync")})
 TESTS.update({n: "round6_selection" for n in ("r7-def64", "r7-def32", "r7-def64dn", "r7-def32dn", "r7-tile", "r7-range", "r7-colon")})

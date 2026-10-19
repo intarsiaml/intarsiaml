@@ -1,0 +1,28 @@
+[window] job 2723; gpu0: t:moe_block:moe_block_is_bitwise_the_chain bench; gpu1: t:moe_block:moe_block_counters t:moe_block:moe_block_graph t:moe_block:moe_block_dispatch t:moe_block:moe_block_sentinel; stopping radiance 2026-10-19 09:41:03
+[window] radiance stopped 2026-10-19 09:41:06
+################ stage t:moe_block:moe_block_is_bitwise_the_chain start 09:41:06
+test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 44 cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 6.38s
+################ stage t:moe_block:moe_block_is_bitwise_the_chain end 09:41:13
+################ stage bench start 09:41:13
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/moe_block.rs (/target/release/deps/moe_block-f5e45b49f7fb48bd)
+test moe_block_timing ... moe_block_timing: 16 layers, 50 replays per round, median us per layer, 3 rounds:
+  chain (v2 default)        64.19    60.39    60.61
+  chain (v3)                59.22    59.19    59.42
+  moe_block (fused)         57.07    57.06    56.99
+  tiny launch                3.90     3.91     3.89
+  topk_v2 alone              6.68     6.69     6.65
+  experts_v2 alone          35.52    35.51    35.47
+  glu alone                  6.75     6.75     6.75
+  sdc alone                 14.79    14.77    15.06
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.80s
+################ stage bench end 09:41:16
+[window] gpu0 lane done 2026-10-19 09:41:16 (exit 0)
+[window] starting radiance 2026-10-19 09:41:18
+[window] radiance answers 2026-10-19 09:41:28 (after 15 s)
