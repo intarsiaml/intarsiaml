@@ -1,0 +1,45 @@
+fleetq: #2677 running on spark1: scripts/cuda-round5/dev.sh
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+  Executable tests/splitkv_pipe.rs (target/acc/release/deps/splitkv_pipe-332a4683eef4c4e3)
+-rwxrwxr-x 2 nvidia nvidia 41460408 Oct 19 04:46 /home/nvidia/intarsia-decfuse/r5-pipe/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 49, 11.46 W, 0 %
+== kv_stream probe
+[memset data] cap 16384: 48 SMs, 33.6 MB per layer (K+V), nsplit 64, chunk 256
+stream x2       141.1 us per layer   237.8 GB/s
+stream x4       144.9 us per layer   231.6 GB/s
+stream x8       141.1 us per layer   237.8 GB/s
+pattern         142.4 us per layer   235.7 GB/s
+pattern+2       145.7 us per layer   230.3 GB/s
+pattern+4       142.7 us per layer   235.1 GB/s
+pattern+8       144.8 us per layer   231.7 GB/s
+[random data] cap 16384: 48 SMs, 33.6 MB per layer (K+V), nsplit 64, chunk 256
+stream x2       142.0 us per layer   236.2 GB/s
+stream x4       143.1 us per layer   234.5 GB/s
+stream x8       144.8 us per layer   231.7 GB/s
+pattern         144.7 us per layer   231.9 GB/s
+pattern+2       144.1 us per layer   232.8 GB/s
+pattern+4       144.9 us per layer   231.6 GB/s
+pattern+8       146.6 us per layer   228.8 GB/s
+[memset data] cap 32768: 48 SMs, 67.1 MB per layer (K+V), nsplit 64, chunk 512
+stream x2       282.1 us per layer   237.9 GB/s
+stream x4       282.3 us per layer   237.7 GB/s
+stream x8       284.0 us per layer   236.3 GB/s
+pattern         283.4 us per layer   236.8 GB/s
+pattern+2       282.4 us per layer   237.7 GB/s
+pattern+4       281.9 us per layer   238.0 GB/s
+pattern+8       281.7 us per layer   238.3 GB/s
+[random data] cap 32768: 48 SMs, 67.1 MB per layer (K+V), nsplit 64, chunk 512
+stream x2       279.7 us per layer   239.9 GB/s
+stream x4       286.9 us per layer   233.9 GB/s
+stream x8       284.4 us per layer   236.0 GB/s
+pattern         285.4 us per layer   235.1 GB/s
+pattern+2       285.0 us per layer   235.4 GB/s
+pattern+4       281.6 us per layer   238.3 GB/s
+pattern+8       281.8 us per layer   238.2 GB/s
+== KV-cache scale tensors in the 35B checkpoint (index keys; read-only)
+0 kv-scale tensors
+fleetq: #2677 done (exit 0)

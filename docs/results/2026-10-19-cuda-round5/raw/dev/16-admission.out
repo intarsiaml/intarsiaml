@@ -1,0 +1,47 @@
+fleetq: #2708 running on spark1: bash -c 'scripts/cuda-round5/dev.sh && scripts/cuda-prefill4/remote.sh r5-f8 scripts/cuda-round5/admission.sh'
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 37364032 Oct 19 06:09 /home/nvidia/intarsia-decfuse/r5-f8/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 45, 11.08 W, 0 %
+== sweep attn_decode 06:09:02
+attn_decode    attn_decode_bf16               15      0    4.883e-4    5.150e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0    4.883e-4    3.290e-5  ADMITTED
+attn_decode    attn_decode_f8kv_splitkv       15      0    1.572e-3    1.191e-4  ADMITTED
+3 kernels, 45 cases in 2.3s
+exit 0
+== sweep attn_prefill 06:09:05
+attn_prefill   attn_prefill_bf16              21      0    1.078e-3    7.900e-5  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         6      0    4.310e-3    2.423e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv      12      0    1.174e-3    3.165e-5  ADMITTED
+attn_prefill   attn_prefill_f8kv_flash         6      0    5.208e-3    2.402e-3  ADMITTED
+attn_prefill   attn_prefill_f8kv_splitkv      12      0    2.441e-4    5.583e-5  ADMITTED
+5 kernels, 57 cases in 5.2s
+exit 0
+== quick sweep 06:09:11
+50 kernels, 149 cases in 0.5s
+incomplete: 9 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+exit 0
+== plan admit dev () 06:09:11
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that run
+admission on plan shapes: 36 kernel(s) checked, 505 case(s) run, 0 cached
+exit 0
+attn_decode attn_decode_bf16_splitkv admitted x1
+attn_prefill attn_prefill_bf16_flash admitted x1
+attn_prefill attn_prefill_bf16_splitkv admitted x1
+kv_append kv_append_bf16 admitted x1
+kernels 36, kv_dtype bf16, not admitted: []
+== plan admit f8 (--kv-dtype fp8_e4m3) 06:09:53
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 505 case(s) run, 0 cached
+exit 0
+attn_decode attn_decode_f8kv_splitkv admitted x1
+attn_prefill attn_prefill_f8kv_flash admitted x1
+attn_prefill attn_prefill_f8kv_splitkv admitted x1
+kv_append kv_append_bf16 admitted x1
+kernels 36, kv_dtype fp8_e4m3, not admitted: []
+== done 06:10:36
+fleetq: #2708 done (exit 0)

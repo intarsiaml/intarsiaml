@@ -1,0 +1,128 @@
+fleetq: #2701 running on spark1: scripts/cuda-round5/dev.sh
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 37364016 Oct 19 05:51 /home/nvidia/intarsia-decfuse/r5-f8/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 45, 11.01 W, 0 %
+MemAvailable 47 GB
+== bf16, 3400 chars, env 'INTARSIA_X=0 ' 05:51:48
+finish=length prompt=1034 (cached 0) completion=64 | prefill 958 ms (1079.4 tok/s) | decode 817 ms (77.14 tok/s)
+ids md5 0ec5bfafdd10cb1210c88cffb3db4326  -
+SM clock while busy (>50% util): 2453 MHz over 5 samples
+steps total 65, steady-state 61 (median span 12197.9 us)
+launches/step 625  span 12197.9 us  kernel sum 12133.6 us  idle inside the step 64.3 us (0.5%)
+void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16>(cons...      10.0     154.3     15.4    1.2
+== f8, 3400 chars, env '' 05:52:39
+finish=length prompt=1034 (cached 0) completion=64 | prefill 693 ms (1493.0 tok/s) | decode 791 ms (79.61 tok/s)
+ids md5 0dfa5b5923dba73146bcf75e1764d736  -
+SM clock while busy (>50% util): 2434 MHz over 5 samples
+steps total 65, steady-state 61 (median span 12215.2 us)
+launches/step 625  span 12215.2 us  kernel sum 12150.3 us  idle inside the step 64.9 us (0.5%)
+void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, u8>(const __nv_bflo...      10.0     119.2     11.9    1.0
+== bf16, 54000 chars, env 'INTARSIA_X=0 ' 05:53:26
+finish=length prompt=16026 (cached 0) completion=64 | prefill 4478 ms (3579.1 tok/s) | decode 897 ms (70.23 tok/s)
+ids md5 80e1d4338c83eec8d1fb874f7f458094  -
+SM clock while busy (>50% util): 2450 MHz over 25 samples
+steps total 72, steady-state 64 (median span 13843.2 us)
+launches/step 625  span 13843.2 us  kernel sum 13783.4 us  idle inside the step 59.8 us (0.4%)
+void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16>(cons...      10.0    1844.9    184.5   13.3
+void <unnamed>::combine_kernel<(int)256>(const float *, const float2 *, __n...      10.0      64.7      6.5    0.5
+== f8, 54000 chars, env '' 05:54:11
+finish=length prompt=16026 (cached 0) completion=64 | prefill 5332 ms (3005.6 tok/s) | decode 855 ms (73.70 tok/s)
+ids md5 4d012de75a62de40abc628da914f5dc9  -
+SM clock while busy (>50% util): 2459 MHz over 30 samples
+steps total 72, steady-state 64 (median span 13200.8 us)
+launches/step 625  span 13200.8 us  kernel sum 13138.2 us  idle inside the step 62.6 us (0.5%)
+void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, u8>(const __nv_bflo...      10.0    1175.9    117.6    8.9
+void <unnamed>::combine_kernel<(int)256>(const float *, const float2 *, __n...      10.0      60.7      6.1    0.5
+MemAvailable 51 GB
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 48, 11.31 W, 0 %
+== bf16, 14000 chars, env 'INTARSIA_X=0 ' args '' 05:54:57
+finish=length prompt=4189 (cached 0) completion=1 | prefill 1137 ms (3685.4 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 866.3 ms
+moe_w4a16_kernel<                                                           306.5 ms  35.4 %    160 calls
+reg::gemm_reg_kernel<                                                       175.8 ms  20.3 %    260 calls
+gdn_delta_split_kernel<                                                     111.7 ms  12.9 %     90 calls
+moe_mma_kernel<                                                              54.0 ms   6.2 %     80 calls
+wq::wq_gemm_kernel<                                                          38.6 ms   4.5 %    490 calls
+moe_reduce_kernel<__nv_bfloat16>                                             33.1 ms   3.8 %    120 calls
+flash_kernel<                                                                25.6 ms   3.0 %     30 calls
+rmsnorm_kernel<                                                              22.8 ms   2.6 %    303 calls
+gdn_conv_kernel                                                              22.0 ms   2.5 %     90 calls
+fp8_actq_kernel                                                              20.3 ms   2.3 %    390 calls
+gated_rmsnorm_kernel<                                                        14.8 ms   1.7 %     90 calls
+moe_combine_kernel<__nv_bfloat16>                                             6.9 ms   0.8 %    120 calls
+gate_split_kernel                                                             6.4 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.6 %     60 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.4 ms   0.5 %    120 calls
+sigmoid_mul_kernel                                                            4.1 ms   0.5 %     30 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        4.0 ms   0.5 %     80 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        2.5 ms   0.3 %    120 calls
+== f8, 14000 chars, env '' args '--kv-dtype=fp8_e4m3' 05:56:18
+finish=length prompt=4189 (cached 0) completion=1 | prefill 1185 ms (3536.2 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 903.6 ms
+moe_w4a16_kernel<                                                           310.7 ms  34.4 %    160 calls
+reg::gemm_reg_kernel<                                                       180.8 ms  20.0 %    260 calls
+gdn_delta_split_kernel<                                                     129.8 ms  14.4 %     90 calls
+moe_mma_kernel<                                                              51.9 ms   5.7 %     80 calls
+wq::wq_gemm_kernel<                                                          41.1 ms   4.6 %    490 calls
+moe_reduce_kernel<__nv_bfloat16>                                             36.0 ms   4.0 %    120 calls
+flash_kernel<                                                                29.3 ms   3.2 %     30 calls
+rmsnorm_kernel<                                                              23.8 ms   2.6 %    303 calls
+gdn_conv_kernel                                                              23.3 ms   2.6 %     90 calls
+fp8_actq_kernel                                                              21.0 ms   2.3 %    390 calls
+gated_rmsnorm_kernel<                                                        13.8 ms   1.5 %     90 calls
+moe_combine_kernel<__nv_bfloat16>                                             6.6 ms   0.7 %    120 calls
+gate_split_kernel                                                             6.0 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.5 %     60 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.2 ms   0.5 %    120 calls
+sigmoid_mul_kernel                                                            4.2 ms   0.5 %     30 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        3.9 ms   0.4 %     80 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        2.7 ms   0.3 %    120 calls
+== bf16, 54000 chars, env 'INTARSIA_X=0 ' args '' 05:57:34
+finish=length prompt=16014 (cached 0) completion=1 | prefill 3650 ms (4387.3 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 3365.8 ms
+moe_w4a16_kernel<                                                          1177.1 ms  35.0 %    640 calls
+reg::gemm_reg_kernel<                                                       662.4 ms  19.7 %   1040 calls
+gdn_delta_split_kernel<                                                     467.2 ms  13.9 %    240 calls
+flash_kernel<                                                               384.5 ms  11.4 %     80 calls
+moe_reduce_kernel<__nv_bfloat16>                                            125.8 ms   3.7 %    320 calls
+wq::wq_gemm_kernel<                                                         101.7 ms   3.0 %    960 calls
+gdn_conv_kernel                                                              87.6 ms   2.6 %    240 calls
+rmsnorm_kernel<                                                              85.5 ms   2.5 %    808 calls
+fp8_actq_kernel                                                              75.6 ms   2.2 %   1040 calls
+gated_rmsnorm_kernel<                                                        52.6 ms   1.6 %    240 calls
+moe_combine_kernel<__nv_bfloat16>                                            25.5 ms   0.8 %    320 calls
+gate_split_kernel                                                            21.9 ms   0.7 %     80 calls
+rope_kernel                                                                  18.6 ms   0.6 %    160 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                        16.5 ms   0.5 %    480 calls
+sigmoid_mul_kernel                                                           15.8 ms   0.5 %     80 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128       11.7 ms   0.3 %    280 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        7.9 ms   0.2 %    320 calls
+rope_pass_kernel                                                              7.3 ms   0.2 %    160 calls
+== f8, 54000 chars, env '' args '--kv-dtype=fp8_e4m3' 05:59:08
+finish=length prompt=16014 (cached 0) completion=1 | prefill 3351 ms (4778.6 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 3362.2 ms
+moe_w4a16_kernel<                                                          1179.2 ms  35.1 %    640 calls
+reg::gemm_reg_kernel<                                                       666.5 ms  19.8 %   1040 calls
+gdn_delta_split_kernel<                                                     473.3 ms  14.1 %    240 calls
+flash_kernel<                                                               378.2 ms  11.2 %     80 calls
+moe_reduce_kernel<__nv_bfloat16>                                            126.5 ms   3.8 %    320 calls
+wq::wq_gemm_kernel<                                                         102.3 ms   3.0 %    960 calls
+gdn_conv_kernel                                                              86.9 ms   2.6 %    240 calls
+rmsnorm_kernel<                                                              79.1 ms   2.4 %    808 calls
+fp8_actq_kernel                                                              75.7 ms   2.3 %   1040 calls
+gated_rmsnorm_kernel<                                                        52.2 ms   1.6 %    240 calls
+moe_combine_kernel<__nv_bfloat16>                                            24.5 ms   0.7 %    320 calls
+gate_split_kernel                                                            21.6 ms   0.6 %     80 calls
+rope_kernel                                                                  18.6 ms   0.6 %    160 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                        15.9 ms   0.5 %    480 calls
+sigmoid_mul_kernel                                                           15.6 ms   0.5 %     80 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128       12.1 ms   0.4 %    280 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        7.0 ms   0.2 %    320 calls
+moe_topk_kernel                                                               6.8 ms   0.2 %    320 calls
+fleetq: #2701 done (exit 0)

@@ -1,0 +1,10 @@
+Here is the continuation and completion of the IntarsiaML architecture plan (v0.2), picking up from the cut-off point in Section 1.
+
+---
+
+...binaries (`.cubin`/`.ptx`), and JIT-compiled via `cudarc`/`rust-cuda
+Collecting data...
+Generating '/tmp/nsys-report-bfb7.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [===24%                      ] nsys.nsys-rep[1/1] [====25%                     ] nsys.nsys-rep[1/1] [====27%                     ] nsys.nsys-rep[1/1] [==21%                       ] nsys.nsys-rep[1/1] [===22%                      ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=15%                        ] nsys.nsys-rep[1/1] [====27%                     ] nsys.nsys-rep[1/1] [===23%                      ] nsys.nsys-rep[1/1] [==20%                       ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=16%                        ] nsys.nsys-rep[1/1] [===23%                      ] nsys.nsys-rep[1/1] [=====30%                    ] nsys.nsys-rep[1/1] [=======37%                  ] nsys.nsys-rep[1/1] [=========45%                ] nsys.nsys-rep[1/1] [===========50%              ] nsys.nsys-rep[1/1] [============55%             ] nsys.nsys-rep[1/1] [==============61%           ] nsys.nsys-rep[1/1] [================68%         ] nsys.nsys-rep[1/1] [================70%         ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/r5prof-f8-3400/nsys.nsys-rep

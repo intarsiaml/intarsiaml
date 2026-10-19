@@ -1,0 +1,3 @@
+Generating SQLite file /home/nvidia/intarsia-decfuse/out/r5prof-f8-3400/nsys.sqlite from /home/nvidia/intarsia-decfuse/out/r5prof-f8-3400/nsys.nsys-rep
+Processing [/home/nvidia/intarsia-decfuse/out/r5prof-f8-3400/nsys.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_gpu_trace.py] to [/home/nvidia/intarsia-decfuse/out/r5prof-f8-3400/trace_cuda_gpu_trace.csv]... PROCESSED
+

@@ -1,0 +1,3 @@
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 505 case(s) run, 0 cached
+exit 0

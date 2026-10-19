@@ -1,0 +1,20 @@
+steps total 65, steady-state 61 (median span 12215.2 us)
+launches/step 625  span 12215.2 us  kernel sum 12150.3 us  idle inside the step 64.9 us (0.5%)
+kernel                                                                            n/step   us/step   avg us  %kern
+void <unnamed>::fp8_gemv_pair_kernel<__nv_bfloat16>(const __nv_bfloat16 *, ...      40.0    3390.2     84.8   27.8
+void <unnamed>::moe_dec_gate_up_kernel<(int)2>(const __nv_bfloat16 *, const...      40.0    1890.5     47.3   15.5
+<unnamed>::fp8_gemv_gated_kernel(const __nv_bfloat16 *, const __nv_bfloat16...      30.0    1323.0     44.1   10.9
+void <unnamed>::nvfp4_gemv_kernel<(int)1, float>(const __nv_bfloat16 *, con...       1.0    1275.7   1275.7   10.5
+void <unnamed>::fp8_gemv_kernel<(int)1, __nv_bfloat16>(const __nv_bfloat16 ...      20.0    1146.5     57.3    9.4
+void <unnamed>::moe_dec_down_v2_kernel<(int)4>(const __nv_bfloat16 *, const...      40.0    1073.8     26.8    8.8
+<unnamed>::rmsnorm_add_pair_kernel(const __nv_bfloat16 *, const __nv_bfloat...      69.0     482.8      7.0    4.0
+void <unnamed>::gdn_delta_split_kernel<(int)128, (int)2>(const __nv_bfloat1...      30.0     360.9     12.0    3.0
+<unnamed>::nvfp4_glu_kernel(const __nv_bfloat16 *, const u8 *, const u8 *, ...      40.0     342.8      8.6    2.8
+void <unnamed>::nvfp4_gemv_kernel<(int)1, __nv_bfloat16>(const __nv_bfloat1...      40.0     165.1      4.1    1.4
+<unnamed>::moe_topk_kernel(const __nv_bfloat16 *, int, int, int, int, float...      40.0     139.3      3.5    1.1
+void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, u8>(const __nv_bflo...      10.0     119.2     11.9    1.0
+<unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __...      30.0     101.6      3.4    0.8
+<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, i...      20.0     100.8      5.0    0.8
+<unnamed>::gdn_conv_state_kernel(const __nv_bfloat16 *, float *, long, int,...      30.0      48.6      1.6    0.4
+void <unnamed>::kv_append_kernel<u8, (int)1>(const __nv_bfloat16 *, T1 *, l...      20.0      45.6      2.3    0.4
+(+10 more kernels: 181.5 us/step, 1.5%)

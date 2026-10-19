@@ -1,0 +1,119 @@
+fleetq: #2682 running on spark1: scripts/cuda-round5/dev.sh
+== build r5-base from /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/base-src (stamp 916217a4-main)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 34331784 Oct 19 04:55 /home/nvidia/intarsia-decfuse/r5-base/target/acc/release/intarsia
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 37298520 Oct 19 04:56 /home/nvidia/intarsia-decfuse/r5-f8/target/acc/release/intarsia
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 48, 11.40 W, 0 %
+== resources (attention_splitkv.o)
+ Function splitkv_kernelILi8ELi32ELi2E13__nv_bfloat16EEvPKS1_PKT2_S6_PfP6float2iillfiPKi:	  REG:255 SHARED:9280 LOCAL:0
+ Function splitkv_kernelILi8ELi32ELi2EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi:	  REG:199 SHARED:9280 LOCAL:0
+== attn_f8kv tests (+ attention, graph_pos)
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_splitkv": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88}
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.66s
+test f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel ... ok
+test f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache ... bitwise cases: {"attn_decode_f8kv_splitkv": 128, "attn_prefill_f8kv_flash": 56, "attn_prefill_f8kv_splitkv": 104}
+test f8kv_matches_with_nan_past_the_end ... ok
+test f8kv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 20.43s
+test a_failed_capture_leaves_the_stream_usable ... ok
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+== f8kv timing round 1
+test f8kv_timing ... 35B decode  N=16 Nkv=2 D=256 T=   1 kv=  1034:  bf16     16.9 us  125.4 GB/s  f8kv     15.7 us   67.4 GB/s
+35B decode  N=16 Nkv=2 D=256 T=   1 kv=  4096:  bf16     60.1 us  139.6 GB/s  f8kv     47.8 us   87.8 GB/s
+35B decode  N=16 Nkv=2 D=256 T=   1 kv= 16026:  bf16    169.3 us  193.8 GB/s  f8kv    116.7 us  140.6 GB/s
+35B decode  N=16 Nkv=2 D=256 T=   1 kv= 32768:  bf16    317.8 us  211.2 GB/s  f8kv    207.4 us  161.8 GB/s
+35B chunk   N=16 Nkv=2 D=256 T=2048 kv=  2048:  bf16    613.6 us    6.8 GB/s  f8kv    912.0 us    2.3 GB/s
+35B chunk   N=16 Nkv=2 D=256 T=2048 kv= 16384:  bf16   7894.1 us    4.3 GB/s  f8kv  12229.6 us    1.4 GB/s
+8B decode   N=32 Nkv=8 D=128 T=   1 kv= 16384:  bf16    305.2 us  219.9 GB/s  f8kv    157.7 us  212.7 GB/s
+== SASS identity of the bf16 attention kernels: r5-base vs r5-f8
+== attention_splitkv.o
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi32ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (f8b3d39d7cea4adb = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi32ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (e4e6b4cd7c44ba06 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi32ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (06816d6f121742e9 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi32ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (66ed2e8685f15f2c = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi16ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (b00b997f721651d4 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi16ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (b9dcb08c5e8ab5df = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi16ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (98398637ca225036 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi16ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (4c9a0124b37e0d01 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi8ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (c880d71c3f2b87f5 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi8ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (b9401779f99668f6 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi8ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (525ba2b42ec382ab = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi8ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (ec8e40f7828863bb = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi4ELi2EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (c347b6bcb301ddff = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi4ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (70ff5602537d6cb3 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi4ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (8e66509e0fa81a31 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi4ELi4EEEvPK13__nv_bfloat16S3_S3_PfP6float2iillfiPKi  (8a32eb1fc3b62162 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi256EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (42e14e0b52f37ea4 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi128EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (829f82d1739dc9cc = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi64EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (53ca42965b487829 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+SAME    _ZN53_GLOBAL__N__4b034188_20_attention_splitkv_cu_c6ca259514combine_kernelILi32EEEvPKfPK6float2P13__nv_bfloat16iiilPKi  (34f87e2d433d5a40 = _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514combine_ke)
+-- dev-only kernels:
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi32ELi2EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi32ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi32ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi32ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi16ELi2EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi16ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi16ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi16ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi8ELi2EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi8ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi8ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi8ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi8ELi4ELi2EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi4ELi4ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi2ELi4ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+  NEW _ZN53_GLOBAL__N__bb20f93d_20_attention_splitkv_cu_c6ca259514splitkv_kernelILi1ELi4ELi4EhEEvPK13__nv_bfloat16PKT2_S6_PfP6float2iillfiPKi
+== attention_flash.o
+CHANGED _ZN51_GLOBAL__N__3891b764_18_attention_flash_cu_023d62d512flash_kernelILi256ELi32EEEvPK13__nv_bfloat16S3_S3_PS1_iiillf
+CHANGED _ZN51_GLOBAL__N__3891b764_18_attention_flash_cu_023d62d512flash_kernelILi128ELi64EEEvPK13__nv_bfloat16S3_S3_PS1_iiillf
+CHANGED _ZN51_GLOBAL__N__3891b764_18_attention_flash_cu_023d62d512flash_kernelILi64ELi64EEEvPK13__nv_bfloat16S3_S3_PS1_iiillf
+-- dev-only kernels:
+  NEW _ZN51_GLOBAL__N__cafeacda_18_attention_flash_cu_023d62d512flash_kernelILi256ELi32E13__nv_bfloat16EEvPKS1_PKT1_S6_PS1_iiillf
+  NEW _ZN51_GLOBAL__N__cafeacda_18_attention_flash_cu_023d62d512flash_kernelILi128ELi64E13__nv_bfloat16EEvPKS1_PKT1_S6_PS1_iiillf
+  NEW _ZN51_GLOBAL__N__cafeacda_18_attention_flash_cu_023d62d512flash_kernelILi64ELi64E13__nv_bfloat16EEvPKS1_PKT1_S6_PS1_iiillf
+  NEW _ZN51_GLOBAL__N__cafeacda_18_attention_flash_cu_023d62d512flash_kernelILi256ELi32EhEEvPK13__nv_bfloat16PKT1_S6_PS1_iiillf
+  NEW _ZN51_GLOBAL__N__cafeacda_18_attention_flash_cu_023d62d512flash_kernelILi128ELi64EhEEvPK13__nv_bfloat16PKT1_S6_PS1_iiillf
+  NEW _ZN51_GLOBAL__N__cafeacda_18_attention_flash_cu_023d62d512flash_kernelILi64ELi64EhEEvPK13__nv_bfloat16PKT1_S6_PS1_iiillf
+sass-diff exit 1
+== gpu-test.sh r5-f8 --test gdn_split (+ racecheck)
+test gdn_split_is_bitwise_the_rows_kernel ... ok
+test gdn_split_state_carries_across_calls ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+== racecheck (scripts/cuda-checks/race-targets.txt)
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE gdn_split:gdn_split_state_carries_across_calls hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE attn_f8kv:f8kv_matches_with_nan_past_the_end hazards=0 test=ok
+gpu-test.sh exit 0
+== lib tests, env INTARSIA_X=0
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::gdn_delta_rule_selection ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::moe_experts_selection_by_batch_size ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::phase1_folds_are_absent_and_the_unfused_selection_is_pinned ... ok
+test kernels::tests::kernel_list_is_unchanged_by_core_op_fusion_p1 ... ok
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test kernels::tests::attention_selection_by_kv_dtype ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+fleetq: #2682 done (exit 0)

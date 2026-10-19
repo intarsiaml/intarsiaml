@@ -1,0 +1,12 @@
+Here is the continuation and completion of the IntarsiaML architecture plan, picking up from the cut-off point in Section 1 and proceeding through the remaining sections.
+
+---
+
+```cpp
+// ... continuation of Section 1
+| GPU kernels, NVIDIA | **CUDA C++** (+ inline PTX where profiling
+Collecting data...
+Generating '/tmp/nsys-report-bbed.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=15%                        ] nsys.nsys-rep[1/1] [13%                         ] nsys.nsys-rep[1/1] [11%                         ] nsys.nsys-rep[1/1] [10%                         ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=16%                        ] nsys.nsys-rep[1/1] [===23%                      ] nsys.nsys-rep[1/1] [=====30%                    ] nsys.nsys-rep[1/1] [=======37%                  ] nsys.nsys-rep[1/1] [=========45%                ] nsys.nsys-rep[1/1] [===========50%              ] nsys.nsys-rep[1/1] [============55%             ] nsys.nsys-rep[1/1] [==============61%           ] nsys.nsys-rep[1/1] [================68%         ] nsys.nsys-rep[1/1] [================70%         ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/r5prof-bf16-3400/nsys.nsys-rep

@@ -1,0 +1,13 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 44.5s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 20480 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 1034 tokens
+ids: [8160, 369, 279, 39811, 321, 9463, 314, 279, 1286, 1506, 667, 2581, 17120, 3019, 11, 20483, 685, 494, 279, 3799, 12105, 1406, 303, 10790, 220, 16, 321, 37170, 1472, 279, 9376, 13753, 13, 271, 4277, 271, 71093, 10504, 198, 320, 2423, 39811, 314, 10790, 220, 16, 198, 91, 21966, 61369, 11, 32449, 735, 2972, 77517, 351, 992, 332, 17437, 7147, 18783, 55, 1332, 53236]
+finish=length prompt=1034 (cached 0) completion=64 | prefill 958 ms (1079.4 tok/s) | decode 817 ms (77.14 tok/s)
+steps=65 graph replays=64 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65 gate_split=0ms/650

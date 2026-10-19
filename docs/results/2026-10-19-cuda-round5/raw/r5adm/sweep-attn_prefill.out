@@ -1,0 +1,67 @@
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=130 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=3.052e-5 rel_l2=2.625e-6 T=70 pos0=131 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 pos0=1500 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=1.526e-5 rel_l2=1.930e-6 T=200 pos0=1100 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=1.239e-6 rel_l2=3.660e-8 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=1.467e-4 rel_l2=4.307e-6 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=4.630e-4 rel_l2=1.577e-5 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=1.078e-3 rel_l2=3.445e-5 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=9.766e-4 rel_l2=3.958e-5 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=2.441e-4 rel_l2=7.900e-5 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=4.883e-4 rel_l2=5.909e-5 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=6.188e-4 rel_l2=1.375e-5 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=2.170e-4 rel_l2=1.027e-5 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=8.681e-4 rel_l2=3.257e-5 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=9.766e-4 rel_l2=4.203e-5 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=2.980e-8 rel_l2=6.176e-9 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=4.883e-4 rel_l2=4.576e-5 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=4.310e-3 rel_l2=1.871e-3 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=3.906e-3 rel_l2=2.219e-3 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=9.766e-4 rel_l2=2.423e-3 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=3.472e-3 rel_l2=1.858e-3 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=3.906e-3 rel_l2=2.293e-3 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=9.766e-4 rel_l2=2.372e-3 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 pos0=1500 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=1.174e-3 rel_l2=3.165e-5 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=4.239e-8 rel_l2=1.801e-9 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=6.104e-5 rel_l2=1.298e-5 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=7.440e-5 rel_l2=2.264e-6 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=6.188e-4 rel_l2=1.383e-5 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=2.170e-4 rel_l2=8.464e-6 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=4.768e-7 rel_l2=9.959e-8 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=5.208e-3 rel_l2=1.891e-3 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=3.906e-3 rel_l2=2.229e-3 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=9.766e-4 rel_l2=2.392e-3 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=4.808e-3 rel_l2=1.915e-3 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=3.704e-3 rel_l2=2.238e-3 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=9.766e-4 rel_l2=2.402e-3 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=1.110e-5 rel_l2=1.143e-6 T=16 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 pos0=1500 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=8.572e-8 rel_l2=2.196e-9 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=2.429e-6 rel_l2=5.423e-8 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=1.707e-6 rel_l2=6.362e-8 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=2.441e-4 rel_l2=5.583e-5 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=1.467e-7 rel_l2=4.478e-9 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=4.069e-5 rel_l2=9.732e-7 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=5.830e-5 rel_l2=2.017e-6 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=9.537e-7 rel_l2=1.922e-7 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+attn_prefill   attn_prefill_bf16              21      0    1.078e-3    7.900e-5  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         6      0    4.310e-3    2.423e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv      12      0    1.174e-3    3.165e-5  ADMITTED
+attn_prefill   attn_prefill_f8kv_flash         6      0    5.208e-3    2.402e-3  ADMITTED
+attn_prefill   attn_prefill_f8kv_splitkv      12      0    2.441e-4    5.583e-5  ADMITTED
+5 kernels, 57 cases in 5.2s
+exit 0

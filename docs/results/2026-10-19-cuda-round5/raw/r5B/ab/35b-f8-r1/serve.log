@@ -1,0 +1,6 @@
+[supervisor] started server pid 1961926
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 36 kernel(s) checked, 40 case(s) run, 465 cached
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 33.9s, context 20480 tokens
+intarsia server listening on http://127.0.0.1:8090
+[supervisor] signal 15: stopping the server

@@ -1,0 +1,17 @@
+Here is the continuation and completion of the IntarsiaML architecture plan, picking up from the `mermaid` diagram and completing the system overview, followed by the detailed architectural layers and implementation strategy.
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    SCHED["Scheduler: Pre-fill, Decode, KV-cache management"]
+    MODEL["Model Router: Recipe loader, Block dispatcher"]
+    KV["KV Cache: Paged, zero-copy, cross-device sync"]
+  end
+  subgraph Kernels["Kernel Packs (Crate: intarsia-kernels)"]
+    TF["TensorFold: CUDA/HIP GEMM, MoE, FlashAttention

@@ -1,0 +1,19 @@
+kernel total 903.6 ms
+moe_w4a16_kernel<                                                           310.7 ms  34.4 %    160 calls
+reg::gemm_reg_kernel<                                                       180.8 ms  20.0 %    260 calls
+gdn_delta_split_kernel<                                                     129.8 ms  14.4 %     90 calls
+moe_mma_kernel<                                                              51.9 ms   5.7 %     80 calls
+wq::wq_gemm_kernel<                                                          41.1 ms   4.6 %    490 calls
+moe_reduce_kernel<__nv_bfloat16>                                             36.0 ms   4.0 %    120 calls
+flash_kernel<                                                                29.3 ms   3.2 %     30 calls
+rmsnorm_kernel<                                                              23.8 ms   2.6 %    303 calls
+gdn_conv_kernel                                                              23.3 ms   2.6 %     90 calls
+fp8_actq_kernel                                                              21.0 ms   2.3 %    390 calls
+gated_rmsnorm_kernel<                                                        13.8 ms   1.5 %     90 calls
+moe_combine_kernel<__nv_bfloat16>                                             6.6 ms   0.7 %    120 calls
+gate_split_kernel                                                             6.0 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.5 %     60 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.2 ms   0.5 %    120 calls
+sigmoid_mul_kernel                                                            4.2 ms   0.5 %     30 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        3.9 ms   0.4 %     80 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        2.7 ms   0.3 %    120 calls
