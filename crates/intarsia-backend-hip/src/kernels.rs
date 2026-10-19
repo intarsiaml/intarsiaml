@@ -24,6 +24,7 @@ pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_FP8_PAIR",
     "INTARSIA_HIP_FP8_Q",
     "INTARSIA_HIP_FP8_ROWS",
+    "INTARSIA_HIP_GDN_PD",
     "INTARSIA_HIP_GEMM_TILE",
     "INTARSIA_HIP_GEMV",
     "INTARSIA_HIP_MOE_PAIRS",
@@ -54,6 +55,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("logits_bf16", Op::Logits),
     ("logits_bf16_gemv", Op::Logits),
     ("kv_append_bf16", Op::KvAppend),
+    ("qk_norm_rope_kv_bf16", Op::QkNormRopeKv),
     ("attn_prefill_bf16", Op::AttnPrefill),
     ("attn_decode_bf16", Op::AttnDecode),
     ("attn_prefill_bf16_flash", Op::AttnPrefill),
@@ -62,15 +64,15 @@ pub const TABLE: &[(&str, Op)] = &[
     ("silu_glu_bf16", Op::SiluGlu),
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
+    ("gdn_delta_rule_bf16_v2", Op::GdnDeltaRule),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
 
-/// Ops this backend does not implement (sampling stays on the cpu; `QkNormRopeKv` is an optional fused op only the Metal
-/// backend registers, the model runs the unfused qk-norm, rope and kv-append ops here).
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::QkNormRopeKv];
+/// Ops this backend does not implement (sampling stays on the cpu).
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (same budget as the cpu backend).
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
@@ -80,6 +82,9 @@ const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 fn base(name: &str, op: Op) -> KernelImpl {
     KernelImpl::new(op, name, "hip").arch([ARCH])
 }
+
+/// Fewest tokens `gdn_delta_rule_bf16_v2` takes: every call, decode steps included (6.2 vs 9.2 us per decode launch).
+pub const GDN_V2_MIN_TOKENS: usize = 1;
 
 /// Most query rows the split-KV kernels take per launch (above this the flash prefill kernel wins).
 const SPLITKV_MAX_ROWS: usize = 16;
@@ -150,6 +155,21 @@ pub fn all() -> Vec<KernelImpl> {
                 .priority(10),
             // the cache dtype (bf16 or fp8_e4m3) is the output's; the launcher dispatches on it
             "kv_append_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+            // qk-norm + rope + kv-append in one launch, bitwise the three unfused launchers (tests/qk_rope_kv.rs), so the
+            // budget is theirs; any row count (decode, verify, prefill chunks), bf16 or fp8 cache
+            "qk_norm_rope_kv_bf16" => k
+                .acts(bf)
+                .when(|s| {
+                    s.head_dim % 8 == 0
+                        && (8..=256).contains(&s.head_dim)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                        && s.n_heads / s.n_kv_heads <= 8
+                        && matches!(s.weight, Some(DType::Bf16) | Some(DType::Fp8E4m3))
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(10),
             "attn_prefill_bf16" | "attn_decode_bf16" => k
                 .acts(bf)
                 .weights(bf)
@@ -182,6 +202,15 @@ pub fn all() -> Vec<KernelImpl> {
                 .when(|s| matches!(s.head_dim, 32 | 64 | 128 | 256) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL),
+            // the same recurrence without the rows kernel's stalls: bitwise gdn_delta_rule_bf16 (tests/gdn_v2.rs);
+            // dk = 128 (the 35B), decode and prefill
+            "gdn_delta_rule_bf16_v2" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| s.head_dim == 128 && s.m >= GDN_V2_MIN_TOKENS && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(10),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
@@ -243,6 +272,55 @@ mod tests {
     fn op_prefix_matches_launcher_name() {
         for (name, op) in full_table() {
             assert!(name.starts_with(op.as_str()), "{name} is not named after op {op}");
+        }
+    }
+
+    /// The kernel `Registry::select` picks for `op` at shape `s` (highest priority among the registrations that accept it,
+    /// ties in registration order), or None.
+    fn pick(op: Op, s: &ShapeInfo) -> Option<String> {
+        let ks = all();
+        let mut best: Option<&KernelImpl> = None;
+        for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+            if best.is_none_or(|b| k.priority > b.priority) {
+                best = Some(k);
+            }
+        }
+        best.map(|k| k.name.clone())
+    }
+
+    /// Round 4 selection (docs/results/2026-10-19-hip-round4.md): the fused attention prologue for the 35B's and the 8B's
+    /// heads at every row count, and the stall-free delta rule for dk = 128 (other key widths keep the rows kernel).
+    #[test]
+    fn round4_selection_is_pinned() {
+        let bf = Some(DType::Bf16);
+        for (n, nkv, d) in [(16usize, 2usize, 256usize), (32, 8, 128)] {
+            for m in [1usize, 2, 16, 312, 4096] {
+                for cache in [DType::Bf16, DType::Fp8E4m3] {
+                    let s = ShapeInfo { m, n_heads: n, n_kv_heads: nkv, head_dim: d, k: d, act: bf, out: bf, weight: Some(cache), ..Default::default() };
+                    assert_eq!(pick(Op::QkNormRopeKv, &s).as_deref(), Some("qk_norm_rope_kv_bf16"), "m={m} n={n} d={d} {cache}");
+                }
+            }
+        }
+        // groups wider than 8 query heads per kv head, odd head widths: no fused prologue (the model runs the unfused ops)
+        let wide = ShapeInfo { m: 1, n_heads: 32, n_kv_heads: 2, head_dim: 128, act: bf, out: bf, weight: bf, ..Default::default() };
+        assert_eq!(pick(Op::QkNormRopeKv, &wide), None);
+        let odd = ShapeInfo { m: 1, n_heads: 16, n_kv_heads: 2, head_dim: 260, act: bf, out: bf, weight: bf, ..Default::default() };
+        assert_eq!(pick(Op::QkNormRopeKv, &odd), None);
+        let gdn = |m: usize, dk: usize| ShapeInfo {
+            m,
+            n_heads: 32,
+            n_kv_heads: 16,
+            head_dim: dk,
+            k: dk,
+            n: 128,
+            act: bf,
+            out: bf,
+            weight: bf,
+            ..Default::default()
+        };
+        for m in [1usize, 2, 7, 312, 4096] {
+            assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 128)).as_deref(), Some("gdn_delta_rule_bf16_v2"), "m={m}");
+            assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 64)).as_deref(), Some("gdn_delta_rule_bf16"), "m={m} dk=64");
         }
     }
 

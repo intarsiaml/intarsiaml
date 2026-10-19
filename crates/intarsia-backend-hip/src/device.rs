@@ -463,6 +463,23 @@ impl Backend for HipBackend {
                 "attn_decode_bf16_splitkv" => {
                     ffi::ik_attn_decode_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, pos, s)
                 }
+                "qk_norm_rope_kv_bf16" => ffi::ik_qk_norm_rope_kv_bf16(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    a.eps,
+                    a.w_offset,
+                    a.pos0 as i64,
+                    a.theta,
+                    a.rotary_dim as i64,
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    pos,
+                    s,
+                ),
                 "attn_prefill_bf16_splitkv" => {
                     ffi::ik_attn_prefill_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, s)
                 }
@@ -471,6 +488,9 @@ impl Backend for HipBackend {
                 "gdn_conv_bf16" => ffi::ik_gdn_conv_bf16(i(0), i(1), o, o.add(1), s),
                 "gdn_delta_rule_bf16" => {
                     ffi::ik_gdn_delta_rule_bf16(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
+                }
+                "gdn_delta_rule_bf16_v2" => {
+                    ffi::ik_gdn_delta_rule_bf16_v2(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
                 }
                 "matmul_fp8_gemv" => ffi::ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_v2" => ffi::ik_matmul_fp8_gemv_v2(i(0), i(1), i(2), o, s),

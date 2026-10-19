@@ -128,6 +128,36 @@ extern "C" {
         state: TM,
         s: S,
     ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_gdn_delta_rule_bf16_v2(
+        qkv: T,
+        a: T,
+        b: T,
+        a_log: T,
+        dt_bias: T,
+        eps: f32,
+        o: TM,
+        state: TM,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_qk_norm_rope_kv_bf16(
+        q: T,
+        k: T,
+        v: T,
+        qw: T,
+        kw: T,
+        eps: f32,
+        w_offset: f32,
+        pos0: i64,
+        theta: f32,
+        rotary_dim: i64,
+        q_out: TM,
+        kcache: TM,
+        vcache: TM,
+        pos: T,
+        s: S,
+    ) -> c_int;
     pub fn ik_matmul_fp8_gemv(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_gemv_v2(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma(x: T, w: T, scales: T, out: TM, s: S) -> c_int;

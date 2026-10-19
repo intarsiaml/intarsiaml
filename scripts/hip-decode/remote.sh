@@ -26,7 +26,7 @@ stage_prof() { # prof <tag>: rocprofv3 kernel trace of a 160-token 35B decode + 
   local tag=${1:-base}
   local gen="${PROF_PRE:-} $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 4096 --chat --no-think --profile-every 0 --ignore-eos ${PROF_EXTRA:-} -p 'Write a long story about a robot who learns to paint.' --max-tokens 160"
   echo "--- unprofiled"
-  $D bash -c "$gen" 2>&1 | grep -E "finish=|steps="
+  $D bash -c "$gen" 2>&1 | grep -E "finish=|steps=|WARNING"
   echo "--- rocprofv3 (kernel trace)"
   rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
   local tv; tv=$(TARGET_VOL)   # (computed first: inside the env-prefix list it would see INTARSIA_IMAGE)
@@ -129,8 +129,8 @@ stage_pfbench() {
 # chunk35l:<chunk>: does that chunk fit at 16k context (max-seq 17408, one 16384-token prompt)
 stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-16k-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
 # pf35[:tag] / pf8[:tag]: A/B speed, prefill 128/1024/4096/16384 and decode 128 (the serve's own recipe chunk)
-stage_pf35() { [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
-stage_pf8() { [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
+stage_pf35() { export SERVE_ENV=""; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
+stage_pf8() { export SERVE_ENV=""; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file
   local tag=$1; shift
@@ -270,7 +270,7 @@ stage_prof4k() {
   local tag=${1:-base}
   printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 160" > "$OUTD/dec4k.sh"
   echo "--- unprofiled"
-  $D bash -c "bash /work/bench-out/dec4k.sh" 2>&1 | grep -aE "prompt:|finish=|steps="
+  $D bash -c "bash /work/bench-out/dec4k.sh" 2>&1 | grep -aE "prompt:|finish=|steps=|WARNING"
   rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
   local tv; tv=$(TARGET_VOL)
   INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
@@ -286,7 +286,9 @@ gen35l() { # gen35l <outfile prefix>
   grep -aE "prompt:|finish=" "$1.err"
 }
 stage_ids4k() {
-  echo "--- this tree"; gen35l "$OUTD/ids4k-new"
+  rm -f "$OUTD"/ids4k-*   # never compare against a stale copy
+  # IDS_NEW_ENV="NAME=value": set for this tree's run only (e.g. INTARSIA_HIP_DISABLE of a kernel the base does not have)
+  echo "--- this tree ${IDS_NEW_ENV:-}"; ( [ -n "${IDS_NEW_ENV:-}" ] && export "${IDS_NEW_ENV?}"; gen35l "$OUTD/ids4k-new" )
   echo "--- base tree"
   ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
     cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && gen35l "$OUTD/ids4k-base" && cp "$OUTD/ids4k-base.ids" "${OUTD_NEW:-$HOME/intarsiaml-r3/bench-out}/ids4k-base.ids" )
@@ -341,6 +343,30 @@ stage_mutrun() {
     printf '%-16s ' "$m"
     $D bash -c "/target/r3mut/$m --test-threads=1" 2>&1 | grep -aE "^test result|panicked at" | head -2 | cut -c1-200 | tr '\n' ' '
     echo
+  done
+}
+
+# Round 4 (perf/hip-round4, docs/results/2026-10-19-hip-round4.md).
+# r4test: the new kernels' bitwise tests (gdn_v2 once per prefetch depth 1 / 2 / 4), and the tests of the kernels and paths
+# they sit next to (device position + graph replay, fused decode, attention)
+stage_r4test() {
+  local c
+  for c in 1 2 4; do
+    INTARSIA_HIP_GDN_PD=$c $D cargo test --release -p intarsia-backend-hip --test gdn_v2 -- --nocapture --test-threads=1 2>&1 \
+      | grep -E "^test |test result|FAILED|panicked|differ|bitwise" | cut -c1-300
+  done
+  $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test qk_rope_kv --test device_pos --test fused_decode --test attention -- --nocapture --test-threads=1 2>&1 \
+    | grep -E "^test |test result|FAILED|panicked|differ|bitwise" | cut -c1-300 | tail -40
+}
+# ids4kx: ids4k with this tree's delta rule v2 disabled (the fused prologue alone)
+stage_ids4kx() { IDS_NEW_ENV="INTARSIA_HIP_DISABLE=gdn_delta_rule_bf16_v2" stage_ids4k; }
+# gdnbench: the delta-rule kernels at the 35B's decode and prefill shapes (us per launch), per prefetch depth
+stage_gdnbench() {
+  local c
+  for c in 1 2 4; do
+    echo "=== INTARSIA_HIP_GDN_PD=$c"
+    INTARSIA_HIP_GDN_PD=$c $D cargo test --release -p intarsia-backend-hip --test gdn_v2 -- --ignored --nocapture gdn_v2_timing 2>&1 \
+      | grep -E "^gdn|panicked|FAILED" | cut -c1-260
   done
 }
 
