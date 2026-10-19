@@ -4,3 +4,5 @@
 # Add a line for every new kernel that synchronises through shared memory.
 # columns: <test binary> <test name (exact)> <kernel source>
 gdn_split gdn_split_state_carries_across_calls kernels/cuda/gdn.cu
+attn_f8kv f8kv_matches_with_nan_past_the_end kernels/cuda/attention_flash.cu
+attn_f8kv f8kv_matches_with_nan_past_the_end kernels/cuda/attention_splitkv.cu

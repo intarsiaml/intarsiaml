@@ -9,7 +9,16 @@
 //
 // Causality / chunking: query row r of the call sees keys 0 .. pos0 + r. Tiles that lie fully below the
 // first row of the block are processed without a mask. Blocks are issued longest-first.
+//
+// fp8 KV cache (attn_prefill_f8kv_flash, opt-in through an fp8_e4m3 cache): KT = e4m3 bytes. A K / V tile's bytes are
+// streamed with cp.async into the upper BK x D bytes of the very bf16 tile they will become, issued at the same points as
+// the bf16 kernel's copies (when that tile is free); where the bf16 kernel waits for the tile, each thread reads the bytes
+// it copied itself into registers, a barrier lets every thread do so, and each thread writes its bytes converted exactly to
+// bf16 (every e4m3 value is a bf16 value) into the tile, before the bf16 kernel's own __syncthreads. No extra shared memory
+// (same occupancy). The rest is the bf16 kernel's code, so the output is bitwise the bf16 kernel's on the cache upcast to
+// bf16 (tests/attn_f8kv.rs).
 #include "ik_launch.h"
+#include "ik_quant.cuh"
 
 namespace {
 
@@ -58,9 +67,23 @@ constexpr size_t flash_smem_bytes() {
 }
 
 // D: head_dim, BK: keys per tile. QREG: Q fragments in registers (else shared memory).
-template <int D, int BK>
+// 8 e4m3 bytes -> 8 bf16 (exact), as one 16-byte store
+__device__ __forceinline__ uint4 e4m3x8_to_bf16x8(uint32_t lo, uint32_t hi) {
+    const uint32_t w[2] = {lo, hi};
+    uint32_t o[4];
+#pragma unroll
+    for (int i = 0; i < 2; ++i) {
+        const float2 a = ik_e4m3x2_to_f2(static_cast<unsigned short>(w[i] & 0xFFFFu));
+        const float2 b = ik_e4m3x2_to_f2(static_cast<unsigned short>(w[i] >> 16));
+        o[2 * i] = pack_bf16(a.x, a.y);
+        o[2 * i + 1] = pack_bf16(b.x, b.y);
+    }
+    return make_uint4(o[0], o[1], o[2], o[3]);
+}
+
+template <int D, int BK, typename KT = ik_bf16>
 __global__ void __launch_bounds__(kThreads)
-flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+flash_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT* __restrict__ vc,
              ik_bf16* __restrict__ out, int T, int N, int G, int64_t cap, int64_t pos0, float sl2) {
     constexpr bool QREG = D <= 128;
     constexpr int LD = D + 8;     // padded smem row (elements): conflict-free ldmatrix / 16 B aligned rows
@@ -81,15 +104,15 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
     const int q0 = qt * kBQ;
     const int row_lo = q0 + warp * 16 + g, row_hi = row_lo + 8;
 
-    const ik_bf16* kb = kc + (int64_t)kvh * cap * D;
-    const ik_bf16* vb = vc + (int64_t)kvh * cap * D;
+    const KT* kb = kc + (int64_t)kvh * cap * D;
+    const KT* vb = vc + (int64_t)kvh * cap * D;
 
     const int q_last = (q0 + kBQ < T ? q0 + kBQ : T) - 1;
     const int64_t kv_end = pos0 + q_last + 1;                // keys visible to the last row of the block
     const int ntiles = (int)((kv_end + BK - 1) / BK);
     const int64_t mask_from = pos0 + q0 + 1;                 // tiles ending beyond this need the causal mask
 
-    auto load_tile = [&](ik_bf16* dst, const ik_bf16* src, int tile) {
+    auto load_tile = [&](ik_bf16* dst, const KT* src, int tile) {
         for (int idx = tid; idx < BK * CHUNKS; idx += kThreads) {
             const int r = idx / CHUNKS, ch = idx % CHUNKS;
             const int64_t key = (int64_t)tile * BK + r;
@@ -97,6 +120,40 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
             cp_async16(dst + r * LD + ch * 8, valid ? src + key * D + ch * 8 : src, valid);
         }
     };
+    // fp8: 16 bytes (16 dims) per copy into the staging bytes `st` [BK][D] (zero-filled past the end: e4m3 0 = bf16 0), the
+    // upper BK x D bytes of the tile (BK * LD bf16) the bytes become
+    constexpr int CH8 = D / 16;
+    constexpr int NPT = BK * CH8 / kThreads;  // 16-byte groups per thread per tile
+    static_assert(BK * CH8 % kThreads == 0, "whole groups per thread");
+    constexpr int ST_OFF = BK * LD * 2 - BK * D;  // byte offset of the staging bytes in a tile
+    unsigned char* Kst = reinterpret_cast<unsigned char*>(Ks) + ST_OFF;
+    unsigned char* Vst = reinterpret_cast<unsigned char*>(Vs) + ST_OFF;
+    auto issue8 = [&](unsigned char* st, const KT* src, int tile) {
+        for (int idx = tid; idx < BK * CH8; idx += kThreads) {
+            const int r = idx / CH8, ch = idx % CH8;
+            const int64_t key = (int64_t)tile * BK + r;
+            const bool valid = key < kv_end;
+            cp_async16(st + r * D + ch * 16, valid ? src + key * D + ch * 16 : src, valid);
+        }
+    };
+    // ... and, once landed (cp_wait: this thread's copies), the bytes this thread copied (same idx mapping) -> registers;
+    // a barrier (every thread has read its bytes: the tile may be overwritten) -> bf16 into the tile
+    auto land8 = [&](ik_bf16* dst, const unsigned char* st) {
+        uint4 v[NPT];
+#pragma unroll
+        for (int i = 0; i < NPT; ++i) {
+            const int idx = tid + i * kThreads, r = idx / CH8, ch = idx % CH8;
+            v[i] = *reinterpret_cast<const uint4*>(st + r * D + ch * 16);
+        }
+        __syncthreads();  // f8: every thread holds its staged bytes
+#pragma unroll
+        for (int i = 0; i < NPT; ++i) {
+            const int idx = tid + i * kThreads, r = idx / CH8, ch = idx % CH8;
+            *reinterpret_cast<uint4*>(dst + r * LD + ch * 16) = e4m3x8_to_bf16x8(v[i].x, v[i].y);
+            *reinterpret_cast<uint4*>(dst + r * LD + ch * 16 + 8) = e4m3x8_to_bf16x8(v[i].z, v[i].w);
+        }
+    };
+    constexpr bool F8 = sizeof(KT) == 1;
 
     // ---- Q ----
     uint32_t qa[QREG ? NKS : 1][4];
@@ -118,7 +175,8 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
         }
     }
 
-    load_tile(Ks, kb, 0);
+    if constexpr (F8) issue8(Kst, kb, 0);
+    else load_tile(Ks, kb, 0);
     cp_commit();
 
     float o[NDB][4];
@@ -131,8 +189,10 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
 
     for (int kt = 0; kt < ntiles; ++kt) {
         cp_wait<0>();     // K[kt] (and Q) landed
+        if constexpr (F8) land8(Ks, Kst);
         __syncthreads();  // ... for every thread; also: PV of the previous tile is done with Vs
-        load_tile(Vs, vb, kt);
+        if constexpr (F8) issue8(Vst, vb, kt);
+        else load_tile(Vs, vb, kt);
         cp_commit();
 
         // ---- S = Q K^T ----
@@ -156,7 +216,10 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
             }
         }
         __syncthreads();  // everyone is done reading Ks
-        if (kt + 1 < ntiles) load_tile(Ks, kb, kt + 1);
+        if (kt + 1 < ntiles) {
+            if constexpr (F8) issue8(Kst, kb, kt + 1);
+            else load_tile(Ks, kb, kt + 1);
+        }
         cp_commit();
 
         // ---- online softmax (log2 domain) ----
@@ -207,6 +270,7 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
         }
 
         cp_wait<1>();     // V[kt] landed (the K[kt+1] group may still be in flight)
+        if constexpr (F8) land8(Vs, Vst);
         __syncthreads();
 
         // ---- O += P V ----
@@ -240,8 +304,8 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
     }
 }
 
-template <int D, int BK>
-int launch_flash(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_bf16* out, int T, int N, int NKV,
+template <int D, int BK, typename KT = ik_bf16>
+int launch_flash(const ik_bf16* q, const KT* kc, const KT* vc, ik_bf16* out, int T, int N, int NKV,
                  int64_t cap, int64_t pos0, float scale, cudaStream_t s) {
     constexpr size_t smem = flash_smem_bytes<D, BK>();
     // the dynamic-smem opt-in is per function and per device context; set it once per device
@@ -250,23 +314,24 @@ int launch_flash(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_bf16
     if (cudaGetDevice(&dev) != cudaSuccess) return IK_ERR_LAUNCH;
     if (dev < 0 || dev >= 16) return IK_ERR_UNSUPPORTED;
     if (!configured[dev]) {
-        if (cudaFuncSetAttribute(flash_kernel<D, BK>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem) !=
+        if (cudaFuncSetAttribute(flash_kernel<D, BK, KT>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem) !=
             cudaSuccess)
             return IK_ERR_LAUNCH;
         configured[dev] = true;
     }
     dim3 grid((T + kBQ - 1) / kBQ, N);
-    flash_kernel<D, BK><<<grid, kThreads, smem, s>>>(q, kc, vc, out, T, N, N / NKV, cap, pos0, scale * kLog2e);
+    flash_kernel<D, BK, KT><<<grid, kThreads, smem, s>>>(q, kc, vc, out, T, N, N / NKV, cap, pos0, scale * kLog2e);
     return ik_launch_status();
 }
 
 }  // namespace
 
-extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
-                                          float scale, ik_tensor* out, void* stream) {
+namespace {
+int flash_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale, ik_tensor* out,
+                 void* stream, bool f8kv) {
     IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
-    IK_TRY(ik_check(kc, IK_DTYPE_BF16, 3));
-    IK_TRY(ik_check(vc, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(kc, f8kv ? IK_DTYPE_FP8_E4M3 : IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(vc, f8kv ? IK_DTYPE_FP8_E4M3 : IK_DTYPE_BF16, 3));
     IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
     const int64_t T = q->shape[0], N = q->shape[1], D = q->shape[2];
     const int64_t NKV = kc->shape[0], cap = kc->shape[1];
@@ -282,12 +347,33 @@ extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* k
     if (D == 256 && !ik_aligned16(q->data)) return IK_ERR_STRIDE;  // Q is staged with 16 B cp.async
     cudaStream_t s = IK_STREAM(stream);
     const ik_bf16* qp = (const ik_bf16*)q->data;
+    ik_bf16* op = (ik_bf16*)out->data;
+    if (f8kv) {
+        const uint8_t* kp = (const uint8_t*)kc->data;
+        const uint8_t* vp = (const uint8_t*)vc->data;
+        switch (D) {
+            case 64: return launch_flash<64, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+            case 128: return launch_flash<128, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+            default: return launch_flash<256, 32>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+        }
+    }
     const ik_bf16* kp = (const ik_bf16*)kc->data;
     const ik_bf16* vp = (const ik_bf16*)vc->data;
-    ik_bf16* op = (ik_bf16*)out->data;
     switch (D) {
         case 64: return launch_flash<64, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
         case 128: return launch_flash<128, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
         default: return launch_flash<256, 32>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
     }
+}
+}  // namespace
+
+extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                          float scale, ik_tensor* out, void* stream) {
+    return flash_launch(q, kc, vc, pos0, scale, out, stream, false);
+}
+
+// fp8_e4m3 KV cache, bf16 q / out
+extern "C" int ik_attn_prefill_f8kv_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                          float scale, ik_tensor* out, void* stream) {
+    return flash_launch(q, kc, vc, pos0, scale, out, stream, true);
 }

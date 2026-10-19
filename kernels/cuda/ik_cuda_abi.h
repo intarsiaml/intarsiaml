@@ -38,6 +38,17 @@ int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tens
 int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                                  const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 
+/* attn_decode_f8kv_splitkv / attn_prefill_f8kv_splitkv / attn_prefill_f8kv_flash: ik_attn_decode_bf16_splitkv /
+ * ik_attn_prefill_bf16_splitkv / ik_attn_prefill_bf16_flash (same arguments and scratch, bf16 q and out) over an fp8_e4m3 KV
+ * cache [Nkv, cap, D]; bitwise the bf16 kernels on the cache upcast to bf16, see kernels/cuda/attention_splitkv.cu and
+ * attention_flash.cu. Selected only when the cache is fp8_e4m3 (`--kv-dtype fp8_e4m3`). */
+int ik_attn_decode_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, void* stream);
+int ik_attn_prefill_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                 ik_tensor* out, const ik_scratch* scratch, void* stream);
+int ik_attn_prefill_f8kv_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                               ik_tensor* out, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

@@ -13,7 +13,13 @@
 // Scratch (ik_scratch): float acc[T][N][nsplit][D] followed by float2 ml[T][N][nsplit]; see splitkv_scratch_bytes.
 // The split policy depends on kv_len only (never on the data), so results are run-to-run identical.
 // The policy is mirrored in crates/intarsia-backend-cuda/src/kernels.rs (splitkv_parts); keep the two in sync.
+//
+// fp8 KV cache (attn_*_f8kv_splitkv, opt-in through an fp8_e4m3 cache): the same kernels with KT = e4m3 bytes. A thread's
+// 8 dims of a key are one 8-byte load instead of 16, converted exactly to f32 (every e4m3 value is a bf16 / f32 value);
+// everything after the conversion is the bf16 kernel's code, so the output is bitwise the bf16 kernel's on the cache
+// upcast to bf16 (tests/attn_f8kv.rs). The bf16 instantiations compile to the same SASS as before the template parameter.
 #include "ik_launch.h"
+#include "ik_quant.cuh"
 
 extern "C" {
 int ik_attn_prefill_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
@@ -48,9 +54,38 @@ int64_t splitkv_scratch_bytes(int64_t T, int64_t N, int64_t D, int nsplit) {
     return T * N * nsplit * (D + 2) * 4;
 }
 
-template <int GP, int TPK, int KB>
+// the cache element: bf16 (16 B per thread per key) or e4m3 bytes (8 B); load_kv8 returns the raw bits of 8 dims
+template <typename KT>
+struct KvLoad;
+template <>
+struct KvLoad<ik_bf16> {
+    using V = uint4;
+    static __device__ __forceinline__ V zero() { return make_uint4(0, 0, 0, 0); }
+    static __device__ __forceinline__ V load(const ik_bf16* p) { return __ldg(reinterpret_cast<const uint4*>(p)); }
+    static __device__ __forceinline__ void unpack(const V& v, float* f) { ik_unpack8(v, f); }
+};
+template <>
+struct KvLoad<uint8_t> {
+    using V = uint2;
+    static __device__ __forceinline__ V zero() { return make_uint2(0, 0); }
+    static __device__ __forceinline__ V load(const uint8_t* p) { return __ldg(reinterpret_cast<const uint2*>(p)); }
+    static __device__ __forceinline__ void unpack(const V& v, float* f) {
+        const uint32_t w[2] = {v.x, v.y};
+#pragma unroll
+        for (int i = 0; i < 2; ++i) {
+            const float2 a = ik_e4m3x2_to_f2(static_cast<unsigned short>(w[i] & 0xFFFFu));
+            const float2 b = ik_e4m3x2_to_f2(static_cast<unsigned short>(w[i] >> 16));
+            f[4 * i + 0] = a.x;
+            f[4 * i + 1] = a.y;
+            f[4 * i + 2] = b.x;
+            f[4 * i + 3] = b.y;
+        }
+    }
+};
+
+template <int GP, int TPK, int KB, typename KT = ik_bf16>
 __global__ void __launch_bounds__(kBlock)
-splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT* __restrict__ vc,
                float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
                float qscale, int nsplit, const int32_t* pos_dev) {
     // `nsplit` is the grid's split count and the stride of the partials. The splits actually used follow from the key
@@ -73,8 +108,9 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, co
     int64_t end = start + chunk;
     if (end > visible) end = visible;
 
-    const ik_bf16* kb = kc + (int64_t)kvh * cap * D + c * 8;
-    const ik_bf16* vb = vc + (int64_t)kvh * cap * D + c * 8;
+    const KT* kb = kc + (int64_t)kvh * cap * D + c * 8;
+    const KT* vb = vc + (int64_t)kvh * cap * D + c * 8;
+    using L = KvLoad<KT>;
 
     float qr[GP][8];
 #pragma unroll
@@ -96,24 +132,24 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, co
     }
 
     for (int64_t base = start; base < end; base += (int64_t)NG * KB) {
-        uint4 kk[KB], vv[KB];
+        typename L::V kk[KB], vv[KB];
         bool ok[KB];
 #pragma unroll
         for (int u = 0; u < KB; ++u) {
             const int64_t j = base + (int64_t)u * NG + gk;
             ok[u] = j < end;
-            kk[u] = make_uint4(0, 0, 0, 0);
-            vv[u] = make_uint4(0, 0, 0, 0);
+            kk[u] = L::zero();
+            vv[u] = L::zero();
             if (ok[u]) {
-                kk[u] = __ldg(reinterpret_cast<const uint4*>(kb + j * D));
-                vv[u] = __ldg(reinterpret_cast<const uint4*>(vb + j * D));
+                kk[u] = L::load(kb + j * D);
+                vv[u] = L::load(vb + j * D);
             }
         }
         float sc[KB][GP];
 #pragma unroll
         for (int u = 0; u < KB; ++u) {
             float kf[8];
-            ik_unpack8(kk[u], kf);
+            L::unpack(kk[u], kf);
 #pragma unroll
             for (int g = 0; g < GP; ++g) {
                 float d = 0.f;
@@ -126,7 +162,7 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, co
         }
         float vf[KB][8];
 #pragma unroll
-        for (int u = 0; u < KB; ++u) ik_unpack8(vv[u], vf[u]);
+        for (int u = 0; u < KB; ++u) L::unpack(vv[u], vf[u]);
 #pragma unroll
         for (int g = 0; g < GP; ++g) {
             float tmax = sc[0][g];
@@ -206,21 +242,21 @@ combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, i
     out[row * D + threadIdx.x] = ik_f2b(A / L);
 }
 
-template <int GP, int TPK, int KB>
-void launch_split(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, float* pacc, float2* pml, int64_t T,
+template <int GP, int TPK, int KB, typename KT>
+void launch_split(const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml, int64_t T,
                   int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
                   const int32_t* pos_dev, cudaStream_t s) {
     dim3 grid(nsplit, (unsigned)NKV, (unsigned)T);
-    splitkv_kernel<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
+    splitkv_kernel<GP, TPK, KB, KT><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
                                                         qscale, nsplit, pos_dev);
 }
 
-template <int TPK>
-int dispatch_group(int G, const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, float* pacc, float2* pml,
+template <int TPK, typename KT>
+int dispatch_group(int G, const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml,
                    int64_t T, int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
                    const int32_t* pos_dev, cudaStream_t s) {
 #define IK_SPLIT_CASE(GPV, KBV)                                                                                \
-    launch_split<GPV, TPK, KBV>(q, kc, vc, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s);       \
+    launch_split<GPV, TPK, KBV, KT>(q, kc, vc, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s);       \
     return IK_OK;
     if (G <= 1) { IK_SPLIT_CASE(1, 4) }
     if (G <= 2) { IK_SPLIT_CASE(2, 4) }
@@ -231,12 +267,14 @@ int dispatch_group(int G, const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc
 }
 
 int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
-                   ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, void* stream, bool decode) {
+                   ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, void* stream, bool decode,
+                   bool f8kv = false) {
     IK_TRY(ik_check_pos(pos));
     const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
     IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
-    IK_TRY(ik_check(kc, IK_DTYPE_BF16, 3));
-    IK_TRY(ik_check(vc, IK_DTYPE_BF16, 3));
+    const ik_dtype kvt = f8kv ? IK_DTYPE_FP8_E4M3 : IK_DTYPE_BF16;
+    IK_TRY(ik_check(kc, kvt, 3));
+    IK_TRY(ik_check(vc, kvt, 3));
     IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
     const int64_t T = q->shape[0], N = q->shape[1], D = q->shape[2];
     const int64_t NKV = kc->shape[0], cap = kc->shape[1];
@@ -260,11 +298,21 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
 
     cudaStream_t s = IK_STREAM(stream);
     const ik_bf16* qp = (const ik_bf16*)q->data;
-    const ik_bf16* kp = (const ik_bf16*)kc->data;
-    const ik_bf16* vp = (const ik_bf16*)vc->data;
     const float qscale = scale * kLog2e;
     int rc = IK_ERR_SHAPE;
-    switch (D) {
+    if (f8kv) {
+        const uint8_t* kp = (const uint8_t*)kc->data;
+        const uint8_t* vp = (const uint8_t*)vc->data;
+        switch (D) {
+            case 32: rc = dispatch_group<4>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
+            case 64: rc = dispatch_group<8>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
+            case 128: rc = dispatch_group<16>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
+            case 256: rc = dispatch_group<32>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
+        }
+    }
+    const ik_bf16* kp = (const ik_bf16*)kc->data;
+    const ik_bf16* vp = (const ik_bf16*)vc->data;
+    if (!f8kv) switch (D) {
         case 32: rc = dispatch_group<4>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
         case 64: rc = dispatch_group<8>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
         case 128: rc = dispatch_group<16>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
@@ -296,6 +344,17 @@ int ik_attn_decode_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const i
 int ik_attn_prefill_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
                                  float scale, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, nullptr, stream, false);
+}
+
+// fp8_e4m3 KV cache (bf16 q / out), same scratch and grid policy as the two launchers above
+int ik_attn_decode_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+    return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, pos, stream, true, true);
+}
+
+int ik_attn_prefill_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                 ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, nullptr, stream, false, true);
 }
 
 }  // extern "C"
