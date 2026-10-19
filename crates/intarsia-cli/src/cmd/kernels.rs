@@ -117,21 +117,83 @@ fn test(a: TestArgs) -> Result<()> {
         println!("{} kernels, {} cases in {:.1}s", report.kernels.len(), report.rows.len(), t0.elapsed().as_secs_f64());
     }
     // An admission run that exercised nothing must not look like a pass (a filter that matched no kernel, a backend
-    // whose kernels all skipped): say SKIPPED per kernel and fail when no kernel ran a single case.
+    // whose kernels all skipped): say SKIPPED per kernel and fail when no kernel ran a single case. A kernel with no case in
+    // this sweep (e.g. --quick has no shape it accepts) is untested, not failed: it stays `Untested` for plan-time admission,
+    // which tests it on the plan's own shapes, so it does not fail the command (it used to, through `all_pass`).
     let skipped: Vec<&str> = report.kernels.iter().filter(|k| k.cases == 0).map(|k| k.kernel.as_str()).collect();
     for k in &skipped {
         eprintln!("SKIPPED: kernel {k} ran 0 cases on backend '{}'", a.backend);
     }
-    let ran = report.kernels.len() - skipped.len();
-    if ran == 0 {
-        bail!(
+    match verdict(&report.kernels) {
+        Verdict::NothingRan => bail!(
             "no kernel ran any case on backend '{}' ({} registered kernel(s) matched the filters): nothing was tested",
             a.backend,
             report.kernels.len()
-        );
-    }
-    if !report.all_pass() {
-        bail!("kernel admission failed");
+        ),
+        Verdict::Failed(n) => bail!("kernel admission failed ({n} kernel(s) REJECTED)"),
+        Verdict::Pass { skipped: 0 } => {}
+        Verdict::Pass { skipped } => println!(
+            "incomplete: {skipped} kernel(s) had no cases in this sweep{} (untested, not failed; plan-time admission tests them)",
+            if a.quick { " (--quick)" } else { "" }
+        ),
     }
     Ok(())
+}
+
+/// Outcome of an admission run for the exit status: any kernel that ran cases and failed one (REJECTED) fails it, a run in
+/// which no kernel ran a case fails it, kernels with no case (SKIPPED) alone do not.
+#[derive(Debug, PartialEq, Eq)]
+enum Verdict {
+    Pass { skipped: usize },
+    Failed(usize),
+    NothingRan,
+}
+
+fn verdict(kernels: &[intarsia_core::admission::KernelSummary]) -> Verdict {
+    let skipped = kernels.iter().filter(|k| k.cases == 0).count();
+    if skipped == kernels.len() {
+        return Verdict::NothingRan;
+    }
+    let rejected = kernels.iter().filter(|k| k.cases > 0 && !k.admitted).count();
+    if rejected > 0 {
+        Verdict::Failed(rejected)
+    } else {
+        Verdict::Pass { skipped }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use intarsia_core::admission::KernelSummary;
+
+    fn k(cases: usize, failed: usize) -> KernelSummary {
+        KernelSummary {
+            op: Op::Matmul,
+            kernel: format!("k{cases}_{failed}"),
+            backend: "cuda".into(),
+            cases,
+            failed,
+            worst_max_abs: 0.0,
+            worst_rel_l2: 0.0,
+            admitted: cases > 0 && failed == 0, // as run_admission sets it
+        }
+    }
+
+    #[test]
+    fn skipped_kernels_alone_do_not_fail_the_run() {
+        // the CUDA --quick sweep of main: 39 ADMITTED, 7 SKIPPED, 0 FAIL -> exit 0 with the "incomplete" line
+        let mut ks: Vec<_> = (0..39).map(|_| k(5, 0)).collect();
+        ks.extend((0..7).map(|_| k(0, 0)));
+        assert_eq!(verdict(&ks), Verdict::Pass { skipped: 7 });
+        assert_eq!(verdict(&[k(3, 0)]), Verdict::Pass { skipped: 0 });
+    }
+
+    #[test]
+    fn a_rejected_kernel_or_an_empty_run_still_fails() {
+        assert_eq!(verdict(&[k(5, 0), k(5, 1), k(0, 0)]), Verdict::Failed(1));
+        assert_eq!(verdict(&[k(5, 2), k(4, 4)]), Verdict::Failed(2));
+        assert_eq!(verdict(&[k(0, 0), k(0, 0)]), Verdict::NothingRan);
+        assert_eq!(verdict(&[]), Verdict::NothingRan);
+    }
 }

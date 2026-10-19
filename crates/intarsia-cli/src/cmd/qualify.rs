@@ -1107,7 +1107,13 @@ fn st_kernels(c: &mut Ctx) -> Result<Out> {
         return Ok(Out::error(format!("kernels test {}", r.describe())));
     }
     let mut o = if r.ok() {
-        Out::pass(if summary.is_empty() { "all kernels admitted".to_string() } else { summary.clone() })
+        // kernels with no case in the sweep do not fail `kernels test`; keep them visible in the pass line
+        let incomplete = text.lines().find(|l| l.starts_with("incomplete: ")).map(|l| format!("; {l}")).unwrap_or_default();
+        Out::pass(if summary.is_empty() {
+            format!("all kernels admitted{incomplete}")
+        } else {
+            format!("{summary}{incomplete}")
+        })
     } else {
         let err = r.stderr();
         if err.contains("kernel admission failed") || err.contains("nothing was tested") {
