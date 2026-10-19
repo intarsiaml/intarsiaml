@@ -498,9 +498,9 @@ MUTATIONS.update({
 # Round 9 split-KV stage 1 at 8 waves per SIMD (attention_splitkv.hip splitkv_kernel_o8, INTARSIA_HIP_SPLITKV_OCC)
 SKV = "kernels/hip/attention_splitkv.hip"
 MUTATIONS.update({
-    # the 7-wave kernel stays the default
-    "r9-occ-def": (SKV, [("return !(e && e[0] == '0' && e[1] == 0);\n}\n\ntemplate <int D, int kCombBatch>",
-                          "return e && e[0] == '1' && e[1] == 0;\n}\n\ntemplate <int D, int kCombBatch>")]),
+    # the 8-wave kernel becomes the default
+    "r9-occ-def": (SKV, [("return e && e[0] == '1' && e[1] == 0;\n}\n\ntemplate <int D, int kCombBatch>",
+                          "return !(e && e[0] == '0' && e[1] == 0);\n}\n\ntemplate <int D, int kCombBatch>")]),
     # the 8-wave launch gets K and V swapped
     "r9-occ-kv": (SKV, [("splitkv_kernel_o8<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, kc, vc,",
                          "splitkv_kernel_o8<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, vc, kc,")]),

@@ -1,8 +1,8 @@
 //! Round 9 (docs/results/2026-10-19-hip-round9.md): split-KV attention stage 1 at 8 waves per SIMD (kernels/hip/
-//! attention_splitkv.hip `splitkv_kernel_o8`, the same body under `amdgpu_waves_per_eu(8)`, the default) must give every bit
-//! of the 7-wave kernel (INTARSIA_HIP_SPLITKV_OCC=0, read at every launch). Decode and the verify / short-prefill path
+//! attention_splitkv.hip `splitkv_kernel_o8`, the same body under `amdgpu_waves_per_eu(8)`, opt-in with INTARSIA_HIP_SPLITKV_OCC=1)
+//! must give every bit of the 7-wave kernel (the default; read at every launch). Decode and the verify / short-prefill path
 //! (2..16 rows) on GQA groups 1..8 and head dims 32..256, key counts from one key to past the 64-split cap, peaky and flat
-//! softmax, random keys past the causal edge. Also pins the selection (`splitkv_occ_selected`): on by default, `0` off.
+//! softmax, random keys past the causal edge. Also pins the selection (`splitkv_occ_selected`): off by default, `1` on, `0` off.
 //!
 //! Its own test binary with a single test: it sets an environment variable, which no other test may race with.
 #![cfg(ik_hip)]
@@ -49,11 +49,11 @@ fn case(op: Op, rng: &mut SplitMix64, n: usize, nkv: usize, d: usize, t: usize, 
 #[test]
 fn splitkv_8_waves_is_bitwise_the_7_wave_kernel() {
     std::env::remove_var("INTARSIA_HIP_SPLITKV_OCC");
-    assert!(intarsia_backend_hip::splitkv_occ_selected(), "the 8-wave stage 1 must be the default");
+    assert!(!intarsia_backend_hip::splitkv_occ_selected(), "the 7-wave stage 1 must be the default");
     std::env::set_var("INTARSIA_HIP_SPLITKV_OCC", "0");
     assert!(!intarsia_backend_hip::splitkv_occ_selected(), "INTARSIA_HIP_SPLITKV_OCC=0 must select the 7-wave kernel");
     std::env::set_var("INTARSIA_HIP_SPLITKV_OCC", "1");
-    assert!(intarsia_backend_hip::splitkv_occ_selected());
+    assert!(intarsia_backend_hip::splitkv_occ_selected(), "INTARSIA_HIP_SPLITKV_OCC=1 must select the 8-wave kernel");
     std::env::remove_var("INTARSIA_HIP_SPLITKV_OCC");
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(909);
@@ -72,10 +72,11 @@ fn splitkv_8_waves_is_bitwise_the_7_wave_kernel() {
                     continue;
                 }
                 let hc = case(op, &mut rng, n, nkv, d, t, p, qscale);
-                std::env::set_var("INTARSIA_HIP_SPLITKV_OCC", "0");
-                let old = run_host(&*hip, name, &hc).unwrap_or_else(|e| panic!("{name} N={n} Nkv={nkv} D={d} T={t} pos0={p}: {e}"));
                 std::env::remove_var("INTARSIA_HIP_SPLITKV_OCC");
+                let old = run_host(&*hip, name, &hc).unwrap_or_else(|e| panic!("{name} N={n} Nkv={nkv} D={d} T={t} pos0={p}: {e}"));
+                std::env::set_var("INTARSIA_HIP_SPLITKV_OCC", "1");
                 let new = run_host(&*hip, name, &hc).unwrap();
+                std::env::remove_var("INTARSIA_HIP_SPLITKV_OCC");
                 assert!(
                     old[0].data == new[0].data,
                     "{name} N={n} Nkv={nkv} D={d} T={t} pos0={p} qscale={qscale}: the 8-wave stage 1 changed the output"

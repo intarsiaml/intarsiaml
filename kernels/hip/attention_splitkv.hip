@@ -203,8 +203,9 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, co
 // Round 9 (docs/results/2026-10-19-hip-round9.md): the same body with the register budget of 8 waves per SIMD. GP = 8
 // (the 35B: 16 q heads over 2 kv heads) takes 212 VGPRs, i.e. 7 waves per SIMD, so of the 128 blocks of 8 waves a
 // long-context decode launches (64 splits x 2 kv heads) only 112 are resident and 16 run as a second round. At <= 192 VGPRs
-// all 128 fit. Same instructions in the same order, only allocated differently: the same bits (tests/splitkv_r8.rs, ids).
-// INTARSIA_HIP_SPLITKV_OCC=0 selects the kernel above.
+// all 128 fit. Same instructions in the same order, only allocated differently: the same bits (tests/splitkv_occ.rs, ids).
+// Opt-in, INTARSIA_HIP_SPLITKV_OCC=1: at 192 VGPRs it spills 28 bytes per lane, which costs ~30 % per launch at short
+// context (12.4 -> 16.1 us, ~0.6 % of a 128-token decode step) and wins ~12 % per launch at ~17.6k tokens.
 template <int GP, int TPK, int KB>
 __global__ void __launch_bounds__(kBlock) __attribute__((amdgpu_waves_per_eu(8)))
 splitkv_kernel_o8(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
@@ -215,7 +216,7 @@ splitkv_kernel_o8(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc,
 
 inline bool splitkv_occ() {
     const char* e = getenv("INTARSIA_HIP_SPLITKV_OCC");
-    return !(e && e[0] == '0' && e[1] == 0);
+    return e && e[0] == '1' && e[1] == 0;
 }
 
 template <int D, int kCombBatch>
@@ -354,7 +355,7 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
 
 extern "C" {
 
-// ik_hip_abi.h (round 9 pin, tests/splitkv_occ.rs): 1 when stage 1 runs as splitkv_kernel_o8 (INTARSIA_HIP_SPLITKV_OCC)
+// ik_hip_abi.h (round 9 pin, tests/splitkv_occ.rs): 1 when stage 1 runs as splitkv_kernel_o8 (INTARSIA_HIP_SPLITKV_OCC=1)
 int ik_hip_splitkv_occ(void) { return splitkv_occ() ? 1 : 0; }
 
 int ik_attn_decode_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
