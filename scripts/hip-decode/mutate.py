@@ -213,6 +213,13 @@ MUTATIONS = {
     "gdn2-dot": ("kernels/hip/gdn.hip", [("float t = __builtin_fmaf(s.x, k.x, s.y * k.y);", "float t = __builtin_fmaf(s.y, k.y, s.x * k.x);")]),
     # delta rule v2: the value is halved
     "gdn2-v": ("kernels/hip/gdn.hip", [("const float v = valid ? ik_b2f(r.v) : 0.f;", "const float v = valid ? ik_b2f(r.v) * 0.5f : 0.f;")]),
+    # --- round 5: the f8 default (unit tests of the selection, no GPU: `cargo test -p intarsia-backend-hip --lib`) ---
+    # back to the round-4 opt-in (unset = v2)
+    "f8-optin": ("crates/intarsia-backend-hip/src/quantmoe.rs", [('    v != Some("0")\n', '    v == Some("1")\n')]),
+    # the kill switch is ignored ("0" keeps f8)
+    "f8-nokill": ("crates/intarsia-backend-hip/src/quantmoe.rs", [('    v != Some("0")\n', '    v != Some("off")\n')]),
+    # f8 registered below v2 (v2 would stay the GEMM although f8 is "on")
+    "f8-prio": ("crates/intarsia-backend-hip/src/quantmoe.rs", [(".priority(if fp8_f8_enabled() { 5 } else { -10 })", ".priority(if fp8_f8_enabled() { 0 } else { -10 })")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -222,6 +229,7 @@ TESTS["moe-z-step"] = "quantmoe"
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
+TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio")})
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
 
 tree, name = sys.argv[1], sys.argv[2]

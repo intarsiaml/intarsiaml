@@ -46,14 +46,21 @@ pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// the same as the elementwise kernels' (kernels.rs `BF16_TOL`).
 const GLU_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 
-/// `matmul_fp8_mma_f8` is selected only with INTARSIA_HIP_FP8_F8=1. Its products are exact like the bf16 kernel's and it
-/// agrees with the cpu reference to 5e-7 (f32 out), but the order of the f32 additions differs, which moves the 35B's
-/// aggregate prefill KL against the vLLM golden from 7.071e-3 to 7.417e-3, while the base build is bit-identical run to run,
-/// across prefill chunks (spread 0): by the rule that a changed numeric path must not be worse than the base
-/// beyond the base's own spread, it is off by default (docs/results/2026-10-17-hip-prefill.md).
+/// `matmul_fp8_mma_f8` is the default prefill GEMM for the fp8 projections (M >= 5); INTARSIA_HIP_FP8_F8=0 is the kill switch
+/// that puts `matmul_fp8_mma_v2` back (any other value, or unset, keeps f8). Its products are exact like the bf16 kernel's
+/// and it agrees with the cpu reference to 5e-7 (f32 out), but the order of the f32 additions differs (fp8 x fp8 WMMA
+/// instead of bf16 tiles), so it is not bitwise v2: the 35B's prefill KL21 against the vLLM goldens moves from 7.071e-3 to
+/// 7.417e-3 (short) and from 4.583e-2 to 4.356e-2 (long), every gate verdict unchanged, for +10-12 % prefill
+/// (docs/results/2026-10-19-hip-round4.md section 14). Off by default until round 5 (decided on those numbers,
+/// docs/results/2026-10-19-hip-round5.md).
 pub fn fp8_f8_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_HIP_FP8_F8").is_ok_and(|v| v == "1"))
+    *ON.get_or_init(|| fp8_f8_from(std::env::var("INTARSIA_HIP_FP8_F8").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_FP8_F8 -> f8 on: on unless it is exactly "0".
+pub fn fp8_f8_from(v: Option<&str>) -> bool {
+    v != Some("0")
 }
 
 pub fn all() -> Vec<KernelImpl> {
@@ -87,8 +94,9 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL),
                 // W8A8 prefill GEMM on the fp8 x fp8 WMMA (kernels/hip/ik_f8_gemm.h); weight-only activations run the bf16
-                // kernel inside. OPT-IN (INTARSIA_HIP_FP8_F8=1, see `fp8_f8_enabled`): off, matmul_fp8_mma stays the kernel for
-                // these shapes. Serves every M the gemv does not (>= 5), so a tail chunk is rounded like the rows of a full one.
+                // kernel inside. DEFAULT ON (INTARSIA_HIP_FP8_F8=0 turns it off, see `fp8_f8_enabled`): off, matmul_fp8_mma_v2 is
+                // the kernel for these shapes. Serves every M the gemv does not (>= 5), so a tail chunk is rounded like the rows
+                // of a full one.
                 "matmul_fp8_mma_f8" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
@@ -224,13 +232,31 @@ mod tests {
         best.expect("a MatmulFp8 kernel for every shape").name.clone()
     }
 
-    /// Pins the fp8 selection: the GEMVs for decode rows, `matmul_fp8_mma_v2` for every other shape (prefill chunks, tails,
-    /// verify rows), `matmul_fp8_mma_f8` above it only when opted in. `matmul_fp8_mma` stays registered (admission sweeps it, and
-    /// it is the bitwise reference of tests/fp8_mma_v2.rs) but is never chosen.
+    /// The f8 default (round 5): on when INTARSIA_HIP_FP8_F8 is unset or anything but "0"; "0" is the kill switch.
+    #[test]
+    fn fp8_f8_is_the_default() {
+        assert!(fp8_f8_from(None));
+        assert!(fp8_f8_from(Some("1")));
+        assert!(fp8_f8_from(Some("")));
+        assert!(!fp8_f8_from(Some("0")));
+        assert_eq!(fp8_f8_enabled(), std::env::var("INTARSIA_HIP_FP8_F8").as_deref() != Ok("0"));
+    }
+
+    /// Pins the fp8 selection: the GEMVs for decode rows, `matmul_fp8_mma_f8` for every other shape with M >= 5 (prefill
+    /// chunks, tails, verify rows) by default, `matmul_fp8_mma_v2` there under the kill switch INTARSIA_HIP_FP8_F8=0 and for the
+    /// long decode rows f8 does not take. `matmul_fp8_mma` stays registered (admission sweeps it, and it is the bitwise
+    /// reference of tests/fp8_mma_v2.rs) but is never chosen.
     #[test]
     fn fp8_selection_is_pinned() {
         let ks = all();
         let gemm = if fp8_f8_enabled() { "matmul_fp8_mma_f8" } else { "matmul_fp8_mma_v2" };
+        let f8 = ks.iter().find(|k| k.name == "matmul_fp8_mma_f8").unwrap();
+        let v2 = ks.iter().find(|k| k.name == "matmul_fp8_mma_v2").unwrap();
+        if fp8_f8_enabled() {
+            assert!(f8.priority > v2.priority, "f8 is the default GEMM");
+        } else {
+            assert!(f8.priority < v2.priority, "INTARSIA_HIP_FP8_F8=0 puts v2 back");
+        }
         // the 35B's dense fp8 projections (N x K): qkv / q, z, o_proj / out_proj, k / v
         for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
             for m in [5usize, 16, 17, 312, 1024, 4096] {
