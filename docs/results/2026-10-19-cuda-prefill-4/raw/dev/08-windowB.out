@@ -1,0 +1,13 @@
+23:05:39 fleetq status:
+fleetq · 23:05:39 · last health check 14s ago
+
+spark1 (spark-4e77) online · 116 GB: services 64, jobs 0, free 52 · box reports 52.5 free, GPU 0% busy
+  + spark1-vllm              flight, guidance, capcom     64 GB  up
+  QUEUED 1. #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f): needs spark2 to itself; running there: #2564 "spark2: pin 6.17.0-1029 as default kernel + linux-tools" (josef@endor)
+  QUEUED 2. #2575 "intarsiaml cuda-prefill-4: read 35B config.json (read-only)" (claude-f31ccf91): in line behind #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f) on spark1
+fleetq: #2578 waiting (#3 in line): in line behind #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f) on spark1
+fleetq: #2578 waiting (#2 in line): in line behind #2575 "intarsiaml cuda-prefill-4: read 35B config.json (read-only)" (claude-f31ccf91) on spark1
+fleetq:   #2575 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2575 set, or it will wait for #2575 to be released.
+fleetq: #2578 waiting (#1 in line): spark1 is held exclusively by #2574 "dgx-spark-network-tests: REVERSED (spark2->spark1) thermal soaks + NCCL sweep, ~25 min" (claude-4f14040f)
+23:38:35 exiting with status 143, restoring the box
+23:38:35 done (status 143)
