@@ -4,7 +4,7 @@
 #   peak   kernels/cuda_checks/mma_peak.cu (tensor-core throughput, shared-memory limits)
 #   gdn    tests gdn_lanes + gdn_timing (lanes vs rows kernel at the 35B shapes)
 #   wq     bench_wq_prefill_shapes for each setting in WQ_CFGS (";"-separated "ENV=v ..." sets, "" = default)
-#   wqt    the wq kernel tests (WQ_TESTS, default: --test quantmoe)
+#   wqt    the wq kernel tests (WQ_TESTS, default: --test quantmoe), once per WQT_ENVS entry (space separated, ENV=v,ENV=v)
 #   res    register / smem use of the wq kernels
 #   fleetq run --host spark1 --mem 12 --label "prefill-3 dev" --wait-timeout 60 -- scripts/cuda-prefill3/dev.sh
 set -euo pipefail
@@ -34,7 +34,10 @@ if has res; then
 fi
 if has wqt; then
   echo "== wq tests"
-  rsh "cd $R/$TREE && CARGO_BUILD_JOBS=6 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda ${WQ_TESTS:---test quantmoe} -- --nocapture --test-threads=1 2>&1 | grep -E '^test |rel_l2|differ|panicked|assert|result:' | tail -80"
+  for e in ${WQT_ENVS:-INTARSIA_X=0}; do
+    echo "-- env ${e//,/ }"
+    rsh "cd $R/$TREE && env ${e//,/ } CARGO_BUILD_JOBS=6 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda ${WQ_TESTS:---test quantmoe} -- --nocapture --test-threads=1 2>&1 | grep -E '^test |rel_l2|differ|panicked|assert|result:' | tail -80"
+  done
 fi
 if has wq; then
   IFS=';' read -r -a cfgs <<< "${WQ_CFGS:-}"

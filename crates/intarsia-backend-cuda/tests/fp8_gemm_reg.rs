@@ -69,25 +69,28 @@ fn check(cuda: &dyn Backend, hc: &HostCall, label: &str, vs_ref: bool) {
     }
 }
 
-/// Tails and modes on random checkpoint-like weights: M below, at and above the 128-row tile (33, 100, 128, 1025), N not a
-/// multiple of the 128-row weight tile (192, 200 vectorised; 196 takes the scalar epilogue: N % 8 != 0), K of one and
-/// several 64-wide steps (128, 256, 1024), bf16 and f32 outputs, W8A8 and weight-only activations.
+/// Tails and modes on random checkpoint-like weights. The launcher runs the 128 x 128 kernel for grids of at least 24 tiles
+/// (else the 64-row wq_gemm kernel, also checked: the last two shapes), so the tail shapes are wide: M below, at and above
+/// the 128-row tile (33, 100, 130, 256, 300, 1025), N not a multiple of the 128-row weight tile (3080, 1608 vectorised;
+/// 3196 and 1100 take the scalar epilogue: N % 8 != 0), K of two to sixteen 64-wide steps, bf16 and f32 outputs, W8A8 and
+/// weight-only activations.
 #[test]
 fn fp8_gemm_reg_is_bitwise_the_gemm() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(91);
     for act_quant in [true, false] {
         for (m, n, k, out) in [
-            (33usize, 192usize, 256usize, DType::Bf16),
-            (100, 200, 1024, DType::Bf16),
+            (33usize, 3080usize, 256usize, DType::Bf16),
+            (100, 3196, 1024, DType::Bf16),
+            (130, 1608, 256, DType::Bf16),
+            (256, 1600, 1024, DType::F32),
+            (300, 1100, 384, DType::F32),
+            (1025, 384, 512, DType::Bf16),
             (128, 128, 128, DType::Bf16),
-            (130, 196, 256, DType::Bf16),
-            (256, 384, 1024, DType::F32),
-            (1025, 256, 512, DType::Bf16),
             (77, 136, 384, DType::F32),
         ] {
             let hc = matmul_fp8_case(&mut rng, m, n, k, act_quant, DType::Bf16, out);
-            check(&*cuda, &hc, &format!("act_quant={act_quant} M={m} N={n} K={k} {out:?}"), m <= 256);
+            check(&*cuda, &hc, &format!("act_quant={act_quant} M={m} N={n} K={k} {out:?}"), m <= 300);
         }
     }
 }
@@ -101,7 +104,7 @@ fn fp8_gemm_reg_every_e4m3_code() {
     for (seed, act_quant, out) in
         [(0usize, true, DType::Bf16), (5, false, DType::Bf16), (77, true, DType::F32), (131, false, DType::F32)]
     {
-        let mut hc = matmul_fp8_case(&mut rng, 160, 256, 512, act_quant, DType::Bf16, out);
+        let mut hc = matmul_fp8_case(&mut rng, 160, 1536, 512, act_quant, DType::Bf16, out);
         all_codes(&mut hc, seed);
         check(&*cuda, &hc, &format!("all codes seed={seed} act_quant={act_quant} {out:?}"), false);
     }

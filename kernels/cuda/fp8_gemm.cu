@@ -46,16 +46,20 @@ int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* 
 // one block per SM). Needs K % 128 == 0 (the rule of the other fp8 GEMMs; K % 64 would do).
 namespace reg {
 
-constexpr int BM = 128, BN = 128, BK = 64;
+constexpr int BM = 128, BK = 64;
 constexpr int LDA = BK + 8;     // bf16 elements per A smem row (144 bytes: ldmatrix rows hit distinct bank groups)
 constexpr int LDW = BK + 16;    // bytes per weight smem row (80: the 8 rows a B load touches hit distinct banks)
-constexpr int NT = 256;
-constexpr int STAGES = 3;
 constexpr int A_BYTES = BM * LDA * 2;
-constexpr int W_BYTES = BN * LDW;
-constexpr int STAGE_BYTES = A_BYTES + W_BYTES;
-constexpr size_t SMEM = (size_t)STAGES * STAGE_BYTES;
-static_assert(BM * (BN + 8) * 2 <= STAGES * STAGE_BYTES, "epilogue staging must fit in the ring");
+
+// WNW warps along N (block tile BM x 32 * WNW, 2 * WNW warps), ST ring slots
+template <int WNW, int ST>
+struct Cfg {
+    static constexpr int BN = 32 * WNW, NT = 64 * WNW, STAGES = ST;
+    static constexpr int W_BYTES = BN * LDW;
+    static constexpr int STAGE_BYTES = A_BYTES + W_BYTES;
+    static constexpr size_t SMEM = (size_t)STAGES * STAGE_BYTES;
+    static_assert(BM * (BN + 8) * 2 <= STAGES * STAGE_BYTES, "epilogue staging must fit in the ring");
+};
 
 // two e4m3 bytes (bytes p and p + 1 of w, p = 0 or 2) -> bf16x2 (byte p in the low half), exact
 IK_DEVI uint32_t e4m3x2_to_bf16x2(uint32_t w, uint32_t sel) {
@@ -68,17 +72,20 @@ IK_DEVI uint32_t e4m3x2_to_bf16x2(uint32_t w, uint32_t sel) {
     return *reinterpret_cast<const uint32_t*>(&v);
 }
 
-template <typename OutT>
-__global__ void __launch_bounds__(NT)
+template <int WNW, int ST, typename OutT>
+__global__ void __launch_bounds__(64 * WNW, 1)
 gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, const uint8_t* __restrict__ w,
                 const float* __restrict__ gs, OutT* __restrict__ out, int M, int N, int K, int vec_out, int nfast) {
+    using C = Cfg<WNW, ST>;
+    constexpr int BN = C::BN, NT = C::NT, STAGES = C::STAGES, STAGE_BYTES = C::STAGE_BYTES;
+    constexpr int AQ = BM * 8 / NT;  // 16-byte A chunks per thread and stage
     extern __shared__ __align__(16) unsigned char smem[];
     const int nmt = (M + BM - 1) / BM, nnt = (N + BN - 1) / BN;
     const int bid = blockIdx.x;
     const int m0 = (nfast ? bid / nnt : bid % nmt) * BM;
     const int n0 = (nfast ? bid % nnt : bid / nmt) * BN;
     const int tid = threadIdx.x, warp = tid >> 5, lane = tid & 31;
-    const int wn = warp & 3, wm = warp >> 2;
+    const int wn = warp % WNW, wm = warp / WNW;
     const int S = K / BK;
     const bool actq = gs[1] > 0.f;
     const ik_bf16* const a_src = actq ? xq : x;
@@ -86,12 +93,13 @@ gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, c
     auto a_tile = [&](int slot) { return reinterpret_cast<ik_bf16*>(smem + slot * STAGE_BYTES); };
     auto w_tile = [&](int slot) { return smem + slot * STAGE_BYTES + A_BYTES; };
 
-    // copies: A row (tid >> 3) + 32 q, 16-byte chunk tid & 7 (q < 4); weight row (tid >> 2) + 64 q, chunk tid & 3 (q < 2)
-    const ik_bf16* asrc[4];
-    bool av[4];
+    // copies: A row (tid >> 3) + (NT / 8) q, 16-byte chunk tid & 7 (q < AQ); weight row (tid >> 2) + (NT / 4) q, chunk
+    // tid & 3 (q < 2)
+    const ik_bf16* asrc[AQ];
+    bool av[AQ];
 #pragma unroll
-    for (int q = 0; q < 4; ++q) {
-        const int r = (tid >> 3) + 32 * q;
+    for (int q = 0; q < AQ; ++q) {
+        const int r = (tid >> 3) + (NT / 8) * q;
         av[q] = m0 + r < M;
         asrc[q] = a_src + (int64_t)(av[q] ? m0 + r : 0) * K + (tid & 7) * 8;
     }
@@ -99,7 +107,7 @@ gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, c
     bool wv[2];
 #pragma unroll
     for (int q = 0; q < 2; ++q) {
-        const int r = (tid >> 2) + 64 * q;
+        const int r = (tid >> 2) + (NT / 4) * q;
         wv[q] = n0 + r < N;
         wsrc[q] = w + (int64_t)(wv[q] ? n0 + r : 0) * K + (tid & 3) * 16;
     }
@@ -108,11 +116,11 @@ gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, c
         ik_bf16* a = a_tile(slot);
         unsigned char* b = w_tile(slot);
 #pragma unroll
-        for (int q = 0; q < 4; ++q)
-            ik_cp_async16(a + ((tid >> 3) + 32 * q) * LDA + (tid & 7) * 8, asrc[q] + (int64_t)st * BK, av[q] ? 16 : 0);
+        for (int q = 0; q < AQ; ++q)
+            ik_cp_async16(a + ((tid >> 3) + (NT / 8) * q) * LDA + (tid & 7) * 8, asrc[q] + (int64_t)st * BK, av[q] ? 16 : 0);
 #pragma unroll
         for (int q = 0; q < 2; ++q)
-            ik_cp_async16(b + ((tid >> 2) + 64 * q) * LDW + (tid & 3) * 16, wsrc[q] + (int64_t)st * BK, wv[q] ? 16 : 0);
+            ik_cp_async16(b + ((tid >> 2) + (NT / 4) * q) * LDW + (tid & 3) * 16, wsrc[q] + (int64_t)st * BK, wv[q] ? 16 : 0);
     };
 
     // B fragment source: row wn * 32 + j * 8 + (lane >> 2) of the weight tile, the 32-bit word holding k bytes 2t, 2t+1
@@ -205,23 +213,37 @@ gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, c
     }
 }
 
-template <typename OutT>
-int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_bf16* xq, void* stream) {
-    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
-    cudaStream_t s = IK_STREAM(stream);
-    const int vec = (sizeof(OutT) == 2 && N % 8 == 0 && ik_aligned16(out->data)) ? 1 : 0;
+template <int WNW, int ST, typename OutT>
+void launch(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const float* sc, OutT* out, int M, int N, int K, int vec,
+            cudaStream_t s) {
+    using C = Cfg<WNW, ST>;
     static const bool attr_set = [] {
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_kernel<OutT>), cudaFuncAttributeMaxDynamicSharedMemorySize,
-                             (int)SMEM);
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_kernel<WNW, ST, OutT>),
+                             cudaFuncAttributeMaxDynamicSharedMemorySize, (int)C::SMEM);
         return true;
     }();
     (void)attr_set;
     // activation bytes vs weight bytes: the larger operand is the one consecutive blocks share (as wq_gemm.cuh)
     const int nfast = (double)M * 2.0 > (double)N ? 1 : 0;
-    const int64_t nblk = (int64_t)((M + BM - 1) / BM) * ((N + BN - 1) / BN);
-    gemm_reg_kernel<OutT><<<dim3((unsigned)nblk), NT, SMEM, s>>>((const ik_bf16*)x->data, xq, (const uint8_t*)w->data,
-                                                                 (const float*)sc->data, (OutT*)out->data, (int)M, (int)N,
-                                                                 (int)K, vec, nfast);
+    const int64_t nblk = (int64_t)((M + BM - 1) / BM) * ((N + C::BN - 1) / C::BN);
+    gemm_reg_kernel<WNW, ST, OutT><<<dim3((unsigned)nblk), C::NT, C::SMEM, s>>>(x, xq, w, sc, out, M, N, K, vec, nfast);
+}
+
+template <typename OutT>
+int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_bf16* xq, void* stream) {
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    cudaStream_t s = IK_STREAM(stream);
+    const int vec = (sizeof(OutT) == 2 && N % 8 == 0 && ik_aligned16(out->data)) ? 1 : 0;
+    // a grid of fewer than 24 128 x 128 tiles (small N at small M: the 35B k/v projections below 1024 tokens) leaves most
+    // of the 48 SMs idle; the 64-row tiles of wq_gemm.cuh give the same bits there
+    const int64_t tiles = ((M + BM - 1) / BM) * ((N + Cfg<4, 3>::BN - 1) / Cfg<4, 3>::BN);
+    if (tiles < 24) {
+        wq::gemm_by_m<wq::FMT_FP8, OutT>((const ik_bf16*)x->data, xq, (const uint8_t*)w->data, nullptr,
+                                         (const float*)sc->data, (OutT*)out->data, (int)M, (int)N, (int)K, vec, s);
+    } else {
+        launch<4, 3, OutT>((const ik_bf16*)x->data, xq, (const uint8_t*)w->data, (const float*)sc->data, (OutT*)out->data,
+                           (int)M, (int)N, (int)K, vec, s);
+    }
     return ik_launch_status();
 }
 

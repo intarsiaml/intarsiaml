@@ -1,0 +1,59 @@
+diff --git a/kernels/cuda/fp8_gemm.cu b/kernels/cuda/fp8_gemm.cu
+index fda56de8..0e382b8e 100644
+--- a/kernels/cuda/fp8_gemm.cu
++++ b/kernels/cuda/fp8_gemm.cu
+@@ -2,6 +2,7 @@
+ // W8A8 (input_scale > 0): the activations are first quantised to e4m3-valued bf16 into scratch (one pass over x), the
+ // GEMM then reads those. Needs K % 64 == 0.
+ #include "wq_gemm.cuh"
++#include <stdlib.h>
+ 
+ namespace {
+ 
+@@ -71,7 +72,7 @@ IK_DEVI uint32_t e4m3x2_to_bf16x2(uint32_t w, uint32_t sel) {
+ template <typename OutT>
+ __global__ void __launch_bounds__(NT)
+ gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, const uint8_t* __restrict__ w,
+-                const float* __restrict__ gs, OutT* __restrict__ out, int M, int N, int K, int vec_out, int nfast) {
++                const float* __restrict__ gs, OutT* __restrict__ out, int M, int N, int K, int vec_out, int nfast, int exp) {
+     extern __shared__ __align__(16) unsigned char smem[];
+     const int nmt = (M + BM - 1) / BM, nnt = (N + BN - 1) / BN;
+     const int bid = blockIdx.x;
+@@ -104,6 +105,7 @@ gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, c
+         wsrc[q] = w + (int64_t)(wv[q] ? n0 + r : 0) * K + (tid & 3) * 16;
+     }
+     auto issue = [&](int st) {
++        if (exp & 4) return;
+         const int slot = st % STAGES;
+         ik_bf16* a = a_tile(slot);
+         unsigned char* b = w_tile(slot);
+@@ -149,9 +151,10 @@ gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, c
+             for (int j = 0; j < 4; ++j) {
+                 const uint32_t lo = *reinterpret_cast<const uint32_t*>(bt + j * 8 * LDW + kk);
+                 const uint32_t hi = *reinterpret_cast<const uint32_t*>(bt + j * 8 * LDW + kk + 8);
+-                b[j][0] = e4m3x2_to_bf16x2(lo, sel);
+-                b[j][1] = e4m3x2_to_bf16x2(hi, sel);
++                b[j][0] = (exp & 1) ? lo : e4m3x2_to_bf16x2(lo, sel);
++                b[j][1] = (exp & 1) ? hi : e4m3x2_to_bf16x2(hi, sel);
+             }
++            if (exp & 2) { if (b[0][0] == 0x12345u && b[3][1] == 7u) acc[0][0][0] += 1.f; continue; }
+ #pragma unroll
+             for (int i = 0; i < 4; ++i) {
+                 uint32_t a0, a1, a2, a3;
+@@ -217,11 +220,14 @@ int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor*
+     }();
+     (void)attr_set;
+     // activation bytes vs weight bytes: the larger operand is the one consecutive blocks share (as wq_gemm.cuh)
+-    const int nfast = (double)M * 2.0 > (double)N ? 1 : 0;
++    static const int exp = [] { const char* v = getenv("INTARSIA_WQ_EXP"); return v ? atoi(v) : 0; }();
++    int nfast = (double)M * 2.0 > (double)N ? 1 : 0;
++    if (exp & 16) nfast = 1;
++    if (exp & 32) nfast = 0;
+     const int64_t nblk = (int64_t)((M + BM - 1) / BM) * ((N + BN - 1) / BN);
+     gemm_reg_kernel<OutT><<<dim3((unsigned)nblk), NT, SMEM, s>>>((const ik_bf16*)x->data, xq, (const uint8_t*)w->data,
+                                                                  (const float*)sc->data, (OutT*)out->data, (int)M, (int)N,
+-                                                                 (int)K, vec, nfast);
++                                                                 (int)K, vec, nfast, exp);
+     return ik_launch_status();
+ }
+ 

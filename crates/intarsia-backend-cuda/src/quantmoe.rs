@@ -61,9 +61,10 @@ const F8_MIN_TOKENS: usize = 5;
 /// Fewest tokens for which the dense dequantise-once GEMMs are preferred over `*_mma`.
 const GEMM_MIN_TOKENS: usize = 33;
 
-/// Fewest tokens for `matmul_fp8_gemm_reg` (bitwise `matmul_fp8_gemm`, 128-row tiles), from the measured crossover on
-/// spark1 (docs/results/2026-10-19-cuda-prefill-3.md).
-pub const FP8_REG_MIN_TOKENS: usize = 33;
+/// Fewest tokens for `matmul_fp8_gemm_reg` (bitwise `matmul_fp8_gemm`, 128-row tiles): measured faster per 35B chunk
+/// from 256 tokens up on spark1 (fp8 projections of one 256-token chunk 12.5 vs 14.7 ms, 2048 tokens 83 vs 104 ms;
+/// docs/results/2026-10-19-cuda-prefill-3.md); not measured below 256, where `matmul_fp8_gemm` stays.
+pub const FP8_REG_MIN_TOKENS: usize = 256;
 
 /// Most tokens for which the two-launch decode experts kernel is preferred (45 us vs 59 us at 1 token; slower than
 /// the grouping kernel from 2 tokens on, 130 us vs 119 us).
