@@ -1,0 +1,2 @@
+window	job	radiance stopped	radiance answers	minutes	what
+W1	2720	09:27:52	09:28:42	0.83	M0: moe_v3 multitoken sentinel stress, base x2, v3-noorder x3 (GPU0) + x3, v3-nofence x2, v3-noorder x2 at PRE=1 (GPU1)

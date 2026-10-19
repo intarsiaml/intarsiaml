@@ -864,8 +864,14 @@ moe_experts_p1_v3_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
         // for every gate_up role reads h before it is written (tests/moe_v3.rs v3_waits_for_every_gate_up_role). Bit 16
         // (INTARSIA_HIP_MOE_V3_SKEW_ALL=1): every gate_up role starts late, by 1 to 4 times the skew (tests/moe_v3.rs
         // v3_sentinel_stress: the h stores land while the down roles already hold the sentinel lines).
+        // Bits 18..23 (INTARSIA_HIP_MOE_V3_SKEW_TOK=n, P2' M0): the late role is instead the last gate_up role of token n (its
+        // down roles hold the earliest down tickets when n = 0, so they are resident and holding the sentinel lines at T >= 2);
+        // bit 24 (SKEW_TOK=all): the last gate_up role of every token is late.
         const int sk = skew & 0xffff;
-        const int nsleep = ((skew >> 16) & 1) ? sk * (1 + bid % 4) : (bid == NG - 1 ? sk : 0);
+        const int tpr = K * ((I + kRowWarps - 1) / kRowWarps);  // gate_up roles per token
+        const int tk = (skew >> 18) & 63;
+        const bool late = ((skew >> 24) & 1) ? (bid + 1) % tpr == 0 : bid == (tk ? min(NG, tk * tpr) : NG) - 1;
+        const int nsleep = ((skew >> 16) & 1) ? sk * (1 + bid % 4) : (late ? sk : 0);
         for (int i = 0; i < nsleep; ++i) __builtin_amdgcn_s_sleep(127);
         // ---- gate_up: moe_gate_up_p1_v2_kernel<false, PRE> with blockIdx = (role / GY, role % GY) ----
         const int GY = (I + kRowWarps - 1) / kRowWarps;
@@ -1193,11 +1199,16 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
             const bool xs = xstage_enabled() && xb <= 32768 && hb <= 32768;
             if (v3 && !xs) {  // one launch (moe_experts_p1_v3_kernel), bit-identical to the two below
                 const int slot = moe_sync_slot(s);
-                // test seams, read at every launch (unset = off): SKEW (bits 0..15), SKEW_ALL (bit 16), PREREAD (bit 17)
+                // test seams, read at every launch (unset = off): SKEW (bits 0..15), SKEW_ALL (bit 16), PREREAD (bit 17), SKEW_TOK (18..24)
                 const char* sk = getenv("INTARSIA_HIP_MOE_V3_SKEW");
                 int skew = sk ? (atoi(sk) & 0xffff) : 0;
                 if (const char* a = getenv("INTARSIA_HIP_MOE_V3_SKEW_ALL"); a && a[0] == '1') skew |= 1 << 16;
                 if (const char* q = getenv("INTARSIA_HIP_MOE_V3_PREREAD"); q && q[0] == '1') skew |= 1 << 17;
+                // SKEW_TOK (bits 18..24, see the kernel): "all", or a token index n (stored as n + 1, n < 63)
+                if (const char* tt = getenv("INTARSIA_HIP_MOE_V3_SKEW_TOK"); tt && tt[0]) {
+                    if (tt[0] == 'a') skew |= 1 << 24;
+                    else if (atoi(tt) >= 0 && atoi(tt) < 63) skew |= (atoi(tt) + 1) << 18;
+                }
                 const int64_t NG = P * ((I + kRowWarps - 1) / kRowWarps), ND = T * ((H + kRowWarps - 1) / kRowWarps);
                 if (slot >= 0 && NG + ND <= 0x7fffffffLL) {
 #define IK_EX_V3(PRE)                                                                                                 \

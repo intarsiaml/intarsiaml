@@ -88,7 +88,7 @@ stage_run() {  # GPU: every binary in RUNS (default base + the mutants), REPS fu
   for m in ${RUNS:-base $V3MUT}; do
     for r in $(seq 1 "${REPS:-1}"); do
       echo "--- $m run $r [$(ts)] GPU ${MUT_GPU:-0}"
-      HIP_VISIBLE_DEVICES=${MUT_GPU:-0} $D bash -c "timeout -s KILL ${MUT_TIMEOUT:-240} /target/p2s0mut/$m --test-threads=1 --nocapture; echo exit=\$?" 2>&1 \
+      HIP_VISIBLE_DEVICES=${MUT_GPU:-0} $D bash -c "timeout -s KILL ${MUT_TIMEOUT:-240} /target/p2s0mut/$m ${RUN_FILTER:-} --test-threads=1 --nocapture; echo exit=\$?" 2>&1 \
         | grep -aE "^test |^test result|panicked at|^exit=|launches, |^  \[|differs from v2|read h early" | cut -c1-260 | head -60
     done
   done
@@ -102,6 +102,9 @@ for s in "$@"; do
   elif [[ "$s" == pre:* ]]; then  # pre:<1|2|4>: INTARSIA_HIP_MOE_PRE (the v3 template instance) for the later stages of this lane
     export INTARSIA_HIP_MOE_PRE="${s#pre:}"
     echo "INTARSIA_HIP_MOE_PRE=$INTARSIA_HIP_MOE_PRE"
+  elif [[ "$s" == filter:* ]]; then  # filter:<test name>: only that moe_v3 test in the later run stages (P2' M0)
+    export RUN_FILTER="${s#filter:}"
+    echo "RUN_FILTER=$RUN_FILTER"
   else
     "stage_$s"
   fi
