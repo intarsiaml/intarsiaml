@@ -474,6 +474,17 @@ stage_r6test() {
       | grep -aE "^test |test result|panicked|differs|bitwise v1 on|HPB=" | cut -c1-300
   done
 }
+# Round 7 (perf/hip-round7, docs/results/2026-10-19-hip-round7.md): MoE projections moe_wmma_r7.h (INTARSIA_HIP_MOE_MW 9/13/25/29).
+# r7test: the bitwise variant test (every MW value at both tiles against the round-5 kernel, all finite scale bytes), the
+# selection pin and the cpu-reference accuracy tests of quantmoe
+stage_r7test() {
+  timeout 400 $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test moe_pairs --test quantmoe --test round6_selection -- --nocapture --test-threads=1 2>&1 \
+    | grep -aE "^test |test result|FAILED|panicked|differ|changed" | cut -c1-300 | tail -40
+}
+# round-7 mutants (mutate.py; built by mutbuild7 in a CPU slot, run by mutrun7 in a GPU window)
+R7MUT="r7-even r7-odd r7-esign r7-osign r7-x64 r7-hiword r7-swap r7-uprow r7-upacc r7-dnrow r7-grid r7-jn r7-lastsync mw-jn mw-lastsync mw-def64 mw-def32 mw-tile mw-range"
+stage_mutbuild7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r7-mut" stage_mutbuild; }
+stage_mutrun7() { MUTATIONS="${R7MUT_SEL:-$R7MUT}" stage_mutrun; }
 
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}

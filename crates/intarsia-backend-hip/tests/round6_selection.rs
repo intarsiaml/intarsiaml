@@ -42,8 +42,23 @@ fn round6_inner_variants_are_pinned() {
     for (v, want) in [("1", 1), ("2", 2), ("4", 4), ("3", 4), ("x", 4)] {
         assert_eq!(child(&[("INTARSIA_HIP_FLASH_HPB", v)]).0, want, "INTARSIA_HIP_FLASH_HPB={v}");
     }
-    // the MoE knob overrides both tiles (0, 1, 4, 5) and falls back to the defaults for any other value
-    for (v, want) in [("0", (0, 0)), ("1", (1, 1)), ("4", (4, 4)), ("5", (5, 5)), ("3", (5, 0)), ("8", (5, 0)), ("-1", (5, 0))] {
+    // the MoE knob overrides both tiles (round 6: 0, 1, 4, 5; round 7, moe_wmma_r7.h: 9, 13, 25, 29) and falls back to the
+    // defaults for any other value (8 = kMwCvt alone, 21 = kMwTwo without kMwCvt and 16 are not built)
+    for (v, want) in [
+        ("0", (0, 0)),
+        ("1", (1, 1)),
+        ("4", (4, 4)),
+        ("5", (5, 5)),
+        ("9", (9, 9)),
+        ("13", (13, 13)),
+        ("25", (25, 25)),
+        ("29", (29, 29)),
+        ("3", (5, 0)),
+        ("8", (5, 0)),
+        ("16", (5, 0)),
+        ("21", (5, 0)),
+        ("-1", (5, 0)),
+    ] {
         let (_, a, b) = child(&[("INTARSIA_HIP_MOE_MW", v)]);
         assert_eq!((a, b), want, "INTARSIA_HIP_MOE_MW={v}");
     }

@@ -22,7 +22,7 @@
 // Scratch layout (must match intarsia_core::quant::ops::moe_experts_scratch, regions rounded to 256 bytes):
 //   pairs int[T*K] | offsets int[E+1] | active int[E+1] (last = count) | h bf16[T*K, I] | y bf16[T*K, H]
 #include "ik_quant.h"
-#include "moe_wmma.h"
+#include "moe_wmma_r7.h"  // includes moe_wmma.h
 #include <algorithm>
 #include <math.h>
 #include <mutex>
@@ -72,16 +72,22 @@ int moe_pairs(int64_t avg) {
     return avg >= kMwPairsAuto ? 64 : 32;
 }
 
-// INTARSIA_HIP_MOE_MW = 0 | 1 | 4 | 5: variant bits of the grouped projections (moe_wmma.h moe_wmma_kernel_v: 1 skip empty
-// fragments, 4 occupancy; 0 = the round-5 moe_wmma_kernel); every value gives the same bits (tests/moe_pairs.rs). Unset or
-// any other value: kMwDefault64 for the 64-pair tile, kMwDefault32 for the 32-pair one (docs/results/2026-10-19-hip-round6.md).
-// Read at every launch (the bitwise test switches it in one process); part of the backend fingerprint (kernels.rs).
+// INTARSIA_HIP_MOE_MW = 0 | 1 | 4 | 5 | 9 | 13 | 25 | 29: variant bits of the grouped projections (moe_wmma.h moe_wmma_kernel_v:
+// 1 skip empty fragments, 4 occupancy; moe_wmma_r7.h moe_wmma_kernel_r7, round 7: 8 fp4 decode by the fp8 conversion instead of
+// the LDS table, 16 two A fragments per wave; 0 = the round-5 moe_wmma_kernel); every value gives the same bits
+// (tests/moe_pairs.rs). Unset or any other value: kMwDefault64 for the 64-pair tile, kMwDefault32 for the 32-pair one
+// (docs/results/2026-10-19-hip-round6.md, -round7.md). Read at every launch (the bitwise test switches it in one process); part
+// of the backend fingerprint (kernels.rs).
 constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;
+constexpr bool mw_accepted(int v) {
+    return v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc) || v == (kMwCvt | kMwSkip) ||
+           v == (kMwCvt | kMwSkip | kMwOcc) || v == (kMwCvt | kMwTwo | kMwSkip) || v == (kMwCvt | kMwTwo | kMwSkip | kMwOcc);
+}
 int moe_mw_variant(int pairs) {
     const int def = pairs == 64 ? kMwDefault64 : kMwDefault32;
     const char* e = getenv("INTARSIA_HIP_MOE_MW");
     const int v = e && e[0] ? atoi(e) : def;
-    return (v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc)) ? v : def;
+    return mw_accepted(v) ? v : def;
 }
 
 template <int PAIRS, int V>
@@ -93,10 +99,16 @@ void moe_wmma_launch_v(int64_t H, int64_t I, unsigned slots, unsigned zt, int64_
         moe_wmma_kernel<true, PAIRS><<<gu, kMwThreads, 0, s>>>(x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
         if (ik_launch_status() != IK_OK) return;
         moe_wmma_kernel<false, PAIRS><<<dn, kMwThreads, 0, s>>>(hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
-    } else {
+    } else if constexpr ((V & (kMwCvt | kMwTwo)) == 0) {  // round 6
         moe_wmma_kernel_v<true, PAIRS, V><<<gu, kMwThreads, 0, s>>>(x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
         if (ik_launch_status() != IK_OK) return;
         moe_wmma_kernel_v<false, PAIRS, V><<<dn, kMwThreads, 0, s>>>(hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
+    } else {  // round 7 (moe_wmma_r7.h): kMwTwo doubles the features per block
+        constexpr int fgu = mw_r7_feat(true, V), fdn = mw_r7_feat(false, V);
+        const dim3 gu7(slots, (unsigned)((I + fgu - 1) / fgu), zt), dn7(slots, (unsigned)((H + fdn - 1) / fdn), zt);
+        moe_wmma_kernel_r7<true, PAIRS, V><<<gu7, kMwThreads, 0, s>>>(x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
+        if (ik_launch_status() != IK_OK) return;
+        moe_wmma_kernel_r7<false, PAIRS, V><<<dn7, kMwThreads, 0, s>>>(hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
     }
 }
 
@@ -116,6 +128,10 @@ void moe_wmma_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int6
         case kMwSkip: IK_MW_V(kMwSkip); break;
         case kMwOcc: IK_MW_V(kMwOcc); break;
         case kMwSkip | kMwOcc: IK_MW_V(kMwSkip | kMwOcc); break;
+        case kMwCvt | kMwSkip: IK_MW_V(kMwCvt | kMwSkip); break;
+        case kMwCvt | kMwSkip | kMwOcc: IK_MW_V(kMwCvt | kMwSkip | kMwOcc); break;
+        case kMwCvt | kMwTwo | kMwSkip: IK_MW_V(kMwCvt | kMwTwo | kMwSkip); break;
+        case kMwCvt | kMwTwo | kMwSkip | kMwOcc: IK_MW_V(kMwCvt | kMwTwo | kMwSkip | kMwOcc); break;
         default: IK_MW_V(0); break;
     }
 #undef IK_MW_V

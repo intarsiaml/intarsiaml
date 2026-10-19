@@ -30,7 +30,8 @@ fn run(hip: &dyn Backend, hc: &HostCall, pairs: &str) -> HostTensor {
     run_mw(hip, hc, pairs, "0")
 }
 
-/// with the projection variant bits INTARSIA_HIP_MOE_MW (moe_wmma.h: skip empty fragments, byte table, occupancy)
+/// with the projection variant bits INTARSIA_HIP_MOE_MW (moe_wmma.h: skip empty fragments, occupancy; moe_wmma_r7.h: fp8-conversion
+/// decode, two A fragments per wave)
 fn run_mw(hip: &dyn Backend, hc: &HostCall, pairs: &str, mw: &str) -> HostTensor {
     std::env::set_var("INTARSIA_HIP_MOE_PAIRS", pairs);
     std::env::set_var("INTARSIA_HIP_MOE_MW", mw);
@@ -56,6 +57,19 @@ fn moe_pair_tile_does_not_change_a_bit() {
     let ids: Vec<i32> = (0..1000).flat_map(|_| 0..4i32).collect();
     hot.inputs[1] = HostTensor::from_i32(&[1000, 4], &ids);
     cases.push(("hot experts".into(), hot));
+    // every finite e4m3 block-scale byte (subnormals, zero, negative; random_rows only draws 0x30..0x41), at both projections:
+    // the round-7 fp4 decode (moe_wmma_r7.h kMwCvt) folds 2^6 into the scale, which must stay exact for all of them
+    let mut scl = experts_case(&mut rng, 300, 16, 4, 256, 128, DType::Bf16);
+    let finite = |j: usize| -> u8 {
+        let b = (j % 254) as u8;
+        if b < 0x7f { b } else { b + 1 }  // skip the NaN bytes 0x7f and 0xff
+    };
+    for idx in [4usize, 6] {
+        for (j, b) in scl.inputs[idx].data.iter_mut().enumerate() {
+            *b = finite(j.wrapping_mul(97) + j / 254);
+        }
+    }
+    cases.push(("all finite scale bytes".into(), scl));
     let mut differing_from_zero = 0usize;
     for (what, hc) in &cases {
         let a = run(&*hip, hc, "32");
@@ -63,8 +77,9 @@ fn moe_pair_tile_does_not_change_a_bit() {
         let c = run(&*hip, hc, "0");
         assert!(a.data == b.data, "{what}: the 64-pair tile changed the output");
         assert!(a.data == c.data, "{what}: the auto tile changed the output");
-        // every projection variant at both tile sizes (variant 0 at 32 pairs = a, the reference)
-        for mw in [1, 4, 5] {
+        // every projection variant at both tile sizes (variant 0 at 32 pairs = a, the reference): round 6's 1, 4, 5
+        // (moe_wmma.h) and round 7's 9, 13, 25, 29 (moe_wmma_r7.h: fp8-conversion fp4 decode, two A fragments per wave)
+        for mw in [1, 4, 5, 9, 13, 25, 29] {
             for pairs in ["32", "64"] {
                 let v = run_mw(&*hip, hc, pairs, &mw.to_string());
                 assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs changed the output");
