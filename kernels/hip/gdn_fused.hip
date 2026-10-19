@@ -152,6 +152,7 @@ __global__ void __launch_bounds__(32) gdn_conv_delta_kernel(
     // this block holds its old q / k conv state: take the key head's ticket (the release orders the reads above before it);
     // the last of the key head's nblk blocks stores the new q / k state
     bool qk_writer = false;
+    __syncthreads();  // every lane's state loads before lane 0's ticket (the release below also waits for the wave's loads)
     if (sync) {
         const unsigned nblk = gridDim.x * (unsigned)(Hv / Hk);
         unsigned tk_ = 0;
