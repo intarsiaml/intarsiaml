@@ -1,0 +1,7 @@
+Here is the continuation and completion of the IntarsiaML architecture plan, picking up from the cut-off point in Section 1 and proceeding through the remaining sections.
+
+---
+
+```cpp
+// ... continuation of Section 1
+| GPU kernels, NVIDIA | **CUDA C++** (+ inline PTX where profiling
