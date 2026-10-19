@@ -58,7 +58,7 @@ serve_bench() { # serve_bench <name> <model dir> <gb-per-token> <tag> [extra ser
   if [ "$up" != 1 ]; then echo "serve did not come up"; docker logs intarsia-serve 2>&1 | tail -30; docker rm -f intarsia-serve >/dev/null; return 1; fi
   echo "up after ~$((i*3))s"
   docker exec intarsia-serve $B bench speed --url http://127.0.0.1:$port --model "$name" \
-    --sizes ${SIZES:-128,1024,4096} --gen ${GEN:-128} --reps ${REPS:-5} --gb-per-token "$gb" --bandwidth-gbs 627 \
+    --sizes ${SIZES:-128,1024,4096} --gen ${GEN:-128} --reps ${REPS:-5} --gb-per-token "$gb" --bandwidth-gbs 627 ${AT_MOST:+--at-most} \
     --label "$tag" --out-dir /work/bench-out --thinking off 2>&1 | tail -22
   curl -s http://127.0.0.1:$port/metrics | grep -iE "graph|eager" | head
   docker rm -f intarsia-serve >/dev/null
