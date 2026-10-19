@@ -1,0 +1,367 @@
+[burst] job 2581; stages: k35 pf35:v2-1 pf35:f8-1 pf35:v2-2 pf35:f8-2 pf35:v2-3 pf35:f8-3 acc35 acc35f8 acc35l:4096 acc35lf8:4096; stopping radiance 2026-10-18 23:07:14
+[burst] radiance stopped 2026-10-18 23:07:16
+################ stage k35 start 23:07:16
+qk_norm        qk_norm_bf16                   18      0     0.000e0     0.000e0  ADMITTED
+rope           rope_bf16                      36      0    2.959e-5    9.571e-7  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16           36      0    3.165e-3    1.382e-4  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.773e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    4.551e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_v2          8      0    1.221e-4    4.551e-5  ADMITTED
+44 kernels, 790 cases in 30.2s
+################ stage k35 end 23:07:47
+################ stage pf35:v2-1 start 23:07:47
+--- serve qwen36-35b-intarsia-hip [23:07:47]
+up after ~15s
+  size   1024 rep: prompt=991 gen=128 ttft=0.17s prefill=5698 tok/s decode=145.0 tok/s
+  size   1024 rep: prompt=1008 gen=128 ttft=0.17s prefill=5844 tok/s decode=145.1 tok/s
+  size   1024 rep: prompt=995 gen=128 ttft=0.17s prefill=5781 tok/s decode=145.1 tok/s
+  size   1024 rep: prompt=989 gen=128 ttft=0.17s prefill=5683 tok/s decode=145.1 tok/s
+  size   4096 rep: prompt=4062 gen=128 ttft=0.59s prefill=6863 tok/s decode=140.8 tok/s
+  size   4096 rep: prompt=4126 gen=128 ttft=0.65s prefill=6392 tok/s decode=140.9 tok/s
+  size   4096 rep: prompt=4123 gen=128 ttft=0.64s prefill=6430 tok/s decode=140.9 tok/s
+  size   4096 rep: prompt=4111 gen=128 ttft=0.63s prefill=6541 tok/s decode=140.9 tok/s
+  size   4096 rep: prompt=4055 gen=128 ttft=0.59s prefill=6856 tok/s decode=140.3 tok/s
+  size  16384 rep: prompt=16652 gen=128 ttft=3.25s prefill=5122 tok/s decode=128.5 tok/s
+  size  16384 rep: prompt=16689 gen=128 ttft=3.26s prefill=5120 tok/s decode=128.4 tok/s
+  size  16384 rep: prompt=16789 gen=128 ttft=3.31s prefill=5069 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16739 gen=128 ttft=3.27s prefill=5114 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16709 gen=128 ttft=3.27s prefill=5110 tok/s decode=128.3 tok/s
+wrote /work/bench-out/pf-35b-v2-1.json
+pf-35b-v2-1  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      127     0.072         1741       145.7      128       51.1
+    1024      995     0.174         5760       145.1      128       50.9
+    4096     4111     0.628         6541       140.9      128       49.4
+   16384    16709     3.270         5114       128.3      128       45.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:v2-1 end 23:08:43
+################ stage pf35:f8-1 start 23:08:43
+--- serve qwen36-35b-intarsia-hip [23:08:43]
+up after ~15s
+  size   1024 rep: prompt=1012 gen=128 ttft=0.16s prefill=6443 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=1001 gen=128 ttft=0.16s prefill=6421 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=999 gen=128 ttft=0.16s prefill=6434 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=991 gen=128 ttft=0.16s prefill=6297 tok/s decode=144.9 tok/s
+  size   4096 rep: prompt=4103 gen=128 ttft=0.54s prefill=7573 tok/s decode=141.2 tok/s
+  size   4096 rep: prompt=4104 gen=128 ttft=0.54s prefill=7547 tok/s decode=141.3 tok/s
+  size   4096 rep: prompt=4039 gen=128 ttft=0.52s prefill=7778 tok/s decode=140.5 tok/s
+  size   4096 rep: prompt=4087 gen=128 ttft=0.52s prefill=7785 tok/s decode=141.1 tok/s
+  size   4096 rep: prompt=4112 gen=128 ttft=0.56s prefill=7401 tok/s decode=141.1 tok/s
+  size  16384 rep: prompt=16687 gen=128 ttft=2.97s prefill=5620 tok/s decode=128.4 tok/s
+  size  16384 rep: prompt=16662 gen=128 ttft=2.97s prefill=5605 tok/s decode=128.4 tok/s
+  size  16384 rep: prompt=16715 gen=128 ttft=2.97s prefill=5632 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16709 gen=128 ttft=2.97s prefill=5620 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16675 gen=128 ttft=2.97s prefill=5606 tok/s decode=128.4 tok/s
+wrote /work/bench-out/pf-35b-f8-1.json
+pf-35b-f8-1  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      124     0.066         1896       145.7      128       51.1
+    1024      999     0.157         6421       144.9      128       50.9
+    4096     4103     0.542         7573       141.1      128       49.5
+   16384    16687     2.972         5620       128.3      128       45.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:f8-1 end 23:09:37
+################ stage pf35:v2-2 start 23:09:37
+--- serve qwen36-35b-intarsia-hip [23:09:37]
+up after ~15s
+  size   1024 rep: prompt=990 gen=128 ttft=0.18s prefill=5623 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=994 gen=128 ttft=0.17s prefill=5725 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=987 gen=128 ttft=0.18s prefill=5608 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=977 gen=128 ttft=0.18s prefill=5577 tok/s decode=144.9 tok/s
+  size   4096 rep: prompt=4037 gen=128 ttft=0.59s prefill=6785 tok/s decode=140.4 tok/s
+  size   4096 rep: prompt=4058 gen=128 ttft=0.59s prefill=6826 tok/s decode=140.6 tok/s
+  size   4096 rep: prompt=4052 gen=128 ttft=0.60s prefill=6805 tok/s decode=140.4 tok/s
+  size   4096 rep: prompt=4039 gen=128 ttft=0.59s prefill=6791 tok/s decode=140.1 tok/s
+  size   4096 rep: prompt=4019 gen=128 ttft=0.59s prefill=6791 tok/s decode=139.8 tok/s
+  size  16384 rep: prompt=16541 gen=128 ttft=3.24s prefill=5099 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16506 gen=128 ttft=3.23s prefill=5109 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16548 gen=128 ttft=3.25s prefill=5090 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16458 gen=128 ttft=3.22s prefill=5110 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16481 gen=128 ttft=3.24s prefill=5093 tok/s decode=128.1 tok/s
+wrote /work/bench-out/pf-35b-v2-2.json
+pf-35b-v2-2  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      128     0.072         1771       145.7      128       51.1
+    1024      987     0.176         5608       144.9      128       50.8
+    4096     4039     0.595         6791       140.4      128       49.3
+   16384    16506     3.236         5099       128.2      128       45.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:v2-2 end 23:10:33
+################ stage pf35:f8-2 start 23:10:33
+--- serve qwen36-35b-intarsia-hip [23:10:33]
+up after ~15s
+  size   1024 rep: prompt=1005 gen=128 ttft=0.16s prefill=6417 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=992 gen=128 ttft=0.16s prefill=6301 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=1017 gen=128 ttft=0.16s prefill=6433 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=1001 gen=128 ttft=0.16s prefill=6407 tok/s decode=144.9 tok/s
+  size   4096 rep: prompt=4126 gen=128 ttft=0.57s prefill=7202 tok/s decode=141.0 tok/s
+  size   4096 rep: prompt=4059 gen=128 ttft=0.52s prefill=7773 tok/s decode=140.7 tok/s
+  size   4096 rep: prompt=4103 gen=128 ttft=0.54s prefill=7549 tok/s decode=141.0 tok/s
+  size   4096 rep: prompt=4107 gen=128 ttft=0.55s prefill=7429 tok/s decode=140.9 tok/s
+  size   4096 rep: prompt=4122 gen=128 ttft=0.57s prefill=7231 tok/s decode=140.9 tok/s
+  size  16384 rep: prompt=16606 gen=128 ttft=2.95s prefill=5629 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16657 gen=128 ttft=2.97s prefill=5613 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16736 gen=128 ttft=2.98s prefill=5624 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16689 gen=128 ttft=2.97s prefill=5611 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16636 gen=128 ttft=2.96s prefill=5623 tok/s decode=128.3 tok/s
+wrote /work/bench-out/pf-35b-f8-2.json
+pf-35b-f8-2  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      127     0.065         1944       145.7      128       51.1
+    1024     1001     0.157         6407       144.9      128       50.8
+    4096     4107     0.553         7429       140.9      128       49.4
+   16384    16657     2.968         5623       128.3      128       45.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:f8-2 end 23:11:27
+################ stage pf35:v2-3 start 23:11:27
+--- serve qwen36-35b-intarsia-hip [23:11:27]
+up after ~15s
+  size   1024 rep: prompt=1002 gen=128 ttft=0.17s prefill=5736 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=1019 gen=128 ttft=0.18s prefill=5763 tok/s decode=144.8 tok/s
+  size   1024 rep: prompt=1016 gen=128 ttft=0.18s prefill=5752 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=997 gen=128 ttft=0.17s prefill=5720 tok/s decode=144.9 tok/s
+  size   4096 rep: prompt=4105 gen=128 ttft=0.63s prefill=6562 tok/s decode=141.1 tok/s
+  size   4096 rep: prompt=4117 gen=128 ttft=0.64s prefill=6397 tok/s decode=141.0 tok/s
+  size   4096 rep: prompt=4110 gen=128 ttft=0.63s prefill=6511 tok/s decode=141.0 tok/s
+  size   4096 rep: prompt=4078 gen=128 ttft=0.60s prefill=6812 tok/s decode=140.7 tok/s
+  size   4096 rep: prompt=4082 gen=128 ttft=0.60s prefill=6787 tok/s decode=140.7 tok/s
+  size  16384 rep: prompt=16681 gen=128 ttft=3.27s prefill=5109 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16580 gen=128 ttft=3.25s prefill=5102 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16646 gen=128 ttft=3.27s prefill=5096 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16723 gen=128 ttft=3.28s prefill=5102 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16622 gen=128 ttft=3.26s prefill=5102 tok/s decode=128.3 tok/s
+wrote /work/bench-out/pf-35b-v2-3.json
+pf-35b-v2-3  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      130     0.072         1807       145.7      128       51.1
+    1024     1016     0.177         5748       144.8      128       50.8
+    4096     4105     0.625         6562       140.9      128       49.5
+   16384    16646     3.265         5102       128.3      128       45.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:v2-3 end 23:12:23
+################ stage pf35:f8-3 start 23:12:23
+--- serve qwen36-35b-intarsia-hip [23:12:23]
+up after ~15s
+  size   1024 rep: prompt=1020 gen=128 ttft=0.16s prefill=6452 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=991 gen=128 ttft=0.16s prefill=6290 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=999 gen=128 ttft=0.16s prefill=6398 tok/s decode=144.9 tok/s
+  size   1024 rep: prompt=1011 gen=128 ttft=0.16s prefill=6441 tok/s decode=144.9 tok/s
+  size   4096 rep: prompt=4135 gen=128 ttft=0.58s prefill=7171 tok/s decode=141.1 tok/s
+  size   4096 rep: prompt=4128 gen=128 ttft=0.58s prefill=7177 tok/s decode=141.1 tok/s
+  size   4096 rep: prompt=4103 gen=128 ttft=0.54s prefill=7562 tok/s decode=141.2 tok/s
+  size   4096 rep: prompt=4125 gen=128 ttft=0.57s prefill=7219 tok/s decode=141.0 tok/s
+  size   4096 rep: prompt=4129 gen=128 ttft=0.57s prefill=7194 tok/s decode=141.0 tok/s
+  size  16384 rep: prompt=16764 gen=128 ttft=2.98s prefill=5631 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16818 gen=128 ttft=3.02s prefill=5576 tok/s decode=128.3 tok/s
+  size  16384 rep: prompt=16837 gen=128 ttft=3.03s prefill=5554 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16835 gen=128 ttft=3.03s prefill=5550 tok/s decode=128.2 tok/s
+  size  16384 rep: prompt=16880 gen=128 ttft=3.04s prefill=5560 tok/s decode=128.3 tok/s
+pf-35b-f8-3  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      128     0.065         1941       145.7      128       51.1
+    1024      999     0.157         6398       144.9      128       50.8
+    4096     4128     0.574         7194       141.1      128       49.5
+   16384    16835     3.031         5560       128.2      128       45.0
+bandwidth floor: 285.0 tok/s
+wrote /work/bench-out/pf-35b-f8-3.json
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:f8-3 end 23:13:17
+################ stage acc35 start 23:13:17
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.40   7.274e-3   7.071e-3   9.197e-1   0.0176   0.0174    91.21      5.1%      0
+prefill floor [4bit]: top-1 98.40% (not gated for this class) ok | 21-way KL 7.071e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.442e-3   1.618e-3   5.774e-3   0.0209   0.0220    93.75     16/16      0
+story                 39    16   100.00   9.393e-3   8.218e-3   3.461e-2   0.0971   0.0968    95.00     16/16      0
+code                  87    16   100.00   3.110e-3   3.114e-3   2.693e-2   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   8.733e-3   8.403e-3   2.395e-2   0.0460   0.0476    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   2.374e-2   3.520e-2   1.665e-1   0.0421   0.0219    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.950e-2   3.961e-2   5.980e-1   0.0014   0.0011    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.710e-2   1.714e-2   7.533e-2   0.0011   0.0010    95.00     16/16      0
+long_prose_300       300    16   100.00   4.334e-4   4.451e-4   4.937e-3   0.0002   0.0002    90.00     16/16      0
+long_prose_700       700    16   100.00   4.861e-3   5.051e-3   3.325e-2   0.0007   0.0013    82.50     16/16      0
+OVERALL                    160    98.75   1.132e-2   1.242e-2   5.980e-1   0.0258   0.0237    92.38     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.242e-2 (need <= 3.0e-2) ok | tail mass ours 0.0237 vs ref 0.0258, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 16.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35 end 23:13:26
+################ stage acc35f8 start 23:13:26
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --max-seq 4096
+OVERALL                   1441    98.61   7.626e-3   7.417e-3   7.150e-1   0.0176   0.0174    91.30     31.0%      0
+prefill floor [4bit]: top-1 98.61% (not gated for this class) ok | 21-way KL 7.417e-3 (need <= 3.0e-2) ok | tail mass ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.361e-3   1.547e-3   5.664e-3   0.0209   0.0217    92.50     16/16      0
+story                 39    16   100.00   1.157e-2   1.045e-2   3.817e-2   0.0971   0.0977    96.25     16/16      0
+code                  87    16   100.00   1.588e-3   1.592e-3   8.598e-3   0.0007   0.0007    92.50     16/16      0
+science               79    16    93.75   1.122e-2   1.081e-2   3.358e-2   0.0460   0.0483    96.25     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   7.532e-3   7.830e-3   5.002e-2   0.0421   0.0380    86.25     16/16      0
+chat_multiturn        58    16   100.00   4.813e-2   4.822e-2   7.315e-1   0.0014   0.0009    92.50     16/16      0
+chat_reasoning        90    16   100.00   2.927e-2   2.933e-2   1.171e-1   0.0011   0.0007    95.00     16/16      0
+long_prose_300       300    16   100.00   7.283e-5   7.957e-5   2.573e-4   0.0002   0.0002    93.75     16/16      0
+long_prose_700       700    16   100.00   1.919e-3   1.928e-3   1.032e-2   0.0007   0.0008    85.00     16/16      0
+OVERALL                    160    98.75   1.176e-2   1.172e-2   7.315e-1   0.0258   0.0254    92.88     88.8%      0
+decode (teacher-forced) floor [4bit]: top-1 98.75% (not gated for this class) ok | 21-way KL 1.172e-2 (need <= 3.0e-2) ok | tail mass ours 0.0254 vs ref 0.0258, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 36.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc35f8 end 23:13:34
+################ stage acc35l:4096 start 23:13:34
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.85   1.955e-2   1.751e-2    1.909e0   0.0944   0.0966    90.72    0/4064      0
+long_code_4k        4064  4064    96.97   8.102e-3   7.374e-3   8.864e-1   0.0370   0.0383    91.72   10/4064      0
+chat_reuse_4k       4631  4631    87.80   2.360e-1   2.679e-1    2.729e1   0.0688   0.0857    87.54   20/4631      0
+long_docs_12k      12064 12064    92.97   2.271e-2   2.034e-2    1.166e1   0.0839   0.0850    90.18   5/12064      0
+long_code_12k      12064 12064    97.10   9.198e-3   8.552e-3    1.722e0   0.0323   0.0328    90.99  10/12064      0
+OVERALL                  36887    94.21   4.311e-2   4.583e-2    2.729e1   0.0611   0.0641    90.34      0.1%      0
+prefill floor [4bit]: top-1 94.21% (not gated for this class) ok | 21-way KL 4.583e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.735e-2   1.657e-2   2.116e-1   0.0185   0.0176    90.62     44/64      0
+long_code_4k        4064    64    95.31   1.068e-2   9.378e-3   7.260e-2   0.0481   0.0510    89.38     28/64      0
+chat_reuse_4k       4631    64   100.00   3.960e-3   3.961e-3   6.174e-2   0.0000   0.0000    92.50     64/64      0
+long_docs_12k      12064    64    96.88   1.608e-2   1.496e-2   1.810e-1   0.0399   0.0420    89.69      7/64      0
+long_code_12k      12064    64    98.44   6.213e-3   6.149e-3   9.011e-2   0.0085   0.0083    87.81      3/64      0
+OVERALL                    320    96.88   1.086e-2   1.020e-2   2.116e-1   0.0230   0.0238    90.00     45.6%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 1.020e-2 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 45.6% of positions before the first argmax divergence, worst prompt 4.7% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     22/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 22: warm took 48794 cold took 1414; shared rows differ by 1.452 (before) / 0.345 (here) nats of log-probability, KL up to 2.9e-2; rounding scale 0.250 nats, KL 1e-2 (re-chunked cold run: 0.000); warm margin 0.262, cold margin 0.270; legacy criterion (>= 16 leading tokens): ok)
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35l:4096 end 23:15:45
+################ stage acc35lf8:4096 start 23:15:45
+--- accuracy qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --decode-positions 64 --max-seq 16384 --prefill-chunk 4096
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+long_docs_4k        4064  4064    93.63   1.886e-2   1.674e-2    1.866e0   0.0944   0.0970    90.94    0/4064      0
+long_code_4k        4064  4064    97.19   8.532e-3   7.775e-3   8.041e-1   0.0370   0.0381    91.76   25/4064      0
+chat_reuse_4k       4631  4631    88.92   2.195e-1   2.479e-1    2.763e1   0.0688   0.0840    88.25    7/4631      0
+long_docs_12k      12064 12064    92.90   2.318e-2   2.071e-2    9.886e0   0.0839   0.0848    90.35   5/12064      0
+long_code_12k      12064 12064    97.08   9.730e-3   9.045e-3    3.757e0   0.0323   0.0328    91.01  33/12064      0
+OVERALL                  36887    94.32   4.133e-2   4.356e-2    2.763e1   0.0611   0.0639    90.52      0.2%      0
+prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.356e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0639 vs ref 0.0611, excess +0.0028 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    95.31   1.260e-2   1.191e-2   9.301e-2   0.0185   0.0194    90.31     45/64      0
+long_code_4k        4064    64    96.88   1.217e-2   1.024e-2   1.507e-1   0.0481   0.0510    91.25     28/64      0
+chat_reuse_4k       4631    64    98.44   2.051e-3   2.052e-3   2.592e-2   0.0000   0.0000    90.62     51/64      0
+long_docs_12k      12064    64    95.31   1.560e-2   1.474e-2   3.075e-1   0.0399   0.0408    88.75      7/64      0
+long_code_12k      12064    64    98.44   7.586e-3   7.412e-3   1.412e-1   0.0085   0.0078    89.69     11/64      0
+OVERALL                    320    96.88   1.000e-2   9.273e-3   3.075e-1   0.0230   0.0238    90.12     44.4%      0
+decode (teacher-forced) floor [4bit]: top-1 96.88% (not gated for this class) ok | 21-way KL 9.273e-3 (need <= 3.0e-2) ok | tail mass ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 44.4% of positions before the first argmax divergence, worst prompt 10.9% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+long_code_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok
+prefix-reuse gate: PASS
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc35lf8:4096 end 23:17:45
+[burst] stages done 2026-10-18 23:17:45 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-18 23:17:45
+[burst] radiance answers 2026-10-18 23:17:55 (after 15 s)

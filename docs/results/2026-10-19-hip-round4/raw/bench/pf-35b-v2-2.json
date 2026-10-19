@@ -1,0 +1,157 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "pf-35b-v2-2",
+  "timestamp_unix": 1792379433,
+  "url": "http://127.0.0.1:8090",
+  "model": "qwen36-35b-intarsia-hip",
+  "config": {
+    "sizes": [
+      128,
+      1024,
+      4096,
+      16384
+    ],
+    "gen": 128,
+    "reps": 5,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 2.2,
+    "bandwidth_gbs": 627.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 50.0,
+    "tokens_per_filler_sentence": 22.11
+  },
+  "fingerprint": {},
+  "graph": {
+    "available": true,
+    "replays": 2560,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 128.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.0719,
+      "prefill_tok_s": 1770.9,
+      "decode_tok_s": 145.72,
+      "decode_tok_s_reps": [
+        144.81,
+        145.53,
+        145.74,
+        145.76,
+        145.72
+      ],
+      "decode_tok_s_min": 144.81,
+      "decode_tok_s_max": 145.76,
+      "decode_tok_s_stdev": 0.4,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 51.1,
+      "reps_ok": 5,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 987.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.176,
+      "prefill_tok_s": 5607.7,
+      "decode_tok_s": 144.9,
+      "decode_tok_s_reps": [
+        144.92,
+        144.9,
+        144.85,
+        144.92,
+        144.9
+      ],
+      "decode_tok_s_min": 144.85,
+      "decode_tok_s_max": 144.92,
+      "decode_tok_s_stdev": 0.03,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 50.8,
+      "reps_ok": 5,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4039.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.5948,
+      "prefill_tok_s": 6790.7,
+      "decode_tok_s": 140.38,
+      "decode_tok_s_reps": [
+        140.43,
+        140.56,
+        140.38,
+        140.07,
+        139.77
+      ],
+      "decode_tok_s_min": 139.77,
+      "decode_tok_s_max": 140.56,
+      "decode_tok_s_stdev": 0.32,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 49.3,
+      "reps_ok": 5,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 16384,
+      "prompt_tokens": 16506.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 3.2362,
+      "prefill_tok_s": 5099.2,
+      "decode_tok_s": 128.16,
+      "decode_tok_s_reps": [
+        128.18,
+        128.16,
+        128.17,
+        128.15,
+        128.09
+      ],
+      "decode_tok_s_min": 128.09,
+      "decode_tok_s_max": 128.18,
+      "decode_tok_s_stdev": 0.04,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 45.0,
+      "reps_ok": 5,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 640,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

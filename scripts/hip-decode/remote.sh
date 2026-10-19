@@ -364,6 +364,8 @@ stage_k35() { $D $B kernels test --backend hip --model $M35 2>&1 | grep -aE "gdn
 stage_k35q() { $D $B kernels test --backend hip --model $M35 --quick 2>&1 | grep -aE "kernels,|FAIL|REJECT|SKIPPED|rror"; }
 # ids4kx: ids4k with this tree's delta rule v2 disabled (the fused prologue alone)
 stage_ids4kx() { IDS_NEW_ENV="INTARSIA_HIP_DISABLE=gdn_delta_rule_bf16_v2" stage_ids4k; }
+# acc35f8: the 35B short golden with the opt-in W8A8 GEMM (INTARSIA_HIP_FP8_F8=1); the long one is acc35lf8:<chunk>
+stage_acc35f8() { INTARSIA_HIP_FP8_F8=1 ACC_TAG=f8 stage_acc35; }
 # ids4koff: ids4k with both round-4 kernels disabled (the rollback lever: the model falls back to the unfused ops)
 stage_ids4koff() { IDS_NEW_ENV="INTARSIA_HIP_DISABLE=gdn_delta_rule_bf16_v2,qk_norm_rope_kv_bf16" stage_ids4k; }
 # gdnbench: the delta-rule kernels at the 35B's decode and prefill shapes (us per launch), per prefetch depth
