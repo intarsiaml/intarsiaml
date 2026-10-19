@@ -1,0 +1,347 @@
+[window] job 2732; gpu0: ab:def:1 ab:blk:1 ab:v3:1 ab:blk:2 ab:v3:2 ab:def:2 ab:v3:3 ab:def:3 ab:blk:3; gpu1: ; stopping radiance 2026-10-19 10:18:01
+[window] radiance stopped 2026-10-19 10:18:04
+################ stage ab:def:1 start 10:18:04
+################ stage pf35:def-1 start 10:18:04
+--- serve qwen36-35b-intarsia-hip [10:18:04]
+up after ~18s
+  size   1024 rep: prompt=949 gen=128 ttft=0.15s prefill=6488 tok/s decode=149.6 tok/s
+  size   1024 rep: prompt=968 gen=128 ttft=0.15s prefill=6538 tok/s decode=149.6 tok/s
+  size   1024 rep: prompt=960 gen=128 ttft=0.15s prefill=6527 tok/s decode=149.8 tok/s
+  size   1024 rep: prompt=956 gen=128 ttft=0.15s prefill=6504 tok/s decode=149.7 tok/s
+  size   4096 rep: prompt=3987 gen=128 ttft=0.44s prefill=9044 tok/s decode=144.1 tok/s
+  size   4096 rep: prompt=4000 gen=128 ttft=0.44s prefill=9088 tok/s decode=144.3 tok/s
+  size   4096 rep: prompt=3939 gen=128 ttft=0.43s prefill=9073 tok/s decode=143.9 tok/s
+  size   4096 rep: prompt=4030 gen=128 ttft=0.44s prefill=9109 tok/s decode=144.7 tok/s
+  size   4096 rep: prompt=3992 gen=128 ttft=0.44s prefill=9018 tok/s decode=144.2 tok/s
+  size  16384 rep: prompt=16282 gen=128 ttft=2.11s prefill=7733 tok/s decode=134.0 tok/s
+  size  16384 rep: prompt=16303 gen=128 ttft=2.11s prefill=7745 tok/s decode=133.7 tok/s
+  size  16384 rep: prompt=16320 gen=128 ttft=2.11s prefill=7730 tok/s decode=133.4 tok/s
+  size  16384 rep: prompt=16274 gen=128 ttft=2.12s prefill=7694 tok/s decode=134.0 tok/s
+  size  16384 rep: prompt=16272 gen=128 ttft=2.11s prefill=7699 tok/s decode=134.0 tok/s
+wrote /work/bench-out/pf-35b-def-1.json
+pf-35b-def-1  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      108     0.061         1752       150.2      128       52.7
+    1024      956     0.147         6504       149.6      128       52.5
+    4096     3992     0.441         9073       144.2      128       50.6
+   16384    16282     2.111         7730       134.0      128       47.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:def-1 end 10:18:54
+################ stage ab:def:1 end 10:18:54
+################ stage ab:blk:1 start 10:18:54
+################ stage pf35:blk-1 start 10:18:54
+--- serve qwen36-35b-intarsia-hip [10:18:54]
+up after ~15s
+  size   1024 rep: prompt=952 gen=128 ttft=0.15s prefill=6457 tok/s decode=163.9 tok/s
+  size   1024 rep: prompt=954 gen=128 ttft=0.15s prefill=6459 tok/s decode=163.9 tok/s
+  size   1024 rep: prompt=960 gen=128 ttft=0.15s prefill=6480 tok/s decode=163.8 tok/s
+  size   1024 rep: prompt=946 gen=128 ttft=0.15s prefill=6410 tok/s decode=163.9 tok/s
+  size   4096 rep: prompt=4006 gen=128 ttft=0.45s prefill=8973 tok/s decode=157.6 tok/s
+  size   4096 rep: prompt=4046 gen=128 ttft=0.45s prefill=9061 tok/s decode=158.2 tok/s
+  size   4096 rep: prompt=4012 gen=128 ttft=0.44s prefill=9045 tok/s decode=157.5 tok/s
+  size   4096 rep: prompt=4037 gen=128 ttft=0.45s prefill=9005 tok/s decode=157.9 tok/s
+  size   4096 rep: prompt=4025 gen=128 ttft=0.45s prefill=9013 tok/s decode=157.6 tok/s
+  size  16384 rep: prompt=16221 gen=128 ttft=2.11s prefill=7694 tok/s decode=146.1 tok/s
+  size  16384 rep: prompt=16285 gen=128 ttft=2.12s prefill=7684 tok/s decode=145.4 tok/s
+  size  16384 rep: prompt=16275 gen=128 ttft=2.12s prefill=7662 tok/s decode=145.8 tok/s
+  size  16384 rep: prompt=16285 gen=128 ttft=2.12s prefill=7678 tok/s decode=145.5 tok/s
+  size  16384 rep: prompt=16346 gen=128 ttft=2.13s prefill=7688 tok/s decode=144.3 tok/s
+wrote /work/bench-out/pf-35b-blk-1.json
+pf-35b-blk-1  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      111     0.061         1794       164.8      128       57.8
+    1024      952     0.148         6457       163.8      128       57.5
+    4096     4025     0.447         9013       157.6      128       55.3
+   16384    16285     2.121         7684       145.5      128       51.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:blk-1 end 10:19:40
+################ stage ab:blk:1 end 10:19:40
+################ stage ab:v3:1 start 10:19:40
+################ stage pf35:v3-1 start 10:19:40
+--- serve qwen36-35b-intarsia-hip [10:19:40]
+up after ~15s
+  size   1024 rep: prompt=947 gen=128 ttft=0.15s prefill=6399 tok/s decode=150.7 tok/s
+  size   1024 rep: prompt=953 gen=128 ttft=0.15s prefill=6456 tok/s decode=150.6 tok/s
+  size   1024 rep: prompt=968 gen=128 ttft=0.15s prefill=6478 tok/s decode=150.6 tok/s
+  size   4096 rep: prompt=4015 gen=128 ttft=0.45s prefill=9016 tok/s decode=145.6 tok/s
+  size   4096 rep: prompt=4012 gen=128 ttft=0.44s prefill=9042 tok/s decode=145.6 tok/s
+  size   4096 rep: prompt=4007 gen=128 ttft=0.44s prefill=9007 tok/s decode=145.5 tok/s
+  size   4096 rep: prompt=4023 gen=128 ttft=0.45s prefill=8987 tok/s decode=145.7 tok/s
+  size   4096 rep: prompt=4031 gen=128 ttft=0.45s prefill=9032 tok/s decode=145.8 tok/s
+  size  16384 rep: prompt=16343 gen=128 ttft=2.12s prefill=7699 tok/s decode=133.6 tok/s
+  size  16384 rep: prompt=16448 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16327 gen=128 ttft=2.13s prefill=7677 tok/s decode=133.8 tok/s
+  size  16384 rep: prompt=16184 gen=128 ttft=2.11s prefill=7663 tok/s decode=135.0 tok/s
+  size  16384 rep: prompt=16248 gen=128 ttft=2.11s prefill=7683 tok/s decode=134.9 tok/s
+  size  16384 rep: prompt=16363 gen=128 ttft=2.13s prefill=7687 tok/s decode=133.3 tok/s
+wrote /work/bench-out/pf-35b-v3-1.json
+pf-35b-v3-1  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      109     0.062         1753       151.5      128       53.2
+    1024      958     0.148         6478       150.7      128       52.9
+    4096     4015     0.445         9016       145.6      128       51.1
+   16384    16327     2.123         7683       133.8      128       47.0
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2722
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:v3-1 end 10:20:31
+################ stage ab:v3:1 end 10:20:31
+################ stage ab:blk:2 start 10:20:31
+################ stage pf35:blk-2 start 10:20:31
+--- serve qwen36-35b-intarsia-hip [10:20:31]
+up after ~15s
+  size   1024 rep: prompt=963 gen=128 ttft=0.15s prefill=6438 tok/s decode=164.1 tok/s
+  size   1024 rep: prompt=965 gen=128 ttft=0.15s prefill=6456 tok/s decode=164.1 tok/s
+  size   1024 rep: prompt=973 gen=128 ttft=0.15s prefill=6446 tok/s decode=164.0 tok/s
+  size   1024 rep: prompt=958 gen=128 ttft=0.15s prefill=6431 tok/s decode=164.1 tok/s
+  size   4096 rep: prompt=4027 gen=128 ttft=0.45s prefill=9040 tok/s decode=158.2 tok/s
+  size   4096 rep: prompt=3967 gen=128 ttft=0.44s prefill=9048 tok/s decode=157.2 tok/s
+  size   4096 rep: prompt=3996 gen=128 ttft=0.44s prefill=9011 tok/s decode=157.5 tok/s
+  size   4096 rep: prompt=3931 gen=128 ttft=0.44s prefill=9001 tok/s decode=157.1 tok/s
+  size   4096 rep: prompt=3937 gen=128 ttft=0.44s prefill=8992 tok/s decode=157.0 tok/s
+  size  16384 rep: prompt=16219 gen=128 ttft=2.11s prefill=7688 tok/s decode=146.0 tok/s
+  size  16384 rep: prompt=16241 gen=128 ttft=2.12s prefill=7676 tok/s decode=145.9 tok/s
+  size  16384 rep: prompt=16144 gen=128 ttft=2.10s prefill=7679 tok/s decode=146.0 tok/s
+  size  16384 rep: prompt=16250 gen=128 ttft=2.12s prefill=7678 tok/s decode=145.9 tok/s
+  size  16384 rep: prompt=16184 gen=128 ttft=2.11s prefill=7673 tok/s decode=146.0 tok/s
+wrote /work/bench-out/pf-35b-blk-2.json
+pf-35b-blk-2  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      109     0.061         1790       165.0      128       57.9
+    1024      965     0.149         6446       164.1      128       57.6
+    4096     3967     0.438         9011       157.2      128       55.2
+   16384    16219     2.110         7678       146.0      128       51.2
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:blk-2 end 10:21:16
+################ stage ab:blk:2 end 10:21:16
+################ stage ab:v3:2 start 10:21:16
+################ stage pf35:v3-2 start 10:21:17
+--- serve qwen36-35b-intarsia-hip [10:21:17]
+up after ~15s
+  size   1024 rep: prompt=966 gen=128 ttft=0.15s prefill=6464 tok/s decode=150.7 tok/s
+  size   1024 rep: prompt=964 gen=128 ttft=0.15s prefill=6459 tok/s decode=150.7 tok/s
+  size   1024 rep: prompt=959 gen=128 ttft=0.15s prefill=6463 tok/s decode=150.7 tok/s
+  size   4096 rep: prompt=3992 gen=128 ttft=0.45s prefill=8935 tok/s decode=144.7 tok/s
+  size   4096 rep: prompt=3991 gen=128 ttft=0.45s prefill=8962 tok/s decode=144.7 tok/s
+  size   4096 rep: prompt=3997 gen=128 ttft=0.44s prefill=9032 tok/s decode=144.8 tok/s
+  size   4096 rep: prompt=4003 gen=128 ttft=0.45s prefill=8967 tok/s decode=144.9 tok/s
+  size   4096 rep: prompt=4013 gen=128 ttft=0.45s prefill=8995 tok/s decode=145.0 tok/s
+  size  16384 rep: prompt=16373 gen=128 ttft=2.13s prefill=7695 tok/s decode=133.3 tok/s
+  size  16384 rep: prompt=16342 gen=128 ttft=2.13s prefill=7688 tok/s decode=133.7 tok/s
+  size  16384 rep: prompt=16295 gen=128 ttft=2.12s prefill=7688 tok/s decode=134.4 tok/s
+  size  16384 rep: prompt=16403 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16285 gen=128 ttft=2.13s prefill=7661 tok/s decode=134.6 tok/s
+  size  16384 rep: prompt=16267 gen=128 ttft=2.12s prefill=7673 tok/s decode=134.8 tok/s
+wrote /work/bench-out/pf-35b-v3-2.json
+pf-35b-v3-2  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      113     0.062         1794       151.6      128       53.2
+    1024      961     0.148         6463       150.7      128       52.9
+    4096     3997     0.446         8967       144.8      128       50.8
+   16384    16295     2.126         7688       134.4      128       47.2
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2722
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:v3-2 end 10:22:07
+################ stage ab:v3:2 end 10:22:07
+################ stage ab:def:2 start 10:22:07
+################ stage pf35:def-2 start 10:22:07
+--- serve qwen36-35b-intarsia-hip [10:22:07]
+up after ~15s
+  size   1024 rep: prompt=960 gen=128 ttft=0.15s prefill=6437 tok/s decode=150.0 tok/s
+  size   1024 rep: prompt=938 gen=128 ttft=0.15s prefill=6374 tok/s decode=149.9 tok/s
+  size   1024 rep: prompt=950 gen=128 ttft=0.15s prefill=6415 tok/s decode=149.9 tok/s
+  size   1024 rep: prompt=974 gen=128 ttft=0.15s prefill=6487 tok/s decode=150.0 tok/s
+  size   4096 rep: prompt=3977 gen=128 ttft=0.44s prefill=8987 tok/s decode=144.3 tok/s
+  size   4096 rep: prompt=3941 gen=128 ttft=0.44s prefill=8996 tok/s decode=144.2 tok/s
+  size   4096 rep: prompt=4009 gen=128 ttft=0.45s prefill=8989 tok/s decode=144.7 tok/s
+  size   4096 rep: prompt=4021 gen=128 ttft=0.45s prefill=8971 tok/s decode=144.8 tok/s
+  size   4096 rep: prompt=3987 gen=128 ttft=0.44s prefill=8976 tok/s decode=144.3 tok/s
+  size  16384 rep: prompt=16301 gen=128 ttft=2.12s prefill=7695 tok/s decode=133.5 tok/s
+  size  16384 rep: prompt=16295 gen=128 ttft=2.12s prefill=7671 tok/s decode=133.6 tok/s
+  size  16384 rep: prompt=16336 gen=128 ttft=2.12s prefill=7695 tok/s decode=133.0 tok/s
+  size  16384 rep: prompt=16266 gen=128 ttft=2.12s prefill=7663 tok/s decode=134.0 tok/s
+  size  16384 rep: prompt=16295 gen=128 ttft=2.13s prefill=7653 tok/s decode=133.6 tok/s
+wrote /work/bench-out/pf-35b-def-2.json
+pf-35b-def-2  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      107     0.063         1720       150.8      128       52.9
+    1024      950     0.148         6415       149.9      128       52.6
+    4096     3987     0.444         8987       144.3      128       50.6
+   16384    16295     2.123         7671       133.6      128       46.9
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:def-2 end 10:22:54
+################ stage ab:def:2 end 10:22:54
+################ stage ab:v3:3 start 10:22:54
+################ stage pf35:v3-3 start 10:22:54
+--- serve qwen36-35b-intarsia-hip [10:22:54]
+up after ~15s
+  size   1024 rep: prompt=945 gen=128 ttft=0.15s prefill=6414 tok/s decode=150.8 tok/s
+  size   1024 rep: prompt=965 gen=128 ttft=0.15s prefill=6472 tok/s decode=150.7 tok/s
+  size   1024 rep: prompt=953 gen=128 ttft=0.15s prefill=6435 tok/s decode=150.8 tok/s
+  size   1024 rep: prompt=959 gen=128 ttft=0.15s prefill=6466 tok/s decode=150.7 tok/s
+  size   4096 rep: prompt=3961 gen=128 ttft=0.44s prefill=9012 tok/s decode=145.1 tok/s
+  size   4096 rep: prompt=3990 gen=128 ttft=0.44s prefill=8982 tok/s decode=145.3 tok/s
+  size   4096 rep: prompt=3926 gen=128 ttft=0.44s prefill=8970 tok/s decode=145.1 tok/s
+  size   4096 rep: prompt=3922 gen=128 ttft=0.44s prefill=8967 tok/s decode=145.1 tok/s
+  size   4096 rep: prompt=3961 gen=128 ttft=0.44s prefill=8977 tok/s decode=145.1 tok/s
+  size  16384 rep: prompt=16180 gen=128 ttft=2.11s prefill=7678 tok/s decode=135.1 tok/s
+  size  16384 rep: prompt=16225 gen=128 ttft=2.11s prefill=7672 tok/s decode=134.9 tok/s
+  size  16384 rep: prompt=16245 gen=128 ttft=2.12s prefill=7677 tok/s decode=134.9 tok/s
+  size  16384 rep: prompt=16163 gen=128 ttft=2.11s prefill=7657 tok/s decode=135.0 tok/s
+  size  16384 rep: prompt=16222 gen=128 ttft=2.12s prefill=7667 tok/s decode=134.9 tok/s
+wrote /work/bench-out/pf-35b-v3-3.json
+pf-35b-v3-3  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      112     0.062         1799       151.6      128       53.2
+    1024      953     0.148         6435       150.8      128       52.9
+    4096     3961     0.440         8977       145.1      128       50.9
+   16384    16222     2.115         7672       134.9      128       47.3
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:v3-3 end 10:23:41
+################ stage ab:v3:3 end 10:23:41
+################ stage ab:def:3 start 10:23:41
+################ stage pf35:def-3 start 10:23:41
+--- serve qwen36-35b-intarsia-hip [10:23:41]
+up after ~15s
+  size   1024 rep: prompt=957 gen=128 ttft=0.15s prefill=6481 tok/s decode=149.9 tok/s
+  size   1024 rep: prompt=980 gen=128 ttft=0.15s prefill=6485 tok/s decode=149.9 tok/s
+  size   1024 rep: prompt=955 gen=128 ttft=0.15s prefill=6472 tok/s decode=150.0 tok/s
+  size   1024 rep: prompt=957 gen=128 ttft=0.15s prefill=6443 tok/s decode=150.0 tok/s
+  size   4096 rep: prompt=3927 gen=128 ttft=0.44s prefill=8950 tok/s decode=144.3 tok/s
+  size   4096 rep: prompt=3939 gen=128 ttft=0.44s prefill=8964 tok/s decode=144.2 tok/s
+  size   4096 rep: prompt=3929 gen=128 ttft=0.44s prefill=8993 tok/s decode=144.3 tok/s
+  size   4096 rep: prompt=3911 gen=128 ttft=0.43s prefill=9000 tok/s decode=144.3 tok/s
+  size   4096 rep: prompt=3928 gen=128 ttft=0.44s prefill=8946 tok/s decode=144.2 tok/s
+  size  16384 rep: prompt=16241 gen=128 ttft=2.11s prefill=7684 tok/s decode=134.2 tok/s
+  size  16384 rep: prompt=16097 gen=128 ttft=2.10s prefill=7672 tok/s decode=134.3 tok/s
+  size  16384 rep: prompt=16193 gen=128 ttft=2.11s prefill=7691 tok/s decode=134.2 tok/s
+  size  16384 rep: prompt=16192 gen=128 ttft=2.11s prefill=7669 tok/s decode=134.2 tok/s
+  size  16384 rep: prompt=16183 gen=128 ttft=2.11s prefill=7665 tok/s decode=134.2 tok/s
+wrote /work/bench-out/pf-35b-def-3.json
+pf-35b-def-3  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      111     0.063         1778       150.8      128       52.9
+    1024      957     0.148         6472       149.9      128       52.6
+    4096     3928     0.439         8964       144.3      128       50.6
+   16384    16192     2.111         7672       134.2      128       47.1
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:def-3 end 10:24:29
+################ stage ab:def:3 end 10:24:29
+################ stage ab:blk:3 start 10:24:29
+################ stage pf35:blk-3 start 10:24:29
+--- serve qwen36-35b-intarsia-hip [10:24:29]
+up after ~15s
+  size   1024 rep: prompt=943 gen=128 ttft=0.15s prefill=6385 tok/s decode=163.7 tok/s
+  size   1024 rep: prompt=955 gen=128 ttft=0.15s prefill=6434 tok/s decode=163.7 tok/s
+  size   1024 rep: prompt=952 gen=128 ttft=0.15s prefill=6409 tok/s decode=163.7 tok/s
+  size   1024 rep: prompt=955 gen=128 ttft=0.15s prefill=6417 tok/s decode=163.6 tok/s
+  size   4096 rep: prompt=3991 gen=128 ttft=0.45s prefill=8963 tok/s decode=157.2 tok/s
+  size   4096 rep: prompt=4017 gen=128 ttft=0.45s prefill=9026 tok/s decode=157.6 tok/s
+  size   4096 rep: prompt=3998 gen=128 ttft=0.44s prefill=9010 tok/s decode=157.1 tok/s
+  size   4096 rep: prompt=3957 gen=128 ttft=0.44s prefill=8993 tok/s decode=156.6 tok/s
+  size   4096 rep: prompt=3961 gen=128 ttft=0.44s prefill=8974 tok/s decode=156.5 tok/s
+  size  16384 rep: prompt=16281 gen=128 ttft=2.12s prefill=7674 tok/s decode=145.6 tok/s
+  size  16384 rep: prompt=16251 gen=128 ttft=2.11s prefill=7686 tok/s decode=146.0 tok/s
+  size  16384 rep: prompt=16284 gen=128 ttft=2.12s prefill=7677 tok/s decode=145.5 tok/s
+  size  16384 rep: prompt=16258 gen=128 ttft=2.13s prefill=7634 tok/s decode=146.0 tok/s
+  size  16384 rep: prompt=16284 gen=128 ttft=2.12s prefill=7666 tok/s decode=145.5 tok/s
+wrote /work/bench-out/pf-35b-blk-3.json
+pf-35b-blk-3  model=qwen36-35b-intarsia-hip  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      106     0.061         1732       164.8      128       57.8
+    1024      955     0.148         6417       163.7      128       57.4
+    4096     3991     0.444         8993       157.2      128       55.1
+   16384    16281     2.122         7674       145.6      128       51.1
+bandwidth floor: 285.0 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 2594
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf35:blk-3 end 10:25:15
+################ stage ab:blk:3 end 10:25:15
+[window] gpu0 lane done 2026-10-19 10:25:15 (exit 0)
+[window] starting radiance 2026-10-19 10:25:15
+[window] radiance answers 2026-10-19 10:25:25 (after 15 s)

@@ -1,0 +1,41 @@
+Function Name: _ZN12_GLOBAL__N_116moe_block_kernelILi1ELi8EEEvNS_9BlockArgsE
+TotalSGPRs: 99
+VGPRs: 120
+ScratchSize [bytes/lane]: 0
+Occupancy [waves/SIMD]: 12
+LDS Size [bytes/block]: 68
+Function Name: _ZN12_GLOBAL__N_116moe_block_kernelILi1ELi16EEEvNS_9BlockArgsE
+TotalSGPRs: 107
+VGPRs: 120
+ScratchSize [bytes/lane]: 0
+Occupancy [waves/SIMD]: 12
+LDS Size [bytes/block]: 68
+Function Name: _ZN12_GLOBAL__N_116moe_block_kernelILi2ELi8EEEvNS_9BlockArgsE
+TotalSGPRs: 99
+VGPRs: 120
+ScratchSize [bytes/lane]: 0
+Occupancy [waves/SIMD]: 12
+LDS Size [bytes/block]: 68
+Function Name: _ZN12_GLOBAL__N_116moe_block_kernelILi2ELi16EEEvNS_9BlockArgsE
+TotalSGPRs: 107
+VGPRs: 120
+ScratchSize [bytes/lane]: 0
+Occupancy [waves/SIMD]: 12
+LDS Size [bytes/block]: 68
+Function Name: _ZN12_GLOBAL__N_116moe_block_kernelILi4ELi8EEEvNS_9BlockArgsE
+TotalSGPRs: 99
+VGPRs: 120
+ScratchSize [bytes/lane]: 0
+Occupancy [waves/SIMD]: 12
+LDS Size [bytes/block]: 68
+Function Name: _ZN12_GLOBAL__N_116moe_block_kernelILi4ELi16EEEvNS_9BlockArgsE
+TotalSGPRs: 107
+VGPRs: 120
+ScratchSize [bytes/lane]: 0
+Occupancy [waves/SIMD]: 12
+LDS Size [bytes/block]: 68
+TotalSGPRs: 76
+VGPRs: 107
+ScratchSize [bytes/lane]: 0
+Occupancy [waves/SIMD]: 12
+LDS Size [bytes/block]: 68

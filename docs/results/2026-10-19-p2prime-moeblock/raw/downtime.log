@@ -3,3 +3,5 @@ W1	2720	09:27:52	09:28:42	0.83	M0: moe_v3 multitoken sentinel stress, base x2, v
 W2	2723	09:41:03	09:41:28	0.42	M1: moe_block bitwise (44 cases) + microbench (GPU0); counters, graph replay, dispatch order, sentinel stress (GPU1)
 W3	2730	09:59:47	10:04:23	4.60	M3: moe_block tests + bench (final kernel), plans, full admission x4 (GPU0); 13 HIP mutants, 4k ids def vs blk (GPU1)
 W4	2731	10:09:56	10:12:36	2.67	M3: accuracy, KL21 35b short/long (chunk 4096) + prefix reuse, 8B fp32 goldens; MOE_BLOCK=1 (GPU0), default (GPU1)
+W5	2732	10:18:01	10:25:25	7.40	M4: 35B interleaved A/B x3, default / MOE_BLOCK=1 / MOE_V3=1, bench speed --at-most
+W6	2733	10:30:44	10:41:03	10.32	M4: 8B interleaved A/B x3, default / MOE_BLOCK=1, bench speed --at-most

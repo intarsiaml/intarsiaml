@@ -1,0 +1,3932 @@
+77a78
+> 	s_mov_b32 s68, s53
+82c83
+< 	s_cbranch_vccz .LBB_369
+---
+> 	s_cbranch_vccz .LBB_337
+85c86
+< 	s_sub_co_i32 s71, s29, s31
+---
+> 	s_sub_co_i32 s78, s29, s31
+87c88
+< 	s_abs_i32 s4, s71
+---
+> 	s_abs_i32 s4, s78
+91c92
+< 	s_ashr_i32 s70, s0, 3
+---
+> 	s_ashr_i32 s69, s0, 3
+93c94
+< 	s_abs_i32 s0, s70
+---
+> 	s_abs_i32 s0, s69
+108c109
+< 	s_xor_b32 s3, s71, s70
+---
+> 	s_xor_b32 s3, s78, s69
+131c132
+< 	s_sub_co_i32 s68, s0, s3
+---
+> 	s_sub_co_i32 s70, s0, s3
+133c134
+< 	s_ashr_i32 s69, s68, 31
+---
+> 	s_ashr_i32 s71, s70, 31
+135c136
+< 	s_mul_u64 s[4:5], s[68:69], s[0:1]
+---
+> 	s_mul_u64 s[4:5], s[70:71], s[0:1]
+452c453
+< 	s_and_not1_b32 s78, 0xffff, s9
+---
+> 	s_and_not1_b32 s79, 0xffff, s9
+457,458c458,459
+< 	s_lshr_b32 s72, s78, 5
+< 	s_cmp_gt_u32 s78, 31
+---
+> 	s_lshr_b32 s72, s79, 5
+> 	s_cmp_gt_u32 s79, 31
+498c499
+< 	s_xor_b32 s81, s9, s59
+---
+> 	s_xor_b32 s82, s9, s59
+500c501
+< 	s_sub_f32 s9, s81, s81
+---
+> 	s_sub_f32 s9, s82, s82
+585c586
+< 	s_and_not1_b32 s79, 0xffff, s9
+---
+> 	s_and_not1_b32 s80, 0xffff, s9
+591,592c592,593
+< 	s_lshr_b32 s72, s79, 5
+< 	s_cmp_gt_u32 s79, 31
+---
+> 	s_lshr_b32 s72, s80, 5
+> 	s_cmp_gt_u32 s80, 31
+635c636
+< 	s_sub_f32 s9, s59, s81
+---
+> 	s_sub_f32 s9, s59, s82
+669c670
+< 	s_mov_b32 s80, -1
+---
+> 	s_mov_b32 s81, -1
+676c677
+< 	s_mov_b32 s82, -1
+---
+> 	s_mov_b32 s83, -1
+683c684
+< 	s_mov_b32 s83, -1
+---
+> 	s_mov_b32 s86, -1
+690,691c691,692
+< 	s_mov_b32 s89, -1
+< 	s_mov_b32 s94, 0
+---
+> 	s_mov_b32 s88, -1
+> 	s_mov_b32 s95, 0
+697,698c698,699
+< 	s_mov_b32 s91, -1
+< 	s_mov_b32 s95, 0
+---
+> 	s_mov_b32 s92, -1
+> 	s_mov_b32 s96, 0
+701,702c702,703
+< 	s_mov_b32 s78, -1
+< 	s_mov_b32 s81, 0
+---
+> 	s_mov_b32 s79, -1
+> 	s_mov_b32 s82, 0
+709c710
+< 	s_mov_b32 s79, -1
+---
+> 	s_mov_b32 s80, -1
+769c770
+< 	s_and_not1_b32 s80, 0xffff, s9
+---
+> 	s_and_not1_b32 s81, 0xffff, s9
+775,776c776,777
+< 	s_lshr_b32 s73, s80, 5
+< 	s_cmp_gt_u32 s80, 31
+---
+> 	s_lshr_b32 s73, s81, 5
+> 	s_cmp_gt_u32 s81, 31
+818c819
+< 	s_sub_f32 s9, s84, s81
+---
+> 	s_sub_f32 s9, s84, s82
+906c907
+< 	s_and_not1_b32 s82, 0xffff, s9
+---
+> 	s_and_not1_b32 s83, 0xffff, s9
+912,913c913,914
+< 	s_lshr_b32 s73, s82, 5
+< 	s_cmp_gt_u32 s82, 31
+---
+> 	s_lshr_b32 s73, s83, 5
+> 	s_cmp_gt_u32 s83, 31
+955c956
+< 	s_sub_f32 s9, s85, s81
+---
+> 	s_sub_f32 s9, s85, s82
+1043c1044
+< 	s_and_not1_b32 s83, 0xffff, s9
+---
+> 	s_and_not1_b32 s86, 0xffff, s9
+1049,1050c1050,1051
+< 	s_lshr_b32 s73, s83, 5
+< 	s_cmp_gt_u32 s83, 31
+---
+> 	s_lshr_b32 s73, s86, 5
+> 	s_cmp_gt_u32 s86, 31
+1092c1093
+< 	s_sub_f32 s9, s93, s81
+---
+> 	s_sub_f32 s9, s93, s82
+1097c1098
+< 	s_rndne_f32 s86, s72
+---
+> 	s_rndne_f32 s87, s72
+1101c1102
+< 	s_sub_f32 s72, s72, s86
+---
+> 	s_sub_f32 s72, s72, s87
+1108c1109
+< 	s_cvt_i32_f32 s73, s86
+---
+> 	s_cvt_i32_f32 s73, s87
+1180c1181
+< 	s_and_not1_b32 s89, 0xffff, s9
+---
+> 	s_and_not1_b32 s88, 0xffff, s9
+1186,1187c1187,1188
+< 	s_lshr_b32 s86, s89, 5
+< 	s_cmp_gt_u32 s89, 31
+---
+> 	s_lshr_b32 s87, s88, 5
+> 	s_cmp_gt_u32 s88, 31
+1189c1190
+< 	s_cmp_lg_u32 s86, 1
+---
+> 	s_cmp_lg_u32 s87, 1
+1193c1194
+< 	s_cmp_lg_u32 s86, 2
+---
+> 	s_cmp_lg_u32 s87, 2
+1197c1198
+< 	s_cmp_lg_u32 s86, 3
+---
+> 	s_cmp_lg_u32 s87, 3
+1201c1202
+< 	s_cmp_lg_u32 s86, 4
+---
+> 	s_cmp_lg_u32 s87, 4
+1205c1206
+< 	s_cmp_lg_u32 s86, 5
+---
+> 	s_cmp_lg_u32 s87, 5
+1209c1210
+< 	s_cmp_lg_u32 s86, 6
+---
+> 	s_cmp_lg_u32 s87, 6
+1213c1214
+< 	s_cmp_lg_u32 s86, 7
+---
+> 	s_cmp_lg_u32 s87, 7
+1223c1224
+< 	s_brev_b32 s86, 1
+---
+> 	s_brev_b32 s87, 1
+1225c1226
+< 	s_cselect_b32 s9, 0xffff0000, s86
+---
+> 	s_cselect_b32 s9, 0xffff0000, s87
+1227c1228
+< 	s_xor_b32 s94, s9, s72
+---
+> 	s_xor_b32 s95, s9, s72
+1229c1230
+< 	s_sub_f32 s9, s94, s81
+---
+> 	s_sub_f32 s9, s95, s82
+1233,1235c1234,1236
+< 	s_xor_b32 s86, s72, 0x80000000
+< 	s_rndne_f32 s87, s72
+< 	s_fmamk_f32 s86, s9, 0x3fb8aa3b, s86
+---
+> 	s_xor_b32 s87, s72, 0x80000000
+> 	s_rndne_f32 s89, s72
+> 	s_fmamk_f32 s87, s9, 0x3fb8aa3b, s87
+1237c1238
+< 	s_sub_f32 s72, s72, s87
+---
+> 	s_sub_f32 s72, s72, s89
+1239c1240
+< 	s_fmamk_f32 s86, s9, 0x32a5705f, s86
+---
+> 	s_fmamk_f32 s87, s9, 0x32a5705f, s87
+1243,1244c1244,1245
+< 	s_add_f32 s72, s72, s86
+< 	s_cvt_i32_f32 s86, s87
+---
+> 	s_add_f32 s72, s72, s87
+> 	s_cvt_i32_f32 s87, s89
+1249c1250
+< 	v_ldexp_f32 v10, s72, s86
+---
+> 	v_ldexp_f32 v10, s72, s87
+1315,1316c1316,1317
+< 	s_and_not1_b32 s86, 31, s9
+< 	s_and_not1_b32 s91, 0xffff, s9
+---
+> 	s_and_not1_b32 s87, 31, s9
+> 	s_and_not1_b32 s92, 0xffff, s9
+1318,1319c1319,1320
+< 	v_cmp_eq_u32_e32 vcc_lo, s86, v33
+< 	s_and_saveexec_b32 s86, vcc_lo
+---
+> 	v_cmp_eq_u32_e32 vcc_lo, s87, v33
+> 	s_and_saveexec_b32 s87, vcc_lo
+1322,1323c1323,1324
+< 	s_lshr_b32 s87, s91, 5
+< 	s_cmp_gt_u32 s91, 31
+---
+> 	s_lshr_b32 s89, s92, 5
+> 	s_cmp_gt_u32 s92, 31
+1324a1326
+> 	s_cmp_lg_u32 s89, 1
+1326d1327
+< 	s_cmp_lg_u32 s87, 1
+1329c1330
+< 	s_cmp_lg_u32 s87, 2
+---
+> 	s_cmp_lg_u32 s89, 2
+1333c1334
+< 	s_cmp_lg_u32 s87, 3
+---
+> 	s_cmp_lg_u32 s89, 3
+1337c1338
+< 	s_cmp_lg_u32 s87, 4
+---
+> 	s_cmp_lg_u32 s89, 4
+1341c1342
+< 	s_cmp_lg_u32 s87, 5
+---
+> 	s_cmp_lg_u32 s89, 5
+1345c1346
+< 	s_cmp_lg_u32 s87, 6
+---
+> 	s_cmp_lg_u32 s89, 6
+1349c1350
+< 	s_cmp_lg_u32 s87, 7
+---
+> 	s_cmp_lg_u32 s89, 7
+1357,1359c1358,1360
+< 	s_or_b32 exec_lo, exec_lo, s86
+< 	s_and_b32 s86, s9, 0xffff0000
+< 	s_brev_b32 s87, 1
+---
+> 	s_or_b32 exec_lo, exec_lo, s87
+> 	s_and_b32 s87, s9, 0xffff0000
+> 	s_brev_b32 s89, 1
+1360a1362
+> 	s_cselect_b32 s9, 0xffff0000, s89
+1362,1370c1364,1367
+< 	s_cselect_b32 s9, 0xffff0000, s87
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_1)
+< 	s_xor_b32 s95, s9, s86
+< 	s_sub_f32 s9, s95, s81
+< 	s_delay_alu instid0(SALU_CYCLE_3) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+< 	s_mul_f32 s86, s9, 0x3fb8aa3b
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s87, s86, 0x80000000
+< 	s_rndne_f32 s88, s86
+---
+> 	s_xor_b32 s96, s9, s87
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(SALU_CYCLE_3)
+> 	s_sub_f32 s9, s96, s82
+> 	s_mul_f32 s87, s9, 0x3fb8aa3b
+1372c1369,1372
+< 	s_fmamk_f32 s87, s9, 0x3fb8aa3b, s87
+---
+> 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_3) | instid1(SALU_CYCLE_1)
+> 	s_xor_b32 s89, s87, 0x80000000
+> 	s_rndne_f32 s90, s87
+> 	s_fmamk_f32 s89, s9, 0x3fb8aa3b, s89
+1374,1376c1374,1376
+< 	s_sub_f32 s86, s86, s88
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s87, s9, 0x32a5705f, s87
+---
+> 	s_sub_f32 s87, s87, s90
+> 	s_delay_alu instid0(SALU_CYCLE_1)
+> 	s_fmamk_f32 s89, s9, 0x32a5705f, s89
+1380,1381c1380,1381
+< 	s_add_f32 s86, s86, s87
+< 	s_cvt_i32_f32 s87, s88
+---
+> 	s_add_f32 s87, s87, s89
+> 	s_cvt_i32_f32 s89, s90
+1384c1384
+< 	v_s_exp_f32 s86, s86
+---
+> 	v_s_exp_f32 s87, s87
+1386c1386
+< 	v_ldexp_f32 v10, s86, s87
+---
+> 	v_ldexp_f32 v10, s87, s89
+1396c1396
+< 	s_mov_b32 s96, 0
+---
+> 	s_mov_b32 s97, 0
+1399c1399
+< 	s_mov_b32 s92, -1
+---
+> 	s_mov_b32 s94, -1
+1404c1404
+< 	s_brev_b32 s87, 1
+---
+> 	s_brev_b32 s89, 1
+1456,1459c1456,1459
+< 	v_readfirstlane_b32 s86, v2
+< 	s_and_not1_b32 s92, 0xffff, s86
+< 	s_and_b32 s88, s86, 0xffff0000
+< 	s_cmp_gt_i32 s86, -1
+---
+> 	v_readfirstlane_b32 s87, v2
+> 	s_and_not1_b32 s94, 0xffff, s87
+> 	s_and_b32 s90, s87, 0xffff0000
+> 	s_cmp_gt_i32 s87, -1
+1461c1461
+< 	s_cselect_b32 s86, 0xffff0000, s87
+---
+> 	s_cselect_b32 s87, 0xffff0000, s89
+1463c1463
+< 	s_xor_b32 s96, s86, s88
+---
+> 	s_xor_b32 s97, s87, s90
+1465c1465
+< 	s_sub_f32 s86, s96, s81
+---
+> 	s_sub_f32 s87, s97, s82
+1467c1467
+< 	s_mul_f32 s87, s86, 0x3fb8aa3b
+---
+> 	s_mul_f32 s89, s87, 0x3fb8aa3b
+1470,1474c1470,1474
+< 	s_xor_b32 s88, s87, 0x80000000
+< 	s_rndne_f32 s90, s87
+< 	s_fmamk_f32 s88, s86, 0x3fb8aa3b, s88
+< 	s_cmp_nlt_f32 s86, 0xc2ce8ed0
+< 	s_sub_f32 s87, s87, s90
+---
+> 	s_xor_b32 s90, s89, 0x80000000
+> 	s_rndne_f32 s91, s89
+> 	s_fmamk_f32 s90, s87, 0x3fb8aa3b, s90
+> 	s_cmp_nlt_f32 s87, 0xc2ce8ed0
+> 	s_sub_f32 s89, s89, s91
+1476c1476
+< 	s_fmamk_f32 s88, s86, 0x32a5705f, s88
+---
+> 	s_fmamk_f32 s90, s87, 0x32a5705f, s90
+1478c1478
+< 	s_cmp_ngt_f32 s86, 0x42b17218
+---
+> 	s_cmp_ngt_f32 s87, 0x42b17218
+1480,1481c1480,1481
+< 	s_add_f32 s87, s87, s88
+< 	s_cvt_i32_f32 s88, s90
+---
+> 	s_add_f32 s89, s89, s90
+> 	s_cvt_i32_f32 s90, s91
+1484c1484
+< 	v_s_exp_f32 s87, s87
+---
+> 	v_s_exp_f32 s89, s89
+1486c1486
+< 	v_ldexp_f32 v2, s87, s88
+---
+> 	v_ldexp_f32 v2, s89, s90
+1499c1499
+< 	s_cbranch_execz .LBB_88
+---
+> 	s_cbranch_execz .LBB_213
+1506c1506
+< 	v_subrev_f32_e32 v1, s81, v1
+---
+> 	v_subrev_f32_e32 v1, s82, v1
+1527c1527
+< 	s_cbranch_execnz .LBB_89
+---
+> 	s_cbranch_execnz .LBB_214
+1532c1532
+< 	s_cbranch_execz .LBB_90
+---
+> 	s_cbranch_execz .LBB_215
+1539c1539
+< 	v_subrev_f32_e32 v2, s81, v2
+---
+> 	v_subrev_f32_e32 v2, s82, v2
+1562c1562
+< 	s_cbranch_execnz .LBB_91
+---
+> 	s_cbranch_execnz .LBB_216
+1567c1567
+< 	s_cbranch_execz .LBB_92
+---
+> 	s_cbranch_execz .LBB_217
+1574c1574
+< 	v_subrev_f32_e32 v2, s81, v2
+---
+> 	v_subrev_f32_e32 v2, s82, v2
+1597c1597
+< 	s_cbranch_execnz .LBB_93
+---
+> 	s_cbranch_execnz .LBB_218
+1602c1602
+< 	s_cbranch_execz .LBB_94
+---
+> 	s_cbranch_execz .LBB_219
+1609c1609
+< 	v_subrev_f32_e32 v2, s81, v2
+---
+> 	v_subrev_f32_e32 v2, s82, v2
+1632,1633c1632,1633
+< 	s_cbranch_execnz .LBB_95
+< 	s_branch .LBB_96
+---
+> 	s_cbranch_execnz .LBB_220
+> 	s_branch .LBB_221
+1637a1638
+> 	s_mov_b32 s90, 0
+1638a1640
+> 	s_mov_b32 s91, 0
+1640c1642
+< 	s_cbranch_vccnz .LBB_97
+---
+> 	s_cbranch_vccnz .LBB_66
+1642c1644
+< 	s_sub_f32 s0, s81, s81
+---
+> 	s_sub_f32 s0, s82, s82
+1685,1708c1687
+< 	v_div_fixup_f32 v3, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v2, 0x7fffffff, v3
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v2
+<                                         ; implicit-def: $vgpr2
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.66:
+< 	v_bfe_u32 v2, v3, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v2, v3, v2, 0x7fff
+<                                         ; implicit-def: $vgpr3
+< 	v_lshrrev_b32_e32 v2, 16, v2
+< ; %bb.67:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.68:
+< 	v_lshrrev_b32_e32 v2, 16, v3
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_or_b32_e32 v2, 64, v2
+< ; %bb.69:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+---
+> 	v_div_fixup_f32 v2, v3, v1, v2
+1710,1711c1689,1690
+< 	v_readfirstlane_b32 s0, v2
+< 	s_lshl_b32 s90, s0, 16
+---
+> 	v_readfirstlane_b32 s91, v2
+> .LBB_66:
+1713d1691
+< 	s_mov_b32 s88, 0
+1715,1717c1693,1695
+< 	s_cbranch_vccnz .LBB_98
+< .LBB_70:
+< 	s_sub_f32 s0, s59, s81
+---
+> 	s_cbranch_vccnz .LBB_207
+> ; %bb.67:
+> 	s_sub_f32 s0, s59, s82
+1761,1784c1739
+< 	v_div_fixup_f32 v3, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v2, 0x7fffffff, v3
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v2
+<                                         ; implicit-def: $vgpr2
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.71:
+< 	v_bfe_u32 v2, v3, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v2, v3, v2, 0x7fff
+<                                         ; implicit-def: $vgpr3
+< 	v_lshrrev_b32_e32 v2, 16, v2
+< ; %bb.72:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.73:
+< 	v_lshrrev_b32_e32 v2, 16, v3
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_or_b32_e32 v2, 64, v2
+< ; %bb.74:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+---
+> 	v_div_fixup_f32 v2, v3, v1, v2
+1786,1788c1741
+< 	v_readfirstlane_b32 s0, v2
+< 	s_lshl_b32 s88, s0, 16
+< 	s_and_not1_b32 vcc_lo, exec_lo, s76
+---
+> 	v_readfirstlane_b32 s90, v2
+1789a1743,1744
+> 	s_and_not1_b32 vcc_lo, exec_lo, s76
+> 	s_mov_b32 s89, 0
+1791,1792c1746,1747
+< 	s_cbranch_vccz .LBB_99
+< .LBB_75:
+---
+> 	s_cbranch_vccz .LBB_208
+> .LBB_68:
+1794d1748
+< 	s_mov_b32 s86, 0
+1796,1798c1750,1752
+< 	s_cbranch_vccnz .LBB_104
+< .LBB_76:
+< 	s_sub_f32 s0, s85, s81
+---
+> 	s_cbranch_vccnz .LBB_209
+> .LBB_69:
+> 	s_sub_f32 s0, s85, s82
+1842,1865c1796
+< 	v_div_fixup_f32 v3, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v2, 0x7fffffff, v3
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v2
+<                                         ; implicit-def: $vgpr2
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.77:
+< 	v_bfe_u32 v2, v3, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v2, v3, v2, 0x7fff
+<                                         ; implicit-def: $vgpr3
+< 	v_lshrrev_b32_e32 v2, 16, v2
+< ; %bb.78:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.79:
+< 	v_lshrrev_b32_e32 v2, 16, v3
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_or_b32_e32 v2, 64, v2
+< ; %bb.80:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+---
+> 	v_div_fixup_f32 v2, v3, v1, v2
+1867,1868c1798,1799
+< 	v_readfirstlane_b32 s0, v2
+< 	s_lshl_b32 s86, s0, 16
+---
+> 	v_readfirstlane_b32 s87, v2
+> 	s_mov_b32 s84, 0
+1872,1873c1803,1804
+< 	s_cbranch_vccz .LBB_105
+< .LBB_81:
+---
+> 	s_cbranch_vccz .LBB_210
+> .LBB_70:
+1875d1805
+< 	s_mov_b32 s84, 0
+1877,1879c1807,1809
+< 	s_cbranch_vccnz .LBB_110
+< .LBB_82:
+< 	s_sub_f32 s0, s94, s81
+---
+> 	s_cbranch_vccnz .LBB_211
+> .LBB_71:
+> 	s_sub_f32 s0, s95, s82
+1923,1946c1853
+< 	v_div_fixup_f32 v3, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v2, 0x7fffffff, v3
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v2
+<                                         ; implicit-def: $vgpr2
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.83:
+< 	v_bfe_u32 v2, v3, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v2, v3, v2, 0x7fff
+<                                         ; implicit-def: $vgpr3
+< 	v_lshrrev_b32_e32 v2, 16, v2
+< ; %bb.84:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.85:
+< 	v_lshrrev_b32_e32 v2, 16, v3
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_or_b32_e32 v2, 64, v2
+< ; %bb.86:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+---
+> 	v_div_fixup_f32 v2, v3, v1, v2
+1948,1955c1855
+< 	v_readfirstlane_b32 s0, v2
+< 	s_lshl_b32 s84, s0, 16
+< 	s_and_not1_b32 vcc_lo, exec_lo, s72
+< 	s_mov_b32 s59, 0
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccz .LBB_111
+< .LBB_87:
+< 	s_and_not1_b32 vcc_lo, exec_lo, s9
+---
+> 	v_readfirstlane_b32 s84, v2
+1957,2312d1856
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccz .LBB_116
+< 	s_branch .LBB_121
+< .LBB_88:
+< 	s_or_b32 exec_lo, exec_lo, s57
+< 	s_and_saveexec_b32 s0, s1
+< 	s_cbranch_execz .LBB_57
+< .LBB_89:
+< 	v_lshlrev_b32_e32 v2, 1, v33
+< 	global_load_u16 v2, v2, s[10:11] offset:64
+< 	s_wait_loadcnt 0x0
+< 	v_lshlrev_b32_e32 v2, 16, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_subrev_f32_e32 v2, s81, v2
+< 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+< 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+< 	v_rndne_f32_e32 v5, v3
+< 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+< 	v_add_f32_e32 v3, v3, v4
+< 	v_cvt_i32_f32_e32 v4, v5
+< 	v_exp_f32_e32 v3, v3
+< 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_ldexp_f32 v3, v3, v4
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+< 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+< 	s_wait_alu 0xfffd
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+< 	v_add_f32_e32 v1, v1, v2
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_and_saveexec_b32 s0, s3
+< 	s_cbranch_execnz .LBB_58
+< .LBB_90:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_and_saveexec_b32 s0, s4
+< 	s_cbranch_execz .LBB_59
+< .LBB_91:
+< 	v_lshlrev_b32_e32 v2, 1, v33
+< 	global_load_u16 v2, v2, s[10:11] offset:192
+< 	s_wait_loadcnt 0x0
+< 	v_lshlrev_b32_e32 v2, 16, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_subrev_f32_e32 v2, s81, v2
+< 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+< 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+< 	v_rndne_f32_e32 v5, v3
+< 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+< 	v_add_f32_e32 v3, v3, v4
+< 	v_cvt_i32_f32_e32 v4, v5
+< 	v_exp_f32_e32 v3, v3
+< 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_ldexp_f32 v3, v3, v4
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+< 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+< 	s_wait_alu 0xfffd
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+< 	v_add_f32_e32 v1, v1, v2
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_and_saveexec_b32 s0, s5
+< 	s_cbranch_execnz .LBB_60
+< .LBB_92:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_and_saveexec_b32 s0, s6
+< 	s_cbranch_execz .LBB_61
+< .LBB_93:
+< 	v_lshlrev_b32_e32 v2, 1, v33
+< 	global_load_u16 v2, v2, s[10:11] offset:320
+< 	s_wait_loadcnt 0x0
+< 	v_lshlrev_b32_e32 v2, 16, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_subrev_f32_e32 v2, s81, v2
+< 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+< 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+< 	v_rndne_f32_e32 v5, v3
+< 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+< 	v_add_f32_e32 v3, v3, v4
+< 	v_cvt_i32_f32_e32 v4, v5
+< 	v_exp_f32_e32 v3, v3
+< 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_ldexp_f32 v3, v3, v4
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+< 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+< 	s_wait_alu 0xfffd
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+< 	v_add_f32_e32 v1, v1, v2
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_and_saveexec_b32 s0, s7
+< 	s_cbranch_execnz .LBB_62
+< .LBB_94:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_and_saveexec_b32 s0, s8
+< 	s_cbranch_execz .LBB_96
+< .LBB_95:
+< 	v_lshlrev_b32_e32 v2, 1, v33
+< 	global_load_u16 v2, v2, s[10:11] offset:448
+< 	s_wait_loadcnt 0x0
+< 	v_lshlrev_b32_e32 v2, 16, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_subrev_f32_e32 v2, s81, v2
+< 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+< 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+< 	v_rndne_f32_e32 v5, v3
+< 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+< 	v_add_f32_e32 v3, v3, v4
+< 	v_cvt_i32_f32_e32 v4, v5
+< 	v_exp_f32_e32 v3, v3
+< 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+< 	v_ldexp_f32 v3, v3, v4
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+< 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+< 	s_wait_alu 0xfffd
+< 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+< 	v_add_f32_e32 v1, v1, v2
+< .LBB_96:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	v_mbcnt_lo_u32_b32 v2, -1, 0
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+< 	v_xor_b32_e32 v3, 16, v2
+< 	v_xor_b32_e32 v4, 8, v2
+< 	v_cmp_gt_i32_e32 vcc_lo, 32, v3
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v3, v2, v3, vcc_lo
+< 	s_delay_alu instid0(VALU_DEP_3) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+< 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v4, v2, v4, vcc_lo
+< 	v_lshlrev_b32_e32 v4, 2, v4
+< 	v_lshlrev_b32_e32 v3, 2, v3
+< 	ds_bpermute_b32 v3, v3, v1
+< 	s_wait_dscnt 0x0
+< 	v_add_f32_e32 v1, v1, v3
+< 	ds_bpermute_b32 v3, v4, v1
+< 	v_xor_b32_e32 v4, 4, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_3) | instid1(VALU_DEP_1)
+< 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v4, v2, v4, vcc_lo
+< 	s_wait_dscnt 0x0
+< 	v_dual_add_f32 v1, v1, v3 :: v_dual_lshlrev_b32 v4, 2, v4
+< 	ds_bpermute_b32 v3, v4, v1
+< 	v_xor_b32_e32 v4, 2, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_3) | instid1(VALU_DEP_1)
+< 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+< 	s_wait_dscnt 0x0
+< 	s_wait_alu 0xfffd
+< 	v_dual_cndmask_b32 v4, v2, v4 :: v_dual_add_f32 v1, v1, v3
+< 	v_lshlrev_b32_e32 v4, 2, v4
+< 	ds_bpermute_b32 v3, v4, v1
+< 	v_xor_b32_e32 v4, 1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_3) | instid1(VALU_DEP_1)
+< 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+< 	s_wait_alu 0xfffd
+< 	v_cndmask_b32_e32 v2, v2, v4, vcc_lo
+< 	s_wait_dscnt 0x0
+< 	v_dual_add_f32 v1, v1, v3 :: v_dual_lshlrev_b32 v2, 2, v2
+< 	ds_bpermute_b32 v2, v2, v1
+< 	s_wait_dscnt 0x0
+< 	v_add_f32_e32 v1, v1, v2
+< 	s_and_not1_b32 vcc_lo, exec_lo, s33
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccz .LBB_65
+< .LBB_97:
+< 	s_mov_b32 s90, 0
+< 	s_and_not1_b32 vcc_lo, exec_lo, s77
+< 	s_mov_b32 s88, 0
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccz .LBB_70
+< .LBB_98:
+< 	s_and_not1_b32 vcc_lo, exec_lo, s76
+< 	s_mov_b32 s87, 0
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccnz .LBB_75
+< .LBB_99:
+< 	s_sub_f32 s0, s84, s81
+< 	s_wait_alu 0xfffe
+< 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+< 	s_mul_f32 s1, s0, 0x3fb8aa3b
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s3, s1, 0x80000000
+< 	s_rndne_f32 s4, s1
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s3, s0, 0x3fb8aa3b, s3
+< 	s_cmp_nlt_f32 s0, 0xc2ce8ed0
+< 	s_sub_f32 s1, s1, s4
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s3, s0, 0x32a5705f, s3
+< 	s_cselect_b32 vcc_lo, -1, 0
+< 	s_cmp_ngt_f32 s0, 0x42b17218
+< 	s_wait_alu 0xfffe
+< 	s_add_f32 s1, s1, s3
+< 	s_cvt_i32_f32 s3, s4
+< 	s_wait_alu 0xfffe
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_1) | instid1(TRANS32_DEP_1)
+< 	v_s_exp_f32 s1, s1
+< 	s_wait_alu 0xf1ff
+< 	v_ldexp_f32 v2, s1, s3
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+< 	v_cndmask_b32_e32 v2, 0, v2, vcc_lo
+< 	s_cselect_b32 vcc_lo, -1, 0
+< 	s_wait_alu 0xfffe
+< 	v_cndmask_b32_e32 v2, 0x7f800000, v2, vcc_lo
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_div_scale_f32 v3, null, v1, v1, v2
+< 	v_rcp_f32_e32 v4, v3
+< 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_fma_f32 v5, -v3, v4, 1.0
+< 	v_fmac_f32_e32 v4, v5, v4
+< 	v_div_scale_f32 v5, vcc_lo, v2, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_mul_f32_e32 v6, v5, v4
+< 	v_fma_f32 v7, -v3, v6, v5
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_fmac_f32_e32 v6, v7, v4
+< 	v_fma_f32 v3, -v3, v6, v5
+< 	s_wait_alu 0xfffd
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_div_fmas_f32 v3, v3, v4, v6
+< 	v_div_fixup_f32 v3, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v2, 0x7fffffff, v3
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v2
+<                                         ; implicit-def: $vgpr2
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.100:
+< 	v_bfe_u32 v2, v3, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v2, v3, v2, 0x7fff
+<                                         ; implicit-def: $vgpr3
+< 	v_lshrrev_b32_e32 v2, 16, v2
+< ; %bb.101:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.102:
+< 	v_lshrrev_b32_e32 v2, 16, v3
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_or_b32_e32 v2, 64, v2
+< ; %bb.103:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_readfirstlane_b32 s0, v2
+< 	s_lshl_b32 s87, s0, 16
+< 	s_and_not1_b32 vcc_lo, exec_lo, s75
+< 	s_mov_b32 s86, 0
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccz .LBB_76
+< .LBB_104:
+< 	s_and_not1_b32 vcc_lo, exec_lo, s74
+< 	s_mov_b32 s85, 0
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccnz .LBB_81
+< .LBB_105:
+< 	s_sub_f32 s0, s93, s81
+< 	s_wait_alu 0xfffe
+< 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+< 	s_mul_f32 s1, s0, 0x3fb8aa3b
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s3, s1, 0x80000000
+< 	s_rndne_f32 s4, s1
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s3, s0, 0x3fb8aa3b, s3
+< 	s_cmp_nlt_f32 s0, 0xc2ce8ed0
+< 	s_sub_f32 s1, s1, s4
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s3, s0, 0x32a5705f, s3
+< 	s_cselect_b32 vcc_lo, -1, 0
+< 	s_cmp_ngt_f32 s0, 0x42b17218
+< 	s_wait_alu 0xfffe
+< 	s_add_f32 s1, s1, s3
+< 	s_cvt_i32_f32 s3, s4
+< 	s_wait_alu 0xfffe
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_1) | instid1(TRANS32_DEP_1)
+< 	v_s_exp_f32 s1, s1
+< 	s_wait_alu 0xf1ff
+< 	v_ldexp_f32 v2, s1, s3
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+< 	v_cndmask_b32_e32 v2, 0, v2, vcc_lo
+< 	s_cselect_b32 vcc_lo, -1, 0
+< 	s_wait_alu 0xfffe
+< 	v_cndmask_b32_e32 v2, 0x7f800000, v2, vcc_lo
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_div_scale_f32 v3, null, v1, v1, v2
+< 	v_rcp_f32_e32 v4, v3
+< 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_fma_f32 v5, -v3, v4, 1.0
+< 	v_fmac_f32_e32 v4, v5, v4
+< 	v_div_scale_f32 v5, vcc_lo, v2, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_mul_f32_e32 v6, v5, v4
+< 	v_fma_f32 v7, -v3, v6, v5
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_fmac_f32_e32 v6, v7, v4
+< 	v_fma_f32 v3, -v3, v6, v5
+< 	s_wait_alu 0xfffd
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_div_fmas_f32 v3, v3, v4, v6
+< 	v_div_fixup_f32 v3, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v2, 0x7fffffff, v3
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v2
+<                                         ; implicit-def: $vgpr2
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.106:
+< 	v_bfe_u32 v2, v3, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v2, v3, v2, 0x7fff
+<                                         ; implicit-def: $vgpr3
+< 	v_lshrrev_b32_e32 v2, 16, v2
+< ; %bb.107:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.108:
+< 	v_lshrrev_b32_e32 v2, 16, v3
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_or_b32_e32 v2, 64, v2
+< ; %bb.109:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_readfirstlane_b32 s0, v2
+< 	s_lshl_b32 s85, s0, 16
+< 	s_and_not1_b32 vcc_lo, exec_lo, s73
+< 	s_mov_b32 s84, 0
+< 	s_wait_alu 0xfffe
+< 	s_cbranch_vccz .LBB_82
+< .LBB_110:
+2316,2388c1860,1861
+< 	s_cbranch_vccnz .LBB_87
+< .LBB_111:
+< 	s_sub_f32 s0, s95, s81
+< 	s_wait_alu 0xfffe
+< 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+< 	s_mul_f32 s1, s0, 0x3fb8aa3b
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s3, s1, 0x80000000
+< 	s_rndne_f32 s4, s1
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s3, s0, 0x3fb8aa3b, s3
+< 	s_cmp_nlt_f32 s0, 0xc2ce8ed0
+< 	s_sub_f32 s1, s1, s4
+< 	s_wait_alu 0xfffe
+< 	s_fmamk_f32 s3, s0, 0x32a5705f, s3
+< 	s_cselect_b32 vcc_lo, -1, 0
+< 	s_cmp_ngt_f32 s0, 0x42b17218
+< 	s_wait_alu 0xfffe
+< 	s_add_f32 s1, s1, s3
+< 	s_cvt_i32_f32 s3, s4
+< 	s_wait_alu 0xfffe
+< 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_1) | instid1(TRANS32_DEP_1)
+< 	v_s_exp_f32 s1, s1
+< 	s_wait_alu 0xf1ff
+< 	v_ldexp_f32 v2, s1, s3
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+< 	v_cndmask_b32_e32 v2, 0, v2, vcc_lo
+< 	s_cselect_b32 vcc_lo, -1, 0
+< 	s_wait_alu 0xfffe
+< 	v_cndmask_b32_e32 v2, 0x7f800000, v2, vcc_lo
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_div_scale_f32 v3, null, v1, v1, v2
+< 	v_rcp_f32_e32 v4, v3
+< 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_fma_f32 v5, -v3, v4, 1.0
+< 	v_fmac_f32_e32 v4, v5, v4
+< 	v_div_scale_f32 v5, vcc_lo, v2, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_mul_f32_e32 v6, v5, v4
+< 	v_fma_f32 v7, -v3, v6, v5
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_fmac_f32_e32 v6, v7, v4
+< 	v_fma_f32 v3, -v3, v6, v5
+< 	s_wait_alu 0xfffd
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_div_fmas_f32 v3, v3, v4, v6
+< 	v_div_fixup_f32 v3, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v2, 0x7fffffff, v3
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v2
+<                                         ; implicit-def: $vgpr2
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.112:
+< 	v_bfe_u32 v2, v3, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v2, v3, v2, 0x7fff
+<                                         ; implicit-def: $vgpr3
+< 	v_lshrrev_b32_e32 v2, 16, v2
+< ; %bb.113:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.114:
+< 	v_lshrrev_b32_e32 v2, 16, v3
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_or_b32_e32 v2, 64, v2
+< ; %bb.115:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_readfirstlane_b32 s0, v2
+< 	s_lshl_b32 s59, s0, 16
+---
+> 	s_cbranch_vccz .LBB_212
+> .LBB_72:
+2390d1862
+< 	s_mov_b32 s33, 0
+2392,2394c1864,1866
+< 	s_cbranch_vccnz .LBB_121
+< .LBB_116:
+< 	s_sub_f32 s0, s96, s81
+---
+> 	s_cbranch_vccnz .LBB_74
+> .LBB_73:
+> 	s_sub_f32 s0, s97, s82
+2438,2456c1910
+< 	v_div_fixup_f32 v2, v3, v1, v2
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_and_b32_e32 v1, 0x7fffffff, v2
+< 	v_cmp_gt_u32_e32 vcc_lo, 0x7f800001, v1
+<                                         ; implicit-def: $vgpr1
+< 	s_and_saveexec_b32 s0, vcc_lo
+< 	s_wait_alu 0xfffe
+< 	s_xor_b32 s0, exec_lo, s0
+< ; %bb.117:
+< 	v_bfe_u32 v1, v2, 16, 1
+< 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+< 	v_add3_u32 v1, v2, v1, 0x7fff
+<                                         ; implicit-def: $vgpr2
+< 	v_lshrrev_b32_e32 v1, 16, v1
+< ; %bb.118:
+< 	s_wait_alu 0xfffe
+< 	s_and_not1_saveexec_b32 s0, s0
+< ; %bb.119:
+< 	v_lshrrev_b32_e32 v1, 16, v2
+---
+> 	v_div_fixup_f32 v1, v3, v1, v2
+2458,2466c1912,1914
+< 	v_or_b32_e32 v1, 64, v1
+< ; %bb.120:
+< 	s_wait_alu 0xfffe
+< 	s_or_b32 exec_lo, exec_lo, s0
+< 	s_delay_alu instid0(VALU_DEP_1)
+< 	v_readfirstlane_b32 s0, v1
+< 	s_lshl_b32 s33, s0, 16
+< .LBB_121:
+< 	s_mul_i32 s0, s68, s70
+---
+> 	v_readfirstlane_b32 s33, v1
+> .LBB_74:
+> 	s_mul_i32 s0, s70, s69
+2469c1917
+< 	s_sub_co_i32 s1, s71, s0
+---
+> 	s_sub_co_i32 s1, s78, s0
+2481c1929
+< 	s_ashr_i32 s71, s53, 31
+---
+> 	s_ashr_i32 s69, s53, 31
+2485c1933
+< 	s_cmp_gt_i32 s78, -1
+---
+> 	s_cmp_gt_i32 s79, -1
+2488c1936
+< 	s_cmp_lt_i32 s78, s52
+---
+> 	s_cmp_lt_i32 s79, s52
+2502d1949
+< 	s_mov_b32 s70, s53
+2504,2506c1951,1953
+< 	s_cbranch_vccnz .LBB_123
+< ; %bb.122:
+< 	s_mul_i32 s4, s78, 3
+---
+> 	s_cbranch_vccnz .LBB_76
+> ; %bb.75:
+> 	s_mul_i32 s4, s79, 3
+2513c1960
+< 	v_mad_co_u64_u32 v[4:5], null, s78, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s79, s68, v[2:3]
+2515c1962
+< 	v_mad_co_u64_u32 v[5:6], null, s78, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[5:6], null, s79, s69, v[5:6]
+2525,2526c1972,1973
+< .LBB_123:
+< 	s_cmp_gt_i32 s79, -1
+---
+> .LBB_76:
+> 	s_cmp_gt_i32 s80, -1
+2529c1976
+< 	s_cmp_lt_i32 s79, s52
+---
+> 	s_cmp_lt_i32 s80, s52
+2537,2539c1984,1986
+< 	s_cbranch_vccnz .LBB_125
+< ; %bb.124:
+< 	s_mul_i32 s4, s79, 3
+---
+> 	s_cbranch_vccnz .LBB_78
+> ; %bb.77:
+> 	s_mul_i32 s4, s80, 3
+2547c1994
+< 	v_mad_co_u64_u32 v[4:5], null, s79, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s80, s68, v[2:3]
+2549c1996
+< 	v_mad_co_u64_u32 v[5:6], null, s79, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[5:6], null, s80, s69, v[5:6]
+2559,2560c2006,2007
+< .LBB_125:
+< 	s_cmp_gt_i32 s80, -1
+---
+> .LBB_78:
+> 	s_cmp_gt_i32 s81, -1
+2563c2010
+< 	s_cmp_lt_i32 s80, s52
+---
+> 	s_cmp_lt_i32 s81, s52
+2575,2577c2022,2024
+< 	s_cbranch_vccnz .LBB_127
+< ; %bb.126:
+< 	s_mul_i32 s4, s80, 3
+---
+> 	s_cbranch_vccnz .LBB_80
+> ; %bb.79:
+> 	s_mul_i32 s4, s81, 3
+2585c2032
+< 	v_mad_co_u64_u32 v[4:5], null, s80, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s81, s68, v[2:3]
+2587c2034
+< 	v_mad_co_u64_u32 v[5:6], null, s80, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[5:6], null, s81, s69, v[5:6]
+2597,2598c2044,2045
+< .LBB_127:
+< 	s_cmp_gt_i32 s82, -1
+---
+> .LBB_80:
+> 	s_cmp_gt_i32 s83, -1
+2601c2048
+< 	s_cmp_lt_i32 s82, s52
+---
+> 	s_cmp_lt_i32 s83, s52
+2609,2611c2056,2058
+< 	s_cbranch_vccnz .LBB_129
+< ; %bb.128:
+< 	s_mul_i32 s4, s82, 3
+---
+> 	s_cbranch_vccnz .LBB_82
+> ; %bb.81:
+> 	s_mul_i32 s4, s83, 3
+2619c2066
+< 	v_mad_co_u64_u32 v[4:5], null, s82, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s83, s68, v[2:3]
+2621c2068
+< 	v_mad_co_u64_u32 v[5:6], null, s82, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[5:6], null, s83, s69, v[5:6]
+2631,2632c2078,2079
+< .LBB_129:
+< 	s_cmp_gt_i32 s83, -1
+---
+> .LBB_82:
+> 	s_cmp_gt_i32 s86, -1
+2635c2082
+< 	s_cmp_lt_i32 s83, s52
+---
+> 	s_cmp_lt_i32 s86, s52
+2646,2648c2093,2095
+< 	s_cbranch_vccnz .LBB_131
+< ; %bb.130:
+< 	s_mul_i32 s4, s83, 3
+---
+> 	s_cbranch_vccnz .LBB_84
+> ; %bb.83:
+> 	s_mul_i32 s4, s86, 3
+2656c2103
+< 	v_mad_co_u64_u32 v[4:5], null, s83, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s86, s68, v[2:3]
+2658c2105
+< 	v_mad_co_u64_u32 v[5:6], null, s83, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[5:6], null, s86, s69, v[5:6]
+2668,2669c2115,2116
+< .LBB_131:
+< 	s_cmp_gt_i32 s89, -1
+---
+> .LBB_84:
+> 	s_cmp_gt_i32 s88, -1
+2672c2119
+< 	s_cmp_lt_i32 s89, s52
+---
+> 	s_cmp_lt_i32 s88, s52
+2680,2682c2127,2129
+< 	s_cbranch_vccnz .LBB_133
+< ; %bb.132:
+< 	s_mul_i32 s4, s89, 3
+---
+> 	s_cbranch_vccnz .LBB_86
+> ; %bb.85:
+> 	s_mul_i32 s4, s88, 3
+2690c2137
+< 	v_mad_co_u64_u32 v[4:5], null, s89, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s88, s68, v[2:3]
+2692c2139
+< 	v_mad_co_u64_u32 v[5:6], null, s89, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[5:6], null, s88, s69, v[5:6]
+2702,2703c2149,2150
+< .LBB_133:
+< 	s_cmp_gt_i32 s91, -1
+---
+> .LBB_86:
+> 	s_cmp_gt_i32 s92, -1
+2706c2153
+< 	s_cmp_lt_i32 s91, s52
+---
+> 	s_cmp_lt_i32 s92, s52
+2717,2719c2164,2166
+< 	s_cbranch_vccnz .LBB_135
+< ; %bb.134:
+< 	s_mul_i32 s4, s91, 3
+---
+> 	s_cbranch_vccnz .LBB_88
+> ; %bb.87:
+> 	s_mul_i32 s4, s92, 3
+2727c2174
+< 	v_mad_co_u64_u32 v[4:5], null, s91, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s92, s68, v[2:3]
+2729c2176
+< 	v_mad_co_u64_u32 v[8:9], null, s91, s71, v[5:6]
+---
+> 	v_mad_co_u64_u32 v[8:9], null, s92, s69, v[5:6]
+2739,2740c2186,2187
+< .LBB_135:
+< 	s_cmp_gt_i32 s92, -1
+---
+> .LBB_88:
+> 	s_cmp_gt_i32 s94, -1
+2743c2190
+< 	s_cmp_lt_i32 s92, s52
+---
+> 	s_cmp_lt_i32 s94, s52
+2751,2753c2198,2200
+< 	s_cbranch_vccnz .LBB_137
+< ; %bb.136:
+< 	s_mul_i32 s4, s92, 3
+---
+> 	s_cbranch_vccnz .LBB_90
+> ; %bb.89:
+> 	s_mul_i32 s4, s94, 3
+2761c2208
+< 	v_mad_co_u64_u32 v[3:4], null, s92, s70, v[2:3]
+---
+> 	v_mad_co_u64_u32 v[3:4], null, s94, s68, v[2:3]
+2763c2210
+< 	v_mad_co_u64_u32 v[4:5], null, s92, s71, v[4:5]
+---
+> 	v_mad_co_u64_u32 v[4:5], null, s94, s69, v[4:5]
+2773c2220
+< .LBB_137:
+---
+> .LBB_90:
+2783,2784c2230,2231
+< 	s_cbranch_execz .LBB_139
+< ; %bb.138:
+---
+> 	s_cbranch_execz .LBB_92
+> ; %bb.91:
+2795c2242
+< .LBB_139:
+---
+> .LBB_92:
+2804,2805c2251,2252
+< 	s_cbranch_execz .LBB_141
+< ; %bb.140:
+---
+> 	s_cbranch_execz .LBB_94
+> ; %bb.93:
+2816c2263
+< .LBB_141:
+---
+> .LBB_94:
+2826,2827c2273,2274
+< 	s_cbranch_execz .LBB_143
+< ; %bb.142:
+---
+> 	s_cbranch_execz .LBB_96
+> ; %bb.95:
+2838c2285
+< .LBB_143:
+---
+> .LBB_96:
+2847,2848c2294,2295
+< 	s_cbranch_execz .LBB_145
+< ; %bb.144:
+---
+> 	s_cbranch_execz .LBB_98
+> ; %bb.97:
+2859c2306
+< .LBB_145:
+---
+> .LBB_98:
+2869,2870c2316,2317
+< 	s_cbranch_execz .LBB_147
+< ; %bb.146:
+---
+> 	s_cbranch_execz .LBB_100
+> ; %bb.99:
+2881c2328
+< .LBB_147:
+---
+> .LBB_100:
+2890,2891c2337,2338
+< 	s_cbranch_execz .LBB_149
+< ; %bb.148:
+---
+> 	s_cbranch_execz .LBB_102
+> ; %bb.101:
+2902c2349
+< .LBB_149:
+---
+> .LBB_102:
+2912,2913c2359,2360
+< 	s_cbranch_execz .LBB_151
+< ; %bb.150:
+---
+> 	s_cbranch_execz .LBB_104
+> ; %bb.103:
+2924c2371
+< .LBB_151:
+---
+> .LBB_104:
+2933,2934c2380,2381
+< 	s_cbranch_execz .LBB_153
+< ; %bb.152:
+---
+> 	s_cbranch_execz .LBB_106
+> ; %bb.105:
+2945c2392
+< .LBB_153:
+---
+> .LBB_106:
+2958c2405
+< 	s_ashr_i32 s91, s4, 4
+---
+> 	s_ashr_i32 s88, s4, 4
+2961c2408
+< 	v_cmp_gt_i32_e64 s0, s91, v33
+---
+> 	v_cmp_gt_i32_e64 s0, s88, v33
+2964,2965c2411,2412
+< 	s_cbranch_execz .LBB_155
+< ; %bb.154:
+---
+> 	s_cbranch_execz .LBB_108
+> ; %bb.107:
+2975c2422
+< .LBB_155:
+---
+> .LBB_108:
+2978c2425
+< 	v_mad_co_i64_i32 v[2:3], null, v2, s91, s[50:51]
+---
+> 	v_mad_co_i64_i32 v[2:3], null, v2, s88, s[50:51]
+2980,2981c2427,2428
+< 	s_cbranch_execz .LBB_157
+< ; %bb.156:
+---
+> 	s_cbranch_execz .LBB_110
+> ; %bb.109:
+2986c2433
+< .LBB_157:
+---
+> .LBB_110:
+2990c2437
+< 	s_lshl_b64 s[6:7], s[68:69], 1
+---
+> 	s_lshl_b64 s[6:7], s[70:71], 1
+2996c2443
+< 	v_readfirstlane_b32 s89, v34
+---
+> 	v_readfirstlane_b32 s86, v34
+2998,2999c2445,2446
+< 	s_cbranch_execz .LBB_159
+< ; %bb.158:
+---
+> 	s_cbranch_execz .LBB_112
+> ; %bb.111:
+3013c2460
+< .LBB_159:
+---
+> .LBB_112:
+3021c2468
+< 	s_mul_u64 s[16:17], s[68:69], s[4:5]
+---
+> 	s_mul_u64 s[16:17], s[70:71], s[4:5]
+3023c2470
+< 	s_mul_u64 s[6:7], s[6:7], s[68:69]
+---
+> 	s_mul_u64 s[6:7], s[6:7], s[70:71]
+3028,3029c2475,2476
+< 	s_cbranch_execz .LBB_197
+< ; %bb.160:
+---
+> 	s_cbranch_execz .LBB_150
+> ; %bb.113:
+3037,3038c2484,2485
+< 	s_cbranch_execz .LBB_164
+< ; %bb.161:
+---
+> 	s_cbranch_execz .LBB_117
+> ; %bb.114:
+3050c2497
+< .LBB_162:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_115:                              ; =>This Inner Loop Header: Depth=1
+3070,3071c2517,2518
+< 	s_cbranch_execnz .LBB_162
+< ; %bb.163:
+---
+> 	s_cbranch_execnz .LBB_115
+> ; %bb.116:
+3073c2520
+< .LBB_164:
+---
+> .LBB_117:
+3082,3084c2529,2531
+< 	s_cbranch_execz .LBB_168
+< ; %bb.165:
+< 	s_mul_u64 s[24:25], s[56:57], s[68:69]
+---
+> 	s_cbranch_execz .LBB_121
+> ; %bb.118:
+> 	s_mul_u64 s[24:25], s[56:57], s[70:71]
+3101c2548
+< .LBB_166:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_119:                              ; =>This Inner Loop Header: Depth=1
+3121,3122c2568,2569
+< 	s_cbranch_execnz .LBB_166
+< ; %bb.167:
+---
+> 	s_cbranch_execnz .LBB_119
+> ; %bb.120:
+3124c2571
+< .LBB_168:
+---
+> .LBB_121:
+3131,3133c2578,2580
+< 	s_cbranch_execz .LBB_172
+< ; %bb.169:
+< 	s_mul_u64 s[24:25], s[56:57], s[68:69]
+---
+> 	s_cbranch_execz .LBB_125
+> ; %bb.122:
+> 	s_mul_u64 s[24:25], s[56:57], s[70:71]
+3150c2597
+< .LBB_170:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_123:                              ; =>This Inner Loop Header: Depth=1
+3170,3171c2617,2618
+< 	s_cbranch_execnz .LBB_170
+< ; %bb.171:
+---
+> 	s_cbranch_execnz .LBB_123
+> ; %bb.124:
+3173c2620
+< .LBB_172:
+---
+> .LBB_125:
+3180,3182c2627,2629
+< 	s_cbranch_execz .LBB_176
+< ; %bb.173:
+< 	s_mul_u64 s[24:25], s[56:57], s[68:69]
+---
+> 	s_cbranch_execz .LBB_129
+> ; %bb.126:
+> 	s_mul_u64 s[24:25], s[56:57], s[70:71]
+3199c2646
+< .LBB_174:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_127:                              ; =>This Inner Loop Header: Depth=1
+3219,3220c2666,2667
+< 	s_cbranch_execnz .LBB_174
+< ; %bb.175:
+---
+> 	s_cbranch_execnz .LBB_127
+> ; %bb.128:
+3222c2669
+< .LBB_176:
+---
+> .LBB_129:
+3229,3231c2676,2678
+< 	s_cbranch_execz .LBB_180
+< ; %bb.177:
+< 	s_mul_u64 s[24:25], s[56:57], s[68:69]
+---
+> 	s_cbranch_execz .LBB_133
+> ; %bb.130:
+> 	s_mul_u64 s[24:25], s[56:57], s[70:71]
+3248c2695
+< .LBB_178:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_131:                              ; =>This Inner Loop Header: Depth=1
+3268,3269c2715,2716
+< 	s_cbranch_execnz .LBB_178
+< ; %bb.179:
+---
+> 	s_cbranch_execnz .LBB_131
+> ; %bb.132:
+3271c2718
+< .LBB_180:
+---
+> .LBB_133:
+3278,3280c2725,2727
+< 	s_cbranch_execz .LBB_184
+< ; %bb.181:
+< 	s_mul_u64 s[24:25], s[56:57], s[68:69]
+---
+> 	s_cbranch_execz .LBB_137
+> ; %bb.134:
+> 	s_mul_u64 s[24:25], s[56:57], s[70:71]
+3297c2744
+< .LBB_182:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_135:                              ; =>This Inner Loop Header: Depth=1
+3317,3318c2764,2765
+< 	s_cbranch_execnz .LBB_182
+< ; %bb.183:
+---
+> 	s_cbranch_execnz .LBB_135
+> ; %bb.136:
+3320c2767
+< .LBB_184:
+---
+> .LBB_137:
+3327,3329c2774,2776
+< 	s_cbranch_execz .LBB_188
+< ; %bb.185:
+< 	s_mul_u64 s[24:25], s[56:57], s[68:69]
+---
+> 	s_cbranch_execz .LBB_141
+> ; %bb.138:
+> 	s_mul_u64 s[24:25], s[56:57], s[70:71]
+3346c2793
+< .LBB_186:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_139:                              ; =>This Inner Loop Header: Depth=1
+3366,3367c2813,2814
+< 	s_cbranch_execnz .LBB_186
+< ; %bb.187:
+---
+> 	s_cbranch_execnz .LBB_139
+> ; %bb.140:
+3369c2816
+< .LBB_188:
+---
+> .LBB_141:
+3376,3378c2823,2825
+< 	s_cbranch_execz .LBB_192
+< ; %bb.189:
+< 	s_mul_u64 s[22:23], s[56:57], s[68:69]
+---
+> 	s_cbranch_execz .LBB_145
+> ; %bb.142:
+> 	s_mul_u64 s[22:23], s[56:57], s[70:71]
+3395c2842
+< .LBB_190:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_143:                              ; =>This Inner Loop Header: Depth=1
+3416,3417c2863,2864
+< 	s_cbranch_execnz .LBB_190
+< ; %bb.191:
+---
+> 	s_cbranch_execnz .LBB_143
+> ; %bb.144:
+3419c2866
+< .LBB_192:
+---
+> .LBB_145:
+3423,3424c2870,2871
+< 	s_cbranch_execz .LBB_196
+< ; %bb.193:
+---
+> 	s_cbranch_execz .LBB_149
+> ; %bb.146:
+3437c2884
+< .LBB_194:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_147:                              ; =>This Inner Loop Header: Depth=1
+3446c2893
+< 	v_cmp_le_i32_e64 s4, s91, v71
+---
+> 	v_cmp_le_i32_e64 s4, s88, v71
+3458,3459c2905,2906
+< 	s_cbranch_execnz .LBB_194
+< ; %bb.195:
+---
+> 	s_cbranch_execnz .LBB_147
+> ; %bb.148:
+3461c2908
+< .LBB_196:
+---
+> .LBB_149:
+3466c2913
+< .LBB_197:
+---
+> .LBB_150:
+3469,3470c2916,2917
+< 	s_cbranch_execz .LBB_200
+< ; %bb.198:
+---
+> 	s_cbranch_execz .LBB_153
+> ; %bb.151:
+3476,3477c2923,2924
+< 	s_cbranch_vccnz .LBB_200
+< .LBB_199:                              ; =>This Inner Loop Header: Depth=1
+---
+> 	s_cbranch_vccnz .LBB_153
+> .LBB_152:                              ; =>This Inner Loop Header: Depth=1
+3483,3484c2930,2931
+< 	s_cbranch_vccnz .LBB_199
+< .LBB_200:
+---
+> 	s_cbranch_vccnz .LBB_152
+> .LBB_153:
+3494,3495c2941,2942
+< 	s_cbranch_execz .LBB_363
+< ; %bb.201:
+---
+> 	s_cbranch_execz .LBB_331
+> ; %bb.154:
+3504,3505c2951,2952
+< 	s_cbranch_execz .LBB_219
+< ; %bb.202:
+---
+> 	s_cbranch_execz .LBB_172
+> ; %bb.155:
+3515,3516c2962,2963
+< 	s_cbranch_execz .LBB_204
+< ; %bb.203:
+---
+> 	s_cbranch_execz .LBB_157
+> ; %bb.156:
+3633c3080
+< .LBB_204:
+---
+> .LBB_157:
+3639,3640c3086,3087
+< 	s_cbranch_execz .LBB_206
+< ; %bb.205:
+---
+> 	s_cbranch_execz .LBB_159
+> ; %bb.158:
+3761c3208
+< .LBB_206:
+---
+> .LBB_159:
+3767,3768c3214,3215
+< 	s_cbranch_execz .LBB_208
+< ; %bb.207:
+---
+> 	s_cbranch_execz .LBB_161
+> ; %bb.160:
+3898c3345
+< .LBB_208:
+---
+> .LBB_161:
+3904,3905c3351,3352
+< 	s_cbranch_execz .LBB_210
+< ; %bb.209:
+---
+> 	s_cbranch_execz .LBB_163
+> ; %bb.162:
+4029c3476
+< .LBB_210:
+---
+> .LBB_163:
+4035,4036c3482,3483
+< 	s_cbranch_execz .LBB_212
+< ; %bb.211:
+---
+> 	s_cbranch_execz .LBB_165
+> ; %bb.164:
+4162c3609
+< .LBB_212:
+---
+> .LBB_165:
+4168,4169c3615,3616
+< 	s_cbranch_execz .LBB_214
+< ; %bb.213:
+---
+> 	s_cbranch_execz .LBB_167
+> ; %bb.166:
+4291c3738
+< .LBB_214:
+---
+> .LBB_167:
+4297,4298c3744,3745
+< 	s_cbranch_execz .LBB_216
+< ; %bb.215:
+---
+> 	s_cbranch_execz .LBB_169
+> ; %bb.168:
+4425c3872
+< .LBB_216:
+---
+> .LBB_169:
+4431,4432c3878,3879
+< 	s_cbranch_execz .LBB_218
+< ; %bb.217:
+---
+> 	s_cbranch_execz .LBB_171
+> ; %bb.170:
+4556c4003
+< .LBB_218:
+---
+> .LBB_171:
+4559c4006
+< .LBB_219:
+---
+> .LBB_172:
+4565,4566c4012,4013
+< 	s_cbranch_execz .LBB_255
+< ; %bb.220:
+---
+> 	s_cbranch_execz .LBB_223
+> ; %bb.173:
+4608c4055
+< 	s_mul_u64 s[50:51], s[56:57], s[68:69]
+---
+> 	s_mul_u64 s[50:51], s[56:57], s[70:71]
+4653,4654c4100,4101
+< 	s_branch .LBB_222
+< .LBB_221:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_branch .LBB_175
+> .LBB_174:                              ;   in Loop: Header=BB4_175 Depth=1
+4720,4721c4167,4168
+< 	s_cbranch_execz .LBB_254
+< .LBB_222:                              ; =>This Inner Loop Header: Depth=1
+---
+> 	s_cbranch_execz .LBB_222
+> .LBB_175:                              ; =>This Inner Loop Header: Depth=1
+4726,4727c4173,4174
+< 	s_cbranch_execz .LBB_224
+< ; %bb.223:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_177
+> ; %bb.176:                              ;   in Loop: Header=BB4_175 Depth=1
+4736c4183
+< .LBB_224:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> .LBB_177:                              ;   in Loop: Header=BB4_175 Depth=1
+4743,4744c4190,4191
+< 	s_cbranch_execz .LBB_226
+< ; %bb.225:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_179
+> ; %bb.178:                              ;   in Loop: Header=BB4_175 Depth=1
+4753c4200
+< .LBB_226:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> .LBB_179:                              ;   in Loop: Header=BB4_175 Depth=1
+4759,4760c4206,4207
+< 	s_cbranch_execz .LBB_228
+< ; %bb.227:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_181
+> ; %bb.180:                              ;   in Loop: Header=BB4_175 Depth=1
+4769c4216
+< .LBB_228:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> .LBB_181:                              ;   in Loop: Header=BB4_175 Depth=1
+4776,4777c4223,4224
+< 	s_cbranch_execz .LBB_230
+< ; %bb.229:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_183
+> ; %bb.182:                              ;   in Loop: Header=BB4_175 Depth=1
+4786c4233
+< .LBB_230:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> .LBB_183:                              ;   in Loop: Header=BB4_175 Depth=1
+4792,4793c4239,4240
+< 	s_cbranch_execz .LBB_232
+< ; %bb.231:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_185
+> ; %bb.184:                              ;   in Loop: Header=BB4_175 Depth=1
+4802c4249
+< .LBB_232:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> .LBB_185:                              ;   in Loop: Header=BB4_175 Depth=1
+4809,4810c4256,4257
+< 	s_cbranch_execz .LBB_234
+< ; %bb.233:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_187
+> ; %bb.186:                              ;   in Loop: Header=BB4_175 Depth=1
+4819c4266
+< .LBB_234:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> .LBB_187:                              ;   in Loop: Header=BB4_175 Depth=1
+4825,4826c4272,4273
+< 	s_cbranch_execz .LBB_236
+< ; %bb.235:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_189
+> ; %bb.188:                              ;   in Loop: Header=BB4_175 Depth=1
+4835c4282
+< .LBB_236:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> .LBB_189:                              ;   in Loop: Header=BB4_175 Depth=1
+4841,4842c4288,4289
+< 	s_cbranch_execz .LBB_245
+< ; %bb.237:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_198
+> ; %bb.190:                              ;   in Loop: Header=BB4_175 Depth=1
+4854,4855c4301,4302
+< 	s_cbranch_execnz .LBB_246
+< .LBB_238:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execnz .LBB_199
+> .LBB_191:                              ;   in Loop: Header=BB4_175 Depth=1
+4858,4859c4305,4306
+< 	s_cbranch_execz .LBB_247
+< .LBB_239:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_200
+> .LBB_192:                              ;   in Loop: Header=BB4_175 Depth=1
+4979,4980c4426,4427
+< 	s_cbranch_execnz .LBB_248
+< .LBB_240:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execnz .LBB_201
+> .LBB_193:                              ;   in Loop: Header=BB4_175 Depth=1
+4984,4985c4431,4432
+< 	s_cbranch_execz .LBB_249
+< .LBB_241:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_202
+> .LBB_194:                              ;   in Loop: Header=BB4_175 Depth=1
+5103,5104c4550,4551
+< 	s_cbranch_execnz .LBB_250
+< .LBB_242:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execnz .LBB_203
+> .LBB_195:                              ;   in Loop: Header=BB4_175 Depth=1
+5108,5109c4555,4556
+< 	s_cbranch_execz .LBB_251
+< .LBB_243:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_204
+> .LBB_196:                              ;   in Loop: Header=BB4_175 Depth=1
+5227,5228c4674,4675
+< 	s_cbranch_execnz .LBB_252
+< .LBB_244:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execnz .LBB_205
+> .LBB_197:                              ;   in Loop: Header=BB4_175 Depth=1
+5232,5234c4679,4681
+< 	s_cbranch_execz .LBB_221
+< 	s_branch .LBB_253
+< .LBB_245:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_174
+> 	s_branch .LBB_206
+> .LBB_198:                              ;   in Loop: Header=BB4_175 Depth=1
+5238,5239c4685,4686
+< 	s_cbranch_execz .LBB_238
+< .LBB_246:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_191
+> .LBB_199:                              ;   in Loop: Header=BB4_175 Depth=1
+5367,5368c4814,4815
+< 	s_cbranch_execnz .LBB_239
+< .LBB_247:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execnz .LBB_192
+> .LBB_200:                              ;   in Loop: Header=BB4_175 Depth=1
+5372,5373c4819,4820
+< 	s_cbranch_execz .LBB_240
+< .LBB_248:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_193
+> .LBB_201:                              ;   in Loop: Header=BB4_175 Depth=1
+5493,5494c4940,4941
+< 	s_cbranch_execnz .LBB_241
+< .LBB_249:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execnz .LBB_194
+> .LBB_202:                              ;   in Loop: Header=BB4_175 Depth=1
+5498,5499c4945,4946
+< 	s_cbranch_execz .LBB_242
+< .LBB_250:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_195
+> .LBB_203:                              ;   in Loop: Header=BB4_175 Depth=1
+5620,5621c5067,5068
+< 	s_cbranch_execnz .LBB_243
+< .LBB_251:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execnz .LBB_196
+> .LBB_204:                              ;   in Loop: Header=BB4_175 Depth=1
+5625,5626c5072,5073
+< 	s_cbranch_execz .LBB_244
+< .LBB_252:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_197
+> .LBB_205:                              ;   in Loop: Header=BB4_175 Depth=1
+5751,5752c5198,5199
+< 	s_cbranch_execz .LBB_221
+< .LBB_253:                              ;   in Loop: Header=BB4_222 Depth=1
+---
+> 	s_cbranch_execz .LBB_174
+> .LBB_206:                              ;   in Loop: Header=BB4_175 Depth=1
+5871,5872c5318,5678
+< 	s_branch .LBB_221
+< .LBB_254:
+---
+> 	s_branch .LBB_174
+> .LBB_207:
+> 	s_mov_b32 s87, 0
+> 	s_and_not1_b32 vcc_lo, exec_lo, s76
+> 	s_mov_b32 s89, 0
+> 	s_wait_alu 0xfffe
+> 	s_cbranch_vccnz .LBB_68
+> .LBB_208:
+> 	s_sub_f32 s0, s84, s82
+> 	s_wait_alu 0xfffe
+> 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+> 	s_mul_f32 s1, s0, 0x3fb8aa3b
+> 	s_wait_alu 0xfffe
+> 	s_xor_b32 s3, s1, 0x80000000
+> 	s_rndne_f32 s4, s1
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s3, s0, 0x3fb8aa3b, s3
+> 	s_cmp_nlt_f32 s0, 0xc2ce8ed0
+> 	s_sub_f32 s1, s1, s4
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s3, s0, 0x32a5705f, s3
+> 	s_cselect_b32 vcc_lo, -1, 0
+> 	s_cmp_ngt_f32 s0, 0x42b17218
+> 	s_wait_alu 0xfffe
+> 	s_add_f32 s1, s1, s3
+> 	s_cvt_i32_f32 s3, s4
+> 	s_wait_alu 0xfffe
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_1) | instid1(TRANS32_DEP_1)
+> 	v_s_exp_f32 s1, s1
+> 	s_wait_alu 0xf1ff
+> 	v_ldexp_f32 v2, s1, s3
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+> 	v_cndmask_b32_e32 v2, 0, v2, vcc_lo
+> 	s_cselect_b32 vcc_lo, -1, 0
+> 	s_wait_alu 0xfffe
+> 	v_cndmask_b32_e32 v2, 0x7f800000, v2, vcc_lo
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_div_scale_f32 v3, null, v1, v1, v2
+> 	v_rcp_f32_e32 v4, v3
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_fma_f32 v5, -v3, v4, 1.0
+> 	v_fmac_f32_e32 v4, v5, v4
+> 	v_div_scale_f32 v5, vcc_lo, v2, v1, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_mul_f32_e32 v6, v5, v4
+> 	v_fma_f32 v7, -v3, v6, v5
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_fmac_f32_e32 v6, v7, v4
+> 	v_fma_f32 v3, -v3, v6, v5
+> 	s_wait_alu 0xfffd
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_div_fmas_f32 v3, v3, v4, v6
+> 	v_div_fixup_f32 v2, v3, v1, v2
+> 	s_delay_alu instid0(VALU_DEP_1)
+> 	v_readfirstlane_b32 s89, v2
+> 	s_and_not1_b32 vcc_lo, exec_lo, s75
+> 	s_wait_alu 0xfffe
+> 	s_cbranch_vccz .LBB_69
+> .LBB_209:
+> 	s_mov_b32 s84, 0
+> 	s_and_not1_b32 vcc_lo, exec_lo, s74
+> 	s_mov_b32 s85, 0
+> 	s_wait_alu 0xfffe
+> 	s_cbranch_vccnz .LBB_70
+> .LBB_210:
+> 	s_sub_f32 s0, s93, s82
+> 	s_wait_alu 0xfffe
+> 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+> 	s_mul_f32 s1, s0, 0x3fb8aa3b
+> 	s_wait_alu 0xfffe
+> 	s_xor_b32 s3, s1, 0x80000000
+> 	s_rndne_f32 s4, s1
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s3, s0, 0x3fb8aa3b, s3
+> 	s_cmp_nlt_f32 s0, 0xc2ce8ed0
+> 	s_sub_f32 s1, s1, s4
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s3, s0, 0x32a5705f, s3
+> 	s_cselect_b32 vcc_lo, -1, 0
+> 	s_cmp_ngt_f32 s0, 0x42b17218
+> 	s_wait_alu 0xfffe
+> 	s_add_f32 s1, s1, s3
+> 	s_cvt_i32_f32 s3, s4
+> 	s_wait_alu 0xfffe
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_1) | instid1(TRANS32_DEP_1)
+> 	v_s_exp_f32 s1, s1
+> 	s_wait_alu 0xf1ff
+> 	v_ldexp_f32 v2, s1, s3
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+> 	v_cndmask_b32_e32 v2, 0, v2, vcc_lo
+> 	s_cselect_b32 vcc_lo, -1, 0
+> 	s_wait_alu 0xfffe
+> 	v_cndmask_b32_e32 v2, 0x7f800000, v2, vcc_lo
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_div_scale_f32 v3, null, v1, v1, v2
+> 	v_rcp_f32_e32 v4, v3
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_fma_f32 v5, -v3, v4, 1.0
+> 	v_fmac_f32_e32 v4, v5, v4
+> 	v_div_scale_f32 v5, vcc_lo, v2, v1, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_mul_f32_e32 v6, v5, v4
+> 	v_fma_f32 v7, -v3, v6, v5
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_fmac_f32_e32 v6, v7, v4
+> 	v_fma_f32 v3, -v3, v6, v5
+> 	s_wait_alu 0xfffd
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_div_fmas_f32 v3, v3, v4, v6
+> 	v_div_fixup_f32 v2, v3, v1, v2
+> 	s_delay_alu instid0(VALU_DEP_1)
+> 	v_readfirstlane_b32 s85, v2
+> 	s_and_not1_b32 vcc_lo, exec_lo, s73
+> 	s_wait_alu 0xfffe
+> 	s_cbranch_vccz .LBB_71
+> .LBB_211:
+> 	s_mov_b32 s33, 0
+> 	s_and_not1_b32 vcc_lo, exec_lo, s72
+> 	s_mov_b32 s59, 0
+> 	s_wait_alu 0xfffe
+> 	s_cbranch_vccnz .LBB_72
+> .LBB_212:
+> 	s_sub_f32 s0, s96, s82
+> 	s_wait_alu 0xfffe
+> 	s_delay_alu instid0(SALU_CYCLE_2) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
+> 	s_mul_f32 s1, s0, 0x3fb8aa3b
+> 	s_wait_alu 0xfffe
+> 	s_xor_b32 s3, s1, 0x80000000
+> 	s_rndne_f32 s4, s1
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s3, s0, 0x3fb8aa3b, s3
+> 	s_cmp_nlt_f32 s0, 0xc2ce8ed0
+> 	s_sub_f32 s1, s1, s4
+> 	s_wait_alu 0xfffe
+> 	s_fmamk_f32 s3, s0, 0x32a5705f, s3
+> 	s_cselect_b32 vcc_lo, -1, 0
+> 	s_cmp_ngt_f32 s0, 0x42b17218
+> 	s_wait_alu 0xfffe
+> 	s_add_f32 s1, s1, s3
+> 	s_cvt_i32_f32 s3, s4
+> 	s_wait_alu 0xfffe
+> 	s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_1) | instid1(TRANS32_DEP_1)
+> 	v_s_exp_f32 s1, s1
+> 	s_wait_alu 0xf1ff
+> 	v_ldexp_f32 v2, s1, s3
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+> 	v_cndmask_b32_e32 v2, 0, v2, vcc_lo
+> 	s_cselect_b32 vcc_lo, -1, 0
+> 	s_wait_alu 0xfffe
+> 	v_cndmask_b32_e32 v2, 0x7f800000, v2, vcc_lo
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_div_scale_f32 v3, null, v1, v1, v2
+> 	v_rcp_f32_e32 v4, v3
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_fma_f32 v5, -v3, v4, 1.0
+> 	v_fmac_f32_e32 v4, v5, v4
+> 	v_div_scale_f32 v5, vcc_lo, v2, v1, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_mul_f32_e32 v6, v5, v4
+> 	v_fma_f32 v7, -v3, v6, v5
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_fmac_f32_e32 v6, v7, v4
+> 	v_fma_f32 v3, -v3, v6, v5
+> 	s_wait_alu 0xfffd
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_div_fmas_f32 v3, v3, v4, v6
+> 	v_div_fixup_f32 v2, v3, v1, v2
+> 	s_delay_alu instid0(VALU_DEP_1)
+> 	v_readfirstlane_b32 s59, v2
+> 	s_and_not1_b32 vcc_lo, exec_lo, s9
+> 	s_wait_alu 0xfffe
+> 	s_cbranch_vccz .LBB_73
+> 	s_branch .LBB_74
+> .LBB_213:
+> 	s_or_b32 exec_lo, exec_lo, s57
+> 	s_and_saveexec_b32 s0, s1
+> 	s_cbranch_execz .LBB_57
+> .LBB_214:
+> 	v_lshlrev_b32_e32 v2, 1, v33
+> 	global_load_u16 v2, v2, s[10:11] offset:64
+> 	s_wait_loadcnt 0x0
+> 	v_lshlrev_b32_e32 v2, 16, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_subrev_f32_e32 v2, s82, v2
+> 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+> 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+> 	v_rndne_f32_e32 v5, v3
+> 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+> 	v_add_f32_e32 v3, v3, v4
+> 	v_cvt_i32_f32_e32 v4, v5
+> 	v_exp_f32_e32 v3, v3
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_ldexp_f32 v3, v3, v4
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+> 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+> 	s_wait_alu 0xfffd
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+> 	v_add_f32_e32 v1, v1, v2
+> 	s_wait_alu 0xfffe
+> 	s_or_b32 exec_lo, exec_lo, s0
+> 	s_and_saveexec_b32 s0, s3
+> 	s_cbranch_execnz .LBB_58
+> .LBB_215:
+> 	s_wait_alu 0xfffe
+> 	s_or_b32 exec_lo, exec_lo, s0
+> 	s_and_saveexec_b32 s0, s4
+> 	s_cbranch_execz .LBB_59
+> .LBB_216:
+> 	v_lshlrev_b32_e32 v2, 1, v33
+> 	global_load_u16 v2, v2, s[10:11] offset:192
+> 	s_wait_loadcnt 0x0
+> 	v_lshlrev_b32_e32 v2, 16, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_subrev_f32_e32 v2, s82, v2
+> 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+> 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+> 	v_rndne_f32_e32 v5, v3
+> 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+> 	v_add_f32_e32 v3, v3, v4
+> 	v_cvt_i32_f32_e32 v4, v5
+> 	v_exp_f32_e32 v3, v3
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_ldexp_f32 v3, v3, v4
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+> 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+> 	s_wait_alu 0xfffd
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+> 	v_add_f32_e32 v1, v1, v2
+> 	s_wait_alu 0xfffe
+> 	s_or_b32 exec_lo, exec_lo, s0
+> 	s_and_saveexec_b32 s0, s5
+> 	s_cbranch_execnz .LBB_60
+> .LBB_217:
+> 	s_wait_alu 0xfffe
+> 	s_or_b32 exec_lo, exec_lo, s0
+> 	s_and_saveexec_b32 s0, s6
+> 	s_cbranch_execz .LBB_61
+> .LBB_218:
+> 	v_lshlrev_b32_e32 v2, 1, v33
+> 	global_load_u16 v2, v2, s[10:11] offset:320
+> 	s_wait_loadcnt 0x0
+> 	v_lshlrev_b32_e32 v2, 16, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_subrev_f32_e32 v2, s82, v2
+> 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+> 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+> 	v_rndne_f32_e32 v5, v3
+> 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+> 	v_add_f32_e32 v3, v3, v4
+> 	v_cvt_i32_f32_e32 v4, v5
+> 	v_exp_f32_e32 v3, v3
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_ldexp_f32 v3, v3, v4
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+> 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+> 	s_wait_alu 0xfffd
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+> 	v_add_f32_e32 v1, v1, v2
+> 	s_wait_alu 0xfffe
+> 	s_or_b32 exec_lo, exec_lo, s0
+> 	s_and_saveexec_b32 s0, s7
+> 	s_cbranch_execnz .LBB_62
+> .LBB_219:
+> 	s_wait_alu 0xfffe
+> 	s_or_b32 exec_lo, exec_lo, s0
+> 	s_and_saveexec_b32 s0, s8
+> 	s_cbranch_execz .LBB_221
+> .LBB_220:
+> 	v_lshlrev_b32_e32 v2, 1, v33
+> 	global_load_u16 v2, v2, s[10:11] offset:448
+> 	s_wait_loadcnt 0x0
+> 	v_lshlrev_b32_e32 v2, 16, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_subrev_f32_e32 v2, s82, v2
+> 	v_mul_f32_e32 v3, 0x3fb8aa3b, v2
+> 	v_cmp_ngt_f32_e32 vcc_lo, 0xc2ce8ed0, v2
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_fma_f32 v4, 0x3fb8aa3b, v2, -v3
+> 	v_rndne_f32_e32 v5, v3
+> 	v_dual_fmamk_f32 v4, v2, 0x32a5705f, v4 :: v_dual_sub_f32 v3, v3, v5
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+> 	v_add_f32_e32 v3, v3, v4
+> 	v_cvt_i32_f32_e32 v4, v5
+> 	v_exp_f32_e32 v3, v3
+> 	s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+> 	v_ldexp_f32 v3, v3, v4
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v3, 0, v3, vcc_lo
+> 	v_cmp_nlt_f32_e32 vcc_lo, 0x42b17218, v2
+> 	s_wait_alu 0xfffd
+> 	s_delay_alu instid0(VALU_DEP_2) | instskip(NEXT) | instid1(VALU_DEP_1)
+> 	v_cndmask_b32_e32 v2, 0x7f800000, v3, vcc_lo
+> 	v_add_f32_e32 v1, v1, v2
+> .LBB_221:
+> 	s_wait_alu 0xfffe
+> 	s_or_b32 exec_lo, exec_lo, s0
+> 	v_mbcnt_lo_u32_b32 v2, -1, 0
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_2)
+> 	v_xor_b32_e32 v3, 16, v2
+> 	v_xor_b32_e32 v4, 8, v2
+> 	v_cmp_gt_i32_e32 vcc_lo, 32, v3
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v3, v2, v3, vcc_lo
+> 	s_delay_alu instid0(VALU_DEP_3) | instskip(SKIP_2) | instid1(VALU_DEP_1)
+> 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v4, v2, v4, vcc_lo
+> 	v_lshlrev_b32_e32 v4, 2, v4
+> 	v_lshlrev_b32_e32 v3, 2, v3
+> 	ds_bpermute_b32 v3, v3, v1
+> 	s_wait_dscnt 0x0
+> 	v_add_f32_e32 v1, v1, v3
+> 	ds_bpermute_b32 v3, v4, v1
+> 	v_xor_b32_e32 v4, 4, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_3) | instid1(VALU_DEP_1)
+> 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v4, v2, v4, vcc_lo
+> 	s_wait_dscnt 0x0
+> 	v_dual_add_f32 v1, v1, v3 :: v_dual_lshlrev_b32 v4, 2, v4
+> 	ds_bpermute_b32 v3, v4, v1
+> 	v_xor_b32_e32 v4, 2, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_3) | instid1(VALU_DEP_1)
+> 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+> 	s_wait_dscnt 0x0
+> 	s_wait_alu 0xfffd
+> 	v_dual_cndmask_b32 v4, v2, v4 :: v_dual_add_f32 v1, v1, v3
+> 	v_lshlrev_b32_e32 v4, 2, v4
+> 	ds_bpermute_b32 v3, v4, v1
+> 	v_xor_b32_e32 v4, 1, v2
+> 	s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_3) | instid1(VALU_DEP_1)
+> 	v_cmp_gt_i32_e32 vcc_lo, 32, v4
+> 	s_wait_alu 0xfffd
+> 	v_cndmask_b32_e32 v2, v2, v4, vcc_lo
+> 	s_wait_dscnt 0x0
+> 	v_dual_add_f32 v1, v1, v3 :: v_dual_lshlrev_b32 v2, 2, v2
+> 	ds_bpermute_b32 v2, v2, v1
+> 	s_wait_dscnt 0x0
+> 	v_add_f32_e32 v1, v1, v2
+> 	s_mov_b32 s90, 0
+> 	s_and_not1_b32 vcc_lo, exec_lo, s33
+> 	s_mov_b32 s91, 0
+> 	s_wait_alu 0xfffe
+> 	s_cbranch_vccz .LBB_65
+> 	s_branch .LBB_66
+> .LBB_222:
+5874,5875c5680,5681
+< .LBB_255:
+< 	s_delay_alu instid0(SALU_CYCLE_1)
+---
+> .LBB_223:
+> 	s_wait_alu 0xfffe
+5880,5881c5686,5687
+< 	s_cbranch_execz .LBB_265
+< ; %bb.256:
+---
+> 	s_cbranch_execz .LBB_233
+> ; %bb.224:
+5935c5741
+< ; %bb.257:
+---
+> ; %bb.225:
+5941c5747
+< ; %bb.258:
+---
+> ; %bb.226:
+5944c5750
+< ; %bb.259:
+---
+> ; %bb.227:
+5948c5754
+< ; %bb.260:
+---
+> ; %bb.228:
+5953c5759
+< 	v_mul_f32_e32 v23, s90, v22
+---
+> 	v_mul_f32_e32 v23, s91, v22
+5961c5767
+< ; %bb.261:
+---
+> ; %bb.229:
+5967c5773
+< ; %bb.262:
+---
+> ; %bb.230:
+5970c5776
+< ; %bb.263:
+---
+> ; %bb.231:
+5974c5780
+< ; %bb.264:
+---
+> ; %bb.232:
+5980c5786
+< .LBB_265:
+---
+> .LBB_233:
+5986,5987c5792,5793
+< 	s_cbranch_execz .LBB_275
+< ; %bb.266:
+---
+> 	s_cbranch_execz .LBB_243
+> ; %bb.234:
+6039c5845
+< ; %bb.267:
+---
+> ; %bb.235:
+6045c5851
+< ; %bb.268:
+---
+> ; %bb.236:
+6048c5854
+< ; %bb.269:
+---
+> ; %bb.237:
+6052c5858
+< ; %bb.270:
+---
+> ; %bb.238:
+6057c5863
+< 	v_mul_f32_e32 v19, s88, v18
+---
+> 	v_mul_f32_e32 v19, s90, v18
+6065c5871
+< ; %bb.271:
+---
+> ; %bb.239:
+6071c5877
+< ; %bb.272:
+---
+> ; %bb.240:
+6074c5880
+< ; %bb.273:
+---
+> ; %bb.241:
+6078c5884
+< ; %bb.274:
+---
+> ; %bb.242:
+6084c5890
+< .LBB_275:
+---
+> .LBB_243:
+6090,6091c5896,5897
+< 	s_cbranch_execz .LBB_285
+< ; %bb.276:
+---
+> 	s_cbranch_execz .LBB_253
+> ; %bb.244:
+6145c5951
+< ; %bb.277:
+---
+> ; %bb.245:
+6151c5957
+< ; %bb.278:
+---
+> ; %bb.246:
+6154c5960
+< ; %bb.279:
+---
+> ; %bb.247:
+6158c5964
+< ; %bb.280:
+---
+> ; %bb.248:
+6163c5969
+< 	v_mul_f32_e32 v19, s87, v18
+---
+> 	v_mul_f32_e32 v19, s89, v18
+6171c5977
+< ; %bb.281:
+---
+> ; %bb.249:
+6177c5983
+< ; %bb.282:
+---
+> ; %bb.250:
+6180c5986
+< ; %bb.283:
+---
+> ; %bb.251:
+6184c5990
+< ; %bb.284:
+---
+> ; %bb.252:
+6190c5996
+< .LBB_285:
+---
+> .LBB_253:
+6196,6197c6002,6003
+< 	s_cbranch_execz .LBB_295
+< ; %bb.286:
+---
+> 	s_cbranch_execz .LBB_263
+> ; %bb.254:
+6252c6058
+< ; %bb.287:
+---
+> ; %bb.255:
+6258c6064
+< ; %bb.288:
+---
+> ; %bb.256:
+6261c6067
+< ; %bb.289:
+---
+> ; %bb.257:
+6265c6071
+< ; %bb.290:
+---
+> ; %bb.258:
+6270c6076
+< 	v_mul_f32_e32 v15, s86, v14
+---
+> 	v_mul_f32_e32 v15, s87, v14
+6278c6084
+< ; %bb.291:
+---
+> ; %bb.259:
+6284c6090
+< ; %bb.292:
+---
+> ; %bb.260:
+6287c6093
+< ; %bb.293:
+---
+> ; %bb.261:
+6291c6097
+< ; %bb.294:
+---
+> ; %bb.262:
+6297c6103
+< .LBB_295:
+---
+> .LBB_263:
+6303,6304c6109,6110
+< 	s_cbranch_execz .LBB_305
+< ; %bb.296:
+---
+> 	s_cbranch_execz .LBB_273
+> ; %bb.264:
+6358c6164
+< ; %bb.297:
+---
+> ; %bb.265:
+6364c6170
+< ; %bb.298:
+---
+> ; %bb.266:
+6367c6173
+< ; %bb.299:
+---
+> ; %bb.267:
+6371c6177
+< ; %bb.300:
+---
+> ; %bb.268:
+6384c6190
+< ; %bb.301:
+---
+> ; %bb.269:
+6390c6196
+< ; %bb.302:
+---
+> ; %bb.270:
+6393c6199
+< ; %bb.303:
+---
+> ; %bb.271:
+6397c6203
+< ; %bb.304:
+---
+> ; %bb.272:
+6403c6209
+< .LBB_305:
+---
+> .LBB_273:
+6409,6410c6215,6216
+< 	s_cbranch_execz .LBB_315
+< ; %bb.306:
+---
+> 	s_cbranch_execz .LBB_283
+> ; %bb.274:
+6465c6271
+< ; %bb.307:
+---
+> ; %bb.275:
+6471c6277
+< ; %bb.308:
+---
+> ; %bb.276:
+6474c6280
+< ; %bb.309:
+---
+> ; %bb.277:
+6478c6284
+< ; %bb.310:
+---
+> ; %bb.278:
+6491c6297
+< ; %bb.311:
+---
+> ; %bb.279:
+6497c6303
+< ; %bb.312:
+---
+> ; %bb.280:
+6500c6306
+< ; %bb.313:
+---
+> ; %bb.281:
+6504c6310
+< ; %bb.314:
+---
+> ; %bb.282:
+6510c6316
+< .LBB_315:
+---
+> .LBB_283:
+6516,6517c6322,6323
+< 	s_cbranch_execz .LBB_325
+< ; %bb.316:
+---
+> 	s_cbranch_execz .LBB_293
+> ; %bb.284:
+6571c6377
+< ; %bb.317:
+---
+> ; %bb.285:
+6577c6383
+< ; %bb.318:
+---
+> ; %bb.286:
+6580c6386
+< ; %bb.319:
+---
+> ; %bb.287:
+6584c6390
+< ; %bb.320:
+---
+> ; %bb.288:
+6597c6403
+< ; %bb.321:
+---
+> ; %bb.289:
+6603c6409
+< ; %bb.322:
+---
+> ; %bb.290:
+6606c6412
+< ; %bb.323:
+---
+> ; %bb.291:
+6610c6416
+< ; %bb.324:
+---
+> ; %bb.292:
+6616c6422
+< .LBB_325:
+---
+> .LBB_293:
+6622,6623c6428,6429
+< 	s_cbranch_execz .LBB_335
+< ; %bb.326:
+---
+> 	s_cbranch_execz .LBB_303
+> ; %bb.294:
+6678c6484
+< ; %bb.327:
+---
+> ; %bb.295:
+6684c6490
+< ; %bb.328:
+---
+> ; %bb.296:
+6687c6493
+< ; %bb.329:
+---
+> ; %bb.297:
+6691c6497
+< ; %bb.330:
+---
+> ; %bb.298:
+6704c6510
+< ; %bb.331:
+---
+> ; %bb.299:
+6710c6516
+< ; %bb.332:
+---
+> ; %bb.300:
+6713c6519
+< ; %bb.333:
+---
+> ; %bb.301:
+6717c6523
+< ; %bb.334:
+---
+> ; %bb.302:
+6723c6529
+< .LBB_335:
+---
+> .LBB_303:
+6733,6734c6539,6540
+< 	s_cbranch_execz .LBB_339
+< ; %bb.336:
+---
+> 	s_cbranch_execz .LBB_307
+> ; %bb.304:
+6742,6743c6548,6549
+< 	s_cbranch_execnz .LBB_340
+< .LBB_337:
+---
+> 	s_cbranch_execnz .LBB_308
+> .LBB_305:
+6748,6749c6554,6555
+< 	s_cbranch_execz .LBB_341
+< .LBB_338:
+---
+> 	s_cbranch_execz .LBB_309
+> .LBB_306:
+6871,6874c6677,6680
+< 	v_cmpx_gt_i32_e64 s91, v32
+< 	s_cbranch_execz .LBB_345
+< 	s_branch .LBB_342
+< .LBB_339:
+---
+> 	v_cmpx_gt_i32_e64 s88, v32
+> 	s_cbranch_execz .LBB_313
+> 	s_branch .LBB_310
+> .LBB_307:
+6877,6878c6683,6684
+< 	s_cbranch_execz .LBB_337
+< .LBB_340:
+---
+> 	s_cbranch_execz .LBB_305
+> .LBB_308:
+6886,6887c6692,6693
+< 	s_cbranch_execnz .LBB_338
+< .LBB_341:
+---
+> 	s_cbranch_execnz .LBB_306
+> .LBB_309:
+6892,6894c6698,6700
+< 	v_cmpx_gt_i32_e64 s91, v32
+< 	s_cbranch_execz .LBB_345
+< .LBB_342:
+---
+> 	v_cmpx_gt_i32_e64 s88, v32
+> 	s_cbranch_execz .LBB_313
+> .LBB_310:
+6920c6726
+< .LBB_343:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_311:                              ; =>This Inner Loop Header: Depth=1
+7045c6851
+< 	v_cmp_le_i32_e64 s0, s91, v9
+---
+> 	v_cmp_le_i32_e64 s0, s88, v9
+7056,7057c6862,6863
+< 	s_cbranch_execnz .LBB_343
+< ; %bb.344:
+---
+> 	s_cbranch_execnz .LBB_311
+> ; %bb.312:
+7059c6865
+< .LBB_345:
+---
+> .LBB_313:
+7106,7107c6912,6913
+< 	s_cbranch_execz .LBB_363
+< ; %bb.346:
+---
+> 	s_cbranch_execz .LBB_331
+> ; %bb.314:
+7121c6927
+< ; %bb.347:
+---
+> ; %bb.315:
+7127c6933
+< ; %bb.348:
+---
+> ; %bb.316:
+7130c6936
+< ; %bb.349:
+---
+> ; %bb.317:
+7134c6940
+< ; %bb.350:
+---
+> ; %bb.318:
+7137c6943
+< 	s_lshl_b32 s0, s89, 16
+---
+> 	s_lshl_b32 s0, s86, 16
+7191,7192c6997,6998
+< 	s_cbranch_vccz .LBB_352
+< ; %bb.351:
+---
+> 	s_cbranch_vccz .LBB_320
+> ; %bb.319:
+7202,7204c7008,7010
+< 	s_cbranch_vccz .LBB_353
+< 	s_branch .LBB_354
+< .LBB_352:
+---
+> 	s_cbranch_vccz .LBB_321
+> 	s_branch .LBB_322
+> .LBB_320:
+7206c7012
+< .LBB_353:
+---
+> .LBB_321:
+7210c7016
+< .LBB_354:
+---
+> .LBB_322:
+7224c7030
+< ; %bb.355:
+---
+> ; %bb.323:
+7230c7036
+< ; %bb.356:
+---
+> ; %bb.324:
+7233c7039
+< ; %bb.357:
+---
+> ; %bb.325:
+7237c7043
+< ; %bb.358:
+---
+> ; %bb.326:
+7251c7057
+< ; %bb.359:
+---
+> ; %bb.327:
+7257c7063
+< ; %bb.360:
+---
+> ; %bb.328:
+7260c7066
+< ; %bb.361:
+---
+> ; %bb.329:
+7264c7070
+< ; %bb.362:
+---
+> ; %bb.330:
+7271c7077
+< 	s_mul_u64 s[0:1], s[68:69], s[70:71]
+---
+> 	s_mul_u64 s[0:1], s[70:71], s[68:69]
+7287c7093
+< .LBB_363:
+---
+> .LBB_331:
+7296,7297c7102,7103
+< 	s_cbranch_execz .LBB_368
+< ; %bb.364:
+---
+> 	s_cbranch_execz .LBB_336
+> ; %bb.332:
+7305,7306c7111,7112
+< 	s_cbranch_execz .LBB_366
+< ; %bb.365:
+---
+> 	s_cbranch_execz .LBB_334
+> ; %bb.333:
+7314c7120
+< .LBB_366:
+---
+> .LBB_334:
+7324,7325c7130,7131
+< 	s_cbranch_execz .LBB_368
+< ; %bb.367:
+---
+> 	s_cbranch_execz .LBB_336
+> ; %bb.335:
+7331c7137
+< .LBB_368:
+---
+> .LBB_336:
+7335c7141
+< .LBB_369:
+---
+> .LBB_337:
+7339,7340c7145,7146
+< 	s_cbranch_vccz .LBB_525
+< ; %bb.370:
+---
+> 	s_cbranch_vccz .LBB_493
+> ; %bb.338:
+7362,7363c7168,7169
+< 	s_cbranch_scc1 .LBB_375
+< ; %bb.371:
+---
+> 	s_cbranch_scc1 .LBB_343
+> ; %bb.339:
+7367,7368c7173,7174
+< 	s_cbranch_scc1 .LBB_376
+< ; %bb.372:
+---
+> 	s_cbranch_scc1 .LBB_344
+> ; %bb.340:
+7370,7371c7176,7177
+< 	s_cbranch_scc1 .LBB_377
+< ; %bb.373:
+---
+> 	s_cbranch_scc1 .LBB_345
+> ; %bb.341:
+7373,7374c7179,7180
+< 	s_cbranch_scc0 .LBB_378
+< ; %bb.374:
+---
+> 	s_cbranch_scc0 .LBB_346
+> ; %bb.342:
+7388,7389c7194,7195
+< 	s_branch .LBB_379
+< .LBB_375:
+---
+> 	s_branch .LBB_347
+> .LBB_343:
+7391,7392c7197,7198
+< 	s_branch .LBB_387
+< .LBB_376:
+---
+> 	s_branch .LBB_355
+> .LBB_344:
+7394,7395c7200,7201
+< 	s_branch .LBB_385
+< .LBB_377:
+---
+> 	s_branch .LBB_353
+> .LBB_345:
+7397,7398c7203,7204
+< 	s_branch .LBB_383
+< .LBB_378:
+---
+> 	s_branch .LBB_351
+> .LBB_346:
+7401c7207
+< .LBB_379:
+---
+> .LBB_347:
+7405,7406c7211,7212
+< 	s_cbranch_vccnz .LBB_382
+< ; %bb.380:
+---
+> 	s_cbranch_vccnz .LBB_350
+> ; %bb.348:
+7410,7411c7216,7217
+< 	s_cbranch_vccnz .LBB_382
+< ; %bb.381:
+---
+> 	s_cbranch_vccnz .LBB_350
+> ; %bb.349:
+7450,7452c7256,7258
+< .LBB_382:
+< 	s_cbranch_execnz .LBB_384
+< .LBB_383:
+---
+> .LBB_350:
+> 	s_cbranch_execnz .LBB_352
+> .LBB_351:
+7457,7459c7263,7265
+< .LBB_384:
+< 	s_cbranch_execnz .LBB_386
+< .LBB_385:
+---
+> .LBB_352:
+> 	s_cbranch_execnz .LBB_354
+> .LBB_353:
+7467,7469c7273,7275
+< .LBB_386:
+< 	s_cbranch_execnz .LBB_391
+< .LBB_387:
+---
+> .LBB_354:
+> 	s_cbranch_execnz .LBB_359
+> .LBB_355:
+7472,7473c7278,7279
+< 	s_cbranch_scc0 .LBB_389
+< ; %bb.388:
+---
+> 	s_cbranch_scc0 .LBB_357
+> ; %bb.356:
+7480,7482c7286,7288
+< 	s_cbranch_vccz .LBB_390
+< 	s_branch .LBB_391
+< .LBB_389:
+---
+> 	s_cbranch_vccz .LBB_358
+> 	s_branch .LBB_359
+> .LBB_357:
+7484c7290
+< .LBB_390:
+---
+> .LBB_358:
+7489c7295
+< .LBB_391:
+---
+> .LBB_359:
+7493,7494c7299,7300
+< 	s_cbranch_scc1 .LBB_393
+< ; %bb.392:
+---
+> 	s_cbranch_scc1 .LBB_361
+> ; %bb.360:
+7510,7512c7316,7318
+< 	s_cbranch_vccz .LBB_394
+< 	s_branch .LBB_395
+< .LBB_393:
+---
+> 	s_cbranch_vccz .LBB_362
+> 	s_branch .LBB_363
+> .LBB_361:
+7514c7320
+< .LBB_394:
+---
+> .LBB_362:
+7518c7324
+< .LBB_395:
+---
+> .LBB_363:
+7521,7522c7327,7328
+< 	s_cbranch_scc1 .LBB_397
+< .LBB_396:                              ; =>This Inner Loop Header: Depth=1
+---
+> 	s_cbranch_scc1 .LBB_365
+> .LBB_364:                              ; =>This Inner Loop Header: Depth=1
+7527,7528c7333,7334
+< 	s_cbranch_scc0 .LBB_396
+< .LBB_397:
+---
+> 	s_cbranch_scc0 .LBB_364
+> .LBB_365:
+7532,7533c7338,7339
+< 	s_cbranch_vccz .LBB_447
+< ; %bb.398:
+---
+> 	s_cbranch_vccz .LBB_415
+> ; %bb.366:
+7575c7381
+< 	s_ashr_i32 s7, s53, 31
+---
+> 	s_ashr_i32 s69, s53, 31
+7580c7386
+< 	s_lshr_b32 s1, s7, 28
+---
+> 	s_lshr_b32 s1, s69, 28
+7611,7612c7417,7418
+< 	s_cbranch_execz .LBB_400
+< ; %bb.399:
+---
+> 	s_cbranch_execz .LBB_368
+> ; %bb.367:
+7623c7429
+< .LBB_400:
+---
+> .LBB_368:
+7635,7636c7441,7442
+< 	s_cbranch_execz .LBB_402
+< ; %bb.401:
+---
+> 	s_cbranch_execz .LBB_370
+> ; %bb.369:
+7647c7453
+< .LBB_402:
+---
+> .LBB_370:
+7652d7457
+< 	s_mov_b32 s6, s53
+7654c7459,7460
+< 	s_delay_alu instid0(VALU_DEP_2)
+---
+> 	v_mov_b32_e32 v49, 0
+> 	s_delay_alu instid0(VALU_DEP_3)
+7657,7658c7463,7464
+< 	s_mul_u64 s[0:1], s[4:5], s[6:7]
+< 	v_mov_b32_e32 v49, 0
+---
+> 	s_mul_u64 s[0:1], s[4:5], s[68:69]
+> 	v_mov_b32_e32 v63, 0
+7661,7662d7466
+< 	v_mov_b32_e32 v63, 0
+< 	v_lshlrev_b32_e32 v9, 1, v9
+7664a7469
+> 	v_lshlrev_b32_e32 v9, 1, v9
+7672,7673c7477,7478
+< 	s_cbranch_execz .LBB_404
+< ; %bb.403:
+---
+> 	s_cbranch_execz .LBB_372
+> ; %bb.371:
+7684c7489
+< .LBB_404:
+---
+> .LBB_372:
+7690,7691c7495,7496
+< 	s_cbranch_execz .LBB_406
+< ; %bb.405:
+---
+> 	s_cbranch_execz .LBB_374
+> ; %bb.373:
+7702c7507
+< .LBB_406:
+---
+> .LBB_374:
+7719,7720c7524,7525
+< 	s_cbranch_execz .LBB_408
+< ; %bb.407:
+---
+> 	s_cbranch_execz .LBB_376
+> ; %bb.375:
+7731c7536
+< .LBB_408:
+---
+> .LBB_376:
+7737,7738c7542,7543
+< 	s_cbranch_execz .LBB_410
+< ; %bb.409:
+---
+> 	s_cbranch_execz .LBB_378
+> ; %bb.377:
+7749c7554
+< .LBB_410:
+---
+> .LBB_378:
+7765,7766c7570,7571
+< 	s_cbranch_execz .LBB_412
+< ; %bb.411:
+---
+> 	s_cbranch_execz .LBB_380
+> ; %bb.379:
+7777c7582
+< .LBB_412:
+---
+> .LBB_380:
+7783,7784c7588,7589
+< 	s_cbranch_execz .LBB_414
+< ; %bb.413:
+---
+> 	s_cbranch_execz .LBB_382
+> ; %bb.381:
+7795c7600
+< .LBB_414:
+---
+> .LBB_382:
+7807,7808c7612,7613
+< 	s_cbranch_execz .LBB_416
+< ; %bb.415:
+---
+> 	s_cbranch_execz .LBB_384
+> ; %bb.383:
+7823c7628
+< .LBB_416:
+---
+> .LBB_384:
+7832,7833c7637,7638
+< 	s_cbranch_execz .LBB_443
+< ; %bb.417:
+---
+> 	s_cbranch_execz .LBB_411
+> ; %bb.385:
+7839,7840c7644,7645
+< 	s_cbranch_execz .LBB_419
+< ; %bb.418:
+---
+> 	s_cbranch_execz .LBB_387
+> ; %bb.386:
+8040c7845
+< .LBB_419:
+---
+> .LBB_387:
+8046,8047c7851,7852
+< 	s_cbranch_execz .LBB_421
+< ; %bb.420:
+---
+> 	s_cbranch_execz .LBB_389
+> ; %bb.388:
+8252c8057
+< .LBB_421:
+---
+> .LBB_389:
+8258,8259c8063,8064
+< 	s_cbranch_execz .LBB_423
+< ; %bb.422:
+---
+> 	s_cbranch_execz .LBB_391
+> ; %bb.390:
+8454c8259
+< .LBB_423:
+---
+> .LBB_391:
+8460,8461c8265,8266
+< 	s_cbranch_execz .LBB_425
+< ; %bb.424:
+---
+> 	s_cbranch_execz .LBB_393
+> ; %bb.392:
+8656c8461
+< .LBB_425:
+---
+> .LBB_393:
+8663,8664c8468,8469
+< 	s_cbranch_execz .LBB_429
+< ; %bb.426:
+---
+> 	s_cbranch_execz .LBB_397
+> ; %bb.394:
+8699c8504
+< .LBB_427:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_395:                              ; =>This Inner Loop Header: Depth=1
+8930,8931c8735,8736
+< 	s_cbranch_execnz .LBB_427
+< ; %bb.428:
+---
+> 	s_cbranch_execnz .LBB_395
+> ; %bb.396:
+8933c8738
+< .LBB_429:
+---
+> .LBB_397:
+8987c8792
+< ; %bb.430:
+---
+> ; %bb.398:
+8993c8798
+< ; %bb.431:
+---
+> ; %bb.399:
+8996c8801
+< ; %bb.432:
+---
+> ; %bb.400:
+9000c8805
+< ; %bb.433:
+---
+> ; %bb.401:
+9029,9030c8834,8835
+< 	s_cbranch_execz .LBB_436
+< ; %bb.434:
+---
+> 	s_cbranch_execz .LBB_404
+> ; %bb.402:
+9038,9039c8843,8844
+< 	s_cbranch_execnz .LBB_437
+< .LBB_435:
+---
+> 	s_cbranch_execnz .LBB_405
+> .LBB_403:
+9044,9046c8849,8851
+< 	s_cbranch_execnz .LBB_438
+< 	s_branch .LBB_443
+< .LBB_436:
+---
+> 	s_cbranch_execnz .LBB_406
+> 	s_branch .LBB_411
+> .LBB_404:
+9049,9050c8854,8855
+< 	s_cbranch_execz .LBB_435
+< .LBB_437:
+---
+> 	s_cbranch_execz .LBB_403
+> .LBB_405:
+9058,9059c8863,8864
+< 	s_cbranch_execz .LBB_443
+< .LBB_438:
+---
+> 	s_cbranch_execz .LBB_411
+> .LBB_406:
+9106c8911
+< ; %bb.439:
+---
+> ; %bb.407:
+9112c8917
+< ; %bb.440:
+---
+> ; %bb.408:
+9115c8920
+< ; %bb.441:
+---
+> ; %bb.409:
+9119c8924
+< ; %bb.442:
+---
+> ; %bb.410:
+9137c8942
+< .LBB_443:
+---
+> .LBB_411:
+9147,9148c8952,8953
+< 	s_cbranch_execz .LBB_446
+< ; %bb.444:
+---
+> 	s_cbranch_execz .LBB_414
+> ; %bb.412:
+9157,9158c8962,8963
+< 	s_cbranch_execz .LBB_446
+< ; %bb.445:
+---
+> 	s_cbranch_execz .LBB_414
+> ; %bb.413:
+9164c8969
+< .LBB_446:
+---
+> .LBB_414:
+9168c8973
+< .LBB_447:
+---
+> .LBB_415:
+9172,9173c8977,8978
+< 	s_cbranch_vccz .LBB_525
+< ; %bb.448:
+---
+> 	s_cbranch_vccz .LBB_493
+> ; %bb.416:
+9271,9272c9076,9077
+< 	s_cbranch_execz .LBB_450
+< ; %bb.449:
+---
+> 	s_cbranch_execz .LBB_418
+> ; %bb.417:
+9296c9101
+< .LBB_450:
+---
+> .LBB_418:
+9304,9305c9109,9110
+< 	s_cbranch_execz .LBB_452
+< ; %bb.451:
+---
+> 	s_cbranch_execz .LBB_420
+> ; %bb.419:
+9329c9134
+< .LBB_452:
+---
+> .LBB_420:
+9336,9337c9141,9142
+< 	s_cbranch_execz .LBB_454
+< ; %bb.453:
+---
+> 	s_cbranch_execz .LBB_422
+> ; %bb.421:
+9361c9166
+< .LBB_454:
+---
+> .LBB_422:
+9369,9370c9174,9175
+< 	s_cbranch_execz .LBB_456
+< ; %bb.455:
+---
+> 	s_cbranch_execz .LBB_424
+> ; %bb.423:
+9394c9199
+< .LBB_456:
+---
+> .LBB_424:
+9401,9402c9206,9207
+< 	s_cbranch_execz .LBB_458
+< ; %bb.457:
+---
+> 	s_cbranch_execz .LBB_426
+> ; %bb.425:
+9426c9231
+< .LBB_458:
+---
+> .LBB_426:
+9435,9436c9240,9241
+< 	s_cbranch_execz .LBB_460
+< ; %bb.459:
+---
+> 	s_cbranch_execz .LBB_428
+> ; %bb.427:
+9460c9265
+< .LBB_460:
+---
+> .LBB_428:
+9467,9468c9272,9273
+< 	s_cbranch_execz .LBB_462
+< ; %bb.461:
+---
+> 	s_cbranch_execz .LBB_430
+> ; %bb.429:
+9492c9297
+< .LBB_462:
+---
+> .LBB_430:
+9500,9501c9305,9306
+< 	s_cbranch_execz .LBB_464
+< ; %bb.463:
+---
+> 	s_cbranch_execz .LBB_432
+> ; %bb.431:
+9525c9330
+< .LBB_464:
+---
+> .LBB_432:
+9534,9535c9339,9340
+< 	s_cbranch_scc1 .LBB_526
+< ; %bb.465:
+---
+> 	s_cbranch_scc1 .LBB_494
+> ; %bb.433:
+9593,9594c9398,9399
+< 	s_cbranch_execz .LBB_467
+< ; %bb.466:
+---
+> 	s_cbranch_execz .LBB_435
+> ; %bb.434:
+9628c9433
+< .LBB_467:
+---
+> .LBB_435:
+9632,9633c9437,9438
+< 	s_cbranch_scc1 .LBB_527
+< .LBB_468:
+---
+> 	s_cbranch_scc1 .LBB_495
+> .LBB_436:
+9691,9692c9496,9497
+< 	s_cbranch_execz .LBB_470
+< ; %bb.469:
+---
+> 	s_cbranch_execz .LBB_438
+> ; %bb.437:
+9726c9531
+< .LBB_470:
+---
+> .LBB_438:
+9731,9732c9536,9537
+< 	s_cbranch_scc0 .LBB_528
+< .LBB_471:
+---
+> 	s_cbranch_scc0 .LBB_496
+> .LBB_439:
+9735,9736c9540,9541
+< 	s_cbranch_scc1 .LBB_531
+< .LBB_472:
+---
+> 	s_cbranch_scc1 .LBB_499
+> .LBB_440:
+9795,9796c9600,9601
+< 	s_cbranch_execz .LBB_474
+< ; %bb.473:
+---
+> 	s_cbranch_execz .LBB_442
+> ; %bb.441:
+9830c9635
+< .LBB_474:
+---
+> .LBB_442:
+9835,9836c9640,9641
+< 	s_cbranch_scc0 .LBB_532
+< .LBB_475:
+---
+> 	s_cbranch_scc0 .LBB_500
+> .LBB_443:
+9839,9840c9644,9645
+< 	s_cbranch_scc1 .LBB_535
+< .LBB_476:
+---
+> 	s_cbranch_scc1 .LBB_503
+> .LBB_444:
+9899,9900c9704,9705
+< 	s_cbranch_execz .LBB_478
+< ; %bb.477:
+---
+> 	s_cbranch_execz .LBB_446
+> ; %bb.445:
+9934c9739
+< .LBB_478:
+---
+> .LBB_446:
+9939,9940c9744,9745
+< 	s_cbranch_scc0 .LBB_536
+< .LBB_479:
+---
+> 	s_cbranch_scc0 .LBB_504
+> .LBB_447:
+9943,9944c9748,9749
+< 	s_cbranch_scc1 .LBB_481
+< .LBB_480:
+---
+> 	s_cbranch_scc1 .LBB_449
+> .LBB_448:
+9998c9803
+< .LBB_481:
+---
+> .LBB_449:
+10035a9841
+> 	s_ashr_i32 s8, s5, 31
+10037d9842
+< 	s_and_b32 s8, s0, s3
+10039c9844
+< 	s_ashr_i32 s1, s5, 31
+---
+> 	s_and_b32 s1, s0, s3
+10042c9847
+< 	s_and_b32 s3, s8, exec_lo
+---
+> 	s_and_b32 s3, s1, exec_lo
+10045c9850
+< 	s_cselect_b32 s3, s1, 0
+---
+> 	s_cselect_b32 s3, s8, 0
+10047c9852
+< 	s_lshr_b32 s9, s53, 31
+---
+> 	s_lshr_b32 s8, s53, 31
+10052,10053c9857,9858
+< 	s_add_co_i32 s9, s53, s9
+< 	s_ashr_i32 s1, s53, 31
+---
+> 	s_add_co_i32 s8, s53, s8
+> 	s_ashr_i32 s69, s53, 31
+10055,10056c9860,9861
+< 	s_ashr_i32 s9, s9, 1
+< 	s_lshr_b32 s10, s1, 28
+---
+> 	s_ashr_i32 s8, s8, 1
+> 	s_lshr_b32 s9, s69, 28
+10059,10060c9864,9865
+< 	s_ashr_i32 s11, s9, 31
+< 	s_add_co_i32 s10, s53, s10
+---
+> 	s_ashr_i32 s10, s8, 31
+> 	s_add_co_i32 s9, s53, s9
+10067,10068c9872,9873
+< 	v_mul_lo_u32 v3, v1, s11
+< 	v_mad_co_u64_u32 v[41:42], null, v1, s9, 0
+---
+> 	v_mul_lo_u32 v3, v1, s10
+> 	v_mad_co_u64_u32 v[41:42], null, v1, s8, 0
+10071,10074c9876,9879
+< 	v_mul_lo_u32 v8, v2, s9
+< 	s_ashr_i32 s3, s10, 4
+< 	v_mul_lo_u32 v10, v7, s11
+< 	v_mad_co_u64_u32 v[39:40], null, v7, s9, 0
+---
+> 	v_mul_lo_u32 v8, v2, s8
+> 	s_ashr_i32 s3, s9, 4
+> 	v_mul_lo_u32 v10, v7, s10
+> 	v_mad_co_u64_u32 v[39:40], null, v7, s8, 0
+10077c9882
+< 	v_mul_lo_u32 v11, v9, s9
+---
+> 	v_mul_lo_u32 v11, v9, s8
+10103c9908
+< 	s_mov_b32 s9, exec_lo
+---
+> 	s_mov_b32 s8, exec_lo
+10107,10108c9912,9913
+< 	s_cbranch_execz .LBB_483
+< ; %bb.482:
+---
+> 	s_cbranch_execz .LBB_451
+> ; %bb.450:
+10130c9935
+< .LBB_483:
+---
+> .LBB_451:
+10132,10133c9937,9938
+< 	s_or_b32 exec_lo, exec_lo, s9
+< 	s_mov_b32 s0, s53
+---
+> 	s_or_b32 exec_lo, exec_lo, s8
+> 	s_mul_u64 s[6:7], s[6:7], s[68:69]
+10137c9942
+< 	s_mul_u64 s[0:1], s[6:7], s[0:1]
+---
+> 	s_lshl_b64 s[6:7], s[6:7], 1
+10140,10143c9945
+< 	s_lshl_b64 s[0:1], s[0:1], 1
+< 	v_dual_mov_b32 v52, 0 :: v_dual_mov_b32 v69, 0
+< 	s_wait_alu 0xfffe
+< 	s_add_nc_u64 s[6:7], s[12:13], s[0:1]
+---
+> 	s_add_nc_u64 s[6:7], s[12:13], s[6:7]
+10146a9949
+> 	v_dual_mov_b32 v52, 0 :: v_dual_mov_b32 v69, 0
+10148c9951
+< 	s_mov_b32 s1, exec_lo
+---
+> 	s_mov_b32 s8, exec_lo
+10150,10151c9953,9954
+< 	s_cbranch_execz .LBB_485
+< ; %bb.484:
+---
+> 	s_cbranch_execz .LBB_453
+> ; %bb.452:
+10173c9976
+< .LBB_485:
+---
+> .LBB_453:
+10175c9978
+< 	s_or_b32 exec_lo, exec_lo, s1
+---
+> 	s_or_b32 exec_lo, exec_lo, s8
+10179c9982
+< 	s_mov_b32 s1, exec_lo
+---
+> 	s_mov_b32 s8, exec_lo
+10188,10189c9991,9992
+< 	s_cbranch_execz .LBB_487
+< ; %bb.486:
+---
+> 	s_cbranch_execz .LBB_455
+> ; %bb.454:
+10211c10014
+< .LBB_487:
+---
+> .LBB_455:
+10213c10016
+< 	s_or_b32 exec_lo, exec_lo, s1
+---
+> 	s_or_b32 exec_lo, exec_lo, s8
+10222c10025
+< 	s_mov_b32 s1, exec_lo
+---
+> 	s_mov_b32 s8, exec_lo
+10224,10225c10027,10028
+< 	s_cbranch_execz .LBB_489
+< ; %bb.488:
+---
+> 	s_cbranch_execz .LBB_457
+> ; %bb.456:
+10247c10050
+< .LBB_489:
+---
+> .LBB_457:
+10249c10052
+< 	s_or_b32 exec_lo, exec_lo, s1
+---
+> 	s_or_b32 exec_lo, exec_lo, s8
+10252c10055
+< 	s_mov_b32 s1, exec_lo
+---
+> 	s_mov_b32 s8, exec_lo
+10257,10258c10060,10061
+< 	s_cbranch_execz .LBB_491
+< ; %bb.490:
+---
+> 	s_cbranch_execz .LBB_459
+> ; %bb.458:
+10273c10076
+< .LBB_491:
+---
+> .LBB_459:
+10275,10276c10078,10079
+< 	s_or_b32 exec_lo, exec_lo, s1
+< 	s_and_b32 s0, s8, vcc_lo
+---
+> 	s_or_b32 exec_lo, exec_lo, s8
+> 	s_and_b32 s0, s1, vcc_lo
+10284,10285c10087,10088
+< 	s_cbranch_execz .LBB_522
+< ; %bb.492:
+---
+> 	s_cbranch_execz .LBB_490
+> ; %bb.460:
+10291,10292c10094,10095
+< 	s_cbranch_execz .LBB_494
+< ; %bb.493:
+---
+> 	s_cbranch_execz .LBB_462
+> ; %bb.461:
+10481c10284
+< .LBB_494:
+---
+> .LBB_462:
+10487,10488c10290,10291
+< 	s_cbranch_execz .LBB_496
+< ; %bb.495:
+---
+> 	s_cbranch_execz .LBB_464
+> ; %bb.463:
+10681c10484
+< .LBB_496:
+---
+> .LBB_464:
+10687,10688c10490,10491
+< 	s_cbranch_execz .LBB_498
+< ; %bb.497:
+---
+> 	s_cbranch_execz .LBB_466
+> ; %bb.465:
+10883c10686
+< .LBB_498:
+---
+> .LBB_466:
+10889,10890c10692,10693
+< 	s_cbranch_execz .LBB_500
+< ; %bb.499:
+---
+> 	s_cbranch_execz .LBB_468
+> ; %bb.467:
+11083c10886
+< .LBB_500:
+---
+> .LBB_468:
+11089,11090c10892,10893
+< 	s_cbranch_execz .LBB_504
+< ; %bb.501:
+---
+> 	s_cbranch_execz .LBB_472
+> ; %bb.469:
+11134c10937
+< .LBB_502:                              ; =>This Inner Loop Header: Depth=1
+---
+> .LBB_470:                              ; =>This Inner Loop Header: Depth=1
+11367,11368c11170,11171
+< 	s_cbranch_execnz .LBB_502
+< ; %bb.503:
+---
+> 	s_cbranch_execnz .LBB_470
+> ; %bb.471:
+11370c11173
+< .LBB_504:
+---
+> .LBB_472:
+11427c11230
+< ; %bb.505:
+---
+> ; %bb.473:
+11433c11236
+< ; %bb.506:
+---
+> ; %bb.474:
+11436c11239
+< ; %bb.507:
+---
+> ; %bb.475:
+11440c11243
+< ; %bb.508:
+---
+> ; %bb.476:
+11470c11273
+< ; %bb.509:
+---
+> ; %bb.477:
+11476c11279
+< ; %bb.510:
+---
+> ; %bb.478:
+11479c11282
+< ; %bb.511:
+---
+> ; %bb.479:
+11483c11286
+< ; %bb.512:
+---
+> ; %bb.480:
+11532,11533c11335,11336
+< 	s_cbranch_execz .LBB_515
+< ; %bb.513:
+---
+> 	s_cbranch_execz .LBB_483
+> ; %bb.481:
+11541,11542c11344,11345
+< 	s_cbranch_execnz .LBB_516
+< .LBB_514:
+---
+> 	s_cbranch_execnz .LBB_484
+> .LBB_482:
+11547,11549c11350,11352
+< 	s_cbranch_execnz .LBB_517
+< 	s_branch .LBB_522
+< .LBB_515:
+---
+> 	s_cbranch_execnz .LBB_485
+> 	s_branch .LBB_490
+> .LBB_483:
+11552,11553c11355,11356
+< 	s_cbranch_execz .LBB_514
+< .LBB_516:
+---
+> 	s_cbranch_execz .LBB_482
+> .LBB_484:
+11561,11562c11364,11365
+< 	s_cbranch_execz .LBB_522
+< .LBB_517:
+---
+> 	s_cbranch_execz .LBB_490
+> .LBB_485:
+11574c11377
+< ; %bb.518:
+---
+> ; %bb.486:
+11580c11383
+< ; %bb.519:
+---
+> ; %bb.487:
+11583c11386
+< ; %bb.520:
+---
+> ; %bb.488:
+11587c11390
+< ; %bb.521:
+---
+> ; %bb.489:
+11605c11408
+< .LBB_522:
+---
+> .LBB_490:
+11616,11617c11419,11420
+< 	s_cbranch_execz .LBB_525
+< ; %bb.523:
+---
+> 	s_cbranch_execz .LBB_493
+> ; %bb.491:
+11626,11627c11429,11430
+< 	s_cbranch_execz .LBB_525
+< ; %bb.524:
+---
+> 	s_cbranch_execz .LBB_493
+> ; %bb.492:
+11633c11436
+< .LBB_525:
+---
+> .LBB_493:
+11637c11440
+< .LBB_526:
+---
+> .LBB_494:
+11640,11641c11443,11444
+< 	s_cbranch_scc0 .LBB_468
+< .LBB_527:
+---
+> 	s_cbranch_scc0 .LBB_436
+> .LBB_495:
+11645,11646c11448,11449
+< 	s_cbranch_scc1 .LBB_471
+< .LBB_528:
+---
+> 	s_cbranch_scc1 .LBB_439
+> .LBB_496:
+11705,11706c11508,11509
+< 	s_cbranch_execz .LBB_530
+< ; %bb.529:
+---
+> 	s_cbranch_execz .LBB_498
+> ; %bb.497:
+11740c11543
+< .LBB_530:
+---
+> .LBB_498:
+11745,11746c11548,11549
+< 	s_cbranch_scc0 .LBB_472
+< .LBB_531:
+---
+> 	s_cbranch_scc0 .LBB_440
+> .LBB_499:
+11749,11750c11552,11553
+< 	s_cbranch_scc1 .LBB_475
+< .LBB_532:
+---
+> 	s_cbranch_scc1 .LBB_443
+> .LBB_500:
+11808,11809c11611,11612
+< 	s_cbranch_execz .LBB_534
+< ; %bb.533:
+---
+> 	s_cbranch_execz .LBB_502
+> ; %bb.501:
+11844c11647
+< .LBB_534:
+---
+> .LBB_502:
+11849,11850c11652,11653
+< 	s_cbranch_scc0 .LBB_476
+< .LBB_535:
+---
+> 	s_cbranch_scc0 .LBB_444
+> .LBB_503:
+11853,11854c11656,11657
+< 	s_cbranch_scc1 .LBB_479
+< .LBB_536:
+---
+> 	s_cbranch_scc1 .LBB_447
+> .LBB_504:
+11912,11913c11715,11716
+< 	s_cbranch_execz .LBB_538
+< ; %bb.537:
+---
+> 	s_cbranch_execz .LBB_506
+> ; %bb.505:
+11948c11751
+< .LBB_538:
+---
+> .LBB_506:
+11953,11954c11756,11757
+< 	s_cbranch_scc0 .LBB_480
+< 	s_branch .LBB_481
+---
+> 	s_cbranch_scc0 .LBB_448
+> 	s_branch .LBB_449
+11976c11779
+< 		.amdhsa_next_free_sgpr 97
+---
+> 		.amdhsa_next_free_sgpr 98
