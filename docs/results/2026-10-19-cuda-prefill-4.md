@@ -1,32 +1,4 @@
-# CUDA prefill, 4 (IN PROGRESS): the GatedDeltaNet recurrence 1.6x faster with bitwise-identical results; e4m3 GEMM accuracy alone; decode at 16k (2026-10-19)
-
-**IN PROGRESS.** Paused 2026-10-18 23:40 at the user's request (no more Spark work tonight) BEFORE the end-to-end speed A/B, localeval and the mutation check ran.
-Everything below marked PENDING is UNMEASURED. Measured: kernel bitwise tests, kernel microbench (vLLM up), 35B / 8B accuracy, admission, decode-step profile.
-The resume plan is in section 0.
-
-## 0. Status and resume plan
-
-Measured so far (numbers in the sections cited):
-- `gdn_delta_rule_bf16_split` built, default on, bitwise identical to `gdn_delta_rule_bf16` (tests under LPR 2/4/8, section 4.1); kernel microbench 1.6x at T = 2048, 2.2x at T = 1 (vLLM up, relative).
-- Accuracy of base / split / kill switch / f8, one slot, vLLM up (section 5): split = base to every digit, greedy ids identical, `chat_reuse_4k` 32/32 x 3; f8 fails 35b-short KL21 and greedy ids.
-- Admission (section 10): all ADMITTED. Decode-step profile 1k vs 16k (section 8). Mac checks pass at 693110d4 code (`raw/mac/`: `cargo test --workspace` 470 passed 0 failed, `cargo check --workspace` exit 0, `cargo check -p intarsia-cli --features hip` exit 0).
-
-NOT measured yet: end-to-end prefill / decode A/B (base vs split vs f8, 3 rounds), localeval dev vs vLLM, mutation check of the split kernel, memory delta from the plan JSON, attention bandwidth figure (needs the 35B config's KV dims).
-vLLM downtime so far: 0 min (window B was queued behind another owner's exclusive network test and was withdrawn before it got its lease; vLLM never stopped).
-
-Resume (spark1 trees `~/intarsia-decfuse/p4-base` = origin/main 8638db03, `p4-dev` = this branch, both built; rebuild p4-base if origin/main moved):
-1. Window B (vLLM down, <= 15 min script):
-   `ARMS=dev LABEL="cuda-prefill-4 window B" DOWNTIME_LOG=$PWD/docs/results/2026-10-19-cuda-prefill-4/downtime.log scripts/cuda-prefill4/wC-localeval.sh 15 docs/results/2026-10-19-cuda-prefill-4/raw/dev/08-windowB.out`
-   (arms in `scripts/cuda-prefill4/wBC.sh`: base = p4-base, split = p4-dev default, f8 = p4-dev `INTARSIA_CUDA_GDN_SPLIT=0 INTARSIA_CUDA_FP8_GEMM_F8=1`); then confirm `curl http://100.120.88.104:8000/v1/models`.
-2. localeval of vLLM in its own slot (vLLM up): `uv run --project /opt/code/deepeval localeval speed spark-guidance --thinking off --sizes 1024,4096,16384 --gen 128 --reps 3`.
-3. Mutation check (vLLM up): `fleetq run --host spark1 --mem 12 --label "..." --wait-timeout 90 -- scripts/cuda-prefill4/mutcheck.sh` (26 mutants, 3 marked EQUIVALENT; dry run passes: `scripts/cuda-prefill4/mutate-dryrun.sh`).
-4. Fetch: `fleetq run --host spark1 --mem 1 ... -- scripts/cuda-prefill4/fetch.sh p4B p4C p4adm p4prof-dec-3400 p4prof-dec-54000`; memory delta with `scripts/cuda-prefill3/plan-mem.py raw/p4adm/plan-base.json raw/p4adm/plan-dev.json`.
-5. Fill sections 2, 3, 6, 9, 11, 12, 13; rebase on origin/main; rerun the Mac checks.
-
-
-Branch `perf/cuda-prefill-4`, on `origin/main` 8638db03 (PR #16, prefill-3 merged). Hardware: spark1 (GB10, sm_121, CUDA
-13.0), Qwen3.6-35B-A3B NVFP4. Raw logs are in `docs/results/2026-10-19-cuda-prefill-4/raw/`, vLLM downtime is in
-`docs/results/2026-10-19-cuda-prefill-4/downtime.log`.
+# CUDA prefill, 4: the GatedDeltaNet recurrence 1.6x faster with bitwise-identical results; e4m3 GEMM accuracy alone; decode at 16k (2026-10-19)
 
 ## 1. Headline
 
@@ -39,6 +11,9 @@ Branch `perf/cuda-prefill-4`, on `origin/main` 8638db03 (PR #16, prefill-3 merge
     (14.4 -> 6.6 us).
   - **End-to-end** (interleaved A/B, 3 rounds, same window): prefill **+7.8 / +13.4 / +9.5 %** at 1k / 4k / 16k,
     decode **+1.9 / +2.4 / +2.4 %** (section 6).
+- **localeval, dev vs vLLM** (section 2): prefill 4166 / 5699 / 5281 vs vLLM 5281 / 6374 / 6328 tok/s; the gap to vLLM is now
+  21 / 11 / 17 % at 1k / 4k / 16k (round 3: 24 / 19 / 24 %). Decode 82.0 / 79.5 / 72.2 vs vLLM 77.2 / 76.6 / 74.2:
+  ahead at 1k and 4k, 2.7 % behind at 16k (round 3: 4.9 %).
 - **Why the opt-in lanes kernel failed the bars (Part 2).** The cause is not a bug. The lanes kernel sums the two dot
   products of the recurrence (`S^T k`, `S^T q`) in a different order. The 35B's bars are this sensitive to a change of
   fp32 rounding:
@@ -54,7 +29,25 @@ Branch `perf/cuda-prefill-4`, on `origin/main` 8638db03 (PR #16, prefill-3 merge
 
 ## 2. Results vs base and vLLM
 
-PENDING (window B not run). Round-3 figures for reference (not this branch): dev in-engine prefill 4113 / 5294 / 4912 tok/s at 1k / 4k / 16k; localeval dev 3866 / 5164 / 4848 vs vLLM 5102 / 6351 / 6340.
+localeval speed (`uv run localeval speed`, 3 reps, gen 128, thinking off). dev = `intarsia serve` of this branch's
+default, in window B (vLLM down, `raw/dev/08-windowB.out`); vLLM = `spark-guidance` in its own fleetq slot (#2623, vLLM
+up, 03:05, `raw/dev/09-localeval-vllm.out`). In-engine = the interleaved A/B of section 6 (medians of 3 rounds).
+
+| | 1k | 4k | 16k |
+|---|---|---|---|
+| prefill, in-engine base (origin/main) | 4122 | 5191 | 4910 |
+| prefill, in-engine dev | 4445 (+7.8 %) | 5889 (+13.4 %) | 5375 (+9.5 %) |
+| prefill, localeval dev | 4166 | 5699 | 5281 |
+| prefill, localeval vLLM | 5281 | 6374 | 6328 |
+| dev vs vLLM (localeval) | -21.1 % | -10.6 % | -16.5 % |
+| round 3 dev vs vLLM (localeval) | -24.2 % (3866 / 5102) | -18.7 % (5164 / 6351) | -23.5 % (4848 / 6340) |
+| decode, in-engine base | 80.8 | 78.0 | 70.7 |
+| decode, in-engine dev | 82.3 (+1.9 %) | 79.9 (+2.4 %) | 72.4 (+2.4 %) |
+| decode, localeval dev | 82.0 | 79.5 | 72.2 |
+| decode, localeval vLLM | 77.2 | 76.6 | 74.2 |
+
+- localeval's 1k prefill figure is marked `*` (under 1024 tokens, TTFT-dominated) for both servers.
+- dev and vLLM cannot run in the same window (one GPU); vLLM's figures match round 3's (5102 / 6351 / 6340) within 4 %.
 
 ## 3. What runs where (35B, this branch's default)
 
@@ -254,21 +247,41 @@ nsys decode-step profile, graph decode, 64 greedy tokens, exclusive slot with vL
 | growth | +1596 us | +1670 us | -73 us |
 
 - **Attention is the whole gap.** No other kernel grows with context (the GDN state is fixed-size).
-- **The cost is memory traffic** (inference): at 16k one attention layer reads the bf16 KV cache of 16026 positions in
-  181.6 us. The achieved GB/s is PENDING (needs the checkpoint's KV head count / head dim from its config.json).
-- **vLLM's run.** vLLM serves this checkpoint with its declared FP8 KV cache (`kv_cache_quant_algo FP8`, which
-  `plan show` notes we deviate from), so its attention reads half the bytes. That is the likely main share of the 16k
-  decode gap (70.4 vs 74.0 tok/s, i.e. 14.2 vs 13.5 ms per token). This is an inference from the byte count and was not
-  measured on vLLM.
+- **The cost is memory traffic.** The checkpoint's config (`raw/dev/12-config.out`): 40 layers, full attention every 4th
+  (10 layers), 16 query / 2 KV heads, head_dim 256. bf16 K + V = 2 x 2 x 256 x 2 B = 2 KiB per position per layer, so
+  one layer at 16026 positions reads 32.8 MB in 181.6 us = **181 GB/s**; at 1034 positions 2.1 MB in 14.6 us = 145 GB/s.
+  GB10's LPDDR5X peak is about 273 GB/s, so the kernel runs at about 66 % of peak at 16k (arithmetic, not a counter
+  measurement).
+- **vLLM's side, NOT verified.** The checkpoint declares an FP8 KV cache (`kv_cache_quant_algo FP8`; `plan show`
+  notes that we deviate from it and use bf16). If vLLM honours it, its attention reads half the bytes, which would cover
+  most of the remaining 16k decode gap (72.2 vs 74.2 tok/s localeval = 13.9 vs 13.5 ms per token, 0.4 ms; our 16k
+  attention is 1.8 ms). This is an inference from byte counts; vLLM's KV dtype and kernel times were not inspected.
 - **Levers, not done here:**
   - FP8 KV cache: a numerics change, needing its own accuracy round;
-  - a faster split-KV kernel at long context (its bandwidth headroom is PENDING, see above).
+  - a faster split-KV kernel at long context: at most about 1.5x headroom (66 % of peak bandwidth).
 - **The split GDN kernel's effect on decode** (section 6): 70.7 -> 72.4 tok/s at 16k (+2.4 %), from the T = 1 kernel
   (14.4 -> 6.6 us x 30 layers). The remaining 16k gap to vLLM is the attention share above.
 
 ## 9. Mutation check
 
-PENDING (not run). Mutants: `scripts/cuda-prefill4/mutate.py` (23 non-equivalent, 3 EQUIVALENT); harness `scripts/cuda-prefill4/mutcheck.sh` (test `gdn_split`); `mutate-dryrun.sh` applies all 26 cleanly.
+`scripts/cuda-prefill4/mutcheck.sh` (fleetq #2641, vLLM up; `raw/dev/10-mutcheck.out`): for each mutant of
+`scripts/cuda-prefill4/mutate.py`, patch `kernels/cuda/gdn.cu` in a scratch tree, rebuild, run `tests/gdn_split.rs`.
+Unmutated: pass. **26 mutants: 23 non-equivalent, all killed; 3 equivalent, survived as expected.**
+
+- **22 killed by the bitwise tests:** both group-dot contraction orders, both carry orders, a tree instead of the chain,
+  delta sign, decay of z / w dropped, update with q, output from the wrong lane, the three tile / staging pad offsets
+  (`tile-pad`, `tile-mine`, `stage-pad`, `stage-first`), prefetch of t + 1, next token into the current buffer, the
+  prologue prefetch, the store guard and `nrows` (partial last block), `__expf`, q with k's norm, v = 0, beta = 1.
+- **1 killed by racecheck, not by the tests: `no-loop-sync`** (the `__syncwarp` at the top of each token removed). The
+  lanes of a converged warp never show the race, so no output test can catch it. `scripts/cuda-prefill4/racecheck.sh`
+  (fleetq #2643, `raw/dev/11-racecheck.out`) runs `gdn_split_state_carries_across_calls` under
+  `compute-sanitizer --tool racecheck`: unmutated **0 hazards**; `no-loop-sync` **12 RAW hazards** on the staged q/k.
+  This check is a script, not part of `cargo test`.
+- **3 equivalent (survived):** `EQ-add-commute` (IEEE addition commutes), `EQ-last-shuffle` (lane LPR-1 shuffles to
+  itself), `EQ-lpr-default` (LPR 4 default; the bits do not depend on it).
+- Registry: `kernels::tests::gdn_delta_rule_selection` and `fp8_gemm_selection_by_batch_size` pin the selection under
+  each gate (default, `INTARSIA_CUDA_GDN_SPLIT=0`, `INTARSIA_CUDA_FP8_GEMM_F8=1`, `INTARSIA_CUDA_GDN_LANES=1`; all pass
+  on spark1, `raw/dev/04-split-lpr2-tests.out`, and on the Mac for the default).
 
 ## 10. Admission
 
@@ -285,18 +298,47 @@ PENDING (not run). Mutants: `scripts/cuda-prefill4/mutate.py` (23 non-equivalent
   - dev: 36 kernels, 505 cases, `gdn_delta_rule_bf16_split`;
   - f8 (`INTARSIA_CUDA_FP8_GEMM_F8=1`): 34 kernels, 497 cases, `matmul_fp8_gemm_f8` replaces mma / gemm / gemm_reg.
 
+## 10b. Mac checks
+
+At the final code, rebased on origin/main 10eef81c (`raw/mac/`): `cargo test --workspace` 475 passed, 0 failed;
+`cargo check --workspace` exit 0; `cargo check -p intarsia-cli --features hip` exit 0.
+
 ## 11. Memory
 
-Expected 0 (the split kernel declares no tensors and no scratch; 11,904 bytes of static shared memory per block, on-chip). The plan-JSON comparison is PENDING (plan JSONs are on spark1 in `out/p4adm`, not fetched).
+**0 bytes.** `plan show --json` of the 35B (chunk 2048) gives `scratch_bytes` 83963392 for base, dev and f8 alike
+(`raw/p4adm/plan-mem.out`); the split kernel declares no tensors and no scratch. Its 11,904 bytes of static shared memory
+per block are on-chip.
 
-## 12. vLLM downtime
+## 12. vLLM downtime and queue time
 
-0 minutes so far: no window ran. Window B (fleetq #2578) was queued at 23:05 behind another owner's exclusive two-box network test and was withdrawn (`fleetq release 2578`) at 23:39 before it got its lease; `/v1/models` answered afterwards.
+- **One window, 14.6 min** (`downtime.log`): fleetq #2608, vLLM stopped 01:48:12, serving again 02:02:53, through
+  `scripts/cuda-decode/window.sh` (cap 15 min). `/v1/models` answered afterwards (also checked by hand).
+- An earlier window (#2578) was queued 23:05 .. 23:39 behind another owner's exclusive network test and withdrawn
+  before it got its lease; vLLM did not stop then.
+- **Queue wait about 2.9 h** in total, all behind other owners' exclusive spark1 / spark2 jobs (#2545, #2574, #2601,
+  #2610): fetches and syncs that gave up (about 40 min), window #2578 (34 min), window #2608 (34 min), localeval of
+  vLLM #2623 (about 60 min).
+- **Work time on spark1 about 1.4 h:** builds and kernel tests (about 20 min), accuracy slot #2540 (24 min), admission
+  (2 min), decode profile (3 min), window (14.6 min), localeval of vLLM (4 min), mutation check (3 min), racecheck
+  (15 min).
 
-Queue wait so far: about 75 minutes (fetch #2559 gave up after 10 min, sync #2561 after 20 min, config read #2575 after 10 min, window #2578 waited 34 min), all behind other owners' exclusive spark1+spark2 jobs (#2545, #2574). Work time on spark1 about 45 minutes (builds, tests, accuracy slot #2540 24 min, admission, profile).
+## 13. PR handoff
 
-## 13. PR handoff (draft)
-
-- Env vars: `INTARSIA_CUDA_GDN_SPLIT=0` (kill switch of the new default), `INTARSIA_GDN_SPLIT_LPR=4|8` (A/B only), `INTARSIA_CUDA_FP8_GEMM_F8=1` (opt-in e4m3 GEMM alone), unchanged `INTARSIA_CUDA_GDN_LANES=1`, `INTARSIA_CUDA_FAST_PREFILL=1`.
-- Every change is inside `crates/intarsia-backend-cuda`, `kernels/cuda`, `docs` and `scripts` (new launcher declared in the CUDA-only `kernels/cuda/ik_cuda_abi.h`; no shared ABI, core or model change).
-- Caveat: the bitwise identity rests on nvcc keeping the explicit `__f*_rn` order in the new kernel AND on the rows kernel's contraction staying as read from SASS; a compiler change could alter the rows kernel's bits (the new kernel's are fixed by the intrinsics). `gdn_split_is_bitwise_the_rows_kernel` catches either.
+- **Default change:** `gdn_delta_rule_bf16_split` replaces `gdn_delta_rule_bf16` for dk 64 / 128 (prefill and decode).
+  Bitwise identical outputs and state (tests, 35B KL digits, greedy ids, `chat_reuse_4k`).
+- **Env vars:**
+  - `INTARSIA_CUDA_GDN_SPLIT=0`: kill switch of the new default;
+  - `INTARSIA_GDN_SPLIT_LPR=4|8`: lanes per row, A/B only (default 2; bits unchanged);
+  - `INTARSIA_CUDA_FP8_GEMM_F8=1`: new opt-in gate for the e4m3 tensor-core GEMM alone (fails the KL / greedy bars);
+  - unchanged: `INTARSIA_CUDA_GDN_LANES=1`, `INTARSIA_CUDA_FAST_PREFILL=1`, `INTARSIA_CUDA_FP8_GEMM_REG=0`.
+- **Files outside `crates/intarsia-backend-cuda`, `kernels/cuda`, docs and scripts: none.** The new launcher is declared in
+  the CUDA-only `kernels/cuda/ik_cuda_abi.h`, not the shared `kernels/abi/ik_abi.h`.
+- **Caveats:**
+  - The bitwise identity rests on the rows kernel's contraction as nvcc 13.0 emits it today (read from SASS); a
+    compiler change could alter the rows kernel's bits (the new kernel's are fixed by `__f*_rn`).
+    `gdn_split_is_bitwise_the_rows_kernel` catches either.
+  - The missing-`__syncwarp` mutant is caught only by `scripts/cuda-prefill4/racecheck.sh`, not by `cargo test`.
+  - The in-engine A/B ran with the base arm from `p4-base` (8638db03) and dev from `p4-dev`; main moved to 10eef81c
+    with HIP-only changes, so the CUDA code compared is the same.
+  - The 16k decode attribution to vLLM's FP8 KV cache is an inference, not measured.
+- `git diff --name-only 8638db03` (CUDA base) at the final HEAD is in the final report; `raw/` holds 100+ log files.
