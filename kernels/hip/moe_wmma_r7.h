@@ -15,8 +15,6 @@
  *           read from LDS feeds two WMMAs. Every output still accumulates the same WMMAs over k in the same order. (A gate_up
  *           with the gate and the up fragment of the same features in one wave was built and measured slower, round-7 doc.)
  *   kMwDeep six weight blocks in flight per lane instead of three (kMwRing).
- *   kMwScv  the two block-scale bytes of a k block through the same fp8 conversion (one instruction) instead of
- *           ik_e4m3_to_f; the same f32 for every non-NaN byte.
  *
  * kMwSkip and kMwOcc mean what they mean in moe_wmma_kernel_v; kMwOcc does not cap the two-fragment down's registers.
  */
@@ -25,7 +23,7 @@
 
 #include "moe_wmma.h"
 
-constexpr int kMwCvt = 8, kMwTwo = 16, kMwDeep = 32, kMwScv = 64;
+constexpr int kMwCvt = 8, kMwTwo = 16, kMwDeep = 32;
 
 /* kMwTwo is a down-projection bit (gate_up ignores it) */
 constexpr bool mw_r7_two(bool gateup, int v) { return !gateup && (v & kMwTwo) != 0; }
@@ -77,25 +75,12 @@ IK_DEVI uint4 ik_fp4x8_scaled_bf16_cvt(uint32_t c, float sc64) {
 }
 #endif
 
-/* byte `i` (0 or 1) of `s` as e4m3 -> f32 through the hardware conversion (kMwScv); one instruction gives both scale bytes of
- * a k block. Bitwise ik_e4m3_to_f for every non-NaN byte (tests/fp8_mma_v2.rs runs all 254 through ik_e4m3x2_to_bf16x2, the
- * same instruction; tests/moe_pairs.rs runs every finite scale byte through the kernels). */
-IK_DEVI float ik_e4m3x2_lo_to_f(uint32_t s, int i) {
-#if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8)
-    const ik_mw7_v2f f = __builtin_amdgcn_cvt_pk_f32_fp8((int)s, false);
-    return f[i];
-#else
-    return ik_e4m3_to_f((s >> (8 * i)) & 0xffu);
-#endif
-}
-
 template <bool GATEUP, int PAIRS, int V>
 __global__ void __launch_bounds__(kMwThreads) __attribute__((amdgpu_waves_per_eu(mw_r7_waves(GATEUP, V))))
 moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
                    const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
                    const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk) {
     constexpr bool SKIP = (V & kMwSkip) != 0, CVT = (V & kMwCvt) != 0, TWO = mw_r7_two(GATEUP, V);
-    constexpr bool SCV = CVT && (V & kMwScv) != 0;     // block scales through the fp8 conversion too
     constexpr int RING = (V & kMwDeep) ? 6 : kMwRing;  // weight blocks in flight per lane
     constexpr bool ALIAS = GATEUP && (V & kMwOcc) != 0;  // up accumulators in the activation tiles' LDS (kMwOcc)
     constexpr int RF = TWO ? 2 : 1;                    // A fragments per wave
@@ -196,9 +181,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
 #pragma unroll
                     for (int f = 0; f < RF; ++f) {
                         const uint32_t cw[4] = {Wi[f].c.x, Wi[f].c.y, Wi[f].c.z, Wi[f].c.w};
-                        float sc;
-                        if constexpr (SCV) sc = ik_e4m3x2_lo_to_f(Wi[f].s, s >> 1);
-                        else sc = ik_e4m3_to_f((Wi[f].s >> (8 * (s >> 1))) & 0xffu);
+                        const float sc = ik_e4m3_to_f((Wi[f].s >> (8 * (s >> 1))) & 0xffu);
                         if constexpr (CVT) af[f] = ik_fp4x8_scaled_bf16_cvt(cw[s], sc * 64.f);
                         else af[f] = ik_fp4x8_scaled_bf16(cw[s], sc, lut);
                     }

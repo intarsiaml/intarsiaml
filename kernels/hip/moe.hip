@@ -76,11 +76,10 @@ int moe_pairs(int64_t avg) {
 // INTARSIA_HIP_MOE_MW = v | g:d: variant bits of the grouped projections, v for both of them, or g for gate_up and d for down.
 // Each is one of 0 (the round-5 moe_wmma_kernel), 1 | 4 | 5 (moe_wmma.h moe_wmma_kernel_v: 1 skip empty fragments, 4 occupancy)
 // or an IK_MW_R7 value (moe_wmma_r7.h moe_wmma_kernel_r7, round 7: 8 fp4 decode by the fp8 conversion instead of the LDS table,
-// 16 two A fragments per wave in down, 32 six weight blocks in flight, 64 block scales by the fp8 conversion); every value gives
-// the same bits (tests/moe_pairs.rs). Unset, empty or any other value: the tile's default for that projection, kMwDefault*
+// 16 two A fragments per wave in down, 32 six weight blocks in flight); every value gives the same bits (tests/moe_pairs.rs). Unset, empty or any other value: the tile's default for that projection, kMwDefault*
 // (docs/results/2026-10-19-hip-round6.md, -round7.md). Read at every launch (the bitwise test switches it in one process); part of
 // the backend fingerprint (kernels.rs).
-#define IK_MW_R7(X) X(8) X(9) X(13) X(25) X(29) X(40) X(41) X(45) X(61) X(93) X(125)
+#define IK_MW_R7(X) X(13) X(25) X(29) X(41) X(45)
 constexpr int kMwDefault64 = kMwCvt | kMwSkip | kMwOcc | kMwDeep, kMwDefault64Dn = kMwCvt | kMwSkip | kMwTwo;
 constexpr int kMwDefault32 = 0, kMwDefault32Dn = kMwCvt | kMwSkip | kMwDeep;
 constexpr bool mw_accepted(int v) {

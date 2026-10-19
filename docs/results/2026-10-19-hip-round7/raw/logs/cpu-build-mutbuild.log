@@ -1,0 +1,87 @@
+fleetq: #2664 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r7/build-mut.sh
+synced r7 tree (d35c2685 + worktree changes)
+=== r7 build 03:53:41
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+    Finished `release` profile [optimized] target(s) in 28.20s
+  --> crates/intarsia-backend-hip/src/ffi.rs:68:12
+   |
+   |            ^^^^^^^^^^^^^^^^^^^
+   |
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+   |
+   |                                             ^           ^
+   |
+   |
+   |
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:58:48
+   |
+   |                                                ^           ^
+   |
+   |
+   |
+   --> crates/intarsia-backend-hip/tests/admission.rs:106:25
+    |
+    |                         ^^^^^^^
+    |
+    Finished `release` profile [optimized] target(s) in 1.00s
+=== isa 03:54:11
+=== moe: 486 remarks
+=== done 03:54:22
+=== mutbuild7 03:54:22
+applied r7-even to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-even: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-odd to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-odd: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-esign to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-esign: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-osign to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-osign: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-x64 to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-x64: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-hiword to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-hiword: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-swap to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-swap: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-deep to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-deep: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-dnrow to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-dnrow: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-grid to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+r7-grid: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-jn to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-jn: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r7-lastsync to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma_r7.h
+r7-lastsync: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied mw-jn to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma.h
+mw-jn: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied mw-lastsync to /home/josef/intarsiaml-r7-mut/kernels/hip/moe_wmma.h
+mw-lastsync: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied mw-def64 to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+mw-def64: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-def32 to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+mw-def32: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-tile to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+mw-tile: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied mw-range to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+mw-range: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied r7-def64dn to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+r7-def64dn: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied r7-def32dn to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+r7-def32dn: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+applied r7-colon to /home/josef/intarsiaml-r7-mut/kernels/hip/moe.hip
+r7-colon: test round6_selection built (/target/release/deps/round6_selection-79ce4650aba3cb50)
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+=== r7 rebuild 04:03:17
+    Finished `release` profile [optimized] target(s) in 29.65s
+    Finished `release` profile [optimized] target(s) in 3.16s
+=== isa 04:03:51
+=== moe: 486 remarks
+=== pin test 04:04:02
+test print_inner_variants ... ignored
+test round6_inner_variants_are_pinned ... ok
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.34s
+=== done 04:04:02
+fleetq: #2664 done (exit 0)

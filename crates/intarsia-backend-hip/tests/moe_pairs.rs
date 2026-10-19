@@ -49,6 +49,9 @@ fn moe_pair_tile_does_not_change_a_bit() {
         (300, 16, 4, 256, 128),
         (1024, 256, 8, 2048, 512),
         (2048, 256, 8, 2048, 512),
+        // h = 320: the two-fragment down's 256-feature tile runs past the last row; i = 192: three k blocks in down, fewer
+        // than the deep ring's six
+        (300, 16, 4, 320, 192),
     ] {
         cases.push((format!("t={t} e={e} k={k} h={h} i={i}"), experts_case(&mut rng, t, e, k, h, i, DType::Bf16)));
     }
@@ -68,8 +71,7 @@ fn moe_pair_tile_does_not_change_a_bit() {
         }
     }
     cases.push(("all finite scale bytes".into(), scl));
-    // a few NaN scale bytes (0x7f / 0xff) among ordinary ones: NaN outputs, whose bits the variants that decode the scales
-    // through the fp8 conversion (kMwScv) are not required to match (reported only)
+    // a few NaN scale bytes (0x7f / 0xff) among ordinary ones: NaN outputs, bit for bit too
     let mut nan = experts_case(&mut rng, 64, 16, 4, 256, 128, DType::Bf16);
     for idx in [4usize, 6] {
         let n = nan.inputs[idx].data.len();
@@ -86,15 +88,11 @@ fn moe_pair_tile_does_not_change_a_bit() {
         assert!(a.data == b.data, "{what}: the 64-pair tile changed the output");
         assert!(a.data == c.data, "{what}: the auto tile changed the output");
         // every projection variant at both tile sizes (variant 0 at 32 pairs = a, the reference): round 6's 1, 4, 5
-        // (moe_wmma.h) and round 7's (moe_wmma_r7.h: 8 fp8-conversion fp4 decode, 16 two A fragments in down, 32 six weight
-        // blocks in flight, 64 scales by the fp8 conversion)
-        for mw in [1, 4, 5, 8, 9, 13, 25, 29, 40, 41, 45, 61, 93, 125] {
+        // (moe_wmma.h) and round 7's 13, 25, 29, 41, 45 (moe_wmma_r7.h: 8 fp8-conversion fp4 decode, 16 two A fragments in
+        // down, 32 six weight blocks in flight)
+        for mw in [1, 4, 5, 13, 25, 29, 41, 45] {
             for pairs in ["32", "64"] {
                 let v = run_mw(&*hip, hc, pairs, &mw.to_string());
-                if mw & 64 != 0 && what.starts_with("NaN") {
-                    println!("{what}: INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs: {}", if a.data == v.data { "identical" } else { "differs" });
-                    continue;
-                }
                 assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs changed the output");
             }
         }

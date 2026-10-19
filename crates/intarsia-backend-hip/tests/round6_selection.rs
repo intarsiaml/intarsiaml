@@ -49,15 +49,15 @@ fn round6_inner_variants_are_pinned() {
     for (v, want) in [("1", 1), ("2", 2), ("4", 4), ("3", 4), ("x", 4)] {
         assert_eq!(child(&[("INTARSIA_HIP_FLASH_HPB", v)]).0, want, "INTARSIA_HIP_FLASH_HPB={v}");
     }
-    // the MoE knob overrides both tiles and both projections (round 6: 0, 1, 4, 5; round 7, moe_wmma_r7.h: 8, 9, 13, 25, 29,
-    // 40, 41, 45, 61, 93, 125), "g:d" sets gate_up and down apart, and anything else falls back to the defaults (16 / 21: kMwTwo
-    // without kMwCvt, and the like, are not built)
+    // the MoE knob overrides both tiles and both projections (round 6: 0, 1, 4, 5; round 7, moe_wmma_r7.h: 13, 25, 29, 41, 45),
+    // "g:d" sets gate_up and down apart, and anything else falls back to the defaults (variants measured and dropped in round
+    // 7, 8 9 40 61 93 125, and combinations never built such as 16 / 21)
     let (d, dd) = (DEFAULTS, DEFAULTS_DN);
     let mut table: Vec<(String, (i32, i32, i32, i32))> = Vec::new();
-    for v in [0, 1, 4, 5, 8, 9, 13, 25, 29, 40, 41, 45, 61, 93, 125] {
+    for v in [0, 1, 4, 5, 13, 25, 29, 41, 45] {
         table.push((v.to_string(), (v, v, v, v)));
     }
-    for v in ["3", "16", "21", "24", "64", "127", "-1"] {
+    for v in ["3", "8", "9", "16", "21", "40", "61", "93", "125", "-1"] {
         table.push((v.to_string(), (d.0, d.1, dd.0, dd.1)));
     }
     table.push(("13:29".into(), (13, 13, 29, 29)));

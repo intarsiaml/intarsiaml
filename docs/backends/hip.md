@@ -125,10 +125,14 @@ else prints a warning and keeps `1,8`; a launch that matched no instantiation re
 `matmul_fp8_mma_v2` (bf16 tiles on the bf16 WMMA); default on since `docs/results/2026-10-19-hip-round5.md`, not bitwise v2, KL21
 numbers in `docs/results/2026-10-19-hip-round4.md` section 14).
 `INTARSIA_HIP_FLASH_HPB=1|2|4` (query heads per block of flash v2, capped to divide the GQA group; default 4 since
-`docs/results/2026-10-19-hip-round6.md`, every value bitwise), `INTARSIA_HIP_MOE_MW=0|1|4|5` (variant bits of the grouped MoE
-prefill projections, `moe_wmma.h`: 1 skips the empty 16-pair fragments of a tail tile, 4 aliases the up accumulators onto the
-activation tiles and compiles for 8 waves per SIMD, 0 is the round-5 kernel; default 5 at 64 pairs per tile and 0 at 32, every
-value bitwise; read at every launch).
+`docs/results/2026-10-19-hip-round6.md`, every value bitwise), `INTARSIA_HIP_MOE_MW=v|g:d` (variant bits of the grouped MoE
+prefill projections, `v` for both or `g` for gate_up and `d` for down; one of 0|1|4|5|13|25|29|41|45. `moe_wmma.h`: 1 skips the
+empty 16-pair fragments of a tail tile, 4 aliases the up accumulators onto the activation tiles and compiles for 8 waves per
+SIMD, 0 is the round-5 kernel; `moe_wmma_r7.h` (round 7): 8 decodes fp4 with the hardware fp8 conversion instead of the LDS
+table, 16 gives down two A fragments per wave, 32 keeps six weight blocks in flight. Defaults since
+`docs/results/2026-10-19-hip-round7.md`: gate_up 45 / down 25 at 64 pairs per tile, gate_up 0 / down 41 at 32; `INTARSIA_HIP_MOE_MW=5:5`
+runs round 6's 64-pair kernels at both tiles (round 6 itself ran the round-5 kernel at 32). Every value bitwise; read at every
+launch).
 
 ## Admission cache
 
