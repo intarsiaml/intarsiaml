@@ -304,7 +304,7 @@ stage_pfb() {
 }
 # r3test: the new kernels' bitwise tests, the MoE accuracy tests (both tile sizes), the f8 tests (they compare against matmul_fp8_mma)
 stage_r3test() {
-  $D cargo test --release -p intarsia-backend-hip --test fp8_mma_v2 --test moe_pairs --test quantmoe --test fp8_f8 -- --nocapture --test-threads=1 2>&1 \
+  $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test fp8_mma_v2 --test moe_pairs --test quantmoe --test fp8_f8 -- --nocapture --test-threads=1 2>&1 \
     | grep -E "^test |test result|FAILED|panicked|differ|v2 |worst" | cut -c1-300 | tail -40
 }
 stage_admission() {

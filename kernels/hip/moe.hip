@@ -61,7 +61,7 @@ int moe_zmul() {
 // 64-pair tile feeds each dequantised weight fragment to four WMMAs instead of two; auto takes it when the average expert has
 // at least kMwPairsAuto pairs. Every pair's result is independent of the grouping, so all settings give the same bits.
 // Read at every launch (the bitwise test of tests/moe_pairs.rs switches it in one process); part of the backend fingerprint.
-constexpr int64_t kMwPairsAuto = 64;
+constexpr int64_t kMwPairsAuto = 32;  // bench_prefill_shapes at the 35B's shape: 64 wins from T = 1024 (average 32), loses at T = 312 (10)
 int moe_pairs(int64_t avg) {
     const char* e = getenv("INTARSIA_HIP_MOE_PAIRS");
     const int n = e ? atoi(e) : 0;

@@ -9,8 +9,8 @@
 //!   activations that quantise to every code (subnormals, both signs, saturation past 448 * input_scale, jitter around the
 //!   rounding boundaries): bitwise `matmul_fp8_mma`, whose decode is the software one, so the conversion instruction agrees
 //!   with it on every code that can occur.
-//! * `v2_close_to_cpu_reference`: and both are within the admission budget's f32 bound of the cpu reference (v2 is not a copy
-//!   of a wrong v1).
+//! * `v2_close_to_cpu_reference`: v2 is close to the cpu reference (not a copy of a wrong v1): W8A8 within 2e-6 relative L2
+//!   (fp8_f8.rs's bound: only the order of the additions differs), weight-only within the admission's f32 budget (2e-4).
 //!
 //! scripts/hip-decode/mutate.py (`v2-*` mutations) breaks the kernel in ways these must catch. Needs a GPU: skips (passes)
 //! without one.
@@ -141,16 +141,18 @@ fn v2_close_to_cpu_reference() {
     let cpu = CpuBackend::new();
     let reference = cpu.kernels().into_iter().find(|k| k.op == Op::MatmulFp8 && k.is_reference).unwrap().name;
     let mut rng = SplitMix64::new(93);
-    let mut worst = 0f64;
+    // W8A8: every product e4m3 x e4m3 is exact, only the order of the f32 additions differs (fp8_f8.rs uses the same 2e-6);
+    // weight-only: bf16 activations, judged by the admission budget of f32 outputs (2e-4)
+    let mut worst = [0f64; 2];
     for &(m, n, k) in &[(5usize, 512usize, 2048usize), (33, 259, 1040), (129, 2048, 4096), (300, 17, 96)] {
-        for is in [0.0f32, 0.31] {
+        for (mode, is, bound) in [(0usize, 0.31f32, 2e-6f64), (1, 0.0, 2e-4)] {
             let hc = case(&mut rng, m, n, k, DType::F32, 1.3, is);
             let want = run_host(&cpu, &reference, &hc).unwrap().remove(0).to_f32();
             let got = run_host(&*hip, "matmul_fp8_mma_v2", &hc).unwrap().remove(0).to_f32();
             let r = rel_l2(&got, &want);
-            worst = worst.max(r);
-            assert!(r < 2e-6, "m={m} n={n} k={k} is={is}: rel_l2 {r} vs {reference}");
+            worst[mode] = worst[mode].max(r);
+            assert!(r < bound, "m={m} n={n} k={k} is={is}: rel_l2 {r} vs {reference} (bound {bound})");
         }
     }
-    eprintln!("v2 vs cpu reference: worst rel_l2 (f32 out) {worst:.3e}");
+    eprintln!("v2 vs cpu reference: worst rel_l2 (f32 out) W8A8 {:.3e}, weight-only {:.3e}", worst[0], worst[1]);
 }
