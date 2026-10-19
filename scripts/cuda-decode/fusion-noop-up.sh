@@ -4,7 +4,7 @@
 set -u
 P=$HOME/intarsia-decfuse
 D=$(dirname "$0")
-A=fusion-base; B=fusion-dev
+A=${NOOP_A:-fusion-base}; B=${NOOP_B:-fusion-dev}  # phase 2: NOOP_A=fp2-base NOOP_B=fp2-dev
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
 O=$P/out/noop-$B
