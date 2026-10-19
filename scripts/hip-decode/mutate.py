@@ -368,9 +368,9 @@ MUTATIONS = {
     # the conv output not rounded to bf16 before the delta rule reads it (the unfused path stores y in bf16)
     "p2-cd-round": ("kernels/hip/gdn_fused.hip", [("const float y = ik_b2f(ik_f2b(silu(acc)));", "const float y = silu(acc);")]),
     # the current input multiplied by the first tap instead of the last
-    "p2-cd-tap": ("kernels/hip/gdn_fused.hip", [("float acc = tp[K - 1] * cur;", "float acc = tp[0] * cur;")]),
+    "p2-cd-tap": ("kernels/hip/gdn_fused.hip", [("float acc = cd_tap(tp, K - 1) * cur;", "float acc = cd_tap(tp, 0) * cur;")]),
     # the conv history not shifted between tokens
-    "p2-cd-hist": ("kernels/hip/gdn_fused.hip", [("    for (int j = 0; j < K - 2; ++j) hh[j] = hh[j + 1];\n", "")]),
+    "p2-cd-hist": ("kernels/hip/gdn_fused.hip", [("    for (int j = 0; j < K - 2; ++j) hh[j * S] = hh[(j + 1) * S];\n", "")]),
     # the two-launch form (no counter slot) skips its conv-state launch
     "p2-cd-slotstate": ("kernels/hip/gdn_fused.hip", [("    if (slot >= 0) return ik_launch_status();", "    return ik_launch_status();")]),
     # selection: the fold admitted one token past the conv's single tile

@@ -2,10 +2,10 @@
 // folded into the delta rule. One launch instead of gdn_conv_bf16 + gdn_delta_rule_bf16_v2 (gdn.hip) for chunks of up to
 // 32 tokens (every decode step; the conv launcher's single-tile form, gdn_conv_kernel<true>).
 //
-// What runs: gdn_delta_rows_v2_kernel<128, 2, PD> statement for statement, except that the q / k / v values a lane reads
-// for a token are computed by the lane itself from the raw projection x (the conv's input) instead of read from the conv
-// output y: per channel it repeats gdn_conv_kernel's per-thread loop (taps and the K-1 history entries in registers, the
-// history from the old conv state, the output rounded to bf16 as y stores it). Every lane computes the channels it reads,
+// What runs: gdn_delta_rows_v2_kernel<128, 2, PD> at PD = 1, statement for statement, except that the q / k / v values a
+// lane reads for a token are computed by the lane itself from the raw projection x (the conv's input) instead of read from
+// the conv output y: per channel it repeats gdn_conv_kernel's per-thread loop (taps in registers, the K-1 history entries
+// in LDS for q / k and in registers for v, the history from the old conv state, the output rounded to bf16 as y stores it). Every lane computes the channels it reads,
 // so the conv of a key head's q / k channels runs in each of the blocks that read them (16 at the 35B's shape), as v2's
 // q / k normalisation already does.
 //
@@ -22,8 +22,9 @@
 // the new state from x and the old state), two launches with the same bits.
 //
 // So every output, delta-state and conv-state bit is the unfused chain's (tests/fusion_p2.rs, against the two launches on
-// the same device, T = 1 .. 32, every PD). Test seams (default off): INTARSIA_HIP_GDN_CD_SKEW = n delays the state reads
-// of every other block (x + y odd) by n sleeps (a store before a sibling's read then shows), INTARSIA_HIP_GDN_CD_NOSLOT=1 forces the
+// the same device, T = 1 .. 32, the unfused side at every PD). Test seams (default off): INTARSIA_HIP_GDN_CD_SKEW = n
+// delays the state reads of every other block (x + y odd) by n sleeps (a store before a sibling's read then shows),
+// INTARSIA_HIP_GDN_CD_NOSLOT=1 forces the
 // two-launch form.
 #include "ik_hip.h"
 #include <math.h>
@@ -69,14 +70,21 @@ IK_DEVI void gdn_lds_sync() {
 }
 
 // One token of gdn_conv_kernel's per-thread loop for one channel: the conv output (rounded to bf16, as y stores it, and
-// read back as the delta rule reads y), then the history shift. tp = the K taps, hh = the K-1 previous inputs (oldest first).
-template <int K>
-IK_DEVI float cd_conv(const float* tp, float* hh, float cur) {
-    float acc = tp[K - 1] * cur;
-    for (int j = 0; j < K - 1; ++j) acc += tp[j] * hh[j];
+// read back as the delta rule reads y), then the history shift. tp = the channel's 4 taps as packed bf16 (two per register:
+// as f32 they spilled the kernel, 255 VGPRs + scratch), hh = the K-1 previous inputs (oldest first). cd_tap is ik_b2f.
+IK_DEVI float cd_tap(const uint2& tp, int j) {
+    const uint32_t w = j < 2 ? tp.x : tp.y;
+    return __uint_as_float((j & 1) ? (w & 0xffff0000u) : (w << 16));
+}
+// hh[j * S]: S = 1 for a register array, the LDS row stride for a history kept in LDS
+template <int K, int S = 1>
+IK_DEVI float cd_conv(const uint2& tp, float* hh, float cur) {
+    static_assert(K == 4, "4 taps: one uint2 per channel");
+    float acc = cd_tap(tp, K - 1) * cur;
+    for (int j = 0; j < K - 1; ++j) acc += cd_tap(tp, j) * hh[j * S];
     const float y = ik_b2f(ik_f2b(silu(acc)));
-    for (int j = 0; j < K - 2; ++j) hh[j] = hh[j + 1];
-    hh[K - 2] = cur;
+    for (int j = 0; j < K - 2; ++j) hh[j * S] = hh[(j + 1) * S];
+    hh[(K - 2) * S] = cur;
     return y;
 }
 
@@ -129,24 +137,25 @@ __global__ void __launch_bounds__(32) gdn_conv_delta_kernel(
     const int cq0 = kh * DK + lane, ck0 = Hk * DK + kh * DK + lane, cv = 2 * Hk * DK + h * dv + jl;
     if (skew && ((blockIdx.x + blockIdx.y) & 1))  // test seam (INTARSIA_HIP_GDN_CD_SKEW): every other block reads late
         for (int i = 0; i < skew; ++i) __builtin_amdgcn_s_sleep(127);
-    // taps and the old conv state (gdn_conv_kernel's history of the first tile: every entry from the state)
-    float tq[PL][K], tk[PL][K], tv[K], hq[PL][KH], hk[PL][KH], hv[KH];
+    // taps (packed) and the old conv state (gdn_conv_kernel's history of the first tile: every entry from the state)
+    const uint2* taps2 = reinterpret_cast<const uint2*>(taps);  // K = 4: channel c's taps are 8 bytes at c * 8
+    uint2 tq[PL], tk[PL];
+    const uint2 tv = taps2[cv];
+    // the q / k history in LDS (each lane only its own 2 * PL channels, so no barrier): in registers the kernel spilled
+    // (255 VGPRs + 28 bytes of scratch per lane at PD = 1); the v history (3 values) stays in registers
+    __shared__ float shq[KH][DK], shk[KH][DK];
+    float hv[KH];
 #pragma unroll
     for (int i = 0; i < PL; ++i) {
         const int64_t cq = cq0 + 32 * i, ck = ck0 + 32 * i;
-#pragma unroll
-        for (int t = 0; t < K; ++t) {
-            tq[i][t] = ik_b2f(taps[cq * K + t]);
-            tk[i][t] = ik_b2f(taps[ck * K + t]);
-        }
+        tq[i] = taps2[cq];
+        tk[i] = taps2[ck];
 #pragma unroll
         for (int t = 0; t < KH; ++t) {
-            hq[i][t] = cstate[cq * KH + t];
-            hk[i][t] = cstate[ck * KH + t];
+            shq[t][lane + 32 * i] = cstate[cq * KH + t];
+            shk[t][lane + 32 * i] = cstate[ck * KH + t];
         }
     }
-#pragma unroll
-    for (int t = 0; t < K; ++t) tv[t] = ik_b2f(taps[(int64_t)cv * K + t]);
 #pragma unroll
     for (int t = 0; t < KH; ++t) hv[t] = cstate[(int64_t)cv * KH + t];
     // this block holds its old q / k conv state: take the key head's ticket (the release orders the reads above before it);
@@ -191,8 +200,8 @@ __global__ void __launch_bounds__(32) gdn_conv_delta_kernel(
         float qr[PL], kr[PL];
 #pragma unroll
         for (int i = 0; i < PL; ++i) {
-            qr[i] = cd_conv<K>(tq[i], hq[i], ik_b2f(r.q[i]));
-            kr[i] = cd_conv<K>(tk[i], hk[i], ik_b2f(r.k[i]));
+            qr[i] = cd_conv<K, DK>(tq[i], &shq[0][lane + 32 * i], ik_b2f(r.q[i]));
+            kr[i] = cd_conv<K, DK>(tk[i], &shk[0][lane + 32 * i], ik_b2f(r.k[i]));
         }
         const float vc = cd_conv<K>(tv, hv, ik_b2f(r.v));
         const float v = valid ? vc : 0.f;
@@ -281,8 +290,8 @@ __global__ void __launch_bounds__(32) gdn_conv_delta_kernel(
                 const int64_t cq = cq0 + 32 * i, ck = ck0 + 32 * i;
 #pragma unroll
                 for (int t = 0; t < KH; ++t) {
-                    cstate[cq * KH + t] = hq[i][t];
-                    cstate[ck * KH + t] = hk[i][t];
+                    cstate[cq * KH + t] = shq[t][lane + 32 * i];
+                    cstate[ck * KH + t] = shk[t][lane + 32 * i];
                 }
             }
         }
@@ -348,27 +357,21 @@ int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_t
         dt_bias->shape[0] != Hv)
         return IK_ERR_SHAPE;
     if (dk != 128 || K != 4 || T > 32) return IK_ERR_UNSUPPORTED;
+    if (((uintptr_t)taps->data & 7) != 0) return IK_ERR_STRIDE;  // the packed tap loads
     if (T == 0) return IK_OK;
     constexpr int SPLIT = 2, ROWS = 32 / SPLIT;
     const dim3 grid((unsigned)((dv + ROWS - 1) / ROWS), (unsigned)Hv);
-    // gdn_delta_rule_bf16_v2's measurement knob INTARSIA_HIP_GDN_PD (1 | 2 | 4, default 2; every value gives the same bits)
-    static const int pd = [] {
-        const int c = env_int("INTARSIA_HIP_GDN_PD");
-        return (c == 1 || c == 4) ? c : 2;
-    }();
+    // one token prefetched (PD = 1), whatever INTARSIA_HIP_GDN_PD says for gdn_delta_rule_bf16_v2: the prefetch depth does not
+    // change a bit (v2's own claim, and tests/fusion_p2.rs runs the unfused side at PD 1, 2, 4), and at PD 2 / 4 this kernel
+    // spills (255 / 256 VGPRs, 52 / 160 bytes of scratch per lane; PD 1: 255 VGPRs, no scratch; gfx1201, hipcc -O3)
     hipStream_t s = IK_STREAM(stream);
     const bool noslot = env_int("INTARSIA_HIP_GDN_CD_NOSLOT") == 1;  // read at every launch (test seam)
     const int slot = (Hk <= kCdSyncMaxHk && !noslot) ? gdn_cd_sync_slot(s) : -1;
     const int skew = env_int("INTARSIA_HIP_GDN_CD_SKEW");
-#define IK_GDN_CD(PD)                                                                                                 \
-    gdn_conv_delta_kernel<128, SPLIT, PD, 4><<<grid, 32, 0, s>>>(                                                      \
-        (const ik_bf16*)x->data, (const ik_bf16*)taps->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data,        \
-        (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data,     \
-        (float*)cstate->data, T, (int)Hk, (int)Hv, (int)dv, slot, skew)
-    if (pd == 1) IK_GDN_CD(1);
-    else if (pd == 4) IK_GDN_CD(4);
-    else IK_GDN_CD(2);
-#undef IK_GDN_CD
+    gdn_conv_delta_kernel<128, SPLIT, 1, 4><<<grid, 32, 0, s>>>(
+        (const ik_bf16*)x->data, (const ik_bf16*)taps->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data,
+        (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data,
+        (float*)cstate->data, T, (int)Hk, (int)Hv, (int)dv, slot, skew);
     if (slot >= 0) return ik_launch_status();
     IK_TRY(ik_launch_status());
     const int threads = 128;
