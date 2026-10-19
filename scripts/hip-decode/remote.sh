@@ -284,8 +284,8 @@ stage_prof4k() {
   [ -n "$csv" ] && python3 "$INTARSIA_REPO/scripts/hip-decode/analyze.py" "$csv" > "$OUTD/prof/$tag/table.txt" && cat "$OUTD/prof/$tag/table.txt"
 }
 # ids4k: greedy ids of 256 tokens after the ~4.4k-token prompt (two prefill chunks), this tree and the base tree; must be identical
-gen35l() { # gen35l <outfile prefix>
-  printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos --show-ids -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 256" > "$OUTD/ids4k.sh"
+gen35l() { # gen35l <outfile prefix> (IDS_CHUNK=<n>: --prefill-chunk <n>)
+  printf '%s\n' "$B generate -m $M35 --backend hip --mem-budget 29 --max-seq 8192 --profile-every 0 --ignore-eos --show-ids ${IDS_CHUNK:+--prefill-chunk $IDS_CHUNK} -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 256" > "$OUTD/ids4k.sh"
   $D bash -c "bash /work/bench-out/ids4k.sh" > "$1.out" 2> "$1.err"
   grep -a '^ids:' "$1.err" > "$1.ids"
   grep -aE "prompt:|finish=" "$1.err"
@@ -406,6 +406,8 @@ stage_pf8o() {
 stage_profenv() { local tag=${1%%:*} kv=${1#*:}; ( export "$kv"; echo "--- $kv"; stage_prof "$tag" ); }
 # ids4ke:<NAME=value>: ids4k with NAME=value set for this tree's run only (round 9: decode GEMV shapes)
 stage_ids4ke() { IDS_NEW_ENV="$1" stage_ids4k; }
+# ids4kc:<chunk>: ids4k with --prefill-chunk <chunk> on both trees (round 9: the split trigger changes 780-1230-token chunks)
+stage_ids4kc() { IDS_CHUNK="$1" stage_ids4k; }
 # r5test: round 5's new-kernel tests (moe_v3) and the tests of the paths next to them, then the f8 tests (now the default GEMM)
 stage_r5test() {
   timeout 400 $D cargo test --release -p intarsia-backend-hip --no-fail-fast --test moe_v3 --test decode_v2 --test device_pos --test fused_decode \
@@ -502,11 +504,13 @@ R8MUT="r8-y0 r8-y0r5 r8-y0v r8-lastpiece r8-ytile r8-gdn-out r8-gdn-in r8-gdn-ga
 stage_mutbuild8() { MUTATIONS="${R8MUT_SEL:-$R8MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r8-mut" stage_mutbuild; }
 stage_mutrun8() { MUTATIONS="${R8MUT_SEL:-$R8MUT}" MUT_TIMEOUT=${MUT_TIMEOUT:-400} stage_mutrun; }
 # round-9 mutants (staging of small copies, split trigger; mutbuild9 in a CPU slot, mutrun9 in a GPU window)
-R9MUT="r9-st-nowait r9-st-pageable r9-st-noadvance r9-st-noevent r9-st-dlorder r9-trig-off r9-trig-incl r9-trig-def"
+R9MUT="r9-st-nowait r9-st-pageable r9-st-noadvance r9-st-noevent r9-st-dlorder r9-trig-off r9-trig-incl r9-trig-def r9-occ-def r9-occ-kv r9-occ-g"
 stage_mutbuild9() { MUTATIONS="${R9MUT_SEL:-$R9MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r9-mut" stage_mutbuild; }
 stage_mutrun9() { MUTATIONS="${R9MUT_SEL:-$R9MUT}" MUT_TIMEOUT=${MUT_TIMEOUT:-120} stage_mutrun; }
 # prof16k:<tag>: rocprofv3 kernel trace of a 160-token 35B decode after four copies of the ~4.4k-token prompt (~17.6k tokens of
 # context), per-step table (decode at long context: where the 16k decode time goes)
+# prof16kenv:<tag>:<NAME=value>: prof16k with NAME=value (round 9: INTARSIA_HIP_SPLITKV_OCC=1)
+stage_prof16kenv() { local tag=${1%%:*} kv=${1#*:}; ( export "$kv"; echo "--- $kv"; stage_prof16k "$tag" ); }
 stage_prof16k() {
   local tag=${1:-base}
   printf '%s\n' "p=\"\$(cat /work/scripts/hip-decode/prompt4k.txt)\"; $B generate -m $M35 --backend hip --mem-budget 29 --max-seq 18432 --profile-every 0 --ignore-eos -p \"\$p\$p\$p\$p\" --max-tokens 160" > "$OUTD/dec16k.sh"
@@ -563,6 +567,8 @@ stage_t() {
   timeout ${T_TIMEOUT:-600} $D cargo test --release -p intarsia-backend-hip --no-fail-fast $args -- --nocapture --test-threads=1 2>&1 \
     | grep -aE "^test |test result|FAILED|panicked|differ|changed|bitwise" | cut -c1-260 | tail -${T_TAIL:-60}
 }
+# tboth:<test+test...>: stage_t with both R9700s visible (the two-rank tests, e.g. comm; run after bgwait)
+stage_tboth() { ( export HIP_VISIBLE_DEVICES=0,1; echo "--- tests on GPUs 0,1"; stage_t "$1" ); }
 # tenv:<NAME=value>:<test+test...>: stage_t with NAME=value in the container's environment (round 9: INTARSIA_HIP_FP8_UN=8)
 stage_tenv() { local kv=${1%%:*} ts=${1#*:}; ( export "$kv"; echo "--- tests with $kv"; stage_t "$ts" ); }
 # dtrace:<copies>: per-kernel GPU time without rocprofv3 (INTARSIA_HIP_TRACE=1, event pair per launch, eager --no-graphs), a
