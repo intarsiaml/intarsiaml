@@ -8,14 +8,14 @@
 # Output ~/intarsia-decfuse/out/p4B/ab
 set -u
 P=$HOME/intarsia-decfuse
-D=$P/p4-dev/scripts/cuda-decode
+D=$P/${TREE:-p4-dev}/scripts/cuda-decode
 export SIZES=${SIZES:-1024,4096,16384} GEN=${GEN:-128} REPS=${REPS:-2} OUT=$P/out/${OUTNAME:-p4B}/ab
 DEADLINE=$(( $(date +%s) + ${W_BUDGET_SEC:-780} ))
 left() { echo $(( DEADLINE - $(date +%s) )); }
 mkdir -p $OUT
 read -r -a arms <<< "${ARMS:?arm list}"
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 90 )) || { echo "ABORT: memory"; exit 1; }
-echo "bin: $($P/p4-dev/target/acc/release/intarsia --version 2>&1 | head -1)"
+echo "bin: $($P/${TREE:-p4-dev}/target/acc/release/intarsia --version 2>&1 | head -1)"
 nvidia-smi --query-gpu=clocks.sm,clocks.mem,temperature.gpu,power.draw --format=csv
 last=$(( 90 * ${#arms[@]} ))
 for r in $(seq 1 ${ROUNDS:-3}); do
