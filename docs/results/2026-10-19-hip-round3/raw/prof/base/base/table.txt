@@ -1,0 +1,40 @@
+steps: 160 launch-count histogram (top): [(578, 159), (3155, 1)]
+decode steps analysed: 157, launches/step 578
+per step: kernel time 6.482 ms, step wall (first start to last end) 8.311 ms, idle inside step 1.829 ms (22.0% of wall)
+inter-step gap (argmax end -> next step start): median 10 us, mean 10 us
+=> full per-token period ~ 8.320 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 3120 p99 3560 max 83441; sum/step 1.829 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                        40.0    1358.9    34.0  21.0%
+moe_gate_up_p1_v2_kernel<false, 4>                                         40.0     832.9    20.8  12.8%
+moe_down_reduce_p1_v2_kernel<bf16, false>                                  40.0     627.8    15.7   9.7%
+fp8_gemv_gated_kernel<2, bf16>                                             30.0     577.2    19.2   8.9%
+nvfp4_gemv_v2_kernel<1, bf16, false>                                       40.0     479.3    12.0   7.4%
+fp8_gemv_kernel<1, 2, bf16, 2>                                             20.0     471.2    23.6   7.3%
+nvfp4_gemv_v2_kernel<1, float, false>                                       1.0     459.2   459.2   7.1%
+splitkv_kernel<8, 32, 2>                                                   10.0     304.8    30.5   4.7%
+rmsnorm_add_pair_kernel<1, 8>                                              69.0     274.9     4.0   4.2%
+gdn_delta_rows_kernel<128, 2>                                              30.0     259.2     8.6   4.0%
+nvfp4_glu_kernel                                                           40.0     173.1     4.3   2.7%
+moe_topk_v2_kernel                                                         40.0     159.4     4.0   2.5%
+rope_kernel                                                                20.0     114.1     5.7   1.8%
+combine_kernel<256>                                                        10.0     100.4    10.0   1.5%
+moe_combine_kernel<bf16>                                                   40.0      62.4     1.6   1.0%
+gdn_conv_kernel<true>                                                      30.0      61.4     2.0   0.9%
+argmax_kernel<float>                                                        1.0      45.0    45.0   0.7%
+rmsnorm_kernel<false, true>                                                21.0      37.2     1.8   0.6%
+kv_append_kernel<bf16, 8>                                                  20.0      28.7     1.4   0.4%
+rmsnorm_kernel<true, true>                                                 11.0      23.2     2.1   0.4%
+gate_split_kernel                                                          10.0      10.4     1.0   0.2%
+sigmoid_mul_kernel                                                         10.0       9.9     1.0   0.2%
+__amd_rocclr_copyBuffer                                                     3.0       7.3     2.4   0.1%
+embedding_kernel<true>                                                      1.0       1.9     1.9   0.0%
+gemv_pair_kernel<1, 8, bf16>                                                1.0       1.9     1.9   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g1536            30.0    43.4   25.17    580   92%   1301.9
+fp8_gemv_gated_kernel<2, bf16> g128                  30.0    19.2    8.39    436   70%    577.2
+fp8_gemv_kernel<1, 2, bf16, 2> g512                  10.0    31.5   16.78    533   85%    314.8
+fp8_gemv_kernel<1, 2, bf16, 2> g128                  10.0    15.6    8.39    536   86%    156.5
+fp8_gemv_pair_kernel<1, bf16, 2, 8> g128             10.0     5.7    2.10    368   59%     57.0

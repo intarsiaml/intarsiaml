@@ -1,0 +1,9 @@
+# radiance downtime per GPU window (fleetq --takes-down radiance), from the [burst] lines of logs/burst-*.log
+# window  job   stopping radiance     radiance answers      minutes  stages
+W1        2501  2026-10-18 20:33:48   2026-10-18 20:34:52   1.07     r3test pfb pfprof@base pfprof prof@base prof4k@base
+W2        2503  2026-10-18 20:42:19   2026-10-18 20:47:09   4.83     r3test mutrun admission plan35 kf8 pfb pfprof acc35 ids4k acc8 acc35l:4096
+W3        2504  2026-10-18 20:48:01   2026-10-18 20:52:48   4.78     plan35@base pf35@base:A1 pf35:B1 pf35@base:A2 pf35:B2
+W4        2509  2026-10-18 20:53:08   2026-10-18 20:55:55   2.78     pf35@base:A3 pf35:B3 prof prof4k
+total                                                       13.47
+# every window ended with radiance answering /v1/models (burst.sh restart(), 10 s after the start) before its lease was released;
+# CPU-only work (rsync, builds, mutant builds, ISA dumps, log fetches) ran in --mem 0 slots 2495, 2496, 2502, 2512 with radiance up.
