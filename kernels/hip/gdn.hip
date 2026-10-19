@@ -556,14 +556,29 @@ int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik
         return (c == 1 || c == 4) ? c : 2;
     }();
     hipStream_t s = IK_STREAM(stream);
+    // Round 8 split (ik_split_pieces, ik_hip.h): a long prefill runs as consecutive token ranges, each launch continuing the
+    // in-place f32 state the previous one stored (exact), with its inputs and outputs offset to its first token; the
+    // recurrence sees the same tokens in the same order, so the pieces give the single launch's bits. Estimate: ~0.77 us per
+    // token at the 35B's 256 waves (100.9 ms for 30 layers x 4408 tokens; a 4096-token chunk ~3.1 ms, so 6 pieces), scaled
+    // by the waves beyond 256.
+    const double waves = (double)grid.x * (double)grid.y;
+    const double est_us = (double)T * 0.77 * (waves > 256.0 ? waves / 256.0 : 1.0);
+    const int pieces = ik_split_pieces(est_us, T);
+    const ik_bf16* qkvp = (const ik_bf16*)qkv->data;
+    const ik_bf16* ap = (const ik_bf16*)a->data;
+    const ik_bf16* bp = (const ik_bf16*)b->data;
+    ik_bf16* op = (ik_bf16*)o->data;
+    for (int i = 0; i < pieces; ++i) {
+        const int64_t t0 = T * i / pieces, t1 = T * (i + 1) / pieces;
 #define IK_GDN_V2(PD)                                                                                                   \
     gdn_delta_rows_v2_kernel<128, SPLIT, PD><<<grid, 32, 0, s>>>(                                                     \
-        (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,      \
-        (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, T, (int)Hk, (int)Hv, (int)dv)
-    if (pd == 1) IK_GDN_V2(1);
-    else if (pd == 4) IK_GDN_V2(4);
-    else IK_GDN_V2(2);
+        qkvp + t0 * C, ap + t0 * Hv, bp + t0 * Hv, (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps,    \
+        op + t0 * Hv * dv, (float*)state->data, t1 - t0, (int)Hk, (int)Hv, (int)dv)
+        if (pd == 1) IK_GDN_V2(1);
+        else if (pd == 4) IK_GDN_V2(4);
+        else IK_GDN_V2(2);
 #undef IK_GDN_V2
+    }
     return ik_launch_status();
 }
 

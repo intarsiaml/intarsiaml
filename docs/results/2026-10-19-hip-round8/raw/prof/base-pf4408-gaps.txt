@@ -1,0 +1,29 @@
+burst: 2649 kernels, span 532.99 ms, kernel 488.34 ms, idle 44.66 ms
+  gaps      <0:      0  sum     0.00 ms
+  gaps    <5us:   2436  sum     7.66 ms
+  gaps   <20us:     92  sum     1.09 ms
+  gaps  <100us:      0  sum     0.00 ms
+  gaps    <1ms:    119  sum    32.40 ms
+  gaps   >=1ms:      1  sum     3.51 ms
+
+gap time by (previous -> next) kernel, gaps >= 100 us:
+    10.693 ms  n    39  avg    274.2 us  moe_wmma_kernel_r7<false, 64, 25> -> moe_reduce_kernel<ik_bf16>
+    10.676 ms  n    39  avg    273.7 us  moe_wmma_kernel_r7<true, 64, 45> -> moe_wmma_kernel_r7<false, 64, 25>
+     7.971 ms  n    29  avg    274.9 us  gdn_delta_rows_v2_kernel<128, 2, 2> -> gated_rmsnorm_kernel<true>
+     3.685 ms  n     2  avg   1842.3 us  __amd_rocclr_copyBuffer -> embedding_kernel<true>
+     2.747 ms  n    10  avg    274.7 us  flash_hpb_kernel<256, 32, 4> -> sigmoid_mul_kernel
+     0.141 ms  n     1  avg    141.0 us  __amd_rocclr_copyBuffer -> __amd_rocclr_copyBuffer
+
+largest gaps:
+     3514.2 us  #2384  __amd_rocclr_copyBuffer -> embedding_kernel<true>
+      292.8 us  #590  gdn_delta_rows_v2_kernel<128, 2, 2> -> gated_rmsnorm_kernel<true>
+      288.0 us  #48  moe_wmma_kernel_r7<true, 64, 45> -> moe_wmma_kernel_r7<false, 64, 25>
+      287.9 us  #165  moe_wmma_kernel_r7<false, 64, 25> -> moe_reduce_kernel<ik_bf16>
+      287.3 us  #774  moe_wmma_kernel_r7<false, 64, 25> -> moe_reduce_kernel<ik_bf16>
+      285.2 us  #996  gdn_delta_rows_v2_kernel<128, 2, 2> -> gated_rmsnorm_kernel<true>
+      282.4 us  #977  moe_wmma_kernel_r7<false, 64, 25> -> moe_reduce_kernel<ik_bf16>
+      282.3 us  #1025  flash_hpb_kernel<256, 32, 4> -> sigmoid_mul_kernel
+      282.1 us  #193  moe_wmma_kernel_r7<true, 64, 45> -> moe_wmma_kernel_r7<false, 64, 25>
+      281.6 us  #745  moe_wmma_kernel_r7<false, 64, 25> -> moe_reduce_kernel<ik_bf16>
+      280.9 us  #657  moe_wmma_kernel_r7<true, 64, 45> -> moe_wmma_kernel_r7<false, 64, 25>
+      280.6 us  #561  flash_hpb_kernel<256, 32, 4> -> sigmoid_mul_kernel

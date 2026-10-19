@@ -1,0 +1,28 @@
+main burst 2385 kernels, 521.93 ms; host API calls started inside it:
+  hipStreamSynchronize         n      3  host time    504.77 ms
+  hipLaunchKernel              n   2315  host time     10.13 ms
+  hipMemcpyAsync               n     63  host time      0.24 ms
+  hipMalloc                    n      2  host time      0.11 ms
+  hipSetDevice                 n   1564  host time      0.07 ms
+  hipGetLastError              n   1800  host time      0.06 ms
+
+gap 277.4 us: void (anonymous namespace)::gdn_delta_rows_v2_kernel<128, 2, -> void (anonymous namespace)::gated_rmsnorm_kernel<true>(ik_bf
+  launch of next kernel returned -10757.5 us after the previous kernel ended; next kernel starts 11035.0 us after that
+      -10770.9 us  hipLaunchKernel                5.5 us
+      -10764.6 us  hipGetLastError                0.0 us
+      -10760.7 us  hipSetDevice                   0.1 us
+      -10759.8 us  hipLaunchKernel                2.2 us
+
+gap 273.4 us: void moe_wmma_kernel_r7<true, 64, 45>(ik_bf16 const*, unsign -> void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 const*, unsig
+  launch of next kernel returned -13966.7 us after the previous kernel ended; next kernel starts 14240.1 us after that
+      -13973.4 us  hipLaunchKernel                2.6 us
+      -13970.1 us  hipGetLastError                0.0 us
+      -13969.4 us  hipLaunchKernel                2.6 us
+
+gap 267.0 us: void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 const*, unsig -> void (anonymous namespace)::moe_reduce_kernel<ik_bf16>(ik_bf
+  launch of next kernel returned -15516.8 us after the previous kernel ended; next kernel starts 15783.8 us after that
+      -15522.8 us  hipLaunchKernel                2.6 us
+      -15519.5 us  hipGetLastError                0.0 us
+      -15519.0 us  hipLaunchKernel                2.2 us
+
+119 gaps >= 100 us: next kernel start minus its launch-call return, median 217276.2 us

@@ -1,0 +1,65 @@
+dur     0-   99 us: n  2558  followed by gap>100us   162  mean gap   534.2
+dur   100-  199 us: n   192  followed by gap>100us     0  mean gap     0.0
+dur   200-  299 us: n   109  followed by gap>100us     0  mean gap     0.0
+dur   300-  399 us: n    72  followed by gap>100us     0  mean gap     0.0
+dur   400-  499 us: n    54  followed by gap>100us     0  mean gap     0.0
+dur   600-  699 us: n    10  followed by gap>100us     0  mean gap     0.0
+dur   700-  799 us: n    35  followed by gap>100us     0  mean gap     0.0
+dur   800-  899 us: n    38  followed by gap>100us     0  mean gap     0.0
+dur   900-  999 us: n     9  followed by gap>100us     0  mean gap     0.0
+dur  1000- 1099 us: n     8  followed by gap>100us     7  mean gap   274.0
+dur  1100- 1199 us: n    29  followed by gap>100us    29  mean gap   282.2
+dur  1200- 1299 us: n     5  followed by gap>100us     4  mean gap   271.9
+dur  1300- 1399 us: n     1  followed by gap>100us     1  mean gap   275.0
+dur  2000- 2099 us: n    12  followed by gap>100us    12  mean gap   273.5
+dur  2100- 2199 us: n    17  followed by gap>100us    16  mean gap   274.4
+dur  2200- 2299 us: n    10  followed by gap>100us    10  mean gap   272.8
+dur  2300- 2399 us: n     1  followed by gap>100us     1  mean gap   276.2
+dur  2800- 2899 us: n     1  followed by gap>100us     1  mean gap   270.8
+dur  2900- 2999 us: n     9  followed by gap>100us     9  mean gap   275.6
+dur  3000- 3099 us: n    30  followed by gap>100us    29  mean gap   274.7
+   626.8     12.2 __amd_rocclr_copyBuffer
+   667.2     11.9 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   680.8     11.8 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   695.6     11.8 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   714.7     11.8 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   721.0     11.9 void (anonymous namespace)::flash_hpb_kernel<256, 
+   721.6     11.7 void (anonymous namespace)::flash_hpb_kernel<256, 
+   722.2     11.8 void (anonymous namespace)::flash_hpb_kernel<256, 
+   724.0     11.8 void (anonymous namespace)::flash_hpb_kernel<256, 
+   734.0     11.8 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   736.0     11.8 void (anonymous namespace)::flash_hpb_kernel<256, 
+   748.4     11.8 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   759.2     11.9 void (anonymous namespace)::flash_hpb_kernel<256, 
+   775.7     12.0 __amd_rocclr_copyBuffer
+   785.4     11.8 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   806.0     11.9 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   839.8     11.8 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   851.5     11.9 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   859.8     11.8 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   863.3     11.9 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   866.3     12.0 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   866.8     11.9 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   868.7     11.9 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   871.3     11.8 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   874.0     11.9 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   877.7     11.8 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   881.9     11.9 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   893.7     11.9 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   907.6     11.9 void moe_wmma_kernel<true, 32>(ik_bf16 const*, uns
+   918.1     11.8 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+   937.4     11.8 void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned 
+  1058.9    272.2 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1090.8    276.4 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1097.7    271.3 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1106.2    272.0 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1111.2    271.4 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1116.7    271.4 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1117.6    276.5 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1130.2    271.0 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1135.1    274.5 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1138.9    277.3 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1151.9    271.6 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1178.8    495.4 __amd_rocclr_copyBuffer
+  1210.4    267.2 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con
+  1281.2    276.7 void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 con

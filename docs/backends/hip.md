@@ -133,6 +133,12 @@ table, 16 gives down two A fragments per wave, 32 keeps six weight blocks in fli
 `docs/results/2026-10-19-hip-round7.md`: gate_up 45 / down 25 at 64 pairs per tile, gate_up 0 / down 41 at 32; `INTARSIA_HIP_MOE_MW=5:5`
 runs round 6's 64-pair kernels at both tiles (round 6 itself ran the round-5 kernel at 32). Every value bitwise; read at every
 launch).
+Round 8 (`docs/results/2026-10-19-hip-round8.md`; every value bitwise, read at every launch): `INTARSIA_HIP_SPLIT_US=n` (default
+600, 0 = one launch): the prefill's MoE down projection (over feature tiles) and the GDN delta rule (over token ranges, each piece
+continuing the in-place state) run as pieces estimated under n microseconds, because on the R9700 every dispatch longer than
+~1 ms is followed by ~275 us in which the GPU starts nothing; gate_up is never split. `INTARSIA_HIP_MOE_REDUCE=0`: the scalar
+`moe_reduce_kernel` instead of `moe_reduce_v8_kernel` (8 features per thread, 16-byte loads). `INTARSIA_HIP_SPLITKV_R8=0`: the
+split-KV combine one split at a time instead of 16 splits' loads in flight.
 
 ## Admission cache
 

@@ -1,0 +1,38 @@
+fleetq: #2755 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/rjob.sh --sync /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r8/job-mut.sh
+synced r8 tree (a97d4086 + worktree changes)
+=== mutbuild8 16:24:08
+applied r8-y0 to /home/josef/intarsiaml-r8-mut/kernels/hip/moe_wmma_r7.h
+r8-y0: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-y0r5 to /home/josef/intarsiaml-r8-mut/kernels/hip/moe_wmma.h
+r8-y0r5: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-y0v to /home/josef/intarsiaml-r8-mut/kernels/hip/moe_wmma.h
+r8-y0v: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-lastpiece to /home/josef/intarsiaml-r8-mut/kernels/hip/moe.hip
+r8-lastpiece: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-ytile to /home/josef/intarsiaml-r8-mut/kernels/hip/moe.hip
+r8-ytile: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-gdn-out to /home/josef/intarsiaml-r8-mut/kernels/hip/gdn.hip
+r8-gdn-out: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied r8-gdn-in to /home/josef/intarsiaml-r8-mut/kernels/hip/gdn.hip
+r8-gdn-in: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied r8-gdn-gate to /home/josef/intarsiaml-r8-mut/kernels/hip/gdn.hip
+r8-gdn-gate: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied r8-gdn-len to /home/josef/intarsiaml-r8-mut/kernels/hip/gdn.hip
+r8-gdn-len: test gdn_v2 built (/target/release/deps/gdn_v2-5ac159c39ea311e9)
+applied r8-rd-col to /home/josef/intarsiaml-r8-mut/kernels/hip/moe.hip
+r8-rd-col: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-rd-round to /home/josef/intarsiaml-r8-mut/kernels/hip/moe.hip
+r8-rd-round: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-rd-lastk to /home/josef/intarsiaml-r8-mut/kernels/hip/moe.hip
+r8-rd-lastk: test moe_pairs built (/target/release/deps/moe_pairs-c73bccbb72670486)
+applied r8-cb-skip to /home/josef/intarsiaml-r8-mut/kernels/hip/attention_splitkv.hip
+r8-cb-skip: test splitkv_r8 built (/target/release/deps/splitkv_r8-7d5aa41a50d9819b)
+applied r8-cb-ml to /home/josef/intarsiaml-r8-mut/kernels/hip/attention_splitkv.hip
+r8-cb-ml: test splitkv_r8 built (/target/release/deps/splitkv_r8-7d5aa41a50d9819b)
+NOTE: rebuild this tree (scripts/hip-decode/build.sh) before running binaries from its target volume
+=== r8 rebuild 16:30:13
+    Finished `release` profile [optimized] target(s) in 30.92s
+    Finished `release` profile [optimized] target(s) in 3.61s
+=== done 16:30:48
+fleetq: #2755 done (exit 0)
+exit 0 16:30:48

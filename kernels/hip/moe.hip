@@ -100,18 +100,36 @@ int moe_mw_variant(int pairs, bool down) {
 
 // one projection: the round-5 kernel (V = 0), moe_wmma_kernel_v (round 6) or moe_wmma_kernel_r7 (round 7; kMwTwo doubles
 // down's features per block)
+// Round 8 split (ik_split_pieces): the estimated duration of one projection from its multiply-adds, P pairs x output rows
+// (gate_up: gate + up, 2N) x Kd. Rates measured in the 4408-token prefill profile (docs/results/2026-10-19-hip-round8.md):
+// 64-pair tile ~32 GMAC/ms (gate_up 2.14 ms, down 1.14 ms at 4096 tokens); the 32-pair tile is weight-bound at its sizes,
+// ~7-10 GMAC/ms, taken as 9 so that the 312-token tail chunk (gate_up 0.75 ms) stays one launch.
+constexpr double kMwMacPerUs64 = 32e6, kMwMacPerUs32 = 9e6;
+
+// one projection: the round-5 kernel (V = 0), moe_wmma_kernel_v (round 6) or moe_wmma_kernel_r7 (round 7; kMwTwo doubles
+// down's features per block), as one launch or (round 8) as pieces over consecutive feature tiles (grid y): each block of a
+// piece is the block of the single launch with the same feature tile, so the pieces give the single launch's bits
 template <bool GATEUP, int PAIRS, int V>
-void moe_wmma_launch_p(int64_t N, unsigned slots, unsigned zt, const ik_bf16* src, const uint8_t* w, const uint8_t* ws,
-                       const float* gsc, const int* pairs, const int* offsets, const int* active, ik_bf16* dst, int64_t E,
-                       int64_t Kd, int64_t K, hipStream_t s) {
+void moe_wmma_launch_p(int64_t N, int64_t P, unsigned slots, unsigned zt, const ik_bf16* src, const uint8_t* w,
+                       const uint8_t* ws, const float* gsc, const int* pairs, const int* offsets, const int* active,
+                       ik_bf16* dst, int64_t E, int64_t Kd, int64_t K, hipStream_t s) {
     constexpr int feat = (V & (kMwCvt | kMwTwo)) ? mw_r7_feat(GATEUP, V) : (GATEUP ? kMwFeatGateUp : kMwFeatDown);
-    const dim3 g(slots, (unsigned)((N + feat - 1) / feat), zt);
-    if constexpr (V == 0)
-        moe_wmma_kernel<GATEUP, PAIRS><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K);
-    else if constexpr ((V & (kMwCvt | kMwTwo)) == 0)
-        moe_wmma_kernel_v<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K);
-    else
-        moe_wmma_kernel_r7<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K);
+    const int64_t Y = (N + feat - 1) / feat;  // feature tiles
+    const double est_us = (double)P * (double)(GATEUP ? 2 * N : N) * (double)Kd / (PAIRS == 64 ? kMwMacPerUs64 : kMwMacPerUs32);
+    // gate_up is never split: its pieces each paid the launch's load-imbalance tail (an expert with many more pairs than
+    // the grid's z covers runs longest), 4 pieces took 114.1 ms against 85.7 for one launch in the 4408-token prefill (W3),
+    // far more than the ~11 ms of gaps they removed. down's two pieces cost +3.0 ms against ~10.7 ms of gaps.
+    const int pieces = GATEUP ? 1 : ik_split_pieces(est_us, Y);
+    for (int i = 0; i < pieces; ++i) {
+        const int y0 = (int)(Y * i / pieces), y1 = (int)(Y * (i + 1) / pieces);
+        const dim3 g(slots, (unsigned)(y1 - y0), zt);
+        if constexpr (V == 0)
+            moe_wmma_kernel<GATEUP, PAIRS><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
+        else if constexpr ((V & (kMwCvt | kMwTwo)) == 0)
+            moe_wmma_kernel_v<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
+        else
+            moe_wmma_kernel_r7<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
+    }
 }
 
 template <int PAIRS>
@@ -132,8 +150,8 @@ void moe_wmma_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int6
         IK_MW_R7(IK_MW_CASE_##CALL)                   \
         default: CALL(0); break;                      \
     }
-#define IK_MW_GU(V) moe_wmma_launch_p<true, PAIRS, V>(I, slots, zt, x, guw, gus, gsc, pairs, offsets, active, hbuf, E, H, K, s)
-#define IK_MW_DN(V) moe_wmma_launch_p<false, PAIRS, V>(H, slots, zt, hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, E, I, K, s)
+#define IK_MW_GU(V) moe_wmma_launch_p<true, PAIRS, V>(I, P, slots, zt, x, guw, gus, gsc, pairs, offsets, active, hbuf, E, H, K, s)
+#define IK_MW_DN(V) moe_wmma_launch_p<false, PAIRS, V>(H, P, slots, zt, hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, E, I, K, s)
 #define IK_MW_CASE_IK_MW_GU(n) case n: IK_MW_GU(n); break;
 #define IK_MW_CASE_IK_MW_DN(n) case n: IK_MW_DN(n); break;
     IK_MW_SWITCH(moe_mw_variant(PAIRS, false), IK_MW_GU)
@@ -506,6 +524,47 @@ moe_reduce_kernel(const ik_bf16* __restrict__ y, const int* __restrict__ ids, co
         acc += round_bf16(ik_b2f(y[((int64_t)t * K + k) * H + c]) * w[(int64_t)t * K + k]);
     }
     ik_store(out + (int64_t)t * H + c, acc);
+}
+
+// Round 8: moe_reduce_kernel<ik_bf16> with 8 consecutive features per thread, the token's (up to 8) expert rows loaded as
+// 16-byte vectors before any arithmetic (the scalar kernel read 2 bytes per thread per row: ~305 GB/s, 0.49 ms per
+// 4096-token chunk for 134 MB of y). Every feature still sums round_bf16(y * w) over k = 0, 1, .. in order, skipping the same
+// invalid ids, and is stored with the same bf16 conversion, so the bits are moe_reduce_kernel's (tests/moe_pairs.rs).
+// Needs H % 8 == 0 and 16-byte aligned y / out; INTARSIA_HIP_MOE_REDUCE=0 runs the scalar kernel.
+constexpr int kRdMaxK = 8;
+__global__ void __launch_bounds__(256)
+moe_reduce_v8_kernel(const ik_bf16* __restrict__ y, const int* __restrict__ ids, const float* __restrict__ w,
+                     ik_bf16* __restrict__ out, int E, int H, int K) {
+    const int t = blockIdx.x;
+    const int c = (blockIdx.y * 256 + threadIdx.x) * 8;
+    if (c >= H) return;
+    float acc[8];
+#pragma unroll
+    for (int e = 0; e < 8; ++e) acc[e] = 0.f;
+    for (int k0 = 0; k0 < K; k0 += kRdMaxK) {
+        uint4 yv[kRdMaxK];
+#pragma unroll
+        for (int u = 0; u < kRdMaxK; ++u)
+            if (k0 + u < K) yv[u] = *reinterpret_cast<const uint4*>(y + ((int64_t)t * K + k0 + u) * H + c);
+#pragma unroll
+        for (int u = 0; u < kRdMaxK; ++u) {
+            const int k = k0 + u;
+            if (k >= K) break;
+            const int id = ids[(int64_t)t * K + k];
+            if (id < 0 || id >= E) continue;
+            const float wk = w[(int64_t)t * K + k];
+            float v[8];
+            ik_unpack8(yv[u], v);
+#pragma unroll
+            for (int e = 0; e < 8; ++e) acc[e] += round_bf16(v[e] * wk);
+        }
+    }
+    *reinterpret_cast<uint4*>(out + (int64_t)t * H + c) = ik_pack8(acc);
+}
+
+inline bool moe_reduce_v8_enabled() {
+    const char* e = getenv("INTARSIA_HIP_MOE_REDUCE");
+    return !(e && e[0] == '0' && e[1] == 0);
 }
 
 // ---- decode fast path (P = T*K <= 16, K <= 8): no grouping ------------------------------------------------------------
@@ -1287,8 +1346,12 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
                                                   (int)I, PC);
         IK_TRY(ik_launch_status());
     }
-    moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(
-        ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);
+    if (H % 8 == 0 && ik_aligned16(ybuf) && ik_aligned16(out->data) && moe_reduce_v8_enabled())
+        moe_reduce_v8_kernel<<<dim3((unsigned)T, (unsigned)((H / 8 + 255) / 256)), 256, 0, s>>>(
+            ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);
+    else
+        moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(
+            ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);
     return ik_launch_status();
 }
 

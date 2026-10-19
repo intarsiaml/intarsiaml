@@ -49,6 +49,13 @@ int64_t splitkv_scratch_bytes(int64_t T, int64_t N, int64_t D, int nsplit) {
     return T * N * nsplit * (D + 2) * 4;
 }
 
+// INTARSIA_HIP_SPLITKV_R8 = 0: the pre-round-8 combine (one split at a time); unset or anything else: round 8's (16 splits'
+// loads in flight per batch). Both give the same bits (tests/splitkv_r8.rs). Read at every launch.
+inline bool splitkv_r8() {
+    const char* e = getenv("INTARSIA_HIP_SPLITKV_R8");
+    return !(e && e[0] == '0' && e[1] == 0);
+}
+
 template <int GP, int TPK, int KB>
 __global__ void __launch_bounds__(kBlock)
 splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
@@ -185,7 +192,7 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, co
     }
 }
 
-template <int D>
+template <int D, int kCombBatch>
 __global__ void __launch_bounds__(D)
 combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, ik_bf16* __restrict__ out, int nsplit,
                int T, int NKV, int64_t pos0_host, const int32_t* pos_dev) {
@@ -194,15 +201,35 @@ combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, i
     const int nsplit_eff = splitkv_count(pos0 + T, NKV, T);  // same count as the stage-1 blocks used
     const float2* ml = pml + row * nsplit;
     const float* acc = pacc + row * nsplit * D;
+    // Round 8: the partials are loaded kCombBatch (16) splits at a time, all loads of a batch in flight before its
+    // arithmetic (the plain loop, kCombBatch = 1, waited for one load per split: ~13.6 us per launch at 64 splits, ~1 MB).
+    // The max and the two sums still run over s = 0, 1, .. in order with the same operations, so the bits are the same.
     float M = -INFINITY;
-    for (int s = 0; s < nsplit_eff; ++s) M = fmaxf(M, ml[s].x);
+    for (int s0 = 0; s0 < nsplit_eff; s0 += kCombBatch) {
+        float mx[kCombBatch];
+#pragma unroll
+        for (int u = 0; u < kCombBatch; ++u) mx[u] = s0 + u < nsplit_eff ? ml[s0 + u].x : -INFINITY;
+#pragma unroll
+        for (int u = 0; u < kCombBatch; ++u)
+            if (s0 + u < nsplit_eff) M = fmaxf(M, mx[u]);
+    }
     float A = 0.f, L = 0.f;
-    for (int s = 0; s < nsplit_eff; ++s) {
-        const float2 v = ml[s];
-        if (v.x == -INFINITY) continue;  // empty split: acc is not meaningful
-        const float w = exp2f(v.x - M);
-        L += v.y * w;
-        A += acc[(int64_t)s * D + threadIdx.x] * w;
+    for (int s0 = 0; s0 < nsplit_eff; s0 += kCombBatch) {
+        float2 v[kCombBatch];
+        float a[kCombBatch];
+#pragma unroll
+        for (int u = 0; u < kCombBatch; ++u) {
+            const int s = s0 + u < nsplit_eff ? s0 + u : s0;  // past the end: a split of this batch, unused
+            v[u] = ml[s];
+            a[u] = acc[(int64_t)s * D + threadIdx.x];
+        }
+#pragma unroll
+        for (int u = 0; u < kCombBatch; ++u) {
+            if (s0 + u >= nsplit_eff || v[u].x == -INFINITY) continue;  // empty split: acc is not meaningful
+            const float w = exp2f(v[u].x - M);
+            L += v[u].y * w;
+            A += a[u] * w;
+        }
     }
     out[row * D + threadIdx.x] = ik_f2b(A / L);
 }
@@ -214,6 +241,15 @@ void launch_split(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, float*
     dim3 grid(nsplit, (unsigned)NKV, (unsigned)T);
     splitkv_kernel<GP, TPK, KB><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
                                                         qscale, nsplit, pos_dev);
+}
+
+template <int D>
+void launch_combine(const float* pacc, const float2* pml, ik_bf16* out, unsigned rows, int nsplit, int T, int NKV,
+                    int64_t pos0, const int32_t* pos_dev, hipStream_t s) {
+    if (splitkv_r8())
+        combine_kernel<D, 16><<<rows, D, 0, s>>>(pacc, pml, out, nsplit, T, NKV, pos0, pos_dev);
+    else
+        combine_kernel<D, 1><<<rows, D, 0, s>>>(pacc, pml, out, nsplit, T, NKV, pos0, pos_dev);
 }
 
 template <int TPK>
@@ -276,10 +312,10 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
     ik_bf16* op = (ik_bf16*)out->data;
     const unsigned rows = (unsigned)(T * N);
     switch (D) {
-        case 32: combine_kernel<32><<<rows, 32, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
-        case 64: combine_kernel<64><<<rows, 64, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
-        case 128: combine_kernel<128><<<rows, 128, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
-        case 256: combine_kernel<256><<<rows, 256, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
+        case 32: launch_combine<32>(pacc, pml, op, rows, nsplit, (int)T, (int)NKV, pos0, pos_dev, s); break;
+        case 64: launch_combine<64>(pacc, pml, op, rows, nsplit, (int)T, (int)NKV, pos0, pos_dev, s); break;
+        case 128: launch_combine<128>(pacc, pml, op, rows, nsplit, (int)T, (int)NKV, pos0, pos_dev, s); break;
+        case 256: launch_combine<256>(pacc, pml, op, rows, nsplit, (int)T, (int)NKV, pos0, pos_dev, s); break;
     }
     return ik_launch_status();
 }

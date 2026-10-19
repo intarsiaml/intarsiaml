@@ -81,8 +81,15 @@ fn moe_pair_tile_does_not_change_a_bit() {
     }
     cases.push(("NaN scale bytes".into(), nan));
     let mut differing_from_zero = 0usize;
+    // the reference and every comparison above the round-8 block: one launch per projection
+    std::env::set_var("INTARSIA_HIP_SPLIT_US", "0");
     for (what, hc) in &cases {
         let a = run(&*hip, hc, "32");
+        // round 8: the weighted expert sum with 8 features per thread (moe_reduce_v8_kernel) against the scalar kernel
+        std::env::set_var("INTARSIA_HIP_MOE_REDUCE", "0");
+        let r = run(&*hip, hc, "32");
+        std::env::remove_var("INTARSIA_HIP_MOE_REDUCE");
+        assert!(a.data == r.data, "{what}: moe_reduce_v8_kernel differs from moe_reduce_kernel");
         let b = run(&*hip, hc, "64");
         let c = run(&*hip, hc, "0");
         assert!(a.data == b.data, "{what}: the 64-pair tile changed the output");
@@ -106,9 +113,24 @@ fn moe_pair_tile_does_not_change_a_bit() {
             let v = run_host(&*hip, "moe_experts_bf16_v2", hc).unwrap().remove(0);
             assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw:?} at {pairs} pairs changed the output");
         }
+        // round 8: each projection launched as pieces over its feature tiles (INTARSIA_HIP_SPLIT_US, kernels/hip/ik_hip.h;
+        // 1 = one feature tile per launch, 150 = a few uneven pieces at the larger cases), every kernel family (0 = the
+        // round-5 kernel, 5 = moe_wmma_kernel_v, the r7 defaults and two r7 splits) at both tiles, against the single launch
+        for split in ["1", "150"] {
+            std::env::set_var("INTARSIA_HIP_SPLIT_US", split);
+            for (pairs, mw) in [("32", "0"), ("64", "0"), ("32", "5"), ("64", "5"), ("32", "0:41"), ("64", "45:25"), ("64", "13:29")] {
+                let v = run_mw(&*hip, hc, pairs, mw);
+                assert!(
+                    a.data == v.data,
+                    "{what}: INTARSIA_HIP_SPLIT_US={split} with INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs changed the output"
+                );
+            }
+            std::env::set_var("INTARSIA_HIP_SPLIT_US", "0");
+        }
         differing_from_zero += a.to_f32().iter().filter(|v| **v != 0.0).count();
     }
     std::env::remove_var("INTARSIA_HIP_MOE_PAIRS");
     std::env::remove_var("INTARSIA_HIP_MOE_MW");
+    std::env::remove_var("INTARSIA_HIP_SPLIT_US");
     assert!(differing_from_zero > 0, "all outputs zero: nothing was computed");
 }

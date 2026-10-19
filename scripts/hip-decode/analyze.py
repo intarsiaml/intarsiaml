@@ -89,8 +89,11 @@ for (name, blocks), (c, t) in sorted(sh.items(), key=lambda kv: -kv[1][1]):
         rows, k = blocks * r * w, 2048
     elif "gated" in name:  # fp8_gemv_gated_kernel<R, bf16>: the GDN out_proj with its norm folded in, K = 32 heads x 128
         rows, k = blocks * int(args[0]) * 8, 4096
-    else:
+    elif len(args) > 1:
         rows, k = blocks * int(args[1]) * 8, 0
         k = 4096 if rows == 2048 else 2048
+    else:  # fp8_gemv_sigmoid_kernel<R> (round 8 profiles): one template argument, no geometry rule here
+        print(f"{name + ' g' + str(blocks):<50}{c/n:>7.1f}{avg:>8.1f}{'-':>8}{'-':>7}{'-':>6}{t/n/1e3:>9.1f}")
+        continue
     mb = rows * k / 1e6
     print(f"{name + ' g' + str(blocks):<50}{c/n:>7.1f}{avg:>8.1f}{mb:>8.2f}{1e3 * mb / avg:>7.0f}{100 * 1e3 * mb / avg / 627:>5.0f}%{t/n/1e3:>9.1f}")

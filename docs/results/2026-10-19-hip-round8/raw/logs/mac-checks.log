@@ -1,0 +1,7 @@
+HEAD 5f0141ff (dirty)
+cargo test --workspace: 106 binaries, passed 501, failed 0
+cargo test exit 0
+cargo check --workspace: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.14s
+cargo check -p intarsia-cli --features hip: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.38s
+cargo check -p intarsia-cli --features metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+cargo build -p intarsia-backend-metal: exit 0      Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s

@@ -12,6 +12,7 @@
 #include <hip/hip_runtime.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include "../abi/ik_abi.h"
 
 #if defined(__AMDGCN_WAVEFRONT_SIZE__) && __AMDGCN_WAVEFRONT_SIZE__ != 32
@@ -156,6 +157,23 @@ static inline int ik_check_pos(const ik_tensor* t) {
 
 /* Map a failed kernel launch to IK_ERR_LAUNCH (does not synchronise). */
 static inline int ik_launch_status() { return hipGetLastError() == hipSuccess ? IK_OK : IK_ERR_LAUNCH; }
+
+/* Sub-millisecond launches (round 8, docs/results/2026-10-19-hip-round8.md). On the R9700 (gfx1201, ROCm 7.2) every dispatch
+ * that runs longer than about 1 ms is followed by ~275 us in which the GPU starts nothing, although the next dispatch is
+ * long queued (the host is 10+ ms ahead); shorter dispatches are followed by the usual ~3 us. The prefill's long kernels
+ * (MoE down at 64 pairs, the GDN delta rule; gate_up is not split, moe.hip) are therefore launched as pieces, each estimated below
+ * INTARSIA_HIP_SPLIT_US microseconds (default 600; 0 = never split). A piece computes exactly what its part of the single
+ * launch computed (independent output tiles, or a token range that continues the in-place recurrent state), so every
+ * value gives the same bits. Read at every launch (the bitwise tests switch it in one process); a small value forces the
+ * most pieces. Returns the number of pieces, 1 .. max_pieces. */
+static inline int ik_split_pieces(double est_us, int64_t max_pieces) {
+    const char* e = getenv("INTARSIA_HIP_SPLIT_US");
+    const double budget = e && *e ? atof(e) : 600.0;
+    if (!(budget > 0.0) || est_us <= budget || max_pieces <= 1) return 1;
+    const double n = est_us / budget;
+    const int64_t p = n >= (double)max_pieces ? max_pieces : (int64_t)n + 1;
+    return (int)(p < 1 ? 1 : p);
+}
 
 static inline bool ik_aligned16(const void* p) { return ((uintptr_t)p & 15u) == 0; }
 
