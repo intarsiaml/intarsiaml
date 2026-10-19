@@ -1,0 +1,8 @@
+applied v3-default to /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mut-lib/crates/intarsia-backend-hip/src/quantmoe.rs
+v3-default     thread 'quantmoe::tests::moe_v3_is_opt_in' (124054298) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:395:9: test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+applied v3-prio to /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mut-lib/crates/intarsia-backend-hip/src/quantmoe.rs
+v3-prio        thread 'quantmoe::tests::moe_experts_selection_is_pinned' (124054910) panicked at crates/intarsia-backend-hip/src/quantmoe.rs:416:13: test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+applied p1-sel-m2 to /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mut-lib/crates/intarsia-backend-hip/src/quantmoe.rs
+p1-sel-m2      thread 'kernels::tests::phase1_fold_selection_is_pinned' (124055472) panicked at crates/intarsia-backend-hip/src/kernels.rs:369:9: test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+applied p1-sel-dc9 to /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mut-lib/crates/intarsia-backend-hip/src/quantmoe.rs
+p1-sel-dc9     thread 'kernels::tests::phase1_fold_selection_is_pinned' (124055804) panicked at crates/intarsia-backend-hip/src/kernels.rs:376:9: test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 

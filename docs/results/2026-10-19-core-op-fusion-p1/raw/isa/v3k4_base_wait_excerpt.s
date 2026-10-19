@@ -1,0 +1,36 @@
+	s_or_b32 exec_lo, exec_lo, s4
+	;;#ASMSTART
+	;;#ASMEND
+.LBB8_136:
+	s_wait_alu 0xfffe
+	s_or_b32 exec_lo, exec_lo, s5
+	s_and_saveexec_b32 s3, s2
+	s_cbranch_execz .LBB8_139
+; %bb.137:
+	v_mov_b32_e32 v44, 0
+	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+	s_wait_loadcnt 0x0
+	global_inv scope:SCOPE_DEV
+	v_cmp_le_u32_e32 vcc_lo, s20, v45
+	s_cbranch_vccnz .LBB8_139
+.LBB8_138:                              ; =>This Inner Loop Header: Depth=1
+	s_sleep 1
+	global_load_b32 v45, v44, s[28:29] scope:SCOPE_DEV
+	s_wait_loadcnt 0x0
+	global_inv scope:SCOPE_DEV
+	v_cmp_gt_u32_e32 vcc_lo, s20, v45
+	s_cbranch_vccnz .LBB8_138
+.LBB8_139:
+	s_wait_alu 0xfffe
+	s_or_b32 exec_lo, exec_lo, s3
+	s_wait_loadcnt_dscnt 0x0
+	s_barrier_signal -1
+	s_barrier_wait -1
+	global_inv scope:SCOPE_SE
+	s_wait_loadcnt 0x0
+	global_inv scope:SCOPE_DEV
+	s_and_saveexec_b32 s69, s0
+	s_cbranch_execz .LBB8_280
+; %bb.140:
+	s_mul_u64 s[4:5], s[46:47], s[48:49]
+	v_dual_mov_b32 v54, 0 :: v_dual_mov_b32 v53, 0

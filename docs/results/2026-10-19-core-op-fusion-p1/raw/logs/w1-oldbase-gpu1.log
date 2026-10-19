@@ -1,0 +1,55 @@
+################ stage tests start 02:45:31
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.29s
+test out_of_range_shapes_are_refused ... ok
+test rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair ... P5: 24 cases bitwise
+test shared_down_combine_is_bitwise_down_then_combine ... P2a: 48 cases bitwise
+test sigmoid_mul_matmul_fp8_is_bitwise_gate_then_gemv ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+P4b: 14 cases bitwise
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ... v3_sentinel_stress: 960 launches, 0 differ from v2
+test v3_waits_for_every_gate_up_role ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.23s
+################ stage tests end 02:45:47
+################ stage mutrun start 02:45:47
+p1-n5-sc0        thread 'rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s exit=101 
+p1-n5-nowrite    thread 'rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s exit=101 
+p1-n5-round      thread 'rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s exit=101 
+p1-n5-woff       thread 'rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s exit=101 
+p1-n5-stage      thread 'rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s exit=101 
+p1-g4-sig        thread 'sigmoid_mul_matmul_fp8_is_bitwise_gate_then_gemv' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s exit=101 
+p1-g4-gate       thread 'sigmoid_mul_matmul_fp8_is_bitwise_gate_then_gemv' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s exit=101 
+p1-dc-logit0     thread 'shared_down_combine_is_bitwise_down_then_combine' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s exit=101 
+p1-dc-sground    thread 'shared_down_combine_is_bitwise_down_then_combine' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s exit=101 
+p1-dc-soround    thread 'shared_down_combine_is_bitwise_down_then_combine' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s exit=101 
+p1-dc-tail       thread 'shared_down_combine_is_bitwise_down_then_combine' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s exit=101 
+p1-dc-row        thread 'shared_down_combine_is_bitwise_down_then_combine' panicked at crates/intarsia-backend-hip/tests/fusion_p1.rs:50:9: test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s exit=101 
+v3-noreset       thread 'v3_counters_reset_between_launches' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:171:9: thread 'v3_graph_replay_is_bitwise_eager' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:218:9: v3_sentinel_stress: 960 launches, 641 differ from v2 thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:294:5: 
+v3-early         v3_sentinel_stress: 960 launches, 80 differ from v2 thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:294:5: thread 'v3_waits_for_every_gate_up_role' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:197:9: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.69s 
+v3-nowait        thread 'v3_counters_reset_between_launches' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:171:9: thread 'v3_graph_replay_is_bitwise_eager' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:218:9: v3_sentinel_stress: 960 launches, 645 differ from v2 thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:294:5: 
+v3-hrow          thread 'v3_counters_reset_between_launches' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:165:9: thread 'v3_graph_replay_is_bitwise_eager' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:218:9: thread 'v3_is_bitwise_v2' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:49:5: v3_sentinel_stress: 960 launches, 960 differ from v2 
+v3-gurow         thread 'v3_counters_reset_between_launches' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:165:9: thread 'v3_graph_replay_is_bitwise_eager' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:218:9: thread 'v3_is_bitwise_v2' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:49:5: v3_sentinel_stress: 960 launches, 960 differ from v2 
+v3-nofence       test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.33s exit=0 
+v3-ticket        exit=137 
+################ stage mutrun end 02:47:22

@@ -1,0 +1,1 @@
+2026-10-19 job=2647 stop=03:29:05 up=03:32:08 down=3.0 min label="core-op-fusion P1 CUDA no-op: greedy ids + goldens, fusion-dev vs fusion-base (10eef81c)" serving=1
