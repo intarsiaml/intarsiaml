@@ -91,7 +91,7 @@ stage_plans() {  # GPU (TEST_GPU): plan show --json of both trees for the 35B an
       echo "plan $t $m: exit $? $(wc -c < "$O/$t-$m.json") bytes"
     done
   done
-  python3 "$INTARSIA_REPO/scripts/hip-decode/plan_diff.py" "$O" 2>&1 | tee "$O/diff.txt"
+  python3 "$INTARSIA_REPO/scripts/hip-decode/plan_diff.py" "$O" fp2 base 2>&1 | tee "$O/diff.txt"
 }
 
 stage_adm() {  # GPU (TEST_GPU): FULL admission sweeps (no --quick) of the 35B and the 8B shapes, branch and base tree
