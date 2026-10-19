@@ -1,0 +1,9 @@
+<=4096      A: n=15 mean=4207  B: n=15 mean=4230  Boff: n= 5 mean=4201
+4097-4250   A: n=15 mean=4015  B: n=15 mean=4042  Boff: n= 5 mean=4005
+>4250       A: n=15 mean=4049  B: n=15 mean=4063  Boff: n= 5 mean=4035
+<=4096 A per round [4208, 4208, 4205]
+<=4096 B per round [4224, 4226, 4241]
+4097-4250 A per round [4023, 4007, 4016]
+4097-4250 B per round [4048, 4041, 4036]
+>4250 A per round [4052, 4044, 4051]
+>4250 B per round [4062, 4049, 4079]
