@@ -99,6 +99,81 @@ pub struct HipBackend {
     /// a graph capture is running on this backend: launches are recorded, not executed, so the trace's stream events
     /// (which would become event nodes of the graph) are skipped
     capturing: AtomicBool,
+    /// round 9: page-locked host staging for small copies (created on first use; `None` after a failed allocation)
+    staging: Mutex<Option<Option<Staging>>>,
+}
+
+/// Round 9 (docs/results/2026-10-19-hip-round9.md): page-locked host staging for small uploads and downloads.
+///
+/// A pageable `hipMemcpyAsync` host -> device has to be followed by a stream synchronisation (ik_rt_memcpy_h2d), so every
+/// small upload (a prefill chunk's token ids, a decode step's id and position) drained the queue: the GPU idled from the
+/// end of the queued work until the host, woken from the wait, had launched again. That is one boundary per prefill
+/// chunk, the decode-graph capture of a new sequence (~3.5 ms, run while the GPU waits) and every decode step.
+///
+/// An upload of at most `STAGE_SLOT` bytes is copied into the next of `STAGE_SLOTS` page-locked slots and queued from
+/// there without a wait; an event recorded after the copy guards the slot, and a slot is only rewritten once its event has
+/// completed (in practice long before: the ring holds 8 copies). The device sees the same bytes in the same stream order,
+/// so results are bitwise unchanged. A download of at most `STAGE_SLOT` bytes goes through one more page-locked slot (it
+/// waits for the stream either way). Larger copies, copies during a graph capture and INTARSIA_HIP_TRACE runs take the
+/// old path, as does everything with `INTARSIA_HIP_STAGE=0` (read at every copy); `INTARSIA_HIP_STAGE=up` stages only
+/// uploads. 9 x 64 KiB of page-locked host memory per backend, no device memory.
+struct Staging {
+    host: usize,
+    events: [usize; STAGE_SLOTS],
+    used: [bool; STAGE_SLOTS],
+    next: usize,
+}
+
+const STAGE_SLOTS: usize = 8;
+const STAGE_SLOT: usize = 64 << 10;
+
+/// INTARSIA_HIP_STAGE: (stage uploads, stage downloads)
+fn stage_mode() -> (bool, bool) {
+    match std::env::var("INTARSIA_HIP_STAGE").as_deref() {
+        Ok("0") => (false, false),
+        Ok("up") => (true, false),
+        _ => (true, true),
+    }
+}
+
+impl Staging {
+    fn new() -> Option<Staging> {
+        let mut host: *mut c_void = std::ptr::null_mut();
+        // SAFETY: valid out-pointer; the device is bound by the caller.
+        if unsafe { ffi::ik_rt_host_alloc(&mut host, STAGE_SLOT * (STAGE_SLOTS + 1)) } != 0 || host.is_null() {
+            return None;
+        }
+        let mut events = [0usize; STAGE_SLOTS];
+        for e in events.iter_mut() {
+            let mut h: *mut c_void = std::ptr::null_mut();
+            // SAFETY: valid out-pointer.
+            if unsafe { ffi::ik_rt_event_create_sync(&mut h) } != 0 {
+                return None; // (leaks what was made; this only happens when the runtime is out of resources)
+            }
+            *e = h as usize;
+        }
+        Some(Staging { host: host as usize, events, used: [false; STAGE_SLOTS], next: 0 })
+    }
+
+    fn slot(&self, i: usize) -> *mut u8 {
+        (self.host as *mut u8).wrapping_add(i * STAGE_SLOT)
+    }
+}
+
+impl Drop for Staging {
+    fn drop(&mut self) {
+        for (i, &e) in self.events.iter().enumerate() {
+            // SAFETY: live events; a pending copy still reads its slot, so wait before the memory goes.
+            unsafe {
+                if self.used[i] {
+                    ffi::ik_rt_event_sync(e as *mut c_void);
+                }
+                ffi::ik_rt_event_destroy(e as *mut c_void);
+            }
+        }
+        // SAFETY: allocated by ik_rt_host_alloc, no copy reads it any more.
+        unsafe { ffi::ik_rt_host_free(self.host as *mut c_void) };
+    }
 }
 
 /// Two stream events per launch (one recorded just before it, one just after), kept per stream. The elapsed time
@@ -252,6 +327,7 @@ impl HipBackend {
             streams: Mutex::new(Vec::new()),
             trace: std::env::var_os("INTARSIA_HIP_TRACE").filter(|v| v != "0").map(|_| Mutex::new(Trace::default())),
             capturing: AtomicBool::new(false),
+            staging: Mutex::new(None),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -264,6 +340,15 @@ impl HipBackend {
         if let Some(tr) = &self.trace {
             tr.lock().unwrap().drain(stream);
         }
+    }
+
+    /// Test seam (tests/staging.rs): keep `stream` busy for about `us` microseconds (a 1-thread kernel spinning on the wall
+    /// clock), so copies queued behind it are still pending when the host moves on.
+    pub(crate) fn spin(&self, stream: StreamId, us: u32) -> Result<()> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        // SAFETY: plain launch on a live stream.
+        check("spin", unsafe { ffi::ik_rt_spin(s, us) })
     }
 
     pub(crate) fn ordinal(&self) -> i32 {
@@ -371,6 +456,27 @@ impl Backend for HipBackend {
         self.bind()?;
         let d = Self::ptr(dst, dst_offset, src.len())?;
         let s = self.stream(stream)?;
+        if src.len() <= STAGE_SLOT && self.trace.is_none() && !self.capturing.load(Ordering::Relaxed) && stage_mode().0 {
+            let mut g = self.staging.lock().unwrap();
+            if let Some(st) = g.get_or_insert_with(Staging::new) {
+                let i = st.next;
+                if st.used[i] {
+                    // SAFETY: a live event, recorded after the copy that last read slot i
+                    check("staging wait", unsafe { ffi::ik_rt_event_sync(st.events[i] as *mut c_void) })?;
+                }
+                let slot = st.slot(i);
+                // SAFETY: slot i is STAGE_SLOT bytes of page-locked memory no queued copy reads any more (waited above);
+                // `d` is bounds-checked; the event is recorded on the copy's stream right after it.
+                unsafe {
+                    std::ptr::copy_nonoverlapping(src.as_ptr(), slot, src.len());
+                    check("upload", ffi::ik_rt_memcpy_h2d_pinned(d as *mut c_void, slot as *const c_void, src.len(), s))?;
+                    check("staging event", ffi::ik_rt_event_record(st.events[i] as *mut c_void, s))?;
+                }
+                st.used[i] = true;
+                st.next = (i + 1) % STAGE_SLOTS;
+                return Ok(());
+            }
+        }
         // SAFETY: bounds checked above. Copies from pageable host memory return once the source has
         // been staged, so `src` need not outlive the call.
         let r = check("upload", unsafe { ffi::ik_rt_memcpy_h2d(d as *mut c_void, src.as_ptr() as *const c_void, src.len(), s) });
@@ -385,6 +491,19 @@ impl Backend for HipBackend {
         self.bind()?;
         let p = Self::ptr(src, src_offset, dst.len())?;
         let s = self.stream(stream)?;
+        if dst.len() <= STAGE_SLOT && self.trace.is_none() && !self.capturing.load(Ordering::Relaxed) && stage_mode().1 {
+            let mut g = self.staging.lock().unwrap();
+            if let Some(st) = g.get_or_insert_with(Staging::new) {
+                let slot = st.slot(STAGE_SLOTS); // the download slot, after the upload ring
+                // SAFETY: the download slot is page-locked and only used here, under the lock; the wrapper waits for the
+                // stream before returning, so the bytes are in place when they are read.
+                unsafe {
+                    check("download", ffi::ik_rt_memcpy_d2h_pinned(slot as *mut c_void, p as *const c_void, dst.len(), s))?;
+                    std::ptr::copy_nonoverlapping(slot as *const u8, dst.as_mut_ptr(), dst.len());
+                }
+                return Ok(());
+            }
+        }
         // SAFETY: bounds checked; the wrapper synchronises the stream before returning.
         let r = check("download", unsafe {
             ffi::ik_rt_memcpy_d2h(dst.as_mut_ptr() as *mut c_void, p as *const c_void, dst.len(), s)

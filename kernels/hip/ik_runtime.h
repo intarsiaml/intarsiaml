@@ -35,6 +35,16 @@ int ik_rt_malloc(void** p, size_t bytes);
 int ik_rt_free(void* p);
 int ik_rt_memcpy_h2d(void* dst, const void* src, size_t n, void* stream); /* returns once `src` may be reused */
 int ik_rt_memcpy_d2h(void* dst, const void* src, size_t n, void* stream); /* blocks until done */
+/* round 9 pinned staging (device.rs `Staging`): `src` / `dst` are page-locked host memory. h2d returns at once (the caller
+ * keeps `src` unchanged until an event recorded after the copy completed); d2h waits for the stream. */
+int ik_rt_memcpy_h2d_pinned(void* dst, const void* src, size_t n, void* stream);
+int ik_rt_memcpy_d2h_pinned(void* dst, const void* src, size_t n, void* stream);
+int ik_rt_host_alloc(void** p, size_t bytes);
+int ik_rt_host_free(void* p);
+int ik_rt_event_create_sync(void** ev); /* an event without timing, for waiting on */
+int ik_rt_event_sync(void* ev);
+/* test seam (tests/staging.rs): a 1-thread kernel that spins on the wall clock for `us` microseconds */
+int ik_rt_spin(void* stream, unsigned us);
 int ik_rt_memcpy_d2d(void* dst, const void* src, size_t n, void* stream);
 int ik_rt_memset(void* dst, int value, size_t n, void* stream);
 int ik_rt_stream_create(void** stream);

@@ -54,6 +54,20 @@ pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
     Ok(Arc::new(device::HipBackend::new(ordinal)?))
 }
 
+/// Test seam (tests/staging.rs, round 9): open HIP device `ordinal`, plus a function that keeps the backend's stream 0 busy
+/// for about the given number of microseconds (a 1-thread kernel spinning on the wall clock).
+#[cfg(ik_hip)]
+#[doc(hidden)]
+#[allow(clippy::type_complexity)]
+pub fn create_with_spin(
+    ordinal: usize,
+) -> intarsia_core::Result<(Arc<dyn Backend>, Box<dyn Fn(u32) -> intarsia_core::Result<()>>)> {
+    disable::check_env()?;
+    let b = Arc::new(device::HipBackend::new(ordinal)?);
+    let b2 = b.clone();
+    Ok((b, Box::new(move |us| b2.spin(0, us))))
+}
+
 /// Open HIP device `ordinal` (stub: this build has no ROCm toolchain).
 #[cfg(not(ik_hip))]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {

@@ -469,6 +469,25 @@ MUTATIONS.update({
     "r8-cb-ml": ("kernels/hip/attention_splitkv.hip", [("            v[u] = ml[s];", "            v[u] = ml[s0];")]),
 })
 
+# Round 9 (docs/results/2026-10-19-hip-round9.md): page-locked staging of small copies (device.rs `Staging`)
+DEV = "crates/intarsia-backend-hip/src/device.rs"
+MUTATIONS.update({
+    # a ring slot is rewritten without waiting for the copy that last read it
+    "r9-st-nowait": (DEV, [("                if st.used[i] {\n                    // SAFETY: a live event, recorded after the copy",
+                            "                if false && st.used[i] {\n                    // SAFETY: a live event, recorded after the copy")]),
+    # the copy is queued straight from the caller's (pageable) bytes, not from the slot
+    "r9-st-pageable": (DEV, [("ffi::ik_rt_memcpy_h2d_pinned(d as *mut c_void, slot as *const c_void, src.len(), s)",
+                              "ffi::ik_rt_memcpy_h2d_pinned(d as *mut c_void, src.as_ptr() as *const c_void, src.len(), s)")]),
+    # the ring never advances: every upload reuses slot 0 (and so waits for the previous one's copy)
+    "r9-st-noadvance": (DEV, [("st.next = (i + 1) % STAGE_SLOTS;", "st.next = i;")]),
+    # the event that guards a slot is not recorded (the wait returns at once)
+    "r9-st-noevent": (DEV, [("                    check(\"staging event\", ffi::ik_rt_event_record(st.events[i] as *mut c_void, s))?;\n", "")]),
+    # the download is read out of the slot before the copy into it (the wrapper's wait) ran
+    "r9-st-dlorder": (DEV, [("                    check(\"download\", ffi::ik_rt_memcpy_d2h_pinned(slot as *mut c_void, p as *const c_void, dst.len(), s))?;\n"
+                             "                    std::ptr::copy_nonoverlapping(slot as *const u8, dst.as_mut_ptr(), dst.len());",
+                             "                    std::ptr::copy_nonoverlapping(slot as *const u8, dst.as_mut_ptr(), dst.len());\n"
+                             "                    check(\"download\", ffi::ik_rt_memcpy_d2h_pinned(slot as *mut c_void, p as *const c_void, dst.len(), s))?;")]),
+})
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
@@ -492,6 +511,7 @@ TESTS.update({n: "round6_selection" for n in ("r7-def64", "r7-def32", "r7-def64d
 TESTS.update({n: "moe_pairs" for n in ("r8-y0", "r8-y0r5", "r8-y0v", "r8-lastpiece", "r8-ytile", "r8-rd-col", "r8-rd-round", "r8-rd-lastk")})
 TESTS.update({n: "gdn_v2" for n in ("r8-gdn-out", "r8-gdn-in", "r8-gdn-gate", "r8-gdn-len")})
 TESTS.update({n: "splitkv_r8" for n in ("r8-cb-skip", "r8-cb-ml")})
+TESTS.update({n: "staging" for n in ("r9-st-nowait", "r9-st-pageable", "r9-st-noadvance", "r9-st-noevent", "r9-st-dlorder")})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target

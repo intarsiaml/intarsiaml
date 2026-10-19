@@ -94,6 +94,14 @@ extern "C" {
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
     /// INTARSIA_HIP_STAMP diagnostics (ik_runtime.h): write the wall-clock stamps to the file; no-op when unset
     pub fn ik_rt_stamp_dump() -> c_int;
+    /// round 9 pinned staging (device.rs `Staging`)
+    pub fn ik_rt_memcpy_h2d_pinned(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
+    pub fn ik_rt_memcpy_d2h_pinned(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
+    pub fn ik_rt_host_alloc(p: *mut *mut c_void, bytes: usize) -> c_int;
+    pub fn ik_rt_host_free(p: *mut c_void) -> c_int;
+    pub fn ik_rt_event_create_sync(ev: *mut S) -> c_int;
+    pub fn ik_rt_event_sync(ev: S) -> c_int;
+    pub fn ik_rt_spin(stream: S, us: u32) -> c_int;
 
     // ---- launchers (kernels/abi/ik_abi.h) ----
     pub fn ik_embedding_bf16(ids: T, table: T, out: TM, s: S) -> c_int;
