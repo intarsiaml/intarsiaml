@@ -64,6 +64,20 @@ pub fn fp8_f8_from(v: Option<&str>) -> bool {
     v != Some("0")
 }
 
+/// `moe_experts_bf16_v3` (one-launch decode experts, bitwise v2) is OPT-IN: selected only with INTARSIA_HIP_MOE_V3=1. Its down
+/// blocks spin on a counter the gate_up blocks release; the mutant that drops the acquire fence before the h reads
+/// (`v3-nofence`) is not killed by any test yet, and the gain is +0.8 % decode, so the default stays v2 until a test kills it
+/// (docs/results/2026-10-19-hip-round5.md).
+pub fn moe_v3_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| moe_v3_from(std::env::var("INTARSIA_HIP_MOE_V3").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_MOE_V3 -> v3 selected: only exactly "1".
+pub fn moe_v3_from(v: Option<&str>) -> bool {
+    v == Some("1")
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     TABLE
@@ -155,7 +169,9 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
-                // v3 (round 5): v2 with the decode path in one launch, bitwise v2 (tests/moe_v3.rs); same shapes, above v2
+                // v3 (round 5): v2 with the decode path in one launch, bitwise v2 (tests/moe_v3.rs); same shapes. OPT-IN
+                // (INTARSIA_HIP_MOE_V3=1, see `moe_v3_enabled`): above v2 when on, below v1 otherwise (registered either way,
+                // so admission sweeps it and the tests can call it by name)
                 "moe_experts_bf16" | "moe_experts_bf16_v2" | "moe_experts_bf16_v3" => k
                     .acts(bf)
                     .weights([DType::U8])
@@ -166,7 +182,13 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .scratch(moe_experts_scratch)
                     .priority(match *name {
-                        "moe_experts_bf16_v3" => 20,
+                        "moe_experts_bf16_v3" => {
+                            if moe_v3_enabled() {
+                                20
+                            } else {
+                                -10
+                            }
+                        }
                         "moe_experts_bf16_v2" => 10,
                         _ => 0,
                     }),
@@ -297,15 +319,33 @@ mod tests {
         }
     }
 
-    /// Pins the MoE experts selection (round 5): `moe_experts_bf16_v3` for every shape the 35B draws, decode (T = 1, 2) and
-    /// prefill chunks alike (v3 is v2 off the decode path), with the same shapes and the same scratch as v2, so the plan's
-    /// workspace does not change; v2 and v1 stay registered (the bitwise references of tests/moe_v3.rs and decode_v2.rs).
+    /// v3 is opt-in: only INTARSIA_HIP_MOE_V3=1 selects it.
+    #[test]
+    fn moe_v3_is_opt_in() {
+        assert!(!moe_v3_from(None));
+        assert!(!moe_v3_from(Some("0")));
+        assert!(!moe_v3_from(Some("")));
+        assert!(!moe_v3_from(Some("true")));
+        assert!(moe_v3_from(Some("1")));
+        assert_eq!(moe_v3_enabled(), std::env::var("INTARSIA_HIP_MOE_V3").as_deref() == Ok("1"));
+    }
+
+    /// Pins the MoE experts selection (round 5): `moe_experts_bf16_v2` for every shape the 35B draws, decode (T = 1, 2) and
+    /// prefill chunks alike, by default; `moe_experts_bf16_v3` instead only with INTARSIA_HIP_MOE_V3=1. v3 takes the same
+    /// shapes and the same scratch as v2, so the plan's workspace does not change either way; v1 and v3 stay registered.
     #[test]
     fn moe_experts_selection_is_pinned() {
         let ks = all();
         let get = |n: &str| ks.iter().find(|k| k.name == n).unwrap();
         let (v1, v2, v3) = (get("moe_experts_bf16"), get("moe_experts_bf16_v2"), get("moe_experts_bf16_v3"));
-        assert!(v3.priority > v2.priority && v2.priority > v1.priority);
+        assert!(v2.priority > v1.priority);
+        let want = if moe_v3_enabled() {
+            assert!(v3.priority > v2.priority, "INTARSIA_HIP_MOE_V3=1 puts v3 above v2");
+            "moe_experts_bf16_v3"
+        } else {
+            assert!(v3.priority < v1.priority, "v3 is opt-in: below v1 and v2 by default");
+            "moe_experts_bf16_v2"
+        };
         for t in [1usize, 2, 3, 5, 16, 312, 4096] {
             let m = ShapeInfo { m: t, n: 512, k: 2048, experts: 256, top_k: 8, act: Some(DType::Bf16), ..Default::default() };
             let mut best: Option<&KernelImpl> = None;
@@ -314,7 +354,7 @@ mod tests {
                     best = Some(k);
                 }
             }
-            assert_eq!(best.unwrap().name, "moe_experts_bf16_v3", "T = {t}");
+            assert_eq!(best.unwrap().name, want, "T = {t}");
             assert_eq!(v3.scratch_bytes(&m), v2.scratch_bytes(&m), "T = {t}");
         }
         for s in [

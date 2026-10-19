@@ -219,6 +219,10 @@ MUTATIONS = {
     # the kill switch is ignored ("0" keeps f8)
     "f8-nokill": ("crates/intarsia-backend-hip/src/quantmoe.rs", [('    v != Some("0")\n', '    v != Some("off")\n')]),
     # f8 registered below v2 (v2 would stay the GEMM although f8 is "on")
+    # v3 selected by default again (the opt-in ignored)
+    "v3-default": ("crates/intarsia-backend-hip/src/quantmoe.rs", [('    v == Some("1")\n', '    v != Some("0")\n')]),
+    # v3 registered above v2 whatever the knob says
+    "v3-prio": ("crates/intarsia-backend-hip/src/quantmoe.rs", [("                                -10\n", "                                30\n")]),
     "f8-prio": ("crates/intarsia-backend-hip/src/quantmoe.rs", [(".priority(if fp8_f8_enabled() { 5 } else { -10 })", ".priority(if fp8_f8_enabled() { 0 } else { -10 })")]),
     # --- round 5: moe experts v3 (one-launch decode; tests/moe_v3.rs) ---
     # the arrive counter is not reset: the next launch's down blocks pass the wait at once and read the previous h
@@ -253,7 +257,7 @@ TESTS["moe-z-step"] = "quantmoe"
 TESTS.update({n: "fp8_mma_v2" for n in ("v2-wsel", "v2-perm", "v2-whi", "v2-xstride", "v2-quant-half", "v2-noquant", "v2-nodecode")})
 TESTS.update({n: "moe_pairs" for n in ("pairs-sred", "pairs-xrow", "pairs-out")})
 TESTS.update({n: "qk_rope_kv" for n in ("qkr-sum", "qkr-woff", "qkr-angle", "qkr-sign", "qkr-hifma", "qkr-tail", "qkr-v", "qkr-kpos", "qkr-fp8", "qkr-head")})
-TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio")})
+TESTS.update({n: "lib" for n in ("f8-optin", "f8-nokill", "f8-prio", "v3-default", "v3-prio")})
 TESTS.update({n: "flash_v2" for n in ("fl2-head", "fl2-kvh", "fl2-row", "fl2-stride")})
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
