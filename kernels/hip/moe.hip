@@ -22,11 +22,12 @@
 // Scratch layout (must match intarsia_core::quant::ops::moe_experts_scratch, regions rounded to 256 bytes):
 //   pairs int[T*K] | offsets int[E+1] | active int[E+1] (last = count) | h bf16[T*K, I] | y bf16[T*K, H]
 #include "ik_quant.h"
-#include "moe_wmma.h"
+#include "moe_wmma_r7.h"  // includes moe_wmma.h
 #include <algorithm>
 #include <math.h>
 #include <mutex>
 #include <stdlib.h>
+#include <string.h>
 #include <utility>
 #include <vector>
 
@@ -72,32 +73,45 @@ int moe_pairs(int64_t avg) {
     return avg >= kMwPairsAuto ? 64 : 32;
 }
 
-// INTARSIA_HIP_MOE_MW = 0 | 1 | 4 | 5: variant bits of the grouped projections (moe_wmma.h moe_wmma_kernel_v: 1 skip empty
-// fragments, 4 occupancy; 0 = the round-5 moe_wmma_kernel); every value gives the same bits (tests/moe_pairs.rs). Unset or
-// any other value: kMwDefault64 for the 64-pair tile, kMwDefault32 for the 32-pair one (docs/results/2026-10-19-hip-round6.md).
-// Read at every launch (the bitwise test switches it in one process); part of the backend fingerprint (kernels.rs).
-constexpr int kMwDefault64 = kMwSkip | kMwOcc, kMwDefault32 = 0;
-int moe_mw_variant(int pairs) {
-    const int def = pairs == 64 ? kMwDefault64 : kMwDefault32;
+// INTARSIA_HIP_MOE_MW = v | g:d: variant bits of the grouped projections, v for both of them, or g for gate_up and d for down.
+// Each is one of 0 (the round-5 moe_wmma_kernel), 1 | 4 | 5 (moe_wmma.h moe_wmma_kernel_v: 1 skip empty fragments, 4 occupancy)
+// or an IK_MW_R7 value (moe_wmma_r7.h moe_wmma_kernel_r7, round 7: 8 fp4 decode by the fp8 conversion instead of the LDS table,
+// 16 two A fragments per wave in down, 32 six weight blocks in flight); every value gives the same bits (tests/moe_pairs.rs). Unset, empty or any other value: the tile's default for that projection, kMwDefault*
+// (docs/results/2026-10-19-hip-round6.md, -round7.md). Read at every launch (the bitwise test switches it in one process); part of
+// the backend fingerprint (kernels.rs).
+#define IK_MW_R7(X) X(13) X(25) X(29) X(41) X(45)
+constexpr int kMwDefault64 = kMwCvt | kMwSkip | kMwOcc | kMwDeep, kMwDefault64Dn = kMwCvt | kMwSkip | kMwTwo;
+constexpr int kMwDefault32 = 0, kMwDefault32Dn = kMwCvt | kMwSkip | kMwDeep;
+constexpr bool mw_accepted(int v) {
+#define IK_MW_IS(n) || v == n
+    return v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc) IK_MW_R7(IK_MW_IS);
+#undef IK_MW_IS
+}
+int moe_mw_variant(int pairs, bool down) {
+    const int def = pairs == 64 ? (down ? kMwDefault64Dn : kMwDefault64) : (down ? kMwDefault32Dn : kMwDefault32);
     const char* e = getenv("INTARSIA_HIP_MOE_MW");
-    const int v = e && e[0] ? atoi(e) : def;
-    return (v == 0 || v == kMwSkip || v == kMwOcc || v == (kMwSkip | kMwOcc)) ? v : def;
+    if (!e || !e[0]) return def;
+    const char* colon = strchr(e, ':');
+    const char* f = down && colon ? colon + 1 : e;  // gate_up: the part before ':' (atoi stops there)
+    if (!f[0] || f[0] == ':') return def;
+    const int v = atoi(f);
+    return mw_accepted(v) ? v : def;
 }
 
-template <int PAIRS, int V>
-void moe_wmma_launch_v(int64_t H, int64_t I, unsigned slots, unsigned zt, int64_t E, int64_t K, const ik_bf16* x,
-                       const uint8_t* guw, const uint8_t* gus, const uint8_t* dw, const uint8_t* ds, const float* gsc,
-                       const int* pairs, const int* offsets, const int* active, ik_bf16* hbuf, ik_bf16* ybuf, hipStream_t s) {
-    const dim3 gu(slots, (unsigned)((I + kMwFeatGateUp - 1) / kMwFeatGateUp), zt), dn(slots, (unsigned)((H + kMwFeatDown - 1) / kMwFeatDown), zt);
-    if constexpr (V == 0) {  // the round-5 kernel, unchanged
-        moe_wmma_kernel<true, PAIRS><<<gu, kMwThreads, 0, s>>>(x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
-        if (ik_launch_status() != IK_OK) return;
-        moe_wmma_kernel<false, PAIRS><<<dn, kMwThreads, 0, s>>>(hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
-    } else {
-        moe_wmma_kernel_v<true, PAIRS, V><<<gu, kMwThreads, 0, s>>>(x, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K);
-        if (ik_launch_status() != IK_OK) return;
-        moe_wmma_kernel_v<false, PAIRS, V><<<dn, kMwThreads, 0, s>>>(hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, (int)E, (int)I, (int)H, (int)K);
-    }
+// one projection: the round-5 kernel (V = 0), moe_wmma_kernel_v (round 6) or moe_wmma_kernel_r7 (round 7; kMwTwo doubles
+// down's features per block)
+template <bool GATEUP, int PAIRS, int V>
+void moe_wmma_launch_p(int64_t N, unsigned slots, unsigned zt, const ik_bf16* src, const uint8_t* w, const uint8_t* ws,
+                       const float* gsc, const int* pairs, const int* offsets, const int* active, ik_bf16* dst, int64_t E,
+                       int64_t Kd, int64_t K, hipStream_t s) {
+    constexpr int feat = (V & (kMwCvt | kMwTwo)) ? mw_r7_feat(GATEUP, V) : (GATEUP ? kMwFeatGateUp : kMwFeatDown);
+    const dim3 g(slots, (unsigned)((N + feat - 1) / feat), zt);
+    if constexpr (V == 0)
+        moe_wmma_kernel<GATEUP, PAIRS><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K);
+    else if constexpr ((V & (kMwCvt | kMwTwo)) == 0)
+        moe_wmma_kernel_v<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K);
+    else
+        moe_wmma_kernel_r7<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K);
 }
 
 template <int PAIRS>
@@ -110,15 +124,26 @@ void moe_wmma_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int6
         const unsigned cap = (unsigned)std::max<int64_t>(1, ((int64_t)moe_zmul() * avg + PAIRS - 1) / PAIRS);
         if (cap < zt) zt = cap;
     }
-#define IK_MW_V(V) \
-    moe_wmma_launch_v<PAIRS, V>(H, I, slots, zt, E, K, x, guw, gus, dw, ds, gsc, pairs, offsets, active, hbuf, ybuf, s)
-    switch (moe_mw_variant(PAIRS)) {
-        case kMwSkip: IK_MW_V(kMwSkip); break;
-        case kMwOcc: IK_MW_V(kMwOcc); break;
-        case kMwSkip | kMwOcc: IK_MW_V(kMwSkip | kMwOcc); break;
-        default: IK_MW_V(0); break;
+#define IK_MW_SWITCH(SEL, CALL)                       \
+    switch (SEL) {                                    \
+        case kMwSkip: CALL(kMwSkip); break;           \
+        case kMwOcc: CALL(kMwOcc); break;             \
+        case kMwSkip | kMwOcc: CALL(kMwSkip | kMwOcc); break; \
+        IK_MW_R7(IK_MW_CASE_##CALL)                   \
+        default: CALL(0); break;                      \
     }
-#undef IK_MW_V
+#define IK_MW_GU(V) moe_wmma_launch_p<true, PAIRS, V>(I, slots, zt, x, guw, gus, gsc, pairs, offsets, active, hbuf, E, H, K, s)
+#define IK_MW_DN(V) moe_wmma_launch_p<false, PAIRS, V>(H, slots, zt, hbuf, dw, ds, gsc, pairs, offsets, active, ybuf, E, I, K, s)
+#define IK_MW_CASE_IK_MW_GU(n) case n: IK_MW_GU(n); break;
+#define IK_MW_CASE_IK_MW_DN(n) case n: IK_MW_DN(n); break;
+    IK_MW_SWITCH(moe_mw_variant(PAIRS, false), IK_MW_GU)
+    if (ik_launch_status() != IK_OK) return;
+    IK_MW_SWITCH(moe_mw_variant(PAIRS, true), IK_MW_DN)
+#undef IK_MW_CASE_IK_MW_DN
+#undef IK_MW_CASE_IK_MW_GU
+#undef IK_MW_DN
+#undef IK_MW_GU
+#undef IK_MW_SWITCH
 }
 
 IK_DEVI float round_bf16(float v) { return ik_round_bf16(v); }
@@ -1260,7 +1285,8 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
 
 extern "C" {
 
-int ik_hip_moe_mw(int pairs) { return moe_mw_variant(pairs); }  // ik_hip_abi.h (registry pin)
+int ik_hip_moe_mw(int pairs) { return moe_mw_variant(pairs, false); }  // ik_hip_abi.h (registry pin): gate_up
+int ik_hip_moe_mw_down(int pairs) { return moe_mw_variant(pairs, true); }
 
 int ik_moe_topk_bf16(const ik_tensor* logits, int top_k, int norm, ik_tensor* weights, ik_tensor* ids, void* stream) {
     return moe_topk_impl(logits, top_k, norm, weights, ids, stream, false);

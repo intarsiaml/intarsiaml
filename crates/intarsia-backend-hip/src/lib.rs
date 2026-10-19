@@ -38,6 +38,15 @@ pub fn inner_variants() -> (i32, i32, i32) {
     unsafe { (ffi::ik_hip_flash_hpb(), ffi::ik_hip_moe_mw(64), ffi::ik_hip_moe_mw(32)) }
 }
 
+/// The MoE down projection's variant bits (at 64 pairs, at 32), as the kernel library resolves them in this process (round 7
+/// selects gate_up and down separately; `inner_variants` has gate_up). docs/results/2026-10-19-hip-round7.md; pinned by
+/// tests/round6_selection.rs.
+#[cfg(ik_hip)]
+pub fn moe_down_variants() -> (i32, i32) {
+    // SAFETY: plain host functions of the kernel library without arguments that point anywhere
+    unsafe { (ffi::ik_hip_moe_mw_down(64), ffi::ik_hip_moe_mw_down(32)) }
+}
+
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {

@@ -1,0 +1,66 @@
+# k-loop instructions per WMMA: innermost loop around the basic block with the most WMMAs (VOPD counts once).
+# ROCm CPU-slot isa.sh dumps (scripts/hip-decode/isa.sh moe); base = origin/main f3cbba21, branch = perf/hip-round7 rebased
+## base (round 6 defaults: 5 at 64 pairs, the round-5 kernel at 32)
+_Z17moe_wmma_kernel_vILb1ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS8_ loop .LBB20_242...LBB20_279 (18 blocks): wmma 48 valu 453 lds_rd 144 lds_wr 6 gload 12 delay 22 wait 37 barrier 6 | per wmma: valu 9.44 lds_rd 3.00 gload 0.250
+_Z17moe_wmma_kernel_vILb0ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS8_ loop .LBB21_242...LBB21_279 (18 blocks): wmma 48 valu 453 lds_rd 144 lds_wr 6 gload 12 delay 23 wait 36 barrier 6 | per wmma: valu 9.44 lds_rd 3.00 gload 0.250
+_Z15moe_wmma_kernelILb1ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0 loop .LBB30_31...LBB30_67 (18 blocks): wmma 24 valu 490 lds_rd 120 lds_wr 3 gload 9 delay 24 wait 26 barrier 6 | per wmma: valu 20.42 lds_rd 5.00 gload 0.375
+_Z15moe_wmma_kernelILb0ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0 loop .LBB31_31...LBB31_67 (18 blocks): wmma 24 valu 490 lds_rd 120 lds_wr 3 gload 9 delay 23 wait 25 barrier 6 | per wmma: valu 20.42 lds_rd 5.00 gload 0.375
+## branch (defaults: gate_up 45 / down 25 at 64 pairs, gate_up round-5 kernel / down 41 at 32)
+_Z18moe_wmma_kernel_r7ILb1ELi64ELi45EEvPK7ik_bf16PKhS4_PKfPKiS loop .LBB23_403...LBB23_479 (36 blocks): wmma 96 valu 772 lds_rd 96 lds_wr 12 gload 24 delay 93 wait 62 barrier 12 | per wmma: valu 8.04 lds_rd 1.00 gload 0.250
+_Z18moe_wmma_kernel_r7ILb0ELi64ELi25EEvPK7ik_bf16PKhS4_PKfPKiS loop .LBB29_284...LBB29_327 (21 blocks): wmma 96 valu 780 lds_rd 48 lds_wr 6 gload 18 delay 54 wait 77 barrier 6 | per wmma: valu 8.12 lds_rd 0.50 gload 0.188
+_Z15moe_wmma_kernelILb1ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_PS0 loop .LBB42_31...LBB42_67 (18 blocks): wmma 24 valu 490 lds_rd 120 lds_wr 3 gload 9 delay 24 wait 26 barrier 6 | per wmma: valu 20.42 lds_rd 5.00 gload 0.375
+_Z18moe_wmma_kernel_r7ILb0ELi32ELi41EEvPK7ik_bf16PKhS4_PKfPKiS loop .LBB49_243...LBB49_307 (30 blocks): wmma 48 valu 726 lds_rd 48 lds_wr 6 gload 18 delay 90 wait 35 barrier 12 | per wmma: valu 15.12 lds_rd 1.00 gload 0.375
+## resources, base
+_Z17moe_wmma_kernel_vILb1ELi64ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  186 scratch    0 lds  34880 occ 6
+_Z17moe_wmma_kernel_vILb0ELi64ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  185 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb1ELi64ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  185 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb0ELi64ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  184 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb1ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  186 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb0ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  185 scratch    0 lds  18496 occ 8
+_Z15moe_wmma_kernelILb1ELi64EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  235 scratch    0 lds  34880 occ 6
+_Z15moe_wmma_kernelILb0ELi64EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  234 scratch    0 lds  18496 occ 6
+_Z17moe_wmma_kernel_vILb1ELi32ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  133 scratch    0 lds  17472 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  132 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb1ELi32ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  132 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  131 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb1ELi32ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  133 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  132 scratch    0 lds   9280 occ 10
+_Z15moe_wmma_kernelILb1ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  161 scratch    0 lds  17472 occ 9
+_Z15moe_wmma_kernelILb0ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  160 scratch    0 lds   9280 occ 9
+## resources, branch
+_Z17moe_wmma_kernel_vILb1ELi64ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  186 scratch    0 lds  34880 occ 6
+_Z17moe_wmma_kernel_vILb1ELi64ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  185 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb1ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  186 scratch    0 lds  18496 occ 8
+_Z18moe_wmma_kernel_r7ILb1ELi64ELi13EEvPK7ik_bf16PKhS4_PKfPK vgpr  178 scratch    0 lds  18432 occ 8
+_Z18moe_wmma_kernel_r7ILb1ELi64ELi25EEvPK7ik_bf16PKhS4_PKfPK vgpr  178 scratch    0 lds  34816 occ 6
+_Z18moe_wmma_kernel_r7ILb1ELi64ELi29EEvPK7ik_bf16PKhS4_PKfPK vgpr  178 scratch    0 lds  18432 occ 8
+_Z18moe_wmma_kernel_r7ILb1ELi64ELi41EEvPK7ik_bf16PKhS4_PKfPK vgpr  191 scratch    0 lds  34816 occ 6
+_Z18moe_wmma_kernel_r7ILb1ELi64ELi45EEvPK7ik_bf16PKhS4_PKfPK vgpr  192 scratch    0 lds  18432 occ 8
+_Z15moe_wmma_kernelILb1ELi64EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  235 scratch    0 lds  34880 occ 6
+_Z17moe_wmma_kernel_vILb0ELi64ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  185 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb0ELi64ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  184 scratch    0 lds  18496 occ 8
+_Z17moe_wmma_kernel_vILb0ELi64ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  185 scratch    0 lds  18496 occ 8
+_Z18moe_wmma_kernel_r7ILb0ELi64ELi13EEvPK7ik_bf16PKhS4_PKfPK vgpr  177 scratch    0 lds  18432 occ 8
+_Z18moe_wmma_kernel_r7ILb0ELi64ELi25EEvPK7ik_bf16PKhS4_PKfPK vgpr  235 scratch    0 lds  18432 occ 6
+_Z18moe_wmma_kernel_r7ILb0ELi64ELi29EEvPK7ik_bf16PKhS4_PKfPK vgpr  235 scratch    0 lds  18432 occ 6
+_Z18moe_wmma_kernel_r7ILb0ELi64ELi41EEvPK7ik_bf16PKhS4_PKfPK vgpr  191 scratch    0 lds  18432 occ 8
+_Z18moe_wmma_kernel_r7ILb0ELi64ELi45EEvPK7ik_bf16PKhS4_PKfPK vgpr  191 scratch    0 lds  18432 occ 8
+_Z15moe_wmma_kernelILb0ELi64EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  234 scratch    0 lds  18496 occ 6
+_Z17moe_wmma_kernel_vILb1ELi32ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  133 scratch    0 lds  17472 occ 10
+_Z17moe_wmma_kernel_vILb1ELi32ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  132 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb1ELi32ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  133 scratch    0 lds   9280 occ 10
+_Z18moe_wmma_kernel_r7ILb1ELi32ELi13EEvPK7ik_bf16PKhS4_PKfPK vgpr  113 scratch    0 lds   9216 occ 12
+_Z18moe_wmma_kernel_r7ILb1ELi32ELi25EEvPK7ik_bf16PKhS4_PKfPK vgpr  113 scratch    0 lds  17408 occ 12
+_Z18moe_wmma_kernel_r7ILb1ELi32ELi29EEvPK7ik_bf16PKhS4_PKfPK vgpr  113 scratch    0 lds   9216 occ 12
+_Z18moe_wmma_kernel_r7ILb1ELi32ELi41EEvPK7ik_bf16PKhS4_PKfPK vgpr  124 scratch    0 lds  17408 occ 10
+_Z18moe_wmma_kernel_r7ILb1ELi32ELi45EEvPK7ik_bf16PKhS4_PKfPK vgpr  126 scratch    0 lds   9216 occ 10
+_Z15moe_wmma_kernelILb1ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  161 scratch    0 lds  17472 occ 9
+_Z17moe_wmma_kernel_vILb0ELi32ELi1EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  132 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi4EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  131 scratch    0 lds   9280 occ 10
+_Z17moe_wmma_kernel_vILb0ELi32ELi5EEvPK7ik_bf16PKhS4_PKfPKiS vgpr  132 scratch    0 lds   9280 occ 10
+_Z18moe_wmma_kernel_r7ILb0ELi32ELi13EEvPK7ik_bf16PKhS4_PKfPK vgpr  112 scratch    0 lds   9216 occ 12
+_Z18moe_wmma_kernel_r7ILb0ELi32ELi25EEvPK7ik_bf16PKhS4_PKfPK vgpr  158 scratch    0 lds   9216 occ 9
+_Z18moe_wmma_kernel_r7ILb0ELi32ELi29EEvPK7ik_bf16PKhS4_PKfPK vgpr  158 scratch    0 lds   9216 occ 9
+_Z18moe_wmma_kernel_r7ILb0ELi32ELi41EEvPK7ik_bf16PKhS4_PKfPK vgpr  123 scratch    0 lds   9216 occ 10
+_Z18moe_wmma_kernel_r7ILb0ELi32ELi45EEvPK7ik_bf16PKhS4_PKfPK vgpr  125 scratch    0 lds   9216 occ 10
+_Z15moe_wmma_kernelILb0ELi32EEvPK7ik_bf16PKhS4_PKfPKiS8_S8_P vgpr  160 scratch    0 lds   9280 occ 9

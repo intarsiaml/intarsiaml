@@ -307,6 +307,39 @@ MUTATIONS = {
                     .acts(bf)
                     .weights([DType::U8])
                     .when(|s| (1..=9).contains(&s.m)""")]),
+    # --- round 7 (docs/results/2026-10-19-hip-round7.md): moe_wmma_r7.h (kMwCvt fp8-conversion fp4 decode, kMwTwo two A
+    # fragments per wave in down, kMwDeep six weight blocks in flight) and the per-projection selection in moe.hip. The round-6
+    # entries mw-def64 / mw-def32 / mw-tile / mw-range mutate lines round 7 replaced; r7-def* / r7-tile / r7-range cover them.
+    # even elements' magnitude one bit off / odd elements' magnitude one bit off
+    "r7-even": ("kernels/hip/moe_wmma_r7.h", [("ev = ((c << 2) & 0x1C1C1C1Cu)", "ev = ((c << 1) & 0x1C1C1C1Cu)")]),
+    "r7-odd": ("kernels/hip/moe_wmma_r7.h", [("od = ((c >> 2) & 0x1C1C1C1Cu)", "od = ((c >> 3) & 0x1C1C1C1Cu)")]),
+    # even elements lose their sign / odd elements lose their sign
+    "r7-esign": ("kernels/hip/moe_wmma_r7.h", [(" | ((c << 4) & 0x80808080u);", ";")]),
+    "r7-osign": ("kernels/hip/moe_wmma_r7.h", [(" | (c & 0x80808080u);", ";")]),
+    # the 2^6 fold of the block scale off by one binade
+    "r7-x64": ("kernels/hip/moe_wmma_r7.h", [("ik_fp4x8_scaled_bf16_cvt(cw[s], sc * 64.f)", "ik_fp4x8_scaled_bf16_cvt(cw[s], sc * 32.f)")]),
+    # elements 4/6 converted from the low half of the even word (elements 0/2 again)
+    "r7-hiword": ("kernels/hip/moe_wmma_r7.h", [("e46 = __builtin_amdgcn_cvt_pk_f32_fp8((int)ev, true)", "e46 = __builtin_amdgcn_cvt_pk_f32_fp8((int)ev, false)")]),
+    # the even and odd element of the first pair swapped
+    "r7-swap": ("kernels/hip/moe_wmma_r7.h", [("r.x = __builtin_amdgcn_perm(__float_as_uint(o13[0] * sc64), __float_as_uint(e02[0] * sc64), 0x07060302u);", "r.x = __builtin_amdgcn_perm(__float_as_uint(e02[0] * sc64), __float_as_uint(o13[0] * sc64), 0x07060302u);")]),
+    # kMwDeep: the ring refills a slot from one block too far (blocks RING+1.. instead of RING..)
+    "r7-deep": ("kernels/hip/moe_wmma_r7.h", [("for (int f = 0; f < RF; ++f) W[i][f] = loadW(f, kb + RING);", "for (int f = 0; f < RF; ++f) W[i][f] = loadW(f, kb + RING + (RING > 3));")]),
+    # two-fragment down: the second fragment computes the first one's rows (rows 16..31 of each wave never written)
+    "r7-dnrow": ("kernels/hip/moe_wmma_r7.h", [("else return n0 + (wave * RF + f) * 16;", "else return n0 + wave * RF * 16;")]),
+    # round-7 projections launched over half the feature tiles
+    "r7-grid": ("kernels/hip/moe.hip", [("constexpr int feat = (V & (kMwCvt | kMwTwo)) ? mw_r7_feat(GATEUP, V)", "constexpr int feat = (V & (kMwCvt | kMwTwo)) ? 2 * mw_r7_feat(GATEUP, V)")]),
+    # kMwSkip in moe_wmma_kernel_r7: a partly filled tail tile computes one fragment too few
+    "r7-jn": ("kernels/hip/moe_wmma_r7.h", [("const int jn = rem >= PAIRS ? J : (rem + 15) >> 4;", "const int jn = rem >= PAIRS ? J : rem >> 4;")]),
+    # kMwOcc aliasing in moe_wmma_kernel_r7: the k loop's last barrier dropped
+    "r7-lastsync": ("kernels/hip/moe_wmma_r7.h", [("                    __syncthreads();\n                }\n            }\n        };", "                    if (!ALIAS || kb + 1 < nkb) __syncthreads();\n                }\n            }\n        };")]),
+    # selection (tests/round6_selection.rs): each default, the tile mapping, the accepted values, the g:d split
+    "r7-def64": ("kernels/hip/moe.hip", [("constexpr int kMwDefault64 = kMwCvt | kMwSkip | kMwOcc | kMwDeep,", "constexpr int kMwDefault64 = kMwCvt | kMwSkip | kMwOcc,")]),
+    "r7-def32": ("kernels/hip/moe.hip", [("constexpr int kMwDefault32 = 0, kMwDefault32Dn", "constexpr int kMwDefault32 = kMwSkip, kMwDefault32Dn")]),
+    "r7-def64dn": ("kernels/hip/moe.hip", [("kMwDefault64Dn = kMwCvt | kMwSkip | kMwTwo;", "kMwDefault64Dn = kMwCvt | kMwSkip;")]),
+    "r7-def32dn": ("kernels/hip/moe.hip", [("kMwDefault32Dn = kMwCvt | kMwSkip | kMwDeep;", "kMwDefault32Dn = 0;")]),
+    "r7-tile": ("kernels/hip/moe.hip", [("const int def = pairs == 64 ? (down ? kMwDefault64Dn : kMwDefault64) : (down ? kMwDefault32Dn : kMwDefault32);", "const int def = pairs == 32 ? (down ? kMwDefault64Dn : kMwDefault64) : (down ? kMwDefault32Dn : kMwDefault32);")]),
+    "r7-range": ("kernels/hip/moe.hip", [("    return mw_accepted(v) ? v : def;", "    return (v >= 0 && v <= 7) ? v : def;")]),
+    "r7-colon": ("kernels/hip/moe.hip", [("const char* f = down && colon ? colon + 1 : e;", "const char* f = e;")]),
 }
 
 # the test target that must fail for each mutation (default decode_v2)
@@ -323,6 +356,8 @@ TESTS.update({n: "round6_selection" for n in ("mw-def64", "mw-def32", "mw-tile",
 TESTS.update({n: "moe_v3" for n in ("v3-noreset", "v3-early", "v3-nowait", "v3-ticket", "v3-hrow", "v3-gurow", "v3-nofence")})
 TESTS.update({n: "fusion_p1" for n in ("p1-n5-sc0", "p1-n5-nowrite", "p1-n5-round", "p1-n5-woff", "p1-n5-stage", "p1-g4-sig", "p1-g4-gate", "p1-dc-logit0", "p1-dc-sground", "p1-dc-soround", "p1-dc-tail", "p1-dc-row")})
 TESTS.update({n: "gdn_v2" for n in ("gdn2-knorm", "gdn2-ring", "gdn2-gate", "gdn2-batch", "gdn2-x16", "gdn2-x1", "gdn2-kreg", "gdn2-dot", "gdn2-v")})
+TESTS.update({n: "moe_pairs" for n in ("r7-even", "r7-odd", "r7-esign", "r7-osign", "r7-x64", "r7-hiword", "r7-swap", "r7-deep", "r7-dnrow", "r7-grid", "r7-jn", "r7-lastsync")})
+TESTS.update({n: "round6_selection" for n in ("r7-def64", "r7-def32", "r7-def64dn", "r7-def32dn", "r7-tile", "r7-range", "r7-colon")})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target

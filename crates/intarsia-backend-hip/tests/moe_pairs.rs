@@ -30,7 +30,8 @@ fn run(hip: &dyn Backend, hc: &HostCall, pairs: &str) -> HostTensor {
     run_mw(hip, hc, pairs, "0")
 }
 
-/// with the projection variant bits INTARSIA_HIP_MOE_MW (moe_wmma.h: skip empty fragments, byte table, occupancy)
+/// with the projection variant bits INTARSIA_HIP_MOE_MW (moe_wmma.h: skip empty fragments, occupancy; moe_wmma_r7.h: fp8-conversion
+/// decode, two A fragments per wave)
 fn run_mw(hip: &dyn Backend, hc: &HostCall, pairs: &str, mw: &str) -> HostTensor {
     std::env::set_var("INTARSIA_HIP_MOE_PAIRS", pairs);
     std::env::set_var("INTARSIA_HIP_MOE_MW", mw);
@@ -48,6 +49,9 @@ fn moe_pair_tile_does_not_change_a_bit() {
         (300, 16, 4, 256, 128),
         (1024, 256, 8, 2048, 512),
         (2048, 256, 8, 2048, 512),
+        // h = 320: the two-fragment down's 256-feature tile runs past the last row; i = 192: three k blocks in down, fewer
+        // than the deep ring's six
+        (300, 16, 4, 320, 192),
     ] {
         cases.push((format!("t={t} e={e} k={k} h={h} i={i}"), experts_case(&mut rng, t, e, k, h, i, DType::Bf16)));
     }
@@ -56,6 +60,26 @@ fn moe_pair_tile_does_not_change_a_bit() {
     let ids: Vec<i32> = (0..1000).flat_map(|_| 0..4i32).collect();
     hot.inputs[1] = HostTensor::from_i32(&[1000, 4], &ids);
     cases.push(("hot experts".into(), hot));
+    // every finite e4m3 block-scale byte (subnormals, zero, negative; random_rows only draws 0x30..0x41), at both projections:
+    // the round-7 fp4 decode (moe_wmma_r7.h kMwCvt) folds 2^6 into the scale, which must stay exact for all of them
+    let mut scl = experts_case(&mut rng, 300, 16, 4, 256, 128, DType::Bf16);
+    // 0..=253 -> every byte but the NaNs 0x7f and 0xff
+    let finite = |j: usize| -> u8 { (j % 254) as u8 + u8::from(j % 254 >= 0x7f) };
+    for idx in [4usize, 6] {
+        for (j, b) in scl.inputs[idx].data.iter_mut().enumerate() {
+            *b = finite(j.wrapping_mul(97) + j / 254);
+        }
+    }
+    cases.push(("all finite scale bytes".into(), scl));
+    // a few NaN scale bytes (0x7f / 0xff) among ordinary ones: NaN outputs, bit for bit too
+    let mut nan = experts_case(&mut rng, 64, 16, 4, 256, 128, DType::Bf16);
+    for idx in [4usize, 6] {
+        let n = nan.inputs[idx].data.len();
+        for j in (0..n).step_by(997) {
+            nan.inputs[idx].data[j] = if j % 2 == 0 { 0x7f } else { 0xff };
+        }
+    }
+    cases.push(("NaN scale bytes".into(), nan));
     let mut differing_from_zero = 0usize;
     for (what, hc) in &cases {
         let a = run(&*hip, hc, "32");
@@ -63,12 +87,24 @@ fn moe_pair_tile_does_not_change_a_bit() {
         let c = run(&*hip, hc, "0");
         assert!(a.data == b.data, "{what}: the 64-pair tile changed the output");
         assert!(a.data == c.data, "{what}: the auto tile changed the output");
-        // every projection variant at both tile sizes (variant 0 at 32 pairs = a, the reference)
-        for mw in [1, 4, 5] {
+        // every projection variant at both tile sizes (variant 0 at 32 pairs = a, the reference): round 6's 1, 4, 5
+        // (moe_wmma.h) and round 7's 13, 25, 29, 41, 45 (moe_wmma_r7.h: 8 fp8-conversion fp4 decode, 16 two A fragments in
+        // down, 32 six weight blocks in flight)
+        for mw in [1, 4, 5, 13, 25, 29, 41, 45] {
             for pairs in ["32", "64"] {
                 let v = run_mw(&*hip, hc, pairs, &mw.to_string());
                 assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw} at {pairs} pairs changed the output");
             }
+        }
+        // the round-7 defaults (no knob) and gate_up / down set apart, at both tiles
+        for (pairs, mw) in [("32", None), ("64", None), ("32", Some("0:25")), ("64", Some("45:0")), ("64", Some("5:41"))] {
+            std::env::set_var("INTARSIA_HIP_MOE_PAIRS", pairs);
+            match mw {
+                Some(m) => std::env::set_var("INTARSIA_HIP_MOE_MW", m),
+                None => std::env::remove_var("INTARSIA_HIP_MOE_MW"),
+            }
+            let v = run_host(&*hip, "moe_experts_bf16_v2", hc).unwrap().remove(0);
+            assert!(a.data == v.data, "{what}: INTARSIA_HIP_MOE_MW={mw:?} at {pairs} pairs changed the output");
         }
         differing_from_zero += a.to_f32().iter().filter(|v| **v != 0.0).count();
     }
