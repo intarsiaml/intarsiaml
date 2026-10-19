@@ -1,0 +1,67 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "pf1-35b-B3",
+  "timestamp_unix": 1792400041,
+  "url": "http://127.0.0.1:8090",
+  "model": "qwen36-35b-intarsia-hip",
+  "config": {
+    "sizes": [
+      3968
+    ],
+    "gen": 16,
+    "reps": 5,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 2.2,
+    "bandwidth_gbs": 627.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 48.0,
+    "tokens_per_filler_sentence": 21.86
+  },
+  "fingerprint": {},
+  "graph": {
+    "available": true,
+    "replays": 80,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 3968,
+      "prompt_tokens": 3961.0,
+      "gen_tokens": 16.0,
+      "ttft_s": 0.4381,
+      "prefill_tok_s": 9028.3,
+      "decode_tok_s": 141.94,
+      "decode_tok_s_reps": [
+        141.96,
+        141.99,
+        141.94,
+        141.79,
+        141.84
+      ],
+      "decode_tok_s_min": 141.79,
+      "decode_tok_s_max": 141.99,
+      "decode_tok_s_stdev": 0.09,
+      "bandwidth_floor_tok_s": 285.0,
+      "pct_of_floor": 49.8,
+      "reps_ok": 5,
+      "errors": 0,
+      "graph": {
+        "available": true,
+        "replays": 80,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

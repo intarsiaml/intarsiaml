@@ -130,6 +130,9 @@ stage_pfbench() {
 stage_chunk35l() { MAXSEQ=17408 SIZES=16384 GEN=16 REPS=2 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pfchunk-35b-16k-${1}" --mem-budget 29 --prefill-chunk "${1}"; }
 # pf35[:tag] / pf8[:tag]: A/B speed, prefill 128/1024/4096/16384 and decode 128 (the serve's own recipe chunk)
 stage_pf35() { export SERVE_ENV=""; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf-35b-${1:-base}" --mem-budget 29; }
+# pf35one[:tag]: one size whose actual prompt stays below the 4096-token prefill chunk (round 7: target 4096 drew 4079..4120
+# tokens, and the runs past 4096 paid a second chunk)
+stage_pf35one() { export SERVE_ENV=""; MAXSEQ=8192 SIZES=3968 GEN=16 serve_bench qwen36-35b-intarsia-hip $M35 2.2 "pf1-35b-${1:-base}" --mem-budget 29; }
 stage_pf8() { export SERVE_ENV=""; [[ "${1:-}" == f8* ]] && export SERVE_ENV="-e INTARSIA_HIP_FP8_F8=1"; MAXSEQ=17408 SIZES=128,1024,4096,16384 serve_bench qwen3-8b-intarsia-hip $M8 16.38 "pf-8b-${1:-base}"; }
 
 gen35() { # gen35 <tag> [extra args]: 256-token greedy decode of the same prompt; writes ids + the summary lines to a file

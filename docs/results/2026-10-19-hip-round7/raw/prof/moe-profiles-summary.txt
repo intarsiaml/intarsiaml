@@ -1,0 +1,33 @@
+### w1
+stage                                                         span    gu64    dn64    gu32    dn32    sum4
+pfprof:r7def                                                 567.8   98.26   52.21   30.42   11.03  191.92
+pfprofenv:mw13:INTARSIA_HIP_MOE_MW=13                        570.9   88.89   50.76   40.63   10.68  190.96
+pfprofenv:mw25:INTARSIA_HIP_MOE_MW=25                        630.1  125.80   45.10   64.50   10.76  246.16
+pfprofenv:mw9:INTARSIA_HIP_MOE_MW=9                          573.6   91.58   50.62   40.42   10.66  193.28
+### w2
+stage                                                         span    gu64    dn64    gu32    dn32    sum4
+pfprof:r7def2                                                563.9   97.01   52.31   30.09   10.93  190.34
+pfprofenv:mw13:INTARSIA_HIP_MOE_MW=13                        568.3   87.91   50.69   40.39   10.65  189.64
+pfprofenv:mw29:INTARSIA_HIP_MOE_MW=29                        563.1   88.43   45.45   40.15   10.70  184.73
+pfprofenv:mw93:INTARSIA_HIP_MOE_MW=93                        563.4   86.38   47.61   40.35   10.49  184.83
+pfprofenv:mw41:INTARSIA_HIP_MOE_MW=41                        554.6   88.49   49.86   31.92   10.06  180.33
+pfprofenv:mw61:INTARSIA_HIP_MOE_MW=61                        552.8   85.79   48.62   32.37   10.50  177.28
+pfprofenv:mw8:INTARSIA_HIP_MOE_MW=8                          585.7   97.76   52.25   42.08   11.35  203.44
+pfprofenv:mw40:INTARSIA_HIP_MOE_MW=40                        566.1   95.25   50.88   32.77   10.72  189.62
+pfprofenv:mw125:INTARSIA_HIP_MOE_MW=125                      560.1   88.97   51.18   32.57   10.72  183.44
+### w3
+stage                                                         span    gu64    dn64    gu32    dn32    sum4
+pfprofenv:z2mw61:INTARSIA_HIP_MOE_MW=61                      552.7   86.10   48.50   32.01   10.54  177.15
+pfprofenv:z0mw5:INTARSIA_HIP_MOE_Z=0,INTARSIA_HIP_MOE_MW=5   595.0  104.80   70.57   32.78   12.02  220.17
+pfprofenv:z0mw61:INTARSIA_HIP_MOE_Z=0,INTARSIA_HIP_MOE_MW=   568.3   88.59   63.73   30.15   11.19  193.66
+pfprofenv:z0mw29:INTARSIA_HIP_MOE_Z=0,INTARSIA_HIP_MOE_MW=   580.9   90.94   57.52   40.75   11.35  200.56
+pfprofenv:z4mw5:INTARSIA_HIP_MOE_Z=4,INTARSIA_HIP_MOE_MW=5   572.6   98.26   54.75   33.21   10.48  196.70
+pfprofenv:z4mw61:INTARSIA_HIP_MOE_Z=4,INTARSIA_HIP_MOE_MW=   553.5   85.62   50.03   31.01   10.47  177.13
+pfprofenv:z4mw29:INTARSIA_HIP_MOE_Z=4,INTARSIA_HIP_MOE_MW=   570.9   88.99   47.22   40.65   10.70  187.56
+pfprofenv:z8mw5:INTARSIA_HIP_MOE_Z=8,INTARSIA_HIP_MOE_MW=5   577.9   98.97   57.67   32.57   10.71  199.92
+pfprofenv:z8mw61:INTARSIA_HIP_MOE_Z=8,INTARSIA_HIP_MOE_MW=   556.8   85.91   52.62   30.61   10.56  179.70
+pfprofenv:z8mw29:INTARSIA_HIP_MOE_Z=8,INTARSIA_HIP_MOE_MW=   570.1   88.40   48.89   40.68   10.69  188.66
+### w6
+stage                                                         span    gu64    dn64    gu32    dn32    sum4
+pfprof:r7final                                               550.9   87.73   45.84   30.37   10.11  174.05
+pfprof@base:base                                             570.1   98.90   52.69   30.34   10.95  192.88
