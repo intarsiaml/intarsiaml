@@ -378,7 +378,9 @@ mod tests {
         assert_eq!(pick(2048), Some("moe_experts_w4a16_bf16".to_string()));
         assert_eq!(pick(4096), Some("moe_experts_w4a16_bf16".to_string()));
         assert_eq!(pick(1024), Some("moe_experts_w4a16_bf16".to_string()));
-        assert_eq!(pick(1023), Some("moe_experts_mma_bf16".to_string()));
+        assert_eq!(pick(1000), Some("moe_experts_w4a16_bf16".to_string()));
+        assert_eq!(pick(768), Some("moe_experts_w4a16_bf16".to_string()));
+        assert_eq!(pick(767), Some("moe_experts_mma_bf16".to_string()));
         assert_eq!(pick(256), Some("moe_experts_mma_bf16".to_string()));
     }
 
