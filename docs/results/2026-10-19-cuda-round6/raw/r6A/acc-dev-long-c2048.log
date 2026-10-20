@@ -1,0 +1,26 @@
+prefill chunk 2048 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors (5 prompts, 36887 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden_4k.jsonl", "golden_12k.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 not gated, 21-way KL <= 3.0e-2, |tail excess| <= 0.02
+prefill chunk 2048; longest prompt 12064; prompts spanning more than one chunk: 5/5
+this build: head f537384 code-tree 853e266ed863 dirty
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.63   1.978e-2   1.779e-2    1.871e0   0.0944   0.0964    90.75    0/4064      0
+long_code_4k        4064  4064    97.29   8.261e-3   7.569e-3   3.982e-1   0.0370   0.0379    91.67   20/4064      0
+chat_reuse_4k       4631  4631    87.39   2.264e-1   2.608e-1    1.930e1   0.0688   0.0863    87.51    7/4631      0
+long_docs_12k      12064 12064    92.95   2.473e-2   2.237e-2    1.169e1   0.0839   0.0851    90.19  19/12064      0
+long_code_12k      12064 12064    97.13   9.525e-3   8.884e-3    2.066e0   0.0323   0.0325    91.03  20/12064      0
+OVERALL                  36887    94.17   4.271e-2   4.576e-2    1.930e1   0.0611   0.0641    90.36      0.2%      0
+prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED

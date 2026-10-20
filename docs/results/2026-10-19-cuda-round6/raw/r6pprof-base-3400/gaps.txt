@@ -1,0 +1,10 @@
+prompt window: 1109 kernels, span 600.08 ms, busy 217.75 ms, idle 382.33 ms (63.7 %), kernel sum 217.80 ms
+gaps: 1024; < 20 us total 2.09 ms (mean 2.1 us); >= 20 us: 22 totalling 380.24 ms
+  gap  364380.4 us before nvjet_sm121_tst_mma_32x32x64_12_32x8x64_tmaAB_bz_TNNN
+  gap   12393.3 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap     714.9 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+  gap     599.6 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+  gap     519.5 us before <unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, 
+  gap     385.7 us before <unnamed>::moe_topk_kernel(const __nv_bfloat16 *, int, int, int, int, float *, int *)
+  gap     277.4 us before void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat1
+  gap     252.8 us before void <unnamed>::flash_kernel<(int)256, (int)32, __nv_bfloat16>(const __nv_bfloat16 *, cons

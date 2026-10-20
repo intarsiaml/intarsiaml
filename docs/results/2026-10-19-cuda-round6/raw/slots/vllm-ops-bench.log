@@ -1,0 +1,62 @@
+fleetq: #2849 running on spark1: scripts/cuda-round6/vllm-ops-bench.sh --only gdn,fp8,attn --reps 10
+name, clocks.current.sm [MHz], clocks.max.sm [MHz], clocks.current.memory [MHz], power.draw [W], temperature.gpu
+NVIDIA GB10, 2392 MHz, 3003 MHz, [N/A], 10.61 W, 42
+        Idle                                           : Not Active
+        Applications Clocks Setting                    : Not Active
+        SW Power Cap                                   : Not Active
+        HW Slowdown                                    : Not Active
+            HW Thermal Slowdown                        : Not Active
+            HW Power Brake Slowdown                    : Not Active
+        Sync Boost                                     : Not Active
+        SW Thermal Slowdown                            : Not Active
+        Display Clock Setting                          : Not Active
+        SW Thermal Slowdown                            : 284827 us
+        HW Thermal Slowdown                            : 0 us
+pid, used_gpu_memory [MiB]
+365195, 58072 MiB
+vllm 0.26.1rc1.dev602+g65b7662d3  torch 2.13.0+cu130  device NVIDIA GB10 sm121  reps=10 warmup=3
+== (a) GDN prefill: Hk=16 Hv=32 dk=128 dv=128, FLA_CHUNK_SIZE=64, chunk_gated_delta_rule from vllm.third_party.flash_linear_attention.ops.chunk
+   sanity T=64: finite=True |o|=2.181 rel_err(o vs fp32 recurrence)=3.000e-03 rel_err(final state)=2.035e-03
+        T  chunk_med_ms      min      max  prep_med_ms  prep+chunk_ms
+     1024         0.703    0.692    0.711        0.173          0.875
+     2048         1.470    1.460    1.484        0.331          1.802
+     4096         3.100    3.041    3.315        0.678          3.778
+INFO 10-20 01:40:54 [scheduler.py:242] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 10-20 01:40:54 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 10-20 01:40:54 [deep_gemm.py:175] deep_gemm not found in site-packages, trying vendored vllm.third_party.deep_gemm
+INFO 10-20 01:40:54 [deep_gemm.py:202] DeepGEMM PDL enabled on vllm.third_party.deep_gemm.
+INFO 10-20 01:40:54 [deep_gemm.py:120] DeepGEMM E8M0 enabled on current platform.
+== (b) fp8 W8A8: quant = QuantFP8(static=True, PER_TENSOR); GEMM = vllm._custom_ops.cutlass_scaled_mm(A, B=W.t(), out_dtype=bf16, scale_a, scale_b, bias=None)
+   sanity M=64 N=256 K=512: finite=True rel_err vs dequant ref=1.664e-03
+        T layer            N     K  gemm_ms  TFLOPS gemm_chan_ms  TFLOPS quant_ms quant+gemm_ms  TFLOPS
+     1024 in_proj_qkv   8192  2048    0.225   152.6        0.229   150.0    0.026         0.307   112.0
+     1024 in_proj_z     4096  2048    0.121   141.7        0.123   139.5    0.026         0.139   123.6
+     1024 out_proj      2048  4096    0.109   157.2        0.110   155.8    0.031         0.137   125.4
+     1024 q_proj+gate   8192  2048    0.240   143.4        0.245   140.1    0.009         0.254   135.5
+     1024 k/v_proj       512  2048    0.019   111.5        0.030    72.2    0.026         0.052    41.6
+     1024 o_proj        2048  4096    0.109   157.0        0.110   156.7    0.032         0.138   124.5
+     2048 in_proj_qkv   8192  2048    0.474   144.9        0.491   140.0    0.015         0.512   134.3
+     2048 in_proj_z     4096  2048    0.241   142.8        0.245   140.3    0.016         0.278   123.6
+     2048 out_proj      2048  4096    0.195   176.1        0.196   175.6    0.049         0.338   101.6
+     2048 q_proj+gate   8192  2048    0.475   144.7        0.488   140.7    0.032         0.519   132.5
+     2048 k/v_proj       512  2048    0.037   114.9        0.037   114.7    0.016         0.052    82.7
+     2048 o_proj        2048  4096    0.197   174.8        0.202   169.9    0.046         0.338   101.7
+     4096 in_proj_qkv   8192  2048    0.817   168.1        0.854   161.0    0.090         0.941   146.1
+     4096 in_proj_z     4096  2048    0.400   171.9        0.407   168.7    0.077         0.527   130.4
+     4096 out_proj      2048  4096    0.368   186.9        0.374   183.9    0.222         0.612   112.3
+     4096 q_proj+gate   8192  2048    0.854   160.9        0.817   168.1    0.061         0.947   145.2
+     4096 k/v_proj       512  2048    0.066   130.8        0.066   129.2    0.074         0.184    46.7
+     4096 o_proj        2048  4096    0.520   132.2        0.484   141.9    0.225         0.717    95.8
+INFO 10-20 01:40:56 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+== (c) prefill attention: flashinfer 0.6.16.post3 BatchPrefillWithPagedKVCacheWrapper(backend='auto', kv_layout=NHD), Hq=16 Hkv=2 D=256 page_size=2096, causal, q bf16, out bf16, workspace 394 MiB
+   sanity (kv=fp8) q_len=64 kv_len=256: finite=True rel_err vs torch ref=2.385e-03
+   sanity (kv=bf16) q_len=64 kv_len=256: finite=True rel_err vs torch ref=2.371e-03
+     kv  kv_len  q_len   med_ms      min      max  TFLOPS
+    fp8    2048   2048    0.708    0.706    0.712    48.5
+    fp8    8192   2048    4.341    4.304    4.613    55.4
+    fp8   16384   2048    9.294    9.148    9.567    55.5
+   bf16    2048   2048    0.515    0.513    0.523    66.7
+   bf16    8192   2048    3.059    3.033    3.333    78.6
+   bf16   16384   2048    6.984    6.437    7.207    73.8
+peak GPU mem allocated by this process: 0.606 GiB
+fleetq: #2849 done (exit 0)

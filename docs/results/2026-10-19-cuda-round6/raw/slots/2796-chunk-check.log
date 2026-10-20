@@ -1,0 +1,24 @@
+fleetq: #2796 waiting (#3 in line): in line behind #2794 "cuda-round6: 35B prefill nsys profile 1k/4k/16k on base 0df54872 (vLLM up, idle)" (claude-f31ccf91) on spark1
+fleetq:   #2794 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2794 set, or it will wait for #2794 to be released.
+fleetq: #2796 running on spark1: scripts/cuda-round6/sync-scripts.sh scripts/cuda-round6/chunk-check.sh
+MemAvailable 52 GB
+bin: intarsia 0.0.1
+gen 20000 chars chunk 2048 exit 0 41 s: finish=length prompt=5822 (cached 0) completion=128 | prefill 1086 ms (5361.5 tok/s) | decode 1560 ms (81.42 tok/s)
+gen 20000 chars chunk 4096 exit 0 77 s: finish=length prompt=5822 (cached 0) completion=128 | prefill 1078 ms (5399.8 tok/s) | decode 1662 ms (76.43 tok/s)
+gen 20000 chars chunk 8192 exit 0 66 s: finish=length prompt=5822 (cached 0) completion=128 | prefill 1484 ms (3923.0 tok/s) | decode 3505 ms (36.23 tok/s)
+  20000 chars: chunk 4096 vs 2048: ids DIFFER, top-20 logits DIFFER
+  20000 chars: chunk 8192 vs 2048: ids identical, top-20 logits identical
+gen 40000 chars chunk 2048 exit 0 58 s: finish=length prompt=11692 (cached 0) completion=128 | prefill 2159 ms (5414.8 tok/s) | decode 1655 ms (76.72 tok/s)
+gen 40000 chars chunk 4096 exit 0 39 s: finish=length prompt=11692 (cached 0) completion=128 | prefill 2000 ms (5847.4 tok/s) | decode 1655 ms (76.73 tok/s)
+gen 40000 chars chunk 8192 exit 0 48 s: finish=length prompt=11692 (cached 0) completion=128 | prefill 2062 ms (5671.4 tok/s) | decode 1684 ms (75.44 tok/s)
+  40000 chars: chunk 4096 vs 2048: ids DIFFER, top-20 logits DIFFER
+  40000 chars: chunk 8192 vs 2048: ids DIFFER, top-20 logits DIFFER
+gen 54000 chars chunk 2048 exit 0 47 s: finish=length prompt=16014 (cached 0) completion=128 | prefill 3100 ms (5165.7 tok/s) | decode 1710 ms (74.29 tok/s)
+gen 54000 chars chunk 4096 exit 0 63 s: finish=length prompt=16014 (cached 0) completion=128 | prefill 2805 ms (5708.5 tok/s) | decode 1719 ms (73.88 tok/s)
+gen 54000 chars chunk 8192 exit 0 51 s: finish=length prompt=16014 (cached 0) completion=128 | prefill 5040 ms (3177.6 tok/s) | decode 3135 ms (40.52 tok/s)
+  54000 chars: chunk 4096 vs 2048: ids DIFFER, top-20 logits DIFFER
+  54000 chars: chunk 8192 vs 2048: ids DIFFER, top-20 logits DIFFER
+acc long chunk 2048 exit 1 132 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc long chunk 4096 exit 1 108 s: prefill floor [4bit]: top-1 94.36% (not gated for this class) ok | 21-way KL 4.678e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0642 vs ref 0.0611, exc
+== done 19:51:00
+fleetq: #2796 done (exit 0)

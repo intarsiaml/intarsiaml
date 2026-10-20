@@ -1,0 +1,10 @@
+prompt window: 4445 kernels, span 3162.91 ms, busy 2805.40 ms, idle 357.51 ms (11.3 %), kernel sum 2805.57 ms
+gaps: 4048; < 20 us total 8.52 ms (mean 2.1 us); >= 20 us: 26 totalling 348.99 ms
+  gap  331663.9 us before nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_TNNN
+  gap   11849.8 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap     827.2 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     739.6 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     691.9 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     578.8 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+  gap     517.0 us before <unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, 
+  gap     445.9 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)

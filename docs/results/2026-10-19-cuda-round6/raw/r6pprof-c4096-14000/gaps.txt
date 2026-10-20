@@ -1,0 +1,10 @@
+prompt window: 2321 kernels, span 1094.47 ms, busy 718.79 ms, idle 375.68 ms (34.3 %), kernel sum 718.92 ms
+gaps: 2070; < 20 us total 4.40 ms (mean 2.2 us); >= 20 us: 28 totalling 371.28 ms
+  gap  339901.6 us before nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_TNNN
+  gap   14464.8 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+  gap   11734.3 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap     700.3 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     626.1 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+  gap     609.9 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+  gap     496.0 us before <unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, 
+  gap     486.7 us before nvjet_sm121_tst_mma_64x32x64_8_32x16x64_tmaAB_splitK_TNNN

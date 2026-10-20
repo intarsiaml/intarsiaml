@@ -1,0 +1,7 @@
+2026-10-19 ~20:09-20:17 EDT: scripts/cuda-round6/excl-headroom.sh (first version) took the job id from the output of a
+`fleetq acquire --wait` that I had cancelled (#2808, released while still queued to unblock a CPU build) and ran its profile
+step anyway: prof-prefill.sh on r6-base (35B, ~30 GB, nsys) ran on spark1 OUTSIDE any granted slot while #2782 held
+spark1-vllm (vLLM up; nothing was taken down). It finished the ~1k-token profile and started the ~4k one; I stopped the local
+script and killed the remote generate/nsys processes in slots #2812/#2813 (nvidia-smi afterwards: only vLLM's process).
+Fix: the script now checks the acquire exit status and that the job is on spark1 before running anything (on the next
+cancel it printed "acquire failed (exit 143): not running"). The 1k profile from that run is not used in the doc.

@@ -1,0 +1,8 @@
+ gates pass |
+| **publish deep results** (markdown + JSON + unanimis) | 1 min | — |
+
+The publish step writes a **manifest** (model, recipe, plan hash, kernel versions, tuning DB hash, exactness mode, gates, benchmarks, localeval scores, timestamps, commit). The manifest is the single source of truth for every result.
+
+## 8. UI, TUI and observability
+
+- **Web UI**: embedded in the server (no separate binary). Chat page (chat, tools, reasoning, structured output), live dashboard (step time, KV usage, concurrency, acceptance

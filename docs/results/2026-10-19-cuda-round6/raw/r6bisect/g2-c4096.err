@@ -1,0 +1,8 @@
+prefill chunk 4096 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 36.9s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 20480 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 5822 tokens
+top logits (id:value): 33389:18.8651 660:18.5055 13016:17.1440 1440:17.0426 65427:16.9995 4131:16.3666 2972:16.2176 5365:16.1449 1844:16.0802 3305:16.0348 17587:16.0176 15734:15.6968 791:15.4197 2400:15.1639 20117:14.7961 1558:14.6596 55404:14.5392 1892:14.5285 4778:14.4296 1510:14.3961
+ids: [33389, 1440, 735, 198, 91, 2972, 26610, 5365]
+finish=length prompt=5822 (cached 0) completion=8 | prefill 1943 ms (2997.0 tok/s) | decode 168 ms (41.77 tok/s)
+steps=12 graph replays=8 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/8 attn_decode=0ms/80 attn_prefill=0ms/40 embedding=0ms/12 gate_split=0ms/120

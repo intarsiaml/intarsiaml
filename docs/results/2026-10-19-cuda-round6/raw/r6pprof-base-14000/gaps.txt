@@ -1,0 +1,10 @@
+prompt window: 3433 kernels, span 1156.80 ms, busy 772.00 ms, idle 384.80 ms (33.3 %), kernel sum 772.17 ms
+gaps: 3160; < 20 us total 6.68 ms (mean 2.1 us); >= 20 us: 30 totalling 378.11 ms
+  gap  344019.6 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   13966.8 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+  gap   11788.7 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap    2611.4 us before void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_64x3_tn_align8
+  gap     694.4 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     687.2 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     539.3 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+  gap     528.3 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)

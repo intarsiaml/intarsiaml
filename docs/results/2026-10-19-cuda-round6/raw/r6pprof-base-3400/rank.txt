@@ -1,0 +1,21 @@
+kernel total 217.9 ms
+moe_mma_kernel<                                                             115.3 ms  52.9 %     80 calls
+reg::gemm_reg_kernel<                                                        38.5 ms  17.7 %    130 calls
+gdn_delta_split_kernel<                                                      24.3 ms  11.1 %     30 calls
+wq::wq_gemm_kernel<                                                           7.1 ms   3.3 %    120 calls
+moe_reduce_kernel<__nv_bfloat16>                                              6.3 ms   2.9 %     40 calls
+gdn_conv_kernel                                                               5.5 ms   2.5 %     30 calls
+rmsnorm_kernel<                                                               5.0 ms   2.3 %    101 calls
+fp8_actq_kernel                                                               3.8 ms   1.8 %    130 calls
+gated_rmsnorm_kernel<                                                         2.4 ms   1.1 %     30 calls
+flash_kernel<                                                                 1.8 ms   0.8 %     10 calls
+rope_kernel                                                                   1.2 ms   0.5 %     20 calls
+gate_split_kernel                                                             1.2 ms   0.5 %     10 calls
+nvjet_sm121_tst_mma_96x64x64_4_16x64x64_tmaAB_bz_TNNN                         1.0 ms   0.5 %     40 calls
+moe_combine_kernel<__nv_bfloat16>                                             1.0 ms   0.5 %     40 calls
+nvjet_sm121_tst_mma_32x32x64_12_32x8x64_tmaAB_bz_TNNN                         0.9 ms   0.4 %     60 calls
+sigmoid_mul_kernel                                                            0.7 ms   0.3 %     10 calls
+rope_pass_kernel                                                              0.5 ms   0.2 %     20 calls
+moe_topk_kernel                                                               0.4 ms   0.2 %     40 calls
+moe_group_tiles_kernel                                                        0.3 ms   0.1 %     40 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        0.3 ms   0.1 %     40 calls

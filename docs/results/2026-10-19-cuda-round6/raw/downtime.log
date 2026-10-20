@@ -1,0 +1,2 @@
+2026-10-19 job=2844 stop=21:08:56 up=21:19:06 down=10.1 min label="cuda-round6 W1: speed A/B base vs dev x3 (vLLM down)" serving=1
+2026-10-19 job=2845 stop=21:25:32 up=21:35:03 down=9.5 min label="cuda-round6 W2: opt-in chunk 4096 A/B x2 + localeval dev (vLLM down)" serving=1

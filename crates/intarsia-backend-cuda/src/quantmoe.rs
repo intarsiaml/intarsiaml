@@ -83,10 +83,12 @@ pub const NVFP4_ACT_TOL: Tol = Tol::new(0.30, 0.20);
 /// (2910 vs 2980 us and 3001 vs 3037 us in two rounds) and 22 to 40 % faster at 2048 and 4096.
 pub const NVFP4_MIN_TOKENS: usize = 1024;
 
-/// Fewest tokens for `moe_experts_w4a16_bf16` (kernels/cuda/moe_w4a16.cu), from the measured crossover against
-/// `moe_experts_mma_bf16` on spark1 (docs/results/2026-10-18-cuda-moe-w4a16.md): 2 to 8 % slower at T <= 768, even at 1024,
-/// 9 % faster at 1536 and 15 to 24 % faster at 2048 and 4096.
-pub const W4A16_MIN_TOKENS: usize = 1024;
+/// Fewest tokens for `moe_experts_w4a16_bf16` (kernels/cuda/moe_w4a16.cu; bitwise the same as `moe_experts_mma_bf16`),
+/// from the measured crossover against `moe_experts_mma_bf16` on spark1: round 6 (docs/results/2026-10-19-cuda-round6.md,
+/// 3 rounds, T = 512 .. 1024) has it 3 to 6 % slower at T <= 640 and 2 to 6 % faster from 768 on (768: 2836-2844 vs
+/// 2938-2956 us; 1000: 2892-2913 vs 3062-3091 us), so it starts at 768 (it was 1024 from
+/// docs/results/2026-10-18-cuda-moe-w4a16.md, which had them even at 1024 and 15 to 24 % apart at 2048 and 4096).
+pub const W4A16_MIN_TOKENS: usize = 768;
 
 /// Scratch bytes of `moe_experts_nvfp4_mma_bf16`: the grouped kernel's, plus the quantised activations
 /// (`xq` u8 `[T,H/2]`, `xs` e4m3 `[T,H/16]`, `xg` f32 `[T]`, and the same three for the sorted `h` `[P,I]`), each region

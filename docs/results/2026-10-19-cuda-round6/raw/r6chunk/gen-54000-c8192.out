@@ -1,0 +1,9 @@
+u(up)`, `down`, `combine` all bf16; only the
+gate is bf16→fp8→bf16). The MoE block is a single `Op::MoeBlock` in the plan (the engine does not schedule the
+internal ops; the block kernel does).
+
+## NVFP4 GEMV (the hard kernel)
+
+`kernels/cuda/nvfp4.cu` (registered by `crates/intarsia-backend-cuda/src/quantmoe.rs`):
+
+* `nvfp4_gemv_splitk_v1`: split-K, 4
