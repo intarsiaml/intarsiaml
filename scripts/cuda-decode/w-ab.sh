@@ -4,7 +4,7 @@
 # the only client, `bench speed --warmup 1 --thinking off --require-graphs`, --profile-every 0.
 #   w-ab.sh <35b|8b> <round> <arm> ...           arm = name:tree[:ENV=VAL[,ENV=VAL]]   (trees under ~/intarsia-decfuse)
 #   e.g.  w-ab.sh 35b 1 base:base dev:dev nofuse:dev:INTARSIA_NO_FUSION=1
-# Env: SIZES (128,1024,4096) GEN (128) REPS (5) OUT (~/intarsia-decfuse/out/ab)
+# Env: SIZES (128,1024,4096) GEN (128) REPS (5) OUT (~/intarsia-decfuse/out/ab) BENCH_ARGS (extra `bench speed` arguments, e.g. --at-most)
 set -u
 P=$HOME/intarsia-decfuse
 case "$1" in
@@ -27,7 +27,7 @@ for spec in "$@"; do
   spid=$!
   up=0; for i in $(seq 1 120); do curl -sf http://127.0.0.1:$PORT/health >/dev/null && { up=1; break; }; sleep 2; done
   [ $up = 1 ] || { echo "server did not come up, see $out/serve.log"; kill $spid; exit 1; }
-  $bin bench speed --url http://127.0.0.1:$PORT --model $NAME --sizes $SIZES --gen $GEN --reps $REPS --warmup 1 --thinking off --label cudadecode-$MODEL-$arm-r$RND --out-dir $out --require-graphs > $out/bench.log 2>&1; echo $? > $out/bench.rc
+  $bin bench speed --url http://127.0.0.1:$PORT --model $NAME --sizes $SIZES --gen $GEN --reps $REPS --warmup 1 --thinking off --label cudadecode-$MODEL-$arm-r$RND --out-dir $out --require-graphs ${BENCH_ARGS:-} > $out/bench.log 2>&1; echo $? > $out/bench.rc
   kill $spid; for i in $(seq 1 30); do kill -0 $spid 2>/dev/null || break; sleep 1; done; kill -9 $spid 2>/dev/null
   tail -n 6 $out/bench.log | cut -c1-160
   sleep 2

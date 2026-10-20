@@ -5,9 +5,10 @@
 #   res    registers / shared memory / spills of the prefill kernels (cuobjdump of moe_w4a16.o, fp8_gemm.o, gdn.o, attention_flash.o)
 #   moe    bench_moe_nvfp4_real_shapes (tests/moe_nvfp4.rs) at MOE_T (default 1024,2048,4096,8192), env sets in MOE_ENVS
 #          (";"-separated, "" = default), ROUNDS rounds
-#   wq     bench_wq_prefill_shapes (tests/quantmoe.rs) at WQ_M (default 1024,2048,4096) for WQ_KERN (default matmul_fp8_gemm_reg)
+#   wq     bench_wq_prefill_shapes (tests/quantmoe.rs) at WQ_M (default 1024,2048,4096) for WQ_KERN (default
+#          matmul_fp8_gemm_reg), env sets in WQ_ENVS (";"-separated)
 #   gdn    tests/gdn_timing.rs (35B shapes), env sets in GDN_ENVS
-#   att    tests/attention.rs attention_throughput
+#   att    tests/attention.rs attention_throughput, env sets in ATT_ENVS (";"-separated), lines matching ATT_FILTER
 #   peak   kernels/cuda_checks/mma_peak.cu and stream_runs.cu (tensor-core and DRAM-run roofs)
 #   test   cargo test of the backend test binaries named in TESTS (e.g. "--test moe_w4a16 --test fp8_gemm_reg")
 #   unit   the backend's lib tests (registry pins)
@@ -39,14 +40,17 @@ if has moe; then
   for round in $(seq 1 "${ROUNDS:-1}"); do
     for cfg in "${menvs[@]}"; do
       echo "== moe round $round: ${cfg:-default}"
-      rsh "cd $R/$TREE && BIN=\$(ls -t target/acc/release/deps/moe_nvfp4-* | grep -v '\\.d\$' | head -1) && env $cfg INTARSIA_X=0 INTARSIA_BENCH_T=${MOE_T:-1024,2048,4096,8192} INTARSIA_REQUIRE_GPU=1 \$BIN --ignored --nocapture bench_moe_nvfp4_real_shapes 2>&1 | grep -E 'nvfp4_mma|mma_bf16|w4a16|T  |panicked'"
+      rsh "cd $R/$TREE && BIN=\$(ls -t target/acc/release/deps/moe_nvfp4-* | grep -v '\\.d\$' | head -1) && env $cfg INTARSIA_X=0 INTARSIA_BENCH_KERNEL=${MOE_KERNELS:-bf16,v2} INTARSIA_BENCH_T=${MOE_T:-1024,2048,4096,8192} INTARSIA_REQUIRE_GPU=1 \$BIN --ignored --nocapture bench_moe_nvfp4_real_shapes 2>&1 | grep -E 'nvfp4_mma|mma_bf16|w4a16|T  |panicked'"
     done
   done
 fi
 if has wq; then
+  IFS=';' read -r -a wenvs <<< "${WQ_ENVS:-INTARSIA_X=0}"
   for round in $(seq 1 "${ROUNDS:-1}"); do
-    echo "== wq round $round"
-    rsh "cd $R/$TREE && BIN=\$(ls -t target/acc/release/deps/quantmoe-* | grep -v '\\.d\$' | head -1) && env ${WQ_ENV:-INTARSIA_X=0} INTARSIA_BENCH_M=${WQ_M:-1024,2048,4096} INTARSIA_BENCH_WQ=${WQ_KERN:-matmul_fp8_gemm_reg} INTARSIA_REQUIRE_GPU=1 \$BIN --ignored --nocapture bench_wq_prefill_shapes 2>&1 | grep -E 'M=|panicked'"
+    for cfg in "${wenvs[@]}"; do
+      echo "== wq round $round: $cfg"
+      rsh "cd $R/$TREE && BIN=\$(ls -t target/acc/release/deps/quantmoe-* | grep -v '\\.d\$' | head -1) && env $cfg INTARSIA_BENCH_M=${WQ_M:-1024,2048,4096} INTARSIA_BENCH_WQ=${WQ_KERN:-matmul_fp8_gemm_reg} INTARSIA_REQUIRE_GPU=1 \$BIN --ignored --nocapture bench_wq_prefill_shapes 2>&1 | grep -E 'M=|panicked'"
+    done
   done
 fi
 if has gdn; then
@@ -59,8 +63,13 @@ if has gdn; then
   done
 fi
 if has att; then
-  echo "== attention_throughput"
-  rsh "cd $R/$TREE && $CT --test attention -- --ignored --nocapture --test-threads=1 attention_throughput 2>&1 | grep -E 'prefill|decode|verify|panicked' | head -30"
+  IFS=';' read -r -a aenvs <<< "${ATT_ENVS:-INTARSIA_X=0}"
+  for round in $(seq 1 "${ROUNDS:-1}"); do
+    for cfg in "${aenvs[@]}"; do
+      echo "== attention_throughput round $round: $cfg"
+      rsh "cd $R/$TREE && env $cfg $CT --test attention -- --ignored --nocapture --test-threads=1 attention_throughput 2>&1 | grep -E \"${ATT_FILTER:-prefill|decode|verify|panicked}\" | head -40"
+    done
+  done
 fi
 if has peak; then
   echo "== mma_peak, stream_runs"

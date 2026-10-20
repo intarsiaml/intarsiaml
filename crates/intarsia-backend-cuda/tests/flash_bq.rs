@@ -1,7 +1,7 @@
 //! `attn_prefill_bf16_flash` at head_dim 256 runs 128 query rows per block by default (kernels/cuda/attention_flash.cu);
 //! `INTARSIA_CUDA_FLASH_BQ=64` runs the 64-row blocks it replaced. The outputs must be bit-identical for every query count
 //! and cache offset (the fully masked key tiles of the lower warps must not change the running max, sum or O). The
-//! launcher reads the variable per launch, so this single-test binary flips it between calls. Needs a GPU (SKIPPED
+//! launcher reads the variable per launch, so the tests flip it between calls (one test at a time: `ENV_LOCK`). Needs a GPU (SKIPPED
 //! otherwise; fails under CI=1 / INTARSIA_REQUIRE_GPU=1).
 #![cfg(ik_cuda)]
 
@@ -46,18 +46,16 @@ fn case(rng: &mut SplitMix64, n: usize, nkv: usize, t: usize, p: usize, qscale: 
     }
 }
 
-#[test]
-fn flash_d256_bq128_is_bitwise_bq64() {
-    let Some(cuda) = device() else { return };
-    let mut rng = SplitMix64::new(91);
+/// The tests of this binary flip a process-wide variable: one at a time, also under a parallel test runner.
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn check(tp: &[(usize, usize)], heads: &[(usize, usize)], seed: u64) -> usize {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(cuda) = device() else { return 0 };
+    let mut rng = SplitMix64::new(seed);
     let mut n = 0;
-    // (rows, pos0): one row, block-edge row counts (63..129, 191, 192), 2048-token chunks with and without a long prefix
-    let tp = [
-        (1, 0), (17, 0), (63, 0), (64, 0), (65, 3), (127, 0), (128, 0), (129, 31), (191, 0), (192, 64), (300, 1999),
-        (2048, 0), (2048, 6000),
-    ];
-    for &(nh, nkv) in &[(16usize, 2usize), (12, 4), (8, 8)] {
-        for &(t, p) in &tp {
+    for &(nh, nkv) in heads {
+        for &(t, p) in tp {
             for qscale in [1.0f32, 8.0] {
                 let hc = case(&mut rng, nh, nkv, t, p, qscale);
                 std::env::set_var("INTARSIA_CUDA_FLASH_BQ", "64");
@@ -73,5 +71,23 @@ fn flash_d256_bq128_is_bitwise_bq64() {
             }
         }
     }
+    n
+}
+
+/// Every block-edge row count, one row, 2048-token chunks with and without a long prefix, GQA groups 8 / 3 / 1.
+#[test]
+fn flash_d256_bq128_is_bitwise_bq64() {
+    let tp = [
+        (1, 0), (17, 0), (63, 0), (64, 0), (65, 3), (127, 0), (128, 0), (129, 31), (191, 0), (192, 64), (300, 1999),
+        (2048, 0), (2048, 6000),
+    ];
+    let n = check(&tp, &[(16, 2), (12, 4), (8, 8)], 91);
     println!("flash_bq: {n} cases bit-identical");
+}
+
+/// Small cases for the shared-memory race check (scripts/cuda-checks/race-targets.txt): two 128-row blocks, a partial one.
+#[test]
+fn flash_d256_bq128_small() {
+    let n = check(&[(129, 31), (300, 64)], &[(4, 2)], 92);
+    println!("flash_bq small: {n} cases bit-identical");
 }

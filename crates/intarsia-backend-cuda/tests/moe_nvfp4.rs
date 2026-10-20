@@ -213,12 +213,14 @@ fn bench(b: &dyn Backend, kernel: &str, hc: &HostCall, reps: usize) -> f64 {
 fn bench_moe_nvfp4_real_shapes() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(5);
-    let big = experts_case(&mut rng, 4096, 256, 8, 2048, 512, DType::Bf16);
-    println!("{:<12} {:<28} {:>10} {:>12}", "T", "kernel", "us", "TFLOPS");
-    // INTARSIA_BENCH_T=2048,4096 picks the batch sizes (for profiling a single one)
+    // INTARSIA_BENCH_T=2048,4096 picks the batch sizes (for profiling a single one); the random case is built for the
+    // largest of them (at least 4096 tokens, so the default sizes see the same data as before)
     let ts: Vec<usize> = std::env::var("INTARSIA_BENCH_T")
         .map(|v| v.split(',').filter_map(|x| x.parse().ok()).collect())
         .unwrap_or_else(|_| vec![64, 256, 1024, 2048, 4096]);
+    let tmax = ts.iter().copied().max().unwrap_or(4096).max(4096);
+    let big = experts_case(&mut rng, tmax, 256, 8, 2048, 512, DType::Bf16);
+    println!("{:<12} {:<28} {:>10} {:>12}", "T", "kernel", "us", "TFLOPS");
     // INTARSIA_BENCH_KERNEL=bf16,fp4,v2 (any subset, comma separated) picks the kernels; default: bf16 (the grouped kernel),
     // fp4 and v2 (moe_experts_w4a16_bf16)
     let kernels: Vec<&str> = match std::env::var("INTARSIA_BENCH_KERNEL") {
