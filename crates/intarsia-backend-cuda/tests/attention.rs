@@ -139,6 +139,10 @@ fn attention_throughput() {
         ("prefill 35B ", 16, 2, 256, 256, 4096),
         ("prefill 35B ", 16, 2, 256, 256, 16384),
         ("prefill 8B 1024", 32, 8, 128, 1024, 4096),
+        // the 35B prefill chunks: the first 2048 tokens, and the 4th / 8th chunk of a 16k prompt
+        ("prefill 35B 2048", 16, 2, 256, 2048, 2048),
+        ("prefill 35B 2048", 16, 2, 256, 2048, 8192),
+        ("prefill 35B 2048", 16, 2, 256, 2048, 16384),
     ];
     for &(name, n, nkv, d, t, kv) in runs {
         let p = kv - t;

@@ -18,6 +18,7 @@
 // (same occupancy). The rest is the bf16 kernel's code, so the output is bitwise the bf16 kernel's on the cache upcast to
 // bf16 (tests/attn_f8kv.rs).
 #include "ik_launch.h"
+#include <stdlib.h>
 #include "ik_quant.cuh"
 
 namespace {
@@ -61,9 +62,9 @@ __device__ __forceinline__ uint32_t pack_bf16(float lo, float hi) {
     return *reinterpret_cast<uint32_t*>(&v);
 }
 
-template <int D, int BK>
+template <int D, int BK, int BQ = kBQ>
 constexpr size_t flash_smem_bytes() {
-    return (size_t)(2 * BK + (D > 128 ? kBQ : 0)) * (D + 8) * 2;
+    return (size_t)(2 * BK + (D > 128 ? BQ : 0)) * (D + 8) * 2;
 }
 
 // D: head_dim, BK: keys per tile. QREG: Q fragments in registers (else shared memory).
@@ -81,11 +82,16 @@ __device__ __forceinline__ uint4 e4m3x8_to_bf16x8(uint32_t lo, uint32_t hi) {
     return make_uint4(o[0], o[1], o[2], o[3]);
 }
 
-template <int D, int BK, typename KT = ik_bf16>
-__global__ void __launch_bounds__(kThreads)
+// BQ: query rows per block (BQ / 16 warps). The rows of a block share its K / V tiles; every row's arithmetic is the same
+// for any BQ (a warp's tiles past its own rows' last key are fully masked: the running max, sum and O are multiplied by
+// exp2f(0) = 1 and P = 0 adds nothing), so BQ = 128 gives the same bits as 64 (tests/attention.rs) with twice the warps per
+// SM and half the K / V tile traffic per row. D = 256 at BQ = 128 uses 101376 bytes, the opt-in maximum.
+template <int D, int BK, typename KT = ik_bf16, int BQ = kBQ>
+__global__ void __launch_bounds__(2 * BQ)
 flash_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT* __restrict__ vc,
              ik_bf16* __restrict__ out, int T, int N, int G, int64_t cap, int64_t pos0, float sl2) {
     constexpr bool QREG = D <= 128;
+    constexpr int NT = 2 * BQ;     // threads
     constexpr int LD = D + 8;     // padded smem row (elements): conflict-free ldmatrix / 16 B aligned rows
     constexpr int NKS = D / 16;   // k steps of Q K^T
     constexpr int NNB = BK / 8;   // key n-blocks of S
@@ -101,19 +107,19 @@ flash_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT*
     const int g = lane >> 2, c = lane & 3;
     const int qt = (int)gridDim.x - 1 - (int)blockIdx.x;  // longest blocks first
     const int h = blockIdx.y, kvh = h / G;
-    const int q0 = qt * kBQ;
+    const int q0 = qt * BQ;
     const int row_lo = q0 + warp * 16 + g, row_hi = row_lo + 8;
 
     const KT* kb = kc + (int64_t)kvh * cap * D;
     const KT* vb = vc + (int64_t)kvh * cap * D;
 
-    const int q_last = (q0 + kBQ < T ? q0 + kBQ : T) - 1;
+    const int q_last = (q0 + BQ < T ? q0 + BQ : T) - 1;
     const int64_t kv_end = pos0 + q_last + 1;                // keys visible to the last row of the block
     const int ntiles = (int)((kv_end + BK - 1) / BK);
     const int64_t mask_from = pos0 + q0 + 1;                 // tiles ending beyond this need the causal mask
 
     auto load_tile = [&](ik_bf16* dst, const KT* src, int tile) {
-        for (int idx = tid; idx < BK * CHUNKS; idx += kThreads) {
+        for (int idx = tid; idx < BK * CHUNKS; idx += NT) {
             const int r = idx / CHUNKS, ch = idx % CHUNKS;
             const int64_t key = (int64_t)tile * BK + r;
             const bool valid = key < kv_end;
@@ -123,13 +129,13 @@ flash_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT*
     // fp8: 16 bytes (16 dims) per copy into the staging bytes `st` [BK][D] (zero-filled past the end: e4m3 0 = bf16 0), the
     // upper BK x D bytes of the tile (BK * LD bf16) the bytes become
     constexpr int CH8 = D / 16;
-    constexpr int NPT = BK * CH8 / kThreads;  // 16-byte groups per thread per tile
-    static_assert(BK * CH8 % kThreads == 0, "whole groups per thread");
+    constexpr int NPT = BK * CH8 / NT;  // 16-byte groups per thread per tile
+    static_assert(BK * CH8 % NT == 0, "whole groups per thread");
     constexpr int ST_OFF = BK * LD * 2 - BK * D;  // byte offset of the staging bytes in a tile
     unsigned char* Kst = reinterpret_cast<unsigned char*>(Ks) + ST_OFF;
     unsigned char* Vst = reinterpret_cast<unsigned char*>(Vs) + ST_OFF;
     auto issue8 = [&](unsigned char* st, const KT* src, int tile) {
-        for (int idx = tid; idx < BK * CH8; idx += kThreads) {
+        for (int idx = tid; idx < BK * CH8; idx += NT) {
             const int r = idx / CH8, ch = idx % CH8;
             const int64_t key = (int64_t)tile * BK + r;
             const bool valid = key < kv_end;
@@ -142,13 +148,13 @@ flash_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT*
         uint4 v[NPT];
 #pragma unroll
         for (int i = 0; i < NPT; ++i) {
-            const int idx = tid + i * kThreads, r = idx / CH8, ch = idx % CH8;
+            const int idx = tid + i * NT, r = idx / CH8, ch = idx % CH8;
             v[i] = *reinterpret_cast<const uint4*>(st + r * D + ch * 16);
         }
         __syncthreads();  // f8: every thread holds its staged bytes
 #pragma unroll
         for (int i = 0; i < NPT; ++i) {
-            const int idx = tid + i * kThreads, r = idx / CH8, ch = idx % CH8;
+            const int idx = tid + i * NT, r = idx / CH8, ch = idx % CH8;
             *reinterpret_cast<uint4*>(dst + r * LD + ch * 16) = e4m3x8_to_bf16x8(v[i].x, v[i].y);
             *reinterpret_cast<uint4*>(dst + r * LD + ch * 16 + 8) = e4m3x8_to_bf16x8(v[i].z, v[i].w);
         }
@@ -168,7 +174,7 @@ flash_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT*
             qa[ks][3] = row_hi < T ? *reinterpret_cast<const uint32_t*>(p1 + 8) : 0u;
         }
     } else {
-        for (int idx = tid; idx < kBQ * CHUNKS; idx += kThreads) {
+        for (int idx = tid; idx < BQ * CHUNKS; idx += NT) {
             const int r = idx / CHUNKS, ch = idx % CHUNKS;
             const bool valid = q0 + r < T;
             cp_async16(Qs + r * LD + ch * 8, valid ? q + ((int64_t)(q0 + r) * N + h) * D + ch * 8 : q, valid);
@@ -304,23 +310,23 @@ flash_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT*
     }
 }
 
-template <int D, int BK, typename KT = ik_bf16>
+template <int D, int BK, typename KT = ik_bf16, int BQ = kBQ>
 int launch_flash(const ik_bf16* q, const KT* kc, const KT* vc, ik_bf16* out, int T, int N, int NKV,
                  int64_t cap, int64_t pos0, float scale, cudaStream_t s) {
-    constexpr size_t smem = flash_smem_bytes<D, BK>();
+    constexpr size_t smem = flash_smem_bytes<D, BK, BQ>();
     // the dynamic-smem opt-in is per function and per device context; set it once per device
     static bool configured[16] = {};
     int dev = 0;
     if (cudaGetDevice(&dev) != cudaSuccess) return IK_ERR_LAUNCH;
     if (dev < 0 || dev >= 16) return IK_ERR_UNSUPPORTED;
     if (!configured[dev]) {
-        if (cudaFuncSetAttribute(flash_kernel<D, BK, KT>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem) !=
+        if (cudaFuncSetAttribute(flash_kernel<D, BK, KT, BQ>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem) !=
             cudaSuccess)
             return IK_ERR_LAUNCH;
         configured[dev] = true;
     }
-    dim3 grid((T + kBQ - 1) / kBQ, N);
-    flash_kernel<D, BK, KT><<<grid, kThreads, smem, s>>>(q, kc, vc, out, T, N, N / NKV, cap, pos0, scale * kLog2e);
+    dim3 grid((T + BQ - 1) / BQ, N);
+    flash_kernel<D, BK, KT, BQ><<<grid, 2 * BQ, smem, s>>>(q, kc, vc, out, T, N, N / NKV, cap, pos0, scale * kLog2e);
     return ik_launch_status();
 }
 
@@ -359,10 +365,16 @@ int flash_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, i
     }
     const ik_bf16* kp = (const ik_bf16*)kc->data;
     const ik_bf16* vp = (const ik_bf16*)vc->data;
+    // D = 256: 128 query rows per block (8 warps; the same bits as 64). INTARSIA_CUDA_FLASH_BQ=64 restores 64 (A/B, and
+    // tests/flash_bq.rs, which flips it between calls: read per launch, a few hundred ns against a launch of ms).
+    const char* bqv = D == 256 ? getenv("INTARSIA_CUDA_FLASH_BQ") : nullptr;
+    const bool bq64 = bqv && atoi(bqv) == 64;
     switch (D) {
         case 64: return launch_flash<64, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
         case 128: return launch_flash<128, 64>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
-        default: return launch_flash<256, 32>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+        default:
+            if (bq64) return launch_flash<256, 32>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
+            return launch_flash<256, 32, ik_bf16, 128>(qp, kp, vp, op, (int)T, (int)N, (int)NKV, cap, pos0, scale, s);
     }
 }
 }  // namespace
