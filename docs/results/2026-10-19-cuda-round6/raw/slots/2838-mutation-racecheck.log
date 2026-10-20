@@ -1,0 +1,41 @@
+fleetq: #2838 running on spark1: scripts/cuda-round6/mut.sh
+===== flash mutants: bq-smem64 bq-threads64 bq-qstage-half bq-qlast64 bq-mask-from bq-no-sync-k EQ-bq-grid64 EQ-bq-default64
+--- unmutated
+unmutated: pass (5 tests)
+unmutated: racecheck clean
+--- bq-smem64
+applied bq-smem64: the 128-row blocks get the 64-row dynamic shared memory size (Q rows 64..127 past the allocation)
+KILLED bq-smem64 (tests): attention_kernels_match_reference_on_random_shapes result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.57s 
+--- bq-threads64
+applied bq-threads64: the 128-row blocks launch with 128 threads (warps 4..7, rows 64..127 of a block, never run)
+KILLED bq-threads64 (tests): attention_kernels_match_reference_on_random_shapes result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.53s 
+--- bq-qstage-half
+applied bq-qstage-half: only the first 64 Q rows of a block are staged into shared memory
+KILLED bq-qstage-half (tests): attention_kernels_match_reference_on_random_shapes result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.64s 
+--- bq-qlast64
+applied bq-qlast64: a block's key range ends at its 64th row (rows 64..127 miss their last keys)
+KILLED bq-qlast64 (tests): attention_kernels_match_reference_on_random_shapes result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.89s 
+--- bq-mask-from
+applied bq-mask-from: the causal mask starts 64 keys late (tiles at the diagonal of the lower rows go unmasked)
+KILLED bq-mask-from (tests): attention_kernels_match_reference_on_random_shapes result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.36s 
+--- bq-no-sync-k
+applied bq-no-sync-k: RACE: no barrier between the S = Q K^T reads of Ks and the copy of the next K tile into it
+KILLED bq-no-sync-k (tests): attention_kernels_match_reference_on_random_shapes result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.56s 
+--- EQ-bq-grid64
+applied EQ-bq-grid64: EQUIVALENT: twice the blocks (grid from 64-row blocks); the extra blocks start past T, write nothing
+SURVIVED EQ-bq-grid64: the tests passed on the mutated kernel and racecheck is clean
+--- EQ-bq-default64
+applied EQ-bq-default64: EQUIVALENT: 64-row blocks by default (the test compares 64 with the default; same bits, slower)
+SURVIVED EQ-bq-default64: the tests passed on the mutated kernel and racecheck is clean
+===== MoE threshold mutants: w4-1024 w4-gt
+--- unmutated
+unmutated: pass (14 tests)
+unmutated: racecheck clean
+--- w4-1024
+applied w4-1024: the w4a16 MoE kernel from 1024 tokens again (the round-5 threshold)
+KILLED w4-1024 (tests): kernels::tests::moe_experts_selection_by_batch_size result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+--- w4-gt
+applied w4-gt: the w4a16 MoE kernel from 769 tokens (> instead of >=)
+KILLED w4-gt (tests): kernels::tests::moe_experts_selection_by_batch_size result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+===== mutcheck exits: flash 0, threshold 0
+fleetq: #2838 done (exit 0)

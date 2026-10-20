@@ -1,0 +1,9 @@
+iction (forces a queue), `INTARSIA_DEBUG_STALL_KV=n` sleeps n seconds after allocating KV (forces
+OOM), `INTARSIA_DEBUG_STALL_KV_OOM=n` sleeps n seconds after an OOM (forces a 429). Use them to
+stress-test the watchdog and the supervisor.
+
+## Grafana dashboard
+
+`deploy/grafana/intarsia.json` is a ready-made dashboard. It reads the metrics above and shows:
+* `intarsia_engine_steps_total` (rate, 1m/5m)
+* `intarsia_requests_{running,

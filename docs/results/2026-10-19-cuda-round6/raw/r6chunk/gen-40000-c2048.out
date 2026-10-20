@@ -1,0 +1,10 @@
+iction (forces a stalled health check); `INTARSIA_DEBUG_STALL_KV=n` sleeps n seconds after
+allocating KV (forces a stalled health check); `INTARSIA_DEBUG_STALL_KV_FAIL=n` sleeps n seconds
+after allocating KV and then returns an allocation error (forces a 503 from the HTTP layer).
+
+## Grafana dashboard
+
+`deploy/grafana/intarsia.json` (import it). It uses the `intarsia_*` metric names and the
+`intarsia_info` labels. The dashboard is a single row:
+
+* `intarsia_engine_steps

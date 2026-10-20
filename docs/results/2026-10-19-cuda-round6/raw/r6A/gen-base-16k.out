@@ -1,0 +1,1 @@
+This is a highly detailed, production-grade architecture plan for **IntarsiaML**. It demonstrates a mature understanding of the trade-offs between flexibility, performance, and correctness in modern LLM inference engines. The decision to decouple the "recipe" (model definition) from the "kernel" (implementation) and enforce strict

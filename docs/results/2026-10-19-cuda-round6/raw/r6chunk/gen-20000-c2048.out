@@ -1,0 +1,9 @@
+ gates pass |
+| publish deep results | 1 min | — |
+
+The publish stage writes a **manifest** (model, recipe, plan hash, kernel versions, tuning DB hash, exactness mode, gates, benchmarks, localeval scores, commit) and a **unanimis** report. The manifest is the single source of truth for reproducibility.
+
+## 8. Server, APIs, UI, metrics
+
+- **OpenAI**: `/v1/chat/completions`, `/v1/completions`, `/v1/responses`, `/v1/models` (list, retrieve, list_families).
+

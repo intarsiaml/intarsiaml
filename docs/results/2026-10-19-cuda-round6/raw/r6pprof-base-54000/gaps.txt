@@ -1,0 +1,10 @@
+prompt window: 8893 kernels, span 3409.25 ms, busy 3031.86 ms, idle 377.39 ms (11.1 %), kernel sum 3032.16 ms
+gaps: 8375; < 20 us total 17.76 ms (mean 2.1 us); >= 20 us: 30 totalling 359.62 ms
+  gap  336997.1 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   11718.3 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap    2578.7 us before void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_64x3_tn_align8
+  gap     725.7 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     699.4 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     699.2 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     698.4 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     696.1 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1

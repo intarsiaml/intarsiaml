@@ -1,0 +1,9 @@
+u(up)`, `gate * up`, `down * (gate * up)`,
+`routed + shared`, `shared_gate * shared`, `sigmoid(shared_gate * shared) * shared`, `routed + sigmoid * shared`).
+`moe_topk` is `topk(softmax(logits))` with `w /= sum(w)` (the `norm_topk` attribute).
+
+## NVFP4 GEMV (the hard kernel)
+
+`kernels/cuda/nvfp4.cu` (registered by `crates/intarsia-backend-cuda/src/quantmoe.rs`):
+
+

@@ -1,0 +1,12 @@
+u(up)`, `down` matmul, `combine` sum,
+`sigmoid(shared_gate)`). The `moe_topk` kernel is a reference implementation (no fast path yet); the `moe_experts`
+kernel is the NVFP4 GEMV split-K (the one that holds the Spark bar).
+
+## Admission cases (when a kernel is allowed)
+
+`quant::moe::AdmissionCase` (checked by `Op::validate`):
+
+| Case | When |
+|---|---|
+| `bf16` | `dtype == bf16` |
+

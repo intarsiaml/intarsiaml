@@ -1,0 +1,6 @@
+bin
+Collecting data...
+Generating '/tmp/nsys-report-27d6.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [===24%                      ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [==19%                       ] nsys.nsys-rep[1/1] [==20%                       ] nsys.nsys-rep[1/1] [==21%                       ] nsys.nsys-rep[1/1] [=17%                        ] nsys.nsys-rep[1/1] [=====32%                    ] nsys.nsys-rep[1/1] [====27%                     ] nsys.nsys-rep[1/1] [===23%                      ] nsys.nsys-rep[1/1] [==20%                       ] nsys.nsys-rep[1/1] [=====30%                    ] nsys.nsys-rep[1/1] [=======39%                  ] nsys.nsys-rep[1/1] [==========49%               ] nsys.nsys-rep[1/1] [=============58%            ] nsys.nsys-rep[1/1] [================68%         ] nsys.nsys-rep[1/1] [==================76%       ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/r6pprof-base-3400/nsys.nsys-rep

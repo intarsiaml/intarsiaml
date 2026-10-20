@@ -1,0 +1,22 @@
+gen base-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 900 ms (1662.6 tok/s) | decode 3352 ms (76.07 tok/s)
+gen dev-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 623 ms (2401.7 tok/s) | decode 3061 ms (83.30 tok/s)
+gen dev-eager: finish=length prompt=1497 (cached 0) completion=256 | prefill 549 ms (2726.0 tok/s) | decode 3403 ms (74.94 tok/s)
+gen base-900: finish=length prompt=921 (cached 0) completion=128 | prefill 497 ms (1852.4 tok/s) | decode 1524 ms (83.33 tok/s)
+gen dev-900: finish=length prompt=921 (cached 0) completion=128 | prefill 586 ms (1572.2 tok/s) | decode 1755 ms (72.38 tok/s)
+gen base-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 3644 ms (4398.4 tok/s) | decode 926 ms (68.04 tok/s)
+gen dev-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 3683 ms (4351.8 tok/s) | decode 896 ms (70.31 tok/s)
+gen c4096-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 2978 ms (5380.7 tok/s) | decode 854 ms (73.80 tok/s)
+acc base-short-c2048 exit 0 35 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc dev-short-c2048 exit 0 36 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc base-long-c2048 exit 1 99 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc dev-long-c2048 exit 1 101 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc dev-short-c4096 exit 0 45 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc dev-long-c4096 exit 1 94 s: prefill floor [4bit]: top-1 94.36% (not gated for this class) ok | 21-way KL 4.678e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0642 vs ref 0.0611, exc
+reuse base exit 0 88 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|
+reuse dev exit 0 87 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|
+reuse c4096 exit 0 76 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|
+acc8 short-base exit 0 61 s: prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <=|decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+acc8 short-dev exit 0 53 s: prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.897e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <=|decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.238e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+acc8 long-dev exit 0 50 s: prefill floor [bf16]: top-1 99.65% (need >= 99.5) ok | full-vocab KL 4.004e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= |decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.332e-4 (need <= 1.0e-3) ok | tail mass ours 0.0216 vs ref 0.0215, excess|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+plan8 base exit 0: 8630 bytes
+plan8 dev exit 0: 8630 bytes

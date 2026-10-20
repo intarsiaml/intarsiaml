@@ -1,0 +1,597 @@
+#2822 "cuda-round6: headroom (prefill nsys 1k/4k/16k, kernel microbench, vLLM Marlin MoE bench; vLLM up, idle)" (claude-f31ccf91) running on spark1 exclusive 34 GB for 0s
+  run work inside it: prefix commands with FLEETQ_JOB=2822
+  release when finished: fleetq release 2822
+20:22:59 lease 2822 held
+MemAvailable 53 GB
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 46, 11.03 W, 0 %
+== base, 3400 chars, chunk 2048, env 'INTARSIA_X=0 ' args '' 20:23:01
+finish=length prompt=1022 (cached 0) completion=1 | prefill 584 ms (1750.5 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=1022 (cached 0) completion=1 | prefill 627 ms (1631.2 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 217.9 ms
+moe_mma_kernel<                                                             115.3 ms  52.9 %     80 calls
+reg::gemm_reg_kernel<                                                        38.5 ms  17.7 %    130 calls
+gdn_delta_split_kernel<                                                      24.3 ms  11.1 %     30 calls
+wq::wq_gemm_kernel<                                                           7.1 ms   3.3 %    120 calls
+moe_reduce_kernel<__nv_bfloat16>                                              6.3 ms   2.9 %     40 calls
+gdn_conv_kernel                                                               5.5 ms   2.5 %     30 calls
+rmsnorm_kernel<                                                               5.0 ms   2.3 %    101 calls
+fp8_actq_kernel                                                               3.8 ms   1.8 %    130 calls
+gated_rmsnorm_kernel<                                                         2.4 ms   1.1 %     30 calls
+flash_kernel<                                                                 1.8 ms   0.8 %     10 calls
+rope_kernel                                                                   1.2 ms   0.5 %     20 calls
+gate_split_kernel                                                             1.2 ms   0.5 %     10 calls
+nvjet_sm121_tst_mma_96x64x64_4_16x64x64_tmaAB_bz_TNNN                         1.0 ms   0.5 %     40 calls
+moe_combine_kernel<__nv_bfloat16>                                             1.0 ms   0.5 %     40 calls
+nvjet_sm121_tst_mma_32x32x64_12_32x8x64_tmaAB_bz_TNNN                         0.9 ms   0.4 %     60 calls
+sigmoid_mul_kernel                                                            0.7 ms   0.3 %     10 calls
+rope_pass_kernel                                                              0.5 ms   0.2 %     20 calls
+moe_topk_kernel                                                               0.4 ms   0.2 %     40 calls
+moe_group_tiles_kernel                                                        0.3 ms   0.1 %     40 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        0.3 ms   0.1 %     40 calls
+prompt window: 1109 kernels, span 600.08 ms, busy 217.75 ms, idle 382.33 ms (63.7 %), kernel sum 217.80 ms
+gaps: 1024; < 20 us total 2.09 ms (mean 2.1 us); >= 20 us: 22 totalling 380.24 ms
+  gap  364380.4 us before nvjet_sm121_tst_mma_32x32x64_12_32x8x64_tmaAB_bz_TNNN
+  gap   12393.3 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap     714.9 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+  gap     599.6 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+  gap     519.5 us before <unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, 
+  gap     385.7 us before <unnamed>::moe_topk_kernel(const __nv_bfloat16 *, int, int, int, int, float *, int *)
+  gap     277.4 us before void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat1
+  gap     252.8 us before void <unnamed>::flash_kernel<(int)256, (int)32, __nv_bfloat16>(const __nv_bfloat16 *, cons
+== base, 14000 chars, chunk 2048, env 'INTARSIA_X=0 ' args '' 20:24:20
+finish=length prompt=4189 (cached 0) completion=1 | prefill 1094 ms (3828.4 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4189 (cached 0) completion=1 | prefill 1183 ms (3540.3 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 772.2 ms
+moe_w4a16_kernel<                                                           268.1 ms  34.7 %    160 calls
+reg::gemm_reg_kernel<                                                       146.5 ms  19.0 %    260 calls
+gdn_delta_split_kernel<                                                     109.7 ms  14.2 %     90 calls
+moe_mma_kernel<                                                              52.7 ms   6.8 %     80 calls
+wq::wq_gemm_kernel<                                                          36.1 ms   4.7 %    490 calls
+moe_reduce_kernel<__nv_bfloat16>                                             26.7 ms   3.5 %    120 calls
+flash_kernel<                                                                24.1 ms   3.1 %     30 calls
+gdn_conv_kernel                                                              21.5 ms   2.8 %     90 calls
+rmsnorm_kernel<                                                              19.4 ms   2.5 %    303 calls
+fp8_actq_kernel                                                              18.7 ms   2.4 %    390 calls
+gated_rmsnorm_kernel<                                                        13.0 ms   1.7 %     90 calls
+moe_combine_kernel<__nv_bfloat16>                                             6.2 ms   0.8 %    120 calls
+gate_split_kernel                                                             5.4 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.6 %     60 calls
+sigmoid_mul_kernel                                                            3.9 ms   0.5 %     30 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         3.9 ms   0.5 %    120 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        3.1 ms   0.4 %     80 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        1.6 ms   0.2 %    120 calls
+rope_pass_kernel                                                              1.6 ms   0.2 %     60 calls
+moe_topk_kernel                                                               1.3 ms   0.2 %    120 calls
+prompt window: 3433 kernels, span 1156.80 ms, busy 772.00 ms, idle 384.80 ms (33.3 %), kernel sum 772.17 ms
+gaps: 3160; < 20 us total 6.68 ms (mean 2.1 us); >= 20 us: 30 totalling 378.11 ms
+  gap  344019.6 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   13966.8 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+  gap   11788.7 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap    2611.4 us before void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_64x3_tn_align8
+  gap     694.4 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     687.2 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     539.3 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+  gap     528.3 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+== base, 54000 chars, chunk 2048, env 'INTARSIA_X=0 ' args '' 20:25:30
+finish=length prompt=16014 (cached 0) completion=1 | prefill 3348 ms (4783.2 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=16014 (cached 0) completion=1 | prefill 3435 ms (4661.6 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 3032.3 ms
+moe_w4a16_kernel<                                                          1070.9 ms  35.3 %    640 calls
+reg::gemm_reg_kernel<                                                       591.6 ms  19.5 %   1040 calls
+gdn_delta_split_kernel<                                                     429.7 ms  14.2 %    240 calls
+flash_kernel<                                                               331.2 ms  10.9 %     80 calls
+moe_reduce_kernel<__nv_bfloat16>                                            106.2 ms   3.5 %    320 calls
+wq::wq_gemm_kernel<                                                          91.8 ms   3.0 %    960 calls
+gdn_conv_kernel                                                              81.7 ms   2.7 %    240 calls
+rmsnorm_kernel<                                                              74.5 ms   2.5 %    808 calls
+fp8_actq_kernel                                                              69.1 ms   2.3 %   1040 calls
+gated_rmsnorm_kernel<                                                        50.7 ms   1.7 %    240 calls
+moe_combine_kernel<__nv_bfloat16>                                            23.1 ms   0.8 %    320 calls
+gate_split_kernel                                                            21.5 ms   0.7 %     80 calls
+rope_kernel                                                                  18.6 ms   0.6 %    160 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                        17.7 ms   0.6 %    480 calls
+sigmoid_mul_kernel                                                           14.9 ms   0.5 %     80 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128       10.5 ms   0.3 %    280 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        6.2 ms   0.2 %    320 calls
+rope_pass_kernel                                                              6.2 ms   0.2 %    160 calls
+moe_topk_kernel                                                               5.0 ms   0.2 %    320 calls
+moe_group_tiles_kernel                                                        4.3 ms   0.1 %    320 calls
+prompt window: 8893 kernels, span 3409.25 ms, busy 3031.86 ms, idle 377.39 ms (11.1 %), kernel sum 3032.16 ms
+gaps: 8375; < 20 us total 17.76 ms (mean 2.1 us); >= 20 us: 30 totalling 359.62 ms
+  gap  336997.1 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   11718.3 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap    2578.7 us before void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_64x3_tn_align8
+  gap     725.7 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     699.4 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     699.2 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     698.4 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     696.1 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+MemAvailable 53 GB
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 49, 11.29 W, 0 %
+== c4096, 14000 chars, chunk 4096, env 'INTARSIA_X=0 ' args '' 20:26:59
+finish=length prompt=4189 (cached 0) completion=1 | prefill 1002 ms (4181.4 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=4189 (cached 0) completion=1 | prefill 1122 ms (3735.1 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 718.9 ms
+moe_w4a16_kernel<                                                           205.0 ms  28.5 %     80 calls
+reg::gemm_reg_kernel<                                                       141.3 ms  19.7 %    130 calls
+gdn_delta_split_kernel<                                                     110.6 ms  15.4 %     60 calls
+moe_mma_kernel<                                                              52.9 ms   7.4 %     80 calls
+wq::wq_gemm_kernel<                                                          35.3 ms   4.9 %    370 calls
+moe_reduce_kernel<__nv_bfloat16>                                             26.7 ms   3.7 %     80 calls
+rmsnorm_kernel<                                                              25.3 ms   3.5 %    202 calls
+flash_kernel<                                                                23.6 ms   3.3 %     20 calls
+fp8_actq_kernel                                                              23.0 ms   3.2 %    260 calls
+gdn_conv_kernel                                                              20.4 ms   2.8 %     60 calls
+gated_rmsnorm_kernel<                                                        12.9 ms   1.8 %     60 calls
+moe_combine_kernel<__nv_bfloat16>                                             9.0 ms   1.2 %     80 calls
+gate_split_kernel                                                             5.4 ms   0.7 %     20 calls
+rope_kernel                                                                   4.7 ms   0.7 %     40 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        4.2 ms   0.6 %     80 calls
+nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_TNNN                        4.2 ms   0.6 %     60 calls
+sigmoid_mul_kernel                                                            4.1 ms   0.6 %     20 calls
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN                       3.4 ms   0.5 %     40 calls
+rope_pass_kernel                                                              2.5 ms   0.4 %     40 calls
+moe_group_tiles_kernel                                                        1.1 ms   0.1 %     80 calls
+prompt window: 2321 kernels, span 1094.47 ms, busy 718.79 ms, idle 375.68 ms (34.3 %), kernel sum 718.92 ms
+gaps: 2070; < 20 us total 4.40 ms (mean 2.2 us); >= 20 us: 28 totalling 371.28 ms
+  gap  339901.6 us before nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_TNNN
+  gap   14464.8 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+  gap   11734.3 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap     700.3 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     626.1 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+  gap     609.9 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+  gap     496.0 us before <unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, 
+  gap     486.7 us before nvjet_sm121_tst_mma_64x32x64_8_32x16x64_tmaAB_splitK_TNNN
+== c4096, 54000 chars, chunk 4096, env 'INTARSIA_X=0 ' args '' 20:28:27
+finish=length prompt=16014 (cached 0) completion=1 | prefill 3070 ms (5215.6 tok/s) | decode 0 ms (0.00 tok/s)
+finish=length prompt=16014 (cached 0) completion=1 | prefill 3204 ms (4998.7 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 2806.1 ms
+moe_w4a16_kernel<                                                           812.2 ms  28.9 %    320 calls
+reg::gemm_reg_kernel<                                                       568.3 ms  20.3 %    520 calls
+gdn_delta_split_kernel<                                                     433.8 ms  15.5 %    120 calls
+flash_kernel<                                                               326.6 ms  11.6 %     40 calls
+moe_reduce_kernel<__nv_bfloat16>                                            105.8 ms   3.8 %    160 calls
+rmsnorm_kernel<                                                              97.6 ms   3.5 %    404 calls
+fp8_actq_kernel                                                              90.2 ms   3.2 %    520 calls
+wq::wq_gemm_kernel<                                                          87.1 ms   3.1 %    480 calls
+gdn_conv_kernel                                                              78.8 ms   2.8 %    120 calls
+gated_rmsnorm_kernel<                                                        50.1 ms   1.8 %    120 calls
+moe_combine_kernel<__nv_bfloat16>                                            33.6 ms   1.2 %    160 calls
+gate_split_kernel                                                            21.1 ms   0.8 %     40 calls
+rope_kernel                                                                  17.9 ms   0.6 %     80 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv       16.3 ms   0.6 %    160 calls
+sigmoid_mul_kernel                                                           15.7 ms   0.6 %     40 calls
+nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_TNNN                       15.2 ms   0.5 %    240 calls
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN                      10.9 ms   0.4 %    120 calls
+rope_pass_kernel                                                             10.1 ms   0.4 %     80 calls
+moe_group_tiles_kernel                                                        4.0 ms   0.1 %    160 calls
+moe_topk_kernel                                                               3.2 ms   0.1 %    160 calls
+prompt window: 4445 kernels, span 3162.91 ms, busy 2805.40 ms, idle 357.51 ms (11.3 %), kernel sum 2805.57 ms
+gaps: 4048; < 20 us total 8.52 ms (mean 2.1 us); >= 20 us: 26 totalling 348.99 ms
+  gap  331663.9 us before nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_TNNN
+  gap   11849.8 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap     827.2 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     739.6 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     691.9 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap     578.8 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+  gap     517.0 us before <unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, 
+  gap     445.9 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 48, 11.18 W, 0 %
+== moe round 1: default
+T            kernel                               us       TFLOPS
+1024         moe_experts_mma_bf16             3075.9         16.8
+1024         moe_experts_w4a16_bf16           2987.5         17.3
+2048         moe_experts_mma_bf16             4326.5         23.8
+2048         moe_experts_w4a16_bf16           3537.2         29.1
+4096         moe_experts_mma_bf16             6991.1         29.5
+4096         moe_experts_w4a16_bf16           5260.6         39.2
+8192         moe_experts_mma_bf16            12558.8         32.8
+8192         moe_experts_w4a16_bf16           9905.2         41.6
+== moe round 2: default
+T            kernel                               us       TFLOPS
+1024         moe_experts_mma_bf16             3100.8         16.6
+1024         moe_experts_w4a16_bf16           2920.4         17.6
+2048         moe_experts_mma_bf16             4248.9         24.3
+2048         moe_experts_w4a16_bf16           3604.8         28.6
+4096         moe_experts_mma_bf16             6944.3         29.7
+4096         moe_experts_w4a16_bf16           5337.4         38.6
+8192         moe_experts_mma_bf16            12475.4         33.1
+8192         moe_experts_w4a16_bf16           9832.1         41.9
+== wq round 1: INTARSIA_FP8_REG_CFG=0
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        518.5 us   66.3 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        277.8 us   61.8 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        292.5 us   58.7 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        504.2 us   68.1 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         54.3 us   39.6 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        293.9 us   58.5 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      41730.2 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        995.1 us   69.1 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        543.7 us   63.2 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        597.3 us   57.5 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1023.4 us   67.1 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        116.5 us   36.9 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        611.8 us   56.2 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      82763.7 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       1965.5 us   69.9 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1066.9 us   64.4 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1216.4 us   56.5 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       1970.4 us   69.8 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        250.7 us   34.3 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1240.5 us   55.4 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     164588.8 us
+== wq round 1: INTARSIA_FP8_REG_CFG=1
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        493.2 us   69.7 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        271.5 us   63.3 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        302.8 us   56.7 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        492.1 us   69.8 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         56.5 us   38.0 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        307.7 us   55.8 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      41153.4 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        982.5 us   69.9 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        531.1 us   64.7 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        625.3 us   54.9 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1011.6 us   67.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        119.7 us   35.9 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        641.8 us   53.5 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      83095.4 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       1972.2 us   69.7 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1070.8 us   64.2 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1300.4 us   52.8 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       1966.7 us   69.9 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        256.6 us   33.5 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1284.3 us   53.5 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     167944.9 us
+== wq round 1: INTARSIA_FP8_REG_CFG=2
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        613.9 us   56.0 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        303.8 us   56.6 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        319.8 us   53.7 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        552.3 us   62.2 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         55.7 us   38.6 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        324.0 us   53.0 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      47001.6 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1163.0 us   59.1 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        600.8 us   57.2 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        705.6 us   48.7 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1164.9 us   59.0 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        124.9 us   34.4 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        719.2 us   47.8 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      95420.9 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       2164.6 us   63.5 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1239.5 us   55.4 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1380.2 us   49.8 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       2164.1 us   63.5 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        268.2 us   32.0 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1388.4 us   49.5 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     184416.8 us
+== wq round 1: INTARSIA_FP8_REG_CFG=3
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        527.1 us   65.2 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        283.5 us   60.6 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        323.3 us   53.1 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        528.1 us   65.1 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         53.7 us   40.0 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        313.6 us   54.8 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      43504.9 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1121.2 us   61.3 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        566.4 us   60.7 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        719.2 us   47.8 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1075.0 us   63.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        120.3 us   35.7 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        669.3 us   51.3 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      92052.3 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       2089.7 us   65.8 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1110.5 us   61.9 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1328.2 us   51.7 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       2101.0 us   65.4 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        259.6 us   33.1 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1330.4 us   51.7 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     175354.0 us
+== wq round 2: INTARSIA_FP8_REG_CFG=0
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        507.0 us   67.8 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        276.1 us   62.2 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        294.5 us   58.3 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        504.6 us   68.1 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         51.5 us   41.7 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        296.9 us   57.9 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      41374.1 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1005.0 us   68.4 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        568.2 us   60.5 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        601.8 us   57.1 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1009.7 us   68.1 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        118.8 us   36.1 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        598.4 us   57.4 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      83707.5 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       1965.4 us   69.9 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1083.0 us   63.5 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1248.9 us   55.0 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       1968.9 us   69.8 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        259.8 us   33.1 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1207.0 us   56.9 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     165872.5 us
+== wq round 2: INTARSIA_FP8_REG_CFG=1
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        498.7 us   68.9 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        302.9 us   56.7 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        303.8 us   56.6 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        493.3 us   69.7 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         55.6 us   38.6 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        313.1 us   54.9 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      42336.5 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        965.7 us   71.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        529.6 us   64.9 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        626.8 us   54.8 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1013.3 us   67.8 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        120.8 us   35.6 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        627.5 us   54.8 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      82485.4 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       1983.7 us   69.3 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1125.6 us   61.1 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1285.0 us   53.5 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       1981.1 us   69.4 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        267.7 us   32.1 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1282.8 us   53.6 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     169823.0 us
+== wq round 2: INTARSIA_FP8_REG_CFG=2
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        554.3 us   62.0 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        299.4 us   57.4 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        351.8 us   48.8 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        557.3 us   61.6 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         55.7 us   38.6 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        326.1 us   52.7 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      46114.4 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1097.6 us   62.6 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        593.1 us   57.9 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        674.9 us   50.9 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1167.5 us   58.9 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        123.6 us   34.7 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        739.9 us   46.4 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      92516.8 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       2164.9 us   63.5 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1247.9 us   55.1 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1384.0 us   49.7 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       2169.4 us   63.4 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        275.4 us   31.2 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1378.0 us   49.9 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     184888.6 us
+== wq round 2: INTARSIA_FP8_REG_CFG=3
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        530.3 us   64.8 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        286.6 us   59.9 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        346.8 us   49.5 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        526.5 us   65.3 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         53.6 us   40.1 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        309.0 us   55.6 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      44338.9 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1105.0 us   62.2 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        580.1 us   59.2 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        644.9 us   53.3 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1156.3 us   59.4 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        121.4 us   35.4 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        686.0 us   50.1 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      90752.6 us
+M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       2173.7 us   63.2 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1140.4 us   60.3 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1317.7 us   52.2 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       2135.5 us   64.4 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        271.9 us   31.6 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1321.0 us   52.0 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     178958.6 us
+== gdn round 1: INTARSIA_GDN_EXP=0
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.1 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.5 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          16.8 us/launch
+gdn_conv_bf16          T=128         32.8 us/launch
+gdn_delta_rule_bf16    T=128        162.4 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.4 us/launch
+gdn_delta_rule_bf16_split T=128         98.4 us/launch
+gdn_conv_bf16          T=512         86.6 us/launch
+gdn_delta_rule_bf16    T=512        594.6 us/launch
+gdn_delta_rule_bf16_lanes T=512        378.8 us/launch
+gdn_delta_rule_bf16_split T=512        392.9 us/launch
+gdn_conv_bf16          T=2048       367.0 us/launch
+gdn_delta_rule_bf16    T=2048      2963.0 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1842.9 us/launch
+gdn_delta_rule_bf16_split T=2048      1875.8 us/launch
+== gdn round 1: INTARSIA_GDN_EXP=4
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.4 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.8 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          16.4 us/launch
+gdn_conv_bf16          T=128         32.8 us/launch
+gdn_delta_rule_bf16    T=128        159.5 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.3 us/launch
+gdn_delta_rule_bf16_split T=128         90.6 us/launch
+gdn_conv_bf16          T=512         86.7 us/launch
+gdn_delta_rule_bf16    T=512        596.1 us/launch
+gdn_delta_rule_bf16_lanes T=512        410.7 us/launch
+gdn_delta_rule_bf16_split T=512        349.1 us/launch
+gdn_conv_bf16          T=2048       369.4 us/launch
+gdn_delta_rule_bf16    T=2048      2963.0 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1842.3 us/launch
+gdn_delta_rule_bf16_split T=2048      1380.1 us/launch
+== gdn round 1: INTARSIA_GDN_EXP=8
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.5 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.6 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.6 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          14.4 us/launch
+gdn_conv_bf16          T=128         32.8 us/launch
+gdn_delta_rule_bf16    T=128        160.8 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.4 us/launch
+gdn_delta_rule_bf16_split T=128         73.8 us/launch
+gdn_conv_bf16          T=512         86.5 us/launch
+gdn_delta_rule_bf16    T=512        626.0 us/launch
+gdn_delta_rule_bf16_lanes T=512        399.5 us/launch
+gdn_delta_rule_bf16_split T=512        277.9 us/launch
+gdn_conv_bf16          T=2048       366.1 us/launch
+gdn_delta_rule_bf16    T=2048      2954.8 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1844.5 us/launch
+gdn_delta_rule_bf16_split T=2048      1360.1 us/launch
+== gdn round 1: INTARSIA_GDN_EXP=2
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.3 us/launch
+gdn_delta_rule_bf16_split T=1            7.1 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          31.6 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          13.8 us/launch
+gdn_conv_bf16          T=128         32.7 us/launch
+gdn_delta_rule_bf16    T=128        158.7 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.2 us/launch
+gdn_delta_rule_bf16_split T=128         67.6 us/launch
+gdn_conv_bf16          T=512         85.9 us/launch
+gdn_delta_rule_bf16    T=512        589.8 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.5 us/launch
+gdn_delta_rule_bf16_split T=512        257.7 us/launch
+gdn_conv_bf16          T=2048       416.7 us/launch
+gdn_delta_rule_bf16    T=2048      2900.3 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1851.3 us/launch
+gdn_delta_rule_bf16_split T=2048      1017.2 us/launch
+== gdn round 2: INTARSIA_GDN_EXP=0
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.2 us/launch
+gdn_delta_rule_bf16    T=1           14.5 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.3 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.5 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.4 us/launch
+gdn_delta_rule_bf16_split T=16          16.5 us/launch
+gdn_conv_bf16          T=128         32.7 us/launch
+gdn_delta_rule_bf16    T=128        159.4 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.2 us/launch
+gdn_delta_rule_bf16_split T=128        100.5 us/launch
+gdn_conv_bf16          T=512        112.0 us/launch
+gdn_delta_rule_bf16    T=512        605.1 us/launch
+gdn_delta_rule_bf16_lanes T=512        379.4 us/launch
+gdn_delta_rule_bf16_split T=512        380.0 us/launch
+gdn_conv_bf16          T=2048       367.4 us/launch
+gdn_delta_rule_bf16    T=2048      2959.6 us/launch
+gdn_delta_rule_bf16_lanes T=2048      2005.1 us/launch
+gdn_delta_rule_bf16_split T=2048      1827.5 us/launch
+== gdn round 2: INTARSIA_GDN_EXP=4
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.0 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          31.8 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          16.4 us/launch
+gdn_conv_bf16          T=128         32.7 us/launch
+gdn_delta_rule_bf16    T=128        158.4 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.3 us/launch
+gdn_delta_rule_bf16_split T=128         90.2 us/launch
+gdn_conv_bf16          T=512         85.2 us/launch
+gdn_delta_rule_bf16    T=512        626.0 us/launch
+gdn_delta_rule_bf16_lanes T=512        377.1 us/launch
+gdn_delta_rule_bf16_split T=512        346.6 us/launch
+gdn_conv_bf16          T=2048       421.7 us/launch
+gdn_delta_rule_bf16    T=2048      2816.1 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1956.0 us/launch
+gdn_delta_rule_bf16_split T=2048      1380.1 us/launch
+== gdn round 2: INTARSIA_GDN_EXP=8
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.8 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.4 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.5 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.5 us/launch
+gdn_delta_rule_bf16_split T=16          14.4 us/launch
+gdn_conv_bf16          T=128         32.8 us/launch
+gdn_delta_rule_bf16    T=128        160.3 us/launch
+gdn_delta_rule_bf16_lanes T=128        103.2 us/launch
+gdn_delta_rule_bf16_split T=128         73.8 us/launch
+gdn_conv_bf16          T=512         86.8 us/launch
+gdn_delta_rule_bf16    T=512        610.0 us/launch
+gdn_delta_rule_bf16_lanes T=512        379.5 us/launch
+gdn_delta_rule_bf16_split T=512        277.5 us/launch
+gdn_conv_bf16          T=2048       390.4 us/launch
+gdn_delta_rule_bf16    T=2048      2896.4 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1844.3 us/launch
+gdn_delta_rule_bf16_split T=2048      1279.7 us/launch
+== gdn round 2: INTARSIA_GDN_EXP=2
+test gdn_kernels_timing_at_35b_shapes ... gdn_conv_bf16          T=1            8.3 us/launch
+gdn_delta_rule_bf16    T=1           14.4 us/launch
+gdn_delta_rule_bf16_lanes T=1            6.2 us/launch
+gdn_delta_rule_bf16_split T=1            7.0 us/launch
+gdn_conv_bf16          T=16          16.4 us/launch
+gdn_delta_rule_bf16    T=16          32.5 us/launch
+gdn_delta_rule_bf16_lanes T=16          16.4 us/launch
+gdn_delta_rule_bf16_split T=16          14.1 us/launch
+gdn_conv_bf16          T=128         32.6 us/launch
+gdn_delta_rule_bf16    T=128        160.9 us/launch
+gdn_delta_rule_bf16_lanes T=128         98.4 us/launch
+gdn_delta_rule_bf16_split T=128         67.7 us/launch
+gdn_conv_bf16          T=512         85.9 us/launch
+gdn_delta_rule_bf16    T=512        594.6 us/launch
+gdn_delta_rule_bf16_lanes T=512        376.9 us/launch
+gdn_delta_rule_bf16_split T=512        257.3 us/launch
+gdn_conv_bf16          T=2048       446.4 us/launch
+gdn_delta_rule_bf16    T=2048      2876.8 us/launch
+gdn_delta_rule_bf16_lanes T=2048      1854.9 us/launch
+gdn_delta_rule_bf16_split T=2048      1017.1 us/launch
+== mma_peak, stream_runs
+SMs 48, max smem per block (opt-in) 101376 B, per SM 102400 B, regs per SM 65536, clock 2418000 kHz
+bf16 m16n8k16,  4 warps/block, 384 blocks: 122.3 TFLOPS
+bf16 m16n8k16,  8 warps/block, 384 blocks: 121.9 TFLOPS
+bf16 m16n8k16, 16 warps/block, 384 blocks: 121.6 TFLOPS
+e4m3 m16n8k32,  4 warps/block, 384 blocks: 242.9 TFLOPS
+e4m3 m16n8k32,  8 warps/block, 384 blocks: 243.1 TFLOPS
+e4m3 m16n8k32, 16 warps/block, 384 blocks: 243.2 TFLOPS
+run   32 B per row per unit:   2.639 ms   101.7 GB/s
+run   64 B per row per unit:   1.340 ms   200.4 GB/s
+run  128 B per row per unit:   1.154 ms   232.6 GB/s
+run  256 B per row per unit:   1.097 ms   244.7 GB/s
+run  512 B per row per unit:   1.086 ms   247.1 GB/s
+run 1024 B per row per unit:   1.095 ms   245.2 GB/s
+name, clocks.current.sm [MHz], clocks.max.sm [MHz], clocks.current.memory [MHz], power.draw [W], temperature.gpu
+NVIDIA GB10, 2398 MHz, 3003 MHz, [N/A], 12.60 W, 52
+        Idle                                           : Not Active
+        Applications Clocks Setting                    : Not Active
+        SW Power Cap                                   : Not Active
+        HW Slowdown                                    : Not Active
+            HW Thermal Slowdown                        : Not Active
+            HW Power Brake Slowdown                    : Not Active
+        Sync Boost                                     : Not Active
+        SW Thermal Slowdown                            : Not Active
+        Display Clock Setting                          : Not Active
+        SW Thermal Slowdown                            : 284827 us
+        HW Thermal Slowdown                            : 0 us
+pid, used_gpu_memory [MiB]
+100934, 59386 MiB
+vllm 0.26.1rc1.dev602+g65b7662d3  torch 2.13.0+cu130  device NVIDIA GB10 sm121
+call path:
+  vllm.model_executor.layers.fused_moe.experts.marlin_moe.fused_marlin_moe  (/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/experts/marlin_moe.py)
+    -> moe_align_block_size (fused_moe/moe_align_block_size.py)
+    -> _fused_marlin_moe: torch.ops._moe_C.moe_wna16_marlin_gemm (via vllm._custom_ops.moe_wna16_marlin_gemm) x2,
+       apply_moe_activation(SILU -> silu_and_mul) between them, then torch.sum over topk
+  weight prep: vllm.model_executor.layers.quantization.utils.marlin_utils_fp4.prepare_nvfp4_moe_layer_for_marlin
+  quant_type = scalar_types.float4_e2m1f, input_dtype=None (bf16 A), is_k_full=True, use_fp32_reduce=True, use_atomic_add=False
+INFO 10-20 00:31:01 [scheduler.py:242] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 10-20 00:31:01 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+WARNING 10-20 00:31:01 [marlin_utils_fp4.py:354] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+sanity (E=8 T=16 K=2 H=2048 I=512): finite=True nonzero=True |out|=6531 |ref|=6530 rel_err_vs_dequant_ref=4.496e-03  ->  OK
+INFO 10-20 00:31:01 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+repacked weights: 0.422 GiB  (E=256 K=8 H=2048 I=512); torch mem allocated 0.466 GiB
+     T  bsm    med_ms    min_ms    max_ms   TFLOPS  finite/nonzero
+  1024   48     2.605     2.583     2.802    19.78  True/True
+  2048   64     3.400     3.371     3.696    30.32  True/True
+  4096   64     5.115     5.072     5.741    40.30  True/True
+  8192   64     9.113     8.896     9.712    45.24  True/True
+peak GPU mem allocated by this process: 1.935 GiB
+20:31:03 done
+20:31:03 releasing 2822

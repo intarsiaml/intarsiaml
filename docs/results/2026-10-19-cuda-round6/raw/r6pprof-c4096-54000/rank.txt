@@ -1,0 +1,21 @@
+kernel total 2806.1 ms
+moe_w4a16_kernel<                                                           812.2 ms  28.9 %    320 calls
+reg::gemm_reg_kernel<                                                       568.3 ms  20.3 %    520 calls
+gdn_delta_split_kernel<                                                     433.8 ms  15.5 %    120 calls
+flash_kernel<                                                               326.6 ms  11.6 %     40 calls
+moe_reduce_kernel<__nv_bfloat16>                                            105.8 ms   3.8 %    160 calls
+rmsnorm_kernel<                                                              97.6 ms   3.5 %    404 calls
+fp8_actq_kernel                                                              90.2 ms   3.2 %    520 calls
+wq::wq_gemm_kernel<                                                          87.1 ms   3.1 %    480 calls
+gdn_conv_kernel                                                              78.8 ms   2.8 %    120 calls
+gated_rmsnorm_kernel<                                                        50.1 ms   1.8 %    120 calls
+moe_combine_kernel<__nv_bfloat16>                                            33.6 ms   1.2 %    160 calls
+gate_split_kernel                                                            21.1 ms   0.8 %     40 calls
+rope_kernel                                                                  17.9 ms   0.6 %     80 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv       16.3 ms   0.6 %    160 calls
+sigmoid_mul_kernel                                                           15.7 ms   0.6 %     40 calls
+nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_TNNN                       15.2 ms   0.5 %    240 calls
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN                      10.9 ms   0.4 %    120 calls
+rope_pass_kernel                                                             10.1 ms   0.4 %     80 calls
+moe_group_tiles_kernel                                                        4.0 ms   0.1 %    160 calls
+moe_topk_kernel                                                               3.2 ms   0.1 %    160 calls

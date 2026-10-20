@@ -1,0 +1,18 @@
+fleetq: #2841 waiting (#2 in line): in line behind #2840 "harness2 judge base run (technical_writers/task1)" (claude-98798622) on spark1
+fleetq: #2841 running on spark1: ssh -n -o BatchMode=yes spark1 'cd ~/intarsia-decfuse/r6-dev && target/acc/release/intarsia kernels test --backend cuda 2>&1 | tail -15'
+moe_topk       moe_topk_bf16                  48      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_bf16         2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_bf16            7      0    3.185e-3    1.245e-4  ADMITTED
+moe_experts    moe_experts_nvfp4_mma_bf16      1      0    1.683e-1    1.628e-1  ADMITTED
+moe_experts    moe_experts_w4a16_bf16          1      0    2.475e-3    5.867e-5  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           6      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16             16      0    7.940e-6    3.586e-7  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv     14      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+50 kernels, 669 cases in 40.2s
+fleetq: #2841 done (exit 0)
