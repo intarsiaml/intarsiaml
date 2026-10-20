@@ -634,6 +634,41 @@ EOF
     $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --hip-runtime-trace --memory-copy-trace --output-format csv -d /work/bench-out/prof/$tag -o run_%pid% -- bash /work/bench-out/sprof.sh" 2>&1 | grep -aE "prompt=|serve exit|rror|size"
   find "$OUTD/prof/$tag" -name '*.csv' | xargs ls -la | awk '{print $5, $9}'
 }
+# Round 10 (perf/hip-round10, docs/results/2026-10-19-hip-round10.md).
+# lnprof:<tag>/<35|8>/<prompt>/<maxtok>[/<chunk>][/NAME=value...]: `generate` once unprofiled, once under rocprofv3
+# --kernel-trace, then longnext.py (which dispatches run >= 1 ms and what follows each). <prompt>: 1k (the first quarter of
+# prompt4k.txt, ~1.1k tokens), 4k (prompt4k.txt, 4408 tokens), 16k (four copies, ~17.6k), short (the story prompt).
+lnprompt() {
+  case $1 in
+    1k) echo "\"\$(head -c \$((\$(wc -c < /work/scripts/hip-decode/prompt4k.txt) / 4)) /work/scripts/hip-decode/prompt4k.txt)\"" ;;
+    4k) echo "\"\$(cat /work/scripts/hip-decode/prompt4k.txt)\"" ;;
+    16k) echo "\"\$(for i in 1 2 3 4; do cat /work/scripts/hip-decode/prompt4k.txt; done)\"" ;;
+    *) echo "'Write a long story about a robot who learns to paint.'" ;;
+  esac
+}
+lngen() { # lngen <35|8> <prompt> <maxtok> <chunk>: the generate command line
+  local m=$M35 mb="--mem-budget 29"; [ "$1" = 8 ] && m=$M8 && mb=""
+  echo "$B generate -m $m --backend hip $mb --max-seq 18432 --profile-every 0 --ignore-eos ${4:+--prefill-chunk $4} -p $(lnprompt "$2") --max-tokens $3"
+}
+stage_lnprof() {
+  local a; IFS=/ read -r -a a <<< "$1"
+  local tag=${a[0]} mdl=${a[1]} pr=${a[2]} mt=${a[3]} chunk="" ex="" kv i
+  for ((i = 4; i < ${#a[@]}; i++)); do
+    if [[ "${a[$i]}" == *=* ]]; then ex="$ex export ${a[$i]};"; else chunk=${a[$i]}; fi
+  done
+  printf '%s\n' "$ex $(lngen "$mdl" "$pr" "$mt" "$chunk")" > "$OUTD/lngen-$tag.sh"
+  echo "--- $tag unprofiled x2: $(cat "$OUTD/lngen-$tag.sh" | cut -c1-200)"
+  $D bash -c "bash /work/bench-out/lngen-$tag.sh; bash /work/bench-out/lngen-$tag.sh" 2>&1 | grep -aE "prompt:|finish=|rror"
+  [ -n "${LN_NOPROF:-}" ] && return 0
+  rm -rf "$OUTD/prof/$tag"; mkdir -p "$OUTD/prof/$tag"
+  local tv; tv=$(TARGET_VOL)
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$tv \
+    $D bash -c "timeout -s KILL ${PROF_TIMEOUT:-300} rocprofv3 --kernel-trace --output-format csv -d /work/bench-out/prof/$tag -o run -- bash /work/bench-out/lngen-$tag.sh" 2>&1 | grep -aE "prompt:|finish=|rror"
+  local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
+  [ -n "$csv" ] && python3 "${LN_PY:-$HOME/r10-tools/longnext.py}" "$csv" | tee "$OUTD/prof/$tag/longnext.txt"
+}
+# lnrun:<same args as lnprof>: only the two unprofiled runs (round 10 lever A/B: INTARSIA_HIP_GEMM_SPLIT=0 / tail / even)
+stage_lnrun() { LN_NOPROF=1 stage_lnprof "$1"; }
 
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}
