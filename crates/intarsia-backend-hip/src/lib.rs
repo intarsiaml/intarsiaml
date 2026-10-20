@@ -56,6 +56,18 @@ pub fn split_pieces(est_us: f64, max_pieces: i64) -> i32 {
     unsafe { ffi::ik_hip_split_pieces(est_us, max_pieces) }
 }
 
+/// The row cuts `[0, .., rows]` the kernel library gives a bf16 GEMM launch (`gemv == false`: M x K activations times N x K
+/// weights, cut over the M rows) or a one-row GEMV (`gemv == true`: cut over the N weight rows) under the current
+/// INTARSIA_HIP_GEMM_SPLIT / _SPLIT_MIN_US / _SPLIT_TAIL_US (round 10, docs/results/2026-10-19-hip-round10.md). One launch
+/// is `[0, rows]`. Host-only; pinned by tests/gemm_split.rs.
+#[cfg(ik_hip)]
+pub fn gemm_split_rows(m: i64, n: i64, k: i64, gemv: bool) -> Vec<i64> {
+    let mut rows = [0i64; 65];
+    // SAFETY: a host function of the kernel library writing at most 65 entries into `rows`
+    let p = unsafe { ffi::ik_hip_gemm_split_rows(m, n, k, gemv as i32, rows.as_mut_ptr(), 65) };
+    rows[..=(p as usize)].to_vec()
+}
+
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
