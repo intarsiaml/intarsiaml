@@ -20,6 +20,7 @@ use super::selfgolden::SelfCheck;
 use super::{compare_pos, turns, Golden, PromptRef, RefRows, TAIL_K};
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 pub const FORMAT: &str = "intarsia-ref-noise-v1";
@@ -71,6 +72,22 @@ pub struct Binding {
     pub positions: Option<usize>,
 }
 
+/// The noise of one prompt of the golden (the key of [`RefNoise::prompts`] is the prompt id, the golden's prompt name).
+/// Values are mean 21-way KL in nats; the same two row sets as the golden-wide values.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct PromptNoise {
+    /// Mean 21-way KL(golden || second reference) over ALL rows of this prompt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kl21_mean: Option<f64>,
+    /// The same over the SCORED rows of this prompt (equal to `kl21_mean` for a raw prompt).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kl21_mean_scored: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub n: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub n_scored: Option<usize>,
+}
+
 /// The measured noise of one golden. Values are mean 21-way KL in nats.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct RefNoise {
@@ -109,6 +126,10 @@ pub struct RefNoise {
     /// Per-golden factor of the change-vs-base worst-prompt check (default 3.0; see [`resolve_prompt_factor`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt_factor: Option<f64>,
+    /// Per-prompt noise, keyed by prompt id, where it was measured. The change-vs-base worst-prompt check uses a prompt's
+    /// own value when it has one and the golden-wide `kl21_mean` otherwise. Optional, usually partial.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub prompts: BTreeMap<String, PromptNoise>,
 }
 
 fn default_format() -> String {
@@ -143,6 +164,18 @@ impl RefNoise {
                 }
             }
         }
+        for (name, p) in &self.prompts {
+            if p.kl21_mean.is_none() && p.kl21_mean_scored.is_none() {
+                bail!("ref_noise record: prompt {name:?} has no kl21_mean or kl21_mean_scored");
+            }
+            for (field, v) in [("kl21_mean", p.kl21_mean), ("kl21_mean_scored", p.kl21_mean_scored)] {
+                if let Some(v) = v {
+                    if !(v >= 0.0 && v.is_finite()) {
+                        bail!("ref_noise record: prompt {name:?}: {field} must be a finite number >= 0 (got {v})");
+                    }
+                }
+            }
+        }
         if self.date.trim().is_empty() || self.how.trim().is_empty() {
             bail!("ref_noise record: `date` and `how` are required (a noise value without its provenance is not accepted)");
         }
@@ -153,12 +186,13 @@ impl RefNoise {
     pub fn describe(&self) -> String {
         let f = |v: Option<f64>| v.map_or("-".to_string(), |v| format!("{v:.3e}"));
         format!(
-            "{}, KL21 all rows {} (n={}), scored rows {} (n={}); {}; {}{}",
+            "{}, KL21 all rows {} (n={}), scored rows {} (n={}){}; {}; {}{}",
             self.method.name(),
             f(self.kl21_mean),
             self.n.map_or("?".to_string(), |n| n.to_string()),
             f(self.kl21_mean_scored),
             self.n_scored.map_or("?".to_string(), |n| n.to_string()),
+            if self.prompts.is_empty() { String::new() } else { format!(", per-prompt values for {} prompt(s)", self.prompts.len()) },
             self.date,
             self.source.as_deref().unwrap_or("no source cited"),
             self.estimator.as_deref().map(|e| format!("; estimator {e}")).unwrap_or_default(),
@@ -341,41 +375,115 @@ pub struct KlVerdict {
     pub pass: bool,
     /// `kl_on_noise_rows / ref_noise`: the factor at which the noise term would just pass.
     pub factor_needed: Option<f64>,
-    /// Change vs base only: the worst prompt's mean KL against `prompt_factor x ref_noise`, a hard check.
-    /// `pass` already includes it.
-    pub worst_prompt: Option<PromptVerdict>,
+    /// Change vs base only: every prompt's mean KL against `prompt_factor x` its own noise. `pass` already includes it.
+    pub prompt_checks: Option<PromptsVerdict>,
 }
 
-/// The worst-prompt check of the change-vs-base mode.
+/// Which noise a prompt was judged against.
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptBasis {
+    /// The prompt's own `prompts[<id>].kl21_mean` in the record.
+    Own,
+    /// The golden-wide `kl21_mean` (the record has no value for this prompt).
+    Mean,
+}
+
+impl PromptBasis {
+    pub fn name(self) -> &'static str {
+        match self {
+            PromptBasis::Own => "own prompt noise",
+            PromptBasis::Mean => "mean noise",
+        }
+    }
+}
+
+/// One prompt of the change-vs-base check.
 #[derive(Serialize, Clone, Debug)]
-pub struct PromptVerdict {
+pub struct PromptCheck {
     pub prompt: String,
-    /// The worst prompt's mean 21-way KL against the base build (all its rows).
+    /// The prompt's mean 21-way KL against the base build (all its rows).
     pub kl: f64,
-    pub prompt_factor: f64,
-    pub prompt_factor_source: String,
-    /// `prompt_factor x ref_noise`.
+    pub basis: PromptBasis,
+    /// The noise the limit is built from.
+    pub noise: f64,
+    /// `prompt_factor x noise`.
     pub limit: f64,
     pub pass: bool,
-    /// `kl / ref_noise`: the prompt factor at which this check would just pass.
+    /// `kl / noise`: the prompt factor at which this prompt would just pass.
     pub factor_needed: f64,
 }
 
-/// The worst prompt (largest mean KL) of a change against `limit = prompt_factor x ref_noise`. `worst` is the prompt's
-/// name and mean KL; a NaN never passes.
-pub fn judge_worst_prompt(worst: (&str, f64), ref_noise: f64, prompt_factor: f64, source: &str) -> Result<PromptVerdict> {
-    if !(prompt_factor > 0.0 && prompt_factor.is_finite()) {
-        bail!("the worst-prompt factor must be a positive number (got {prompt_factor})");
+impl PromptCheck {
+    /// `kl / limit`; NaN is treated as infinitely over.
+    fn ratio(&self) -> f64 {
+        if self.kl.is_nan() {
+            f64::INFINITY
+        } else if self.limit > 0.0 {
+            self.kl / self.limit
+        } else if self.kl > 0.0 {
+            f64::INFINITY
+        } else {
+            0.0
+        }
     }
-    let limit = prompt_factor * ref_noise;
-    Ok(PromptVerdict {
-        prompt: worst.0.into(),
-        kl: worst.1,
+}
+
+/// The per-prompt hard check of the change-vs-base mode: every prompt against `prompt_factor x ` its own noise when
+/// the record has one, else the mean noise.
+#[derive(Serialize, Clone, Debug)]
+pub struct PromptsVerdict {
+    pub prompt_factor: f64,
+    pub prompt_factor_source: String,
+    pub checks: Vec<PromptCheck>,
+    pub pass: bool,
+    /// How many prompts were judged on their own noise / on the mean noise.
+    pub on_own_noise: usize,
+    pub on_mean_noise: usize,
+}
+
+impl PromptsVerdict {
+    pub fn failing(&self) -> Vec<&PromptCheck> {
+        self.checks.iter().filter(|c| !c.pass).collect()
+    }
+
+    /// The prompt closest to (or furthest over) its limit: a failing prompt first, then the largest `kl / limit`.
+    pub fn tightest(&self) -> Option<&PromptCheck> {
+        self.checks.iter().max_by(|a, b| (!a.pass, a.ratio()).partial_cmp(&(!b.pass, b.ratio())).unwrap_or(std::cmp::Ordering::Equal))
+    }
+}
+
+/// Every prompt's mean KL (`prompts`: id and KL, all rows) against `prompt_factor x` the prompt's own all-rows noise
+/// (`noise.prompts[id].kl21_mean`), falling back to `mean_noise` (the golden-wide all-rows value) for a prompt the record
+/// has no value for. A NaN never passes. Pure; the basis of every prompt is in the result.
+pub fn judge_prompts(prompts: &[(String, f64)], noise: &RefNoise, mean_noise: f64, prompt_factor: f64, source: &str) -> Result<PromptsVerdict> {
+    if !(prompt_factor > 0.0 && prompt_factor.is_finite()) {
+        bail!("the prompt factor must be a positive number (got {prompt_factor})");
+    }
+    let checks: Vec<PromptCheck> = prompts
+        .iter()
+        .map(|(name, kl)| {
+            let own = noise.prompts.get(name).and_then(|p| p.kl21_mean);
+            let (basis, nz) = own.map_or((PromptBasis::Mean, mean_noise), |v| (PromptBasis::Own, v));
+            let limit = prompt_factor * nz;
+            PromptCheck {
+                prompt: name.clone(),
+                kl: *kl,
+                basis,
+                noise: nz,
+                limit,
+                pass: *kl <= limit,
+                factor_needed: if nz > 0.0 { kl / nz } else { f64::INFINITY },
+            }
+        })
+        .collect();
+    Ok(PromptsVerdict {
         prompt_factor,
         prompt_factor_source: source.into(),
-        limit,
-        pass: worst.1 <= limit,
-        factor_needed: if ref_noise > 0.0 { worst.1 / ref_noise } else { f64::INFINITY },
+        pass: checks.iter().all(|c| c.pass),
+        on_own_noise: checks.iter().filter(|c| c.basis == PromptBasis::Own).count(),
+        on_mean_noise: checks.iter().filter(|c| c.basis == PromptBasis::Mean).count(),
+        checks,
     })
 }
 
@@ -420,7 +528,7 @@ pub fn judge_kl(mode: &str, kl_metric: &str, kl: f64, static_floor: Option<f64>,
         bound_by,
         pass: static_ok || noise_ok,
         factor_needed: noise.filter(|n| n.value > 0.0).map(|n| n.kl / n.value),
-        worst_prompt: None,
+        prompt_checks: None,
     })
 }
 
@@ -450,8 +558,8 @@ impl KlVerdict {
             e(self.effective_threshold),
             self.bound_by.name(),
             e(self.kl),
-            // with a worst-prompt check `pass` is the combination: the KL part alone is read off the noise term
-            match (&self.worst_prompt, self.noise_threshold, self.kl_on_noise_rows) {
+            // with a per-prompt check `pass` is the combination: the KL part alone is read off the noise term
+            match (&self.prompt_checks, self.noise_threshold, self.kl_on_noise_rows) {
                 (Some(_), Some(t), Some(k)) => {
                     if k <= t {
                         "PASS"
@@ -471,17 +579,34 @@ impl KlVerdict {
         if let Some(k) = self.factor_needed {
             s += &format!(" | KL / ref noise = {k:.3} on {} (the factor at which the noise term passes)", self.ref_noise_rows.as_deref().unwrap_or("?"));
         }
-        if let Some(w) = &self.worst_prompt {
+        if let Some(pv) = &self.prompt_checks {
             s += &format!(
-                " | worst prompt [{}] KL {} against {} x ref noise ({}) = {} {} (prompt factor at which it passes: {:.3})",
-                w.prompt,
-                e(w.kl),
-                w.prompt_factor,
-                w.prompt_factor_source,
-                e(w.limit),
-                if w.pass { "PASS" } else { "FAIL" },
-                w.factor_needed
+                " | {} prompts at {} x their noise ({}): {} on their own noise, {} on the mean noise",
+                pv.checks.len(),
+                pv.prompt_factor,
+                pv.prompt_factor_source,
+                pv.on_own_noise,
+                pv.on_mean_noise
             );
+            let bad = pv.failing();
+            if bad.is_empty() {
+                if let Some(t) = pv.tightest() {
+                    s += &format!(": all inside; tightest [{}] KL {} = {:.2} of its limit {} ({})", t.prompt, e(t.kl), t.ratio(), e(t.limit), t.basis.name());
+                }
+            } else {
+                for c in bad {
+                    s += &format!(
+                        "; FAIL [{}] KL {} > {} = {} x {} ({}; needs prompt factor {:.2})",
+                        c.prompt,
+                        e(c.kl),
+                        e(c.limit),
+                        pv.prompt_factor,
+                        e(c.noise),
+                        c.basis.name(),
+                        c.factor_needed
+                    );
+                }
+            }
             s += &format!(" => change vs base {}", if self.pass { "PASS" } else { "FAIL" });
         }
         s
@@ -509,31 +634,40 @@ pub fn write_verdicts(path: &Path, v: &VerdictFile) -> Result<()> {
 // change vs base
 // ---------------------------------------------------------------------------
 
-/// `--self-vs-ref-noise` (user decision 2026-10-21 13:23): two hard checks and non-finite rows.
+/// `--self-vs-ref-noise` (user decisions 2026-10-21 13:23 and 13:58): two hard checks and non-finite rows.
 /// * the change's mean 21-way KL against the base must be at most `mean_limit` (= factor x ref noise, all rows: a
 ///   self-golden compares every row);
-/// * the worst prompt's mean KL must be at most `prompt_limit` (= prompt factor x ref noise, 3.0 by default);
+/// * every prompt's mean KL must be at most `prompt_factor x` that prompt's own noise (the mean noise for a prompt with
+///   none): one check line carrying the prompt closest to its limit, `ok` only when no prompt is over;
 /// * non-finite rows still fail.
 ///
-/// The other budgets (largest position KL, flips, tail mass) stay in the output as reported numbers and no longer gate.
-pub fn apply_to_self_checks(checks: Vec<SelfCheck>, mean_limit: f64, prompt_limit: f64) -> Vec<SelfCheck> {
-    checks
+/// The other budgets (largest position KL, flips, tail mass, and the default worst-prompt budget) stay in the output as
+/// reported numbers and no longer gate.
+pub fn apply_to_self_checks(checks: Vec<SelfCheck>, mean_limit: f64, prompts: &PromptsVerdict) -> Vec<SelfCheck> {
+    let mut out: Vec<SelfCheck> = checks
         .into_iter()
         .map(|mut c| {
             if c.name == "mean KL(21-way)" {
                 c.name = "mean KL(21-way) vs ref noise".into();
                 c.limit = mean_limit;
                 c.ok = c.value <= mean_limit; // NaN never passes
-            } else if c.name.starts_with("worst prompt KL(21-way)") {
-                c.name = format!("{} vs ref noise", c.name);
-                c.limit = prompt_limit;
-                c.ok = c.value <= prompt_limit;
             } else if c.name != "non-finite rows" {
                 c.gated = false;
             }
             c
         })
-        .collect()
+        .collect();
+    if let Some(t) = prompts.tightest() {
+        let bad = prompts.failing().len();
+        out.push(SelfCheck {
+            name: format!("prompt KL / (prompt factor x its noise) [{}{}]", t.prompt, if bad > 1 { format!(" +{} more over", bad - 1) } else { String::new() }),
+            value: t.ratio(),
+            limit: 1.0,
+            ok: prompts.pass,
+            gated: true,
+        });
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -698,8 +832,9 @@ pub fn run(args: RefNoiseArgs) -> Result<()> {
     let masks = scored_masks(&g, &prompts, &args)?;
     let (mut sum, mut n, mut sum_sc, mut n_sc, mut sum_full) = (0.0f64, 0usize, 0.0f64, 0usize, 0.0f64);
     let mut per: Vec<(String, usize, f64)> = Vec::new();
+    let mut per_noise: BTreeMap<String, PromptNoise> = BTreeMap::new();
     for (pi, ((name, r), c)) in prompts.iter().zip(&others).enumerate() {
-        let (mut ps, mut pn) = (0.0f64, 0usize);
+        let (mut ps, mut pn, mut ps_sc, mut pn_sc) = (0.0f64, 0usize, 0.0f64, 0usize);
         for pos in 0..r.ids.len() {
             let (kl, full) = pos_kl21(r, c, pos, args.trunc).with_context(|| format!("{name} position {pos}"))?;
             if let Some(f) = full {
@@ -711,9 +846,19 @@ pub fn run(args: RefNoiseArgs) -> Result<()> {
             (sum, n, ps, pn) = (sum + kl, n + 1, ps + kl, pn + 1);
             if masks.as_ref().is_none_or(|m| m.0[pi][pos]) {
                 (sum_sc, n_sc) = (sum_sc + kl, n_sc + 1);
+                (ps_sc, pn_sc) = (ps_sc + kl, pn_sc + 1);
             }
         }
         per.push((name.clone(), pn, ps / pn.max(1) as f64));
+        per_noise.insert(
+            name.clone(),
+            PromptNoise {
+                kl21_mean: Some(mean(ps, pn)),
+                kl21_mean_scored: masks.as_ref().map(|_| mean(ps_sc, pn_sc)),
+                n: Some(pn),
+                n_scored: masks.as_ref().map(|_| pn_sc),
+            },
+        );
     }
     let file_of = |p: &Path| p.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
     let estimator = match (&prompts[0].1.rows, &others[0].rows) {
@@ -741,6 +886,7 @@ pub fn run(args: RefNoiseArgs) -> Result<()> {
         source: args.source.clone(),
         factor: args.factor,
         prompt_factor: args.prompt_factor,
+        prompts: per_noise,
     };
     rec.validate()?;
     println!("ref noise of {} ({}): {}", file_of(&args.golden), method.name(), rec.describe());
@@ -784,6 +930,7 @@ mod tests {
             source: None,
             factor: None,
             prompt_factor: None,
+            prompts: BTreeMap::new(),
         }
     }
 
@@ -967,8 +1114,20 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    fn rec_with_prompts(prompts: &[(&str, f64)]) -> RefNoise {
+        let mut r = rec(Some(3.161e-3), None);
+        for (n, v) in prompts {
+            r.prompts.insert(n.to_string(), PromptNoise { kl21_mean: Some(*v), ..PromptNoise::default() });
+        }
+        r
+    }
+
+    fn pk(v: &[(&str, f64)]) -> Vec<(String, f64)> {
+        v.iter().map(|(n, k)| (n.to_string(), *k)).collect()
+    }
+
     #[test]
-    fn change_vs_base_gates_the_mean_kl_and_reports_the_rest() {
+    fn change_vs_base_gates_the_mean_kl_and_every_prompt_and_reports_the_rest() {
         let chk = |name: &str, value: f64, limit: f64| SelfCheck { name: name.into(), value, limit, ok: value <= limit, gated: true };
         let checks = vec![
             chk("mean KL(21-way)", 3.358e-3, 1e-4),
@@ -976,35 +1135,103 @@ mod tests {
             chk("top-1 flips", 40.0, 7.0),
             chk("mean |tail diff|", 1e-3, 5e-4),
             chk("non-finite rows", 0.0, 0.0),
-            chk("worst prompt KL(21-way) [p]", 0.1, 5e-4),
+            chk("worst prompt KL(21-way) [a]", 8e-3, 5e-4),
         ];
         assert!(!checks.iter().all(|c| c.ok), "the default budgets fail this change");
-        // mean 3.358e-3 against 3.161e-3 fails; the worst prompt (0.1) is within 3 x 3.161e-3? no: 0.1 > 9.5e-3
-        let r = apply_to_self_checks(checks.clone(), 3.161e-3, 3.0 * 3.161e-3);
-        let gated: Vec<_> = r.iter().filter(|c| c.gated).map(|c| (c.name.as_str(), c.ok)).collect();
-        assert_eq!(
-            gated,
-            vec![("mean KL(21-way) vs ref noise", false), ("non-finite rows", true), ("worst prompt KL(21-way) [p] vs ref noise", false)]
-        );
-        // inside the noise on the mean but the worst prompt over 3 x noise: still fails
-        let r = apply_to_self_checks(checks.clone(), 1.07 * 3.161e-3, 3.0 * 3.161e-3);
-        assert!(!r.iter().filter(|c| c.gated).all(|c| c.ok), "the worst prompt (0.1) is a hard check");
-        // a worst prompt of 8e-3 is inside 3 x 3.161e-3 = 9.48e-3: only the mean KL, non-finite rows and the worst prompt gate
-        let mut ok = checks.clone();
-        ok[5] = chk("worst prompt KL(21-way) [p]", 8e-3, 5e-4);
-        let r = apply_to_self_checks(ok.clone(), 1.07 * 3.161e-3, 3.0 * 3.161e-3);
+        // two prompts: a has its own noise (4e-3, limit 1.2e-2), b falls back to the mean noise (3.161e-3, limit 9.48e-3)
+        let noise = rec_with_prompts(&[("a", 4e-3)]);
+        let pv = judge_prompts(&pk(&[("a", 8e-3), ("b", 6e-3)]), &noise, 3.161e-3, 3.0, "default").unwrap();
+        assert!(pv.pass && (pv.on_own_noise, pv.on_mean_noise) == (1, 1));
+        let gate = |r: &[SelfCheck]| r.iter().filter(|c| c.gated).map(|c| (c.name.clone(), c.ok)).collect::<Vec<_>>();
+        // mean 3.358e-3 over the 3.161e-3 limit fails; the prompts are inside
+        let r = apply_to_self_checks(checks.clone(), 3.161e-3, &pv);
+        assert_eq!(gate(&r).iter().map(|(n, ok)| (n.as_str(), *ok)).collect::<Vec<_>>().len(), 3);
+        assert_eq!(gate(&r)[0], ("mean KL(21-way) vs ref noise".to_string(), false));
+        assert!(gate(&r)[1].1 && gate(&r)[2].1, "non-finite rows and the prompts pass");
+        assert!(gate(&r)[2].0.starts_with("prompt KL / (prompt factor x its noise) [") && (r.last().unwrap().limit, r.last().unwrap().gated) == (1.0, true));
+        // inside the noise on the mean too: the gate passes, and the old budgets are reported only (max position, flips, tail, default worst prompt)
+        let r = apply_to_self_checks(checks.clone(), 1.07 * 3.161e-3, &pv);
         assert!(r.iter().filter(|c| c.gated).all(|c| c.ok));
-        assert_eq!(r.iter().filter(|c| !c.gated).count(), 3, "largest position KL, flips and tail mass are reported only");
-        // the 3.0 is a parameter: a prompt factor of 2 (limit 6.3e-3) fails the 8e-3 prompt
-        assert!(!apply_to_self_checks(ok, 1.07 * 3.161e-3, 2.0 * 3.161e-3).iter().filter(|c| c.gated).all(|c| c.ok));
+        assert_eq!(r.iter().filter(|c| !c.gated).count(), 4);
+        // prompt b over its mean-noise limit (1.2e-2 > 9.48e-3): the prompts check fails alone, and names the prompt
+        let pv_b = judge_prompts(&pk(&[("a", 8e-3), ("b", 1.2e-2)]), &noise, 3.161e-3, 3.0, "default").unwrap();
+        assert!(!pv_b.pass);
+        let r = apply_to_self_checks(checks.clone(), 1.07 * 3.161e-3, &pv_b);
+        let bad: Vec<_> = r.iter().filter(|c| c.gated && !c.ok).collect();
+        assert_eq!(bad.len(), 1);
+        assert!(bad[0].name.contains("[b]") && bad[0].value > 1.0 && bad[0].limit == 1.0);
+        // the 3.0 is a parameter: a prompt factor of 1.9 puts a over its own limit (8e-3 > 1.9 x 4e-3 = 7.6e-3)
+        assert!(!judge_prompts(&pk(&[("a", 8e-3)]), &noise, 3.161e-3, 1.9, "x").unwrap().pass);
         // a non-finite row still fails the change
-        let mut bad = checks;
-        bad[4] = chk("non-finite rows", 3.0, 0.0);
-        assert!(!apply_to_self_checks(bad, 1.0, 1.0).iter().filter(|c| c.gated).all(|c| c.ok));
-        // NaN mean KL or NaN worst prompt never passes
-        let nan = vec![chk("mean KL(21-way)", f64::NAN, 1e-4), chk("worst prompt KL(21-way) [p]", f64::NAN, 1e-4)];
-        let r = apply_to_self_checks(nan, 1.0, 1.0);
-        assert!(!r[0].ok && !r[1].ok);
+        let mut bad_rows = checks.clone();
+        bad_rows[4] = chk("non-finite rows", 3.0, 0.0);
+        assert!(!apply_to_self_checks(bad_rows, 1.0, &pv).iter().filter(|c| c.gated).all(|c| c.ok));
+        // NaN mean KL or a NaN prompt never passes
+        let nan = vec![chk("mean KL(21-way)", f64::NAN, 1e-4)];
+        let pv_nan = judge_prompts(&pk(&[("a", f64::NAN)]), &noise, 1.0, 3.0, "x").unwrap();
+        let r = apply_to_self_checks(nan, 1.0, &pv_nan);
+        assert!(!r[0].ok && !r[1].ok && r[1].value.is_infinite());
+    }
+
+    #[test]
+    fn prompts_use_their_own_noise_and_fall_back_to_the_mean() {
+        let noise = rec_with_prompts(&[("chat_reuse_4k", 0.118), ("long_code_4k", 5.139e-3)]);
+        let mean = 2.218e-2;
+        // chat_reuse_4k at 9.714e-2: over 3 x the mean noise (6.65e-2), inside 3 x its own (0.354)
+        let pv = judge_prompts(&pk(&[("chat_reuse_4k", 9.714e-2), ("long_code_4k", 4.688e-3), ("other", 5e-2)]), &noise, mean, 3.0, "default").unwrap();
+        assert!(pv.pass);
+        let by: Vec<_> = pv.checks.iter().map(|c| (c.prompt.as_str(), c.basis, c.pass)).collect();
+        assert_eq!(by, vec![("chat_reuse_4k", PromptBasis::Own, true), ("long_code_4k", PromptBasis::Own, true), ("other", PromptBasis::Mean, true)]);
+        assert!((pv.checks[0].limit - 0.354).abs() < 1e-12 && (pv.checks[2].limit - 6.654e-2).abs() < 1e-9);
+        assert_eq!(pv.tightest().unwrap().prompt, "other");
+        // a prompt with its own small noise is held to it: 5e-3 KL on long_code_4k exceeds 3 x 5.139e-3 = 1.54e-2? no (5e-3 inside); 2e-2 does, and names its basis
+        let pv = judge_prompts(&pk(&[("chat_reuse_4k", 9.714e-2), ("long_code_4k", 2e-2)]), &noise, mean, 3.0, "default").unwrap();
+        assert!(!pv.pass);
+        let f = pv.failing();
+        assert_eq!((f.len(), f[0].prompt.as_str(), f[0].basis), (1, "long_code_4k", PromptBasis::Own));
+        assert!((f[0].factor_needed - 2e-2 / 5.139e-3).abs() < 1e-12);
+        assert_eq!(pv.tightest().unwrap().prompt, "long_code_4k");
+        // under the mean-noise rule alone the same prompt would have passed (limit 6.65e-2) and chat_reuse_4k would not
+        let none = rec_with_prompts(&[]);
+        let pv0 = judge_prompts(&pk(&[("chat_reuse_4k", 9.714e-2), ("long_code_4k", 2e-2)]), &none, mean, 3.0, "default").unwrap();
+        let f0: Vec<_> = pv0.failing().iter().map(|c| (c.prompt.clone(), c.basis)).collect();
+        assert_eq!(f0, vec![("chat_reuse_4k".to_string(), PromptBasis::Mean)]);
+        // a scored-only per-prompt value is not used for this all-rows check
+        let mut sc = rec(Some(mean), None);
+        sc.prompts.insert("p".into(), PromptNoise { kl21_mean_scored: Some(1e-9), ..PromptNoise::default() });
+        let v = judge_prompts(&pk(&[("p", 1e-2)]), &sc, mean, 3.0, "x").unwrap();
+        assert_eq!(v.checks[0].basis, PromptBasis::Mean);
+        // a zero own noise holds the prompt to zero (and a zero KL passes)
+        let z = rec_with_prompts(&[("z", 0.0)]);
+        assert!(judge_prompts(&pk(&[("z", 0.0)]), &z, mean, 3.0, "x").unwrap().pass);
+        assert!(!judge_prompts(&pk(&[("z", 1e-9)]), &z, mean, 3.0, "x").unwrap().pass);
+        assert!(judge_prompts(&pk(&[("z", 0.0)]), &z, mean, 0.0, "x").is_err());
+        // the verdict line names the failing prompt and its basis
+        let v = judge_kl("prefill", "21-way KL", 2e-3, None, term_rows(3.161e-3, 2e-3, "all rows"), 1.0, "default").unwrap();
+        let mut v = v;
+        v.prompt_checks = Some(pv);
+        v.pass = false;
+        let line = v.line();
+        assert!(line.contains("FAIL [long_code_4k]") && line.contains("own prompt noise") && line.contains("2 on their own noise") && line.contains("change vs base FAIL"), "{line}");
+    }
+
+    #[test]
+    fn per_prompt_noise_parses_validates_and_round_trips() {
+        let j = r#"{"method":"run_to_run","kl21_mean":0.02,"date":"2026-10-21","how":"h",
+            "prompts":{"a":{"kl21_mean":0.01,"kl21_mean_scored":0.005,"n":100,"n_scored":80},"b":{"kl21_mean_scored":0.002}}}"#;
+        let r = RefNoise::parse(j).unwrap();
+        assert_eq!(r.prompts.len(), 2);
+        assert_eq!((r.prompts["a"].kl21_mean, r.prompts["a"].kl21_mean_scored, r.prompts["a"].n_scored), (Some(0.01), Some(0.005), Some(80)));
+        assert_eq!(r.prompts["b"].kl21_mean, None);
+        assert_eq!(RefNoise::parse(&serde_json::to_string(&r).unwrap()).unwrap(), r);
+        assert!(r.describe().contains("per-prompt values for 2 prompt(s)"));
+        // a record without prompts has no key at all when written
+        assert!(!serde_json::to_string(&rec(Some(1e-3), None)).unwrap().contains("prompts"));
+        let bad = |p: &str| format!(r#"{{"method":"run_to_run","kl21_mean":0.02,"date":"d","how":"h","prompts":{{{p}}}}}"#);
+        assert!(RefNoise::parse(&bad(r#""a":{}"#)).is_err(), "a prompt entry with no value");
+        assert!(RefNoise::parse(&bad(r#""a":{"kl21_mean":-1}"#)).is_err());
+        assert!(RefNoise::parse(&bad(r#""a":{"kl21_mean":1e999}"#)).is_err());
+        assert!(RefNoise::parse(&bad(r#""a":{"kl21_mean":0.1}"#)).is_ok());
     }
 
     fn lp(p: &[f64]) -> Vec<f32> {
@@ -1092,6 +1319,8 @@ mod tests {
         // the 4-bit class floor, scored rows (`GateClass::Fp4`: 3e-2)
         let floor = 3e-2;
         let mut seen = (0, 0);
+        let mut all_prompts_pass = true;
+        let mut change_vs_base: Vec<(&str, String, bool, bool)> = Vec::new();
         for r in &rows {
             let (is_long, noise) = if r.block.starts_with("35b-long") { (true, &long) } else { (false, &short) };
             let which = if is_long { "long" } else { "short" };
@@ -1123,22 +1352,34 @@ mod tests {
                 let nzs = noise.kl21_mean_scored.unwrap();
                 let v = judge_kl("prefill", "21-way KL", r.all, None, term_rows(nz, r.all, "all rows"), 1.0, "default").unwrap();
                 let vs = judge_kl("prefill", "21-way KL", r.excl, None, term_rows(nzs, r.excl, "scored rows"), 1.0, "default").unwrap();
-                // the worst prompt (all rows, as a self-golden reports it) against 3.0 x the all-rows noise (user decision 2026-10-21 13:23)
+                // every prompt (all rows, as a self-golden reports it) against 3.0 x its own noise, falling back to the mean noise
+                // (user decisions 2026-10-21 13:23 and 13:58); the 13:23 rule, 3.0 x the mean noise on the worst prompt, for comparison
+                let pv = judge_prompts(&r.prompts, noise, nz, DEFAULT_PROMPT_FACTOR, "default").unwrap();
                 let worst = r.prompts.iter().cloned().fold(("".to_string(), f64::NEG_INFINITY), |a, b| if b.1 > a.1 { b } else { a });
-                let wp = judge_worst_prompt((&worst.0, worst.1), nz, DEFAULT_PROMPT_FACTOR, "default").unwrap();
+                let old_rule = worst.1 <= DEFAULT_PROMPT_FACTOR * nz;
+                let t = pv.tightest().unwrap();
                 println!(
-                    "A/B+ {which:<5} {:<34} worst prompt {} {:.3e} / ({} x {nz:.3e} = {:.3e}) = {:.2}x of the limit {}   => change vs base overall {}",
+                    "A/B+ {which:<5} {:<34} {} prompts ({} on own noise): tightest {} KL {:.3e} / ({} x {:.3e}) = {:.2} of its limit {}; mean-noise rule on the worst prompt {} {:.3e}: {}   => change vs base overall {} (13:23 rule: {}); smallest prompt factor that passes every prompt: {:.2}",
                     r.name.trim_end_matches(".safetensors"),
+                    pv.checks.len(),
+                    pv.on_own_noise,
+                    t.prompt,
+                    t.kl,
+                    DEFAULT_PROMPT_FACTOR,
+                    t.noise,
+                    t.kl / t.limit,
+                    if pv.pass { "PASS" } else { "FAIL" },
                     worst.0,
                     worst.1,
-                    DEFAULT_PROMPT_FACTOR,
-                    wp.limit,
-                    worst.1 / wp.limit,
-                    if wp.pass { "PASS" } else { "FAIL" },
-                    if v.pass && wp.pass { "PASS" } else { "FAIL" }
+                    if old_rule { "PASS" } else { "FAIL" },
+                    if v.pass && pv.pass { "PASS" } else { "FAIL" },
+                    if v.pass && old_rule { "PASS" } else { "FAIL" },
+                    pv.checks.iter().map(|c| c.factor_needed).fold(0.0, f64::max)
                 );
-                // the long golden's worst prompt is chat_reuse_4k, the one prompt vLLM itself does not reproduce (0.118)
-                assert_eq!(wp.pass, false, "{}: {} ", r.name, worst.0);
+                assert_eq!((pv.on_own_noise, pv.on_mean_noise), (pv.checks.len(), 0), "the sidecar holds every prompt of the golden");
+                assert!(!old_rule, "13:23 rule: the worst prompt (chat_reuse_4k long, chat_system short) is over 3 x the mean noise");
+                all_prompts_pass &= pv.pass;
+                change_vs_base.push((which, r.name.clone(), v.pass, pv.pass));
                 println!(
                     "A/B  {which:<5} {:<34} all rows {:.3e} / {nz:.3e} = {:.3}x {}   scored rows {:.3e} / {nzs:.3e} = {:.3}x {}   old self-golden budget (mean KL 1e-4): {:.0}x over",
                     r.name.trim_end_matches(".safetensors"),
@@ -1156,6 +1397,10 @@ mod tests {
             }
         }
         assert_eq!(seen, (7, 5));
+        // verdicts of the change against the default build, on the mean and on the prompts (13:58 rule)
+        let verdicts: Vec<_> = change_vs_base.iter().map(|(w, n, m, p)| (*w, n.trim_end_matches(".safetensors").to_string(), *m, *p)).collect();
+        println!("CVB  {verdicts:?}");
+        assert!(all_prompts_pass, "every prompt of every round-7 build is inside 3 x its own vLLM re-run noise");
     }
 
     /// Qwen3.8-27B W4A4 (docs/results/2026-10-21-m1-qwen38-drill.md section 5): the HF reference against itself at f32
@@ -1177,14 +1422,8 @@ mod tests {
     }
 
     #[test]
-    fn worst_prompt_check_and_prompt_factor() {
-        // 3.0 x vLLM's long-golden run-to-run KL 2.218e-2 = 6.65e-2; chat_reuse_4k alone is at 0.118 in vLLM's own re-run
-        let v = judge_worst_prompt(("chat_reuse_4k", 9.714e-2), 2.218e-2, 3.0, "default").unwrap();
-        assert!(!v.pass && (v.limit - 6.654e-2).abs() < 1e-9 && (v.factor_needed - 9.714e-2 / 2.218e-2).abs() < 1e-12);
-        assert!(judge_worst_prompt(("p", 6.6e-2), 2.218e-2, 3.0, "default").unwrap().pass);
-        assert!(judge_worst_prompt(("chat_reuse_4k", 9.714e-2), 2.218e-2, 4.5, "--ref-noise-prompt-factor").unwrap().pass);
-        assert!(!judge_worst_prompt(("p", f64::NAN), 1.0, 3.0, "default").unwrap().pass);
-        assert!(judge_worst_prompt(("p", 1.0), 1.0, 0.0, "x").is_err());
+    fn prompt_factor_resolution_and_validation() {
+        assert!(judge_prompts(&pk(&[("p", 1.0)]), &rec(Some(1.0), None), 1.0, 0.0, "x").is_err());
         // precedence flag > record > recipe > 3.0, same shape as the main factor
         let recipe = Some((2.0, "recipe x".to_string()));
         assert_eq!(resolve_prompt_factor(Some(5.0), Some(4.0), recipe.clone()).unwrap(), (5.0, "--ref-noise-prompt-factor".into()));
