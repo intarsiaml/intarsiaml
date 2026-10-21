@@ -20,6 +20,8 @@ enum Command {
     Serve(cmd::serve::ServeArgs),
     /// Golden-logit accuracy gate.
     Accuracy(cmd::accuracy::AccuracyArgs),
+    /// Measure a golden's own reference noise (a second run or another precision), offline.
+    RefNoise(cmd::accuracy::RefNoiseArgs),
     /// Speed benchmark.
     Bench(cmd::bench::BenchArgs),
     /// Host fingerprint and known-pitfall checks.
@@ -45,6 +47,7 @@ fn main() -> Result<()> {
         Command::Kernels(a) => cmd::kernels::run(a),
         Command::Serve(a) => cmd::serve::run(a),
         Command::Accuracy(a) => cmd::accuracy::run(a),
+        Command::RefNoise(a) => cmd::accuracy::run_ref_noise(a),
         Command::Bench(a) => cmd::bench::run(a),
         Command::Doctor(a) => cmd::doctor::run(a),
         Command::Plan(a) => cmd::plan::run(a),

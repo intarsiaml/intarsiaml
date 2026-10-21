@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+all rows: n=36887 mean KL21 4.3560e-2   scored rows: n=32349 mean KL21 1.4198e-2
+  long_docs_4k   all n=4064 1.6736e-2   scored n=4064 1.6736e-2
+  long_code_4k   all n=4064 7.7753e-3   scored n=4064 7.7753e-3
+  chat_reuse_4k  all n=4631 2.4795e-1   scored n=93 7.9413e-3
+  long_docs_12k  all n=12064 2.0707e-2   scored n=12064 2.0707e-2
+  long_code_12k  all n=12064 9.0453e-3   scored n=12064 9.0453e-3
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 8.417e-3 (scored rows) x factor 1 (default) = 8.417e-3 => effective 3.000e-2 bound by static floor; KL 1.420e-2 PASS | KL / ref noise = 1.687 on scored rows (the factor at which the noise term passes)  [sidecar /opt/code/intarsiaml/.claude/worktrees/agent-a8eb89d1ece4a7d80/crates/intarsia-cli/../../golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json]
