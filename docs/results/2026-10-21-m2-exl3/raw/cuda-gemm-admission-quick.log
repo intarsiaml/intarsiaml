@@ -1,0 +1,90 @@
+NVIDIA GB10, 2398 MHz, 48
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.067e-3 rel_l2=1.034e-3 M=1 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.294e-3 rel_l2=9.699e-4 M=5 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.056e-4 rel_l2=2.243e-4 M=2 N=128 K=256 bits=1 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.788e-3 rel_l2=9.544e-4 M=1 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.137e-3 rel_l2=7.202e-4 M=5 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.097e-4 rel_l2=1.961e-4 M=2 N=128 K=256 bits=1 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.415e-3 rel_l2=7.983e-4 M=1 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.924e-3 rel_l2=9.383e-4 M=5 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.893e-4 rel_l2=2.086e-4 M=2 N=128 K=256 bits=1 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.004e-3 rel_l2=5.889e-4 M=1 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.472e-3 rel_l2=9.100e-4 M=5 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.397e-4 rel_l2=2.367e-4 M=2 N=128 K=256 bits=1.5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.701e-3 rel_l2=6.261e-4 M=1 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.185e-3 rel_l2=7.981e-4 M=5 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.953e-4 rel_l2=1.894e-4 M=2 N=128 K=256 bits=2 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.688e-3 rel_l2=9.641e-4 M=1 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.247e-3 rel_l2=7.069e-4 M=5 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.752e-4 rel_l2=2.202e-4 M=2 N=128 K=256 bits=2 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=9.470e-4 rel_l2=4.562e-4 M=1 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.748e-3 rel_l2=9.034e-4 M=5 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.075e-4 rel_l2=2.109e-4 M=2 N=128 K=256 bits=2 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.083e-3 rel_l2=8.872e-4 M=1 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.401e-3 rel_l2=1.030e-3 M=5 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.002e-4 rel_l2=1.991e-4 M=2 N=128 K=256 bits=2.5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.451e-3 rel_l2=8.940e-4 M=1 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.463e-3 rel_l2=7.968e-4 M=5 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.633e-4 rel_l2=2.079e-4 M=2 N=128 K=256 bits=3 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.773e-3 rel_l2=4.977e-4 M=1 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.793e-3 rel_l2=7.847e-4 M=5 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.979e-4 rel_l2=2.204e-4 M=2 N=128 K=256 bits=3 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.852e-3 rel_l2=5.600e-4 M=1 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.184e-3 rel_l2=7.661e-4 M=5 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.101e-4 rel_l2=2.081e-4 M=2 N=128 K=256 bits=3 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.165e-3 rel_l2=4.909e-4 M=1 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.497e-3 rel_l2=9.692e-4 M=5 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.599e-4 rel_l2=2.057e-4 M=2 N=128 K=256 bits=3.5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.841e-3 rel_l2=1.327e-3 M=1 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.674e-3 rel_l2=6.358e-4 M=5 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.850e-4 rel_l2=1.909e-4 M=2 N=128 K=256 bits=4 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.425e-3 rel_l2=1.245e-3 M=1 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.294e-3 rel_l2=7.876e-4 M=5 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.139e-4 rel_l2=1.948e-4 M=2 N=128 K=256 bits=4 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.181e-3 rel_l2=1.068e-3 M=1 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.857e-3 rel_l2=9.228e-4 M=5 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.787e-4 rel_l2=2.225e-4 M=2 N=128 K=256 bits=4 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.205e-3 rel_l2=1.006e-3 M=1 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.591e-3 rel_l2=8.701e-4 M=5 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.860e-4 rel_l2=2.053e-4 M=2 N=128 K=256 bits=5 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.453e-3 rel_l2=6.632e-4 M=1 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.747e-3 rel_l2=6.454e-4 M=5 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.392e-4 rel_l2=2.364e-4 M=2 N=128 K=256 bits=5 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.000e-3 rel_l2=9.291e-4 M=1 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.205e-3 rel_l2=8.864e-4 M=5 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.430e-4 rel_l2=2.108e-4 M=2 N=128 K=256 bits=5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.049e-3 rel_l2=5.569e-4 M=1 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.688e-3 rel_l2=1.011e-3 M=5 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.928e-4 rel_l2=2.317e-4 M=2 N=128 K=256 bits=6 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.012e-3 rel_l2=1.028e-3 M=1 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.577e-3 rel_l2=7.563e-4 M=5 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.982e-4 rel_l2=1.961e-4 M=2 N=128 K=256 bits=6 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.546e-3 rel_l2=1.199e-3 M=1 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.521e-3 rel_l2=8.987e-4 M=5 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.355e-4 rel_l2=1.820e-4 M=2 N=128 K=256 bits=6 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.645e-3 rel_l2=5.635e-4 M=1 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.445e-3 rel_l2=6.047e-4 M=5 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.579e-4 rel_l2=1.932e-4 M=2 N=128 K=256 bits=7 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.667e-3 rel_l2=7.310e-4 M=1 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.732e-3 rel_l2=7.773e-4 M=5 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.773e-4 rel_l2=1.897e-4 M=2 N=128 K=256 bits=7 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.381e-3 rel_l2=5.536e-4 M=1 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.420e-3 rel_l2=6.223e-4 M=5 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.312e-4 rel_l2=2.005e-4 M=2 N=128 K=256 bits=7 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.788e-3 rel_l2=1.119e-3 M=1 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.717e-3 rel_l2=1.115e-3 M=5 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.461e-4 rel_l2=2.125e-4 M=2 N=128 K=256 bits=8 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.030e-3 rel_l2=7.881e-4 M=1 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.717e-3 rel_l2=9.085e-4 M=5 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.692e-4 rel_l2=2.091e-4 M=2 N=128 K=256 bits=8 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.894e-3 rel_l2=7.968e-4 M=1 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.247e-3 rel_l2=9.323e-4 M=5 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.153e-4 rel_l2=2.183e-4 M=2 N=128 K=256 bits=8 cb=mul1 x=f32 out=f32
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_exl3    matmul_exl3_gemv               81      0    5.181e-3    1.327e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm                0      0     0.000e0     0.000e0  NO CASES (untested)
+2 kernels, 81 cases in 0.1s
+incomplete: 1 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+SKIPPED: kernel matmul_exl3_gemm ran 0 cases on backend 'cuda'

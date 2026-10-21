@@ -59,6 +59,12 @@ int ik_attn_prefill_f8kv_flash(const ik_tensor* q, const ik_tensor* kc, const ik
 int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                         const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
+/* matmul_exl3_gemm: the same op and arguments, a prefill GEMM: each block decodes a weight tile once for 64 or 128 rows
+ * (ldmatrix + mma against shared-memory slices of the rotated input), and its output is bit for bit the GEMV's. Scratch:
+ * the rotated input, fp16 [min(M,512),K] (16-byte aligned); rows go through in slices of 512. */
+int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                        const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif
