@@ -1,0 +1,24 @@
+09:55:34 MemAvailable 48 GB
+09:55:34 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1
+09:55:34 bin /home/nvidia/intarsia-tp2/bin/dev-intarsia: intarsia 0.0.1
+2411 MHz, [N/A], 42, 11.91 W, 0 %
+09:56:09 plan base-35b exit 0 13961 bytes
+09:56:52 plan dev-35b exit 0 13961 bytes
+09:57:52 plan base-8b exit 0 8630 bytes
+09:58:34 plan dev-8b exit 0 8630 bytes
+09:58:48 plan dev-35b-tp2 exit 0 13548 bytes
+09:58:48 PLAN IDENTITY 35b tp=1: identical
+09:58:48 PLAN IDENTITY 8b tp=1: identical
+09:59:30 acc tp1-short exit 0 42 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, excess -0.0004 (|.| <= 0.|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+10:01:37 acc tp1-long exit 1 127 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= |floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|
+10:01:50 acc tp2-short exit 0 13 s: prefill floor [4bit]: top-1 97.99% (not gated for this class) ok | 21-way KL 7.539e-3 (need <= 3.0e-2) ok | tail mass ours 0.0175 vs ref 0.0176, excess -0.0000 (|.| <= 0.|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+10:03:27 acc tp2-long exit 1 97 s: prefill floor [4bit]: top-1 94.26% (not gated for this class) ok | 21-way KL 4.271e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0636 vs ref 0.0611, excess +0.0025 (|.| <= |floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|
+10:03:33 self tp2-short exit 1 6 s: 
+10:03:39 self tp2-long exit 1 6 s: 
+10:04:17 self tp1simt-long exit 1 38 s: 
+10:04:54 gen tp1-5k: finish=length prompt=1497 (cached 0) completion=256 | prefill 487 ms (3073.1 tok/s) | decode 3106 ms (82.10 tok/s)
+10:05:06 gen tp2-5k: finish=length prompt=1497 (cached 0) completion=256 | prefill 1225 ms (1221.7 tok/s) | decode 4223 ms (60.38 tok/s)
+10:05:47 gen tp1-16k: finish=length prompt=16026 (cached 0) completion=256 | prefill 3174 ms (5049.5 tok/s) | decode 3427 ms (74.41 tok/s)
+10:06:09 gen tp2-16k: finish=length prompt=16026 (cached 0) completion=256 | prefill 11963 ms (1339.6 tok/s) | decode 4525 ms (56.35 tok/s)
+10:07:22 reuse tp1 exit 0 73 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|
+10:09:45 reuse tp2 exit 0 143 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|

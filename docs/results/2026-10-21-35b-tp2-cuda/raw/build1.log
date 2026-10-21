@@ -1,0 +1,20 @@
+fleetq: #2920 waiting (#3 in line): in line behind #2906 "M3 CUDA 35b-long dumps + reuse diag (vLLM up)" (claude-f31ccf91) on spark1
+fleetq:   #2906 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2906 set, or it will wait for #2906 to be released.
+fleetq: #2920 running on spark1: scripts/35b-tp2/build.sh base dev
+stamp: head=8e202e18 export=yes
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-base/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-base/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-base/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-base/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 15.15s
+-rwxrwxr-x 2 nvidia nvidia 37567936 Oct 21 09:52 /home/nvidia/intarsia-decfuse/tp2-base/target/acc/release/intarsia
+intarsia 0.0.1
+stamp: head=66037e9 code-tree=e6ae2aede5b7 dirty=yes
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-dev/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-dev/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-dev/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 16.61s
+-rwxrwxr-x 2 nvidia nvidia 37573984 Oct 21 09:52 /home/nvidia/intarsia-decfuse/tp2-dev/target/acc/release/intarsia
+intarsia 0.0.1
+fleetq: #2920 done (exit 0)

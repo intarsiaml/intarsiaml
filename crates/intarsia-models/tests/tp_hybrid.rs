@@ -262,6 +262,77 @@ fn hybrid_moe_tp2_snapshot_rollback_is_exact() {
     }
 }
 
+/// Rank 0 here, rank 1 behind a real (localhost) TCP connection running `tp_remote::serve` on another thread, the two
+/// joined by the host communicator: the cross-process protocol must give the in-process tp=2 bits exactly (same shards,
+/// same sums), through prefill chunks, decode, a snapshot and a rollback. Returns the rank-0 model and the server thread.
+fn load_remote(w: &MemWeights, act: DType) -> (Model, std::thread::JoinHandle<u64>) {
+    use intarsia_core::model::TpRank;
+    use intarsia_core::tp_remote;
+    let (recipe, dims) = dims();
+    let backends: Vec<Arc<dyn Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (b1, c1, r1, d1, w1) = (backends[1].clone(), comms[1].clone(), recipe.clone(), dims.clone(), weights_clone(w));
+    let server = std::thread::spawn(move || {
+        let (mut s, _) = listener.accept().unwrap();
+        let mut m = Model::load_shard(b1, &r1, &d1, &w1, &opts(act), Arc::new(Telemetry::new()), TpRank { rank: 1, world: 2, comm: Some(c1) })
+            .unwrap();
+        let cap = tp_remote::handshake(&mut s, "fixture", m.plan.kv_cap_tokens).unwrap();
+        m.clamp_kv_cap(cap).unwrap();
+        tp_remote::serve(&m, s).unwrap()
+    });
+    let mut s = std::net::TcpStream::connect(addr).unwrap();
+    let tp = TpRank { rank: 0, world: 2, comm: Some(comms[0].clone()) };
+    let mut m = Model::load_shard(backends[0].clone(), &recipe, &dims, w, &opts(act), Arc::new(Telemetry::new()), tp).unwrap();
+    let cap = tp_remote::handshake(&mut s, "fixture", m.plan.kv_cap_tokens).unwrap();
+    m.clamp_kv_cap(cap).unwrap();
+    m.attach_remote(tp_remote::RemotePeer::new(s, comms[0].clone()).unwrap()).unwrap();
+    (m, server)
+}
+
+fn weights_clone(w: &MemWeights) -> MemWeights {
+    let mut c = MemWeights::new();
+    for n in w.names() {
+        let i = w.info(&n).unwrap();
+        c.insert(&n, HostTensor::new(i.dtype, i.shape, w.bytes(&n).unwrap().to_vec()).unwrap());
+    }
+    c
+}
+
+#[test]
+fn hybrid_moe_tp2_remote_rank_is_bitwise_the_in_process_group() {
+    let _g = env();
+    let w = weights();
+    for act in [DType::F32, DType::Bf16] {
+        let local = load(2, &w, act);
+        let (remote, server) = load_remote(&w, act);
+        let (a, b) = (run(&remote), run(&local));
+        assert_eq!(a.len(), 18);
+        for (i, (x, y)) in a.iter().zip(&b).enumerate() {
+            assert!(x.iter().zip(y).all(|(p, q)| p.to_bits() == q.to_bits()), "act {act}: row {i} differs from the in-process group");
+        }
+        // prefix reuse through the connection: snapshot, continue, roll back, continue again
+        let mut st = remote.new_state().unwrap();
+        remote.forward(&mut st, &prompt(), HeadMode::LastLogits, None).unwrap();
+        st.snapshot(&*remote.backend, 4).unwrap();
+        let cont: Vec<u32> = vec![17, 4, 61, 33];
+        let mut rows = [Vec::new(), Vec::new()];
+        for r in rows.iter_mut() {
+            let mut cb = |_p: usize, x: &[f32]| {
+                r.push(x.to_vec());
+                Ok(())
+            };
+            remote.forward(&mut st, &cont, HeadMode::AllLogits, Some(&mut cb)).unwrap();
+            st.truncate(12, &*remote.backend).unwrap();
+        }
+        assert!(rows[0].iter().flatten().zip(rows[1].iter().flatten()).all(|(p, q)| p.to_bits() == q.to_bits()), "act {act}: rollback");
+        drop(st);
+        drop(remote); // closes the connection: the server loop returns
+        assert_eq!(server.join().unwrap(), 7 + 3, "act {act}: forward passes served (7 in run, 3 here)");
+    }
+}
+
 /// tp=1 is untouched by the sharding code: the plain load and a `load_shard` at world 1 give the same bits.
 #[test]
 fn hybrid_moe_tp1_unchanged_by_shard_path() {

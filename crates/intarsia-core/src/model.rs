@@ -246,6 +246,9 @@ pub struct Model {
     test_bug: Option<(usize, f32)>,
     /// Ranks 1.. of the group, each a full shard with its own backend, weights, workspace and KV (rank 0 only).
     peers: Vec<Model>,
+    /// Tensor parallelism across processes (rank 0 only): the other rank runs in another process, driven over a
+    /// connection (`crate::tp_remote`, docs/design/35b-tp2.md). Exclusive with `peers`.
+    remote: Option<Arc<crate::tp_remote::RemotePeer>>,
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
@@ -685,6 +688,7 @@ impl Model {
             no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
             test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
             peers: Vec::new(),
+            remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
@@ -870,7 +874,44 @@ impl Model {
                 st: SequenceState::new(&*p.backend, &p.slot_specs, self.plan.kv_cap_tokens)?,
             });
         }
+        if let Some(r) = &self.remote {
+            st.remote = Some(r.new_state()?);
+        }
         Ok(st)
+    }
+
+    /// Make this rank-0 shard of a 2-way group drive its other rank in another process (`crate::tp_remote`): its
+    /// communicator must already connect the two processes, and the other process runs [`crate::tp_remote::serve`] on
+    /// the other end of `peer`'s connection.
+    pub fn attach_remote(&mut self, peer: Arc<crate::tp_remote::RemotePeer>) -> Result<()> {
+        if self.tp.rank != 0 || self.tp.world != 2 || !self.peers.is_empty() || self.tp.comm.is_none() {
+            return Err(Error::invalid("a remote rank attaches to rank 0 of a 2-way group with a communicator and no local peers"));
+        }
+        self.remote = Some(peer);
+        Ok(())
+    }
+
+    /// Every rank must hold the same number of tokens: clamp this shard's KV capacity to `cap` (the smallest any rank of
+    /// the group can hold, agreed in `crate::tp_remote::handshake`) and re-resolve the plan for it.
+    pub fn clamp_kv_cap(&mut self, cap: usize) -> Result<()> {
+        if self.plan.kv_cap_tokens > cap {
+            self.plan.notes.push(format!("context clamped from {} to {cap} tokens: the smallest rank decides", self.plan.kv_cap_tokens));
+            self.plan.kv_cap_tokens = cap;
+            self.plan.kv_total_bytes = cap as u64 * self.plan.kv_bytes_per_token;
+            crate::plan::resolve(self)?;
+        }
+        Ok(())
+    }
+
+    /// A non-primary rank's forward pass over `ids` (the layers, no head), for a rank that runs in its own process
+    /// (`crate::tp_remote::serve`). Same checks and failure reset as [`Model::forward`].
+    pub fn forward_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        Self::check_forward(st, ids, HeadMode::None, false)?;
+        let r = self.run_peer(st, ids);
+        if r.is_err() && st.has_recurrent() {
+            let _ = st.reset(&*self.backend);
+        }
+        r
     }
 
     /// Dtype of the row-parallel partial results the collective sums ("f32" or "bf16"); None without tensor parallelism.
@@ -981,7 +1022,9 @@ impl Model {
         mode: HeadMode,
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
-        let r = if self.peers.is_empty() {
+        let r = if self.remote.is_some() {
+            self.forward_remote(st, ids, mode, on_row)
+        } else if self.peers.is_empty() {
             self.forward_inner(st, ids, mode, on_row)
         } else {
             self.forward_tp(st, ids, mode, on_row)
@@ -1086,6 +1129,42 @@ impl Model {
         });
         st.peers = peers;
         out
+    }
+
+    /// Tensor-parallel forward with the other rank in another process: send it the pass, run rank 0's here, then read its
+    /// answer. A failure on either side leaves the group unusable (the communicator is aborted).
+    fn forward_remote(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        Self::check_forward(st, ids, mode, on_row.is_some())?;
+        let mut rs = st
+            .remote
+            .take()
+            .ok_or_else(|| Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"))?;
+        let r = (|| {
+            if rs.len > st.len {
+                rs.truncate(st.len)?;
+            } else if rs.len < st.len {
+                return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", rs.len, st.len)));
+            }
+            rs.start_forward(ids)?;
+            let r0 = self.forward_inner(st, ids, mode, on_row);
+            if r0.is_err() {
+                // the remote rank waits in a collective this rank will not join: the group is gone
+                if let Some(c) = &self.tp.comm {
+                    c.abort();
+                }
+                return r0;
+            }
+            rs.finish()?;
+            r0
+        })();
+        st.remote = Some(rs);
+        r
     }
 
     /// `ids` cut into forward passes of at most `max_tokens` rows, by the engine's prefill rule
