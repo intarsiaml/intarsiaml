@@ -1,0 +1,27 @@
+e1/fc0-1.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.704 ms (33.67 tok/s)  busy 29.271  idle gap 0.406 ms (p10 0.381 p90 0.497)
+gap split (median): wake 0.146  encode-first-buffer 0.118  commit->GPU start 0.135 ms
+e1/fc0-2.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.827 ms (33.53 tok/s)  busy 29.391  idle gap 0.407 ms (p10 0.375 p90 0.489)
+gap split (median): wake 0.149  encode-first-buffer 0.116  commit->GPU start 0.134 ms
+e1/fc0-3.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 30.007 ms (33.33 tok/s)  busy 29.577  idle gap 0.417 ms (p10 0.385 p90 0.504)
+gap split (median): wake 0.154  encode-first-buffer 0.121  commit->GPU start 0.134 ms
+e1/fc4-1.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 4
+period 30.792 ms (32.48 tok/s)  busy 30.485  idle gap 0.303 ms (p10 0.281 p90 0.332)
+gap split (median): wake 0.148  encode-first-buffer 0.021  commit->GPU start 0.125 ms
+e1/fc4-2.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 4
+period 29.216 ms (34.23 tok/s)  busy 28.918  idle gap 0.295 ms (p10 0.265 p90 0.338)
+gap split (median): wake 0.142  encode-first-buffer 0.019  commit->GPU start 0.123 ms
+e1/fc4-3.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 4
+period 29.343 ms (34.08 tok/s)  busy 29.043  idle gap 0.297 ms (p10 0.268 p90 0.361)
+gap split (median): wake 0.141  encode-first-buffer 0.020  commit->GPU start 0.127 ms
+e1/fc16-1.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 4
+period 32.948 ms (30.35 tok/s)  busy 32.118  idle gap 0.422 ms (p10 0.338 p90 1.543)
+gap split (median): wake 0.188  encode-first-buffer 0.056  commit->GPU start 0.147 ms
+e1/fc16-2.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 4
+period 29.755 ms (33.61 tok/s)  busy 29.408  idle gap 0.341 ms (p10 0.308 p90 0.406)
+gap split (median): wake 0.150  encode-first-buffer 0.043  commit->GPU start 0.135 ms
+e1/fc16-3.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 4
+period 29.306 ms (34.12 tok/s)  busy 28.962  idle gap 0.315 ms (p10 0.279 p90 0.370)
+gap split (median): wake 0.144  encode-first-buffer 0.041  commit->GPU start 0.124 ms

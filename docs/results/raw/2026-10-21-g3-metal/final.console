@@ -1,0 +1,2 @@
+fleetq: #2971 waiting (#2 in line): in line behind #2967 "M1 metal mxfp4 kernel test" (claude-f31ccf91) on endor
+fleetq:   #2967 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2967 set, or it will wait for #2967 to be released.
