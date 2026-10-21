@@ -1,0 +1,51 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00  1.194e-15  1.443e-14  1.443e-14  5.324e-15   0.0319   0.0319   100.00     38/38      0
+story                 39    39   100.00  1.925e-15  5.885e-14  5.885e-14  6.708e-15   0.0225   0.0225   100.00     39/39      0
+code                  87    87   100.00  8.935e-16  4.012e-14  4.012e-14  7.218e-15   0.0114   0.0114   100.00     87/87      0
+science               79    79   100.00  1.144e-15  3.161e-14  3.161e-14  5.139e-15   0.0116   0.0116   100.00     79/79      0
+chat_short            18    18   100.00  8.447e-16  1.125e-12  1.125e-12  2.629e-15   0.0297   0.0297   100.00     18/18      0
+chat_system           32    32   100.00  8.018e-16  1.000e-12  1.000e-12  3.390e-15   0.0199   0.0199   100.00     32/32      0
+chat_multiturn        58    58   100.00  8.904e-16  3.316e-12  3.316e-12  7.854e-15   0.0180   0.0180   100.00     58/58      0
+chat_reasoning        90    90   100.00  9.611e-16  3.406e-13  3.406e-13  4.590e-15   0.0141   0.0141   100.00     90/90      0
+long_prose_300       300   300   100.00  5.971e-16  1.538e-14  1.538e-14  3.682e-15   0.0089   0.0089   100.00   300/300      0
+long_prose_700       700   700   100.00  6.528e-16  5.341e-14  5.341e-14  7.208e-15   0.0076   0.0076   100.00   700/700      0
+OVERALL                   1441   100.00  7.659e-16  2.263e-13  2.263e-13  7.854e-15   0.0107   0.0107   100.00    100.0%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                2.2626e-13  (limit 1.0000e-4)  ok
+  max position KL(21-way)                        1.7593e-10  (limit 5.0000e-3)  ok
+  top-1 flips                                      0.0000e0  (limit 7.0000e0)  ok
+  mean |tail diff|                                3.6709e-9  (limit 5.0000e-4)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_multiturn]       3.3157e-12  (limit 5.0000e-4)  ok
+SELF-STATS mode=prefill positions=1441 mean_kl21=2.262626e-13 max_kl21=1.759315e-10 flips=0 flip_pct=0.0000 tail_abs=3.670859e-9 worst_prompt_kl21=3.315740e-12
+prefill self-golden => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00  7.448e-16  2.565e-14  2.565e-14  3.344e-15   0.0152   0.0152   100.00     16/16      0
+story                 39    16   100.00  1.886e-15  2.363e-14  2.363e-14  6.141e-15   0.0405   0.0405   100.00     16/16      0
+code                  87    16   100.00  6.606e-16  2.406e-14  2.406e-14  2.879e-15   0.0003   0.0003   100.00     16/16      0
+science               79    16   100.00  1.243e-15  4.875e-14  4.875e-14  4.058e-15   0.0193   0.0193   100.00     16/16      0
+chat_short            18    16   100.00  8.568e-16  1.445e-11  1.445e-11  6.752e-15   0.0321   0.0321   100.00     16/16      0
+chat_system           32    16   100.00  1.157e-15  1.132e-12  1.132e-12  4.855e-15   0.0315   0.0315   100.00     16/16      0
+chat_multiturn        58    16   100.00  9.198e-16  7.473e-14  7.473e-14  3.524e-15   0.0006   0.0006   100.00     16/16      0
+chat_reasoning        90    16   100.00  4.062e-16  9.207e-14  9.207e-14  2.278e-15   0.0004   0.0004   100.00     16/16      0
+long_prose_300       300    16   100.00  4.912e-16  2.390e-14  2.390e-14  1.813e-15   0.0001   0.0001   100.00     16/16      0
+long_prose_700       700    16   100.00  5.763e-16  1.236e-14  1.236e-14  2.188e-15   0.0003   0.0003   100.00     16/16      0
+OVERALL                    160   100.00  8.941e-16  1.591e-12  1.591e-12  6.752e-15   0.0140   0.0140   100.00    100.0%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                1.5911e-12  (limit 1.0000e-4)  ok
+  max position KL(21-way)                        2.3107e-10  (limit 5.0000e-3)  ok
+  top-1 flips                                      0.0000e0  (limit 1.0000e0)  ok
+  mean |tail diff|                                5.4158e-9  (limit 5.0000e-4)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_short]           1.4454e-11  (limit 5.0000e-4)  ok
+SELF-STATS mode=decode positions=160 mean_kl21=1.591146e-12 max_kl21=2.310667e-10 flips=0 flip_pct=0.0000 tail_abs=5.415819e-9 worst_prompt_kl21=1.445398e-11
+decode (teacher-forced) self-golden => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
