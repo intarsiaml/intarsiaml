@@ -105,6 +105,115 @@ mxfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
     }
 }
 
+// M == 1 (decode): the block stages x once in LDS (bf16 [K]), QDQ'd per 32-element group when act[0] != 0, so neither a
+// pre-pass launch nor a per-row QDQ is needed. The grid is sized to the device (blocks per CU, INTARSIA_HIP_MXFP4_LDS)
+// and each warp walks rows n, n + 8 * gridDim.x, ... so the staging is paid once per block, not once per 8 rows. Per
+// output row the arithmetic is the one of mxfp4_gemv_kernel<1> on a pre-passed x (same lane-to-group map, same fma
+// chain, same warp sum; the QDQ'd values are exact in bf16): bitwise equal.
+template <typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_gemv1_lds_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
+                       const float* __restrict__ act, OutT* __restrict__ out, int64_t N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [4][G] x 8 bf16: chunk i of group g at xs[i * G + g] (lanes read
+                                                 // consecutive 16-byte words: no LDS bank conflicts)
+    IK_FP4_LUT(lut);
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t stride = (int64_t)gridDim.x * kWarps;
+    int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    const int G = K / kG;
+    const bool qdq = act[0] != 0.f;
+    constexpr int UN = 8;  // groups per lane with their loads in flight together
+    // the first batch of the first row is in flight while x is staged
+    uint4 wv[UN];
+    uint32_t sb[UN];
+    if (n < N) {
+        const uint4* wr = reinterpret_cast<const uint4*>(w + n * (K / 2));
+#pragma unroll
+        for (int j = 0; j < UN; ++j) {
+            const int u = lane + j * IK_WARP;
+            if (u < G) {
+                wv[j] = ik_ldcs(wr + u);
+                sb[j] = sc[n * G + u];
+            }
+        }
+    }
+    const uint4* xg = reinterpret_cast<const uint4*>(x);
+    for (int g = threadIdx.x; g < G; g += kWarps * IK_WARP) {
+        uint4 v[4];
+#pragma unroll
+        for (int i = 0; i < 4; ++i) v[i] = xg[g * 4 + i];
+        if (qdq) {
+            float f[kG];
+#pragma unroll
+            for (int i = 0; i < 4; ++i) ik_unpack8(v[i], f + 8 * i);
+            mx_qdq32(f);
+#pragma unroll
+            for (int i = 0; i < 4; ++i) v[i] = ik_pack8(f + 8 * i);  // exact: e2m1 * 2^e fits bf16
+        }
+#pragma unroll
+        for (int i = 0; i < 4; ++i) xs[i * G + g] = v[i];
+    }
+    __syncthreads();
+    bool first = true;
+    for (; n < N; n += stride) {  // whole warp walks the same rows
+        const uint4* wr = reinterpret_cast<const uint4*>(w + n * (K / 2));
+        const uint8_t* sr = sc + n * G;
+        float acc = 0.f;
+        for (int base = lane; base < G; base += UN * IK_WARP) {
+#pragma unroll
+            for (int j = 0; j < UN && !first; ++j) {
+                const int u = base + j * IK_WARP;
+                if (u < G) {
+                    wv[j] = ik_ldcs(wr + u);
+                    sb[j] = sr[u];
+                }
+            }
+            first = false;
+#pragma unroll
+            for (int j = 0; j < UN; ++j) {
+                const int u = base + j * IK_WARP;
+                if (u < G) {  // same group order per lane as mxfp4_gemv_kernel
+                    const float s = mx_e8m0(sb[j]);
+                    float wf[kG];
+                    ik_fp4x8_to_f32(wv[j].x, lut, wf);
+                    ik_fp4x8_to_f32(wv[j].y, lut, wf + 8);
+                    ik_fp4x8_to_f32(wv[j].z, lut, wf + 16);
+                    ik_fp4x8_to_f32(wv[j].w, lut, wf + 24);
+                    float xf[kG];
+                    ik_unpack8(xs[u], xf);
+                    ik_unpack8(xs[G + u], xf + 8);
+                    ik_unpack8(xs[2 * G + u], xf + 16);
+                    ik_unpack8(xs[3 * G + u], xf + 24);
+                    float t = 0.f;
+#pragma unroll
+                    for (int e = 0; e < kG; ++e) t = fmaf(wf[e], xf[e], t);
+                    acc = fmaf(t, s, acc);
+                }
+            }
+        }
+        const float t = ik_warp_sum(acc);
+        if (lane == 0) ik_store(out + n, t);
+    }
+}
+
+constexpr int64_t kLdsMax = 16 * 1024;  // x of K <= 8192 in LDS; a larger x (down_proj, K = 17408) costs occupancy:
+                                        // the pre-pass + plain GEMV is faster there (measured on gfx1201)
+
+// INTARSIA_HIP_MXFP4_LDS=<blocks per CU> for the M == 1 LDS kernel (default 4); 0: the pre-pass + plain GEMV path
+static int mx_lds_blocks() {
+    static const int v = [] {
+        int per = 4;
+        if (const char* e = getenv("INTARSIA_HIP_MXFP4_LDS")) per = atoi(e);
+        if (per <= 0) return 0;
+        int dev = 0, cus = 0;
+        if (hipGetDevice(&dev) != hipSuccess || hipDeviceGetAttribute(&cus, hipDeviceAttributeMultiprocessorCount, dev) != hipSuccess || cus <= 0)
+            cus = 64;
+        return per * cus;
+    }();
+    return v;
+}
+
 template <typename OutT>
 int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* sc, const float* act, OutT* out, int64_t N,
               int64_t K, hipStream_t s) {
@@ -217,6 +326,15 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
         if (M > 8) return IK_ERR_SHAPE;
+        if (M == 1 && K * 2 <= kLdsMax && mx_lds_blocks() > 0) {
+            const int64_t full = (N + kWarps - 1) / kWarps;
+            const unsigned grid = (unsigned)(full < mx_lds_blocks() ? full : mx_lds_blocks());
+            if (f32o)
+                mxfp4_gemv1_lds_kernel<float><<<grid, kWarps * IK_WARP, (size_t)K * 2, s>>>(xp, wp, sp, ap, (float*)out->data, N, (int)K);
+            else
+                mxfp4_gemv1_lds_kernel<ik_bf16><<<grid, kWarps * IK_WARP, (size_t)K * 2, s>>>(xp, wp, sp, ap, (ik_bf16*)out->data, N, (int)K);
+            return ik_launch_status();
+        }
         if (scratch && scratch->data && scratch->bytes >= M * K * 2 && !(reinterpret_cast<uintptr_t>(scratch->data) & 15u)) {
             // QDQ (or copy) the activations once, then the GEMV reads them as plain bf16
             ik_bf16* xs = (ik_bf16*)scratch->data;
