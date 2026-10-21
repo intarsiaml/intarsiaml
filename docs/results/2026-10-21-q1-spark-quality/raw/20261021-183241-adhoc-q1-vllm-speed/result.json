@@ -1,0 +1,166 @@
+{
+ "run_id": "20261021-183241-adhoc-q1-vllm-speed",
+ "kind": "speed",
+ "label": "q1-vllm-speed",
+ "started_at": "2026-10-21T18:32:41-04:00",
+ "finished_at": "2026-10-21T18:32:57-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-4e77:8000/v1",
+  "model": "guidance",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.2.1",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8000/v1 --model guidance --thinking off --sizes 1024,4096 --gen 128 --reps 3 --label q1-vllm-speed",
+  "git": "69c7a84"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "guidance",
+    "capcom"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "vllm",
+   "max_model_len": 32768
+  },
+  "gen_tokens": 128,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.05,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 990,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.255,
+     "min": 0.211,
+     "max": 0.263,
+     "n": 3,
+     "spread_pct": 20.4
+    },
+    "prefill_tok_s": {
+     "median": 3880.927,
+     "min": 3769.755,
+     "max": 4688.949,
+     "n": 3,
+     "spread_pct": 23.7
+    },
+    "decode_tok_s": {
+     "median": 76.432,
+     "min": 67.962,
+     "max": 77.583,
+     "n": 3,
+     "spread_pct": 12.6
+    },
+    "peak_decode_tok_s": {
+     "median": 92.7,
+     "min": 79.3,
+     "max": 92.9,
+     "n": 3,
+     "spread_pct": 14.7
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4087,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.774,
+     "min": 0.706,
+     "max": 0.781,
+     "n": 3,
+     "spread_pct": 9.7
+    },
+    "prefill_tok_s": {
+     "median": 5278.184,
+     "min": 5234.857,
+     "max": 5793.419,
+     "n": 3,
+     "spread_pct": 10.6
+    },
+    "decode_tok_s": {
+     "median": 76.745,
+     "min": 73.771,
+     "max": 77.634,
+     "n": 3,
+     "spread_pct": 5.0
+    },
+    "peak_decode_tok_s": {
+     "median": 83.5,
+     "min": 82.6,
+     "max": 85.4,
+     "n": 3,
+     "spread_pct": 3.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 5967.2
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": "vllm-0.26.1rc1.dev602+g65b7662d3-a11d7492",
+  "served_model": "guidance",
+  "activity_checks": {
+   "idle": 7,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": [
+   "decode spread 12.6% at 1024 tokens: noisy; rerun before comparing"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "decode spread 12.6% at 1024 tokens: noisy; rerun before comparing"
+ ]
+}
