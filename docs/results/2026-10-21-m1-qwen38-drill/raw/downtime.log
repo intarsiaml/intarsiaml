@@ -3,7 +3,11 @@
 #2917   09:45:33 - 09:48:26           2.9      5.9 min (#2911 back 09:39:40)                           hip kernels test + qualify #1 (plan FAIL)
 #2928   09:59:41 - 10:20:12           20.5     0.5 min (#2924 back 09:59:11)  BELOW the 5 min rule     smoke, qualify quick, localeval speed, quality started + stopped, acc-short
 #2958   10:42:34 - 10:45:13           2.7      1.9 min (#2948 back 10:40:43)  BELOW the 5 min rule     W4A16/W4A4 accuracy diagnosis (radiance actually stopped 10:43:28 - 10:44:36)
-# total M1: 26.1 min
-# Procedure deviation: all three windows used `fleetq acquire` + a manual `systemctl --user stop/start radiance` (FLEETQ_JOB set),
+#2978   11:11:44 - 11:20:04           8.3      26.5 min (#2958 back 10:45:13)                          localeval quality intarsia (gsm8k 25 + 100, mmlu 8 subjects x 15); ONE fleetq run + EXIT trap
+# total M1: 34.4 min (allocation 55)
+# #2978: the script first launched a mis-sized full mmlu (57 x 25, ~40 min single-stream); it was paused (SIGSTOP) and the sized
+# runs were started inside the slot (FLEETQ_JOB=2978). At 11:19:53 both localeval processes ended (cause not identified; a
+# third run, mmlu 8 x 40, was cut short and left no result), the trap stopped intarsia and restored radiance (chat OK 11:20:04).
+# Procedure deviation: windows #2917, #2928, #2958 used `fleetq acquire` + a manual `systemctl --user stop/start radiance` (FLEETQ_JOB set),
 # not one `fleetq run --takes-down` with an EXIT trap. Radiance came back healthy after each (chat completion checked after #2958).
 # Note: --takes-down does not stop the unit; in #2958 radiance ran for the first ~50 s of the window (first diag attempt OOM'd).
