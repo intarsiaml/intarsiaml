@@ -47,6 +47,7 @@ cmd_pack() {
     esac
   done
   [[ -n $HOST && -n $OUT ]] || die "pack needs --host and --out"
+  : "${FLEETQ_JOB:?run under fleetq run --host <host> --mem 0 (pack reads files from the box)}"
   TREE=${TREE:-$BACKEND}; [[ -n $TREE ]] || die "pack needs --backend or --tree (the deploy tree name)"
   local R="intarsia-deploy/$TREE" W; W=$(mktemp -d); trap 'rm -rf "$W"' RETURN
   mkdir -p "$W/b/reports" "$W/b/recipes"

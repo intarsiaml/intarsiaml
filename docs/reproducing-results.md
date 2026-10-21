@@ -10,8 +10,9 @@ stamp and one bundle. Three tools and four pins make that work.
 | `scripts/bench-bundle.sh replay` | Deploys the bundle's sha on another host, re-runs the recorded command, and prints which stamp fields match. |
 | `.github/workflows/ci.yml` | `cargo check` / `cargo test` / Metal `cargo check`, all `--locked`, on GitHub-hosted runners only. |
 
-Everything that touches a fleet box runs inside a fleetq slot (`/opt/code/fleetq/README.md`). The scripts require
-`FLEETQ_JOB` and refuse to run without it (`deploy.sh --dry-run` needs none and changes nothing).
+Everything that touches a fleet box runs inside a fleetq slot (`/opt/code/fleetq/README.md`). `deploy.sh`, `pack` and
+`replay` require `FLEETQ_JOB` and refuse to run without it (`deploy.sh --dry-run` needs none and changes nothing; `show`
+is local).
 
 ## One-command deploy
 
@@ -76,7 +77,8 @@ fleetq run --host spark1 --mem 20 --label "..." -- scripts/deploy.sh spark1 --en
 ## Bench bundle
 
 ```bash
-scripts/bench-bundle.sh pack --host spark1 --backend cuda --out r7.tgz \
+fleetq run --host spark1 --mem 0 --label "pack r7 bundle (reads files)" -- \
+  scripts/bench-bundle.sh pack --host spark1 --backend cuda --out r7.tgz \
     --cmd '$INTARSIA_BIN bench speed ... --out $INTARSIA_REPLAY_OUT/speed.json' \
     --report spark1:intarsia-deploy/cuda/replay-out/<run>  --report docs/results/<lane>/localeval \
     --env INTARSIA_CUDA_FP8_GEMM_LT=1 --note "what this is"
