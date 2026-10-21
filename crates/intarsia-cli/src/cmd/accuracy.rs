@@ -1101,7 +1101,7 @@ fn run_mode(
             tail_excess: agg.tail_excess(),
             max_kl21: agg.kl21_max,
             tail_abs: agg.mean_tail_abs(),
-            mean_kl21_scored: Some(agg_sc.mean_kl21()),
+            mean_kl21_scored: (agg_sc.n > 0).then(|| agg_sc.mean_kl21()), // a prompt wholly inside system / user turns has none
             scored_positions: Some(agg_sc.n),
         });
         matches.push((ml, stats.len()));
