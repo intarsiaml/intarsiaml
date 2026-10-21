@@ -1,0 +1,9 @@
+# M1 radiance (tatooine, both R9700s) downtime windows, 2026-10-21 EDT. Times from `fleetq log`.
+# job   window (fleetq start - back)   minutes  serving before window (previous window back -> start)  what
+#2917   09:45:33 - 09:48:26           2.9      5.9 min (#2911 back 09:39:40)                           hip kernels test + qualify #1 (plan FAIL)
+#2928   09:59:41 - 10:20:12           20.5     0.5 min (#2924 back 09:59:11)  BELOW the 5 min rule     smoke, qualify quick, localeval speed, quality started + stopped, acc-short
+#2958   10:42:34 - 10:45:13           2.7      1.9 min (#2948 back 10:40:43)  BELOW the 5 min rule     W4A16/W4A4 accuracy diagnosis (radiance actually stopped 10:43:28 - 10:44:36)
+# total M1: 26.1 min
+# Procedure deviation: all three windows used `fleetq acquire` + a manual `systemctl --user stop/start radiance` (FLEETQ_JOB set),
+# not one `fleetq run --takes-down` with an EXIT trap. Radiance came back healthy after each (chat completion checked after #2958).
+# Note: --takes-down does not stop the unit; in #2958 radiance ran for the first ~50 s of the window (first diag attempt OOM'd).
