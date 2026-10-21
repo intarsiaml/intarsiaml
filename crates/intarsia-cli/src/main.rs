@@ -20,6 +20,8 @@ enum Command {
     Serve(cmd::serve::ServeArgs),
     /// Golden-logit accuracy gate.
     Accuracy(cmd::accuracy::AccuracyArgs),
+    /// Measure a golden's own reference noise (a second run or another precision), offline.
+    RefNoise(cmd::accuracy::RefNoiseArgs),
     /// Speed benchmark.
     Bench(cmd::bench::BenchArgs),
     /// Host fingerprint and known-pitfall checks.
@@ -34,6 +36,9 @@ enum Command {
     Top(cmd::top::TopArgs),
     /// Rank 1 of a cross-process tensor-parallel group (rank 0 runs any command with `--tp-remote`).
     TpWorker(intarsia_cli::common::TpWorkerArgs),
+    /// Terminal UI for a running server: live architecture map, streaming chat, metrics (feature `tui`).
+    #[cfg(feature = "tui")]
+    Tui(cmd::tui::TuiArgs),
 }
 
 fn main() -> Result<()> {
@@ -42,6 +47,7 @@ fn main() -> Result<()> {
         Command::Kernels(a) => cmd::kernels::run(a),
         Command::Serve(a) => cmd::serve::run(a),
         Command::Accuracy(a) => cmd::accuracy::run(a),
+        Command::RefNoise(a) => cmd::accuracy::run_ref_noise(a),
         Command::Bench(a) => cmd::bench::run(a),
         Command::Doctor(a) => cmd::doctor::run(a),
         Command::Plan(a) => cmd::plan::run(a),
@@ -49,5 +55,7 @@ fn main() -> Result<()> {
         Command::Qualify(a) => cmd::qualify::run(a),
         Command::Top(a) => cmd::top::run(a),
         Command::TpWorker(a) => intarsia_cli::common::run_tp_worker(a),
+        #[cfg(feature = "tui")]
+        Command::Tui(a) => cmd::tui::run(a),
     }
 }

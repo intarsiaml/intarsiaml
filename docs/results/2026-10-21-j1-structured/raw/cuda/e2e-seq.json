@@ -1,0 +1,329 @@
+{
+ "url": "http://spark-4e77:8191",
+ "concurrency": 1,
+ "n": 50,
+ "valid": 50,
+ "auto_without_call": 0,
+ "results": [
+  {
+   "case": "chat-json_schema-number-0-t0.7",
+   "ok": true,
+   "seconds": 1.1,
+   "output": "{\"answer\": 26}"
+  },
+  {
+   "case": "chat-json_schema-number-1-stream-t0.0",
+   "ok": true,
+   "seconds": 7.81,
+   "output": "{\"answer\": 340, \"unit\": \"km\", \"steps\": [\"First, calculate the distance for the first part of the journey: 60 km/h * 3 h = 180 km.\", \"Then, calculate the distance for the second part of the journey: 40 km/h * 2 h = 80 km.\", \"Finally, add the two distances together: 180 km + 80 km = 340 km.\"]}"
+  },
+  {
+   "case": "chat-json_schema-person-0-t0.0",
+   "ok": true,
+   "seconds": 2.17,
+   "output": "{\"name\": \"Lila Chen\", \"age\": 28, \"email\": \"lila.chen@codeforge.com\"}"
+  },
+  {
+   "case": "chat-json_schema-person-1-stream-t0.7",
+   "ok": true,
+   "seconds": 2.25,
+   "output": "{\"name\": \"Ada Lovelace\", \"age\": 18, \"email\": \"ada.lovelace@example.com\"}"
+  },
+  {
+   "case": "chat-json_schema-sentiment-0-t0.0",
+   "ok": true,
+   "seconds": 1.35,
+   "output": "{\"sentiment\": \"negative\", \"confidence\": 0.95}"
+  },
+  {
+   "case": "chat-json_schema-sentiment-1-stream-t0.0",
+   "ok": true,
+   "seconds": 1.39,
+   "output": "{\"sentiment\": \"positive\", \"confidence\": 0.95}"
+  },
+  {
+   "case": "chat-json_schema-shopping-0-t0.7",
+   "ok": true,
+   "seconds": 5.6,
+   "output": "{\"items\": [{\"name\": \"Flour\", \"qty\": 1}, {\"name\": \"Sugar\", \"qty\": 1}, {\"name\": \"Baking powder\", \"qty\": 1}, {\"name\": \"Baking soda\", \"qty\": 1}, {\"name\": \"Salt\", \"qty\": 1}]}"
+  },
+  {
+   "case": "chat-json_schema-shopping-1-stream-t0.0",
+   "ok": true,
+   "seconds": 7.55,
+   "output": "{\"items\": [{\"name\": \"Bread\", \"qty\": 1}, {\"name\": \"Cheese\", \"qty\": 1}, {\"name\": \"Fruit (e.g., grapes, apples)\", \"qty\": 1}, {\"name\": \"Vegetables (e.g., carrots, cucumbers)\", \"qty\": 1}, {\"name\": \"Sandwich ingredients (e.g., turkey, lettuce, mayo)\", \"qty\": 1}]}"
+  },
+  {
+   "case": "chat-json_schema-address-0-t0.0",
+   "ok": true,
+   "seconds": 3.44,
+   "output": "{\"address\": {\"street\": \"Kaffeestra\u00dfe 12\", \"city\": \"Berlin\", \"zip\": \"10178\"}, \"tags\": [\"made-up\", \"bakery\", \"Berlin\"]}"
+  },
+  {
+   "case": "chat-json_schema-address-1-stream-t0.7",
+   "ok": true,
+   "seconds": 4.19,
+   "output": "{\"address\": {\"street\": \"123 Innovation Lane\", \"city\": \"Techtonica\", \"zip\": \"98765\"}, \"tags\": [\"startups\", \"innovation\", \"tech hub\"]}"
+  },
+  {
+   "case": "chat-json_schema-prime-0-t0.0",
+   "ok": true,
+   "seconds": 4.33,
+   "output": "{\"is_prime\": false, \"factors\": [1, 7, 13, 91], \"note\": \"91 is not a prime number. It can be factored into 7 \u00d7 13.\"}"
+  },
+  {
+   "case": "chat-json_schema-prime-1-stream-t0.0",
+   "ok": true,
+   "seconds": 3.42,
+   "output": "{\"is_prime\": true, \"factors\": [1, 97], \"note\": \"97 is a prime number because it has no divisors other than 1 and itself.\"}"
+  },
+  {
+   "case": "chat-json_schema-anyof-0-t0.7",
+   "ok": true,
+   "seconds": 0.69,
+   "output": "{\"result\": 51}"
+  },
+  {
+   "case": "chat-json_schema-anyof-1-stream-t0.0",
+   "ok": true,
+   "seconds": 0.83,
+   "output": "{\"result\": \"The sky appears blue\"}"
+  },
+  {
+   "case": "chat-json_schema-points-0-t0.0",
+   "ok": true,
+   "seconds": 2.43,
+   "output": "{\"a\": {\"x\": 0, \"y\": 0}, \"b\": {\"x\": 1, \"y\": 0}}"
+  },
+  {
+   "case": "chat-json_schema-points-1-stream-t0.7",
+   "ok": true,
+   "seconds": 2.53,
+   "output": "{\"a\": {\"x\": 0, \"y\": 0}, \"b\": {\"x\": 3, \"y\": 4}}"
+  },
+  {
+   "case": "chat-json_schema-title-0-t0.0",
+   "ok": true,
+   "seconds": 1.86,
+   "output": "{\"title\": \"Mastering Async in Rust: A Developer's\u6307\u5357\", \"words\": 100}"
+  },
+  {
+   "case": "chat-json_schema-title-1-stream-t0.0",
+   "ok": true,
+   "seconds": 1.59,
+   "output": "{\"title\": \"The Keeper of the Last Light\", \"words\": 100}"
+  },
+  {
+   "case": "chat-json_schema-version-0-t0.7",
+   "ok": true,
+   "seconds": 1.2,
+   "output": "{\"version\": \"1.0\", \"ok\": true}"
+  },
+  {
+   "case": "chat-json_schema-version-1-stream-t0.0",
+   "ok": true,
+   "seconds": 1.3,
+   "output": "{\"version\": \"1.0\", \"ok\": true}"
+  },
+  {
+   "case": "chat-json_object-person",
+   "ok": true,
+   "seconds": 13.8,
+   "output": "{\"profile\": {\"name\": \"Ava Solis\", \"title\": \"Senior Software Engineer\", \"location\": \"San Francisco, CA\", \"experience\": \"12 years\", \"specialization\": \"Full-Stack Development, AI Integration, Cloud Architecture\", \"current_company\": \"NexGen Innovations\", \"github_username\": \"ava-solis\", \"linkedin_profile\": \"linkedin.com/in/avasolis\", \"bio\": \"Ava Solis is a passionate software engineer with a deep interest in building scalable and intelligent systems. She specializes in full-stack development and has led several AI-driven projects at NexGen Innovations. Ava is known for her collaborative approach and her ability to translate complex technical challenges into elegant solutions. In her free time, she enjoys open-source contributions and mentoring junior developers.\"}}"
+  },
+  {
+   "case": "chat-json_object-shopping-stream",
+   "ok": true,
+   "seconds": 2.66,
+   "output": "{\"error\": \"Please specify what kind of stuff you need for pancakes. Are you looking for ingredients, recipes, toppings, or something else?\"}"
+  },
+  {
+   "case": "chat-json_object-address",
+   "ok": true,
+   "seconds": 3.37,
+   "output": "{\"url\": \"https://www.bakery-in-berlin.de\", \"address\": \"Kreuzbergstra\u00dfe 45, 10999 Berlin, Germany\"}"
+  },
+  {
+   "case": "chat-json_object-prime-stream",
+   "ok": true,
+   "seconds": 2.04,
+   "output": "{\"is_prime\": false, \"factors\": [1, 7, 13, 91]}"
+  },
+  {
+   "case": "chat-json_object-title",
+   "ok": true,
+   "seconds": 1.38,
+   "output": "{\"title\": \"Mastering Async in Rust: A Developer's Guide\"}"
+  },
+  {
+   "case": "completions-json_schema-number",
+   "ok": true,
+   "seconds": 5.65,
+   "output": "{\"answer\": 380, \"unit\": \"km\", \"summary\": \"The train travels 60 km/h * 3 h = 180 km and 40 km/h * 2 h = 80 km, totaling 180 + 80 = 260 km.\"}"
+  },
+  {
+   "case": "completions-json_schema-sentiment-stream",
+   "ok": true,
+   "seconds": 1.26,
+   "output": "{\"sentiment\": \"positive\", \"confidence\": 0.95}"
+  },
+  {
+   "case": "completions-json_schema-points",
+   "ok": true,
+   "seconds": 2.31,
+   "output": "{\"a\": {\"x\": 0, \"y\": 0}, \"b\": {\"x\": 3, \"y\": 4}}"
+  },
+  {
+   "case": "completions-json_schema-anyof-stream",
+   "ok": true,
+   "seconds": 0.49,
+   "output": "{\"result\": \"blue\"}"
+  },
+  {
+   "case": "completions-json_schema-version",
+   "ok": true,
+   "seconds": 0.96,
+   "output": "{\"version\": \"1.0\", \"ok\": true}"
+  },
+  {
+   "case": "openai-tools-required-0",
+   "ok": true,
+   "seconds": 4.47,
+   "output": "[{\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\":\\\"Tokyo\\\",\\\"unit\\\":\\\"celsius\\\",\\\"days\\\":3}\"}]"
+  },
+  {
+   "case": "openai-tools-named-get_weather-0-stream",
+   "ok": true,
+   "seconds": 4.71,
+   "output": "[{\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\":\\\"Tokyo\\\",\\\"unit\\\":\\\"celsius\\\",\\\"days\\\":3}\"}]"
+  },
+  {
+   "case": "openai-tools-required-1-stream",
+   "ok": true,
+   "seconds": 2.01,
+   "output": "[{\"name\": \"web_search\", \"arguments\": \"{\\\"query\\\":\\\"latest Rust release notes\\\",\\\"limit\\\":5}\"}]"
+  },
+  {
+   "case": "openai-tools-named-web_search-1",
+   "ok": true,
+   "seconds": 2.0,
+   "output": "[{\"name\": \"web_search\", \"arguments\": \"{\\\"query\\\":\\\"latest Rust release notes\\\",\\\"limit\\\":5}\"}]"
+  },
+  {
+   "case": "openai-tools-required-2",
+   "ok": true,
+   "seconds": 2.99,
+   "output": "[{\"name\": \"send_email\", \"arguments\": \"{\\\"to\\\":[\\\"bob@example.com\\\"],\\\"subject\\\":\\\"Meeting Time Change\\\",\\\"body\\\":\\\"The meeting has been moved to 3pm.\\\"}\"}]"
+  },
+  {
+   "case": "openai-tools-named-send_email-2-stream",
+   "ok": true,
+   "seconds": 3.12,
+   "output": "[{\"name\": \"send_email\", \"arguments\": \"{\\\"to\\\":[\\\"bob@example.com\\\"],\\\"subject\\\":\\\"Meeting Time Change\\\",\\\"body\\\":\\\"The meeting has been moved to 3pm.\\\"}\"}]"
+  },
+  {
+   "case": "openai-tools-required-3-stream",
+   "ok": true,
+   "seconds": 2.24,
+   "output": "[{\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\":\\\"Paris\\\",\\\"unit\\\":\\\"fahrenheit\\\",\\\"days\\\":2}\"}]"
+  },
+  {
+   "case": "openai-tools-named-get_weather-3",
+   "ok": true,
+   "seconds": 2.45,
+   "output": "[{\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\":\\\"Paris\\\",\\\"unit\\\":\\\"fahrenheit\\\",\\\"days\\\":2}\"}]"
+  },
+  {
+   "case": "openai-tools-required-4",
+   "ok": true,
+   "seconds": 2.17,
+   "output": "[{\"name\": \"web_search\", \"arguments\": \"{\\\"query\\\":\\\"llguidance\\\",\\\"limit\\\":5}\"}]"
+  },
+  {
+   "case": "openai-tools-named-web_search-4-stream",
+   "ok": true,
+   "seconds": 2.08,
+   "output": "[{\"name\": \"web_search\", \"arguments\": \"{\\\"query\\\":\\\"llguidance\\\",\\\"limit\\\":5}\"}]"
+  },
+  {
+   "case": "openai-tools-auto-0",
+   "ok": true,
+   "seconds": 2.53,
+   "output": "[{\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\":\\\"Tokyo\\\",\\\"unit\\\":\\\"celsius\\\",\\\"days\\\":3}\"}]"
+  },
+  {
+   "case": "openai-tools-auto-1-stream",
+   "ok": true,
+   "seconds": 2.17,
+   "output": "[{\"name\": \"web_search\", \"arguments\": \"{\\\"query\\\":\\\"latest Rust release notes\\\",\\\"limit\\\":5}\"}]"
+  },
+  {
+   "case": "openai-tools-auto-2",
+   "ok": true,
+   "seconds": 3.35,
+   "output": "[{\"name\": \"send_email\", \"arguments\": \"{\\\"to\\\":[\\\"bob@example.com\\\"],\\\"subject\\\":\\\"Meeting Time Change\\\",\\\"body\\\":\\\"The meeting has been moved to 3pm.\\\"}\"}]"
+  },
+  {
+   "case": "openai-tools-auto-3-stream",
+   "ok": true,
+   "seconds": 2.47,
+   "output": "[{\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\":\\\"Paris\\\",\\\"unit\\\":\\\"fahrenheit\\\",\\\"days\\\":2}\"}]"
+  },
+  {
+   "case": "openai-tools-auto-4",
+   "ok": true,
+   "seconds": 2.09,
+   "output": "[{\"name\": \"web_search\", \"arguments\": \"{\\\"query\\\":\\\"llguidance\\\",\\\"limit\\\":5}\"}]"
+  },
+  {
+   "case": "anthropic-tools-any-0",
+   "ok": true,
+   "seconds": 2.66,
+   "output": "[[\"get_weather\", {\"city\": \"Tokyo\", \"unit\": \"celsius\", \"days\": 3}]]"
+  },
+  {
+   "case": "anthropic-tools-tool-1-stream",
+   "ok": true,
+   "seconds": 2.17,
+   "output": "[[\"web_search\", {\"query\": \"latest Rust release notes\", \"limit\": 5}]]"
+  },
+  {
+   "case": "anthropic-tools-any-2",
+   "ok": true,
+   "seconds": 3.35,
+   "output": "[[\"send_email\", {\"to\": [\"bob@example.com\"], \"subject\": \"Meeting Time Change\", \"body\": \"The meeting has been moved to 3pm.\"}]]"
+  },
+  {
+   "case": "anthropic-tools-tool-3-stream",
+   "ok": true,
+   "seconds": 2.46,
+   "output": "[[\"get_weather\", {\"city\": \"Paris\", \"unit\": \"fahrenheit\", \"days\": 2}]]"
+  },
+  {
+   "case": "anthropic-tools-any-4",
+   "ok": true,
+   "seconds": 2.09,
+   "output": "[[\"web_search\", {\"query\": \"llguidance\", \"limit\": 5}]]"
+  }
+ ],
+ "constrained_speed": [
+  {
+   "rep": 0,
+   "tokens": 176,
+   "constrained_tok_s": 12.778876959475415,
+   "unconstrained_tok_s": 12.492932545691978
+  },
+  {
+   "rep": 1,
+   "tokens": 177,
+   "constrained_tok_s": 11.60137966040128,
+   "unconstrained_tok_s": 12.178786376369525
+  },
+  {
+   "rep": 2,
+   "tokens": 177,
+   "constrained_tok_s": 11.374411049432835,
+   "unconstrained_tok_s": 14.371909678530717
+  }
+ ]
+}

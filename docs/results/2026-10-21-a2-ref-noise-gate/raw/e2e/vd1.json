@@ -1,0 +1,54 @@
+{
+  "format": "intarsia-kl-verdict-v1",
+  "kind": "change_vs_base",
+  "golden": {
+    "file": "qwen3-reranker-0.6b.safetensors",
+    "fnv1a64": "a462231597313b8d"
+  },
+  "ref_noise_origin": "self-golden metadata",
+  "ref_noise": {
+    "format": "intarsia-ref-noise-v1",
+    "golden": {
+      "file": "qwen3-reranker-0.6b.safetensors",
+      "fnv1a64": "a462231597313b8d",
+      "size": 131654516,
+      "positions": 434
+    },
+    "method": "precision_spread",
+    "kl21_mean": 0.0006730000577587741,
+    "kl21_mean_scored": 0.0007181061804308205,
+    "n": 434,
+    "n_scored": 272,
+    "runs": 2,
+    "date": "2026-10-21",
+    "how": "e2e: bf16 golden against fp32",
+    "estimator": "kl21 (the gate's own estimator; the second run's full row is 'ours')"
+  },
+  "verdicts": [
+    {
+      "mode": "prefill",
+      "kl_metric": "21-way KL",
+      "kl": 4.8355527361089795e-14,
+      "static_floor": null,
+      "ref_noise": 0.0006730000577587741,
+      "ref_noise_rows": "all rows",
+      "kl_on_noise_rows": 4.8355527361089795e-14,
+      "factor": 1.0,
+      "factor_source": "default",
+      "noise_threshold": 0.0006730000577587741,
+      "effective_threshold": 0.0006730000577587741,
+      "bound_by": "ref_noise",
+      "pass": true,
+      "factor_needed": 7.185070313682209e-11,
+      "worst_prompt": {
+        "prompt": "code",
+        "kl": 1.6076444623109955e-13,
+        "prompt_factor": 3.0,
+        "prompt_factor_source": "default",
+        "limit": 0.002019000173276322,
+        "pass": true,
+        "factor_needed": 2.388773141661794e-10
+      }
+    }
+  ]
+}

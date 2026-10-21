@@ -1,0 +1,18 @@
+target http://127.0.0.1:8107/v1/chat/completions  model qwen3-8b
+server context window: 8192 tokens
+calibration: 47 base tokens, 20.86 tokens per filler sentence
+  size    128 rep: prompt=104 gen=128 ttft=0.05s prefill=2036 tok/s decode=36.5 tok/s
+  size    128 rep: prompt=103 gen=128 ttft=0.05s prefill=2013 tok/s decode=36.2 tok/s
+  size   1024 rep: prompt=952 gen=128 ttft=0.23s prefill=4093 tok/s decode=36.2 tok/s
+  size   1024 rep: prompt=971 gen=128 ttft=0.25s prefill=3940 tok/s decode=36.2 tok/s
+  size   4096 rep: prompt=4014 gen=128 ttft=1.11s prefill=3620 tok/s decode=35.2 tok/s
+  size   4096 rep: prompt=3998 gen=128 ttft=1.13s prefill=3533 tok/s decode=35.0 tok/s
+wrote /Users/josef/.local/state/claude-watch/j1/endor/ab/j1-head-r2.json
+j1-head-r2  model=qwen3-8b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+     128      104     0.051         2024        36.3      128
+    1024      962     0.239         4017        36.2      128
+    4096     4006     1.120         3577        35.1      128
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)

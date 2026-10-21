@@ -16,6 +16,7 @@ mod api;
 pub mod health;
 mod metrics;
 mod openai;
+mod structured;
 pub mod supervisor;
 
 use api::{blocking, AppState};

@@ -1,0 +1,51 @@
+OK   chat-json_schema-person-1-stream-t0.7 (0.9s) {"name": "Ada Lovelace", "age": 18, "email": "ada.lovelace@example.com"}
+OK   chat-json_schema-person-0-t0.0 (1.8s) {"name": "Lila Chen", "age": 28, "email": "lila.chen@codeforge.com"}
+OK   chat-json_schema-number-1-stream-t0.0 (4.7s) {"answer": 340, "unit": "km", "steps": ["First, calculate the distance for the first part of the journey: 60 km/h * 3 h 
+OK   chat-json_schema-number-0-t0.7 (4.9s) {"answer": 26}
+OK   chat-json_schema-sentiment-0-t0.0 (4.5s) {"sentiment": "negative", "confidence": 0.95}
+OK   chat-json_schema-sentiment-1-stream-t0.0 (4.2s) {"sentiment": "positive", "confidence": 0.95}
+OK   chat-json_schema-shopping-0-t0.7 (3.6s) {"items": [{"name": "Flour", "qty": 1}, {"name": "Sugar", "qty": 1}, {"name": "Baking powder", "qty": 1}, {"name": "Eggs
+OK   chat-json_schema-shopping-1-stream-t0.0 (6.0s) {"items": [{"name": "Bread", "qty": 1}, {"name": "Cheese", "qty": 1}, {"name": "Fruit (e.g., grapes, apples)", "qty": 1}
+OK   chat-json_schema-address-0-t0.0 (6.8s) {"address": {"street": "Kaffeestraße 12", "city": "Berlin", "zip": "10178"}, "tags": ["made-up", "bakery", "Berlin"]}
+OK   chat-json_schema-address-1-stream-t0.7 (7.8s) {"address": {"street": "123 Innovation Lane", "city": "Techville", "zip": "98765"}, "tags": ["startup", "tech", "innovat
+OK   chat-json_schema-prime-0-t0.0 (14.0s) {"is_prime": false, "factors": [1, 7, 13, 91], "note": "91 is not a prime number. It can be factored into 7 × 13."}
+OK   chat-json_schema-prime-1-stream-t0.0 (12.4s) {"is_prime": true, "factors": [1, 97], "note": "97 is a prime number because it has no divisors other than 1 and itself.
+OK   chat-json_schema-anyof-0-t0.7 (11.4s) {"result": 51}
+OK   chat-json_schema-anyof-1-stream-t0.0 (10.2s) {"result": "The sky appears blue"}
+OK   chat-json_schema-points-0-t0.0 (2.6s) {"a": {"x": 0, "y": 0}, "b": {"x": 1, "y": 0}}
+OK   chat-json_schema-points-1-stream-t0.7 (2.4s) {"a": {"x": 0, "y": 0}, "b": {"x": 3, "y": 4}}
+OK   chat-json_schema-title-0-t0.0 (2.8s) {"title": "Mastering Async in Rust: A Developer's指南", "words": 100}
+OK   chat-json_schema-title-1-stream-t0.0 (3.1s) {"title": "The Keeper of the Last Light", "words": 100}
+OK   chat-json_schema-version-0-t0.7 (2.7s) {"version": "1.0", "ok": true}
+OK   chat-json_schema-version-1-stream-t0.0 (2.1s) {"version": "1.0", "ok": true}
+OK   chat-json_object-person (6.0s) {"profile": {"name": "Ava Solis", "title": "Senior Software Engineer", "location": "San Francisco, CA", "experience": "1
+OK   chat-json_object-shopping-stream (6.2s) {"error": "Please specify what kind of stuff you need for pancakes. Are you looking for ingredients, toppings, or someth
+OK   chat-json_object-address (6.9s) {"url": "https://www.bakery-in-berlin.de", "address": "Kreuzbergstraße 45, 10999 Berlin, Germany"}
+OK   chat-json_object-prime-stream (7.2s) {"is_prime": false, "factors": [1, 7, 13, 91]}
+OK   chat-json_object-title (3.1s) {"title": "Mastering Async in Rust: A Developer's Guide"}
+OK   completions-json_schema-number (4.3s) {"answer": 380, "unit": "km", "summary": "The train travels 60 km/h * 3 h = 180 km and 40 km/h * 2 h = 80 km, totaling 1
+OK   completions-json_schema-sentiment-stream (3.6s) {"sentiment": "positive", "confidence": 0.95}
+OK   completions-json_schema-points (3.8s) {"a": {"x": 0, "y": 0}, "b": {"x": 3, "y": 4}}
+OK   completions-json_schema-anyof-stream (3.5s) {"result": "blue"}
+OK   completions-json_schema-version (2.0s) {"version": "1.0", "ok": true}
+OK   openai-tools-required-0 (2.5s) [{"name": "get_weather", "arguments": "{\"city\":\"Tokyo\",\"unit\":\"celsius\",\"days\":3}"}]
+OK   openai-tools-named-get_weather-0-stream (2.6s) [{"name": "get_weather", "arguments": "{\"city\":\"Tokyo\",\"unit\":\"celsius\",\"days\":3}"}]
+OK   openai-tools-required-1-stream (3.2s) [{"name": "web_search", "arguments": "{\"query\":\"latest Rust release notes\",\"limit\":5}"}]
+OK   openai-tools-named-web_search-1 (3.6s) [{"name": "web_search", "arguments": "{\"query\":\"latest Rust release notes\",\"limit\":5}"}]
+OK   openai-tools-required-2 (3.8s) [{"name": "send_email", "arguments": "{\"to\":[\"bob@example.com\"],\"subject\":\"Meeting Time Change\",\"body\":\"The m
+OK   openai-tools-named-send_email-2-stream (4.1s) [{"name": "send_email", "arguments": "{\"to\":[\"bob@example.com\"],\"subject\":\"Meeting Time Change\",\"body\":\"The m
+OK   openai-tools-required-3-stream (4.2s) [{"name": "get_weather", "arguments": "{\"city\":\"Paris\",\"unit\":\"fahrenheit\",\"days\":2}"}]
+OK   openai-tools-named-get_weather-3 (4.3s) [{"name": "get_weather", "arguments": "{\"city\":\"Paris\",\"unit\":\"fahrenheit\",\"days\":2}"}]
+OK   openai-tools-required-4 (4.0s) [{"name": "web_search", "arguments": "{\"query\":\"llguidance\",\"limit\":5}"}]
+OK   openai-tools-named-web_search-4-stream (3.5s) [{"name": "web_search", "arguments": "{\"query\":\"llguidance\",\"limit\":5}"}]
+OK   openai-tools-auto-0 (3.5s) [{"name": "get_weather", "arguments": "{\"city\":\"Tokyo\",\"unit\":\"celsius\",\"days\":3}"}]
+OK   openai-tools-auto-1-stream (3.4s) [{"name": "web_search", "arguments": "{\"query\":\"latest Rust release notes\",\"limit\":5}"}]
+OK   openai-tools-auto-2 (3.8s) [{"name": "send_email", "arguments": "{\"to\":[\"bob@example.com\"],\"subject\":\"Meeting Time Change\",\"body\":\"The m
+OK   openai-tools-auto-3-stream (4.0s) [{"name": "get_weather", "arguments": "{\"city\":\"Paris\",\"unit\":\"fahrenheit\",\"days\":2}"}]
+OK   openai-tools-auto-4 (3.8s) [{"name": "web_search", "arguments": "{\"query\":\"llguidance\",\"limit\":5}"}]
+OK   anthropic-tools-any-0 (4.0s) [["get_weather", {"city": "Tokyo", "unit": "celsius", "days": 3}]]
+OK   anthropic-tools-tool-1-stream (3.6s) [["web_search", {"query": "latest Rust release notes", "limit": 5}]]
+OK   anthropic-tools-any-2 (3.9s) [["send_email", {"to": ["bob@example.com"], "subject": "Meeting Time Change", "body": "The meeting has been moved to 3pm
+OK   anthropic-tools-tool-3-stream (4.0s) [["get_weather", {"city": "Paris", "unit": "fahrenheit", "days": 2}]]
+OK   anthropic-tools-any-4 (3.8s) [["web_search", {"query": "llguidance", "limit": 5}]]
+valid 50/50 (tool_choice auto answered without a call: 0)
