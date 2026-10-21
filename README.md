@@ -22,6 +22,7 @@ and Anthropic compatible APIs. Status as measured on 2026-10-13 (`docs/results/`
 See `docs/ARCHITECTURE.md` for the plan and `docs/results/` for what was measured and what is still missing.
 
 Built-in web UI (chat, live dashboard, live architecture map) at `/` when serving; `--no-ui` turns it off. See `docs/architecture-diagram.md`.
+The terminal twin is `intarsia tui` (live architecture map, streaming chat, metrics sparklines; dark by default; cargo feature `tui`, on by default, `--no-default-features` leaves it out). See `docs/tui.md`.
 
 ![Chat](docs/assets/ui-chat-dark.png)
 ![Dashboard](docs/assets/ui-dashboard-dark.png)
@@ -58,6 +59,7 @@ intarsia generate --model $MODEL --backend cuda --chat --no-think -p "What is th
 intarsia serve --model $MODEL --backend cuda --mem-budget 38 --fp8-act static   # lease-sized KV; FP8 W8A8 (static) or W8A16 (none)
 intarsia serve --model $MODEL --backend cuda --port 8090 --served-model-name my-model --max-seq 8192
 intarsia top --url http://127.0.0.1:8090                   # live terminal dashboard (q to quit)
+intarsia tui --url http://127.0.0.1:8090                   # architecture map + chat + metrics (Esc to quit; docs/tui.md)
 intarsia bench speed --url http://127.0.0.1:8090 --model my-model --sizes 128,1024,4096 --gen 128
 ```
 

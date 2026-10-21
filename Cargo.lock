@@ -1054,6 +1054,7 @@ dependencies = [
  "intarsia-core",
  "intarsia-models",
  "intarsia-server",
+ "intarsia-tui",
  "libc",
  "serde",
  "serde_json",
@@ -1105,6 +1106,17 @@ dependencies = [
  "tokio-stream",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "intarsia-tui"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "intarsia-bench",
+ "ratatui",
+ "serde_json",
+ "ureq",
 ]
 
 [[package]]
