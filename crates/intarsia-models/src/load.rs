@@ -211,7 +211,13 @@ pub fn serve_remote_rank(
     let cap = intarsia_core::tp_remote::handshake(&mut stream, &fp, model.plan.kv_cap_tokens)?;
     model.clamp_kv_cap(cap)?;
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
-    model.configure_plan(&opts.plan, Some(&*oracle))?;
+    let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
+    if opts.plan.admit {
+        eprintln!(
+            "admission on plan shapes (rank {rank}): {} kernel(s) checked, {} case(s) run, {} cached, rejected: {:?}",
+            summary.kernels_checked, summary.cases_run, summary.cases_cached, summary.rejected
+        );
+    }
     eprintln!("tensor-parallel rank {rank} of {world}: serving rank 0 ({} tokens of context)", model.plan.kv_cap_tokens);
     intarsia_core::tp_remote::serve(&model, stream)
 }
