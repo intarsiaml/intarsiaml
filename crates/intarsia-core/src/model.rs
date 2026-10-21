@@ -30,6 +30,7 @@ use std::time::Instant;
 
 mod batch;
 mod gdn_block;
+pub(crate) mod feedback;
 mod graph_step;
 use gdn_block::{ExtraWs, GdnBlock};
 use graph_step::GraphState;
@@ -260,6 +261,11 @@ pub struct Model {
     batch_rows: usize,
     /// `i32 [BATCH_MAX_ROWS]` argmax output of a batched step; allocated by [`Model::enable_batch`].
     batch_tok: Option<Buffer>,
+    /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
+    /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
+    token_feedback: std::sync::atomic::AtomicBool,
+    /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
+    feedback_hold: usize,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -660,6 +666,8 @@ impl Model {
             opts.mem_budget,
         )?;
         let registry = Registry::new(b.name(), &b.info(), b.kernels());
+        let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
+        let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
         let mut model = Model {
             backend,
@@ -694,6 +702,8 @@ impl Model {
             verify_rows: 0,
             batch_rows: 0,
             batch_tok: None,
+            token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
+            feedback_hold,
         };
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
@@ -1346,12 +1356,13 @@ impl Model {
         dpos: Option<&TensorRef>,
         upload_ids: bool,
     ) -> Result<TensorRef> {
-        self.run_layers(Seqs::One(st), ids, profile, dpos, upload_ids)
+        self.run_layers(Seqs::One(st), ids, profile, dpos, upload_ids, None)
     }
 
     /// The layer loop behind [`Model::run_chunk_at`]: `ids` are the `t` tokens of one sequence (`Seqs::One`) or the
     /// next token of each of `t` sequences (`Seqs::Batch`, a batched decode step: attention runs per row on the row's
-    /// own cache, see `model/batch.rs`).
+    /// own cache, see `model/batch.rs`). `ids_at` (token feedback, `model/feedback.rs`) makes the embedding read the
+    /// ids from that device tensor instead of `ws.ids`; `upload_ids` must then be false.
     fn run_layers(
         &self,
         seqs: Seqs<'_>,
@@ -1359,6 +1370,7 @@ impl Model {
         profile: bool,
         dpos: Option<&TensorRef>,
         upload_ids: bool,
+        ids_at: Option<&TensorRef>,
     ) -> Result<TensorRef> {
         let t = ids.len();
         let d = &self.dims;
@@ -1387,7 +1399,7 @@ impl Model {
 
         self.exec(
             Op::Embedding,
-            vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()],
+            vec![ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t])), self.embed.clone()],
             vec![hv(cur)],
             OpAttrs::default(),
             profile,
@@ -2087,11 +2099,15 @@ impl Model {
 
     /// lm_head + argmax of one row, left in `ws.logits` (`[1, V]` f32) and `ws.tok`; no host traffic.
     fn head_to_device(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<()> {
+        self.head_to_device_into(hn, row, profile, self.view(&self.ws.tok, DType::I32, &[1]))
+    }
+
+    /// [`Model::head_to_device`] with the argmax written to `tok` (`i32 [1]`).
+    fn head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
         let v = self.dims.vocab;
         let x = hn.rows(row, 1);
         let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
         self.proj(&x, self.head()?, &logits, profile)?;
-        let tok = self.view(&self.ws.tok, DType::I32, &[1]);
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
     }
 

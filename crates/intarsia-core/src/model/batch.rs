@@ -147,7 +147,7 @@ impl Model {
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         let run = (|| -> Result<()> {
             let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
-            let hn = self.run_layers(Seqs::Batch(&refs), ids, profile, None, true)?;
+            let hn = self.run_layers(Seqs::Batch(&refs), ids, profile, None, true, None)?;
             self.batch_head(&hn, b, profile)
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -196,7 +196,7 @@ impl Model {
             (0..rows).map(|_| crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, pos0)).collect();
         let refs: Vec<&SequenceState> = sts.iter().collect();
         let ids = vec![0u32; rows];
-        let hn = self.run_layers(Seqs::Batch(&refs), &ids, false, None, true)?;
+        let hn = self.run_layers(Seqs::Batch(&refs), &ids, false, None, true, None)?;
         self.batch_head(&hn, rows, false)
     }
 

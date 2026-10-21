@@ -213,6 +213,12 @@ impl Backend for CpuBackend {
     fn synchronize(&self, _s: StreamId) -> Result<()> {
         Ok(())
     }
+
+    /// Launches run synchronously, so the default fence / read_after are exact; supported (off by default) so the
+    /// engine's token-feedback loop is testable on the reference backend.
+    fn token_feedback(&self) -> (bool, bool) {
+        (true, false)
+    }
 }
 
 #[cfg(test)]
