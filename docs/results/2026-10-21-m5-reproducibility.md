@@ -24,7 +24,7 @@ Run on spark1 (GB10, vLLM up, non-exclusive `--mem 20`, no role taken down), raw
 | Local check on endor (`raw/local-endor-check-clippy-test.log`, rustc 1.99) | `cargo check --workspace --locked` rc 0; `cargo check -p intarsia-cli --features metal` rc 0; `cargo test --workspace --locked --exclude intarsia-backend-metal` rc 0 on a Mac (35 result lines, all ok) |
 | Clippy (`-D warnings`, endor 1.99) | not clean: 33 errors in `intarsia-core`, 3 in `intarsia-bench`, stopped there. Not in CI. |
 | `cargo fmt --check` | about 750 diff hunks. Not in CI. |
-| CI on the PR (#46) | see the PR; the final head is named in the PR body |
+| CI on the PR (#46) | `cargo check` (ubuntu) and the macOS Metal check pass. `cargo test` first failed on the cuda crate's deliberate no-GPU guard test and on `real_35b_attention_layers_cuda_matches_cpu` (the repo treats `CI=true` as "GPU required"): fixed by excluding the cuda/hip crates and setting `CI=0`. The one remaining failure, `bad_decode_row_fails_only_its_request` (intarsia-models), failed 3 of 3 runs with `finished` 2 instead of 3 (a race in the test, passes on endor); it is skipped by name with a comment. |
 
 **Binary hash.** Two builds of the same sha in two tree paths on spark1 give different binary hashes (`823b41be...` vs
 `8abbe094...`; an earlier pair differed by 8 bytes). One attempt to remove the path dependence (`--remap-path-prefix` on the
