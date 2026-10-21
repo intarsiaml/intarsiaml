@@ -1,0 +1,28 @@
+# fleetq #2998 (spark1, --mem 10, non-exclusive, vLLM up), 2026-10-21 ~11:50 EDT.
+# Script: regenerate the exllamav3 golden (tools/golden_exl3.py, dsv41-serve:v4, unconverted EXL3 dir, ids from
+# qwen3-8b-fp32.safetensors), then scripts/m2-exl3-e2e/golden_kl.py on all rows and with --last 16 (the rows that
+# `intarsia accuracy --mode decode` scores: engine.rs forward_logits_decode feeds the last n_decode = 16 tokens one by one).
+# The temporary golden was deleted afterwards. The regenerated golden's all-rows KL (2.274e-2) differs from the first
+# run's (2.277e-2) in the 4th digit: exllamav3's GPU run is not bitwise reproducible.
+{"out": "/gold/tmp-m2kl16-exllamav3.safetensors", "prompts": 8, "vocab": 151936}
+== KL(bf16 golden || exllamav3), all 434 rows
+434 positions  KL(ref||other) mean 2.274e-02  p99 3.432e-01  max 1.060e+00  top-1 95.85% (ties 0, excl. ties 95.85%)
+  prompt 0: n=38 KL mean 3.386e-03 top-1 100.00%
+  prompt 1: n=39 KL mean 2.321e-02 top-1 92.31%
+  prompt 2: n=80 KL mean 7.626e-03 top-1 98.75%
+  prompt 3: n=79 KL mean 1.698e-02 top-1 96.20%
+  prompt 4: n=18 KL mean 2.873e-02 top-1 94.44%
+  prompt 5: n=32 KL mean 6.948e-02 top-1 90.62%
+  prompt 6: n=58 KL mean 2.894e-02 top-1 94.83%
+  prompt 7: n=90 KL mean 2.739e-02 top-1 95.56%
+
+== KL(bf16 golden || exllamav3), last 16 rows per prompt (the decode-mode window)
+128 positions  KL(ref||other) mean 3.514e-02  p99 5.026e-01  max 1.060e+00  top-1 95.31% (ties 0, excl. ties 95.31%)
+  prompt 0: n=16 KL mean 1.462e-03 top-1 100.00%
+  prompt 1: n=16 KL mean 3.300e-02 top-1 87.50%
+  prompt 2: n=16 KL mean 2.149e-04 top-1 100.00%
+  prompt 3: n=16 KL mean 1.121e-02 top-1 100.00%
+  prompt 4: n=16 KL mean 2.287e-02 top-1 93.75%
+  prompt 5: n=16 KL mean 1.272e-01 top-1 87.50%
+  prompt 6: n=16 KL mean 4.714e-02 top-1 93.75%
+  prompt 7: n=16 KL mean 3.800e-02 top-1 100.00%
