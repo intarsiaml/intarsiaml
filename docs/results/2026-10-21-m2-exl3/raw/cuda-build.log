@@ -1,9 +1,9 @@
-stamp: head=47ee05d code-tree=d4f9e41305f8 dirty=yes
-   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3/crates/intarsia-backend-cpu)
+stamp: head=6adbf2b code-tree=bc19ca7e2dc8 dirty=yes
    Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3/crates/intarsia-server)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3/crates/intarsia-backend-cuda)
    Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3/crates/intarsia-models)
    Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3/crates/intarsia-cli)
-    Finished `release` profile [optimized] target(s) in 14.05s
+    Finished `release` profile [optimized] target(s) in 12.28s
   Executable tests/gdn_split.rs (target/acc/release/deps/gdn_split-1e27769768d3706f)
   Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
   Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
@@ -12,4 +12,4 @@ stamp: head=47ee05d code-tree=d4f9e41305f8 dirty=yes
   Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
   Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
   Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
--rwxrwxr-x 2 nvidia nvidia 40484096 Oct 21 10:54 /home/nvidia/intarsia-decfuse/m2-exl3/target/acc/release/intarsia
+-rwxrwxr-x 2 nvidia nvidia 47529920 Oct 21 12:42 /home/nvidia/intarsia-decfuse/m2-exl3/target/acc/release/intarsia
