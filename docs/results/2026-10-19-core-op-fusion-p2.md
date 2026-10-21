@@ -1,5 +1,7 @@
 # Core-op fusion, phase 2: P4a (gate split folded into the prologue) and P3 (GDN conv folded into the delta rule), 2026-10-19
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #26 (`d416f53b`); "not pushed" / "nothing merged" wording in this page describes the state when written.
+
 Branch `perf/core-op-fusion-p2`, final rebase on origin/main `8d1f16a5` (CUDA round 5 merged; HIP round 7 `49973a51` and
 phase 1 `f3cbba21` included). The HIP numbers below are measured on the branch's final kernels against `49973a51` in the same
 windows. The base tree is `49973a51` plus the bench-client commit `06b5237d` (`bench speed --at-most`, no engine code).

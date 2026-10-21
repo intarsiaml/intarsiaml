@@ -1,5 +1,7 @@
 # Metal spec G1: greedy n-gram speculative decoding, byte-identical to plain decode
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `56ec2d57` (Merge metal-spec-ngram); "not pushed" / "nothing merged" wording in this page describes the state when written.
+
 Date 2026-10-15. Branch `metal-spec-ngram`: `spike/metal` c556008 with `metal-g0b-attn` cf735e9 merged in (ca18d27), which also brings `metal-g0-multirow`. Machine endor (Apple M5 Max), Qwen3-8B BF16. Plan: `docs/research/metal-next-levers.md` (on `metal-next-levers`) section 7, gate G1. Kernels: `docs/results/2026-10-15-metal-g0-multirow.md`, `docs/results/2026-10-15-metal-g0b-attn.md`.
 
 **Verdict: G1 is met.** I ran 24 cases:

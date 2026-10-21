@@ -38,8 +38,9 @@ The `cuda` and `hip` cargo features of `intarsia-cli` are mutually exclusive (co
 | attn_prefill / attn_decode fallback | `attn_prefill_bf16`, `attn_decode_bf16` | Deterministic | SIMT, head_dim <= 256 |
 
 Registered since the 35B work: `gdn_conv`, `gdn_delta_rule`, `matmul_fp8_{gemv,mma}`, `matmul_nvfp4_{gemv,mma}`, `moe_topk`, `moe_experts`, `moe_combine` (table in `quantmoe.rs`). Not registered: sampling. `kernels.rs::UNIMPLEMENTED` lists the rest and a unit test keeps the list
-honest. No kernel is a radiance port: the Apache-2.0 files under `tatooine:/data/src/radiance` were read for design only, so there is no
-`LICENSES/radiance-NOTICE` to add yet (add it with the first ported file).
+honest. Radiance (Apache-2.0) was otherwise read for design only; one kernel is derived: `kernels/hip/allreduce.hip` (Phase 2b), which carries
+`kernels/hip/NOTICE-radiance` and `LICENSES/Apache-2.0-radiance.txt` (see "Tensor parallelism" below). Updated 2026-10-21: this paragraph used to say no
+kernel was a radiance port and no NOTICE was needed; that was true only before Phase 2b.
 
 ### Differences from the CUDA sources
 
@@ -61,7 +62,8 @@ honest. No kernel is a radiance port: the Apache-2.0 files under `tatooine:/data
   `const ik_tensor* pos` (i32 `[1]`, null = host `pos0`) and the kernels read it when they run, as in the CUDA sources. The backend passes `OpCall::pos`. Split-KV decode with a
   device position launches its grid at the length-independent maximum (the scratch bound) and the blocks past the real split count return, so the partitioning, and every bit of the
   result, equals the host-position launch (`tests/device_pos.rs` checks this bitwise). With a host position the grid is still sized from the key count (unchanged from before the merge).
-  HIP does not implement graph capture (`supports_graphs()` is false), so core never passes a device position to it in practice; the path exists to keep the ABI honest.
+  Updated 2026-10-21: HIP implements graph capture and replay (`supports_graphs()` is true, merged in `bad0084`, 2026-10-13), and the decode graph is captured once with a fixed grid
+  (`docs/results/2026-10-19-hip-round9.md` section 3). This line used to say the opposite (written before the merge).
 
 gfx12 wave32 WMMA 16x16x16 fragment layout (verified on hardware by the admission sweeps): A and B hold 8 bf16 per lane, lane `l` is
 row / column `l % 16`, `k = (l / 16) * 8 .. +7`; C / D holds 8 floats, column `l % 16`, rows `(l / 16) * 8 + i`.
@@ -140,6 +142,15 @@ continuing the in-place state) run as pieces estimated under n microseconds, bec
 `moe_reduce_kernel` instead of `moe_reduce_v8_kernel` (8 features per thread, 16-byte loads). `INTARSIA_HIP_SPLITKV_R8=0`: the
 split-KV combine one split at a time instead of 16 splits' loads in flight.
 
+Defaults in force on main (checked 2026-10-21 against `crates/intarsia-backend-hip/src/{quantmoe,device,kernels}.rs` and `kernels/hip/attention_splitkv.hip`):
+`INTARSIA_HIP_MOE_BLOCK=0` is the kill switch for P2' (`Op::MoeBlock`, top-k + routed experts + shared expert + combine in one launch, bitwise the unfused
+chain); it is ON by default since `0cea68fc` (PR #28, `docs/results/2026-10-19-p2prime-soak.md`). `INTARSIA_HIP_FP8_F8=0` is the kill switch for the default
+`matmul_fp8_mma_f8` (default since `8624fec1`, 2026-10-18). `INTARSIA_HIP_STAGE=0` (or `=up`) turns off the page-locked staging ring (on by default).
+Two opt-ins stay OFF: `INTARSIA_HIP_MOE_V3=1` (one-launch decode experts, +0.8 % decode; the mutant that drops its acquire fence, `v3-nofence`, still
+survives every test) and `INTARSIA_HIP_SPLITKV_OCC=1` (split-KV stage 1 at 8 waves per SIMD: +1.5 % 35B decode at about 17.6k tokens, -0.6 % at 128 to
+2048; the user's recorded break-even is about 13k tokens, so the default stays off; a length-based automatic choice was rejected because the decode graph is
+captured once with a fixed grid, so the kernel cannot be picked per context length on the host; `docs/results/2026-10-19-hip-round9.md`, Decisions 1).
+
 ## Admission cache
 
 `Backend::fingerprint()` is `hip|<device name>|<gfx arch>|rt<HIP runtime version>|drv<driver version>|pack:<arch the kernels were built for>|cc:<hipcc version>|env:<tuning knobs that are set>`, so a different
@@ -157,7 +168,7 @@ plus the executable's size and mtime).
 | T >= 16 (prefill chunks) | grouped bf16 WMMA (`moe_wmma.h`) | tensor-core k order, different rounding |
 
 The first two are bit-identical to each other, so a token decoded alone (T = 1) and in a batch below 16 gives the same bits, as on the CUDA backend
-(which has no tensor-core MoE path). The WMMA path is the CUDA-different part: from 16 tokens on, the result differs in the last bits, within the admission
+below 32 tokens (CUDA has had a tensor-core MoE path, `moe_experts_mma_bf16`, since Phase 1b, so from T >= 32 CUDA is batch-variant too; `docs/quant-moe.md`, ADR-0007 section 5). The WMMA path is the CUDA-different part: from 16 tokens on, the result differs in the last bits, within the admission
 tolerance. Consequences: the same prompt can give slightly different hidden states for a different `--prefill-chunk` or for a remainder chunk of fewer than 16
 tokens; prefix-cache reuse versus recompute is not bit-equal; a multi-row verify of 16 or more rows is not bit-equal to serial decode on the MoE layers. The kernel
 is `Deterministic` in the registry sense (run-to-run identical for one shape and batch), which is the class definition; it is not batch-invariant.
@@ -173,8 +184,8 @@ Making the two paths agree is only possible the other way round (the review's lo
 * **hipBLASLt prefill route.** The dev image has no hipblaslt; adding it means a derived image (`apt-get install hipblaslt-dev`). The WMMA GEMM
   reaches 63-81 TFLOPS on the 8B shapes at M >= 256 (spec-sheet bf16 dense peak is about 190), so a library GEMM is only worth it if it beats that; register it as
   `Exactness::Fast` then.
-* **Phase 1b CUDA additions.** CUDA graphs (`graph_capture` / `graph_replay`), the cp.async `*_gemm` launchers and the grouped / two-launch MoE launchers
-  (`moe_experts_mma_bf16`, `moe_experts_decode_bf16`) are not ported; the HIP backend keeps its own WMMA GEMM and MoE kernels, whose registered launcher set is unchanged.
+* **Phase 1b CUDA additions.** The cp.async `*_gemm` launchers and the grouped / two-launch MoE launchers
+  (`moe_experts_mma_bf16`, `moe_experts_decode_bf16`) are not ported (CUDA graphs are ported: `graph_capture` / `graph_replay`, `bad0084`); the HIP backend keeps its own WMMA GEMM and MoE kernels, whose registered launcher set is unchanged.
 * **KV layout.** The contiguous separate K / V cache stays; radiance's paged interleaved layout is a deferred decision.
 * **Radiance ports** (MXFP4 x FP8 GEMM, GDN, one-shot all-reduce): Phase 2b onward, see `docs/research/radiance-port-plan.md`.
 * **TP=2** is done for dense attention + dense FFN models (Phase 2b, section below). Not done: GatedDeltaNet and MoE sharding (Qwen3.6-35B-A3B), FP8/NVFP4 weight sharding, an all-gather in the P2P kernel, radiance's fused all-reduce + RMSNorm.

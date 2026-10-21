@@ -1,5 +1,7 @@
 # Metal final same-slot measurement: SAFE vs CAND vs mlx-lm vs llama.cpp
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C8: CAND (Metal prefill chunk 2048) was merged as P3 in `c5560080` (2026-10-15 10:05) after the user chose "c, a"; `recipes/qwen3.toml` has `prefill_chunk = 2048` under `[tuning.metal]`. "Not merged / awaiting the user" is stale.
+
 Qwen3-8B BF16, endor (Apple M5 Max, macOS 27.0 build 26A428). 2026-10-15, 02:35-02:55 EDT. Branch `metal-candidate2`. Raw data: `docs/results/raw/2026-10-15-metal-final/` (`gates.sh`, `sameslot.sh`, `analyze.py`, `plain_summary.py`, `gates/`, `sameslot/`, `analysis.txt`).
 
 - **SAFE** = `spike/metal` a2102bf (B5, B6, P1 NAX GEMM, P2, P4/P5 tile pick + prefill qk_pf, F1b NAX flash attention; Metal prefill chunk 256).

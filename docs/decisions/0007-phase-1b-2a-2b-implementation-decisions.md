@@ -1,5 +1,7 @@
 # ADR-0007: Phase 1b, 2a and 2b implementation decisions
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C11: section 11 item 4 ("HIP has no graphs, `supports_graphs()` false") is superseded: HIP graph capture/replay was merged in `bad0084` (2026-10-13; 35B decode 97 to 126 tok/s, ADR-0008 section 3) and `supports_graphs()` is true. C15: the TP self-golden failing the default budget (Status line, item 3) is not a TP gate (ADR-0006 follow-up, 2026-10-14). C1: the HIP default for P2' `MoeBlock` is now ON (PR #28).
+
 _Drafted by fleet model `guidance` (`tools/scribe.py`, one call per decision, fleetq job #1590) from raw notes; every claim checked against the source documents by Claude 2026-10-13, unsupported or garbled draft text rewritten or removed (the draft was truncated by the scribe's token limit on two decisions, which were completed from the notes). Open items (section 11) were written by hand. The raw notes the scribe was given are kept at the end._
 
 Status: Accepted as the Phase 1b / 2a / 2b baseline (by Claude, as for ADR-0004 and ADR-0005). Accepting the decisions does not accept the results: the Phase 1b speed gate FAILED, the Phase 1b accuracy verdict is "not accepted", and the TP self-golden gate FAILS at default budgets (section 11).

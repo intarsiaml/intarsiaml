@@ -1,5 +1,7 @@
 # Metal continuous batching: no gate probing for requests that do not pay while the batch is busy
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `d793300e` (Merge metal-spec-busy-probe 05c2755); "not pushed" / "nothing merged" wording in this page describes the state when written.
+
 Date 2026-10-16. Branch `metal-spec-busy-probe` (local, not pushed) off `spike/metal` 5cd03a5. Machine endor (Apple M5 Max), Qwen3-8B BF16, `intarsia serve --backend metal --max-seq 8192 --max-batch 8 --profile-every 0`, `--spec ngram` (k = 4, `--spec-off-at` 4) unless an arm says otherwise. Binaries (private copies): **new** = engine commit 0c7ef42 (sha256 prefix `8f700c591876fd12`), **base** = 5cd03a5 (`9bb825d494889da6`), both `cargo build --release -p intarsia-cli --features metal`, Xcode toolchain.
 
 Fixes the opt-in regression of the M3 gates doc (`2026-10-16-metal-cb-m3-gates.md` section 5): with `--spec ngram`, open-ended text ran at 0.82-0.89x at B=2 and B=3, because every back-off probe of the n-gram gate is a solo verify pass, a whole extra weight pass the batched step cannot absorb.

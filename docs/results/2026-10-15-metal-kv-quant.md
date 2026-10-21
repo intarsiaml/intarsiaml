@@ -1,5 +1,7 @@
 # Metal quantised KV cache: fp8 (e4m3) and int8 (block-scaled), opt-in (`--kv-dtype fp8|int8`)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `28e5c5ac` (Merge metal-kv-quant-doc); "not pushed" / "nothing merged" wording in this page describes the state when written.
+
 Date 2026-10-15. Machine endor (MacBook Pro, Apple M5 Max 40-core GPU, 128 GB, 614 GB/s). Branch `metal-kv-quant`, worktree
 `/opt/code/intarsiaml-kvq`, off `spike/metal` `56ec2d5`. Nothing merged or pushed (`git merge-tree` against the current
 `spike/metal` `de8fe5b` is clean). Raw data: `raw/2026-10-15-metal-kv-quant/`.

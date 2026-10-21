@@ -1,5 +1,7 @@
 # Proposal: core `Op` fusions for decode (P1-P5 from HIP round 5), with a recommended order (decision needed)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C1/C2: section 1 and the risk text under P2' (v3 opt-in, P2' only after `v3-nofence` is killed, "P2' must stay opt-in") are superseded. Step 0 killed `v3-noorder`, not `v3-nofence` (still alive, ISA-equivalent); the user said "start now" / "P2 now" on 2026-10-19, P2' was built and merged in PR #28, and it is ON by default since `0cea68fc` (`INTARSIA_HIP_MOE_BLOCK=0` kills it). v3 (`INTARSIA_HIP_MOE_V3=1`) is still opt-in.
+
 Date 2026-10-19. Base `origin/main` `456e6e7d`. Scope: shared core (`crates/intarsia-core`) plus the three backends
 (`crates/intarsia-backend-{cuda,hip,metal}`). **Nothing is implemented and nothing was measured for this page.** Every
 figure is read from a recorded document and tagged with its source and section. "Derived" means arithmetic on recorded

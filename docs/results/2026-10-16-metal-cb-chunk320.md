@@ -1,5 +1,7 @@
 # Metal continuous batching: decode-time prefill chunk 256 vs 320
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `614dad3f` (Merge metal-cb-chunk320 66bedff); "not pushed" / "nothing merged" wording in this page describes the state when written.
+
 Date 2026-10-16. Machine endor (Apple M5 Max), Qwen3-8B BF16 (`~/models/Qwen3-8B`), `--max-seq 8192`, `serve --max-batch 8`. Branch `metal-cb-chunk320` off `spike/metal` `6d99a6f`; commits `152b744` (flag), `93282f7` (A/B tool), later commits only add scripts and raw output. Not pushed, not merged. **The default stays 256**; this is the measurement for a later decision.
 
 **Status: done.** Every item in the task ran. Nothing is partial.

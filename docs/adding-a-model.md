@@ -96,9 +96,10 @@ and `norm_offset`; see `recipes/qwen3_5.toml` and `recipes/qwen3_5_moe.toml`.
 then 256; a backend without a table falls back to the base value. Load prints the result and its source (`prefill chunk
 2048 (recipe qwen3_5_moe, cuda)`), `intarsia plan show --json` carries `prefill_chunk` and `prefill_chunk_source`, and
 `accuracy` records both in baselines and self-goldens. Only tune a chunk with measurements behind it and cite them in a
-comment: `recipes/qwen3_5_moe.toml` sets 2048 on CUDA only (`docs/results/2026-10-13-prefill-cuda.md`), because the
-chunk changes rounding (prefix-reuse and baseline results are chunk-sensitive) and the 35B at 2048 has not been shown
-to fit a 32 GB R9700. A baseline recorded at another chunk is refused with a message naming the recipe default;
+comment: `recipes/qwen3_5_moe.toml` sets 2048 on CUDA (`docs/results/2026-10-13-prefill-cuda.md`) and 4096 on HIP
+(`docs/results/2026-10-17-hip-prefill.md`; it fits a 32 GB R9700 at `--max-seq` 17408), `recipes/qwen3.toml` sets 2048 on Metal and HIP, because the
+chunk changes rounding (prefix-reuse and baseline results are chunk-sensitive). (Updated 2026-10-21: this paragraph used to say
+CUDA only and that 2048 on the 35B was not shown to fit an R9700.) A baseline recorded at another chunk is refused with a message naming the recipe default;
 pass `--prefill-chunk N` to run at the baseline's.
 
 Recipes are matched by architecture from `--recipe-dir` directories first and then the built-ins

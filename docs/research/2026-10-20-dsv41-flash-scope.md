@@ -1,5 +1,7 @@
 # Scoping: DeepSeek V4.1 Flash (EXL3 1.62 bpw, SAGE) in intarsiaml, with the Engram tables kept off the GPU
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C23/C19: the line "CUDA round 7 and HIP round 10 are parked until the quota resets" (open question 7) is superseded by the user's answers of 2026-10-20 23:24 EDT (`docs/plans/2026-10-21-quota-burn-plan.md`, "User decisions"): the quota-burn window resumes them as lanes G1 (CUDA r7) and G2 (HIP r10).
+
 Status: research and design only (2026-10-20). No engine code changed, nothing downloaded (only HTTP range reads of safetensors headers), no GPU work, no fleet slot taken. Not committed.
 Measurement scripts for every "measured" number are in `docs/research/2026-10-20-dsv41-flash-scope-tools/` (they write nothing but stdout and a header-only JSON).
 
