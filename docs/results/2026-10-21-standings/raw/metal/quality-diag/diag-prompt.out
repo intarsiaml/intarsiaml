@@ -1,0 +1,26 @@
+[localeval] benchmark gsm8k (limit=10, shots=None, tasks=all)
+Processing 10 problems:   0%|          | 0/10 [00:00<?, ?it/s]Processing 10 problems:  10%|█         | 1/10 [00:00<00:02,  3.59it/s]Processing 10 problems:  20%|██        | 2/10 [00:00<00:01,  4.09it/s]Processing 10 problems:  30%|███       | 3/10 [00:00<00:02,  3.33it/s]Processing 10 problems:  40%|████      | 4/10 [00:01<00:01,  3.41it/s]Processing 10 problems:  50%|█████     | 5/10 [00:01<00:01,  3.57it/s]Processing 10 problems:  60%|██████    | 6/10 [00:01<00:01,  3.71it/s]Processing 10 problems:  70%|███████   | 7/10 [00:01<00:00,  3.69it/s]Processing 10 problems:  80%|████████  | 8/10 [00:02<00:00,  3.65it/s]Processing 10 problems:  90%|█████████ | 9/10 [00:02<00:00,  3.60it/s]Processing 10 problems: 100%|██████████| 10/10 [00:02<00:00,  3.58it/s]Processing 10 problems: 100%|██████████| 10/10 [00:02<00:00,  3.60it/s]
+Overall GSM8K Accuracy: 0.2
+# localeval: adhoc — 2026-10-21T12:35
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: quality; label: diag-structured-prompt
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:8093/v1 --model intarsia-metal --bench gsm8k --limit 10 --thinking off --structured prompt --label diag-structured-prompt`
+- result file: `results/20261021-123532-adhoc-diag-structured-prompt/result.json`
+
+## Benchmarks (deepeval)
+
+| benchmark | score | n | TTFT s | prefill tok/s | decode tok/s | calls | errors | wall s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| gsm8k | 0.200 | 10 | 0.06 | - | - | 10 | 0 | 3.4 |
+
+Benchmark speed is incidental (short, varying prompts); prefill '-' means no call had 1024+ uncached tokens. Quote the sweep for speed.
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-123532-adhoc-diag-structured-prompt/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22
