@@ -1,0 +1,37 @@
+[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=None
+[localeval]    128 tok rep 1/3: prompt=115 ttft=0.25s prefill=435 tok/s decode=33.5 tok/s peak=41.5 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=108 ttft=0.23s prefill=459 tok/s decode=33.4 tok/s peak=38.0 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=112 ttft=0.23s prefill=477 tok/s decode=33.8 tok/s peak=37.8 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.44s prefill=2233 tok/s decode=32.9 tok/s peak=40.0 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=988 ttft=0.44s prefill=2260 tok/s decode=31.8 tok/s peak=34.9 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=993 ttft=0.45s prefill=2178 tok/s decode=32.6 tok/s peak=37.1 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4086 ttft=1.32s prefill=3081 tok/s decode=31.8 tok/s peak=36.4 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4086 ttft=1.34s prefill=3044 tok/s decode=31.6 tok/s peak=35.9 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4086 ttft=1.33s prefill=3079 tok/s decode=32.3 tok/s peak=36.8 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16654 ttft=7.01s prefill=2375 tok/s decode=27.9 tok/s peak=28.3 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16653 ttft=7.12s prefill=2339 tok/s decode=28.0 tok/s peak=28.3 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16654 ttft=7.49s prefill=2223 tok/s decode=27.9 tok/s peak=28.2 tok/s out=128
+# localeval: adhoc — 2026-10-21T11:09
+- model: `/Users/josef/models/Qwen3-8B` on ? (?), url `http://127.0.0.1:8092/v1`
+- thinking: off; run kind: speed; label: st-mlx-lm
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8092/v1 --model /Users/josef/models/Qwen3-8B --sizes 128,1024,4096,16384 --gen 128 --reps 3 --thinking off --label st-mlx-lm`
+- result file: `results/20261021-110928-adhoc-st-mlx-lm/result.json`
+## Speed sweep
+served `/Users/josef/models/Qwen3-8B`, fingerprint `0.31.3-0.32.1-macOS-27.0-arm64-arm-64bit-applegpu_g17s`, ctx ?, 3 reps, 128 forced output tokens
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.23 | 459 (435–477) * | - | 33.5 (33.4–33.8) | 38.0 (37.8–41.5) | - | - | 128 |
+| 989 | 0.44 | 2233 (2178–2260) * | 4098 | 32.6 (31.8–32.9) | 37.1 (34.9–40.0) | - | - | 128 |
+| 4086 | 1.33 | 3079 (3044–3081) | 3499 | 31.8 (31.6–32.3) | 36.4 (35.9–36.8) | - | - | 128 |
+| 16654 | 7.12 | 2339 (2223–2375) | 2170 | 27.9 (27.9–28.0) | 28.3 (28.2–28.3) | - | - | 128 |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+## Warnings
+- server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run
+## Method
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261021-110928-adhoc-st-mlx-lm/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22

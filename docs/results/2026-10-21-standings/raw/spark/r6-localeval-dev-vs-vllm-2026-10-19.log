@@ -1,0 +1,109 @@
+21:25:32 fleetq status:
+fleetq · 21:25:32 · last health check 9s ago
+
+spark1 (spark-4e77) · online · GPU 0% busy
+  memory    116 GB: services 64 · jobs 0 · free 52  (box reports 49.2 free)
+  services
+    + spark1-vllm            flight, guidance, capcom     64 GB  up
+21:25:32 lease 2845 held
+21:25:34 memory freed: 112 GB available
+21:25:34 running /home/nvidia/intarsia-decfuse/r6-scripts/scripts/cuda-round6/wB2.sh (cap 15 min)
+== speed A/B dev vs c4096 21:25:35
+MemAvailable 112 GB
+bin: intarsia 0.0.1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+318 MHz, [N/A], 41, 7.04 W
+== round 1 (500 s left) 21:25:35
+MemAvailable 112 GB
+== 35b round 1 arm dev (tree r6-dev env 'INTARSIA_X=0 ') 21:25:35
+wrote /home/nvidia/intarsia-decfuse/out/r6B2/ab/35b-dev-r1/cudadecode-35b-dev-r1.json
+cudadecode-35b-dev-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      951     0.210         4535        82.8      128
+    4096     4004     0.685         5844        80.4      128
+   16384    16342     2.957         5526        73.1      128
+== 35b round 1 arm c4096 (tree r6-dev env '') 21:26:41
+wrote /home/nvidia/intarsia-decfuse/out/r6B2/ab/35b-c4096-r1/cudadecode-35b-c4096-r1.json
+cudadecode-35b-c4096-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      961     0.211         4560        83.2      128
+    4096     3982     0.646         6161        80.6      128
+   16384    16266     2.777         5857        73.5      128
+== w-ab 35b round 1 done 21:27:45
+round 1 took 130 s
+== round 2 (370 s left) 21:27:45
+MemAvailable 112 GB
+== 35b round 2 arm c4096 (tree r6-dev env '') 21:27:45
+wrote /home/nvidia/intarsia-decfuse/out/r6B2/ab/35b-c4096-r2/cudadecode-35b-c4096-r2.json
+cudadecode-35b-c4096-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      960     0.212         4518        83.1      128
+    4096     4005     0.650         6162        80.6      128
+   16384    16368     2.789         5868        73.0      128
+== 35b round 2 arm dev (tree r6-dev env 'INTARSIA_X=0 ') 21:28:50
+wrote /home/nvidia/intarsia-decfuse/out/r6B2/ab/35b-dev-r2/cudadecode-35b-dev-r2.json
+cudadecode-35b-dev-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      948     0.210         4512        83.1      128
+    4096     4016     0.691         5815        80.6      128
+   16384    16279     2.945         5528        73.4      128
+== w-ab 35b round 2 done 21:29:58
+round 2 took 133 s
+== p4B done, 237 s left 21:29:58
+== localeval server dev 21:29:58
+MemAvailable 112 GB
+bin: intarsia 0.0.1
+== arm dev env 'INTARSIA_X=0' 21:29:58
+READY dev 21:30:38
+21:30:39 localeval arm dev (job 2845)
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=993 ttft=0.23s prefill=4310 tok/s decode=83.3 tok/s peak=84.0 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.23s prefill=4338 tok/s decode=83.2 tok/s peak=85.5 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.24s prefill=4162 tok/s decode=83.1 tok/s peak=83.9 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4091 ttft=0.72s prefill=5711 tok/s decode=80.7 tok/s peak=81.8 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.72s prefill=5681 tok/s decode=80.9 tok/s peak=82.5 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4090 ttft=0.72s prefill=5666 tok/s decode=80.8 tok/s peak=81.3 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=3.12s prefill=5344 tok/s decode=73.1 tok/s peak=73.5 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16654 ttft=3.12s prefill=5346 tok/s decode=73.1 tok/s peak=74.3 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16657 ttft=3.12s prefill=5336 tok/s decode=73.0 tok/s peak=75.5 tok/s out=128
+# localeval: adhoc — 2026-10-19T21:30
+
+- model: `intarsia-35b` on ? (?), url `http://spark-4e77:8090/v1`
+- thinking: off; run kind: speed; label: intarsia-cuda-round6-dev
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8090/v1 --model intarsia-35b --thinking off --sizes 1024,4096,16384 --gen 128 --reps 3 --label intarsia-cuda-round6-dev`
+- result file: `results/20261019-213040-adhoc-intarsia-cuda-round6-dev/result.json`
+
+## Speed sweep
+
+served `intarsia-35b`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.23 | 4310 (4162–4338) * | - | 83.2 (83.1–83.3) | 84.0 (83.9–85.5) | - | - | 128 |
+| 4090 | 0.72 | 5681 (5666–5711) | 6324 | 80.8 (80.7–80.9) | 81.8 (81.3–82.5) | - | - | 128 |
+| 16656 | 3.12 | 5344 (5336–5346) | 5242 | 73.1 (73.0–73.1) | 74.3 (73.5–75.5) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261019-213040-adhoc-intarsia-cuda-round6-dev/result.json
+[localeval] logged to unanimis: 5e2599bb-fdfb-4dd4-80d6-98082275f336
+21:31:09 localeval arm dev exit 0
+arm dev done 21:31:10
+== p4C done 21:31:13
+21:31:13 script exit 0
+21:31:13 killing leftover processes of ours under ~/intarsia-decfuse
+21:31:16 starting missioncntrl-guidance and waiting for /v1/models
+21:35:03 vLLM is serving again
+21:35:03 releasing fleetq job 2845
+21:35:03 done (status 0)
+21:35:04 window exit 0

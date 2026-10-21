@@ -1,0 +1,12 @@
+[window] job 2948; window cap 1150 s; stopping radiance 2026-10-21 10:21:55
+[window] radiance stopped 2026-10-21 10:21:58
+[window] arm intarsia-35b-nvfp4: starting server 2026-10-21 10:21:59
+[window] arm intarsia-35b-nvfp4: server up (1133 s left) 2026-10-21 10:22:12
+[window] arm intarsia-35b-nvfp4: localeval exit 142 (533 s left) 2026-10-21 10:32:12
+[window] arm llamacpp-vk-35b-mxfp4moe: starting server 2026-10-21 10:32:17
+[window] arm llamacpp-vk-35b-mxfp4moe: server up (518 s left) 2026-10-21 10:32:27
+[window] arm llamacpp-vk-35b-mxfp4moe: localeval exit 142 (40 s left) 2026-10-21 10:40:25
+[window] SKIPPED arm llamacpp-vk-35b-q4kxl: 35 s left, needs 240 2026-10-21 10:40:30
+[window] arms done 2026-10-21 10:40:30
+[window] starting radiance 2026-10-21 10:40:31
+[window] radiance answers (after 15 s); window total 1127 s 2026-10-21 10:40:42
