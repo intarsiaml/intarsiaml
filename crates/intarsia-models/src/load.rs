@@ -102,12 +102,27 @@ pub fn eos_ids(dir: &Path, cfg: &Value) -> Vec<u32> {
 
 /// `hf_quant_config.json` of a model directory, parsed. `Ok(None)` when the file does not exist; a file that exists
 /// but cannot be parsed is an error (a checkpoint whose declared scheme we cannot read must not load unchecked).
+/// ExLlamaV3 checkpoints declare `quant_method = "exl3"` in `config.json` or a sidecar `quantization_config.json`.
 pub fn read_quant_scheme(dir: &Path) -> Result<Option<QuantScheme>> {
     let p = dir.join("hf_quant_config.json");
     if !p.exists() {
-        return Ok(None);
+        return read_exl3_scheme(dir);
     }
     QuantScheme::parse(&read_json(&p)?).map(Some)
+}
+
+/// The EXL3 scheme of `config.json` or `quantization_config.json` (`quant_method = "exl3"`), `None` for any other.
+fn read_exl3_scheme(dir: &Path) -> Result<Option<QuantScheme>> {
+    for f in ["config.json", "quantization_config.json"] {
+        let p = dir.join(f);
+        if !p.exists() {
+            continue;
+        }
+        if let Some(fields) = intarsia_core::quant::exl3::config_fields(&read_json(&p)?) {
+            return QuantScheme::parse_exl3(&fields).map(Some);
+        }
+    }
+    Ok(None)
 }
 
 /// The checkpoint's tensors plus the quantisation scheme it declares, so `Model::load` can check every linear

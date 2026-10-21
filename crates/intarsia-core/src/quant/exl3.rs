@@ -597,9 +597,90 @@ pub fn case_from_call(call: &OpCall, caps: &crate::admission::ShapeCaps, rng: &m
     (case(rng, m, n, i[0].shape[1], k2, cb, i[0].dtype, o[0].dtype), label(call, caps))
 }
 
+// ---- the declared scheme (config.json) --------------------------------------------------------------------------
+
+/// The EXL3 block a checkpoint declares: `quantization_config` or `quantization` of `config.json` (top level or its
+/// `text_config`) with `quant_method = "exl3"`, or the same object as a sidecar `quantization_config.json`.
+pub fn config_fields(cfg: &serde_json::Value) -> Option<serde_json::Value> {
+    let is = |b: &serde_json::Value| b.get("quant_method").and_then(|m| m.as_str()).is_some_and(|m| m.eq_ignore_ascii_case("exl3"));
+    if is(cfg) {
+        return Some(cfg.clone());
+    }
+    let text = cfg.get("text_config");
+    [cfg, text.unwrap_or(&serde_json::Value::Null)]
+        .iter()
+        .flat_map(|c| ["quantization_config", "quantization"].map(|k| c.get(k)))
+        .flatten()
+        .find(|b| is(b))
+        .cloned()
+}
+
+/// Refuse, from the config alone, a checkpoint whose EXL3 weights this engine does not read: a codebook other than
+/// 3inst / mcg / mul1, a head or MTP width that is neither an integer 1..8 nor 16 (16: a plain fp16 head), an average
+/// width outside 1..8. Per-tensor checks (shapes, markers) happen at load.
+pub fn check_config(f: &serde_json::Value) -> Result<()> {
+    let refuse = |why: String| {
+        Err(Error::Unsupported(format!(
+            "EXL3 checkpoint ({}): {why}; this engine reads the 3inst, mcg and mul1 codebooks at 1..8 bits per weight \
+             (1.5, 2.5, 3.5 with mul1)",
+            describe_config(f)
+        )))
+    };
+    if let Some(cb) = f.get("codebook").and_then(|v| v.as_str()) {
+        if Codebook::parse(cb).is_none() {
+            return refuse(format!("codebook '{cb}'"));
+        }
+    }
+    for key in ["head_bits", "mtp_bits"] {
+        if let Some(v) = f.get(key).filter(|v| !v.is_null()) {
+            match v.as_f64() {
+                Some(b) if b == 16.0 || (b.fract() == 0.0 && (1.0..=8.0).contains(&b)) => {}
+                _ => return refuse(format!("{key} {v}")),
+            }
+        }
+    }
+    if let Some(v) = f.get("bits").filter(|v| !v.is_null()) {
+        match v.as_f64() {
+            Some(b) if (1.0..=8.0).contains(&b) => {}
+            _ => return refuse(format!("average bits {v}")),
+        }
+    }
+    Ok(())
+}
+
+/// `"exl3 0.0.1, 3inst, average 4 bits, head 6"` (the fields that are present).
+pub fn describe_config(f: &serde_json::Value) -> String {
+    let s = |k: &str| f.get(k).filter(|v| !v.is_null()).map(|v| v.as_str().map(String::from).unwrap_or_else(|| v.to_string()));
+    let mut parts = vec!["exl3".to_string()];
+    parts.extend(s("version"));
+    parts.extend(s("codebook"));
+    parts.extend(s("bits").map(|b| format!("average {b} bits")));
+    parts.extend(s("head_bits").map(|b| format!("head {b}")));
+    parts.join(", ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn config_fields_and_refusals() {
+        let q8b: serde_json::Value = serde_json::from_str(
+            r#"{"architectures":["Qwen3ForCausalLM"],"quantization_config":{"quant_method":"exl3","version":"0.0.1","bits":4.0,"head_bits":6,"calibration":{"rows":100,"cols":2048},"out_scales":"auto"}}"#,
+        )
+        .unwrap();
+        let f = config_fields(&q8b).unwrap();
+        check_config(&f).unwrap();
+        assert_eq!(describe_config(&f), "exl3, 0.0.1, average 4.0 bits, head 6");
+        let glm: serde_json::Value =
+            serde_json::from_str(r#"{"text_config":{"quantization_config":{"quant_method":"exl3","bits":4,"codebook":"mcg","head_bits":16}}}"#).unwrap();
+        check_config(&config_fields(&glm).unwrap()).unwrap();
+        assert!(config_fields(&serde_json::json!({"quantization_config":{"quant_method":"fp8"}})).is_none());
+        for bad in [r#"{"quant_method":"exl3","codebook":"2mad"}"#, r#"{"quant_method":"exl3","head_bits":6.5}"#, r#"{"quant_method":"exl3","bits":9}"#] {
+            let v: serde_json::Value = serde_json::from_str(bad).unwrap();
+            assert!(check_config(&config_fields(&v).unwrap()).is_err(), "{bad}");
+        }
+    }
 
     #[test]
     fn codebook_values_spot_checks() {
