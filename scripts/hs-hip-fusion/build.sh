@@ -23,7 +23,7 @@ for spec in ${TREES:?TREES=name=stamp ...}; do
     echo "hip tests build $name exit $? $(date +%T)"; grep -E '^error|Finished' ~/hs/logs/hiptest-build-$name.log | tail -3
   fi
   if [[ "${TEST:-0}" == 1 ]]; then
-    INTARSIA_TARGET_VOL=intarsia-cargo-target-hs-$name-test $D cargo test --release --workspace --exclude intarsia-backend-hip > ~/hs/logs/test-$name.log 2>&1 < /dev/null
+    INTARSIA_TARGET_VOL=intarsia-cargo-target-hs-$name-test $D cargo test --release --workspace --exclude intarsia-backend-hip --no-fail-fast > ~/hs/logs/test-$name.log 2>&1 < /dev/null
     echo "test $name exit $? $(date +%T)"; grep -E '^test result|FAILED|panicked' ~/hs/logs/test-$name.log | sort | uniq -c | tail -8
   fi
 done
