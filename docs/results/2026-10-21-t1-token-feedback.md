@@ -93,6 +93,8 @@ GPU busy time per step is unchanged within noise (28.19 vs 28.15 ms at 4k). The 
 | ×6 (B F F B B F F B B F F B) | 35.16 | 35.41 | **+0.7 %**; fb ahead in 6 of 6 adjacent pairs | base 4 runs, 35.19; fb 2 runs, 35.51 (+0.9 %) |
 | all admitted runs, both sets | 35.27 (7 runs) | 35.57 (3 runs) | **+0.85 %** | |
 
+Feedback runs sit 15–40 MHz lower, plausibly because the GPU no longer idles between steps. The ≥1300 MHz rule therefore rejects them more often (3 admitted against 7), which biases the admitted-only comparison against feedback. The 6/6 paired wins and the deterministic gap removal are the stronger evidence.
+
 **2c. Served.** `bench speed --at-most`, gen 256, 3 reps, A/B ×3, plus 20 back-to-back short EOS-terminated chat requests per arm (`servesum.txt`):
 
 | arm (final build) | decode 128 | decode 4k | TTFT 4k s | EOS request wall ms | GPU MHz | CPU | admitted |
@@ -119,9 +121,10 @@ GPU busy time per step is unchanged within noise (28.19 vs 28.15 ms at 4k). The 
 | stop conditions on the real model (`--chat`): natural EOS; a stop string; `min_tokens` 12; a longer EOS-terminated answer; max_tokens 7. The answer ends on EOS at 6 tokens, so the last case is an EOS stop too. `max_tokens` is covered by the forced 256-token runs and the cpu tests | **byte-identical**, base vs feedback, 5 of 5 |
 | goldens `qwen3-8b-fp32` and `qwen3-8b-long-fp32` (`accuracy --mode both`) | logs **byte-identical**, base vs feedback |
 | `qualify`, feedback on | **PASS**: 10 stages run, 0 failed (kernels 28/374, gate, acc-short, bench, acc-long, acc-4k, envelope, bench-long). The ab and tp stages are skipped (no reference server, no TP). acc-4k: prefill top-1 99.28 %, KL 2.44e-4 (`gates/qualify/`) |
-| Metal tests: `cargo test -p intarsia-backend-metal --release` with the real model, and `cargo test --workspace --features intarsia-cli/metal` | **117 passed, 0 failed** and **549 passed, 0 failed**. They include G3's `fill.rs` / `qkv_fold.rs` dispatch-count tests and the new `tests/token_feedback.rs`, which checks: `read_after` waits for its own fence only; a dropped fence falls back to `download`; hold, release and discard; a sync while holding |
+| Metal tests: `cargo test -p intarsia-backend-metal --release` with the real model, and `cargo test --workspace --features intarsia-cli/metal` | on the final head `0487bc30` with feedback **on by default** (#3160, `final-tests/`): **117 passed, 0 failed** and **550 passed, 0 failed**. The run on the hold commit before the flip, with feedback off by default: 117/0 and 549/0. They include G3's `fill.rs` / `qkv_fold.rs` dispatch-count tests and the new `tests/token_feedback.rs`, which checks: `read_after` waits for its own fence only; a dropped fence falls back to `download`; hold, release and discard; a sync while holding |
 | CPU: `cargo check --workspace --tests` (cpu, and `--features intarsia-cli/metal`); `cargo test --workspace --exclude intarsia-backend-metal` | pass; 432 passed, 0 failed |
-| stop-condition tests (cpu backend, `crates/intarsia-models/tests/token_feedback.rs`, 6 tests); every request runs on a feedback engine and a plain one, see below | 6/6 pass, with and without the hold (tatooine container, #3083 and #3141). The first run (#3079, #3080) failed on two bugs in the tests themselves: the probe request ran on one engine only, and the held-back UTF-8 tail event was counted as a token |
+| EOS mid-batch: `BatchedEngine` over a model with feedback switched on. Three concurrent requests, one stopping on a stop id at its 4th token while the others continue, then one more request; compared with feedback off | identical (ids, `Done`, KV length). `BatchedEngine` never takes the feedback loop (`batched_engine_is_unchanged_with_feedback_on`, #3160) |
+| stop-condition tests (cpu backend, `crates/intarsia-models/tests/token_feedback.rs`, 6 tests plus the batched one); every request runs on a feedback engine and a plain one, see below | 7/7 on the final head (#3160); 6/6 with and without the hold (tatooine container, #3083 and #3141). The first run (#3079, #3080) failed on two bugs in the tests themselves: the probe request ran on one engine only, and the held-back UTF-8 tail event was counted as a token |
 | mutants on the rollback logic (`raw/.../mutants.py`, 7 mutants, listed below) | **7/7 killed**, before and after the hold (#3085, #3141, `mutants/mutants.txt`). The discard itself is not mutated: it is an optimisation with no correctness role, covered by the Metal hold test and the EOS-latency A/B |
 | CUDA no-op (spark1, non-exclusive, vLLM up): greedy 256 ids, Qwen3-8B, short and 4k prompt; base vs dev, and dev with `INTARSIA_TOKEN_FEEDBACK=1`, which must change nothing because CUDA does not support feedback | pre-rebase head (#3080, `cuda/pre-rebase/`): **byte-identical**, 4 of 4; 255 graph replays and 0 eager steps, so the feedback path is never taken. Final head `b4a300b3` vs main `c56c1292` (#3153): **byte-identical**, 4 of 4; 0 eager steps; dev CPU tests 217 passed, 0 failed (`cuda/`) |
 | HIP no-op (tatooine, #3086, radiance down 50 s, coordinator-approved): greedy 256 ids, Qwen3-8B, GPU 0, short and 4k prompt, base vs dev | **byte-identical**, 2 of 2; 38.7 / 37.1 tok/s on both (`hip/`). This ran on the pre-rebase, pre-hold head, and today's single window is used. Since then the only HIP-reachable changes are the no-op trait defaults (`hold` / `release` / `discard`) and calls on the feedback path, which HIP never takes |
@@ -177,7 +180,7 @@ For each request the two engines must agree on the ids, the text, the `Done` eve
 - `crates/intarsia-core/src/model/batch.rs`: the new argument (`None`).
 - `crates/intarsia-core/src/engine.rs`: `Seq::feedback_ok`, `Seq::run_feedback` (the loop and the rollback), one branch in `run_seq`.
 - `crates/intarsia-backend-cpu/src/lib.rs`: `token_feedback() = (true, false)`.
-- `crates/intarsia-models/tests/token_feedback.rs` (new): 6 tests.
+- `crates/intarsia-models/tests/token_feedback.rs` (new): 7 tests (6 on `LocalEngine`, 1 on `BatchedEngine`).
 
 **Metal:**
 - `crates/intarsia-backend-metal/src/lib.rs`:

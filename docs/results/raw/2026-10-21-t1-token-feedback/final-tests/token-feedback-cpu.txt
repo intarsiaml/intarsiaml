@@ -1,0 +1,57 @@
+   Compiling serde_core v1.0.229
+   Compiling hashbrown v0.17.1
+   Compiling serde_json v1.0.154
+   Compiling syn v2.0.119
+   Compiling syn v3.0.9
+   Compiling smallvec v1.16.3
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-metal)
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling indexmap v2.14.2
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_spanned v1.1.2
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling darling_core v0.20.11
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling bytemuck v1.25.2
+   Compiling zerocopy-derive v0.8.62
+   Compiling monostate-impl v0.1.18
+   Compiling thiserror v2.0.21
+   Compiling monostate v0.1.18
+   Compiling serde v1.0.229
+   Compiling darling_macro v0.20.11
+   Compiling dary_heap v0.3.9
+   Compiling minijinja v2.24.0
+   Compiling compact_str v0.9.1
+   Compiling spm_precompiled v0.1.4
+   Compiling zerocopy v0.8.62
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+   Compiling minijinja-contrib v2.24.0
+   Compiling derive_builder_macro v0.20.2
+   Compiling half v2.7.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling ahash v0.8.12
+   Compiling rand_chacha v0.9.0
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-core)
+   Compiling rand v0.9.5
+   Compiling derive_builder v0.20.2
+   Compiling tokenizers v0.22.2
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cuda)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.83s
+     Running tests/token_feedback.rs (target/debug/deps/token_feedback-deee383d040e3307)
+
+running 7 tests
+test cancel_leaves_a_consistent_state ... ok
+test batched_engine_is_unchanged_with_feedback_on ... ok
+test stop_strings_match ... ok
+test eos_mid_run_in_a_queue_of_requests ... ok
+test eos_at_every_position_rolls_the_extra_step_back ... ok
+test forced_length_matches_and_never_speculates_past_max_tokens ... ok
+test min_tokens_window_then_feedback ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
