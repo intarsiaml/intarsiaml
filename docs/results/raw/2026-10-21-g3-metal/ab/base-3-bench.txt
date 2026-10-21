@@ -1,0 +1,27 @@
+target http://127.0.0.1:8093/v1/chat/completions  model intarsia-metal
+server context window: 20000 tokens
+calibration: 49 base tokens, 20.93 tokens per filler sentence
+  size    128 rep: prompt=103 gen=128 ttft=0.05s prefill=1990 tok/s decode=35.3 tok/s
+  size    128 rep: prompt=112 gen=128 ttft=0.05s prefill=2063 tok/s decode=35.8 tok/s
+  size    128 rep: prompt=105 gen=128 ttft=0.05s prefill=2057 tok/s decode=35.8 tok/s
+  size   1024 rep: prompt=954 gen=128 ttft=0.23s prefill=4076 tok/s decode=35.4 tok/s
+  size   1024 rep: prompt=965 gen=128 ttft=0.24s prefill=4098 tok/s decode=35.7 tok/s
+  size   1024 rep: prompt=963 gen=128 ttft=0.24s prefill=4084 tok/s decode=35.6 tok/s
+  size   4096 rep: prompt=4016 gen=128 ttft=1.05s prefill=3833 tok/s decode=34.1 tok/s
+  size   4096 rep: prompt=4000 gen=128 ttft=1.05s prefill=3819 tok/s decode=34.4 tok/s
+  size   4096 rep: prompt=4019 gen=128 ttft=1.05s prefill=3829 tok/s decode=35.2 tok/s
+  size  16384 rep: prompt=16314 gen=128 ttft=6.22s prefill=2624 tok/s decode=30.7 tok/s
+  size  16384 rep: prompt=16335 gen=128 ttft=6.08s prefill=2685 tok/s decode=30.2 tok/s
+  size  16384 rep: prompt=16321 gen=128 ttft=6.51s prefill=2506 tok/s decode=31.1 tok/s
+wrote /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/ab/base-3.json
+base-3  model=intarsia-metal  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      105     0.052         2058        35.8      128       88.3
+    1024      963     0.235         4084        35.6      128       87.7
+    4096     4016     1.048         3829        34.4      128       84.9
+   16384    16321     6.218         2624        30.7      128       75.6
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)

@@ -1,0 +1,62 @@
+base f5c749b6ec53900c038b07b84a31d4a6 dev 68625e085911821bca1ae756a7ad3773 2026-10-21T12:54:02-04:00
+##### base-1 2026-10-21T12:54:02-04:00
+bench exit 0
+    1024      977     0.247         3964        35.9      128       88.6
+    4096     4020     1.042         3858        35.1      128       86.6
+   16384    16380     5.849         2800        31.5      128       77.6
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+##### dev-1 2026-10-21T12:56:28-04:00
+bench exit 0
+    1024      956     0.259         3685        32.4      128       79.8
+    4096     3994     1.083         3670        35.0      128       86.4
+   16384    16288     6.176         2637        31.4      128       77.5
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+##### dev-2 2026-10-21T12:58:47-04:00
+bench exit 0
+    1024      951     0.234         4070        36.1      128       89.0
+    4096     4014     1.048         3794        34.5      128       85.0
+   16384    16335     6.210         2630        30.9      128       76.3
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+##### base-2 2026-10-21T13:00:49-04:00
+bench exit 0
+    1024      962     0.236         3988        35.4      128       87.3
+    4096     4008     1.042         3871        34.7      128       85.6
+   16384    16308     6.074         2685        31.4      128       77.3
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+##### base-3 2026-10-21T13:02:50-04:00
+bench exit 0
+    1024      963     0.235         4084        35.6      128       87.7
+    4096     4016     1.048         3829        34.4      128       84.9
+   16384    16321     6.218         2624        30.7      128       75.6
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+##### dev-3 2026-10-21T13:04:54-04:00
+bench exit 0
+    1024      956     0.234         4078        35.9      128       88.5
+    4096     3953     1.005         3926        34.6      128       85.2
+   16384    16100     6.026         2675        31.2      128       76.9
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+AB_DONE 2026-10-21T13:06:56-04:00
