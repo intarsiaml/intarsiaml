@@ -46,7 +46,11 @@ jobs:
       # The three GPU backend crates are excluded: intarsia-backend-metal is macOS-only, and the cuda / hip crates have a
       # test (gpu_tests_were_not_built) that fails on purpose when their GPU tests were not compiled, which is the case on
       # a runner without nvcc / hipcc. Their GPU gates run on the fleet.
+      # CI=0: GitHub sets CI=true, which the repo's GPU tests read as "this run has a GPU, a skip is a failure"
+      # (crates/*/tests: INTARSIA_REQUIRE_GPU / CI). These runners have none, so the real-model tests skip honestly.
       - run: cargo test --workspace --locked --no-fail-fast --exclude intarsia-backend-metal --exclude intarsia-backend-cuda --exclude intarsia-backend-hip
+        env:
+          CI: "0"
 
   check-metal:
     name: cargo check (macOS, metal)
