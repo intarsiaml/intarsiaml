@@ -1,0 +1,8 @@
+long-A.safetensors vs long-B.safetensors
+  user rows 4489  mean KL 1.049e-01; rows where P(im_end) >0.05 in either: 43.17%, they carry 53.6% of KL
+  rows where P(im_end) moves >10x (and >0.05 in one): 0.71%, carry 22.8% of KL
+  top-5% rows carry 82.9% of KL; of them 64.3% have P(im_end)>0.05 in either run
+qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors vs cuda-w3-long.dump.safetensors
+  user rows 4489  mean KL 1.653e-01; rows where P(im_end) >0.05 in either: 47.56%, they carry 72.8% of KL
+  rows where P(im_end) moves >10x (and >0.05 in one): 2.41%, carry 37.1% of KL
+  top-5% rows carry 79.7% of KL; of them 78.1% have P(im_end)>0.05 in either run

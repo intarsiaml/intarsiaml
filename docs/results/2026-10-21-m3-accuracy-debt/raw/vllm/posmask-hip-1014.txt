@@ -1,0 +1,7 @@
+all rows: n=36887 mean KL21 4.5827e-02   excluding system/user-turn rows: n=32349 mean 1.3929e-02
+without chat_reuse_4k entirely: 1.3941e-02
+  long_docs_4k   1.7512e-02
+  long_code_4k   7.3738e-03
+  chat_reuse_4k  2.6792e-01
+  long_docs_12k  2.0339e-02
+  long_code_12k  8.5516e-03

@@ -1,0 +1,16 @@
+[burst] job 2924; M3 window; stopping radiance 2026-10-21 09:56:58
+[burst] radiance stopped 2026-10-21 09:57:01
+[m3] reuse diag c1024 --no-graphs 09:57:01
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+long_docs_4k continue split 2000 turn2 4080 cached 2015 agree 8/32
+    engine warm vs scripted replay of warm       rows  32  bitwise   0  argmax flips  1  KL mean 8.77e-3 max 4.47e-2  max|dlogit| 2.347e0
+    engine cold vs scripted replay of cold       rows  32  bitwise   0  argmax flips  3  KL mean 8.41e-3 max 4.98e-2  max|dlogit| 3.740e0
+long_docs_4k restore split 2000 turn2 4064 cached 1024 agree 32/32
+[m3] long c4096 prefill pos dump 09:57:26
+OVERALL                  36887    94.32   4.133e-2   4.356e-2    2.763e1   0.0611   0.0639    90.52      0.2%      0
+36887 /home/josef/intarsiaml-m3/m3out/long-c4096.pos.tsv
+[m3] done 09:58:47
+[burst] stages done 2026-10-21 09:58:47 (exit 0)
+[burst] starting radiance 2026-10-21 09:58:47
+[burst] radiance answers 2026-10-21 09:58:57 (after 15 s)

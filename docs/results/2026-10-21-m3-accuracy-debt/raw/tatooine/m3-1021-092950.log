@@ -1,0 +1,23 @@
+[burst] job 2910; M3 window; stopping radiance 2026-10-21 09:29:50
+[burst] radiance stopped 2026-10-21 09:29:53
+[m3] long c4096 prefill dump 09:29:53
+chat_reuse_4k       4631  4631    88.92   2.195e-1   2.479e-1    2.763e1   0.0688   0.0840    88.25    7/4631      0
+OVERALL                  36887    94.32   4.133e-2   4.356e-2    2.763e1   0.0611   0.0639    90.52      0.2%      0
+prefill floor [4bit]: top-1 94.32% (not gated for this class) ok | 21-way KL 4.356e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0639 vs ref 0.0611, excess +0.0028 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+[m3] reuse diag c1024 09:32:00
+long_docs_4k continue split 2000 turn2 4080 cached 2015 agree 8/32
+long_docs_4k restore split 2000 turn2 4064 cached 1024 agree 32/32
+[m3] reuse diag c4096 09:32:24
+long_docs_4k       both      skipped: split 2000 is below one prefill chunk (4096): nothing to reuse across chunk boundaries
+[m3] vs long-A 09:32:27
+chat_reuse_4k       4631  4631    89.51   2.302e-1   2.659e-1    1.988e1   0.0708   0.0847    87.85   64/4631      0
+OVERALL                  36887    94.35   4.231e-2   4.545e-2    1.988e1   0.0613   0.0641    90.47      0.3%      0
+prefill floor [4bit]: top-1 94.35% (not gated for this class) ok | 21-way KL 4.545e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0613, excess +0.0028 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+[m3] vs long-B 09:33:47
+chat_reuse_4k       4631  4631    89.42   2.321e-1   2.709e-1    2.452e1   0.0717   0.0853    87.94   64/4631      0
+OVERALL                  36887    94.26   4.205e-2   4.557e-2    2.452e1   0.0615   0.0641    90.47      0.3%      0
+prefill floor [4bit]: top-1 94.26% (not gated for this class) ok | 21-way KL 4.557e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0615, excess +0.0026 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+[m3] done 09:35:08
+[burst] stages done 2026-10-21 09:35:08 (exit 0)
+[burst] starting radiance 2026-10-21 09:35:08
+[burst] radiance answers 2026-10-21 09:35:18 (after 15 s)
