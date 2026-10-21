@@ -194,9 +194,8 @@ fn hybrid_moe_tp2_row_local_fusion_matches_tp1_f32() {
     let backends: Vec<Arc<dyn Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
     let comms = intarsia_core::HostCommGroup::new(backends.clone());
     let tel = Arc::new(Telemetry::new());
-    let fused =
-        Model::load_tp(backends, comms, &recipe, &dims, &w, &LoadOptions { tp_fusion: true, ..opts(DType::F32) }, tel.clone())
-            .unwrap();
+    let o = LoadOptions { tp_fusion: true, ..opts(DType::F32) };
+    let fused = Model::load_tp(backends, comms, &recipe, &dims, &w, &o, tel.clone()).unwrap();
     let (a, b) = (run(&fused), run(&one));
     let mut worst = 0f64;
     for (p, (x, y)) in a.iter().zip(&b).enumerate() {
@@ -206,11 +205,19 @@ fn hybrid_moe_tp2_row_local_fusion_matches_tp1_f32() {
         assert_eq!(argmax(x), argmax(y), "row {p}");
     }
     let ops = tel.snapshot().ops;
-    let ran: Vec<&str> = ["matmul_pair", "matmul_fp8_pair", "rmsnorm_add_matmul_pair", "rmsnorm_add_matmul_fp8_pair", "gdn_conv_delta",
-        "gated_rmsnorm", "qk_norm_rope_kv", "gate_split_qk_norm_rope_kv", "matmul_nvfp4_glu", "moe_block"]
-        .into_iter()
-        .filter(|k| ops.get(*k).is_some_and(|s| s.calls > 0))
-        .collect();
+    const FUSED: [&str; 10] = [
+        "matmul_pair",
+        "matmul_fp8_pair",
+        "rmsnorm_add_matmul_pair",
+        "rmsnorm_add_matmul_fp8_pair",
+        "gdn_conv_delta",
+        "gated_rmsnorm",
+        "qk_norm_rope_kv",
+        "gate_split_qk_norm_rope_kv",
+        "matmul_nvfp4_glu",
+        "moe_block",
+    ];
+    let ran: Vec<&str> = FUSED.into_iter().filter(|k| ops.get(*k).is_some_and(|s| s.calls > 0)).collect();
     eprintln!("hybrid MoE tp=2 fused vs tp=1 (f32): worst rel_l2 {worst:.2e}; fused ops on rank 0: {ran:?}");
     assert!(!ran.is_empty(), "no fused op ran under tp_fusion");
     assert!(ops.get("gated_rmsnorm_matmul_fp8").is_none_or(|s| s.calls == 0), "the out-projection fold ran under TP");
