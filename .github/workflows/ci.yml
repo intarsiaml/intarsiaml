@@ -46,7 +46,7 @@ jobs:
       # The three GPU backend crates are excluded: intarsia-backend-metal is macOS-only, and the cuda / hip crates have a
       # test (gpu_tests_were_not_built) that fails on purpose when their GPU tests were not compiled, which is the case on
       # a runner without nvcc / hipcc. Their GPU gates run on the fleet.
-      - run: cargo test --workspace --locked --exclude intarsia-backend-metal --exclude intarsia-backend-cuda --exclude intarsia-backend-hip
+      - run: cargo test --workspace --locked --no-fail-fast --exclude intarsia-backend-metal --exclude intarsia-backend-cuda --exclude intarsia-backend-hip
 
   check-metal:
     name: cargo check (macOS, metal)
