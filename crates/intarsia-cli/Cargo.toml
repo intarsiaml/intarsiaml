@@ -17,7 +17,9 @@ name = "intarsia"
 path = "src/main.rs"
 
 [features]
-default = []
+# `tui` (terminal UI: `intarsia tui`) is on by default; `--no-default-features` builds without it.
+default = ["tui"]
+tui = ["dep:intarsia-tui"]
 # CUDA backend (needs nvcc; off by default so the Mac builds).
 cuda = ["dep:intarsia-backend-cuda"]
 # HIP backend for AMD gfx12 (needs hipcc / ROCm; off by default). Exclusive with `cuda`: both kernel libraries
@@ -50,6 +52,7 @@ sysinfo = { workspace = true }
 half = { workspace = true }
 ureq = { workspace = true }
 libc = { workspace = true }
+intarsia-tui = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 intarsia-backend-metal = { workspace = true, optional = true }
