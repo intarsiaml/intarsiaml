@@ -1,0 +1,28 @@
+step wall (us): tp1g 12489, tp2g-r0 10929; kernel sum: 12145, 10295
+| kernel | tp1g us/step | tp2g-r0 us/step | tp2g-r0/tp1g | launches/step tp1g / tp2g-r0 |
+|---|---|---|---|---|
+| fp8_gemv_kernel | 1165 | 3237 | 2.78 | 20 / 130 |
+| fp8_gemv_pair_kernel | 3410 | 0 | 0.00 | 40 / 0 |
+| nvfp4_gemv_kernel | 1479 | 1684 | 1.14 | 41 / 121 |
+| moe_dec_gate_up_kernel | 1830 | 1004 | 0.55 | 40 / 40 |
+| nccl all-reduce | 0 | 1924 | inf | 0 / 80 |
+| moe_dec_down_v2_kernel | 1062 | 687 | 0.65 | 40 / 40 |
+| fp8_gemv_gated_kernel | 1316 | 0 | 0.00 | 30 / 0 |
+| gdn_delta_split_kernel | 363 | 209 | 0.58 | 30 / 30 |
+| gemv_kernel | 0 | 550 | inf | 0 / 140 |
+| rmsnorm_add_pair_kernel | 447 | 0 | 0.00 | 69 / 0 |
+| nvfp4_glu_kernel | 332 | 0 | 0.00 | 40 / 0 |
+| rmsnorm_kernel | 56 | 254 | 4.52 | 32 / 131 |
+| moe_topk_kernel | 139 | 139 | 1.00 | 40 / 40 |
+| splitkv_kernel | 147 | 119 | 0.81 | 10 / 10 |
+| rope_kernel | 100 | 100 | 1.00 | 20 / 20 |
+| gdn_conv_kernel | 95 | 84 | 0.89 | 30 / 30 |
+| gdn_conv_state_kernel | 46 | 42 | 0.90 | 30 / 30 |
+| silu_glu_kernel | 0 | 84 | inf | 0 / 70 |
+| moe_combine_kernel | 41 | 43 | 1.03 | 40 / 40 |
+| kv_append_kernel | 35 | 24 | 0.70 | 20 / 20 |
+| combine_kernel | 26 | 27 | 1.03 | 10 / 10 |
+| rope_pass_kernel | 16 | 17 | 1.02 | 20 / 20 |
+| argmax_kernel | 17 | 16 | 0.95 | 1 / 1 |
+| ik_f32_to_bf16 | 0 | 31 | inf | 0 / 40 |
+| (other 4) | 23 | 20 | | |
