@@ -11,6 +11,15 @@ log() { echo "$(date +%T) $*" | tee -a "$O/steps.log"; }
 mkdir -p "$O/noop"
 BASE_TREE=base2 DEV_TREE=dev2 NOOP_ONLY=1 bash $HOME/g2b/stages-w1.sh "$O/noop"
 log "no-op stages exit $?"
+# the rebased head at tp=2: 256 ids against window 1's tp=2 ids of 04306ee (does the rebase onto #42 move tp=2?)
+for k in short 4k; do
+  p='Write a long story about a robot who learns to paint.'; [[ $k == 4k ]] && p="$(cat $HOME/intarsiaml-g2b-dev2/scripts/hip-decode/prompt4k.txt)"
+  INTARSIA_REPO=$HOME/intarsiaml-g2b-dev2 timeout 600 $HOME/intarsiaml-g2b-dev2/deploy/tatooine/dev.sh /work/g2b-intarsia generate \
+    -m /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --mem-budget 29 --max-seq 8192 --chat --no-think --profile-every 0 --ignore-eos \
+    --show-ids -p "$p" --max-tokens 256 --tp 2 --devices 0,1 > "$O/gen-dev2-35b-tp2-$k.out" 2> "$O/gen-dev2-35b-tp2-$k.err"
+  grep -a '^ids:' "$O/gen-dev2-35b-tp2-$k.err" > "$O/gen-dev2-35b-tp2-$k.ids"
+  cmp -s "$O/gen-dev2-35b-tp2-$k.ids" $HOME/g2b/out/w1/gen-dev-35b-tp2-$k.ids && log "IDS tp2 $k rebased == 04306ee" || log "IDS tp2 $k rebased != 04306ee"
+done
 
 R=$HOME/intarsiaml-g2b-dev
 M35=/models/Qwen3.6-35B-A3B-NVFP4; G=/models/golden
@@ -33,4 +42,24 @@ run 0,1 900 self-tp2-long $A --self-golden /work/g2b-out/S1-long.safetensors --m
 INTARSIA_TP_TEST_BUG=scale:1.01 run 0,1 600 self-tp2bug-short $A --self-golden /work/g2b-out/S1-short.safetensors --mode both $PV $TP2 $BS
 INTARSIA_TP_TEST_BUG=scale:1.01 run 0,1 900 self-tp2bug-long $A --self-golden /work/g2b-out/S1-long.safetensors --mode both $PV $TP2 $BL
 run 0,1 600 self-tp2rep-short $A --self-golden /work/g2b-out/T2-short.safetensors --mode both $PV $TP2
+# localeval of the rebased head at tp=2 (window 3's sidecar did not run): serve, READY, wait for the Mac's DONE (<= 420 s)
+R2=$HOME/intarsiaml-g2b-dev2
+docker rm -f g2b-serve >/dev/null 2>&1
+docker run -d --name g2b-serve --network host --device /dev/kfd --device /dev/dri \
+  --group-add "$(stat -c %g /dev/kfd)" --group-add "$(stat -c %g /dev/dri/renderD128)" --group-add video \
+  --ipc host --security-opt seccomp=unconfined --user "$(id -u):$(id -g)" -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 \
+  -e HIP_VISIBLE_DEVICES=0,1 -v $R2:/work -v /data/models/intarsia:/models:ro -w /work \
+  intarsia-hip-dev:rocm7.2.4-rust1.90.0 /work/g2b-intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 \
+  --profile-every 0 --mem-budget 29 --host 0.0.0.0 --port 8090 --served-model-name qwen36-35b-g2b --max-seq 17408 \
+  --tp 2 --devices 0,1 > /dev/null
+up=0; for i in $(seq 1 80); do curl -sf -m 2 http://localhost:8090/health >/dev/null 2>&1 && { up=1; break; }; sleep 3; done
+if [[ $up == 1 ]]; then
+  log "tp2 server (rebased head) up for localeval"; touch "$O/READY"
+  for i in $(seq 1 140); do [[ -f "$O/DONE" ]] && break; sleep 3; done
+  log "localeval sidecar $( [[ -f $O/DONE ]] && echo done || echo 'timed out')"
+else
+  log "tp2 server did not come up"
+fi
+docker logs g2b-serve > "$O/serve-localeval.log" 2>&1
+docker rm -f g2b-serve >/dev/null 2>&1
 log "done"

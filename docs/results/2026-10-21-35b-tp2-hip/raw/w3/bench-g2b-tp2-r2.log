@@ -1,0 +1,15 @@
+target http://localhost:8090/v1/chat/completions  model qwen36-35b-g2b
+server context window: 17408 tokens
+calibration: 49 base tokens, 21.75 tokens per filler sentence
+  size   1024 rep: prompt=965 gen=128 ttft=0.12s prefill=8180 tok/s decode=131.8 tok/s
+  size   4096 rep: prompt=4019 gen=128 ttft=0.36s prefill=11308 tok/s decode=131.5 tok/s
+  size  16384 rep: prompt=16379 gen=128 ttft=1.59s prefill=10271 tok/s decode=127.5 tok/s
+wrote /work/g2b-out/bench/g2b-tp2-r2.json
+g2b-tp2-r2  model=qwen36-35b-g2b  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      965     0.118         8180       131.8      128
+    4096     4019     0.355        11308       131.5      128
+   16384    16379     1.595        10271       127.5      128
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
