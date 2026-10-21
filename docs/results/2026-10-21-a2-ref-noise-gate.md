@@ -55,7 +55,8 @@ Reading:
 * The 35B scored-rows values other than HIP main's come from `setkl.py` (both sides truncated to top-20), not from the tool. On our own rows the two agree to
   about 1e-4 relative (HIP main: 1.4198e-2 by the tool, 1.420e-2 by `setkl.py`, `raw/rescore-hip-main-long.txt`).
 * The M1 noise (0.197) has no scored-rows value and its row set is not recorded (taken as all rows). The 0.180 and 0.274 are the drill's gate numbers, which predate
-  the scored-rows floor, so they are all-rows too; compared like with like. The decode mode scores the last 16 positions of each prompt, the noise was measured over
+  the scored-rows floor, so they are all-rows too (checked: `turns.rs` first landed on main at 11:09 EDT in 6952b26b, M1 branched from `4be7b7d4` and ran its gate at 10:19; the round-7 logs in
+  `raw/r7A/acc-*.log` carry no "scored rows" text); compared like with like. The decode mode scores the last 16 positions of each prompt, the noise was measured over
   every position: the gate applies it as measured and says so.
 * "Noise alone" means the rule without the static floor, `KL <= factor x noise`. At factor 1.0 it fails every 35B row above; the factor each would need is the KL / noise column
   (1.5 to 1.8).
@@ -82,7 +83,7 @@ and does not average; `runs` and `how` say so.
 
 | check | result |
 |---|---|
-| unit tests: threshold logic (`judge_kl`, `resolve_factor`, `apply_to_self_checks`), record parsing and binding, sidecar lookup, top-k pair KL, dates | 17 pass (`cargo test -p intarsia-cli refnoise`) |
+| unit tests: threshold logic (`judge_kl`, `resolve_factor`, `apply_to_self_checks`), record parsing and binding, sidecar lookup, top-k pair KL, dates | 19 pass (`cargo test -p intarsia-cli refnoise`, which includes the two re-score tests) |
 | re-score tests on the committed round-7 log and the M1 numbers | pass (`rescore_`) |
 | `rescore_m3_dump_with_the_row_mask --ignored` with the real 35B long golden, tokenizer and M3 dump | pass: 36887 / 32349 rows, 4.3560e-2 / 1.4198e-2, sidecar bound by file hash, verdict PASS bound by static floor, 1.687 times the noise |
 | `intarsia ref-noise` against `scripts/m3-accuracy/setkl.py` on a perturbed copy of the 35B short golden | identical: all rows 3.211e-2, scored rows 3.482e-2 (1441 and 1279 rows; `raw/crosscheck-setkl.txt`) |
@@ -101,6 +102,7 @@ No GPU was used. The two goldens that would measure the M1 decode-window noise a
 * `crates/intarsia-cli/src/main.rs`: the `ref-noise` subcommand.
 * `crates/intarsia-core/src/recipe.rs`, `crates/intarsia-models/src/recipe.rs`: `[accuracy] ref_noise_factor` (optional; no built-in recipe sets it) and its test.
 * `golden/ref_noise/*.json`: three back-filled sidecars (the two 35B vLLM goldens, bound by hash; the Qwen3.8-27B W4A4 golden, matched by position count only because its file was not available).
+* `scripts/a2-ref-noise/`: `perturb_topk_golden.py` (the cross-check below) and `make_backfill_sidecars.py` (regenerates the three sidecars).
 * `docs/accuracy.md` (new section "Reference noise"), `docs/decisions/LOG.md` (two rows), this doc and `raw/`.
 
 Effect on each backend: none. Nothing here touches a kernel, an engine or a model path; the one core change is an optional recipe field. The visible behaviour change is in `intarsia accuracy`: it prints one extra
@@ -120,4 +122,5 @@ None. `cargo test --workspace` on endor took a `fleetq` slot (job and result in 
 3. **Qwen3.8-27B W4A4 decode stays FAIL** at 1.39 times the noise. The noise was measured over every position and the decode mode scores a 16-position window per prompt; measuring the noise on that window needs the two W4A4 goldens
    (about 11 min of CPU on endor) or a factor of 1.4 on that recipe. Not done: it needs the goldens, and a factor chosen to pass is the thing you asked me not to do.
 4. **Existing goldens use sidecars, not embedded metadata**: rewriting a golden's metadata changes its hash and orphans every baseline and self-golden. Goldens built from now on can carry the `ref_noise` key; `tools/golden*.py` do not write it yet.
-5. **M1's record is matched by position count only** (file and hash unavailable) and its row set is assumed to be all rows. Once the golden is on a box, `intarsia ref-noise` re-measures it with a hash and the scored-rows value.
+5. **M1's record is matched by position count only** (file and hash unavailable) and its row set is assumed to be all rows. The sidecar is found by the name `qwen3.8-27b-mxfp4-hfquark-top20.safetensors`; if the golden is named
+   differently, pass `--ref-noise golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json`. Once the golden is on a box, `intarsia ref-noise` re-measures it with a hash and the scored-rows value.
