@@ -3,3 +3,5 @@ no role taken down by lane G3 (endor-kev, endor-tensorfold untouched); all slots
 #2909 p1 profile/clock 09:50-09:57
 #2934 e1 levers 10:00-10:08
 #2941 e2 first-commit/spin 10:2x-10:31
+#2961 cancelled while queued (gap for M1), never ran
+#2971 gates 11:25-11:33, stopped by user order (endor hold); A/B not run
