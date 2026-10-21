@@ -227,3 +227,62 @@ fn cancel_leaves_a_consistent_state() {
         assert_eq!(x.ids, y.ids, "cancel after {after}");
     }
 }
+
+/// `BatchedEngine` keeps its own decode loop: with token feedback switched on in the model (the Metal default), a batch
+/// in which one request stops mid-run on a stop id while the others continue must give exactly what it gives with
+/// feedback off.
+#[test]
+fn batched_engine_is_unchanged_with_feedback_on() {
+    use intarsia_core::{BatchedEngine, BatchedOptions};
+    type Done = (Vec<u32>, (FinishReason, usize, usize));
+    fn batched(feedback: bool) -> BatchedEngine {
+        let t = tiny_weights(DType::Bf16, 17);
+        let tel = Arc::new(Telemetry::new());
+        let mut m = intarsia_core::model::Model::load(
+            intarsia_backend_cpu::CpuBackend::arc(),
+            &recipe(),
+            &dims(),
+            &t.weights,
+            &LoadOptions { max_seq: 128, prefill_chunk: 8, ..Default::default() },
+            tel.clone(),
+        )
+        .unwrap();
+        m.enable_batch(3).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+        assert_eq!(m.set_token_feedback(feedback), feedback);
+        let o = BatchedOptions::new(3, 16);
+        let meta = EngineMeta { id: "tiny".into(), eos_ids: vec![EOS], ..Default::default() };
+        BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel, o).unwrap()
+    }
+    fn collect(rx: std::sync::mpsc::Receiver<GenEvent>) -> Done {
+        let mut ids = vec![];
+        for ev in rx.iter() {
+            match ev {
+                GenEvent::Token { id, .. } => ids.push(id),
+                GenEvent::Done { finish_reason, completion_tokens, cached_tokens, .. } => {
+                    ids.truncate(completion_tokens);
+                    return (ids, (finish_reason, completion_tokens, cached_tokens));
+                }
+                GenEvent::Error { message } => panic!("{message}"),
+            }
+        }
+        panic!("no Done event")
+    }
+    let prompts = [bytes("alpha beta"), bytes("gamma"), bytes("delta epsilon zeta")];
+    let mut outs = vec![];
+    for feedback in [false, true] {
+        let e = batched(feedback);
+        // the stop id: what the first request generates as its 4th token
+        let free = collect(e.submit(req(&prompts[0], 12)).unwrap());
+        let mut stop = req(&prompts[0], 12);
+        stop.ignore_eos = false;
+        stop.stop_ids = vec![free.0[3]];
+        let rxs = vec![e.submit(stop).unwrap(), e.submit(req(&prompts[1], 20)).unwrap(), e.submit(req(&prompts[2], 16)).unwrap()];
+        let batch: Vec<Done> = rxs.into_iter().map(collect).collect();
+        assert_eq!(batch[0].1 .0, FinishReason::Stop, "feedback {feedback}");
+        // one more request after the batch drained
+        let after = collect(e.submit(req(&bytes("alpha beta again"), 6)).unwrap());
+        outs.push((free, batch, after, e.telemetry().kv_used_tokens));
+    }
+    assert_eq!(outs[0], outs[1]);
+}
