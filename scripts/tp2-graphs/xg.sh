@@ -76,7 +76,7 @@ GD='$HOME/intarsia-tp2/golden'; VG='$HOME/intarsiaml-golden'; DD='$HOME/intarsia
 # command prefix (nsys); WBIN: another binary.
 worker_start() { # <tag> <flags...>
   local tag=$1; shift
-  r spark2 "rm -f ~/intarsia-tp2/stop-worker; nohup bash -c 'i=0; while [ ! -f ~/intarsia-tp2/stop-worker ]; do i=\$((i+1)); env $NCCLENV ${WENV:-} ${WWRAP:-} ${WBIN:-$BIN} tp-worker --listen $WIP:$WPORT $* >> $XO/worker-$tag.log 2>&1; echo \"worker exit \$? (\$i)\" >> $XO/worker-$tag.log; sleep 1; done' > /dev/null 2>&1 < /dev/null &"
+  r spark2 "rm -f ~/intarsia-tp2/stop-worker; nohup bash -c 'i=0; while [ ! -f ~/intarsia-tp2/stop-worker ]; do i=\$((i+1)); env $NCCLENV ${XENV:-} ${WENV:-} ${WWRAP:-} ${WBIN:-$BIN} tp-worker --listen $WIP:$WPORT $* >> $XO/worker-$tag.log 2>&1; echo \"worker exit \$? (\$i)\" >> $XO/worker-$tag.log; sleep 1; done' > /dev/null 2>&1 < /dev/null &"
   sleep 1
 }
 worker_stop() {
@@ -87,7 +87,7 @@ GEN_FLAGS="-m $M35 --backend cuda --tp 2 --max-seq 20480 --mem-budget 16 --profi
 xgen() {
   local tag=$1 chars=$2 bin=$3; shift 3
   WBIN=$bin worker_start $tag $GEN_FLAGS "$@"
-  r spark1 "env $NCCLENV timeout ${GEN_TIMEOUT:-600} $bin generate $GEN_FLAGS $* --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos --show-ids \
+  r spark1 "env $NCCLENV ${XENV:-} timeout ${GEN_TIMEOUT:-600} $bin generate $GEN_FLAGS $* --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos --show-ids \
     -p \"\$(head -c $chars ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 256 > $XO/gen-$tag.out 2> $XO/gen-$tag.err; echo $tag rc=\$?; grep -aE 'finish=|graph' $XO/gen-$tag.err | head -3; grep -a '^ids:' $XO/gen-$tag.err > $XO/gen-$tag.ids" | tee -a "$L/steps.log"
   worker_stop
   rank1_check $tag "$@"
@@ -126,7 +126,7 @@ xacc() { # <tag> <binary> <accuracy args...> (--no-graphs among them goes to bot
   local tag=$1 bin=$2; shift 2; want $tag || return 0
   local wf=""; [[ " $* " == *" --no-graphs "* ]] && wf="--no-graphs"
   WBIN=$bin worker_start $tag $AF $wf
-  r spark1 "env $NCCLENV timeout ${ACC_TIMEOUT:-1500} $bin accuracy $AF --tp-remote $WIP:$WPORT $* > $XO/$tag.log 2>&1; echo $tag rc=\$?; grep -aE 'SELF-STATS|self-golden gate|floor verdict|prefix-reuse gate|verdict|^Error' $XO/$tag.log | cut -c1-260" | tee -a "$L/steps.log"
+  r spark1 "env $NCCLENV ${XENV:-} timeout ${ACC_TIMEOUT:-1500} $bin accuracy $AF --tp-remote $WIP:$WPORT $* > $XO/$tag.log 2>&1; echo $tag rc=\$?; grep -aE 'SELF-STATS|self-golden gate|floor verdict|prefix-reuse gate|verdict|^Error' $XO/$tag.log | cut -c1-260" | tee -a "$L/steps.log"
   worker_stop
   rank1_check $tag $wf
 }
@@ -156,6 +156,21 @@ if [[ $MODE == gates ]]; then
   xacc graph-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
   xacc graph-floor-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
   xacc graph-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
+  # 2b. row-local fusion under TP (opt-in INTARSIA_TP_FUSION=1, both ranks): ids against tp=2 graphs unfused, the vLLM floor
+  # (PR #40 judge) with dumps for the run-to-run KL table, the 35B TP self-golden budget against tp=2 eager, prefix reuse
+  for sz in 5k:5000 16k:54000; do
+    t=${sz%%:*}; c=${sz#*:}
+    want fids$t || continue
+    xgen tp2g-$t $c $BIN
+    XENV=INTARSIA_TP_FUSION=1 xgen tp2gf-$t $c $BIN
+    idcmp tp2g-$t tp2gf-$t
+    idcmp tp2e-$t tp2gf-$t
+  done
+  XENV=INTARSIA_TP_FUSION=1 xacc fus-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --write-self-golden $DD/T2F-short.safetensors
+  XENV=INTARSIA_TP_FUSION=1 xacc fus-floor-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --write-self-golden $DD/T2F-long.safetensors
+  XENV=INTARSIA_TP_FUSION=1 xacc fus-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-$PRE_CHANGE} --allow-same-code $B_SHORT
+  XENV=INTARSIA_TP_FUSION=1 xacc fus-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-$PRE_CHANGE} --allow-same-code $B_LONG
+  XENV=INTARSIA_TP_FUSION=1 xacc fus-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
   # 3. tp=1 unchanged: plan show (35B, 8B), 256 greedy ids, self-golden of the dev build against the base build (spark1 alone)
   if want tp1; then
     M8=$(r spark1 "ls -d ~/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/* 2>/dev/null | head -1")
@@ -249,6 +264,7 @@ if [[ $MODE == window ]]; then
         tp1g) bench_arm tp1g $rd "" - ;;
         tp2e) bench_arm tp2e $rd "" "--no-graphs" --tp 2 --tp-remote $WIP:$WPORT --no-graphs ;;
         tp2g) bench_arm tp2g $rd "" "" --tp 2 --tp-remote $WIP:$WPORT ;;
+        tp2gf) bench_arm tp2gf $rd "INTARSIA_TP_FUSION=1" "" --tp 2 --tp-remote $WIP:$WPORT ;;
         tp2g-ll) SIZES=1024 bench_arm tp2g-ll $rd "NCCL_PROTO=LL" "" --tp 2 --tp-remote $WIP:$WPORT ;;
         tp2g-ll128) SIZES=1024 bench_arm tp2g-ll128 $rd "NCCL_PROTO=LL128" "" --tp 2 --tp-remote $WIP:$WPORT ;;
         tp2g-simple) SIZES=1024 bench_arm tp2g-simple $rd "NCCL_PROTO=Simple" "" --tp 2 --tp-remote $WIP:$WPORT ;;
