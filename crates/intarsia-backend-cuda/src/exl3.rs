@@ -22,10 +22,11 @@ pub const SLICE_ROWS: usize = 128;
 pub const GEMM_SLICE_ROWS: usize = 512;
 
 /// Rows from which the GEMM is registered. The GEMV decodes the weights once per 16-row pass, so its time steps up at 17,
-/// 33, 49 .. rows; the GEMM costs the same from 1 to 64 rows (one 64-row block). Measured on spark1 (GB10, cold weights, the
-/// four Qwen3-8B shapes, 4-bit 3inst, docs/results/2026-10-21-m2-exl3/raw/cuda-gemm-prefill.log): at 32 rows they tie
-/// (68 vs 68 us at 4096x4096, 165 vs 172 us at 12288x4096), at 48 rows the GEMM takes 0.55-0.64x of the GEMV's time on every
-/// shape, and at 16 rows the GEMV is 2x faster. So 33.
+/// 33, 49 .. rows; the GEMM costs about the same from 1 to 64 rows (one 64-row block). Measured on spark1 (GB10, cold
+/// weights, the four Qwen3-8B shapes, 4-bit 3inst, docs/results/2026-10-21-m2-exl3/raw/cuda-gemm-prefill.log): at 16 rows the
+/// GEMV is 2x faster (42.6 vs 84.9 us at 4096x4096); at 32 rows the GEMM wins on three shapes (62.9 vs 68.4, 50.2 vs 63.0,
+/// 174.3 vs 205.9 us) and loses 8% on 12288x4096 (179.1 vs 165.7); at 48 rows it takes 0.51-0.57x of the GEMV's time on every
+/// shape. So 33.
 pub const GEMM_MIN_TOKENS: usize = 33;
 
 /// Scratch bytes of the GEMV: the rotated input of one slice, fp16 `[min(M, 128), K]`, rounded up to 256 bytes.

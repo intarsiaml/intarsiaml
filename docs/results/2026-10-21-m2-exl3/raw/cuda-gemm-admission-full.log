@@ -326,4 +326,4 @@ candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
 op             kernel                      cases   fail     max_abs      rel_l2  result
 matmul_exl3    matmul_exl3_gemv              242      0    6.250e-3    1.679e-3  ADMITTED
 matmul_exl3    matmul_exl3_gemm               81      0    5.435e-3    9.452e-4  ADMITTED
-2 kernels, 323 cases in 3.7s
+2 kernels, 323 cases in 3.8s

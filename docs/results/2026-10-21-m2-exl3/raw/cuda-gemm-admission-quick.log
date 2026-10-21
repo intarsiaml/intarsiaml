@@ -1,4 +1,4 @@
-NVIDIA GB10, 2398 MHz, 48
+NVIDIA GB10, 2398 MHz, 47
 candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
   matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.067e-3 rel_l2=1.034e-3 M=1 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
   matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.294e-3 rel_l2=9.699e-4 M=5 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16

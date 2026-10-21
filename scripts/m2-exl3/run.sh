@@ -58,6 +58,8 @@ fi
 if has race; then
   echo "== racecheck (exl3 f16_activations_and_outputs)"
   rsh "cd $R/$TREE; B=\$(ls -t target/acc/release/deps/exl3-* | grep -v '\\.d\$' | head -1); INTARSIA_REQUIRE_GPU=1 timeout 900 compute-sanitizer --tool racecheck --racecheck-report all \$B --test-threads=1 --exact f16_activations_and_outputs 2>&1 | tail -15" 2>&1 | tee "$OUT/${PFX}-racecheck.log"
+  echo "== racecheck (GEMM, 128-row blocks: 512 x 4096 x 256, three launches)"
+  rsh "cd $R/$TREE; B=\$(ls -t target/acc/release/deps/exl3-* | grep -v '\\.d\$' | head -1); INTARSIA_REQUIRE_GPU=1 EXL3_PROF_DIRECT=1 EXL3_PROF_M=512 EXL3_PROF_N=4096 EXL3_PROF_K=256 timeout 900 compute-sanitizer --tool racecheck --racecheck-report all \$B --ignored --exact profile_one_shape --test-threads=1 2>&1 | tail -8" 2>&1 | tee -a "$OUT/${PFX}-racecheck.log"
 fi
 if has memcheck; then
   # out-of-bounds / misaligned accesses: the clamped rows and the cp.async of the GEMM (f16 test: both kernels, K = 384)
@@ -65,5 +67,7 @@ if has memcheck; then
     echo "== memcheck ($t)"
     rsh "cd $R/$TREE; B=\$(ls -t target/acc/release/deps/exl3-* | grep -v '\\.d\$' | head -1); INTARSIA_REQUIRE_GPU=1 timeout 900 compute-sanitizer --tool memcheck \$B --test-threads=1 --exact $t 2>&1 | tail -8" 2>&1 | tee -a "$OUT/${PFX}-memcheck.log"
   done
+  echo "== memcheck (GEMM, 128-row blocks: 512 x 4096 x 256)"
+  rsh "cd $R/$TREE; B=\$(ls -t target/acc/release/deps/exl3-* | grep -v '\\.d\$' | head -1); INTARSIA_REQUIRE_GPU=1 EXL3_PROF_DIRECT=1 EXL3_PROF_M=512 EXL3_PROF_N=4096 EXL3_PROF_K=256 timeout 900 compute-sanitizer --tool memcheck \$B --ignored --exact profile_one_shape --test-threads=1 2>&1 | tail -8" 2>&1 | tee -a "$OUT/${PFX}-memcheck.log"
 fi
 echo "== done"
