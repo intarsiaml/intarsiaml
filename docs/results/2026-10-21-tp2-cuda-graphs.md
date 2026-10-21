@@ -6,19 +6,51 @@ origin/main `c4ea00b` (PR #44 merged). Raw logs: `2026-10-21-tp2-cuda-graphs/raw
 
 ## Headline
 
-**With the decode step captured as a CUDA graph on both ranks (NCCL all-reduces included), tp=2 decode beats tp=1:**
-+15 % / +16 % / +20 % at 1k / 4k / 16k, and +24 % over tp=2 eager. Graph and eager logits are bitwise identical, so
-graphs are on by default at tp=2 when the communicator can be captured (NCCL). Against vLLM (tp=1 per Spark, same day):
-decode **+21 % / +21 % / +17 %**, prefill +2 % / +8 % / +5 %.
+**tp=2 decode now beats tp=1** once the decode step is a CUDA graph on both ranks, NCCL all-reduces included.
 
-The all-reduce does not dominate the step. Measured per call it is 16.7 µs of transfer (median), the same as the
-design's 17 µs link figure, plus 6 µs mean wait: 1.9 ms of a 10.9 ms step. The rest of the step is compute that is
-less than half of tp=1's, because fusion is off under TP: 784 launches per step against 325. Row-local fusion under
-TP is therefore the next lever. It is implemented here as an opt-in backend capability (section 3).
+| decode tok/s, final build `871f912`, window 2, A/B ×3 | 1k | 4k | 16k |
+|---|---|---|---|
+| tp=1 + graphs (shipped) | 81.7 | 79.3 | 72.9 |
+| tp=2 eager (main today) | 72.4 | 71.6 | 68.7 |
+| **tp=2 + graphs (default in this PR)** | **91.6** (+12 %) | **90.0** (+13 %) | **85.0** (+17 %) |
+| **tp=2 + graphs + row-local fusion (opt-in `INTARSIA_TP_FUSION=1`)** | **96.5** (+18 %) | **94.5** (+19 %) | **88.2** (+21 %) |
+| vLLM tp=1 (localeval, G1b, same day) | 77.9 | 76.6 | 73.6 |
+
+- Percentages are against tp=1 + graphs.
+- Against vLLM (localeval on both sides): tp=2 graphs + fusion decodes +22 % / +23 % / +18 % faster.
+- **Graphs and fusion change no bits.** Greedy ids are identical, and the self-golden against the tp=2 eager dump
+  matches eager's own run-to-run digits exactly.
+- **The all-reduce is not the bottleneck.** Measured on both ranks:
+  - 16.7 µs median transfer per call, which is the link's floor, plus about 6 µs mean wait;
+  - 80 calls per step, about 2 ms of an 11 ms step.
+  - LL/LL128 and a custom one-shot were therefore not tried (section 1).
+- **Graphs win by removing per-step launch and host time:** 2.4 ms of idle per step eager, 0.6 ms with graphs.
+- **Fusion wins on launch count:** 130 → 50 fp8 GEMVs, the 140 bf16 GEMVs gone, 131 → 32 rmsnorms.
 
 ## 1. Numbers
 
 ### Speed: interleaved A/B ×3, `intarsia bench speed --at-most`
+
+**Window 2** (fleetq #3155, both vLLMs down, final build `871f912`; `raw/window2/ab-table.txt`).
+- Arms tp1g / tp2g / tp2gf ran in all three rounds, with the order reversed in round 2; tp2e ran in rounds 1 and 3.
+- Cells are medians of the round medians, in tok/s.
+
+| arm | prefill 1k\* | 4k | 16k | decode 1k | 4k | 16k |
+|---|---|---|---|---|---|---|
+| tp1g: tp=1, graphs (shipped) | 4510 | 5858 | 5505 | 81.7 | 79.3 | 72.9 |
+| tp2e: tp=2 eager | 4761 | 7120 | 6855 | 72.4 | 71.6 | 68.7 |
+| **tp2g: tp=2, graphs (default)** | 5272 | 7132 | 6857 | **91.6** | **90.0** | **85.0** |
+| **tp2gf: tp=2, graphs + fusion (opt-in)** | 5415 | 7130 | 6907 | **96.5** | **94.5** | **88.2** |
+| tp2g vs tp1g | +17 % | +22 % | +25 % | +12.1 % | +13.4 % | +16.6 % |
+| tp2gf vs tp1g | +20 % | +22 % | +25 % | **+18.1 %** | **+19.2 %** | **+21.0 %** |
+| tp2gf vs tp2g | | | | +5.3 % | +5.0 % | +3.8 % |
+
+- Decode per round, 1k / 16k, in tok/s:
+  - tp1g: 81.7, 82.1, 81.6 / 72.9, 73.3, 72.2;
+  - tp2g: 90.5, 92.1, 91.6 / 84.1, 86.4, 85.0;
+  - tp2gf: 96.5, 97.6, 95.6 / 88.4, 88.2, 87.6.
+- The tp2gf rounds do not overlap with tp2g or tp1g at any size.
+- Every tp=2 graphs arm passed `--require-graphs` plus the rank-1 replay check.
 
 Window 1 (fleetq #3101, both vLLMs down). Binary `2363660` (the change before the rebases; section 4 ties it to the
 shipped tree). Each arm is a fresh `serve`; sizes 1024 / 4096 / 16384, gen 128, 2 reps + 1 warmup. tp1g and tp2g ran
@@ -32,6 +64,11 @@ medians (`raw/window1/ab-table.txt`, `scripts/tp2-graphs/ab_table.py`).
 | **tp2g: tp=2, CUDA graphs (this PR)** | **5382** | **7148** | **6890** | **93.7** | **92.5** | **87.5** |
 | tp2g vs tp1g | +19 % | +22 % | +25 % | **+14.6 %** | **+16.4 %** | **+20.3 %** |
 | tp2g vs tp2e | +5 % | +1 % | 0 % | **+23.8 %** | **+24.2 %** | **+23.9 %** |
+
+- Window 1 (pre-rebase `2363660`) and window 2 agree:
+  - tp1g within 0.3 %;
+  - tp2g 2-3 % lower in window 2. That is the run-to-run spread of the cross-host arm (tp2e also moved, 75.7 → 72.4 at
+    1k). No CUDA code changed between the two binaries apart from the opt-in fusion, which is off in tp2g.
 
 \* The 1k prompts have fewer than 1024 tokens, so the 1k prefill column is mostly TTFT.
 
@@ -48,12 +85,17 @@ medians (`raw/window1/ab-table.txt`, `scripts/tp2-graphs/ab_table.py`).
 | | prefill 1k\* | 4k | 16k | decode 1k | 4k | 16k |
 |---|---|---|---|---|---|---|
 | intarsia tp=2 graphs (localeval, 3 reps, window 1) | 5274 | 6863 | 6580 | 94.6 | 92.8 | 86.4 |
+| intarsia tp=2 graphs + fusion (localeval, 3 reps, window 2) | 5312 | 6896 | 6659 | 95.2 | 94.3 | 86.6 |
 | vLLM tp=1 on spark1 (localeval, CUDA round 7, same day) | 5171 | 6353 | 6275 | 77.9 | 76.6 | 73.6 |
 | tp=2 graphs vs vLLM | +2 % | +8 % | +5 % | **+21 %** | **+21 %** | **+17 %** |
+| tp=2 graphs + fusion vs vLLM | +3 % | +9 % | +6 % | **+22 %** | **+23 %** | **+18 %** |
 
-- Run: `/opt/code/deepeval/results/20261021-133100-adhoc-intarsia-35b-tp2-graphs-xhost/result.json`
-  (`raw/window1/localeval-tp2g.log`). Its unanimis capture failed (ssh session refused), as in G1b; the result file is
-  saved.
+- Runs:
+  - `/opt/code/deepeval/results/20261021-133100-adhoc-intarsia-35b-tp2-graphs-xhost/result.json`
+    (`raw/window1/localeval-tp2g.log`);
+  - `.../20261021-152359-adhoc-intarsia-35b-tp2-graphs-xhost/result.json` (`raw/window2/localeval-tp2gf.log`).
+  - Localeval's single-stream decode (95.2) is 1-2 % below `bench speed`'s and matches it within run-to-run spread.
+- Both runs' unanimis capture failed (ssh session refused), as in G1b; the result files are saved.
 - vLLM is G1b's reference: `/opt/code/deepeval/results/20261021-105608-spark-guidance-vllm-cuda-round7/result.json`,
   with the same flags. It was not re-measured; the window time went to the A/B. The fleet runs no vLLM tp=2 for this
   model (G1b section 4).
@@ -105,7 +147,24 @@ Final build `871f912` (`code-tree=fdd801a4a397 dirty=no`) on origin/main `c4ea00
 (`code-tree=88f485a37154 dirty=no`). vLLM was up. Raw logs: `raw/gates3`. Earlier builds: `raw/gates`, `raw/gates2`
 (`a0a8189` on the pre-merge branch) and `raw/mut`.
 
-GATES3_TABLE
+| gate | result |
+|---|---|
+| **tp=1 bitwise unchanged**: `plan show --json`, 35B / 8B, base vs dev | **identical** (13961 / 8630 bytes) |
+| tp=1 256 greedy ids, 1.5k and 16k, base vs dev | **identical** |
+| tp=1 self-golden, dev against the base dump (35b-short) | mean KL21 2.723472e-13 / 3.728103e-11 (prefill / decode), 0 flips: the bitwise floor, the same digits as G1b's base against its own dump. PASS |
+| **tp=2 graphs vs tp=2 eager**: 256 greedy ids, 1.5k and 16k | **identical** (both builds `a0a8189` and `871f912`, and the pre-rebase build) |
+| tp=2 graphs against the tp=2 eager dump, 35b-short | prefill 1.377398e-12, decode 6.618585e-13, max 1.4e-9, **0 flips**. PASS at floor budgets |
+| tp=2 eager against its own dump (the floor) | **the same digits** in every SELF-STATS field: graphs give the bits eager gives |
+| tp=2 graphs against the tp=2 eager dump, 35b-long | prefill 2.972350e-13, decode 1.094389e-11, 0 flips. PASS at floor budgets |
+| vLLM floor (PR #40 judge), tp=2 eager run that wrote the dumps | short PASS, long PASS. Graphs are bitwise eager, so G1b's KL against vLLM's run-to-run (1.06x / 0.99x, excl. rows) holds unchanged |
+| prefix reuse, tp=2 graphs | **PASS**: continue / restore / aligned 32/32 on every prompt, aligned restore **logits bit-identical to the cold run**; rank 1 replayed (1184 replays) |
+| `kernels test --backend cuda` | 52 kernels, 746 cases, **0 FAIL** |
+| rank-1 replay check (every graphs run) | ok in every gate and A/B run |
+
+Floor budgets: `--self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 5e-8`.
+- The first run set the tail limit at 1e-9, below the identical-logits floor (tail_abs 3e-9 to 1e-8, as in tp=1's
+  bitwise self-check). It failed on that limit alone (`raw/gates`).
+- `raw/gates2` and `raw/gates3` use the corrected budget.
 
 **Mutants** of the capture and replay logic (`scripts/tp2-graphs/mutate.py`, one GPU build each, judged by greedy ids
 against tp=2 eager, the floor self-golden and the rank-1 replay check; `raw/mut`, `raw/mut-ids`):
@@ -122,14 +181,44 @@ against tp=2 eager, the floor self-golden and the rank-1 replay check; `raw/mut`
 **Mac / feature checks:**
 - `cargo test --workspace` on frozen copies of the tree:
   - pre-rebase `48a9715`: 111 suites, 0 failures (`fleetq #3102`);
-  - final tree: CARGO_FINAL.
+  - final tree `871f912`: 114 suites, 0 failures (`fleetq #3147`).
 - `tp_hybrid` (7 tests) includes the new fusion test and the TCP remote rank, which carries the new `Forward` frame.
 - `cargo check --workspace --tests`, and `cargo check -p intarsia-cli` with `--features cuda`, `--features metal` and
   `--features hip`: pass.
 
 ## 3. Row-local fusion under TP (opt-in)
 
-FUSION_SECTION
+- **What it is.** Under TP, `Model::fused_ok` used to refuse every fused decode op. Fusion under TP is now a backend
+  capability:
+  - `Backend::fusion_under_tp`: CUDA and the CPU reference say yes; HIP and Metal keep the default, no.
+  - It is opt-in through `LoadOptions::tp_fusion` (`INTARSIA_TP_FUSION=1`).
+  - `INTARSIA_TP_FUSION=1` on a backend without the capability is a load error at world > 1, not a silent no-op.
+- **Which ops (`Model::fused_under_tp`).** Every fused op whose replaced chain stays row-local on the shard: projection
+  pairs, rmsnorm+add+pair, the GDN conv+delta, gated rmsnorm, q/k norm+rope+kv, the NVFP4 GLU and the MoE block.
+  - **`GatedRmsnormMatmulFp8` stays off.** It folds the GatedDeltaNet out-projection, a row-parallel matmul whose output
+    is a partial that `proj_reduce` must land in the f32 buffer and all-reduce. Fused, it writes the block output
+    directly and swallows the reduce.
+  - `SigmoidMulMatmulFp8` (attention o_proj) was already tried only with bf16 partials, where the reduce follows it.
+- **Gates (`raw/gates3`, both ranks under `INTARSIA_TP_FUSION=1`, graphs on):**
+  - 256 greedy ids at 1.5k and 16k: **identical** to tp=2 graphs unfused and to tp=2 eager.
+  - Self-golden against the tp=2 eager dump, short and long: **the same digits as eager against itself** (short:
+    prefill 1.377398e-12, decode 6.618585e-13, 0 flips). On these gates fusion is bitwise to unfused.
+  - vLLM floor (PR #40 judge): short PASS, long PASS.
+  - Prefix reuse: PASS, aligned restore bit-identical; rank 1 replayed 1184 times.
+  - Mac: `tp_hybrid::hybrid_moe_tp2_row_local_fusion_matches_tp1_f32`. Rank 0 ran 8 fused ops (listed in the test
+    output) and stayed within rel L2 3.4e-6 of tp=1. Allowing the out-projection fold breaks it (rel L2 1.33,
+    mutant killed).
+- **Speed (window 2):**
+  - decode +5.3 % / +5.0 % / +3.8 % over tp=2 graphs unfused, and +18 % / +19 % / +21 % over tp=1;
+  - rank-0 step 11.08 → 10.47 ms (nsys, `raw/window2/kernel-table-fusion.txt`).
+  - Launch counts: `fp8_gemv` 130 → 50 (+40 pairs), the 140 bf16 `gemv` gone (into `nvfp4_glu` and pairs),
+    `rmsnorm` 131 → 32.
+  - The NCCL share is unchanged (2.0 ms, transfer 1.39 ms).
+- **What is left.**
+  - Compute per step is 7.8 ms against tp=1's 12.15 / 2 ≈ 6.1. The rest is ops that do not halve (GDN, attention,
+    routing) and per-launch overhead.
+  - The all-reduce is 2 ms at the link's floor. Fewer of them (one per block instead of two) would need a
+    sequence-parallel layout, which is not in scope.
 
 ## 4. What changed
 
@@ -161,14 +250,10 @@ FUSION_SECTION
   - `tp-worker` prints its graph counters when rank 0 disconnects, so every gate shows that rank 1 replayed.
 - **Wire format.** `Forward` is now `sid | flags | ids`. Both ranks must run the same build, which the fingerprint
   already requires in practice.
-- **Window binary vs shipped tree.**
-  - Window 1 ran `2363660`. The shipped tree adds:
-    - the rebases onto PR #42 (Metal FfnBlock) and #44 / #49: no CUDA code differs from `2363660` except the import
-      fix in #44;
-    - rustfmt;
-    - the opt-in fusion.
-  - The tp2g greedy ids at 1.5k and 16k from `2363660`'s predecessor (`raw/smoke1`, `raw/pre-gates`) and from
-    `871f912` (`raw/gates3`) are compared in section 2.
+- **Binaries.**
+  - Window 2, the final gates and the mutants' base all ran `871f912`. Commits after it change only docs and scripts.
+  - Window 1 ran the pre-rebase `2363660`: the same graph code without the opt-in fusion. It is kept as the repeat
+    measurement.
 
 ## 5. Files and effect per backend
 
@@ -179,7 +264,7 @@ FUSION_SECTION
 | core `comm.rs` (`capture_safe`, `reserve`), `backend.rs` (`fusion_under_tp`) | used | defaults (false / no-op): unchanged | unchanged | `fusion_under_tp` true (opt-in only) |
 | core `model.rs`, `model/graph_step.rs`, `tp_remote.rs` | graphs at tp=2 (default on, bitwise to eager); opt-in fusion | tp=2 still eager (`P2pComm` not capture-safe); fusion still off | world 1 only: unchanged | TP tests only |
 | models `load.rs` (worker log), tests `tp_hybrid.rs` | | | | new test |
-| CLI `common.rs` (`INTARSIA_TP_FUSION`) | opt-in | env refused with an error at world > 1 (no capability) | none | |
+| CLI `common.rs` (`INTARSIA_TP_FUSION`) | opt-in | load error if set at world > 1 (no capability); unset: unchanged | no TP: unchanged | |
 | CUDA `nccl.rs`, `device.rs` | capture-safe NCCL, reserved scratch, fusion capability | | | |
 
 - tp=1 is bitwise unchanged on CUDA (section 2).
@@ -196,10 +281,29 @@ FUSION_SECTION
 | job | roles | down | serving after |
 |---|---|---|---|
 | #3101 window 1 (prof + A/B ×3 + localeval) | spark1-vllm, spark2-vllm | 758 s / 783 s (13:26:47-13:39:25 / 13:39:50) | yes, both |
-WINDOW2_ROW
+| #3155 window 2 (fusion A/B ×3 + prof + localeval) | spark1-vllm, spark2-vllm | 876 s / 876 s (15:19:03-15:33:39) | yes, both |
 
-All other jobs ran with vLLM up. Total used: DOWNTIME_TOTAL of the 60 min allocation (`raw/downtime.log`).
+Total used: **27.7 min of both-down time** (13.1 + 14.6), each window under 30 min, 99 min of serving between them, of the 60 min allocation (`raw/downtime.log`). Every other job (builds, gates, mutants) ran with vLLM up.
 
 ## 7. Decisions for the user
 
-DECISIONS
+1. **Make row-local fusion the tp=2 default on CUDA?**
+   - For: +4-5 % decode; bitwise to unfused on every gate here; the out-projection fold is excluded and
+     mutant-tested.
+   - Against: one model, one day.
+   - Recommendation: yes, after a short soak. It is a one-line default flip (`LoadOptions::tp_fusion`) in a follow-up
+     PR. This PR keeps it opt-in.
+2. **Serve the 35B at tp=2?**
+   - Single-stream decode is +12-21 % over tp=1 and +17-23 % over vLLM.
+   - But it holds both Sparks for one engine, and batched decode refuses world > 1. Aggregate throughput is therefore
+     below two tp=1 servers.
+   - Worth it only for a latency-first role. That is a fleet decision (which role gives up spark2).
+3. **The `no-reserve` mutant survives the bit gates** (section 2). The reservation is there and is load-bearing by
+   construction, but nothing tests it.
+   - Option: a cross-host `compute-sanitizer` run, about 10 min with vLLM up.
+   - Option: accept it as is.
+4. **No all-reduce work.** The data says the all-reduce runs at the link's floor (section 1). LL/LL128 and a custom
+   one-shot are not worth a lane unless a sequence-parallel layout is on the table.
+5. **Merge.** This PR touches shared core files (`model.rs`, `comm.rs`, `backend.rs`), so it needs the Metal and HIP
+   no-op checks before merge. HIP keeps eager decode and unfused ops at tp=2 until its communicator says
+   `capture_safe` (G2c).

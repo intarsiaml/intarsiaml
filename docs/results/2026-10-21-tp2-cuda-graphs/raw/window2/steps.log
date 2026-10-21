@@ -1,0 +1,117 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+15:19:34 vLLM stopped on spark1
+15:19:36 vLLM stopped on spark2
+15:19:36 spark1 MemAvailable 111 GB
+15:19:36 spark2 MemAvailable 111 GB
+208 MHz, [N/A], 42, 4.01 W, 0 %
+prof-tp1 rc=0
+finish=length prompt=1073 (cached 0) completion=64 | prefill 654 ms (1640.7 tok/s) | decode 793 ms (79.40 tok/s)
+steps=65 graph replays=64 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65 gate_split=0ms/650
+nsys-tp1-g_cuda_gpu_trace.csv
+nsys-tp1-g.nsys-rep
+nsys-tp1-g.sqlite
+prof-g rc=0
+finish=length prompt=1073 (cached 0) completion=64 | prefill 2128 ms (504.1 tok/s) | decode 701 ms (89.83 tok/s)
+steps=65 graph replays=64 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/5200 argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65
+-rw-rw-r-- 1 nvidia nvidia 22117910 Oct 21 15:21 nsys-r0-g_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4756304 Oct 21 15:21 nsys-r0-g.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 13205504 Oct 21 15:21 nsys-r0-g.sqlite
+-rw-rw-r-- 1 nvidia nvidia 22155569 Oct 21 15:21 nsys-r1-g_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4717916 Oct 21 15:21 nsys-r1-g.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 13369344 Oct 21 15:21 nsys-r1-g.sqlite
+prof-gf rc=0
+finish=length prompt=1073 (cached 0) completion=64 | prefill 1767 ms (607.3 tok/s) | decode 660 ms (95.39 tok/s)
+steps=65 graph replays=64 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/5200 argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65
+-rw-rw-r-- 1 nvidia nvidia 18802125 Oct 21 15:21 nsys-r0-gf_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4235602 Oct 21 15:21 nsys-r0-gf.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 11558912 Oct 21 15:21 nsys-r0-gf.sqlite
+-rw-rw-r-- 1 nvidia nvidia 18780490 Oct 21 15:21 nsys-r1-gf_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4196539 Oct 21 15:21 nsys-r1-gf.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 11747328 Oct 21 15:21 nsys-r1-gf.sqlite
+tp1g r1 rc=0
+    4096     4004     0.686         5838        79.3      128
+   16384    16200     2.926         5536        72.9      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 3 profiled eager steps (per-op profiling synchronises around every op)
+tp2g r1 rc=0
+    4096     4010     0.562         7132        90.0      128
+   16384    16266     2.372         6857        84.1      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2g-r1: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=788
+15:23:29   REPLAY-CHECK ok tp2g-r1
+tp2gf r1 rc=0
+    4096     3970     0.557         7133        94.5      128
+   16384    16275     2.357         6907        88.4      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+15:23:58 localeval arm tp2gf
+15:24:22 localeval arm tp2gf exit 0: Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.||Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.|||## Method||Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce 
+  rank1 tp2gf-r1: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1933
+15:24:25   REPLAY-CHECK ok tp2gf-r1
+tp2e r1 rc=0
+warning: size 1024: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2e-r1: tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0
+tp2gf r2 rc=0
+    4096     4015     0.563         7130        94.7      128
+   16384    16325     2.363         6908        88.2      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 3 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2gf-r2: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=915
+15:25:34   REPLAY-CHECK ok tp2gf-r2
+tp2g r2 rc=0
+    4096     3997     0.565         7072        89.9      128
+   16384    16316     2.389         6829        86.4      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2g-r2: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=788
+15:26:06   REPLAY-CHECK ok tp2g-r2
+tp1g r2 rc=0
+    4096     3960     0.673         5884        79.9      128
+   16384    16241     2.960         5487        73.3      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 3 profiled eager steps (per-op profiling synchronises around every op)
+tp1g r3 rc=0
+    4096     4023     0.687         5858        79.2      128
+   16384    16323     2.965         5505        72.2      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 3 profiled eager steps (per-op profiling synchronises around every op)
+tp2g r3 rc=0
+    4096     3960     0.555         7138        90.2      128
+   16384    16355     2.372         6896        85.0      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2g-r3: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=788
+15:29:02   REPLAY-CHECK ok tp2g-r3
+tp2gf r3 rc=0
+    4096     3976     0.559         7118        94.5      128
+   16384    16363     2.400         6818        87.6      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 4 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2gf-r3: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1042
+15:29:42   REPLAY-CHECK ok tp2gf-r3
+tp2e r3 rc=0
+warning: size 1024: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2e-r3: tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0
+15:30:16 == window done, 466 s of the work budget left
+15:30:16 restore (exit 0)
+15:33:39 vLLM on spark1 serving again
+15:33:39 vLLM on spark2 serving again

@@ -1,0 +1,12 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29555
+tp-worker: rank 0 connected from 10.100.152.1:35156
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=64
+tp-worker: rank 0 disconnected after 65 forward passes
+Collecting data...
+Generating '/tmp/nsys-report-0403.qdstrm'
+[1/1] [0%                          ] nsys-r1-g.nsys-rep[1/1] [0%                          ] nsys-r1-g.nsys-rep[1/1] [====25%                     ] nsys-r1-g.nsys-rep[1/1] [==19%                       ] nsys-r1-g.nsys-rep[1/1] [=15%                        ] nsys-r1-g.nsys-rep[1/1] [=16%                        ] nsys-r1-g.nsys-rep[1/1] [=17%                        ] nsys-r1-g.nsys-rep[1/1] [14%                         ] nsys-r1-g.nsys-rep[1/1] [12%                         ] nsys-r1-g.nsys-rep[1/1] [===23%                      ] nsys-r1-g.nsys-rep[1/1] [==20%                       ] nsys-r1-g.nsys-rep[1/1] [==18%                       ] nsys-r1-g.nsys-rep[1/1] [=16%                        ] nsys-r1-g.nsys-rep[1/1] [14%                         ] nsys-r1-g.nsys-rep[1/1] [13%                         ] nsys-r1-g.nsys-rep[1/1] [12%                         ] nsys-r1-g.nsys-rep[1/1] [==18%                       ] nsys-r1-g.nsys-rep[1/1] [===23%                      ] nsys-r1-g.nsys-rep[1/1] [=====29%                    ] nsys-r1-g.nsys-rep[1/1] [======35%                   ] nsys-r1-g.nsys-rep[1/1] [========41%                 ] nsys-r1-g.nsys-rep[1/1] [=========46%                ] nsys-r1-g.nsys-rep[1/1] [===========52%              ] nsys-r1-g.nsys-rep[1/1] [============55%             ] nsys-r1-g.nsys-rep[1/1] [=============59%            ] nsys-r1-g.nsys-rep[1/1] [==============63%           ] nsys-r1-g.nsys-rep[1/1] [===============67%          ] nsys-r1-g.nsys-rep[1/1] [================68%         ] nsys-r1-g.nsys-rep[1/1] [========================100%] nsys-r1-g.nsys-rep[1/1] [========================100%] nsys-r1-g.nsys-rep
+Generated:
+	/home/nvidia/intarsia-tp2/xout/window2/nsys-r1-g.nsys-rep
+worker exit 0 (1)

@@ -1,0 +1,20 @@
+step wall (us): tp2g-r0 11077, tp2gf-r0 10465; kernel sum: 10282, 9821
+| kernel | tp2g-r0 us/step | tp2gf-r0 us/step | tp2gf-r0/tp2g-r0 | launches/step tp2g-r0 / tp2gf-r0 |
+|---|---|---|---|---|
+| fp8_gemv_kernel | 3203 | 1283 | 0.40 | 130 / 50 |
+| nccl all-reduce | 1978 | 2019 | 1.02 | 80 / 80 |
+| nvfp4_gemv_kernel | 1676 | 1428 | 0.85 | 121 / 41 |
+| moe_dec_gate_up_kernel | 1007 | 1005 | 1.00 | 40 / 40 |
+| fp8_gemv_pair_kernel | 0 | 1811 | inf | 0 / 40 |
+| moe_dec_down_v2_kernel | 671 | 675 | 1.01 | 40 / 40 |
+| gemv_kernel | 535 | 0 | 0.00 | 140 / 0 |
+| gdn_delta_split_kernel | 207 | 210 | 1.01 | 30 / 30 |
+| rmsnorm_add_pair_kernel | 0 | 403 | inf | 0 / 69 |
+| rmsnorm_kernel | 250 | 59 | 0.24 | 131 / 32 |
+| moe_topk_kernel | 140 | 140 | 1.00 | 40 / 40 |
+| splitkv_kernel | 118 | 119 | 1.02 | 10 / 10 |
+| rope_kernel | 101 | 99 | 0.99 | 20 / 20 |
+| nvfp4_glu_kernel | 0 | 197 | inf | 0 / 40 |
+| gdn_conv_kernel | 89 | 86 | 0.98 | 30 / 30 |
+| gdn_conv_state_kernel | 41 | 43 | 1.06 | 30 / 30 |
+| (other 12) | 267 | 243 | | |
