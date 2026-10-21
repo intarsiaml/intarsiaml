@@ -1,5 +1,7 @@
 # CUDA prefill: MoE experts on the block-scaled FP4 tensor core (W4A4), Qwen3.6-35B-A3B NVFP4 on spark1 (GB10, sm_121), 2026-10-17
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C22: the 128-token minimum used in sections 1, 4 and 7 is superseded by section 12: `NVFP4_MIN_TOKENS` is 1024, measured (`crates/intarsia-backend-cuda/src/quantmoe.rs`). Compile with `sm_121a`; plain `sm_121` is rejected. The vLLM prefill figures (5338 / 6334 / ~6400) are not comparable with the measured ones in `2026-10-18-cuda-moe-w4a16.md` (5599 / ~6570 / ~6450), so gap percentages across the three docs do not compare.
+
 Branch `perf/cuda-moe-nvfp4-mma` (from origin/main `acef8a8`). Raw logs: `docs/results/2026-10-17-cuda-moe-nvfp4-mma/raw/{wA,wB,dev,vllm-backend.txt}`; vLLM downtime log `docs/results/2026-10-17-cuda-moe-nvfp4-mma/downtime.log`; scripts `scripts/cuda-moe-nvfp4/`.
 
 ## 1. Result

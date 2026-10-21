@@ -1,5 +1,7 @@
 # Core-op fusion, phase 1: P5 + P2a + P4b as three sync-free fused ops (HIP kernels), and the `v3-nofence` stress test, 2026-10-19
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #22 (`f3cbba21`); "not pushed" / "nothing merged" wording in this page describes the state when written. C2/C1: the gate described here (kill `v3-nofence` first) was not met as written; step 0 killed `v3-noorder` instead and P2' was built on the user's "start now" / "P2 now", then made default-on in PR #28 (`0cea68fc`, kill switch `INTARSIA_HIP_MOE_BLOCK=0`).
+
 Branch `perf/core-op-fusion`, final rebase on origin/main `4962d8fa` (CUDA prefill-4 merged). All GPU numbers were measured
 on the branch rebased on `10eef81c` (HIP round 6 merged), against a `10eef81c` base (section 12 has what the last rebase changes). Plan: the proposal
 `docs/proposals/2026-10-19-core-op-fusion.md` (user decision "fuse yes", 2026-10-19 01:12 EDT), section 11 steps 0 and 1. Raw

@@ -1,5 +1,7 @@
 # Metal continuous batching, M1 step 2: scheduler wired to the model (`intarsia serve --max-batch 2..8`)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C16: the "chunk-size identity is unproven" limitation is closed by `2026-10-15-metal-chunk-golden.md` (bitwise identical at 256 and 2048 on 33 prompts); an absent `--max-batch` means 1; a scheduler queue-full refusal is 503, the server's own admission 429.
+
 Date 2026-10-15. Branch `metal-cb-wire` (= `metal-cb-m1` b2818bd + `spike/metal` d4e6c32, then `spike/metal` 28e5c5a and 32a42d8 merged,
 so chunk-no1, forward-no1 and test-gpu-gate are in). Machine endor (Apple M5 Max), Qwen3-8B BF16, `--max-seq 8192`.
 Plan: `docs/research/continuous-batching-design.md` section 2, 7 (M1), 8.1. Scheduler core: `2026-10-15-metal-cb-scheduler.md`.

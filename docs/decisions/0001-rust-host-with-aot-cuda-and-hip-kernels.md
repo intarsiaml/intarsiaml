@@ -1,5 +1,7 @@
 # ADR-0001: Rust host with AOT CUDA and HIP kernels
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C12: the line "libr4d not vendored (no license file)" is superseded. radiance (libr4d) is Apache-2.0 (ADR-0002, `docs/research/radiance-port-plan.md`); `kernels/hip/allreduce.hip` is derived from `r4d_ar_oneshot_2rank_exact` and carries `kernels/hip/NOTICE-radiance` and `LICENSES/Apache-2.0-radiance.txt`.
+
 _Drafted by fleet model `guidance` from the raw note; checked against the note by Claude 2026-10-12_
 
 # Architecture Decision Record: Rust host with AOT CUDA and HIP kernels

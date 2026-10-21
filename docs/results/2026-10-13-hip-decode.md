@@ -1,5 +1,7 @@
 # HIP decode speed: Qwen3.6-35B-A3B NVFP4 on one R9700 (branch perf/hip-decode)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C25: "`kernels test --quick` on the 35B passes" was not true for the case below; `2026-10-14-hip-decode-2.md` section 5 shows it exits non-zero because the flash kernel runs 0 cases. Since PR #25 (`bc5de0be`) a `--quick` run with only SKIPPED (0-case) kernels exits 0 with an "incomplete" line; REJECTED kernels and empty runs still exit 1.
+
 Tree: `df7cd32` (git tree `aba3ae4d018892ad2ee1cc810f22ac450b3191fe`) built and measured on tatooine (R9700 #0, gfx1201, ROCm 7.2.4 dev
 image, `HIP_VISIBLE_DEVICES=0`), base `63b0f72` (arch/plan). Later commits on the branch only add ABI header declarations and this
 page. The measured binary had no `INTARSIA_BUILD_STAMP` (the worktree is rsynced without `.git`), so reports say `unstamped`; the

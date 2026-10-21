@@ -1,5 +1,7 @@
 # HIP norm into GEMV: Qwen3.6-35B-A3B NVFP4 decode on one R9700 (branch perf/hip-norm-gemv)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #5 (`df18c6a5`); "not pushed" / "nothing merged" wording in this page describes the state when written.
+
 Base `dbdd40e` (`perf/hip-fp8-gemv`, the fp8 pair kernel; see `2026-10-17-hip-fp8-gemv.md`), tatooine R9700 #0 (gfx1201, ROCm 7.2.4 dev
 image, `HIP_VISIBLE_DEVICES=0`, graphs on, `--profile-every 0`). Both trees are rsynced without `.git` into their own directory and
 cargo target volume (`~/intarsiaml-normgemv`, `~/intarsiaml-normgemv-base`), so binaries report `unstamped`. Scripts:

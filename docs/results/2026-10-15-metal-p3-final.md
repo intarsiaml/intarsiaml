@@ -1,5 +1,7 @@
 # metal-p3-final: P3 (chunk 2048) merge bar on spike/metal 98f506e + golden-4k + p3-chunk
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #1 (`55bb1087`; the branch merge `c5560080`, Merge metal-p3-final, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written. C8: P3 (prefill chunk 2048) is merged: `c5560080`, 2026-10-15 10:05, after the user chose "c, a" (07:02) and set acc-4k as a baseline-gated stage (09:40). "Not merged" and "awaiting the user" describe the state when written.
+
 Branch `metal-p3-final` (worktree `/opt/code/intarsiaml-p3-final`) = `spike/metal` 98f506e (tail-fix merged) + `metal-golden-4k`
 (baseline-gated `acc-4k`, b71ee56 and the docs after it) + `metal-p3-chunk` (177da74, `[tuning.metal] prefill_chunk = 2048`), then
 the re-recorded Metal baselines (da8f69a). Qwen3-8B BF16, endor (Apple M5 Max). **Not merged into spike/metal, nothing pushed.**

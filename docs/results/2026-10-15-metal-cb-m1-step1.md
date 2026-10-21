@@ -1,5 +1,7 @@
 # Metal continuous batching, M1 step 1: exact batched decode step (no scheduler)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C16: the rule that the recipe `max_batch` applies when `--max-batch` is absent is reversed by `2026-10-15-metal-cb-m1-step2.md`: an absent flag means 1 (`serve` runs one sequence); the recipe `max_batch` is only a ceiling (8 in `qwen3.toml`, 32 in the `qwen3_5*` recipes).
+
 Date 2026-10-15. Branch `metal-cb-m1` off `metal-cb-m0` 8254311, merged with `spike/metal` b300b3e (M0 included) before the final gates. `Seq::prefill_step` is untouched (another branch edits its chunk sizes).
 Machine endor (Apple M5 Max), Qwen3-8B BF16. Plan: `docs/research/continuous-batching-design.md`, milestone M1, operator
 decisions 8.1 (exact only: every batched row bitwise equal to the solo decode step; batch cap 8).

@@ -30,9 +30,10 @@ buffer per matrix kind, gate rows then up rows, `quant::moe::MoeWeights::load`).
 * `none` (W8A16): bf16 activations, `y = weight_scale * x . wq`.
 
 The mode travels in the op's `scales` tensor `[weight_scale, input_scale]` (`input_scale <= 0` = W8A16); kernels read
-it on the device, so one kernel serves both. Which mode tracks the vLLM logits better is NOT measured yet: it needs
-the assembled 35B model (no layer loop for linear attention / MoE existed when this was written). Compare both with
-`intarsia accuracy --golden qwen36-35b-a3b-nvfp4-vllm-top20.safetensors` once the model loads. The two modes do differ
+it on the device, so one kernel serves both. Measured on the assembled 35B in Phase 1a (`docs/results/2026-10-12-phase1a.md`
+lines 119-127, ADR-0005): W8A8 (`static`) and W8A16 (`none`) are indistinguishable on top-1 (prefill 98.40 vs 98.33 %, decode 98.75 vs 98.12 %);
+W8A16 has the lower mean KL on a small sample (-8 % prefill, -35 % decode). The recipe default stays `fp8_act = static` (W8A8).
+(Updated 2026-10-21: this paragraph used to say the comparison was not measured yet.) The two modes do differ
 on real slices (relative L2 of the outputs 2e-2 for `in_proj_z`, 0.28 for `o_proj` on unit-variance random inputs,
 where the tiny `o_proj` input_scale 0.0029 saturates; real activations are smaller), so the choice matters.
 
@@ -71,8 +72,10 @@ expert projections are NVFP4 (`W4A16_NVFP4`), the router `gate.weight` and `shar
 All are `Deterministic` (the counting sort uses atomics, but each pair's arithmetic does not depend on its slot).
 `moe_experts` needs scratch (`quant::ops::moe_experts_scratch`, plan-reserved).
 
-**Batch invariance of `moe_experts`.** On CUDA a token's routed-expert output does not depend on how many other tokens share the call. On the HIP backend
-it does from 16 tokens on: T < 16 (and P = T*K <= 16) use GEMV-style kernels with one accumulation order (bit-identical to T = 1), T >= 16 uses a bf16-WMMA
+**Batch invariance of `moe_experts`.** On CUDA a token's routed-expert output did not depend on how many other tokens share the call only until Phase 1b: from
+T >= 32 the grouped tensor-core kernel `moe_experts_mma_bf16` (table below) is used, which accumulates in tensor-core order and differs from the single-token
+kernels by up to 3.5e-4 rel_l2 (ADR-0007 section 5; updated 2026-10-21, the sentence used to say CUDA is batch-invariant). Below 32 tokens CUDA keeps the old kernels. On the HIP backend
+it depends on the batch from 16 tokens on: T < 16 (and P = T*K <= 16) use GEMV-style kernels with one accumulation order (bit-identical to T = 1), T >= 16 uses a bf16-WMMA
 path with a different order (same results within the admission tolerance, not the same bits). So on HIP `moe_experts` is `Deterministic` (run-to-run identical for a
 given shape and batch) but not batch-invariant; `INTARSIA_HIP_MOE_WMMA=0` restores invariance at a prefill cost (MoE 3x slower at T = 256). Details and the test: `docs/backends/hip.md`, "MoE and batch size".
 

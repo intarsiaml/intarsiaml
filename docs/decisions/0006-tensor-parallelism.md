@@ -1,5 +1,7 @@
 # ADR-0006: Tensor parallelism (tp=2) and the comm abstraction
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C15: item 2 of "Accuracy gate" (the self-golden against tp=1) is NOT a TP gate. Its follow-up paragraph (2026-10-14, `docs/results/2026-10-14-tp2-budget.md`, `docs/accuracy.md` "TP self-golden budget") stands: the fp32 floor and the f32 Mac sharding test are the TP gates.
+
 Status: Accepted (Phase 2b, 2026-10-13)
 Context: ARCHITECTURE section 5 lists `Comm` implementations (`nccl`, `rccl`, `p2p_oneshot`) and TP preconditions checked at plan time. This ADR records how the first implementation is built. Results: docs/results/2026-10-13-phase2b-tp.md.
 

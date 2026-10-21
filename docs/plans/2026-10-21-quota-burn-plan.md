@@ -1,5 +1,7 @@
 # Quota-burn plan: 2026-10-21 ~09:00 → 2026-10-22 12:00 EDT (~27 h)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C23: the user's answers in "User decisions" (2026-10-20 23:24 EDT) rule over the header and table: intarsiaml gets 40 % of the quota (harness 60 %), not the 85 % goal in line 3 or the even split in line 14; the window is 10-21 09:00 to 10-22 12:00. Lines 21 ("4-5 agents in block 1") and 45 (starts 7) still disagree; the user did not rule on that, so the coordinator decides. The plan table was not rewritten.
+
 **Goal:** spend about 85 % of a fresh weekly quota on work that moves intarsiaml's requirements forward, in priority order. Two things limit this:
 
 - **Fleet boxes.** Each box runs one GPU lane at a time, so the plan runs 3 GPU lanes and 4–5 Mac-only lanes in parallel.

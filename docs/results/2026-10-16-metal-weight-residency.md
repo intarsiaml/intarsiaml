@@ -1,5 +1,7 @@
 # Metal: keeping the weight wiring warm for `serve` (2026-10-16)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #1 (`55bb1087`; the branch merge `3bdd6804`, Merge metal-weight-residency b8d7f7d, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written. C17: the keep-warm TTFT gain is quoted three ways (about 110 ms here, -58.5 ms at 10 s on the final build, -30 ms median at 10 s in `2026-10-17-metal-relcheck-main.md`); the relcheck never reproduced 110 ms. Use the relcheck numbers: -30 ms median at 10 s idle, -56 ms at 40 s. Keep-warm is on in `serve` (`INTARSIA_METAL_KEEPWARM` overrides).
+
 Branch `metal-weight-residency`, rebased onto `spike/metal` 6d99a6f (includes the forward-hash head-grouping fix 6c077aa). Qwen3-8B BF16
 (`/Users/josef/models/Qwen3-8B`), endor (Apple M5 Max, macOS 27.0 build 26A428, Metal 4), `--backend metal`. Not pushed, not merged. Metal
 backend only: no CUDA/HIP file changed, `core` untouched.
