@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "kind": "intarsia-bench-bundle",
+  "created": "2026-10-21T16:45:40Z",
+  "packed_by": "endor",
+  "measured_on": "spark1",
+  "git_sha": "5847f06aca231318a8f65c04f87e622c4e77b18c",
+  "backend": "cuda",
+  "binary_sha256": "823b41bed67df4ee612ba3bf52226e8be44f4096be856f629a6e154936da8069",
+  "command": "echo knob=$INTARSIA_M5_DEMO_KNOB extra=$INTARSIA_M5_EXTRA; $INTARSIA_BIN kernels test --backend cuda --quick --json > $INTARSIA_REPLAY_OUT/kernels.json",
+  "note": "M5 demo bundle: deploy.sh run on spark1, vLLM up",
+  "env_knobs": [
+    "export INTARSIA_M5_DEMO_KNOB=1",
+    "export INTARSIA_M5_EXTRA=2"
+  ],
+  "reports": [
+    "./2026-10-13-phase1a-qwen3-8b-bench-speed.json",
+    "./20261021T164527Z/kernels.json"
+  ],
+  "stamp": {
+    "schema": 1,
+    "tool": "scripts/deploy.sh",
+    "created": "2026-10-21T16:45:27Z",
+    "git": {
+      "sha": "5847f06aca231318a8f65c04f87e622c4e77b18c",
+      "ref": "HEAD",
+      "subject": "M5: clippy state in CI comment and docs, endor local check log",
+      "tree": "b715d6a8c5a62c05e1cf0af553c090d4e7f98f9a"
+    },
+    "lock_sha256": "b64a06d84a56f46e0a3b77dcd2ef7bd35324e66d0d79f3f69e48fc63fc3e6a08",
+    "rust_toolchain_file_sha256_16": "3390e8ad06df7932",
+    "backend": "cuda",
+    "features": "cuda",
+    "deploy_host": "spark1",
+    "tree_dir": "intarsia-deploy/cuda",
+    "toolchain": {
+      "rustc": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+      "cargo": "cargo 1.90.0 (840b83a10 2025-07-30)",
+      "nvcc": "Cuda compilation tools, release 13.0, V13.0.88",
+      "hipcc": null,
+      "rocm": null,
+      "container": null
+    },
+    "gpu": {
+      "nvidia_smi": {
+        "name": "NVIDIA GB10",
+        "driver_version": "580.173.02",
+        "compute_cap": "12.1",
+        "memory_total": "[N/A]"
+      },
+      "proc_driver_nvidia": "NVRM version: NVIDIA UNIX Open Kernel Module for aarch64  580.173.02  Release Build  (dvs-builder@U22-A24-5-4)  Tue Jun 23 08:34:19 UTC 2026",
+      "nvcc": "Cuda compilation tools, release 13.0, V13.0.88",
+      "cuda_toolkit_version": "13.0.3",
+      "rocm_version": null,
+      "hipcc": null
+    },
+    "device": {
+      "name": "NVIDIA GB10",
+      "backend": "cuda",
+      "arch": "sm_121",
+      "total_mem": 130663231488,
+      "free_mem": 24947691520,
+      "unified": true,
+      "bandwidth_gbs": 205.78535005995883
+    },
+    "host": {
+      "hostname": "spark-4e77",
+      "os": "Ubuntu 24.04.4 LTS",
+      "kernel": "Linux 6.17.0-1029-nvidia",
+      "arch": "aarch64",
+      "cpu_model": "Cortex-A725",
+      "logical_cores": 20,
+      "physical_cores": 20,
+      "ram_total_bytes": 130663231488,
+      "ram_available_bytes": 56435228672,
+      "swap_total_bytes": 17179865088
+    },
+    "binary": {
+      "path": "target/release/intarsia",
+      "sha256": "823b41bed67df4ee612ba3bf52226e8be44f4096be856f629a6e154936da8069",
+      "bytes": 37717168,
+      "intarsia_version": "0.0.1"
+    },
+    "env_file": "export INTARSIA_M5_DEMO_KNOB=1",
+    "smoke": "pass"
+  }
+}

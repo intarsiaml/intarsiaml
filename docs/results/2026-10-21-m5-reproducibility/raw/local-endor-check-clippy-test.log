@@ -1,0 +1,98 @@
+fleetq: #3045 waiting (#3 in line): in line behind #3041 "runner: PR40 metal tests + standings quality diag" (claude-f31ccf91) on endor
+fleetq:   #3041 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3041 set, or it will wait for #3041 to be released.
+fleetq: #3045 waiting (#2 in line): in line behind #3042 "G1b PR #44 Metal no-op" (claude-f31ccf91) on endor
+fleetq:   #3042 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3042 set, or it will wait for #3042 to be released.
+fleetq: #3045 waiting (#1 in line): endor is held exclusively by #3042 "G1b PR #44 Metal no-op" (claude-f31ccf91)
+fleetq:   #3042 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3042 set, or it will wait for #3042 to be released.
+fleetq: #3045 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/localci.sh
+== check
+    Checking intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-aeba5d64b9d810e6b/crates/intarsia-backend-cpu)
+    Checking intarsia-server v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-aeba5d64b9d810e6b/crates/intarsia-server)
+    Checking intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-aeba5d64b9d810e6b/crates/intarsia-models)
+    Checking intarsia-cli v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-aeba5d64b9d810e6b/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.79s
+rc=0
+== metal check
+    Checking intarsia-cli v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-aeba5d64b9d810e6b/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.41s
+rc=0
+== clippy
+  12 error: manual implementation of `.is_multiple_of()`
+   9 error: using `chunks_exact` with a constant chunk size
+   6 error: using `chunks_exact_mut` with a constant chunk size
+   1 warning: build failed, waiting for other jobs to finish...
+   1 error: you should consider adding a `Default` implementation for `Demo`
+   1 error: very complex type used. Consider factoring parts into `type` definitions
+   1 error: this function has too many arguments (8/7)
+   1 error: the loop variable `r` is used to index `act`
+   1 error: methods called `new` usually return `Self`
+   1 error: method `next` can be confused for the standard trait method `std::iter::Iterator::next`
+   1 error: manual checked division
+   1 error: large size difference between variants
+   1 error: could not compile `intarsia-core` (lib) due to 33 previous errors
+   1 error: could not compile `intarsia-bench` (lib) due to 3 previous errors
+   1 error: clamp-like pattern without using clamp function
+rc=101
+== test
+     Running unittests src/lib.rs (target/debug/deps/intarsia_models-3f4d5d213a9b53b5)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/batch.rs (target/debug/deps/batch-6cbd5bc7875604c1)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+     Running tests/batch_engine.rs (target/debug/deps/batch_engine-8c95fee563d7db4a)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.62s
+     Running tests/batch_metal.rs (target/debug/deps/batch_metal-2c5da7a9a1b4803a)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/config.rs (target/debug/deps/config-2a1364ae3921770d)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/engine.rs (target/debug/deps/engine-c0cc1989b9e9e337)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests/engine_panic.rs (target/debug/deps/engine_panic-11de54f2ebf56aee)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/engine_robust.rs (target/debug/deps/engine_robust-e92c93c1eec6aec0)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/fusion_p1.rs (target/debug/deps/fusion_p1-62802686cb51e976)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+     Running tests/fusion_p2.rs (target/debug/deps/fusion_p2-3632848fce1c73ca)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/fusion_p2prime.rs (target/debug/deps/fusion_p2prime-996ad14fef346233)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests/graphs.rs (target/debug/deps/graphs-431b27a9d606ee66)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+     Running tests/head_and_scheme.rs (target/debug/deps/head_and_scheme-6703c43fa1f9b835)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/hybrid.rs (target/debug/deps/hybrid-d561f49604aaf97e)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/hybrid_real.rs (target/debug/deps/hybrid_real-7d9441eb03a6c4ee)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/min_tokens.rs (target/debug/deps/min_tokens-94b14c55b7f4a315)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/model.rs (target/debug/deps/model-55360b8b30d0202d)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/plan.rs (target/debug/deps/plan-d9cfc9cb1631371f)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/spec.rs (target/debug/deps/spec-068432f7bfc66f02)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.82s
+     Running tests/tp.rs (target/debug/deps/tp-fb77ebbbfa29292e)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/tp_test_bug.rs (target/debug/deps/tp_test_bug-9414cc436439f9cd)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/intarsia_server-4713abc23dc56c49)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+     Running tests/api.rs (target/debug/deps/api-2bd1021c8ca72a84)
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+     Running unittests src/lib.rs (target/debug/deps/intarsia_ui-9959c92de45d87ee)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (target/debug/deps/intarsiaml-072fc330dd3c50b4)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+rc=0
+fleetq: #3045 done (exit 0)

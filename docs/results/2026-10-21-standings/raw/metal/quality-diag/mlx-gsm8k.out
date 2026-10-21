@@ -1,0 +1,27 @@
+[localeval] benchmark gsm8k (limit=10, shots=None, tasks=all)
+Processing 10 problems:   0%|          | 0/10 [00:00<?, ?it/s]Processing 10 problems:  10%|█         | 1/10 [00:09<01:21,  9.09s/it]Processing 10 problems:  20%|██        | 2/10 [00:14<00:55,  6.88s/it]Processing 10 problems:  30%|███       | 3/10 [00:29<01:13, 10.53s/it]Processing 10 problems:  40%|████      | 4/10 [00:35<00:52,  8.73s/it]Processing 10 problems:  50%|█████     | 5/10 [00:47<00:49,  9.99s/it]Processing 10 problems:  60%|██████    | 6/10 [00:59<00:42, 10.65s/it]Processing 10 problems:  70%|███████   | 7/10 [01:07<00:29,  9.83s/it]Processing 10 problems:  80%|████████  | 8/10 [01:22<00:23, 11.58s/it]Processing 10 problems:  90%|█████████ | 9/10 [01:49<00:16, 16.35s/it]Processing 10 problems: 100%|██████████| 10/10 [02:00<00:00, 14.71s/it]Processing 10 problems: 100%|██████████| 10/10 [02:00<00:00, 12.08s/it]
+Overall GSM8K Accuracy: 0.0
+# localeval: adhoc — 2026-10-21T12:35
+
+- model: `/Users/josef/models/Qwen3-8B` on ? (?), url `http://127.0.0.1:8092/v1`
+- thinking: off; run kind: quality; label: mlx-gsm8k
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:8092/v1 --model /Users/josef/models/Qwen3-8B --bench gsm8k --limit 10 --thinking off --label mlx-gsm8k`
+- result file: `results/20261021-123541-adhoc-mlx-gsm8k/result.json`
+
+## Benchmarks (deepeval)
+
+| benchmark | score | n | TTFT s | prefill tok/s | decode tok/s | calls | errors | wall s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| gsm8k | 0.000 | 10 | 0.22 | - | 33.2 | 20 | 0 | 121.3 |
+
+Benchmark speed is incidental (short, varying prompts); prefill '-' means no call had 1024+ uncached tokens. Quote the sweep for speed.
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-123541-adhoc-mlx-gsm8k/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+kex_exchange_identification: read: Connection reset by peer
+Connection reset by 100.106.174.54 port 22
