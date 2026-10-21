@@ -104,6 +104,7 @@ impl GrammarEnv {
     }
 
     /// [`GrammarEnv::compile_with`] with thinking off: the grammar starts at the first generated token.
+    #[cfg(test)]
     pub fn compile(&self, plan: &Plan) -> Result<Arc<dyn ConstraintSpec>, String> {
         self.compile_with(plan, false)
     }
