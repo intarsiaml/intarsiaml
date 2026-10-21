@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Lane G2b window 3 (ON tatooine, radiance down, called by window.sh):
+#  1. HIP tp=1 no-op of the REBASED feat/35b-tp2 (tree dev2) against origin/main 76635aa (tree base2): stages-w1.sh with
+#     NOOP_ONLY=1 into <out>/noop (plan, accuracy dumps + stdout, 256 ids, 8B and 35B).
+#  2. Gate follow-ups on the window-1/2 dev tree (04306ee): self-golden tp=2 vs tp=1 with the provenance flags (window 2
+#     lacked --pre-change), the 1 % bug on rank 1, tp=2 run-to-run (repeat vs window 1's tp=2 short dump), and tp=1 with
+#     fusion off (INTARSIA_NO_FUSION=1) as a HIP reordering reference for the short-set KL.
+set -uo pipefail
+O=${1:?out dir}
+log() { echo "$(date +%T) $*" | tee -a "$O/steps.log"; }
+mkdir -p "$O/noop"
+BASE_TREE=base2 DEV_TREE=dev2 NOOP_ONLY=1 bash $HOME/g2b/stages-w1.sh "$O/noop"
+log "no-op stages exit $?"
+
+R=$HOME/intarsiaml-g2b-dev
+M35=/models/Qwen3.6-35B-A3B-NVFP4; G=/models/golden
+SG=$G/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; LG=$G/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+TP2="--tp 2 --devices 0,1"
+PV="--pre-change 04306ee --allow-same-code --allow-config-mismatch"
+BS="--self-max-kl 1.8e-2 --self-max-pos-kl 2.3 --self-max-flip-pct 3.76 --self-max-tail 2.8e-3 --self-prompt-factor 6.5"
+BL="--self-max-kl 5.7e-2 --self-max-pos-kl 54.6 --self-max-flip-pct 8.7 --self-max-tail 7.1e-3 --self-prompt-factor 5.9"
+# NF=1: INTARSIA_NO_FUSION=1 inside the container (dev.sh forwards only INTARSIA_HIP_* / INTARSIA_TP_*)
+run() { # run <gpus> <timeout> <out-prefix> <intarsia args...>
+  local gpus=$1 to=$2 pfx=$3; shift 3
+  INTARSIA_REPO=$R HIP_VISIBLE_DEVICES=$gpus timeout "$to" "$R/deploy/tatooine/dev.sh" env INTARSIA_NO_FUSION=${NF:-0} /work/g2b-intarsia "$@" > "$O/$pfx.out" 2> "$O/$pfx.err"
+  local rc=$?; log "$pfx exit $rc: $(grep -ahE '^golden gate|self-golden gate|SELF-STATS|^Error' "$O/$pfx.out" "$O/$pfx.err" | cut -c1-220 | tr '\n' '|')"
+  return $rc
+}
+A="accuracy --backend hip --model $M35 --mem-budget 29 --max-seq 17408"
+cp $HOME/g2b/out/w1/acc-dev-35b-tp2-short.safetensors $R/g2b-out/T2-short.safetensors
+run 0,1 600 self-tp2-short $A --self-golden /work/g2b-out/S1-short.safetensors --mode both $PV $TP2 $BS
+run 0,1 900 self-tp2-long $A --self-golden /work/g2b-out/S1-long.safetensors --mode both $PV $TP2 $BL
+INTARSIA_TP_TEST_BUG=scale:1.01 run 0,1 600 self-tp2bug-short $A --self-golden /work/g2b-out/S1-short.safetensors --mode both $PV $TP2 $BS
+INTARSIA_TP_TEST_BUG=scale:1.01 run 0,1 900 self-tp2bug-long $A --self-golden /work/g2b-out/S1-long.safetensors --mode both $PV $TP2 $BL
+run 0,1 600 self-tp2rep-short $A --self-golden /work/g2b-out/T2-short.safetensors --mode both $PV $TP2
+# fusion off at tp=1 (what each tp=2 rank runs, minus the sharding): dumps for the offline KL
+NF=1 run 0 600 acc-tp1nf-short $A --golden $SG --mode both --write-self-golden /work/g2b-out/tp1nf-short.safetensors
+NF=1 run 0 900 acc-tp1nf-long $A --golden $LG --mode both --write-self-golden /work/g2b-out/tp1nf-long.safetensors
+mv $R/g2b-out/tp1nf-*.safetensors "$O/" 2>/dev/null
+log "done"
