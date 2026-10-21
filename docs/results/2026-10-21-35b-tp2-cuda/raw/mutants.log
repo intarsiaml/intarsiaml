@@ -1,0 +1,10 @@
+MUTANT clean: rc=0 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+MUTANT no-remote-snapshot: rc=101 test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+MUTANT no-state-truncate: rc=101 test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+MUTANT no-resync-truncate: rc=0 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+/opt/code/intarsiaml/.claude/worktrees/agent-a9e12798602fee3a9/scripts/35b-tp2/mutants.sh: line 13: 47425 Alarm clock: 14         CARGO_TARGET_DIR=$W/target perl -e 'alarm 300; exec @ARGV' cargo test --release -q -p intarsia-models --test tp_hybrid > "$W/mut-$name.log" 2>&1
+MUTANT rank0-before-send: rc=142 no result (killed by the alarm, or a compile error)
+MUTANT gdn-no-reduce: rc=101 test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+MUTANT moe-no-reduce: rc=101 test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+MUTANT serve-ignores-truncate: rc=101 test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+MUTANT gdn-groups-as-rows: rc=101 test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s

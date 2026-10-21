@@ -24,7 +24,7 @@ M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/sn
 WIP=10.100.152.3; WPORT=29555
 NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN}"
 VLLM_C=missioncntrl-guidance
-declare -A VLLM_URL=([spark1]=http://100.120.88.104:8000/v1/models [spark2]=http://100.96.95.89:8000/v1/models)
+vllm_url() { [[ $1 == spark1 ]] && echo http://100.120.88.104:8000/v1/models || echo http://100.96.95.89:8000/v1/models; } # bash 3.2 (macOS): no -A
 want() { [[ -z "${STEPS:-}" || " $STEPS " == *" $1 "* ]]; }
 log() { echo "$(date +%T) $*" | tee -a "$L/steps.log"; }
 left() { echo $(( DEADLINE - $(date +%s) )); }
@@ -44,7 +44,7 @@ restore() {
     for h in spark1 spark2; do r $h "docker start $VLLM_C >/dev/null" || log "WARNING: docker start on $h failed"; done
     for h in spark1 spark2; do
       local ok=0
-      for i in $(seq 1 240); do curl -sf -m 5 "${VLLM_URL[$h]}" >/dev/null && { ok=1; break; }; sleep 5; done
+      for i in $(seq 1 240); do curl -sf -m 5 "$(vllm_url $h)" >/dev/null && { ok=1; break; }; sleep 5; done
       local t=$(date +%s)
       [[ $ok == 1 ]] && log "vLLM on $h serving again" || log "WARNING: vLLM on $h did not answer /v1/models within 20 min"
       local role=$([[ $h == spark1 ]] && echo spark1-vllm || echo spark2-vllm)
@@ -53,6 +53,8 @@ restore() {
     done
   fi
   rsync -a "spark1:intarsia-tp2/xout/$OUT/" "$L/" 2>/dev/null; rsync -a "spark2:intarsia-tp2/xout/$OUT/" "$L/spark2/" 2>/dev/null
+  trap - EXIT INT TERM
+  exit $rc
 }
 trap restore EXIT INT TERM
 
