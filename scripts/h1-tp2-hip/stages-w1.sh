@@ -36,7 +36,7 @@ track8() {
     gen $t 1 $t-8b-4k $M8 4k
   done
 }
-# 0. capture diagnostics: the HIP comm tests (prebuilt, volume ...-hiptest) in parallel (the harness default) and one
+# 0. (comm tests ran in the aborted first attempt, raw/w1-aborted) capture diagnostics: the HIP comm tests (prebuilt, volume ...-hiptest) in parallel (the harness default) and one
 #    thread at a time, with the HIP runtime's error log; then a dev tp=2 smoke with graphs (rank 1's counters on exit)
 hiptest() { # hiptest <tag> [cargo test args]
   local tag=$1; shift
@@ -44,8 +44,6 @@ hiptest() { # hiptest <tag> [cargo test args]
     env AMD_LOG_LEVEL=1 cargo test --release -p intarsia-backend-hip "$@" > "$O/hiptest-$tag.log" 2>&1 < /dev/null
   log "hiptest $tag exit $?: $(grep -aE '^test result|FAILED|panicked' "$O/hiptest-$tag.log" | head -6 | tr '\n' '|')"
 }
-hiptest comm-par --test comm
-hiptest comm-ser --test comm -- --test-threads=1
 E="AMD_LOG_LEVEL=1" gen dev 0,1 smoke-dev-35b-tp2g-short $M35 short $TP2
 
 log "A: tp=1 tracks start"
