@@ -6,8 +6,7 @@ docs/results/2026-10-21-m2-exl3/raw/fixture-gen.log for the exact invocation). A
 from exllamav3's own LinearEXL3 code, not from a reimplementation.
 
 Cases
-  A. real EXL3 tensors sliced out of the Mia-AiLab / neko-legends GLM-5.3-Flash EXL3 checkpoints
-     (mcg codebook, 4 bpw). A slice trellis[a0:a1, b0:b1] + suh[16*a0:16*a1] + svh[16*b0:16*b1] is a valid
+  A. real EXL3 tensors sliced out of a published EXL3 checkpoint (REAL below, empty in the committed list). A slice trellis[a0:a1, b0:b1] + suh[16*a0:16*a1] + svh[16*b0:16*b1] is a valid
      smaller EXL3 tensor as long as the offsets/extents are multiples of 128 elements (the Hadamards are
      block-diagonal over 128).
   B. a real bf16 Qwen3-8B weight slice quantized fresh with exllamav3's quantize_exl3 (identity Hessian,
@@ -57,12 +56,10 @@ def shard_of(snapshot, key):
 
 # (source model dir, layer, expert, proj, (a0, a1, b0, b1) trellis tile slice)
 # tile slice: rows a0:a1 of the K/16 axis, cols b0:b1 of the N/16 axis. 8 tiles = 128 elements.
-REAL = [
-    ("models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw", 5, 1, "gate_proj", (0, 16, 0, 8)),     # K=256 N=128
-    ("models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw", 5, 1, "down_proj", (0, 8, 0, 16)),     # K=128 N=256
-    ("models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw", 17, 7, "up_proj", (8, 24, 16, 24)),    # K=256 N=128, offset slice
-    ("models--neko-legends--GLM-5.3-Flash-Uncensored-EXL3", 4, 2, "gate_proj", (0, 16, 0, 8)),  # K=256 N=128
-]
+# Empty: the four third-party checkpoint slices the fixture was first made with were dropped (their license was not
+# checked; user decision 2026-10-21 17:13). The committed fixture is that run with cases c0-c3 removed, so its cases
+# are c4-c13; a fresh run numbers them from c0. Add an entry only for a checkpoint whose license allows redistribution.
+REAL = []
 
 # (bits, codebook)
 FRESH = [
