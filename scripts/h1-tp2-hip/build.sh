@@ -3,7 +3,8 @@
 #   fleetq run --host tatooine --mem 0 --label "h1 build" -- ssh tatooine "TREES='base=head=..._code-tree=..._dirty=no' bash -s" < scripts/h1-tp2-hip/build.sh
 # Each tree is ~/intarsiaml-h1-<name> with its own target volume intarsia-cargo-target-h1-<name>; the release CLI is copied
 # to /work/h1-intarsia in the tree. `_` in a stamp stands for a space. TEST=1 also runs `cargo test --workspace` (CPU) in a
-# SEPARATE target volume (intarsia-cargo-target-h1-<name>-test), so the hip binary is never relinked without its feature.
+# SEPARATE target volume (intarsia-cargo-target-h1-<name>-test), so the hip binary is never relinked without its feature;
+# the HIP crate is excluded there (its tests use the GPUs, which need a radiance window).
 # HIPTEST=1 compiles the HIP crate's GPU tests (volume intarsia-cargo-target-h1-<name>-hiptest) without running them.
 set -uo pipefail
 mkdir -p ~/h1/logs
@@ -22,7 +23,7 @@ for spec in ${TREES:?TREES=name=stamp ...}; do
     echo "hip tests build $name exit $? $(date +%T)"; grep -E '^error|Finished' ~/h1/logs/hiptest-build-$name.log | tail -3
   fi
   if [[ "${TEST:-0}" == 1 ]]; then
-    INTARSIA_TARGET_VOL=intarsia-cargo-target-h1-$name-test $D cargo test --release --workspace > ~/h1/logs/test-$name.log 2>&1 < /dev/null
+    INTARSIA_TARGET_VOL=intarsia-cargo-target-h1-$name-test $D cargo test --release --workspace --exclude intarsia-backend-hip > ~/h1/logs/test-$name.log 2>&1 < /dev/null
     echo "test $name exit $? $(date +%T)"; grep -E '^test result|FAILED|panicked' ~/h1/logs/test-$name.log | sort | uniq -c | tail -8
   fi
 done
