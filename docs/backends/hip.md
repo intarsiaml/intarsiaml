@@ -148,8 +148,9 @@ chain); it is ON by default since `0cea68fc` (PR #28, `docs/results/2026-10-19-p
 `matmul_fp8_mma_f8` (default since `8624fec1`, 2026-10-18). `INTARSIA_HIP_STAGE=0` (or `=up`) turns off the page-locked staging ring (on by default).
 Two opt-ins stay OFF: `INTARSIA_HIP_MOE_V3=1` (one-launch decode experts, +0.8 % decode; the mutant that drops its acquire fence, `v3-nofence`, still
 survives every test) and `INTARSIA_HIP_SPLITKV_OCC=1` (split-KV stage 1 at 8 waves per SIMD: +1.5 % 35B decode at about 17.6k tokens, -0.6 % at 128 to
-2048; the user's recorded break-even is about 13k tokens, so the default stays off; a length-based automatic choice was rejected because the decode graph is
-captured once with a fixed grid, so the kernel cannot be picked per context length on the host; `docs/results/2026-10-19-hip-round9.md`, Decisions 1).
+2048; break-even is about 13k tokens of context, so the default stays off; a length-based `auto` choice was rejected because the decode graph is captured once per
+process and the position is a device scalar, so the kernel choice would freeze at capture; `docs/results/2026-10-19-hip-round9.md` Decisions 1 and
+`docs/results/2026-10-19-hip-round10.md`, split-KV section). `INTARSIA_HIP_GEMM_SPLIT=tail|even` (row split of long GEMM launches, round 10) is opt-in and OFF: no win on the 8B.
 
 ## Admission cache
 
