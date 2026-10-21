@@ -1537,6 +1537,9 @@ fn st_acc_format(c: &mut Ctx) -> Result<Out> {
             }
         }
     };
+    if let Err(e) = std::fs::File::open(&g) {
+        return Ok(Out::error(format!("{}: {e}", g.display())));
+    }
     let kind = facts::golden_meta(&g, "reference_kind");
     if kind.as_deref() != Some("format") {
         return Ok(Out::error(format!(

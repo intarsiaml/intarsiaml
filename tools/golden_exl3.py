@@ -23,6 +23,7 @@ sidecar `golden/ref_noise/<OUT file>.json` of PR #47); it also prints whether th
 """
 import argparse
 import json
+import os
 
 import torch
 from safetensors import safe_open
@@ -93,6 +94,8 @@ meta.update(
     }
 )
 save_file(out, args.out, metadata=meta)
+os.chmod(args.out, 0o644)  # run as root in a container: keep the golden readable by the engine's user
 if args.second_run:
     save_file(out2, args.second_run, metadata={**meta, "run": "second"})
+    os.chmod(args.second_run, 0o644)
 print(json.dumps({"out": args.out, "second_run": args.second_run, "runs_bitwise_equal": equal if args.second_run else None, "prompts": len(ids), "vocab": vocab}))

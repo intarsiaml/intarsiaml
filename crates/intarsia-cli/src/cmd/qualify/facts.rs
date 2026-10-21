@@ -101,7 +101,8 @@ fn find_scored(name: &str, dirs: &[PathBuf], formatref: bool, base: impl Fn(bool
             if !(rest.is_empty() || rest.starts_with('-')) || rest.contains("meta") {
                 continue;
             }
-            if rest.contains("-formatref") != formatref {
+            // a format-reference golden belongs to these exact weights: `<name>-formatref...`, no other variant of the name
+            if rest.contains("-formatref") != formatref || (formatref && !rest.starts_with("-formatref")) {
                 continue;
             }
             let is_long = rest.contains("-long");
