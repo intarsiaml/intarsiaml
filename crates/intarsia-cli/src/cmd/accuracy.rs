@@ -90,6 +90,11 @@ pub struct AccuracyArgs {
     /// `[accuracy] ref_noise_factor` (per model), else 1.0.
     #[arg(long)]
     pub ref_noise_factor: Option<f64>,
+    /// Change vs base (`--self-vs-ref-noise`): the worst prompt's mean 21-way KL may be this many times the reference
+    /// noise (a hard check next to the mean-KL one). Default: the record's `prompt_factor`, else the recipe's
+    /// `[accuracy] ref_noise_prompt_factor`, else 3.0.
+    #[arg(long)]
+    pub ref_noise_prompt_factor: Option<f64>,
     /// Write every KL verdict of the run (static floor, reference noise, factor, effective threshold, which one bound)
     /// as JSON.
     #[arg(long)]
@@ -816,6 +821,9 @@ struct NoiseCtx {
     noise: refnoise::RefNoise,
     factor: f64,
     factor_source: String,
+    /// The change-vs-base worst-prompt factor and its source.
+    prompt_factor: f64,
+    prompt_factor_source: String,
     origin: String,
 }
 
@@ -1180,8 +1188,17 @@ fn run_mode(
             let nc = gates.noise.as_ref().ok_or_else(|| anyhow!("--self-vs-ref-noise: no reference noise resolved"))?;
             let value = nc.noise.kl21_mean.ok_or_else(|| anyhow!("--self-vs-ref-noise: the reference noise has no all-rows value (kl21_mean); a self-golden compares every row"))?;
             let term = refnoise::NoiseTerm { value, kl: total.mean_kl21(), rows: "all rows" };
-            let v = refnoise::judge_kl(mode.key(), "21-way KL", total.mean_kl21(), None, Some(term), nc.factor, &nc.factor_source)?;
-            checks = refnoise::apply_to_self_checks(checks, v.effective_threshold);
+            let mut v = refnoise::judge_kl(mode.key(), "21-way KL", total.mean_kl21(), None, Some(term), nc.factor, &nc.factor_source)?;
+            // the worst prompt is a hard check at prompt_factor x the noise (the check's name carries the prompt)
+            if let Some(w) = checks.iter().find(|c| c.name.starts_with("worst prompt KL(21-way)")) {
+                let name = w.name.trim_start_matches("worst prompt KL(21-way) [").trim_end_matches(']').to_string();
+                let pv = refnoise::judge_worst_prompt((&name, w.value), value, nc.prompt_factor, &nc.prompt_factor_source)?;
+                v.pass &= pv.pass;
+                checks = refnoise::apply_to_self_checks(checks, v.effective_threshold, pv.limit);
+                v.worst_prompt = Some(pv);
+            } else {
+                checks = refnoise::apply_to_self_checks(checks, v.effective_threshold, f64::INFINITY);
+            }
             self_verdict = Some(v);
         }
         let pass = checks.iter().all(|c| c.ok || !c.gated);
@@ -2290,8 +2307,13 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
                 eprintln!("WARNING: {w}");
             }
             let (factor, factor_source) = refnoise::resolve_factor(args.ref_noise_factor, l.noise.factor, recipe_factor)?;
+            let recipe_prompt_factor = recipe.as_ref().and_then(|r| r.accuracy.ref_noise_prompt_factor.map(|v| (v, format!("recipe {}", r.model.family))));
+            let (prompt_factor, prompt_factor_source) = refnoise::resolve_prompt_factor(args.ref_noise_prompt_factor, l.noise.prompt_factor, recipe_prompt_factor)?;
             eprintln!("reference noise [{}]: {}; factor {factor} ({factor_source})", l.origin, l.noise.describe());
-            gates.noise = Some(NoiseCtx { noise: l.noise, factor, factor_source, origin: l.origin });
+            if args.self_vs_ref_noise {
+                eprintln!("change vs base: worst prompt may be {prompt_factor} x the reference noise ({prompt_factor_source})");
+            }
+            gates.noise = Some(NoiseCtx { noise: l.noise, factor, factor_source, prompt_factor, prompt_factor_source, origin: l.origin });
         }
         None if args.self_vs_ref_noise => bail!(
             "--self-vs-ref-noise: no reference noise for the source golden '{}' (hash {}): pass --ref-noise FILE, or measure one with `intarsia ref-noise` and keep it as golden/ref_noise/{}.json",

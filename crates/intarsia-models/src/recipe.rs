@@ -173,7 +173,9 @@ lm_head = { tensor = "h" }
         assert!(parse_recipe(TUNED).unwrap().accuracy.chat_turns.is_none());
         // the factor on the golden's reference noise is per model and unset in every built-in recipe (1.0)
         assert_eq!((dense.accuracy.ref_noise_factor, moe.accuracy.ref_noise_factor), (None, None));
+        assert_eq!((dense.accuracy.ref_noise_prompt_factor, moe.accuracy.ref_noise_prompt_factor), (None, None));
         assert_eq!(parse_recipe(&format!("{TUNED}[accuracy]\nref_noise_factor = 1.5\n")).unwrap().accuracy.ref_noise_factor, Some(1.5));
+        assert_eq!(parse_recipe(&format!("{TUNED}[accuracy]\nref_noise_prompt_factor = 4.0\n")).unwrap().accuracy.ref_noise_prompt_factor, Some(4.0));
     }
 
     #[test]

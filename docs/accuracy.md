@@ -306,7 +306,7 @@ against a class floor of 0.03). A floor below that spread cannot be met by any e
 | `date`, `how` | UTC date and how it was measured (second reference, estimator, caveats); both required |
 | `estimator`, `source` | the estimator when it is not the gate's own; the doc or log the numbers come from |
 | `golden` | binding: `file`, `fnv1a64`, `size`, `positions`. Whatever is given must match the golden, else the record is refused |
-| `factor` | optional per-golden factor on the noise |
+| `factor`, `prompt_factor` | optional per-golden factors: on the noise (default 1.0), and on the worst-prompt check of the change-vs-base mode (default 3.0) |
 
 It is read from, in this order: `--ref-noise FILE`; the golden's own `__metadata__` key `ref_noise` (a JSON string, for goldens
 built with one); a **sidecar** `golden/ref_noise/<golden file>.json`, looked up next to the golden, in the working directory and
@@ -339,9 +339,15 @@ against the base build's logits must be at most `factor x ref_noise` of the sour
 row). That is the 2026-10-21 11:23 restatement, "a change must be no larger than vLLM's own run-to-run KL on the same golden". The
 noise comes from `--ref-noise`, else from the self-golden's metadata (`--write-self-golden` copies the source golden's record into
 it), else from a sidecar looked up by the source golden's name and hash. In this mode **the other self-golden budgets stop gating**:
-largest position KL, top-1 flips, tail mass and worst prompt are printed as "reported only"; non-finite rows still fail. They
+largest position KL, top-1 flips and tail mass are printed as "reported only"; non-finite rows still fail. They
 fail any real kernel change at their default budgets (docs/results/2026-10-21-a2-ref-noise-gate.md), so keeping them would leave the
-restated gate unreachable. Without `--self-vs-ref-noise` the self-golden gate is unchanged.
+restated gate unreachable. **The worst prompt's mean KL stays a hard check, at `prompt_factor x ref_noise`**, `prompt_factor` 3.0 by
+default and set like the factor: `--ref-noise-prompt-factor`, else the record's `prompt_factor`, else the recipe's
+`[accuracy] ref_noise_prompt_factor` (user decision 2026-10-21 13:23). On CUDA round 7's `lt` against the default it fails on `chat_reuse_4k`
+(1.46x to 1.60x of the limit on the long golden). Without `--self-vs-ref-noise` the self-golden gate is unchanged.
+
+Open follow-up: the M1 Qwen3.8-27B W4A4 decode mode (the last 16 positions of each prompt) is judged against a noise measured over all
+positions and stays FAIL at 1.39x; re-measuring the noise on the decode window needs the two W4A4 goldens and is deferred.
 
 **Measuring a record** (offline, no model, no GPU): `intarsia ref-noise --golden G --other G2 --method run_to_run|precision_spread
 [--tokenizer-dir MODEL_DIR] [--how TEXT] [--source DOC] [--factor F] [--out golden/ref_noise/<G file>.json]`. `G2` is a second
