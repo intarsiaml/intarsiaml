@@ -137,7 +137,7 @@ pub fn create(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Resul
     let mut comm: NcclCommPtr = std::ptr::null_mut();
     // SAFETY: valid out-pointer; the id is passed by value as NCCL expects.
     check(l, "ncclCommInitRank", unsafe { (l.comm_init_rank)(&mut comm, world as c_int, NcclUniqueId { internal: id }, rank as c_int) })?;
-    let c = NcclComm { backend: be.clone(), comm, rank, world, aborted: AtomicBool::new(false), scratch: Mutex::new(None), counters: CommCounters::default() };
+    let c = NcclComm { backend: be.clone(), comm, rank, world, aborted: AtomicBool::new(false), scratch: Mutex::new(None), reserved: AtomicBool::new(false), counters: CommCounters::default() };
     Ok((be as Arc<dyn Backend>, Arc::new(c) as Arc<dyn Comm>))
 }
 
@@ -147,8 +147,10 @@ struct NcclComm {
     rank: usize,
     world: usize,
     aborted: AtomicBool,
-    /// f32 landing buffer of an f32-partial -> bf16 reduce (grown on demand).
+    /// f32 landing buffer of an f32-partial -> bf16 reduce: grown on demand until [`Comm::reserve`] fixes its size
+    /// (and address) for good.
     scratch: Mutex<Option<Buffer>>,
+    reserved: AtomicBool,
     counters: CommCounters,
 }
 
@@ -216,6 +218,13 @@ impl Comm for NcclComm {
         }
         let mut g = self.scratch.lock().unwrap();
         if g.as_ref().is_none_or(|b| b.bytes() < n * 4) {
+            if self.reserved.load(Ordering::Acquire) {
+                // a captured graph may hold the reserved buffer's address: never move it
+                return Err(Error::invalid(format!(
+                    "nccl all_reduce: {n} f32 partials exceed the reserved {} (Comm::reserve)",
+                    g.as_ref().map_or(0, |b| b.bytes() / 4)
+                )));
+            }
             if g.is_some() {
                 // the old buffer may still be read by queued work: drain before it is freed
                 self.backend.synchronize(stream)?;
@@ -274,5 +283,23 @@ impl Comm for NcclComm {
 
     fn note_timed(&self, d: Duration) {
         self.counters.timed(d);
+    }
+
+    /// `ncclAllReduce` is a stream operation NCCL supports inside stream capture (thread-local mode, `ik_rt_graph_begin`),
+    /// and the f32 rounding is one kernel; after `reserve` nothing allocates or synchronises.
+    fn capture_safe(&self) -> bool {
+        true
+    }
+
+    fn reserve(&self, max_elems: usize, stream: StreamId) -> Result<()> {
+        let mut g = self.scratch.lock().unwrap();
+        if g.as_ref().is_none_or(|b| b.bytes() < max_elems * 4) {
+            if g.is_some() {
+                self.backend.synchronize(stream)?;
+            }
+            *g = Some(self.backend.alloc(max_elems.max(1) * 4, MemKind::Device)?);
+        }
+        self.reserved.store(true, Ordering::Release);
+        Ok(())
     }
 }

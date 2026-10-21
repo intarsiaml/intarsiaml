@@ -1,0 +1,23 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2398 MHz, [N/A], 51, 12.02 W, 4 %
+tp2e-16k rc=0
+finish=length prompt=16026 (cached 0) completion=256 | prefill 4403 ms (3639.7 tok/s) | decode 3895 ms (65.46 tok/s)
+steps=264 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: all_reduce=0ms/21120 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/80 embedding=0ms/264
+  rank1 tp2e-16k: tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0
+tp2g-16k rc=0
+finish=length prompt=16026 (cached 0) completion=256 | prefill 4457 ms (3596.0 tok/s) | decode 3199 ms (79.72 tok/s)
+steps=264 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/21120 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/80 embedding=0ms/264
+  rank1 tp2g-16k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+IDS tp2e-16k vs tp2g-16k: IDENTICAL (first divergence none, 256/256)
+eager-short rc=0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+  rank1 eager-short: tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0
+graph-self-short rc=1
+Error: the self-golden was recorded from a modified tree (head 04306ee code-tree 0ab81fed771d dirty): only a build of tp2-eager plus the harness files ["crates/intarsia-cli/src/cmd/accuracy.rs", "crates/intarsia-cli/src/cmd/accuracy/baseline.rs", "crates/intar
+  rank1 graph-self-short: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+graph-reuse rc=0
+prefix-reuse gate: PASS
+  rank1 graph-reuse: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1184
+13:02:43 == gates done, 1222 s of the work budget left
+13:02:43 restore (exit 0)

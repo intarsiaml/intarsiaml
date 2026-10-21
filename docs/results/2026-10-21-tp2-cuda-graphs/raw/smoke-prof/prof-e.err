@@ -1,0 +1,9 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 x2 (tp=2, nccl comm) in 5.0s: 40 layers, hidden 2048, act bf16, kv bf16, weights 11.09 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 1073 tokens
+finish=length prompt=1073 (cached 0) completion=64 | prefill 1872 ms (573.1 tok/s) | decode 1022 ms (61.65 tok/s)
+tensor parallel: 5200 all-reduces (80.0 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=65 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: all_reduce=0ms/5200 argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65

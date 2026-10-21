@@ -1,0 +1,23 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2398 MHz, [N/A], 51, 11.68 W, 0 %
+prof-g rc=0
+finish=length prompt=1073 (cached 0) completion=64 | prefill 1866 ms (575.0 tok/s) | decode 698 ms (90.31 tok/s)
+steps=65 graph replays=64 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/5200 argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65
+-rw-rw-r-- 1 nvidia nvidia 22118109 Oct 21 12:57 nsys-r0-g_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4775947 Oct 21 12:57 nsys-r0-g.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 13324288 Oct 21 12:57 nsys-r0-g.sqlite
+-rw-rw-r-- 1 nvidia nvidia 22085627 Oct 21 12:57 nsys-r1-g_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4726951 Oct 21 12:57 nsys-r1-g.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 13369344 Oct 21 12:57 nsys-r1-g.sqlite
+prof-e rc=0
+finish=length prompt=1073 (cached 0) completion=64 | prefill 1872 ms (573.1 tok/s) | decode 1022 ms (61.65 tok/s)
+steps=65 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: all_reduce=0ms/5200 argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/10 embedding=0ms/65
+-rw-rw-r-- 1 nvidia nvidia 22051809 Oct 21 12:58 nsys-r0-e_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  7663776 Oct 21 12:58 nsys-r0-e.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 19673088 Oct 21 12:58 nsys-r0-e.sqlite
+-rw-rw-r-- 1 nvidia nvidia 22013871 Oct 21 12:58 nsys-r1-e_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  7596747 Oct 21 12:58 nsys-r1-e.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 19746816 Oct 21 12:58 nsys-r1-e.sqlite
+12:58:09 == gates done, 1397 s of the work budget left
+12:58:09 restore (exit 0)
