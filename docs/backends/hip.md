@@ -150,7 +150,7 @@ Two opt-ins stay OFF: `INTARSIA_HIP_MOE_V3=1` (one-launch decode experts, +0.8 %
 survives every test) and `INTARSIA_HIP_SPLITKV_OCC=1` (split-KV stage 1 at 8 waves per SIMD: +1.5 % 35B decode at about 17.6k tokens, -0.6 % at 128 to
 2048; break-even is about 13k tokens of context, so the default stays off; a length-based `auto` choice was rejected because the decode graph is captured once per
 process and the position is a device scalar, so the kernel choice would freeze at capture; `docs/results/2026-10-19-hip-round9.md` Decisions 1 and
-`docs/results/2026-10-19-hip-round10.md`, split-KV section). `INTARSIA_HIP_GEMM_SPLIT=tail|even` (row split of long GEMM launches, round 10) is opt-in and OFF: no win on the 8B.
+`docs/results/2026-10-19-hip-round10.md`, split-KV section).
 
 ## Admission cache
 
