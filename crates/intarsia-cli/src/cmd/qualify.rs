@@ -249,18 +249,18 @@ const STAGES: &[StageDef] = &[
         run: st_gate,
     },
     StageDef {
-        id: "acc-short",
-        title: "short accuracy against a golden",
-        section: "quick",
-        needs: &["plan"],
-        run: st_acc_short,
-    },
-    StageDef {
         id: "acc-format",
         title: "short accuracy against the format's own reference (same quantized weights)",
         section: "quick",
         needs: &["plan"],
         run: st_acc_format,
+    },
+    StageDef {
+        id: "acc-short",
+        title: "short accuracy against a golden",
+        section: "quick",
+        needs: &["plan"],
+        run: st_acc_short,
     },
     StageDef {
         id: "bench",
@@ -1511,13 +1511,25 @@ fn st_acc_short(c: &mut Ctx) -> Result<Out> {
         Golden::None(why) => return Ok(Out::skip(why)),
     };
     let a = c.accuracy("acc-short", &g, "both", false, 1, &[])?;
-    Ok(c.acc_out(a, &g, &how, "short"))
+    let mut o = c.acc_out(a, &g, &how, "short");
+    if o.verdict == Verdict::Fail {
+        if let Some(f) = c.state.get("acc-format").filter(|f| f.verdict == Verdict::Pass) {
+            o.verdict = Verdict::Warn;
+            o.reason = format!(
+                "report-only: {} (a third-party quant format; acc-format PASS against its own reference ({}), so this is the format's loss against bf16, not engine error; user decision 2026-10-21 17:13)",
+                o.reason,
+                f.reason
+            );
+        }
+    }
+    Ok(o)
 }
 
 /// The engine's error alone on a quantized model: `accuracy` against a golden made by the format's own reference
 /// implementation from the same quantized weights (`reference_kind = format`, docs/accuracy.md "Format-reference
 /// goldens"). `accuracy` gates it at the activation-precision class, and a `ref_noise` record of that golden (sidecar or
-/// metadata) applies as on any golden. The bf16-relative `acc-short` is unchanged: it measures quant loss plus engine error.
+/// metadata) applies as on any golden. It runs before `acc-short`: when it passes, a failing `acc-short` (the bf16-relative
+/// check: quant loss plus engine error) is report-only, a WARN (user decision 2026-10-21 17:13).
 fn st_acc_format(c: &mut Ctx) -> Result<Out> {
     let (g, how) = match c.a.format_golden.clone() {
         Some(g) if !g.exists() => return Ok(Out::error(format!("--format-golden {} does not exist", g.display()))),
@@ -2205,7 +2217,7 @@ mod tests {
             }
         }
         // the spec's order of the quick section
-        assert_eq!(&ids[..8], &["doctor", "recipe", "plan", "kernels", "gate", "acc-short", "acc-format", "bench"]);
+        assert_eq!(&ids[..8], &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "bench"]);
     }
 
     #[test]

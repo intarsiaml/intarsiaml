@@ -19,6 +19,9 @@ pub enum Verdict {
     Skip,
     /// The pipeline itself failed (a tool crashed, timed out, produced nothing readable): exit code 2.
     Error,
+    /// The gate ran and failed, but is report-only for this model (a warning; the run does not fail). The reason says
+    /// why: `acc-short` of a third-party quant format whose `acc-format` passed (user decision 2026-10-21 17:13).
+    Warn,
 }
 
 impl Verdict {
@@ -28,12 +31,13 @@ impl Verdict {
             Verdict::Fail => "FAIL",
             Verdict::Skip => "SKIP",
             Verdict::Error => "ERROR",
+            Verdict::Warn => "WARN",
         }
     }
     /// A finished stage (PASS or FAIL: the gate ran) is not run again by `--resume`. SKIP and ERROR are: the input a
     /// SKIP was missing (a golden, a reference server, `--skip`) may be there now, and the tool an ERROR hit may be fixed.
     pub fn is_done(self) -> bool {
-        matches!(self, Verdict::Pass | Verdict::Fail)
+        matches!(self, Verdict::Pass | Verdict::Fail | Verdict::Warn)
     }
 }
 

@@ -266,8 +266,11 @@ loss out: KL against it is the engine's error alone. Such a golden carries `refe
   static floor binds.
 * **Qualify.** `intarsia qualify` runs it as the quick stage `acc-format` (`--format-golden FILE`, else
   `<model>-formatref...safetensors` in a golden directory; ordinary golden discovery never picks a `-formatref` file). It
-  is skipped for unquantized weights and when there is none, and is an error when the given file lacks
-  `reference_kind = format`. The bf16-relative `acc-short` is unchanged.
+  is skipped for unquantized weights and when there is none, and is an error when the given file is unreadable or lacks
+  `reference_kind = format`. It runs before `acc-short`. **When it passes, a failing `acc-short` (the bf16-relative
+  check, quant loss plus engine error) is report-only**: verdict WARN, listed under "Warnings", the run does not fail
+  (user decision 2026-10-21 17:13, docs/decisions/LOG.md). A model without a format-reference golden keeps the
+  `acc-short` gate as before.
 * **Measured.** Qwen3-8B EXL3 4.0 bpw on CUDA (docs/results/2026-10-21-m2-exl3.md): engine against exllamav3 KL 4.4e-4,
   top-1 98.6%; exllamav3 against the bf16 golden 2.28e-2 (the quantisation loss).
 

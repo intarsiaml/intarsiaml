@@ -86,6 +86,11 @@ pub fn summary_json(state: &State, meta: &Meta, full: bool) -> Value {
         .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error))
         .map(|s| json!({"stage": s.id, "verdict": s.verdict.label(), "reason": s.reason}))
         .collect();
+    let warnings: Vec<Value> = stages
+        .iter()
+        .filter(|s| s.verdict == Verdict::Warn)
+        .map(|s| json!({"stage": s.id, "verdict": s.verdict.label(), "reason": s.reason}))
+        .collect();
     let skips: Vec<Value> = stages
         .iter()
         .filter(|s| s.verdict == Verdict::Skip)
@@ -114,7 +119,7 @@ pub fn summary_json(state: &State, meta: &Meta, full: bool) -> Value {
         "verdict": verdict,
         "exit_code": match verdict { "PASS" => 0, "FAIL" => 1, _ => 2 },
         "headline": {"speed": decode, "accuracy": accuracy, "quick_gate": gate},
-        "failures": failures, "skipped": skips, "wall_s": wall,
+        "failures": failures, "warnings": warnings, "skipped": skips, "wall_s": wall,
         "stages": stages.iter().map(|s| json!({"id": s.id, "title": s.title, "section": s.section, "verdict": s.verdict.label(), "reason": s.reason, "wall_s": s.wall_s, "started_unix": s.started_unix, "artifacts": s.artifacts, "metrics": s.metrics, "provenance": s.provenance, "notes": s.notes})).collect::<Vec<_>>(),
         "hooks": state.hooks,
     })
@@ -157,9 +162,10 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     let count = |v: Verdict| stages.iter().filter(|s| s.verdict == v).count();
     let _ = writeln!(
         o,
-        "**Verdict: {verdict}** ({} stages: {} pass, {} fail, {} error, {} skipped)\n",
+        "**Verdict: {verdict}** ({} stages: {} pass, {}{} fail, {} error, {} skipped)\n",
         stages.len(),
         count(Verdict::Pass),
+        if count(Verdict::Warn) > 0 { format!("{} report-only (warn), ", count(Verdict::Warn)) } else { String::new() },
         count(Verdict::Fail),
         count(Verdict::Error),
         count(Verdict::Skip)
@@ -251,6 +257,14 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     } else {
         for s in fails {
             let _ = writeln!(o, "- `{}` **{}**: {}", s.id, s.verdict.label(), md_cell(&s.reason));
+        }
+        let _ = writeln!(o);
+    }
+    let warns: Vec<&&StageRecord> = stages.iter().filter(|s| s.verdict == Verdict::Warn).collect();
+    if !warns.is_empty() {
+        let _ = writeln!(o, "### Warnings (report-only, the run does not fail)\n");
+        for s in warns {
+            let _ = writeln!(o, "- `{}` **WARN**: {}", s.id, md_cell(&s.reason));
         }
         let _ = writeln!(o);
     }
@@ -536,7 +550,7 @@ pub fn prometheus_text(summary: &Value) -> String {
     g(
         &mut o,
         "intarsia_qualify_stage_pass",
-        "1 when the stage passed, 0 when it failed or errored (skipped stages are absent).",
+        "1 when the stage passed, 0 when it failed or errored (skipped and report-only WARN stages are absent).",
     );
     let mut secs = String::new();
     for s in summary["stages"].as_array().cloned().unwrap_or_default() {
@@ -655,6 +669,24 @@ mod tests {
             "skipped stages are not reported as pass or fail: {t}"
         );
         assert!(t.contains("intarsia_qualify_exit_code{section=\"quick\"} 1"));
+    }
+
+    #[test]
+    fn a_report_only_warn_does_not_fail_the_run() {
+        let (mut s, m) = sample();
+        s.put(rec("acc-format", "quick", Verdict::Pass, "prefill top-1 98.85% KL 4.40e-4", Value::Null));
+        s.put(rec("acc-short", "quick", Verdict::Warn, "report-only: decode: KL 3.26e-2", Value::Null));
+        let j = summary_json(&s, &m, false);
+        assert_eq!(j["verdict"], "PASS");
+        assert_eq!(j["exit_code"], 0);
+        assert_eq!(j["failures"].as_array().unwrap().len(), 0);
+        assert_eq!(j["warnings"][0]["stage"], "acc-short");
+        let t = prometheus_text(&j);
+        assert!(!t.contains("intarsia_qualify_stage_pass{stage=\"acc-short\"}"), "{t}");
+        let r = render(&s, &m, false);
+        assert!(r.contains("1 report-only (warn)"), "{r}");
+        assert!(r.contains("- `acc-short` **WARN**: report-only"), "{r}");
+        assert!(Verdict::Warn.is_done());
     }
 
     #[test]
