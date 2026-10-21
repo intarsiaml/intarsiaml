@@ -1,0 +1,14 @@
+[onboard      0s] Qwen3-8B on metal, report directory /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: PASS in 0s (builtin:qwen3 covers the model (25/25 tensor templates resolve, quant bf16))
+[onboard] == smoke: smoke: load and generate one prompt
+[onboard      0s] log: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/logs/smoke.err
+[onboard] smoke: PASS in 1s (generated: "Paris. The capital of Italy is Rome. The capital of Spain is Madrid.")
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard      1s] log: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/logs/quick.err
+[onboard] quick: PASS in 3m14s (qualify exit 0, 7 stage(s) recorded)
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+QUICK DONE: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/quick.md
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-21T22:36:20Z)
+[onboard] == in-depth: in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)
+[onboard    196s] log: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/logs/in-depth.err

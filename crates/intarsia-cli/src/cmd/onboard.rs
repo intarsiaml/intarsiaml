@@ -247,6 +247,10 @@ pub struct StageRec {
     pub wall_s: f64,
     /// The stage stopped the pipeline.
     pub halted: bool,
+    /// When the first attempt started, if this record is a re-run of a stage that was killed or ended in ERROR / SKIP
+    /// (`started_unix` is the attempt that produced this record).
+    #[serde(default)]
+    pub first_started_unix: Option<u64>,
     pub facts: Map<String, Value>,
     pub artifacts: Vec<String>,
 }
@@ -375,6 +379,12 @@ pub fn run_pipeline<C>(
         }
         say(&format!("== {}: {}", def.id, def.title));
         let started = now();
+        let first_started = st
+            .running
+            .as_ref()
+            .filter(|r| r.id == def.id)
+            .map(|r| r.started_unix)
+            .or_else(|| st.get(def.id).filter(|r| !r.verdict.is_done()).map(|r| r.first_started_unix.unwrap_or(r.started_unix)));
         let t = Instant::now();
         st.running = Some(Running { id: def.id.to_string(), started_unix: started });
         st.save(dir)?;
@@ -389,6 +399,7 @@ pub fn run_pipeline<C>(
             ended_unix: now(),
             wall_s: t.elapsed().as_secs_f64(),
             halted: out.halt,
+            first_started_unix: first_started,
             facts: out.facts,
             artifacts: out.artifacts,
         };
@@ -443,7 +454,8 @@ pub fn timeline_json(st: &OnbState, q: &State, upto: Option<Tier>) -> Value {
         .filter(|s| keep(s.tier))
         .map(|s| {
             json!({"id": s.id, "tier": s.tier.label(), "verdict": s.verdict.label(), "started_unix": s.started_unix,
-                   "started": iso(s.started_unix), "ended_unix": s.ended_unix, "ended": iso(s.ended_unix), "wall_s": s.wall_s})
+                   "started": iso(s.started_unix), "ended_unix": s.ended_unix, "ended": iso(s.ended_unix), "wall_s": s.wall_s,
+                   "first_started_unix": s.first_started_unix, "first_started": s.first_started_unix.map(iso)})
         })
         .collect();
     let qual: Vec<Value> = q
@@ -461,18 +473,20 @@ pub fn timeline_json(st: &OnbState, q: &State, upto: Option<Tier>) -> Value {
 
 /// The markdown table appended to the qualify report.
 pub fn timeline_md(tl: &Value) -> String {
-    let mut o = String::from("\n## Stage timeline\n\nAll times UTC. The qualify stages ran inside the `quick` / `in-depth` stages.\n\n");
-    o.push_str("| Stage | Tier | Verdict | Start | End | Duration |\n|---|---|---|---|---|---|\n");
+    let mut o = String::from("\n## Stage timeline\n\nAll times UTC. The qualify stages ran inside the `quick` / `in-depth` stages. A stage that was killed and resumed shows \
+         its last attempt; the qualify rows show every sub-stage with the time it actually ran.\n\n");
+    o.push_str("| Stage | Tier | Verdict | Start | End | Duration | Note |\n|---|---|---|---|---|---|---|\n");
     let row = |o: &mut String, r: &Value, tier: &str| {
         let _ = writeln!(
             o,
-            "| {} | {} | {} | {} | {} | {} |",
+            "| {} | {} | {} | {} | {} | {} | {} |",
             r["id"].as_str().unwrap_or("?"),
             tier,
             r["verdict"].as_str().unwrap_or("?"),
             r["started"].as_str().unwrap_or("?"),
             r["ended"].as_str().unwrap_or("?"),
             report::fmt_dur(r["wall_s"].as_f64().unwrap_or(0.0)),
+            r["first_started"].as_str().map(|f| format!("resumed; first attempt started {f}")).unwrap_or_default(),
         );
     };
     for r in tl["stages"].as_array().into_iter().flatten() {
@@ -1147,6 +1161,28 @@ mod tests {
     }
 
     #[test]
+    fn a_resumed_stage_remembers_when_its_first_attempt_started() {
+        let dir = tmp("first");
+        let mut t = T { panic_at: Some("in-depth"), ..T::default() };
+        let _ = catch_unwind(AssertUnwindSafe(|| go(&dir, &mut t, &[], false)));
+        let killed_at = OnbState::load(&dir).unwrap().unwrap().running.unwrap().started_unix;
+        let mut t2 = T::default();
+        let (st, _) = go(&dir, &mut t2, &[], false);
+        assert_eq!(st.get("in-depth").unwrap().first_started_unix, Some(killed_at));
+        assert_eq!(st.get("quick").unwrap().first_started_unix, None, "a stage that ran once has no earlier attempt");
+        // an ERROR stage that runs again also keeps its first start
+        let dir2 = tmp("first2");
+        let mut t3 = T::default();
+        t3.outcome.insert("quick", (Verdict::Error, false));
+        let (st3, _) = go(&dir2, &mut t3, &[], false);
+        let first = st3.get("quick").unwrap().started_unix;
+        let (st4, _) = go(&dir2, &mut T::default(), &[], false);
+        assert_eq!(st4.get("quick").unwrap().first_started_unix, Some(first));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&dir2);
+    }
+
+    #[test]
     fn redo_and_refresh_rerun_the_stage_and_its_report() {
         let dir = tmp("redo");
         let mut t = T::default();
@@ -1175,6 +1211,7 @@ mod tests {
             ended_unix: 2,
             wall_s: 1.0,
             halted: true,
+            first_started_unix: None,
             facts: f,
             artifacts: vec![],
         });
@@ -1222,7 +1259,7 @@ mod tests {
         let tl = timeline_json(&st, &q, Some(Tier::Quick));
         assert_eq!(tl["stages"].as_array().unwrap().len(), 4, "the quick report holds the quick tier only");
         let md = timeline_md(&tl);
-        assert!(md.contains("| recipe | prepare | PASS | 2026-10-21T17:30:36Z | 2026-10-21T17:31:36Z | 60s |"), "{md}");
+        assert!(md.contains("| recipe | prepare | PASS | 2026-10-21T17:30:36Z | 2026-10-21T17:31:36Z | 60s |  |"), "{md}");
         let prom = timeline_prom("Qwen3-8B", "metal", &tl, "quick", 5);
         assert!(prom.contains("intarsia_onboard_stage_seconds{model=\"Qwen3-8B\",backend=\"metal\",stage=\"recipe\""), "{prom}");
         assert!(prom.contains("intarsia_onboard_published_timestamp_seconds{model=\"Qwen3-8B\",backend=\"metal\",tier=\"quick\"} 5"));
