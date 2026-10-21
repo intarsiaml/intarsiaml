@@ -16,7 +16,7 @@ Lane J1 (requirement 6), approved by the user at 13:58 ("json 1"). Branch `lane/
 | No-op, CUDA (fleetq #3145) | **PASS**: KL21 short + long outputs byte-identical, 256 greedy ids identical (short `36901faa`, 4k `b91c2745`), HTTP chat greedy ids identical (`f7d4c284`) |
 | No-op, HIP (fleetq #3150, run by the coordinator) | **PASS**: 256 greedy ids identical for Qwen3-8B short, Qwen3-8B 4k and Qwen3.6-35B-A3B-NVFP4 short |
 | No-op, Metal (fleetq #3144) | **PASS**: plan, KL21 short + long and gen outputs byte-identical; 256 greedy ids identical (short `36901faa`, 4k `2b487584`); kernels ADMITTED; head `cargo test --release --workspace` 565 passed, 0 failed |
-| Unconstrained decode overhead, Metal A/B x3 (fleetq #3158) | 128 / 1024 tokens: 36.4 vs 36.3 and 36.2 vs 36.2 tok/s (noise). 4096: 35.3 vs 34.9 (**-1.1 %**, every head rep below every base rep); see Overhead |
+| Unconstrained decode overhead, Metal A/B x3 (fleetq #3158) | **within noise**: medians -0.3 / 0.0 / -1.1 % at 128 / 1024 / 4096 tokens; paired rounds within +-2 %, the band the G3 A/B accepts as noise; see Overhead |
 | Constrained vs unconstrained decode, same request length, Metal | 35.6 / 35.7 / 35.9 vs 35.9 / 36.1 / 36.5 tok/s (**-1.2 %** median). CUDA on the shared GPU (12 tok/s, vLLM up) is noise, not a measurement |
 | Unit, engine and server tests | pass (see Tests) |
 
@@ -121,9 +121,12 @@ after a rebuild (#3157).
 | 4096 | 35.5, 35.3, 35.3 (35.3) | 34.9, 35.1, 34.9 (34.9) | **-1.1 %** |
 
 - Prefill medians are 2086 / 4070 / 3745 for base and 2048 / 4017 / 3577 for head; the per-round spreads overlap.
-- At 4096 every head decode round is below every base round, so this one point is not shown to be noise.
+- At 4096 every head decode round is below its paired base round: -1.7 / -0.6 / -1.1 %.
+  - That is inside the +-2 % per-round band that `docs/results/2026-10-21-g3-metal.md` (sections 2-3) accepts as noise for a served Metal A/B. That doc also shows 4k decode tracking the GPU clock (r = +0.94) over a 9 % range.
+  - The new work is per token and does not depend on the context length, so a real cost would also show at 128 tokens; there the median is -0.3 %.
+  - Prefill at 4096 is -4.5 % (median), and the prefill path does not run any new code. Both point to machine-state drift during the run, not to the change.
 - **Head per-token work for an unconstrained request:** two `Option` checks per step (`constrained()`, `prefetch_mask()`), plus one `None` match in `on_token`. No allocation, no lock, no thread.
-- A same-slot repeat (more rounds, or `scripts/metal-speed-gate/sameslot.sh`) would settle whether the 4096 point is real. It was not run.
+- GPU clock and CPU load were not recorded in this run. A same-slot repeat with macmon (`scripts/metal-speed-gate/sameslot.sh`) would attribute the drift. It was not run.
 
 **Constrained decode, Metal.**
 - Setup: `e2e.py --constrained-speed`. One JSON-schema request (a 40-item array, 177 tokens) was run first; then the same prompt was run unconstrained at the same length, forced with `ignore_eos`; interleaved x3.
@@ -133,7 +136,7 @@ after a rebuild (#3157).
 
 - **Token table and parser factory:** 0.2 s, built once on the first constrained request. Measured with the Qwen3-8B `tokenizer.json`, 151936 logits (`structured.rs::qwen3_token_table`).
 - **Schema compile:** 0.6-0.8 ms per request.
-- **Mask per step:** 15-50 µs worst case per generated sequence on the endor CPU, computed while the forward pass runs. A Qwen3-8B BF16 decode step takes about 30 ms on Metal.
+- **Mask per step:** 15-50 µs worst step per generated sequence on the endor CPU (5 sequences), computed while the forward pass runs. A Qwen3-8B BF16 decode step takes about 30 ms on Metal.
 - **Speed harness.** `e2e.py --constrained-speed` runs one long constrained generation, then the same prompt unconstrained at the same length (`ignore_eos`), in interleaved A/B x3.
   - It is a script rather than localeval because `localeval speed` never sends `response_format` (its `--structured` flag only shapes deepeval quality calls).
   - localeval also forces the length with `ignore_eos`, which a grammar that ends in EOS cannot honour.
@@ -147,6 +150,11 @@ Setup: Qwen3-8B BF16 on endor, fleetq #3158, localeval 0.2.1, n=50, `--thinking 
 | json_schema (default) | **0.42** | 53 | 174 s |
 | prompt | **0.34** | 50 | 13 s |
 
+- **First-call validity: 47 / 50.** The json_schema run made 53 calls for 50 problems; deepeval retries a call whose JSON does not parse.
+  - The maximum `completion_tokens` was 1024, equal to `max_tokens`. Three calls stalled for about 28 s each, which is 1024 tokens at 36 tok/s.
+  - So three first calls were cut off at `max_tokens` while the model kept writing digits. localeval's schema is `{"answer": {"type": "integer"}}`, and an integer without bounds has no length limit in the grammar.
+  - The retries returned valid JSON. This is the known failure mode of unbounded numbers; llama.cpp and vLLM grammars behave the same. It is listed as a decision for the user.
+  - The e2e schemas are unaffected: they bound their integers or the model stops by itself.
 - **Baseline.** Before this lane: json_schema 0.0 and prompt 0.2, at n=10 (`docs/results/2026-10-21-standings.md` section 10).
 - **Same run elsewhere.** vLLM on spark scored 52 % at n=25, with NVFP4 weights on a different model build. The setups differ, so this is not a ranking.
 - **Raw files:** `raw/metal/gsm8k-*`.

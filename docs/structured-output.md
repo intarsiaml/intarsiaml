@@ -74,13 +74,20 @@ other models:
 - **Overlap.** The next step's mask is computed on a helper thread while the forward pass runs:
   - it starts in `Seq::plain_input` for decode steps;
   - it starts in `Seq::admit` for the first token, overlapping prefill.
-  - Measured mask times on Qwen3 are 15-90 µs per step.
+  - Measured on Qwen3: the worst step per sequence is 15-50 µs (`structured.rs::qwen3_token_table`).
 - **Device sampling.** No backend needed a device kernel: the Metal, CUDA and HIP decode paths all have per-row host
   logits. An unconstrained request never touches any of this code, so its device argmax and its greedy ids are
   unchanged.
 - **Speculative decoding** (`--spec`, Metal, off by default) is **disabled for constrained requests**: they take plain
   steps only. Drafts are not verified against the mask.
 - **Prefix cache.** Unaffected: the constraint starts after the prompt and changes no KV state.
+
+## Unbounded numbers
+
+A schema `{"type": "integer"}` (or `number`) without `maximum` / `minimum` has no length limit in the grammar. A greedy
+model that starts repeating digits can then run until `max_tokens`, and the cut-off JSON does not parse. It happened in
+3 of 50 GSM8K first calls (docs/results/2026-10-21-j1-structured.md). intarsia leaves such schemas as the client sent them,
+as llama.cpp and vLLM do.
 
 ## Thinking models
 
