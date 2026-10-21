@@ -379,12 +379,9 @@ pub fn run_pipeline<C>(
         }
         say(&format!("== {}: {}", def.id, def.title));
         let started = now();
-        let first_started = st
-            .running
-            .as_ref()
-            .filter(|r| r.id == def.id)
-            .map(|r| r.started_unix)
-            .or_else(|| st.get(def.id).filter(|r| !r.verdict.is_done()).map(|r| r.first_started_unix.unwrap_or(r.started_unix)));
+        let first_started = st.running.as_ref().filter(|r| r.id == def.id).map(|r| r.started_unix).or_else(|| {
+            st.get(def.id).filter(|r| !r.verdict.is_done()).map(|r| r.first_started_unix.unwrap_or(r.started_unix))
+        });
         let t = Instant::now();
         st.running = Some(Running { id: def.id.to_string(), started_unix: started });
         st.save(dir)?;
@@ -424,9 +421,10 @@ pub fn exit_code<C>(defs: &[StageDef<C>], quick_only: bool, st: &OnbState) -> i3
     if st.stages.iter().any(|s| s.facts.get("needs_human") == Some(&Value::Bool(true)) && !s.verdict.is_done()) {
         return 3;
     }
-    let complete = defs.iter().filter(|d| !(quick_only && d.tier == Tier::InDepth)).all(|d| {
-        st.get(d.id).is_some() || !d.needs.is_empty() && d.needs.iter().any(|n| st.get(n).is_none())
-    });
+    let complete = defs
+        .iter()
+        .filter(|d| !(quick_only && d.tier == Tier::InDepth))
+        .all(|d| st.get(d.id).is_some() || !d.needs.is_empty() && d.needs.iter().any(|n| st.get(n).is_none()));
     if !complete || st.stages.iter().any(|s| s.verdict == Verdict::Error) {
         return 2;
     }
@@ -507,7 +505,11 @@ pub fn timeline_prom(model: &str, backend: &str, tl: &Value, tier: &str, publish
         o,
         "# HELP intarsia_onboard_published_timestamp_seconds Unix time the report of this tier was written.\n# TYPE intarsia_onboard_published_timestamp_seconds gauge"
     );
-    let _ = writeln!(o, "intarsia_onboard_published_timestamp_seconds{{{}}} {published_unix}", l(&format!(",tier=\"{tier}\"")));
+    let _ = writeln!(
+        o,
+        "intarsia_onboard_published_timestamp_seconds{{{}}} {published_unix}",
+        l(&format!(",tier=\"{tier}\""))
+    );
     let _ = writeln!(
         o,
         "# HELP intarsia_onboard_stage_seconds Wall time of an onboard stage.\n# TYPE intarsia_onboard_stage_seconds gauge"
@@ -516,7 +518,12 @@ pub fn timeline_prom(model: &str, backend: &str, tl: &Value, tier: &str, publish
         let _ = writeln!(
             o,
             "intarsia_onboard_stage_seconds{{{}}} {:.1}",
-            l(&format!(",stage=\"{}\",tier=\"{}\",verdict=\"{}\"", r["id"].as_str().unwrap_or("?"), r["tier"].as_str().unwrap_or("?"), r["verdict"].as_str().unwrap_or("?"))),
+            l(&format!(
+                ",stage=\"{}\",tier=\"{}\",verdict=\"{}\"",
+                r["id"].as_str().unwrap_or("?"),
+                r["tier"].as_str().unwrap_or("?"),
+                r["verdict"].as_str().unwrap_or("?")
+            )),
             r["wall_s"].as_f64().unwrap_or(0.0)
         );
     }
@@ -616,10 +623,7 @@ impl Ctx {
 
     /// The recipe a stage must be given (explicit, or generated into the report directory).
     fn recipe_arg(&self, st: &OnbState) -> Option<PathBuf> {
-        self.a
-            .recipe
-            .clone()
-            .or_else(|| st.fact("recipe", "recipe_path").and_then(|v| v.as_str()).map(PathBuf::from))
+        self.a.recipe.clone().or_else(|| st.fact("recipe", "recipe_path").and_then(|v| v.as_str()).map(PathBuf::from))
     }
 
     /// Flags every model-loading command takes, `generate` and `qualify` alike.
@@ -684,7 +688,8 @@ fn st_recipe(c: &mut Ctx, _: &OnbState) -> Result<StageOut> {
     let scaffold = c.out.join("recipe.toml");
     let explicit = c.a.recipe.clone().or_else(|| scaffold.exists().then(|| scaffold.clone()));
     if let Some(path) = explicit {
-        let todos = recipe_todos(&std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?);
+        let todos =
+            recipe_todos(&std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?);
         return Ok(recipe_verdict(&path, &todos, c.a.recipe.is_none(), c));
     }
     let an = recipe::analyse(&c.a.model, &c.a.recipe_dir)?;
@@ -744,7 +749,12 @@ fn st_smoke(c: &mut Ctx, st: &OnbState) -> Result<StageOut> {
         .stderr()
         .lines()
         .find(|l| l.starts_with("finish="))
-        .and_then(|l| l.rsplit("decode ").next().and_then(|d| d.split('(').nth(1)).and_then(|d| d.split(' ').next().map(String::from)))
+        .and_then(|l| {
+            l.rsplit("decode ")
+                .next()
+                .and_then(|d| d.split('(').nth(1))
+                .and_then(|d| d.split(' ').next().map(String::from))
+        })
         .and_then(|d| d.parse::<f64>().ok())
     {
         o = o.fact("decode_tok_s", rate);
@@ -756,7 +766,13 @@ fn st_smoke(c: &mut Ctx, st: &OnbState) -> Result<StageOut> {
 fn run_qualify(c: &mut Ctx, st: &OnbState, quick_only: bool, stem: &str) -> Result<StageOut> {
     let mut args = vec!["qualify".to_string()];
     args.extend(c.load_args(st));
-    args.extend(["--out".into(), c.qdir.display().to_string(), "--resume".into(), "--model-name".into(), c.name.clone()]);
+    args.extend([
+        "--out".into(),
+        c.qdir.display().to_string(),
+        "--resume".into(),
+        "--model-name".into(),
+        c.name.clone(),
+    ]);
     if c.a.tp > 1 {
         args.extend(["--tp".into(), c.a.tp.to_string()]);
     }
@@ -823,10 +839,19 @@ fn publish(c: &mut Ctx, st: &OnbState, full: bool) -> Result<(PathBuf, u64)> {
     let at = md.find("\n\n").map(|i| i + 2).unwrap_or(0);
     md.insert_str(at, &banner_md(st, verdict, upto));
     md.push_str(&timeline_md(&tl));
-    let _ = writeln!(md, "\n_Published {} by `intarsia onboard` (report directory `{}`)._", iso(published), c.out.display());
+    let _ = writeln!(
+        md,
+        "\n_Published {} by `intarsia onboard` (report directory `{}`)._",
+        iso(published),
+        c.out.display()
+    );
     js["qualify_verdict"] = js["verdict"].clone();
     js["verdict"] = json!(verdict);
-    js["exit_code"] = json!(match verdict { "PASS" => 0, "FAIL" => 1, _ => 2 });
+    js["exit_code"] = json!(match verdict {
+        "PASS" => 0,
+        "FAIL" => 1,
+        _ => 2,
+    });
     js["kind"] = json!("intarsia-onboard");
     js["tier"] = json!(if full { "in-depth" } else { "quick" });
     js["published_unix"] = json!(published);
@@ -957,7 +982,8 @@ fn pipeline(mut a: OnboardArgs) -> Result<i32> {
         None => std::env::current_exe().context("finding the executable")?,
     };
     proc::forward_termination();
-    let mut c = Ctx { qdir: out.join("qualify"), out: out.clone(), a: a.clone(), name, bin, t0: Instant::now(), hooks: vec![] };
+    let mut c =
+        Ctx { qdir: out.join("qualify"), out: out.clone(), a: a.clone(), name, bin, t0: Instant::now(), hooks: vec![] };
     c.say(&format!("{} on {}, report directory {}", c.name, a.backend, out.display()));
     let say = |m: &str| eprintln!("[onboard] {m}");
     let opts = RunOpts { quick_only: a.quick_only, redo: &a.redo };
@@ -979,7 +1005,11 @@ fn pipeline(mut a: OnboardArgs) -> Result<i32> {
         3 => "RECIPE NEEDS A HUMAN",
         _ => "ERROR",
     };
-    println!("ONBOARD {verdict} (exit {code}{}) in {}", if sum.stopped { ", stopped early" } else { "" }, report::fmt_dur(c.t0.elapsed().as_secs_f64()));
+    println!(
+        "ONBOARD {verdict} (exit {code}{}) in {}",
+        if sum.stopped { ", stopped early" } else { "" },
+        report::fmt_dur(c.t0.elapsed().as_secs_f64())
+    );
     Ok(code)
 }
 
@@ -1103,7 +1133,10 @@ mod tests {
         assert!(r.is_err());
         // what a kill leaves on disk: the quick tier finished and published, the in-depth stage has no record
         let on_disk = OnbState::load(&dir).unwrap().unwrap();
-        assert_eq!(on_disk.stages.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["recipe", "smoke", "quick", "publish-quick"]);
+        assert_eq!(
+            on_disk.stages.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+            ["recipe", "smoke", "quick", "publish-quick"]
+        );
         assert_eq!(on_disk.running.as_ref().unwrap().id, "in-depth");
         let mut t2 = T::default();
         let (st, sum) = go(&dir, &mut t2, &[], false);
@@ -1259,10 +1292,18 @@ mod tests {
         let tl = timeline_json(&st, &q, Some(Tier::Quick));
         assert_eq!(tl["stages"].as_array().unwrap().len(), 4, "the quick report holds the quick tier only");
         let md = timeline_md(&tl);
-        assert!(md.contains("| recipe | prepare | PASS | 2026-10-21T17:30:36Z | 2026-10-21T17:31:36Z | 60s |  |"), "{md}");
+        assert!(
+            md.contains("| recipe | prepare | PASS | 2026-10-21T17:30:36Z | 2026-10-21T17:31:36Z | 60s |  |"),
+            "{md}"
+        );
         let prom = timeline_prom("Qwen3-8B", "metal", &tl, "quick", 5);
-        assert!(prom.contains("intarsia_onboard_stage_seconds{model=\"Qwen3-8B\",backend=\"metal\",stage=\"recipe\""), "{prom}");
-        assert!(prom.contains("intarsia_onboard_published_timestamp_seconds{model=\"Qwen3-8B\",backend=\"metal\",tier=\"quick\"} 5"));
+        assert!(
+            prom.contains("intarsia_onboard_stage_seconds{model=\"Qwen3-8B\",backend=\"metal\",stage=\"recipe\""),
+            "{prom}"
+        );
+        assert!(prom.contains(
+            "intarsia_onboard_published_timestamp_seconds{model=\"Qwen3-8B\",backend=\"metal\",tier=\"quick\"} 5"
+        ));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -1275,7 +1316,10 @@ mod tests {
         // qualify never ran: its state is empty and says PASS (0 stages); the onboard stages say otherwise
         assert_eq!(tier_verdict(&st, "PASS", Some(Tier::Quick)), "ERROR");
         let banner = banner_md(&st, "ERROR", Some(Tier::Quick));
-        assert!(banner.starts_with("> **Onboard verdict: ERROR.**") && banner.contains("smoke: ERROR (tool crashed)"), "{banner}");
+        assert!(
+            banner.starts_with("> **Onboard verdict: ERROR.**") && banner.contains("smoke: ERROR (tool crashed)"),
+            "{banner}"
+        );
         // a clean preparation leaves qualify's verdict alone
         let mut t2 = T::default();
         let dir2 = tmp("verdict2");
