@@ -8,6 +8,7 @@
 //! Memory is plain host RAM; weights from mmap'd files are used zero-copy via
 //! `Backend::wrap_host`.
 
+mod exl3_ref;
 mod fast;
 mod fault;
 mod fused_ref;

@@ -278,6 +278,9 @@ impl Backend for CudaBackend {
         if let Some(r) = self.launch_quantmoe(kernel, call, stream) {
             return r;
         }
+        if let Some(r) = self.launch_exl3(kernel, call, stream) {
+            return r;
+        }
         match kernels::TABLE.iter().find(|(n, _)| *n == kernel) {
             None => return Err(Error::NoKernel(format!("cuda kernel '{kernel}'"))),
             Some((_, op)) if *op != call.op => {

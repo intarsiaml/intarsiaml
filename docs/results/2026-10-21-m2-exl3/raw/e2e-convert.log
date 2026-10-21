@@ -1,0 +1,13 @@
+model.safetensors: 905 tensors, 146 plain F16 -> BF16
+total 5084972
+drwxrwxr-x 2 nvidia nvidia       4096 Oct 21 11:03 .
+drwxrwxr-x 4 nvidia nvidia       4096 Oct 21 11:03 ..
+-rw-rw-r-- 1 root   root         1042 Oct 21 10:54 config.json
+-rw-rw-r-- 1 root   root          239 Oct 21 10:54 generation_config.json
+-rw-rw-r-- 1 root   root      1671853 Oct 21 10:54 merges.txt
+-rw-r--r-- 1 root   root   5190783368 Oct 21 11:03 model.safetensors
+-rw-rw-r-- 1 root   root       292047 Oct 21 10:54 quantization_config.json
+-rw-rw-r-- 1 root   root        16573 Oct 21 10:54 README.md
+-rw-rw-r-- 1 root   root         9675 Oct 21 10:54 tokenizer_config.json
+-rw-rw-r-- 1 root   root     11422654 Oct 21 10:54 tokenizer.json
+-rw-rw-r-- 1 root   root      2776833 Oct 21 10:54 vocab.json

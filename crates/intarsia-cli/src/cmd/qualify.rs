@@ -61,6 +61,11 @@ pub struct QualifyArgs {
     /// prefill chunk of 2048, which the long golden's 700-token prompts are not.
     #[arg(long)]
     pub golden_4k: Option<PathBuf>,
+    /// Format-reference golden for the `acc-format` stage: the same quantized weights run by the format's own reference
+    /// implementation (EXL3: tools/golden_exl3.py, exllamav3), metadata `reference_kind = format`. Gates the engine's
+    /// error alone, at the activation-precision class. Default: `<model>-formatref...` found by name; none is made.
+    #[arg(long)]
+    pub format_golden: Option<PathBuf>,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
@@ -137,7 +142,7 @@ pub struct QualifyArgs {
     /// Pass --no-unim to localeval (no unanimis record for the A/B runs).
     #[arg(long)]
     pub no_unim: bool,
-    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, bench, acc-long, acc-4k,
+    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, acc-format, bench, acc-long, acc-4k,
     /// envelope, bench-long, ab, tp.
     #[arg(long)]
     pub skip: Vec<String>,
@@ -243,6 +248,13 @@ const STAGES: &[StageDef] = &[
         section: "quick",
         needs: &["plan"],
         run: st_gate,
+    },
+    StageDef {
+        id: "acc-format",
+        title: "short accuracy against the format's own reference (same quantized weights)",
+        section: "quick",
+        needs: &["plan"],
+        run: st_acc_format,
     },
     StageDef {
         id: "acc-short",
@@ -1506,7 +1518,61 @@ fn st_acc_short(c: &mut Ctx) -> Result<Out> {
         Golden::None(why) => return Ok(Out::skip(why)),
     };
     let a = c.accuracy("acc-short", &g, "both", false, 1, &[])?;
-    Ok(c.acc_out(a, &g, &how, "short"))
+    let mut o = c.acc_out(a, &g, &how, "short");
+    if o.verdict == Verdict::Fail {
+        if let Some(f) = c.state.get("acc-format").filter(|f| f.verdict == Verdict::Pass) {
+            o.verdict = Verdict::Warn;
+            o.reason = format!(
+                "report-only: {} (a third-party quant format; acc-format PASS against its own reference ({}), so this is the format's loss against bf16, not engine error; user decision 2026-10-21 17:13)",
+                o.reason,
+                f.reason
+            );
+        }
+    }
+    Ok(o)
+}
+
+/// The engine's error alone on a quantized model: `accuracy` against a golden made by the format's own reference
+/// implementation from the same quantized weights (`reference_kind = format`, docs/accuracy.md "Format-reference
+/// goldens"). `accuracy` gates it at the activation-precision class, and a `ref_noise` record of that golden (sidecar or
+/// metadata) applies as on any golden. It runs before `acc-short`: when it passes, a failing `acc-short` (the bf16-relative
+/// check: quant loss plus engine error) is report-only, a WARN (user decision 2026-10-21 17:13).
+fn st_acc_format(c: &mut Ctx) -> Result<Out> {
+    let (g, how) = match c.a.format_golden.clone() {
+        Some(g) if !g.exists() => return Ok(Out::error(format!("--format-golden {} does not exist", g.display()))),
+        Some(g) => (g, "given with --format-golden".to_string()),
+        None => {
+            if c.facts.get("quantized") != Some(&json!(true)) {
+                return Ok(Out::skip("the weights are not quantized: no format reference applies"));
+            }
+            match facts::find_format_golden(&c.name, &default_golden_dirs(&c.a)) {
+                Some(g) => (g, "found by model name".to_string()),
+                None => {
+                    return Ok(Out::skip(format!(
+                        "no format-reference golden for '{}' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)",
+                        c.name
+                    )))
+                }
+            }
+        }
+    };
+    if let Err(e) = std::fs::File::open(&g) {
+        return Ok(Out::error(format!("{}: {e}", g.display())));
+    }
+    let kind = facts::golden_meta(&g, "reference_kind");
+    if kind.as_deref() != Some("format") {
+        return Ok(Out::error(format!(
+            "{}: not a format-reference golden (metadata reference_kind = {}, want \"format\")",
+            g.display(),
+            kind.as_deref().unwrap_or("none")
+        )));
+    }
+    let engine = facts::golden_meta(&g, "reference_engine").unwrap_or_else(|| "unrecorded".into());
+    let how = format!("{how}; reference: {engine}");
+    c.facts.insert("golden_format".into(), json!(g.display().to_string()));
+    c.facts.insert("golden_format_how".into(), json!(how.clone()));
+    let a = c.accuracy("acc-format", &g, "both", false, 1, &[])?;
+    Ok(c.acc_out(a, &g, &how, "format"))
 }
 
 // ---- serving + bench ----
@@ -2158,7 +2224,7 @@ mod tests {
             }
         }
         // the spec's order of the quick section
-        assert_eq!(&ids[..7], &["doctor", "recipe", "plan", "kernels", "gate", "acc-short", "bench"]);
+        assert_eq!(&ids[..8], &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "bench"]);
     }
 
     #[test]

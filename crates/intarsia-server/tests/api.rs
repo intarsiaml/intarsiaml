@@ -38,10 +38,13 @@ struct Mock {
     structured: bool,
     /// What the mock "model" wants to say under a constraint (it says it where the mask lets it).
     want: Option<&'static str>,
+    /// The model has a reasoning parser (`<think>` tags): `</think>` is token 258 of the structured mock.
+    think: bool,
 }
 
 const OPEN_TAG: &str = "<tool_call>";
 const CLOSE_TAG: &str = "</tool_call>";
+const THINK_CLOSE: &str = "</think>";
 
 /// Byte tokens, plus the two hermes tags as single tokens.
 fn mock_tokenize(text: &str) -> Vec<u32> {
@@ -53,6 +56,9 @@ fn mock_tokenize(text: &str) -> Vec<u32> {
             rest = r;
         } else if let Some(r) = rest.strip_prefix(CLOSE_TAG) {
             out.push(257);
+            rest = r;
+        } else if let Some(r) = rest.strip_prefix(THINK_CLOSE) {
+            out.push(258);
             rest = r;
         } else {
             out.push(rest.as_bytes()[0] as u32);
@@ -66,6 +72,7 @@ fn mock_bytes(id: u32) -> Vec<u8> {
     match id {
         256 => OPEN_TAG.as_bytes().to_vec(),
         257 => CLOSE_TAG.as_bytes().to_vec(),
+        258 => THINK_CLOSE.as_bytes().to_vec(),
         0 => Vec::new(),
         b => vec![b as u8],
     }
@@ -79,11 +86,13 @@ fn mock_tokenizer_json() -> String {
     }
     vocab.insert(OPEN_TAG.into(), json!(256));
     vocab.insert(CLOSE_TAG.into(), json!(257));
+    vocab.insert(THINK_CLOSE.into(), json!(258));
     json!({
         "added_tokens": [
             {"id": 0, "content": "<eos>", "special": true},
             {"id": 256, "content": OPEN_TAG, "special": false},
-            {"id": 257, "content": CLOSE_TAG, "special": false}
+            {"id": 257, "content": CLOSE_TAG, "special": false},
+            {"id": 258, "content": THINK_CLOSE, "special": false}
         ],
         "decoder": {"type": "Sequence", "decoders": [{"type": "ByteFallback"}]},
         "model": {"type": "BPE", "vocab": vocab}
@@ -104,7 +113,7 @@ fn constrained_gen(req: &GenRequest, want: &str) -> (Vec<(u32, String)>, usize, 
             let pref = want.get(step).copied().into_iter().chain([0, b'"' as u32, b'}' as u32, b']' as u32, b'1' as u32]);
             match pref.clone().find(|&t| m.allows(t)) {
                 Some(t) => t,
-                None => (0..258).find(|&t| m.allows(t)).expect("mask allows something"),
+                None => (0..259).find(|&t| m.allows(t)).expect("mask allows something"),
             }
         } else {
             want.get(step).copied().unwrap_or(0)
@@ -129,7 +138,7 @@ impl Engine for Mock {
             arch: "x".into(),
             n_layers: 1,
             hidden: 1,
-            vocab: if self.structured { 258 } else { 256 },
+            vocab: if self.structured { 259 } else { 256 },
             n_heads: 1,
             n_kv_heads: 1,
             head_dim: 1,
@@ -140,7 +149,7 @@ impl Engine for Mock {
             weights_bytes: 10,
             eos_ids: vec![0],
             has_chat_template: true,
-            reasoning_parser: None,
+            reasoning_parser: self.think.then(|| "think-tags".into()),
             tool_parser: self.structured.then(|| "hermes".into()),
             memory_plan: MemoryPlan {
                 device: "test".into(),
@@ -1388,4 +1397,255 @@ async fn structured_output_errors_are_400() {
     let (st, _, resp) = call(&app, "POST", "/v1/chat/completions", Some(chat(json!({"tools": weather_tools()})))).await;
     assert_eq!(st, StatusCode::OK, "{resp}");
     assert!(!resp.contains("tool_calls"));
+}
+
+// ---------------------------------------------------------------------------
+// reasoning parser (`<think>...</think>`), alone and under a constraint
+// ---------------------------------------------------------------------------
+
+fn thinking_mock(want: Option<&'static str>, script: Option<(Vec<(u32, &'static str)>, usize, FinishReason)>) -> (Router, Arc<Mock>) {
+    let m = Arc::new(Mock { structured: true, think: true, want, script, ..Default::default() });
+    (app_with(m.clone()), m)
+}
+
+/// Streamed text pieces the way a tokenizer splits `</think>` across tokens.
+fn think_script() -> (Vec<(u32, &'static str)>, usize, FinishReason) {
+    let toks = vec![
+        (65, "<think>"), (10, "\n"), (65, "plan "), (65, "a"), (10, "\n"), (60, "</th"), (65, "ink>"), (10, "\n\n"), (65, "He"),
+        (65, "llo"),
+    ];
+    let n = toks.len();
+    (toks, n, FinishReason::Stop)
+}
+
+/// `(reasoning_content, content)` concatenated over an OpenAI chat stream.
+fn chat_stream_reasoning(body: &str) -> (String, String) {
+    let (mut r, mut c) = (String::new(), String::new());
+    for d in sse_data(body) {
+        if d == "[DONE]" {
+            continue;
+        }
+        let v: Value = serde_json::from_str(&d).unwrap();
+        let Some(ch) = v["choices"].get(0) else { continue };
+        if let Some(t) = ch["delta"]["reasoning_content"].as_str() {
+            r.push_str(t);
+        }
+        if let Some(t) = ch["delta"]["content"].as_str() {
+            c.push_str(t);
+        }
+    }
+    (r, c)
+}
+
+fn thinking_on() -> Value {
+    json!({"enable_thinking": true})
+}
+
+#[tokio::test]
+async fn openai_reasoning_content_non_stream_and_stream() {
+    let (app, mock) = thinking_mock(None, Some(think_script()));
+    let body = json!({"messages": user("q"), "chat_template_kwargs": thinking_on()});
+    let (st, _, out) = call(&app, "POST", "/v1/chat/completions", Some(body.clone())).await;
+    assert_eq!(st, StatusCode::OK, "{out}");
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["choices"][0]["message"]["reasoning_content"], "plan a");
+    assert_eq!(v["choices"][0]["message"]["content"], "Hello");
+    assert_eq!(mock.templated.lock().unwrap()[0].1.enable_thinking, Some(true));
+
+    let mut sbody = body.clone();
+    sbody["stream"] = json!(true);
+    let (_, _, out) = call(&app, "POST", "/v1/chat/completions", Some(sbody)).await;
+    assert_eq!(chat_stream_reasoning(&out), ("plan a".to_string(), "Hello".to_string()));
+    // the reasoning deltas come before the content deltas
+    let first_content = out.find("\"content\":\"He").unwrap();
+    assert!(out.find("\"reasoning_content\":\"plan").unwrap() < first_content);
+
+    // thinking not asked for: the text is passed through untouched, with no reasoning_content (as before)
+    for kw in [json!({}), json!({"enable_thinking": false})] {
+        let (_, _, out) =
+            call(&app, "POST", "/v1/chat/completions", Some(json!({"messages": user("q"), "chat_template_kwargs": kw})))
+                .await;
+        let v: Value = serde_json::from_str(&out).unwrap();
+        assert!(v["choices"][0]["message"].get("reasoning_content").is_none(), "{out}");
+        assert_eq!(v["choices"][0]["message"]["content"], "<think>\nplan a\n</think>\n\nHello");
+    }
+    // a model without a reasoning parser ignores the request flag
+    let m = Arc::new(Mock { structured: true, script: Some(think_script()), ..Default::default() });
+    let (_, _, out) = call(&app_with(m), "POST", "/v1/chat/completions", Some(body)).await;
+    assert!(!out.contains("reasoning_content"), "{out}");
+}
+
+#[tokio::test]
+async fn openai_json_schema_waits_for_the_close_tag_when_thinking() {
+    // the think text holds characters the grammar would never allow; the answer after `</think>` is constrained
+    let want = "<think>\nI should answer 42, as prose!\n</think>The answer is 42.";
+    let (app, mock) = thinking_mock(Some(want), None);
+    for stream in [false, true] {
+        let (st, _, out) = call(
+            &app,
+            "POST",
+            "/v1/chat/completions",
+            Some(json!({"messages": user("q"), "response_format": json_schema_rf(), "max_tokens": 200,
+                        "stream": stream, "chat_template_kwargs": thinking_on()})),
+        )
+        .await;
+        assert_eq!(st, StatusCode::OK, "{out}");
+        let (r, c, finish) = if stream {
+            let (r, c) = chat_stream_reasoning(&out);
+            (r, c, chat_stream_parts(&out).2)
+        } else {
+            let v: Value = serde_json::from_str(&out).unwrap();
+            let m = &v["choices"][0]["message"];
+            (
+                m["reasoning_content"].as_str().unwrap().to_string(),
+                m["content"].as_str().unwrap().to_string(),
+                v["choices"][0]["finish_reason"].as_str().unwrap().to_string(),
+            )
+        };
+        assert_eq!(r, "I should answer 42, as prose!", "stream={stream}");
+        let j: Value = serde_json::from_str(&c).unwrap_or_else(|e| panic!("{e}: {c:?}"));
+        assert!(j["answer"].is_i64() && j.as_object().unwrap().len() == 1, "{c}");
+        assert_eq!(finish, "stop");
+    }
+    assert!(mock.reqs.lock().unwrap().iter().all(|r| r.constraint.is_some()));
+
+    // thinking off: the grammar starts at the first generated token (nothing to parse)
+    let (app, _) = thinking_mock(Some("The answer is 42."), None);
+    let (_, _, out) = call(
+        &app,
+        "POST",
+        "/v1/chat/completions",
+        Some(json!({"messages": user("q"), "response_format": json_schema_rf(), "max_tokens": 100})),
+    )
+    .await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert!(v["choices"][0]["message"].get("reasoning_content").is_none());
+    assert!(serde_json::from_str::<Value>(v["choices"][0]["message"]["content"].as_str().unwrap()).is_ok());
+
+    // a constrained thinking request keeps J1's rules: no ignore_eos / min_tokens
+    let (st, _, out) = call(
+        &app,
+        "POST",
+        "/v1/chat/completions",
+        Some(json!({"messages": user("q"), "response_format": json_schema_rf(), "min_tokens": 3,
+                    "chat_template_kwargs": thinking_on()})),
+    )
+    .await;
+    assert_eq!(st, StatusCode::BAD_REQUEST, "{out}");
+}
+
+#[tokio::test]
+async fn openai_tool_calls_come_out_of_the_content_after_the_think_block() {
+    let want = "<think>\nwhich tool? <tool_call> no\n</think><tool_call>\n{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}\n</tool_call>";
+    for choice in [json!("required"), json!("auto")] {
+        let (app, _) = thinking_mock(Some(want), None);
+        for stream in [false, true] {
+            let (st, _, out) = call(
+                &app,
+                "POST",
+                "/v1/chat/completions",
+                Some(json!({"messages": user("q"), "tools": weather_tools(), "tool_choice": choice, "max_tokens": 200,
+                            "stream": stream, "chat_template_kwargs": thinking_on()})),
+            )
+            .await;
+            assert_eq!(st, StatusCode::OK, "{out}");
+            if stream {
+                let (r, _) = chat_stream_reasoning(&out);
+                let (_, calls, finish) = chat_stream_parts(&out);
+                assert_eq!(r, "which tool? <tool_call> no", "{choice}");
+                assert_eq!((calls.len(), finish.as_str()), (1, "tool_calls"), "{choice}");
+                assert_eq!(calls[0]["function"]["name"], "get_weather");
+            } else {
+                let v: Value = serde_json::from_str(&out).unwrap();
+                let m = &v["choices"][0]["message"];
+                assert_eq!(m["reasoning_content"], "which tool? <tool_call> no", "{choice}");
+                assert_eq!(m["tool_calls"][0]["function"]["name"], "get_weather");
+                assert_eq!(v["choices"][0]["finish_reason"], "tool_calls");
+            }
+        }
+    }
+}
+
+fn anthropic_think_body(stream: bool) -> Value {
+    json!({"model": "m", "max_tokens": 200, "stream": stream, "messages": user("q"),
+           "thinking": {"type": "enabled", "budget_tokens": 100}})
+}
+
+#[tokio::test]
+async fn anthropic_thinking_blocks_non_stream_and_stream() {
+    let (app, mock) = thinking_mock(None, Some(think_script()));
+    let (st, _, out) = call(&app, "POST", "/v1/messages", Some(anthropic_think_body(false))).await;
+    assert_eq!(st, StatusCode::OK, "{out}");
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["content"][0]["type"], "thinking");
+    assert_eq!(v["content"][0]["thinking"], "plan a");
+    assert_eq!(v["content"][1], json!({"type": "text", "text": "Hello"}));
+    assert_eq!(v["stop_reason"], "end_turn");
+    assert_eq!(mock.templated.lock().unwrap()[0].1.enable_thinking, Some(true));
+
+    let (_, _, out) = call(&app, "POST", "/v1/messages", Some(anthropic_think_body(true))).await;
+    let ev = sse_events(&out);
+    let names: Vec<&str> = ev.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names.first(), Some(&"message_start"));
+    assert_eq!(names[names.len() - 2..], ["message_delta", "message_stop"]);
+    // block 0: thinking (start, deltas, signature, stop); block 1: text
+    let blocks: Vec<(&str, u64)> = ev
+        .iter()
+        .filter(|(n, _)| n == "content_block_start")
+        .map(|(_, v)| (v["content_block"]["type"].as_str().unwrap(), v["index"].as_u64().unwrap()))
+        .collect();
+    assert_eq!(blocks, [("thinking", 0), ("text", 1)]);
+    let think: String =
+        ev.iter().filter_map(|(_, v)| v["delta"]["thinking"].as_str()).collect();
+    let text: String = ev.iter().filter_map(|(_, v)| v["delta"]["text"].as_str()).collect();
+    assert_eq!((think.as_str(), text.as_str()), ("plan a", "Hello"));
+    let pos = |pred: &dyn Fn(&(String, Value)) -> bool| ev.iter().position(|e| pred(e)).unwrap();
+    let sig = pos(&|(_, v)| v["delta"]["type"] == "signature_delta");
+    let stop0 = pos(&|(n, v)| n == "content_block_stop" && v["index"] == 0);
+    let start1 = pos(&|(n, v)| n == "content_block_start" && v["index"] == 1);
+    assert!(sig < stop0 && stop0 < start1);
+
+    // thinking not enabled: no thinking block, the text is left as generated
+    let mut b = anthropic_think_body(false);
+    b.as_object_mut().unwrap().remove("thinking");
+    let (_, _, out) = call(&app, "POST", "/v1/messages", Some(b)).await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["content"].as_array().unwrap().len(), 1);
+    assert_eq!(v["content"][0]["text"], "<think>\nplan a\n</think>\n\nHello");
+}
+
+#[tokio::test]
+async fn anthropic_required_tool_use_waits_for_the_close_tag_when_thinking() {
+    let want = "<think>\nneed the weather\n</think><tool_call>\n{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Rome\"}}\n</tool_call>";
+    let tools = json!([{"name": "get_weather", "description": "w",
+        "input_schema": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"],
+                         "additionalProperties": false}}]);
+    let (app, mock) = thinking_mock(Some(want), None);
+    for stream in [false, true] {
+        let mut b = anthropic_think_body(stream);
+        b["tools"] = tools.clone();
+        b["tool_choice"] = json!({"type": "any"});
+        let (st, _, out) = call(&app, "POST", "/v1/messages", Some(b)).await;
+        assert_eq!(st, StatusCode::OK, "{out}");
+        if stream {
+            let ev = sse_events(&out);
+            let kinds: Vec<&str> = ev
+                .iter()
+                .filter(|(n, _)| n == "content_block_start")
+                .map(|(_, v)| v["content_block"]["type"].as_str().unwrap())
+                .collect();
+            assert_eq!(kinds, ["thinking", "tool_use"]);
+            let think: String = ev.iter().filter_map(|(_, v)| v["delta"]["thinking"].as_str()).collect();
+            assert_eq!(think, "need the weather");
+            let md = ev.iter().find(|(n, _)| n == "message_delta").unwrap();
+            assert_eq!(md.1["delta"]["stop_reason"], "tool_use");
+        } else {
+            let v: Value = serde_json::from_str(&out).unwrap();
+            assert_eq!(v["content"][0]["thinking"], "need the weather");
+            assert_eq!(v["content"][1]["type"], "tool_use");
+            assert_eq!(v["content"][1]["input"], json!({"city": "Rome"}));
+            assert_eq!(v["stop_reason"], "tool_use");
+        }
+    }
+    assert!(mock.reqs.lock().unwrap().iter().all(|r| r.constraint.is_some()));
 }
