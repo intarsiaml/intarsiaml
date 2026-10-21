@@ -1,0 +1,20 @@
+## gates-nohold
+arm      ttft128  dec128  ttft4k  dec4k  eos wall ms   MHz   cpu admitted
+base-1     0.052    35.4   1.113   33.5         77.2  1295  0.13 no
+fb-1       0.055    36.3   2.045   34.4        108.4  1256  0.10 no
+fb-2       0.053    36.5   1.986   33.7        119.2  1247  0.22 no
+base-2     0.053    36.0   1.787   34.6         87.6  1289  0.10 no
+base-3     0.051    36.5   1.734   35.3         78.8  1362  0.05 yes
+fb-3       0.051    36.9   1.139   35.7        100.1  1365  0.05 yes
+base: mean decode 128 35.97, 4k 34.47 tok/s; eos wall 81.2 ms
+fb: mean decode 128 36.57, 4k 34.60 tok/s; eos wall 109.2 ms
+## gates
+arm      ttft128  dec128  ttft4k  dec4k  eos wall ms   MHz   cpu admitted
+base-1     0.052    36.8   1.213   34.9         78.5  1335  0.06 yes
+fb-1       0.051    37.2   1.121   35.5         77.5  1364  0.08 yes
+fb-2       0.051    37.1   1.122   35.5         75.5  1357  0.05 yes
+base-2     0.051    36.8   1.102   35.4         75.3  1360  0.06 yes
+base-3     0.051    36.4   1.067   35.3         75.2  1332  0.07 yes
+fb-3       0.053    36.5   1.096   35.3         75.0  1294  0.07 no
+base: mean decode 128 36.67, 4k 35.20 tok/s; eos wall 76.3 ms
+fb: mean decode 128 36.93, 4k 35.43 tok/s; eos wall 76.0 ms

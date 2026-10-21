@@ -1,5 +1,0 @@
-2026-10-21 fleetq #3046 w1 radiance stopped 12:30:12 answers 12:36:04 (window.log in raw/w1)
-2026-10-21 fleetq #3066 w2 radiance stopped 12:41:36 answers 12:47:39 (window.log in raw/w2)
-2026-10-21 fleetq #3108 w3 radiance stopped 13:22:42 answers 13:38:36 (window.log in raw/w3; times from the fleetq console, the log parse missed them; ~10 min of this window idled: the localeval sidecar was not executable)
-2026-10-21 fleetq #3116 w4 radiance stopped 13:44:18 answers 13:53:19 (window.log in raw/w4)
-2026-10-21 fleetq #3125 w5 radiance stopped 13:58:57 answers 14:06:01 (window.log in raw/w5)

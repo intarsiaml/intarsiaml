@@ -1,8 +1,0 @@
-[window] job 3125 w5; stopping radiance 2026-10-21 13:58:54
-[window] radiance stopped 2026-10-21 13:58:57
-13:59:06 tp2 server (rebased head) up for localeval
-14:05:51 localeval sidecar done
-14:05:51 done
-[window] stages done 2026-10-21 14:05:51 (exit 0)
-[window] starting radiance 2026-10-21 14:05:51
-[window] radiance answers 2026-10-21 14:06:01 (after 15 s)

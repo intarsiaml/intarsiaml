@@ -1,0 +1,17 @@
+target http://127.0.0.1:8093/v1/chat/completions  model intarsia-metal
+server context window: 20000 tokens
+calibration: 47 base tokens, 20.68 tokens per filler sentence
+  size    128 rep: prompt=109 gen=256 ttft=0.05s prefill=2123 tok/s decode=36.5 tok/s
+  size    128 rep: prompt=102 gen=256 ttft=0.05s prefill=1906 tok/s decode=36.8 tok/s
+  size    128 rep: prompt=104 gen=256 ttft=0.05s prefill=1938 tok/s decode=36.2 tok/s
+  size   4096 rep: prompt=4034 gen=256 ttft=1.70s prefill=2377 tok/s decode=33.7 tok/s
+  size   4096 rep: prompt=4020 gen=256 ttft=2.00s prefill=2005 tok/s decode=33.7 tok/s
+  size   4096 rep: prompt=4006 gen=256 ttft=1.99s prefill=2017 tok/s decode=33.6 tok/s
+wrote /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates/ab-serve/fb-2.json
+fb-2  model=intarsia-metal  gen=256  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      104     0.053         1938        36.5      256       90.1
+    4096     4020     1.986         2017        33.7      256       83.0
+bandwidth floor: 40.6 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)

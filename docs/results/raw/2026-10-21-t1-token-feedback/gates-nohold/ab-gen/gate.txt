@@ -1,0 +1,9 @@
+run          tok/s    MHz  busy   cpu    n admitted
+base-1       34.22   1336  0.83  0.11   45 yes
+fb-1         34.57   1292  0.80  0.10   44 no
+fb-2         34.41   1297  0.80  0.11   45 no
+base-2       33.70   1270  0.78  0.18   46 no
+base-3       34.19   1289  0.80  0.11   46 no
+fb-3         34.97   1310  0.81  0.08   45 yes
+base: all 3 runs mean 34.04 tok/s; admitted 1 mean 34.22
+fb: all 3 runs mean 34.65 tok/s; admitted 1 mean 34.97

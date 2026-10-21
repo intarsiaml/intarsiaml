@@ -1,6 +1,0 @@
-[supervisor] started server pid 7
-prefill chunk 4096 (recipe qwen3_5_moe, hip)
-quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
-admission on plan shapes: 24 kernel(s) checked, 497 case(s) run, 0 cached
-loaded Qwen3.6-35B-A3B-NVFP4 on hip (AMD Radeon Graphics x2 (tp=2, hip-p2p comm)) in 7.9s, context 17408 tokens
-intarsia server listening on http://0.0.0.0:8090

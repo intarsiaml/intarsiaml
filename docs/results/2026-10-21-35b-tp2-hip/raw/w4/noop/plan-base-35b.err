@@ -1,2 +1,0 @@
-prefill chunk 4096 (recipe qwen3_5_moe, hip)
-quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
