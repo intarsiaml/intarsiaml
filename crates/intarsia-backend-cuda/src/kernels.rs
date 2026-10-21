@@ -449,6 +449,30 @@ mod tests {
         }
     }
 
+    /// The opt-in cuBLASLt e4m3 GEMM's own range, whatever the environment: every M from 5 (the gemv keeps 1..4), K a
+    /// multiple of 128, N a multiple of 16; off (below every other fp8 kernel) unless INTARSIA_CUDA_FP8_GEMM_LT=1.
+    #[test]
+    fn fp8_gemm_lt_range() {
+        let lt = all().into_iter().find(|k| k.name == "matmul_fp8_gemm_lt").expect("registered");
+        let s = |m: usize, n: usize, k: usize| ShapeInfo {
+            m,
+            n,
+            k,
+            act: Some(DType::Bf16),
+            weight: Some(DType::Fp8E4m3),
+            out: Some(DType::Bf16),
+            ..Default::default()
+        };
+        assert!(!lt.accepts(&s(4, 8192, 2048)));
+        for m in [5, 6, 255, 2048, 4096] {
+            assert!(lt.accepts(&s(m, 8192, 2048)), "M={m}");
+        }
+        assert!(!lt.accepts(&s(2048, 8192, 2112)), "K % 128");
+        assert!(!lt.accepts(&s(2048, 8200, 2048)), "N % 16");
+        let on = std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").is_ok_and(|v| v == "1");
+        assert_eq!(lt.priority, if on { 25 } else { -10 });
+    }
+
     /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096): the gemv for 1..4 tokens, the mma
     /// kernel for 5..32, `matmul_fp8_gemm` for 33..255, `matmul_fp8_gemm_reg` from 256 (the 2048-token chunk included), unless
     /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FP8_GEMM_F8=1` / `INTARSIA_CUDA_FAST_PREFILL=1` (then `matmul_fp8_gemm_f8` from 5). The
