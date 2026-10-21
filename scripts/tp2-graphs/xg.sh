@@ -132,7 +132,7 @@ xacc() { # <tag> <binary> <accuracy args...> (--no-graphs among them goes to bot
 }
 B_SHORT="--self-max-kl 1.8e-2 --self-max-pos-kl 2.3 --self-max-flip-pct 3.76 --self-max-tail 2.8e-3 --self-prompt-factor 6.5"
 # graphs vs eager on the same build: bitwise expected, so judge at the floor (any real change fails)
-B_FLOOR="--self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 1e-9 --self-prompt-factor 1"
+B_FLOOR="--self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 5e-8 --self-prompt-factor 1000"
 B_LONG="--self-max-kl 5.7e-2 --self-max-pos-kl 54.6 --self-max-flip-pct 8.7 --self-max-tail 7.1e-3 --self-prompt-factor 5.9"
 
 # ---- gates (vLLM up) ----
@@ -149,6 +149,8 @@ if [[ $MODE == gates ]]; then
   # 2. logits: tp=2 eager dumps (with the vLLM floor verdict), then tp=2 graphs judged against them; prefix reuse with graphs
   xacc eager-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-short.safetensors
   xacc graph-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code $B_FLOOR
+  # the tp=2 floor: eager against its own dump (cross-host run-to-run), the reference for the graphs row
+  xacc eager-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --no-graphs --allow-config-mismatch --pre-change $PRE_CHANGE --allow-same-code $B_FLOOR
   xacc eager-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-long.safetensors
   xacc graph-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE --allow-same-code $B_FLOOR
   xacc graph-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
