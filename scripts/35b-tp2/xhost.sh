@@ -88,12 +88,12 @@ if [[ $MODE == smoke ]]; then
     r spark1 "env $NCCLENV timeout 900 $BIN generate $GEN_FLAGS --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos --show-ids \
       -p \"\$(head -c 5000 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 256 > $XO/gen-x-5k.out 2> $XO/gen-x-5k.err; echo rc=\$?; grep -a finish= $XO/gen-x-5k.err | head -1; grep -a '^ids:' $XO/gen-x-5k.err > $XO/gen-x-5k.ids" | tee -a "$L/steps.log"
     worker_stop
-    rsync -a spark2:intarsia-tp2/out/gates2/gen-tp2-5k.ids "$L/onebox-gen-tp2-5k.ids"
+    rsync -a spark2:intarsia-tp2/out/${SRC:-gates2}/gen-tp2-5k.ids "$L/onebox-gen-tp2-5k.ids"
     rsync -a "spark1:intarsia-tp2/xout/$OUT/" "$L/"
     if cmp -s <(cut -d: -f2- "$L/gen-x-5k.ids") <(cut -d: -f2- "$L/onebox-gen-tp2-5k.ids"); then log "IDS cross-host vs one-box tp2 (5k, 256): IDENTICAL"; else log "IDS cross-host vs one-box tp2 (5k, 256): DIFFER"; fi
   fi
   if want acc; then
-    r spark2 "scp -q ~/intarsia-tp2/out/gates2/S1-short.safetensors spark1:intarsia-tp2/golden/S1-short.safetensors"
+    r spark2 "scp -q ~/intarsia-tp2/out/${SRC:-gates2}/S1-short.safetensors spark1:intarsia-tp2/golden/S1-short.safetensors"
     AF="-m $M35 --backend cuda --tp 2 --max-seq 16384 --prefill-chunk 2048 --mem-budget 18"
     worker_start acc $AF
     r spark1 "env $NCCLENV timeout 1200 $BIN accuracy $AF --tp-remote $WIP:$WPORT --self-golden $GD/S1-short.safetensors --mode both --allow-config-mismatch \
@@ -105,7 +105,7 @@ fi
 # ---- gates (vLLM up): the accuracy gates cross-host, the real configuration ----
 # Budgets: the 35B TP budget measured in docs/results/2026-10-21-35b-tp2-cuda.md (max over the tp=1 variants x 2, per set)
 if [[ $MODE == gates ]]; then
-  r spark2 "scp -q ~/intarsia-tp2/out/gates2/S1-short.safetensors ~/intarsia-tp2/out/gates2/S1-long.safetensors spark1:intarsia-tp2/golden/"
+  r spark2 "scp -q ~/intarsia-tp2/out/${SRC:-gates2}/S1-short.safetensors ~/intarsia-tp2/out/${SRC:-gates2}/S1-long.safetensors spark1:intarsia-tp2/golden/"
   AF="-m $M35 --backend cuda --tp 2 --max-seq 16384 --prefill-chunk 2048 --mem-budget 18"
   B_SHORT="--self-max-kl 1.8e-2 --self-max-pos-kl 2.3 --self-max-flip-pct 3.76 --self-max-tail 2.8e-3 --self-prompt-factor 6.5"
   B_LONG="--self-max-kl 5.7e-2 --self-max-pos-kl 54.6 --self-max-flip-pct 8.7 --self-max-tail 7.1e-3 --self-prompt-factor 5.9"
@@ -123,24 +123,37 @@ if [[ $MODE == gates ]]; then
   WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-short --self-golden $GD/S1-short.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_SHORT
   WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-long --self-golden $GD/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
   xacc reuse --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
-  if want gen16k; then
-    GEN_FLAGS="-m $M35 --backend cuda --tp 2 --max-seq 20480 --mem-budget 16 --profile-every 0"
-    worker_start gen16k $GEN_FLAGS
+  xgen() { # <tag> <chars>: 256 greedy ids cross-host, compared with the one-box ids in $SRC
+    local tag=$1 chars=$2; want gen$tag || return 0
+    local GEN_FLAGS="-m $M35 --backend cuda --tp 2 --max-seq 20480 --mem-budget 16 --profile-every 0"
+    worker_start gen$tag $GEN_FLAGS
     r spark1 "env $NCCLENV timeout 900 $BIN generate $GEN_FLAGS --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos --show-ids \
-      -p \"\$(head -c 54000 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 256 > $XO/gen-x-16k.out 2> $XO/gen-x-16k.err; echo rc=\$?; grep -a finish= $XO/gen-x-16k.err | head -1; grep -a '^ids:' $XO/gen-x-16k.err > $XO/gen-x-16k.ids" | tee -a "$L/steps.log"
+      -p \"\$(head -c $chars ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 256 > $XO/gen-x-$tag.out 2> $XO/gen-x-$tag.err; echo rc=\$?; grep -a finish= $XO/gen-x-$tag.err | head -1; grep -a '^ids:' $XO/gen-x-$tag.err > $XO/gen-x-$tag.ids" | tee -a "$L/steps.log"
     worker_stop
-    rsync -a spark2:intarsia-tp2/out/gates2/gen-tp2-16k.ids spark2:intarsia-tp2/out/gates2/gen-tp1-16k.ids "$L/"
+    for f in gen-tp1-$tag.ids gen-tp2-$tag.ids; do rsync -a spark2:intarsia-tp2/out/${SRC:-gates2}/$f "$L/" 2>/dev/null; done
     rsync -a "spark1:intarsia-tp2/xout/$OUT/" "$L/"
-    python3 - "$L" <<'PY' | tee -a "$L/steps.log"
-import sys, re
-d = sys.argv[1]
+    python3 - "$L" $tag <<'PY' | tee -a "$L/steps.log"
+import sys, re, os
+d, tag = sys.argv[1], sys.argv[2]
 ids = lambda f: [int(v) for v in re.findall(r"-?\d+", open(f"{d}/{f}").read().split(":", 1)[1])]
-x = ids("gen-x-16k.ids")
-for ref in ("gen-tp2-16k.ids", "gen-tp1-16k.ids"):
+x = ids(f"gen-x-{tag}.ids")
+for ref in (f"gen-tp1-{tag}.ids", f"gen-tp2-{tag}.ids"):
+    if not os.path.exists(f"{d}/{ref}"):
+        print(f"IDS cross-host tp2 {tag} vs one-box {ref}: missing"); continue
     y = ids(ref)
     k = next((i for i, (p, q) in enumerate(zip(x, y)) if p != q), None)
-    print(f"IDS cross-host tp2 16k vs one-box {ref}: first divergence at {k if k is not None else 'none'} ({len(x)}/{len(y)})")
+    print(f"IDS cross-host tp2 {tag} vs one-box {ref}: first divergence at {k if k is not None else 'none'} ({len(x)}/{len(y)})")
 PY
+  }
+  xgen 5k 5000
+  xgen 16k 54000
+  # per-op decode profile (every step synchronised per op, so absolute times are inflated): where a tp=2 step goes
+  if want prof; then
+    MF="-m $M35 --backend cuda --max-seq 8192 --profile-every 1"; PF="$MF --op-table --chat --no-think --ignore-eos --max-tokens 64"
+    r spark1 "timeout 600 $BIN generate $PF --mem-budget 29 -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" > $XO/prof-tp1.out 2> $XO/prof-tp1.err; echo prof-tp1 rc=\$?" | tee -a "$L/steps.log"
+    worker_start prof $MF --tp 2 --mem-budget 16
+    r spark1 "env $NCCLENV timeout 600 $BIN generate $PF --tp 2 --mem-budget 16 --tp-remote $WIP:$WPORT -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" > $XO/prof-tp2.out 2> $XO/prof-tp2.err; echo prof-tp2 rc=\$?" | tee -a "$L/steps.log"
+    worker_stop
   fi
 fi
 

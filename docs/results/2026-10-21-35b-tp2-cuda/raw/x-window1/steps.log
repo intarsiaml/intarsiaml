@@ -1,0 +1,37 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+11:34:32 vLLM stopped on spark1
+11:35:03 vLLM stopped on spark2
+11:35:03 spark1 MemAvailable 111 GB
+11:35:04 spark2 MemAvailable 111 GB
+208 MHz, [N/A], 44, 3.88 W, 0 %
+11:36:17 arm tp1-graphs: serving
+rc=0
+    1024      976     0.214         4566        82.3      128
+    4096     4076     0.698         5840        80.0      128
+   16384    16561     3.071         5392        72.2      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+11:37:19 arm tp1-eager: serving
+rc=0
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+11:37:52 arm tp2x: serving
+rc=0
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+11:38:15 localeval arm tp2x
+11:38:43 localeval arm tp2x exit 0: Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.||Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.|||## Method||Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce 
+11:38:46 == window done, 918 s of the work budget left
+11:38:46 restore (exit 0)
+11:42:34 vLLM on spark1 serving again
+11:42:34 vLLM on spark2 serving again

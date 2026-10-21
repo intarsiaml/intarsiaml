@@ -26,7 +26,7 @@ M35=$HOME/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots
 M8=$HOME/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
 SG=$P/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; LG=$P/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
 CORPUS=$P/prompts/corpus_docs.txt
-BASE=$P/bin/base-intarsia; DEV=$P/bin/dev-intarsia
+BASE=$P/bin/base-intarsia; DEV=$P/bin/${DEVTREE:-dev}-intarsia  # DEVTREE: ydev = the branch rebased on PR #40
 TP2="--tp 2 --comm host --devices 0,0"; export INTARSIA_TP_SAME_DEVICE=1  # debugging only: the two ranks race on the per-device cuBLAS workspace
 TPB="--self-max-kl 1.2e-3 --self-max-pos-kl 9.8e-2 --self-max-flip-pct 0.84 --self-max-tail 4.2e-4 --self-prompt-factor 1.92"
 PC="--pre-change $PRE_CHANGE"
@@ -102,6 +102,7 @@ reuse() { # reuse <tag> <budget> <args...>
   log "reuse $tag exit $? $(( $(date +%s) - t0 )) s: $(grep -aE '^chat_reuse_4k|prefix-reuse gate' $O/reuse-$tag.log | cut -c1-120 | tr -s ' ' | tr '\n' '|')"
 }
 reuse tp2 18 $TP2
+reuse tp1 40  # tp=1 under the same judge (dev tp=1 is bitwise base)
 python3 - $O <<'PY'
 import sys, re
 o = sys.argv[1]
@@ -120,5 +121,5 @@ for a, b in [("tp1-5k", "tp2-5k"), ("tp1-5k", "tp1simt-5k"), ("tp1-16k", "tp2-16
 PY
 echo "== done $(date +%T)"
 EOS
-ssh -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB OUT=$OUT STEPS='${STEPS:-}' PRE_CHANGE=$PRE_CHANGE; bash -s" < "$LOCAL/remote.sh" 2>&1 | tee "$LOCAL/console.log"
+ssh -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB OUT=$OUT DEVTREE=${DEVTREE:-dev} STEPS='${STEPS:-}' PRE_CHANGE=$PRE_CHANGE; bash -s" < "$LOCAL/remote.sh" 2>&1 | tee "$LOCAL/console.log"
 rsync -a --exclude '*.safetensors' "$HOST:intarsia-tp2/out/$OUT/" "$LOCAL/"
