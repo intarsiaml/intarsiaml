@@ -203,6 +203,9 @@ against tp=2 eager, the floor self-golden and the rank-1 replay check; `raw/mut`
   - 256 greedy ids at 1.5k and 16k: **identical** to tp=2 graphs unfused and to tp=2 eager.
   - Self-golden against the tp=2 eager dump, short and long: **the same digits as eager against itself** (short:
     prefill 1.377398e-12, decode 6.618585e-13, 0 flips). On these gates fusion is bitwise to unfused.
+  - Fusion was active in these accuracy runs: their plan-diff line lists the fused kernels as "not in the baseline's
+    plan" (`matmul_fp8_pair_gemv`, `matmul_nvfp4_glu_gemv`, `rmsnorm_add_matmul_pair_bf16_gemv`, ...;
+    `raw/gates3/fus-self-short.log` line 14). The unfused graphs run has no such line.
   - vLLM floor (PR #40 judge): short PASS, long PASS.
   - Prefix reuse: PASS, aligned restore bit-identical; rank 1 replayed 1184 times.
   - Mac: `tp_hybrid::hybrid_moe_tp2_row_local_fusion_matches_tp1_f32`. Rank 0 ran 8 fused ops (listed in the test
@@ -284,6 +287,12 @@ against tp=2 eager, the floor self-golden and the rank-1 replay check; `raw/mut`
 | #3155 window 2 (fusion A/B ×3 + prof + localeval) | spark1-vllm, spark2-vllm | 876 s / 876 s (15:19:03-15:33:39) | yes, both |
 
 Total used: **27.7 min of both-down time** (13.1 + 14.6), each window under 30 min, 99 min of serving between them, of the 60 min allocation (`raw/downtime.log`). Every other job (builds, gates, mutants) ran with vLLM up.
+
+Deviations from the brief:
+- **No `--each`.** Each window was ONE fleetq job over both boxes (`--host spark1,spark2 --exclusive --takes-down
+  flight,guidance,capcom,retro --mem spark1=100,spark2=95`) with a trap that restores both vLLMs, but without `--each`.
+  A single Mac-side driver (`scripts/tp2-graphs/xg.sh`) ssh's both ranks; with `--each` it would have run twice.
+- **vLLM not re-measured.** The vLLM column is G1b's same-day localeval run, not one from these windows.
 
 ## 7. Decisions for the user
 
