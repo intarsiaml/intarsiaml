@@ -288,7 +288,7 @@ impl ModelArgs {
                 fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
-                tp_fusion: std::env::var_os("INTARSIA_TP_FUSION").is_some_and(|v| v != "0"),
+                tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
             },
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
@@ -448,8 +448,33 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
     }
 }
 
+/// Row-local fusion under tensor parallelism (`LoadOptions::tp_fusion`; acts only at world > 1). On by default for HIP at
+/// tp=2 (user decision 2026-10-21, after the soak in docs/results/2026-10-21-hs-hip-fusion-soak.md), off elsewhere.
+/// `INTARSIA_TP_FUSION=0` opts out; any other value asks for it (the load refuses it on a backend without
+/// `Backend::fusion_under_tp`).
+fn tp_fusion(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize) -> bool {
+    match env {
+        Some(v) => v != "0",
+        None => backend == "hip" && tp == 2,
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn tp_fusion_default_on_for_hip_tp2_only_and_env_overrides() {
+        use std::ffi::OsStr;
+        assert!(super::tp_fusion(None, "hip", 2));
+        assert!(!super::tp_fusion(None, "hip", 1));
+        assert!(!super::tp_fusion(None, "hip", 4));
+        assert!(!super::tp_fusion(None, "cuda", 2));
+        assert!(!super::tp_fusion(None, "metal", 2));
+        assert!(!super::tp_fusion(Some(OsStr::new("0")), "hip", 2));
+        assert!(super::tp_fusion(Some(OsStr::new("1")), "hip", 2));
+        // an explicit request is kept everywhere; the load refuses it on a backend that cannot
+        assert!(super::tp_fusion(Some(OsStr::new("1")), "cuda", 2));
+    }
+
     use super::ModelArgs;
     use clap::Parser;
 
