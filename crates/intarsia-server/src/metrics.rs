@@ -5,11 +5,24 @@
 use intarsia_core::engine::ModelInfo;
 use intarsia_core::telemetry::TelemetrySnapshot;
 use std::fmt::Write;
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
-const TTFT_BUCKETS: &[f64] = &[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0];
+// TTFT reaches minutes at 100k+ tokens of context, so the tail is fine up to 300 s.
+const TTFT_BUCKETS: &[f64] = &[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 120.0, 300.0];
+/// Per-request token counts (prompt and generated). Dense at the context sizes that matter (4k, 8k, 12k, 16k, 32k)
+/// instead of jumping 5000 -> 10000 -> 20000, so a threshold such as 12k or 16k can be read off the histogram.
+const TOKEN_BUCKETS: &[f64] = &[
+    16.0, 64.0, 128.0, 256.0, 512.0, 1024.0, 2048.0, 4096.0, 8192.0, 12288.0, 16384.0, 24576.0, 32768.0, 65536.0, 131072.0,
+    262144.0,
+];
+/// Distinct `source` label values; later ones are folded into [`OTHER_SOURCE`] so a client that sends a random header
+/// per request cannot blow up the series count.
+const MAX_SOURCES: usize = 16;
+const OTHER_SOURCE: &str = "other";
+const UNKNOWN_SOURCE: &str = "unknown";
 const ITL_BUCKETS: &[f64] = &[0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0];
 
 struct HistData {
@@ -58,9 +71,21 @@ impl Histogram {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+struct SourceStats {
+    requests: u64,
+    prompt_tokens: u64,
+    generated_tokens: u64,
+}
+
 pub struct Metrics {
     pub ttft: Histogram,
     pub itl: Histogram,
+    /// Prompt tokens per finished request.
+    pub prompt_tokens: Histogram,
+    /// Generated tokens per finished request.
+    pub gen_tokens: Histogram,
+    sources: Mutex<BTreeMap<String, SourceStats>>,
     /// Requests refused with 429 because the queue was full.
     pub rejected: AtomicU64,
     failed: AtomicBool,
@@ -72,6 +97,9 @@ impl Metrics {
         Metrics {
             ttft: Histogram::new(TTFT_BUCKETS),
             itl: Histogram::new(ITL_BUCKETS),
+            prompt_tokens: Histogram::new(TOKEN_BUCKETS),
+            gen_tokens: Histogram::new(TOKEN_BUCKETS),
+            sources: Mutex::new(BTreeMap::new()),
             rejected: AtomicU64::new(0),
             failed: AtomicBool::new(false),
             stall_ms: AtomicU64::new(0),
@@ -84,8 +112,56 @@ impl Metrics {
         self.stall_ms.store(no_progress.as_millis() as u64, Ordering::Relaxed);
     }
 
+    /// Fold a raw client identifier into a bounded `source` label value: sanitised, at most 32 chars, and at most
+    /// [`MAX_SOURCES`] distinct values (the rest are `other`).
+    pub fn source_label(&self, raw: Option<&str>) -> String {
+        let clean: String = raw
+            .unwrap_or("")
+            .trim()
+            .chars()
+            .take(32)
+            .map(|c| if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') { c.to_ascii_lowercase() } else { '_' })
+            .collect();
+        let name = if clean.is_empty() { UNKNOWN_SOURCE.to_string() } else { clean };
+        let s = self.sources.lock().unwrap();
+        if s.contains_key(&name) || s.len() < MAX_SOURCES {
+            name
+        } else {
+            OTHER_SOURCE.into()
+        }
+    }
+
+    /// A request from `source` was admitted to the engine.
+    pub fn observe_admitted(&self, source: &str) {
+        self.sources.lock().unwrap().entry(source.to_string()).or_default().requests += 1;
+    }
+
+    fn render_sources(&self, o: &mut String) {
+        let s = self.sources.lock().unwrap();
+        let _ = writeln!(
+            o,
+            "# HELP intarsia_source_requests_total Requests admitted to the engine by client (X-Intarsia-Client header, else the User-Agent product; at most {MAX_SOURCES} values, the rest are \"{OTHER_SOURCE}\").\n# TYPE intarsia_source_requests_total counter"
+        );
+        for (k, v) in s.iter() {
+            let _ = writeln!(o, "intarsia_source_requests_total{{source=\"{}\"}} {}", esc(k), v.requests);
+        }
+        let _ = writeln!(o, "# HELP intarsia_source_tokens_total Tokens of finished requests by client and kind.\n# TYPE intarsia_source_tokens_total counter");
+        for (k, v) in s.iter() {
+            let _ = writeln!(o, "intarsia_source_tokens_total{{source=\"{}\",kind=\"prompt\"}} {}", esc(k), v.prompt_tokens);
+            let _ = writeln!(o, "intarsia_source_tokens_total{{source=\"{}\",kind=\"generated\"}} {}", esc(k), v.generated_tokens);
+        }
+    }
+
     /// Called once per finished request with the engine's timing report.
-    pub fn observe_done(&self, completion_tokens: usize, prefill_ms: f64, decode_ms: f64) {
+    pub fn observe_done(&self, source: &str, prompt_tokens: usize, completion_tokens: usize, prefill_ms: f64, decode_ms: f64) {
+        {
+            let mut s = self.sources.lock().unwrap();
+            let e = s.entry(source.to_string()).or_default();
+            e.prompt_tokens += prompt_tokens as u64;
+            e.generated_tokens += completion_tokens as u64;
+        }
+        self.prompt_tokens.observe_n(prompt_tokens as f64, 1);
+        self.gen_tokens.observe_n(completion_tokens as f64, 1);
         if completion_tokens == 0 {
             return;
         }
@@ -248,6 +324,9 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
     );
     m.ttft.render(&mut o, "intarsia_ttft_seconds", "Time to first token.");
     m.itl.render(&mut o, "intarsia_itl_seconds", "Inter-token latency (per-request mean, weighted by token count).");
+    m.prompt_tokens.render(&mut o, "intarsia_request_prompt_tokens", "Prompt tokens per finished request (includes tokens served from the reused KV prefix).");
+    m.gen_tokens.render(&mut o, "intarsia_request_generation_tokens", "Generated tokens per finished request.");
+    m.render_sources(&mut o);
     metric(&mut o, "intarsia_kv_bytes_used", "gauge", "KV cache bytes in use.", snap.kv_used_bytes);
     metric(&mut o, "intarsia_kv_bytes_total", "gauge", "KV cache bytes allocated.", snap.kv_total_bytes);
     metric(&mut o, "intarsia_kv_tokens_used", "gauge", "KV cache tokens in use.", snap.kv_used_tokens);

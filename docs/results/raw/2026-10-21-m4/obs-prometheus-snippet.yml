@@ -1,0 +1,14 @@
+
+  # Added 2026-10-21 (intarsiaml lane M4).
+  # Revert: cp -p /etc/prometheus/prometheus.yml.bak-20261021-m4 /etc/prometheus/prometheus.yml, then reload Prometheus (SIGHUP).
+  # radiance (tatooine, TP=2 on both R9700s) serves vLLM-named metrics (vllm:*, radiance:*) on :8080.
+  - job_name: radiance
+    static_configs:
+      - targets: ["tatooine:8080"]
+        labels: {host: tatooine, engine: radiance}
+
+  # vLLM on spark2 (retro). spark1's vLLM is the existing "vllm" job above.
+  - job_name: vllm-spark2
+    static_configs:
+      - targets: ["spark-fa00:8000"]
+        labels: {host: spark-fa00, engine: vllm}

@@ -117,9 +117,10 @@ fn err_event(message: &str) -> Event {
 
 pub async fn messages(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     body: Result<Json<MessagesReq>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    match messages_inner(st, body).await {
+    match messages_inner(st.for_request(&headers), body).await {
         Ok(r) => r,
         Err(e) => e.into_response(),
     }
