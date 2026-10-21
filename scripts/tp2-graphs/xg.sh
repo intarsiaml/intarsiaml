@@ -171,6 +171,15 @@ if [[ $MODE == gates ]]; then
   XENV=INTARSIA_TP_FUSION=1 xacc fus-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-$PRE_CHANGE} --allow-same-code $B_SHORT
   XENV=INTARSIA_TP_FUSION=1 xacc fus-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-$PRE_CHANGE} --allow-same-code $B_LONG
   XENV=INTARSIA_TP_FUSION=1 xacc fus-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
+  # 2c. which fused ops run under TP fusion: rank 0's op table, 1k prompt, 32 tokens, with and without INTARSIA_TP_FUSION
+  if want fprobe; then
+    for v in u f; do
+      xe=""; [[ $v == f ]] && xe=INTARSIA_TP_FUSION=1
+      XENV=$xe worker_start fprobe-$v $GEN_FLAGS
+      r spark1 "env $NCCLENV $xe timeout 300 $BIN generate $GEN_FLAGS --tp-remote $WIP:$WPORT --op-table --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 32 > $XO/fprobe-$v.out 2> $XO/fprobe-$v.err; echo fprobe-$v rc=\$?; grep -aE '^(matmul_pair|matmul_fp8_pair|rmsnorm_add|gdn_conv_delta|gated_rmsnorm|qk_norm_rope_kv|gate_split_qk|matmul_nvfp4_glu|moe_block|matmul_fp8 |rmsnorm )' $XO/fprobe-$v.err | cut -c1-90" | tee -a "$L/steps.log"
+      worker_stop
+    done
+  fi
   # 3. tp=1 unchanged: plan show (35B, 8B), 256 greedy ids, self-golden of the dev build against the base build (spark1 alone)
   if want tp1; then
     M8=$(r spark1 "ls -d ~/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/* 2>/dev/null | head -1")
@@ -241,11 +250,14 @@ if [[ $MODE == window || " ${STEPS:-} " == *" prof "* ]]; then
     PF="-m $M35 --backend cuda --tp 2 --max-seq 8192 --mem-budget 16 --profile-every 0"
     NS="nsys profile --cuda-graph-trace=node -t cuda --sample=none --cpuctxsw=none -f true"
     r spark1 "timeout 300 $NS -o $XO/nsys-tp1-g $BIN generate -m $M35 --backend cuda --max-seq 8192 --mem-budget 29 --profile-every 0 --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 64 > $XO/prof-tp1.out 2> $XO/prof-tp1.err; echo prof-tp1 rc=\$?; grep -aE 'decode|graph' $XO/prof-tp1.err | head -2; cd ~/intarsia-tp2/xout/$OUT && nsys stats -q --report cuda_gpu_trace --format csv -o nsys-tp1-g nsys-tp1-g.nsys-rep >/dev/null 2>&1; ls nsys-tp1-g*" | tee -a "$L/steps.log"
-    for v in g e; do
+    for v in ${PROF_VARIANTS:-g e}; do
       wf=""; [[ $v == e ]] && wf="--no-graphs"
-      WWRAP="$NS -o $XO/nsys-r1-$v" worker_start prof-$v $PF $wf
-      r spark1 "env $NCCLENV timeout 300 $NS -o $XO/nsys-r0-$v $BIN generate $PF $wf --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 64 > $XO/prof-$v.out 2> $XO/prof-$v.err; echo prof-$v rc=\$?; grep -aE 'decode|graph' $XO/prof-$v.err | head -3" | tee -a "$L/steps.log"
-      worker_stop; sleep 3
+      xe=""; [[ $v == gf ]] && xe=INTARSIA_TP_FUSION=1
+      XENV=$xe WWRAP="$NS -o $XO/nsys-r1-$v" worker_start prof-$v $PF $wf
+      # one worker only: a restarted nsys worker would overwrite the report before the first one is written
+      r spark2 "sleep 2; touch ~/intarsia-tp2/stop-worker"
+      r spark1 "env $NCCLENV $xe timeout 300 $NS -o $XO/nsys-r0-$v $BIN generate $PF $wf --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 64 > $XO/prof-$v.out 2> $XO/prof-$v.err; echo prof-$v rc=\$?; grep -aE 'decode|graph' $XO/prof-$v.err | head -3" | tee -a "$L/steps.log"
+      r spark2 "for i in \$(seq 1 60); do pgrep -f '[t]p-worker --listen' >/dev/null || break; sleep 1; done"; worker_stop; sleep 3
       for h in spark1 spark2; do
         rk=$([[ $h == spark1 ]] && echo 0 || echo 1)
         r $h "cd ~/intarsia-tp2/xout/$OUT && ls nsys-r$rk-$v.nsys-rep >/dev/null 2>&1 && nsys stats -q --report cuda_gpu_trace --format csv -o nsys-r$rk-$v nsys-r$rk-$v.nsys-rep >/dev/null 2>&1; ls -la nsys-r$rk-$v* 2>&1 | tail -3" | tee -a "$L/steps.log"

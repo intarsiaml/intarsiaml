@@ -1,0 +1,63 @@
+prefill chunk 2048 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsia-tp2/dumps/T1B-short.safetensors (10 prompts, 1441 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head c4ea00b code-tree 88f485a37154 clean | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 2048; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+this build: head 871f912 code-tree fdd801a4a397 clean
+self-golden written by: head c4ea00b code-tree 88f485a37154 clean (top-64, modes prefill,decode)
+WARNING: this run resolved exactly the same kernels and flags as the self-golden's run: a kernel or graph change cannot show up in this comparison
+self-golden budgets: mean KL(21-way) <= 1.8e-2, max position KL <= 2.3e0, top-1 flips <= 3.76% (>= 1 position), mean |tail diff| <= 2.8e-3, prompt KL <= x6.5
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00  1.276e-15  1.687e-14  1.687e-14  4.189e-15   0.0308   0.0308   100.00     38/38      0
+story                 39    39   100.00  1.086e-15  2.718e-14  2.718e-14  6.826e-15   0.0217   0.0217   100.00     39/39      0
+code                  87    87   100.00  8.005e-16  3.105e-14  3.105e-14  5.384e-15   0.0115   0.0115   100.00     87/87      0
+science               79    79   100.00  1.275e-15  3.569e-14  3.569e-14  6.358e-15   0.0116   0.0116   100.00     79/79      0
+chat_short            18    18   100.00  1.314e-15  1.989e-12  1.989e-12  6.738e-15   0.0299   0.0299   100.00     18/18      0
+chat_system           32    32   100.00  1.080e-15  2.355e-12  2.355e-12  6.607e-15   0.0224   0.0224   100.00     32/32      0
+chat_multiturn        58    58   100.00  8.079e-16  5.281e-13  5.281e-13  6.693e-15   0.0178   0.0178   100.00     58/58      0
+chat_reasoning        90    90   100.00  9.115e-16  2.739e-13  2.739e-13  3.629e-15   0.0142   0.0142   100.00     90/90      0
+long_prose_300       300   300   100.00  6.972e-16  1.852e-14  1.852e-14  8.503e-15   0.0090   0.0090   100.00   300/300      0
+long_prose_700       700   700   100.00  6.411e-16  3.046e-13  3.046e-13  6.728e-15   0.0074   0.0074   100.00   700/700      0
+OVERALL                   1441   100.00  7.677e-16  2.723e-13  2.723e-13  8.503e-15   0.0107   0.0107   100.00    100.0%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                2.7235e-13  (limit 1.8000e-2)  ok
+  max position KL(21-way)                        1.8812e-10  (limit 2.3000e0)  ok
+  top-1 flips                                      0.0000e0  (limit 5.4000e1)  ok
+  mean |tail diff|                                3.5026e-9  (limit 2.8000e-3)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_system]          2.3546e-12  (limit 1.1700e-1)  ok
+SELF-STATS mode=prefill positions=1441 mean_kl21=2.723472e-13 max_kl21=1.881214e-10 flips=0 flip_pct=0.0000 tail_abs=3.502575e-9 worst_prompt_kl21=2.354620e-12
+prefill self-golden => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00  7.308e-16  1.411e-14  1.411e-14  2.194e-15   0.0159   0.0159   100.00     16/16      0
+story                 39    16   100.00  1.470e-15  2.248e-14  2.248e-14  5.945e-15   0.0396   0.0396   100.00     16/16      0
+code                  87    16   100.00  9.039e-16  2.436e-14  2.436e-14  2.501e-15   0.0003   0.0003   100.00     16/16      0
+science               79    16   100.00  1.751e-15  5.317e-14  5.317e-14  5.159e-15   0.0179   0.0179   100.00     16/16      0
+chat_short            18    16   100.00  1.419e-15  2.863e-13  2.863e-13  6.508e-15   0.0322   0.0322   100.00     16/16      0
+chat_system           32    16   100.00  1.183e-15  3.717e-10  3.717e-10  2.867e-15   0.0217   0.0217   100.00     16/16      0
+chat_multiturn        58    16   100.00  7.759e-16  1.486e-13  1.486e-13  3.834e-15   0.0004   0.0004   100.00     16/16      0
+chat_reasoning        90    16   100.00  8.830e-16  5.048e-13  5.048e-13  2.250e-15   0.0004   0.0004   100.00     16/16      0
+long_prose_300       300    16   100.00  1.140e-15  4.822e-14  4.822e-14  3.677e-15   0.0001   0.0001   100.00     16/16      0
+long_prose_700       700    16   100.00  6.790e-16  2.942e-14  2.942e-14  2.627e-15   0.0002   0.0002   100.00     16/16      0
+OVERALL                    160   100.00  1.094e-15  3.728e-11  3.728e-11  6.508e-15   0.0129   0.0129   100.00    100.0%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                3.7281e-11  (limit 1.8000e-2)  ok
+  max position KL(21-way)                         5.9192e-9  (limit 2.3000e0)  ok
+  top-1 flips                                      0.0000e0  (limit 6.0000e0)  ok
+  mean |tail diff|                                5.7704e-9  (limit 2.8000e-3)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_system]          3.7168e-10  (limit 1.1700e-1)  ok
+SELF-STATS mode=decode positions=160 mean_kl21=3.728103e-11 max_kl21=5.919182e-9 flips=0 flip_pct=0.0000 tail_abs=5.770369e-9 worst_prompt_kl21=3.716788e-10
+decode (teacher-forced) self-golden => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
