@@ -175,7 +175,7 @@ against tp=2 eager, the floor self-golden and the rank-1 replay check; `raw/mut`
 | one all-reduce dropped from rank 1's captured graph | **killed**: hang, timeout (rc 124) on both runs |
 | rank 1 ignores rank 0's graph flag and runs eagerly | **killed only by the replay check** (rank 1 replays = 0). The bits are identical: NCCL accepts a captured collective on one rank and an eager one on the other. The flag enforces lockstep; correctness does not depend on it |
 | a recording is reused across sequence states | **survives, equivalent today**: every engine path holds one `SequenceState` for its lifetime (`LocalEngine::new`), so the recording never meets a second state. The re-key is tp=1's rule, unchanged |
-| the NCCL f32 landing buffer is not reserved at load | **survives** (ids and floor self-golden identical): the buffer grows to the full chunk on the first 2048-row prefill, before any capture. A later move would be a use-after-free that does not change bits until the freed memory is reused. Not caught by any bit gate; `compute-sanitizer` across hosts was not run |
+| the NCCL f32 landing buffer is not reserved at load | **killed by `compute-sanitizer`** (follow-up, `scripts/tp2-graphs/sanitize.sh`, `raw/sanitize`): bit gates pass, but memcheck on both ranks through short, long, short requests reports 512 `Invalid __global__ write` per rank from the replayed graph's `ncclDevKernel_AllReduce_Sum_f32` into the freed buffer, and the mutant server stops answering after request 1. main `1ab83b69`: **0 errors** on both ranks, all three requests answered |
 | (Mac) the GDN out-projection fold allowed under TP fusion | **killed** by `tp_hybrid::hybrid_moe_tp2_row_local_fusion_matches_tp1_f32` (rel L2 1.33 at the first decode row) |
 
 **Mac / feature checks:**
@@ -307,10 +307,9 @@ Deviations from the brief:
    - But it holds both Sparks for one engine, and batched decode refuses world > 1. Aggregate throughput is therefore
      below two tp=1 servers.
    - Worth it only for a latency-first role. That is a fleet decision (which role gives up spark2).
-3. **The `no-reserve` mutant survives the bit gates** (section 2). The reservation is there and is load-bearing by
-   construction, but nothing tests it.
-   - Option: a cross-host `compute-sanitizer` run, about 10 min with vLLM up.
-   - Option: accept it as is.
+3. **The `no-reserve` mutant (done, follow-up).** The coordinator asked for the cross-host `compute-sanitizer` check.
+   It kills the mutant (512 invalid writes per rank) and main `1ab83b69` is clean. The check is
+   `scripts/tp2-graphs/sanitize.sh`: one fleetq job over both Sparks, vLLM up, about 2 min.
 4. **No all-reduce work.** The data says the all-reduce runs at the link's floor (section 1). LL/LL128 and a custom
    one-shot are not worth a lane unless a sequence-parallel layout is on the table.
 5. **Merge.** This PR touches shared core files (`model.rs`, `comm.rs`, `backend.rs`), so it needs the Metal and HIP
