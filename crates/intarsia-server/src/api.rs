@@ -31,6 +31,8 @@ pub struct AppState {
     pub progress: Arc<Progress>,
     /// Bounded `source` metric label of the request this clone serves (see [`AppState::for_request`]).
     pub source: Arc<str>,
+    /// Structured output's token table and parser factory, built on the first constrained request.
+    pub grammar: Arc<std::sync::OnceLock<Result<Arc<crate::structured::GrammarEnv>, String>>>,
     inflight: Arc<AtomicUsize>,
     counter: Arc<AtomicU64>,
     salt: u64,
@@ -67,6 +69,7 @@ impl AppState {
             default_max_tokens: cfg.default_max_tokens,
             progress: Arc::new(Progress::new(Duration::from_secs_f64(cfg.watchdog_s.max(0.0)))),
             source: Arc::from("unknown"),
+            grammar: Arc::new(std::sync::OnceLock::new()),
             inflight: Arc::new(AtomicUsize::new(0)),
             counter: Arc::new(AtomicU64::new(0)),
             salt: now.as_nanos() as u64 & 0xffff_ffff,
@@ -451,6 +454,7 @@ impl Sampling {
             stop: self.stop,
             cancel: None,
             trace_logits: None,
+            constraint: None,
         })
     }
 }

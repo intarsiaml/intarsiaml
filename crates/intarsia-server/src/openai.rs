@@ -1,6 +1,7 @@
 //! OpenAI-compatible endpoints.
 
 use crate::api::*;
+use crate::structured::{self, Piece, ToolParser};
 use axum::extract::{Path, State};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -100,9 +101,37 @@ pub struct ChatReq {
     #[serde(default)]
     tools: Option<Value>,
     #[serde(default)]
+    tool_choice: Option<Value>,
+    #[serde(default)]
+    parallel_tool_calls: Option<bool>,
+    #[serde(default)]
+    response_format: Option<Value>,
+    #[serde(default)]
     chat_template_kwargs: Option<Map<String, Value>>,
     #[serde(flatten)]
     common: CommonParams,
+}
+
+fn tool_call(id: String, name: &str, arguments: &Value) -> Value {
+    json!({"id": id, "type": "function", "function": {"name": name, "arguments": arguments.to_string()}})
+}
+
+/// Streaming deltas for parsed output pieces; `n` counts the tool calls so far (their `index`).
+fn tool_deltas(st: &AppState, pieces: Vec<Piece>, n: &mut usize) -> Vec<Value> {
+    let mut out = Vec::new();
+    for p in pieces {
+        match p {
+            Piece::Text(t) if t.is_empty() => {}
+            Piece::Text(t) => out.push(json!({"content": t})),
+            Piece::Call { name, arguments } => {
+                let mut c = tool_call(st.new_id("call"), &name, &arguments);
+                c["index"] = json!(*n);
+                *n += 1;
+                out.push(json!({"tool_calls": [c]}));
+            }
+        }
+    }
+    out
 }
 
 pub async fn chat_completions(
@@ -129,6 +158,13 @@ async fn chat_inner(
         return Err(ApiError::bad_request(F, "messages must not be empty"));
     }
     let sampling = req.common.sampling()?;
+    let bad = |m: String| ApiError::bad_request(F, m);
+    let tools = structured::openai_tools(&req.tools).map_err(bad)?;
+    let choice = structured::openai_choice(&req.tool_choice, &tools).map_err(bad)?;
+    let format = structured::response_format(&req.response_format).map_err(bad)?;
+    let hermes = info.tool_parser.as_deref() == Some("hermes");
+    let parallel = req.parallel_tool_calls.unwrap_or(true);
+    let (plan, parse_tools) = structured::choose(format, &tools, &choice, parallel, hermes).map_err(bad)?;
 
     // Content-part arrays become plain strings (templates call string methods).
     let mut messages = Vec::with_capacity(req.messages.len());
@@ -154,7 +190,8 @@ async fn chat_inner(
         e.tokenize(&text, false)
     })
     .await?;
-    let gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
+    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
+    structured::attach(&st, F, &mut gen, plan).await?;
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("chatcmpl");
@@ -174,10 +211,21 @@ async fn chat_inner(
     let rid = req.common.return_token_ids;
     if !req.common.stream {
         let c = collect(rx, F).await?;
+        let mut message = json!({"role": "assistant", "content": c.text});
+        let mut finish = finish_str(c.finish);
+        if parse_tools {
+            let (content, calls) = structured::split_calls(&c.text);
+            if !calls.is_empty() {
+                message["content"] = content.map_or(Value::Null, Value::String);
+                message["tool_calls"] = calls.iter().map(|(n, a)| tool_call(st.new_id("call"), n, a)).collect();
+                if c.finish != FinishReason::Length {
+                    finish = "tool_calls";
+                }
+            }
+        }
         let v = json!({
             "id": chunk(json!({}), None, false)["id"].clone(), "object": "chat.completion", "created": created, "model": st.model_name,
-            "choices": [{"index": 0, "message": {"role": "assistant", "content": c.text},
-                         "finish_reason": finish_str(c.finish)}],
+            "choices": [{"index": 0, "message": message, "finish_reason": finish}],
             "usage": with_chunk(usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens), rid, c.prefill_chunk),
         });
         let mut v = v;
@@ -197,9 +245,18 @@ async fn chat_inner(
         Some(id) => json!({"content": text, "token_ids": [id]}),
         None => json!({"content": text}),
     };
+    // hermes tool calls are parsed out of the text (token ids are not reported per delta then)
+    let mut tp = parse_tools.then(ToolParser::default);
+    let mut ncalls = 0usize;
+    let st2 = st.clone();
     let sse = sse_from(rx, vec![first], move |ev| match ev {
         Some(GenEvent::Token { id: tid, text }) => {
-            if rid {
+            if let Some(tp) = tp.as_mut() {
+                tool_deltas(&st2, tp.push(&text), &mut ncalls)
+                    .into_iter()
+                    .map(|d| sse_json(None, &chunk(d, None, inc)))
+                    .collect()
+            } else if rid {
                 hold.push(tid, text)
                     .map(|(i, t)| sse_json(None, &chunk(delta_of(Some(i), t), None, inc)))
                     .into_iter()
@@ -213,10 +270,15 @@ async fn chat_inner(
         Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, prefill_chunk, .. }) => {
             done = true;
             let mut out = Vec::new();
-            if let Some((i, t)) = hold.finish(finish_reason, stop_sequence.is_some(), completion_tokens) {
+            if let Some(tp) = tp.as_mut() {
+                for d in tool_deltas(&st2, tp.finish(), &mut ncalls) {
+                    out.push(sse_json(None, &chunk(d, None, inc)));
+                }
+            } else if let Some((i, t)) = hold.finish(finish_reason, stop_sequence.is_some(), completion_tokens) {
                 out.push(sse_json(None, &chunk(delta_of(i, t), None, inc)));
             }
-            out.push(sse_json(None, &chunk(json!({}), Some(finish_str(finish_reason)), inc)));
+            let fr = if ncalls > 0 && finish_reason != FinishReason::Length { "tool_calls" } else { finish_str(finish_reason) };
+            out.push(sse_json(None, &chunk(json!({}), Some(fr), inc)));
             if inc {
                 out.push(sse_json(
                     None,
@@ -251,6 +313,11 @@ pub struct CompletionReq {
     prompt: Value,
     #[serde(default)]
     echo: bool,
+    #[serde(default)]
+    response_format: Option<Value>,
+    /// Not supported here (chat only); present so it is rejected instead of ignored.
+    #[serde(default)]
+    tools: Option<Value>,
     #[serde(flatten)]
     common: CommonParams,
 }
@@ -296,6 +363,10 @@ async fn completions_inner(
     let Json(req) = body.map_err(|e| ApiError::bad_request(F, e.body_text()))?;
     let info = st.engine.info();
     let sampling = req.common.sampling()?;
+    if req.tools.as_ref().is_some_and(|t| !t.is_null()) {
+        return Err(ApiError::bad_request(F, "tools are supported on /v1/chat/completions only"));
+    }
+    let plan = structured::response_format(&req.response_format).map_err(|m| ApiError::bad_request(F, m))?;
     let pin = parse_prompt(&req.prompt)?;
     let (prompt, prefix) = match pin {
         PromptIn::Ids(ids) => (ids, String::new()),
@@ -305,7 +376,8 @@ async fn completions_inner(
             (ids, if req.echo { t } else { String::new() })
         }
     };
-    let gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
+    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
+    structured::attach(&st, F, &mut gen, plan).await?;
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("cmpl");
