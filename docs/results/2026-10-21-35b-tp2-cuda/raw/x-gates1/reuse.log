@@ -1,0 +1,10 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+prefill chunk 2048 (--prefill-chunk)
+tensor parallel x2 across processes: rank 1 is remote (16384 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 x2 (tp=2, nccl comm) (vocab 248320, weights/act/kv bf16/bf16)
+Error: reading /Users/josef/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+
+Caused by:
+    No such file or directory (os error 2)
+NCCL version 2.30.7+cuda13.3

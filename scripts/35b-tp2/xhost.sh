@@ -78,6 +78,7 @@ worker_stop() {
   r spark2 "touch ~/intarsia-tp2/stop-worker; pkill -TERM -f '[t]p-worker --listen'; for i in \$(seq 1 20); do pgrep -f '[t]p-worker --listen' >/dev/null || break; sleep 1; done; pkill -KILL -f '[t]p-worker --listen'; true"
 }
 XO='~/intarsia-tp2/xout/'$OUT
+GD='$HOME/intarsia-tp2/golden'; VG='$HOME/intarsiaml-golden'  # expanded on spark1, not here
 
 # ---- smoke: the CLI paths with a remote rank, and cross-host = one-box bits ----
 if [[ $MODE == smoke ]]; then
@@ -95,7 +96,7 @@ if [[ $MODE == smoke ]]; then
     r spark2 "scp -q ~/intarsia-tp2/out/gates2/S1-short.safetensors spark1:intarsia-tp2/golden/S1-short.safetensors"
     AF="-m $M35 --backend cuda --tp 2 --max-seq 16384 --prefill-chunk 2048 --mem-budget 18"
     worker_start acc $AF
-    r spark1 "env $NCCLENV timeout 1200 $BIN accuracy $AF --tp-remote $WIP:$WPORT --self-golden ~/intarsia-tp2/golden/S1-short.safetensors --mode both --allow-config-mismatch \
+    r spark1 "env $NCCLENV timeout 1200 $BIN accuracy $AF --tp-remote $WIP:$WPORT --self-golden $GD/S1-short.safetensors --mode both --allow-config-mismatch \
       --self-max-kl 1.2e-3 --self-max-pos-kl 9.8e-2 --self-max-flip-pct 0.84 --self-max-tail 4.2e-4 --self-prompt-factor 1.92 --pre-change ${PRE_CHANGE:?} > $XO/self-x-short.log 2>&1; echo rc=\$?; grep -aE 'SELF-STATS|self-golden gate|^Error' $XO/self-x-short.log | cut -c1-260" | tee -a "$L/steps.log"
     worker_stop
   fi
@@ -114,14 +115,14 @@ if [[ $MODE == gates ]]; then
     r spark1 "env $NCCLENV timeout 1500 $BIN accuracy $AF --tp-remote $WIP:$WPORT $* > $XO/$tag.log 2>&1; echo $tag rc=\$?; grep -aE 'SELF-STATS|self-golden gate|^prefill floor|^decode floor|floor verdict|^chat_reuse_4k|prefix-reuse gate|^Error' $XO/$tag.log | cut -c1-260" | tee -a "$L/steps.log"
     worker_stop
   }
-  xacc self-short --self-golden ~/intarsia-tp2/golden/S1-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} $B_SHORT
-  xacc self-long --self-golden ~/intarsia-tp2/golden/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
-  xacc floor-short --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
-  xacc floor-long --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
+  xacc self-short --self-golden $GD/S1-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} $B_SHORT
+  xacc self-long --self-golden $GD/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
+  xacc floor-short --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
+  xacc floor-long --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
   # the 1 % partial-scale bug on rank 1 (the worker's env), judged by the same budgets
-  WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-short --self-golden ~/intarsia-tp2/golden/S1-short.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_SHORT
-  WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-long --self-golden ~/intarsia-tp2/golden/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
-  xacc reuse --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
+  WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-short --self-golden $GD/S1-short.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_SHORT
+  WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-long --self-golden $GD/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
+  xacc reuse --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
   if want gen16k; then
     GEN_FLAGS="-m $M35 --backend cuda --tp 2 --max-seq 20480 --mem-budget 16 --profile-every 0"
     worker_start gen16k $GEN_FLAGS
