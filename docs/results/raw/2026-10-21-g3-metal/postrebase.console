@@ -1,0 +1,18 @@
+fleetq: #3105 waiting (#12 in line): in line behind #3063 "runner: PR40 quality diag response dump (3 gsm8k)" (claude-f31ccf91) on endor
+fleetq:   #3063 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3063 set, or it will wait for #3063 to be released.
+fleetq: #3105 waiting (#11 in line): in line behind #3069 "dashcntrl BL-34 iOS suite via Tailscale Serve HTTPS" (claude-70714f80) on endor
+fleetq: #3105 waiting (#6 in line): in line behind #3091 "T1 token feedback: Metal gates (greedy ids, stops, cb gap, goldens, A/B x3, tests, qualify)" (claude-f31ccf91) on endor
+fleetq:   #3091 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3091 set, or it will wait for #3091 to be released.
+fleetq: #3105 waiting (#5 in line): in line behind #3098 "A2 cargo test" (claude-f31ccf91) on endor
+fleetq:   #3098 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3098 set, or it will wait for #3098 to be released.
+fleetq: #3105 waiting (#3 in line): in line behind #3103 "M6 tui live check" (claude-f31ccf91) on endor
+fleetq:   #3103 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3103 set, or it will wait for #3103 to be released.
+fleetq: #3105 waiting (#2 in line): in line behind #3104 "dashcntrl m23 fleet.sh + statusbar.sh" (claude-a0e3ba1d) on endor
+fleetq: #3105 waiting (#1 in line): needs endor to itself; running there: #3104 "dashcntrl m23 fleet.sh + statusbar.sh" (claude-a0e3ba1d)
+fleetq: #3105 running on endor: zsh /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/postrebase.sh
+head 31bd6345 2026-10-21T13:57:06-04:00
+cargo test metal exit 0
+total passed 115 failed 0
+kernels test exit 0
+28 kernels, 374 cases in 44.4s
+fleetq: #3105 done (exit 0)
