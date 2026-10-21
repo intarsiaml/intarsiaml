@@ -1,6 +1,6 @@
 #!/bin/zsh
 # G3 A/B x3, interleaved (base dev | dev base | base dev), fresh `serve` per arm, `intarsia bench speed --at-most`,
-# sizes 128 / 1k / 4k / 16k, gen 128, 3 reps, macmon 250 ms per arm. base = origin/main 4be7b7d4, dev = perf/metal-g3.
+# sizes 128 / 1k / 4k / 16k, gen 128, 3 reps, macmon 250 ms per arm. base = origin/main (7536a5e6 after the rebase), dev = perf/metal-g3.
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a slot" >&2; exit 2; }
 TAG=$1
