@@ -61,6 +61,22 @@ int ik_attn_prefill_f8kv_flash(const ik_tensor* q, const ik_tensor* kc, const ik
 int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                          ik_tensor* out, void* stream);
 
+/* matmul_exl3_gemv: x[M,K] (bf16 / f16 / f32), trellis i16 [K/16,N/16,8*k2] (k2 = 2 * bits: 2, 4, .., 16 with any codebook,
+ * 3 / 5 / 7 with mul1), suh f16 [K], svh f16 [N], codebook i32 [1] ON THE DEVICE (0 = 3inst, 1 = mcg, 2 = mul1; any other
+ * value, or a codebook that does not exist at the width, fills out with NaN) -> out[M,N] (bf16 / f16 / f32) =
+ * x @ (diag(suh) H_K W_q H_N diag(svh)), H the 128-point Hadamard / sqrt(128), see kernels/cuda/exl3.cu. K, N multiples of
+ * 128; x, out, suh, svh 16- / 8-byte aligned. Scratch: the rotated input, fp16 [min(M,128),K] (16-byte aligned). The
+ * rotation is rounded to fp16 before the tensor-core multiply. Any M: rows go through in slices of 128, so the scratch is
+ * min(M,128)*K*2 bytes; every 16 rows decode the weight tiles again (a decode kernel, not a prefill GEMM). */
+int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                        const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
+
+/* matmul_exl3_gemm: the same op and arguments, a prefill GEMM: each block decodes a weight tile once for 64 or 128 rows
+ * (ldmatrix + mma against shared-memory slices of the rotated input), and its output is bit for bit the GEMV's. Scratch:
+ * the rotated input, fp16 [min(M,512),K] (16-byte aligned); rows go through in slices of 512. */
+int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                        const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

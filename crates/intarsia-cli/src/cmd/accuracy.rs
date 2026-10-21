@@ -417,6 +417,18 @@ fn f16_to_f64(b: u16) -> f64 {
 /// Indices of the `k` largest values, ties to the lowest index, ordered best first.
 /// NaN entries are skipped (callers reject non-finite rows before ranking).
 fn top_k(x: impl Iterator<Item = f64>, k: usize) -> Vec<usize> {
+    if k > 256 {
+        // the insertion below is O(n * k): a whole-vocabulary dump (`--self-topk <vocab>`) needs a selection; same order
+        // (value descending, lower index first among equals), NaN skipped
+        let mut v: Vec<(f64, usize)> = x.enumerate().filter(|(_, v)| !v.is_nan()).map(|(i, v)| (v, i)).collect();
+        let cmp = |a: &(f64, usize), b: &(f64, usize)| b.0.partial_cmp(&a.0).unwrap().then(a.1.cmp(&b.1));
+        if v.len() > k {
+            v.select_nth_unstable_by(k - 1, cmp);
+            v.truncate(k);
+        }
+        v.sort_by(cmp);
+        return v.into_iter().map(|b| b.1).collect();
+    }
     let mut best: Vec<(f64, usize)> = Vec::with_capacity(k + 1);
     for (i, v) in x.enumerate() {
         if v.is_nan() {
@@ -752,7 +764,8 @@ fn collect_strings(v: &Value, out: &mut Vec<String>) {
                 out.push(k.to_ascii_lowercase());
                 // bit widths count only under the keys that mean "bits" (not group sizes and the like)
                 if matches!(k.as_str(), "num_bits" | "bits" | "weight_bits" | "w_bit") {
-                    if let Some(n) = x.as_u64() {
+                    // EXL3 writes `"bits": 4.0` (a float): a whole number of bits counts like the integer
+                    if let Some(n) = x.as_u64().or_else(|| x.as_f64().filter(|b| b.fract() == 0.0 && *b >= 0.0).map(|b| b as u64)) {
                         out.push(format!("bits={n}"));
                     }
                 }
@@ -2913,6 +2926,21 @@ mod tests {
     }
 
     #[test]
+    fn top_k_selection_path_matches_the_insertion_path() {
+        // values with many ties and a NaN; k above the selection threshold must give the same ids in the same order
+        let x: Vec<f64> = (0..3000).map(|i| if i == 17 { f64::NAN } else { ((i * 7919) % 211) as f64 }).collect();
+        let mut want: Vec<(f64, usize)> = x.iter().copied().enumerate().filter(|(_, v)| !v.is_nan()).map(|(i, v)| (v, i)).collect();
+        want.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap().then(a.1.cmp(&b.1)));
+        for k in [257, 1000, 2999, 3000, 5000] {
+            let got = top_k(x.iter().copied(), k);
+            let w: Vec<usize> = want.iter().take(k).map(|b| b.1).collect();
+            assert_eq!(got, w, "k={k}");
+        }
+        // below the threshold the insertion path agrees with the same order
+        assert_eq!(top_k(x.iter().copied(), 20), want.iter().take(20).map(|b| b.1).collect::<Vec<_>>());
+    }
+
+    #[test]
     fn weight_class_from_quantization_metadata() {
         let d = std::env::temp_dir().join(format!("intarsia-acc-{}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
@@ -2951,6 +2979,14 @@ mod tests {
             w(r#"{"quantization_config":{"quant_method":"compressed-tensors","num_bits":4}}"#, None).unwrap().0,
             GateClass::Fp4
         );
+        // EXL3 writes the bit width as a float
+        assert_eq!(
+            w(r#"{"quantization_config":{"quant_method":"exl3","version":"0.0.1","bits":4.0,"head_bits":6}}"#, None)
+                .unwrap()
+                .0,
+            GateClass::Fp4
+        );
+        assert!(w(r#"{"quantization_config":{"quant_method":"exl3","bits":3.5}}"#, None).is_err(), "no whole-bit class");
         let _ = std::fs::remove_dir_all(d);
     }
 

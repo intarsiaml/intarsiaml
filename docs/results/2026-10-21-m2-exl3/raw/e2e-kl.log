@@ -1,0 +1,32 @@
+== KL(exllamav3 || bf16 golden): the format's own quantisation loss
+434 positions  KL(ref||other) mean 2.277e-02  p99 3.408e-01  max 1.060e+00  top-1 95.62% (ties 0, excl. ties 95.62%)
+  prompt 0: n=38 KL mean 3.386e-03 top-1 100.00%
+  prompt 1: n=39 KL mean 2.313e-02 top-1 92.31%
+  prompt 2: n=80 KL mean 7.772e-03 top-1 98.75%
+  prompt 3: n=79 KL mean 1.703e-02 top-1 96.20%
+  prompt 4: n=18 KL mean 2.873e-02 top-1 94.44%
+  prompt 5: n=32 KL mean 6.948e-02 top-1 90.62%
+  prompt 6: n=58 KL mean 2.919e-02 top-1 94.83%
+  prompt 7: n=90 KL mean 2.721e-02 top-1 94.44%
+
+== KL(intarsia EXL3 || bf16 golden): quantisation loss + engine (prefill rows)
+434 positions  KL(ref||other) mean 2.324e-02  p99 3.118e-01  max 1.034e+00  top-1 95.16% (ties 0, excl. ties 95.16%)
+  prompt 0: n=38 KL mean 3.901e-03 top-1 100.00%
+  prompt 1: n=39 KL mean 2.405e-02 top-1 92.31%
+  prompt 2: n=80 KL mean 8.621e-03 top-1 100.00%
+  prompt 3: n=79 KL mean 1.803e-02 top-1 94.94%
+  prompt 4: n=18 KL mean 2.935e-02 top-1 94.44%
+  prompt 5: n=32 KL mean 6.007e-02 top-1 90.62%
+  prompt 6: n=58 KL mean 3.285e-02 top-1 91.38%
+  prompt 7: n=90 KL mean 2.809e-02 top-1 94.44%
+
+== KL(exllamav3 golden || intarsia): the engine on identical weights (prefill rows)
+434 positions  KL(ref||other) mean 4.373e-04  p99 9.277e-03  max 2.558e-02  top-1 98.62% (ties 0, excl. ties 98.62%)
+  prompt 0: n=38 KL mean 2.741e-04 top-1 100.00%
+  prompt 1: n=39 KL mean 4.325e-04 top-1 100.00%
+  prompt 2: n=80 KL mean 9.094e-05 top-1 98.75%
+  prompt 3: n=79 KL mean 2.160e-04 top-1 98.73%
+  prompt 4: n=18 KL mean 6.576e-04 top-1 100.00%
+  prompt 5: n=32 KL mean 1.453e-03 top-1 100.00%
+  prompt 6: n=58 KL mean 1.039e-03 top-1 96.55%
+  prompt 7: n=90 KL mean 2.181e-04 top-1 97.78%

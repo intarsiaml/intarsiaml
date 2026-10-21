@@ -151,6 +151,7 @@ pub fn write_safetensors(path: &Path, tensors: &[(&str, &intarsia_core::HostTens
             DType::I32 => "I32",
             DType::I8 => "I8",
             DType::U8 => "U8",
+            DType::I16 => "I16",
         };
         header.insert(
             name.to_string(),

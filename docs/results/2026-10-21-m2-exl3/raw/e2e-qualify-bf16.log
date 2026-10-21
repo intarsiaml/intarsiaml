@@ -1,0 +1,18 @@
+[qualify      0s] Qwen3-8B on cuda, report directory /home/nvidia/intarsia-decfuse/m2-exl3-e2e/reports-m2e2e/bf16
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.8s (NVIDIA GB10 (sm_121), 52 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify    108s] plan: PASS in 107.2s (16 ops resolved, exactness fast, loaded in 107.2s)
+[qualify    108s] == kernels [kernels test on the model's shapes]
+[qualify    173s] kernels: PASS in 64.9s (52 kernels, 964 cases in 64.3s)
+[qualify    173s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    227s] gate: PASS in 54.2s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    227s] == acc-short [short accuracy against a golden]
+[qualify    271s] acc-short: PASS in 43.4s (prefill top-1 100.00% KL 2.90e-4; decode top-1 100.00% KL 3.24e-4)
+[qualify    271s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    347s] server up in 76s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    434s] bench: PASS in 163.1s (decode 15.6 tok/s at 128 tokens (107% of the byte floor))
+QUICK DONE: /home/nvidia/intarsia-decfuse/m2-exl3-e2e/reports-m2e2e/bf16/quick-report.md
+[qualify    434s] exit code 0
