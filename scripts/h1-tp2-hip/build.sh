@@ -4,6 +4,7 @@
 # Each tree is ~/intarsiaml-h1-<name> with its own target volume intarsia-cargo-target-h1-<name>; the release CLI is copied
 # to /work/h1-intarsia in the tree. `_` in a stamp stands for a space. TEST=1 also runs `cargo test --workspace` (CPU) in a
 # SEPARATE target volume (intarsia-cargo-target-h1-<name>-test), so the hip binary is never relinked without its feature.
+# HIPTEST=1 compiles the HIP crate's GPU tests (volume intarsia-cargo-target-h1-<name>-hiptest) without running them.
 set -uo pipefail
 mkdir -p ~/h1/logs
 for spec in ${TREES:?TREES=name=stamp ...}; do
@@ -15,6 +16,11 @@ for spec in ${TREES:?TREES=name=stamp ...}; do
   echo "build $name exit $? $(date +%T)"; grep -E '^(error|warning: unused)|Finished' ~/h1/logs/build-$name.log | tail -5
   # the binary needs the image's ROCm libs: it runs inside the image as /work/h1-intarsia (tree mounted at /work)
   $D cp /target/release/intarsia /work/h1-intarsia < /dev/null
+  if [[ "${HIPTEST:-0}" == 1 ]]; then
+    # the HIP crate's GPU tests, compiled only (they run in a radiance window with the same volume: no rebuild there)
+    INTARSIA_TARGET_VOL=intarsia-cargo-target-h1-$name-hiptest $D cargo test --release -p intarsia-backend-hip --no-run > ~/h1/logs/hiptest-build-$name.log 2>&1 < /dev/null
+    echo "hip tests build $name exit $? $(date +%T)"; grep -E '^error|Finished' ~/h1/logs/hiptest-build-$name.log | tail -3
+  fi
   if [[ "${TEST:-0}" == 1 ]]; then
     INTARSIA_TARGET_VOL=intarsia-cargo-target-h1-$name-test $D cargo test --release --workspace > ~/h1/logs/test-$name.log 2>&1 < /dev/null
     echo "test $name exit $? $(date +%T)"; grep -E '^test result|FAILED|panicked' ~/h1/logs/test-$name.log | sort | uniq -c | tail -8
