@@ -382,6 +382,9 @@ const ACT: [DType; 2] = [DType::Bf16, DType::F32];
 
 /// The sweep for one of the new ops, or `None` for any other op.
 pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
+    if op == Op::MatmulExl3 {
+        return Some(crate::quant::exl3::sweep(cfg));
+    }
     let mut rng = SplitMix64::new(cfg.seed ^ (op as u64).wrapping_mul(0x9E37) ^ 0x51ED);
     let quick = cfg.quick;
     let mut cases = Vec::new();
@@ -670,6 +673,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
 /// Clamped-case label of a planned call (also the admission cache key part), or `None` for other ops.
 /// Rows and `N` are clamped per `caps`, experts to 32; `K`, `H`, `I`, top-k and dtypes stay exact.
 pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
+    if call.op == Op::MatmulExl3 {
+        return Some(crate::quant::exl3::label(call, caps));
+    }
     let (i, o) = (&call.inputs, &call.outputs);
     let s = match call.op {
         Op::MatmulFp8 => format!(
@@ -793,6 +799,9 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
 /// Host case that exercises the same kernel path as `call` (see [`label`]). The FP8 case alternates the
 /// activation mode with the row count's parity so a plan that uses either mode gets it tested.
 pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> Option<(HostCall, String)> {
+    if call.op == Op::MatmulExl3 {
+        return Some(crate::quant::exl3::case_from_call(call, caps, rng));
+    }
     let label = label(call, caps)?;
     let (i, o) = (&call.inputs, &call.outputs);
     let hc = match call.op {
