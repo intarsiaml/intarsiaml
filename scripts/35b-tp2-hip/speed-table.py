@@ -35,3 +35,10 @@ for b in ['tp1', 'tp1eu']:
             x = med([v[kind] for v in cells[('tp2', s)]]); y = med([v[kind] for v in cells[(b, s)]])
             r.append(f'{(x / y - 1) * 100:+.1f} %')
     print(f'| tp2 vs {b} | ' + ' | '.join(r) + ' |')
+print()
+for a in arms:
+    for s_ in sizes:
+        v = cells.get((a, s_), [])
+        if v:
+            pf = [x for x, _ in v]; dc = [y for _, y in v]
+            print(f'spread {a} {s_}: prefill {min(pf):.0f}-{max(pf):.0f} ({(max(pf) / min(pf) - 1) * 100:.1f} %), decode {min(dc):.1f}-{max(dc):.1f} ({max(dc) - min(dc):.1f} tok/s)')
