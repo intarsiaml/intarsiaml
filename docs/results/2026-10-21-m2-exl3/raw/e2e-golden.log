@@ -1,0 +1,10 @@
+prompt 0: 38 tokens, vocab 151936
+prompt 1: 39 tokens, vocab 151936
+prompt 2: 80 tokens, vocab 151936
+prompt 3: 79 tokens, vocab 151936
+prompt 4: 18 tokens, vocab 151936
+prompt 5: 32 tokens, vocab 151936
+prompt 6: 58 tokens, vocab 151936
+prompt 7: 90 tokens, vocab 151936
+{"out": "/gold/tmp-m2e2e-qwen3-8b-exl3-exllamav3.safetensors", "prompts": 8, "vocab": 151936}
+-rw------- 1 root root 131887008 Oct 21 11:12 /home/nvidia/intarsiaml-golden/tmp-m2e2e-qwen3-8b-exl3-exllamav3.safetensors
