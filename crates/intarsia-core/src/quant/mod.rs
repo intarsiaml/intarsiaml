@@ -304,10 +304,10 @@ mod tests {
         assert_eq!(detect(&WeightMeta::new(&w, "b")).unwrap().id(), FP8_E4M3);
         assert_eq!(detect(&WeightMeta::new(&w, "c")).unwrap().id(), BF16);
         let ex = exl3::random(&mut rng, 128, 128, 4, exl3::Codebook::Mcg);
-        w.insert("e.trellis", ex.parts[0].clone());
-        w.insert("e.suh", ex.parts[1].clone());
-        w.insert("e.svh", ex.parts[2].clone());
-        assert_eq!(detect(&WeightMeta::new(&w, "e")).unwrap().id(), EXL3);
+        w.insert("x.trellis", ex.parts[0].clone());
+        w.insert("x.suh", ex.parts[1].clone());
+        w.insert("x.svh", ex.parts[2].clone());
+        assert_eq!(detect(&WeightMeta::new(&w, "x")).unwrap().id(), EXL3);
         assert!(detect(&WeightMeta::new(&w, "d")).is_err());
     }
 }
