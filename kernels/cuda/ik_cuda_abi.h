@@ -56,6 +56,11 @@ int ik_attn_prefill_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const 
 int ik_attn_prefill_f8kv_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                                ik_tensor* out, void* stream);
 
+/* matmul_mxfp4 (M1 drill, kernels/cuda/mxfp4.cu): Op::MatmulMxfp4, OCP MXFP4 weights (u8 e2m1 pairs [N, K/2], u8 e8m0
+ * scales [N, K/32]) and act f32 [1] (0: bf16 activations, 1: dynamic MXFP4 QDQ, Quark "even"). Any M (GEMV per 8 rows). */
+int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                         ik_tensor* out, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

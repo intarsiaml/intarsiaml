@@ -58,6 +58,31 @@ pub fn check(call: &OpCall) -> Result<()> {
         Ok(())
     };
     match op {
+        Op::MatmulMxfp4 => {
+            rank(&i[0], 2, "x")?;
+            rank(&i[1], 2, "w")?;
+            rank(&o[0], 2, "out")?;
+            let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
+            if !act(&i[0]) || !act(&o[0]) {
+                return bad(op, "x and out must be bf16/f16/f32".into());
+            }
+            if o[0].shape != [m, n] {
+                return bad(op, format!("out {:?} != [{m},{n}]", o[0].shape));
+            }
+            let g = crate::quant::mxfp4::GROUP;
+            if k % g != 0 {
+                return bad(op, format!("K={k} must be a multiple of {g}"));
+            }
+            if i[1].dtype != DType::U8 || i[1].shape != [n, k / 2] {
+                return bad(op, format!("w must be u8 [N,K/2]=[{n},{}], got {} {:?}", k / 2, i[1].dtype, i[1].shape));
+            }
+            if i[2].dtype != DType::U8 || i[2].shape != [n, k / g] {
+                return bad(op, format!("scales must be u8 (e8m0) [N,K/32]=[{n},{}], got {} {:?}", k / g, i[2].dtype, i[2].shape));
+            }
+            if i[3].dtype != DType::F32 || i[3].shape != [1] {
+                return bad(op, "act must be f32 [1] (0 = 16-bit activations, 1 = dynamic MXFP4)".into());
+            }
+        }
         Op::MatmulFp8 | Op::MatmulNvfp4 => {
             rank(&i[0], 2, "x")?;
             rank(&i[1], 2, "w")?;
@@ -391,7 +416,7 @@ pub fn check(call: &OpCall) -> Result<()> {
 pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
     let i = &call.inputs;
     match call.op {
-        Op::MatmulFp8 | Op::MatmulNvfp4 => {
+        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 => {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1];
             s.n = i[1].shape[0];

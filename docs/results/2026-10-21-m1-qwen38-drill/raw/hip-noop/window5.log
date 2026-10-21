@@ -1,0 +1,30 @@
+11:59:36 window start (job 3009)
+11:59:37 radiance stopped
+11:59:38
+head accshort rc=0 11:59:47
+base accshort rc=0 11:59:47
+head acclong rc=0 12:00:00
+base acclong rc=0 12:00:01
+head gen-short rc=0 12:00:09
+base gen-short rc=0 12:00:10
+head gen-4k rc=0 12:00:18
+base gen-4k rc=0 12:00:19
+acc-short.out: identical
+acc-long.out: identical
+gen-short.out: identical
+gen-4k.out: identical
+ids short: base 36901faa head 36901faa identical (n=257)
+ids 4k: base 2b487584 head 2b487584 identical (n=257)
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+golden gate: PASS
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+golden gate: PASS
+12:00:19
+12:00:19 checks rc=0
+12:00:19 restore: killing m1noop containers
+12:00:19 restore: starting radiance
+12:00:30 radiance /v1/models up
+"content":"OK."
+12:00:30 restore: done

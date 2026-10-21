@@ -283,6 +283,7 @@ pub fn requires_metal4(kernel: &str) -> bool {
 
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
+    v.extend(crate::mxfp4::SHADERS);
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
@@ -334,6 +335,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS, Op::MatmulPair),
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
+    (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -496,6 +498,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(-1)
                     .rows_exact()
                     .scratch(crate::attn::rows_scratch),
+                // OCP MXFP4 (kernels/metal/mxfp4.metal, mxfp4.rs): the activations are QDQ'd once into scratch, then a
+                // simdgroup-per-row GEMV runs; any M, K % 32 == 0. The hip `matmul_mxfp4_gemv` budgets and scratch bound.
+                crate::mxfp4::MATMUL_MXFP4_GEMV => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.m >= 1 && s.k > 0 && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::mxfp4::scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -616,6 +628,7 @@ mod tests {
         "matmul_bf16_gemv:matmul",
         "matmul_bf16_gemv_rows:matmul",
         "matmul_bf16_nax:matmul",
+        "matmul_mxfp4_gemv:matmul_mxfp4",
         "matmul_pair_bf16_gemv:matmul_pair",
         "matmul_pair_bf16_gemv_rows:matmul_pair",
         "matmul_pair_bf16_nax:matmul_pair",

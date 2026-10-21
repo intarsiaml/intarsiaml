@@ -45,6 +45,9 @@ pub struct ModelArgs {
     /// FP8 projections: `static` (W8A8, checkpoint input_scale) or `none` (W8A16); default: the recipe's.
     #[arg(long)]
     pub fp8_act: Option<String>,
+    /// MXFP4 projections: `dynamic` (W4A4, Quark's declared scheme) or `none` (W4A16, opt-in); default: what the checkpoint declares.
+    #[arg(long)]
+    pub mxfp4_act: Option<String>,
     /// Tokens per forward pass (prefill chunk); default: the recipe's value for the backend, then its base value, then 256.
     #[arg(long)]
     pub prefill_chunk: Option<usize>,
@@ -271,6 +274,7 @@ impl ModelArgs {
                 profile_every: self.profile_every.unwrap_or(if self.backend == "cpu" { 1 } else { 16 }),
                 mem_budget: self.mem_budget.map(|g| (g * (1u64 << 30) as f64) as u64),
                 fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
+                mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
             },
             prefill_chunk: self.prefill_chunk,
