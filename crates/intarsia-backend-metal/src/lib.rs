@@ -152,6 +152,13 @@ pub struct GemvParams {
 /// overrides it.
 pub const MAX_DISPATCHES: usize = 128;
 
+/// Dispatches in the first command buffer after a `synchronize` (`Stream::first_commit`). Between decode steps the GPU
+/// is idle until that buffer is committed; with 4 instead of `MAX_DISPATCHES` the host's encode of the first buffer
+/// leaves the idle gap (0.115 -> 0.018 ms; gap 0.39 -> 0.29 ms per step at 4k, cb traces in
+/// docs/results/2026-10-21-g3-metal.md). Greedy ids identical: only where buffers are cut changes, not what runs or its
+/// order. `INTARSIA_METAL_FIRST_COMMIT=0` turns it off.
+pub const FIRST_COMMIT: usize = 4;
+
 /// The stream: the open command buffer and encoder plus every committed buffer not yet waited on.
 #[derive(Default)]
 struct Stream {
@@ -166,6 +173,12 @@ struct Stream {
     label: Option<profile::Label>,
     /// Dispatches per command buffer before it is committed (`COMMIT_EVERY`, overridable for experiments).
     commit_every: usize,
+    /// After a `synchronize` (the GPU idle, e.g. between decode steps) the first command buffer is committed after this
+    /// many dispatches instead of `commit_every`, so the GPU starts while the host encodes the rest
+    /// (`INTARSIA_METAL_FIRST_COMMIT`, 0 = off). Where buffers are cut never changes what runs or its order.
+    first_commit: usize,
+    /// No dispatch committed since the last `synchronize`.
+    fresh: bool,
     /// Profiling only: host time at which the open command buffer was created.
     opened: f64,
     /// `host::now_ms()` of the last commit of the stream (the keep-warm thread stays out of the engine's way while it moves).
@@ -240,6 +253,10 @@ impl MetalBackend {
                     .and_then(|v| v.parse().ok())
                     .filter(|&n| n > 0)
                     .unwrap_or(MAX_DISPATCHES),
+                first_commit: std::env::var("INTARSIA_METAL_FIRST_COMMIT")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(FIRST_COMMIT),
                 ..Stream::default()
             }),
             hosts: Mutex::new(host::HostCache::default()),
@@ -330,6 +347,7 @@ impl MetalBackend {
             }
             Self::track(st, cb);
             st.dispatches = 0;
+            st.fresh = false;
         }
     }
 
@@ -360,7 +378,8 @@ impl MetalBackend {
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
         let per_kernel = st.prof.as_ref().is_some_and(|p| p.per_kernel);
-        if st.dispatches >= st.commit_every || per_kernel {
+        let first = st.fresh && st.first_commit > 0 && st.dispatches >= st.first_commit;
+        if st.dispatches >= st.commit_every || per_kernel || first {
             Self::flush_locked(&mut st);
             if per_kernel {
                 // run launches one at a time: independent ones (gate / up, k / v) would otherwise overlap across
@@ -696,6 +715,7 @@ impl Backend for MetalBackend {
         let mut st = self.stream.lock().unwrap();
         Self::flush_locked(&mut st);
         let pending = std::mem::take(&mut st.inflight);
+        st.fresh = true;
         let mut first = st.failed.take();
         for cb in &pending {
             if let Err(e) = Self::wait(cb) {
