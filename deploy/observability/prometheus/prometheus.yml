@@ -1,0 +1,20 @@
+# Prometheus config for the docker-compose demo (deploy/observability/docker-compose.yml).
+# The engine runs on the host: `intarsia serve --host 0.0.0.0 --port 8090 ...`.
+# To scrape another engine, change the target below.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: intarsia
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8090"]
+        labels: { host: demo }
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

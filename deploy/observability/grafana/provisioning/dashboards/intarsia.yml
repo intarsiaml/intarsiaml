@@ -1,4 +1,4 @@
-# Grafana file provisioning for the dashboard (mount intarsia.json next to it).
+# Grafana file provisioning for the dashboard. Mount dashboards/intarsia.json at /var/lib/grafana/dashboards.
 apiVersion: 1
 providers:
   - name: intarsia

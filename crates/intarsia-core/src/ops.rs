@@ -19,6 +19,7 @@
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
 //! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
+//! | `MatmulExl3` | x `[M,K]`, trellis `[K/16,N/16,8*k2]` i16, suh `[K]` f16, svh `[N]` f16, codebook `[1]` i32 (0 3inst, 1 mcg, 2 mul1) | `[M,N]` (bf16/f16/f32) | see `quant::exl3` |
 //! | `MatmulNvfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), block scales `[N,K/16]` fp8_e4m3, global `[1]` f32 | `[M,N]` (bf16/f16/f32) | see `quant::nvfp4` |
 //! | `MatmulMxfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), scales `[N,K/32]` u8 (e8m0), act `[1]` f32 (0 = 16-bit x, 1 = dynamic MXFP4 QDQ of x) | `[M,N]` (bf16/f16/f32) | see `quant::mxfp4` |
 //! | `MoeTopk` | router logits `[T,E]` | weights `[T,K]` f32, expert ids `[T,K]` i32 | top_k, norm_topk |
@@ -105,10 +106,12 @@ pub enum Op {
     MoeBlock,
     // appended (2026-10-21, M1 MXFP4), for the same reason
     MatmulMxfp4,
+    // appended (2026-10-21, M2 EXL3), for the same reason
+    MatmulExl3,
 }
 
 impl Op {
-    pub const ALL: [Op; 37] = [
+    pub const ALL: [Op; 38] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -146,6 +149,7 @@ impl Op {
         Op::GdnConvDelta,
         Op::MoeBlock,
         Op::MatmulMxfp4,
+        Op::MatmulExl3,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -188,6 +192,7 @@ impl Op {
             Op::GdnConvDelta => "gdn_conv_delta",
             Op::MoeBlock => "moe_block",
             Op::MatmulMxfp4 => "matmul_mxfp4",
+            Op::MatmulExl3 => "matmul_exl3",
         }
     }
 
@@ -233,6 +238,7 @@ impl Op {
             Op::GdnConvDelta => (6, 3),
             Op::MoeBlock => (17, 1),
             Op::MatmulMxfp4 => (4, 1),
+            Op::MatmulExl3 => (5, 1),
         }
     }
 }
@@ -566,6 +572,7 @@ impl OpCall {
             | Op::SharedDownCombine
             | Op::MoeBlock
             | Op::MatmulMxfp4 => crate::quant::ops::check(self)?,
+            Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::check(self)?,
         }
         Ok(())
@@ -674,6 +681,7 @@ impl ShapeInfo {
             | Op::SharedDownCombine
             | Op::MoeBlock
             | Op::MatmulMxfp4 => crate::quant::ops::shape(call, &mut s),
+            Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::shape(call, &mut s),
         }
         let _ = o;
@@ -885,8 +893,9 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL.last(), Some(&Op::MatmulMxfp4), "appended after MoeBlock");
+        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::MoeBlock, "appended at the end");
+        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::MatmulMxfp4, "appended after MoeBlock");
+        assert_eq!(Op::ALL.last(), Some(&Op::MatmulExl3), "appended after MatmulMxfp4");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

@@ -297,6 +297,10 @@ fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
     if src.info(&w).is_some() {
         return Ok(w);
     }
+    // an EXL3 linear layer (an EXL3 lm_head) has no `.weight`: the module prefix names it
+    if src.info(&format!("{name}.trellis")).is_some() {
+        return Ok(name.to_string());
+    }
     Err(Error::model(format!("tensor '{name}' (or '{name}.weight') not found in checkpoint")))
 }
 

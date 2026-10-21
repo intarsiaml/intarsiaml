@@ -29,6 +29,8 @@ pub struct AppState {
     /// `max_tokens` when the client sends none (0 = as much as the context allows).
     pub default_max_tokens: usize,
     pub progress: Arc<Progress>,
+    /// Bounded `source` metric label of the request this clone serves (see [`AppState::for_request`]).
+    pub source: Arc<str>,
     inflight: Arc<AtomicUsize>,
     counter: Arc<AtomicU64>,
     salt: u64,
@@ -64,10 +66,20 @@ impl AppState {
             max_running: cfg.max_running.max(1),
             default_max_tokens: cfg.default_max_tokens,
             progress: Arc::new(Progress::new(Duration::from_secs_f64(cfg.watchdog_s.max(0.0)))),
+            source: Arc::from("unknown"),
             inflight: Arc::new(AtomicUsize::new(0)),
             counter: Arc::new(AtomicU64::new(0)),
             salt: now.as_nanos() as u64 & 0xffff_ffff,
         }
+    }
+
+    /// This state tagged with the client named by the request headers: `X-Intarsia-Client`, else the product token of
+    /// `User-Agent` (`curl/8.4` -> `curl`). Cardinality is bounded, see [`Metrics::source_label`].
+    pub fn for_request(mut self, headers: &axum::http::HeaderMap) -> AppState {
+        let get = |n: &str| headers.get(n).and_then(|v| v.to_str().ok()).map(str::trim).filter(|s| !s.is_empty());
+        let raw = get("x-intarsia-client").or_else(|| get("user-agent").map(|ua| ua.split(['/', ' ']).next().unwrap_or(ua)));
+        self.source = Arc::from(self.metrics.source_label(raw));
+        self
     }
 
     fn acquire(&self) -> Option<Slot> {
@@ -238,14 +250,16 @@ pub fn start(st: &AppState, flavor: Flavor, mut req: GenRequest) -> Result<GenRx
     })?;
     let (tx, out) = unbounded_channel();
     let metrics = st.metrics.clone();
+    let source = st.source.clone();
+    metrics.observe_admitted(&source);
     std::thread::Builder::new()
         .name("intarsia-bridge".into())
         .spawn(move || {
             let _slot = slot;
             for ev in rx.iter() {
                 let last = matches!(ev, GenEvent::Done { .. } | GenEvent::Error { .. });
-                if let GenEvent::Done { completion_tokens, prefill_ms, decode_ms, .. } = &ev {
-                    metrics.observe_done(*completion_tokens, *prefill_ms, *decode_ms);
+                if let GenEvent::Done { prompt_tokens, completion_tokens, prefill_ms, decode_ms, .. } = &ev {
+                    metrics.observe_done(&source, *prompt_tokens, *completion_tokens, *prefill_ms, *decode_ms);
                 }
                 // Client gone: stop reading, which drops `rx` and cancels the generation.
                 if tx.send(ev).is_err() || last {
