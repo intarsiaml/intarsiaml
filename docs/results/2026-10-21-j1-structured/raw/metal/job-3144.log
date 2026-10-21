@@ -1,0 +1,35 @@
+fleetq: #3144 waiting (#9 in line): in line behind #3124 "G1c tp2 graphs: cargo test --workspace (rebased b12d8f23)" (claude-f31ccf91) on endor
+fleetq:   #3124 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3124 set, or it will wait for #3124 to be released.
+fleetq: #3144 waiting (#7 in line): in line behind #3127 "M6 tui live check (retry, port clash)" (claude-f31ccf91) on endor
+fleetq:   #3127 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3127 set, or it will wait for #3127 to be released.
+fleetq: #3144 waiting (#6 in line): in line behind #3128 "dashcntrl m23 fleet.sh (2)" (claude-a0e3ba1d) on endor
+fleetq: #3144 waiting (#1 in line): needs endor to itself; running there: #3128 "dashcntrl m23 fleet.sh (2)" (claude-a0e3ba1d), #3130 "dashcntrl BL-21 statusbar" (claude-2ecb5b39), #3132 "dashcntrl m23 spike e2e (3) + macos check.sh unit" (claude-a0e3ba1d), #3139 "M2 EXL3 PR tip 2314dbb0: cargo test --workspace --no-fail-fast (CPU)" (claude-f31ccf91), #3142 "J1 build (metal base c4ea00bd + head d8ff9b0b)" (claude-f31ccf91)
+fleetq:   #3139 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3139 set, or it will wait for #3139 to be released.
+fleetq: #3144 waiting (#1 in line): needs endor to itself; running there: #3128 "dashcntrl m23 fleet.sh (2)" (claude-a0e3ba1d), #3132 "dashcntrl m23 spike e2e (3) + macos check.sh unit" (claude-a0e3ba1d), #3139 "M2 EXL3 PR tip 2314dbb0: cargo test --workspace --no-fail-fast (CPU)" (claude-f31ccf91), #3142 "J1 build (metal base c4ea00bd + head d8ff9b0b)" (claude-f31ccf91)
+fleetq:   #3139 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3139 set, or it will wait for #3139 to be released.
+fleetq: #3144 waiting (#1 in line): needs endor to itself; running there: #3128 "dashcntrl m23 fleet.sh (2)" (claude-a0e3ba1d), #3132 "dashcntrl m23 spike e2e (3) + macos check.sh unit" (claude-a0e3ba1d), #3139 "M2 EXL3 PR tip 2314dbb0: cargo test --workspace --no-fail-fast (CPU)" (claude-f31ccf91)
+fleetq:   #3139 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3139 set, or it will wait for #3139 to be released.
+fleetq: #3144 waiting (#1 in line): needs endor to itself; running there: #3128 "dashcntrl m23 fleet.sh (2)" (claude-a0e3ba1d), #3139 "M2 EXL3 PR tip 2314dbb0: cargo test --workspace --no-fail-fast (CPU)" (claude-f31ccf91)
+fleetq:   #3139 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3139 set, or it will wait for #3139 to be released.
+fleetq: #3144 waiting (#1 in line): needs endor to itself; running there: #3139 "M2 EXL3 PR tip 2314dbb0: cargo test --workspace --no-fail-fast (CPU)" (claude-f31ccf91)
+fleetq:   #3139 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3139 set, or it will wait for #3139 to be released.
+fleetq: #3144 running on endor: bash /opt/code/intarsiaml/.claude/worktrees/agent-ae0fc16f7953c6491/scripts/j1-structured/endor-slot.sh run /Users/josef/.local/state/claude-watch/j1/endor c4ea00bd d8ff9b0b
+15:12:02
+have base c4ea00bd
+have head d8ff9b0b
+base kernels rc=0
+head kernels rc=0
+base plan rc=0
+base accshort rc=0
+base acclong rc=0
+base gen-short rc=0
+base gen-4k rc=0
+head plan rc=0
+head accshort rc=0
+head acclong rc=0
+head gen-short rc=0
+head gen-4k rc=0
+head cargo test rc=0 15:15:00
+serve head e2e did not come up
+Error: this binary was built without the Metal backend (macOS only: cargo build -p intarsia-cli --features metal)
+fleetq: #3144 done (exit -15)
