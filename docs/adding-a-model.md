@@ -179,7 +179,11 @@ What each stage needs and how it decides:
   bf16 base, `tools/golden_quark_mxfp4.py` makes the golden from HF's own Qwen3.5 decoder layers, one layer in memory at a
   time (~8.5 min and ~6 GB for Qwen3.8-27B on endor's CPU), with Quark's activation QDQ (`--act dynamic`, the declared
   W4A4) or without (`--act none`, W4A16, to compare with `--mxfp4-act none`); see
-  docs/results/2026-10-21-m1-qwen38-drill.md. The short golden cannot exercise prefix reuse (the reuse
+  docs/results/2026-10-21-m1-qwen38-drill.md. A W4A4 checkpoint (activations quantised at run time) does not pass
+  the absolute class floor against any golden that is not bit-identical: rounding activations to fp4 amplifies
+  last-bit differences, so the reference does not reproduce itself (Qwen3.8-27B: HF bf16 vs HF f32, both W4A4, 21-way
+  KL 0.197 against a floor of 0.03). Gate the weight path in W4A16 instead (`--mxfp4-act none` against an `--act none`
+  golden: 8.3e-4 there), and quote W4A4 against the reference's own spread (a second golden with `--dtype float32`). The short golden cannot exercise prefix reuse (the reuse
   gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt
   (`long_prose_700`, continue and restore) is long enough to exercise it: a thin check, and none at all at a prefill
   chunk above ~350 (the long golden's gate prints SKIPPED, which fails). A **4k golden** (`<name>-4k...`, built with
