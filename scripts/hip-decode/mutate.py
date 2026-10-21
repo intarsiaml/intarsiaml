@@ -536,6 +536,22 @@ TESTS.update({n: "staging" for n in ("r9-st-nowait", "r9-st-pageable", "r9-st-no
 TESTS.update({n: "split_trigger" for n in ("r9-trig-off", "r9-trig-incl", "r9-trig-def")})
 TESTS.update({n: "splitkv_occ" for n in ("r9-occ-def", "r9-occ-kv", "r9-occ-g")})
 
+# Round 10 GEMM / GEMV launch pieces (matmul.hip split_cfg / split_plan / split_rows / gemm_launch / gemv_launch; INTARSIA_HIP_GEMM_SPLIT)
+MM = "kernels/hip/matmul.hip"
+MUTATIONS.update({
+    # wrong x offset / wrong out offset of a GEMM piece; last piece not clamped; weight offset of a GEMV piece
+    "r10-xoff": (MM, [("const ik_bf16* xq = xp + r0 * K;", "const ik_bf16* xq = xp;")]),
+    "r10-ooff": (MM, [("OutT* oq = op + r0 * N;", "OutT* oq = op;")]),
+    "r10-noclamp": (MM, [("rows[i] = rows[i] * g < rows_total ? rows[i] * g : rows_total;", "rows[i] = rows[i] * g;")]),
+    "r10-gemv-woff": (MM, [("gemv_dispatch<1, OutT>(xp, wp + rows[i] * K, op + rows[i],", "gemv_dispatch<1, OutT>(xp, wp, op + rows[i],")]),
+    # the trigger inverted; the kill switch ignored; the tail one granule too short
+    "r10-trig-inv": (MM, [("!(est_us > c.trigger_us)", "!(est_us < c.trigger_us)")]),
+    "r10-killsw": (MM, [("if (c.mode == 0 || !(est_us", "if (!(est_us")]),
+    "r10-def-on": (MM, [("SplitCfg c{0, 1100.0, 400.0, 900.0};", "SplitCfg c{1, 1100.0, 400.0, 900.0};")]),
+    "r10-tail-off": (MM, [("cuts[1] = units - t;", "cuts[1] = units - t + 1;")]),
+})
+TESTS.update({n: "gemm_split" for n in ("r10-xoff", "r10-ooff", "r10-noclamp", "r10-gemv-woff", "r10-trig-inv", "r10-killsw", "r10-tail-off", "r10-def-on")})
+
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target
     print(TESTS.get(sys.argv[3], "decode_v2"))

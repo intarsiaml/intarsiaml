@@ -1,0 +1,12 @@
+# /home/josef/intarsiaml-r10base/bench-out/prof/b8-16k/run_kernel_trace.csv
+# 4073 dispatches, span 6342.2 ms, kernel time 4705.9 ms, W = 260 us
+band         n long ms (med) +1 us (med) pgap us (med)  cost ms  long -> +1
+>=1.05     301         2.243        95.4         277.9    50.36  gemm_wmma_kernel<4, 2, 2, 4, ik_bf16> -> rmsnorm_kernel<true, true>
+>=1.05     288         2.122       239.2         277.8     6.00  gemm_wmma_kernel<4, 2, 2, 4, ik_bf16> -> silu_glu_kernel<true>
+>=1.05       1         1.961        41.2         284.3     0.22  gemv_kernel<1, 1, 8, float> -> argmax_kernel<float>
+>=1.05       1         1.597      1193.3         282.0     0.00  rocclr:fillBufferAligned -> rocclr:copyBuffer
+>=1.05       1         1.193       845.6         282.5     0.00  rocclr:copyBuffer -> rocclr:copyBuffer
+>=1.05     288         2.119      2122.3         278.4     0.00  gemm_wmma_kernel<4, 2, 2, 4, ik_bf16> -> gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>
+>=1.05     288         5.715       767.0         277.8     0.00  flash_hpb_kernel<128, 64, 4> -> gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>
+1.00-1.05   12         1.023        31.3         285.6     0.00  gemm_wmma_kernel<4, 2, 2, 4, ik_bf16> -> rmsnorm_kernel<true, true>
+# predicted stall cost, unprofiled: 56.57 ms = 0.89 % of the profiled span

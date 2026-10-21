@@ -52,6 +52,10 @@ int ik_hip_moe_mw_down(int pairs);
 int ik_hip_split_pieces(double est_us, int64_t max_pieces);
 /* round 9: 1 when split-KV stage 1 runs at 8 waves per SIMD (splitkv_kernel_o8; opt-in, INTARSIA_HIP_SPLITKV_OCC=1). Host-only. */
 int ik_hip_splitkv_occ(void);
+/* round 10 (docs/results/2026-10-19-hip-round10.md): the row cuts rows[0] = 0 < ... < rows[p] a GEMM (gemv = 0: rows of x,
+ * M x K times N x K) or a one-row GEMV (gemv = 1: rows of w) launch is cut into under the current INTARSIA_HIP_GEMM_SPLIT /
+ * _SPLIT_MIN_US / _SPLIT_TAIL_US; returns p (1 = one launch), writes at most max_rows entries. Host-only. */
+int ik_hip_gemm_split_rows(int64_t M, int64_t N, int64_t K, int gemv, int64_t* rows, int max_rows);
 
 /* moe_experts_bf16_v3 (docs/results/2026-10-19-hip-round5.md): ik_moe_experts_bf16_v2 with the decode path (T * K <= 16)
  * in one launch (gate_up and down + reduce blocks in one grid, the down blocks wait on a per-stream counter); the same

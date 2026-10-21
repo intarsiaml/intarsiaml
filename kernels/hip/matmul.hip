@@ -7,8 +7,10 @@
 //                 the activation loads are shared, U loads in flight per lane and row.
 // A hipBLASLt route (Fast) is not built: the dev image carries no hipblaslt; see docs/backends/hip.md.
 #include "ik_hip.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace {
 
@@ -306,6 +308,79 @@ bool gemv_dispatch(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int
     return true;
 }
 
+// ---- Round 10: launch pieces for long GEMM / GEMV launches (docs/results/2026-10-19-hip-round10.md) ----------
+// gfx1201 (ROCm 7.2) stalls the dispatch right after one of >= ~1.05 ms: it cannot finish before ~260 us after it starts
+// (kernels/hip_checks/gap_repro on tools/rocm-gap-repro). A short +1 (rmsnorm_add after the 8B's down projection, argmax
+// after its lm_head) therefore costs ~260 us minus its own length. A long launch is cut along independent output rows:
+//   tail:           two pieces, the second one ~INTARSIA_HIP_GEMM_SPLIT_TAIL_US (400) long, so it absorbs the window and
+//                   is itself too short to stall what follows;
+//   even:           pieces of at most ~900 us each (round 8's rule for GEMMs), none of them stalls.
+// Opt-in, off by default: the 8B A/B on gfx1201 (docs/results/2026-10-19-hip-round10.md) found no win (tail -1.6 % .. +0.3 %,
+// even +1.8 % at ~1k tokens but -1.8 % at 4k / 16k, decode unchanged); set
+// INTARSIA_HIP_GEMM_SPLIT=tail or =even to try it. INTARSIA_HIP_GEMM_SPLIT=0 keeps one launch; only launches estimated above INTARSIA_HIP_GEMM_SPLIT_MIN_US (1100) are cut.
+// All read at every launch. Every output element is computed by the same kernel with the same tile config (chosen from
+// the full shape) over the same K loop, so the bits do not depend on the cut (tests/gemm_split.rs).
+struct SplitCfg {
+    int mode;  // 0 off, 1 tail, 2 even
+    double trigger_us, tail_us, budget_us;
+};
+
+SplitCfg split_cfg() {
+    SplitCfg c{0, 1100.0, 400.0, 900.0};  // off by default (see above)
+    if (const char* e = getenv("INTARSIA_HIP_GEMM_SPLIT")) {
+        if (!strcmp(e, "0") || !strcmp(e, "off")) c.mode = 0;
+        else if (!strcmp(e, "even")) c.mode = 2;
+        else if (!strcmp(e, "tail") || !strcmp(e, "1")) c.mode = 1;
+    }
+    if (const char* e = getenv("INTARSIA_HIP_GEMM_SPLIT_MIN_US"); e && *e) c.trigger_us = atof(e);
+    if (const char* e = getenv("INTARSIA_HIP_GEMM_SPLIT_TAIL_US"); e && *e) c.tail_us = atof(e);
+    return c;
+}
+
+constexpr int kSplitMax = 64;
+
+// cuts[0] = 0 < cuts[1] < ... < cuts[p] = units (granules of output rows); returns p, 1 = one launch
+int split_plan(double est_us, int64_t units, int64_t* cuts) {
+    const SplitCfg c = split_cfg();
+    cuts[0] = 0;
+    cuts[1] = units;
+    if (c.mode == 0 || !(est_us > c.trigger_us) || units < 2) return 1;
+    const double per = est_us / (double)units;
+    if (c.mode == 1) {
+        int64_t t = (int64_t)ceil(c.tail_us / per);
+        if (t < 1) t = 1;
+        if (t > units - 1) t = units - 1;
+        cuts[1] = units - t;
+        cuts[2] = units;
+        return 2;
+    }
+    int64_t p = (int64_t)ceil(est_us / c.budget_us);
+    if (p > units) p = units;
+    if (p > kSplitMax) p = kSplitMax;
+    if (p < 2) p = 2;
+    for (int64_t i = 0; i <= p; ++i) cuts[i] = units * i / p;
+    return (int)p;
+}
+
+// GEMM: granule = one 128-row tile row of x; ~5.0e7 multiply-adds per us (gate / up / down / qkv of the 8B, 1k and 2k
+// tokens, rows rounded up to the granule; measured 4.7e7 .. 5.1e7)
+constexpr int64_t kGemmRowGranule = 128;
+constexpr double kGemmMacPerUs = 5.0e7;
+// GEMV (one row of x): granule = 1024 weight rows; ~620 bytes of weights per ns (the 8B lm_head, 151936 x 4096, 1.94 ms)
+constexpr int64_t kGemvRowGranule = 1024;
+constexpr double kGemvBytesPerUs = 620e3;
+
+// the row cuts (output rows of the GEMM = rows of x; of the GEMV = rows of w) for one launch; returns the piece count
+int split_rows(int64_t M, int64_t N, int64_t K, bool gemv, int64_t* rows) {
+    const int64_t rows_total = gemv ? N : M, g = gemv ? kGemvRowGranule : kGemmRowGranule;
+    const int64_t units = (rows_total + g - 1) / g;
+    const double est = gemv ? (double)N * (double)K * 2.0 / kGemvBytesPerUs
+                            : (double)(units * g) * (double)N * (double)K / kGemmMacPerUs;
+    const int p = (gemv && M != 1) ? (rows[0] = 0, rows[1] = units, 1) : split_plan(est, units, rows);
+    for (int i = 0; i <= p; ++i) rows[i] = rows[i] * g < rows_total ? rows[i] * g : rows_total;
+    return p;
+}
+
 template <typename OutT>
 int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
@@ -315,6 +390,17 @@ int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
     const ik_bf16* xp = (const ik_bf16*)x->data;
     const ik_bf16* wp = (const ik_bf16*)w->data;
     OutT* op = (OutT*)out->data;
+    if (M == 1 && vec) {
+        // round 10 pieces over the weight rows (one x row, so out row n is out[n]); 1024-row granules keep w 16 B aligned
+        int64_t rows[kSplitMax + 1];
+        const int p = split_rows(M, N, K, true, rows);
+        if (p > 1) {
+            for (int i = 0; i < p; ++i)
+                if (!gemv_dispatch<1, OutT>(xp, wp + rows[i] * K, op + rows[i], rows[i + 1] - rows[i], K, vec, s))
+                    return IK_ERR_INVALID_ARG;
+            return ik_launch_status();
+        }
+    }
     bool launched = false;
     switch (M) {
         case 1: launched = gemv_dispatch<1, OutT>(xp, wp, op, N, K, vec, s); break;
@@ -491,14 +577,22 @@ int gemm_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
         gemm_simple_kernel<OutT><<<(unsigned)((total + 255) / 256), 256, 0, s>>>(xp, wp, op, M, N, K);
         return ik_launch_status();
     }
-    const bool out_vec = ik_aligned16(out->data);
-    // tile (weights x tokens) per M, measured on the R9700 (docs/backends/hip.md); INTARSIA_HIP_GEMM_TILE=<id> forces one
+    // tile (weights x tokens) per M, measured on the R9700 (docs/backends/hip.md); INTARSIA_HIP_GEMM_TILE=<id> forces one.
+    // Round 10: chosen from the full M, so every piece runs the same tile
     int tile = gemm_cfg().tile;
     if (tile == 0) tile = M >= 128 ? 1 : 2;
+    // round 10 pieces over the token rows (split_rows: 128-row granules, the last piece takes the partial tile)
+    int64_t rows[kSplitMax + 1];
+    const int pieces = split_rows(M, N, K, false, rows);
+    for (int pc = 0; pc < pieces; ++pc) {
+        const int64_t r0 = rows[pc], Mp = rows[pc + 1] - rows[pc];
+        const ik_bf16* xq = xp + r0 * K;
+        OutT* oq = op + r0 * N;
+        const bool out_vec = ik_aligned16(oq);
 #define IK_GEMM_TILE(WN, WM, TN, TM)                                                                          \
     {                                                                                                        \
-        dim3 grid((unsigned)((M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((N + WN * TN * 16 - 1) / (WN * TN * 16))); \
-        gemm_wmma_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xp, wp, op, (int)M, (int)N, (int)K, out_vec); \
+        dim3 grid((unsigned)((Mp + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((N + WN * TN * 16 - 1) / (WN * TN * 16))); \
+        gemm_wmma_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xq, wp, oq, (int)Mp, (int)N, (int)K, out_vec); \
     }
     switch (tile) {
         case 1: IK_GEMM_TILE(4, 2, 2, 4) break;  // 128 x 128, 8 waves of 32 x 64
@@ -510,6 +604,7 @@ int gemm_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
         case 7: IK_GEMM_TILE(2, 2, 4, 2) break;  // 128 x 64, 4 waves of 64 x 32
         case 8: IK_GEMM_TILE(4, 2, 4, 2) break;  // 256 x 64, 8 waves of 64 x 32
         default: return IK_ERR_INVALID_ARG;
+    }
     }
 #undef IK_GEMM_TILE
     return ik_launch_status();
@@ -635,6 +730,14 @@ int ik_logits_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void*
 }
 int ik_logits_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
     return mm(x, w, out, stream, true, true);
+}
+// ik_hip_abi.h (round 10 pin, tests/gemm_split.rs): the row cuts of a GEMM (gemv = 0: rows of x) or one-row GEMV
+// (gemv = 1: rows of w) launch under the current INTARSIA_HIP_GEMM_SPLIT* settings
+int ik_hip_gemm_split_rows(int64_t M, int64_t N, int64_t K, int gemv, int64_t* rows, int max_rows) {
+    int64_t r[kSplitMax + 1];
+    const int p = split_rows(M, N, K, gemv != 0, r);
+    for (int i = 0; i <= p && i < max_rows; ++i) rows[i] = r[i];
+    return p;
 }
 
 }  // extern "C"

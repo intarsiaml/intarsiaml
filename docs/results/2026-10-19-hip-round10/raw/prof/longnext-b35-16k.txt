@@ -1,0 +1,12 @@
+# /home/josef/intarsiaml-r10base/bench-out/prof/b35-16k/run_kernel_trace.csv
+# 7615 dispatches, span 14493.8 ms, kernel time 2190.4 ms, W = 260 us
+band         n long ms (med) +1 us (med) pgap us (med)  cost ms  long -> +1
+>=1.05      50         8.870       163.9         244.3     5.92  flash_hpb_kernel<256, 32, 4> -> sigmoid_mul_kernel
+>=1.05       2         3.164         4.4         141.6     0.51  f8_gemm_kernel<4, 2, 2, 4, ik_bf16> -> dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, ik_bf16>
+>=1.05       2         3.847       160.1           4.0     0.20  dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, ik_bf16> -> dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, ik_bf16>
+>=1.05       1         1.571      1297.1         284.8     0.00  rocclr:fillBufferAligned -> rocclr:copyBuffer
+>=1.05       1         1.297       856.9         284.0     0.00  rocclr:copyBuffer -> rocclr:copyBuffer
+>=1.05     161         2.074       615.4         271.5     0.00  moe_wmma_kernel_r7<true, 64, 45> -> moe_wmma_kernel_r7<false, 64, 25>
+>=1.05       1         6.146       576.9           4.2     0.00  moe_wmma_kernel_r7<false, 64, 25> -> moe_wmma_kernel_r7<false, 64, 25>
+1.00-1.05    3         1.010       516.9          11.8     0.00  moe_wmma_kernel_r7<true, 64, 45> -> moe_wmma_kernel_r7<false, 64, 25>
+# predicted stall cost, unprofiled: 6.63 ms = 0.05 % of the profiled span

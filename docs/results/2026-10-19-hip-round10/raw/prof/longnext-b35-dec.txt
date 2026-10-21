@@ -1,0 +1,7 @@
+# /home/josef/intarsiaml-r10base/bench-out/prof/b35-dec/run_kernel_trace.csv
+# 36039 dispatches, span 10119.3 ms, kernel time 765.3 ms, W = 260 us
+band         n long ms (med) +1 us (med) pgap us (med)  cost ms  long -> +1
+>=1.05       1         5.274         6.5           4.6     0.25  fp8_gemv_kernel<1, 2, ik_bf16, 2> -> gate_qk_norm_rope_kv_kernel<ik_bf16>
+>=1.05       1         1.371      1361.1         450.2     0.00  rocclr:fillBufferAligned -> rocclr:copyBuffer
+>=1.05       1         1.361       874.0         248.9     0.00  rocclr:copyBuffer -> rocclr:copyBuffer
+# predicted stall cost, unprofiled: 0.25 ms = 0.00 % of the profiled span
