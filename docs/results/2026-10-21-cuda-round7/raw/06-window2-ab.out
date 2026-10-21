@@ -1,0 +1,104 @@
+fleetq: #2965 waiting (#1 in line): needs spark1 to itself; running there: #2964 "M2 exl3 cuda build+test (vLLM up)" (claude-f31ccf91)
+fleetq:   #2964 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2964 set, or it will wait for #2964 to be released.
+fleetq: #2965 running on spark1: scripts/cuda-round7/window.sh 22 'G1 r7 W2: ids + reuse-diag + A/B x3' '/home/nvidia/intarsia-decfuse/r7-dev/scripts/cuda-round7/wAB.sh ab'
+10:37:21 window job 2965: G1 r7 W2: ids + reuse-diag + A/B x3
+10:37:24 memory freed: 110 GB available
+10:37:24 running /home/nvidia/intarsia-decfuse/r7-dev/scripts/cuda-round7/wAB.sh ab (cap 22 min)
+== accuracy extras 10:37:25
+bin r7-base: ik_matmul_fp8_gemm_lt symbols: 0
+bin r7-dev: ik_matmul_fp8_gemm_lt symbols: 1
+gen base-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 508 ms (2944.7 tok/s) | decode 3136 ms (81.30 tok/s)
+gen base-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 3195 ms (5016.4 tok/s) | decode 861 ms (73.19 tok/s)
+reusediag dev exit 1: chat_reuse_4k continue split 4521 turn2 4647 cached 4536 agree 32/32|chat_reuse_4k restore split 4521 turn2 4631 cached 4096 agree 32/32|
+reusediag lt exit 1: chat_reuse_4k continue split 4521 turn2 4647 cached 4536 agree 3/32|chat_reuse_4k restore split 4521 turn2 4631 cached 4096 agree 32/32|
+dev-graph (window 1) vs real base-graph: identical
+base-16k (window 1) vs real base-16k: identical
+lt-graph (window 1) vs real base-graph: first difference at generated token 32 of 256
+lt-16k (window 1) vs real base-16k: first difference at generated token 41 of 64
+== speed A/B 10:40:46
+MemAvailable 111 GB
+bin: intarsia 0.0.1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+2411 MHz, [N/A], 58, 35.33 W
+== round 1 (899 s left) 10:40:47
+MemAvailable 111 GB
+== 35b round 1 arm base (tree r7-base env 'INTARSIA_X=0 ') 10:40:47
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-base-r1/cudadecode-35b-base-r1.json
+cudadecode-35b-base-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      965     0.210         4586        83.0      128
+    4096     3996     0.682         5855        80.5      128
+   16384    16267     2.936         5541        73.8      128
+== 35b round 1 arm lt (tree r7-dev env 'INTARSIA_CUDA_FP8_GEMM_LT=1 ') 10:41:52
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-lt-r1/cudadecode-35b-lt-r1.json
+cudadecode-35b-lt-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      961     0.190         5064        82.7      128
+    4096     3962     0.599         6613        80.1      128
+   16384    16305     2.624         6214        73.0      128
+== 35b round 1 arm lt4k (tree r7-dev env 'INTARSIA_CUDA_FP8_GEMM_LT=1 ') 10:42:52
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-lt4k-r1/cudadecode-35b-lt4k-r1.json
+cudadecode-35b-lt4k-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      950     0.190         4998        82.3      128
+    4096     3995     0.567         7040        79.8      128
+   16384    16330     2.465         6626        72.6      128
+== w-ab 35b round 1 done 10:43:54
+round 1 took 187 s
+== round 2 (712 s left) 10:43:54
+MemAvailable 111 GB
+== 35b round 2 arm lt4k (tree r7-dev env 'INTARSIA_CUDA_FP8_GEMM_LT=1 ') 10:43:54
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-lt4k-r2/cudadecode-35b-lt4k-r2.json
+cudadecode-35b-lt4k-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      950     0.189         5039        82.1      128
+    4096     3998     0.565         7081        79.8      128
+   16384    16292     2.446         6660        73.0      128
+== 35b round 2 arm lt (tree r7-dev env 'INTARSIA_CUDA_FP8_GEMM_LT=1 ') 10:44:56
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-lt-r2/cudadecode-35b-lt-r2.json
+cudadecode-35b-lt-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      955     0.190         5025        82.3      128
+    4096     3971     0.602         6598        79.9      128
+   16384    16279     2.619         6215        73.2      128
+== 35b round 2 arm base (tree r7-base env 'INTARSIA_X=0 ') 10:45:55
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-base-r2/cudadecode-35b-base-r2.json
+cudadecode-35b-base-r2  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      958     0.208         4594        82.8      128
+    4096     4011     0.682         5879        80.2      128
+   16384    16331     2.942         5551        72.8      128
+== w-ab 35b round 2 done 10:46:59
+round 2 took 185 s
+== round 3 (527 s left) 10:46:59
+MemAvailable 111 GB
+== 35b round 3 arm base (tree r7-base env 'INTARSIA_X=0 ') 10:46:59
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-base-r3/cudadecode-35b-base-r3.json
+cudadecode-35b-base-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      968     0.210         4614        82.0      128
+    4096     3982     0.682         5836        79.7      128
+   16384    16367     2.961         5528        72.1      128
+== 35b round 3 arm lt (tree r7-dev env 'INTARSIA_CUDA_FP8_GEMM_LT=1 ') 10:48:01
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-lt-r3/cudadecode-35b-lt-r3.json
+cudadecode-35b-lt-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      991     0.194         5121        81.8      128
+    4096     4074     0.608         6695        79.5      128
+   16384    16325     2.631         6204        72.4      128
+== 35b round 3 arm lt4k (tree r7-dev env 'INTARSIA_CUDA_FP8_GEMM_LT=1 ') 10:49:17
+wrote /home/nvidia/intarsia-decfuse/out/r7B/ab/35b-lt4k-r3/cudadecode-35b-lt4k-r3.json
+cudadecode-35b-lt4k-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      972     0.197         4936        81.1      128
+    4096     3939     0.580         6788        79.5      128
+   16384    16226     2.478         6550        72.1      128
+== w-ab 35b round 3 done 10:50:15
+round 3 took 196 s
+== p4B done, 331 s left 10:50:15
+10:50:16 script exit 0
+10:50:16 killing leftover processes of ours under ~/intarsia-decfuse
+10:50:20 starting missioncntrl-guidance and waiting for /v1/models
+10:53:42 vLLM is serving again
+10:53:42 done (status 0)
+fleetq: #2965 done (exit 0); spark1-vllm must come back before others can use it
