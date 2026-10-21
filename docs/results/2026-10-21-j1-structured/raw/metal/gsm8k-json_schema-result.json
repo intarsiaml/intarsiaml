@@ -1,0 +1,98 @@
+{
+ "run_id": "20261021-152859-adhoc-j1-intarsia-metal-json_schema",
+ "kind": "quality",
+ "label": "j1-intarsia-metal-json_schema",
+ "started_at": "2026-10-21T15:28:59-04:00",
+ "finished_at": "2026-10-21T15:31:54-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://127.0.0.1:8107/v1",
+  "model": "qwen3-8b",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.2.1",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:8107/v1 --model qwen3-8b --bench gsm8k --limit 50 --thinking off --structured json_schema --label j1-intarsia-metal-json_schema",
+  "git": "69c7a84"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": null,
+ "benchmarks": [
+  {
+   "benchmark": "gsm8k",
+   "error": null,
+   "overall_score": 0.42,
+   "n_predictions": 50,
+   "task_scores": null,
+   "config": {
+    "limit": 50,
+    "shots": null,
+    "tasks": null
+   },
+   "speed": {
+    "calls": 53,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 470,
+     "min": 439,
+     "max": 541,
+     "n": 53,
+     "spread_pct": 21.7
+    },
+    "completion_tokens": {
+     "median": 9,
+     "min": 7,
+     "max": 1024,
+     "n": 53,
+     "spread_pct": 11300.0
+    },
+    "ttft_s": {
+     "median": 0.053,
+     "min": 0.049,
+     "max": 0.147,
+     "n": 53,
+     "spread_pct": 184.3
+    },
+    "prefill_tok_s": null,
+    "prefill_tok_s_all": {
+     "median": 1438.903,
+     "min": 382.751,
+     "max": 3243.654,
+     "n": 53,
+     "spread_pct": 198.8
+    },
+    "decode_tok_s": {
+     "median": 36.545,
+     "min": 35.992,
+     "max": 37.343,
+     "n": 22,
+     "spread_pct": 3.7
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 53,
+    "wall_s": 173.2,
+    "prefill_note": "no call had >= 1024 uncached prompt tokens; prefill_tok_s_all is overhead-dominated. Use `localeval speed` for prefill."
+   },
+   "wall_s": 174.0
+  }
+ ],
+ "datasets": [],
+ "warnings": []
+}

@@ -1,0 +1,60 @@
+fleetq: #3158 waiting (#5 in line): in line behind #3152 "PR47 no-op checks (build base/head, plan, Metal ids, tests)" (claude-f31ccf91) on endor
+fleetq:   #3152 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3152 set, or it will wait for #3152 to be released.
+fleetq: #3158 waiting (#4 in line): in line behind #3154 "dashcntrl BL-21 mobile" (claude-2ecb5b39) on endor
+fleetq: #3158 waiting (#3 in line): in line behind #3156 "M6 tui live check 2 (build+tests+serve+snapshot)" (claude-f31ccf91) on endor
+fleetq:   #3156 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3156 set, or it will wait for #3156 to be released.
+fleetq: #3158 waiting (#2 in line): in line behind #3157 "J1 rebuild metal head d8ff9b0b" (claude-f31ccf91) on endor
+fleetq:   #3157 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3157 set, or it will wait for #3157 to be released.
+fleetq: #3158 waiting (#1 in line): needs endor to itself; running there: #3157 "J1 rebuild metal head d8ff9b0b" (claude-f31ccf91)
+fleetq:   #3157 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3157 set, or it will wait for #3157 to be released.
+fleetq: #3158 running on endor: bash /opt/code/intarsiaml/.claude/worktrees/agent-ae0fc16f7953c6491/scripts/j1-structured/endor-slot.sh serve /Users/josef/.local/state/claude-watch/j1/endor c4ea00bd d8ff9b0b
+15:25:47
+have base c4ea00bd
+have head d8ff9b0b
+serve head e2e up 15:26:31
+e2e seq rc=0 valid 50/50 (tool_choice auto answered without a call: 0)
+http ids head solo: 62585972 n=     256
+solo wall 7.14 s
+http ids head mixed: 62585972 n=     256
+mixed wall 12.85 s
+mixed-batch ids: identical
+e2e c4 rc=0 valid 50/50 (tool_choice auto answered without a call: 0)
+gsm8k json_schema rc=0 15:31:54
+gsm8k prompt rc=0 15:32:08
+serve base r1 up 15:32:54
+bench base r1 rc=0
+http ids base r1: 62585972 n=     256
+serve head r1 up 15:34:09
+bench head r1 rc=0
+http ids head r1: 62585972 n=     256
+serve head r2 up 15:35:24
+bench head r2 rc=0
+http ids head r2: 62585972 n=     256
+serve base r2 up 15:36:39
+bench base r2 rc=0
+http ids base r2: 62585972 n=     256
+serve base r3 up 15:37:54
+bench base r3 rc=0
+http ids base r3: 62585972 n=     256
+serve head r3 up 15:39:08
+bench head r3 rc=0
+http ids head r3: 62585972 n=     256
+== summary
+plan.out: identical
+acc-short.out: identical
+acc-long.out: identical
+gen-short.out: identical
+gen-4k.out: identical
+ids short: identical (36901faa)
+ids 4k: identical (2b487584)
+http ids md5 count:    8 625859720a4ab9ebfb2c77f33699e8fd
+matmul_mxfp4   matmul_mxfp4_gemv              53      0    2.075e-3    8.968e-5  ADMITTED
+28 kernels, 374 cases in 12.6s
+matmul_mxfp4   matmul_mxfp4_gemv              53      0    2.075e-3    8.968e-5  ADMITTED
+28 kernels, 374 cases in 12.4s
+cargo test: passed 565 failed 0
+valid 50/50 (tool_choice auto answered without a call: 0)
+valid 50/50 (tool_choice auto answered without a call: 0)
+mixed-batch ids: identical
+15:39:44
+fleetq: #3158 done (exit 0)
