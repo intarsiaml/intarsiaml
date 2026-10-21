@@ -148,7 +148,7 @@ if [[ $MODE == gates ]]; then
   done
   # 2. logits: tp=2 eager dumps (with the vLLM floor verdict), then tp=2 graphs judged against them; prefix reuse with graphs
   xacc eager-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-short.safetensors
-  xacc graph-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code $B_FLOOR
+  xacc graph-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:-unset} --allow-same-code $B_FLOOR
   # the tp=2 floor: eager against its own dump (cross-host run-to-run), the reference for the graphs row
   xacc eager-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --no-graphs --allow-config-mismatch --pre-change $PRE_CHANGE --allow-same-code $B_FLOOR
   xacc eager-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-long.safetensors
@@ -207,7 +207,7 @@ if [[ $MODE == gates ]]; then
     done
     A1="-m $M35 --backend cuda --max-seq 16384 --prefill-chunk 2048 --mem-budget 29"
     r spark1 "timeout 1500 $BBIN accuracy $A1 --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --write-self-golden $DD/T1B-short.safetensors > $XO/tp1-base-short.log 2>&1; echo rc=\$?; \
-      timeout 1500 $BIN accuracy $A1 --self-golden $DD/T1B-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_BASE:?} $B_SHORT > $XO/tp1-self-short.log 2>&1; echo rc=\$?; grep -aE 'SELF-STATS|verdict' $XO/tp1-*-short.log | cut -c1-260" | tee -a "$L/steps.log"
+      timeout 1500 $BIN accuracy $A1 --self-golden $DD/T1B-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_BASE:-unset} $B_SHORT > $XO/tp1-self-short.log 2>&1; echo rc=\$?; grep -aE 'SELF-STATS|verdict' $XO/tp1-*-short.log | cut -c1-260" | tee -a "$L/steps.log"
   fi
   # 4. the kernel admission sweep (no kernel changed; the gate asks for it)
   if want kernels; then
@@ -224,7 +224,7 @@ if [[ $MODE == mut ]]; then
     log "== mutant $m"
     GEN_TIMEOUT=300 xgen mut-$m-5k 5000 $MB
     idcmp ref-5k mut-$m-5k
-    ACC_TIMEOUT=900 xacc mut-$m-self $MB --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code --allow-dirty $B_FLOOR
+    ACC_TIMEOUT=900 xacc mut-$m-self $MB --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:-unset} --allow-same-code --allow-dirty $B_FLOOR
   done
 fi
 

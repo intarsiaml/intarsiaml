@@ -347,4 +347,16 @@ spark2 keeps its role. The CLI now turns row-local fusion on by default for CUDA
   about 3.5 min.
 - Down: 765 s (17:18:18-17:31:03). Today's tp=2 total is now 40.5 of 60 min.
 
-FDEF_SECTION
+**Sanitizer with fusion on by default** (`scripts/tp2-graphs/sanitize.sh dev`, PR build `ae71518`, no env set, vLLM up, `raw/sanitize-fusion`):
+- memcheck on both ranks through short, long, short requests: **rank 0: 0 errors, rank 1: 0 errors**.
+- All three requests answered (16 / 933 / 16 prompt tokens).
+
+**Greedy ids, default (fused) vs `INTARSIA_TP_FUSION=0`, and the op-table probe** (`xg.sh` steps offids5k, offids16k and fprobe d/u, `raw/fdef-gates`): **pending**.
+- The job (fleetq #3285) is queued for memory on spark1.
+- The first attempt aborted at start on a script bug (`${PRE_CHANGE:?}` expanded in a skipped step; `raw/fdef-gates-try1`), now fixed.
+- The G1c gates already showed fused and unfused ids identical with `INTARSIA_TP_FUSION=1` (`raw/gates3`).
+
+**Mac:**
+- `cargo test -p intarsia-cli tp_fusion` passes.
+- `cargo check --workspace --tests`, and `cargo check -p intarsia-cli` with `--features cuda` and `--features hip`: rc=0.
+- After merging main (#55 and #56, EXL3 only; the one line on the tp path is an EXL3 weight-name fallback in `model.rs`), `cargo check --workspace --tests` and `--features cuda` still pass.
