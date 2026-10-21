@@ -4,7 +4,8 @@
 //   act   f32 [1]        0: q(x) = x (W4A16); 1: q(x) = dynamic MXFP4 QDQ of x per 32-element group along K (W4A4, the
 //                        scheme Quark declares; scale rule "even", see crates/intarsia-core/src/quant/mxfp4.rs)
 //   *_gemv  M <= 8: warp-per-output-row, one 32-element group (16 weight bytes + 1 scale byte + 32 activations) per
-//           lane-iteration, so the activation QDQ of a group happens in one lane with no extra traffic.
+//           lane-iteration. With a scratch (the registered kernel declares one) the activations are QDQ'd once by the
+//           pre-pass below; without, every warp QDQs the groups it reads (each group once per output row: N times).
 //   *_mma   any M: the activations are QDQ'd (or copied) once into scratch (bf16 [M, K]), then the dequantise-to-bf16 WMMA
 //           GEMM of ik_dq_gemm.h runs on them (e2m1 * 2^e is exact in bf16; f32 accumulate).
 // Deterministic (fixed reduction order). Activations bf16; output bf16 or f32. Same structure as nvfp4.hip.
@@ -68,7 +69,7 @@ mxfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
     if (n >= N) return;  // whole warp exits together
-    const bool qdq = act[0] != 0.f;
+    const bool qdq = act != nullptr && act[0] != 0.f;  // null: x was QDQ'd (or copied) into scratch by the pre-pass
     const uint4* wr = reinterpret_cast<const uint4*>(w + n * (K / 2));
     const uint8_t* sr = sc + n * (K / kG);
     float acc[M];
@@ -216,6 +217,15 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
         if (M > 8) return IK_ERR_SHAPE;
+        if (scratch && scratch->data && scratch->bytes >= M * K * 2 && !(reinterpret_cast<uintptr_t>(scratch->data) & 15u)) {
+            // QDQ (or copy) the activations once, then the GEMV reads them as plain bf16
+            ik_bf16* xs = (ik_bf16*)scratch->data;
+            const int64_t groups = M * K / kG;
+            mxfp4_xprep_kernel<<<(unsigned)((groups + 255) / 256), 256, 0, s>>>(xp, ap, xs, groups);
+            IK_TRY(ik_launch_status());
+            xp = xs;
+            ap = nullptr;
+        }
         return f32o ? gemv_by_m((int)M, xp, wp, sp, ap, (float*)out->data, N, K, s)
                     : gemv_by_m((int)M, xp, wp, sp, ap, (ik_bf16*)out->data, N, K, s);
     }
@@ -245,8 +255,8 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
 extern "C" {
 
 int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
-                         ik_tensor* out, void* stream) {
-    return launch(x, w, scales, act, out, nullptr, stream, true);
+                         ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return launch(x, w, scales, act, out, scratch, stream, true);
 }
 int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                         ik_tensor* out, const ik_scratch* scratch, void* stream) {

@@ -98,9 +98,12 @@ def main():
     ap.add_argument("--topk", type=int, default=20)
     ap.add_argument("--act", default="dynamic", choices=["dynamic", "none"], help="MXFP4 activations: dynamic QDQ (W4A4) or none")
     ap.add_argument("--quark-site", required=True, help="site-packages dir holding the amd-quark wheel's quark/ sources")
+    ap.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float32"],
+                    help="layer / residual precision (float32 only to measure how much bf16 noise the bf16 reference has)")
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--layers", type=int, default=0, help="debug: run only the first N layers")
     args = ap.parse_args()
+    dt = getattr(torch, args.dtype)
     if args.threads:
         torch.set_num_threads(args.threads)
     model = pathlib.Path(args.model)
@@ -133,7 +136,7 @@ def main():
     t0 = time.time()
     P = "model.language_model."
     emb = get(P + "embed_tokens.weight")
-    hs = [emb[torch.tensor(ids)].unsqueeze(0) for _, ids, _, _ in items]
+    hs = [emb[torch.tensor(ids)].unsqueeze(0).to(dt) for _, ids, _, _ in items]
     del emb
     rot = hf.Qwen3_5TextRotaryEmbedding(config)
     pe = [rot(h, torch.arange(h.shape[1]).view(1, 1, -1)) for h in hs]
@@ -141,7 +144,7 @@ def main():
     nq = 0
     with torch.no_grad():
         for li in range(n_layers):
-            layer = hf.Qwen3_5DecoderLayer(config, li).to(torch.bfloat16)
+            layer = hf.Qwen3_5DecoderLayer(config, li).to(dt)
             pre = f"{P}layers.{li}."
             sd = {}
             for name, _ in layer.named_parameters():
@@ -149,7 +152,7 @@ def main():
                 t = get(key)
                 if t.dtype == torch.uint8:  # quantised linear: e2m1 codes next to e8m0 `weight_scale`
                     mod = key[:-len(".weight")]
-                    t = dequant(t, get(mod + ".weight_scale"))
+                    t = dequant(t, get(mod + ".weight_scale")).to(dt)
                     if qdq is not None and mod not in exclude:
                         layer.get_submodule(name[:-len(".weight")]).register_forward_pre_hook(
                             lambda m, a: (qdq(a[0]),) + tuple(a[1:]))
@@ -162,12 +165,12 @@ def main():
             del layer, sd
             if li % 8 == 7 or li == n_layers - 1:
                 print(f"layer {li + 1}/{n_layers}  {time.time() - t0:.0f}s", flush=True)
-        norm = hf.Qwen3_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps).to(torch.bfloat16)
+        norm = hf.Qwen3_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps).to(dt)
         norm.load_state_dict({"weight": get(P + "norm.weight")})
         head = get("lm_head.weight")
         tensors, meta_prompts = {}, []
         for i, (p, ids, text, split) in enumerate(items):
-            logits = (norm(hs[i])[0] @ head.T).float()
+            logits = (norm(hs[i])[0] @ head.to(dt).T).float()
             lp = torch.log_softmax(logits, dim=-1)
             v, ix = lp.topk(args.topk, dim=-1)
             tensors[f"ids_{i}"] = np.array(ids, dtype=np.int32)
@@ -188,8 +191,8 @@ def main():
         "torch": torch.__version__,
         "transformers": transformers.__version__,
         "device": "cpu",
-        "dtype": "bfloat16",
-        "kv_dtype": "bf16",
+        "dtype": args.dtype,
+        "kv_dtype": {"bfloat16": "bf16", "float32": "f32"}[args.dtype],
         "template": args.template,
         "add_special_tokens": "true",
         "sampling": json.dumps({"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"}),

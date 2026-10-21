@@ -182,7 +182,7 @@ extern "C" {
     pub fn ik_matmul_nvfp4_gemv(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_gemv_v2(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_mma(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
-    pub fn ik_matmul_mxfp4_gemv(x: T, w: T, scales: T, act: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_mxfp4_gemv(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_mma(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     pub fn ik_moe_topk_bf16_v2(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
