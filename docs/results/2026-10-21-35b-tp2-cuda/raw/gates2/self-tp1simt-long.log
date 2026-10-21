@@ -1,0 +1,53 @@
+prefill chunk 2048 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsia-tp2/out/gates2/S1-long.safetensors (5 prompts, 36887 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head 789511c code-tree 2fa79e254bf9 clean | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 2048; longest prompt 12064; prompts spanning more than one chunk: 5/5
+this build: head 8a564d3 code-tree 26f2c8140a07 clean
+self-golden written by: head 789511c code-tree 2fa79e254bf9 clean (top-64, modes prefill,decode)
+differences from the self-golden's run (kernels per op, flags): kernel disable list: baseline '', this run 'INTARSIA_CUDA_DISABLE=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash'; attn_decode: attn_decode_bf16_splitkv -> attn_decode_bf16; attn_prefill: attn_prefill_bf16_flash+attn_prefill_bf16_splitkv -> attn_prefill_bf16
+self-golden budgets: mean KL(21-way) <= 1.2e-3, max position KL <= 9.8e-2, top-1 flips <= 0.84% (>= 1 position), mean |tail diff| <= 4.2e-4, prompt KL <= x1.92
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    94.93   1.065e-2   9.754e-3   4.254e-1   0.0574   0.0584    93.08   66/4064      0
+long_code_4k        4064  4064    97.59   5.498e-3   5.190e-3   5.926e-1   0.0211   0.0214    92.96   20/4064      0
+chat_reuse_4k       4631  4631    91.34   1.464e-1   1.672e-1    1.754e1   0.0459   0.0523    90.17    7/4631      0
+long_docs_12k      12064 12064    94.88   1.286e-2   1.198e-2    5.433e0   0.0490   0.0497    92.50  16/12064      0
+long_code_12k      12064 12064    97.62   5.457e-3   5.204e-3   5.926e-1   0.0179   0.0183    92.60  20/12064      0
+OVERALL                  36887    95.64   2.615e-2   2.826e-2    1.754e1   0.0363   0.0376    92.36      0.3%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 2.8258e-2  (limit 1.2000e-3)  FAIL
+  max position KL(21-way)                          2.7289e1  (limit 9.8000e-2)  FAIL
+  top-1 flips                                      1.6100e3  (limit 3.0900e2)  FAIL
+  mean |tail diff|                                3.5343e-3  (limit 4.2000e-4)  FAIL
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_reuse_4k]         1.6721e-1  (limit 2.3040e-3)  FAIL
+SELF-STATS mode=prefill positions=36887 mean_kl21=2.825766e-2 max_kl21=2.728946e1 flips=1610 flip_pct=4.3647 tail_abs=3.534276e-3 worst_prompt_kl21=1.672112e-1
+prefill self-golden => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    16   100.00   1.661e-2   1.646e-2   6.968e-2   0.0307   0.0365    88.75     16/16      0
+long_code_4k        4064    16    87.50   1.251e-2   1.158e-2   1.094e-1   0.0440   0.0422    96.25      2/16      0
+chat_reuse_4k       4631    16   100.00   3.463e-3   3.462e-3   1.859e-2   0.0000   0.0000    96.25     16/16      0
+long_docs_12k      12064    16   100.00   1.305e-2   1.300e-2   1.242e-1   0.0049   0.0044    91.25     16/16      0
+long_code_12k      12064    16   100.00   5.256e-3   5.278e-3   7.326e-2   0.0010   0.0009    93.75     16/16      0
+OVERALL                     80    97.50   1.018e-2   9.956e-3   1.242e-1   0.0161   0.0168    93.25     82.5%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                 9.9564e-3  (limit 1.2000e-3)  FAIL
+  max position KL(21-way)                         1.2358e-1  (limit 9.8000e-2)  FAIL
+  top-1 flips                                      2.0000e0  (limit 1.0000e0)  FAIL
+  mean |tail diff|                                1.8261e-3  (limit 4.2000e-4)  FAIL
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [long_docs_4k]          1.6464e-2  (limit 2.3040e-3)  FAIL
+SELF-STATS mode=decode positions=80 mean_kl21=9.956445e-3 max_kl21=1.235794e-1 flips=2 flip_pct=2.5000 tail_abs=1.826115e-3 worst_prompt_kl21=1.646410e-2
+decode (teacher-forced) self-golden => FAIL
+greedy-match [prefill]: mean 0.5% of positions before the first argmax divergence, worst prompt 0.1% (informational)
+greedy-match [decode (teacher-forced)]: mean 82.5% of positions before the first argmax divergence, worst prompt 12.5% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED

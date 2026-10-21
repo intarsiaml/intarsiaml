@@ -1,6 +1,8 @@
 #include "ik_runtime.h"
 #include "ik_internal.h"
 #include <cuda_runtime.h>
+#include <cuda_bf16.h>
+#include <cuda_fp16.h>
 #include <string.h>
 
 extern "C" {
@@ -124,3 +126,27 @@ int ik_rt_graph_destroy(void* exec) { return (int)cudaGraphExecDestroy((cudaGrap
 const char* ik_rt_error_string(int code) { return cudaGetErrorString((cudaError_t)code); }
 
 }  // extern "C"
+
+__global__ static void ik_f32_to_bf16(const float* __restrict__ s, __nv_bfloat16* __restrict__ d, size_t n) {
+    size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) d[i] = __float2bfloat16_rn(s[i]);
+}
+__global__ static void ik_f32_to_f16(const float* __restrict__ s, __half* __restrict__ d, size_t n) {
+    size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) d[i] = __float2half_rn(s[i]);
+}
+
+extern "C" int ik_rt_f32_round(const void* src, void* dst, size_t n, int dst_dtype, void* stream) {
+    if (n == 0) return 0;
+    cudaStream_t st = (cudaStream_t)stream;
+    if (dst_dtype == 2) return (int)cudaMemcpyAsync(dst, src, n * 4, cudaMemcpyDeviceToDevice, st);
+    unsigned blocks = (unsigned)((n + 255) / 256);
+    if (dst_dtype == 0) {
+        ik_f32_to_bf16<<<blocks, 256, 0, st>>>((const float*)src, (__nv_bfloat16*)dst, n);
+    } else if (dst_dtype == 1) {
+        ik_f32_to_f16<<<blocks, 256, 0, st>>>((const float*)src, (__half*)dst, n);
+    } else {
+        return (int)cudaErrorInvalidValue;
+    }
+    return (int)cudaGetLastError();
+}

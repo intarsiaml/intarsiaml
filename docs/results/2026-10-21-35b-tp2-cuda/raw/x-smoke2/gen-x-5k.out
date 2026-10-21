@@ -1,0 +1,5 @@
+spark-4e77:2123452:2123452 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+spark-4e77:2123452:2123452 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+spark-4e77:2123452:2123452 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to enp1s0f1np1
+spark-4e77:2123452:2123452 [0] NCCL INFO Bootstrap: Using enp1s0f1np1:10.100.152.1<0>
+spark-4e77:2123452:2123454 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)

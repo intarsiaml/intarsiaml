@@ -20,6 +20,27 @@ mod device;
 mod device_quantmoe;
 #[cfg(ik_cuda)]
 mod ffi;
+/// NCCL collectives for tensor parallelism across processes (docs/design/35b-tp2.md).
+#[cfg(ik_cuda)]
+pub mod nccl;
+/// NCCL collectives (stub: this build has no CUDA toolkit).
+#[cfg(not(ik_cuda))]
+pub mod nccl {
+    use intarsia_core::{Backend, Comm, Error, Result};
+    use std::sync::Arc;
+    fn none() -> Error {
+        Error::Unsupported("this binary was built without the CUDA backend (no NCCL)".into())
+    }
+    pub fn version() -> Result<String> {
+        Err(none())
+    }
+    pub fn unique_id() -> Result<[u8; 128]> {
+        Err(none())
+    }
+    pub fn create(_ordinal: usize, _rank: usize, _world: usize, _id: [u8; 128]) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
+        Err(none())
+    }
+}
 
 use intarsia_core::Backend;
 use std::sync::Arc;

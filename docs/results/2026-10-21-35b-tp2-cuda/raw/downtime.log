@@ -1,0 +1,2 @@
+2026-10-21 job=2991 role=spark1-vllm stop=11:34:05 up=11:42:34 down=509 s label="G1b 35B tp2 cross-host speed" serving=yes
+2026-10-21 job=2991 role=spark2-vllm stop=11:34:05 up=11:42:34 down=509 s label="G1b 35B tp2 cross-host speed" serving=yes

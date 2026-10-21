@@ -32,6 +32,8 @@ enum Command {
     Qualify(cmd::qualify::QualifyArgs),
     /// Terminal dashboard for a running server.
     Top(cmd::top::TopArgs),
+    /// Rank 1 of a cross-process tensor-parallel group (rank 0 runs any command with `--tp-remote`).
+    TpWorker(intarsia_cli::common::TpWorkerArgs),
 }
 
 fn main() -> Result<()> {
@@ -46,5 +48,6 @@ fn main() -> Result<()> {
         Command::Recipe(a) => cmd::recipe::run(a),
         Command::Qualify(a) => cmd::qualify::run(a),
         Command::Top(a) => cmd::top::run(a),
+        Command::TpWorker(a) => intarsia_cli::common::run_tp_worker(a),
     }
 }

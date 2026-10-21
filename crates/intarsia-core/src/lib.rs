@@ -28,6 +28,7 @@ pub mod spec;
 pub mod state;
 pub mod telemetry;
 pub mod tensor;
+pub mod tp_remote;
 pub mod weights;
 
 pub use backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId, TensorRef};

@@ -32,6 +32,12 @@ pub struct ModelArgs {
     /// (staged through host memory: slow, works everywhere, a fallback and a cross-check).
     #[arg(long, default_value = "auto")]
     pub comm: String,
+    /// Tensor parallelism across processes / hosts (cuda, `--tp 2`): this process is rank 0 on `--device`, rank 1 is an
+    /// `intarsia tp-worker` listening at HOST:PORT, started with the same model flags. The ranks join an NCCL
+    /// communicator (libnccl from `INTARSIA_NCCL_LIB`); this connection carries only what to run
+    /// (docs/design/35b-tp2.md).
+    #[arg(long, value_name = "HOST:PORT")]
+    pub tp_remote: Option<String>,
     /// Maximum context length in tokens (clamped by measured free memory).
     #[arg(long, default_value_t = 4096)]
     pub max_seq: usize,
@@ -213,7 +219,8 @@ pub fn open_backend_with(name: &str, device: usize, keepwarm: Option<bool>) -> R
 pub fn open_group(name: &str, ordinals: &[usize], comm: &str) -> Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
     match comm {
         "auto" | "host" => {}
-        other => bail!("unknown --comm '{other}' (auto, host)"),
+        "nccl" => bail!("--comm nccl joins processes: use it with --tp-remote (rank 0) and `intarsia tp-worker` (rank 1)"),
+        other => bail!("unknown --comm '{other}' (auto, host, nccl)"),
     }
     if name == "metal" && ordinals.len() > 1 {
         bail!("the metal backend has one GPU (the system default); --tp {} needs {} devices", ordinals.len(), ordinals.len());
@@ -249,8 +256,13 @@ impl ModelArgs {
         let mut sorted = devs.clone();
         sorted.sort_unstable();
         sorted.dedup();
-        if sorted.len() != devs.len() && self.backend != "cpu" {
-            bail!("--devices {devs:?} repeats a device");
+        // Two ranks on one GPU are refused: the CUDA backend keeps one cuBLAS handle and workspace per device, so two ranks
+        // on two streams of the same device race on it (measured: tp=2 one-box self-golden KL moved run to run,
+        // docs/results/2026-10-21-35b-tp2-cuda.md). `INTARSIA_TP_SAME_DEVICE=1` allows it with the host communicator,
+        // for debugging only (results are not reproducible).
+        let same_ok = self.comm == "host" && std::env::var_os("INTARSIA_TP_SAME_DEVICE").is_some_and(|v| v == "1");
+        if sorted.len() != devs.len() && self.backend != "cpu" && !same_ok {
+            bail!("--devices {devs:?} repeats a device (two ranks on one GPU race on its cuBLAS workspace)");
         }
         Ok(devs)
     }
@@ -339,6 +351,12 @@ impl ModelArgs {
     /// Open the backend and load the model into a ready engine.
     pub fn load(&self) -> Result<Loaded> {
         let opts = self.engine_options()?;
+        if let Some(addr) = &self.tp_remote {
+            let (backend, comm, stream) = self.join_remote_group(addr)?;
+            return intarsia_models::load_engine_remote(&self.model, backend, comm, stream, &opts)
+                .map_err(|e| anyhow::anyhow!("{e}"))
+                .with_context(|| format!("loading {} with tp={} (rank 1 at {addr})", self.model.display(), self.tp));
+        }
         if self.tp > 1 {
             let (backends, comms) = open_group(&self.backend, &self.tp_devices()?, &self.comm)?;
             return intarsia_models::load_engine_tp(&self.model, backends, comms, &opts)
@@ -349,6 +367,83 @@ impl ModelArgs {
         intarsia_models::load_engine(&self.model, backend, &opts)
             .map_err(|e| anyhow::anyhow!("{e}"))
             .with_context(|| format!("loading {}", self.model.display()))
+    }
+
+    /// Rank 0 of a cross-process group: connect to the rank-1 worker at `addr` (retrying while it starts), send it a fresh
+    /// NCCL id, and join the communicator on `--device` (blocks until the worker has joined too).
+    fn join_remote_group(&self, addr: &str) -> Result<(Arc<dyn Backend>, Arc<dyn intarsia_core::Comm>, std::net::TcpStream)> {
+        if self.tp != 2 || self.backend != "cuda" || !matches!(self.comm.as_str(), "auto" | "nccl") {
+            bail!("--tp-remote needs --tp 2 --backend cuda and the nccl communicator (got --tp {} --backend {} --comm {})", self.tp, self.backend, self.comm);
+        }
+        #[cfg(feature = "cuda")]
+        {
+            use std::io::Write;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+            let mut stream = loop {
+                match std::net::TcpStream::connect(addr) {
+                    Ok(s) => break s,
+                    Err(e) if std::time::Instant::now() < deadline => {
+                        let _ = e;
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+                    Err(e) => bail!("cannot reach the tp-worker at {addr}: {e}"),
+                }
+            };
+            let id = intarsia_backend_cuda::nccl::unique_id().map_err(|e| anyhow::anyhow!("{e}"))?;
+            stream.write_all(&id)?;
+            stream.flush()?;
+            eprintln!("tensor parallel: rank 0 joining NCCL {} with the worker at {addr}", intarsia_backend_cuda::nccl::version().unwrap_or_default());
+            let (backend, comm) = intarsia_backend_cuda::nccl::create(self.device, 0, 2, id).map_err(|e| anyhow::anyhow!("{e}"))?;
+            Ok((backend, comm, stream))
+        }
+        #[cfg(not(feature = "cuda"))]
+        {
+            bail!("--tp-remote needs a build with the CUDA backend (--features cuda); address {addr}")
+        }
+    }
+}
+
+/// `intarsia tp-worker`: rank 1 of a cross-process tensor-parallel group (docs/design/35b-tp2.md).
+#[derive(clap::Args, Debug)]
+pub struct TpWorkerArgs {
+    /// Address to listen on for rank 0 (`--tp-remote` of the driving process).
+    #[arg(long, value_name = "HOST:PORT")]
+    pub listen: String,
+    /// Rank 0 is `intarsia serve`: load with the server's settings (admission on plan shapes, admitted kernels only), as
+    /// rank 0 does.
+    #[arg(long)]
+    pub serving: bool,
+    /// The same model flags as rank 0 (both processes must load the same model with the same options; the handshake
+    /// checks it).
+    #[command(flatten)]
+    pub model: ModelArgs,
+}
+
+pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
+    if a.model.tp != 2 || a.model.backend != "cuda" {
+        bail!("tp-worker serves rank 1 of --tp 2 on --backend cuda (got --tp {} --backend {})", a.model.tp, a.model.backend);
+    }
+    let model = if a.serving { a.model.clone().for_serving() } else { a.model.clone() };
+    let opts = model.engine_options()?;
+    let listener = std::net::TcpListener::bind(&a.listen).with_context(|| format!("listening on {}", a.listen))?;
+    eprintln!("tp-worker: waiting for rank 0 on {}", a.listen);
+    let (mut stream, peer) = listener.accept()?;
+    eprintln!("tp-worker: rank 0 connected from {peer}");
+    #[cfg(feature = "cuda")]
+    {
+        use std::io::Read;
+        let mut id = [0u8; 128];
+        stream.read_exact(&mut id)?;
+        let (backend, comm) = intarsia_backend_cuda::nccl::create(a.model.device, 1, 2, id).map_err(|e| anyhow::anyhow!("{e}"))?;
+        eprintln!("tp-worker: joined NCCL {} as rank 1 on device {}", intarsia_backend_cuda::nccl::version().unwrap_or_default(), a.model.device);
+        let n = intarsia_models::serve_remote_rank(&a.model.model, backend, comm, stream, &opts).map_err(|e| anyhow::anyhow!("{e}"))?;
+        eprintln!("tp-worker: rank 0 disconnected after {n} forward passes");
+        Ok(())
+    }
+    #[cfg(not(feature = "cuda"))]
+    {
+        let _ = (&mut stream, opts);
+        bail!("tp-worker needs a build with the CUDA backend (--features cuda)")
     }
 }
 
