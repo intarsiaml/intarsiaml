@@ -673,6 +673,8 @@ impl Backend for HipBackend {
                 "matmul_nvfp4_gemv" => ffi::ik_matmul_nvfp4_gemv(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_gemv_v2" => ffi::ik_matmul_nvfp4_gemv_v2(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_mma" => ffi::ik_matmul_nvfp4_mma(i(0), i(1), i(2), i(3), o, s),
+                "matmul_mxfp4_gemv" => ffi::ik_matmul_mxfp4_gemv(i(0), i(1), i(2), i(3), o, s),
+                "matmul_mxfp4_mma" => ffi::ik_matmul_mxfp4_mma(i(0), i(1), i(2), i(3), o, sc, s),
                 "moe_topk_bf16" => ffi::ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_topk_bf16_v2" => ffi::ik_moe_topk_bf16_v2(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_experts_bf16" => {
