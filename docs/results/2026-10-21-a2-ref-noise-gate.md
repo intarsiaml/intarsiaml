@@ -95,7 +95,18 @@ and does not average; `runs` and `how` say so.
 | `intarsia ref-noise` HF fp32 against HF bf16, Qwen3-Reranker-0.6B short set | full-vocabulary KL 8.86e-4, documented 8.7e-4 (`docs/accuracy.md`); KL21 6.69e-4 (`raw/crosscheck-reranker.txt`) |
 | `cargo check --workspace` | pass |
 | `cargo test --workspace --exclude intarsia-backend-metal` | pass |
-| `cargo test --workspace` in `fleetq run --host endor --mem 8` | see section 5 |
+| `cargo test --workspace` on endor inside fleetq slot #3098 (`--mem 8`, label "A2 cargo test"; acquired with `fleetq acquire --wait`, released by ID), Metal tests included | pass: 553 tests, 0 failed (`raw/cargo-test-workspace-endor.log`) |
+| end-to-end `intarsia accuracy` on CPU, Qwen3-Reranker-0.6B bf16 golden, in the same slot (`raw/e2e/`, scripts `e2e.sh`, `e2e2.sh`) | all cases behave as designed, below |
+
+End-to-end cases (the bf16 reranker golden fails its own top-1 floor, 97.47% against 99.5, so every golden-gate run exits 1; the KL part is what is read):
+
+* (a) `--no-ref-noise`: floor line and verdict as on main (KL 1.249e-3 against 1.0e-3 FAIL, "no ref noise").
+* (b) a record with the all-rows value only, factor 5, on a golden with chat prompts (272 of 434 rows scored): the noise is compared on all rows (6.730e-4 x 5 = 3.365e-3, KL 1.249e-3 PASS, bound by ref noise); the verdict JSON carries `ref_noise_rows: "all rows"`.
+* (c) a record measured with `--tokenizer-dir`: scored rows (7.181e-4 x 5 = 3.591e-3), bound by ref noise.
+* (d) `--write-self-golden` copies the record into the self-golden's metadata; `--self-golden --self-vs-ref-noise` then finds it ("self-golden metadata"): clean run PASS; `INTARSIA_CPU_FAULT=matmul:1e-3` PASS (mean 5.63e-4 is 0.84x the noise, worst prompt 1.66e-3 inside 2.02e-3); `matmul:1e-2` FAIL on the mean (9.19e-4, 1.37x) with the worst prompt inside its limit; `matmul:1e-3` with `--ref-noise-prompt-factor 1.0` FAIL on the worst prompt (`chat_system` 1.66e-3 against 6.73e-4) with the mean passing. Max-position KL, flips and tail mass print "over its budget, reported only" and do not decide.
+* (e) a self-golden written without a record, then `--self-vs-ref-noise`: fails with the intended message (no reference noise for the source golden, hash, how to supply one). With `--no-ref-noise` it fails with the conflict message.
+
+Two things the end-to-end run found and fixed: the threshold line printed the combined verdict next to the mean KL (a worst-prompt FAIL looked like a mean-KL FAIL), and `--no-ref-noise` said "none measured"; both now read correctly.
 
 No GPU was used. The two goldens that would measure the M1 decode-window noise and the vLLM re-run noise from scratch (the bf16 and f32 W4A4 goldens, `vllm2-top20`) were not on this host.
 
@@ -116,7 +127,7 @@ Baseline JSON, `ModeStats` and the SELF-STATS line are unchanged.
 
 ## 5. Downtime
 
-None. `cargo test --workspace` on endor took a `fleetq` slot (job and result in the PR description).
+None. The endor run took fleetq slot #3098 (8 GB, non-exclusive, waited behind other lanes' jobs; released by ID, nothing left held). No role was taken down.
 
 ## 6. Decisions for the user
 

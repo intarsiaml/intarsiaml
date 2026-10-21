@@ -2326,7 +2326,11 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
                 eprintln!("WARNING: --ref-noise-factor given, but this golden has no measured reference noise (or --no-ref-noise): it has no effect");
             }
             if !self_mode {
-                eprintln!("reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, \"Reference noise\")");
+                if args.no_ref_noise {
+                    eprintln!("reference noise: ignored (--no-ref-noise): the KL floor is the class floor alone");
+                } else {
+                    eprintln!("reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, \"Reference noise\")");
+                }
             }
         }
     }

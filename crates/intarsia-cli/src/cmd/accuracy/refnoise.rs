@@ -450,7 +450,23 @@ impl KlVerdict {
             e(self.effective_threshold),
             self.bound_by.name(),
             e(self.kl),
-            if self.pass { "PASS" } else { "FAIL" }
+            // with a worst-prompt check `pass` is the combination: the KL part alone is read off the noise term
+            match (&self.worst_prompt, self.noise_threshold, self.kl_on_noise_rows) {
+                (Some(_), Some(t), Some(k)) => {
+                    if k <= t {
+                        "PASS"
+                    } else {
+                        "FAIL"
+                    }
+                }
+                _ => {
+                    if self.pass {
+                        "PASS"
+                    } else {
+                        "FAIL"
+                    }
+                }
+            }
         );
         if let Some(k) = self.factor_needed {
             s += &format!(" | KL / ref noise = {k:.3} on {} (the factor at which the noise term passes)", self.ref_noise_rows.as_deref().unwrap_or("?"));
@@ -466,6 +482,7 @@ impl KlVerdict {
                 if w.pass { "PASS" } else { "FAIL" },
                 w.factor_needed
             );
+            s += &format!(" => change vs base {}", if self.pass { "PASS" } else { "FAIL" });
         }
         s
     }
