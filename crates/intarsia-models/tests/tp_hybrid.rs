@@ -327,9 +327,26 @@ fn hybrid_moe_tp2_remote_rank_is_bitwise_the_in_process_group() {
             st.truncate(12, &*remote.backend).unwrap();
         }
         assert!(rows[0].iter().flatten().zip(rows[1].iter().flatten()).all(|(p, q)| p.to_bits() == q.to_bits()), "act {act}: rollback");
+        // a snapshot right after a rollback, keeping one: the remote rank must have rolled back before it snapshots
+        // (else its only snapshot is past the rollback point and the next rollback cannot restore)
+        let mut again = Vec::new();
+        for _ in 0..2 {
+            st.snapshot(&*remote.backend, 1).unwrap();
+            let mut r = Vec::new();
+            let mut cb = |_p: usize, x: &[f32]| {
+                r.push(x.to_vec());
+                Ok(())
+            };
+            remote.forward(&mut st, &cont, HeadMode::AllLogits, Some(&mut cb)).unwrap();
+            st.truncate(12, &*remote.backend).unwrap();
+            again.push(r);
+        }
+        for r in &again {
+            assert!(r.iter().flatten().zip(rows[0].iter().flatten()).all(|(p, q)| p.to_bits() == q.to_bits()), "act {act}: snapshot after rollback");
+        }
         drop(st);
         drop(remote); // closes the connection: the server loop returns
-        assert_eq!(server.join().unwrap(), 7 + 3, "act {act}: forward passes served (7 in run, 3 here)");
+        assert_eq!(server.join().unwrap(), 7 + 5, "act {act}: forward passes served (7 in run, 5 here)");
     }
 }
 

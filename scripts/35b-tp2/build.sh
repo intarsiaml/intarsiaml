@@ -19,6 +19,7 @@ for t in "${TREES[@]}"; do
       SRC_DIR=$tmp INTARSIA_STAMP="head=$(git -C "$REPO" rev-parse --short=7 "$BASE_REF") code-tree=$(git -C "$REPO" rev-parse "$BASE_REF^{tree}" | cut -c1-12) dirty=no" "$REPO/scripts/cuda-decode/build.sh" tp2-base
       rm -rf "$tmp" ;;
     dev) "$REPO/scripts/cuda-decode/build.sh" tp2-dev ;;
+    xdev) "$REPO/scripts/cuda-decode/build.sh" tp2-xdev ;; # the working tree under another name (cross-host work while dev is in use)
     *) echo "unknown tree $t"; exit 2 ;;
   esac
   # the binary goes to ~/intarsia-tp2/bin/<tree>-intarsia on both Sparks (same CUDA 13.0.3, same paths)

@@ -406,6 +406,10 @@ pub struct TpWorkerArgs {
     /// Address to listen on for rank 0 (`--tp-remote` of the driving process).
     #[arg(long, value_name = "HOST:PORT")]
     pub listen: String,
+    /// Rank 0 is `intarsia serve`: load with the server's settings (admission on plan shapes, admitted kernels only), as
+    /// rank 0 does.
+    #[arg(long)]
+    pub serving: bool,
     /// The same model flags as rank 0 (both processes must load the same model with the same options; the handshake
     /// checks it).
     #[command(flatten)]
@@ -416,7 +420,8 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
     if a.model.tp != 2 || a.model.backend != "cuda" {
         bail!("tp-worker serves rank 1 of --tp 2 on --backend cuda (got --tp {} --backend {})", a.model.tp, a.model.backend);
     }
-    let opts = a.model.engine_options()?;
+    let model = if a.serving { a.model.clone().for_serving() } else { a.model.clone() };
+    let opts = model.engine_options()?;
     let listener = std::net::TcpListener::bind(&a.listen).with_context(|| format!("listening on {}", a.listen))?;
     eprintln!("tp-worker: waiting for rank 0 on {}", a.listen);
     let (mut stream, peer) = listener.accept()?;
