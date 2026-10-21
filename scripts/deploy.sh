@@ -163,7 +163,7 @@ if ! docker image inspect $IMAGE >/dev/null 2>&1; then
 fi
 EOF
   fi
-  istep build "$BACKEND" "${CARGO_BUILD_JOBS:-6}" "$STAMP_TEXT"
+  istep build "$BACKEND" "${CARGO_BUILD_JOBS:-6}" "$STAMP_TEXT" "$(git -C "$REPO" log -1 --format=%ct "$SHA")"
 fi
 
 # ---- smoke ------------------------------------------------------------------------------------------------------------

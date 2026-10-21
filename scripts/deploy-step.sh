@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The steps scripts/deploy.sh runs ON the deploy host (or inside the HIP dev container), with the tree as the working
 # directory. deploy.sh copies this file to <tree>/DEPLOY_STEP.sh; it is not meant to be run by hand.
-#   build <backend> <jobs> <build-stamp>
+#   build <backend> <jobs> <build-stamp> [source-date-epoch]
 #   smoke <backend> <bin> <kernels-test-args...>
 #   probe <bin>                         key=value lines for the stamp (toolchain, lock, binary hash)
 #   run   <bin> <outdir> <cmd...>   (words are joined and evaluated by bash)
@@ -11,9 +11,11 @@ step=${1:?}; shift
 sha() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
 case "$step" in
   build)
-    backend=$1 jobs=$2 stamp=$3
-    INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS="$jobs" \
-      cargo build --release --locked --features "$backend" -p intarsia-cli 2>&1 | tail -5
+    backend=$1 jobs=$2 stamp=$3 sde=${4:-}
+    # scripts/repro-build.sh = cargo build --release --locked + path remap + SOURCE_DATE_EPOCH (the exported tree has no .git,
+    # so deploy.sh passes the commit time): the same sha gives the same binary in any directory.
+    INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS="$jobs" ${sde:+SOURCE_DATE_EPOCH="$sde"} \
+      scripts/repro-build.sh --features "$backend" 2>&1 | tail -5
     exit "${PIPESTATUS[0]}" ;;
   smoke)
     backend=$1 bin=$2; shift 2
