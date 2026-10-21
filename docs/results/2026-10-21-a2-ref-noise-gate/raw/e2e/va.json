@@ -1,0 +1,31 @@
+{
+  "format": "intarsia-kl-verdict-v1",
+  "kind": "golden",
+  "golden": {
+    "file": "qwen3-reranker-0.6b.safetensors",
+    "fnv1a64": "a462231597313b8d",
+    "size": 131654516,
+    "positions": 434
+  },
+  "ref_noise_origin": null,
+  "ref_noise": null,
+  "verdicts": [
+    {
+      "mode": "prefill",
+      "kl_metric": "full-vocab KL",
+      "kl": 0.0012485840502046023,
+      "static_floor": 0.001,
+      "ref_noise": null,
+      "ref_noise_rows": null,
+      "kl_on_noise_rows": null,
+      "factor": 1.0,
+      "factor_source": "default",
+      "noise_threshold": null,
+      "effective_threshold": 0.001,
+      "bound_by": "static",
+      "pass": false,
+      "factor_needed": null,
+      "worst_prompt": null
+    }
+  ]
+}

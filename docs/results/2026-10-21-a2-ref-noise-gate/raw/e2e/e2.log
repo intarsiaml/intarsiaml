@@ -1,0 +1,8 @@
+prefill chunk 256 (default)
+accuracy: Qwen/Qwen3-Reranker-0.6B on cpu-ref (Apple M5 Max) (vocab 151669, weights/act/kv bf16/bf16)
+golden: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/e2e/S.safetensors (8 prompts, 434 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model Qwen/Qwen3-Reranker-0.6B | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+Error: --self-vs-ref-noise needs the reference noise; it cannot be combined with --no-ref-noise

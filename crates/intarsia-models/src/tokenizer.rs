@@ -9,6 +9,8 @@ use tokenizers::Tokenizer;
 
 pub struct HfCodec {
     tok: Tokenizer,
+    /// `tokenizer.json`, re-read on demand for structured output's token table.
+    path: std::path::PathBuf,
     template: Option<ChatTemplate>,
 }
 
@@ -17,7 +19,7 @@ impl HfCodec {
         let path = dir.join("tokenizer.json");
         let tok = Tokenizer::from_file(&path).map_err(|e| Error::Text(format!("loading {}: {e}", path.display())))?;
         let template = ChatTemplate::load(dir, src)?;
-        Ok(HfCodec { tok, template })
+        Ok(HfCodec { tok, path, template })
     }
 
     pub fn template_source(&self) -> Option<&str> {
@@ -44,5 +46,9 @@ impl TextCodec for HfCodec {
 
     fn has_chat_template(&self) -> bool {
         self.template.is_some()
+    }
+
+    fn tokenizer_json(&self) -> Option<String> {
+        std::fs::read_to_string(&self.path).ok()
     }
 }

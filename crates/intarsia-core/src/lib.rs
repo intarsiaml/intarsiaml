@@ -7,6 +7,7 @@
 pub mod admission;
 pub mod backend;
 pub mod comm;
+pub mod constrain;
 pub mod dtype;
 pub mod engine;
 pub mod error;

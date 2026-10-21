@@ -44,6 +44,10 @@ pub struct GenRequest {
     /// Accuracy tooling: every sampling step appends its full logits row (before the `min_tokens` mask) here. The
     /// engine then takes the host-logits path for every step instead of the on-device argmax.
     pub trace_logits: Option<Arc<Mutex<Vec<Vec<f32>>>>>,
+    /// Structured output (docs/structured-output.md): every sampled token is masked to what this constraint allows.
+    /// The constrained steps take the host-logits path; speculative decoding is off for the request. `None` (the
+    /// default) leaves the request on the unconstrained path, unchanged.
+    pub constraint: Option<Arc<dyn crate::constrain::ConstraintSpec>>,
 }
 
 impl Default for GenRequest {
@@ -61,6 +65,7 @@ impl Default for GenRequest {
             stop: Vec::new(),
             cancel: None,
             trace_logits: None,
+            constraint: None,
         }
     }
 }
@@ -143,6 +148,11 @@ pub trait TextCodec: Send + Sync {
     /// `messages` are OpenAI-style JSON objects (`role`, `content`, optional `tool_calls`, ...).
     fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String>;
     fn has_chat_template(&self) -> bool;
+    /// The HF `tokenizer.json` text, from which structured output builds its token table; `None` when the codec has
+    /// none (structured output is then unavailable).
+    fn tokenizer_json(&self) -> Option<String> {
+        None
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -177,6 +187,11 @@ pub trait Engine: Send + Sync {
     fn tokenize(&self, text: &str, add_special_tokens: bool) -> Result<Vec<u32>>;
     fn detokenize(&self, ids: &[u32]) -> Result<String>;
     fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String>;
+    /// The tokenizer's HF `tokenizer.json` text (structured output builds its token table from it); `None` when the
+    /// engine has none.
+    fn tokenizer_json(&self) -> Option<String> {
+        None
+    }
 
     /// Queue a generation. Events arrive on the returned channel, ending with
     /// `Done` or `Error`. Dropping the receiver cancels the request (client disconnect).
@@ -569,6 +584,9 @@ impl Engine for LocalEngine {
     fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String> {
         self.shared.codec.apply_chat_template(messages, opts)
     }
+    fn tokenizer_json(&self) -> Option<String> {
+        self.shared.codec.tokenizer_json()
+    }
 
     fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
         if let Some(why) = self.shared.failure() {
@@ -853,6 +871,8 @@ pub(crate) struct Seq {
     ctx: Vec<u32>,
     /// Stops drafting where it does not pay (open-ended text), see `spec::GateParams`.
     gate: crate::spec::SpecGate,
+    /// The request's constraint state (`GenRequest::constraint`), or why it could not start (reported by `admit`).
+    cons: Option<std::result::Result<crate::constrain::ConstraintRun, String>>,
 }
 
 /// Reject prompts a sequence of capacity `cap` cannot take.
@@ -902,7 +922,17 @@ impl Seq {
         }
         // Like vLLM, stop strings are not checked until `min_tokens` tokens exist.
         let stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
-        let spec_on = env.spec.enabled() && greedy && req.trace_logits.is_none() && !recurrent && verify_rows >= 2;
+        let cons = req
+            .constraint
+            .as_ref()
+            .map(|c| c.start().map(crate::constrain::ConstraintRun::new).map_err(|e| e.to_string()));
+        // constrained requests take plain steps only (drafts would bypass the mask)
+        let spec_on = env.spec.enabled()
+            && greedy
+            && req.trace_logits.is_none()
+            && cons.is_none()
+            && !recurrent
+            && verify_rows >= 2;
         let spec_k = env.spec.k.min(verify_rows.saturating_sub(1));
         let ctx: Vec<u32> = if spec_on { req.prompt.clone() } else { Vec::new() };
         let now = Instant::now();
@@ -932,6 +962,7 @@ impl Seq {
             plain_next: false,
             ctx,
             gate: crate::spec::SpecGate::new(crate::spec::GateParams::from_env()),
+            cons,
             codec: env.codec.clone(),
             telemetry: env.telemetry.clone(),
             req,
@@ -944,6 +975,9 @@ impl Seq {
     /// or no room), the finish reason is set to `Length` and no prefill is needed. Errors reject the request.
     pub(crate) fn admit(&mut self, cached: usize, cap: usize) -> Result<bool> {
         check_prompt(self.plen, cap)?;
+        if let Some(Err(e)) = &self.cons {
+            return Err(Error::BadRequest(format!("structured output: {e}")));
+        }
         debug_assert!(cached < self.plen);
         self.max_new = self.req.max_tokens.min(cap - self.plen);
         self.cached = cached;
@@ -955,6 +989,8 @@ impl Seq {
             self.reason = Some(FinishReason::Length);
             return Ok(false);
         }
+        // the first token's mask is computed while the prompt is prefilled
+        self.prefetch_mask();
         Ok(true)
     }
 
@@ -997,6 +1033,18 @@ impl Seq {
         Ok(())
     }
 
+    /// The next token is masked by an active constraint.
+    fn constrained(&self) -> bool {
+        matches!(&self.cons, Some(Ok(c)) if c.active())
+    }
+
+    /// Start the next step's constraint mask on a helper thread, overlapping the forward pass about to run.
+    fn prefetch_mask(&mut self) {
+        if let Some(Ok(c)) = &mut self.cons {
+            c.prefetch();
+        }
+    }
+
     fn cancelled(&self) -> bool {
         self.req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed))
     }
@@ -1019,7 +1067,7 @@ impl Seq {
     /// so forced-length speed benchmarks measure the real decode path.
     pub(crate) fn head_mode(&self, k: usize) -> HeadMode {
         let masks_stop_ids = k <= self.req.min_tokens && !self.stop_ids.is_empty();
-        if !self.greedy || masks_stop_ids || self.req.trace_logits.is_some() {
+        if !self.greedy || masks_stop_ids || self.req.trace_logits.is_some() || self.constrained() {
             HeadMode::LastLogits
         } else {
             HeadMode::LastArgmax
@@ -1040,6 +1088,11 @@ impl Seq {
                         if let Some(x) = l.get_mut(s as usize) {
                             *x = f32::NEG_INFINITY;
                         }
+                    }
+                }
+                if let Some(Ok(c)) = &mut self.cons {
+                    if c.active() && !c.mask()?.apply(&mut l) {
+                        return Err(Error::Other("structured output: the constraint allows no token here".into()));
                     }
                 }
                 Ok(self.sampler.sample(&l) as u32)
@@ -1110,6 +1163,9 @@ impl Seq {
             return Ok(true);
         }
         self.last_id = tok;
+        if let Some(Ok(c)) = &mut self.cons {
+            c.commit(tok).map_err(|e| Error::Other(format!("structured output: {e}")))?;
+        }
         let delta = self.dec.push(&*self.codec, tok)?;
         if self.req.min_tokens > 0 && self.generated == self.req.min_tokens + 1 {
             self.stops = StopMatcher::new(&self.req.stop);
@@ -1179,6 +1235,7 @@ impl Seq {
     /// solo step ([`Seq::advance`]) and a batched step run exactly this pair around their forward pass.
     pub(crate) fn plain_input(&mut self) -> (u32, HeadMode) {
         self.plain_next = false;
+        self.prefetch_mask();
         (self.tok, self.head_mode(self.generated + 1))
     }
 

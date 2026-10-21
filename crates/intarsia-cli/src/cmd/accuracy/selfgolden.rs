@@ -90,6 +90,10 @@ pub struct SelfMeta {
     pub modes: String,
     pub source_golden: String,
     pub source_fnv1a64: String,
+    /// The source golden's measured reference noise at the time of writing (`refnoise.rs`), so that
+    /// `--self-vs-ref-noise` needs no lookup. Absent in older files and for goldens without a record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ref_noise: Option<super::refnoise::RefNoise>,
 }
 
 struct Tensor {
@@ -238,10 +242,13 @@ pub struct SelfCheck {
     pub value: f64,
     pub limit: f64,
     pub ok: bool,
+    /// Does a failure of this check fail the gate? `false` only in the change-vs-base mode against the reference noise
+    /// (`refnoise::apply_to_self_checks`), where the other budgets are reported and no longer decide.
+    pub gated: bool,
 }
 
 fn chk(name: &str, value: f64, limit: f64) -> SelfCheck {
-    SelfCheck { name: name.into(), value, limit, ok: value <= limit } // NaN never passes
+    SelfCheck { name: name.into(), value, limit, ok: value <= limit, gated: true } // NaN never passes
 }
 
 /// Judge one mode against the old build. `flips_allowed` is at least one position: one flip must not fail a short mode.
