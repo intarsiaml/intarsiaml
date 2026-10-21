@@ -1,0 +1,23 @@
+[19:27:01] start sentinel: short tps [183.78204861633378, 186.30948921353905, 186.82918034912308] 4k tps [179.13406546390638, 179.22987961312433]
+[19:27:01] solo reference
+[19:27:17] cbsoak: duration 840s rate 0.3/s
+[19:27:17] replay c00-b1-off-s1.0 (t+0s)
+[19:28:26] replay c01-b4-mixed-s1.0 (t+69s)
+[19:29:36] replay c02-b8-mixed-s0.5 (t+139s)
+[19:30:12] replay c03-b8-on-s0.0 (t+174s)
+[19:30:28] replay c04-b4-off-s1.0 (t+190s)
+[19:31:38] replay c05-b1-on-s1.0 (t+261s)
+[19:32:47] replay c06-b8-mixed-s0.0 (t+330s)
+[19:33:08] replay c07-b4-on-s0.25 (t+351s)
+[19:33:29] replay c08-b1-off-s1.0 (t+372s)
+[19:34:39] replay c09-b4-mixed-s1.0 (t+441s)
+[19:35:48] replay c10-b8-mixed-s0.5 (t+511s)
+[19:36:24] replay c11-b8-on-s0.0 (t+547s)
+[19:36:43] replay c12-b4-off-s1.0 (t+565s)
+[19:37:53] replay c13-b1-on-s1.0 (t+635s)
+[19:39:02] replay c14-b8-mixed-s0.0 (t+704s)
+[19:39:24] replay c15-b4-on-s0.25 (t+726s)
+[19:39:44] replay c16-b1-off-s1.0 (t+746s)
+[19:41:20] solo reference again (drift)
+[19:41:44] end sentinel: short tps [185.70601030074099, 186.37468758860769, 186.26004483165332] 4k tps [178.7914404536012, 178.77684642300923]
+[19:41:44] lane: PASS []

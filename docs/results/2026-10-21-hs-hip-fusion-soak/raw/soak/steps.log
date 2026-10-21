@@ -1,0 +1,16 @@
+19:08:44 vram idle: card0=57MiB card1=88MiB 
+19:08:45 version exit 0: 
+19:08:51 gen-pre-short exit 0 [INTARSIA_TP_FUSION=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:08:51 SAME as H1 fusion-on reference: pre-short (short)
+19:08:57 gen-pre-4k exit 0 [INTARSIA_TP_FUSION=1]: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:08:57 SAME as H1 fusion-on reference: pre-4k (4k)
+19:08:57 serve container started: 422e0f064f3f
+19:22:22 soak rc=0 (0 pass, 1 criterion failed, 2 abort): [19:22:22] lane: PASS []
+19:22:22 vram under serve: card0=11277MiB card1=11620MiB 
+19:22:22 serve log suspect lines: 0; kernel gpu lines: 6; container: running exit=0 restarts=0 oomkilled=false
+19:22:22 vram after stop: card0=9445MiB card1=6154MiB 
+19:22:28 gen-post-short exit 0 [INTARSIA_TP_FUSION=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:22:28 SAME as H1 fusion-on reference: post-short (short)
+19:22:34 gen-post-4k exit 0 [INTARSIA_TP_FUSION=1]: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:22:34 SAME as H1 fusion-on reference: post-4k (4k)
+19:22:34 done
