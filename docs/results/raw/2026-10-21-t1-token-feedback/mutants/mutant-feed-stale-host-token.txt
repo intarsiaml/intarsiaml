@@ -1,0 +1,118 @@
+
+running 8 tests
+test cancel_leaves_a_consistent_state ... FAILED
+test eos_mid_run_in_a_queue_of_requests ... FAILED
+test eos_at_every_position_rolls_the_extra_step_back ... FAILED
+test min_tokens_window_then_feedback ... FAILED
+test forced_length_matches_and_never_speculates_past_max_tokens ... FAILED
+test lazy_constraint_keeps_the_plain_loop ... FAILED
+test stop_strings_match ... FAILED
+test batched_engine_is_unchanged_with_feedback_on ... ok
+
+failures:
+
+---- cancel_leaves_a_consistent_state stdout ----
+
+thread 'intarsia-engine' (146716558) panicked at crates/intarsia-core/src/engine.rs:1328:17:
+assertion `left == right` failed
+  left: Some(171)
+ right: Some(4294967295)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'cancel_leaves_a_consistent_state' (146716547) panicked at crates/intarsia-models/tests/token_feedback.rs:217:44:
+worker panicked: assertion `left == right` failed
+  left: Some(171)
+ right: Some(4294967295)
+
+---- eos_mid_run_in_a_queue_of_requests stdout ----
+
+thread 'intarsia-engine' (146716584) panicked at crates/intarsia-core/src/engine.rs:1328:17:
+assertion `left == right` failed
+  left: Some(282)
+ right: Some(4294967295)
+
+thread 'eos_mid_run_in_a_queue_of_requests' (146716549) panicked at crates/intarsia-models/tests/token_feedback.rs:57:40:
+engine error: worker panicked: assertion `left == right` failed
+  left: Some(282)
+ right: Some(4294967295)
+
+---- eos_at_every_position_rolls_the_extra_step_back stdout ----
+
+thread 'intarsia-engine' (146716585) panicked at crates/intarsia-core/src/engine.rs:1328:17:
+assertion `left == right` failed
+  left: Some(259)
+ right: Some(4294967295)
+
+thread 'eos_at_every_position_rolls_the_extra_step_back' (146716548) panicked at crates/intarsia-models/tests/token_feedback.rs:57:40:
+engine error: worker panicked: assertion `left == right` failed
+  left: Some(259)
+ right: Some(4294967295)
+
+---- min_tokens_window_then_feedback stdout ----
+
+thread 'intarsia-engine' (146716583) panicked at crates/intarsia-core/src/engine.rs:1328:17:
+assertion `left == right` failed
+  left: Some(84)
+ right: Some(4294967295)
+
+thread 'min_tokens_window_then_feedback' (146716552) panicked at crates/intarsia-models/tests/token_feedback.rs:57:40:
+engine error: worker panicked: assertion `left == right` failed
+  left: Some(84)
+ right: Some(4294967295)
+
+---- forced_length_matches_and_never_speculates_past_max_tokens stdout ----
+
+thread 'intarsia-engine' (146716581) panicked at crates/intarsia-core/src/engine.rs:1328:17:
+assertion `left == right` failed
+  left: Some(5)
+ right: Some(4294967295)
+
+thread 'forced_length_matches_and_never_speculates_past_max_tokens' (146716550) panicked at crates/intarsia-models/tests/token_feedback.rs:57:40:
+engine error: worker panicked: assertion `left == right` failed
+  left: Some(5)
+ right: Some(4294967295)
+
+---- lazy_constraint_keeps_the_plain_loop stdout ----
+
+thread 'intarsia-engine' (146716587) panicked at crates/intarsia-core/src/engine.rs:1328:17:
+assertion `left == right` failed
+  left: Some(107)
+ right: Some(4294967295)
+
+thread 'lazy_constraint_keeps_the_plain_loop' (146716551) panicked at crates/intarsia-models/tests/token_feedback.rs:57:40:
+engine error: worker panicked: assertion `left == right` failed
+  left: Some(107)
+ right: Some(4294967295)
+
+---- stop_strings_match stdout ----
+
+thread 'intarsia-engine' (146716582) panicked at crates/intarsia-core/src/engine.rs:1328:17:
+assertion `left == right` failed
+  left: Some(55)
+ right: Some(4294967295)
+
+thread 'stop_strings_match' (146716553) panicked at crates/intarsia-models/tests/token_feedback.rs:57:40:
+engine error: worker panicked: assertion `left == right` failed
+  left: Some(55)
+ right: Some(4294967295)
+
+
+failures:
+    cancel_leaves_a_consistent_state
+    eos_at_every_position_rolls_the_extra_step_back
+    eos_mid_run_in_a_queue_of_requests
+    forced_length_matches_and_never_speculates_past_max_tokens
+    lazy_constraint_keeps_the_plain_loop
+    min_tokens_window_then_feedback
+    stop_strings_match
+
+test result: FAILED. 1 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-core)
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-metal)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cuda)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running tests/token_feedback.rs (target/debug/deps/token_feedback-deee383d040e3307)
+error: test failed, to rerun pass `-p intarsia-models --test token_feedback`

@@ -1,0 +1,132 @@
+fleetq: #3173 running on endor: zsh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/postmerge.sh
+base ba41a3ae dev 9ac9e2cb
+base 1f717fa9fa36952181b2d333124b0cf7 dev 32df142c734c150e1aceccfe9b662b2d steps [1 2 3 4 5] 2026-10-21T15:54:35-04:00
+== 1 Metal tests 2026-10-21T15:54:35-04:00
+metal crate exit 0
+workspace+metal exit 0
+cargo-test-metal.txt passed 117 failed 0
+cargo-test-workspace-metal.txt passed 631 failed 0
+== 2 greedy 256 2026-10-21T15:57:32-04:00
+g256-short-base exit 0 decode 6941 ms (36.74 tok/s)
+g256-short-off exit 0 decode 6907 ms (36.92 tok/s)
+g256-short-fb exit 0 decode 6861 ms (37.17 tok/s)
+greedy 256 short off: byte-identical
+greedy 256 short fb: byte-identical
+g256-4k-base exit 0 decode 7232 ms (35.26 tok/s)
+g256-4k-off exit 0 decode 7286 ms (35.00 tok/s)
+g256-4k-fb exit 0 decode 7213 ms (35.36 tok/s)
+greedy 256 4k off: byte-identical
+greedy 256 4k fb: byte-identical
+g256p16-short-base exit 0 decode 7786 ms (32.75 tok/s)
+g256p16-short-fb exit 0 decode 7726 ms (33.01 tok/s)
+greedy 256 short profile-every 16 fb: byte-identical
+== 3 stop conditions 2026-10-21T15:58:41-04:00
+stop-eos-base exit 0 decode 134 ms (37.28 tok/s)
+stop-max-base exit 0 decode 135 ms (37.13 tok/s)
+stop-str-base exit 0 decode 27 ms (36.93 tok/s)
+stop-min-base exit 0 decode 379 ms (36.97 tok/s)
+stop-long-base exit 0 decode 754 ms (37.14 tok/s)
+stop-eos-fb exit 0 decode 133 ms (37.64 tok/s)
+stop-max-fb exit 0 decode 133 ms (37.52 tok/s)
+stop-str-fb exit 0 decode 27 ms (37.25 tok/s)
+stop-min-fb exit 0 decode 379 ms (36.99 tok/s)
+stop-long-fb exit 0 decode 745 ms (37.58 tok/s)
+stop eos: byte-identical (       3 words)
+finish=stop prompt=23 (cached 0) completion=6 | prefill 321 ms (71.8 tok/s) | decode 133 ms (37.64 tok/s)
+stop max: byte-identical (       3 words)
+finish=stop prompt=23 (cached 0) completion=6 | prefill 286 ms (80.5 tok/s) | decode 133 ms (37.52 tok/s)
+stop str: byte-identical (       1 words)
+finish=stop prompt=23 (cached 0) completion=2 | prefill 290 ms (79.4 tok/s) | decode 27 ms (37.25 tok/s)
+stop min: byte-identical (       6 words)
+finish=stop prompt=23 (cached 0) completion=15 | prefill 303 ms (75.8 tok/s) | decode 379 ms (36.99 tok/s)
+stop long: byte-identical (      24 words)
+finish=stop prompt=19 (cached 0) completion=29 | prefill 298 ms (63.7 tok/s) | decode 745 ms (37.58 tok/s)
+== 4 cb traces, 4k + short, 129 tokens, interleaved 2026-10-21T15:58:52-04:00
+cb-4k-base-1-16122 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-base-1-16122.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-4k-base-1-16122 period 28.016 ms (35.69 tok/s)  busy 27.765  idle gap 0.252 ms (p10 0.195 p90 0.315)
+cb-4k-base-1-16122 gap split (median): wake 0.130  encode-first-buffer 0.013  commit->GPU start 0.099 ms
+cb-short-base-1-5861 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-base-1-5861.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-short-base-1-5861 period 27.233 ms (36.72 tok/s)  busy 26.960  idle gap 0.265 ms (p10 0.213 p90 0.307)
+cb-short-base-1-5861 gap split (median): wake 0.132  encode-first-buffer 0.015  commit->GPU start 0.106 ms
+cb-4k-fb-1-8391 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-fb-1-8391.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-4k-fb-1-8391 period 27.837 ms (35.92 tok/s)  busy 27.836  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-4k-fb-1-8391 gap split (median): wake -27.694  encode-first-buffer 0.043  commit->GPU start 27.652 ms
+cb-short-fb-1-580 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-fb-1-580.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-short-fb-1-580 period 26.872 ms (37.21 tok/s)  busy 26.871  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-short-fb-1-580 gap split (median): wake -26.743  encode-first-buffer 0.055  commit->GPU start 26.687 ms
+cb-4k-fb-1-16551 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-fb-1-16551.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-4k-fb-1-16551 period 27.873 ms (35.88 tok/s)  busy 27.872  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-4k-fb-1-16551 gap split (median): wake -27.727  encode-first-buffer 0.047  commit->GPU start 27.668 ms
+cb-short-fb-1-18520 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-fb-1-18520.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-short-fb-1-18520 period 26.877 ms (37.21 tok/s)  busy 26.876  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-short-fb-1-18520 gap split (median): wake -26.734  encode-first-buffer 0.042  commit->GPU start 26.689 ms
+cb-4k-base-1-2513 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-base-1-2513.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-4k-base-1-2513 period 28.041 ms (35.66 tok/s)  busy 27.778  idle gap 0.259 ms (p10 0.214 p90 0.311)
+cb-4k-base-1-2513 gap split (median): wake 0.141  encode-first-buffer 0.013  commit->GPU start 0.098 ms
+cb-short-base-1-11554 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-base-1-11554.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-short-base-1-11554 period 27.053 ms (36.96 tok/s)  busy 26.800  idle gap 0.246 ms (p10 0.194 p90 0.294)
+cb-short-base-1-11554 gap split (median): wake 0.125  encode-first-buffer 0.012  commit->GPU start 0.098 ms
+cb-4k-base-2-20699 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-base-2-20699.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-4k-base-2-20699 period 28.188 ms (35.48 tok/s)  busy 27.926  idle gap 0.261 ms (p10 0.207 p90 0.312)
+cb-4k-base-2-20699 gap split (median): wake 0.132  encode-first-buffer 0.014  commit->GPU start 0.104 ms
+cb-short-base-2-6909 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-base-2-6909.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-short-base-2-6909 period 27.164 ms (36.81 tok/s)  busy 26.902  idle gap 0.258 ms (p10 0.206 p90 0.303)
+cb-short-base-2-6909 gap split (median): wake 0.136  encode-first-buffer 0.013  commit->GPU start 0.102 ms
+cb-4k-fb-2-2878 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-fb-2-2878.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-4k-fb-2-2878 period 27.753 ms (36.03 tok/s)  busy 27.752  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-4k-fb-2-2878 gap split (median): wake -27.610  encode-first-buffer 0.043  commit->GPU start 27.562 ms
+cb-short-fb-2-8095 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-fb-2-8095.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-short-fb-2-8095 period 26.803 ms (37.31 tok/s)  busy 26.802  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-short-fb-2-8095 gap split (median): wake -26.667  encode-first-buffer 0.044  commit->GPU start 26.622 ms
+cb-4k-fb-2-3737 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-fb-2-3737.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-4k-fb-2-3737 period 27.735 ms (36.06 tok/s)  busy 27.734  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-4k-fb-2-3737 gap split (median): wake -27.595  encode-first-buffer 0.042  commit->GPU start 27.557 ms
+cb-short-fb-2-26888 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-fb-2-26888.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-short-fb-2-26888 period 26.869 ms (37.22 tok/s)  busy 26.868  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-short-fb-2-26888 gap split (median): wake -26.738  encode-first-buffer 0.051  commit->GPU start 26.695 ms
+cb-4k-base-2-14220 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-base-2-14220.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-4k-base-2-14220 period 28.175 ms (35.49 tok/s)  busy 27.895  idle gap 0.269 ms (p10 0.212 p90 0.321)
+cb-4k-base-2-14220 gap split (median): wake 0.141  encode-first-buffer 0.015  commit->GPU start 0.102 ms
+cb-short-base-2-29197 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-base-2-29197.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-short-base-2-29197 period 27.017 ms (37.01 tok/s)  busy 26.756  idle gap 0.251 ms (p10 0.198 p90 0.294)
+cb-short-base-2-29197 gap split (median): wake 0.132  encode-first-buffer 0.013  commit->GPU start 0.095 ms
+cb-4k-base-3-20572 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-base-3-20572.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-4k-base-3-20572 period 28.056 ms (35.64 tok/s)  busy 27.794  idle gap 0.269 ms (p10 0.221 p90 0.315)
+cb-4k-base-3-20572 gap split (median): wake 0.135  encode-first-buffer 0.015  commit->GPU start 0.105 ms
+cb-short-base-3-19132 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-base-3-19132.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-short-base-3-19132 period 27.099 ms (36.90 tok/s)  busy 26.817  idle gap 0.261 ms (p10 0.195 p90 0.311)
+cb-short-base-3-19132 gap split (median): wake 0.133  encode-first-buffer 0.014  commit->GPU start 0.102 ms
+cb-4k-fb-3-10759 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-fb-3-10759.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-4k-fb-3-10759 period 27.719 ms (36.08 tok/s)  busy 27.718  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-4k-fb-3-10759 gap split (median): wake -27.567  encode-first-buffer 0.042  commit->GPU start 27.524 ms
+cb-short-fb-3-18274 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-fb-3-18274.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-short-fb-3-18274 period 26.738 ms (37.40 tok/s)  busy 26.737  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-short-fb-3-18274 gap split (median): wake -26.608  encode-first-buffer 0.045  commit->GPU start 26.566 ms
+cb-4k-fb-3-31936 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-fb-3-31936.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-4k-fb-3-31936 period 27.747 ms (36.04 tok/s)  busy 27.746  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-4k-fb-3-31936 gap split (median): wake -27.601  encode-first-buffer 0.046  commit->GPU start 27.549 ms
+cb-short-fb-3-15615 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-fb-3-15615.jsonl: 127 step pairs, dispatches/step 364, buffers/step 2
+cb-short-fb-3-15615 period 26.763 ms (37.37 tok/s)  busy 26.762  idle gap 0.000 ms (p10 0.000 p90 0.001)
+cb-short-fb-3-15615 gap split (median): wake -26.619  encode-first-buffer 0.048  commit->GPU start 26.569 ms
+cb-4k-base-3-2609 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-4k-base-3-2609.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-4k-base-3-2609 period 28.052 ms (35.65 tok/s)  busy 27.768  idle gap 0.267 ms (p10 0.203 p90 0.326)
+cb-4k-base-3-2609 gap split (median): wake 0.131  encode-first-buffer 0.014  commit->GPU start 0.104 ms
+cb-short-base-3-15455 /opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/docs/results/raw/2026-10-21-t1-token-feedback/gates-postmerge/cb-short-base-3-15455.jsonl: 127 step pairs, dispatches/step 364, buffers/step 4
+cb-short-base-3-15455 period 27.007 ms (37.03 tok/s)  busy 26.752  idle gap 0.253 ms (p10 0.203 p90 0.308)
+cb-short-base-3-15455 gap split (median): wake 0.128  encode-first-buffer 0.013  commit->GPU start 0.100 ms
+== 5 goldens 2026-10-21T16:00:49-04:00
+acc short base exit 0
+acc long base exit 0
+acc short fb exit 0
+acc long fb exit 0
+acc short: logs byte-identical
+acc long: logs byte-identical
+GATES_DONE 2026-10-21T16:01:26-04:00
+ctx    arm   runs  period ms  busy ms  gap ms  tok/s buffers/step  periods
+4k     base     6     28.054   27.786   0.264  35.65     4         28.02 28.04 28.18 28.19 28.06 28.05
+4k     fb       6     27.750   27.749   0.000  36.04     2         27.87 27.84 27.75 27.73 27.72 27.75
+short  base     6     27.076   26.809   0.256  36.93     4         27.05 27.23 27.02 27.16 27.01 27.10
+short  fb       6     26.836   26.835   0.000  37.26     2         26.88 26.87 26.87 26.80 26.76 26.74
+fleetq: #3173 done (exit 0)
+
+[exited with code 0]

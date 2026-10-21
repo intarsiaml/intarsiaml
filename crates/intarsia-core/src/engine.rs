@@ -1275,6 +1275,75 @@ impl Seq {
         Ok(())
     }
 
+    /// Whether the rest of this request can decode with device-side token feedback (`model/feedback.rs`): every
+    /// remaining token is an on-device argmax ([`Seq::head_mode`] is `LastArgmax` from here on: it only changes
+    /// across the `min_tokens` boundary, which lies behind), no speculative decoding (drafting needs the tokens on the
+    /// host), no structured-output constraint (a lazy one activates on a token the loop would only see after it
+    /// speculated the next step unmasked), and the model allows it for `st`.
+    pub(crate) fn feedback_ok(&self, model: &Model, st: &SequenceState) -> bool {
+        !self.spec_on
+            && self.cons.is_none()
+            && self.pending.is_empty()
+            && self.head_mode(self.generated + 1) == HeadMode::LastArgmax
+            && model.feedback_ok(st)
+    }
+
+    /// Decode the rest of the request with token feedback: step N+1 is submitted before step N's token is read. Call
+    /// after [`Seq::on_token`] returned false and [`Seq::feedback_ok`]; returns once `on_token` returned true (then
+    /// [`Seq::finish`]). A stop is seen one step late, so the step submitted after the last token is discarded: the
+    /// state is cut back to what the plain loop holds, every emitted token but the last fed (also after an error).
+    pub(crate) fn run_feedback(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
+        let r = self.feedback_loop(model, st);
+        if r.is_err() {
+            // a held step must not stay open in the stream
+            let _ = model.feedback_discard();
+        }
+        let want = self.plen + self.generated - 1;
+        if st.len > want {
+            let t = st.truncate(want, &*model.backend);
+            if r.is_ok() {
+                t?;
+            }
+        }
+        r
+    }
+
+    fn feedback_loop(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
+        use crate::model::feedback::{Feed, RING, UNREAD};
+        let (tok, _) = self.plain_input();
+        let mut cur = model.feedback_step(st, Feed::Host(tok), RING[0], false)?;
+        loop {
+            // `cur` samples token generated + 1; unless max_tokens ends the request there, feed it on to the next step
+            // before reading it (its start queued behind `cur`, the rest held until the token says it is needed)
+            let next = if self.generated + 1 < self.max_new {
+                let out = if cur.slot == RING[0] { RING[1] } else { RING[0] };
+                Some(model.feedback_step(st, Feed::Slot(cur.slot), out, true)?)
+            } else {
+                None
+            };
+            let tok = model.feedback_read(cur)?;
+            if next.is_some() {
+                // the next step was committed with the token unread: it sits at position plen + generated
+                let i = self.plen + self.generated;
+                debug_assert_eq!(st.tokens.get(i), Some(&UNREAD));
+                st.tokens[i] = tok;
+            }
+            self.tok = tok;
+            if self.on_token()? {
+                if next.is_some() {
+                    // the stop came one step late: drop the held rest of the step (the caller rolls its position back)
+                    model.feedback_discard()?;
+                }
+                return Ok(());
+            }
+            cur = match next {
+                Some(p) => model.feedback_release(p)?,
+                // not reached (on_token ends the request at max_new); stay correct anyway
+                None => model.feedback_step(st, Feed::Host(self.tok), RING[0], false)?,
+            };
+        }
+    }
+
     /// Roll the KV back, release held-back text and report. Call once [`Seq::on_token`] returned true.
     pub(crate) fn finish(mut self, model: &Model, st: &mut SequenceState) -> Result<Outcome> {
         let mut reason = self.reason.expect("finish before the sequence ended");
@@ -1364,6 +1433,10 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
         }
     }
     while !seq.on_token()? {
+        if seq.feedback_ok(model, st) {
+            seq.run_feedback(model, st)?;
+            break;
+        }
         seq.advance(model, st)?;
     }
     Ok(None)

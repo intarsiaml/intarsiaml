@@ -1,0 +1,24 @@
+   Compiling strum v0.28.0
+   Compiling ref-cast v1.0.27
+   Compiling ref-cast-impl v1.0.27
+   Compiling intarsia-core v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-core)
+   Compiling borrow-or-share v0.2.4
+   Compiling llguidance v1.9.1
+   Compiling toktrie v1.9.1
+   Compiling intarsia-backend-metal v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-backend-metal)
+   Compiling intarsia-ui v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-ui)
+   Compiling ratatui-core v0.1.2
+   Compiling derivre v0.3.13
+   Compiling fluent-uri v0.3.2
+   Compiling referencing v0.29.1
+   Compiling ratatui-widgets v0.3.2
+   Compiling ratatui-crossterm v0.1.2
+   Compiling ratatui-macros v0.7.2
+   Compiling ratatui v0.30.2
+   Compiling intarsia-bench v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-bench)
+   Compiling intarsia-tui v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-tui)
+   Compiling intarsia-backend-cpu v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/base-src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 10.14s

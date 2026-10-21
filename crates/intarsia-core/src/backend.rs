@@ -237,6 +237,45 @@ pub trait Backend: Send + Sync {
     /// Wait for all work on `stream`.
     fn synchronize(&self, stream: StreamId) -> Result<()>;
 
+    /// Device-side token feedback for greedy decode (`Model::feedback_step`): `(supported, on by default)`. Supported
+    /// means [`Backend::fence`] commits without waiting and [`Backend::read_after`] waits only for the work up to its
+    /// fence, so the engine can encode step N+1 (fed by step N's on-device argmax) before it reads step N's token.
+    /// Default `(false, false)`: the engine keeps the host round trip per token.
+    fn token_feedback(&self) -> (bool, bool) {
+        (false, false)
+    }
+
+    /// Submit everything enqueued on `stream` so far and return a fence for it. Default: wait for it (fence 0).
+    fn fence(&self, stream: StreamId) -> Result<u64> {
+        self.synchronize(stream)?;
+        Ok(0)
+    }
+
+    /// Wait until the work up to `fence` has finished (later work may still run), then copy `dst.len()` bytes of
+    /// `src` to the host. The caller guarantees no work after the fence writes that range. Default: [`Backend::download`].
+    fn read_after(&self, fence: u64, src: &Buffer, src_offset: usize, dst: &mut [u8], stream: StreamId) -> Result<()> {
+        let _ = fence;
+        self.download(src, src_offset, dst, stream)
+    }
+
+    /// Token feedback: submit only the next `after` launches on `stream`, then keep encoding without submitting until
+    /// [`Backend::release`] (submit the rest) or [`Backend::discard`] (drop it unrun). Lets the engine queue the start of
+    /// a step it may not need, so a stop costs a few launches instead of a whole step. Default: no-op (everything is
+    /// submitted as launched; `discard` then cannot undo anything, which the engine's rollback tolerates).
+    fn hold(&self, _stream: StreamId, _after: usize) -> Result<()> {
+        Ok(())
+    }
+
+    /// End a [`Backend::hold`]: submit what was held back.
+    fn release(&self, _stream: StreamId) -> Result<()> {
+        Ok(())
+    }
+
+    /// End a [`Backend::hold`]: drop what was held back without running it.
+    fn discard(&self, _stream: StreamId) -> Result<()> {
+        Ok(())
+    }
+
     /// Can this backend record launches into a replayable graph (`graph_capture`)?
     fn supports_graphs(&self) -> bool {
         false
