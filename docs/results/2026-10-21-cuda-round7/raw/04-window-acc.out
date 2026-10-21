@@ -1,0 +1,39 @@
+fleetq: #2935 running on spark1: scripts/cuda-round7/window.sh 21 'G1 r7 W-acc: 35B accuracy dev vs lt' /home/nvidia/intarsia-decfuse/r7-dev/scripts/cuda-round7/acc.sh
+10:01:35 window job 2935: G1 r7 W-acc: 35B accuracy dev vs lt
+10:01:39 memory freed: 111 GB available
+10:01:39 running /home/nvidia/intarsia-decfuse/r7-dev/scripts/cuda-round7/acc.sh (cap 21 min)
+MemAvailable 111 GB
+bin r7-base: intarsia 0.0.1; ik_matmul_fp8_gemm_lt symbols: 1
+bin r7-dev: intarsia 0.0.1; ik_matmul_fp8_gemm_lt symbols: 1
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+416 MHz, [N/A], 44, 7.02 W, 0 %
+== start 10:01:39
+gen base-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 504 ms (2972.1 tok/s) | decode 3132 ms (81.41 tok/s)
+gen dev-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 501 ms (2990.3 tok/s) | decode 3114 ms (81.89 tok/s)
+gen lt-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 486 ms (3079.8 tok/s) | decode 3104 ms (82.15 tok/s)
+acc dev-short-c2048 exit 0 33 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc lt-short-c2048 exit 0 33 s: prefill floor [4bit]: top-1 98.27% (not gated for this class) ok | 21-way KL 6.648e-3 (need <= 3.0e-2) ok | tail mass ours 0.0176 vs ref 0.0176, exces
+acc dev-long-c2048 exit 1 112 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc lt-long-c2048 exit 1 112 s: prefill floor [4bit]: top-1 94.20% (not gated for this class) ok | 21-way KL 4.725e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0643 vs ref 0.0611, exc
+reuse lt exit 1 73 s: chat_reuse_4k continue 4521 4647 4536 0 3/32 FAIL (streams diverge|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: FAIL|
+gen base-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 3184 ms (5034.0 tok/s) | decode 861 ms (73.19 tok/s)
+gen lt-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 2872 ms (5579.2 tok/s) | decode 859 ms (73.32 tok/s)
+gen lt-eager: finish=length prompt=1497 (cached 0) completion=256 | prefill 479 ms (3123.9 tok/s) | decode 3430 ms (74.34 tok/s)
+acc lt4k-long-c4096 exit 1 112 s: prefill floor [4bit]: top-1 94.34% (not gated for this class) ok | 21-way KL 4.588e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0642 vs ref 0.0611, exc
+reuse lt4k exit 1 84 s: chat_reuse_4k continue 4521 4647 4536 0 5/32 FAIL (streams diverge|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: FAIL|
+acc lt-short-c256 exit 0 35 s: prefill floor [4bit]: top-1 98.33% (not gated for this class) ok | 21-way KL 6.434e-3 (need <= 3.0e-2) ok | tail mass ours 0.0175 vs ref 0.0176, exces
+acc lt-long-c256 exit 1 122 s: prefill floor [4bit]: top-1 94.24% (not gated for this class) ok | 21-way KL 4.492e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0640 vs ref 0.0611, exc
+plan8 base exit 0: 8630 bytes
+plan8 dev exit 0: 8630 bytes
+== done 10:18:55
+dev-graph vs base-graph: identical (256 tokens)
+lt-graph vs base-graph: first difference at generated token 32 of 256 (256 tokens)
+lt-eager vs lt-graph: identical (256 tokens)
+lt-16k vs base-16k: first difference at generated token 41 of 64 (64 tokens)
+8B plan base vs dev: identical
+10:18:56 script exit 0
+10:18:56 killing leftover processes of ours under ~/intarsia-decfuse
+10:19:00 starting missioncntrl-guidance and waiting for /v1/models
+10:22:22 vLLM is serving again
+10:22:22 done (status 0)
+fleetq: #2935 done (exit 0); spark1-vllm must come back before others can use it

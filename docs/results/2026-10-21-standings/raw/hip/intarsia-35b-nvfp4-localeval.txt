@@ -1,0 +1,23 @@
+[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=17408
+[localeval]    128 tok rep 1/3: prompt=114 ttft=0.08s prefill=1348 tok/s decode=159.7 tok/s peak=162.4 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=111 ttft=0.08s prefill=1338 tok/s decode=160.1 tok/s peak=162.3 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=115 ttft=0.08s prefill=1407 tok/s decode=159.9 tok/s peak=162.0 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.17s prefill=5726 tok/s decode=159.5 tok/s peak=161.7 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.17s prefill=5701 tok/s decode=159.7 tok/s peak=161.0 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=993 ttft=0.17s prefill=5830 tok/s decode=159.8 tok/s peak=162.5 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4090 ttft=0.45s prefill=9046 tok/s decode=156.0 tok/s peak=158.2 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4088 ttft=0.45s prefill=9082 tok/s decode=155.8 tok/s peak=158.2 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4088 ttft=0.45s prefill=9153 tok/s decode=155.4 tok/s peak=157.8 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16654 ttft=2.14s prefill=7777 tok/s decode=142.1 tok/s peak=175.0 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16651 ttft=2.18s prefill=7626 tok/s decode=140.6 tok/s peak=157.0 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16657 ttft=2.20s prefill=7572 tok/s decode=142.1 tok/s peak=159.3 tok/s out=128
+[localeval] benchmark mmlu (limit=25, shots=None, tasks=all)
+MMLU Task Accuracy (task=high_school_european_history): 0.8
+MMLU Task Accuracy (task=business_ethics): 0.88
+MMLU Task Accuracy (task=clinical_knowledge): 0.88
+MMLU Task Accuracy (task=medical_genetics): 1.0
+MMLU Task Accuracy (task=high_school_us_history): 0.96
+MMLU Task Accuracy (task=high_school_physics): 0.76
+MMLU Task Accuracy (task=high_school_world_history): 1.0
+MMLU Task Accuracy (task=virology): 0.68
+MMLU Task Accuracy (task=high_school_microeconomics): 0.92

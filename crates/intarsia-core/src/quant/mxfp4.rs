@@ -68,6 +68,11 @@ impl Mxfp4Act {
     }
 }
 
+/// The activation mode the MXFP4 projections run: the explicit option, else what the checkpoint declares, else W4A16.
+pub fn effective_act(opt: Option<Mxfp4Act>, declared: Option<Mxfp4Act>) -> Mxfp4Act {
+    opt.or(declared).unwrap_or(Mxfp4Act::None)
+}
+
 /// Value of an e8m0 scale byte: `2^(b-127)` (exact, including the subnormal `2^-127`); 255 is NaN.
 #[inline]
 pub fn e8m0_to_f32(b: u8) -> f32 {

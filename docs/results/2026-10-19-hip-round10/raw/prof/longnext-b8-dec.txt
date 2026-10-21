@@ -1,0 +1,8 @@
+# /home/josef/intarsiaml-r10base/bench-out/prof/b8-dec/run_kernel_trace.csv
+# 26018 dispatches, span 2969.6 ms, kernel time 1628.7 ms, W = 260 us
+band         n long ms (med) +1 us (med) pgap us (med)  cost ms  long -> +1
+>=1.05      64         1.943        26.4         278.1    14.93  gemv_kernel<1, 1, 8, float> -> argmax_kernel<float>
+>=1.05       1         1.854        70.9           5.8     0.19  gemm_wmma_kernel<4, 2, 2, 2, ik_bf16> -> gemm_wmma_kernel<4, 2, 2, 2, ik_bf16>
+>=1.05       1         1.178      1114.3         276.0     0.00  rocclr:fillBufferAligned -> rocclr:copyBuffer
+>=1.05       1         1.114       626.4         393.0     0.00  rocclr:copyBuffer -> rocclr:copyBuffer
+# predicted stall cost, unprofiled: 15.12 ms = 0.51 % of the profiled span

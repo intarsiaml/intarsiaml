@@ -1,0 +1,32 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0     0.000e0     0.000e0  ADMITTED
+rope           rope_bf16                      36      0    2.016e-3    1.087e-4  ADMITTED
+matmul         matmul_bf16                    21      0    2.041e-3    2.423e-4  ADMITTED
+matmul         matmul_bf16_gemv                7      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16                     4      0    6.237e-7    2.548e-7  ADMITTED
+logits         logits_bf16_gemv                2      0    9.645e-8    7.172e-8  ADMITTED
+kv_append      kv_append_bf16                  4      0     0.000e0     0.000e0  ADMITTED
+silu_glu       silu_glu_bf16                   9      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              21      0    1.263e-3    6.104e-5  ADMITTED
+attn_prefill   attn_prefill_bf16_flash        14      0    5.587e-3    2.414e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_flash_nax      7      0    7.353e-3    2.394e-3  ADMITTED
+attn_decode    attn_decode_bf16               15      0    9.191e-5    4.270e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0    9.191e-5    4.270e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           6      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16           36      0    1.773e-3    3.712e-5  ADMITTED
+matmul         matmul_bf16_nax                14      0    1.938e-3    4.490e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_nax           18      0    8.633e-5    3.758e-6  ADMITTED
+matmul         matmul_bf16_gemv_rows           7      0    6.829e-6    3.183e-7  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv_rows     12      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16_gemv_rows           2      0    1.106e-7    7.238e-8  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv_rows      9      0    9.191e-4    4.489e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv              53      0    2.075e-3    8.968e-5  ADMITTED
+28 kernels, 374 cases in 13.9s

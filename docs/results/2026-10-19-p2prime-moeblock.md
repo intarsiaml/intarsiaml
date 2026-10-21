@@ -1,5 +1,7 @@
 # Core-op fusion P2' (`MoeBlock`): the whole MoE block after the router logits in one launch, 2026-10-19
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #28 (`13cde333`); "not pushed" / "nothing merged" wording in this page describes the state when written. C1: the lines saying "nothing changes by default" and that P2' (and v3) "stay opt-in" are superseded. P2' `MoeBlock` is ON by default since `0cea68fc` (this PR), and `INTARSIA_HIP_MOE_BLOCK=0` is the kill switch (`moe_block_enabled` in `crates/intarsia-backend-hip/src/quantmoe.rs`; the later sections and `2026-10-19-p2prime-soak.md` say so). The flip used a max-batch-1 soak (11 min per arm) that the user approved (unanimis f6ad9d80) instead of the second-day stress window recommended here. v3 (`INTARSIA_HIP_MOE_V3=1`) stays opt-in. C2: "Gate this work passed" is this lane's wording: step 0 killed `v3-noorder`, not `v3-nofence`, which still survives (ISA-equivalent); the user said "start now" (07:51) and "P2 now" (09:11), which authorised building, but never said whether the weaker mutant satisfies his option 1.
+
 Branch `perf/p2prime-moeblock` on origin/main `6ef5faaa` (P2' step 0 merged). Not pushed. HIP backend, AMD R9700 (gfx1201,
 tatooine). Proposal: `docs/proposals/2026-10-19-core-op-fusion.md` section 5. Gate this work passed:
 `docs/results/2026-10-19-p2prime-step0.md`. Raw data: `docs/results/2026-10-19-p2prime-moeblock/raw/`.

@@ -1,0 +1,17 @@
+qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+  long_docs_4k   n= 4064  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  long_code_4k   n= 4064  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  chat_reuse_4k  n= 4631  im_end top1 & not actual: 1470 (31.7%)  mean P(im_end) on non-im_end rows 0.289
+  long_docs_12k  n=12064  im_end top1 & not actual:    1 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  long_code_12k  n=12064  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+qwen36-35b-a3b-nvfp4-vllm-top20.safetensors
+  count          n=   38  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  story          n=   39  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  code           n=   87  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  science        n=   79  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  chat_short     n=   18  im_end top1 & not actual:    8 (47.1%)  mean P(im_end) on non-im_end rows 0.484
+  chat_system    n=   32  im_end top1 & not actual:   13 (41.9%)  mean P(im_end) on non-im_end rows 0.364
+  chat_multiturn n=   58  im_end top1 & not actual:   29 (50.9%)  mean P(im_end) on non-im_end rows 0.527
+  chat_reasoning n=   90  im_end top1 & not actual:   37 (41.6%)  mean P(im_end) on non-im_end rows 0.420
+  long_prose_300 n=  300  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000
+  long_prose_700 n=  700  im_end top1 & not actual:    0 (0.0%)  mean P(im_end) on non-im_end rows 0.000

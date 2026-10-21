@@ -62,3 +62,12 @@ prefill_chunk = 2048
 # (docs/results/2026-10-17-hip-prefill.md).
 [tuning.hip]
 prefill_chunk = 2048
+
+# `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML). The reuse
+# tolerances are the fixed rounding scale of the prefix-reuse judge, measured once on Qwen3-8B / HIP, where decode-written
+# and prefill-written KV rows move the top-5 log-probabilities by up to 0.15 nats and KL(cold || warm) by <= 3.3e-3
+# (docs/results/2026-10-13-prefix-reuse.md). They are constants of this model, not derived per run.
+[accuracy]
+chat_turns = "chatml"
+reuse_logit_tol = 0.25
+reuse_kl_tol = 1e-2

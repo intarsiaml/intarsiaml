@@ -1,0 +1,23 @@
+[localeval] benchmark mmlu (limit=20, shots=None, tasks=['business_ethics', 'clinical_knowledge'])
+MMLU Task Accuracy (task=business_ethics): 0.0
+MMLU Task Accuracy (task=clinical_knowledge): 0.0
+Overall MMLU Accuracy: 0.0
+[localeval] benchmark gsm8k (limit=20, shots=None, tasks=['business_ethics', 'clinical_knowledge'])
+Overall GSM8K Accuracy: 0.0
+# localeval: adhoc — 2026-10-21T10:44
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: quality; label: st-intarsia-1-quality
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:8093/v1 --model intarsia-metal --bench mmlu,gsm8k --tasks business_ethics,clinical_knowledge --limit 20 --judge none --thinking off --label st-intarsia-1-quality`
+- result file: `results/20261021-104429-adhoc-st-intarsia-1-quality/result.json`
+## Benchmarks (deepeval)
+| benchmark | score | n | TTFT s | prefill tok/s | decode tok/s | calls | errors | wall s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| mmlu | 0.000 | 40 | 0.05 | - | 33.2 | 80 | 0 | 1240.2 |
+| gsm8k | 0.000 | 20 | 0.05 | - | 34.7 | 40 | 0 | 245.7 |
+Benchmark speed is incidental (short, varying prompts); prefill '-' means no call had 1024+ uncached tokens. Quote the sweep for speed.
+## Method
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261021-104429-adhoc-st-intarsia-1-quality/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22

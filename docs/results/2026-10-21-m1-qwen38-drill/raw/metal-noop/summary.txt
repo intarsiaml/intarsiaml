@@ -1,0 +1,35 @@
+fleetq: #3037 running on endor: bash /opt/code/intarsiaml/.claude/worktrees/agent-acebea59be77f62ac/docs/results/2026-10-21-m1-qwen38-drill/raw/metal-noop.sh
+12:25:51
+built base 12:26:17
+built head 12:26:51
+base kernels rc=0
+head kernels rc=0
+base plan rc=0
+base accshort rc=0
+base acclong rc=0
+base gen-short rc=0
+base gen-4k rc=0
+head plan rc=0
+head accshort rc=0
+head acclong rc=0
+head gen-short rc=0
+head gen-4k rc=0
+head cargo test rc=0
+== summary
+plan.out: identical
+acc-short.out: identical
+acc-long.out: identical
+gen-short.out: identical
+gen-4k.out: identical
+ids short: identical (36901faa)
+ids 4k: identical (2b487584)
+kernels (head = base + 1 kernel / + 53 cases, matmul_mxfp4_gemv):
+attn_prefill   attn_prefill_bf16_splitkv_rows      9      0    9.191e-4    4.489e-5  ADMITTED
+27 kernels, 321 cases in 15.3s
+matmul_mxfp4   matmul_mxfp4_gemv              53      0    2.075e-3    8.968e-5  ADMITTED
+28 kernels, 374 cases in 13.9s
+cargo test: passed 515 failed 0
+12:30:13
+fleetq: #3037 done (exit 0)
+
+[exited with code 0]

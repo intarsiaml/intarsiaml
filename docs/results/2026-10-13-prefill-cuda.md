@@ -1,5 +1,7 @@
 # Prefill on CUDA, Qwen3.6-35B-A3B NVFP4 on spark1 (GB10, sm_121), 2026-10-13
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C9: the "shipped chunk of 256" and "decide the prefill chunk" were open when this was written. Decided: the Qwen3.6-35B-A3B recipe default is 2048 on CUDA (commit `63b0f72`, ADR-0008 section 2); CUDA `--prefill-chunk 4096` stays a flag (user, 2026-10-19 21:53); HIP's 35B recipe default is 4096 (`[tuning.hip]`, `docs/results/2026-10-17-hip-prefill.md`).
+
 Branch `perf/prefill-cuda` (from `arch/plan` 7e65770). Raw logs, bench JSON and profiler CSVs are in
 `docs/results/2026-10-13-prefill-cuda/`; the vLLM downtime log is `docs/results/prefill-cuda-downtime.log`.
 

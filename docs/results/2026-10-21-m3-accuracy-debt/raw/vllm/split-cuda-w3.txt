@@ -1,0 +1,38 @@
+== chat_reuse_4k  n=4631  mean KL21=1.8559e-01  (sum 859.5)
+   top1==actual: ref 0.350  cand 0.348;  capped NLL of actual: ref 3.626  cand 3.806
+   regions (rows [a,b)): mean KL21 / sum / mean P(im_end) ref, cand on rows whose next token is not im_end / top1 agree
+     [    0,   23) n=   23  KL 5.390e-02  sum     1.2  P(im_end) ref 0.469 cand 0.421  top1agree 0.913
+     [   23,   25) n=    2  KL 6.907e-07  sum     0.0  P(im_end) ref 0.000 cand 0.000  top1agree 1.000
+     [   25, 4516) n= 4491  KL 1.909e-01  sum   857.4  P(im_end) ref 0.289 cand 0.269  top1agree 0.882
+     [ 4516, 4518) n=    2  KL 1.148e-07  sum     0.0  P(im_end) ref 0.000 cand 0.000  top1agree 1.000
+     [ 4518, 4536) n=   18  KL 2.698e-02  sum     0.5  P(im_end) ref 0.505 cand 0.542  top1agree 0.889
+     [ 4536, 4538) n=    2  KL 1.663e-05  sum     0.0  P(im_end) ref 0.000 cand 0.000  top1agree 1.000
+     [ 4538, 4562) n=   24  KL 9.038e-04  sum     0.0  P(im_end) ref 0.932 cand 0.928  top1agree 1.000
+     [ 4562, 4564) n=    2  KL 3.234e-08  sum     0.0  P(im_end) ref 0.000 cand 0.000  top1agree 1.000
+     [ 4564, 4631) n=   66  KL 4.895e-03  sum     0.3  P(im_end) ref 0.003 cand 0.007  top1agree 0.985
+   class ref top1 = im_end (not actual)   rows  1470  KL sum   245.5  mean 1.670e-01
+   class ref top1 = actual                rows  1619  KL sum   123.4  mean 7.620e-02
+   class other                            rows  1541  KL sum   490.6  mean 3.184e-01
+   KL21 term on the im_end bucket alone: sum 252.0 of 859.5
+     pos 2756: KL 17.72 ref top1 6076 p=0.768  cand top1 19 p=0.999  actual 19  P(im_end) ref 0.000 cand 0.001
+     pos 3989: KL 16.46 ref top1 20459 p=0.817  cand top1 1506 p=1.000  actual 1506  P(im_end) ref 0.000 cand 0.000
+     pos 4072: KL 15.12 ref top1 12655 p=0.560  cand top1 248046 p=1.000  actual 1137  P(im_end) ref 0.002 cand 1.000
+     pos 4101: KL 13.58 ref top1 280 p=0.909  cand top1 11 p=0.802  actual 11  P(im_end) ref 0.020 cand 0.196
+     pos 4119: KL 13.16 ref top1 39277 p=0.689  cand top1 248046 p=0.999  actual 265  P(im_end) ref 0.001 cand 0.999
+     pos 1556: KL 12.44 ref top1 52965 p=0.876  cand top1 248046 p=0.663  actual 220  P(im_end) ref 0.063 cand 0.663
+     pos 2379: KL 12.35 ref top1 32907 p=0.891  cand top1 3357 p=0.994  actual 1483  P(im_end) ref 0.000 cand 0.000
+     pos 567: KL 12.13 ref top1 42903 p=0.457  cand top1 248046 p=0.993  actual 16  P(im_end) ref 0.040 cand 0.993
+== long_docs_4k  n=4064  mean KL21=1.6775e-02  (sum 68.2)
+   top1==actual: ref 0.597  cand 0.592;  capped NLL of actual: ref 1.704  cand 1.848
+   class ref top1 = im_end (not actual)   rows     0  KL sum     0.0  mean 0.000e+00
+   class ref top1 = actual                rows  2425  KL sum    27.4  mean 1.130e-02
+   class other                            rows  1638  KL sum    40.8  mean 2.490e-02
+   KL21 term on the im_end bucket alone: sum 0.0 of 68.2
+     pos 1498: KL 1.95 ref top1 11 p=0.763  cand top1 14 p=0.137  actual 11  P(im_end) ref 0.000 cand 0.000
+     pos 3769: KL 0.86 ref top1 40527 p=0.384  cand top1 4493 p=0.628  actual 40527  P(im_end) ref 0.000 cand 0.000
+     pos 3907: KL 0.70 ref top1 13766 p=0.123  cand top1 43494 p=0.077  actual 13766  P(im_end) ref 0.000 cand 0.000
+     pos 3357: KL 0.55 ref top1 2629 p=0.773  cand top1 30237 p=0.691  actual 30237  P(im_end) ref 0.000 cand 0.000
+     pos 2887: KL 0.48 ref top1 288 p=0.510  cand top1 13914 p=0.191  actual 27477  P(im_end) ref 0.000 cand 0.000
+     pos 720: KL 0.45 ref top1 15 p=0.195  cand top1 15 p=0.223  actual 274  P(im_end) ref 0.000 cand 0.000
+     pos 718: KL 0.45 ref top1 17 p=0.864  cand top1 17 p=0.413  actual 16  P(im_end) ref 0.000 cand 0.000
+     pos 1499: KL 0.44 ref top1 31838 p=0.274  cand top1 709 p=0.188  actual 31626  P(im_end) ref 0.000 cand 0.000

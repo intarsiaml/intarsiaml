@@ -1,5 +1,7 @@
 # P2' (`MoeBlock`) default-on gate: max-batch-1 serve soak, 2026-10-19
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #28 (`13cde333`); "not pushed" / "nothing merged" wording in this page describes the state when written.
+
 Branch `perf/p2prime-default` on `perf/p2prime-moeblock` (`2adb9f29`). Not pushed. HIP backend, 2 x AMD R9700 (gfx1201, host tatooine, "radiance"). Parent doc: `docs/results/2026-10-19-p2prime-moeblock.md`. Raw data: `docs/results/2026-10-19-p2prime-soak/raw/`.
 
 ## Verdict

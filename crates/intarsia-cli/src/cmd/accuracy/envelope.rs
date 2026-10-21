@@ -412,12 +412,12 @@ mod tests {
     use crate::cmd::accuracy::baseline::{Margins, ModeBaseline};
 
     fn ps(name: &str, n: usize, top1: f64, kl21: f64, tail: f64) -> PromptStats {
-        PromptStats { name: name.into(), positions: n, top1_pct: top1, mean_kl: kl21, mean_kl21: kl21, top5_pct: 90.0, tail_excess: 0.0, max_kl21: 0.1, tail_abs: tail }
+        PromptStats { name: name.into(), positions: n, top1_pct: top1, mean_kl: kl21, mean_kl21: kl21, top5_pct: 90.0, tail_excess: 0.0, max_kl21: 0.1, tail_abs: tail, ..Default::default() }
     }
     fn stats(mode: &str) -> ModeStats {
         ModeStats {
             mode: mode.into(), positions: 100, top1_pct: 95.0, mean_kl: 1e-2, mean_kl21: 1e-2, top5_pct: 90.0, tail_ref: 0.05, tail_ours: 0.05,
-            max_kl: 0.5, max_kl21: 0.5, tail_abs: 0.004, nonfinite: 0, greedy_match_pct: 50.0, floor_pass: true,
+            max_kl: 0.5, max_kl21: 0.5, tail_abs: 0.004, nonfinite: 0, greedy_match_pct: 50.0, floor_pass: true, ..Default::default()
         }
     }
     fn code(tree: &str) -> CodeStamp {
@@ -438,7 +438,7 @@ mod tests {
     fn base_with(prompts: Vec<PromptStats>) -> Baseline {
         Baseline {
             format: baseline::FORMAT.into(), created_unix: 1, tool_version: "x".into(), code: code("aaaaaaaaaaaa"), exec: ExecInfo::default(),
-            golden: golden(), run: run(256), modes: vec![ModeBaseline { overall: stats("prefill"), prompts }],
+            golden: golden(), run: run(256), modes: vec![ModeBaseline { overall: stats("prefill"), prompts }], reuse: None,
         }
     }
     fn perturbed(prompts: Vec<PromptStats>) -> Vec<(String, ModeStats, Vec<PromptStats>)> {

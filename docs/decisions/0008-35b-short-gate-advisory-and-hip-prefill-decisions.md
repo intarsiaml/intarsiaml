@@ -1,5 +1,7 @@
 # ADR-0008: The 35b-short vLLM-golden gate is advisory; per-backend prefill chunk, HIP decode, prefix-reuse tie rule, test environment
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C9: section 2 ("2048 on CUDA and 256 elsewhere") has moved on for HIP: the 35B recipe default is 4096 on HIP (`[tuning.hip]`, `docs/results/2026-10-17-hip-prefill.md`), 2048 on CUDA; CUDA `--prefill-chunk 4096` stays a flag (user, 2026-10-19 21:53). The current defaults are in `docs/decisions/LOG.md`, "Defaults in force on main". The HIP graph merge in section 3 is `bad0084`.
+
 Status: Accepted (operator decision, 2026-10-13: "Accept the `35b-short` gate failure as known noise; record it in an ADR and mark the gate advisory for this model. Kernel-level error checks stay the real guard.")
 
 Scope: the `git log` range ending at `42d90d5` plus the gate change in this commit. Sources: `docs/results/2026-10-14-35b-accuracy.md` (items 1 to 5, "35b-accuracy.md" below), `2026-10-13-prefill-cuda.md`, `2026-10-13-hip-decode.md`, `2026-10-14-hip-decode-2.md`, `2026-10-13-prefix-reuse.md`, `docs/accuracy.md`. All results documents are under `docs/results/`. Accepting these decisions does not make the measurements better than they are; the open items are listed per decision.

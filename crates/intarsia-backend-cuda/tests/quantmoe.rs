@@ -426,7 +426,7 @@ fn bench_wq_prefill_shapes() {
         .collect();
     let reps: usize = std::env::var("INTARSIA_BENCH_REPS").ok().and_then(|v| v.parse().ok()).unwrap_or(5);
     let kernels: Vec<String> = std::env::var("INTARSIA_BENCH_WQ")
-        .unwrap_or_else(|_| "matmul_fp8_gemm,matmul_fp8_gemm_f8".into())
+        .unwrap_or_else(|_| "matmul_fp8_gemm_reg,matmul_fp8_gemm_f8,matmul_fp8_gemm_lt".into())
         .split(',')
         .map(|s| s.to_string())
         .collect();
@@ -594,9 +594,33 @@ fn moe_experts_mma_is_independent_of_tile_height() {
 /// (M >= 1024) and f32 outputs. Runs only in the spark1 run (needs a GPU).
 #[test]
 fn matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm() {
+    e4m3_gemm_is_as_accurate_as_the_bf16_gemm("matmul_fp8_gemm_f8", 1e-7);
+}
+
+/// The cuBLASLt e4m3 GEMM (`matmul_fp8_gemm_lt`, opt-in, docs/results/2026-10-21-cuda-round7.md), same bounds except
+/// one, measured on spark1: where the bf16 GEMM is exact (rel_l2 0, the K = 256 cases) the f8 kernel's floor of 1e-7
+/// is replaced by `LT_REL_FLOOR`. There cuBLAS puts one output in a thousand one bf16 step off (M = 5, N = 192:
+/// rel_l2 8.1e-5, 0.1 % off), which is what accumulating the whole K inside the tensor core's f32 accumulator does (it
+/// drops low bits at every step; `moe_experts_mma_is_as_accurate_as_old_kernel` documents it for the bf16 mma). The f8
+/// kernel and the bf16 GEMM instead add every k-step's result with a normal fp32 add. vLLM's CUTLASS sm120 kernel
+/// accumulates like cuBLAS. On every case with a non-zero bf16 error the lt kernel is at or below it (e.g. K = 4096:
+/// 1.10e-4 against 1.45e-4), so only the floor changes. `INTARSIA_LT_FAST_ACCUM=1` gives the same errors on sm_121.
+#[test]
+fn matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm() {
+    e4m3_gemm_is_as_accurate_as_the_bf16_gemm("matmul_fp8_gemm_lt", LT_REL_FLOOR);
+}
+
+/// rel_l2 floor of the ratio bound for `matmul_fp8_gemm_lt` (a tenth of the 1e-3 admission budget; one bf16 step in a
+/// thousand outputs is about 8e-5).
+const LT_REL_FLOOR: f64 = 1e-4;
+
+/// rel_l2 at most 2x the bf16 GEMM's (or `rel_floor`), at most 3x its share of outputs off the reference (or 0.1 %).
+fn e4m3_gemm_is_as_accurate_as_the_bf16_gemm(kern: &str, rel_floor: f64) {
+    let (rel_ratio, frac_ratio) = (2.0, 3.0);
     let Some(cuda) = device() else { return };
     let cpu = CpuBackend::new();
     let mut rng = SplitMix64::new(73);
+    let mut fails = Vec::new();
     for act_quant in [true, false] {
         for (m, n, k, out) in [
             (5usize, 192usize, 256usize, DType::Bf16),
@@ -604,28 +628,31 @@ fn matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm() {
             (100, 512, 2048, DType::Bf16),
             (256, 384, 1024, DType::F32),
             (1100, 256, 512, DType::Bf16),
+            (256, 2048, 4096, DType::Bf16),
         ] {
             let hc = matmul_fp8_case(&mut rng, m, n, k, act_quant, DType::Bf16, out);
             let want = run_host(&cpu, "ref_matmul_fp8", &hc).unwrap()[0].to_f32();
             let old = run_host(&*cuda, "matmul_fp8_gemm", &hc).unwrap()[0].to_f32();
-            let got = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
+            let got = run_host(&*cuda, kern, &hc).unwrap();
             let new = got[0].to_f32();
             let frac = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count() as f64 / want.len() as f64;
             let (ro, rn) = (rel_l2(&old, &want), rel_l2(&new, &want));
-            let label = format!("act_quant={act_quant} M={m} N={n} K={k} {out:?}");
-            eprintln!("{label}: rel_l2 bf16 gemm {ro:.3e} f8 gemm {rn:.3e}; elements off: {:.4} / {:.4}", frac(&old), frac(&new));
-            assert!(rn < 1e-3, "{label}: rel_l2 {rn:.3e}");
-            assert!(rn <= 2.0 * ro.max(1e-7), "{label}: f8 rel_l2 {rn:.3e}, bf16 gemm {ro:.3e}");
-            assert!(
-                frac(&new) <= 3.0 * frac(&old).max(1e-3),
-                "{label}: {:.4} of the outputs off the reference, bf16 gemm {:.4}",
-                frac(&new),
-                frac(&old)
-            );
-            let again = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
+            let label = format!("{kern} act_quant={act_quant} M={m} N={n} K={k} {out:?}");
+            eprintln!("{label}: rel_l2 bf16 gemm {ro:.3e} e4m3 gemm {rn:.3e}; elements off: {:.4} / {:.4}", frac(&old), frac(&new));
+            if rn >= 1e-3 {
+                fails.push(format!("{label}: rel_l2 {rn:.3e}"));
+            }
+            if rn > rel_ratio * ro.max(rel_floor) {
+                fails.push(format!("{label}: e4m3 rel_l2 {rn:.3e}, bf16 gemm {ro:.3e} (bound x{rel_ratio}, floor {rel_floor:.0e})"));
+            }
+            if frac(&new) > frac_ratio * frac(&old).max(1e-3) {
+                fails.push(format!("{label}: {:.4} of the outputs off the reference, bf16 gemm {:.4} (bound x{frac_ratio})", frac(&new), frac(&old)));
+            }
+            let again = run_host(&*cuda, kern, &hc).unwrap();
             assert_eq!(got[0].data, again[0].data, "{label}: not repeatable");
         }
     }
+    assert!(fails.is_empty(), "{kern}:\n{}", fails.join("\n"));
 }
 
 /// A row's result must not depend on how many rows share the call or where the row sits in its tile: `matmul_fp8_gemm_f8`
@@ -634,20 +661,31 @@ fn matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm() {
 /// tiles, tail rows, shifted tile origins), bitwise.
 #[test]
 fn matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call() {
+    e4m3_gemm_rows_do_not_depend_on_the_call("matmul_fp8_gemm_f8", 1100, 384, 1024, &[(0, 5), (3, 17), (130, 64), (1000, 100)]);
+}
+
+/// The same for the cuBLASLt e4m3 GEMM (one algorithm pinned per (N, K) for every M), also on a 35B projection shape
+/// at the 2048-token chunk against the tail-chunk sizes a prompt produces.
+#[test]
+fn matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call() {
+    let rows: &[(usize, usize)] = &[(0, 5), (3, 17), (130, 64), (1000, 100), (7, 255), (512, 517)];
+    e4m3_gemm_rows_do_not_depend_on_the_call("matmul_fp8_gemm_lt", 1100, 384, 1024, rows);
+    let rows: &[(usize, usize)] = &[(0, 5), (100, 93), (1, 1024), (1500, 548), (2000, 48)];
+    e4m3_gemm_rows_do_not_depend_on_the_call("matmul_fp8_gemm_lt", 2048, 2048, 4096, rows);
+}
+
+fn e4m3_gemm_rows_do_not_depend_on_the_call(kern: &str, m: usize, n: usize, k: usize, slices: &[(usize, usize)]) {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(74);
-    let (m, n, k) = (1100usize, 384usize, 1024usize);
     let whole = matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
-    let all = run_host(&*cuda, "matmul_fp8_gemm_f8", &whole).unwrap();
+    let all = run_host(&*cuda, kern, &whole).unwrap();
     let (xk, on) = (k * 2, n * 2);
-    for (r0, rows) in [(0usize, 5usize), (3, 17), (130, 64), (1000, 100), (1099, 1)] {
-        if rows < 5 {
-            continue; // the registry serves M < 5 with the gemv
-        }
+    for &(r0, rows) in slices {
+        assert!(rows >= 5 && r0 + rows <= m, "the registry serves M < 5 with the gemv");
         let mut hc = whole.clone();
         hc.inputs[0] = HostTensor { shape: vec![rows, k], data: whole.inputs[0].data[r0 * xk..(r0 + rows) * xk].to_vec(), ..whole.inputs[0].clone() };
         hc.outputs = vec![OutSpec::new(DType::Bf16, &[rows, n])];
-        let got = run_host(&*cuda, "matmul_fp8_gemm_f8", &hc).unwrap();
-        assert!(got[0].data == all[0].data[r0 * on..(r0 + rows) * on], "rows {r0}..{} differ when run as a {rows}-row call", r0 + rows);
+        let got = run_host(&*cuda, kern, &hc).unwrap();
+        assert!(got[0].data == all[0].data[r0 * on..(r0 + rows) * on], "{kern}: rows {r0}..{} differ when run as a {rows}-row call", r0 + rows);
     }
 }

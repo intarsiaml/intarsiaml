@@ -1,0 +1,5 @@
+long_docs_4k   n= 4064  confident(>0.5)&actual-not-in-top20:   87 (2.14%)   >0.9:   10 (0.25%)
+long_code_4k   n= 4064  confident(>0.5)&actual-not-in-top20:   24 (0.59%)   >0.9:    2 (0.05%)
+chat_reuse_4k  n= 4631  confident(>0.5)&actual-not-in-top20:  451 (9.74%)   >0.9:  196 (4.23%)
+long_docs_12k  n=12064  confident(>0.5)&actual-not-in-top20:  220 (1.82%)   >0.9:   14 (0.12%)
+long_code_12k  n=12064  confident(>0.5)&actual-not-in-top20:   73 (0.61%)   >0.9:    4 (0.03%)

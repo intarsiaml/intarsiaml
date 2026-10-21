@@ -227,6 +227,13 @@ pub fn load_engine_tp(
             eprintln!("quantisation scheme note: {note}");
         }
     }
+    // the MXFP4 activation mode the projections run (same rule as Model::load), so every report records it
+    let declared = weights.scheme().and_then(|s| s.mxfp4_act());
+    if declared.is_some() || opts.load.mxfp4_act.is_some() {
+        let eff = intarsia_core::quant::mxfp4::effective_act(opts.load.mxfp4_act, declared);
+        let src = if opts.load.mxfp4_act.is_some() { "--mxfp4-act" } else { "declared by the checkpoint" };
+        eprintln!("mxfp4 activations: {} ({src})", eff.name());
+    }
     // the admission oracle is always the cpu backend (its `ref_*` kernels)
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
     if opts.spec.enabled() {

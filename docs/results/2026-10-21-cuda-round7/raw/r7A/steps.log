@@ -1,0 +1,17 @@
+gen base-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 504 ms (2972.1 tok/s) | decode 3132 ms (81.41 tok/s)
+gen dev-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 501 ms (2990.3 tok/s) | decode 3114 ms (81.89 tok/s)
+gen lt-graph: finish=length prompt=1497 (cached 0) completion=256 | prefill 486 ms (3079.8 tok/s) | decode 3104 ms (82.15 tok/s)
+acc dev-short-c2048 exit 0 33 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, exces
+acc lt-short-c2048 exit 0 33 s: prefill floor [4bit]: top-1 98.27% (not gated for this class) ok | 21-way KL 6.648e-3 (need <= 3.0e-2) ok | tail mass ours 0.0176 vs ref 0.0176, exces
+acc dev-long-c2048 exit 1 112 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, exc
+acc lt-long-c2048 exit 1 112 s: prefill floor [4bit]: top-1 94.20% (not gated for this class) ok | 21-way KL 4.725e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0643 vs ref 0.0611, exc
+reuse lt exit 1 73 s: chat_reuse_4k continue 4521 4647 4536 0 3/32 FAIL (streams diverge|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: FAIL|
+gen base-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 3184 ms (5034.0 tok/s) | decode 861 ms (73.19 tok/s)
+gen lt-16k: finish=length prompt=16026 (cached 0) completion=64 | prefill 2872 ms (5579.2 tok/s) | decode 859 ms (73.32 tok/s)
+gen lt-eager: finish=length prompt=1497 (cached 0) completion=256 | prefill 479 ms (3123.9 tok/s) | decode 3430 ms (74.34 tok/s)
+acc lt4k-long-c4096 exit 1 112 s: prefill floor [4bit]: top-1 94.34% (not gated for this class) ok | 21-way KL 4.588e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0642 vs ref 0.0611, exc
+reuse lt4k exit 1 84 s: chat_reuse_4k continue 4521 4647 4536 0 5/32 FAIL (streams diverge|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: FAIL|
+acc lt-short-c256 exit 0 35 s: prefill floor [4bit]: top-1 98.33% (not gated for this class) ok | 21-way KL 6.434e-3 (need <= 3.0e-2) ok | tail mass ours 0.0175 vs ref 0.0176, exces
+acc lt-long-c256 exit 1 122 s: prefill floor [4bit]: top-1 94.24% (not gated for this class) ok | 21-way KL 4.492e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0640 vs ref 0.0611, exc
+plan8 base exit 0: 8630 bytes
+plan8 dev exit 0: 8630 bytes

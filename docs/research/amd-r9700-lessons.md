@@ -1,5 +1,7 @@
 # R9700 (gfx1201) lessons carried into IntarsiaML
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C12: "No license file found - do not vendor" (libr4d) is superseded: radiance is Apache-2.0 (ADR-0002, `docs/research/radiance-port-plan.md`), and `kernels/hip/allreduce.hip` is derived from it with `kernels/hip/NOTICE-radiance`.
+
 Source: survey of `/opt/code/amd_r9700_pro_tuning` and `/opt/code/vllm-mxfp4`, 2026-10-12. Figures are as reported in the cited files; verify against them before relying on a single number.
 
 ## The bar to beat (Qwen3.8-27B dense, MXFP4 W4A8, fp8 KV, TP=2, DFlash2 7 draft tokens)

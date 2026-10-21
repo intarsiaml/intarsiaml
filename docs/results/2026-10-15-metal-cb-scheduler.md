@@ -1,5 +1,7 @@
 # Continuous batching: scheduler core (M1 step 2 + M2 policy), GPU-free
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C16: (a) chunk-size identity "unproven" (256 vs 2048) is proven bitwise on 33 prompts in `2026-10-15-metal-chunk-golden.md`; (b) a full queue is no longer a `BadRequest` / 400: a refusal from the scheduler maps to 503 (`2026-10-15-metal-cb-m1-step2.md`), and the server's own admission answers 429; (c) an absent `--max-batch` means 1.
+
 Date 2026-10-15. Branch `metal-cb-sched` off `spike/metal` 05c324d. Plan: `docs/research/continuous-batching-design.md` sections 2.1-2.5, 3.5, 6, 7 (M1, M2) and 8.1. The scheduler policy defaults follow the user's confirmation, which the coordinator relayed on 2026-10-15: `max_batch` defaults to 1 (opt-in) with an exact cap of 8, prefix reuse comes from idle slots only, admission is FIFO, and speculation turns off automatically at B >= 4 (the threshold is configurable). There are no priority or shortest-first modes.
 
 **Scope.** This commit adds the scheduler and its tests only. It is not wired to `Model`, `engine::Seq`, `intarsia serve` or the CLI. No GPU was used and no fleet slot was needed.

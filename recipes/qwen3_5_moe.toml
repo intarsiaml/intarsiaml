@@ -71,8 +71,16 @@ prefill_chunk = 2048
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058
 # at 16k; 4096 fits the 29 GB budget at max-seq 17408. Prefill is chunk-invariant bit for bit on HIP (short and long golden give the
-# same numbers at 256, 1024, 2048 and 4096). At 4096 the prefix-reuse gate runs only on chat_reuse_4k (the two 4k documents split
-# at 2000, below one chunk, and are skipped; at 256 long_docs_4k fails the continue case, on the base build too) and passes
-# (docs/results/2026-10-17-hip-prefill.md).
+# same numbers at 256, 1024, 2048 and 4096). At 4096 the prefix-reuse gate can run only on chat_reuse_4k: the two 4k documents
+# (4064 tokens) cannot cross a 4096-token chunk boundary and are reported as skipped (the gate fails only if no prompt could
+# be judged), so only chat_reuse_4k is judged (at 256 long_docs_4k fails the continue case, on the base build too;
+# docs/results/2026-10-17-hip-prefill.md, docs/results/2026-10-21-m3-accuracy-debt.md 2.8).
 [tuning.hip]
 prefill_chunk = 4096
+
+# `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML). No
+# reuse_logit_tol / reuse_kl_tol yet: they must be measured once on a known-good build of this model (a GPU run) and
+# written here; until then the judge uses its built-in constants, calibrated on dense Qwen3-8B
+# (docs/results/2026-10-21-m3-accuracy-debt.md, 2.8: on this model decode-written KV moves the rows more than that).
+[accuracy]
+chat_turns = "chatml"

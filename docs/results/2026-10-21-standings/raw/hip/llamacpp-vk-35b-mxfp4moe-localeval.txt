@@ -1,0 +1,50 @@
+[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=20480
+[localeval]    128 tok rep 1/3: prompt=110 ttft=0.16s prefill=706 tok/s decode=109.3 tok/s peak=114.0 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=114 ttft=0.16s prefill=723 tok/s decode=113.1 tok/s peak=114.3 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=114 ttft=0.16s prefill=734 tok/s decode=113.4 tok/s peak=116.1 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.39s prefill=2552 tok/s decode=112.8 tok/s peak=114.7 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=993 ttft=0.39s prefill=2534 tok/s decode=112.5 tok/s peak=114.3 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=992 ttft=0.39s prefill=2537 tok/s decode=112.5 tok/s peak=114.3 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4090 ttft=1.43s prefill=2859 tok/s decode=110.2 tok/s peak=111.6 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4091 ttft=1.43s prefill=2851 tok/s decode=110.4 tok/s peak=111.7 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.43s prefill=2864 tok/s decode=109.9 tok/s peak=111.5 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16654 ttft=6.21s prefill=2683 tok/s decode=105.0 tok/s peak=106.1 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16655 ttft=6.21s prefill=2681 tok/s decode=104.5 tok/s peak=109.8 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16653 ttft=6.31s prefill=2640 tok/s decode=106.4 tok/s peak=109.5 tok/s out=128
+[localeval] benchmark mmlu (limit=25, shots=None, tasks=all)
+MMLU Task Accuracy (task=high_school_european_history): 0.84
+MMLU Task Accuracy (task=business_ethics): 0.88
+MMLU Task Accuracy (task=clinical_knowledge): 0.92
+MMLU Task Accuracy (task=medical_genetics): 1.0
+MMLU Task Accuracy (task=high_school_us_history): 0.92
+MMLU Task Accuracy (task=high_school_physics): 0.8
+MMLU Task Accuracy (task=high_school_world_history): 0.96
+MMLU Task Accuracy (task=virology): 0.6
+MMLU Task Accuracy (task=high_school_microeconomics): 0.96
+MMLU Task Accuracy (task=econometrics): 0.84
+MMLU Task Accuracy (task=college_computer_science): 0.72
+MMLU Task Accuracy (task=high_school_biology): 0.96
+MMLU Task Accuracy (task=abstract_algebra): 0.56
+MMLU Task Accuracy (task=professional_accounting): 0.72
+MMLU Task Accuracy (task=philosophy): 1.0
+MMLU Task Accuracy (task=professional_medicine): 0.96
+MMLU Task Accuracy (task=nutrition): 0.92
+MMLU Task Accuracy (task=global_facts): 0.44
+MMLU Task Accuracy (task=machine_learning): 0.76
+MMLU Task Accuracy (task=security_studies): 0.88
+MMLU Task Accuracy (task=public_relations): 0.68
+MMLU Task Accuracy (task=professional_psychology): 1.0
+MMLU Task Accuracy (task=prehistory): 0.92
+MMLU Task Accuracy (task=anatomy): 0.76
+MMLU Task Accuracy (task=human_sexuality): 0.88
+MMLU Task Accuracy (task=college_medicine): 0.8
+MMLU Task Accuracy (task=high_school_government_and_politics): 0.96
+MMLU Task Accuracy (task=college_chemistry): 0.6
+MMLU Task Accuracy (task=logical_fallacies): 0.96
+MMLU Task Accuracy (task=high_school_geography): 0.92
+MMLU Task Accuracy (task=elementary_mathematics): 0.8
+MMLU Task Accuracy (task=human_aging): 0.8
+MMLU Task Accuracy (task=college_mathematics): 0.68
+MMLU Task Accuracy (task=high_school_psychology): 0.96
+MMLU Task Accuracy (task=formal_logic): 0.72
+MMLU Task Accuracy (task=high_school_statistics): 0.8

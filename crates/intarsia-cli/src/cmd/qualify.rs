@@ -1719,8 +1719,9 @@ fn st_acc_long(c: &mut Ctx) -> Result<Out> {
         Golden::None(why) => return Ok(Out::skip(why)),
     };
     // With a 4k golden the prefix-reuse gate runs there (`acc-4k`): the long golden's longest prompt is 700 tokens, so at
-    // a prefill chunk above ~350 its reuse gate has nothing to run on, prints SKIPPED, and that counts as a fail. Without
-    // one (every other model today) this stage is unchanged.
+    // a prefill chunk above ~350 its reuse gate has nothing to run on, prints "nothing ran" and fails (a prompt that cannot
+    // cross a chunk boundary is a reported skip, so the short prompts alone do not fail it). Without one (every other
+    // model today) this stage is unchanged.
     let reuse_in_4k = matches!(c.golden_4k()?, Golden::Have(g4, _) if g4 != g);
     let a = c.accuracy("acc-long", &g, if reuse_in_4k { "both" } else { "all" }, true, 1, &[])?;
     let mut o = c.acc_out(a, &g, &how, "long");
@@ -2171,6 +2172,13 @@ mod tests {
                 "prefix reuse differs from a cold run"
             ]
         );
+    }
+
+    #[test]
+    fn the_scored_row_floor_line_is_digested() {
+        // the floor line names the row set of each metric and carries the all-rows KL after the gated one
+        let t = "prefill floor [4bit]: top-1 (all rows) 91.00% not gated for this class ok | 21-way KL (scored rows, n=32349) 4.100e-2 (need <= 3.0e-2) FAIL [all rows, n=36887: 5.300e-2, reported only] | tail mass (all rows) ours 0.05 vs ref 0.05, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL\n";
+        assert_eq!(acc_fail_digest(t), vec!["prefill: 21-way KL (scored rows, n=32349) 4.100e-2 (need <= 3.0e-2)"]);
     }
 
     #[test]

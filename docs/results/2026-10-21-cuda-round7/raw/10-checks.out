@@ -1,0 +1,86 @@
+fleetq: #2980 waiting (#1 in line): spark1 is held exclusively by #2979 "G1 r7 W3: localeval e4m3 opt-in lt / lt+chunk4096 (vLLM down, <=17 min)" (claude-f31ccf91)
+fleetq:   #2979 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2979 set, or it will wait for #2979 to be released.
+fleetq: #2980 running on spark1: scripts/cuda-round7/mut.sh
+stamp: head=571e5b9 code-tree=eed826ec3442 dirty=no
+    Finished `release` profile [optimized] target(s) in 0.43s
+===== racecheck (all targets)
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE gdn_split:gdn_split_state_carries_across_calls hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE attn_f8kv:f8kv_matches_with_nan_past_the_end hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE attn_f8kv:f8kv_matches_with_nan_past_the_end hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE flash_bq:flash_d256_bq128_small hazards=0 test=ok
+    ========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+    test result: ok. 1 passed; 0 failed
+    hazard lines: 0
+RACE quantmoe:matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call hazards=0 test=ok
+racecheck exit 0
+===== kernels test --backend cuda (INTARSIA_X=0)
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    4.329e-3    1.939e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm                11      0    4.184e-3    1.723e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_f8             27      0    4.329e-3    1.849e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_lt             24      0    4.329e-3    1.849e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_reg             3      0    3.030e-3    4.181e-5  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+51 kernels, 693 cases in 37.2s
+===== kernels test --backend cuda (INTARSIA_CUDA_FP8_GEMM_LT=1)
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    4.329e-3    1.939e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm                11      0    4.184e-3    1.723e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_f8             27      0    4.329e-3    1.849e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_lt             24      0    4.329e-3    1.849e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_reg             3      0    3.030e-3    4.181e-5  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+51 kernels, 693 cases in 36.1s
+===== launcher mutants: lt-ascale-in lt-no-bscale lt-quant-mul lt-no-weightonly lt-ld-swap PROBE-lt-plan-per-m
+--- unmutated
+unmutated: pass (13 tests)
+unmutated: racecheck clean
+--- lt-ascale-in
+applied lt-ascale-in: the weight (A) scale pointer reads the input scale (input_scale applied twice, weight_scale never)
+KILLED lt-ascale-in (tests): matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm result: FAILED. 11 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 6.64s 
+--- lt-no-bscale
+applied lt-no-bscale: the input (B) scale is never set (cuBLAS default 1: the input_scale factor is lost)
+KILLED lt-no-bscale (tests): matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm result: FAILED. 11 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 6.13s 
+--- lt-quant-mul
+applied lt-quant-mul: the activations are quantised as x * input_scale instead of x / input_scale
+KILLED lt-quant-mul (tests): matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm result: FAILED. 11 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 8.74s 
+--- lt-no-weightonly
+applied lt-no-weightonly: no bf16 fallback for weight-only activations (input_scale <= 0: the e4m3 result stays)
+KILLED lt-no-weightonly (tests): matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm result: FAILED. 11 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 6.20s 
+--- lt-ld-swap
+applied lt-ld-swap: the output layout is M x N (ld M) instead of N x M (ld N): rows and columns transposed
+KILLED lt-ld-swap (tests): result: FAILED. 10 passed; 2 failed; 4 ignored; 0 measured; 0 filtered out; finished in 8.92s 
+--- PROBE-lt-plan-per-m
+applied PROBE-lt-plan-per-m: PROBE: the algorithm is chosen at each call's own M (no pinning across M)
+KILLED PROBE-lt-plan-per-m (tests): matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call result: FAILED. 11 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 8.42s 
+===== gate mutant
+--- unmutated
+unmutated: pass (15 tests)
+unmutated: racecheck clean
+--- lt-gate-on
+applied lt-gate-on: the cuBLASLt GEMM is on by default
+KILLED lt-gate-on (tests): kernels::tests::fp8_gemm_lt_range kernels::tests::fp8_gemm_selection_by_batch_size result: FAILED. 12 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+===== range mutant
+--- unmutated
+unmutated: pass (15 tests)
+unmutated: racecheck clean
+--- lt-min-gt
+applied lt-min-gt: the cuBLASLt GEMM from 6 tokens (> instead of >=): a 5-token tail chunk rounds differently
+KILLED lt-min-gt (tests): kernels::tests::fp8_gemm_lt_range result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+fleetq: #2980 done (exit 0)

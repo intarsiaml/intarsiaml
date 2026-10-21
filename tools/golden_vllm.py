@@ -94,6 +94,10 @@ def main():
     ap.add_argument("--topk", type=int, default=20, help="vLLM prompt_logprobs (top-K per position, max 20 by default)")
     ap.add_argument("--dump-first", action="store_true", help="print the raw response of the first prompt and exit")
     ap.add_argument("--note", default="", help="free text stored in the metadata (e.g. the server's launch flags)")
+    ap.add_argument("--ids-from", default=None, metavar="GOLDEN",
+                    help="re-score the exact token ids (prompt + recorded continuation) of an existing top-k golden instead of "
+                         "tokenising --prompts and making a new continuation; the prompts metadata is copied. Gives a second "
+                         "reference run on identical positions, e.g. vLLM's own run-to-run KL against that golden")
     ap.add_argument("--cache-salt", default=None, metavar="SALT",
                     help="send vLLM's per-request `cache_salt` (SALT-<prompt index>-<n tokens>) so the golden request cannot read prefix-cache "
                          "blocks of an earlier request (Phase 1b review finding 10b: the prompt+continuation is re-sent to a server with "
@@ -111,14 +115,49 @@ def main():
     def apply_template(messages):
         raise SystemExit("this tool uses the fixed ChatML text; --template hf is not supported here")
 
-    prompts = gl.load_prompts(args.prompts)
     models = json.load(urllib.request.urlopen(base + "/models"))["data"]
     max_len = models[0].get("max_model_len")
     print(f"server max_model_len={max_len}", flush=True)
+    if args.ids_from:
+        from safetensors import safe_open
+        src = safe_open(args.ids_from, "np")
+        src_meta = json.loads((src.metadata() or {})["prompts"])
+        # (meta, ids) per prompt; no tokenising, no continuation
+        fixed = [(m, [int(t) for t in src.get_tensor(f"ids_{j}")]) for j, m in enumerate(src_meta)]
+        prompts = [m for m, _ in fixed]
+        args.prompts = [f"ids from {pathlib.Path(args.ids_from).name}"]
+    else:
+        prompts = gl.load_prompts(args.prompts)
     tensors, meta_prompts, skipped = {}, [], []
     t0 = time.time()
     i = 0
-    for p in prompts:
+    for pi, p in enumerate(prompts):
+        if args.ids_from:
+            m, ids = fixed[pi]
+            n = len(ids)
+            if max_len is not None and n + 2 > max_len:
+                raise SystemExit(f"{m.get('name')}: {n} tokens do not fit the server's max_model_len {max_len}")
+            body = {"model": args.model, "prompt": ids + [ids[-1]], "max_tokens": 1, "temperature": 0,
+                    "prompt_logprobs": args.topk}
+            if args.cache_salt:
+                body["cache_salt"] = f"{args.cache_salt}-{pi}-{n}"
+            pl = post(base, "/completions", body)["choices"][0]["prompt_logprobs"]
+            if pl is None or len(pl) != n + 1 or pl[0] is not None:
+                raise SystemExit(f"{m.get('name')}: expected {n + 1} prompt_logprobs entries with a null first one")
+            K = args.topk
+            tid = np.full((n, K), -1, dtype=np.int32)
+            tlp = np.full((n, K), PAD_LP, dtype=np.float32)
+            for t in range(n):
+                items = sorted(((int(k), v["logprob"], v.get("rank", 0)) for k, v in pl[t + 1].items()), key=lambda x: -x[1])
+                for j, (k, lp, _) in enumerate([x for x in items if x[2] <= K][:K]):
+                    tid[t, j], tlp[t, j] = k, lp
+            tensors[f"ids_{i}"] = np.array(ids, dtype=np.int32)
+            tensors[f"topk_ids_{i}"] = tid
+            tensors[f"topk_logprobs_{i}"] = tlp
+            meta_prompts.append(m)
+            print(f"[{i}] {m.get('name', '?'):<16} {n:5d} tokens (ids from golden)  {time.time() - t0:.0f}s", flush=True)
+            i += 1
+            continue
         ids, text = gl.prompt_ids(p, tokenize, "chatml", apply_template)
         n_prompt = len(ids)
         want = int(p.get("continue", 0))
@@ -201,6 +240,7 @@ def main():
                                 "cache_salt": args.cache_salt or "not used (prefix cache not controlled: unverified whether "
                                 "prompt_logprobs requests read cached fp8 KV blocks)"}),
         "prompt_files": json.dumps([pathlib.Path(x).name for x in args.prompts]),
+        "ids_from": args.ids_from or "",
         "skipped": json.dumps(skipped),
         "topk": str(args.topk),
         "prompts": json.dumps(meta_prompts),

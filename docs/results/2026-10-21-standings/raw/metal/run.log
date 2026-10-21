@@ -1,0 +1,219 @@
+fleetq: #2960 waiting (#4 in line): in line behind #2945 "M1 golden W4A16 qwen3.8-27b mxfp4 HF layer-streamed cpu" (claude-f31ccf91) on endor
+fleetq:   #2945 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2945 set, or it will wait for #2945 to be released.
+fleetq: #2960 waiting (#1 in line): needs endor to itself; running there: #2945 "M1 golden W4A16 qwen3.8-27b mxfp4 HF layer-streamed cpu" (claude-f31ccf91), #2954 "M1 golden f32 W4A4 qwen3.8-27b mxfp4 (bf16-noise floor)" (claude-f31ccf91), #2959 "M1 Metal no-op check: cargo test --workspace (release) on m1 branch" (claude-f31ccf91)
+fleetq:   #2945 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2945 set, or it will wait for #2945 to be released.
+fleetq: #2960 waiting (#1 in line): needs endor to itself; running there: #2945 "M1 golden W4A16 qwen3.8-27b mxfp4 HF layer-streamed cpu" (claude-f31ccf91), #2954 "M1 golden f32 W4A4 qwen3.8-27b mxfp4 (bf16-noise floor)" (claude-f31ccf91)
+fleetq:   #2945 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2945 set, or it will wait for #2945 to be released.
+fleetq: #2960 waiting (#1 in line): needs endor to itself; running there: #2945 "M1 golden W4A16 qwen3.8-27b mxfp4 HF layer-streamed cpu" (claude-f31ccf91)
+fleetq:   #2945 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2945 set, or it will wait for #2945 to be released.
+fleetq job 2960 2026-10-21T10:42:31-04:00
+##### st-intarsia-1  2026-10-21T10:42:32-04:00
+server up after 42s
+chunk line: prefill chunk 2048 (recipe qwen3, metal)
+== sample set 2026-10-21T10:43:13-04:00
+"Device Utilization %"=10
+"Device Utilization %"=9
+"Device Utilization %"=0
+median=9
+zoom: 47770 /Applications/zoom.us.app/Contents/MacOS/zoom.us;47783 /Applications/zoom.us.app/Contents/Frameworks/caphost.app/Contents/MacOS/caphost -pid 47770 -evtname caphost47770 -key rpc;48786 /Applications/zoom.us.app/Contents/Frameworks/aomhost.app/Contents/MacOS/aomhost -pid 47770 -evtname aomhost47770 -key rpc;81464 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=gpu-process --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAOAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --shared-files --metrics-shmem-handle=1752395122,r,12952117357356646348,8377358239783619604,262144 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708988185955192;81466 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en --service-sandbox-type=network --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,13677202334619219862,14751760579053427411,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708989122997041;81468 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en --service-sandbox-type=service --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,18088807454445080608,17412200083166516555,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990060038890;81470 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156263318 --shared-files --metrics-shmem-handle=1752395122,r,10569475619740647736,157434350123574851,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708991934122588;81471 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=5 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156267011 --shared-files --metrics-shmem-handle=1752395122,r,11530815051372939501,4781425735654830068,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990997080739;
+FINAL median=9 tries=0
+localeval speed exit 0
+- thinking: off; run kind: speed; label: st-intarsia-1
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096,16384 --gen 128 --reps 3 --thinking off --label st-intarsia-1`
+- result file: `results/20261021-104317-adhoc-st-intarsia-1/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 134 | 0.06 | 2392 (2358–2482) * | - | 35.5 (35.2–35.9) | 36.2 (35.9–36.3) | - | - | 128 |
+| 989 | 0.25 | 3989 (3948–3993) * | 4453 | 35.6 (35.1–36.0) | 35.8 (35.6–36.2) | - | - | 128 |
+| 4088 | 1.04 | 3917 (3913–3917) | 3893 | 34.2 (34.1–35.1) | 35.2 (35.1–35.3) | - | - | 128 |
+| 16653 | 6.55 | 2543 (2292–2553) | 2283 | 29.3 (29.1–31.1) | 30.5 (29.4–31.6) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-104317-adhoc-st-intarsia-1/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22
+localeval quality exit 0
+[localeval] benchmark mmlu (limit=20, shots=None, tasks=['business_ethics', 'clinical_knowledge'])
+MMLU Task Accuracy (task=business_ethics): 0.0
+MMLU Task Accuracy (task=clinical_knowledge): 0.0
+Overall MMLU Accuracy: 0.0
+[localeval] benchmark gsm8k (limit=20, shots=None, tasks=['business_ethics', 'clinical_knowledge'])
+Overall GSM8K Accuracy: 0.0
+# localeval: adhoc — 2026-10-21T10:44
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: quality; label: st-intarsia-1-quality
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:8093/v1 --model intarsia-metal --bench mmlu,gsm8k --tasks business_ethics,clinical_knowledge --limit 20 --judge none --thinking off --label st-intarsia-1-quality`
+- result file: `results/20261021-104429-adhoc-st-intarsia-1-quality/result.json`
+
+## Benchmarks (deepeval)
+
+| benchmark | score | n | TTFT s | prefill tok/s | decode tok/s | calls | errors | wall s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| mmlu | 0.000 | 40 | 0.05 | - | 33.2 | 80 | 0 | 1240.2 |
+| gsm8k | 0.000 | 20 | 0.05 | - | 34.7 | 40 | 0 | 245.7 |
+
+Benchmark speed is incidental (short, varying prompts); prefill '-' means no call had 1024+ uncached tokens. Quote the sweep for speed.
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-104429-adhoc-st-intarsia-1-quality/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22
+port 8093 closed
+pid 55333 gone
+##### st-mlx-lm  2026-10-21T11:09:22-04:00
+server up after 2s
+chunk line: 
+== sample set 2026-10-21T11:09:23-04:00
+"Device Utilization %"=97
+"Device Utilization %"=1
+"Device Utilization %"=0
+median=1
+zoom: 47770 /Applications/zoom.us.app/Contents/MacOS/zoom.us;47783 /Applications/zoom.us.app/Contents/Frameworks/caphost.app/Contents/MacOS/caphost -pid 47770 -evtname caphost47770 -key rpc;48786 /Applications/zoom.us.app/Contents/Frameworks/aomhost.app/Contents/MacOS/aomhost -pid 47770 -evtname aomhost47770 -key rpc;81464 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=gpu-process --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAOAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --shared-files --metrics-shmem-handle=1752395122,r,12952117357356646348,8377358239783619604,262144 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708988185955192;81466 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en --service-sandbox-type=network --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,13677202334619219862,14751760579053427411,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708989122997041;81468 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en --service-sandbox-type=service --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,18088807454445080608,17412200083166516555,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990060038890;81470 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156263318 --shared-files --metrics-shmem-handle=1752395122,r,10569475619740647736,157434350123574851,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708991934122588;81471 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=5 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156267011 --shared-files --metrics-shmem-handle=1752395122,r,11530815051372939501,4781425735654830068,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990997080739;
+FINAL median=1 tries=0
+localeval speed exit 0
+
+## Speed sweep
+
+served `/Users/josef/models/Qwen3-8B`, fingerprint `0.31.3-0.32.1-macOS-27.0-arm64-arm-64bit-applegpu_g17s`, ctx ?, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.23 | 459 (435–477) * | - | 33.5 (33.4–33.8) | 38.0 (37.8–41.5) | - | - | 128 |
+| 989 | 0.44 | 2233 (2178–2260) * | 4098 | 32.6 (31.8–32.9) | 37.1 (34.9–40.0) | - | - | 128 |
+| 4086 | 1.33 | 3079 (3044–3081) | 3499 | 31.8 (31.6–32.3) | 36.4 (35.9–36.8) | - | - | 128 |
+| 16654 | 7.12 | 2339 (2223–2375) | 2170 | 27.9 (27.9–28.0) | 28.3 (28.2–28.3) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-110928-adhoc-st-mlx-lm/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22
+localeval quality exit 143
+[localeval] benchmark mmlu (limit=20, shots=None, tasks=['business_ethics', 'clinical_knowledge'])
+port 8092 closed
+pid 13904 gone
+##### st-llamacpp  2026-10-21T11:19:59-04:00
+server up after 4s
+chunk line: 
+== sample set 2026-10-21T11:20:02-04:00
+"Device Utilization %"=59
+"Device Utilization %"=5
+"Device Utilization %"=5
+median=5
+zoom: 47770 /Applications/zoom.us.app/Contents/MacOS/zoom.us;47783 /Applications/zoom.us.app/Contents/Frameworks/caphost.app/Contents/MacOS/caphost -pid 47770 -evtname caphost47770 -key rpc;48786 /Applications/zoom.us.app/Contents/Frameworks/aomhost.app/Contents/MacOS/aomhost -pid 47770 -evtname aomhost47770 -key rpc;81464 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=gpu-process --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAOAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --shared-files --metrics-shmem-handle=1752395122,r,12952117357356646348,8377358239783619604,262144 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708988185955192;81466 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en --service-sandbox-type=network --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,13677202334619219862,14751760579053427411,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708989122997041;81468 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en --service-sandbox-type=service --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,18088807454445080608,17412200083166516555,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990060038890;81470 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156263318 --shared-files --metrics-shmem-handle=1752395122,r,10569475619740647736,157434350123574851,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708991934122588;81471 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=5 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156267011 --shared-files --metrics-shmem-handle=1752395122,r,11530815051372939501,4781425735654830068,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990997080739;
+FINAL median=5 tries=0
+localeval speed exit 0
+## Speed sweep
+
+served `/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf`, fingerprint `b11429-d81235049`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.09 | 1233 (1170–1265) * | - | 34.2 (34.2–34.3) | 34.7 (34.6–34.7) | 1286 | 34.2 | 128 |
+| 990 | 0.39 | 2526 (2320–2551) * | 2917 | 30.6 (28.9–34.0) | 33.8 (29.7–34.3) | 2553 | 30.6 | 128 |
+| 4089 | 2.24 | 1821 (1786–2305) | 1673 | 30.9 (29.2–32.4) | 32.2 (31.7–33.0) | 1826 | 30.9 | 128 |
+| 16678 | 12.00 | 1389 (1306–1469) | 1290 | 29.2 (27.8–29.3) | 29.5 (29.3–29.7) | 1391 | 29.2 | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 16.8% at 1024 tokens: noisy; rerun before comparing
+- decode spread 10.5% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-112006-adhoc-st-llamacpp/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22
+localeval quality exit 143
+[localeval] benchmark mmlu (limit=20, shots=None, tasks=['business_ethics', 'clinical_knowledge'])
+MMLU Task Accuracy (task=business_ethics): 0.7
+port 8091 closed
+pid 51123 gone
+##### st-intarsia-2  2026-10-21T11:22:13-04:00
+server up after 39s
+chunk line: prefill chunk 2048 (recipe qwen3, metal)
+== sample set 2026-10-21T11:22:51-04:00
+"Device Utilization %"=0
+"Device Utilization %"=5
+"Device Utilization %"=5
+median=5
+zoom: 47770 /Applications/zoom.us.app/Contents/MacOS/zoom.us;47783 /Applications/zoom.us.app/Contents/Frameworks/caphost.app/Contents/MacOS/caphost -pid 47770 -evtname caphost47770 -key rpc;48786 /Applications/zoom.us.app/Contents/Frameworks/aomhost.app/Contents/MacOS/aomhost -pid 47770 -evtname aomhost47770 -key rpc;81464 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=gpu-process --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAOAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --shared-files --metrics-shmem-handle=1752395122,r,12952117357356646348,8377358239783619604,262144 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708988185955192;81466 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en --service-sandbox-type=network --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,13677202334619219862,14751760579053427411,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708989122997041;81468 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper.app/Contents/MacOS/ZoomCefHelper --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en --service-sandbox-type=service --no-sandbox --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --shared-files --metrics-shmem-handle=1752395122,r,18088807454445080608,17412200083166516555,524288 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990060038890;81470 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156263318 --shared-files --metrics-shmem-handle=1752395122,r,10569475619740647736,157434350123574851,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708991934122588;81471 /Applications/zoom.us.app/Contents/Frameworks/ZoomCefHelper (Renderer).app/Contents/MacOS/ZoomCefHelper (Renderer) --type=renderer --user-data-dir=/Users/josef/Library/Caches/us.zoom.xos/ZoomCefWebView --framework-dir-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/Framework/150.0.0.946_arm64/zCefCore.bundle/Contents/Frameworks/Chromium Embedded Framework.framework --main-bundle-path=/Applications/zoom.us.app --log-severity=disable --helper-bundle-path=/Users/josef/Library/Application Support/zoom.us/CefPlugin/WebView/150.0.1.1012_arm64/zCefHelper.bundle --no-sandbox --disable-background-timer-throttling --max-decoded-image-size-mb=32 --lang=en --num-raster-threads=4 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=5 --time-ticks-at-unix-epoch=-1790459481234083 --launch-time-ticks=2057156267011 --shared-files --metrics-shmem-handle=1752395122,r,11530815051372939501,4781425735654830068,2097152 --field-trial-handle=1718379636,r,14688101194827773349,8881295442037521621,262144 --enable-features=HappyEyeballsV2 --disable-features=AutofillActorMode,BackForwardCache,GlicActorUi,KillOnInvalidNavigationHeaders,LensOverlay,RenderDocument,SystemNotifications --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16865711368564277389,14171222189464369313,4 --trace-process-track-uuid=3190708990997080739;
+FINAL median=5 tries=0
+localeval speed exit 0
+- thinking: off; run kind: speed; label: st-intarsia-2
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096,16384 --gen 128 --reps 3 --thinking off --label st-intarsia-2`
+- result file: `results/20261021-112255-adhoc-st-intarsia-2/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.05 | 2084 (2082–2127) * | - | 35.0 (34.1–35.8) | 35.6 (35.2–35.9) | - | - | 128 |
+| 989 | 0.25 | 3994 (3881–4005) * | 4474 | 35.9 (35.9–35.9) | 36.1 (36.0–36.1) | - | - | 128 |
+| 4088 | 1.04 | 3919 (3917–3922) | 3898 | 35.3 (35.3–35.4) | 35.5 (35.5–35.5) | - | - | 128 |
+| 16678 | 6.09 | 2737 (2626–2789) | 2493 | 31.4 (30.8–31.6) | 31.8 (31.3–31.9) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-112255-adhoc-st-intarsia-2/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22
+port 8093 closed
+pid 55181 gone
+ALLDONE
+#2960 "standings: metal intarsia vs mlx-lm vs llama.cpp (Qwen3-8B bf16)" (claude-f31ccf91) done on endor exclusive 40 GB

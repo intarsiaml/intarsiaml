@@ -1,0 +1,38 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=20480
+[localeval]    128 tok rep 1/3: prompt=115 ttft=0.09s prefill=1265 tok/s decode=34.2 tok/s peak=34.7 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=112 ttft=0.09s prefill=1233 tok/s decode=34.2 tok/s peak=34.7 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=110 ttft=0.09s prefill=1170 tok/s decode=34.3 tok/s peak=34.6 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.39s prefill=2551 tok/s decode=34.0 tok/s peak=34.3 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=993 ttft=0.39s prefill=2526 tok/s decode=30.6 tok/s peak=33.8 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.42s prefill=2320 tok/s decode=28.9 tok/s peak=29.7 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=2.29s prefill=1786 tok/s decode=29.2 tok/s peak=31.7 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4090 ttft=2.24s prefill=1821 tok/s decode=32.4 tok/s peak=33.0 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=1.77s prefill=2305 tok/s decode=30.9 tok/s peak=32.2 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16678 ttft=12.00s prefill=1389 tok/s decode=27.8 tok/s peak=29.3 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16674 ttft=11.35s prefill=1469 tok/s decode=29.2 tok/s peak=29.5 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16679 ttft=12.77s prefill=1306 tok/s decode=29.3 tok/s peak=29.7 tok/s out=128
+# localeval: adhoc — 2026-10-21T11:20
+- model: `/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf` on ? (?), url `http://127.0.0.1:8091/v1`
+- thinking: off; run kind: speed; label: st-llamacpp
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8091/v1 --model /Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf --sizes 128,1024,4096,16384 --gen 128 --reps 3 --thinking off --label st-llamacpp`
+- result file: `results/20261021-112006-adhoc-st-llamacpp/result.json`
+## Speed sweep
+served `/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf`, fingerprint `b11429-d81235049`, ctx 20480, 3 reps, 128 forced output tokens
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.09 | 1233 (1170–1265) * | - | 34.2 (34.2–34.3) | 34.7 (34.6–34.7) | 1286 | 34.2 | 128 |
+| 990 | 0.39 | 2526 (2320–2551) * | 2917 | 30.6 (28.9–34.0) | 33.8 (29.7–34.3) | 2553 | 30.6 | 128 |
+| 4089 | 2.24 | 1821 (1786–2305) | 1673 | 30.9 (29.2–32.4) | 32.2 (31.7–33.0) | 1826 | 30.9 | 128 |
+| 16678 | 12.00 | 1389 (1306–1469) | 1290 | 29.2 (27.8–29.3) | 29.5 (29.3–29.7) | 1391 | 29.2 | 128 |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+## Warnings
+- decode spread 16.8% at 1024 tokens: noisy; rerun before comparing
+- decode spread 10.5% at 4096 tokens: noisy; rerun before comparing
+## Method
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261021-112006-adhoc-st-llamacpp/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22

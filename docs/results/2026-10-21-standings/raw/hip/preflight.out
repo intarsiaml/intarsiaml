@@ -1,0 +1,7 @@
+WARNING: radv is not a conformant Vulkan implementation, testing use only.
+WARNING: radv is not a conformant Vulkan implementation, testing use only.
+version: 0.4.0-dev (build 10864, commit 5d806aa25)
+built with GNU 11.4.0 for Linux x86_64
+preflight: llama.cpp HIP build has unresolved libs in the dev image, ROCm arm will be skipped
+active
+2

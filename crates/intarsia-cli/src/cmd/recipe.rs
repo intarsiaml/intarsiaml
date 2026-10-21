@@ -103,9 +103,21 @@ fn new_cmd(a: NewArgs) -> Result<()> {
     for n in &an.notes {
         println!("  note: {n}");
     }
-    let path = a.out.clone().unwrap_or_else(|| PathBuf::from("recipes").join(format!("{}.toml", an.family)));
+    let path = a.out.clone().unwrap_or_else(|| {
+        // `recipes/<family>.toml` is usually the family's existing recipe, which (we are here) does not cover this model,
+        // e.g. a VL wrapper of a known text family: do not default onto it, take the first free `<family>_<n>.toml`
+        let base = PathBuf::from("recipes").join(format!("{}.toml", an.family));
+        if !base.exists() {
+            return base;
+        }
+        (2..100).map(|n| PathBuf::from("recipes").join(format!("{}_{n}.toml", an.family))).find(|p| !p.exists()).unwrap_or(base)
+    });
     if path.exists() && !a.force {
-        bail!("{} exists; refusing to overwrite it (pass --force)", path.display());
+        bail!(
+            "{} exists; refusing to overwrite it. It may be another model's recipe: pass --out recipes/<new name>.toml \
+             (--force overwrites it)",
+            path.display()
+        );
     }
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;

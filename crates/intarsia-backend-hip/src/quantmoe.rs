@@ -232,6 +232,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2 + 16)
                     .priority(10),
                 "matmul_mxfp4_mma" => k
                     .acts(bf)

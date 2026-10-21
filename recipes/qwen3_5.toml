@@ -61,3 +61,9 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
 [defaults]
 kv_dtype = "bf16"
 max_batch = 32
+
+# `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML). No
+# reuse_logit_tol / reuse_kl_tol yet: they must be measured once on a known-good build of this model (a GPU run) and
+# written here; until then the judge uses its built-in constants, calibrated on dense Qwen3-8B.
+[accuracy]
+chat_turns = "chatml"

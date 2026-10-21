@@ -1,5 +1,7 @@
 # Metal continuous batching: two missing hardware gates (prefix reuse, speculation)
 
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C16: "chunk-size invariance remains unproven" is stale: `2026-10-15-metal-chunk-golden.md` proves 256 vs 2048 prefill bitwise identical on 33 prompts.
+
 Date 2026-10-16. Machine endor (Apple M5 Max), Qwen3-8B BF16, `--max-seq 8192`. Branch `metal-cb-gates` from `70b15eb` (`spike/metal` with `serve --max-batch`). Binary: `intarsia-gates2`, sha256 prefix `2f3d4855efa24581`, built `cargo build --release -p intarsia-cli --features metal` at `75ecb17`. Identity contract: `docs/research/continuous-batching-design.md` 4.5 (a batched request equals its solo run at the same prefill chunk and the same cached length, KV written the same way).
 
 | Gate | Result | Numbers |

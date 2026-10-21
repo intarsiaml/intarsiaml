@@ -347,10 +347,7 @@ impl Model {
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
-        let mxfp4_act = opts
-            .mxfp4_act
-            .or_else(|| src.quant_scheme().and_then(|s| s.mxfp4_act()))
-            .unwrap_or(crate::quant::Mxfp4Act::None);
+        let mxfp4_act = crate::quant::mxfp4::effective_act(opts.mxfp4_act, src.quant_scheme().and_then(|s| s.mxfp4_act()));
         let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), mxfp4_act, shard: None };
         // `n`, `k`: the shape this rank holds (for a sharded weight, its slice of the checkpoint's `[n, k]`)
         let load_qs = |tmpl: &str, layer: usize, n: usize, k: usize, axis: Option<ShardAxis>| -> Result<QTensor> {
