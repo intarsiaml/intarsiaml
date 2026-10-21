@@ -18,6 +18,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemv_v2", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
+    // M1 drill (kernels/hip/mxfp4.hip): OCP MXFP4 (Quark), W4A4 dynamic or W4A16 by the op's act input
+    ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
+    ("matmul_mxfp4_mma", Op::MatmulMxfp4),
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_topk_bf16_v2", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
@@ -222,6 +225,23 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL),
+                "matmul_mxfp4_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=8).contains(&s.m) && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2 + 16)
+                    .priority(10),
+                "matmul_mxfp4_mma" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2 + 16),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))

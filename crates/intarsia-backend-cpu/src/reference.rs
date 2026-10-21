@@ -55,7 +55,7 @@ pub fn run(call: &OpCall) -> Result<()> {
     let a = &call.attrs;
     match call.op {
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn_ref::run(call),
-        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
+        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::MatmulPair
         | Op::MatmulFp8Pair
         | Op::MatmulNvfp4Glu

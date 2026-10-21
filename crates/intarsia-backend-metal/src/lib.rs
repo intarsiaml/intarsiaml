@@ -34,6 +34,7 @@ pub mod gemm_nax;
 mod host;
 pub mod kernels;
 pub mod multirow;
+mod mxfp4;
 pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
@@ -672,6 +673,9 @@ impl Backend for MetalBackend {
         }
         if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
             return self.launch_attn_rows(call);
+        }
+        if kernel == mxfp4::MATMUL_MXFP4_GEMV && call.op == Op::MatmulMxfp4 {
+            return self.launch_mxfp4(call);
         }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
             return self.launch_matmul_rows(call);

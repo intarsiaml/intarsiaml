@@ -12,7 +12,7 @@ use crate::admission::{Case, ShapeCaps, SweepConfig};
 use crate::dtype::DType;
 use crate::exec::{HostCall, OutSpec};
 use crate::ops::{Op, OpAttrs, OpCall};
-use crate::quant::{fp8, nvfp4, FP8_E4M3, NVFP4};
+use crate::quant::{fp8, mxfp4, nvfp4, Mxfp4Act, FP8_E4M3, MXFP4, NVFP4};
 use crate::rng::SplitMix64;
 use crate::tensor::HostTensor;
 
@@ -39,6 +39,19 @@ pub fn matmul_nvfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt
     let mut parts = q.parts.into_iter();
     HostCall {
         op: Op::MatmulNvfp4,
+        inputs: vec![x, parts.next().unwrap(), parts.next().unwrap(), parts.next().unwrap()],
+        outputs: vec![OutSpec::new(odt, &[m, n])],
+        attrs: OpAttrs::default(),
+    }
+}
+
+/// `MatmulMxfp4`: random MXFP4 weights; `act` picks the activation mode (the op's `act` input).
+pub fn matmul_mxfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, act: Mxfp4Act, xdt: DType, odt: DType) -> HostCall {
+    let q = mxfp4::random_rows(rng, n, k, act);
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let mut parts = q.parts.into_iter();
+    HostCall {
+        op: Op::MatmulMxfp4,
         inputs: vec![x, parts.next().unwrap(), parts.next().unwrap(), parts.next().unwrap()],
         outputs: vec![OutSpec::new(odt, &[m, n])],
         attrs: OpAttrs::default(),
@@ -440,6 +453,39 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
             }
         }
+        Op::MatmulMxfp4 => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 8, 9, 40] };
+            let mut nk = vec![(64usize, 64usize), (40, 96)];
+            if !quick {
+                // Qwen3.8-27B (hidden 5120): GDN in_proj_a/b, k/v_proj, o_proj / out_proj
+                nk.extend([(48, 5120), (1024, 5120), (5120, 6144)]);
+            }
+            for &m in ms {
+                for &(n, k) in &nk {
+                    for (xdt, odt, act) in [
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::Dynamic),
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::None),
+                        (DType::F32, DType::F32, Mxfp4Act::Dynamic),
+                    ] {
+                        push(
+                            format!("M={m} N={n} K={k} x={xdt} out={odt} act={}", act.name()),
+                            matmul_mxfp4_case(&mut rng, m, n, k, act, xdt, odt),
+                        );
+                    }
+                }
+            }
+            if !quick {
+                // the 27B gate/up projection, one row, both activation modes
+                for act in [Mxfp4Act::Dynamic, Mxfp4Act::None] {
+                    push(
+                        format!("M=1 N=17408 K=5120 x=bf16 out=bf16 act={}", act.name()),
+                        matmul_mxfp4_case(&mut rng, 1, 17408, 5120, act, DType::Bf16, DType::Bf16),
+                    );
+                }
+                // a prefill-shaped batch with M and N tails
+                push("M=300 N=1000 K=512 x=bf16 out=bf16 act=dynamic".into(), matmul_mxfp4_case(&mut rng, 300, 1000, 512, Mxfp4Act::Dynamic, DType::Bf16, DType::Bf16));
+            }
+        }
         Op::MoeTopk => {
             let ts: &[usize] = if quick { &[1, 5] } else { &[1, 5, 33, 256] };
             let ek: &[(usize, usize)] = if quick { &[(8, 2), (64, 8)] } else { &[(8, 2), (64, 8), (256, 8), (256, 1)] };
@@ -690,6 +736,16 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].dtype,
             o[0].dtype
         ),
+        Op::MatmulMxfp4 => format!(
+            "M={} N={} K={} x={} out={} act={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype,
+            // the act flag is a value, not visible at plan time; the case grades the declared W4A4 mode
+            "dynamic"
+        ),
         Op::MoeTopk => format!(
             "T={} E={} K={} {} norm={}",
             i[0].shape[0].min(caps.rows),
@@ -804,6 +860,15 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
         Op::MatmulNvfp4 => {
             matmul_nvfp4_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
         }
+        Op::MatmulMxfp4 => matmul_mxfp4_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[0].shape[1],
+            Mxfp4Act::Dynamic,
+            i[0].dtype,
+            o[0].dtype,
+        ),
         Op::MoeTopk => topk_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], call.attrs.top_k, true, i[0].dtype, call.attrs.norm_topk),
         Op::MoeExperts => {
             let k = i[1].shape[1];
@@ -888,7 +953,7 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
 }
 
 /// Format ids this module generates cases for (documentation / tests).
-pub const FORMATS: [&str; 2] = [FP8_E4M3, NVFP4];
+pub const FORMATS: [&str; 3] = [FP8_E4M3, NVFP4, MXFP4];
 
 #[cfg(test)]
 mod tests {
@@ -912,6 +977,7 @@ mod tests {
             Op::SigmoidMulMatmulFp8,
             Op::SharedDownCombine,
             Op::MoeBlock,
+            Op::MatmulMxfp4,
         ] {
             let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
             assert!(!cases.is_empty());

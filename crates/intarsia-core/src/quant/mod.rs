@@ -3,7 +3,8 @@
 //! * [`QuantFormat`]: `detect` a format from checkpoint tensors, `load` it onto a backend as a [`QTensor`],
 //!   `dequant_ref` back to f32 (the oracle: `dequant_ref` + a plain matmul is the meaning of every kernel),
 //!   `quantize` (optional round-to-nearest quantiser for tests and on-the-fly use).
-//! * Formats: `bf16` (plain dense), `fp8_e4m3` (per-tensor scale, [`fp8`]), `nvfp4` (ModelOpt, [`nvfp4`]).
+//! * Formats: `bf16` (plain dense), `fp8_e4m3` (per-tensor scale, [`fp8`]), `nvfp4` (ModelOpt, [`nvfp4`]),
+//!   `mxfp4` (OCP MX, AMD Quark, [`mxfp4`]).
 //! * [`moe`]: the Qwen3.5/3.6 sparse MoE block (router + routed NVFP4 experts + gated shared expert).
 //! * [`ops`]: shape/dtype validation of the quantised and MoE ops (`Op::MatmulFp8`, `MatmulNvfp4`, `MoeTopk`,
 //!   `MoeExperts`, `MoeCombine`); [`cases`]: admission sweeps and plan-time case builders for them.
@@ -13,6 +14,7 @@
 pub mod cases;
 pub mod fp8;
 pub mod moe;
+pub mod mxfp4;
 pub mod nvfp4;
 pub mod ops;
 pub mod reference;
@@ -29,6 +31,9 @@ pub type QuantId = &'static str;
 pub const BF16: QuantId = "bf16";
 pub const FP8_E4M3: QuantId = "fp8_e4m3";
 pub const NVFP4: QuantId = "nvfp4";
+pub const MXFP4: QuantId = "mxfp4";
+
+pub use mxfp4::Mxfp4Act;
 
 /// How the FP8 format treats activations (per-recipe option, see `fp8.rs`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Deserialize, serde::Serialize)]
@@ -54,6 +59,8 @@ impl Fp8Act {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct QuantLoadOpts {
     pub fp8_act: Fp8Act,
+    /// MXFP4: dynamic MXFP4 activations (the declared W4A4 scheme) or 16-bit activations (W4A16).
+    pub mxfp4_act: Mxfp4Act,
     /// Tensor parallelism: keep only this rank's slice of the weight (see [`crate::weights::Shard`]). Formats that
     /// cannot slice their layout refuse with `Unsupported` instead of loading the whole tensor.
     pub shard: Option<crate::weights::Shard>,
@@ -75,6 +82,8 @@ impl QuantLoadOpts {
 pub struct QuantCfg {
     /// FP8: static activation scale to record (None = W8A16).
     pub input_scale: Option<f32>,
+    /// MXFP4: activation mode to record (None = the default, dynamic).
+    pub mxfp4_act: Option<Mxfp4Act>,
 }
 
 /// The checkpoint tensors of one linear layer: `{prefix}.weight`, `{prefix}.weight_scale`, ...
@@ -103,14 +112,15 @@ impl<'a> WeightMeta<'a> {
 }
 
 /// A quantised weight matrix `[n, k]` resident on a backend. `parts` are the op's weight inputs in order
-/// (after the activation): `[w]` (bf16), `[w, scales]` (fp8), `[w, block_scales, global]` (nvfp4).
+/// (after the activation): `[w]` (bf16), `[w, scales]` (fp8), `[w, block_scales, global]` (nvfp4),
+/// `[w, e8m0_scales, act]` (mxfp4).
 #[derive(Clone, Debug)]
 pub struct QTensor {
     pub format: QuantId,
     pub n: usize,
     pub k: usize,
     pub parts: Vec<TensorRef>,
-    /// FP8 only: the `scales` tensor carries a positive input scale (W8A8).
+    /// FP8: the `scales` tensor carries a positive input scale (W8A8). MXFP4: the `act` input is 1 (W4A4).
     pub act_quant: bool,
 }
 
@@ -132,6 +142,7 @@ impl HostQTensor {
                 let gs = self.parts[2].to_f32()[0];
                 nvfp4::dequant_rows(&self.parts[0].data, &self.parts[1].data, gs, self.n, self.k)
             }
+            MXFP4 => mxfp4::dequant_rows(&self.parts[0].data, &self.parts[1].data, self.n, self.k),
             FP8_E4M3 => {
                 let ws = self.parts[1].to_f32()[0];
                 self.parts[0].to_f32().into_iter().map(|v| v * ws).collect()
@@ -158,6 +169,7 @@ impl HostQTensor {
 fn op_for(format: QuantId, f32_out: bool) -> Op {
     match format {
         NVFP4 => Op::MatmulNvfp4,
+        MXFP4 => Op::MatmulMxfp4,
         FP8_E4M3 => Op::MatmulFp8,
         _ if f32_out => Op::Logits,
         _ => Op::Matmul,
@@ -243,11 +255,12 @@ impl QuantFormat for Bf16Dense {
 }
 
 /// Every known format, most specific first.
-pub fn formats() -> [&'static dyn QuantFormat; 3] {
+pub fn formats() -> [&'static dyn QuantFormat; 4] {
     static NV: nvfp4::Nvfp4 = nvfp4::Nvfp4;
+    static MX: mxfp4::Mxfp4 = mxfp4::Mxfp4;
     static F8: fp8::Fp8E4m3 = fp8::Fp8E4m3;
     static BF: Bf16Dense = Bf16Dense;
-    [&NV, &F8, &BF]
+    [&NV, &MX, &F8, &BF]
 }
 
 pub fn format_by_id(id: &str) -> Option<&'static dyn QuantFormat> {
@@ -294,9 +307,13 @@ mod tests {
         w.insert("b.weight_scale", HostTensor::from_f32(&[], &[0.01]));
         w.insert("b.input_scale", HostTensor::from_f32(&[], &[0.1]));
         w.insert("c.weight", HostTensor::from_f32_as(DType::Bf16, &[4, 32], &rng.normal_vec(128, 1.0)));
+        let mx = mxfp4::random_rows(&mut rng, 4, 64, Mxfp4Act::Dynamic);
+        w.insert("e.weight", mx.parts[0].clone());
+        w.insert("e.weight_scale", mx.parts[1].clone());
         assert_eq!(detect(&WeightMeta::new(&w, "a")).unwrap().id(), NVFP4);
         assert_eq!(detect(&WeightMeta::new(&w, "b")).unwrap().id(), FP8_E4M3);
         assert_eq!(detect(&WeightMeta::new(&w, "c")).unwrap().id(), BF16);
+        assert_eq!(detect(&WeightMeta::new(&w, "e")).unwrap().id(), MXFP4);
         assert!(detect(&WeightMeta::new(&w, "d")).is_err());
     }
 }

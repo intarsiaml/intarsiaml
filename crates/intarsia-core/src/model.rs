@@ -23,7 +23,7 @@ use crate::recipe::{LinearDims, ModelDims, Recipe};
 use crate::registry::Registry;
 use crate::state::{PeerState, SequenceState, SlotSpec, StateSlot};
 use crate::telemetry::Telemetry;
-use crate::weights::{load_tensor, load_tensor_shard, Shard, ShardAxis, WeightSource};
+use crate::weights::{load_tensor, Shard, ShardAxis, WeightSource};
 use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -55,6 +55,9 @@ pub struct LoadOptions {
     /// FP8 projections: activations quantised with the checkpoint's static scale (`static`, W8A8) or kept
     /// 16-bit (`none`, W8A16). `None` = the recipe's `[defaults] fp8_act`.
     pub fp8_act: Option<Fp8Act>,
+    /// MXFP4 projections: dynamic MXFP4 activations (`dynamic`, W4A4) or 16-bit (`none`, W4A16). `None` = what the
+    /// checkpoint declares (Quark `input_tensors`), W4A16 when it declares nothing.
+    pub mxfp4_act: Option<crate::quant::Mxfp4Act>,
     /// Replay the single-token decode step as a captured graph when the backend supports it (`--no-graphs` turns
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
@@ -71,6 +74,7 @@ impl Default for LoadOptions {
             profile_every: 1,
             mem_budget: None,
             fp8_act: None,
+            mxfp4_act: None,
             graphs: true,
         }
     }
@@ -92,11 +96,13 @@ struct AttnBlock {
     rotary_dim: usize,
 }
 
+/// Dense SwiGLU FFN. The projections are in any supported weight format (bf16, or a quantised checkpoint such as the
+/// MXFP4 Qwen3.8-27B); a tensor-parallel rank holds bf16 slices (the quantised formats refuse to shard).
 struct FfnBlock {
     pre_norm: TensorRef,
-    gate: TensorRef,
-    up: TensorRef,
-    down: TensorRef,
+    gate: QTensor,
+    up: QTensor,
+    down: QTensor,
 }
 
 /// Sparse MoE FFN (router + routed experts + gated shared expert); the activation scratch is shared in the workspace.
@@ -337,7 +343,8 @@ impl Model {
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
-        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), shard: None };
+        let mxfp4_act = crate::quant::mxfp4::effective_act(opts.mxfp4_act, src.quant_scheme().and_then(|s| s.mxfp4_act()));
+        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), mxfp4_act, shard: None };
         // `n`, `k`: the shape this rank holds (for a sharded weight, its slice of the checkpoint's `[n, k]`)
         let load_qs = |tmpl: &str, layer: usize, n: usize, k: usize, axis: Option<ShardAxis>| -> Result<QTensor> {
             let prefix = Recipe::expand(tmpl, layer);
@@ -354,19 +361,6 @@ impl Model {
             Ok(q)
         };
         let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| load_qs(tmpl, layer, n, k, None);
-        // a dense weight `[n, k]` (this rank's shape) in whatever slice the rank keeps
-        let load_sharded = |tmpl: &str, layer: usize, axis: ShardAxis, expect: [usize; 2]| -> Result<TensorRef> {
-            if tp.world == 1 {
-                return load(tmpl, layer, Some(&expect));
-            }
-            let name = resolve(src, &Recipe::expand(tmpl, layer))?;
-            let t = load_tensor_shard(b, src, &name, Shard { axis, rank: tp.rank, world: tp.world })?;
-            if t.shape != expect {
-                return Err(Error::model(format!("tensor '{name}' shard is {:?}, expected {expect:?}", t.shape)));
-            }
-            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
-            Ok(t)
-        };
 
         let embed = load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?;
         let act = match opts.act_dtype {
@@ -547,9 +541,9 @@ impl Model {
                         }
                         blocks.push(Block::Ffn(FfnBlock {
                             pre_norm: load(pre, li, Some(&[dims.hidden]))?,
-                            gate: load_sharded(&f.gate, li, ShardAxis::Rows, [dims.intermediate, dims.hidden])?,
-                            up: load_sharded(&f.up, li, ShardAxis::Rows, [dims.intermediate, dims.hidden])?,
-                            down: load_sharded(&f.down, li, ShardAxis::Cols, [dims.hidden, dims.intermediate])?,
+                            gate: load_qs(&f.gate, li, dims.intermediate, dims.hidden, Some(ShardAxis::Rows))?,
+                            up: load_qs(&f.up, li, dims.intermediate, dims.hidden, Some(ShardAxis::Rows))?,
+                            down: load_qs(&f.down, li, dims.hidden, dims.intermediate, Some(ShardAxis::Cols))?,
                         }));
                     }
                     other => {
@@ -1859,27 +1853,33 @@ impl Model {
         let g = self.view(&ws.g, act, &[t, i]);
         let u = self.view(&ws.u, act, &[t, i]);
         let a = self.view(&ws.a, act, &[t, i]);
+        let bf16 = |q: &QTensor| q.format == crate::quant::BF16;
         // gate and up read the same activation: one launch for both when the backend has the fused bf16 pair
-        let gu_fused = self.try_fused(
-            Op::MatmulPair,
-            vec![n.clone(), f.gate.clone(), f.up.clone()],
-            vec![g.clone(), u.clone()],
-            OpAttrs::default(),
-            profile,
-        )?;
+        let gu_fused = bf16(&f.gate)
+            && bf16(&f.up)
+            && self.try_fused(
+                Op::MatmulPair,
+                vec![n.clone(), f.gate.parts[0].clone(), f.up.parts[0].clone()],
+                vec![g.clone(), u.clone()],
+                OpAttrs::default(),
+                profile,
+            )?;
         if !gu_fused {
-            self.exec(Op::Matmul, vec![n.clone(), f.gate.clone()], vec![g.clone()], OpAttrs::default(), profile)?;
-            self.exec(Op::Matmul, vec![n.clone(), f.up.clone()], vec![u.clone()], OpAttrs::default(), profile)?;
+            self.proj(n, &f.gate, &g, profile)?;
+            self.proj(n, &f.up, &u, profile)?;
         }
         self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
-                self.exec(Op::Logits, vec![a, f.down.clone()], vec![part.clone()], OpAttrs::default(), profile)?;
+                if !bf16(&f.down) {
+                    return Err(Error::Unsupported(format!("tensor-parallel dense FFN with {} weights", f.down.format)));
+                }
+                self.exec(Op::Logits, vec![a, f.down.parts[0].clone()], vec![part.clone()], OpAttrs::default(), profile)?;
                 self.all_reduce(&part, out, profile)
             }
             None => {
-                self.exec(Op::Matmul, vec![a, f.down.clone()], vec![out.clone()], OpAttrs::default(), profile)?;
+                self.proj(&a, &f.down, out, profile)?;
                 self.all_reduce(out, out, profile)
             }
         }

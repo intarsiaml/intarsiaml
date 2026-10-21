@@ -14,8 +14,13 @@
 //! Layer keys of `quantized_layers` are checkpoint module names (`model.language_model.layers.0.linear_attn.out_proj`);
 //! the fused `mlp.experts` entries have no `.weight` tensor and are not checked here. `exclude_modules` entries are
 //! globs with `*`.
+//!
+//! AMD Quark checkpoints declare their scheme in `config.json` `quantization_config` (`quant_method = "quark"`) instead:
+//! [`QuantScheme::parse_quark`] maps its `global_quant_config` onto the same model (one global algorithm plus an
+//! `exclude` list of module names). Only OCP MXFP4 weights (fp4, per_group 32, e8m0) are implemented; the activation
+//! spec decides W4A4 (dynamic fp4 `input_tensors`) or W4A16 (none).
 
-use super::{QuantId, BF16, FP8_E4M3, NVFP4};
+use super::{Mxfp4Act, QuantId, BF16, FP8_E4M3, MXFP4, NVFP4};
 use crate::dtype::DType;
 use crate::error::{Error, Result};
 use serde_json::Value;
@@ -30,6 +35,10 @@ pub enum Algo {
     Nvfp4W4A16,
     /// `NVFP4` (and AWQ variants): 4-bit weights and 4-bit activations. Not implemented.
     Nvfp4W4A4,
+    /// Quark OCP MXFP4 weights with dynamic MXFP4 activations (`MXFP4_W4A4`, our name for the Quark spec).
+    Mxfp4W4A4,
+    /// Quark OCP MXFP4 weights, 16-bit activations (`MXFP4_W4A16`).
+    Mxfp4W4A16,
     /// Anything else (INT4_AWQ, MXFP8, per-channel FP8, ...). Not implemented.
     Other,
 }
@@ -39,6 +48,8 @@ impl Algo {
         match s.trim().to_ascii_uppercase().as_str() {
             "FP8" => Algo::Fp8W8A8,
             "W4A16_NVFP4" => Algo::Nvfp4W4A16,
+            "MXFP4_W4A4" => Algo::Mxfp4W4A4,
+            "MXFP4_W4A16" => Algo::Mxfp4W4A16,
             a if a == "NVFP4" || a.starts_with("NVFP4_") || a == "W4A4_NVFP4" || a == "W4A4_NVFP4_FP8" => Algo::Nvfp4W4A4,
             _ => Algo::Other,
         }
@@ -48,6 +59,7 @@ impl Algo {
         match self {
             Algo::Fp8W8A8 => Some(FP8_E4M3),
             Algo::Nvfp4W4A16 => Some(NVFP4),
+            Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 => Some(MXFP4),
             _ => None,
         }
     }
@@ -109,6 +121,82 @@ impl QuantScheme {
         Ok(QuantScheme { quant_algo: as_str("quant_algo"), kv_cache_quant_algo: as_str("kv_cache_quant_algo"), layers, exclude })
     }
 
+    /// Parse a Quark `quantization_config` (the object from `config.json`, `quant_method = "quark"`).
+    ///
+    /// The global weight spec must be OCP MXFP4 (`dtype fp4`, `qscheme per_group`, `group_size 32`, `scale_format e8m0`)
+    /// for the declared algorithm to be one we implement; anything else is recorded verbatim (`QUARK_<dtype>...`) and
+    /// rejected per layer by [`QuantScheme::check_linear`]. Per-layer overrides (`layer_quant_config`,
+    /// `layer_type_quant_config`) are not implemented and are an error when non-empty. `exclude` entries name modules,
+    /// some with a `.weight` suffix; the suffix is dropped.
+    pub fn parse_quark(qc: &Value) -> Result<QuantScheme> {
+        let method = qc.get("quant_method").and_then(Value::as_str).unwrap_or("");
+        if method != "quark" {
+            return Err(Error::model(format!("quantization_config.quant_method is '{method}', not 'quark'")));
+        }
+        for k in ["layer_quant_config", "layer_type_quant_config"] {
+            if qc.get(k).and_then(Value::as_object).is_some_and(|o| !o.is_empty()) {
+                return Err(Error::Unsupported(format!("Quark quantization_config.{k} (per-layer overrides) is not implemented")));
+            }
+        }
+        let g = qc
+            .get("global_quant_config")
+            .filter(|v| !v.is_null())
+            .ok_or_else(|| Error::model("Quark quantization_config has no global_quant_config"))?;
+        let field = |spec: &Value, k: &str| spec.get(k).map(|v| v.as_str().map(String::from).unwrap_or_else(|| v.to_string())).unwrap_or_default();
+        let w = g.get("weight").filter(|v| !v.is_null()).ok_or_else(|| Error::model("Quark global_quant_config has no weight spec"))?;
+        let is_mxfp4 = |spec: &Value| {
+            field(spec, "dtype") == "fp4"
+                && field(spec, "qscheme") == "per_group"
+                && spec.get("group_size").and_then(Value::as_u64) == Some(32)
+                && field(spec, "scale_format") == "e8m0"
+        };
+        let input = g.get("input_tensors").filter(|v| !v.is_null());
+        let algo = if !is_mxfp4(w) {
+            format!("QUARK_{}_{}_g{}_{}", field(w, "dtype"), field(w, "qscheme"), field(w, "group_size"), field(w, "scale_format"))
+        } else {
+            match input {
+                None => "MXFP4_W4A16".to_string(),
+                Some(i) if is_mxfp4(i) && i.get("is_dynamic").and_then(Value::as_bool) == Some(true) => {
+                    // the scale rule must be the one `mxfp4::e8m0_scale_even` implements
+                    match field(i, "scale_calculation_mode").as_str() {
+                        "even" | "" | "null" => "MXFP4_W4A4".to_string(),
+                        other => format!("MXFP4_W4A4_scale_{other}"),
+                    }
+                }
+                Some(i) => format!("MXFP4_W4_A_{}_{}", field(i, "dtype"), field(i, "qscheme")),
+            }
+        };
+        let exclude = qc
+            .get("exclude")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.strip_suffix(".weight").unwrap_or(s).to_string())).collect())
+            .unwrap_or_default();
+        Ok(QuantScheme { quant_algo: Some(algo), kv_cache_quant_algo: None, layers: BTreeMap::new(), exclude })
+    }
+
+    /// The MXFP4 activation mode the checkpoint declares (`None` when it declares no MXFP4 algorithm).
+    pub fn mxfp4_act(&self) -> Option<Mxfp4Act> {
+        match Algo::parse(self.quant_algo.as_deref()?) {
+            Algo::Mxfp4W4A4 => Some(Mxfp4Act::Dynamic),
+            Algo::Mxfp4W4A16 => Some(Mxfp4Act::None),
+            _ => None,
+        }
+    }
+
+    /// A deviation note when the MXFP4 activation mode we run differs from the declared one.
+    pub fn mxfp4_act_note(&self, ours: Mxfp4Act) -> Option<String> {
+        let declared = self.mxfp4_act()?;
+        (declared != ours).then(|| {
+            format!(
+                "checkpoint declares MXFP4 activations '{}' ({}); running '{}' (opt-in --mxfp4-act): a deviation from the declared \
+                 scheme and from a reference that runs it",
+                declared.name(),
+                self.quant_algo.as_deref().unwrap_or(""),
+                ours.name()
+            )
+        })
+    }
+
     pub fn is_excluded(&self, module: &str) -> bool {
         self.exclude.iter().any(|p| glob(p, module))
     }
@@ -150,7 +238,7 @@ impl QuantScheme {
             ))),
             Algo::Other => Err(Error::Unsupported(format!(
                 "'{module}' is declared quant_algo '{algo}' in hf_quant_config.json, which this engine does not implement \
-                 (supported: FP8, W4A16_NVFP4)"
+                 (supported: FP8, W4A16_NVFP4, Quark MXFP4 with dynamic fp4 or 16-bit activations)"
             ))),
             _ => {
                 let want = a.format().unwrap();
@@ -258,6 +346,48 @@ mod tests {
         assert!(s.kv_note(DType::Fp8E4m3).is_none());
         let none: Value = serde_json::from_str(r#"{"quantization":{"quant_algo":"FP8"}}"#).unwrap();
         assert!(QuantScheme::parse(&none).unwrap().kv_note(DType::Bf16).is_none());
+    }
+
+    fn quark(input: &str) -> Value {
+        serde_json::from_str(&format!(
+            r#"{{"quant_method":"quark","layer_quant_config":{{}},"layer_type_quant_config":{{}},
+            "global_quant_config":{{"weight":{{"dtype":"fp4","qscheme":"per_group","group_size":32,"scale_format":"e8m0","is_dynamic":false}},
+            "input_tensors":{input}}},
+            "exclude":["lm_head","mtp.fc.weight","model.visual.blocks.0.attn.qkv"]}}"#
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn quark_mxfp4_w4a4_and_w4a16() {
+        let a4 = r#"{"dtype":"fp4","qscheme":"per_group","group_size":32,"scale_format":"e8m0","is_dynamic":true,"scale_calculation_mode":"even"}"#;
+        let s = QuantScheme::parse_quark(&quark(a4)).unwrap();
+        assert_eq!(s.quant_algo.as_deref(), Some("MXFP4_W4A4"));
+        assert_eq!(s.mxfp4_act(), Some(Mxfp4Act::Dynamic));
+        s.check_linear("model.language_model.layers.0.mlp.gate_proj", MXFP4).unwrap();
+        assert!(s.check_linear("model.language_model.layers.0.mlp.gate_proj", BF16).is_err());
+        s.check_linear("lm_head", BF16).unwrap(); // excluded
+        s.check_linear("mtp.fc", BF16).unwrap(); // excluded with its .weight suffix dropped
+        assert!(s.mxfp4_act_note(Mxfp4Act::Dynamic).is_none());
+        assert!(s.mxfp4_act_note(Mxfp4Act::None).unwrap().contains("deviation"));
+        let s16 = QuantScheme::parse_quark(&quark("null")).unwrap();
+        assert_eq!(s16.mxfp4_act(), Some(Mxfp4Act::None));
+        s16.check_linear("model.language_model.layers.0.mlp.gate_proj", MXFP4).unwrap();
+    }
+
+    #[test]
+    fn quark_other_schemes_are_rejected_per_layer() {
+        let floor = r#"{"dtype":"fp4","qscheme":"per_group","group_size":32,"scale_format":"e8m0","is_dynamic":true,"scale_calculation_mode":"floor"}"#;
+        let s = QuantScheme::parse_quark(&quark(floor)).unwrap();
+        let e = s.check_linear("model.layers.0.mlp.up_proj", MXFP4).unwrap_err().to_string();
+        assert!(e.contains("MXFP4_W4A4_scale_floor") && e.contains("does not implement"), "{e}");
+        let mut v = quark("null");
+        v["global_quant_config"]["weight"]["dtype"] = "int4".into();
+        let s = QuantScheme::parse_quark(&v).unwrap();
+        assert!(s.check_linear("model.layers.0.mlp.up_proj", MXFP4).is_err());
+        let mut v = quark("null");
+        v["layer_quant_config"] = serde_json::json!({"model.layers.0.mlp.up_proj": {}});
+        assert!(QuantScheme::parse_quark(&v).is_err());
     }
 
     #[test]

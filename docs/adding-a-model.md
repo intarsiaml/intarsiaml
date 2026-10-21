@@ -119,7 +119,8 @@ intarsia qualify --model <dir> --backend <cpu|cuda|hip|metal> [--tp N] [--refere
 One run, two sections, back to back. Every stage runs this same binary as a subprocess (a stage cannot leak GPU
 memory into the next), records its wall time, verdict, provenance stamp and artifacts in
 `<out>/state.json`, and `--resume` skips the stages that finished (`PASS` or `FAIL`); a stage that ended in `SKIP`
-or `ERROR` is run again, so a run that skipped the golden stages can be completed with `--resume --golden-dir DIR`.
+or `ERROR` is run again, so a run that skipped the golden stages can be completed with `--resume --golden-dir DIR`. A stage that
+FAILed is kept as FAIL by `--resume`, and so are the stages it blocked: after fixing the engine, start a new `--out`.
 
 **Exit code**: `0` every gate passed, `1` a gate failed, `2` the pipeline itself failed (a tool crashed or timed
 out, bad arguments, or `--max-minutes` ran out before the end). A stage has one of four verdicts: `PASS`,
@@ -174,7 +175,16 @@ What each stage needs and how it decides:
   `tools/golden_vllm.py`, top-20 `prompt_logprobs`) or, for a small dense bf16 model (at most `--make-golden-max-gb`
   5 GB of weights, no MoE / hybrid / quantisation), an HF fp32 golden with `tools/golden.py` (needs `uv` or a
   python with torch and transformers). Otherwise the stage is **skipped with the reason**; a model that no one can
-  make a golden for needs `--golden` or `--reference`. The short golden cannot exercise prefix reuse (the reuse
+  make a golden for needs `--golden` or `--reference`. A reference server must implement vLLM's `prompt_logprobs`
+  (radiance 1.9.0 ignores it and returns no rows). For an AMD Quark MXFP4 checkpoint with no reference server and no
+  bf16 base, `tools/golden_quark_mxfp4.py` makes the golden from HF's own Qwen3.5 decoder layers, one layer in memory at a
+  time (~8.5 min and ~6 GB for Qwen3.8-27B on endor's CPU), with Quark's activation QDQ (`--act dynamic`, the declared
+  W4A4) or without (`--act none`, W4A16, to compare with `--mxfp4-act none`); see
+  docs/results/2026-10-21-m1-qwen38-drill.md. A W4A4 checkpoint (activations quantised at run time) does not pass
+  the absolute class floor against any golden that is not bit-identical: rounding activations to fp4 amplifies
+  last-bit differences, so the reference does not reproduce itself (Qwen3.8-27B: HF bf16 vs HF f32, both W4A4, 21-way
+  KL 0.197 against a floor of 0.03). Gate the weight path in W4A16 instead (`--mxfp4-act none` against an `--act none`
+  golden: 8.3e-4 there), and quote W4A4 against the reference's own spread (a second golden with `--dtype float32`). The short golden cannot exercise prefix reuse (the reuse
   gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt
   (`long_prose_700`, continue and restore) is long enough to exercise it: a thin check, and none at all at a prefill
   chunk above ~350 (the long golden's gate prints SKIPPED, which fails). A **4k golden** (`<name>-4k...`, built with
@@ -271,7 +281,20 @@ compare the top logits of the last prompt position with transformers: `intarsia 
 
 * New quantization format: implement `QuantFormat` (ARCHITECTURE 3.4) and register matmul kernels
   that accept it; the oracle path (`dequant_ref` then matmul) works as soon as `load` and
-  `dequant_ref` exist.
+  `dequant_ref` exist. The checklist the MXFP4 drill (docs/results/2026-10-21-m1-qwen38-drill.md) followed:
+  `quant/<fmt>.rs` (format, detect, load, quantize, test helpers) and its id in `quant/mod.rs` (`formats()`, `op()`,
+  `dequant()`); a new `Op` appended to `Op::ALL` with its arity, `quant::ops::check`/`shape` arms and admission cases in
+  `quant/cases.rs`; the oracle math in `quant/reference.rs` and the cpu dispatch (`intarsia-backend-cpu`
+  `quant_ref.rs`, `reference.rs`, `fast.rs`); the declared scheme in `quant/scheme.rs` (`Algo`, `check_linear`) and
+  where the loader reads it (`intarsia-models` `load.rs`); `recipe new`'s classifier (`cmd/recipe.rs` `Cls`); then per
+  backend a launcher in `kernels/<backend>/`, its ABI declaration, ffi, dispatch and table entry. Test the reference
+  against an independent decode of real tensor slices (`tools/gen_mxfp4_fixture.py`), then `intarsia kernels test`.
+  Supported today: bf16, FP8 (per-tensor), NVFP4 (ModelOpt W4A16), MXFP4 (Quark OCP MX, W4A4 by default as declared,
+  `--mxfp4-act none` for W4A16). Dense FFN, attention and GatedDeltaNet projections take any of them.
+* A multimodal wrapper of a known text family (`*ForConditionalGeneration`, text weights under
+  `model.language_model.*`) needs a copy of the family's recipe with the prefix changed (`recipes/qwen3_5_vl.toml`):
+  recipes have no prefix parameter or inheritance. `recipe new` then writes the scaffold to the first free
+  `recipes/<family>_<n>.toml`, not over the family's existing recipe.
 * New block kind (MLA, sliding window, GDN, Mamba, MoE): add the block to the decoder in
   `crates/intarsia-core/src/model.rs`, its op(s) to `ops.rs` with a cpu-ref reference, and a
   `SlotSpec` if it carries state (`Recurrent` for GDN/Mamba). Then `intarsia kernels test` covers it.

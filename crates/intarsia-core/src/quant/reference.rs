@@ -87,6 +87,40 @@ pub fn matmul_nvfp4(x: &[f32], m: usize, k: usize, w: &[u8], bs: &[u8], gs: f32,
     out
 }
 
+/// Dequantised MXFP4 row `r` of a `[n,k]` matrix as f64 (`fp4 * 2^(e8m0 - 127)`).
+pub fn mxfp4_row(w: &[u8], sc: &[u8], r: usize, k: usize, out: &mut [f64]) {
+    use crate::quant::mxfp4::{e8m0_to_f32, GROUP as MXG};
+    for j in 0..k {
+        let byte = w[r * (k / 2) + j / 2];
+        let code = if j % 2 == 0 { byte & 0xF } else { byte >> 4 };
+        out[j] = fp4_to_f32(code) as f64 * e8m0_to_f32(sc[r * (k / MXG) + j / MXG]) as f64;
+    }
+}
+
+/// `MatmulMxfp4` for `n` rows: `x` `[m,k]` -> `[m,n]` f64. `act_qdq`: QDQ `x` to dynamic MXFP4 first (W4A4).
+pub fn matmul_mxfp4(x: &[f32], m: usize, k: usize, w: &[u8], sc: &[u8], act_qdq: bool, n: usize) -> Vec<f64> {
+    let xq;
+    let x = if act_qdq {
+        xq = crate::quant::mxfp4::qdq_rows(x, m, k);
+        &xq[..]
+    } else {
+        x
+    };
+    let mut out = vec![0f64; m * n];
+    let mut row = vec![0f64; k];
+    for ni in 0..n {
+        mxfp4_row(w, sc, ni, k, &mut row);
+        for mi in 0..m {
+            let mut s = 0f64;
+            for ki in 0..k {
+                s += x[mi * k + ki] as f64 * row[ki];
+            }
+            out[mi * n + ni] = s;
+        }
+    }
+    out
+}
+
 /// `MoeTopk`: per token the `k` largest logits (ties: lowest index first), softmax weights.
 /// Selecting on the raw logits is exactly top-k of the softmax probabilities (monotone), and with `norm` the
 /// renormalised weights equal the softmax over the selected logits. Weights are rounded to `dtype` (HF casts the

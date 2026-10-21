@@ -97,6 +97,15 @@ int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_t
                            const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
                            ik_tensor* cstate, void* stream);
 
+/* matmul_mxfp4 (M1 drill, kernels/hip/mxfp4.hip): Op::MatmulMxfp4, OCP MXFP4 weights (u8 e2m1 pairs [N, K/2], u8 e8m0
+ * scales [N, K/32]) and act f32 [1] (0: bf16 activations, 1: dynamic MXFP4 QDQ of the activations, Quark "even").
+ * gemv: 1 <= M <= 8, scratch optional (with it the activations are QDQ'd once, not once per output row). mma: any M.
+ * scratch >= M * K * 2 bytes, 16-byte aligned (the activations, QDQ'd or copied). */
+int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                         ik_tensor* out, const ik_scratch* scratch, void* stream);
+int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                        ik_tensor* out, const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif
