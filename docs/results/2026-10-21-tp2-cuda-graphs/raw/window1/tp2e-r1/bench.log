@@ -1,0 +1,21 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 20480 tokens
+calibration: 50 base tokens, 21.82 tokens per filler sentence
+  size   1024 rep: prompt=985 gen=128 ttft=0.18s prefill=5498 tok/s decode=77.0 tok/s
+  size   1024 rep: prompt=958 gen=128 ttft=0.19s prefill=5068 tok/s decode=76.6 tok/s
+  size   4096 rep: prompt=4004 gen=128 ttft=0.57s prefill=7044 tok/s decode=75.4 tok/s
+  size   4096 rep: prompt=4045 gen=128 ttft=0.57s prefill=7083 tok/s decode=76.1 tok/s
+  size  16384 rep: prompt=16309 gen=128 ttft=2.38s prefill=6838 tok/s decode=72.4 tok/s
+  size  16384 rep: prompt=16351 gen=128 ttft=2.36s prefill=6915 tok/s decode=72.0 tok/s
+wrote /home/nvidia/intarsia-tp2/xout/window1/tp2e-r1/g1c-tp2e-r1.json
+g1c-tp2e-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      972     0.184         5283        76.8      128
+    4096     4025     0.570         7064        75.8      128
+   16384    16330     2.375         6877        72.2      128
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: the timing includes 16 profiled eager steps (per-op profiling synchronises around every op)
