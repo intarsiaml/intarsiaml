@@ -5,7 +5,8 @@
 # Environment for a run: E="K=V K2=V2" (passed with `env` inside the container, so any variable reaches it).
 O=${O:?out dir}
 M35=/models/Qwen3.6-35B-A3B-NVFP4; M8=/models/Qwen3-8B; G=/models/golden
-SG=$G/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; LG=$G/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+# SG: the short golden the reference noise was measured on (fnv cd6ef94b); the file without -meta is another vLLM run (b58845c3)
+SG=$G/qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors; LG=$G/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
 NS=/work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json
 NL=/work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json
 SHORT='Write a long story about a robot who learns to paint.'
