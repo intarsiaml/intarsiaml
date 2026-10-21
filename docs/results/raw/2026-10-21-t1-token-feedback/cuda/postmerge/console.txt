@@ -1,0 +1,22 @@
+fleetq: #3172 running on spark1: zsh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/t1/cudarun.sh
+== base build 2026-10-21 15:54:00
+base build exit 0
+== dev build 2026-10-21 15:54:49
+dev build exit 0
+dev cpu tests exit 0
+total passed 229 failed 0
+short-base exit 0 decode 16535 ms (15.42 tok/s)
+short-dev exit 0 decode 16421 ms (15.53 tok/s)
+short-devfb exit 0 decode 16303 ms (15.64 tok/s)
+CUDA greedy 256 short dev: byte-identical
+CUDA greedy 256 short devfb: byte-identical
+4k-base exit 0 decode 16942 ms (15.05 tok/s)
+4k-dev exit 0 decode 16948 ms (15.05 tok/s)
+4k-devfb exit 0 decode 16964 ms (15.03 tok/s)
+CUDA greedy 256 4k dev: byte-identical
+CUDA greedy 256 4k devfb: byte-identical
+steps=271 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/576 embedding=0ms/271 kv_append=0ms/19512
+CUDA_DONE 2026-10-21 16:02:09
+fleetq: #3172 done (exit 0)
+
+[exited with code 0]

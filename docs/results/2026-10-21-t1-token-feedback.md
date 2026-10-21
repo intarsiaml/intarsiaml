@@ -2,8 +2,8 @@
 
 Lane T1 of the quota-burn plan (`docs/plans/2026-10-21-quota-burn-plan.md`), approved on 2026-10-21 at 12:25 EDT (item 2 of G3's decisions).
 
-- **Base:** origin/main `c56c1292`, which already includes G3's PR #45 (`FIRST_COMMIT`).
-- **Branch:** `perf/t1-token-feedback`. The gates ran on `b4a300b3`; it was squashed into `6712b10c`, which has the same `crates/` tree.
+- **Base:** origin/main `c56c1292`, which already includes G3's PR #45 (`FIRST_COMMIT`). Re-checked after merging main `ba41a3ae` (J1 structured output, M6 TUI, 35B TP2 HIP): section 3b.
+- **Branch:** `perf/t1-token-feedback`. The main gates ran on `b4a300b3` (squashed into `6712b10c`, same `crates/` tree); the post-merge re-check ran on `9ac9e2cb`.
 - **Host:** endor (Apple M5 Max), Qwen3-8B BF16.
 - **Raw data:** [raw/2026-10-21-t1-token-feedback/](raw/2026-10-21-t1-token-feedback/).
 
@@ -55,12 +55,13 @@ A greedy decode step is encoded and submitted before the host reads the previous
 - **No step past `max_tokens`.** The next step is submitted only when the token being read is not the last one `max_tokens` (or the context window) allows. A forced-length request never runs a discarded step.
 - **Where it applies:** `LocalEngine` (the single-sequence engine), greedy decode with the head on device (`head_mode == LastArgmax`), when all of these hold:
   - a request with `min_tokens` has passed the stop-id mask; it switches over at that point;
+  - no structured-output constraint (J1). A lazy constraint (tool calls under `tool_choice: auto`) starts inactive, on the on-device argmax path, and activates on a trigger token. Inside the feedback loop the step after the trigger would already be speculated unmasked, so any request carrying a constraint keeps the old loop;
   - no speculative decoding (drafting needs the tokens on the host);
   - attention-only state (no recurrent slots);
   - one device (no tensor-parallel peers);
   - no captured graph replay;
   - not a dry run.
-- **Old loop kept for:** stochastic sampling, logit tracing, `BatchedEngine` (`--max-batch > 1`), spec decode, hybrid recurrent models, TP, CUDA and HIP.
+- **Old loop kept for:** stochastic sampling, logit tracing, structured output, `BatchedEngine` (`--max-batch > 1`), spec decode, hybrid recurrent models, TP, CUDA and HIP.
 - **Switch:**
   - `Backend::token_feedback() -> (supported, default)`: Metal `(true, true)`; cpu `(true, false)`, for the engine tests; every other backend `(false, false)`;
   - `INTARSIA_TOKEN_FEEDBACK=0|1` overrides the default;
@@ -124,9 +125,9 @@ Feedback runs sit 15–40 MHz lower, plausibly because the GPU no longer idles b
 | Metal tests: `cargo test -p intarsia-backend-metal --release` with the real model, and `cargo test --workspace --features intarsia-cli/metal` | on the final head `0487bc30` with feedback **on by default** (#3160, `final-tests/`): **117 passed, 0 failed** and **550 passed, 0 failed**. The run on the hold commit before the flip, with feedback off by default: 117/0 and 549/0. They include G3's `fill.rs` / `qkv_fold.rs` dispatch-count tests and the new `tests/token_feedback.rs`, which checks: `read_after` waits for its own fence only; a dropped fence falls back to `download`; hold, release and discard; a sync while holding |
 | CPU: `cargo check --workspace --tests` (cpu, and `--features intarsia-cli/metal`); `cargo test --workspace --exclude intarsia-backend-metal` | pass; 432 passed, 0 failed |
 | EOS mid-batch: `BatchedEngine` over a model with feedback switched on. Three concurrent requests, one stopping on a stop id at its 4th token while the others continue, then one more request; compared with feedback off | identical (ids, `Done`, KV length). `BatchedEngine` never takes the feedback loop (`batched_engine_is_unchanged_with_feedback_on`, #3160) |
-| stop-condition tests (cpu backend, `crates/intarsia-models/tests/token_feedback.rs`, 6 tests plus the batched one); every request runs on a feedback engine and a plain one, see below | 7/7 on the final head (#3160); 6/6 with and without the hold (tatooine container, #3083 and #3141). The first run (#3079, #3080) failed on two bugs in the tests themselves: the probe request ran on one engine only, and the held-back UTF-8 tail event was counted as a token |
-| mutants on the rollback logic (`raw/.../mutants.py`, 7 mutants, listed below) | **7/7 killed**, before and after the hold (#3085, #3141, `mutants/mutants.txt`). The discard itself is not mutated: it is an optimisation with no correctness role, covered by the Metal hold test and the EOS-latency A/B |
-| CUDA no-op (spark1, non-exclusive, vLLM up): greedy 256 ids, Qwen3-8B, short and 4k prompt; base vs dev, and dev with `INTARSIA_TOKEN_FEEDBACK=1`, which must change nothing because CUDA does not support feedback | pre-rebase head (#3080, `cuda/pre-rebase/`): **byte-identical**, 4 of 4; 255 graph replays and 0 eager steps, so the feedback path is never taken. Final head `b4a300b3` vs main `c56c1292` (#3153): **byte-identical**, 4 of 4; 0 eager steps; dev CPU tests 217 passed, 0 failed (`cuda/`) |
+| stop-condition tests (cpu backend, `crates/intarsia-models/tests/token_feedback.rs`, 6 tests, the batched one, and a lazy-constraint one); every request runs on a feedback engine and a plain one, see below | 8/8 after the main merge (#3171); 7/7 on head `0487bc30` (#3160); 6/6 with and without the hold (tatooine container, #3083 and #3141). The first run (#3079, #3080) failed on two bugs in the tests themselves: the probe request ran on one engine only, and the held-back UTF-8 tail event was counted as a token |
+| mutants on the rollback logic and the exclusions (`raw/.../mutants.py`, 8 mutants, listed below) | **8/8 killed** after the main merge (#3171, `mutants/mutants.txt`); the first 7 also before and after the hold (#3085, #3141). The discard itself is not mutated: it is an optimisation with no correctness role, covered by the Metal hold test and the EOS-latency A/B |
+| CUDA no-op (spark1, non-exclusive, vLLM up): greedy 256 ids, Qwen3-8B, short and 4k prompt; base vs dev, and dev with `INTARSIA_TOKEN_FEEDBACK=1`, which must change nothing because CUDA does not support feedback | pre-rebase head (#3080, `cuda/pre-rebase/`): **byte-identical**, 4 of 4; 255 graph replays and 0 eager steps, so the feedback path is never taken. Final head `b4a300b3` vs main `c56c1292` (#3153): **byte-identical**, 4 of 4; 0 eager steps; dev CPU tests 217 passed, 0 failed (`cuda/`). After the main merge, head `9ac9e2cb` vs main `ba41a3ae` (#3172): **byte-identical**, 4 of 4; dev CPU tests 229 passed, 0 failed (`cuda/postmerge/`) |
 | HIP no-op (tatooine, #3086, radiance down 50 s, coordinator-approved): greedy 256 ids, Qwen3-8B, GPU 0, short and 4k prompt, base vs dev | **byte-identical**, 2 of 2; 38.7 / 37.1 tok/s on both (`hip/`). This ran on the pre-rebase, pre-hold head, and today's single window is used. Since then the only HIP-reachable changes are the no-op trait defaults (`hold` / `release` / `discard`) and calls on the feedback path, which HIP never takes |
 
 **What the stop-condition tests cover:**
@@ -140,14 +141,32 @@ Feedback runs sit 15–40 MHz lower, plausibly because the GPU no longer idles b
 
 For each request the two engines must agree on the ids, the text, the `Done` event, the KV length left behind, and two follow-up requests that reuse the KV. The feedback engine must run exactly one discarded step after a stop that comes later than the first token, and none after a length stop.
 
-**The 7 mutants:**
+**The 8 mutants:**
 1. no rollback;
 2. rollback keeps the extra row;
 3. rollback cuts one row too many;
 4. no token patch;
 5. speculate at `max_tokens`;
 6. read the wrong ring slot;
-7. feed the stale host token.
+7. feed the stale host token;
+8. let constrained requests take the feedback loop (drop the J1 exclusion).
+
+The lazy-constraint test picks a trigger token that first appears at generated token k >= 2, so the constraint activates inside the loop. It failed under mutant 8 and passes with the exclusion. A trigger at token 0 or 1 would be seen before the loop starts and prove nothing (the first version of the test did that, and mutant 8 survived it).
+
+## 3b. Post-merge re-check (main `ba41a3ae`, head `9ac9e2cb`)
+
+Main gained J1 (structured output, in the shared `engine.rs`), M6 (TUI) and 35B TP2 on HIP while this PR was open. After merging it and adding the constraint exclusion, gates 1–5 were rerun on endor (#3173, `gates-postmerge/`) with base rebuilt from the new main:
+
+| gate | result |
+|---|---|
+| Metal tests: metal crate (real model on), workspace + metal | **117 / 0** and **631 / 0** failed |
+| greedy 256 ids, short and 4k: base vs dev off, base vs dev feedback; short with `--profile-every 16` | **byte-identical**, 5 of 5 |
+| real-model stop conditions (EOS, stop string, `min_tokens`, longer answer, max_tokens 7) | **byte-identical**, 5 of 5 |
+| goldens, short and long | logs **byte-identical** |
+| step anatomy (6 cb-traced runs per arm) | idle gap 0.264 → **0.000** ms at 4k, 0.256 → **0.000** ms short; period 28.05 → 27.75 ms (−1.1 %) at 4k, 27.08 → 26.84 ms (−0.9 %) short |
+| CUDA no-op (#3172) | **byte-identical**, 4 of 4 |
+
+`qualify` and the speed A/B were not rerun: the merge changes no Metal decode code, and the per-step result reproduces section 2a.
 
 ## 4. Effect on each backend
 
@@ -180,7 +199,7 @@ For each request the two engines must agree on the ids, the text, the `Done` eve
 - `crates/intarsia-core/src/model/batch.rs`: the new argument (`None`).
 - `crates/intarsia-core/src/engine.rs`: `Seq::feedback_ok`, `Seq::run_feedback` (the loop and the rollback), one branch in `run_seq`.
 - `crates/intarsia-backend-cpu/src/lib.rs`: `token_feedback() = (true, false)`.
-- `crates/intarsia-models/tests/token_feedback.rs` (new): 7 tests (6 on `LocalEngine`, 1 on `BatchedEngine`).
+- `crates/intarsia-models/tests/token_feedback.rs` (new): 8 tests (6 on `LocalEngine`, 1 on `BatchedEngine`, 1 with a lazy structured-output constraint).
 
 **Metal:**
 - `crates/intarsia-backend-metal/src/lib.rs`:
@@ -197,7 +216,8 @@ For each request the two engines must agree on the ids, the text, the `Done` eve
 
 - **radiance (tatooine): one window, fleetq #3086.** Stopped at 13:00:51 EDT and answering again at 13:01:41 (50 s). Radiance had been serving for 13 min since #3066 (`raw/.../downtime.log`). No other role was taken down.
 - **tatooine, GPUs hidden:** #3079, #3082, #3083, #3085 and #3141, all builds and CPU tests in the container.
-- **spark1:** #3080 and the final CUDA rerun, non-exclusive, 24 GB, vLLM up.
+- **spark1:** #3080, #3153 and #3172, non-exclusive, 24 GB, vLLM up.
+- **endor, after the main merge:** #3169, #3170, #3171 (cpu tests and mutants, 8 GB); #3173 (exclusive, 24 GB, post-merge Metal re-check).
 - **endor:**
   - #3090: builds and CPU checks, 8 GB;
   - #3091: exclusive; stopped by the deadlock below;
@@ -214,7 +234,7 @@ For each request the two engines must agree on the ids, the text, the `Done` eve
    - Reverting is one line: `token_feedback() -> (true, false)` in the Metal backend.
 2. **Merge.** The footprint is shared (`engine.rs`, `model.rs`, `backend.rs`, the cpu backend). The PR is open and not merged; the coordinator's pre-merge no-ops are the gate.
    - CUDA: rerun on the final head (section 3).
-   - HIP: ran on the pre-hold head in today's single approved window. Rerunning it on the final head needs another radiance window.
+   - HIP: ran on the pre-hold head in today's single approved window. Since then: the hold, the merge of main (J1, M6, 35B TP2 HIP) and the constraint exclusion. HIP never takes the feedback path, but a rerun on the final head needs another radiance window.
 3. **`BatchedEngine` (`--max-batch > 1`) is unchanged.** With a single active sequence it still pays the gap. Extending feedback to the batched step needs per-row stop handling: a separate lane, if wanted.
 4. **CUDA and HIP feedback were not built.** The same gap exists between graph replays but was not measured. The estimate is tens of us per step, under 0.5 %, and closing it would also need the position advanced on device inside the captured graph. Measure first (nsys or rocprof between replays), then decide.
 5. **G3's `FIRST_COMMIT` lever** no longer fires in the pipelined loop (section 1). Nothing to decide unless feedback is turned off; it then applies as before.
