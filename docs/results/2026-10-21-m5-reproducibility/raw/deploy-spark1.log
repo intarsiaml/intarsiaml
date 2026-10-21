@@ -1,0 +1,50 @@
+fleetq: #3071 running on spark1: /opt/code/intarsiaml/.claude/worktrees/agent-aeba5d64b9d810e6b/scripts/deploy.sh spark1 --env-file /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/env-demo.sh -- 'echo knob=$INTARSIA_M5_DEMO_KNOB; $INTARSIA_BIN kernels test --backend cuda --quick --json > $INTARSIA_REPLAY_OUT/kernels.json'
+deploy: spark1 (cuda) <- 5847f06aca231318a8f65c04f87e622c4e77b18c (M5: clippy state in CI comment and docs, endor local check log)
+deploy: synced (2 entries changed)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 6.52s
+doctor rc=0
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+51 kernels, 149 cases in 0.4s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel attn_prefill_f8kv_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_lanes ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_split ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_f8 ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_lt ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_nvfp4_mma_bf16 ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels-test rc=0
+
+=== reproducibility stamp (spark1:~/intarsia-deploy/cuda/DEPLOY_STAMP.json) ===
+git        5847f06aca231318a8f65c04f87e622c4e77b18c  (HEAD; tree b715d6a8c5a6)
+subject    M5: clippy state in CI comment and docs, endor local check log
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock b64a06d84a56f46e  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        NVIDIA GB10  compute 12.1
+driver     580.173.02  (cuda toolkit 13.0.3)
+host       spark-4e77  Ubuntu 24.04.4 LTS  Cortex-A725
+binary     target/release/intarsia  sha256 823b41bed67df4ee  37717168 bytes  v0.0.1
+smoke      pass
+deploy: running in spark1:~/intarsia-deploy/cuda (INTARSIA_BIN=target/release/intarsia INTARSIA_REPLAY_OUT=replay-out/20261021T164527Z)
+knob=1
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel attn_prefill_f8kv_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_lanes ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_split ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_f8 ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_lt ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_nvfp4_mma_bf16 ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+deploy: outputs in spark1:intarsia-deploy/cuda/replay-out/20261021T164527Z
+fleetq: #3071 done (exit 0)
