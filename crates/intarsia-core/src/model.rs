@@ -61,6 +61,9 @@ pub struct LoadOptions {
     /// Replay the single-token decode step as a captured graph when the backend supports it (`--no-graphs` turns
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
+    /// Tensor parallelism: run the row-local fused decode ops on each rank's shard (`INTARSIA_TP_FUSION=1`) when the
+    /// backend can (`Backend::fusion_under_tp`). Off by default: it changes tp>1 numerics (fused kernels round differently).
+    pub tp_fusion: bool,
 }
 
 impl Default for LoadOptions {
@@ -76,6 +79,7 @@ impl Default for LoadOptions {
             fp8_act: None,
             mxfp4_act: None,
             graphs: true,
+            tp_fusion: false,
         }
     }
 }
@@ -239,6 +243,8 @@ pub struct Model {
     capture_ops: Mutex<Option<Vec<Op>>>,
     /// While a graph is being captured: the collectives it records.
     capture_comms: std::sync::atomic::AtomicU64,
+    /// Row-local fusion under tensor parallelism is on (`LoadOptions::tp_fusion`, world > 1, backend capable).
+    tp_fusion: bool,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
     tp: TpRank,
     /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
@@ -590,6 +596,12 @@ impl Model {
             Some("bf16") => false,
             Some(v) => return Err(Error::invalid(format!("INTARSIA_TP_PARTIAL={v} (f32 or bf16)"))),
         };
+        if opts.tp_fusion && tp.world > 1 && !b.fusion_under_tp() {
+            return Err(Error::Unsupported(format!(
+                "fused ops under tensor parallelism (INTARSIA_TP_FUSION) on backend '{}' (Backend::fusion_under_tp)",
+                b.name()
+            )));
+        }
         let mt = opts.prefill_chunk.max(1);
         let esz = act.size_bytes();
         let mut ws_bytes = 0u64;
@@ -688,6 +700,7 @@ impl Model {
             graphs: GraphState::new(opts.graphs),
             capture_ops: Mutex::new(None),
             capture_comms: std::sync::atomic::AtomicU64::new(0),
+            tp_fusion: opts.tp_fusion && tp.world > 1,
             tp,
             no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
             test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
@@ -1497,7 +1510,8 @@ impl Model {
     /// returning `true`; return `false` without running anything when it has none (another backend, an unsupported shape such
     /// as a prefill chunk, a kernel that failed admission, `INTARSIA_HIP_DISABLE`), and the caller runs the ops the fused one
     /// replaces. The probe goes through `Registry::select`, the lookup `exec` itself makes, so a plan recording sees only
-    /// the calls that will run. Fusion is off under tensor parallelism and with `INTARSIA_NO_FUSION=1`.
+    /// the calls that will run. Fusion is off with `INTARSIA_NO_FUSION=1`, and under tensor parallelism unless row-local
+    /// fusion is on (`LoadOptions::tp_fusion`, see [`Model::fused_under_tp`]).
     fn try_fused(
         &self,
         op: Op,
@@ -1518,7 +1532,9 @@ impl Model {
     /// fused op whose replaced ops are spread over the layer, so the caller must decide before it emits any of them.
     fn fused_ok(&self, call: &OpCall) -> bool {
         static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
+        if (self.tp.world > 1 && !self.fused_under_tp(call.op))
+            || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0"))
+        {
             return false;
         }
         let select = |c: &OpCall| {
@@ -1549,6 +1565,15 @@ impl Model {
             }
         }
         true
+    }
+
+    /// Under tensor parallelism, may fused op `op` run on this rank's shard? Only with row-local fusion on, and never
+    /// for an op that would replace a row-parallel projection together with what precedes it: its output is a partial
+    /// that `proj_reduce` must land in the f32 partial buffer and all-reduce, and the fused kernel writes the block
+    /// output directly (`GatedRmsnormMatmulFp8`, the GatedDeltaNet out-projection). `SigmoidMulMatmulFp8` (attention
+    /// o_proj) is already tried only with bf16 partials, where the all-reduce follows it.
+    fn fused_under_tp(&self, op: Op) -> bool {
+        self.tp_fusion && !matches!(op, Op::GatedRmsnormMatmulFp8)
     }
 
     /// Inside [`Model::forward_verify`].

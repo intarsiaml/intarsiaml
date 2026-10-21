@@ -100,6 +100,11 @@ impl Backend for CpuBackend {
         "cpu"
     }
 
+    /// The reference fused ops read every dim from the call.
+    fn fusion_under_tp(&self) -> bool {
+        true
+    }
+
     fn info(&self) -> DeviceInfo {
         let mut sys = self.sys.lock().unwrap();
         sys.refresh_memory();

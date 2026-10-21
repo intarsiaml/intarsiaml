@@ -288,6 +288,7 @@ impl ModelArgs {
                 fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
+                tp_fusion: std::env::var_os("INTARSIA_TP_FUSION").is_some_and(|v| v != "0"),
             },
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
