@@ -4,7 +4,7 @@
 #     bash scripts/j1-structured/endor-slot.sh build OUT BASE HEAD
 #   fleetq run --host endor --exclusive --mem 24 --label "J1 e2e" -- \
 #     bash scripts/j1-structured/endor-slot.sh run OUT BASE HEAD
-# `run` builds too when the binaries are missing. It does, in order:
+# `run` builds too when the binaries are missing; `serve` is `run` without step 1. In order:
 #   1. Metal no-op (docs/results/2026-10-21-m1-qwen38-drill/raw/metal-noop.sh): kernels test, plan, KL21 short + long,
 #      256 greedy ids (short, 4k) base vs head; head `cargo test --release --workspace`.
 #   2. head server: e2e.py (50 requests, sequential, + constrained decode speed), e2e.py --concurrency 4,
@@ -65,9 +65,10 @@ http_ids() { # arm tag: greedy ids of one unconstrained chat request over HTTP
 
 case "$MODE" in
 build) build ;;
-run)
+run|serve)
   date +%T
   build
+  if [ "$MODE" = run ]; then
   # 1. no-op
   for n in base head; do
     "$O/target-$n/release/intarsia" kernels test --backend metal > "$O/$n-kernels.out" 2>&1; echo "$n kernels rc=$?"
@@ -84,8 +85,10 @@ run)
         --prompt "$(cat $P/prompt-$p.txt)" > "$O/$n-gen-$p.out" 2> "$O/$n-gen-$p.err"; echo "$n gen-$p rc=$?"
     done
   done
-  (cd "$O/head" && CARGO_TARGET_DIR=$O/target-head cargo test --release --workspace > "$O/head-cargo-test.log" 2>&1)
+  # own target dir: a test build in target-head relinks release/intarsia without the metal feature
+  (cd "$O/head" && CARGO_TARGET_DIR=$O/target-test cargo test --release --workspace > "$O/head-cargo-test.log" 2>&1)
   echo "head cargo test rc=$? $(date +%T)"
+  fi
 
   # 2. structured output on the head server
   if serve head e2e; then
