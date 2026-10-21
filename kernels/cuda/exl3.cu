@@ -705,12 +705,13 @@ int run_gemm_mt(const half* xh, const uint32_t* T, long long stride_k, long long
 }
 
 // Rows per block: 128 rows decode each tile once per 128 rows, 64 rows fill the SMs when the grid is small. The choice
-// changes no bit of the output (see above), only the speed: 128-row blocks from two waves of blocks on (about 2 per SM).
+// changes no bit of the output (see above), only the speed: 128-row blocks when there are more than 64 rows and at least
+// two waves of them (96 blocks on 48 SMs); a 32-row call on a wide N in 128-row blocks was 2x slower than in 64-row ones.
 template <int K2>
 int run_gemm(const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, const half* svh, void* y,
              int y_dtype, const int* cbp, int M, int K, int N, cudaStream_t s) {
     const long long blocks8 = (long long)(N / 128) * ((M + 127) / 128);
-    const bool wide = blocks8 >= 96;
+    const bool wide = M > 64 && blocks8 >= 96;
     return wide ? run_gemm_mt<K2, 8>(xh, T, stride_k, stride_nb, svh, y, y_dtype, cbp, M, K, N, s)
                 : run_gemm_mt<K2, 4>(xh, T, stride_k, stride_nb, svh, y, y_dtype, cbp, M, K, N, s);
 }

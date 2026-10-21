@@ -36,7 +36,7 @@ help: remove these parentheses
     |
 
 warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
-    Finished `release` profile [optimized] target(s) in 0.04s
+    Finished `release` profile [optimized] target(s) in 0.03s
      Running tests/admission.rs (target/acc/release/deps/admission-47fa24c8024b63b2)
 
 running 4 tests
@@ -1094,7 +1094,7 @@ matmul_exl3    matmul_exl3_gemm               81      0    5.435e-3    9.452e-4 
 ok
 test info_reports_the_device ... ok
 
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 39.15s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 39.13s
 
      Running tests/exl3.rs (target/acc/release/deps/exl3-44b3aa20d6c25d10)
 
@@ -1132,7 +1132,7 @@ ok
 test profile_one_shape ... ignored
 test rows_do_not_depend_on_the_batch ... ok
 
-test result: ok. 8 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 6.05s
+test result: ok. 8 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 6.00s
 
      Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
 
@@ -1164,5 +1164,5 @@ test moe_experts_mma_matches_reference ... ok
 test moe_experts_mma_small_t_sweep ... ignored
 test moe_experts_skewed_and_invalid_routing ... ok
 
-test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 4.73s
+test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 4.69s
 

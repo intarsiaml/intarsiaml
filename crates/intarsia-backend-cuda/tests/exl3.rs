@@ -388,8 +388,9 @@ fn bench_prefill_shapes() {
     }
 }
 
-/// One shape of the prefill kernels for a profiler (`ncu -k regex:gemm_kernel -c 1`): EXL3_PROF_KERNEL (default the GEMM),
-/// EXL3_PROF_M / _N / _K / _K2 (default 1024 / 4096 / 4096 / 8).
+/// One shape of one kernel, for nsys / compute-sanitizer / the per-variant timing of `run.sh one`: EXL3_PROF_KERNEL (default
+/// the GEMM), EXL3_PROF_M / _N / _K / _K2 (default 1024 / 4096 / 4096 / 8); EXL3_PROF_DIRECT=1 launches 3 times without a
+/// graph and times nothing (the sanitizers do not follow graph replays).
 #[test]
 #[ignore]
 fn profile_one_shape() {
