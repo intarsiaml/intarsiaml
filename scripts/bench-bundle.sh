@@ -73,7 +73,7 @@ cmd_pack() {
   local SHA7 BE; SHA7=$(jq -r '.git.sha[0:7]' "$W/b/stamp.json"); BE=$(jq -r .backend "$W/b/stamp.json")
   local NAME="intarsia-bench-bundle-$SHA7-$BE"
   # the manifest lists every file with its hash; verify with `shasum -a 256 -c` after extracting
-  ( cd "$W/b" && find . -type f ! -name MANIFEST.json | sort | while read -r f; do printf '%s  %s\n' "$(sha "$f")" "$f"; done > SHA256SUMS )
+  ( cd "$W/b" && find . -type f ! -name MANIFEST.json ! -name SHA256SUMS | sort | while read -r f; do printf '%s  %s\n' "$(sha "$f")" "$f"; done > SHA256SUMS )
   jq -n --slurpfile stamp "$W/b/stamp.json" --arg cmd "$CMD" --arg note "$NOTE" --arg created "$(date -u +%FT%TZ)" \
     --arg by "$(hostname -s)" --arg host "$HOST" --arg env "$(cat "$W/b/env.sh")" \
     --argjson reports "$(cd "$W/b/reports" && find . -type f | sort | jq -R . | jq -sc .)" '
@@ -101,7 +101,7 @@ cmd_show() {
     "backend    \(.backend)",
     "rustc      \(.stamp.toolchain.rustc)",
     "cuda       \(.stamp.toolchain.nvcc // "-")   rocm \(.stamp.toolchain.rocm // "-")",
-    "gpu        \(.stamp.device.name // "n/a")  \(.stamp.gpu | tojson)",
+    "gpu        \(.stamp.device.name // "n/a")  driver \(.stamp.gpu.nvidia_smi.driver_version // .stamp.gpu.rocm_version // "n/a")",
     "binary     sha256 \(.binary_sha256[0:16])",
     "env        \(.env_knobs | join("; "))",
     "command    \(.command)",
