@@ -134,8 +134,9 @@ chosen a base image whose nvcc/driver pair matches the GB10's. Until then the st
 hardware and needs no GPU):
 
 * `cargo check --workspace --locked` (ubuntu);
-* `cargo test --workspace --locked --exclude intarsia-backend-metal` (ubuntu; the cuda and hip crates build their stub
-  kernels without nvcc/hipcc, and their GPU tests skip when no device is present);
+* `cargo test --workspace --locked --exclude intarsia-backend-metal --exclude intarsia-backend-cuda --exclude
+  intarsia-backend-hip` (ubuntu; the cuda and hip crates build their stub kernels without nvcc/hipcc, but their test
+  `gpu_tests_were_not_built` fails on purpose when GPU tests were not compiled, so they are GPU-only and run on the fleet);
 * `cargo check --locked -p intarsia-backend-metal` and `-p intarsia-cli --features metal` on the macOS runner.
 
 fmt and clippy are not in CI: `cargo fmt --check` reports about 750 diffs on main today, and `cargo clippy --workspace

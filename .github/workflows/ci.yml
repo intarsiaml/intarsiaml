@@ -43,9 +43,10 @@ jobs:
       - name: Toolchain from rust-toolchain.toml
         run: rustup show active-toolchain && rustc -V
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      # intarsia-backend-metal is macOS-only (Metal framework). The cuda / hip crates run their CPU-side tests here;
-      # their GPU tests skip without a device (INTARSIA_REQUIRE_GPU is unset).
-      - run: cargo test --workspace --locked --exclude intarsia-backend-metal
+      # The three GPU backend crates are excluded: intarsia-backend-metal is macOS-only, and the cuda / hip crates have a
+      # test (gpu_tests_were_not_built) that fails on purpose when their GPU tests were not compiled, which is the case on
+      # a runner without nvcc / hipcc. Their GPU gates run on the fleet.
+      - run: cargo test --workspace --locked --exclude intarsia-backend-metal --exclude intarsia-backend-cuda --exclude intarsia-backend-hip
 
   check-metal:
     name: cargo check (macOS, metal)

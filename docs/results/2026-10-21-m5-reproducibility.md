@@ -21,7 +21,7 @@ Run on spark1 (GB10, vLLM up, non-exclusive `--mem 20`, no role taken down), raw
 | Stamp (`raw/DEPLOY_STAMP.json`) | rustc 1.90.0, Cargo.lock `b64a06d84a56f46e`, nvcc 13.0.88 / toolkit 13.0.3, GB10 sm_121, driver 580.173.02 |
 | Bundle (`raw/bundle-show.txt`, `raw/bundle-MANIFEST.json`) | 12 files, 33 KB, checksums verified on unpack |
 | Replay of the bundle on spark1 into a second tree | git sha, Cargo.lock, rustc, CUDA, GPU and driver rows `match`; the binary sha256 `DIFFER` (see below); the recorded command ran with the recorded env knobs (`knob=1 extra=2`) and its output came back |
-| Local check on endor (`raw/local-endor-check-clippy-test.log`, rustc 1.99) | `cargo check --workspace --locked` rc 0; `cargo check -p intarsia-cli --features metal` rc 0; `cargo test --workspace --locked --exclude intarsia-backend-metal` rc 0 (35 result lines, all ok) |
+| Local check on endor (`raw/local-endor-check-clippy-test.log`, rustc 1.99) | `cargo check --workspace --locked` rc 0; `cargo check -p intarsia-cli --features metal` rc 0; `cargo test --workspace --locked --exclude intarsia-backend-metal` rc 0 on a Mac (35 result lines, all ok) |
 | Clippy (`-D warnings`, endor 1.99) | not clean: 33 errors in `intarsia-core`, 3 in `intarsia-bench`, stopped there. Not in CI. |
 | `cargo fmt --check` | about 750 diff hunks. Not in CI. |
 | CI on the PR (#46) | see the PR; the final head is named in the PR body |
