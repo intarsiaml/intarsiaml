@@ -60,8 +60,14 @@ other models:
 - **Engine hook** (`crates/intarsia-core/src/constrain.rs`, `engine.rs`).
   - `GenRequest.constraint` carries a compiled `ConstraintSpec`; each sequence starts its own `TokenConstraint`.
   - A constrained step runs its head in `LastLogits` mode, the host-logits path that sampled requests already use, on
-    every backend. Only constrained rows take it: in a batch, each row picks its own head mode, so constrained and
-    unconstrained rows mix.
+    every backend. Only constrained rows take it. In a batch, each row has its own head mode: the pass computes device
+    argmax for every row and downloads logits only for `LastLogits` rows (`Model::forward_batch`). Unconstrained rows
+    therefore keep their device argmax next to constrained ones. The cost each constrained row adds to the shared step
+    is one row download (V x 4 bytes, about 600 KB for Qwen3), the same cost a sampled row already adds.
+  - **Behaviour change for `tools`.** On a hermes model `tool_choice` defaults to `auto`, so a request with `tools` now
+    carries a lazy constraint. It therefore gets no speculative drafts, and it gets a 400 when combined with
+    `ignore_eos` or `min_tokens`, even before any `<tool_call>` appears. A request without `tools` or `response_format`
+    is unaffected.
   - The mask is applied after the `min_tokens` mask and before sampling (greedy, or temperature / top-k / top-p).
   - The chosen token is committed in `on_token`, after the stop-id check, so EOS is never fed to the grammar.
   - A mask that allows nothing ends the request with an error; the sampler never falls back to token 0.
