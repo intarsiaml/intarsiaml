@@ -1,7 +1,7 @@
 //! NCCL collectives for tensor parallelism across processes and hosts (docs/design/35b-tp2.md): one rank per process,
 //! one GB10 per Spark, the two joined over ConnectX-7. libnccl is loaded at run time (`dlopen`, path in
 //! `INTARSIA_NCCL_LIB`, default `libnccl.so.2`), so the build needs no NCCL headers or library and a binary without
-//! it still runs everything else. The Sparks take the library from the vLLM container image (NCCL 2.29.7).
+//! it still runs everything else. The Sparks take the library from the vLLM container image (libnccl 2.30.7).
 //!
 //! Numerics: a sum of two operands commutes, so both ranks get the same bits, and they are the bits of the host
 //! communicator (`f32(a) + f32(b)`, one rounding into the output dtype): f32 partials are summed in f32 by NCCL into a
@@ -109,7 +109,7 @@ fn check(l: &Lib, what: &str, rc: c_int) -> Result<()> {
     Err(Error::backend(format!("{what}: {msg} (ncclResult {rc})")))
 }
 
-/// The NCCL library version ("2.29.7").
+/// The NCCL library version ("2.30.7").
 pub fn version() -> Result<String> {
     let l = lib()?;
     let mut v = 0;

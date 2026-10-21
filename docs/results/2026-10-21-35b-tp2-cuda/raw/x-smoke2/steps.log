@@ -1,0 +1,17 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2398 MHz, [N/A], 52, 11.85 W, 0 %
+rc=1
+10:56:42 IDS cross-host vs one-box tp2 (5k, 256): DIFFER
+rc=1
+Error: reading /home/nvidia/intarsia-tp2/golden/S1-short.safetensors
+10:57:02 arm tp2x-smoke: serving
+rc=0
+wrote /home/nvidia/intarsia-tp2/xout/x-smoke2/tp2x-smoke/g1b-tp2x-smoke.json
+g1b-tp2x-smoke  model=intarsia-35b  gen=32  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1023     0.188         5444        59.6       32
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+10:57:10 == smoke done, 1408 s of the work budget left
+10:57:10 restore (exit 0)

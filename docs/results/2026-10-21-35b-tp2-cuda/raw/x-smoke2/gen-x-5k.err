@@ -1,0 +1,2 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+Error: backend error: device init: out of memory (cudaError 2)

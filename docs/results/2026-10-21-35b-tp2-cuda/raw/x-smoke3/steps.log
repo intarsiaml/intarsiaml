@@ -1,0 +1,20 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2431 MHz, [N/A], 71, 56.29 W, 96 %
+rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 2044 ms (732.2 tok/s) | decode 3345 ms (76.24 tok/s)
+11:07:27 IDS cross-host vs one-box tp2 (5k, 256): IDENTICAL
+rc=1
+SELF-STATS mode=prefill positions=1441 mean_kl21=3.728106e-3 max_kl21=7.691715e-1 flips=16 flip_pct=1.1103 tail_abs=6.673016e-4 worst_prompt_kl21=1.554091e-2
+SELF-STATS mode=decode positions=160 mean_kl21=1.159772e-2 max_kl21=9.347190e-1 flips=2 flip_pct=1.2500 tail_abs=2.088056e-3 worst_prompt_kl21=6.135282e-2
+Error: accuracy gate FAILED
+11:07:53 arm tp2x-smoke: serving
+rc=0
+wrote /home/nvidia/intarsia-tp2/xout/x-smoke3/tp2x-smoke/g1b-tp2x-smoke.json
+g1b-tp2x-smoke  model=intarsia-35b  gen=32  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1003     0.187         5367        77.9       32
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+11:08:00 == smoke done, 1389 s of the work budget left
+11:08:00 restore (exit 0)

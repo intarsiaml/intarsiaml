@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane G1b (docs/design/35b-tp2.md): the 35B at tp=2 ACROSS the two Sparks. rank 0 = spark1 (`--tp-remote`), rank 1 =
-# spark2 (`intarsia tp-worker`), NCCL 2.29.7 over ConnectX-7 port f1 (both PCIe halves). Runs HERE (the Mac) as the one
+# spark2 (`intarsia tp-worker`), NCCL 2.30.7 over ConnectX-7 port f1 (both PCIe halves). Runs HERE (the Mac) as the one
 # command of ONE fleetq job that holds both Sparks:
 #   smoke (vLLM up):    MODE=smoke  fleetq run --host spark1,spark2 --mem spark1=20,spark2=20 --label "..." -- scripts/35b-tp2/xhost.sh
 #   speed (vLLM down):  MODE=window fleetq run --host spark1,spark2 --exclusive --takes-down flight,retro \
@@ -101,6 +101,45 @@ if [[ $MODE == smoke ]]; then
   fi
 fi
 
+# ---- gates (vLLM up): the accuracy gates cross-host, the real configuration ----
+# Budgets: the 35B TP budget measured in docs/results/2026-10-21-35b-tp2-cuda.md (max over the tp=1 variants x 2, per set)
+if [[ $MODE == gates ]]; then
+  r spark2 "scp -q ~/intarsia-tp2/out/gates2/S1-short.safetensors ~/intarsia-tp2/out/gates2/S1-long.safetensors spark1:intarsia-tp2/golden/"
+  AF="-m $M35 --backend cuda --tp 2 --max-seq 16384 --prefill-chunk 2048 --mem-budget 18"
+  B_SHORT="--self-max-kl 1.8e-2 --self-max-pos-kl 2.3 --self-max-flip-pct 3.76 --self-max-tail 2.8e-3 --self-prompt-factor 6.5"
+  B_LONG="--self-max-kl 5.7e-2 --self-max-pos-kl 54.6 --self-max-flip-pct 8.7 --self-max-tail 7.1e-3 --self-prompt-factor 5.9"
+  xacc() { # <tag> <accuracy args...>
+    local tag=$1; shift; want $tag || return 0
+    worker_start $tag $AF
+    r spark1 "env $NCCLENV timeout 1500 $BIN accuracy $AF --tp-remote $WIP:$WPORT $* > $XO/$tag.log 2>&1; echo $tag rc=\$?; grep -aE 'SELF-STATS|self-golden gate|^prefill floor|^decode floor|floor verdict|^chat_reuse_4k|prefix-reuse gate|^Error' $XO/$tag.log | cut -c1-260" | tee -a "$L/steps.log"
+    worker_stop
+  }
+  xacc self-short --self-golden ~/intarsia-tp2/golden/S1-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} $B_SHORT
+  xacc self-long --self-golden ~/intarsia-tp2/golden/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
+  xacc floor-short --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
+  xacc floor-long --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
+  xacc reuse --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
+  if want gen16k; then
+    GEN_FLAGS="-m $M35 --backend cuda --tp 2 --max-seq 20480 --mem-budget 16 --profile-every 0"
+    worker_start gen16k $GEN_FLAGS
+    r spark1 "env $NCCLENV timeout 900 $BIN generate $GEN_FLAGS --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos --show-ids \
+      -p \"\$(head -c 54000 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 256 > $XO/gen-x-16k.out 2> $XO/gen-x-16k.err; echo rc=\$?; grep -a finish= $XO/gen-x-16k.err | head -1; grep -a '^ids:' $XO/gen-x-16k.err > $XO/gen-x-16k.ids" | tee -a "$L/steps.log"
+    worker_stop
+    rsync -a spark2:intarsia-tp2/out/gates2/gen-tp2-16k.ids spark2:intarsia-tp2/out/gates2/gen-tp1-16k.ids "$L/"
+    rsync -a "spark1:intarsia-tp2/xout/$OUT/" "$L/"
+    python3 - "$L" <<'PY' | tee -a "$L/steps.log"
+import sys, re
+d = sys.argv[1]
+ids = lambda f: [int(v) for v in re.findall(r"-?\d+", open(f"{d}/{f}").read().split(":", 1)[1])]
+x = ids("gen-x-16k.ids")
+for ref in ("gen-tp2-16k.ids", "gen-tp1-16k.ids"):
+    y = ids(ref)
+    k = next((i for i, (p, q) in enumerate(zip(x, y)) if p != q), None)
+    print(f"IDS cross-host tp2 16k vs one-box {ref}: first divergence at {k if k is not None else 'none'} ({len(x)}/{len(y)})")
+PY
+  fi
+fi
+
 # ---- serve + bench speed (smoke: one small size; window: tp=1 graphs, tp=1 eager, tp=2 cross-host + localeval) ----
 SFLAGS="-m $M35 --backend cuda --max-seq ${SMAXSEQ:-20480} --mem-budget ${MEMB:-45}"
 bench_arm() { # <arm> <bench extra> <serve extra...>
@@ -127,7 +166,7 @@ if [[ $MODE == smoke ]]; then
     SIZES=1024 GEN=32 REPS=1 bench_arm tp2x-smoke "" --tp 2 --tp-remote $WIP:$WPORT
     worker_stop
   fi
-else
+elif [[ $MODE == window ]]; then
   bench_arm tp1-graphs "--require-graphs"
   bench_arm tp1-eager "" --no-graphs
   worker_start serve --serving $SFLAGS --tp 2
