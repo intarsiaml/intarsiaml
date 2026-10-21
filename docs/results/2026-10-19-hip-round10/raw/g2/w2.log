@@ -1,0 +1,378 @@
+fleetq: #2918 waiting (#1 in line): tatooine-r9700 is held exclusively by #2917 "M1 qwen3.8-27b mxfp4: hip kernels test + qualify quick + localeval intarsia window" (claude-f31ccf91)
+fleetq:   #2917 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2917 set, or it will wait for #2917 to be released.
+fleetq: #2918 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r10/rjob.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r10/job-g2w2.sh
+[burst] job 2918; stages: bg:w2g1:acc8,acc8l:x,acc8l:INTARSIA_HIP_GEMM_SPLIT=tail,acc8l:INTARSIA_HIP_GEMM_SPLIT=even mutrun10 admission ids8:x ids4k ids8:INTARSIA_HIP_GEMM_SPLIT=tail ids8:INTARSIA_HIP_GEMM_SPLIT=even bgwait pf8x:n1 pf8x@base:b1 pf8x@base:b2 pf8x:n2; stopping radiance 2026-10-21 09:48:29
+[burst] radiance stopped 2026-10-21 09:48:32
+################ stage bg:w2g1:acc8,acc8l:x,acc8l:INTARSIA_HIP_GEMM_SPLIT=tail,acc8l:INTARSIA_HIP_GEMM_SPLIT=even start 09:48:32
+bg w2g1 on GPU 1: pid 46810 stages acc8 acc8l:x acc8l:INTARSIA_HIP_GEMM_SPLIT=tail acc8l:INTARSIA_HIP_GEMM_SPLIT=even
+################ stage bg:w2g1:acc8,acc8l:x,acc8l:INTARSIA_HIP_GEMM_SPLIT=tail,acc8l:INTARSIA_HIP_GEMM_SPLIT=even end 09:48:32
+################ stage mutrun10 start 09:48:32
+r10-xoff         thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:120:13: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s exit=101 
+r10-ooff         thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:120:13: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s exit=101 
+r10-noclamp      thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:47:5: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s exit=101 
+r10-gemv-woff    thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:120:13: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s exit=101 
+r10-trig-inv     thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:50:5: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s exit=101 
+r10-killsw       thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:46:5: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s exit=101 
+r10-tail-off     thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:50:5: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s exit=101 
+r10-def-on       thread 'gemm_split_plan_and_bits' panicked at crates/intarsia-backend-hip/tests/gemm_split.rs:46:5: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s exit=101 
+################ stage mutrun10 end 09:48:35
+################ stage admission start 09:48:35
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=7.143e-4 rel_l2=1.914e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=3.342e-4 rel_l2=9.808e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=3.185e-3 rel_l2=2.773e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=1.126e-3 rel_l2=3.570e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=2.976e-3 rel_l2=1.602e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v2    ok    max_abs=2.475e-3 rel_l2=6.169e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=16 K=4 H=128 I=48 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=0.000e0 rel_l2=0.000e0 T=36 E=16 K=4 H=128 I=128 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=4.195e-4 rel_l2=2.009e-5 T=4 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=3.145e-3 rel_l2=6.709e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=7.143e-4 rel_l2=1.914e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=3.342e-4 rel_l2=9.808e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=3.185e-3 rel_l2=2.773e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=1.126e-3 rel_l2=3.570e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=2.976e-3 rel_l2=1.602e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16_v3    ok    max_abs=2.475e-3 rel_l2=6.169e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+matmul_fp8     matmul_fp8_mma                 63      0    4.329e-3    1.479e-4  ADMITTED
+matmul_fp8     matmul_fp8_mma_f8              39      0    4.329e-3    1.479e-4  ADMITTED
+matmul_fp8     matmul_fp8_mma_v2              63      0    4.329e-3    1.479e-4  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.10s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.87s
+################ stage admission end 09:49:11
+################ stage ids8:x start 09:49:11
+--- this tree x
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=256 | prefill 1074 ms (4003.3 tok/s) | decode 6894 ms (36.99 tok/s)
+--- base tree
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=256 | prefill 1090 ms (3946.7 tok/s) | decode 6900 ms (36.95 tok/s)
+ids: 255 / 255 commas
+IDS8 IDENTICAL (x): the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids8:x end 09:49:30
+################ stage ids4k start 09:49:30
+--- this tree 
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 514 ms (8571.6 tok/s) | decode 1640 ms (155.45 tok/s)
+--- base tree
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=256 | prefill 518 ms (8515.4 tok/s) | decode 1641 ms (155.41 tok/s)
+ids: 255 / 255 commas
+IDS4K IDENTICAL: the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids4k end 09:49:39
+################ stage ids8:INTARSIA_HIP_GEMM_SPLIT=tail start 09:49:39
+--- this tree INTARSIA_HIP_GEMM_SPLIT=tail
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=256 | prefill 1088 ms (3953.2 tok/s) | decode 6895 ms (36.98 tok/s)
+--- base tree
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=256 | prefill 1077 ms (3994.5 tok/s) | decode 6895 ms (36.99 tok/s)
+ids: 255 / 255 commas
+IDS8 IDENTICAL (INTARSIA_HIP_GEMM_SPLIT=tail): the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids8:INTARSIA_HIP_GEMM_SPLIT=tail end 09:49:58
+################ stage ids8:INTARSIA_HIP_GEMM_SPLIT=even start 09:49:58
+--- this tree INTARSIA_HIP_GEMM_SPLIT=even
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=256 | prefill 1137 ms (3783.8 tok/s) | decode 6895 ms (36.98 tok/s)
+--- base tree
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=256 | prefill 1087 ms (3956.5 tok/s) | decode 6896 ms (36.98 tok/s)
+ids: 255 / 255 commas
+IDS8 IDENTICAL (INTARSIA_HIP_GEMM_SPLIT=even): the 256 greedy ids after the 4k prompt match the base tree
+################ stage ids8:INTARSIA_HIP_GEMM_SPLIT=even end 09:50:17
+################ stage bgwait start 09:50:17
+--- bg w2g1 done 09:50:17
+################ stage acc8 start 09:48:32
+--- accuracy qwen3-8b-fp32.safetensors 
+chat_multiturn        58    58   100.00   2.128e-4   1.947e-4   2.392e-3   0.0340   0.0340    99.31     58/58      0
+chat_reasoning        90    90   100.00   1.708e-4   1.595e-4   2.592e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+prefill floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 2.335e-4 (need <= 1.0e-3) ok | tail mass ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.626e-4 (need <= 1.0e-3) ok | tail mass ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+--- accuracy qwen3-8b-long-fp32.safetensors 
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+prefill floor [bf16]: top-1 99.58% (need >= 99.5) ok | full-vocab KL 3.966e-4 (need <= 1.0e-3) ok | tail mass ours 0.0187 vs ref 0.0188, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.214e-5   1.118e-5   1.276e-4   0.0029   0.0029    97.50     16/16      0
+story                 39    16   100.00   2.553e-4   2.438e-4   7.093e-4   0.0237   0.0238    98.75     16/16      0
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+################ stage acc8 end 09:48:54
+################ stage acc8l:x start 09:48:54
+--- accuracy qwen3-8b-long-fp32.safetensors 
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+story              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+code               both      skipped: split 40 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+science            both      skipped: split 39 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_short         both      skipped: split 9 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_system        both      skipped: split 16 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_multiturn     both      skipped: split 29 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_reasoning     both      skipped: split 45 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_300     both      skipped: split 150 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_700     both      skipped: split 350 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk 2048); not a pass
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc8l:x end 09:49:09
+################ stage acc8l:INTARSIA_HIP_GEMM_SPLIT=tail start 09:49:09
+--- accuracy qwen3-8b-long-fp32.safetensors 
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+story              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+code               both      skipped: split 40 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+science            both      skipped: split 39 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_short         both      skipped: split 9 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_system        both      skipped: split 16 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_multiturn     both      skipped: split 29 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_reasoning     both      skipped: split 45 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_300     both      skipped: split 150 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_700     both      skipped: split 350 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk 2048); not a pass
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc8l:INTARSIA_HIP_GEMM_SPLIT=tail end 09:49:23
+################ stage acc8l:INTARSIA_HIP_GEMM_SPLIT=even start 09:49:23
+--- accuracy qwen3-8b-long-fp32.safetensors 
+code                  80    16   100.00   3.892e-5   3.892e-5   4.402e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   7.170e-5   6.924e-5   4.408e-4   0.0104   0.0103   100.00     16/16      0
+chat_short            18    16   100.00   4.958e-4   4.661e-4   2.399e-3   0.0621   0.0621    97.50     16/16      0
+chat_system           32    16   100.00   1.332e-3   1.059e-3   8.323e-3   0.0736   0.0736    96.25     16/16      0
+chat_multiturn        58    16   100.00   2.166e-4   2.002e-4   1.501e-3   0.0076   0.0080    97.50     16/16      0
+chat_reasoning        90    16   100.00   4.778e-4   4.431e-4   3.286e-3   0.0099   0.0098    98.75     16/16      0
+long_prose_300       300    16   100.00   1.337e-5   1.337e-5   1.798e-4   0.0000   0.0000    98.75     16/16      0
+long_prose_700       700    16   100.00   6.587e-4   5.831e-4   3.091e-3   0.0244   0.0247    98.75     16/16      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 100.00% (need >= 99.5) ok | full-vocab KL 3.573e-4 (need <= 1.0e-3) ok | tail mass ours 0.0215 vs ref 0.0215, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 81.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+story              both      skipped: split 19 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+code               both      skipped: split 40 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+science            both      skipped: split 39 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_short         both      skipped: split 9 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_system        both      skipped: split 16 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_multiturn     both      skipped: split 29 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+chat_reasoning     both      skipped: split 45 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_300     both      skipped: split 150 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+long_prose_700     both      skipped: split 350 is below one prefill chunk (2048): nothing to reuse across chunk boundaries
+reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk 2048); not a pass
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
+################ stage acc8l:INTARSIA_HIP_GEMM_SPLIT=even end 09:49:36
+################ stage bgwait end 09:50:17
+################ stage pf8x:n1 start 09:50:17
+--- serve qwen3-8b-intarsia-hip [09:50:17]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 48 base tokens, 20.82 tokens per filler sentence
+  size   1024 rep: prompt=944 gen=64 ttft=0.21s prefill=4576 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=948 gen=64 ttft=0.21s prefill=4432 tok/s decode=38.4 tok/s
+  size   1024 rep: prompt=957 gen=64 ttft=0.22s prefill=4417 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4086 gen=64 ttft=0.94s prefill=4367 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4029 gen=64 ttft=0.93s prefill=4327 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4074 gen=64 ttft=0.93s prefill=4371 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16307 gen=64 ttft=5.12s prefill=3183 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16412 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16276 gen=64 ttft=5.13s prefill=3170 tok/s decode=33.3 tok/s
+  size  16384 rep: prompt=16336 gen=64 ttft=5.16s prefill=3163 tok/s decode=33.2 tok/s
+wrote /work/bench-out/pf8x-n1.json
+pf8x-n1  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      948     0.214         4432        38.4       64      100.2
+    4160     4074     0.932         4367        37.1       64       96.8
+   16384    16307     5.135         3170        33.2       64       86.8
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 651
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x:n1 end 09:51:58
+################ stage pf8x@base:b1 start 09:51:58
+--- serve qwen3-8b-intarsia-hip [09:51:58]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 47 base tokens, 20.93 tokens per filler sentence
+  size   1024 rep: prompt=986 gen=64 ttft=0.21s prefill=4674 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=976 gen=64 ttft=0.21s prefill=4657 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=952 gen=64 ttft=0.21s prefill=4612 tok/s decode=38.4 tok/s
+  size   4160 rep: prompt=4067 gen=64 ttft=0.91s prefill=4454 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4053 gen=64 ttft=0.95s prefill=4272 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4070 gen=64 ttft=0.95s prefill=4273 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16275 gen=64 ttft=5.09s prefill=3197 tok/s decode=33.3 tok/s
+  size  16384 rep: prompt=16226 gen=64 ttft=5.06s prefill=3207 tok/s decode=33.3 tok/s
+  size  16384 rep: prompt=16266 gen=64 ttft=5.12s prefill=3175 tok/s decode=33.3 tok/s
+wrote /work/bench-out/pf8x-b1.json
+pf8x-b1  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      976     0.210         4657        38.3       64      100.1
+    4160     4067     0.949         4272        37.0       64       96.8
+   16384    16266     5.091         3197        33.3       64       87.0
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x@base:b1 end 09:53:32
+################ stage pf8x@base:b2 start 09:53:32
+--- serve qwen3-8b-intarsia-hip [09:53:32]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 48 base tokens, 20.95 tokens per filler sentence
+  size   1024 rep: prompt=975 gen=64 ttft=0.21s prefill=4625 tok/s decode=38.2 tok/s
+  size   1024 rep: prompt=954 gen=64 ttft=0.21s prefill=4587 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=954 gen=64 ttft=0.21s prefill=4598 tok/s decode=38.3 tok/s
+  size   4160 rep: prompt=4034 gen=64 ttft=0.92s prefill=4401 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4037 gen=64 ttft=0.94s prefill=4314 tok/s decode=37.0 tok/s
+  size   4160 rep: prompt=4058 gen=64 ttft=0.91s prefill=4476 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16178 gen=64 ttft=5.03s prefill=3217 tok/s decode=33.3 tok/s
+  size  16384 rep: prompt=16211 gen=64 ttft=5.10s prefill=3176 tok/s decode=33.3 tok/s
+  size  16384 rep: prompt=16281 gen=64 ttft=5.13s prefill=3174 tok/s decode=33.3 tok/s
+pf8x-b2  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      954     0.208         4598        38.3       64      100.1
+    4160     4037     0.917         4401        37.0       64       96.7
+   16384    16211     5.104         3176        33.3       64       87.1
+bandwidth floor: 38.3 tok/s
+wrote /work/bench-out/pf8x-b2.json
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 588
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x@base:b2 end 09:55:06
+################ stage pf8x:n2 start 09:55:06
+--- serve qwen3-8b-intarsia-hip [09:55:06]
+up after ~54s
+target http://127.0.0.1:8090/v1/chat/completions  model qwen3-8b-intarsia-hip
+server context window: 17408 tokens
+calibration: 47 base tokens, 20.74 tokens per filler sentence
+  size   1024 rep: prompt=992 gen=64 ttft=0.21s prefill=4667 tok/s decode=38.2 tok/s
+  size   1024 rep: prompt=970 gen=64 ttft=0.21s prefill=4653 tok/s decode=38.3 tok/s
+  size   1024 rep: prompt=988 gen=64 ttft=0.21s prefill=4596 tok/s decode=38.3 tok/s
+  size   4160 rep: prompt=4127 gen=64 ttft=1.06s prefill=3882 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4085 gen=64 ttft=0.98s prefill=4181 tok/s decode=37.1 tok/s
+  size   4160 rep: prompt=4060 gen=64 ttft=0.91s prefill=4455 tok/s decode=37.1 tok/s
+  size  16384 rep: prompt=16515 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16340 gen=64 ttft=5.14s prefill=3179 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16307 gen=64 ttft=5.10s prefill=3198 tok/s decode=33.3 tok/s
+  size  16384 rep: prompt=16259 gen=64 ttft=5.10s prefill=3185 tok/s decode=33.3 tok/s
+wrote /work/bench-out/pf8x-n2.json
+pf8x-n2  model=qwen3-8b-intarsia-hip  gen=64  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      988     0.213         4653        38.3       64      100.1
+    4160     4085     0.977         4181        37.1       64       96.8
+   16384    16307     5.104         3185        33.3       64       86.9
+bandwidth floor: 38.3 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 651
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+################ stage pf8x:n2 end 09:56:47
+[burst] stages done 2026-10-21 09:56:47 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 09:56:47
+[burst] radiance answers 2026-10-21 09:56:57 (after 15 s)
+fleetq: #2918 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

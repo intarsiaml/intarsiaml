@@ -1,6 +1,6 @@
 //! Round 10 (docs/results/2026-10-19-hip-round10.md): a long bf16 GEMM / one-row GEMV launch is cut along independent
 //! output rows (kernels/hip/matmul.hip `split_rows`) so the short dispatch after it does not pay the gfx1201 ~260 us
-//! window (INTARSIA_HIP_GEMM_SPLIT: tail / even / 0, off by default while WIP; _SPLIT_MIN_US trigger, _SPLIT_TAIL_US tail length).
+//! window (INTARSIA_HIP_GEMM_SPLIT: tail / even / 0, opt-in, off by default; _SPLIT_MIN_US trigger, _SPLIT_TAIL_US tail length).
 //! Pins the piece plan on the host (the 8B's shapes, the trigger, the kill switch, both modes) and checks on the device
 //! that every cut gives every bit of the single launch: GEMM rows that are not a tile multiple, a last piece of one row
 //! under a full M >= 128 (the tile must come from the full M), the f32 logits output, and the GEMV over weight rows.
@@ -41,10 +41,10 @@ fn rand_t(rng: &mut SplitMix64, shape: &[usize]) -> HostTensor {
 }
 
 fn plan_rule() {
-    // WIP default (round 10 paused): off, one launch
+    // default: off, one launch (the A/B found no win)
     set(None, None, None);
-    assert_eq!(gemm_split_rows(2048, 4096, 12288, false), vec![0, 2048], "off by default while the lever is WIP");
-    assert_eq!(gemm_split_rows(1, 151936, 4096, true), vec![0, 151936], "off by default while the lever is WIP");
+    assert_eq!(gemm_split_rows(2048, 4096, 12288, false), vec![0, 2048], "off by default");
+    assert_eq!(gemm_split_rows(1, 151936, 4096, true), vec![0, 151936], "off by default");
     // tail mode, default trigger 1100 us and tail 400 us
     set(Some("tail"), None, None);
     assert_eq!(gemm_split_rows(1059, 12288, 4096, false), vec![0, 640, 1059], "8B gate / up at ~1k tokens: tail of 4 tile rows");

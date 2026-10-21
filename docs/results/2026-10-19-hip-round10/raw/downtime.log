@@ -3,3 +3,7 @@
 W1        2848  2026-10-19 21:36:19   2026-10-19 21:40:29   4.17     inventory on base 0df54872: rocprofv3 + unprofiled generate, 35B (GPU 0) and 8B (GPU 1) at ~1.1k / 4.4k / ~17.6k prefill and short-prompt decode; 35B pfstamp at 4408
 W2        2852  2026-10-19 21:45:54   2026-10-19 21:49:05   3.18     split-KV OCC break-even sweep, 35B serve decode 2048..16384, OCC unset vs =1, x2 interleaved, order alternated (GPU 1 idle)
 # total 7.35 min of 60; longest window 4.17; gap W1 -> W2 5.42 min. Paused at 21:53 (user); no slot held, no container left, /v1/models answering.
+# G2 resume 2026-10-21 (tatooine clock, EDT)
+G2-1      2911  2026-10-21 09:36:18   2026-10-21 09:39:17   2.98     tests/gemm_split on the GPU + 8B A/B off / tail / even (prefill 1k / 4k / 16k, decode), interleaved x2
+G2-2      2918  2026-10-21 09:48:32   2026-10-21 09:56:57   8.42     round-10 mutants, admission, 8B and 35B 256 ids vs base, 8B goldens (GPU 1), pf8x new vs base x2
+# G2 total 11.40 min of 40; no slot held, no container left, /v1/models answering.

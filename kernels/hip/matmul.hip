@@ -315,7 +315,8 @@ bool gemv_dispatch(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int
 //   tail:           two pieces, the second one ~INTARSIA_HIP_GEMM_SPLIT_TAIL_US (400) long, so it absorbs the window and
 //                   is itself too short to stall what follows;
 //   even:           pieces of at most ~900 us each (round 8's rule for GEMMs), none of them stalls.
-// WIP (round 10 paused before any GPU run of it): off by default until tests/gemm_split.rs and the A/B have run; set
+// Opt-in, off by default: the 8B A/B on gfx1201 (docs/results/2026-10-19-hip-round10.md) found no win (tail -1.6 % .. +0.3 %,
+// even +1.8 % at ~1k tokens but -1.8 % at 4k / 16k, decode unchanged); set
 // INTARSIA_HIP_GEMM_SPLIT=tail or =even to try it. INTARSIA_HIP_GEMM_SPLIT=0 keeps one launch; only launches estimated above INTARSIA_HIP_GEMM_SPLIT_MIN_US (1100) are cut.
 // All read at every launch. Every output element is computed by the same kernel with the same tile config (chosen from
 // the full shape) over the same K loop, so the bits do not depend on the cut (tests/gemm_split.rs).
@@ -325,7 +326,7 @@ struct SplitCfg {
 };
 
 SplitCfg split_cfg() {
-    SplitCfg c{0, 1100.0, 400.0, 900.0};  // WIP: off by default (see above)
+    SplitCfg c{0, 1100.0, 400.0, 900.0};  // off by default (see above)
     if (const char* e = getenv("INTARSIA_HIP_GEMM_SPLIT")) {
         if (!strcmp(e, "0") || !strcmp(e, "off")) c.mode = 0;
         else if (!strcmp(e, "even")) c.mode = 2;

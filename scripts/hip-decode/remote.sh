@@ -670,6 +670,35 @@ stage_lnprof() {
 # lnrun:<same args as lnprof>: only the two unprofiled runs (round 10 lever A/B: INTARSIA_HIP_GEMM_SPLIT=0 / tail / even)
 stage_lnrun() { LN_NOPROF=1 stage_lnprof "$1"; }
 
+# Round 10 (perf/hip-round10, docs/results/2026-10-19-hip-round10.md).
+# round-10 mutants (mutate.py; mutbuild10 in a CPU slot, mutrun10 in a GPU window; tests/gemm_split.rs)
+R10MUT="r10-xoff r10-ooff r10-noclamp r10-gemv-woff r10-trig-inv r10-killsw r10-tail-off r10-def-on"
+stage_mutbuild10() { MUTATIONS="${R10MUT_SEL:-$R10MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r10-mut" stage_mutbuild; }
+stage_mutrun10() { MUTATIONS="${R10MUT_SEL:-$R10MUT}" MUT_TIMEOUT=${MUT_TIMEOUT:-200} stage_mutrun; }
+# ids8:<NAME=value>: greedy ids of 256 tokens after the ~4.4k-token prompt on the 8B, this tree (with NAME=value, or none: x) and the base tree; identical or not
+gen8l() { # gen8l <outfile prefix>
+  printf '%s\n' "$B generate -m $M8 --backend hip --max-seq 8192 --profile-every 0 --ignore-eos --show-ids -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 256" > "$OUTD/ids8.sh"
+  $D bash -c "bash /work/bench-out/ids8.sh" > "$1.out" 2> "$1.err"
+  grep -a '^ids:' "$1.err" > "$1.ids"
+  grep -aE "prompt:|finish=" "$1.err"
+}
+stage_ids8() {
+  rm -f "$OUTD"/ids8-*
+  echo "--- this tree ${1:-}"; ( [ -n "${1:-}" ] && [ "$1" != x ] && export "$1"; gen8l "$OUTD/ids8-new" )
+  echo "--- base tree"
+  local outd_new=$OUTD
+  ( export INTARSIA_REPO="${BASE_REPO:-$HOME/intarsiaml-fp8gemv-base}" INTARSIA_TARGET_VOL="${BASE_VOL:-intarsia-cargo-target-fp8gemv-base}"
+    cd "$INTARSIA_REPO" && OUTD=$INTARSIA_REPO/bench-out && mkdir -p "$OUTD" && gen8l "$OUTD/ids8-base" && cp "$OUTD/ids8-base.ids" "$outd_new/ids8-base.ids" )
+  echo "ids: $(tr -cd ',' < "$OUTD/ids8-new.ids" | wc -c) / $(tr -cd ',' < "$OUTD/ids8-base.ids" | wc -c) commas"
+  if [ -s "$OUTD/ids8-new.ids" ] && cmp -s "$OUTD/ids8-new.ids" "$OUTD/ids8-base.ids"; then
+    echo "IDS8 IDENTICAL (${1:-default}): the 256 greedy ids after the 4k prompt match the base tree"
+  else
+    echo "IDS8 DIFFER (${1:-default})"; cmp "$OUTD/ids8-new.ids" "$OUTD/ids8-base.ids" | head -3
+  fi
+}
+# acc8l:<NAME=value>: the 8B long golden with the prefix-reuse gate (--mode all), NAME=value exported (x: none)
+stage_acc8l() { ( [ "$1" != x ] && export "$1"; ACC_TAG="r10-${1//[^A-Za-z0-9]/_}" ACC_MODE=all ACC_TAIL=30 acc $M8 qwen3-8b-long-fp32.safetensors ); }
+
 for s in "$@"; do
   name=${s%%:*}; arg=""; [[ "$s" == *:* ]] && arg=${s#*:}
   echo "################ stage $s start $(ts)"

@@ -1,0 +1,183 @@
+fleetq: #2911 waiting (#1 in line): needs tatooine-r9700 to itself; running there: #2910 "M3 HIP 35b-long dumps + reuse diag c1024/c4096 (<=17 min)" (claude-f31ccf91)
+fleetq:   #2910 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2910 set, or it will wait for #2910 to be released.
+fleetq: #2911 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 26% busy with work fleetq does not track
+fleetq: #2911 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 91% busy with work fleetq does not track
+fleetq: #2911 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r10/rjob.sh /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r10/job-g2w1.sh
+[burst] job 2911; stages: t:gemm_split lnrun:deca-0/8/short/64/INTARSIA_HIP_GEMM_SPLIT=0 lnrun:deca-tail/8/short/64/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:deca-even/8/short/64/INTARSIA_HIP_GEMM_SPLIT=even lnrun:decb-even/8/short/64/INTARSIA_HIP_GEMM_SPLIT=even lnrun:decb-tail/8/short/64/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:decb-0/8/short/64/INTARSIA_HIP_GEMM_SPLIT=0 lnrun:1ka-0/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=0 lnrun:1ka-tail/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:1ka-even/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=even lnrun:1kb-even/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=even lnrun:1kb-tail/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:1kb-0/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=0 lnrun:4ka-0/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=0 lnrun:4ka-tail/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:4ka-even/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=even lnrun:4kb-even/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=even lnrun:4kb-tail/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:4kb-0/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=0 lnrun:16ka-0/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=0 lnrun:16ka-tail/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:16ka-even/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=even lnrun:16kb-even/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=even lnrun:16kb-tail/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=tail lnrun:16kb-0/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=0; stopping radiance 2026-10-21 09:36:15
+[burst] radiance stopped 2026-10-21 09:36:18
+################ stage t:gemm_split start 09:36:18
+test gemm_split_plan_and_bits ... gemm split: 36 cut launches bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+################ stage t:gemm_split end 09:36:18
+################ stage lnrun:deca-0/8/short/64/INTARSIA_HIP_GEMM_SPLIT=0 start 09:36:18
+--- deca-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p 'Write a long story about a robot who learns 
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 67 ms (178.8 tok/s) | decode 1672 ms (37.67 tok/s)
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 67 ms (178.6 tok/s) | decode 1625 ms (38.76 tok/s)
+################ stage lnrun:deca-0/8/short/64/INTARSIA_HIP_GEMM_SPLIT=0 end 09:36:29
+################ stage lnrun:deca-tail/8/short/64/INTARSIA_HIP_GEMM_SPLIT=tail start 09:36:29
+--- deca-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p 'Write a long story about a robot who lear
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 67 ms (178.8 tok/s) | decode 1625 ms (38.77 tok/s)
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 61 ms (196.2 tok/s) | decode 1626 ms (38.76 tok/s)
+################ stage lnrun:deca-tail/8/short/64/INTARSIA_HIP_GEMM_SPLIT=tail end 09:36:34
+################ stage lnrun:deca-even/8/short/64/INTARSIA_HIP_GEMM_SPLIT=even start 09:36:34
+--- deca-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p 'Write a long story about a robot who lear
+prompt: 12 tokens
+Okay,finish=length prompt=12 (cached 0) completion=64 | prefill 66 ms (181.9 tok/s) | decode 1626 ms (38.76 tok/s)
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 64 ms (187.1 tok/s) | decode 1626 ms (38.75 tok/s)
+################ stage lnrun:deca-even/8/short/64/INTARSIA_HIP_GEMM_SPLIT=even end 09:36:40
+################ stage lnrun:decb-even/8/short/64/INTARSIA_HIP_GEMM_SPLIT=even start 09:36:40
+--- decb-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p 'Write a long story about a robot who lear
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 66 ms (182.5 tok/s) | decode 1626 ms (38.75 tok/s)
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 65 ms (183.5 tok/s) | decode 1626 ms (38.76 tok/s)
+################ stage lnrun:decb-even/8/short/64/INTARSIA_HIP_GEMM_SPLIT=even end 09:36:46
+################ stage lnrun:decb-tail/8/short/64/INTARSIA_HIP_GEMM_SPLIT=tail start 09:36:46
+--- decb-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p 'Write a long story about a robot who lear
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 66 ms (181.0 tok/s) | decode 1625 ms (38.76 tok/s)
+prompt: 12 tokens
+Okay,finish=length prompt=12 (cached 0) completion=64 | prefill 68 ms (175.8 tok/s) | decode 1626 ms (38.76 tok/s)
+################ stage lnrun:decb-tail/8/short/64/INTARSIA_HIP_GEMM_SPLIT=tail end 09:36:52
+################ stage lnrun:decb-0/8/short/64/INTARSIA_HIP_GEMM_SPLIT=0 start 09:36:52
+--- decb-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p 'Write a long story about a robot who learns 
+prompt: 12 tokens
+finish=length prompt=12 (cached 0) completion=64 | prefill 71 ms (168.8 tok/s) | decode 1626 ms (38.75 tok/s)
+prompt: 12 tokens
+Okay,finish=length prompt=12 (cached 0) completion=64 | prefill 70 ms (172.3 tok/s) | decode 1625 ms (38.76 tok/s)
+################ stage lnrun:decb-0/8/short/64/INTARSIA_HIP_GEMM_SPLIT=0 end 09:36:58
+################ stage lnrun:1ka-0/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=0 start 09:36:58
+--- 1ka-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(head -c $(($(wc -c < /work/scripts/hip-dec
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 260 ms (4072.6 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 265 ms (4000.4 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:1ka-0/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=0 end 09:37:01
+################ stage lnrun:1ka-tail/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=tail start 09:37:01
+--- 1ka-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(head -c $(($(wc -c < /work/scripts/hip-
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 263 ms (4032.2 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 266 ms (3987.1 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:1ka-tail/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=tail end 09:37:04
+################ stage lnrun:1ka-even/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=even start 09:37:04
+--- 1ka-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(head -c $(($(wc -c < /work/scripts/hip-
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 252 ms (4207.2 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 253 ms (4180.9 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:1ka-even/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=even end 09:37:07
+################ stage lnrun:1kb-even/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=even start 09:37:07
+--- 1kb-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(head -c $(($(wc -c < /work/scripts/hip-
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 254 ms (4173.6 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 257 ms (4118.5 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:1kb-even/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=even end 09:37:10
+################ stage lnrun:1kb-tail/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=tail start 09:37:10
+--- 1kb-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(head -c $(($(wc -c < /work/scripts/hip-
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 259 ms (4088.7 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 263 ms (4029.6 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:1kb-tail/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=tail end 09:37:13
+################ stage lnrun:1kb-0/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=0 start 09:37:13
+--- 1kb-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(head -c $(($(wc -c < /work/scripts/hip-dec
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 255 ms (4157.7 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 1059 tokens
+finish=length prompt=1059 (cached 0) completion=1 | prefill 254 ms (4164.5 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:1kb-0/8/1k/1/INTARSIA_HIP_GEMM_SPLIT=0 end 09:37:16
+################ stage lnrun:4ka-0/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=0 start 09:37:16
+--- 4ka-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(cat /work/scripts/hip-decode/prompt4k.txt)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1119 ms (3844.7 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1106 ms (3889.7 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:4ka-0/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=0 end 09:37:21
+################ stage lnrun:4ka-tail/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=tail start 09:37:21
+--- 4ka-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(cat /work/scripts/hip-decode/prompt4k.t
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1102 ms (3901.6 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1117 ms (3851.5 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:4ka-tail/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=tail end 09:37:25
+################ stage lnrun:4ka-even/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=even start 09:37:25
+--- 4ka-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(cat /work/scripts/hip-decode/prompt4k.t
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1133 ms (3796.0 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1133 ms (3797.6 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:4ka-even/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=even end 09:37:30
+################ stage lnrun:4kb-even/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=even start 09:37:30
+--- 4kb-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(cat /work/scripts/hip-decode/prompt4k.t
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1136 ms (3786.3 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1133 ms (3796.8 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:4kb-even/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=even end 09:37:35
+################ stage lnrun:4kb-tail/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=tail start 09:37:35
+--- 4kb-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(cat /work/scripts/hip-decode/prompt4k.t
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1108 ms (3883.5 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1113 ms (3865.0 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:4kb-tail/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=tail end 09:37:40
+################ stage lnrun:4kb-0/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=0 start 09:37:40
+--- 4kb-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(cat /work/scripts/hip-decode/prompt4k.txt)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1109 ms (3877.9 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 4301 tokens
+finish=length prompt=4301 (cached 0) completion=1 | prefill 1120 ms (3841.3 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:4kb-0/8/4k/1/INTARSIA_HIP_GEMM_SPLIT=0 end 09:37:44
+################ stage lnrun:16ka-0/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=0 start 09:37:44
+--- 16ka-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(for i in 1 2 3 4; do cat /work/scripts/hip
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5531 ms (3110.4 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5572 ms (3087.5 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:16ka-0/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=0 end 09:37:58
+################ stage lnrun:16ka-tail/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=tail start 09:37:58
+--- 16ka-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(for i in 1 2 3 4; do cat /work/scripts/
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5607 ms (3068.6 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5614 ms (3064.3 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:16ka-tail/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=tail end 09:38:12
+################ stage lnrun:16ka-even/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=even start 09:38:12
+--- 16ka-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(for i in 1 2 3 4; do cat /work/scripts/
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5670 ms (3034.0 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5695 ms (3021.1 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:16ka-even/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=even end 09:38:26
+################ stage lnrun:16kb-even/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=even start 09:38:26
+--- 16kb-even unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=even; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(for i in 1 2 3 4; do cat /work/scripts/
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5663 ms (3038.1 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5643 ms (3049.0 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:16kb-even/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=even end 09:38:40
+################ stage lnrun:16kb-tail/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=tail start 09:38:40
+--- 16kb-tail unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=tail; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(for i in 1 2 3 4; do cat /work/scripts/
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5585 ms (3080.3 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5583 ms (3081.6 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:16kb-tail/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=tail end 09:38:53
+################ stage lnrun:16kb-0/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=0 start 09:38:53
+--- 16kb-0 unprofiled x2:  export INTARSIA_HIP_GEMM_SPLIT=0; /target/release/intarsia generate -m /models/Qwen3-8B --backend hip  --max-seq 18432 --profile-every 0 --ignore-eos  -p "$(for i in 1 2 3 4; do cat /work/scripts/hip
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5573 ms (3087.0 tok/s) | decode 0 ms (0.00 tok/s)
+prompt: 17204 tokens
+finish=length prompt=17204 (cached 0) completion=1 | prefill 5590 ms (3077.8 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage lnrun:16kb-0/8/16k/1/INTARSIA_HIP_GEMM_SPLIT=0 end 09:39:07
+[burst] stages done 2026-10-21 09:39:07 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 09:39:07
+[burst] radiance answers 2026-10-21 09:39:17 (after 15 s)
+fleetq: #2911 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
