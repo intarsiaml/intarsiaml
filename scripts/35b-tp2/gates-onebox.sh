@@ -27,7 +27,7 @@ M8=$HOME/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6
 SG=$P/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; LG=$P/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
 CORPUS=$P/prompts/corpus_docs.txt
 BASE=$P/bin/base-intarsia; DEV=$P/bin/dev-intarsia
-TP2="--tp 2 --comm host --devices 0,0"
+TP2="--tp 2 --comm host --devices 0,0"; export INTARSIA_TP_SAME_DEVICE=1  # debugging only: the two ranks race on the per-device cuBLAS workspace
 TPB="--self-max-kl 1.2e-3 --self-max-pos-kl 9.8e-2 --self-max-flip-pct 0.84 --self-max-tail 4.2e-4 --self-prompt-factor 1.92"
 PC="--pre-change $PRE_CHANGE"
 SIMT=attn_decode_bf16_splitkv,attn_prefill_bf16_splitkv,attn_prefill_bf16_flash

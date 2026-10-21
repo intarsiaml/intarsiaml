@@ -37,3 +37,13 @@
 10:52:00 self base-short exit 0: SELF-STATS mode=prefill positions=1441 mean_kl21=2.723472e-13 max_kl21=1.881214e-10 flips=0 flip_pct=0.0000 tail_abs=3.502575e-9 worst_prompt_kl21=2.354620e-12|SELF-STATS mode=decode positions=160 mean_kl21=3.728103e-11 max_kl21=5.919182e-9 flips=0 flip_pct=0.0000 tail_abs=5.770369e-9 worst_prompt_kl21=3.716788e-10|
 10:52:13 self tp2bug-short exit 1 13 s: SELF-STATS mode=prefill positions=1441 mean_kl21=4.832544e-3 max_kl21=5.052532e-1 flips=18 flip_pct=1.2491 tail_abs=9.445792e-4 worst_prompt_kl21=3.787732e-2|SELF-STATS mode=decode positions=160 mean_kl21=7.516624e-3 max_kl21=3.094337e-1 flips=2 flip_pct=1.2500 tail_abs=1.849974e-3 worst_prompt_kl21=2.436949e-2|Error: accuracy gate FAILED|
 10:54:49 self tp2bug-long exit 1 156 s: SELF-STATS mode=prefill positions=36887 mean_kl21=2.974946e-2 max_kl21=2.179498e1 flips=1595 flip_pct=4.3240 tail_abs=3.834331e-3 worst_prompt_kl21=1.692143e-1|SELF-STATS mode=decode positions=80 mean_kl21=8.074031e-3 max_kl21=1.324653e-1 flips=6 flip_pct=7.5000 tail_abs=8.279064e-4 worst_prompt_kl21=1.664308e-2|Error: accuracy gate FAILED|
+11:09:32 MemAvailable 53 GB
+11:09:32 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1 
+11:09:32 bin /home/nvidia/intarsia-tp2/bin/dev-intarsia: intarsia 0.0.1 
+2411 MHz, [N/A], 43, 12.06 W, 0 %
+11:09:45 self tp2-short exit 1 13 s: SELF-STATS mode=prefill positions=1441 mean_kl21=9.992549e-3 max_kl21=1.825592e0 flips=24 flip_pct=1.6655 tail_abs=1.503392e-3 worst_prompt_kl21=3.705767e-1|SELF-STATS mode=decode positions=160 mean_kl21=1.269664e-2 max_kl21=9.347190e-1 flips=5 flip_pct=3.1250 tail_abs=2.157073e-3 worst_prompt_kl21=6.135282e-2|Error: accuracy gate FAILED|
+11:10:16 MemAvailable 53 GB
+11:10:17 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1 
+11:10:17 bin /home/nvidia/intarsia-tp2/bin/dev-intarsia: intarsia 0.0.1 
+2398 MHz, [N/A], 44, 12.06 W, 0 %
+11:10:30 self tp2-short exit 1 13 s: SELF-STATS mode=prefill positions=1441 mean_kl21=4.715870e-3 max_kl21=7.691715e-1 flips=16 flip_pct=1.1103 tail_abs=8.515089e-4 worst_prompt_kl21=4.667561e-2|SELF-STATS mode=decode positions=160 mean_kl21=1.114459e-2 max_kl21=9.347190e-1 flips=2 flip_pct=1.2500 tail_abs=2.242219e-3 worst_prompt_kl21=6.135282e-2|Error: accuracy gate FAILED|

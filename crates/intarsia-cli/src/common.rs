@@ -256,10 +256,13 @@ impl ModelArgs {
         let mut sorted = devs.clone();
         sorted.sort_unstable();
         sorted.dedup();
-        // two ranks on one device: only through the host communicator (accuracy runs of the sharding on a one-GPU box;
-        // no speed meaning). A device collective needs distinct devices.
-        if sorted.len() != devs.len() && self.backend != "cpu" && self.comm != "host" {
-            bail!("--devices {devs:?} repeats a device (allowed only with --comm host)");
+        // Two ranks on one GPU are refused: the CUDA backend keeps one cuBLAS handle and workspace per device, so two ranks
+        // on two streams of the same device race on it (measured: tp=2 one-box self-golden KL moved run to run,
+        // docs/results/2026-10-21-35b-tp2-cuda.md). `INTARSIA_TP_SAME_DEVICE=1` allows it with the host communicator,
+        // for debugging only (results are not reproducible).
+        let same_ok = self.comm == "host" && std::env::var_os("INTARSIA_TP_SAME_DEVICE").is_some_and(|v| v == "1");
+        if sorted.len() != devs.len() && self.backend != "cpu" && !same_ok {
+            bail!("--devices {devs:?} repeats a device (two ranks on one GPU race on its cuBLAS workspace)");
         }
         Ok(devs)
     }

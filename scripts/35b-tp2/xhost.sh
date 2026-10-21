@@ -72,7 +72,7 @@ r spark1 "nvidia-smi --query-gpu=clocks.sm,clocks.mem,temperature.gpu,power.draw
 # rank 1 on spark2: a loop of tp-workers with the given model flags (one per rank-0 connection) until stop-worker
 worker_start() { # <tag> <flags...>
   local tag=$1; shift
-  r spark2 "rm -f ~/intarsia-tp2/stop-worker; nohup bash -c 'i=0; while [ ! -f ~/intarsia-tp2/stop-worker ]; do i=\$((i+1)); env $NCCLENV $BIN tp-worker --listen $WIP:$WPORT $* >> ~/intarsia-tp2/xout/$OUT/worker-$tag.log 2>&1; echo \"worker exit \$? (\$i)\" >> ~/intarsia-tp2/xout/$OUT/worker-$tag.log; sleep 1; done' > /dev/null 2>&1 < /dev/null &"
+  r spark2 "rm -f ~/intarsia-tp2/stop-worker; nohup bash -c 'i=0; while [ ! -f ~/intarsia-tp2/stop-worker ]; do i=\$((i+1)); env $NCCLENV ${WENV:-} $BIN tp-worker --listen $WIP:$WPORT $* >> ~/intarsia-tp2/xout/$OUT/worker-$tag.log 2>&1; echo \"worker exit \$? (\$i)\" >> ~/intarsia-tp2/xout/$OUT/worker-$tag.log; sleep 1; done' > /dev/null 2>&1 < /dev/null &"
 }
 worker_stop() {
   r spark2 "touch ~/intarsia-tp2/stop-worker; pkill -TERM -f '[t]p-worker --listen'; for i in \$(seq 1 20); do pgrep -f '[t]p-worker --listen' >/dev/null || break; sleep 1; done; pkill -KILL -f '[t]p-worker --listen'; true"
@@ -118,6 +118,9 @@ if [[ $MODE == gates ]]; then
   xacc self-long --self-golden ~/intarsia-tp2/golden/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
   xacc floor-short --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
   xacc floor-long --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
+  # the 1 % partial-scale bug on rank 1 (the worker's env), judged by the same budgets
+  WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-short --self-golden ~/intarsia-tp2/golden/S1-short.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_SHORT
+  WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-long --self-golden ~/intarsia-tp2/golden/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
   xacc reuse --golden ~/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
   if want gen16k; then
     GEN_FLAGS="-m $M35 --backend cuda --tp 2 --max-seq 20480 --mem-budget 16 --profile-every 0"
