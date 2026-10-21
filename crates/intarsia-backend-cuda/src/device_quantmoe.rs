@@ -23,6 +23,7 @@ extern "C" {
     fn ik_matmul_fp8_gemm(x: T, w: T, scales: T, out: TM, scratch: *const IkScratch, s: S) -> c_int;
     fn ik_matmul_fp8_gemm_f8(x: T, w: T, scales: T, out: TM, scratch: *const IkScratch, s: S) -> c_int;
     fn ik_matmul_fp8_gemm_reg(x: T, w: T, scales: T, out: TM, scratch: *const IkScratch, s: S) -> c_int;
+    fn ik_matmul_fp8_gemm_lt(x: T, w: T, scales: T, out: TM, scratch: *const IkScratch, s: S) -> c_int;
     fn ik_matmul_nvfp4_gemv(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     fn ik_matmul_nvfp4_mma(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     fn ik_matmul_nvfp4_gemm(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
@@ -175,6 +176,14 @@ impl CudaBackend {
                     s,
                 ),
                 "matmul_fp8_gemm_reg" => ik_matmul_fp8_gemm_reg(
+                    i(0),
+                    i(1),
+                    i(2),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "matmul_fp8_gemm_lt" => ik_matmul_fp8_gemm_lt(
                     i(0),
                     i(1),
                     i(2),

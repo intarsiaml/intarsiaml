@@ -5,7 +5,7 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::{fp8_gemm_f8_priority, fp8_gemm_reg_priority, moe_nvfp4_priority, moe_w4a16_priority, ARCH};
+use crate::kernels::{fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_gemm_reg_priority, moe_nvfp4_priority, moe_w4a16_priority, ARCH};
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
@@ -14,6 +14,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_gemm", Op::MatmulFp8),
     ("matmul_fp8_gemm_f8", Op::MatmulFp8),
+    ("matmul_fp8_gemm_lt", Op::MatmulFp8),
     ("matmul_fp8_gemm_reg", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
@@ -150,6 +151,19 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(fp8_gemm_f8_priority(20)),
+                // OPT-IN (INTARSIA_CUDA_FP8_GEMM_LT=1, see `kernels::fp8_gemm_lt`): the same W8A8 op on cuBLASLt's e4m3 GEMM
+                // (kernels/cuda/fp8_gemm_lt.cu), docs/results/2026-10-21-cuda-round7.md. Same e4m3 activations as the default
+                // path, different accumulation. Serves every M the gemv does not (one pinned algorithm per (N, K): a tail
+                // chunk's rows get the bits a full chunk gives them). Above `matmul_fp8_gemm_f8` when both are on.
+                "matmul_fp8_gemm_lt" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.m >= F8_MIN_TOKENS && s.k % 128 == 0 && s.n % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2)
+                    .priority(fp8_gemm_lt_priority(25)),
                 // The same GEMM with the weights dequantised in registers and 128 x 128 tiles (kernels/cuda/fp8_gemm.cu): bitwise
                 // the results of `matmul_fp8_gemm`; INTARSIA_CUDA_FP8_GEMM_REG=0 falls back to it.
                 "matmul_fp8_gemm_reg" => k
