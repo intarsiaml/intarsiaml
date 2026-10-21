@@ -1,1 +1,1 @@
-{"gbs": 0, "note": "placeholder, set from the first admitted-state run"}
+{"gbs": 554.2, "note": "median of the 4 refbw.py samples of the two admitted intarsia arms (GPU 1338/1328 MHz, CPU 0.08/0.12) in fleetq #3302 on endor, 2026-10-21; docs/results/2026-10-21-mg-metal-gate-clock.md"}
