@@ -15,7 +15,7 @@ for t in "${TREES[@]}"; do
     base)
       tmp=$(mktemp -d)
       git -C "$REPO" archive "$BASE_REF" | tar -x -C "$tmp"
-      SRC_DIR=$tmp INTARSIA_STAMP="head=$(git -C "$REPO" rev-parse --short=8 "$BASE_REF") export=yes" "$REPO/scripts/cuda-decode/build.sh" tp2-base
+      SRC_DIR=$tmp INTARSIA_STAMP="head=$(git -C "$REPO" rev-parse --short=7 "$BASE_REF") code-tree=$(git -C "$REPO" rev-parse "$BASE_REF^{tree}" | cut -c1-12) dirty=no" "$REPO/scripts/cuda-decode/build.sh" tp2-base
       rm -rf "$tmp" ;;
     dev) "$REPO/scripts/cuda-decode/build.sh" tp2-dev ;;
     *) echo "unknown tree $t"; exit 2 ;;
