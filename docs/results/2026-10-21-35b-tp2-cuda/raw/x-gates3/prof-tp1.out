@@ -1,0 +1,3 @@
+This is a highly detailed and technically rigorous architecture plan. The shift from a Python-heavy serving stack (like vLLM) to a Rust-hosted, C-kernel ABI approach with AOT-compiled CUDA kernels is a significant architectural pivot aimed at reducing latency, memory overhead, and startup time.
+
+Below is an

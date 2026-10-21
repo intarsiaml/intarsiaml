@@ -1,0 +1,10 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 8192 tokens
+calibration: 44 base tokens, 21.71 tokens per filler sentence
+  size   1024 rep: prompt=1003 gen=32 ttft=0.19s prefill=5367 tok/s decode=77.9 tok/s
+wrote /home/nvidia/intarsia-tp2/xout/x-smoke3/tp2x-smoke/g1b-tp2x-smoke.json
+g1b-tp2x-smoke  model=intarsia-35b  gen=32  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024     1003     0.187         5367        77.9       32
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)

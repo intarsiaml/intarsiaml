@@ -1,0 +1,23 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2411 MHz, [N/A], 67, 77.88 W, 96 %
+self-short rc=1
+Error: reading /Users/josef/intarsia-tp2/golden/S1-short.safetensors
+self-long rc=1
+Error: reading /Users/josef/intarsia-tp2/golden/S1-long.safetensors
+floor-short rc=1
+Error: reading /Users/josef/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors
+floor-long rc=1
+Error: reading /Users/josef/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+bug-short rc=1
+Error: reading /Users/josef/intarsia-tp2/golden/S1-short.safetensors
+bug-long rc=1
+Error: reading /Users/josef/intarsia-tp2/golden/S1-long.safetensors
+reuse rc=1
+Error: reading /Users/josef/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+rc=0
+finish=length prompt=16026 (cached 0) completion=256 | prefill 4120 ms (3889.8 tok/s) | decode 3891 ms (65.53 tok/s)
+IDS cross-host tp2 16k vs one-box gen-tp2-16k.ids: first divergence at none (256/256)
+IDS cross-host tp2 16k vs one-box gen-tp1-16k.ids: first divergence at 61 (256/256)
+11:12:55 == gates done, 1352 s of the work budget left
+11:12:55 restore (exit 0)

@@ -142,7 +142,7 @@ impl CudaBackend {
         Ok(s[id as usize] as *mut c_void)
     }
 
-    fn ptr(buf: &Buffer, offset: usize, len: usize) -> Result<*mut u8> {
+    pub(crate) fn ptr(buf: &Buffer, offset: usize, len: usize) -> Result<*mut u8> {
         let b =
             buf.downcast::<CudaBuffer>().ok_or_else(|| Error::backend("buffer does not belong to the cuda backend"))?;
         if offset.checked_add(len).is_none_or(|e| e > b.bytes) {

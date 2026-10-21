@@ -1,0 +1,15 @@
+13:12:51 MemAvailable 53 GB
+13:12:51 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1 
+13:12:51 bin /home/nvidia/intarsia-tp2/bin/zdev-intarsia: intarsia 0.0.1 
+2398 MHz, [N/A], 49, 11.29 W, 0 %
+13:13:51 plan base-35b exit 0 13961 bytes
+13:14:40 plan dev-35b exit 0 13961 bytes
+13:15:41 plan base-8b exit 0 8630 bytes
+13:16:16 plan dev-8b exit 0 8630 bytes
+13:16:16 PLAN IDENTITY 35b tp=1: identical
+13:16:16 PLAN IDENTITY 8b tp=1: identical
+13:17:51 acc base-tp1-short exit 0 95 s: prefill floor [4bit]: top-1 (all rows) 97.92% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.666e-3 (need <= 3.0e-2) ok [all rows, n=1441: 5.430e-3, re|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+13:20:26 acc base-tp1-long exit 0 155 s: prefill floor [4bit]: top-1 (all rows) 94.17% (not gated for this class) ok | 21-way KL (scored rows, n=32349) 1.486e-2 (need <= 3.0e-2) ok [all rows, n=36887: 4.576e-2, |floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+13:21:18 self tp1-short exit 0 52 s: SELF-STATS mode=prefill positions=1441 mean_kl21=2.723472e-13 max_kl21=1.881214e-10 flips=0 flip_pct=0.0000 tail_abs=3.502575e-9 worst_prompt_kl21=2.354620e-12|SELF-STATS mode=decode positions=160 mean_kl21=3.728103e-11 max_kl21=5.919182e-9 flips=0 flip_pct=0.0000 tail_abs=5.770369e-9 worst_prompt_kl21=3.716788e-10|
+13:23:00 self tp1-long exit 0 102 s: SELF-STATS mode=prefill positions=36887 mean_kl21=2.751386e-13 max_kl21=5.439328e-10 flips=0 flip_pct=0.0000 tail_abs=1.025575e-8 worst_prompt_kl21=3.044208e-13|SELF-STATS mode=decode positions=80 mean_kl21=1.131315e-11 max_kl21=8.184606e-10 flips=0 flip_pct=0.0000 tail_abs=7.482443e-9 worst_prompt_kl21=5.643423e-11|
+13:23:39 gen tp1-5k: finish=length prompt=1497 (cached 0) completion=256 | prefill 506 ms (2956.5 tok/s) | decode 3126 ms (81.57 tok/s)

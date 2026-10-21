@@ -1,0 +1,124 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+spark-4e77:2124002:2124002 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+spark-4e77:2124002:2124002 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to enp1s0f1np1
+spark-4e77:2124002:2124002 [0] NCCL INFO Bootstrap: Using enp1s0f1np1:10.100.152.1<0>
+spark-4e77:2124002:2124004 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+spark-4e77:2124002:2124002 [0] NCCL INFO cudaDriverVersion 13000
+spark-4e77:2124002:2124002 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+spark-4e77:2124002:2124002 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+spark-4e77:2124002:2124002 [0] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+spark-4e77:2124002:2124002 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to enp1s0f1np1
+spark-4e77:2124002:2124002 [0] NCCL INFO NCCL_IB_HCA set to rocep1s0f1,roceP2p1s0f1
+spark-4e77:2124002:2124002 [0] NCCL INFO NET/IB : Using [0]rocep1s0f1:1/RoCE [1]roceP2p1s0f1:1/RoCE [RO]; OOB enp1s0f1np1:10.100.152.1<0>
+spark-4e77:2124002:2124002 [0] NCCL INFO Initialized NET plugin IB
+spark-4e77:2124002:2124002 [0] NCCL INFO Assigned NET plugin IB to comm
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+spark-4e77:2124002:2124002 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+spark-4e77:2124002:2124002 [0] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+spark-4e77:2124002:2124002 [0] NCCL INFO RMA/Plugin: Assigned plugin RMA_IB_PROXY to comm
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+spark-4e77:2124002:2124002 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+spark-4e77:2124002:2124002 [0] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+spark-4e77:2124002:2124002 [0] NCCL INFO GIN/Plugin: Assigned plugin GIN_IB_GDAKI type 3 to comm
+spark-4e77:2124002:2124002 [0] NCCL INFO Using network IB
+spark-4e77:2124002:2124002 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+spark-4e77:2124002:2124002 [0] NCCL INFO [Rank 0] ncclCommInitRank comm 0xc07dd9df55e0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId f01000 commId 0x623c7274bac4f414 - Init START
+spark-4e77:2124002:2124002 [0] NCCL INFO RAS client listening socket at 127.0.0.1<28028>
+spark-4e77:2124002:2124002 [0] NCCL INFO Bootstrap timings total 0.035661 (create 0.000031, send 0.000119, recv 0.031872, ring 0.000840, delay 0.000000)
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is empty, ignoring. (GPU affinity =  ; CPU affinity = 0-19).
+spark-4e77:2124002:2124002 [0] NCCL INFO Rank 0: 2 Net devices
+spark-4e77:2124002:2124002 [0] NCCL INFO Rank 0: 0 CollNet devices
+spark-4e77:2124002:2124002 [0] NCCL INFO Local Net device counts across ranks: min 2 max 2
+spark-4e77:2124002:2124002 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+spark-4e77:2124002:2124002 [0] NCCL INFO comm 0xc07dd9df55e0 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 00/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 01/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 02/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 03/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 04/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 05/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 06/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 07/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 08/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 09/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 10/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 11/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 12/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 13/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 14/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 15/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 16/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 17/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 18/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 19/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 20/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 21/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 22/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 23/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 24/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 25/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 26/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 27/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 28/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 29/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 30/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 31/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 32/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 33/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 34/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 35/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 36/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 37/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 38/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 39/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 40/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 41/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 42/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 43/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 44/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 45/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 46/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 47/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 48/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 49/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 50/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 51/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 52/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 53/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 54/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 55/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 56/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 57/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 58/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 59/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 60/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 61/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 62/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Channel 63/64 : 0 1
+spark-4e77:2124002:2124002 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 [2] 1/-1/-1->0->-1 [3] 1/-1/-1->0->-1 [4] 1/-1/-1->0->-1 [5] 1/-1/-1->0->-1 [6] 1/-1/-1->0->-1 [7] 1/-1/-1->0->-1 [8] 1/-1/-1->0->-1 [9] 1/-1/-1->0->-1 [10] 1/-1/-1->0->-1 [11] 1/-1/-1->0->-1 [12] 1/-1/-1->0->-1 [13] 1/-1/-1->0->-1 [14] 1/-1/-1->0->-1 [15] 1/-1/-1->0->-1 [16] 1/-1/-1->0->-1 [17] 1/-1/-1->0->-1 [18] 1/-1/-1->0->-1 [19] 1/-1/-1->0->-1 [20] 1/-1/-1->0->-1 [21] 1/-1/-1->0->-1 [22] 1/-1/-1->0->-1 [23] 1/-1/-1->0->-1 [24] 1/-1/-1->0->-1 [25] 1/-1/-1->0->-1 [26] 1/-1/-1->0->-1 [27] 1/-1/-1->0->-1 [28] 1/-1/-1->0->-1 [29] 1/-1/-1->0->-1 [30] 1/-1/-1->0->-1 [31] 1/-1/-1->0->-1 [32] -1/-1/-1->0->1 [33] -1/-1/-1->0->1 [34] -1/-1/-1->0->1 [35] -1/-1/-1->0->1 [36] -1/-1/-1->0->1 [37] -1/-1/-1->0->1 [38] -1/-1/-1->0->1 prefill chunk 2048 (--prefill-chunk)
+tensor parallel x2 across processes: rank 1 is remote (16384 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 x2 (tp=2, nccl comm) (vocab 248320, weights/act/kv bf16/bf16)
+Error: reading /home/nvidia/intarsia-tp2/golden/S1-short.safetensors
+
+Caused by:
+    No such file or directory (os error 2)
+[39] -1/-1/-1->0->1 [40] -1/-1/-1->0->1 [41] -1/-1/-1->0->1 [42] -1/-1/-1->0->1 [43] -1/-1/-1->0->1 [44] -1/-1/-1->0->1 [45] -1/-1/-1->0->1 [46] -1/-1/-1->0->1 [47] -1/-1/-1->0->1 [48] -1/-1/-1->0->1 [49] -1/-1/-1->0->1 [50] -1/-1/-1->0->1 [51] -1/-1/
+spark-4e77:2124002:2124002 [0] NCCL INFO P2P Chunksize set to 262144
+spark-4e77:2124002:2124002 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+spark-4e77:2124002:2124002 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+spark-4e77:2124002:2124002 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+spark-4e77:2124002:2124009 [0] NCCL INFO [Proxy Service] Device 0 CPU core 16
+spark-4e77:2124002:2124010 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 7
+spark-4e77:2124002:2124009 [0] NCCL INFO proxy listening socket at 10.100.152.1<52759>
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+spark-4e77:2124002:2124002 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+spark-4e77:2124002:2124002 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+spark-4e77:2124002:2124002 [0] NCCL INFO 64 coll channels, 64 collnet channels, 0 nvls channels, 64 p2p channels, 2 p2p channels per peer
+spark-4e77:2124002:2124002 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 0
+spark-4e77:2124002:2124002 [0] NCCL INFO CC Off, workFifoBytes 1048576
+spark-4e77:2124002:2124002 [0] NCCL INFO ncclCommInitRank comm 0xc07dd9df55e0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId f01000 commId 0x623c7274bac4f414 - Init COMPLETE
+spark-4e77:2124002:2124002 [0] NCCL INFO Init timings - ncclCommInitRank: rank 0 nranks 2 total 0.34 (kernels 0.21, alloc 0.04, bootstrap 0.04, allgathers 0.00, topo 0.01, graphs 0.00, connections 0.04, rest 0.00)

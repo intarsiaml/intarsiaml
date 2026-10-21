@@ -83,6 +83,9 @@ pub struct SequenceState {
     /// Tensor parallelism: the state of ranks 1.. (this struct is rank 0's). Created, truncated and snapshotted
     /// together with the primary; advanced by the rank's own forward pass.
     pub peers: Vec<PeerState>,
+    /// Tensor parallelism across processes (`crate::tp_remote`): the remote rank's copy of this sequence. Truncated and
+    /// snapshotted after the primary, advanced by the remote rank's forward pass.
+    pub remote: Option<crate::tp_remote::RemoteSeq>,
 }
 
 impl SequenceState {
@@ -112,7 +115,7 @@ impl SequenceState {
             });
         }
         let id = NEXT_STATE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        Ok(SequenceState { id, slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new(), peers: Vec::new() })
+        Ok(SequenceState { id, slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new(), peers: Vec::new(), remote: None })
     }
 
     pub fn total_bytes(&self) -> usize {
@@ -152,6 +155,9 @@ impl SequenceState {
     pub fn snapshot(&mut self, backend: &dyn Backend, keep: usize) -> Result<()> {
         for p in &mut self.peers {
             p.st.snapshot(&*p.backend, keep)?;
+        }
+        if let Some(r) = &self.remote {
+            r.snapshot(keep)?;
         }
         let total = self.recurrent_bytes();
         if total == 0 || self.len == 0 || keep == 0 {
@@ -232,6 +238,10 @@ impl SequenceState {
         }
         self.len = len;
         self.tokens.truncate(len);
+        // the remote rank follows only a rollback the primary could make (same snapshots on both, so it can too)
+        if let Some(r) = &mut self.remote {
+            r.truncate(len)?;
+        }
         Ok(())
     }
 

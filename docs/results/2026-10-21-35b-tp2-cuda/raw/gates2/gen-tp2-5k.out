@@ -1,0 +1,18 @@
+Here is the continuation and completion of the IntarsiaML architecture plan (v0.2), picking up from the `flowchart` diagram and completing the system overview, followed by the detailed architectural layers, kernel strategy, and implementation phases as implied by the document structure.
+
+---
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    SCHED["Scheduler: Pre-fill/Decode batching, KV cache management"]
+    MODEL["Model Router: Dispatches to block library based on config"]
+    KV["KV Cache: Paged, unified memory, cross-attention support"]
+  end
+  subgraph Blocks["Block Library (crate: intarsia-blocks)

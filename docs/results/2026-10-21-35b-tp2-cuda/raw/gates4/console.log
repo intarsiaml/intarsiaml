@@ -1,0 +1,22 @@
+11:47:37 MemAvailable 48 GB
+11:47:37 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1 
+11:47:38 bin /home/nvidia/intarsia-tp2/bin/ydev-intarsia: intarsia 0.0.1 
+2411 MHz, [N/A], 43, 12.02 W, 0 %
+11:48:21 plan base-35b exit 0 13961 bytes
+11:49:04 plan dev-35b exit 0 13961 bytes
+11:49:47 plan base-8b exit 0 8630 bytes
+11:50:17 plan dev-8b exit 0 8630 bytes
+11:50:17 PLAN IDENTITY 35b tp=1: identical
+11:50:17 PLAN IDENTITY 8b tp=1: identical
+11:51:06 acc base-tp1-short exit 0 49 s: prefill floor [4bit]: top-1 (all rows) 97.92% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.666e-3 (need <= 3.0e-2) ok [all rows, n=1441: 5.430e-3, re|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+11:53:08 acc base-tp1-long exit 0 122 s: prefill floor [4bit]: top-1 (all rows) 94.17% (not gated for this class) ok | 21-way KL (scored rows, n=32349) 1.486e-2 (need <= 3.0e-2) ok [all rows, n=36887: 4.576e-2, |floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+11:53:52 self tp1-short exit 0 44 s: SELF-STATS mode=prefill positions=1441 mean_kl21=2.723472e-13 max_kl21=1.881214e-10 flips=0 flip_pct=0.0000 tail_abs=3.502575e-9 worst_prompt_kl21=2.354620e-12|SELF-STATS mode=decode positions=160 mean_kl21=3.728103e-11 max_kl21=5.919182e-9 flips=0 flip_pct=0.0000 tail_abs=5.770369e-9 worst_prompt_kl21=3.716788e-10|
+11:55:33 self tp1-long exit 0 101 s: SELF-STATS mode=prefill positions=36887 mean_kl21=2.751386e-13 max_kl21=5.439328e-10 flips=0 flip_pct=0.0000 tail_abs=1.025575e-8 worst_prompt_kl21=3.044208e-13|SELF-STATS mode=decode positions=80 mean_kl21=1.131315e-11 max_kl21=8.184606e-10 flips=0 flip_pct=0.0000 tail_abs=7.482443e-9 worst_prompt_kl21=5.643423e-11|
+11:56:11 gen tp1-5k: finish=length prompt=1497 (cached 0) completion=256 | prefill 503 ms (2976.2 tok/s) | decode 3050 ms (83.60 tok/s)
+11:56:57 gen tp1-16k: finish=length prompt=16026 (cached 0) completion=256 | prefill 3180 ms (5039.0 tok/s) | decode 3392 ms (75.18 tok/s)
+11:58:33 reuse tp1 exit 0 96 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok (logits bit-identical to the cold run)|prefix-reuse gate: PASS|
+IDS tp1-5k vs tp2-5k: missing
+IDS tp1-5k vs tp1simt-5k: missing
+IDS tp1-16k vs tp2-16k: missing
+IDS tp1-16k vs tp1simt-16k: missing
+== done 11:58:33

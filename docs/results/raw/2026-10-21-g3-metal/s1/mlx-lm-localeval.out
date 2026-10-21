@@ -1,0 +1,52 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=None
+[localeval]    128 tok rep 1/3: prompt=111 ttft=0.58s prefill=182 tok/s decode=27.3 tok/s peak=32.8 tok/s out=256
+[localeval]    128 tok rep 2/3: prompt=110 ttft=0.29s prefill=361 tok/s decode=30.5 tok/s peak=38.1 tok/s out=256
+[localeval]    128 tok rep 3/3: prompt=114 ttft=0.28s prefill=391 tok/s decode=30.6 tok/s peak=38.0 tok/s out=256
+[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.48s prefill=2067 tok/s decode=30.5 tok/s peak=37.1 tok/s out=256
+[localeval]   1024 tok rep 2/3: prompt=993 ttft=0.53s prefill=1861 tok/s decode=29.6 tok/s peak=39.0 tok/s out=256
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.55s prefill=1806 tok/s decode=29.9 tok/s peak=37.9 tok/s out=256
+[localeval]   4096 tok rep 1/3: prompt=4085 ttft=2.09s prefill=1955 tok/s decode=29.4 tok/s peak=34.9 tok/s out=256
+[localeval]   4096 tok rep 2/3: prompt=4091 ttft=2.29s prefill=1788 tok/s decode=30.0 tok/s peak=37.7 tok/s out=256
+[localeval]   4096 tok rep 3/3: prompt=4092 ttft=1.93s prefill=2116 tok/s decode=30.0 tok/s peak=35.6 tok/s out=256
+[localeval]  16384 tok rep 1/3: prompt=16655 ttft=9.26s prefill=1797 tok/s decode=26.3 tok/s peak=36.1 tok/s out=256
+[localeval]  16384 tok rep 2/3: prompt=16653 ttft=8.78s prefill=1896 tok/s decode=25.9 tok/s peak=27.2 tok/s out=256
+[localeval]  16384 tok rep 3/3: prompt=16652 ttft=8.62s prefill=1931 tok/s decode=26.1 tok/s peak=34.5 tok/s out=256
+# localeval: adhoc — 2026-10-21T09:17
+
+- model: `/Users/josef/models/Qwen3-8B` on ? (?), url `http://127.0.0.1:8092/v1`
+- thinking: off; run kind: speed; label: g3-s1-mlx-lm
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8092/v1 --model /Users/josef/models/Qwen3-8B --sizes 128,1024,4096,16384 --gen 256 --reps 3 --thinking off --label g3-s1-mlx-lm`
+- result file: `results/20261021-091735-adhoc-g3-s1-mlx-lm/result.json`
+
+## Speed sweep
+
+served `/Users/josef/models/Qwen3-8B`, fingerprint `0.31.3-0.32.1-macOS-27.0-arm64-arm-64bit-applegpu_g17s`, ctx ?, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 111 | 0.29 | 361 (182–391) * | - | 30.5 (27.3–30.6) | 38.0 (32.8–38.1) | - | - | 256 |
+| 992 | 0.53 | 1861 (1806–2067) * | 3717 | 29.9 (29.6–30.5) | 37.9 (37.1–39.0) | - | - | 256 |
+| 4091 | 2.09 | 1955 (1788–2116) | 1992 | 30.0 (29.4–30.0) | 35.6 (34.9–37.7) | - | - | 256 |
+| 16653 | 8.78 | 1896 (1797–1931) | 1876 | 26.1 (25.9–26.3) | 34.5 (27.2–36.1) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run
+- decode spread 10.7% at 128 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-091735-adhoc-g3-s1-mlx-lm/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+kex_exchange_identification: read: Connection reset by peer
+Connection reset by 100.106.174.54 port 22

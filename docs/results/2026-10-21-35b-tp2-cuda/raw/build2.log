@@ -1,0 +1,20 @@
+fleetq: #2947 running on spark2: scripts/35b-tp2/build.sh base dev
+stamp: head=789511c code-tree=2fa79e254bf9 dirty=no
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-base/crates/intarsia-bench)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-base/crates/intarsia-models)
+   Compiling clap v4.6.7
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-base/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 21.85s
+-rwxrwxr-x 2 nvidia nvidia 37567944 Oct 21 10:22 /home/nvidia/intarsia-decfuse/tp2-base/target/acc/release/intarsia
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+stamp: head=f5e95c2 code-tree=38fb5c7b77fb dirty=yes
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-dev/crates/intarsia-bench)
+   Compiling clap v4.6.7
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-dev/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/tp2-dev/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 21.91s
+-rwxrwxr-x 2 nvidia nvidia 37743976 Oct 21 10:23 /home/nvidia/intarsia-decfuse/tp2-dev/target/acc/release/intarsia
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+fleetq: #2947 done (exit 0)

@@ -170,6 +170,23 @@ client cancels its request, so this clears within a prefill chunk).
 
 Never use port 8000 for our server (production vLLM).
 
+### Metal speed gate (restated 2026-10-21 12:25 EDT)
+
+Decided by the user ("1 yes", `docs/decisions/LOG.md`). The evidence is `docs/results/2026-10-21-g3-metal.md` section 2: on endor, decode follows the GPU clock (r = +0.94), and the clock falls when other processes load the CPU (r = −0.93). A flat floor therefore failed builds that had not changed.
+
+The gate uses three parts:
+
+1. **Floor:** decode must reach at least 85 % of the **context-aware** byte floor. The floor is bandwidth / (weight bytes + KV bytes at the mean context). The mean context is the prompt plus half the generated tokens. For Qwen3-8B BF16 that is 15.1368 GB plus 147,456 B per position at 614 GB/s, for example 39.0 tok/s at a 4k prompt. The old flat 40.6 tok/s ignored the KV bytes.
+2. **State admission:** a run counts for the floor only when its macmon samples show a median GPU clock of at least 1300 MHz (busy samples) and a median CPU load of at most 0.30.
+   - A run outside that window is STATE-INVALID: re-run it; it is not a failure.
+   - On a normally used endor, many runs fall outside the window.
+3. **Same-slot ratios:** these apply to every intarsia arm and do not depend on the clock. Decode must be at least 0.90× mlx-lm and at least 1.00× llama.cpp, measured in the same exclusive slot.
+
+To run it, use `scripts/metal-speed-gate/sameslot.sh <binary> <out-dir>` inside one exclusive endor slot. It runs an ABBA of intarsia, mlx-lm, llama.cpp and intarsia with localeval and macmon, then `gate.py`. `gate.py` exits with:
+- 0 for PASS;
+- 1 for FAIL;
+- 3 for STATE-INVALID (the ratios passed but no arm was admitted).
+
 ## localeval
 
 `localeval` reads targets from `/opt/code/deepeval/targets.toml`. Add the engine once by pasting

@@ -1,0 +1,8 @@
+09:55:07 MemAvailable 48 GB
+09:55:07 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1
+09:55:07 bin /home/nvidia/intarsia-tp2/bin/dev-intarsia: intarsia 0.0.1
+2411 MHz, [N/A], 42, 11.79 W, 0 %
+09:55:14 plan dev-35b-tp2 exit 0 13548 bytes
+IDS tp1-5k vs tp2-5k: missing
+IDS tp1-16k vs tp2-16k: missing
+== done 09:55:14

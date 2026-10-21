@@ -1,0 +1,40 @@
+fleetq: #2934 waiting (#1 in line): needs endor to itself; running there: #2927 "M1 golden qwen3.8-27b mxfp4 HF+Quark emulation, layer-streamed cpu" (claude-f31ccf91)
+fleetq:   #2927 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2927 set, or it will wait for #2927 to be released.
+fleetq: #2934 running on endor: zsh /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/exp1.sh e1
+id-4k-rs exit 0 finish=length prompt=4096 (cached 0) completion=48 | prefill 2541 ms (1612.0 tok/s) | decode 1324 ms (35.51 tok/s)
+id-4k-plain exit 0 finish=length prompt=4096 (cached 0) completion=48 | prefill 1188 ms (3448.3 tok/s) | decode 1329 ms (35.36 tok/s)
+id 4k: stdout identical
+id-16k-rs exit 0 finish=length prompt=16384 (cached 0) completion=48 | prefill 5881 ms (2785.9 tok/s) | decode 1470 ms (31.97 tok/s)
+id-16k-plain exit 0 finish=length prompt=16384 (cached 0) completion=48 | prefill 6044 ms (2710.9 tok/s) | decode 1480 ms (31.76 tok/s)
+id 16k: stdout identical
+pf4096-1-rs exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1262 ms (3245.7 tok/s) | decode 0 ms (0.00 tok/s)
+pf4096-2-plain exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1284 ms (3189.4 tok/s) | decode 0 ms (0.00 tok/s)
+pf4096-3-plain exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1267 ms (3231.7 tok/s) | decode 0 ms (0.00 tok/s)
+pf4096-4-rs exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1300 ms (3150.3 tok/s) | decode 0 ms (0.00 tok/s)
+pf4096-5-rs exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1277 ms (3207.9 tok/s) | decode 0 ms (0.00 tok/s)
+pf4096-6-plain exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1387 ms (2952.4 tok/s) | decode 0 ms (0.00 tok/s)
+pf4096-7-plain exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1290 ms (3174.6 tok/s) | decode 0 ms (0.00 tok/s)
+pf4096-8-rs exit 0 finish=length prompt=4096 (cached 0) completion=1 | prefill 1303 ms (3143.8 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-1-rs exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 6355 ms (2578.3 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-2-plain exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 6612 ms (2478.0 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-3-plain exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 8257 ms (1984.4 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-4-rs exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 6983 ms (2346.3 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-5-rs exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 6681 ms (2452.4 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-6-plain exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 6474 ms (2530.6 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-7-plain exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 6795 ms (2411.2 tok/s) | decode 0 ms (0.00 tok/s)
+pf16384-8-rs exit 0 finish=length prompt=16384 (cached 0) completion=1 | prefill 7087 ms (2311.9 tok/s) | decode 0 ms (0.00 tok/s)
+flash_bench attn_nax_d128_s4_rs exit 0
+flash_bench attn_nax_d128_s4 exit 0
+flash_bench attn_nax_d128_s4 exit 0
+flash_bench attn_nax_d128_s4_rs exit 0
+fc0-1 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1330 ms (3078.9 tok/s) | decode 3824 ms (33.47 tok/s)
+fc4-1 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1278 ms (3204.6 tok/s) | decode 3910 ms (32.74 tok/s)
+fc16-1 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1317 ms (3110.1 tok/s) | decode 4213 ms (30.38 tok/s)
+fc16-2 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1531 ms (2675.9 tok/s) | decode 3826 ms (33.46 tok/s)
+fc0-2 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1470 ms (2786.8 tok/s) | decode 3845 ms (33.29 tok/s)
+fc4-2 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1422 ms (2881.2 tok/s) | decode 3766 ms (33.99 tok/s)
+fc4-3 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1362 ms (3007.9 tok/s) | decode 3770 ms (33.95 tok/s)
+fc16-3 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1299 ms (3152.4 tok/s) | decode 3779 ms (33.87 tok/s)
+fc0-3 exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1324 ms (3093.3 tok/s) | decode 3853 ms (33.22 tok/s)
+EXP_DONE 2026-10-21T10:08:26-04:00
+fleetq: #2934 done (exit 0)

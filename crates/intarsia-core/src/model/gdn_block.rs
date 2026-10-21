@@ -95,7 +95,8 @@ pub(super) fn alloc_extra(
 impl Model {
     /// `(q+gate projection [T, Nh*2*hd], gate [T, Nh, hd])` workspace views of a gated-attention block.
     pub(super) fn gated_q_buffers(&self, t: usize) -> (TensorRef, TensorRef) {
-        let d = &self.dims;
+        // this rank's heads (equal to the model's without tensor parallelism)
+        let d = &self.ldims;
         let x = &self.ws.x;
         let qg = x.qg.as_ref().expect("gated attention workspace is allocated at load");
         let gate = x.gate.as_ref().expect("gated attention workspace is allocated at load");
@@ -227,7 +228,7 @@ impl Model {
             profile,
         )?;
         if gated {
-            return self.proj(&normed.reshaped(&[t, vdim]), &g.out, out, profile);
+            return self.proj_reduce(&normed.reshaped(&[t, vdim]), &g.out, out, t, profile);
         }
         self.exec(
             Op::RmsNorm,
@@ -243,6 +244,8 @@ impl Model {
             OpAttrs::default(),
             profile,
         )?;
-        self.proj(&core.reshaped(&[t, vdim]), &g.out, out, profile)
+        // row-parallel under tensor parallelism (out_proj holds this rank's value heads' columns): the partial sum, then
+        // the all-reduce; without it, exactly the projection
+        self.proj_reduce(&core.reshaped(&[t, vdim]), &g.out, out, t, profile)
     }
 }

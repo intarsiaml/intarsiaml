@@ -1,0 +1,10 @@
+11:10:16 MemAvailable 53 GB
+11:10:17 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1 
+11:10:17 bin /home/nvidia/intarsia-tp2/bin/dev-intarsia: intarsia 0.0.1 
+2398 MHz, [N/A], 44, 12.06 W, 0 %
+11:10:30 self tp2-short exit 1 13 s: SELF-STATS mode=prefill positions=1441 mean_kl21=4.715870e-3 max_kl21=7.691715e-1 flips=16 flip_pct=1.1103 tail_abs=8.515089e-4 worst_prompt_kl21=4.667561e-2|SELF-STATS mode=decode positions=160 mean_kl21=1.114459e-2 max_kl21=9.347190e-1 flips=2 flip_pct=1.2500 tail_abs=2.242219e-3 worst_prompt_kl21=6.135282e-2|Error: accuracy gate FAILED|
+IDS tp1-5k vs tp2-5k: 256 / 256 ids, first divergence at 14
+IDS tp1-5k vs tp1simt-5k: 256 / 256 ids, first divergence at 74
+IDS tp1-16k vs tp2-16k: 256 / 256 ids, first divergence at 61
+IDS tp1-16k vs tp1simt-16k: 256 / 256 ids, first divergence at 34
+== done 11:10:30

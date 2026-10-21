@@ -53,13 +53,16 @@ impl QuantFormat for Fp8E4m3 {
     }
 
     fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
-        opts.refuse_shard("FP8", meta.prefix)?;
         let wi = meta.info("weight").ok_or_else(|| Error::model(format!("'{}.weight' missing", meta.prefix)))?;
         if wi.shape.len() != 2 {
             return Err(Error::model(format!("fp8 '{}': weight must be 2-D, got {:?}", meta.prefix, wi.shape)));
         }
-        let (n, k) = (wi.shape[0], wi.shape[1]);
-        let w = load_tensor(backend, meta.src, &format!("{}.weight", meta.prefix), None)?;
+        // tensor parallelism: the scale is per tensor, so a slice keeps it (rows, columns or row groups of the e4m3 bytes)
+        let wname = format!("{}.weight", meta.prefix);
+        let (w, (n, k)) = match opts.shard {
+            Some(sh) => (crate::weights::load_tensor_shard(backend, meta.src, &wname, sh)?, sh.local_shape(wi.shape[0], wi.shape[1])),
+            None => (load_tensor(backend, meta.src, &wname, None)?, (wi.shape[0], wi.shape[1])),
+        };
         let ws = meta.scalar_f32("weight_scale")?;
         let (is, act_quant) = match opts.fp8_act {
             Fp8Act::None => (0.0, false),
