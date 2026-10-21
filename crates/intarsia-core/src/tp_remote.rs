@@ -274,7 +274,8 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
             },
             T_FORWARD => {
                 let flags = u64_at(&b, 1)?;
-                let ids: Vec<u32> = b[16..].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
+                let ids: Vec<u32> =
+                    b[16..].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
                 if let Some(msg) = pending.take() {
                     // the primary is already in its own pass: leave the group (it aborts on this answer)
                     reply(&mut w, false, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;

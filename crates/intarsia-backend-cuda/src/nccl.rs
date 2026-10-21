@@ -137,7 +137,16 @@ pub fn create(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Resul
     let mut comm: NcclCommPtr = std::ptr::null_mut();
     // SAFETY: valid out-pointer; the id is passed by value as NCCL expects.
     check(l, "ncclCommInitRank", unsafe { (l.comm_init_rank)(&mut comm, world as c_int, NcclUniqueId { internal: id }, rank as c_int) })?;
-    let c = NcclComm { backend: be.clone(), comm, rank, world, aborted: AtomicBool::new(false), scratch: Mutex::new(None), reserved: AtomicBool::new(false), counters: CommCounters::default() };
+    let c = NcclComm {
+        backend: be.clone(),
+        comm,
+        rank,
+        world,
+        aborted: AtomicBool::new(false),
+        scratch: Mutex::new(None),
+        reserved: AtomicBool::new(false),
+        counters: CommCounters::default(),
+    };
     Ok((be as Arc<dyn Backend>, Arc::new(c) as Arc<dyn Comm>))
 }
 
