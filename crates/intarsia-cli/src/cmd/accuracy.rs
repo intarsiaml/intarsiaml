@@ -716,7 +716,8 @@ fn collect_strings(v: &Value, out: &mut Vec<String>) {
                 out.push(k.to_ascii_lowercase());
                 // bit widths count only under the keys that mean "bits" (not group sizes and the like)
                 if matches!(k.as_str(), "num_bits" | "bits" | "weight_bits" | "w_bit") {
-                    if let Some(n) = x.as_u64() {
+                    // EXL3 writes `"bits": 4.0` (a float): a whole number of bits counts like the integer
+                    if let Some(n) = x.as_u64().or_else(|| x.as_f64().filter(|b| b.fract() == 0.0 && *b >= 0.0).map(|b| b as u64)) {
                         out.push(format!("bits={n}"));
                     }
                 }
@@ -2564,6 +2565,14 @@ mod tests {
             w(r#"{"quantization_config":{"quant_method":"compressed-tensors","num_bits":4}}"#, None).unwrap().0,
             GateClass::Fp4
         );
+        // EXL3 writes the bit width as a float
+        assert_eq!(
+            w(r#"{"quantization_config":{"quant_method":"exl3","version":"0.0.1","bits":4.0,"head_bits":6}}"#, None)
+                .unwrap()
+                .0,
+            GateClass::Fp4
+        );
+        assert!(w(r#"{"quantization_config":{"quant_method":"exl3","bits":3.5}}"#, None).is_err(), "no whole-bit class");
         let _ = std::fs::remove_dir_all(d);
     }
 
