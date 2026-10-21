@@ -1,0 +1,15 @@
+M1   prefill                  KL 0.180 vs floor 0.03 and noise 0.197: PASS (bound by ref noise), KL/noise 0.914
+M1   prefill (golden_kl.py)   KL 0.176 vs floor 0.03 and noise 0.197: PASS (bound by ref noise), KL/noise 0.893
+M1   decode                   KL 0.274 vs floor 0.03 and noise 0.197: FAIL (bound by ref noise), KL/noise 1.391
+ABS  short self-dev-short-c2048               scored KL 4.539e-3  ref noise 3.010e-3  KL/noise 1.51  gate PASS (bound by static floor)  noise alone FAIL
+ABS  short self-lt-short-c2048                scored KL 5.303e-3  ref noise 3.010e-3  KL/noise 1.76  gate PASS (bound by static floor)  noise alone FAIL
+ABS  short self-lt-short-c256                 scored KL 5.063e-3  ref noise 3.010e-3  KL/noise 1.68  gate PASS (bound by static floor)  noise alone FAIL
+A/B  short self-lt-short-c2048                all rows 3.358e-3 / 3.161e-3 = 1.062x FAIL   scored rows 3.153e-3 / 3.010e-3 = 1.048x FAIL   old self-golden budget (mean KL 1e-4): 34x over
+A/B  short self-lt-short-c256                 all rows 3.503e-3 / 3.161e-3 = 1.108x FAIL   scored rows 3.317e-3 / 3.010e-3 = 1.102x FAIL   old self-golden budget (mean KL 1e-4): 35x over
+ABS  long  self-dev-long-c2048                scored KL 1.420e-2  ref noise 8.417e-3  KL/noise 1.69  gate PASS (bound by static floor)  noise alone FAIL
+ABS  long  self-lt-long-c2048                 scored KL 1.355e-2  ref noise 8.417e-3  KL/noise 1.61  gate PASS (bound by static floor)  noise alone FAIL
+ABS  long  self-lt-long-c256                  scored KL 1.409e-2  ref noise 8.417e-3  KL/noise 1.67  gate PASS (bound by static floor)  noise alone FAIL
+ABS  long  self-lt4k-long-c4096               scored KL 1.360e-2  ref noise 8.417e-3  KL/noise 1.62  gate PASS (bound by static floor)  noise alone FAIL
+A/B  long  self-lt-long-c2048                 all rows 1.884e-2 / 2.218e-2 = 0.849x PASS   scored rows 7.610e-3 / 8.417e-3 = 0.904x PASS   old self-golden budget (mean KL 1e-4): 188x over
+A/B  long  self-lt-long-c256                  all rows 2.000e-2 / 2.218e-2 = 0.902x PASS   scored rows 7.552e-3 / 8.417e-3 = 0.897x PASS   old self-golden budget (mean KL 1e-4): 200x over
+A/B  long  self-lt4k-long-c4096               all rows 2.057e-2 / 2.218e-2 = 0.927x PASS   scored rows 8.286e-3 / 8.417e-3 = 0.984x PASS   old self-golden budget (mean KL 1e-4): 206x over

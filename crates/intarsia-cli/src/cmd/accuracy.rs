@@ -34,8 +34,10 @@ use std::sync::{Arc, Mutex};
 mod baseline;
 mod envelope;
 mod provenance;
+mod refnoise;
 mod selfgolden;
 mod turns;
+pub use refnoise::RefNoiseArgs;
 use baseline::{Baseline, Margins, ModeStats, PromptStats};
 use provenance::{CodeStamp, ExecInfo};
 
@@ -75,6 +77,29 @@ pub struct AccuracyArgs {
     /// everything outside the reference's top-20). Absolute floor next to the KL gate; default 0.02.
     #[arg(long)]
     pub max_tail_excess: Option<f64>,
+    /// Reference noise of the golden (`intarsia ref-noise` writes one): the KL floor becomes
+    /// max(class floor, factor x noise), and the output says which of the two bound the verdict. Default: the golden's
+    /// own `ref_noise` metadata, else a sidecar `golden/ref_noise/<golden file>.json` (next to the golden, in the working
+    /// directory or in this checkout); none found: the class floor alone. docs/accuracy.md, "Reference noise".
+    #[arg(long)]
+    pub ref_noise: Option<PathBuf>,
+    /// Ignore any reference noise: the class floor alone, as before the noise-aware gate.
+    #[arg(long)]
+    pub no_ref_noise: bool,
+    /// Factor on the reference noise. Default: the record's `factor` (per golden), else the recipe's
+    /// `[accuracy] ref_noise_factor` (per model), else 1.0.
+    #[arg(long)]
+    pub ref_noise_factor: Option<f64>,
+    /// Write every KL verdict of the run (static floor, reference noise, factor, effective threshold, which one bound)
+    /// as JSON.
+    #[arg(long)]
+    pub write_verdict: Option<PathBuf>,
+    /// With `--self-golden` (the change against the base build): the change's mean 21-way KL must be at most
+    /// factor x the reference noise of the source golden (all rows); the other self-golden budgets are reported, not
+    /// gated; non-finite rows still fail. The noise comes from the self-golden's metadata, else `--ref-noise`, else a
+    /// sidecar looked up by the source golden's name and hash.
+    #[arg(long)]
+    pub self_vs_ref_noise: bool,
     /// Record this run as a baseline (JSON, e.g. golden/baselines/<name>.json). Written even when a floor gate fails
     /// (it then says so inside), before the run exits.
     #[arg(long)]
@@ -781,6 +806,17 @@ struct Gates {
     max_kl: f64,
     /// Maximum |mean(our tail mass - reference tail mass)|.
     max_tail_excess: f64,
+    /// The golden's measured reference noise, when it has one (`refnoise.rs`): the KL floor is then
+    /// max(`max_kl`, factor x noise). Set by `golden_gate` after the golden is open.
+    noise: Option<NoiseCtx>,
+}
+
+/// A golden's reference noise as this run uses it.
+struct NoiseCtx {
+    noise: refnoise::RefNoise,
+    factor: f64,
+    factor_source: String,
+    origin: String,
 }
 
 /// Default absolute floor on the tail-mass difference (all classes): a bug that moves a few percent of the
@@ -806,6 +842,7 @@ fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str) -> Result<Gates> {
         min_top1: args.min_top1.or(t1),
         max_kl: args.max_mean_kl.unwrap_or(kl),
         max_tail_excess: args.max_tail_excess.unwrap_or(DEFAULT_MAX_TAIL_EXCESS),
+        noise: None,
     })
 }
 
@@ -909,6 +946,8 @@ struct ModeResult {
     pass: bool,
     stats: ModeStats,
     prompts: Vec<PromptStats>,
+    /// The KL floor verdict with its static floor, reference noise and effective threshold (golden gate only).
+    verdict: Option<refnoise::KlVerdict>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1134,11 +1173,34 @@ fn run_mode(
     };
     if let Some(b) = self_budget {
         // same weights: the class floors are not the question, the distance to the other build's logits is
-        let checks = selfgolden::judge(&mstats(true), &per_prompt, b);
-        let pass = checks.iter().all(|c| c.ok);
+        let mut checks = selfgolden::judge(&mstats(true), &per_prompt, b);
+        // change vs base against the reference noise (`--self-vs-ref-noise`): the mean 21-way KL decides, the rest is reported
+        let mut self_verdict = None;
+        if args.self_vs_ref_noise {
+            let nc = gates.noise.as_ref().ok_or_else(|| anyhow!("--self-vs-ref-noise: no reference noise resolved"))?;
+            let value = nc.noise.kl21_mean.ok_or_else(|| anyhow!("--self-vs-ref-noise: the reference noise has no all-rows value (kl21_mean); a self-golden compares every row"))?;
+            let term = refnoise::NoiseTerm { value, kl: total.mean_kl21(), rows: "all rows" };
+            let v = refnoise::judge_kl(mode.key(), "21-way KL", total.mean_kl21(), None, Some(term), nc.factor, &nc.factor_source)?;
+            checks = refnoise::apply_to_self_checks(checks, v.effective_threshold);
+            self_verdict = Some(v);
+        }
+        let pass = checks.iter().all(|c| c.ok || !c.gated);
         println!("{} vs the other build's logits (same weights):", mode.name());
         for c in &checks {
-            println!("  {:<44} {:>12.4e}  (limit {:.4e})  {}", c.name, c.value, c.limit, if c.ok { "ok" } else { "FAIL" });
+            println!(
+                "  {:<44} {:>12.4e}  (limit {:.4e})  {}",
+                c.name,
+                c.value,
+                c.limit,
+                match (c.ok, c.gated) {
+                    (true, _) => "ok",
+                    (false, true) => "FAIL",
+                    (false, false) => "over its budget, reported only (not gated in this mode)",
+                }
+            );
+        }
+        if let Some(v) = &self_verdict {
+            println!("{}", v.line());
         }
         // one machine-readable line per mode for scripts/phase1b-acceptance.sh (noise calibration of the budgets)
         let flips = total.n - total.top1;
@@ -1154,14 +1216,35 @@ fn run_mode(
             per_prompt.iter().map(|p| p.mean_kl21).fold(0.0, f64::max)
         );
         println!("{} self-golden => {}", mode.name(), if pass { "PASS" } else { "FAIL" });
-        return Ok(ModeResult { matches, pass, stats: mstats(pass), prompts: per_prompt });
+        return Ok(ModeResult { matches, pass, stats: mstats(pass), prompts: per_prompt, verdict: self_verdict });
     }
     let ok_nf = total.nonfinite == 0;
     let ok_top1 = gates.min_top1.is_none_or(|m| total.top1_pct() >= m);
     // The KL floor judges the rows the model is asked to predict; top-1, tail mass and non-finite rows judge all rows.
     let (gate_kl, gate_kl_name, all_kl) =
         if topk { (total_sc.mean_kl21(), "21-way KL", total.mean_kl21()) } else { (total_sc.mean_kl(), "full-vocab KL", total.mean_kl()) };
-    let ok_kl = gate_kl <= gates.max_kl; // NaN / inf compare false
+    // KL floor: max(class floor, factor x reference noise); NaN / inf never pass. The noise is a 21-way KL, so it is
+    // compared with the engine's 21-way KL over the rows it was measured on.
+    let noise_term = gates.noise.as_ref().and_then(|nc| {
+        let n = &nc.noise;
+        let hidden = total_sc.n != total.n;
+        let pick = if hidden {
+            n.kl21_mean_scored.map(|v| (v, total_sc.mean_kl21(), "scored rows")).or(n.kl21_mean.map(|v| (v, total.mean_kl21(), "all rows")))
+        } else {
+            n.kl21_mean.or(n.kl21_mean_scored).map(|v| (v, total.mean_kl21(), "all rows"))
+        };
+        if let Some(pn) = n.n.filter(|&pn| pn != total.n) {
+            eprintln!(
+                "note: the reference noise was measured over {pn} positions, the {} mode compares {}: the noise is applied as measured, but the subset can differ",
+                mode.key(),
+                total.n
+            );
+        }
+        pick.map(|(value, kl, rows)| refnoise::NoiseTerm { value, kl, rows })
+    });
+    let (factor, factor_source) = gates.noise.as_ref().map_or((1.0, "default".to_string()), |nc| (nc.factor, nc.factor_source.clone()));
+    let verdict = refnoise::judge_kl(mode.key(), gate_kl_name, gate_kl, Some(gates.max_kl), noise_term, factor, &factor_source)?;
+    let ok_kl = verdict.pass;
     let ok_tail = total.tail_excess().abs() <= gates.max_tail_excess;
     let tag = |ok: bool| if ok { "ok" } else { "FAIL" };
     let pass = ok_nf && ok_top1 && ok_kl && ok_tail;
@@ -1186,7 +1269,7 @@ fn run_mode(
         tag(ok_top1),
         total_sc.n,
         gate_kl,
-        gates.max_kl,
+        verdict.effective_threshold,
         tag(ok_kl),
         total.n,
         all_kl,
@@ -1199,8 +1282,9 @@ fn run_mode(
         tag(ok_nf),
         if pass { "PASS" } else { "FAIL" },
     );
+    println!("{}", verdict.line());
     let stats = mstats(pass);
-    Ok(ModeResult { matches, pass, stats, prompts: per_prompt })
+    Ok(ModeResult { matches, pass, stats, prompts: per_prompt, verdict: Some(verdict) })
 }
 
 /// Print the baseline comparison of one mode; returns whether every check passed.
@@ -2064,7 +2148,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         modes.push(Mode::Decode);
     }
     let info = engine.info();
-    let gates = resolve_gates(args, &info.kv_dtype)?;
+    let mut gates = resolve_gates(args, &info.kv_dtype)?;
     let self_meta = if self_mode { Some(g.self_meta()?) } else { None };
     if let Some(sm) = &self_meta {
         if want_reuse {
@@ -2172,6 +2256,58 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         decode_positions: args.decode_positions,
         gate_class: gates.class.name().to_string(),
     };
+
+    // Reference noise of the golden (`refnoise.rs`). Resolved before the long runs, like the golden's identity.
+    if args.self_vs_ref_noise && !self_mode {
+        bail!("--self-vs-ref-noise judges a change against a base build: it goes with --self-golden");
+    }
+    if args.self_vs_ref_noise && args.no_ref_noise {
+        bail!("--self-vs-ref-noise needs the reference noise; it cannot be combined with --no-ref-noise");
+    }
+    let recipe_factor = recipe.as_ref().and_then(|r| r.accuracy.ref_noise_factor.map(|v| (v, format!("recipe {}", r.model.family))));
+    let noise_ident = match &self_meta {
+        Some(sm) => refnoise::GoldenIdent { file: sm.source_golden.clone(), fnv1a64: sm.source_fnv1a64.clone(), size: None, positions: None },
+        None => refnoise::GoldenIdent { file: golden_id.file.clone(), fnv1a64: golden_id.fnv1a64.clone(), size: Some(golden_id.size), positions: Some(positions) },
+    };
+    let noise_dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
+    // a plain golden run always looks; a self-golden run only when the change is judged against the noise
+    let loaded_noise = if args.no_ref_noise || (self_mode && !args.self_vs_ref_noise) {
+        None
+    } else if let (Some(sm), None) = (&self_meta, &args.ref_noise) {
+        match &sm.ref_noise {
+            Some(n) => {
+                let w = refnoise::check_binding(n, &noise_ident).context("the self-golden's ref_noise")?;
+                Some((refnoise::Loaded { noise: n.clone(), origin: "self-golden metadata".into() }, w))
+            }
+            None => refnoise::load(None, None, &noise_dir, &noise_ident)?,
+        }
+    } else {
+        refnoise::load(args.ref_noise.as_deref(), g.meta_str(refnoise::META_KEY), &noise_dir, &noise_ident)?
+    };
+    match loaded_noise {
+        Some((l, warns)) => {
+            for w in warns {
+                eprintln!("WARNING: {w}");
+            }
+            let (factor, factor_source) = refnoise::resolve_factor(args.ref_noise_factor, l.noise.factor, recipe_factor)?;
+            eprintln!("reference noise [{}]: {}; factor {factor} ({factor_source})", l.origin, l.noise.describe());
+            gates.noise = Some(NoiseCtx { noise: l.noise, factor, factor_source, origin: l.origin });
+        }
+        None if args.self_vs_ref_noise => bail!(
+            "--self-vs-ref-noise: no reference noise for the source golden '{}' (hash {}): pass --ref-noise FILE, or measure one with `intarsia ref-noise` and keep it as golden/ref_noise/{}.json",
+            noise_ident.file,
+            noise_ident.fnv1a64,
+            noise_ident.file
+        ),
+        None => {
+            if args.ref_noise_factor.is_some() {
+                eprintln!("WARNING: --ref-noise-factor given, but this golden has no measured reference noise (or --no-ref-noise): it has no effect");
+            }
+            if !self_mode {
+                eprintln!("reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, \"Reference noise\")");
+            }
+        }
+    }
 
     // What code this is, and how it ran. Checked before the long runs, like the golden and the configuration.
     let cur_code = CodeStamp::of_this_build();
@@ -2289,6 +2425,24 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         println!("greedy-match [{}]: mean {:.1}% of positions before the first argmax divergence, worst prompt {:.1}% (informational)", m.name(), 100.0 * mean, 100.0 * min);
     }
 
+    if let Some(vp) = &args.write_verdict {
+        let verdicts: Vec<refnoise::KlVerdict> = results.iter().filter_map(|(_, r)| r.verdict.clone()).collect();
+        let vf = refnoise::VerdictFile {
+            format: refnoise::VERDICT_FORMAT,
+            kind: if self_mode { "change_vs_base" } else { "golden" },
+            golden: refnoise::Binding {
+                file: Some(noise_ident.file.clone()),
+                fnv1a64: Some(noise_ident.fnv1a64.clone()),
+                size: noise_ident.size,
+                positions: noise_ident.positions,
+            },
+            ref_noise_origin: gates.noise.as_ref().map(|n| n.origin.clone()),
+            ref_noise: gates.noise.as_ref().map(|n| n.noise.clone()),
+            verdicts,
+        };
+        refnoise::write_verdicts(vp, &vf)?;
+        println!("\nwrote KL verdicts {} ({} mode(s))", vp.display(), vf.verdicts.len());
+    }
     // baseline-relative gate
     let mut baseline_ok: Option<bool> = None;
     let margins = Margins {
@@ -2410,6 +2564,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             modes: results.iter().map(|(m, _)| m.key()).collect::<Vec<_>>().join(","),
             source_golden: golden_id.file.clone(),
             source_fnv1a64: golden_id.fnv1a64.clone(),
+            ref_noise: gates.noise.as_ref().map(|n| n.noise.clone()),
         };
         selfgolden::write(wp, cap, &ids, &prompts_json, &sm)?;
         println!(
@@ -2563,6 +2718,12 @@ fn prepare_noise_run(args: &mut AccuracyArgs) -> Result<Option<envelope::Declare
     }
     eprintln!("noise envelope: perturbation '{}'", d.text);
     Ok(Some(d))
+}
+
+/// `intarsia ref-noise`: measure the reference noise of a golden offline, from a second reference run or a
+/// reference of another precision. No model is loaded.
+pub fn run_ref_noise(args: RefNoiseArgs) -> Result<()> {
+    refnoise::run(args)
 }
 
 pub fn run(mut args: AccuracyArgs) -> Result<()> {
@@ -3047,5 +3208,25 @@ mod tests {
         // M3 (docs/results/2026-10-21-m3-accuracy-debt.md, scripts/m3-accuracy/posmask.py): 36887 rows, 4.3560e-2; 32349, 1.4198e-2
         assert_eq!((n, ns), (36887, 32349));
         assert!((sum / n as f64 - 4.3560e-2).abs() < 5e-6 && (sums / ns as f64 - 1.4198e-2).abs() < 5e-6);
+
+        // The reference noise of this golden (golden/ref_noise/<golden file>.json, bound by file hash): the gate's verdict
+        // on the same scored rows, against the class floor of the 4-bit class and against vLLM's own run-to-run KL.
+        let gpath = PathBuf::from(var("RESCORE_GOLDEN"));
+        let ident = refnoise::GoldenIdent {
+            file: gpath.file_name().unwrap().to_string_lossy().to_string(),
+            fnv1a64: format!("{:016x}", baseline::fnv1a64(&g.data)),
+            size: Some(g.data.len() as u64),
+            positions: Some(n),
+        };
+        let (l, warns) = refnoise::load(None, g.meta_str(refnoise::META_KEY), gpath.parent().unwrap(), &ident).unwrap().expect("a sidecar for the long golden");
+        assert!(warns.is_empty(), "{warns:?}");
+        let (kl, noise) = (sums / ns as f64, l.noise.kl21_mean_scored.unwrap());
+        let term = refnoise::NoiseTerm { value: noise, kl, rows: "scored rows" };
+        let v = refnoise::judge_kl("prefill", "21-way KL", kl, Some(GateClass::Fp4.defaults().1), Some(term), 1.0, "default").unwrap();
+        println!("{}  [{}]", v.line(), l.origin);
+        assert!(v.pass && v.bound_by == refnoise::Bound::Static);
+        assert!((v.factor_needed.unwrap() - kl / noise).abs() < 1e-12 && v.factor_needed.unwrap() > 1.68);
+        // against the noise alone (no static floor) the same run needs a factor of 1.69
+        assert!(!refnoise::judge_kl("prefill", "21-way KL", kl, None, Some(term), 1.0, "default").unwrap().pass);
     }
 }

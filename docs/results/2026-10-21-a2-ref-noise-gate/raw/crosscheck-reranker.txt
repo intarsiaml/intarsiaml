@@ -1,0 +1,4 @@
+# HF fp32 golden vs HF bf16 golden of the same prompts, Qwen3-Reranker-0.6B short set (documented: mean KL 8.7e-4, docs/accuracy.md)
+ref noise of qwen3-reranker-0.6b-fp32.safetensors (precision_spread): precision_spread, KL21 all rows 6.687e-4 (n=434), scored rows - (n=?); 2026-10-21; no source cited; estimator kl21 (the gate's own estimator; the seco
+scored rows: not measured (give --tokenizer-dir, and --chat-turns when the golden names no template)
+full-vocabulary KL over all rows: 8.8646e-4 (for comparison with the full-vocabulary numbers in docs/accuracy.md; not stored)

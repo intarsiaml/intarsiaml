@@ -38,6 +38,9 @@ pub struct AccuracySpec {
     pub reuse_logit_tol: Option<f64>,
     /// Prefix-reuse judge: largest KL(cold || warm) in nats over the shared rows that still counts as rounding.
     pub reuse_kl_tol: Option<f64>,
+    /// Factor on the measured reference noise of the golden (`intarsia accuracy`: KL floor = max(class floor, factor x
+    /// noise)). A per-golden `factor` in the noise record wins; unset: 1.0.
+    pub ref_noise_factor: Option<f64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
