@@ -158,17 +158,34 @@ const GLYPHS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 /// Build the map. `telemetry_ops` are the op names the live snapshot reports (added when the plan lacks them, and the only
 /// source when there is no plan).
 pub fn build(plan: Option<&Plan>, telemetry_ops: &[String]) -> ArchMap {
-    let mut ops: Vec<PlanOp> = plan.map(|p| p.ops.clone()).unwrap_or_default();
+    // The plan lists one entry per (op, kernel variant), e.g. matmul with gemv / gemv_rows / nax kernels. Telemetry and the
+    // map work per op name: merge variants, keep the busiest one (most calls per decode step) as the shown kernel.
+    let mut ops: Vec<(PlanOp, usize)> = Vec::new();
+    for o in plan.map(|p| p.ops.as_slice()).unwrap_or(&[]) {
+        match ops.iter().position(|(x, _)| x.op == o.op) {
+            Some(i) => {
+                ops[i].1 += 1;
+                if o.calls_per_decode_step > ops[i].0.calls_per_decode_step {
+                    let n = ops[i].1;
+                    ops[i] = (o.clone(), n);
+                }
+            }
+            None => ops.push((o.clone(), 1)),
+        }
+    }
     for name in telemetry_ops {
-        if !ops.iter().any(|o| &o.op == name) {
-            ops.push(PlanOp {
-                op: name.clone(),
-                kernel: "-".into(),
-                backend: "-".into(),
-                exactness: "-".into(),
-                admitted: true,
-                calls_per_decode_step: None,
-            });
+        if !ops.iter().any(|(o, _)| &o.op == name) {
+            ops.push((
+                PlanOp {
+                    op: name.clone(),
+                    kernel: "-".into(),
+                    backend: "-".into(),
+                    exactness: "-".into(),
+                    admitted: true,
+                    calls_per_decode_step: None,
+                },
+                1,
+            ));
         }
     }
     let node = |id: &str, kind, title: &str, detail: Vec<String>| Node {
@@ -224,12 +241,12 @@ pub fn build(plan: Option<&Plan>, telemetry_ops: &[String]) -> ArchMap {
     // kernels
     let kernel_nodes: Vec<Node> = ops
         .iter()
-        .filter(|o| owner_of(&o.op) == Owner::Kernel)
-        .map(|o| Node {
+        .filter(|(o, _)| owner_of(&o.op) == Owner::Kernel)
+        .map(|(o, variants)| Node {
             id: format!("op:{}", o.op),
             kind: NodeKind::Op,
             title: o.op.clone(),
-            detail: vec![format!("{} {} {}", o.kernel, o.backend, o.exactness)],
+            detail: vec![format!("{} {} {}{}", o.kernel, o.backend, o.exactness, if *variants > 1 { format!(" (+{} variants)", variants - 1) } else { String::new() })],
             glyph: None,
             ops: vec![o.op.clone()],
         })
@@ -239,7 +256,7 @@ pub fn build(plan: Option<&Plan>, telemetry_ops: &[String]) -> ArchMap {
     }
 
     // KV cache, sampler, output
-    let owned = |who: Owner| -> Vec<String> { ops.iter().filter(|o| owner_of(&o.op) == who).map(|o| o.op.clone()).collect() };
+    let owned = |who: Owner| -> Vec<String> { ops.iter().filter(|(o, _)| owner_of(&o.op) == who).map(|(o, _)| o.op.clone()).collect() };
     let mut kv = node("kv", NodeKind::Kv, "KV cache", vec![]);
     kv.ops = owned(Owner::Kv);
     let mut sampler = node("sampler", NodeKind::Sampler, "sampler", vec![]);
@@ -330,6 +347,24 @@ mod tests {
         assert_eq!(m.layer_strip.last(), Some(&'C'));
         let kernels = &m.rows[3];
         assert!(kernels.nodes.iter().any(|n| n.id == "op:flux_capacitor"));
+    }
+
+    #[test]
+    fn kernel_variants_of_one_op_become_one_node() {
+        let plan = Plan::from_json(&json!({"ops": [
+            {"op": "matmul", "kernel": "gemv_rows", "calls_per_decode_step": 0},
+            {"op": "matmul", "kernel": "gemv", "calls_per_decode_step": 108},
+            {"op": "matmul", "kernel": "nax", "calls_per_decode_step": 0},
+            {"op": "logits", "kernel": "a"}, {"op": "logits", "kernel": "b"}
+        ]}))
+        .unwrap();
+        let m = build(Some(&plan), &["matmul".to_string()]);
+        let kernels = m.rows.iter().find(|r| r.nodes[0].kind == NodeKind::Op).unwrap();
+        assert_eq!(kernels.nodes.len(), 1);
+        assert!(kernels.nodes[0].detail[0].starts_with("gemv "), "{:?}", kernels.nodes[0].detail);
+        assert!(kernels.nodes[0].detail[0].ends_with("(+2 variants)"));
+        let sampler = &m.rows.last().unwrap().nodes[1];
+        assert_eq!(sampler.ops, vec!["logits"]);
     }
 
     #[test]

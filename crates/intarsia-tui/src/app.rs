@@ -65,6 +65,9 @@ pub struct App {
     pub hist_waiting: VecDeque<f64>,
     pub hist_kv: VecDeque<f64>,
     pub metrics_ok: bool,
+    /// True when decode/prefill rates come from the batch scheduler's live counters in `/metrics`.
+    pub live_rates: bool,
+    prev_tokens: Option<(f64, f64, f64)>,
     scrapes: VecDeque<Scrape>,
     pub ttft: Quantiles,
     pub itl: Quantiles,
@@ -124,14 +127,18 @@ impl App {
             let dt = b.0 - a.0;
             if dt >= 0.25 {
                 let rate = |x: u64, y: u64| y.saturating_sub(x) as f64 / dt;
-                self.rate_gen = rate(a.1, b.1);
-                self.rate_prefill = rate(a.2, b.2);
                 self.rate_steps = rate(a.3, b.3);
-                // Token counters are booked when a request finishes; while one runs, steps/s approximates decode tok/s
-                // (the web UI's map does the same and marks it with "~").
-                self.rate_gen_est = s.running > 0 && self.rate_gen == 0.0 && self.rate_prefill == 0.0 && self.rate_steps > 0.0;
-                if self.rate_gen_est {
-                    self.rate_gen = self.rate_steps;
+                if !self.live_rates {
+                    // The server books token counters when a request finishes, so the counter delta is a burst after
+                    // the fact, not a rate: only trust it while something runs, else show idle.
+                    self.rate_gen = if s.running > 0 { rate(a.1, b.1) } else { 0.0 };
+                    self.rate_prefill = if s.running > 0 { rate(a.2, b.2) } else { 0.0 };
+                    // while one runs the counters stand still: steps/s approximates decode tok/s (the web UI's map does the
+                    // same and marks it with "~")
+                    self.rate_gen_est = s.running > 0 && self.rate_gen == 0.0 && self.rate_prefill == 0.0 && self.rate_steps > 0.0;
+                    if self.rate_gen_est {
+                        self.rate_gen = self.rate_steps;
+                    }
                 }
             }
         }
@@ -192,6 +199,26 @@ impl App {
         self.ttft = quantiles(cur.ttft.as_ref(), base.and_then(|b| b.ttft.as_ref()));
         self.itl = quantiles(cur.itl.as_ref(), base.and_then(|b| b.itl.as_ref()));
         let batching = p.get("intarsia_batch_iterations_total").is_some();
+        // Live tok/s from the scheduler's counters (decode rows x passes, prefilled prompt tokens): they move per iteration,
+        // unlike the telemetry token counters.
+        if batching {
+            let decoded: f64 = cur.rows.iter().map(|(r, n)| r * n).sum();
+            let prefilled = p.get("intarsia_batch_prefill_tokens_total").unwrap_or(0.0);
+            if let Some((pt, pd, pp)) = self.prev_tokens {
+                let dt = t - pt;
+                if dt >= 0.5 && decoded >= pd && prefilled >= pp {
+                    self.rate_gen = (decoded - pd) / dt;
+                    self.rate_prefill = (prefilled - pp) / dt;
+                    self.rate_gen_est = false;
+                    self.live_rates = true;
+                    self.prev_tokens = Some((t, decoded, prefilled));
+                } else if decoded < pd || prefilled < pp {
+                    self.prev_tokens = Some((t, decoded, prefilled)); // counter reset
+                }
+            } else {
+                self.prev_tokens = Some((t, decoded, prefilled));
+            }
+        }
         self.batch = BatchView {
             avg_rows: batching.then(|| avg_rows(&cur.rows, base.map(|b| b.rows.as_slice()))).flatten(),
             queue_depth: p.get("intarsia_batch_queue_depth"),
@@ -279,7 +306,7 @@ mod tests {
     use intarsia_bench::snapshot::OpStat;
 
     fn snap(gen: u64, prompt: u64, steps: u64) -> Snapshot {
-        let mut s = Snapshot { model: "m".into(), generation_tokens_total: gen, prompt_tokens_total: prompt, steps_total: steps, ..Default::default() };
+        let mut s = Snapshot { model: "m".into(), running: 1, generation_tokens_total: gen, prompt_tokens_total: prompt, steps_total: steps, ..Default::default() };
         s.ops.insert("matmul".into(), OpStat { calls: 100, timed_calls: 10, time_ms: 30.0 });
         s.ops.insert("rope".into(), OpStat { calls: 100, timed_calls: 10, time_ms: 10.0 });
         s
@@ -358,6 +385,43 @@ mod tests {
         a.ingest_metrics(&metrics([10, 14, 14], [4, 6]), 60.0);
         assert!(!a.ttft.windowed);
         assert_eq!(a.ttft.count, 14.0);
+    }
+
+    #[test]
+    fn batching_engine_gives_live_rates_from_scheduler_counters() {
+        let m = |rows2: u32, prefill: u32| {
+            format!(
+                "intarsia_batch_iterations_total 5\nintarsia_batch_prefill_tokens_total {prefill}\n\
+                 intarsia_batch_decode_rows_total{{rows=\"1\"}} 10\nintarsia_batch_decode_rows_total{{rows=\"2\"}} {rows2}\n"
+            )
+        };
+        let mut a = App::new("u");
+        a.ingest_metrics(&m(0, 0), 0.0);
+        assert!(!a.live_rates, "needs two scrapes");
+        // 1 s later: 20 two-row passes = 40 tokens, 300 prompt tokens
+        a.ingest_metrics(&m(20, 300), 1.0);
+        assert!(a.live_rates);
+        assert!((a.rate_gen - 40.0).abs() < 1e-9);
+        assert!((a.rate_prefill - 300.0).abs() < 1e-9);
+        assert!(!a.rate_gen_est);
+        // snapshots no longer overwrite them with the counter-burst estimate
+        a.ingest_snapshot(snap(0, 0, 0), 1.1);
+        a.ingest_snapshot(snap(0, 0, 50), 1.6);
+        assert!((a.rate_gen - 40.0).abs() < 1e-9);
+        // idle scrape: back to zero
+        a.ingest_metrics(&m(20, 300), 2.0);
+        assert_eq!(a.rate_gen, 0.0);
+    }
+
+    #[test]
+    fn counter_burst_after_a_request_is_not_a_rate() {
+        let mut a = App::new("u");
+        a.ingest_snapshot(snap(0, 0, 0), 0.0);
+        let mut done = snap(80, 100, 90);
+        done.running = 0;
+        a.ingest_snapshot(done, 0.5);
+        assert_eq!(a.rate_gen, 0.0);
+        assert_eq!(a.rate_prefill, 0.0);
     }
 
     #[test]

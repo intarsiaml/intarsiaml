@@ -18,10 +18,10 @@
 │ AAABAAABAAABAAABAAABAAABAAABAAABAAABAAAB                                   ││you why is the sky blue                                     │
 │                                      ▼                                     ││ai  Because of Rayleigh scattering.                         │
 │ kernels (8) · share of sampled op time                                     ││                                                            │
-│ embedding      0.0% ░░░░░░░░░░        rmsnorm        1.6% █░░░░░░░░░       ││                                                            │
-│ matmul        61.5% ██████████        moe_experts   17.7% ████░░░░░░       ││                                                            │
-│ gdn_scan       9.8% ██░░░░░░░░        attn_decode    5.9% ██░░░░░░░░       ││                                                            │
-│ rope           0.0% ░░░░░░░░░░        silu_glu       0.0% ░░░░░░░░░░       ││                                                            │
+│ embedding     0.0% ░░░░░░░░░░         rmsnorm       1.6% █░░░░░░░░░        ││                                                            │
+│ matmul       61.5% ██████████         moe_experts  17.7% ████░░░░░░        ││                                                            │
+│ gdn_scan      9.8% ██░░░░░░░░         attn_decode   5.9% ██░░░░░░░░        ││                                                            │
+│ rope          0.0% ░░░░░░░░░░         silu_glu      0.0% ░░░░░░░░░░        ││                                                            │
 │                                      ▼                                     ││                                                            │
 │╭ KV cache ──────────────────────────╮╭ sampler ───────────────────────────╮││                                                            │
 ││284 / 4096 tok (6.9%)               ││logits 3.0% · argmax 0.1%           │││                                                            │

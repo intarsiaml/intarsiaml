@@ -1,0 +1,2 @@
+Error: intarsia tui needs a terminal on stdin and stdout; use --snapshot for text frames without one
+tui no-tty exit 1

@@ -1,0 +1,1 @@
+GET / with --no-ui: 404

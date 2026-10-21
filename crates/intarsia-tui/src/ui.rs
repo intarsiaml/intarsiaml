@@ -191,6 +191,15 @@ pub fn fmt_rate(v: f64) -> String {
     }
 }
 
+/// A `last_*` telemetry value: 0 means no request has finished yet.
+pub fn fmt_last(v: f64) -> String {
+    if v > 0.0 {
+        fmt_rate(v)
+    } else {
+        "n/a".into()
+    }
+}
+
 pub fn fmt_secs(v: Option<f64>) -> String {
     match v {
         None => "n/a".into(),
@@ -277,11 +286,11 @@ fn overlay(n: &Node, app: &App) -> (Vec<String>, bool) {
         }
         NodeKind::Prefill => {
             lines.push(format!("now {} tok/s", fmt_rate(app.rate_prefill)));
-            lines.push(format!("last {} tok/s · cached {}", fmt_rate(s.last_prefill_tok_s), s.cached_tokens_total));
+            lines.push(format!("last {} tok/s · cached {}", fmt_last(s.last_prefill_tok_s), s.cached_tokens_total));
             app.rate_prefill > 0.0
         }
         NodeKind::Decode => {
-            lines.push(format!("now {est}{} tok/s · last {}", fmt_rate(app.rate_gen), fmt_rate(s.last_decode_tok_s)));
+            lines.push(format!("now {est}{} tok/s · last {}", fmt_rate(app.rate_gen), fmt_last(s.last_decode_tok_s)));
             let batch = app.batch.avg_rows.map_or("n/a".to_string(), |r| format!("{r:.1}"));
             lines.push(format!("batch size {batch} · steps {}/s", fmt_rate(app.rate_steps)));
             app.rate_gen > 0.0
@@ -426,15 +435,16 @@ fn draw_ops(f: &mut Frame, inner: Rect, mut y: u16, row: &Row, app: &App, th: &T
     y += 1;
     let cols = ((inner.width / 30).max(1) as usize).min(row.nodes.len()).max(1);
     let cw = inner.width / cols as u16;
+    let name_w = row.nodes.iter().map(|n| n.title.chars().count()).max().unwrap_or(8).clamp(8, (cw as usize).saturating_sub(20).max(8));
     for chunk in row.nodes.chunks(cols) {
         if y >= bottom {
             return bottom;
         }
         for (i, n) in chunk.iter().enumerate() {
             let share = app.op_share.get(&n.ops[0]).copied().unwrap_or(0.0);
-            let bar_w = cw.saturating_sub(13 + 7 + 2).min(10) as usize;
+            let bar_w = cw.saturating_sub(name_w as u16 + 1 + 7 + 2).min(10) as usize;
             let filled = ((share * bar_w as f64 * 2.0).ceil() as usize).min(bar_w); // x2: shares are mostly small
-            let mut spans = vec![Span::styled(format!("{:<12} ", trunc(&n.title, 12)), Style::default().fg(th.fg))];
+            let mut spans = vec![Span::styled(format!("{:<name_w$} ", trunc(&n.title, name_w)), Style::default().fg(th.fg))];
             spans.push(Span::styled(format!("{:>6} ", op_share_text(app, &n.ops[0])), if app.ops_timed { Style::default().fg(th.heat(share * 1.5)) } else { dim(th) }));
             if app.ops_timed {
                 spans.push(Span::styled("█".repeat(filled), Style::default().fg(th.heat(share * 1.5))));
@@ -493,7 +503,7 @@ fn draw_metrics(f: &mut Frame, area: Rect, app: &App, th: &Theme) {
     let text: Vec<(String, String)> = vec![
         ("TTFT".into(), if app.metrics_ok { fmt_q(&app.ttft) } else { "n/a (/metrics unreachable)".into() }),
         ("ITL".into(), if app.metrics_ok { fmt_q(&app.itl) } else { "n/a".into() }),
-        ("last req".into(), format!("TTFT {} · decode {} tok/s · prefill {} tok/s", fmt_secs((s.last_ttft_ms > 0.0).then(|| s.last_ttft_ms / 1e3)), fmt_rate(s.last_decode_tok_s), fmt_rate(s.last_prefill_tok_s))),
+        ("last req".into(), format!("TTFT {} · decode {} tok/s · prefill {} tok/s", fmt_secs((s.last_ttft_ms > 0.0).then(|| s.last_ttft_ms / 1e3)), fmt_last(s.last_decode_tok_s), fmt_last(s.last_prefill_tok_s))),
         ("batch".into(), match batch.avg_rows {
             Some(r) => format!("avg {r:.1} rows · step {} ms", batch.step_ewma_ms.map_or_else(na, |m| format!("{m:.1}"))),
             None => "n/a (single-sequence engine or no decode yet)".into(),

@@ -139,3 +139,38 @@ fn light_theme_renders_the_same_text() {
     let a = app();
     assert_eq!(render_text(&a, &Theme::dark(), 140, 45), render_text(&a, &Theme::light(), 140, 45));
 }
+
+// ---- real server output (docs/results/raw/2026-10-21-m6-tui/: Qwen3-8B on Metal, --max-batch 4, one chat request) ----------
+
+#[test]
+fn live_plan_builds_one_node_per_op_and_one_layer_group() {
+    let plan = Plan::from_json(&serde_json::from_str(&fixture("live_plan.json")).unwrap()).unwrap();
+    assert_eq!(plan.layers.len(), 36);
+    assert!(plan.ops.len() > 13, "the plan lists kernel variants separately");
+    let m = intarsia_tui::layout::build(Some(&plan), &[]);
+    assert_eq!(m.layer_strip.iter().collect::<String>(), "A".repeat(36));
+    let kernels: Vec<&str> = m.rows.iter().flat_map(|r| &r.nodes).filter(|n| n.id.starts_with("op:")).map(|n| n.title.as_str()).collect();
+    let mut dedup = kernels.clone();
+    dedup.sort();
+    dedup.dedup();
+    assert_eq!(kernels.len(), dedup.len(), "{kernels:?}");
+    assert!(kernels.contains(&"matmul") && kernels.contains(&"qk_norm_rope_kv"));
+    // logits and argmax belong to the sampler; this plan has no kv_* op (the KV write is fused), so the KV node owns none
+    let last = &m.rows.last().unwrap().nodes;
+    assert_eq!(last[1].ops, vec!["logits", "argmax"]);
+    assert!(last[0].ops.is_empty());
+}
+
+#[test]
+fn live_metrics_yield_latency_percentiles_and_batch_size() {
+    let mut a = App::new("http://127.0.0.1:8090");
+    a.ingest_metrics(&fixture("live_metrics.txt"), 10.0);
+    assert!(a.metrics_ok);
+    assert_eq!(a.ttft.count, 1.0);
+    let p50 = a.ttft.p50.unwrap();
+    assert!((0.1..=0.25).contains(&p50), "ttft p50 {p50}");
+    assert!(a.itl.count >= 80.0 && a.itl.p50.unwrap() > 0.0);
+    assert_eq!(a.batch.avg_rows, Some(1.0));
+    assert_eq!(a.batch.queue_depth_max, Some(1.0));
+    assert!(a.batch.step_ewma_ms.unwrap() > 0.0);
+}
