@@ -32,9 +32,11 @@ Load, mixed, at concurrency 1, 4 and 8, short and long prompts, streamed and not
 | cbsoak TTFT p50 / p99, ITL p50 / p99 | 405 / 7386 ms, 5.48 / 5.64 ms | 421 / 8301 ms, 5.47 / 5.68 ms |
 | decode gauge median under load | 181.0 tok/s | 181.7 tok/s |
 
-Together 26.5 min of mixed load and 1571 requests. The user asked for 15 min in one window. Window 1 reached 12.4 min of load
-(13.4 min with the sentinels and references) because I sized the stage budget to leave room for the pre and post generates;
-window 2 therefore ran the default path for 14 min of load (15.0 min lane) on top.
+Together 26.5 min of mixed load and 1571 requests. **Deviation from the brief:** it asked for 15 min of load in one window on the
+#59 head with `=1`. That window (1) reached 12.4 min of load (13.4 min with the sentinels and references), because I sized the stage
+budget to leave room for the pre and post generates. Window 2 ran 14.0 min of load (15.0 min lane) on the flip binary's default
+path, the same kernels and ids. A strict single-window 15-min soak on the #59 head would need about 18 min of downtime; it is
+not run unless the user wants it.
 
 ## 2. What was run
 
@@ -102,11 +104,13 @@ window 2 therefore ran the default path for 14 min of load (15.0 min lane) on to
 
 ## 4. Decisions and open points
 
-1. **Merge with G1c (`feat/tp2-fusion-default`).** It rewrites the same line into `tp_fusion(env, backend)` with
-   `None => backend == "cuda"`. The two will conflict textually in `common.rs`; the combined rule is
-   `None => backend == "cuda" || (backend == "hip" && tp == 2)`, and the CUDA branch needs the `tp` argument too. The
-   coordinator should resolve it when the second of the two merges. G1c's comment that HIP refuses an explicit request is stale
-   once #59 is in (H1 noted the same).
+1. **Merge with G1c (`feat/tp2-fusion-default`): three files conflict, not one.** It rewrites the same `tp_fusion` line in
+   `crates/intarsia-cli/src/common.rs` into a 2-argument `tp_fusion(env, backend)` with `None => backend == "cuda"`, and rewrites the
+   `tp_fusion` doc comments in `crates/intarsia-core/src/backend.rs` and `crates/intarsia-core/src/model.rs` that this branch also
+   edits. Its unit test calls the 2-argument function and asserts `tp_fusion(None, "cuda")` is true. The resolved tree needs ONE
+   3-argument function with `None => backend == "cuda" || (backend == "hip" && tp == 2)`, both unit tests (G1c's with the extra
+   argument, this one), and doc comments that name both backends. A clean-looking textual resolve that keeps one side drops the
+   other backend's default. G1c's comment that HIP refuses an explicit request is stale once #59 is in (H1 noted the same).
 2. **This PR is stacked on #59** (base `lane-h1/tp2-hip-graphs`). If #59 merges first, retarget to main.
 3. **Not covered.** The HIP serve cannot batch (`--max-batch 1` only), so "concurrency 8" is eight clients queuing for one
    decoder, not batched decode. One model (35B; 8B for ids only). HIP tp=4 does not exist on this box.
