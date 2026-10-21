@@ -1,0 +1,10 @@
+[supervisor] started server pid 2634056
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+tensor parallel x2 across processes: rank 1 is remote (20480 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 35 kernel(s) checked, 0 case(s) run, 505 cached
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10 x2 (tp=2, nccl comm)) in 6.0s, context 20480 tokens
+intarsia server listening on http://0.0.0.0:8090
+[supervisor] signal 15: stopping the server
+NCCL version 2.30.7+cuda13.3

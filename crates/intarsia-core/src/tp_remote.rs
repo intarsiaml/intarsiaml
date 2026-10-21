@@ -5,7 +5,9 @@
 //! Sparks), never through this connection: the connection only carries what to run.
 //!
 //! Commands, in order on the stream (every one applies to the remote copy of one sequence, `sid`):
-//! `NewState`, `Forward(ids)`, `Truncate(len)`, `Snapshot(keep)`, `Drop`, plus `Shutdown`. Only `Forward` is answered
+//! `NewState`, `Forward(flags, ids)`, `Truncate(len)`, `Snapshot(keep)`, `Drop`, plus `Shutdown`. `Forward`'s flags
+//! carry rank 0's per-step decisions the remote rank must follow: [`FWD_GRAPH`], rank 0 replays its decode graph in
+//! this step, so the remote rank replays its own (the two graphs record the same collectives in the same order). Only `Forward` is answered
 //! (`ok`, the remote length, an error message); the others are fire-and-forget, applied in order, and a failure among
 //! them fails the next forward. The primary sends `Forward` before it runs its own pass and reads the answer after it.
 //! A reader thread on the primary watches the answers: an error aborts the primary's communicator so the primary is not
@@ -34,6 +36,9 @@ const T_DROP: u8 = 5;
 const T_SHUTDOWN: u8 = 6;
 const T_REPLY: u8 = 0x80;
 const T_HELLO: u8 = 0x40;
+
+/// `Forward` flag: a single-token step that rank 0 runs as a captured decode graph (`model/graph_step.rs`).
+pub const FWD_GRAPH: u64 = 1;
 
 /// How long the primary waits for a forward's answer after its own pass finished (the remote runs the same pass at
 /// the same time, so this only fires on a hung or dead rank). `INTARSIA_TP_REMOTE_TIMEOUT_S` overrides it.
@@ -190,9 +195,11 @@ pub struct RemoteSeq {
 
 impl RemoteSeq {
     /// Send this sequence's next forward pass (the primary runs its own pass next, then calls [`RemoteSeq::finish`]).
-    pub fn start_forward(&self, ids: &[u32]) -> Result<()> {
-        let mut body = Vec::with_capacity(8 + ids.len() * 4);
+    /// `graph`: the primary replays its decode graph in this pass (see [`FWD_GRAPH`]).
+    pub fn start_forward(&self, ids: &[u32], graph: bool) -> Result<()> {
+        let mut body = Vec::with_capacity(16 + ids.len() * 4);
         body.extend_from_slice(&self.sid.to_le_bytes());
+        body.extend_from_slice(&(if graph { FWD_GRAPH } else { 0 }).to_le_bytes());
         body.extend(ids.iter().flat_map(|i| i.to_le_bytes()));
         self.peer.send(T_FORWARD, &body)
     }
@@ -266,7 +273,9 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                 Err(e) => pending = pending.or(Some(format!("new state: {e}"))),
             },
             T_FORWARD => {
-                let ids: Vec<u32> = b[8..].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
+                let flags = u64_at(&b, 1)?;
+                let ids: Vec<u32> =
+                    b[16..].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
                 if let Some(msg) = pending.take() {
                     // the primary is already in its own pass: leave the group (it aborts on this answer)
                     reply(&mut w, false, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
@@ -277,7 +286,7 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                     continue;
                 };
                 passes += 1;
-                match model.forward_rank(st, &ids) {
+                match model.forward_rank(st, &ids, flags & FWD_GRAPH != 0) {
                     Ok(()) => reply(&mut w, true, st.len, "")?,
                     Err(e) => reply(&mut w, false, st.len, &e.to_string())?,
                 }

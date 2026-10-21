@@ -61,6 +61,10 @@ pub struct LoadOptions {
     /// Replay the single-token decode step as a captured graph when the backend supports it (`--no-graphs` turns
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
+    /// Tensor parallelism: run the row-local fused decode ops on each rank's shard (`INTARSIA_TP_FUSION=1`) when the
+    /// backend can (`Backend::fusion_under_tp`). Off by default: fused kernels may round differently (measured bitwise to
+    /// unfused on the 35B tp=2 gates, docs/results/2026-10-21-tp2-cuda-graphs.md).
+    pub tp_fusion: bool,
 }
 
 impl Default for LoadOptions {
@@ -76,6 +80,7 @@ impl Default for LoadOptions {
             fp8_act: None,
             mxfp4_act: None,
             graphs: true,
+            tp_fusion: false,
         }
     }
 }
@@ -237,6 +242,10 @@ pub struct Model {
     graphs: GraphState,
     /// While a graph is being captured: the ops it records (replays count them in telemetry).
     capture_ops: Mutex<Option<Vec<Op>>>,
+    /// While a graph is being captured: the collectives it records.
+    capture_comms: std::sync::atomic::AtomicU64,
+    /// Row-local fusion under tensor parallelism is on (`LoadOptions::tp_fusion`, world > 1, backend capable).
+    tp_fusion: bool,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
     tp: TpRank,
     /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
@@ -588,6 +597,12 @@ impl Model {
             Some("bf16") => false,
             Some(v) => return Err(Error::invalid(format!("INTARSIA_TP_PARTIAL={v} (f32 or bf16)"))),
         };
+        if opts.tp_fusion && tp.world > 1 && !b.fusion_under_tp() {
+            return Err(Error::Unsupported(format!(
+                "fused ops under tensor parallelism (INTARSIA_TP_FUSION) on backend '{}' (Backend::fusion_under_tp)",
+                b.name()
+            )));
+        }
         let mt = opts.prefill_chunk.max(1);
         let esz = act.size_bytes();
         let mut ws_bytes = 0u64;
@@ -682,8 +697,11 @@ impl Model {
             scratch: None,
             recorder: Mutex::new(None),
             resolved: Default::default(),
-            graphs: GraphState::new(opts.graphs && tp.world == 1),
+            // at world > 1 also gated on a capture-safe communicator (`GraphState::usable`)
+            graphs: GraphState::new(opts.graphs),
             capture_ops: Mutex::new(None),
+            capture_comms: std::sync::atomic::AtomicU64::new(0),
+            tp_fusion: opts.tp_fusion && tp.world > 1,
             tp,
             no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
             test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
@@ -695,6 +713,10 @@ impl Model {
             batch_rows: 0,
             batch_tok: None,
         };
+        // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
+        if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
+            c.reserve(mt * dims.hidden, 0)?;
+        }
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
         Ok(model)
@@ -904,10 +926,11 @@ impl Model {
     }
 
     /// A non-primary rank's forward pass over `ids` (the layers, no head), for a rank that runs in its own process
-    /// (`crate::tp_remote::serve`). Same checks and failure reset as [`Model::forward`].
-    pub fn forward_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+    /// (`crate::tp_remote::serve`). `graph`: rank 0 replays its decode graph in this step, so this rank does too. Same
+    /// checks and failure reset as [`Model::forward`].
+    pub fn forward_rank(&self, st: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
         Self::check_forward(st, ids, HeadMode::None, false)?;
-        let r = self.run_peer(st, ids);
+        let r = self.run_peer(st, ids, graph);
         if r.is_err() && st.has_recurrent() {
             let _ = st.reset(&*self.backend);
         }
@@ -1078,6 +1101,7 @@ impl Model {
             }
         }
         let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let graph = self.decode_graph_now(st, ids, mode);
         let mut peers = std::mem::take(&mut st.peers);
         let out = std::thread::scope(|sc| {
             let handles: Vec<_> = self
@@ -1099,7 +1123,7 @@ impl Model {
                             }
                         }
                         let mut guard = Guard(comm, false);
-                        let r = m.run_peer(&mut ps.st, ids);
+                        let r = m.run_peer(&mut ps.st, ids, graph);
                         guard.1 = r.is_ok();
                         r
                     })
@@ -1151,7 +1175,7 @@ impl Model {
             } else if rs.len < st.len {
                 return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", rs.len, st.len)));
             }
-            rs.start_forward(ids)?;
+            rs.start_forward(ids, self.decode_graph_now(st, ids, mode))?;
             let r0 = self.forward_inner(st, ids, mode, on_row);
             if r0.is_err() {
                 // the remote rank waits in a collective this rank will not join: the group is gone
@@ -1183,8 +1207,17 @@ impl Model {
         out
     }
 
-    /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head).
-    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32]) -> Result<()> {
+    /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head). `graph`: rank 0 replays its
+    /// decode graph in this step (`Model::decode_graph_now`), so this rank replays its own.
+    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
+        if graph {
+            if ids.len() != 1 {
+                return Err(Error::invalid(format!("decode graph step with {} tokens", ids.len())));
+            }
+            self.graph_peer_step(ps, ids[0])?;
+            ps.commit(ids);
+            return Ok(());
+        }
         for chunk in self.forward_chunks(ps, ids) {
             self.run_chunk(ps, chunk, false)?;
             ps.commit(chunk);
@@ -1201,15 +1234,11 @@ impl Model {
     ) -> Result<StepOut> {
         Self::check_forward(st, ids, mode, on_row.is_some())?;
         // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
-        if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) && self.graphs.usable(self) {
-            let profile = self.profile_every > 0
-                && self.telemetry.steps_total() % (self.profile_every as u64 * graph_step::PROFILE_STRETCH) == 0;
-            if !profile {
-                if let Some(out) = self.graph_decode_step(st, ids[0], mode == HeadMode::LastLogits)? {
-                    st.commit(ids);
-                    self.telemetry.step();
-                    return Ok(out);
-                }
+        if self.decode_graph_now(st, ids, mode) {
+            if let Some(out) = self.graph_decode_step(st, ids[0], mode == HeadMode::LastLogits)? {
+                st.commit(ids);
+                self.telemetry.step();
+                return Ok(out);
             }
         }
         let chunks = self.forward_chunks(st, ids);
@@ -1482,7 +1511,8 @@ impl Model {
     /// returning `true`; return `false` without running anything when it has none (another backend, an unsupported shape such
     /// as a prefill chunk, a kernel that failed admission, `INTARSIA_HIP_DISABLE`), and the caller runs the ops the fused one
     /// replaces. The probe goes through `Registry::select`, the lookup `exec` itself makes, so a plan recording sees only
-    /// the calls that will run. Fusion is off under tensor parallelism and with `INTARSIA_NO_FUSION=1`.
+    /// the calls that will run. Fusion is off with `INTARSIA_NO_FUSION=1`, and under tensor parallelism unless row-local
+    /// fusion is on (`LoadOptions::tp_fusion`, see [`Model::fused_under_tp`]).
     fn try_fused(
         &self,
         op: Op,
@@ -1503,7 +1533,9 @@ impl Model {
     /// fused op whose replaced ops are spread over the layer, so the caller must decide before it emits any of them.
     fn fused_ok(&self, call: &OpCall) -> bool {
         static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
+        if (self.tp.world > 1 && !self.fused_under_tp(call.op))
+            || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0"))
+        {
             return false;
         }
         let select = |c: &OpCall| {
@@ -1534,6 +1566,15 @@ impl Model {
             }
         }
         true
+    }
+
+    /// Under tensor parallelism, may fused op `op` run on this rank's shard? Only with row-local fusion on, and never
+    /// for an op that would replace a row-parallel projection together with what precedes it: its output is a partial
+    /// that `proj_reduce` must land in the f32 partial buffer and all-reduce, and the fused kernel writes the block
+    /// output directly (`GatedRmsnormMatmulFp8`, the GatedDeltaNet out-projection). `SigmoidMulMatmulFp8` (attention
+    /// o_proj) is already tried only with bf16 partials, where the all-reduce follows it.
+    fn fused_under_tp(&self, op: Op) -> bool {
+        self.tp_fusion && !matches!(op, Op::GatedRmsnormMatmulFp8)
     }
 
     /// Inside [`Model::forward_verify`].
@@ -2039,6 +2080,9 @@ impl Model {
             let d = t0.elapsed();
             comm.note_timed(d);
             self.telemetry.record_comm(Some(d));
+        } else if self.capture_ops.lock().unwrap().is_some() {
+            // being captured: nothing ran, each replay counts it
+            self.capture_comms.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         } else {
             self.telemetry.record_comm(None);
         }

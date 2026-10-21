@@ -182,6 +182,47 @@ fn hybrid_moe_tp2_matches_tp1_f32() {
     eprintln!("hybrid MoE tp=2 vs tp=1 (f32): worst rel_l2 {worst:.2e}");
 }
 
+/// Row-local fusion under TP (`LoadOptions::tp_fusion`): the fused decode ops run on each rank's shard and the result is
+/// still tp=1's up to summation order. Rank 0's telemetry shows which fused ops ran; the GatedDeltaNet out-projection
+/// fold (`gated_rmsnorm_matmul_fp8`, it would swallow the all-reduce) must not be among them.
+#[test]
+fn hybrid_moe_tp2_row_local_fusion_matches_tp1_f32() {
+    let _g = env();
+    let w = weights();
+    let one = load(1, &w, DType::F32);
+    let (recipe, dims) = dims();
+    let backends: Vec<Arc<dyn Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let tel = Arc::new(Telemetry::new());
+    let o = LoadOptions { tp_fusion: true, ..opts(DType::F32) };
+    let fused = Model::load_tp(backends, comms, &recipe, &dims, &w, &o, tel.clone()).unwrap();
+    let (a, b) = (run(&fused), run(&one));
+    let mut worst = 0f64;
+    for (p, (x, y)) in a.iter().zip(&b).enumerate() {
+        let r = rel_l2(x, y);
+        worst = worst.max(r);
+        assert!(r < 1e-5, "row {p}: rel_l2 {r}");
+        assert_eq!(argmax(x), argmax(y), "row {p}");
+    }
+    let ops = tel.snapshot().ops;
+    const FUSED: [&str; 10] = [
+        "matmul_pair",
+        "matmul_fp8_pair",
+        "rmsnorm_add_matmul_pair",
+        "rmsnorm_add_matmul_fp8_pair",
+        "gdn_conv_delta",
+        "gated_rmsnorm",
+        "qk_norm_rope_kv",
+        "gate_split_qk_norm_rope_kv",
+        "matmul_nvfp4_glu",
+        "moe_block",
+    ];
+    let ran: Vec<&str> = FUSED.into_iter().filter(|k| ops.get(*k).is_some_and(|s| s.calls > 0)).collect();
+    eprintln!("hybrid MoE tp=2 fused vs tp=1 (f32): worst rel_l2 {worst:.2e}; fused ops on rank 0: {ran:?}");
+    assert!(!ran.is_empty(), "no fused op ran under tp_fusion");
+    assert!(ops.get("gated_rmsnorm_matmul_fp8").is_none_or(|s| s.calls == 0), "the out-projection fold ran under TP");
+}
+
 /// The same comparison separates a 1% partial-scale bug on rank 1 (`INTARSIA_TP_TEST_BUG=scale:1.01`, every all-reduce of
 /// attention, GatedDeltaNet and MoE) from summation order by orders of magnitude: the guard the GPU gates lack
 /// (docs/accuracy.md, "TP self-golden budget").

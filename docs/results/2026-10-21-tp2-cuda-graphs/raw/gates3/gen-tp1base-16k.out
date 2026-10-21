@@ -1,0 +1,10 @@
+This is a highly detailed, production-grade architecture plan for **IntarsiaML**. It demonstrates a mature understanding of the trade-offs between flexibility, performance, and correctness in modern LLM inference engines. The decision to decouple the "recipe" (model definition) from the "kernel" (implementation) and enforce strict reference-based admission tests is the key differentiator that prevents the "works on my machine" syndrome common in custom kernel development.
+
+Below is a structured review and analysis of the plan, highlighting strengths, potential risks, and specific recommendations for Phase 0 execution.
+
+### 1. Architectural Strengths
+
+*   **The "Oracle" Pattern (Section 3.2 & 6):**
+    *   **Why it works:** By mandating a `cpu-ref` (f32/f64) oracle for every kernel, you eliminate the most common source of bugs in custom kernels: silent numerical drift.
+    *   **Admission Test:** The `intarsia kernels test` step is critical. It shifts correctness verification from "runtime observation" to "compile-time/CI gate." This is essential for maintaining the "no scope sprawl" anti-goal.
+*   **C Kernel ABI (`ik_abi.h`)

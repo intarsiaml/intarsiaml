@@ -1,0 +1,18 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 20480 tokens
+calibration: 47 base tokens, 21.91 tokens per filler sentence
+  size   1024 rep: prompt=966 gen=128 ttft=0.17s prefill=5575 tok/s decode=90.4 tok/s
+  size   1024 rep: prompt=956 gen=128 ttft=0.21s prefill=4624 tok/s decode=90.7 tok/s
+  size   4096 rep: prompt=4017 gen=128 ttft=0.57s prefill=7107 tok/s decode=90.0 tok/s
+  size   4096 rep: prompt=4003 gen=128 ttft=0.56s prefill=7157 tok/s decode=89.9 tok/s
+  size  16384 rep: prompt=16288 gen=128 ttft=2.39s prefill=6826 tok/s decode=84.2 tok/s
+  size  16384 rep: prompt=16244 gen=128 ttft=2.36s prefill=6888 tok/s decode=84.0 tok/s
+wrote /home/nvidia/intarsia-tp2/xout/window2/tp2g-r1/g1c-tp2g-r1.json
+g1c-tp2g-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      961     0.190         5099        90.5      128
+    4096     4010     0.562         7132        90.0      128
+   16384    16266     2.372         6857        84.1      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)

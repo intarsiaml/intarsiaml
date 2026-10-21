@@ -1,0 +1,14 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2392 MHz, [N/A], 43, 10.64 W, 0 %
+tp2e-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1697 ms (881.9 tok/s) | decode 3188 ms (79.98 tok/s)
+steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 tp2e-5k: tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0
+tp2g-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1546 ms (968.2 tok/s) | decode 2672 ms (95.45 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 tp2g-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+IDS tp2e-5k vs tp2g-5k: IDENTICAL (first divergence none, 256/256)
+12:56:02 == gates done, 1385 s of the work budget left
+12:56:02 restore (exit 0)

@@ -14,6 +14,13 @@
 //!
 //! Profiled steps (per-op timing synchronises after every op) run on the eager path; so does anything the backend
 //! cannot capture. A failed capture switches graphs off for the model with a note on stderr.
+//!
+//! Tensor parallelism (world > 1): only with a communicator whose collectives are capturable (`Comm::capture_safe`,
+//! NCCL); the all-reduces are recorded into each rank's graph on the same stream as the kernels. Rank 0 decides per
+//! step whether the step replays ([`Model::decode_graph_now`]) and the other ranks follow that decision (the remote
+//! rank gets it with the `Forward` command), so every rank issues the same collectives in the same order. A rank other
+//! than 0 records the layers only (rank 0 owns the head). Under TP a failed capture fails the step, which takes the
+//! group down (ADR-0006): falling back to eager on one rank only would leave the ranks deciding differently.
 
 use super::*;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -27,6 +34,8 @@ struct Captured {
     graph: GraphHandle,
     /// Ops of one step, in order (counted into telemetry per replay).
     ops: Vec<Op>,
+    /// Collectives recorded in the step (counted into telemetry per replay).
+    comms: usize,
 }
 
 pub(super) struct GraphState {
@@ -59,12 +68,14 @@ impl GraphState {
         *self.captured.lock().unwrap() = None;
     }
 
-    /// Graphs requested, supported by the backend, and valid at every position for this plan.
+    /// Graphs requested, supported by the backend, and valid at every position for this plan. Under tensor
+    /// parallelism also: the communicator is capturable and no host-side test hook (`INTARSIA_TP_TEST_BUG`) runs.
     pub(super) fn usable(&self, m: &Model) -> bool {
         self.enabled.load(Ordering::Relaxed)
             && m.backend.supports_graphs()
             && m.resolved.decode_position_stable
             && !m.registry.reference_only
+            && (m.tp.world == 1 || (m.tp.comm.as_ref().is_some_and(|c| c.capture_safe()) && m.test_bug.is_none()))
     }
 }
 
@@ -85,42 +96,23 @@ impl Model {
         }
     }
 
+    /// Will rank 0's next forward of `ids` in `mode` try the decode graph? The test `forward_inner` applies; under TP
+    /// the other ranks are told the answer so they replay (or not) in lockstep.
+    pub(super) fn decode_graph_now(&self, st: &SequenceState, ids: &[u32], mode: HeadMode) -> bool {
+        ids.len() == 1
+            && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax)
+            && st.id != 0
+            && self.graphs.usable(self)
+            && !(self.profile_every > 0
+                && self.telemetry.steps_total() % (self.profile_every as u64 * PROFILE_STRETCH) == 0)
+    }
+
     /// One decode step through the captured graph. `Ok(None)`: not applicable now (capture failed and graphs
     /// were switched off); the caller runs the step eagerly. `st.len + 1 <= st.cap` was checked by the caller.
     pub(super) fn graph_decode_step(&self, st: &SequenceState, id: u32, want_logits: bool) -> Result<Option<StepOut>> {
-        if st.id == 0 || self.recorder.lock().unwrap().is_some() {
+        if !self.graph_step(st, id, true)? {
             return Ok(None);
         }
-        if id as usize >= self.dims.vocab {
-            return Err(Error::BadRequest(format!("token id {id} >= vocab {}", self.dims.vocab)));
-        }
-        // the step's device inputs
-        self.backend.upload(&self.ws.ids, 0, &(id as i32).to_le_bytes(), 0)?;
-        self.backend.upload(&self.ws.pos, 0, &(st.len as i32).to_le_bytes(), 0)?;
-        let mut cache = self.graphs.captured.lock().unwrap();
-        if cache.as_ref().map(|c| c.state_id) != Some(st.id) {
-            *cache = None; // a recording of another state's buffers is of no use
-            match self.capture_decode(st) {
-                Ok(c) => {
-                    *cache = Some(c);
-                    self.graphs.captures.fetch_add(1, Ordering::Relaxed);
-                    self.telemetry.graph_event(false);
-                }
-                Err(e) => {
-                    eprintln!("decode graph capture failed ({e}); decoding eagerly from here on");
-                    self.graphs.enabled.store(false, Ordering::Relaxed);
-                    return Ok(None);
-                }
-            }
-        }
-        let c = cache.as_ref().expect("captured above");
-        self.backend.graph_replay(&c.graph, 0)?;
-        self.graphs.replays.fetch_add(1, Ordering::Relaxed);
-        self.telemetry.graph_event(true);
-        for &op in &c.ops {
-            self.telemetry.record_op(op, None);
-        }
-        drop(cache);
         let v = self.dims.vocab;
         if want_logits {
             let mut bytes = vec![0u8; v * 4];
@@ -135,15 +127,90 @@ impl Model {
         }
     }
 
-    fn capture_decode(&self, st: &SequenceState) -> Result<Captured> {
+    /// A tensor-parallel rank other than 0: one decode step's layers through its captured graph, because rank 0
+    /// replays its own in this step. Enqueued only (the next collective or download orders it). Fails when this rank
+    /// cannot replay.
+    pub(super) fn graph_peer_step(&self, st: &SequenceState, id: u32) -> Result<()> {
+        if !self.graphs.usable(self) {
+            return Err(Error::invalid(format!(
+                "tensor-parallel rank {}: rank 0 replays the decode graph but this rank cannot (--no-graphs, INTARSIA_TP_TEST_BUG, or no capturable communicator)",
+                self.tp.rank
+            )));
+        }
+        if self.graph_step(st, id, false)? {
+            Ok(())
+        } else {
+            Err(Error::backend(format!("tensor-parallel rank {}: decode graph unavailable", self.tp.rank)))
+        }
+    }
+
+    /// Upload the step's inputs, capture on first use for this state, replay. `head`: record the head (rank 0) or the
+    /// layers only. `Ok(false)`: not applicable (a state without an id, or a tp=1 capture failure: graphs are now off).
+    fn graph_step(&self, st: &SequenceState, id: u32, head: bool) -> Result<bool> {
+        if st.id == 0 || self.recorder.lock().unwrap().is_some() {
+            if self.tp.world > 1 {
+                return Err(Error::invalid("tensor-parallel decode graph: no replay possible for this state"));
+            }
+            return Ok(false);
+        }
+        if id as usize >= self.dims.vocab {
+            return Err(Error::BadRequest(format!("token id {id} >= vocab {}", self.dims.vocab)));
+        }
+        // the step's device inputs
+        self.backend.upload(&self.ws.ids, 0, &(id as i32).to_le_bytes(), 0)?;
+        self.backend.upload(&self.ws.pos, 0, &(st.len as i32).to_le_bytes(), 0)?;
+        let mut cache = self.graphs.captured.lock().unwrap();
+        if cache.as_ref().map(|c| c.state_id) != Some(st.id) {
+            *cache = None; // a recording of another state's buffers is of no use
+            match self.capture_decode(st, head) {
+                Ok(c) => {
+                    *cache = Some(c);
+                    self.graphs.captures.fetch_add(1, Ordering::Relaxed);
+                    self.telemetry.graph_event(false);
+                }
+                Err(e) if self.tp.world > 1 => {
+                    // the other ranks replay this step: fail it (the group goes down) rather than diverge
+                    self.graphs.enabled.store(false, Ordering::Relaxed);
+                    return Err(Error::backend(format!(
+                        "tensor-parallel rank {}: decode graph capture failed: {e}",
+                        self.tp.rank
+                    )));
+                }
+                Err(e) => {
+                    eprintln!("decode graph capture failed ({e}); decoding eagerly from here on");
+                    self.graphs.enabled.store(false, Ordering::Relaxed);
+                    return Ok(false);
+                }
+            }
+        }
+        let c = cache.as_ref().expect("captured above");
+        self.backend.graph_replay(&c.graph, 0)?;
+        self.graphs.replays.fetch_add(1, Ordering::Relaxed);
+        self.telemetry.graph_event(true);
+        for &op in &c.ops {
+            self.telemetry.record_op(op, None);
+        }
+        for _ in 0..c.comms {
+            self.telemetry.record_comm(None);
+        }
+        Ok(true)
+    }
+
+    fn capture_decode(&self, st: &SequenceState, head: bool) -> Result<Captured> {
         let pos = self.view(&self.ws.pos, DType::I32, &[1]);
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
+        self.capture_comms.store(0, Ordering::Relaxed);
         let graph = self.backend.graph_capture(0, &mut || {
             // only the length of `ids` matters: the token is read from ws.ids, the position from ws.pos
             let hn = self.run_chunk_at(st, &[0], false, Some(&pos), false)?;
-            self.head_to_device(&hn, 0, false)
+            if head {
+                self.head_to_device(&hn, 0, false)
+            } else {
+                Ok(())
+            }
         });
         let ops = self.capture_ops.lock().unwrap().take().unwrap_or_default();
-        Ok(Captured { state_id: st.id, graph: graph?, ops })
+        let comms = self.capture_comms.swap(0, Ordering::Relaxed) as usize;
+        Ok(Captured { state_id: st.id, graph: graph?, ops, comms })
     }
 }

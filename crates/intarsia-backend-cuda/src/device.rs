@@ -373,6 +373,12 @@ impl Backend for CudaBackend {
         true
     }
 
+    /// The fused decode kernels take head counts and widths from the call (checked on the 35B tp=2 shard shapes by
+    /// admission, docs/results/2026-10-21-tp2-cuda-graphs.md).
+    fn fusion_under_tp(&self) -> bool {
+        true
+    }
+
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
         self.bind()?;
         let s = self.stream(stream)?;

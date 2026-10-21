@@ -1,0 +1,42 @@
+[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.19s prefill=5234 tok/s decode=94.6 tok/s peak=96.5 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.19s prefill=5344 tok/s decode=94.7 tok/s peak=100.5 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=991 ttft=0.19s prefill=5274 tok/s decode=94.4 tok/s peak=96.4 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4086 ttft=0.60s prefill=6855 tok/s decode=92.7 tok/s peak=94.9 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4088 ttft=0.59s prefill=6893 tok/s decode=92.8 tok/s peak=95.0 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=0.60s prefill=6863 tok/s decode=92.9 tok/s peak=95.1 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16653 ttft=2.53s prefill=6577 tok/s decode=86.3 tok/s peak=88.4 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16655 ttft=2.51s prefill=6646 tok/s decode=86.4 tok/s peak=88.6 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16656 ttft=2.53s prefill=6580 tok/s decode=87.4 tok/s peak=89.1 tok/s out=128
+# localeval: adhoc — 2026-10-21T13:31
+
+- model: `intarsia-35b` on ? (?), url `http://spark-4e77:8090/v1`
+- thinking: off; run kind: speed; label: intarsia-35b-tp2-graphs-xhost
+- harness: localeval 0.2.1, deepeval 4.2.6, runner endor.kuepker.haus, git 69c7a84
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8090/v1 --model intarsia-35b --thinking off --sizes 1024,4096,16384 --gen 128 --reps 3 --label intarsia-35b-tp2-graphs-xhost`
+- result file: `results/20261021-133100-adhoc-intarsia-35b-tp2-graphs-xhost/result.json`
+
+## Speed sweep
+
+served `intarsia-35b`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5274 (5234–5344) * | - | 94.6 (94.4–94.7) | 96.5 (96.4–100.5) | - | - | 128 |
+| 4088 | 0.60 | 6863 (6855–6893) | 7591 | 92.8 (92.7–92.9) | 95.0 (94.9–95.1) | - | - | 128 |
+| 16655 | 2.53 | 6580 (6577–6646) | 6495 | 86.4 (86.3–87.4) | 88.6 (88.4–89.1) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-133100-adhoc-intarsia-35b-tp2-graphs-xhost/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22

@@ -1,5 +1,12 @@
 # ADR-0006: Tensor parallelism (tp=2) and the comm abstraction
 
+> **Update (2026-10-21, lane G1c, `docs/results/2026-10-21-tp2-cuda-graphs.md`):** "CUDA graphs are off when `world > 1`" (below) is
+> superseded. Decode graphs run at world > 1 when the group's communicator is capturable (`Comm::capture_safe`: NCCL yes;
+> the host comm and HIP's `P2pComm` no, so they stay eager). Rank 0 decides per step and the remote rank follows
+> (`Forward` flag `FWD_GRAPH`); the NCCL f32 landing buffer is reserved at load (`Comm::reserve`). Fused decode ops under
+> TP are a backend capability (`Backend::fusion_under_tp`), opt-in with `INTARSIA_TP_FUSION=1`; the GatedDeltaNet
+> out-projection fold stays off under TP (it would swallow the all-reduce).
+
 > **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C15: item 2 of "Accuracy gate" (the self-golden against tp=1) is NOT a TP gate. Its follow-up paragraph (2026-10-14, `docs/results/2026-10-14-tp2-budget.md`, `docs/accuracy.md` "TP self-golden budget") stands: the fp32 floor and the f32 Mac sharding test are the TP gates.
 
 Status: Accepted (Phase 2b, 2026-10-13)

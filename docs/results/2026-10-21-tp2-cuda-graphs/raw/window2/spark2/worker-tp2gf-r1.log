@@ -1,0 +1,9 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29555
+tp-worker: rank 0 connected from 10.100.152.1:41628
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+admission on plan shapes (rank 1): 34 kernel(s) checked, 8 case(s) run, 480 cached, rejected: []
+tensor-parallel rank 1 of 2: serving rank 0 (20480 tokens of context)
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1933
+tp-worker: rank 0 disconnected after 2025 forward passes
+worker exit 0 (1)
+tp-worker: waiting for rank 0 on 10.100.152.3:29555

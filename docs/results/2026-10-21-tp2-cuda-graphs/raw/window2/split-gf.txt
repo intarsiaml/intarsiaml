@@ -1,0 +1,9 @@
+nccl kernels: rank0 5200, rank1 5200
+decode window: 48 steps, 3840 all-reduces (80.0 per step)
+  per call us  rank0 kernel  mean    25.2  median    16.9  p90    19.8
+               rank1 kernel  mean    18.9  median    17.2  p90    21.2
+               transfer=min  mean    17.4  median    16.4  p90    17.5
+               wait rank0    mean     7.8  median     0.0  p90     2.8
+               wait rank1    mean     1.5  median     0.4  p90     4.2
+rank-0 step (us, mean over 48): wall 10465 = kernels 9821 + idle gaps 645
+  of the kernels: NCCL 2019 (transfer 1392 + rank-0 wait 627), compute 7802

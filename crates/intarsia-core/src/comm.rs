@@ -97,6 +97,19 @@ pub trait Comm: Send + Sync {
 
     /// Record the measured duration of one collective (profiled steps).
     fn note_timed(&self, d: Duration);
+
+    /// Can the collectives be recorded into a captured graph (CUDA graph) on the rank's stream and replayed? True only
+    /// when every call is a pure stream operation with no host synchronisation and no allocation once
+    /// [`Comm::reserve`] ran. A group that says no keeps its model's decode eager at world > 1.
+    fn capture_safe(&self) -> bool {
+        false
+    }
+
+    /// Allocate now whatever a reduction of up to `max_elems` f32 partials needs, so that no later call allocates or
+    /// moves a buffer (a captured graph keeps the addresses it saw). Calls above `max_elems` fail afterwards.
+    fn reserve(&self, _max_elems: usize, _stream: StreamId) -> Result<()> {
+        Ok(())
+    }
 }
 
 fn check_reducible(x: &TensorRef) -> Result<usize> {

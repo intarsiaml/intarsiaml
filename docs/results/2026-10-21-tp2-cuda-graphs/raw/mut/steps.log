@@ -1,0 +1,67 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2398 MHz, [N/A], 50, 11.45 W, 0 %
+14:08:52 == mutant no-peer-upload
+mut-no-peer-upload-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1893 ms (790.9 tok/s) | decode 2727 ms (93.52 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-no-peer-upload-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+14:09:46   REPLAY-CHECK ok mut-no-peer-upload-5k
+IDS ref-5k vs mut-no-peer-upload-5k: DIFFER (first divergence 0, 256/256)
+mut-no-peer-upload-self rc=1
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.377398e-12 max_kl21=1.420159e-9 flips=0 flip_pct=0.0000 tail_abs=3.424180e-9 worst_prompt_kl21=4.692570e-11
+SELF-STATS mode=decode positions=160 mean_kl21=4.351673e0 max_kl21=1.994980e1 flips=96 flip_pct=60.0000 tail_abs=4.038088e-1 worst_prompt_kl21=1.049383e1
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+Error: accuracy gate FAILED
+  rank1 mut-no-peer-upload-self: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159
+14:10:00   REPLAY-CHECK ok mut-no-peer-upload-self
+14:10:00 == mutant no-rekey
+mut-no-rekey-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1865 ms (802.9 tok/s) | decode 2729 ms (93.43 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-no-rekey-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+14:10:13   REPLAY-CHECK ok mut-no-rekey-5k
+IDS ref-5k vs mut-no-rekey-5k: IDENTICAL (first divergence none, 256/256)
+mut-no-rekey-self rc=0
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.377398e-12 max_kl21=1.420159e-9 flips=0 flip_pct=0.0000 tail_abs=3.424180e-9 worst_prompt_kl21=4.692570e-11
+SELF-STATS mode=decode positions=160 mean_kl21=6.618585e-13 max_kl21=9.356088e-11 flips=0 flip_pct=0.0000 tail_abs=5.443272e-9 worst_prompt_kl21=5.862556e-12
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+  rank1 mut-no-rekey-self: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159
+14:10:28   REPLAY-CHECK ok mut-no-rekey-self
+14:10:28 == mutant no-reserve
+mut-no-reserve-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1854 ms (807.4 tok/s) | decode 2641 ms (96.57 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-no-reserve-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+14:10:40   REPLAY-CHECK ok mut-no-reserve-5k
+IDS ref-5k vs mut-no-reserve-5k: IDENTICAL (first divergence none, 256/256)
+mut-no-reserve-self rc=0
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.377398e-12 max_kl21=1.420159e-9 flips=0 flip_pct=0.0000 tail_abs=3.424180e-9 worst_prompt_kl21=4.692570e-11
+SELF-STATS mode=decode positions=160 mean_kl21=6.618585e-13 max_kl21=9.356088e-11 flips=0 flip_pct=0.0000 tail_abs=5.443272e-9 worst_prompt_kl21=5.862556e-12
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+  rank1 mut-no-reserve-self: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159
+14:10:55   REPLAY-CHECK ok mut-no-reserve-self
+14:10:55 == mutant peer-ignores-flag
+mut-peer-ignores-flag-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1809 ms (827.5 tok/s) | decode 3082 ms (82.73 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-peer-ignores-flag-5k: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+14:11:07   REPLAY-CHECK FAIL mut-peer-ignores-flag-5k: rank 1 did not replay
+IDS ref-5k vs mut-peer-ignores-flag-5k: IDENTICAL (first divergence none, 256/256)
+mut-peer-ignores-flag-self rc=0
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.377398e-12 max_kl21=1.420159e-9 flips=0 flip_pct=0.0000 tail_abs=3.424180e-9 worst_prompt_kl21=4.692570e-11
+SELF-STATS mode=decode positions=160 mean_kl21=6.618585e-13 max_kl21=9.356088e-11 flips=0 flip_pct=0.0000 tail_abs=5.443272e-9 worst_prompt_kl21=5.862556e-12
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+  rank1 mut-peer-ignores-flag-self: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+14:11:22   REPLAY-CHECK FAIL mut-peer-ignores-flag-self: rank 1 did not replay
+14:11:22 == mutant drop-captured-allreduce
+mut-drop-captured-allreduce-5k rc=124
+  rank1 mut-drop-captured-allreduce-5k: 
+14:16:26   REPLAY-CHECK FAIL mut-drop-captured-allreduce-5k: rank 1 did not replay
+IDS ref-5k vs mut-drop-captured-allreduce-5k: missing (ok/none)
+mut-drop-captured-allreduce-self rc=124
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.377398e-12 max_kl21=1.420159e-9 flips=0 flip_pct=0.0000 tail_abs=3.424180e-9 worst_prompt_kl21=4.692570e-11
+  rank1 mut-drop-captured-allreduce-self: 
+14:31:30   REPLAY-CHECK FAIL mut-drop-captured-allreduce-self: rank 1 did not replay
+14:31:30 == mut done, 81 s of the work budget left
+14:31:30 restore (exit 0)

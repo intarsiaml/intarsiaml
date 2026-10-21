@@ -219,7 +219,13 @@ pub fn serve_remote_rank(
         );
     }
     eprintln!("tensor-parallel rank {rank} of {world}: serving rank 0 ({} tokens of context)", model.plan.kv_cap_tokens);
-    intarsia_core::tp_remote::serve(&model, stream)
+    let n = intarsia_core::tp_remote::serve(&model, stream);
+    let g = model.graph_stats();
+    eprintln!(
+        "tensor-parallel rank {rank}: decode graph enabled={} captures={} replays={}",
+        g.enabled, g.captures, g.replays
+    );
+    n
 }
 
 enum Group {

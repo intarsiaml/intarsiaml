@@ -1,0 +1,4 @@
+# nsys traces (100+ MB per run): kept on the Sparks under ~/intarsia-tp2/xout/<run>/, summarised by scripts/tp2-graphs/nsys_split.py
+*.nsys-rep
+*.sqlite
+*_cuda_gpu_trace.csv
