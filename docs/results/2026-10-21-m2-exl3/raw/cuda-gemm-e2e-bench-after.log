@@ -1,0 +1,18 @@
+target http://127.0.0.1:18471/v1/chat/completions  model m2e2e
+server context window: 5000 tokens
+calibration: 48 base tokens, 20.39 tokens per filler sentence
+  size    128 rep: prompt=127 gen=128 ttft=0.04s prefill=2924 tok/s decode=47.2 tok/s
+  size    128 rep: prompt=131 gen=128 ttft=0.04s prefill=2924 tok/s decode=47.2 tok/s
+  size    128 rep: prompt=124 gen=128 ttft=0.04s prefill=2889 tok/s decode=47.1 tok/s
+  size   1024 rep: prompt=997 gen=128 ttft=0.29s prefill=3474 tok/s decode=45.7 tok/s
+  size   1024 rep: prompt=1025 gen=128 ttft=0.29s prefill=3582 tok/s decode=45.6 tok/s
+  size   1024 rep: prompt=1019 gen=128 ttft=0.28s prefill=3583 tok/s decode=45.6 tok/s
+  size   4096 rep: prompt=4192 gen=128 ttft=1.26s prefill=3326 tok/s decode=41.9 tok/s
+  size   4096 rep: prompt=4195 gen=128 ttft=1.26s prefill=3333 tok/s decode=42.0 tok/s
+  size   4096 rep: prompt=4239 gen=128 ttft=1.29s prefill=3284 tok/s decode=42.0 tok/s
+gemm-after  model=m2e2e  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+     128      127     0.043         2924        47.2      128
+    1024     1019     0.286         3582        45.6      128
+    4096     4195     1.260         3326        42.0      128
+wrote reports-gemm/gemm-after.json

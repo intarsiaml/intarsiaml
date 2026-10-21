@@ -1,0 +1,33 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   2.741e-4   1.568e-4   1.568e-4   8.750e-3   0.0321   0.0311    99.47     38/38      0
+story                 39    39   100.00   4.325e-4   2.409e-4   2.409e-4   9.968e-3   0.0398   0.0394    99.49     39/39      0
+code                  80    80    98.75   9.960e-5   7.962e-5   7.962e-5   1.974e-3   0.0138   0.0137    98.75     11/80      0
+science               79    79    98.73   2.149e-4   1.587e-4   1.587e-4   7.638e-3   0.0155   0.0151    98.99     52/79      0
+chat_short            18    18   100.00   6.576e-4   5.706e-4   1.073e-3   4.711e-3   0.1095   0.1100    97.78     18/18      0
+chat_system           32    32   100.00   1.453e-3   1.327e-3   9.132e-4   2.558e-2   0.0823   0.0830    97.50     32/32      0
+chat_multiturn        58    58    96.55   1.090e-3   9.813e-4   7.083e-4   2.237e-2   0.0381   0.0389    99.31     25/58      0
+chat_reasoning        90    90    98.89   1.897e-4   1.817e-4   1.197e-3   4.032e-3   0.0239   0.0239    97.78     87/90      0
+OVERALL                    434    98.85   4.397e-4   3.692e-4   2.407e-4   2.558e-2   0.0324   0.0324    98.66     69.6%      0
+prefill floor [bf16]: top-1 (all rows) 98.85% strict (99.08% if the 1 fp16 reference ties counted as agreement) (not gated for this class) ok | full-vocab KL (scored rows, n=272) 3.219e-4 (need <= 1.0e-3) ok [all rows, n=434: 4.397e-4, reported only] | tail mass (all rows) ours 0.0324 vs ref 0.0324, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.219e-5   1.061e-5   1.061e-5   6.150e-5   0.0038   0.0039    98.75     16/16      0
+story                 39    16   100.00   4.550e-4   4.362e-4   4.362e-4   3.252e-3   0.0229   0.0230    98.75     16/16      0
+code                  80    16   100.00   1.475e-5   1.474e-5   1.474e-5   1.831e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   1.210e-4   1.177e-4   1.177e-4   3.692e-4   0.0095   0.0095    98.75     16/16      0
+chat_short            18    16   100.00   9.166e-4   8.042e-4   1.286e-3   6.495e-3   0.0595   0.0596   100.00     16/16      0
+chat_system           32    16   100.00   5.373e-3   5.113e-3   1.561e-3   6.717e-2   0.0670   0.0675    96.25     16/16      0
+chat_multiturn        58    16   100.00   9.855e-4   8.444e-4   1.926e-3   1.175e-2   0.0163   0.0161    97.50     16/16      0
+chat_reasoning        90    16    93.75   1.285e-3   1.272e-3   3.734e-3   1.237e-2   0.0054   0.0053    98.75     13/16      0
+OVERALL                    128    99.22   1.145e-3   1.077e-3   6.386e-4   6.717e-2   0.0231   0.0231    98.44     97.7%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 99.22% strict (100.00% if the 1 fp16 reference ties counted as agreement) (not gated for this class) ok | full-vocab KL (scored rows, n=86) 6.770e-4 (need <= 1.0e-3) ok [all rows, n=128: 1.145e-3, reported only] | tail mass (all rows) ours 0.0231 vs ref 0.0231, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+greedy-match [prefill]: mean 77.4% of positions before the first argmax divergence, worst prompt 13.8% (informational)
+greedy-match [decode (teacher-forced)]: mean 97.7% of positions before the first argmax divergence, worst prompt 81.2% (informational)
+
+wrote baseline /home/nvidia/m2-fg-qualify/exl3/baselines/acc-format.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

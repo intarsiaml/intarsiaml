@@ -1,0 +1,48 @@
+build exit 0
+fleetq: #3121 waiting (#1 in line): tatooine-r9700 is held exclusively by #3116 "G2b w4: HIP no-op of rebased feat/35b-tp2 (005ecf7 vs 76635aa) + tp=2 gate follow-ups + localeval (<=25 min)" (claude-f31ccf91)
+fleetq:   #3116 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3116 set, or it will wait for #3116 to be released.
+fleetq: #3121 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/m2noop/hip-build.sh
+    Finished `release` profile [optimized] target(s) in 36.90s
+built base rc=0 13:54:31
+    Finished `release` profile [optimized] target(s) in 36.50s
+built head rc=0 13:55:09
+fleetq: #3121 done (exit 0)
+fleetq: #3126 waiting (#1 in line): tatooine-r9700 is held exclusively by #3125 "G2b w5: 35B tp=2 localeval (<=10 min)" (claude-f31ccf91)
+fleetq:   #3125 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3125 set, or it will wait for #3125 to be released.
+fleetq: #3126 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 99% busy with work fleetq does not track
+fleetq: #3126 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 70% busy with work fleetq does not track
+fleetq: #3126 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/m2noop/hip-window.sh
+[window] job 3126; stopping radiance 2026-10-21 14:11:27
+[window] radiance stopped 2026-10-21 14:11:30
+14:11:30
+head plan rc=0 14:11:31
+base plan rc=0 14:11:31
+head gen-short rc=0 14:11:40
+base gen-short rc=0 14:11:40
+head gen-4k rc=0 14:11:49
+base gen-4k rc=0 14:11:49
+head accshort rc=0 14:11:57
+base accshort rc=0 14:11:57
+head acclong rc=0 14:12:10
+base acclong rc=0 14:12:11
+plan.json: identical
+acc-short.out: identical
+acc-long.out: identical
+gen-short.out: identical
+gen-4k.out: identical
+ids short: base dfd8c797 head dfd8c797 identical (n=257)
+ids 4k: base dab59cc8 head dab59cc8 identical (n=257)
+OVERALL                   1434    99.58   3.966e-4   3.629e-4   3.858e-4   3.032e-2   0.0188   0.0187    98.51     37.7%      0
+OVERALL                    160   100.00   3.573e-4   3.128e-4   3.132e-4   8.323e-3   0.0215   0.0215    98.25    100.0%      0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+OVERALL                    434   100.00   2.335e-4   1.700e-4   1.621e-4   1.314e-2   0.0325   0.0323    98.80    100.0%      0
+OVERALL                    128   100.00   3.626e-4   3.165e-4   3.187e-4   8.323e-3   0.0238   0.0238    98.12    100.0%      0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+14:12:11
+[window] checks exit 0 after 44 s 2026-10-21 14:12:11
+[window] starting radiance 2026-10-21 14:12:13
+[window] radiance answers (after 15 s); window total 56 s 2026-10-21 14:12:23
+fleetq: #3126 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+window exit 0

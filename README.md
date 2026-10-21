@@ -66,6 +66,9 @@ intarsia bench speed --url http://127.0.0.1:8090 --model my-model --sizes 128,10
 `serve` speaks `POST /v1/chat/completions`, `/v1/completions`, `GET /v1/models`, `POST /v1/messages` and
 `/v1/messages/count_tokens` (streaming and not), plus `/health`, `/metrics` (Prometheus), `/events` (SSE) and
 `/v1/intarsia/plan` (the resolved kernel plan).
+With thinking turned on per request (`chat_template_kwargs: {"enable_thinking": true}`, or Anthropic `thinking`), Qwen3-style
+`<think>` output is returned as `reasoning_content` / `thinking` blocks, also under structured output
+(docs/structured-output.md#thinking-models).
 The default context is 4096 tokens; raise it with `--max-seq` for long-prompt benchmarks.
 
 Top-k goldens from a running vLLM server (for quantised checkpoints that HF cannot run): `tools/golden_vllm.py`

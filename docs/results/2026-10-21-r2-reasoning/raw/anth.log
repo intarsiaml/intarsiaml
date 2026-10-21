@@ -1,0 +1,13 @@
+fleetq: #3248 waiting (#1 in line): needs endor to itself; running there: #3229 "dashcntrl BL-29 manage e2e" (claude-c8123b4d), #3235 "h1 Mac workspace tests 2ec085e (CPU)" (claude-f31ccf91), #3236 "lane b1: repro-check.sh run" (claude-f31ccf91), #3247 "dashcntrl BL-21 ios" (claude-2ecb5b39)
+fleetq:   #3235 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3235 set, or it will wait for #3235 to be released.
+fleetq: #3248 waiting (#1 in line): needs endor to itself; running there: #3229 "dashcntrl BL-29 manage e2e" (claude-c8123b4d), #3235 "h1 Mac workspace tests 2ec085e (CPU)" (claude-f31ccf91), #3247 "dashcntrl BL-21 ios" (claude-2ecb5b39)
+fleetq:   #3235 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3235 set, or it will wait for #3235 to be released.
+fleetq: #3248 waiting (#1 in line): needs endor to itself; running there: #3235 "h1 Mac workspace tests 2ec085e (CPU)" (claude-f31ccf91), #3247 "dashcntrl BL-21 ios" (claude-2ecb5b39)
+fleetq:   #3235 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3235 set, or it will wait for #3235 to be released.
+fleetq: #3248 waiting (#1 in line): needs endor to itself; running there: #3247 "dashcntrl BL-21 ios" (claude-2ecb5b39)
+fleetq: #3248 running on endor: bash scripts/r2-reasoning/endor-slot.sh anth /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r2/out 0294b778 c9c40d46
+have base 0294b778
+built head c9c40d46 18:22:46
+serve head up 18:23:30
+e2e anthropic rc=0 {"chat_ok": 0, "chat_total": 0, "anthropic_ok": 5, "anthropic_total": 5, "wall_s": 62.2}
+fleetq: #3248 done (exit 0)

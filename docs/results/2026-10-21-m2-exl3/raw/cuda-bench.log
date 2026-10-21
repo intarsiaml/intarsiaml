@@ -1,0 +1,38 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/exl3.rs (target/acc/release/deps/exl3-44b3aa20d6c25d10)
+
+running 1 test
+test bench_decode_shapes ... case (M=1 unless noted)                        us/call  weight MB      GB/s
+exl3 4096x4096 bits=4 3inst M=1                   42.3       8.39       198
+exl3 1024x4096 bits=4 3inst M=1                   36.1       2.10        58
+exl3 12288x4096 bits=4 3inst M=1                 109.3      25.17       230
+exl3 4096x12288 bits=4 3inst M=1                 116.2      25.17       217
+exl3 4096x4096 bits=2 3inst M=1                   26.6       4.19       158
+exl3 4096x4096 bits=2.5 mul1 M=1                  35.9       5.24       146
+exl3 4096x4096 bits=3 3inst M=1                   39.0       6.29       161
+exl3 4096x4096 bits=5 3inst M=1                   49.4      10.49       212
+exl3 4096x4096 bits=8 3inst M=1                   73.4      16.78       229
+exl3 4096x4096 bits=4 mcg M=1                     42.4       8.39       198
+exl3 4096x4096 bits=4 mul1 M=1                    41.5       8.39       202
+exl3 4096x4096 bits=3.5 mul1 M=1                  40.9       7.34       179
+exl3 4096x4096 bits=4 3inst M=2                   42.6       8.39       197
+exl3 4096x4096 bits=4 3inst M=4                   42.6       8.39       197
+exl3 4096x4096 bits=4 3inst M=8                   43.0       8.39       195
+exl3 4096x4096 bits=4 3inst M=16                  43.9       8.39       191
+exl3 4096x4096 bits=4 3inst M=32                  70.0       8.39       120
+exl3 4096x4096 bits=4 3inst M=128                229.8       8.39        37
+exl3 4096x4096 bits=4 3inst M=256                448.0       8.39        19
+exl3 4096x4096 bits=4 3inst M=300                535.3       8.39        16
+
+bf16 matmul_bf16_gemv 4096x4096                  139.2      33.55       241
+nvfp4 matmul_nvfp4_gemv 4096x4096                 38.2       9.44       247
+bf16 matmul_bf16_gemv 1024x4096                   36.7       8.39       228
+nvfp4 matmul_nvfp4_gemv 1024x4096                 10.0       2.36       237
+bf16 matmul_bf16_gemv 12288x4096                 418.8     100.66       240
+nvfp4 matmul_nvfp4_gemv 12288x4096               116.6      28.31       243
+bf16 matmul_bf16_gemv 4096x12288                 419.7     100.66       240
+nvfp4 matmul_nvfp4_gemv 4096x12288               122.3      28.31       232
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 3.18s
+

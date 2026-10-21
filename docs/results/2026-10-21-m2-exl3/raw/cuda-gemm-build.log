@@ -1,0 +1,13 @@
+stamp: head=0f78241 code-tree=30422c9c5a41 dirty=yes
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3/crates/intarsia-backend-cuda)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 19.11s
+  Executable tests/gdn_split.rs (target/acc/release/deps/gdn_split-1e27769768d3706f)
+  Executable tests/gdn_timing.rs (target/acc/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/acc/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/acc/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/acc/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/acc/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/acc/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+-rwxrwxr-x 2 nvidia nvidia 47529888 Oct 21 12:29 /home/nvidia/intarsia-decfuse/m2-exl3/target/acc/release/intarsia

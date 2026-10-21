@@ -1,0 +1,6 @@
+prefill chunk 256 (default)
+loaded qwen3-8b-exl3-4.0bpw-bf16plain on NVIDIA GB10 in 12.6s: 36 layers, hidden 4096, act bf16, kv bf16, weights 5.19 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 23 tokens
+The sky appears blue because sunlight is scattered in all directions by the gases and particles in Earth's atmosphere, a process called Rayleigh scattering. Shorter wavelengths of light, like blue and violet, are scattered more than longer wavelengths, but our eyes are more sensitive to blue light, making the sky appear blue to us.
+finish=length prompt=23 (cached 0) completion=64 | prefill 47 ms (488.9 tok/s) | decode 1397 ms (45.09 tok/s)
+steps=64 graph replays=63 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_exl3=38ms/16192 rmsnorm_add=4ms/4608 attn_prefill=1ms/36 rope=1ms/4608 kv_append=1ms/4608

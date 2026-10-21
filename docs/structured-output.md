@@ -91,11 +91,44 @@ as llama.cpp and vLLM do.
 
 ## Thinking models
 
-The grammar applies from the first generated token. On a Qwen3 model with thinking left on, a constrained request
-therefore answers directly, with no `<think>` block. That way `content` parses as JSON. Clients wanting reasoning
-before a constrained answer would need a reasoning parser (`reasoning_content`), which the server does not have yet.
-Pass `chat_template_kwargs: {"enable_thinking": false}` (or Anthropic `thinking: {type: "disabled"}`) to keep the
-prompt and the output consistent.
+Models with a reasoning parser in their recipe (`reasoning_parser = "think-tags"`: Qwen3, Qwen3.5, Qwen3.6) write
+`<think>...</think>` before the answer. intarsia splits it out and keeps the constraint off until the think block is
+closed. This is **opt-in per request**; a request that does not turn thinking on is answered exactly as before
+(greedy ids and bytes unchanged).
+
+**Turning it on.** `chat_template_kwargs: {"enable_thinking": true}` on `/v1/chat/completions`, or `thinking:
+{"type": "enabled", "budget_tokens": N}` (or the same `chat_template_kwargs`) on `/v1/messages`. `budget_tokens` is
+accepted and not enforced: the think section is bounded only by `max_tokens`. On a model without a reasoning parser the
+flag only reaches the chat template, as before.
+
+**Output.** The text before `</think>` is the reasoning, the text after it is the answer. A leading `<think>` is
+dropped (newer templates put it in the prompt), and the whitespace around the tags is trimmed. Output without a
+`</think>` (cut off by `max_tokens`, or the model stopped) is all reasoning, with empty `content`.
+
+| Endpoint | Reasoning | Answer |
+|---|---|---|
+| `/v1/chat/completions` | `message.reasoning_content` (`null` when empty), streamed as `delta.reasoning_content` | `message.content` / `delta.content` |
+| `/v1/messages` | a `thinking` content block (`{type, thinking, signature: ""}`) first; streamed as `thinking_delta`, closed by an empty `signature_delta` | `text` and `tool_use` blocks |
+
+This matches vLLM's `--reasoning-parser qwen3` field names. The signature is empty because the thinking is not signed.
+Streams send every reasoning delta before the first content delta. `/v1/completions` is not parsed. With
+`return_token_ids`, a streamed reasoning request does not report per-delta `token_ids` (the choice-level `token_ids` of
+a non-streamed response is unchanged).
+
+**Constraints.** With thinking on, `response_format`, `tool_choice: required` / a named tool, and `auto` are all gated:
+nothing is masked until the model emits the `</think>` token, so the think section is free text (a `<tool_call>` inside
+it does not open a call). Then the grammar starts from the first answer token. This is the same lazy-trigger mechanism
+as `tool_choice: auto` (`TokenConstraint::active`): until `</think>` the request decodes like an unconstrained one.
+The model's usual `\n\n` after `</think>` is not valid JSON, so the grammar leaves it out and `content` starts with the
+JSON itself.
+- The tokenizer needs a single `</think>` token (Qwen3 has one); otherwise a constrained thinking request returns 400.
+- If the model never closes the think block, the output is reasoning only and never constrained.
+- J1's rules are unchanged: a constrained request never uses speculative decoding, and `Seq::feedback_ok` still excludes
+  constraints. Gated requests count as constrained from the first step.
+
+Thinking off (`enable_thinking: false` / `thinking: {type: "disabled"}`), or not stated at all, keeps the old
+behaviour: the grammar applies from the first generated token. On a Qwen3 template with thinking left at its default,
+a constrained request therefore answers directly, with no `<think>` block.
 
 ## Tests
 
@@ -104,6 +137,7 @@ prompt and the output consistent.
   - EOS is allowed only when the JSON is complete.
   - required / named / auto / single-call tools.
   - 400 parse errors and the streaming tool parser.
+  - `ReasoningParser` (any chunking of the tags) and the `</think>` gate on json / required / auto constraints.
   - The real Qwen3 token table, when the model is on the host.
 - `crates/intarsia-models/tests/constrain.rs` (the tiny Qwen3-shaped model on the cpu backend, single-sequence and
   batched engines):
@@ -118,3 +152,5 @@ prompt and the output consistent.
   engine that generates under the real llguidance constraint.
 - `scripts/j1-structured/e2e.py`: 50 varied requests against a real server, with jsonschema validation. Results are in
   `docs/results/2026-10-21-j1-structured.md`.
+- `crates/intarsia-server/tests/api.rs` (mock engine): `reasoning_content` and `thinking` blocks, streaming and not, alone, under `response_format`, and under required / auto tools; thinking off is unchanged.
+- `scripts/r2-reasoning/endor-slot.sh`: the Metal e2e (docs/results/2026-10-21-r2-reasoning.md).

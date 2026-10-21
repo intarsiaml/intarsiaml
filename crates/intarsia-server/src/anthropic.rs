@@ -1,7 +1,7 @@
 //! Anthropic Messages API: text, and client tools (`tool_use` / `tool_result`) with schema-constrained arguments.
 
 use crate::api::*;
-use crate::structured::{self, Piece, Tool, ToolParser};
+use crate::structured::{self, Part, Piece, ReasoningParser, Tool, ToolParser};
 use axum::extract::State;
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -141,16 +141,65 @@ fn tool_use_id(st: &AppState) -> String {
 struct Blocks {
     next: usize,
     text_open: bool,
+    think_open: bool,
     calls: usize,
 }
 
 impl Blocks {
+    /// Output split by the reasoning parser: thinking goes to a `thinking` block, the answer through the tool parser
+    /// (when tool calls are parsed) into text / `tool_use` blocks.
+    fn parts(&mut self, st: &AppState, parts: Vec<Part>, tp: &mut Option<ToolParser>) -> Vec<Event> {
+        let mut out = Vec::new();
+        for p in parts {
+            match (p, tp.as_mut()) {
+                (Part::Reasoning(t), _) => out.extend(self.think(t)),
+                (Part::Content(t), Some(tp)) => out.extend(self.events(st, tp.push(&t))),
+                (Part::Content(t), None) => out.extend(self.events(st, vec![Piece::Text(t)])),
+            }
+        }
+        out
+    }
+
+    fn think(&mut self, t: String) -> Vec<Event> {
+        let mut out = self.close_text();
+        if !self.think_open {
+            out.push(sse_json(
+                Some("content_block_start"),
+                &json!({"type": "content_block_start", "index": self.next, "content_block": {"type": "thinking", "thinking": "", "signature": ""}}),
+            ));
+            self.think_open = true;
+        }
+        out.push(sse_json(
+            Some("content_block_delta"),
+            &json!({"type": "content_block_delta", "index": self.next, "delta": {"type": "thinking_delta", "thinking": t}}),
+        ));
+        out
+    }
+
+    /// Close an open `thinking` block (Anthropic ends one with a `signature_delta`; the signature is empty here, the
+    /// thinking is not signed).
+    fn close_think(&mut self) -> Vec<Event> {
+        if !self.think_open {
+            return Vec::new();
+        }
+        self.think_open = false;
+        self.next += 1;
+        vec![
+            sse_json(
+                Some("content_block_delta"),
+                &json!({"type": "content_block_delta", "index": self.next - 1, "delta": {"type": "signature_delta", "signature": ""}}),
+            ),
+            sse_json(Some("content_block_stop"), &json!({"type": "content_block_stop", "index": self.next - 1})),
+        ]
+    }
+
     fn events(&mut self, st: &AppState, pieces: Vec<Piece>) -> Vec<Event> {
         let mut out = Vec::new();
         for p in pieces {
             match p {
                 Piece::Text(t) if t.is_empty() => {}
                 Piece::Text(t) => {
+                    out.extend(self.close_think());
                     if !self.text_open {
                         out.push(sse_json(
                             Some("content_block_start"),
@@ -164,6 +213,7 @@ impl Blocks {
                     ));
                 }
                 Piece::Call { name, arguments } => {
+                    out.extend(self.close_think());
                     out.extend(self.close_text());
                     let i = self.next;
                     out.push(sse_json(
@@ -273,6 +323,9 @@ async fn messages_inner(
     if !tools.is_empty() {
         opts.tools = Some(tools.iter().map(Tool::openai).collect());
     }
+    // Thinking blocks are produced (and a constraint waits for `</think>`) only when the request turns thinking on and
+    // the model has a reasoning parser; every other request is answered exactly as before.
+    let think = opts.enable_thinking == Some(true) && info.reasoning_parser.is_some();
     let sampling = Sampling {
         max_tokens: Some(max_tokens),
         temperature: req.temperature,
@@ -288,7 +341,7 @@ async fn messages_inner(
     .await?;
     let input_tokens = prompt.len();
     let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
-    structured::attach(&st, F, &mut gen, plan).await?;
+    structured::attach(&st, F, &mut gen, plan, think).await?;
     let rx = start(&st, F, gen)?;
     let id = st.new_id("msg").replacen("msg-", "msg_", 1);
     let model = st.model_name.clone();
@@ -297,8 +350,16 @@ async fn messages_inner(
         let c = collect(rx, F).await?;
         let (mut reason, seq) = stop_reason(c.finish, c.stop_sequence.as_deref());
         let mut content = vec![json!({"type": "text", "text": c.text})];
+        let mut thinking = None;
+        let mut answer = c.text.clone();
+        if think {
+            let (reasoning, text) = ReasoningParser::parse_all(&c.text);
+            thinking = reasoning.map(|r| json!({"type": "thinking", "thinking": r, "signature": ""}));
+            answer = text.unwrap_or_default();
+            content = vec![json!({"type": "text", "text": answer})];
+        }
         if parse_tools {
-            let (text, calls) = structured::split_calls(&c.text);
+            let (text, calls) = structured::split_calls(&answer);
             if !calls.is_empty() {
                 content = text.map(|t| json!({"type": "text", "text": t})).into_iter().collect();
                 for (name, input) in calls {
@@ -308,6 +369,9 @@ async fn messages_inner(
                     reason = "tool_use";
                 }
             }
+        }
+        if let Some(t) = thinking {
+            content.insert(0, t);
         }
         return Ok(Json(json!({
             "id": id, "type": "message", "role": "assistant", "model": model,
@@ -325,8 +389,8 @@ async fn messages_inner(
             "stop_reason": null, "stop_sequence": null,
             "usage": {"input_tokens": input_tokens, "output_tokens": 0}}}),
     );
-    if parse_tools {
-        return Ok(stream_with_tools(st, rx, start_ev).into_response());
+    if parse_tools || think {
+        return Ok(stream_with_tools(st, rx, start_ev, parse_tools, think).into_response());
     }
     let prelude = vec![
         start_ev,
@@ -376,15 +440,26 @@ fn stream_with_tools(
     st: AppState,
     rx: GenRx,
     start_ev: Event,
+    parse_tools: bool,
+    think: bool,
 ) -> axum::response::sse::Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>> {
     let mut done = false;
-    let mut tp = ToolParser::default();
-    let mut b = Blocks { next: 0, text_open: false, calls: 0 };
+    let mut tp = parse_tools.then(ToolParser::default);
+    let mut rp = think.then(ReasoningParser::default);
+    let mut b = Blocks { next: 0, text_open: false, think_open: false, calls: 0 };
     sse_from(rx, vec![start_ev], move |ev| match ev {
-        Some(GenEvent::Token { text, .. }) => b.events(&st, tp.push(&text)),
+        Some(GenEvent::Token { text, .. }) => match rp.as_mut() {
+            Some(rp) => b.parts(&st, rp.push(&text), &mut tp),
+            None => b.parts(&st, vec![Part::Content(text)], &mut tp),
+        },
         Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, .. }) => {
             done = true;
-            let mut out = b.events(&st, tp.finish());
+            let tail = rp.as_mut().map(|rp| rp.finish()).unwrap_or_default();
+            let mut out = b.parts(&st, tail, &mut tp);
+            if let Some(tp) = tp.as_mut() {
+                out.extend(b.events(&st, tp.finish()));
+            }
+            out.extend(b.close_think());
             out.extend(b.close_text());
             if b.next == 0 {
                 // nothing was generated: one empty text block, as without tools
