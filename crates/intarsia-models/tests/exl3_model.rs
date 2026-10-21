@@ -62,7 +62,7 @@ impl WeightSource for Declared {
 }
 
 /// (EXL3 checkpoint, dequantised f32 checkpoint, number of EXL3 modules). Widths and codebooks vary per module.
-fn checkpoints() -> (MemWeights, MemWeights, usize) {
+fn checkpoints(ffn_exl3: bool) -> (MemWeights, MemWeights, usize) {
     let mut rng = SplitMix64::new(21);
     let (mut ex, mut deq) = (MemWeights::new(), MemWeights::new());
     let plain = |name: &str, shape: &[usize], vals: Vec<f32>, ex: &mut MemWeights, deq: &mut MemWeights| {
@@ -98,7 +98,11 @@ fn checkpoints() -> (MemWeights, MemWeights, usize) {
         quant(&format!("{p}.self_attn.v_proj"), NKV * HD, H, &mut rng, &mut ex, &mut deq);
         quant(&format!("{p}.self_attn.o_proj"), H, NH * HD, &mut rng, &mut ex, &mut deq);
         for (m, n, k) in [("gate_proj", I, H), ("up_proj", I, H), ("down_proj", H, I)] {
-            plain(&format!("{p}.mlp.{m}.weight"), &[n, k], rng.normal_vec(n * k, 0.1), &mut ex, &mut deq);
+            if ffn_exl3 {
+                quant(&format!("{p}.mlp.{m}"), n, k, &mut rng, &mut ex, &mut deq);
+            } else {
+                plain(&format!("{p}.mlp.{m}.weight"), &[n, k], rng.normal_vec(n * k, 0.1), &mut ex, &mut deq);
+            }
         }
     }
     quant("lm_head", V, H, &mut rng, &mut ex, &mut deq);
@@ -135,20 +139,28 @@ fn rel_l2(a: &[f32], b: &[f32]) -> f64 {
 
 #[test]
 fn exl3_model_matches_the_dequantised_model() {
-    let (ex, deq, nq) = checkpoints();
-    assert_eq!(nq, 4 * LAYERS + 1);
+    for ffn_exl3 in [false, true] {
+        exl3_model_case(ffn_exl3);
+    }
+}
+
+/// `ffn_exl3`: the dense FFN projections are EXL3 too (every linear layer, as in an ExLlamaV3 Qwen3 checkpoint; needs
+/// the dense FFN to load quantised projections, M1's `e6bc0380`).
+fn exl3_model_case(ffn_exl3: bool) {
+    let (ex, deq, nq) = checkpoints(ffn_exl3);
+    assert_eq!(nq, if ffn_exl3 { 7 } else { 4 } * LAYERS + 1);
     let scheme = QuantScheme::parse_exl3(&serde_json::json!({"quant_method":"exl3","bits":4.0,"head_bits":6})).unwrap();
     let want = logits(&deq);
     let got = logits(&Declared { inner: ex, scheme: Some(scheme) });
     assert_eq!(got.len(), want.len());
     let worst = got.iter().zip(&want).map(|(g, w)| rel_l2(g, w)).fold(0f64, f64::max);
-    println!("EXL3 model vs dequantised f32 model: worst rel l2 {worst:.3e} over {} positions", got.len());
+    println!("EXL3 model (ffn exl3: {ffn_exl3}) vs dequantised f32 model: worst rel l2 {worst:.3e} over {} positions", got.len());
     assert!(worst < 1e-5, "worst rel l2 {worst}");
 }
 
 #[test]
 fn a_declared_exl3_scheme_refuses_other_quantised_layers() {
-    let (_, deq, _) = checkpoints();
+    let (_, deq, _) = checkpoints(false);
     let mut w = deq;
     // an fp8 projection in an EXL3 checkpoint is not what exllamav3 writes
     w.insert("model.layers.0.self_attn.q_proj.weight", HostTensor::from_f32_as(DType::Fp8E4m3, &[NH * HD, H], &vec![0.0; NH * HD * H]));
