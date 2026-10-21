@@ -17,8 +17,8 @@
 #                (uncommitted changes are reported and ignored: a stamp must name a sha that exists).
 #   --tree       directory under ~/intarsia-deploy on the host (default: the backend name). Its target/ dir is kept between
 #                deploys so builds are incremental.
-#   --smoke      quick (default): `intarsia doctor`, then `intarsia kernels test --quick --op matmul` (override the args
-#                with SMOKE_KERNELS_ARGS). none: build and stamp only.
+#   --smoke      quick (default): `intarsia doctor`, then `intarsia kernels test --quick` (the whole quick sweep, about a
+#                second; override the args with SMOKE_KERNELS_ARGS). none: build and stamp only.
 #   --env-file   a file of `export INTARSIA_X=...` lines, copied to the tree as DEPLOY_ENV.sh, sourced before the smoke and
 #                before <cmd>, and recorded in the stamp.
 #   <cmd>        run in the tree with INTARSIA_BIN set (HIP: inside the pinned dev container, binary at /target/release/
@@ -170,7 +170,7 @@ fi
 SMOKE_STATUS=skipped
 if [[ $SMOKE == quick ]]; then
   # shellcheck disable=SC2086  # the kernels-test args are a word list on purpose
-  istep smoke "$BACKEND" "$BIN" ${SMOKE_KERNELS_ARGS:---quick --op matmul}
+  istep smoke "$BACKEND" "$BIN" ${SMOKE_KERNELS_ARGS:---quick}
   SMOKE_STATUS=pass    # a failing step aborts the script (set -e) before this line
 fi
 
@@ -225,7 +225,9 @@ printf '%s' "$STAMP" | jq -r '
   (if .toolchain.hipcc then "hipcc      \(.toolchain.hipcc)" else empty end),
   (if .toolchain.rocm then "rocm       \(.toolchain.rocm)" else empty end),
   (if .toolchain.container then "container  \(.toolchain.container)" else empty end),
-  "gpu        \(.device.name // "n/a")  \(.gpu | tojson)",
+  (.gpu.nvidia_smi // {}) as $s |
+  "gpu        \(.device.name // "n/a")  compute \($s.compute_cap // "-")",
+  "driver     \($s.driver_version // .gpu.rocm_version // "n/a")  (cuda toolkit \(.gpu.cuda_toolkit_version // "-"))",
   "host       \(.host.hostname // "n/a")  \(.host.os // "")  \(.host.cpu_model // "")",
   "binary     \(.binary.path)  sha256 \(.binary.sha256[0:16])  \(.binary.bytes) bytes  v\(.binary.intarsia_version)",
   "smoke      \(.smoke)"'

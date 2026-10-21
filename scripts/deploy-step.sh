@@ -20,7 +20,7 @@ case "$step" in
     : > DEPLOY_SMOKE.log
     "$bin" doctor --backend "$backend" --json --out DEPLOY_DOCTOR.json >/dev/null; rc=$?
     echo "doctor rc=$rc" | tee -a DEPLOY_SMOKE.log          # 1 = a pitfall check failed; the JSON is still written
-    "$bin" kernels test --backend "$backend" "$@" 2>&1 | tail -15 | tee -a DEPLOY_SMOKE.log
+    "$bin" kernels test --backend "$backend" "$@" 2>&1 | tee -a DEPLOY_SMOKE.log | tail -15
     krc=${PIPESTATUS[0]}
     echo "kernels-test rc=$krc" | tee -a DEPLOY_SMOKE.log
     [ -s DEPLOY_DOCTOR.json ] && [ "$krc" = 0 ] ;;
