@@ -17,7 +17,10 @@ scp -q "$S"/lib.sh "$S"/stages-*.sh tatooine:hs/
 scp -q "$REPO"/tools/hs_soak.py "$REPO"/tools/p2prime_soak.py "$REPO"/tools/cbidentity.py "$REPO"/tools/cbsoak.py tatooine:hs/tools/
 scp -q -r "$REPO"/tools/prompts tatooine:hs/tools/
 scp -q "$REPO"/scripts/hip-decode/prompt4k.txt tatooine:hs/prompt4k.txt
-scp -q "$REPO"/docs/results/2026-10-21-h1-tp2-hip/raw/w7/gen-head-35b-tp2gf-short.ids "$REPO"/docs/results/2026-10-21-h1-tp2-hip/raw/w7/gen-head-35b-tp2gf-4k.ids tatooine:hs/ref/
+# H1's window-7 reference outputs (committed on the PR #59 head): fusion-on / graphs-only tp=2 ids, tp=1 ids and plan
+W7="$REPO"/docs/results/2026-10-21-h1-tp2-hip/raw/w7
+scp -q "$W7"/gen-head-35b-tp2gf-short.ids "$W7"/gen-head-35b-tp2gf-4k.ids "$W7"/gen-head-35b-tp2g-short.ids "$W7"/gen-head-35b-tp2g-4k.ids \
+  "$W7"/gen-head-8b-tp2gf-short.ids "$W7"/gen-head-8b-tp2g-short.ids "$W7"/gen-head-35b-short.ids "$W7"/plan-head-35b.out tatooine:hs/ref/
 ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
 set -uo pipefail
 O=$HOME/hs/out/$W; rm -rf "$O"; mkdir -p "$O"
