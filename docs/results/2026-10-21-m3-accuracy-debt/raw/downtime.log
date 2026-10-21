@@ -1,0 +1,5 @@
+# M3 role downtime (lane share: radiance 20 min; spark vLLM: none, non-exclusive only)
+role       fleetq  stopped              answered             duration  what
+radiance   #2910   2026-10-21 09:29:53  2026-10-21 09:35:18  5m25s     HIP main: 35b-long prefill dump c4096, reuse diag docs4k c1024/c4096, KL21 vs 2 fresh vLLM goldens
+# spark1-vllm: never taken down. Non-exclusive slots: #2903 (build), #2904/#2905 (vLLM prompt_logprobs re-queries, --uses guidance).
+# endor: #2902 CPU reference (40 GB slot, no role down). #2914 queued then released unused.

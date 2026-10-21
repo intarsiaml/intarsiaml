@@ -1,0 +1,8 @@
+chat_reuse_4k                                gold || rq/salt1.safetensors               mean KL21 1.029e-01  user-turn rows 1.059e-01 (n=4491)  other rows 6.450e-03 (n=140)  top1 agree 0.9169  max 18.93
+chat_reuse_4k                                gold || rq/salt1b.safetensors              mean KL21 1.233e-01  user-turn rows 1.270e-01 (n=4491)  other rows 4.650e-03 (n=140)  top1 agree 0.9076  max 13.09
+chat_reuse_4k                                gold || rq/salt2.safetensors               mean KL21 1.141e-01  user-turn rows 1.174e-01 (n=4491)  other rows 7.849e-03 (n=140)  top1 agree 0.9069  max 13.00
+chat_reuse_4k                                gold || rq/nosalt.safetensors              mean KL21 1.087e-01  user-turn rows 1.117e-01 (n=4491)  other rows 1.407e-02 (n=140)  top1 agree 0.9160  max 14.38
+chat_reuse_4k                rq/salt1.safetensors || rq/salt2.safetensors               mean KL21 8.934e-02  user-turn rows 9.188e-02 (n=4491)  other rows 7.798e-03 (n=140)  top1 agree 0.9199  max 10.87
+chat_reuse_4k                rq/salt1.safetensors || rq/salt1b.safetensors              mean KL21 1.044e-01  user-turn rows 1.075e-01 (n=4491)  other rows 4.249e-03 (n=140)  top1 agree 0.9171  max 13.36
+chat_reuse_4k                                gold || dumps/cuda-w3-long.dump.safetensors mean KL21 1.856e-01  user-turn rows 1.909e-01 (n=4491)  other rows 1.479e-02 (n=140)  top1 agree 0.8849  max 17.72
+chat_reuse_4k                                gold || tatooine/long-c4096.dump.safetensors mean KL21 1.882e-01  user-turn rows 1.936e-01 (n=4491)  other rows 1.599e-02 (n=140)  top1 agree 0.8892  max 15.09
