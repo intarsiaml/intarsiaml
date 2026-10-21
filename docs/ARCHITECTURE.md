@@ -206,13 +206,16 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
 
 [defaults]                       # tunables a user can override per deployment
 kv_dtype = "bf16"                # fp8_e4m3 KV is opt-in (CUDA `--kv-dtype fp8_e4m3`), not a recipe default
-max_batch = 32                   # ceiling for the batching scheduler: `serve` runs one sequence unless --max-batch N (2..8, Metal only; ADR-0010)
+max_batch = 8                    # ceiling for the batching scheduler (Metal only); the qwen3_5* recipes declare 32. `serve` runs one sequence unless --max-batch N (2..8; ADR-0010)
 
-[tuning.cuda]                    # optional per-backend overrides (qwen3_5_moe.toml: CUDA 2048, HIP 4096; unlisted backends use 256)
+[tuning.metal]                   # optional per-backend prefill chunk (--prefill-chunk wins; unlisted backends use 256)
 prefill_chunk = 2048
+
+[tuning.hip]
+prefill_chunk = 2048             # qwen3_5_moe.toml: CUDA 2048, HIP 4096
 ```
 
-Updated 2026-10-21: this example used to show `kv_dtype = "fp8_e4m3"` and no tuning table. The shipped recipes (`recipes/*.toml`) use `bf16`; the current defaults are tabulated in [docs/decisions/LOG.md](decisions/LOG.md) ("Defaults in force on main").
+Updated 2026-10-21: this example (it mirrors `recipes/qwen3.toml`) used to show `kv_dtype = "fp8_e4m3"`, `max_batch = 32` and no tuning table. Every shipped recipe (`recipes/*.toml`) uses `bf16`; the current defaults are tabulated in [docs/decisions/LOG.md](decisions/LOG.md) ("Defaults in force on main").
 
 Hybrid models (Qwen3.5/3.8 GDN + full attention every 4th layer) use `pattern_by_layer` or a `layer_types` key read from `config.json`. `intarsia recipe new <hf-dir>` inspects `config.json` + tensor names, matches the closest existing recipe, writes a draft, and lists unmapped tensors. Most new models in a known family need only a recipe; new block types are the only code.
 

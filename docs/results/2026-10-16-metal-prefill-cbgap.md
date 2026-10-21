@@ -1,6 +1,6 @@
 # Metal prefill: where the "idle between command buffers" at chunk 256 comes from (2026-10-16)
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `3bdd6804` (Merge metal-weight-residency b8d7f7d); "not pushed" / "nothing merged" wording in this page describes the state when written.
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #1 (`55bb1087`; the branch merge `3bdd6804`, Merge metal-weight-residency b8d7f7d, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written.
 
 > Follow-up `2026-10-16-metal-weight-residency.md`: the pre-wire described here was replaced by a keep-warm thread (residency set re-requested every 400 ms) that
 > removes the idle-gap stall for `serve`; `set_prewire` and `INTARSIA_METAL_PREWIRE` no longer exist.

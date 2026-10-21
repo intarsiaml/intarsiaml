@@ -1,6 +1,6 @@
 # Metal spec G2/G3: drafter gate, speed sweep, realistic workload, merge bar
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `56ec2d57` (Merge metal-spec-ngram); "not pushed" / "nothing merged" wording in this page describes the state when written.
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #1 (`55bb1087`; the branch merge `56ec2d57`, Merge metal-spec-ngram, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written.
 
 Date 2026-10-15. Branch `metal-spec-ngram` (worktree `/opt/code/intarsiaml-spec`), on top of the G1 tip `44c4a91`
 (`docs/results/2026-10-15-metal-spec-g1.md`). Machine endor (Apple M5 Max), Qwen3-8B BF16, greedy `--spec ngram` k = 4.

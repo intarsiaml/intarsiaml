@@ -1,6 +1,6 @@
 # Metal prefill GEMM at M = 256 and mid-size M: where the gap is, and a tile table for 513..1344 rows (2026-10-15)
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `62bb22d1` (Merge metal-gemm-midm 9190772); "not pushed" / "nothing merged" wording in this page describes the state when written.
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #1 (`55bb1087`; the branch merge `62bb22d1`, Merge metal-gemm-midm 9190772, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written.
 
 Branch `metal-gemm-midm` (from spike/metal 56ec2d5), Qwen3-8B BF16, endor (M5 Max, 40 GPU cores), `--backend metal`. Raw logs, scripts and the summaries below: `docs/results/raw/2026-10-15-metal-gemm-midm/` (per-run traces are in `eng*.tar.gz`, `chunk.tar.gz`, `cb*.tar.gz`; `tar xzf eng3.tar.gz` there recreates the directory the `enga.py` / `engdense.py` / `cbsum.py` / `cbchunk.py` / `chunksum.py` scripts read; the `summary*.txt` files stay unpacked). Code: `crates/intarsia-backend-metal/src/gemm_nax.rs` (tile pick), `examples/gemm_nax.rs` (bench modes `sweep`, `waves`, `pick3`), `tests/gemm_nax.rs`. Nothing outside the Metal GEMM files changed; not merged, not pushed.
 

@@ -1,6 +1,6 @@
 # Metal continuous batching: M3 stage 0, batched speculative verify go / no-go
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `fbd8e0a1` (Merge metal-cb-m3-verify 59a9f30); "not pushed" / "nothing merged" wording in this page describes the state when written.
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #4 (`8c13dbb1`; the branch merge `fbd8e0a1`, Merge metal-cb-m3-verify 59a9f30, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written.
 
 Date 2026-10-17. Branch `metal-cb-m3-verify` (local, not pushed) off `spike/metal` d793300. Machine endor (Apple M5 Max), Qwen3-8B BF16. Measurement and projection only: nothing under `crates/*/src` changed. New: example `crates/intarsia-models/examples/m3_verify_cost.rs`, tools `tools/m3v_*.py` and `tools/m3v_cost_slot.sh`, raw data `docs/results/raw/2026-10-17-metal-cb-m3-verify-go/`. Binary for the traces: d793300, `cargo build --release -p intarsia-cli --features metal` (sha256 prefix `4b7c728de731fd2f`), Xcode toolchain.
 

@@ -1,6 +1,6 @@
 # Metal backend: overnight report (2026-10-14 22:38 → 2026-10-15 05:11 EDT)
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `054ac291` (Merge metal-serve-prefill); "not pushed" / "nothing merged" wording in this page describes the state when written. C8: "Held for your decision" (P3, prefill chunk 2048) is settled. The user chose "c, a" at 07:02 and made acc-4k a baseline-gated stage at 09:40; P3 was merged 2026-10-15 10:05 (`c5560080`, `[tuning.metal] prefill_chunk = 2048` in `recipes/qwen3.toml`).
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #1 (`55bb1087`; the branch merge `054ac291`, Merge metal-serve-prefill, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written. C8: "Held for your decision" (P3, prefill chunk 2048) is settled. The user chose "c, a" at 07:02 and made acc-4k a baseline-gated stage at 09:40; P3 was merged 2026-10-15 10:05 (`c5560080`, `[tuning.metal] prefill_chunk = 2048` in `recipes/qwen3.toml`).
 
 Qwen3-8B BF16 on endor (Apple M5 Max). Branch `spike/metal` at the commit that adds this report, on top of `a2102bf`. Local only, not pushed.
 

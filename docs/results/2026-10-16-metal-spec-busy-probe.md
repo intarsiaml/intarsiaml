@@ -1,6 +1,6 @@
 # Metal continuous batching: no gate probing for requests that do not pay while the batch is busy
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `d793300e` (Merge metal-spec-busy-probe 05c2755); "not pushed" / "nothing merged" wording in this page describes the state when written.
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #3 (`c00af215`; the branch merge `d793300e`, Merge metal-spec-busy-probe 05c2755, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written.
 
 Date 2026-10-16. Branch `metal-spec-busy-probe` (local, not pushed) off `spike/metal` 5cd03a5. Machine endor (Apple M5 Max), Qwen3-8B BF16, `intarsia serve --backend metal --max-seq 8192 --max-batch 8 --profile-every 0`, `--spec ngram` (k = 4, `--spec-off-at` 4) unless an arm says otherwise. Binaries (private copies): **new** = engine commit 0c7ef42 (sha256 prefix `8f700c591876fd12`), **base** = 5cd03a5 (`9bb825d494889da6`), both `cargo build --release -p intarsia-cli --features metal`, Xcode toolchain.
 

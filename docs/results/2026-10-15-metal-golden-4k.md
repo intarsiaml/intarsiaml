@@ -1,6 +1,6 @@
 # Metal: 8B fp32 4k golden, `acc-4k` stage, qualify at prefill chunk 2048
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `d4c1a146` (Merge branch 'metal-golden-4k' into metal-p3-final); "not pushed" / "nothing merged" wording in this page describes the state when written.
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #1 (`55bb1087`; the branch merge `d4c1a146`, Merge branch 'metal-golden-4k' into metal-p3-final, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written.
 
 Qwen3-8B BF16 on endor (Apple M5 Max, macOS 27.0). Branch `metal-golden-4k` = `metal-tail-fix` (b1c38d9, `NAX_MIN_M` 16 -> 2)
 + the qualify wiring below (f67c379, then 7447269 / b71ee56 for the baseline-gated `acc-4k`). The P3 build is a scratch merge of that branch with `metal-p3-chunk`

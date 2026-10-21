@@ -1,6 +1,6 @@
 # Metal continuous batching: fatal-failure injection on the real GPU
 
-> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main in `455c9544` (Merge metal-cb-fault-inject cc54716); "not pushed" / "nothing merged" wording in this page describes the state when written.
+> **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** Merged to main as PR #4 (`8c13dbb1`; the branch merge `455c9544`, Merge metal-cb-fault-inject cc54716, is inside it); "not pushed" / "nothing merged" wording in this page describes the state when written.
 
 Date 2026-10-17. Branch `metal-cb-fault-inject` off `spike/metal` d793300 (local, not pushed, nothing merged). Machine endor (Apple M5 Max), Qwen3-8B BF16, `intarsia serve --backend metal --max-seq 8192 --max-batch 8`. Closes the last open M2 item: D3 "error paths", fatal half (`docs/research/continuous-batching-design.md` 2.5, row D3 of `docs/results/2026-10-16-metal-cb-m2-closeout.md`), which had been tested on the mock only (`failure_isolation_and_fatal`, `engine_queue_bound_and_fatal`).
 
