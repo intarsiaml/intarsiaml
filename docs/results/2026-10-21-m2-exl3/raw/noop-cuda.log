@@ -1,0 +1,31 @@
+fleetq: #3120 waiting (#1 in line): needs 24 GB on spark1; 17 GB free of 116
+fleetq: #3120 running on spark1: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/m2noop/cuda-noop.sh
+13:57:27 base 3f516cfc head fe519036
+13:58:00 build base rc=0     Finished `release` profile [optimized] target(s) in 15.03s
+13:58:39 build head rc=0     Finished `release` profile [optimized] target(s) in 22.19s
+13:59:53 base plan rc=0
+13:59:55 base kernels --quick rc=0 incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+14:01:07 base gen-short rc=0
+14:02:26 base gen-4k rc=0
+14:03:32 base acc-short rc=0
+14:04:30 base acc-long rc=0
+14:05:05 head plan rc=0
+14:05:06 head kernels --quick rc=0 incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+14:06:01 head gen-short rc=0
+14:07:03 head gen-4k rc=0
+14:07:55 head acc-short rc=0
+14:08:49 head acc-long rc=0
+14:08:49 plan.json: identical (8625 bytes)
+14:08:49 acc-short.out: identical (3569 bytes)
+14:08:49 acc-long.out: identical (4080 bytes)
+14:08:49 ids short: identical (n=257 words incl. label; base 02b420ad head 02b420ad)
+14:08:49 ids 4k: identical (n=257 words incl. label; base 0bcc017f head 0bcc017f)
+OVERALL                    434   100.00   2.897e-4   2.276e-4   1.853e-4   1.486e-2   0.0325   0.0323    98.89    100.0%      0
+OVERALL                    128   100.00   3.238e-4   2.833e-4   2.741e-4   6.841e-3   0.0238   0.0238    99.22    100.0%      0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+OVERALL                   1434    99.65   4.004e-4   3.679e-4   3.768e-4   2.104e-2   0.0188   0.0187    98.59     34.1%      0
+OVERALL                    160   100.00   3.332e-4   2.936e-4   2.906e-4   6.841e-3   0.0215   0.0216    98.88    100.0%      0
+14:08:49 == done
+14:08:50 remote rc=0
+fleetq: #3120 done (exit 0)

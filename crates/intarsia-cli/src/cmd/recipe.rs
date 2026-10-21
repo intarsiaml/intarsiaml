@@ -16,7 +16,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use intarsia_core::quant::scheme::{Algo, QuantScheme};
-use intarsia_core::quant::{BF16, FP8_E4M3, MXFP4, NVFP4};
+use intarsia_core::quant::{BF16, EXL3, FP8_E4M3, MXFP4, NVFP4};
 use intarsia_core::recipe::{text_config, ConfigKeys, ModelDims, Recipe};
 use intarsia_core::Error as CoreError;
 use intarsia_models::recipe::all_recipes;
@@ -235,7 +235,24 @@ impl Inventory {
             }
             inv.source = format!("safetensors headers of {} file(s) ({} tensors)", files.len(), inv.names.len());
         }
+        inv.add_exl3_views();
         Ok(inv)
+    }
+
+    /// An EXL3 module has no `.weight`: give it a virtual one (dtype `EXL3`, the logical `[N, K]` from the trellis
+    /// `[K/16, N/16, 16*bits]`), so templates resolve and shapes check like any other linear layer.
+    fn add_exl3_views(&mut self) {
+        let mods: Vec<String> = self.names.iter().filter_map(|n| n.strip_suffix(".trellis").map(String::from)).collect();
+        for m in mods {
+            let w = format!("{m}.weight");
+            if self.has(&w) {
+                continue;
+            }
+            self.names.insert(w.clone());
+            if let Some((_, s)) = self.info.get(&format!("{m}.trellis")).filter(|(_, s)| s.len() == 3).cloned() {
+                self.info.insert(w, ("EXL3".to_string(), vec![16 * s[1], 16 * s[0]]));
+            }
+        }
     }
 
     fn has(&self, n: &str) -> bool {
@@ -283,6 +300,14 @@ const PARAMS: &[&str] = &[
     "v_scale",
     "weight_packed",
     "weight_shape",
+    // EXL3 (ExLlamaV3): the trellis, the input / output scales (or packed signs) and the codebook markers
+    "trellis",
+    "suh",
+    "svh",
+    "su",
+    "sv",
+    "mcg",
+    "mul1",
 ];
 
 fn is_non_text(name: &str) -> bool {
@@ -810,6 +835,7 @@ enum Cls {
     Fp8,
     Nvfp4,
     Mxfp4,
+    Exl3,
     Unknown(String),
 }
 
@@ -825,6 +851,9 @@ fn float_label(dtype: &str) -> Option<&'static str> {
 /// How the linear layer `module` is stored, judged like `quant::detect` does (tensor names, plus dtypes when known).
 fn classify(inv: &Inventory, module: &str, cfg_float: &str) -> Option<Cls> {
     let w = format!("{module}.weight");
+    if inv.has(&format!("{module}.trellis")) {
+        return Some(Cls::Exl3);
+    }
     if !inv.has(&w) {
         return inv.has(&format!("{module}.qweight")).then(|| Cls::Unknown("packed qweight (GPTQ / AWQ style)".into()));
     }
@@ -884,6 +913,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         (None, _) => {}
         (Some(_), Some("modelopt")) => {}
         (Some(_), Some("quark")) => {} // parsed below (QuantScheme::parse_quark)
+        (Some(_), Some("exl3")) => {} // parsed below (QuantScheme::parse_exl3)
         (Some(q), None) if q.get("quant_algo").is_some() || q.get("quantized_layers").is_some() => {}
         (Some(q), Some("fp8")) => {
             if q.get("weight_block_size").is_some_and(|v| !v.is_null()) {
@@ -894,7 +924,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             }
         }
         (Some(_), Some(other)) => problems.push(format!(
-            "quant: config quantization_config.quant_method = \"{other}\" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4)"
+            "quant: config quantization_config.quant_method = \"{other}\" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4, ExLlamaV3 EXL3)"
         )),
         (Some(_), None) => problems.push("quant: config quantization_config has neither quant_method nor quant_algo; the scheme is unknown".into()),
     }
@@ -941,7 +971,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         }
         for a in &algos {
             match Algo::parse(a) {
-                Algo::Fp8W8A8 | Algo::Nvfp4W4A16 | Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 => {}
+                Algo::Fp8W8A8 | Algo::Nvfp4W4A16 | Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 | Algo::Exl3 => {}
                 Algo::Nvfp4W4A4 => problems.push(format!(
                     "quant: quant_algo \"{a}\" (NVFP4 weights AND 4-bit activations) declared in {src}; the engine implements only weight-only W4A16_NVFP4"
                 )),
@@ -984,6 +1014,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             Cls::Fp8 => Some(FP8_E4M3),
             Cls::Nvfp4 => Some(NVFP4),
             Cls::Mxfp4 => Some(MXFP4),
+            Cls::Exl3 => Some(EXL3),
             Cls::Unknown(d) => {
                 let msg = format!("quant: tensor layout of {m} not recognised: {d}");
                 if seen_msgs.insert(msg.clone()) {
@@ -1010,6 +1041,9 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
     }
     if classes.contains(&Cls::Mxfp4) {
         parts.push("mxfp4".into());
+    }
+    if classes.contains(&Cls::Exl3) {
+        parts.push("exl3".into());
     }
     if classes.contains(&Cls::Fp8) {
         parts.push(if has_nvfp4 { "fp8".into() } else { "fp8_e4m3".into() });

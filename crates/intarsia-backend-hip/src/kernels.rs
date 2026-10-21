@@ -84,8 +84,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_conv_delta_bf16", Op::GdnConvDelta),
 ];
 
-/// Ops this backend does not implement (sampling stays on the cpu; `MoeBlock` until its kernel is registered, core-op fusion P2').
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample];
+/// Ops this backend does not implement (sampling stays on the cpu; `MoeBlock` until its kernel is registered, core-op fusion P2';
+/// EXL3 matmul: CUDA and cpu only, docs/results/2026-10-21-m2-exl3.md has the HIP port estimate).
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
 /// short prefill tails; longer chunks keep gdn_conv_bf16 + gdn_delta_rule_bf16_v2.

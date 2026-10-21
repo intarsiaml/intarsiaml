@@ -1,0 +1,43 @@
+fleetq: #3118 waiting (#11 in line): in line behind #3098 "A2 cargo test" (claude-f31ccf91) on endor
+fleetq:   #3098 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3098 set, or it will wait for #3098 to be released.
+fleetq: #3118 waiting (#9 in line): in line behind #3103 "M6 tui live check" (claude-f31ccf91) on endor
+fleetq:   #3103 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3103 set, or it will wait for #3103 to be released.
+fleetq: #3118 waiting (#8 in line): in line behind #3104 "dashcntrl m23 fleet.sh + statusbar.sh" (claude-a0e3ba1d) on endor
+fleetq: #3118 waiting (#7 in line): in line behind #3105 "G3 metal: Metal tests + kernels test after rebase on 76635aa4" (claude-f31ccf91) on endor
+fleetq:   #3105 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3105 set, or it will wait for #3105 to be released.
+fleetq: #3118 waiting (#6 in line): in line behind #3106 "dashcntrl BL-21 agents" (claude-2ecb5b39) on endor
+fleetq: #3118 waiting (#3 in line): in line behind #3113 "G1b PR #44 Metal no-op (rebased 005ecf7a)" (claude-f31ccf91) on endor
+fleetq:   #3113 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3113 set, or it will wait for #3113 to be released.
+fleetq: #3118 waiting (#2 in line): in line behind #3115 "dashcntrl BL-33 stale fix: iOS build" (claude-20fb1bc2) on endor
+fleetq: #3118 waiting (#1 in line): needs endor to itself; running there: #3115 "dashcntrl BL-33 stale fix: iOS build" (claude-20fb1bc2)
+fleetq: #3118 running on endor: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/m2noop/metal-noop.sh
+14:03:07 base 3f516cfc head fe519036
+14:03:27 build base rc=0
+14:03:50 build head rc=0
+14:03:51 base plan rc=0
+14:04:04 base kernels rc=0 28 kernels, 374 cases in 12.9s
+14:04:15 base gen-short rc=0
+14:04:26 base gen-4k rc=0
+14:04:33 base acc-short rc=0
+14:04:46 base acc-long rc=0
+14:04:47 head plan rc=0
+14:05:00 head kernels rc=0 28 kernels, 374 cases in 13.1s
+14:05:09 head gen-short rc=0
+14:05:19 head gen-4k rc=0
+14:05:26 head acc-short rc=0
+14:05:38 head acc-long rc=0
+14:05:38 plan.json: identical (    8371 bytes)
+14:05:38 acc-short.out: identical (    3569 bytes)
+14:05:38 acc-long.out: identical (    4080 bytes)
+14:05:38 ids short: identical (n=257 words incl. label; base 59b16fb0 head 59b16fb0)
+14:05:38 ids 4k: identical (n=257 words incl. label; base 650e8e90 head 650e8e90)
+OVERALL                    434   100.00   2.832e-4   2.197e-4   2.008e-4   1.513e-2   0.0325   0.0322    98.89    100.0%      0
+OVERALL                    128   100.00   3.313e-4   2.982e-4   2.944e-4   8.275e-3   0.0238   0.0237    98.59    100.0%      0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+OVERALL                   1434    99.72   3.699e-4   3.376e-4   3.486e-4   2.163e-2   0.0188   0.0187    98.68     56.3%      0
+OVERALL                    160   100.00   3.371e-4   3.034e-4   3.024e-4   8.275e-3   0.0215   0.0214    98.50    100.0%      0
+14:05:55 head cargo check --workspace --all-targets rc=0 errors=0
+14:06:52 head cargo test --workspace rc=101 failed-lines=3
+14:06:52 == done
+fleetq: #3118 done (exit 0)

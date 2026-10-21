@@ -1,0 +1,91 @@
+# M2 EXL3 fixture generation log (2026-10-21)
+
+fleetq: job #2936 "M2 exl3 fixture gen (vLLM up)", host spark1, --mem 8, non-exclusive. Queued behind exclusive #2935 for ~12 min.
+        acquired with: fleetq acquire --host spark1 --mem 8 --label "M2 exl3 fixture gen (vLLM up)" --expect 40 --wait
+        released with: fleetq release 2936   (status afterwards: "done"). No role taken down; spark1-vllm untouched.
+host:   spark1 (nvidia, aarch64 DGX Spark GB10, sm_121)
+image:  dsv41-serve:v4  id sha256:623a9781c5029c8d95fb7192897c7ed742693f7be77454d4f9e405f136835ed3 (created 2026-10-12)
+        python 3.12, torch 2.13.0+cu130, exllamav3 1.6.0 (dist-info exllamav3-1.6.0; the package __init__ has no __version__,
+        read from exllamav3/version.py). Per ~/recipes/DSV4.1-Flash-1017-EXL3-Spark-recipe (docker/Dockerfile, scripts/env.sh)
+        it is the vcruz305/exllamav3 fork at FORK_REF=42981e660d18bd893fb1bf732905fafa2a9fe97c; that commit was NOT verified
+        from inside the image (no .git there). Prebuilt extension exllamav3_ext.cpython-312-aarch64-linux-gnu.so in
+        /usr/local/lib/python3.12/dist-packages was loaded as-is: no JIT build, torch_extensions cache not needed.
+        The reference source read on endor was v1.6.4 (da68d57); the image's 1.6.0 API (LinearEXL3, quantize_exl3, mul1,
+        half-integer K, reconstruct path) matched and the generator ran without API adaptation.
+
+## Commands (endor -> spark1; every docker run carried FLEETQ_JOB=2936)
+scp tools/gen_exl3_fixture.py spark1:/tmp/gen_exl3_fixture.py
+scp /tmp/m2run.sh spark1:/tmp/m2run.sh        # contents, with IMG=dsv41-serve:v4:
+    docker run --rm --gpus all --entrypoint python3 \
+      -v /tmp/gen_exl3_fixture.py:/work/gen.py:ro -v /tmp/m2out:/out:rw \
+      -v $HOME/.cache/huggingface/hub:/hf:ro -v $HOME/.cache/dsv41-serve:/cache:rw \
+      $IMG /work/gen.py --out /out/exl3_cases.safetensors
+ssh spark1 'bash /tmp/m2run.sh dsv41-serve:v4 > /tmp/m2out/run.log'
+    (run 3 times: the first two predate two small generator fixes (nmse sanity check against a cloned input, and chmod 0644 of
+     the root-owned output); the numbers below are from the final run, whose outputs are the committed-to-disk fixture)
+scp spark1:/tmp/m2out/exl3_cases.safetensors crates/intarsia-backend-cpu/tests/fixtures/exl3_cases.safetensors
+Wall time of the final generator run: ~5 s (14:24:04Z start); each quantize_exl3 call 0.0-0.3 s.
+Output: 2138036 bytes, 14 cases, 137 tensors, sha256 e6c19ed93fd7df6e65d819e7ab1e643bf745f7a5eac21b831e1e83628626079b
+Markers: real slices store mcg with shape [1] (as in the checkpoints); the fresh quantizer emits 0-d (shape []) mcg/mul1. Both I32.
+
+## Source tensors sliced (safetensors get_slice only, no whole-file loads)
+c0  Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw  model.language_model.layers.5.mlp.experts.1.gate_proj   trellis[0:16,0:8]    suh[0:256]    svh[0:128]    (full K=4096,N=2048)
+c1  Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw  model.language_model.layers.5.mlp.experts.1.down_proj   trellis[0:8,0:16]    suh[0:128]    svh[0:256]    (full K=2048,N=4096)
+c2  Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw  model.language_model.layers.17.mlp.experts.7.up_proj    trellis[8:24,16:24]  suh[128:384]  svh[256:384]  (offset slice; full K=4096,N=2048)
+c3  neko-legends/GLM-5.3-Flash-Uncensored-EXL3  model.language_model.layers.4.mlp.experts.2.gate_proj  trellis[0:16,0:8]  suh[0:256]  svh[0:128]
+c4..c13  Qwen/Qwen3-8B model.layers.0.mlp.up_proj.weight [12288,4096] bf16: rows i*128:(i+1)*128 (i = case-4), cols 0:256, transposed to
+         [K=256,N=128] fp32, then quantize_exl3(W, H_data = identity Hessian (count=1, default sigma_reg), quant_args = {seed=case index,
+         K=bits, devices=[0], apply_out_scales=None, mcg|mul1 flag}) from the image's exllamav3.
+         (bits,codebook): c4 (1,mul1) c5 (2,3inst) c6 (3,mcg) c7 (4,3inst) c8 (5,mcg) c9 (6,mul1) c10 (8,3inst) c11 (1.5,mul1) c12 (2.5,mul1) c13 (3.5,mul1)
+         All 10 requested combinations worked; none skipped.
+Not stored: cN.w32 (optional float32 variant) to stay under the size budget. The generator computes it in float64 and logs max|w - w32|
+(4.7e-5..8.0e-5, i.e. fp16 rounding of w). suh/svh are stored unpacked (F16) everywhere; neither the checkpoints nor the quantizer emit packed su/sv.
+
+## Independent checks on endor after copy-back
+(TensorFold numpy decoder /opt/code/TensorFold/src/tensorfold/cuda/exl3/format.py + a Sylvester-128 Hadamard, via uv run --with safetensors --with numpy)
+all 14 cases: format.unpack(trellis, bits, codebook) == cN.wq exactly (max diff 0.0), including the offset real slice and half-integer bits;
+format.dequantize(...) vs cN.w max diff 4.7e-5..8.0e-5; own float64 H*wq*H*suh*svh vs cN.w: identical 4.7e-5..8.0e-5.
+
+## Raw generator output of the final run (stdout/stderr of gen_exl3_fixture.py inside the container)
+2026-10-21T14:24:04Z
+image dsv41-serve:v4 id: sha256:623a9781c5029c8d95fb7192897c7ed742693f7be77454d4f9e405f136835ed3
+fleetq job 2936
+exllamav3 1.6.0 from /usr/local/lib/python3.12/dist-packages/exllamav3/__init__.py; torch 2.13.0+cu130 cuda 13.0; device NVIDIA GB10
+[c0] Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw:model.language_model.layers.5.mlp.experts.1.gate_proj K=256 N=128 bits=4 cb=mcg (0.58s) max_abs_ref=0.8094 y_vs_xw=0.0006838 yr_vs_xw=0.0005875 y_vs_yr=0.0004883 y1_vs_y0=0 w_vs_w32=6.473e-05 max_abs_w=0.09003 wq_nonfinite=0 w_nonfinite=0
+[c1] Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw:model.language_model.layers.5.mlp.experts.1.down_proj K=128 N=256 bits=4 cb=mcg (0.00s) max_abs_ref=0.7201 y_vs_xw=0.0004718 yr_vs_xw=0.0005922 y_vs_yr=0.0004883 y1_vs_y0=0 w_vs_w32=5.061e-05 max_abs_w=0.08594 wq_nonfinite=0 w_nonfinite=0
+[c2] Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw:model.language_model.layers.17.mlp.experts.7.up_proj K=256 N=128 bits=4 cb=mcg (0.00s) max_abs_ref=0.8352 y_vs_xw=0.0007654 yr_vs_xw=0.0005556 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=5.323e-05 max_abs_w=0.08649 wq_nonfinite=0 w_nonfinite=0
+[c3] neko-legends--GLM-5.3-Flash-Uncensored-EXL3:model.language_model.layers.4.mlp.experts.2.gate_proj K=256 N=128 bits=4 cb=mcg (0.00s) max_abs_ref=0.9649 y_vs_xw=0.0006986 yr_vs_xw=0.0006986 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=6.257e-05 max_abs_w=0.09229 wq_nonfinite=0 w_nonfinite=0
+qwen model.layers.0.mlp.up_proj.weight shape=[12288, 4096] dtype=BF16
+quantize bits=1 cb=mul1: 0.3s proxy_err=0.27172 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 16], 'torch.int16'), 'mul1': ([], 'torch.int32')}
+[c4] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[0:128,0:256]^T K=256 N=128 bits=1 cb=mul1 (0.10s) max_abs_ref=1.099 y_vs_xw=0.0008712 yr_vs_xw=0.0008712 y_vs_yr=0.0004883 y1_vs_y0=0 w_vs_w32=5.832e-05 max_abs_w=0.1021 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=9.143e-05  nmse(w vs original W)=0.27172
+quantize bits=2 cb=3inst: 0.1s proxy_err=0.06836 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 32], 'torch.int16')}
+[c5] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[128:256,0:256]^T K=256 N=128 bits=2 cb=3inst (0.08s) max_abs_ref=1.24 y_vs_xw=0.0008597 yr_vs_xw=0.0008597 y_vs_yr=0.0009766 y1_vs_y0=0.0009766 w_vs_w32=6.512e-05 max_abs_w=0.1056 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=8.763e-05  nmse(w vs original W)=0.06836
+quantize bits=3 cb=mcg: 0.0s proxy_err=0.01726 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 48], 'torch.int16'), 'mcg': ([], 'torch.int32')}
+[c6] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[256:384,0:256]^T K=256 N=128 bits=3 cb=mcg (0.00s) max_abs_ref=1.078 y_vs_xw=0.000828 yr_vs_xw=0.000828 y_vs_yr=0.0004883 y1_vs_y0=0 w_vs_w32=7.661e-05 max_abs_w=0.1522 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=8.975e-05  nmse(w vs original W)=0.01726
+quantize bits=4 cb=3inst: 0.0s proxy_err=0.00455 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 64], 'torch.int16')}
+[c7] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[384:512,0:256]^T K=256 N=128 bits=4 cb=3inst (0.00s) max_abs_ref=1.361 y_vs_xw=0.000793 yr_vs_xw=0.0006939 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=6.061e-05 max_abs_w=0.1087 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=8.45e-05  nmse(w vs original W)=0.00455
+quantize bits=5 cb=mcg: 0.0s proxy_err=0.00118 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 80], 'torch.int16'), 'mcg': ([], 'torch.int32')}
+[c8] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[512:640,0:256]^T K=256 N=128 bits=5 cb=mcg (0.08s) max_abs_ref=1.393 y_vs_xw=0.0007639 yr_vs_xw=0.001001 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=8.004e-05 max_abs_w=0.1251 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=9.12e-05  nmse(w vs original W)=0.00118
+quantize bits=6 cb=mul1: 0.0s proxy_err=0.00029 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 96], 'torch.int16'), 'mul1': ([], 'torch.int32')}
+[c9] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[640:768,0:256]^T K=256 N=128 bits=6 cb=mul1 (0.08s) max_abs_ref=1.396 y_vs_xw=0.001021 yr_vs_xw=0.001051 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=6.709e-05 max_abs_w=0.1011 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=0.0001201  nmse(w vs original W)=0.00029
+quantize bits=8 cb=3inst: 0.0s proxy_err=0.00002 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 128], 'torch.int16')}
+[c10] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[768:896,0:256]^T K=256 N=128 bits=8 cb=3inst (0.08s) max_abs_ref=1.086 y_vs_xw=0.0008053 yr_vs_xw=0.0006871 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=7.04e-05 max_abs_w=0.1134 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=9.816e-05  nmse(w vs original W)=0.00002
+quantize bits=1.5 cb=mul1: 0.2s proxy_err=0.13610 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 24], 'torch.int16'), 'mul1': ([], 'torch.int32')}
+[c11] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[896:1024,0:256]^T K=256 N=128 bits=1.5 cb=mul1 (0.00s) max_abs_ref=1.207 y_vs_xw=0.000904 yr_vs_xw=0.000904 y_vs_yr=0.0004883 y1_vs_y0=0 w_vs_w32=6.914e-05 max_abs_w=0.09631 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=9.852e-05  nmse(w vs original W)=0.13610
+quantize bits=2.5 cb=mul1: 0.1s proxy_err=0.03417 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 40], 'torch.int16'), 'mul1': ([], 'torch.int32')}
+[c12] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[1024:1152,0:256]^T K=256 N=128 bits=2.5 cb=mul1 (0.00s) max_abs_ref=1.204 y_vs_xw=0.001033 yr_vs_xw=0.001033 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=7.416e-05 max_abs_w=0.1346 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=8.479e-05  nmse(w vs original W)=0.03417
+quantize bits=3.5 cb=mul1: 0.1s proxy_err=0.00861 tensors={'suh': ([256], 'torch.float16'), 'svh': ([128], 'torch.float16'), 'trellis': ([16, 8, 56], 'torch.int16'), 'mul1': ([], 'torch.int32')}
+[c13] Qwen/Qwen3-8B:model.layers.0.mlp.up_proj.weight[1152:1280,0:256]^T K=256 N=128 bits=3.5 cb=mul1 (0.00s) max_abs_ref=1.339 y_vs_xw=0.0009319 yr_vs_xw=0.0009319 y_vs_yr=0.0009766 y1_vs_y0=0 w_vs_w32=7.381e-05 max_abs_w=0.1018 wq_nonfinite=0 w_nonfinite=0
+  max|w - weight_q(returned)|=9.734e-05  nmse(w vs original W)=0.00861
+wrote /out/exl3_cases.safetensors: 2138036 bytes, 14 cases, 137 tensors
+exit=0
+2026-10-21T14:24:08Z
