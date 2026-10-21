@@ -1,0 +1,10 @@
+[window] job 3150; stopping radiance 2026-10-21 14:39:12
+[window] radiance stopped 2026-10-21 14:39:15
+14:39:28 gen base 8b-short exit 0
+14:39:29 gen base 8b-4k exit 0
+14:39:36 gen head 8b-short exit 0
+14:39:38 gen head 8b-4k exit 0
+14:39:46 gen base 35b-short exit 0
+14:39:50 gen head 35b-short exit 0
+[window] starting radiance 2026-10-21 14:39:50
+[window] radiance answers 2026-10-21 14:40:00 (after 15 s)

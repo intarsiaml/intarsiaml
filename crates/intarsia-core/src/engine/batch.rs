@@ -420,6 +420,10 @@ impl Engine for BatchedEngine {
         self.env.codec.apply_chat_template(messages, opts)
     }
 
+    fn tokenizer_json(&self) -> Option<String> {
+        self.env.codec.tokenizer_json()
+    }
+
     fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
         if let Some(why) = self.engine.failed() {
             return Err(Error::Other(format!("engine failed: {why}")));

@@ -44,6 +44,9 @@ rayon = "1"
 memmap2 = "0.9"
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+# Structured output (constrained decoding): JSON schema / lark grammar -> token masks. MIT. Exact pin: grammar
+# semantics and mask output must not drift under us.
+llguidance = "=1.9.1"
 minijinja = { version = "2", features = ["json", "loop_controls", "builtins", "preserve_order"] }
 minijinja-contrib = { version = "2", features = ["pycompat"] }
 clap = { version = "4", features = ["derive"] }
