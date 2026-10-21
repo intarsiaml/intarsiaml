@@ -37,7 +37,7 @@ gen() { # tree gpu tag model prompt
   local t=$1 g=$2 tag=$3 m=$4 p=$5
   INTARSIA_REPO=$HOME/intarsiaml-j1-$t HIP_VISIBLE_DEVICES=$g timeout 240 $HOME/intarsiaml-j1-$t/deploy/tatooine/dev.sh \
     /work/j1-intarsia generate -m $m --backend hip --mem-budget 29 --max-seq 8192 --chat --no-think --profile-every 0 \
-    --ignore-eos --show-ids -p "$p" --max-tokens 256 > "$O/gen-$t-$tag.out" 2> "$O/gen-$t-$tag.err"
+    --ignore-eos --show-ids -p "$p" --max-tokens 256 < /dev/null > "$O/gen-$t-$tag.out" 2> "$O/gen-$t-$tag.err"
   echo "$(date +%T) gen $t $tag exit $?"
   grep -a '^ids:' "$O/gen-$t-$tag.err" > "$O/gen-$t-$tag.ids"
 }
