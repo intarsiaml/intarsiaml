@@ -1,0 +1,25 @@
+fleetq: #3226 waiting (#1 in line): needs endor to itself; running there: #3213 "dashcntrl BL-27 studio.sh" (claude-c8123b4d), #3225 "o1 onboard e2e Qwen3-8B metal (run 1, killed mid in-depth on purpose)" (claude-f31ccf91)
+fleetq:   #3225 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3225 set, or it will wait for #3225 to be released.
+fleetq: #3226 waiting (#1 in line): needs endor to itself; running there: #3225 "o1 onboard e2e Qwen3-8B metal (run 1, killed mid in-depth on purpose)" (claude-f31ccf91)
+fleetq:   #3225 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3225 set, or it will wait for #3225 to be released.
+fleetq: #3226 running on endor: bash scripts/r2-reasoning/endor-slot.sh run /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/r2/out 0294b778 06be1f1e
+17:42:20
+have base 0294b778
+built head 06be1f1e 17:42:31
+serve base up 17:43:16
+ids base off: da5fa413 n=     200
+ids base default: 67e00b4b n=     200
+ids base on: 67e00b4b n=     200
+ids base constrained-off: 68639274
+serve head up 17:44:20
+ids head off: da5fa413 n=     200
+ids head default: 67e00b4b n=     200
+ids head on: 67e00b4b n=     200
+ids head constrained-off: 68639274
+e2e rc=1 {"chat_ok": 50, "chat_total": 50, "anthropic_ok": 3, "anthropic_total": 5, "wall_s": 1543.9}
+ids off: IDENTICAL
+ids default: IDENTICAL
+ids on: IDENTICAL
+ids constrained-off: IDENTICAL
+18:11:05
+fleetq: #3226 done (exit 0)

@@ -1,7 +1,7 @@
 //! OpenAI-compatible endpoints.
 
 use crate::api::*;
-use crate::structured::{self, Piece, ToolParser};
+use crate::structured::{self, Part, Piece, ReasoningParser, ToolParser};
 use axum::extract::{Path, State};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -134,6 +134,20 @@ fn tool_deltas(st: &AppState, pieces: Vec<Piece>, n: &mut usize) -> Vec<Value> {
     out
 }
 
+/// Streaming deltas for output split by the reasoning parser: thinking goes to `reasoning_content`, the answer to
+/// `content` (or, when tool calls are parsed, through the tool parser).
+fn think_deltas(st: &AppState, parts: Vec<Part>, tp: &mut Option<ToolParser>, n: &mut usize) -> Vec<Value> {
+    let mut out = Vec::new();
+    for p in parts {
+        match (p, tp.as_mut()) {
+            (Part::Reasoning(t), _) => out.push(json!({"reasoning_content": t})),
+            (Part::Content(t), Some(tp)) => out.extend(tool_deltas(st, tp.push(&t), n)),
+            (Part::Content(t), None) => out.push(json!({"content": t})),
+        }
+    }
+    out
+}
+
 pub async fn chat_completions(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -185,13 +199,16 @@ async fn chat_inner(
             }
         }
     }
+    // Reasoning is parsed (and a constraint waits for `</think>`) only when the request turns thinking on and the model
+    // has a reasoning parser; every other request is answered exactly as before.
+    let think = opts.enable_thinking == Some(true) && info.reasoning_parser.is_some();
     let prompt = blocking_as(&st.engine, F, move |e| {
         let text = e.apply_chat_template(&messages, &opts)?;
         e.tokenize(&text, false)
     })
     .await?;
     let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
-    structured::attach(&st, F, &mut gen, plan).await?;
+    structured::attach(&st, F, &mut gen, plan, think).await?;
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("chatcmpl");
@@ -213,8 +230,15 @@ async fn chat_inner(
         let c = collect(rx, F).await?;
         let mut message = json!({"role": "assistant", "content": c.text});
         let mut finish = finish_str(c.finish);
+        let mut answer = c.text.clone();
+        if think {
+            let (reasoning, content) = ReasoningParser::parse_all(&c.text);
+            message["reasoning_content"] = reasoning.map_or(Value::Null, Value::String);
+            answer = content.unwrap_or_default();
+            message["content"] = json!(answer);
+        }
         if parse_tools {
-            let (content, calls) = structured::split_calls(&c.text);
+            let (content, calls) = structured::split_calls(&answer);
             if !calls.is_empty() {
                 message["content"] = content.map_or(Value::Null, Value::String);
                 message["tool_calls"] = calls.iter().map(|(n, a)| tool_call(st.new_id("call"), n, a)).collect();
@@ -247,11 +271,17 @@ async fn chat_inner(
     };
     // hermes tool calls are parsed out of the text (token ids are not reported per delta then)
     let mut tp = parse_tools.then(ToolParser::default);
+    let mut rp = think.then(ReasoningParser::default);
     let mut ncalls = 0usize;
     let st2 = st.clone();
     let sse = sse_from(rx, vec![first], move |ev| match ev {
         Some(GenEvent::Token { id: tid, text }) => {
-            if let Some(tp) = tp.as_mut() {
+            if let Some(rp) = rp.as_mut() {
+                think_deltas(&st2, rp.push(&text), &mut tp, &mut ncalls)
+                    .into_iter()
+                    .map(|d| sse_json(None, &chunk(d, None, inc)))
+                    .collect()
+            } else if let Some(tp) = tp.as_mut() {
                 tool_deltas(&st2, tp.push(&text), &mut ncalls)
                     .into_iter()
                     .map(|d| sse_json(None, &chunk(d, None, inc)))
@@ -270,7 +300,15 @@ async fn chat_inner(
         Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, prefill_chunk, .. }) => {
             done = true;
             let mut out = Vec::new();
-            if let Some(tp) = tp.as_mut() {
+            if let Some(rp) = rp.as_mut() {
+                let mut ds = think_deltas(&st2, rp.finish(), &mut tp, &mut ncalls);
+                if let Some(tp) = tp.as_mut() {
+                    ds.extend(tool_deltas(&st2, tp.finish(), &mut ncalls));
+                }
+                for d in ds {
+                    out.push(sse_json(None, &chunk(d, None, inc)));
+                }
+            } else if let Some(tp) = tp.as_mut() {
                 for d in tool_deltas(&st2, tp.finish(), &mut ncalls) {
                     out.push(sse_json(None, &chunk(d, None, inc)));
                 }
@@ -377,7 +415,7 @@ async fn completions_inner(
         }
     };
     let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
-    structured::attach(&st, F, &mut gen, plan).await?;
+    structured::attach(&st, F, &mut gen, plan, false).await?;
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("cmpl");
