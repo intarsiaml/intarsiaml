@@ -921,8 +921,15 @@ fn default_golden(model: &Path) -> Option<PathBuf> {
     }
     .to_lowercase();
     let file = format!("{name}.safetensors");
-    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../golden");
-    [PathBuf::from("golden"), repo].into_iter().map(|d| d.join(&file)).find(|p| p.exists())
+    [Some(PathBuf::from("golden")), checkout_golden_dir()].into_iter().flatten().map(|d| d.join(&file)).find(|p| p.exists())
+}
+
+/// `golden/` of the checkout this binary was built in, found from the executable's location (`<checkout>/target/<profile>/intarsia`
+/// or deeper). Not `env!("CARGO_MANIFEST_DIR")`: that bakes the build directory into the binary and makes the same sha build
+/// to different bytes in different directories (docs/reproducing-results.md).
+pub fn checkout_golden_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    exe.ancestors().skip(1).map(|a| a.join("golden")).find(|g| g.is_dir() && g.parent().is_some_and(|r| r.join("Cargo.lock").is_file()))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
