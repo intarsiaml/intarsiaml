@@ -1,0 +1,2 @@
+base: /home/josef/intarsiaml-g2b-base2
+dev: /home/josef/intarsiaml-g2b-dev2
