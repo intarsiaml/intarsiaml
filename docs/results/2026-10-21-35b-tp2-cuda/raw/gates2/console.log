@@ -1,0 +1,33 @@
+10:24:53 MemAvailable 52 GB
+10:24:53 bin /home/nvidia/intarsia-tp2/bin/base-intarsia: intarsia 0.0.1 
+10:24:53 bin /home/nvidia/intarsia-tp2/bin/dev-intarsia: intarsia 0.0.1 
+2398 MHz, [N/A], 44, 12.09 W, 0 %
+10:25:25 plan base-35b exit 0 13961 bytes
+10:26:02 plan dev-35b exit 0 13961 bytes
+10:26:41 plan base-8b exit 0 8630 bytes
+10:27:11 plan dev-8b exit 0 8630 bytes
+10:27:20 plan dev-35b-tp2 exit 0 13548 bytes
+10:27:20 PLAN IDENTITY 35b tp=1: identical
+10:27:20 PLAN IDENTITY 8b tp=1: identical
+10:27:58 acc base-tp1-short exit 0 38 s: prefill floor [4bit]: top-1 97.92% (not gated for this class) ok | 21-way KL 5.430e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, excess -0.0004 (|.| <= 0.|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+10:30:04 acc base-tp1-long exit 1 126 s: prefill floor [4bit]: top-1 94.17% (not gated for this class) ok | 21-way KL 4.576e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= |floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|
+10:30:19 acc tp2-short exit 0 15 s: prefill floor [4bit]: top-1 98.13% (not gated for this class) ok | 21-way KL 6.274e-3 (need <= 3.0e-2) ok | tail mass ours 0.0172 vs ref 0.0176, excess -0.0003 (|.| <= 0.|floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|
+10:32:12 acc tp2-long exit 1 113 s: prefill floor [4bit]: top-1 94.26% (not gated for this class) ok | 21-way KL 4.271e-2 (need <= 3.0e-2) FAIL | tail mass ours 0.0636 vs ref 0.0611, excess +0.0025 (|.| <= |floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|
+10:32:50 self tp1-short exit 0 38 s: SELF-STATS mode=prefill positions=1441 mean_kl21=2.723472e-13 max_kl21=1.881214e-10 flips=0 flip_pct=0.0000 tail_abs=3.502575e-9 worst_prompt_kl21=2.354620e-12|SELF-STATS mode=decode positions=160 mean_kl21=3.728103e-11 max_kl21=5.919182e-9 flips=0 flip_pct=0.0000 tail_abs=5.770369e-9 worst_prompt_kl21=3.716788e-10|
+10:34:26 self tp1-long exit 0 96 s: SELF-STATS mode=prefill positions=36887 mean_kl21=2.751386e-13 max_kl21=5.439328e-10 flips=0 flip_pct=0.0000 tail_abs=1.025575e-8 worst_prompt_kl21=3.044208e-13|SELF-STATS mode=decode positions=80 mean_kl21=1.131315e-11 max_kl21=8.184606e-10 flips=0 flip_pct=0.0000 tail_abs=7.482443e-9 worst_prompt_kl21=5.643423e-11|
+10:34:39 self tp2-short exit 1 13 s: SELF-STATS mode=prefill positions=1441 mean_kl21=5.081725e-3 max_kl21=1.477676e0 flips=19 flip_pct=1.3185 tail_abs=7.036988e-4 worst_prompt_kl21=9.577789e-2|SELF-STATS mode=decode positions=160 mean_kl21=1.239856e-2 max_kl21=9.347190e-1 flips=3 flip_pct=1.8750 tail_abs=2.283128e-3 worst_prompt_kl21=6.135282e-2|Error: accuracy gate FAILED|
+10:37:37 self tp2-long exit 1 178 s: SELF-STATS mode=prefill positions=36887 mean_kl21=3.221972e-2 max_kl21=1.910287e1 flips=1712 flip_pct=4.6412 tail_abs=3.729114e-3 worst_prompt_kl21=1.893488e-1|SELF-STATS mode=decode positions=80 mean_kl21=8.396982e-3 max_kl21=1.447542e-1 flips=3 flip_pct=3.7500 tail_abs=1.498756e-3 worst_prompt_kl21=1.335833e-2|Error: accuracy gate FAILED|
+10:38:24 self tp1simt-short exit 1 47 s: SELF-STATS mode=prefill positions=1441 mean_kl21=4.025131e-3 max_kl21=1.157196e0 flips=17 flip_pct=1.1797 tail_abs=6.708116e-4 worst_prompt_kl21=6.496872e-3|SELF-STATS mode=decode positions=160 mean_kl21=8.983551e-3 max_kl21=9.146631e-1 flips=1 flip_pct=0.6250 tail_abs=1.408158e-3 worst_prompt_kl21=5.850089e-2|Error: accuracy gate FAILED|
+10:41:25 self tp1simt-long exit 1 181 s: SELF-STATS mode=prefill positions=36887 mean_kl21=2.825766e-2 max_kl21=2.728946e1 flips=1610 flip_pct=4.3647 tail_abs=3.534276e-3 worst_prompt_kl21=1.672112e-1|SELF-STATS mode=decode positions=80 mean_kl21=9.956445e-3 max_kl21=1.235794e-1 flips=2 flip_pct=2.5000 tail_abs=1.826115e-3 worst_prompt_kl21=1.646410e-2|Error: accuracy gate FAILED|
+10:42:00 gen tp1-5k: finish=length prompt=1497 (cached 0) completion=256 | prefill 501 ms (2985.1 tok/s) | decode 3080 ms (82.80 tok/s)
+10:42:37 gen tp1simt-5k: finish=length prompt=1497 (cached 0) completion=256 | prefill 734 ms (2039.6 tok/s) | decode 3963 ms (64.34 tok/s)
+10:42:49 gen tp2-5k: finish=length prompt=1497 (cached 0) completion=256 | prefill 1696 ms (882.7 tok/s) | decode 4149 ms (61.47 tok/s)
+10:43:29 gen tp1-16k: finish=length prompt=16026 (cached 0) completion=256 | prefill 3171 ms (5054.6 tok/s) | decode 3444 ms (74.03 tok/s)
+10:44:39 gen tp1simt-16k: finish=length prompt=16026 (cached 0) completion=256 | prefill 29601 ms (541.4 tok/s) | decode 12120 ms (21.04 tok/s)
+10:45:02 gen tp2-16k: finish=length prompt=16026 (cached 0) completion=256 | prefill 11926 ms (1343.8 tok/s) | decode 4529 ms (56.31 tok/s)
+10:46:27 reuse tp2 exit 0 85 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok|prefix-reuse gate: PASS|
+IDS tp1-5k vs tp2-5k: 256 / 256 ids, first divergence at 14
+IDS tp1-5k vs tp1simt-5k: 256 / 256 ids, first divergence at 74
+IDS tp1-16k vs tp2-16k: 256 / 256 ids, first divergence at 61
+IDS tp1-16k vs tp1simt-16k: 256 / 256 ids, first divergence at 34
+== done 10:46:28

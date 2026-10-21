@@ -71,6 +71,18 @@ selfg tp2-short $O/S1-short.safetensors 18 $TP2 $TPB $PC
 selfg tp2-long $O/S1-long.safetensors 18 $TP2 $TPB $PC
 INTARSIA_CUDA_DISABLE=$SIMT selfg tp1simt-short $O/S1-short.safetensors 40 $TPB $PC
 INTARSIA_CUDA_DISABLE=$SIMT selfg tp1simt-long $O/S1-long.safetensors 40 $TPB $PC
+# more tp=1 equivalent variants (the 35B TP budget = max over them x 2, docs/accuracy.md method), the base build against
+# its own dump (the floor a bitwise-identical build reads), and the 1% partial-scale bug at tp=2 (sensitivity)
+for v in fp8gemv:matmul_fp8_gemv nvfp4gemv:matmul_nvfp4_gemv; do
+  INTARSIA_CUDA_DISABLE=${v#*:} selfg tp1${v%%:*}-short $O/S1-short.safetensors 40 $TPB $PC
+  INTARSIA_CUDA_DISABLE=${v#*:} selfg tp1${v%%:*}-long $O/S1-long.safetensors 40 $TPB $PC
+done
+if want self-base-short; then
+  timeout 1800 $BASE accuracy --model $M35 $COMMON --self-golden $O/S1-short.safetensors --mode both --mem-budget 40 --allow-same-code $PC > $O/self-base-short.log 2>&1
+  log "self base-short exit $?: $(grep -aE 'SELF-STATS|^Error' $O/self-base-short.log | cut -c1-260 | tr '\n' '|')"
+fi
+INTARSIA_TP_TEST_BUG=scale:1.01 selfg tp2bug-short $O/S1-short.safetensors 18 $TP2 $TPB $PC
+INTARSIA_TP_TEST_BUG=scale:1.01 selfg tp2bug-long $O/S1-long.safetensors 18 $TP2 $TPB $PC
 gen() { # gen <tag> <chars> <tokens> <args...>; chat template, greedy
   local tag=$1 chars=$2 n=$3; shift 3; want gen-$tag || return 0
   timeout 900 $DEV generate -m $M35 --backend cuda --max-seq 20480 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
