@@ -1,4 +1,4 @@
-# fleetq #2998 (spark1, --mem 10, non-exclusive, vLLM up), 2026-10-21 ~11:50 EDT.
+# fleetq #2998 (spark1, --mem 10, non-exclusive, vLLM up), 2026-10-21 ~11:42 EDT.
 # Script: regenerate the exllamav3 golden (tools/golden_exl3.py, dsv41-serve:v4, unconverted EXL3 dir, ids from
 # qwen3-8b-fp32.safetensors), then scripts/m2-exl3-e2e/golden_kl.py on all rows and with --last 16 (the rows that
 # `intarsia accuracy --mode decode` scores: engine.rs forward_logits_decode feeds the last n_decode = 16 tokens one by one).
