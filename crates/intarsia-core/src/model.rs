@@ -62,9 +62,9 @@ pub struct LoadOptions {
     /// Replay the single-token decode step as a captured graph when the backend supports it (`--no-graphs` turns
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
-    /// Tensor parallelism: run the row-local fused decode ops on each rank's shard (`INTARSIA_TP_FUSION=1`) when the
-    /// backend can (`Backend::fusion_under_tp`). Off by default: fused kernels may round differently (measured bitwise to
-    /// unfused on the 35B tp=2 gates, docs/results/2026-10-21-tp2-cuda-graphs.md).
+    /// Tensor parallelism: run the row-local fused decode ops on each rank's shard when the backend can
+    /// (`Backend::fusion_under_tp`). The CLI turns it on by default for CUDA (`INTARSIA_TP_FUSION=0` opts out); the library
+    /// default is off. Measured bitwise to unfused on the 35B tp=2 gates (docs/results/2026-10-21-tp2-cuda-graphs.md).
     pub tp_fusion: bool,
 }
 

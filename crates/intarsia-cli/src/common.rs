@@ -288,7 +288,7 @@ impl ModelArgs {
                 fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
-                tp_fusion: std::env::var_os("INTARSIA_TP_FUSION").is_some_and(|v| v != "0"),
+                tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend),
             },
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
@@ -448,8 +448,29 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
     }
 }
 
+/// Row-local fusion under tensor parallelism (`LoadOptions::tp_fusion`; acts only at world > 1). On by default for CUDA
+/// (user decision 2026-10-21 17:13, docs/results/2026-10-21-tp2-cuda-graphs.md), off elsewhere. `INTARSIA_TP_FUSION=0`
+/// opts out; any other value asks for it, which a backend without `Backend::fusion_under_tp` (HIP) refuses at load.
+fn tp_fusion(env: Option<&std::ffi::OsStr>, backend: &str) -> bool {
+    match env {
+        Some(v) => v != "0",
+        None => backend == "cuda",
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn tp_fusion_default_on_for_cuda_only_and_env_overrides() {
+        use std::ffi::OsStr;
+        assert!(super::tp_fusion(None, "cuda"));
+        assert!(!super::tp_fusion(None, "hip"));
+        assert!(!super::tp_fusion(None, "cpu"));
+        assert!(!super::tp_fusion(Some(OsStr::new("0")), "cuda"));
+        // an explicit request reaches the load, which refuses it on hip
+        assert!(super::tp_fusion(Some(OsStr::new("1")), "hip"));
+    }
+
     use super::ModelArgs;
     use clap::Parser;
 
