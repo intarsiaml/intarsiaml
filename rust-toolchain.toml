@@ -1,0 +1,6 @@
+# The compiler every build of this repo uses (rustup reads this file). It matches `rust-version` in Cargo.toml and
+# the rustc in deploy/tatooine/Dockerfile.hip-dev and on spark1. Bump all of them together, in one PR.
+# A rustc without rustup (Homebrew on endor) ignores this file: scripts/deploy.sh stamps the rustc it actually used.
+[toolchain]
+channel = "1.90.0"
+profile = "minimal"

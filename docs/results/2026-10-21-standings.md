@@ -201,3 +201,45 @@ lifted. Resume for (c), ready to run once the endor hold is lifted (do not queue
 
 Measurement gaps to close first, because they decide the ranking: quality for intarsia on the 35B on Spark; the Metal
 quality harness fault; hipfire and llama.cpp UD-Q4_K_XL on the R9700; the 8B on CUDA and HIP.
+
+## 10. Addendum: Metal tests and the 0.0 quality diagnosis (endor, 2026-10-21 12:30 EDT)
+
+Two exclusive endor slots (the second to capture raw responses); origin/main `7536a5e6`; raw files in
+`docs/results/2026-10-21-standings/raw/metal/quality-diag/`. No engine code changed.
+
+**Tests.** `cargo test --workspace` on `7536a5e6`: 519 passed, 0 failed, 2 ignored (110 suites). This is the Metal test run
+PR #40 still owed; main is green. `cargo build --release -p intarsia-cli --features metal` also built.
+
+**Quality (GSM8K, first 10 problems, `--thinking off`, Qwen3-8B BF16, localeval 0.2.1; n=10, so +-15 points):**
+
+| engine | localeval default (`--structured json_schema`) | `--structured prompt` |
+|---|---|---|
+| intarsia | 0.0 (about 10.6 s/problem, 20 calls) | 0.2 (3.4 s total, 10 calls) |
+| mlx-lm | 0.0 (20 calls) | not run |
+| llama.cpp | 0.3 (10 calls) | not run |
+
+**Root cause: harness/server mismatch, not the model and not a template bug.** localeval's GSM8K (`enable_cot=True`) asks for a
+`NumberSchema` JSON object by sending `response_format: {type: json_schema}`. llama.cpp enforces it with a grammar and
+returns `{"answer": 26}`. intarsia and mlx-lm accept the field and ignore it (no `response_format` handling anywhere under
+`crates/`; nothing is rejected, so localeval's drop-and-fall-back-to-prompt path never triggers). They return free-form
+chain-of-thought prose ("**Step-by-Step Solution** ... **Answer**: 18"), 300-500 tokens, which fails to parse as the
+schema; deepeval then retries (hence 20 calls) with its own confinement prompt and gets prose again, and the answer is
+scored wrong. That explains both the 0.0 and the roughly 10 s per call (long CoT instead of a 5-token JSON). The dumped
+responses (`dump-*.jsonl`) show the model reasoning correctly (for example Janet's ducks: 18, the correct answer, in the
+retry) but in a format the scorer cannot read. Attempt 2's 0.0 / 30 s per call is the same mechanism.
+
+With `--structured prompt` (schema appended to the prompt) intarsia answers `{"answer": N}` directly, with no CoT, and
+scores 0.2 to 0.33 on 10 and 3 problems, in line with llama.cpp's 0.3 (n=10). Those are no-CoT numbers, so low in absolute
+terms but comparable across engines; the n is too small to rank. Chat template: the prompts and replies are well formed on
+all three engines.
+
+**Verdict.** mlx-lm shows the identical 0.0, so the Metal 0.0 in section 4 was a harness-side mismatch, not an intarsia
+correctness failure. Whether intarsia should honour (or reject with HTTP 400) `response_format` is a server feature gap for
+the engine owner, not fixed here. Minimal repro: POST `/v1/chat/completions` with
+`response_format={"type":"json_schema","json_schema":{"name":"NumberSchema","schema":{"properties":{"answer":{"type":"integer"}},"required":["answer"],"type":"object"}}}`
+and a GSM8K question; intarsia returns prose, llama.cpp returns `{"answer": N}`.
+
+**Not done.** A rerun with `--structured prompt` at a meaningful n for all three engines (this addendum has n=10 for the
+default arm and n=10 / n=3 for the prompt arm on intarsia only; mlx-lm and llama.cpp were not run with `--structured prompt`).
+MMLU is unaffected by this issue (no schema) and was not rerun. localeval's unanimis capture failed again with the ssh mux
+error.
