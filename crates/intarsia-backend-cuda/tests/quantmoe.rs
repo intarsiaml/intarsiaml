@@ -604,7 +604,7 @@ fn matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm() {
 /// drops low bits at every step; `moe_experts_mma_is_as_accurate_as_old_kernel` documents it for the bf16 mma). The f8
 /// kernel and the bf16 GEMM instead add every k-step's result with a normal fp32 add. vLLM's CUTLASS sm120 kernel
 /// accumulates like cuBLAS. On every case with a non-zero bf16 error the lt kernel is at or below it (e.g. K = 4096:
-/// 1.10e-4 against 1.45e-4), so only the floor changes. `INTARSIA_LT_FAST_ACCUM=1` gives the same bits on sm_121.
+/// 1.10e-4 against 1.45e-4), so only the floor changes. `INTARSIA_LT_FAST_ACCUM=1` gives the same errors on sm_121.
 #[test]
 fn matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm() {
     e4m3_gemm_is_as_accurate_as_the_bf16_gemm("matmul_fp8_gemm_lt", LT_REL_FLOOR);
