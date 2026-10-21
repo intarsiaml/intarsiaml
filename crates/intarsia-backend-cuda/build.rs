@@ -143,6 +143,7 @@ fn main() {
         println!("cargo:rustc-link-arg=-Wl,-rpath,{}", d.display());
     }
     println!("cargo:rustc-link-lib=dylib=cublas");
+    println!("cargo:rustc-link-lib=dylib=cublasLt");
     println!("cargo:rustc-link-lib=dylib=cudart");
     println!("cargo:rustc-link-lib=dylib=stdc++");
 }

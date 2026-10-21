@@ -1,0 +1,47 @@
+fleetq: #2931 running on spark1: env STEPS=test scripts/cuda-round7/dev.sh
+stamp: head=639858e code-tree=e9ef57b1a5d9 dirty=no
+    Finished `release` profile [optimized] target(s) in 6.51s
+-rwxrwxr-x 2 nvidia nvidia 37575016 Oct 21 09:58 /home/nvidia/intarsia-decfuse/r7-dev/target/acc/release/intarsia
+2392 MHz, [N/A], 44, 10.82 W, 0 %
+Build cuda_13.0.r13.0/compiler.36424714_0
+/usr/local/cuda/lib64/libcublasLt.so
+/usr/local/cuda/lib64/libcublasLt.so.13
+== e4m3 GEMM tests
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... matmul_fp8_gemm_f8 act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_f8 act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_f8 act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 e4m3 gemm 2.323e-5; elements off: 0.0011 / 0.0001
+matmul_fp8_gemm_f8 act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 e4m3 gemm 1.163e-7; elements off: 0.9799 / 0.7553
+matmul_fp8_gemm_f8 act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 e4m3 gemm 9.521e-6; elements off: 0.0003 / 0.0001
+matmul_fp8_gemm_f8 act_quant=true M=256 N=2048 K=4096 Bf16: rel_l2 bf16 gemm 1.450e-4 e4m3 gemm 2.393e-5; elements off: 0.0021 / 0.0002
+matmul_fp8_gemm_f8 act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_f8 act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 7.225e-6 e4m3 gemm 7.225e-6; elements off: 0.0003 / 0.0003
+matmul_fp8_gemm_f8 act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 7.812e-5 e4m3 gemm 7.812e-5; elements off: 0.0018 / 0.0018
+matmul_fp8_gemm_f8 act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.217e-6 e4m3 gemm 1.217e-6; elements off: 0.9889 / 0.9889
+matmul_fp8_gemm_f8 act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 6.703e-5 e4m3 gemm 6.703e-5; elements off: 0.0005 / 0.0005
+matmul_fp8_gemm_f8 act_quant=false M=256 N=2048 K=4096 Bf16: rel_l2 bf16 gemm 1.631e-4 e4m3 gemm 1.631e-4; elements off: 0.0029 / 0.0029
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm ... matmul_fp8_gemm_lt: N=192 K=256 f32=0 -> heuristic #0 algo 67 tile 15 stages 36 (of 4)
+matmul_fp8_gemm_lt act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 8.106e-5; elements off: 0.0000 / 0.0010
+matmul_fp8_gemm_lt act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_lt: N=512 K=2048 f32=0 -> heuristic #0 algo 67 tile 32 stages 36 (of 6)
+matmul_fp8_gemm_lt act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 e4m3 gemm 7.084e-5; elements off: 0.0011 / 0.0008
+matmul_fp8_gemm_lt: N=384 K=1024 f32=1 -> heuristic #0 algo 67 tile 20 stages 36 (of 4)
+matmul_fp8_gemm_lt act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 e4m3 gemm 5.712e-7; elements off: 0.9799 / 0.9711
+matmul_fp8_gemm_lt: N=256 K=512 f32=0 -> heuristic #0 algo 67 tile 33 stages 36 (of 3)
+matmul_fp8_gemm_lt act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 e4m3 gemm 1.567e-5; elements off: 0.0003 / 0.0002
+matmul_fp8_gemm_lt: N=2048 K=4096 f32=0 -> heuristic #0 algo 67 tile 465 stages 36 (of 5)
+matmul_fp8_gemm_lt act_quant=true M=256 N=2048 K=4096 Bf16: rel_l2 bf16 gemm 1.450e-4 e4m3 gemm 1.104e-4; elements off: 0.0021 / 0.0013
+matmul_fp8_gemm_lt act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_lt act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 7.225e-6 e4m3 gemm 7.225e-6; elements off: 0.0003 / 0.0003
+matmul_fp8_gemm_lt act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 7.812e-5 e4m3 gemm 7.812e-5; elements off: 0.0018 / 0.0018
+matmul_fp8_gemm_lt act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.217e-6 e4m3 gemm 1.217e-6; elements off: 0.9889 / 0.9889
+matmul_fp8_gemm_lt act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 6.703e-5 e4m3 gemm 6.703e-5; elements off: 0.0005 / 0.0005
+matmul_fp8_gemm_lt act_quant=false M=256 N=2048 K=4096 Bf16: rel_l2 bf16 gemm 1.631e-4 e4m3 gemm 1.631e-4; elements off: 0.0029 / 0.0029
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call ... matmul_fp8_gemm_lt: N=384 K=1024 f32=0 -> heuristic #0 algo 67 tile 20 stages 36 (of 4)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.54s
+== selection pins (default, then INTARSIA_CUDA_FP8_GEMM_LT=1)
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+fleetq: #2931 done (exit 0)

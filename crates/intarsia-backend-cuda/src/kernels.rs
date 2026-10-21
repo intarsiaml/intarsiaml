@@ -180,6 +180,23 @@ pub fn fp8_gemm_f8_priority(on: i32) -> i32 {
     }
 }
 
+/// `INTARSIA_CUDA_FP8_GEMM_LT=1` selects the cuBLASLt e4m3 W8A8 GEMM (`matmul_fp8_gemm_lt`, every M >= 5) for the fp8
+/// projections. OPT-IN: same e4m3 activations as the default path, different accumulation, so not bitwise; its KL is
+/// gated against vLLM's own run-to-run KL in docs/results/2026-10-21-cuda-round7.md.
+pub fn fp8_gemm_lt() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").is_ok_and(|v| v == "1"))
+}
+
+/// Priority of the cuBLASLt e4m3 GEMM: `on` when `fp8_gemm_lt()`, below everything otherwise.
+pub fn fp8_gemm_lt_priority(on: i32) -> i32 {
+    if fp8_gemm_lt() {
+        on
+    } else {
+        -10
+    }
+}
+
 /// `gdn_delta_rule_bf16_split` (the one-thread-per-row GatedDeltaNet recurrence's arithmetic split over several lanes per
 /// row, BITWISE the same results, docs/results/2026-10-19-cuda-prefill-4.md) is on by default; `INTARSIA_CUDA_GDN_SPLIT=0`
 /// switches it off (the one-thread-per-row kernel `gdn_delta_rule_bf16` then serves dk 64 / 128 again).
@@ -432,6 +449,30 @@ mod tests {
         }
     }
 
+    /// The opt-in cuBLASLt e4m3 GEMM's own range, whatever the environment: every M from 5 (the gemv keeps 1..4), K a
+    /// multiple of 128, N a multiple of 16; off (below every other fp8 kernel) unless INTARSIA_CUDA_FP8_GEMM_LT=1.
+    #[test]
+    fn fp8_gemm_lt_range() {
+        let lt = all().into_iter().find(|k| k.name == "matmul_fp8_gemm_lt").expect("registered");
+        let s = |m: usize, n: usize, k: usize| ShapeInfo {
+            m,
+            n,
+            k,
+            act: Some(DType::Bf16),
+            weight: Some(DType::Fp8E4m3),
+            out: Some(DType::Bf16),
+            ..Default::default()
+        };
+        assert!(!lt.accepts(&s(4, 8192, 2048)));
+        for m in [5, 6, 255, 2048, 4096] {
+            assert!(lt.accepts(&s(m, 8192, 2048)), "M={m}");
+        }
+        assert!(!lt.accepts(&s(2048, 8192, 2112)), "K % 128");
+        assert!(!lt.accepts(&s(2048, 8200, 2048)), "N % 16");
+        let on = std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").is_ok_and(|v| v == "1");
+        assert_eq!(lt.priority, if on { 25 } else { -10 });
+    }
+
     /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096): the gemv for 1..4 tokens, the mma
     /// kernel for 5..32, `matmul_fp8_gemm` for 33..255, `matmul_fp8_gemm_reg` from 256 (the 2048-token chunk included), unless
     /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FP8_GEMM_F8=1` / `INTARSIA_CUDA_FAST_PREFILL=1` (then `matmul_fp8_gemm_f8` from 5). The
@@ -456,6 +497,16 @@ mod tests {
             }
             best.map(|k| k.name.to_string())
         };
+        if std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").is_ok_and(|v| v == "1") {
+            // the cuBLASLt e4m3 GEMM serves every M the gemv does not, above the f8 kernel when both are on
+            for k in [2048, 4096] {
+                assert_eq!(pick(4, k).as_deref(), Some("matmul_fp8_gemv"));
+                for m in [5, 32, 33, 255, 256, 2048, 4096] {
+                    assert_eq!(pick(m, k).as_deref(), Some("matmul_fp8_gemm_lt"), "lt gate: M={m} K={k}");
+                }
+            }
+            return;
+        }
         if std::env::var("INTARSIA_CUDA_FP8_GEMM_F8").is_ok_and(|v| v == "1")
             || std::env::var("INTARSIA_CUDA_FAST_PREFILL").is_ok_and(|v| v == "1")
         {
@@ -666,6 +717,7 @@ mod tests {
         "matmul_bf16_gemv:matmul",
         "matmul_fp8_gemm:matmul_fp8",
         "matmul_fp8_gemm_f8:matmul_fp8",
+        "matmul_fp8_gemm_lt:matmul_fp8",
         "matmul_fp8_gemm_reg:matmul_fp8",
         "matmul_fp8_gemv:matmul_fp8",
         "matmul_fp8_mma:matmul_fp8",

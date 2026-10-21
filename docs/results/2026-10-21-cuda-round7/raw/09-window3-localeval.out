@@ -1,0 +1,74 @@
+fleetq: #2979 running on spark1: scripts/cuda-round7/window.sh 12 'G1 r7 W3: localeval lt + lt4k' '/home/nvidia/intarsia-decfuse/r7-dev/scripts/cuda-round7/wAB.sh le'
+10:57:19 window job 2979: G1 r7 W3: localeval lt + lt4k
+10:57:23 memory freed: 111 GB available
+10:57:23 running /home/nvidia/intarsia-decfuse/r7-dev/scripts/cuda-round7/wAB.sh le (cap 12 min)
+== localeval servers 10:57:23
+MemAvailable 111 GB
+bin: intarsia 0.0.1
+== arm lt env 'INTARSIA_CUDA_FP8_GEMM_LT=1' 10:57:23
+READY lt 10:58:01
+10:58:02 localeval arm lt
+
+## Speed sweep
+
+served `intarsia-35b`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.21 | 4689 (4684–4706) * | - | 82.4 (82.3–82.4) | 83.1 (83.0–83.4) | - | - | 128 |
+| 4091 | 0.64 | 6378 (6342–6419) | 7212 | 79.9 (79.8–79.9) | 81.2 (80.6–81.2) | - | - | 128 |
+| 16678 | 2.80 | 5964 (5960–5971) | 5841 | 72.3 (72.1–72.4) | 73.0 (72.8–74.6) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-105806-adhoc-intarsia-cuda-round7-lt/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+Connection closed by 100.106.174.54 port 22
+10:58:34 localeval arm lt exit 0
+arm lt done 10:58:35
+== arm lt4k env 'INTARSIA_CUDA_FP8_GEMM_LT=1 SERVE_ARGS=--prefill-chunk=4096' 10:58:38
+READY lt4k 10:59:11
+10:59:11 localeval arm lt4k
+## Speed sweep
+
+served `intarsia-35b`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.21 | 4671 (4535–4742) * | - | 82.2 (82.0–82.2) | 84.1 (83.7–84.4) | - | - | 128 |
+| 4091 | 0.60 | 6845 (6810–6895) | 8028 | 79.6 (79.5–79.7) | 80.9 (80.7–80.9) | - | - | 128 |
+| 16655 | 2.62 | 6354 (6347–6365) | 6211 | 72.1 (72.0–72.2) | 72.8 (72.7–73.3) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261021-105914-adhoc-intarsia-cuda-round7-lt4k/result.json
+[localeval] unanimis capture FAILED (exit 255): mux_client_request_session: session request failed: Session open refused by peer
+kex_exchange_identification: read: Connection reset by peer
+Connection reset by 100.106.174.54 port 22
+10:59:40 localeval arm lt4k exit 0
+arm lt4k done 10:59:42
+== p4C done 10:59:45
+10:59:47 script exit 0
+10:59:47 killing leftover processes of ours under ~/intarsia-decfuse
+10:59:50 starting missioncntrl-guidance and waiting for /v1/models
+11:02:57 vLLM is serving again
+11:02:57 done (status 0)
+fleetq: #2979 done (exit 0); spark1-vllm must come back before others can use it

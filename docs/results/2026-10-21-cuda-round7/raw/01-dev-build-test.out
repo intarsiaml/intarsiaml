@@ -1,0 +1,55 @@
+fleetq: #2922 running on spark1: scripts/cuda-round7/dev.sh
+stamp: head=4be7b7d code-tree=0cedb7402c2d dirty=yes
+    Finished `release` profile [optimized] target(s) in 17.14s
+-rwxrwxr-x 2 nvidia nvidia 37574968 Oct 21 09:52 /home/nvidia/intarsia-decfuse/r7-dev/target/acc/release/intarsia
+2398 MHz, [N/A], 49, 11.52 W, 0 %
+Build cuda_13.0.r13.0/compiler.36424714_0
+/usr/local/cuda/lib64/libcublasLt.so
+/usr/local/cuda/lib64/libcublasLt.so.13
+== e4m3 GEMM tests
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... matmul_fp8_gemm_f8 act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_f8 act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_f8 act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 e4m3 gemm 2.323e-5; elements off: 0.0011 / 0.0001
+matmul_fp8_gemm_f8 act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 e4m3 gemm 1.163e-7; elements off: 0.9799 / 0.7553
+matmul_fp8_gemm_f8 act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 e4m3 gemm 9.521e-6; elements off: 0.0003 / 0.0001
+matmul_fp8_gemm_f8 act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_f8 act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 2.928e-5 e4m3 gemm 2.928e-5; elements off: 0.0003 / 0.0003
+matmul_fp8_gemm_f8 act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 1.212e-4 e4m3 gemm 1.212e-4; elements off: 0.0017 / 0.0017
+matmul_fp8_gemm_f8 act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.226e-6 e4m3 gemm 1.226e-6; elements off: 0.9885 / 0.9885
+matmul_fp8_gemm_f8 act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 5.217e-5 e4m3 gemm 5.217e-5; elements off: 0.0004 / 0.0004
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm ... matmul_fp8_gemm_lt: N=192 K=256 f32=0 -> heuristic #0 algo 67 tile 15 stages 36 (of 4)
+matmul_fp8_gemm_lt act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 8.106e-5; elements off: 0.0000 / 0.0010
+thread 'matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm' panicked at crates/intarsia-backend-cuda/tests/quantmoe.rs:629:13:
+matmul_fp8_gemm_lt act_quant=true M=5 N=192 K=256 Bf16: f8 rel_l2 8.106e-5, bf16 gemm 0.000e0
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call ... matmul_fp8_gemm_lt: N=384 K=1024 f32=0 -> heuristic #0 algo 67 tile 20 stages 36 (of 4)
+matmul_fp8_gemm_lt: N=2048 K=4096 f32=0 -> heuristic #0 algo 67 tile 465 stages 36 (of 5)
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.80s
+== selection pins (default, then INTARSIA_CUDA_FP8_GEMM_LT=1)
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+== wq round 1: INTARSIA_X=0
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg        972.6 us   70.7 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        535.6 us   64.2 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        593.1 us   57.9 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg        977.3 us   70.3 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        117.3 us   36.6 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        598.9 us   57.4 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      81145.9 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_f8         827.6 us   83.0 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_f8         430.1 us   79.9 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_f8         460.1 us   74.7 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_f8         780.7 us   88.0 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_f8          84.7 us   50.7 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_f8         455.1 us   75.5 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_f8       65585.7 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_lt         507.6 us  135.4 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_lt         263.1 us  130.6 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_lt         299.4 us  114.8 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_lt         526.5 us  130.5 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_lt          43.4 us   99.0 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_lt         296.9 us  115.7 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_lt       41205.5 us
+fleetq: #2922 done (exit 0)
