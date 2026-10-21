@@ -72,8 +72,8 @@ prefill_chunk = 2048
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058
 # at 16k; 4096 fits the 29 GB budget at max-seq 17408. Prefill is chunk-invariant bit for bit on HIP (short and long golden give the
 # same numbers at 256, 1024, 2048 and 4096). At 4096 the prefix-reuse gate can run only on chat_reuse_4k: the two 4k documents
-# (4064 tokens) cannot cross a 4096-token chunk boundary, and the gate now FAILS such a prompt instead of skipping it, so judge
-# the prompts that can with --reuse-prompt (at 256 long_docs_4k fails the continue case, on the base build too;
+# (4064 tokens) cannot cross a 4096-token chunk boundary and are reported as skipped (the gate fails only if no prompt could
+# be judged), so only chat_reuse_4k is judged (at 256 long_docs_4k fails the continue case, on the base build too;
 # docs/results/2026-10-17-hip-prefill.md, docs/results/2026-10-21-m3-accuracy-debt.md 2.8).
 [tuning.hip]
 prefill_chunk = 4096

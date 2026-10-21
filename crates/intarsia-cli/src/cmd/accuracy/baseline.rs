@@ -145,6 +145,23 @@ pub struct Baseline {
     pub golden: GoldenId,
     pub run: RunConfig,
     pub modes: Vec<ModeBaseline>,
+    /// The prefix-reuse gate of the same run (`--mode reuse|all`), if it ran: which prompts it judged and which it
+    /// skipped because they cannot cross a chunk boundary at the active chunk.
+    #[serde(default)]
+    pub reuse: Option<ReuseSummary>,
+}
+
+/// What the prefix-reuse gate did in a run (`accuracy.rs`, `reuse_gate`).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct ReuseSummary {
+    pub passed: bool,
+    pub prefill_chunk: usize,
+    pub prefill_chunk_source: String,
+    /// Prompts that crossed a chunk boundary and were judged.
+    pub ran: Vec<String>,
+    /// Prompts skipped because no split of them crosses a chunk boundary at `prefill_chunk` (a reported skip, not a
+    /// failure; the gate fails only when `ran` is empty).
+    pub skipped: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -551,6 +568,23 @@ mod tests {
     }
 
     #[test]
+    fn the_reuse_summary_is_recorded_and_an_old_baseline_without_it_reads() {
+        let mut b = baseline();
+        b.reuse = Some(ReuseSummary {
+            passed: true,
+            prefill_chunk: 4096,
+            prefill_chunk_source: "recipe qwen3_5_moe, hip".into(),
+            ran: vec!["chat_reuse_4k".into()],
+            skipped: vec!["long_docs_4k".into(), "long_code_4k".into()],
+        });
+        let json = serde_json::to_string(&b).unwrap();
+        assert_eq!(serde_json::from_str::<Baseline>(&json).unwrap(), b);
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut().unwrap().remove("reuse");
+        assert_eq!(serde_json::from_value::<Baseline>(v).unwrap().reuse, None);
+    }
+
+    #[test]
     fn an_old_baseline_json_without_scored_fields_still_reads() {
         let json = serde_json::to_string(&stats(10)).unwrap();
         let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -630,6 +664,7 @@ mod tests {
             golden: g,
             run: r,
             modes: vec![],
+            reuse: None,
         }
     }
 

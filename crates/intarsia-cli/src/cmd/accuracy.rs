@@ -1681,7 +1681,8 @@ fn judge_streams(
 /// The split of the reuse cases for a prompt of `n` tokens at prefill chunk `chunk`: turn 1 (`ids[..split]`) must cross a
 /// chunk boundary (`split > chunk`), or the restore never leaves the first chunk and "passes" without testing anything.
 /// The golden's `reuse_split` (or half the prompt) is used when it does; otherwise one and a half chunks, bounded by the
-/// prompt (turn 2 needs two more tokens). `Err`: no split of this prompt crosses a boundary at this chunk.
+/// prompt (turn 2 needs two more tokens). `Err`: no split of this prompt crosses a boundary at this chunk; the gate
+/// reports the prompt as skipped (it tests no restore) and fails only when no prompt could be judged.
 fn reuse_split(golden_split: usize, n: usize, chunk: usize) -> std::result::Result<usize, String> {
     let max = n.saturating_sub(2);
     let s = golden_split.min(max);
@@ -1692,7 +1693,7 @@ fn reuse_split(golden_split: usize, n: usize, chunk: usize) -> std::result::Resu
     if s > chunk {
         Ok(s)
     } else {
-        Err(format!("a prompt of {n} tokens cannot cross a chunk boundary at the default prefill chunk {chunk} (no split above {chunk} leaves room for turn 2): the prefix-reuse case would skip, which is a failure, not a pass"))
+        Err(format!("a prompt of {n} tokens cannot cross a chunk boundary at the default prefill chunk {chunk} (no split above {chunk} leaves room for turn 2)"))
     }
 }
 
@@ -1729,7 +1730,7 @@ struct ReuseRow {
 /// prompt differently from a cold one (and `continue` reuses rows the decode kernels wrote, which a cold run prefills),
 /// so bf16 rounding can flip a near-tie: a diverging pair is judged on the logits ([`judge_streams`]). A broken restore
 /// moves the logits by far more than rounding and fails at once.
-fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs, tol: &ReuseTol) -> Result<bool> {
+fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs, tol: &ReuseTol) -> Result<(bool, baseline::ReuseSummary)> {
     let info = engine.info();
     let (chunk, ctx, vocab, m) = (args.model.chunk(), info.context_len, info.vocab, args.reuse_gen.max(1));
     let reply = 16usize;
@@ -1748,6 +1749,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         "prompt", "case", "split", "turn2", "cached", "cold", "agree", "result"
     );
     let mut rows: Vec<ReuseRow> = Vec::new();
+    let mut skipped: Vec<String> = Vec::new();
     // `warm` / `cold` runs of one case: (trace) -> (stream, cached); the cold run is preceded by a cache flush
     type Trace = Arc<Mutex<Vec<Vec<f32>>>>;
     type Run<'a> = &'a dyn Fn(Option<Arc<Mutex<Vec<Vec<f32>>>>>) -> Result<(Vec<u32>, usize)>;
@@ -1765,13 +1767,13 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         let n_prompt = meta.as_ref().and_then(|v| v["n_prompt"].as_u64()).map_or(n, |x| x as usize);
         let golden_split = meta.as_ref().and_then(|v| v["reuse_split"].as_u64()).map_or(n_prompt / 2, |x| x as usize);
         let first = rows.len();
-        // A case that cannot cross a chunk boundary at this chunk would pass without testing the restore: it FAILS.
+        // A prompt that cannot cross a chunk boundary at this chunk tests no restore: it is a reported SKIP (counted and
+        // named below), never a pass; the gate fails when no prompt at all could be judged.
         let split = match reuse_split(golden_split, n, chunk) {
             Ok(s) => s,
             Err(why) => {
-                let note = format!("{why}; judge only prompts that can with --reuse-prompt, or use a golden with longer prompts");
-                println!("{:<18} {:<9} {:>6} {:>6} {:>7} {:>6} {:>9}  FAIL ({note})", name, "both", "-", n, "-", "-", "-");
-                rows.push(ReuseRow { prompt: name.clone(), case: "both", split: 0, turn2: n, cached: 0, cold_cached: 0, agree: 0, of: m, ok: false, note });
+                println!("{name:<18} {:<9} SKIPPED: {why}", "both");
+                skipped.push(name.clone());
                 continue;
             }
         };
@@ -1916,13 +1918,37 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
             );
         }
     }
+    let mut ran: Vec<String> = Vec::new();
+    for r in &rows {
+        if !ran.contains(&r.prompt) {
+            ran.push(r.prompt.clone());
+        }
+    }
+    let summary = |passed: bool| baseline::ReuseSummary {
+        passed,
+        prefill_chunk: chunk,
+        prefill_chunk_source: args.model.chunk_source(),
+        ran: ran.clone(),
+        skipped: skipped.clone(),
+    };
+    if !skipped.is_empty() {
+        println!(
+            "prefix reuse: {} prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk {chunk} ({}): {}; {} judged",
+            skipped.len(),
+            args.model.chunk_source(),
+            skipped.join(", "),
+            ran.len()
+        );
+    }
     if rows.is_empty() {
-        println!("reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk {chunk}); not a pass");
-        return Ok(false);
+        println!(
+            "prefix-reuse gate: FAIL (nothing ran: no prompt can cross a chunk boundary at prefill chunk {chunk}, so no restore was tested and this is not a pass; use a golden with longer prompts, or a smaller --prefill-chunk)"
+        );
+        return Ok((false, summary(false)));
     }
     let ok = rows.iter().all(|r| r.ok);
     println!("prefix-reuse gate: {}", if ok { "PASS" } else { "FAIL" });
-    Ok(ok)
+    Ok((ok, summary(ok)))
 }
 
 // ---------------------------------------------------------------------------
@@ -2334,6 +2360,14 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         envelope::write(wp, &merged)?;
         println!("\nwrote noise envelope {} ({} perturbation(s): {})", wp.display(), merged.perturbations.len(), merged.describe());
     }
+    // the prefix-reuse gate runs before the baseline is written so that the baseline records which prompts it judged
+    let mut reuse_ok = true;
+    let mut reuse_summary: Option<baseline::ReuseSummary> = None;
+    if want_reuse {
+        let (ok, summary) = reuse_gate(engine, &g, &prompts, args, &resolve_reuse_tol(args, &g, recipe.as_ref())?)?;
+        reuse_ok = ok;
+        reuse_summary = Some(summary);
+    }
     if let Some(wp) = &args.write_baseline {
         let b = Baseline {
             format: baseline::FORMAT.into(),
@@ -2344,6 +2378,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             golden: golden_id.clone(),
             run: run_cfg.clone(),
             modes: results.iter().map(|(_, r)| baseline::ModeBaseline { overall: r.stats.clone(), prompts: r.prompts.clone() }).collect(),
+            reuse: reuse_summary.clone(),
         };
         baseline::write(wp, &b)?;
         println!(
@@ -2387,10 +2422,6 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         );
     }
 
-    let mut reuse_ok = true;
-    if want_reuse {
-        reuse_ok = reuse_gate(engine, &g, &prompts, args, &resolve_reuse_tol(args, &g, recipe.as_ref())?)?;
-    }
     if noise_run {
         println!("\nnoise envelope run: the verdicts below are information about the perturbed build; the exit status does not depend on them");
     }
@@ -2897,7 +2928,7 @@ mod tests {
     }
 
     #[test]
-    fn the_reuse_split_crosses_a_chunk_boundary_or_the_prompt_is_refused() {
+    fn the_reuse_split_crosses_a_chunk_boundary_or_the_prompt_is_skipped() {
         // the golden's split is used when it is above one chunk (chat_reuse_4k of the 35B golden at the HIP chunk)
         assert_eq!(reuse_split(4521, 4631, 4096), Ok(4521));
         // a split below the chunk is moved to one and a half chunks when the prompt is long enough ...
@@ -2905,10 +2936,10 @@ mod tests {
         assert_eq!(reuse_split(500, 12064, 4096), Ok(6144));
         // ... bounded by the prompt (turn 2 needs two more tokens)
         assert_eq!(reuse_split(4096, 5000, 4096), Ok(4998));
-        // a prompt shorter than a chunk plus the two tokens cannot cross: refused (FAIL in the gate), never skipped
+        // a prompt shorter than a chunk plus the two tokens cannot cross: a reported skip in the gate (which fails when no prompt can)
         for (g, n, c) in [(2000, 4064, 4096), (50, 100, 256), (4096, 4097, 4096), (0, 0, 8)] {
             let e = reuse_split(g, n, c).unwrap_err();
-            assert!(e.contains("cannot cross a chunk boundary") && e.contains("failure"), "{e}");
+            assert!(e.contains("cannot cross a chunk boundary"), "{e}");
         }
         // whatever is returned really is above one chunk and leaves room for turn 2
         for n in [10usize, 300, 4064, 4631, 12064] {

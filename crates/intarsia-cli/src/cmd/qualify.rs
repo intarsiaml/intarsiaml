@@ -1719,8 +1719,9 @@ fn st_acc_long(c: &mut Ctx) -> Result<Out> {
         Golden::None(why) => return Ok(Out::skip(why)),
     };
     // With a 4k golden the prefix-reuse gate runs there (`acc-4k`): the long golden's longest prompt is 700 tokens, so at
-    // a prefill chunk above ~350 its reuse gate has nothing to run on, and every prompt that cannot cross a chunk boundary
-    // (its short prompts at any chunk) FAILS the gate. Without one (every other model today) this stage is unchanged.
+    // a prefill chunk above ~350 its reuse gate has nothing to run on, prints "nothing ran" and fails (a prompt that cannot
+    // cross a chunk boundary is a reported skip, so the short prompts alone do not fail it). Without one (every other
+    // model today) this stage is unchanged.
     let reuse_in_4k = matches!(c.golden_4k()?, Golden::Have(g4, _) if g4 != g);
     let a = c.accuracy("acc-long", &g, if reuse_in_4k { "both" } else { "all" }, true, 1, &[])?;
     let mut o = c.acc_out(a, &g, &how, "long");

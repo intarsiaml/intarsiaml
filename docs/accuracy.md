@@ -175,11 +175,12 @@ when the dir is an HF cache snapshot, else the dir name).
   *aligned*: *restore* with `s` rounded down to a multiple of the prefill chunk. A cold run is forced by serving an
   unrelated prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are
   compared. `--reuse-prompt a,b` runs only those prompts.
-  * **The split crosses a chunk boundary, or the prompt fails.** `s` is the golden's `reuse_split` (else half of the
-    prompt) when it is above one chunk; otherwise one and a half chunks, bounded by the prompt. A prompt with no such
-    split (n <= chunk + 2) is reported as FAIL ("cannot cross a chunk boundary at the default prefill chunk"), not
-    skipped and not passed: with its restore never leaving the first chunk the case would test nothing. Name the
-    prompts that can with `--reuse-prompt`. A reuse run with no prompt at all prints SKIPPED and fails.
+  * **The split crosses a chunk boundary; nothing running is a failure.** `s` is the golden's `reuse_split` (else half
+    of the prompt) when it is above one chunk; otherwise one and a half chunks, bounded by the prompt. A prompt with no
+    such split (n <= chunk + 2) tests no restore: it is a reported skip (each line says so; the end of the gate
+    prints the count and the names, and `--write-baseline` records them under `reuse.skipped`), and it does not fail
+    `--mode all` on a golden with some short prompts. The gate FAILS only when no prompt crossed a boundary ("nothing
+    ran"): use a golden with longer prompts or a smaller `--prefill-chunk`. It never passes with nothing run.
   * **Hard check: the restore is bit-exact.** When the reused length is a multiple of the prefill chunk (*aligned*, and
     *restore* on such a split) the warm run executes exactly the operations of the cold run, on any backend, so the
     recorded logits rows of the two runs must be equal by bit pattern on all `--reuse-gen` rows, and `cached == s`

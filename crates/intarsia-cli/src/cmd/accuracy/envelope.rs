@@ -438,7 +438,7 @@ mod tests {
     fn base_with(prompts: Vec<PromptStats>) -> Baseline {
         Baseline {
             format: baseline::FORMAT.into(), created_unix: 1, tool_version: "x".into(), code: code("aaaaaaaaaaaa"), exec: ExecInfo::default(),
-            golden: golden(), run: run(256), modes: vec![ModeBaseline { overall: stats("prefill"), prompts }],
+            golden: golden(), run: run(256), modes: vec![ModeBaseline { overall: stats("prefill"), prompts }], reuse: None,
         }
     }
     fn perturbed(prompts: Vec<PromptStats>) -> Vec<(String, ModeStats, Vec<PromptStats>)> {
