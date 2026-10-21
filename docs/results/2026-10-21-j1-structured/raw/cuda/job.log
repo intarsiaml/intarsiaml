@@ -1,0 +1,38 @@
+fleetq: #3145 running on spark1: bash /opt/code/intarsiaml/.claude/worktrees/agent-ae0fc16f7953c6491/scripts/j1-structured/spark1-slot.sh /Users/josef/.local/state/claude-watch/j1/spark1 c4ea00bd d8ff9b0b
+14:33:20
+built base c4ea00bd 14:33:59
+built head d8ff9b0b 14:34:42
+base accshort rc=0 14:36:14
+base acclong rc=0 14:37:06
+base gen-short rc=0 14:37:55
+base gen-4k rc=0 14:38:56
+head accshort rc=0 14:39:49
+head acclong rc=0 14:40:49
+head gen-short rc=0 14:41:47
+head gen-4k rc=0 14:42:46
+acc-short.out: identical
+acc-long.out: identical
+gen-short.out: identical
+gen-4k.out: identical
+ids short: base 36901faa head 36901faa
+ids 4k: base b91c2745 head b91c2745
+OVERALL                   1434    99.65   4.004e-4   3.679e-4   3.768e-4   2.104e-2   0.0188   0.0187    98.59     34.1%      0
+OVERALL                    160   100.00   3.332e-4   2.936e-4   2.906e-4   6.841e-3   0.0215   0.0216    98.88    100.0%      0
+golden gate: PASS
+OVERALL                    434   100.00   2.897e-4   2.276e-4   1.853e-4   1.486e-2   0.0325   0.0323    98.89    100.0%      0
+OVERALL                    128   100.00   3.238e-4   2.833e-4   2.741e-4   6.841e-3   0.0238   0.0238    99.22    100.0%      0
+golden gate: PASS
+OVERALL                   1434    99.65   4.004e-4   3.679e-4   3.768e-4   2.104e-2   0.0188   0.0187    98.59     34.1%      0
+OVERALL                    160   100.00   3.332e-4   2.936e-4   2.906e-4   6.841e-3   0.0215   0.0216    98.88    100.0%      0
+golden gate: PASS
+OVERALL                    434   100.00   2.897e-4   2.276e-4   1.853e-4   1.486e-2   0.0325   0.0323    98.89    100.0%      0
+OVERALL                    128   100.00   3.238e-4   2.833e-4   2.741e-4   6.841e-3   0.0238   0.0238    99.22    100.0%      0
+golden gate: PASS
+serve head up 14:44:31
+http ids head: f7d4c284
+e2e seq rc=0 valid 50/50 (tool_choice auto answered without a call: 0)
+serve base up 14:50:53
+http ids base: f7d4c284
+http ids: identical
+14:51:17
+fleetq: #3145 done (exit 0)
