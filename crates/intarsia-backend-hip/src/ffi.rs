@@ -128,7 +128,6 @@ extern "C" {
     pub fn ik_hip_moe_mw_down(pairs: c_int) -> c_int;
     pub fn ik_hip_split_pieces(est_us: c_double, max_pieces: i64) -> c_int;
     pub fn ik_hip_splitkv_occ() -> c_int;
-    pub fn ik_hip_gemm_split_rows(m: i64, n: i64, k: i64, gemv: c_int, rows: *mut i64, max_rows: c_int) -> c_int;
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_f32(logits: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_bf16(logits: T, out: TM, s: S) -> c_int;

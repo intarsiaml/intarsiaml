@@ -667,14 +667,10 @@ stage_lnprof() {
   local csv; csv=$(find "$OUTD/prof/$tag" -name '*kernel_trace.csv' | head -1)
   [ -n "$csv" ] && python3 "${LN_PY:-$HOME/r10-tools/longnext.py}" "$csv" | tee "$OUTD/prof/$tag/longnext.txt"
 }
-# lnrun:<same args as lnprof>: only the two unprofiled runs (round 10 lever A/B: INTARSIA_HIP_GEMM_SPLIT=0 / tail / even)
+# lnrun:<same args as lnprof>: only the two unprofiled runs (round 10 lever A/B; the GEMM split lever it was written for is deleted)
 stage_lnrun() { LN_NOPROF=1 stage_lnprof "$1"; }
 
 # Round 10 (perf/hip-round10, docs/results/2026-10-19-hip-round10.md).
-# round-10 mutants (mutate.py; mutbuild10 in a CPU slot, mutrun10 in a GPU window; tests/gemm_split.rs)
-R10MUT="r10-xoff r10-ooff r10-noclamp r10-gemv-woff r10-trig-inv r10-killsw r10-tail-off r10-def-on"
-stage_mutbuild10() { MUTATIONS="${R10MUT_SEL:-$R10MUT}" INTARSIA_MUT_DIR="$HOME/intarsiaml-r10-mut" stage_mutbuild; }
-stage_mutrun10() { MUTATIONS="${R10MUT_SEL:-$R10MUT}" MUT_TIMEOUT=${MUT_TIMEOUT:-200} stage_mutrun; }
 # ids8:<NAME=value>: greedy ids of 256 tokens after the ~4.4k-token prompt on the 8B, this tree (with NAME=value, or none: x) and the base tree; identical or not
 gen8l() { # gen8l <outfile prefix>
   printf '%s\n' "$B generate -m $M8 --backend hip --max-seq 8192 --profile-every 0 --ignore-eos --show-ids -p \"\$(cat /work/scripts/hip-decode/prompt4k.txt)\" --max-tokens 256" > "$OUTD/ids8.sh"
