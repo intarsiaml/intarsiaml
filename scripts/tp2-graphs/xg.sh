@@ -156,6 +156,14 @@ if [[ $MODE == gates ]]; then
   xacc graph-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
   xacc graph-floor-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
   xacc graph-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
+  # 2a. the build's default (fusion on for CUDA since the default flip) vs INTARSIA_TP_FUSION=0: greedy ids identical?
+  for sz in 5k:5000 16k:54000; do
+    t=${sz%%:*}; c=${sz#*:}
+    want offids$t || continue
+    xgen tp2g-def-$t $c $BIN
+    XENV=INTARSIA_TP_FUSION=0 xgen tp2g-off-$t $c $BIN
+    idcmp tp2g-off-$t tp2g-def-$t
+  done
   # 2b. row-local fusion under TP (opt-in INTARSIA_TP_FUSION=1, both ranks): ids against tp=2 graphs unfused, the vLLM floor
   # (PR #40 judge) with dumps for the run-to-run KL table, the 35B TP self-golden budget against tp=2 eager, prefix reuse
   for sz in 5k:5000 16k:54000; do
@@ -173,8 +181,8 @@ if [[ $MODE == gates ]]; then
   XENV=INTARSIA_TP_FUSION=1 xacc fus-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
   # 2c. which fused ops run under TP fusion: rank 0's op table, 1k prompt, 32 tokens, with and without INTARSIA_TP_FUSION
   if want fprobe; then
-    for v in u f; do
-      xe=""; [[ $v == f ]] && xe=INTARSIA_TP_FUSION=1
+    for v in ${FPROBE:-u f}; do
+      case $v in u) xe=INTARSIA_TP_FUSION=0 ;; f) xe=INTARSIA_TP_FUSION=1 ;; d) xe="" ;; esac
       XENV=$xe worker_start fprobe-$v $GEN_FLAGS
       r spark1 "env $NCCLENV $xe timeout 300 $BIN generate $GEN_FLAGS --tp-remote $WIP:$WPORT --op-table --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 32 > $XO/fprobe-$v.out 2> $XO/fprobe-$v.err; echo fprobe-$v rc=\$?; grep -aE '^(matmul_pair|matmul_fp8_pair|rmsnorm_add|gdn_conv_delta|gated_rmsnorm|qk_norm_rope_kv|gate_split_qk|matmul_nvfp4_glu|moe_block|matmul_fp8 |rmsnorm )' $XO/fprobe-$v.err | cut -c1-90" | tee -a "$L/steps.log"
       worker_stop
@@ -265,7 +273,24 @@ if [[ $MODE == window || " ${STEPS:-} " == *" prof "* ]]; then
     done
   fi
 fi
-if [[ $MODE == window ]]; then
+# soak (vLLM down): one tp=2 serve with $SOAKENV on both ranks, scripts/tp2-graphs/soak.py for SOAK_SEC, then the logs
+# of both ranks are scanned for errors and panics, and rank 1 must have replayed
+if [[ $MODE == window ]] && want soak; then
+  scp -q "$S/soak.py" spark1:intarsia-tp2/soak.py
+  o=$XO/soak
+  WENV="${SOAKENV:-}" worker_start soak --serving $SFLAGS --tp 2
+  r spark1 "mkdir -p $o; nohup env $NCCLENV ${SOAKENV:-} $BIN serve $SFLAGS --tp 2 --tp-remote $WIP:$WPORT --port 8090 --host 127.0.0.1 --served-model-name intarsia-35b > $o/serve.log 2>&1 < /dev/null & echo \$! > $o/serve.pid"
+  up=0; for i in $(seq 1 150); do r spark1 "curl -sf -m 3 http://127.0.0.1:8090/health >/dev/null" && { up=1; break; }; sleep 2; done
+  log "soak server up=$up (${SOAKENV:-no env})"
+  if [[ $up == 1 ]]; then
+    r spark1 "python3 ~/intarsia-tp2/soak.py --url http://127.0.0.1:8090 --seconds ${SOAK_SEC:-540} --corpus ~/intarsia-tp2/prompts/corpus_docs.txt > $o/soak.log 2>&1; echo soak rc=\$?; cut -c1-900 $o/soak.log" | tee -a "$L/steps.log"
+  fi
+  r spark1 "echo serve log error/panic lines: \$(grep -aciE 'panic|error' $o/serve.log); grep -aiE 'panic|error' $o/serve.log | head -5; kill \$(cat $o/serve.pid); for i in \$(seq 1 30); do kill -0 \$(cat $o/serve.pid) 2>/dev/null || break; sleep 1; done" | tee -a "$L/steps.log"
+  worker_stop
+  r spark2 "echo worker log error/panic lines: \$(grep -aciE 'panic|error' $XO/worker-soak.log); grep -aiE 'panic|error' $XO/worker-soak.log | head -5" | tee -a "$L/steps.log"
+  rank1_check soak
+fi
+if [[ $MODE == window ]] && want ab; then
   # A/B: tp1g = tp=1 graphs (the shipped config), tp2e = tp=2 eager (PR #44), tp2g = tp=2 graphs; order reversed in even rounds
   ARMS_FWD=${ARMS:-tp1g tp2g}
   for rd in $(seq 1 ${ROUNDS:-3}); do
