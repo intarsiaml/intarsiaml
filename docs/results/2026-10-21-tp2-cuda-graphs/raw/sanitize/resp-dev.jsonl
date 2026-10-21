@@ -1,0 +1,6 @@
+
+
+
+{"id":"chatcmpl-8cbcc5800000","object":"chat.completion","created":1792613136,"model":"intarsia-35b","choices":[{"index":0,"message":{"role":"assistant","content":"Blue"},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":2,"total_tokens":18,"prompt_tokens_details":{"cached_tokens":0}}}
+{"id":"chatcmpl-8cbcc5800001","object":"chat.completion","created":1792613142,"model":"intarsia-35b","choices":[{"index":0,"message":{"role":"assistant","content":"IntarsiaML v0"},"finish_reason":"length"}],"usage":{"prompt_tokens":933,"completion_tokens":6,"total_tokens":939,"prompt_tokens_details":{"cached_tokens":0}}}
+{"id":"chatcmpl-8cbcc5800002","object":"chat.completion","created":1792613158,"model":"intarsia-35b","choices":[{"index":0,"message":{"role":"assistant","content":"Blue"},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":2,"total_tokens":18,"prompt_tokens_details":{"cached_tokens":0}}}

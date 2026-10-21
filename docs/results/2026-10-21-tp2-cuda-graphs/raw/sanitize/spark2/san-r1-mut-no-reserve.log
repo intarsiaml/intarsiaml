@@ -1,0 +1,665 @@
+========= COMPUTE-SANITIZER
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (0,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1000 is out of bounds
+=========     and is 4,097 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (1,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1008 is out of bounds
+=========     and is 4,105 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (2,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1010 is out of bounds
+=========     and is 4,113 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (3,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1018 is out of bounds
+=========     and is 4,121 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (4,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1020 is out of bounds
+=========     and is 4,129 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (5,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1028 is out of bounds
+=========     and is 4,137 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (6,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1030 is out of bounds
+=========     and is 4,145 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (7,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1038 is out of bounds
+=========     and is 4,153 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (8,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1040 is out of bounds
+=========     and is 4,161 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (9,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1048 is out of bounds
+=========     and is 4,169 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (10,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1050 is out of bounds
+=========     and is 4,177 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (11,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1058 is out of bounds
+=========     and is 4,185 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (12,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1060 is out of bounds
+=========     and is 4,193 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (13,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1068 is out of bounds
+=========     and is 4,201 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (14,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1070 is out of bounds
+=========     and is 4,209 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (15,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1078 is out of bounds
+=========     and is 4,217 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (16,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1080 is out of bounds
+=========     and is 4,225 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (17,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1088 is out of bounds
+=========     and is 4,233 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (18,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1090 is out of bounds
+=========     and is 4,241 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (19,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a1098 is out of bounds
+=========     and is 4,249 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (20,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10a0 is out of bounds
+=========     and is 4,257 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (21,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10a8 is out of bounds
+=========     and is 4,265 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (22,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10b0 is out of bounds
+=========     and is 4,273 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (23,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10b8 is out of bounds
+=========     and is 4,281 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (24,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10c0 is out of bounds
+=========     and is 4,289 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (25,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10c8 is out of bounds
+=========     and is 4,297 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (26,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10d0 is out of bounds
+=========     and is 4,305 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (27,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10d8 is out of bounds
+=========     and is 4,313 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (28,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10e0 is out of bounds
+=========     and is 4,321 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)+0x4540
+=========     by thread (29,0,0) in block (0,0,0)
+=========     Access to 0xe1475d1a10e8 is out of bounds
+=========     and is 4,329 bytes after the nearest allocation at 0xe1475d190000 of size 65,536 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e03] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::h642bf48d00f9e208 [0x30b36f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::graph_step::_$LT$impl$u20$intarsia_core..model..Model$GT$::graph_step::hd08a96c6947f6a93 [0x9a13b3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::run_peer::h43b8d782a8ee3be6 [0x9adec3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::model::Model::forward_rank::h66f740ee3b633a79 [0x9abcd3] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_core::tp_remote::serve::hbea487326cdbe6f1 [0xa1b797] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_models::load::serve_remote_rank::h7d9068ec536b4b63 [0x5cde47] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::run_tp_worker::h253183e4b31caa4c [0x2a2e2f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x149f6f] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Error: process didn't terminate successfully
+========= Target application returned an error
+========= ERROR SUMMARY: 512 errors
+========= ERROR SUMMARY: 482 errors were not printed. Use --print-limit option to adjust the number of printed errors
