@@ -9,7 +9,7 @@ f78f60be for endor, spark numbers from rounds 6 and 7. Raw data is in `docs/resu
 | platform | model | engines measured live | intarsia rank | state |
 |---|---|---|---|---|
 | spark (GB10, CUDA) | Qwen3.6-35B-A3B NVFP4 | intarsia, vLLM | **#2 of 2** on prefill (-8.3 / -9.0 / -15.3 % at 1k / 4k / 16k, same evening); **#1 of 2** on decode at 1k and 4k (+5.7 % / +2.1 %), #2 at 16k (-4.2 %) | no other 35B-A3B engine is installed on the Sparks |
-| R9700 (HIP, tatooine, one card) | Qwen3.6-35B-A3B | intarsia, llama.cpp Vulkan | **#1 of 2** live: prefill 2.3x / 3.2x / 2.8x, decode 1.41x / 1.42x / 1.35x of llama.cpp; **#2 of 4** on decode if the second-hand hipfire figure counts | first same-model measurement on this card (round 3 said none existed) |
+| R9700 (HIP, tatooine, one card) | Qwen3.6-35B-A3B | intarsia, llama.cpp Vulkan | **#1 of 2** live: prefill 2.3x / 3.2x / 2.8x, decode 1.41x / 1.42x / 1.35x of llama.cpp; **#2 of 3** on decode if the second-hand hipfire MQ4R figure counts (behind it, 160 against 204) | first same-model measurement on this card (round 3 said none existed) |
 | endor (Metal, M5 Max) | Qwen3-8B BF16 | intarsia, mlx-lm, llama.cpp | **#1 of 3** on prefill at 4k and 16k and on decode at every length (tie with llama.cpp at 16k decode in one arm) | quality tier failed, see 4 |
 
 "Top 3" is met numerically on every platform, but only because the field is small: two engines on two platforms. Where
@@ -60,10 +60,10 @@ the serving one. Not measured.
 
 ### 2.2 R9700 (HIP, tatooine, one card): Qwen3.6-35B-A3B
 
-One R9700 (PCI 03:00.0, gfx1201, HIP device 0), radiance down for one window (section 5). intarsia is origin/main
+One R9700 (PCI 03:00.0, gfx1201, HIP device 0), radiance down for one window (section 7). intarsia is origin/main
 789511c2 (HIP defaults, rounds 9 and 10: the round-10 GEMM split is off), model `Qwen3.6-35B-A3B-NVFP4`, `--max-seq 17408`,
 serve recipe chunk. llama.cpp is `~/.local/opt/llama.cpp` 0.4.0-dev build 10864 (commit 5d806aa25), Vulkan RADV, `-ngl 999
--fa on -c 20480`, GGUF `MXFP4_MOE` (the closest published quant class to NVFP4).
+-fa on -c 20480`, GGUF `MXFP4_MOE` (the closest published quant class to NVFP4). A newer llama.cpp v0.5.0 Vulkan build exists (`~/bench-r9700/llama.cpp-v0.5.0-vk2604`) and was not used; with a 2-3x prefill margin it should not change the rank.
 
 | engine | quant | prefill 1k* | prefill 4k | prefill 16k | decode 128 / 1k / 4k / 16k | TTFT 1k / 4k / 16k (s) | quality (MMLU, first 9 subjects, n=225) |
 |---|---|---|---|---|---|---|---|
@@ -75,12 +75,14 @@ serve recipe chunk. llama.cpp is `~/.local/opt/llama.cpp` 0.4.0-dev build 10864 
 | vLLM-radiance | Qwen3.5-35B-A3B MXFP4, **different model** | *prefill 14.9k / 12.6k / 10.6k at 4k / 16k / 34k* | | | *141 (single stream)* | | |
 
 The MMLU subjects are the first nine that both runs completed; intarsia's run was cut by the 600 s cap in subject 10 and
-GSM8K did not run, so this is a smoke check, not a ranking (SE about 2.2 points at n=225). The two engines tie.
+GSM8K did not run, so this is a smoke check, not a ranking (SE about 2.2 points at n=225). The two engines tie. Observation, no cause claimed: intarsia took about 2.8-3.0 s per MMLU question against llama.cpp's 0.37 s
+(2.7 it/s, about 8x), despite decoding 1.4x faster, which points at much longer completions; the invalid Metal attempt 2 shows the
+same symptom (about 30 s per call). llama.cpp, which constrains structured output with a grammar, was fast and sane on both boxes.
 The standard error of every quality figure here at n=25 per subject is about +-10 points per subject.
 
 Rank: **#1 of 2** measured live. Counting the 2026-09-26 figures, which came from another session, another harness and a
-different build, intarsia is first on prefill and second on decode behind hipfire MQ4R (204 against 160), and the
-vLLM-radiance row is on a different model so it is context only. vLLM-ROCm was retired on 2026-10-11 and there is no image on the box.
+different build, intarsia is first on prefill and second on decode behind hipfire MQ4R (204 against 160), so #2 of 3. The
+vLLM-radiance row is on a different model, so it is context only and is in no count. vLLM-ROCm was retired on 2026-10-11 and there is no image on the box.
 radiance (native, serving only Qwen3.8-27B) cannot load the 35B, so it is not in this table; its head-to-head is lane M1.
 
 ### 2.3 Metal (endor, M5 Max): Qwen3-8B BF16
@@ -142,27 +144,9 @@ the 35B checkpoint does not load on the Metal backend (no GatedDeltaNet, fp8, nv
 - **Single pass, not ABBA**, on tatooine (one arm each). Metal had an ABBA for intarsia only. Sparks used the pairs of the
   source rounds.
 
-## 5. What would move us up (the 3 largest gaps)
+## 5. Gates
 
-1. **CUDA prefill against vLLM at 16k: -15.3 % by default (-8.3 % at 1k, -9.0 % at 4k).** About 59 ms per 2048-token
-   chunk, and round 6 attributes about 83 % of it to the fp8 projection GEMMs (bf16 MMA over e4m3-valued bf16 at 36-68 TFLOPS,
-   against vLLM's e4m3 CUTLASS at 83-135). Round 7's opt-in e4m3 cuBLASLt path already closes it to -5.0 % at 16k and +0.4 %
-   at 4k, and to +1.3 % at 16k with `--prefill-chunk 4096`; it is not the default because of the user decision on numerics
-   and a failing `chat_reuse_4k` gate (3/32). Decode at 16k is also behind by 4.2 % (73.1 against 76.3). The user's call
-   on round 7 is the largest single lever.
-2. **R9700 decode against hipfire MQ4R: 160 against 204 tok/s, a 22 % deficit** (hipfire is +28 % ahead). The hipfire figure
-   is second-hand (2026-09-26, no speculation, a different 4-bit format) so it has to be re-measured live before it is
-   believed. What the profile says we can do: a decode step is about 8.1 ms with 1.83 ms (22 %) of launch gaps from 578
-   launches, and the GEMVs already run at 85-92 % of the 627 GB/s roofline, so the only lever is fewer launches (fusion or a
-   graph-level change), not faster kernels. Decode is also 11 % lower at 16k than at 128 (142.1 against 159.9).
-3. **Long-context prefill on the R9700 and Metal.** HIP prefill falls from 9082 tok/s at 4k to 7626 at 16k (-16 %); on
-   the 2026-09-26 vLLM-radiance row (Qwen3.5-35B, second-hand and a different model) prefill held 12.6k at 16k, which would be
-   a 40 % deficit, to be confirmed on the same model. Metal falls from 3917 at 4k to 2543-2737 at 16k (-30 to -35 %), which
-   leaves it only 5-15 % ahead of mlx-lm in marginal terms at 16k. For HIP the identified cause is the GDN delta rule (31 % of
-   prefill) which needs a non-bitwise chunked formulation; for Metal the 16k path has not been profiled.
-
-Measurement gaps to close first, because they decide the ranking: quality for intarsia on the 35B on Spark; the Metal
-quality harness fault; hipfire and llama.cpp UD-Q4_K_XL on the R9700; the 8B on CUDA and HIP.
+None. No code changed; no GPU gate applies. Footprint is docs only.
 
 ## 6. Files
 
@@ -191,8 +175,29 @@ quality harness fault; hipfire and llama.cpp UD-Q4_K_XL on the R9700; the 8B on 
 ## 8. Decisions
 
 None taken. For the user: (a) whether to make round 7's e4m3 path (with chunk 4096) the CUDA default, which is the largest
-lever above; (b) whether to approve a live hipfire and llama.cpp Q4_K_XL measurement in a second radiance window (about 20
+lever in section 9; (b) whether to approve a live hipfire and llama.cpp Q4_K_XL measurement in a second radiance window (about 20
 min), since hipfire is the only engine ahead of intarsia on the R9700; (c) a Metal quality re-run once the endor hold is
-lifted. Resume command for (c), after starting the intarsia server inside the same slot: `fleetq run --host endor --exclusive
---mem 40 --expect 15 --label "standings quality diag" -- zsh -c 'cd /opt/code/deepeval && uv run localeval quality --url
-http://127.0.0.1:8093/v1 --model intarsia-metal --bench gsm8k --limit 10 --thinking off --label diag'`.
+lifted. Resume for (c), ready to run once the endor hold is lifted (do not queue before): `docs/results/2026-10-21-standings/raw/metal/resume-quality-diag.sh`, which starts the server, polls `/health`, runs a 10-question GSM8K probe with the default and with `--structured prompt`, and kills the server by PID:
+`BIN=<intarsia release binary> fleetq run --host endor --exclusive --mem 40 --expect 15 --label "standings metal quality diag" -- env BIN=$BIN zsh docs/results/2026-10-21-standings/raw/metal/resume-quality-diag.sh`.
+
+## 9. What would move us up (the 3 largest gaps)
+
+1. **CUDA prefill against vLLM at 16k: -15.3 % by default (-8.3 % at 1k, -9.0 % at 4k).** About 59 ms per 2048-token
+   chunk, and round 6 attributes about 83 % of it to the fp8 projection GEMMs (bf16 MMA over e4m3-valued bf16 at 36-68 TFLOPS,
+   against vLLM's e4m3 CUTLASS at 83-135). Round 7's opt-in e4m3 cuBLASLt path already closes it to -5.0 % at 16k and +0.4 %
+   at 4k, and to +1.3 % at 16k with `--prefill-chunk 4096`; it is not the default because of the user decision on numerics
+   and a failing `chat_reuse_4k` gate (3/32). Decode at 16k is also behind by 4.2 % (73.1 against 76.3). The user's call
+   on round 7 is the largest single lever.
+2. **R9700 decode against hipfire MQ4R: 160 against 204 tok/s, a 22 % deficit** (hipfire is +28 % ahead). The hipfire figure
+   is second-hand (2026-09-26, no speculation, a different 4-bit format) so it has to be re-measured live before it is
+   believed. What the profile says we can do: a decode step is about 8.1 ms with 1.83 ms (22 %) of launch gaps from 578
+   launches, and the GEMVs already run at 85-92 % of the 627 GB/s roofline, so the only lever is fewer launches (fusion or a
+   graph-level change), not faster kernels. Decode is also 11 % lower at 16k than at 128 (142.1 against 159.9).
+3. **Long-context prefill on the R9700 and Metal.** HIP prefill falls from 9082 tok/s at 4k to 7626 at 16k (-16 %); on
+   the 2026-09-26 vLLM-radiance row (Qwen3.5-35B, second-hand and a different model) prefill held 12.6k at 16k, which would be
+   a 40 % deficit, to be confirmed on the same model. Metal falls from 3917 at 4k to 2543-2737 at 16k (-30 to -35 %), which
+   leaves it only 5-15 % ahead of mlx-lm in marginal terms at 16k. For HIP the identified cause is the GDN delta rule (31 % of
+   prefill) which needs a non-bitwise chunked formulation; for Metal the 16k path has not been profiled.
+
+Measurement gaps to close first, because they decide the ranking: quality for intarsia on the 35B on Spark; the Metal
+quality harness fault; hipfire and llama.cpp UD-Q4_K_XL on the R9700; the 8B on CUDA and HIP.
