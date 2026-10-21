@@ -1,0 +1,28 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 4.78s
+     Running tests/fill.rs (target/release/deps/fill-25b3ea888e58de09)
+
+running 7 tests
+test first_buffer_after_synchronize_is_committed_early ... FAILED
+test overlapping_copy_in_one_buffer_is_a_memmove ... ok
+test copy_and_zero_are_ordered_with_launches_and_do_not_wait ... ok
+test wrapped_host_memory_is_a_source_but_never_a_target ... ok
+test copy_is_byte_exact_for_every_alignment_and_tail ... ok
+test zero_covers_exactly_the_buffer ... ok
+test copy_large_aligned_buffer ... ok
+
+failures:
+
+---- first_buffer_after_synchronize_is_committed_early stdout ----
+
+thread 'first_buffer_after_synchronize_is_committed_early' (144844476) panicked at crates/intarsia-backend-metal/tests/fill.rs:193:5:
+assertion failed: n > 0 && n < intarsia_backend_metal::MAX_DISPATCHES
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    first_buffer_after_synchronize_is_committed_early
+
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test fill`

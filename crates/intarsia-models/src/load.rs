@@ -184,6 +184,70 @@ pub fn load_engine(dir: &Path, backend: Arc<dyn Backend>, opts: &EngineOptions) 
     load_engine_tp(dir, vec![backend], Vec::new(), opts)
 }
 
+/// What both processes of a cross-process tensor-parallel group must agree on (`intarsia_core::tp_remote::handshake`):
+/// the model, the recipe, the load and plan options and the group size.
+fn tp_fingerprint(dir: &Path, recipe_source: &str, load_opts: &LoadOptions, opts: &EngineOptions, world: usize) -> String {
+    format!("{} | recipe {recipe_source} | {load_opts:?} | {:?} | world {world}", dir.display(), opts.plan)
+}
+
+/// Like [`load_engine`] for rank 0 of a 2-way tensor-parallel group whose rank 1 runs in another process
+/// ([`serve_remote_rank`] on the other end of `stream`, docs/design/35b-tp2.md). `comm` must already join both processes.
+pub fn load_engine_remote(
+    dir: &Path,
+    backend: Arc<dyn Backend>,
+    comm: Arc<dyn Comm>,
+    stream: std::net::TcpStream,
+    opts: &EngineOptions,
+) -> Result<Loaded> {
+    load_engine_group(dir, Group::Remote { backend, comm, stream }, opts)
+}
+
+/// Rank `rank` (> 0) of a tensor-parallel group in its own process: load this rank's shard, agree the KV capacity with
+/// rank 0 over `stream`, then run rank 0's commands (`intarsia_core::tp_remote::serve`) until it disconnects. Returns the
+/// number of forward passes served.
+pub fn serve_remote_rank(
+    dir: &Path,
+    backend: Arc<dyn Backend>,
+    comm: Arc<dyn Comm>,
+    mut stream: std::net::TcpStream,
+    opts: &EngineOptions,
+) -> Result<u64> {
+    let (rank, world) = (comm.rank(), comm.world());
+    if rank == 0 || world < 2 {
+        return Err(Error::invalid(format!("a served rank is rank 1.. of a group (got rank {rank} of {world})")));
+    }
+    let (recipe_source, recipe, dims, _cfg) = read_model_spec(dir, opts)?;
+    let weights = SchemedSource::open(dir)?;
+    let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backend.name());
+    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
+    let tp = intarsia_core::model::TpRank { rank, world, comm: Some(comm) };
+    let mut model = Model::load_shard(backend, &recipe, &dims, &weights, &load_opts, Arc::new(Telemetry::new()), tp)?;
+    let fp = tp_fingerprint(dir, &recipe_source, &load_opts, opts, world);
+    let cap = intarsia_core::tp_remote::handshake(&mut stream, &fp, model.plan.kv_cap_tokens)?;
+    model.clamp_kv_cap(cap)?;
+    let oracle = intarsia_backend_cpu::CpuBackend::arc();
+    let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
+    if opts.plan.admit {
+        eprintln!(
+            "admission on plan shapes (rank {rank}): {} kernel(s) checked, {} case(s) run, {} cached, rejected: {:?}",
+            summary.kernels_checked, summary.cases_run, summary.cases_cached, summary.rejected
+        );
+    }
+    eprintln!("tensor-parallel rank {rank} of {world}: serving rank 0 ({} tokens of context)", model.plan.kv_cap_tokens);
+    let n = intarsia_core::tp_remote::serve(&model, stream);
+    let g = model.graph_stats();
+    eprintln!(
+        "tensor-parallel rank {rank}: decode graph enabled={} captures={} replays={}",
+        g.enabled, g.captures, g.replays
+    );
+    n
+}
+
+enum Group {
+    Local(Vec<Arc<dyn Backend>>, Vec<Arc<dyn Comm>>),
+    Remote { backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, stream: std::net::TcpStream },
+}
+
 /// Like [`load_engine`] for a tensor-parallel group: `backends[r]` is rank `r`, `comms[r]` its collective handle
 /// (`comms` is empty for a single backend).
 pub fn load_engine_tp(
@@ -192,6 +256,14 @@ pub fn load_engine_tp(
     comms: Vec<Arc<dyn Comm>>,
     opts: &EngineOptions,
 ) -> Result<Loaded> {
+    load_engine_group(dir, Group::Local(backends, comms), opts)
+}
+
+fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
+    let backends: Vec<Arc<dyn Backend>> = match &group {
+        Group::Local(b, _) => b.clone(),
+        Group::Remote { backend, .. } => vec![backend.clone()],
+    };
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
     let max_batch = recipe.resolve_max_batch(
@@ -213,10 +285,26 @@ pub fn load_engine_tp(
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
     eprintln!("prefill chunk {}", prefill_chunk.describe());
     let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
-    let mut model = if backends.len() == 1 {
-        Model::load(backends.into_iter().next().unwrap(), &recipe, &dims, &weights, &load_opts, telemetry.clone())?
-    } else {
-        Model::load_tp(backends, comms, &recipe, &dims, &weights, &load_opts, telemetry.clone())?
+    let mut model = match group {
+        Group::Local(backends, comms) if backends.len() == 1 => {
+            let _ = comms;
+            Model::load(backends.into_iter().next().unwrap(), &recipe, &dims, &weights, &load_opts, telemetry.clone())?
+        }
+        Group::Local(backends, comms) => Model::load_tp(backends, comms, &recipe, &dims, &weights, &load_opts, telemetry.clone())?,
+        Group::Remote { backend, comm, mut stream } => {
+            let world = comm.world();
+            if comm.rank() != 0 || world != 2 {
+                return Err(Error::invalid(format!("a remote tensor-parallel group is driven by rank 0 of 2 (got rank {} of {world})", comm.rank())));
+            }
+            let tp = intarsia_core::model::TpRank { rank: 0, world, comm: Some(comm.clone()) };
+            let mut m = Model::load_shard(backend, &recipe, &dims, &weights, &load_opts, telemetry.clone(), tp)?;
+            let fp = tp_fingerprint(dir, &recipe_source, &load_opts, opts, world);
+            let cap = intarsia_core::tp_remote::handshake(&mut stream, &fp, m.plan.kv_cap_tokens)?;
+            m.clamp_kv_cap(cap)?;
+            m.attach_remote(intarsia_core::tp_remote::RemotePeer::new(stream, comm)?)?;
+            eprintln!("tensor parallel x{world} across processes: rank 1 is remote ({} tokens of context)", m.plan.kv_cap_tokens);
+            m
+        }
     };
     // deviations from the declared scheme that are not errors: logged once, at load
     if let Some(note) = weights.scheme().and_then(|s| s.kv_note(model.kv)) {

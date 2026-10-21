@@ -1,0 +1,6 @@
+
+
+
+{"id":"chatcmpl-0aba263b0000","object":"chat.completion","created":1792613086,"model":"intarsia-35b","choices":[{"index":0,"message":{"role":"assistant","content":"Blue"},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":2,"total_tokens":18,"prompt_tokens_details":{"cached_tokens":0}}}
+
+

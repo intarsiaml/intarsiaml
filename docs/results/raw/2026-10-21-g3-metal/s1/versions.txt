@@ -1,0 +1,20 @@
+date: 2026-10-21T09:14:16-04:00
+fleetq job: 2900
+binary: -rwxr-xr-x@ 1 josef  wheel  18284272 Oct 21 09:13 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/intarsia-base
+binary md5: 2db93631f15db33331f8f66f57eadbf1
+{'mlx': '0.32.1', 'mlx-lm': '0.31.3', 'mlx-metal': '0.32.1'}
+version: 0.6.0 (build 11429, commit d81235049)
+built with AppleClang 21.0.0.21000334 for Darwin arm64
+localeval: version = "0.2.1"
+deepeval head: 69c7a848bba836b70782aced73d278ee4b4d2fa6
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
+top cpu:
+PID    COMMAND          %CPU
+99917  replicatord      0.0 
+99847  cloudtelemetryd  0.0 
+99838  com.apple.Safari 0.0 
+99818  SetStoreUpdateSe 0.0 
+99816  textunderstandin 0.0 
+99699  com.apple.WebKit 0.0 
+memory_pressure: System-wide memory free percentage: 49%
+vm.swapusage: total = 12288.00M  used = 11440.19M  free = 847.81M  (encrypted)

@@ -1,0 +1,49 @@
+fleetq: #2909 waiting (#1 in line): needs endor to itself; running there: #2901 "intarsiaml M4: observability demo (build + qwen3-8b metal serve, light load)" (claude-f31ccf91), #2902 "M3 CPU-ref 35B chat_reuse_4k prefill dump" (claude-f31ccf91)
+fleetq:   #2901 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2901 set, or it will wait for #2901 to be released.
+fleetq: #2909 waiting (#1 in line): needs endor to itself; running there: #2902 "M3 CPU-ref 35B chat_reuse_4k prefill dump" (claude-f31ccf91)
+fleetq:   #2902 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2902 set, or it will wait for #2902 to be released.
+fleetq: #2909 running on endor: zsh /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/profile.sh p1
+== cb-short 09:50:43 idle: "Device Utilization %"=12 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=122 (cached 0) completion=129 | prefill 2174 ms (56.1 tok/s) | decode 4148 ms (30.86 tok/s)
+== cb-4k 09:50:53 idle: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=14 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1778 ms (2303.1 tok/s) | decode 4160 ms (30.77 tok/s)
+== cb-16k 09:51:03 idle: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=2 
+   exit 0 finish=length prompt=16384 (cached 0) completion=129 | prefill 8195 ms (1999.4 tok/s) | decode 4143 ms (30.90 tok/s)
+== kern-4k 09:51:19 idle: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=65 | prefill 1472 ms (2783.0 tok/s) | decode 7086 ms (9.03 tok/s)
+== kern-16k 09:51:31 idle: "Device Utilization %"=47 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=16384 (cached 0) completion=65 | prefill 7375 ms (2221.5 tok/s) | decode 7121 ms (8.99 tok/s)
+== clk4k-1 09:51:49 idle: "Device Utilization %"=39 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1187 ms (3450.1 tok/s) | decode 7303 ms (34.92 tok/s)
+== clk4k-2 09:52:01 idle: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1170 ms (3501.9 tok/s) | decode 7375 ms (34.57 tok/s)
+== clk4k-3 09:52:43 idle: "Device Utilization %"=0 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1187 ms (3450.2 tok/s) | decode 7667 ms (33.26 tok/s)
+== clk4k-4 09:52:55 idle: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1260 ms (3249.9 tok/s) | decode 8024 ms (31.78 tok/s)
+== clk4k-5 09:53:39 idle: "Device Utilization %"=37 "Device Utilization %"=0 "Device Utilization %"=35 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1234 ms (3319.9 tok/s) | decode 7855 ms (32.46 tok/s)
+== clk4k-6 09:53:51 idle: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1178 ms (3476.3 tok/s) | decode 7421 ms (34.36 tok/s)
+== clk4k-7 09:54:33 idle: "Device Utilization %"=12 "Device Utilization %"=8 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1248 ms (3283.3 tok/s) | decode 7503 ms (33.99 tok/s)
+== clk4k-8 09:54:46 idle: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=256 | prefill 1211 ms (3381.6 tok/s) | decode 7680 ms (33.20 tok/s)
+== ab1-old 09:55:28 idle: "Device Utilization %"=10 "Device Utilization %"=5 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1402 ms (2922.5 tok/s) | decode 3791 ms (33.77 tok/s)
+== ab2-new 09:55:37 idle: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1173 ms (3491.9 tok/s) | decode 3792 ms (33.75 tok/s)
+== ab3-new 09:55:46 idle: "Device Utilization %"=97 "Device Utilization %"=0 "Device Utilization %"=5 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1216 ms (3367.5 tok/s) | decode 3844 ms (33.29 tok/s)
+== ab4-old 09:55:54 idle: "Device Utilization %"=99 "Device Utilization %"=0 "Device Utilization %"=18 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1378 ms (2971.5 tok/s) | decode 3787 ms (33.80 tok/s)
+== ab5-old 09:56:03 idle: "Device Utilization %"=0 "Device Utilization %"=0 "Device Utilization %"=8 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1384 ms (2959.6 tok/s) | decode 3802 ms (33.67 tok/s)
+== ab6-new 09:56:12 idle: "Device Utilization %"=98 "Device Utilization %"=3 "Device Utilization %"=0 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1202 ms (3406.5 tok/s) | decode 3744 ms (34.19 tok/s)
+== ab7-new 09:56:20 idle: "Device Utilization %"=98 "Device Utilization %"=10 "Device Utilization %"=34 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1221 ms (3355.4 tok/s) | decode 3828 ms (33.44 tok/s)
+== ab8-old 09:56:29 idle: "Device Utilization %"=98 "Device Utilization %"=0 "Device Utilization %"=5 
+   exit 0 finish=length prompt=4096 (cached 0) completion=129 | prefill 1358 ms (3017.2 tok/s) | decode 3761 ms (34.03 tok/s)
+PROFILE_DONE 2026-10-21T09:56:38-04:00
+fleetq: #2909 done (exit 0)

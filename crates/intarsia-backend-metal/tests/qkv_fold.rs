@@ -128,6 +128,7 @@ fn check_bitwise(c: Cfg, seed: u64) {
         ks.iter().any(|k| k.op == Op::QkNormRopeKv && k.name == QK_NORM_ROPE_KV_BF16 && k.accepts(&shape)),
         "registered and accepts {c:?}"
     );
+    be.synchronize(0).unwrap(); // a fresh buffer: the count below cannot straddle a commit (FIRST_COMMIT / MAX_DISPATCHES)
     let before = be.pending_dispatches();
     be.launch(QK_NORM_ROPE_KV_BF16, &fused, 0).unwrap();
     assert_eq!(be.pending_dispatches() - before, 1, "one dispatch");

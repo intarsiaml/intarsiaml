@@ -1,0 +1,22 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2398 MHz, [N/A], 50, 11.80 W, 1 %
+graph-self-short rc=0
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.377398e-12 max_kl21=1.420159e-9 flips=0 flip_pct=0.0000 tail_abs=3.424180e-9 worst_prompt_kl21=4.692570e-11
+SELF-STATS mode=decode positions=160 mean_kl21=6.618585e-13 max_kl21=9.356088e-11 flips=0 flip_pct=0.0000 tail_abs=5.443272e-9 worst_prompt_kl21=5.862556e-12
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+  rank1 graph-self-short: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159
+14:01:00   REPLAY-CHECK ok graph-self-short
+eager-self-short rc=0
+SELF-STATS mode=prefill positions=1441 mean_kl21=1.377398e-12 max_kl21=1.420159e-9 flips=0 flip_pct=0.0000 tail_abs=3.424180e-9 worst_prompt_kl21=4.692570e-11
+SELF-STATS mode=decode positions=160 mean_kl21=6.618585e-13 max_kl21=9.356088e-11 flips=0 flip_pct=0.0000 tail_abs=5.443272e-9 worst_prompt_kl21=5.862556e-12
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+  rank1 eager-self-short: tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0
+graph-self-long rc=0
+SELF-STATS mode=prefill positions=36887 mean_kl21=2.972350e-13 max_kl21=8.958526e-10 flips=0 flip_pct=0.0000 tail_abs=1.016084e-8 worst_prompt_kl21=4.574078e-13
+SELF-STATS mode=decode positions=80 mean_kl21=1.094389e-11 max_kl21=5.875389e-10 flips=0 flip_pct=0.0000 tail_abs=7.568306e-9 worst_prompt_kl21=5.452866e-11
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+  rank1 graph-self-long: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=80
+14:03:58   REPLAY-CHECK ok graph-self-long
+14:03:58 == gates done, 1203 s of the work budget left
+14:03:58 restore (exit 0)

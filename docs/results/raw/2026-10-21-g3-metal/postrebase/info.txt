@@ -1,0 +1,5 @@
+head 31bd6345 2026-10-21T13:57:06-04:00
+cargo test metal exit 0
+total passed 115 failed 0
+kernels test exit 0
+28 kernels, 374 cases in 44.4s

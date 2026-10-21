@@ -152,6 +152,13 @@ pub struct GemvParams {
 /// overrides it.
 pub const MAX_DISPATCHES: usize = 128;
 
+/// Dispatches in the first command buffer after a `synchronize` (`Stream::first_commit`). Between decode steps the GPU
+/// is idle until that buffer is committed; with 4 instead of `MAX_DISPATCHES` the host's encode of the first buffer
+/// leaves the idle gap (0.115 -> 0.018 ms; gap 0.39 -> 0.29 ms per step at 4k, cb traces in
+/// docs/results/2026-10-21-g3-metal.md). Greedy ids identical: only where buffers are cut changes, not what runs or its
+/// order. `INTARSIA_METAL_FIRST_COMMIT=0` turns it off.
+pub const FIRST_COMMIT: usize = 4;
+
 /// The stream: the open command buffer and encoder plus every committed buffer not yet waited on.
 #[derive(Default)]
 struct Stream {
@@ -166,11 +173,28 @@ struct Stream {
     label: Option<profile::Label>,
     /// Dispatches per command buffer before it is committed (`COMMIT_EVERY`, overridable for experiments).
     commit_every: usize,
+    /// After a `synchronize` (the GPU idle, e.g. between decode steps) the first command buffer is committed after this
+    /// many dispatches instead of `commit_every`, so the GPU starts while the host encodes the rest
+    /// (`INTARSIA_METAL_FIRST_COMMIT`, 0 = off). Where buffers are cut never changes what runs or its order.
+    first_commit: usize,
+    /// No dispatch committed since the last `synchronize`.
+    fresh: bool,
     /// Profiling only: host time at which the open command buffer was created.
     opened: f64,
     /// `host::now_ms()` of the last commit of the stream (the keep-warm thread stays out of the engine's way while it moves).
     last_commit: Arc<std::sync::atomic::AtomicU64>,
+    /// Token-feedback fences (`Backend::fence`): id and the command buffers committed up to it, newest last.
+    fences: std::collections::VecDeque<(u64, Vec<CommandBuffer>)>,
+    /// Last fence id handed out.
+    fence_seq: u64,
+    /// `Backend::hold`: `Some(n)` commits once `n` dispatches are open, then holds.
+    hold_after: Option<usize>,
+    /// `Backend::hold`: no automatic commit until `release` / `discard` / `fence` / `synchronize`.
+    holding: bool,
 }
+
+/// Fences kept for `read_after` (the engine has at most two outstanding).
+const MAX_FENCES: usize = 4;
 
 pub struct MetalBackend {
     device: Device,
@@ -240,6 +264,10 @@ impl MetalBackend {
                     .and_then(|v| v.parse().ok())
                     .filter(|&n| n > 0)
                     .unwrap_or(MAX_DISPATCHES),
+                first_commit: std::env::var("INTARSIA_METAL_FIRST_COMMIT")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(FIRST_COMMIT),
                 ..Stream::default()
             }),
             hosts: Mutex::new(host::HostCache::default()),
@@ -330,6 +358,7 @@ impl MetalBackend {
             }
             Self::track(st, cb);
             st.dispatches = 0;
+            st.fresh = false;
         }
     }
 
@@ -360,7 +389,22 @@ impl MetalBackend {
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
         let per_kernel = st.prof.as_ref().is_some_and(|p| p.per_kernel);
-        if st.dispatches >= st.commit_every || per_kernel {
+        if !per_kernel {
+            if st.holding {
+                return Ok(());
+            }
+            if let Some(n) = st.hold_after {
+                // token feedback: queue the step's first `n` dispatches, hold the rest
+                if st.dispatches >= n {
+                    Self::flush_locked(&mut st);
+                    st.hold_after = None;
+                    st.holding = true;
+                }
+                return Ok(());
+            }
+        }
+        let first = st.fresh && st.first_commit > 0 && st.dispatches >= st.first_commit;
+        if st.dispatches >= st.commit_every || per_kernel || first {
             Self::flush_locked(&mut st);
             if per_kernel {
                 // run launches one at a time: independent ones (gate / up, k / v) would otherwise overlap across
@@ -689,13 +733,103 @@ impl Backend for MetalBackend {
         self.launch_dense(kernel, call)
     }
 
+    /// Device-side token feedback is supported and on by default (`INTARSIA_TOKEN_FEEDBACK=0` turns it off): every T1
+    /// gate is bitwise and the step loses its 0.26 ms idle gap (docs/results/2026-10-21-t1-token-feedback.md).
+    fn token_feedback(&self) -> (bool, bool) {
+        (true, true)
+    }
+
+    /// Commit the open command buffer (not waited on) and remember every buffer committed so far under a new fence.
+    fn fence(&self, _s: StreamId) -> Result<u64> {
+        let mut st = self.stream.lock().unwrap();
+        st.hold_after = None;
+        st.holding = false;
+        Self::flush_locked(&mut st);
+        st.fence_seq += 1;
+        let id = st.fence_seq;
+        let cbs = st.inflight.clone();
+        st.fences.push_back((id, cbs));
+        while st.fences.len() > MAX_FENCES {
+            st.fences.pop_front();
+        }
+        Ok(id)
+    }
+
+    /// Commit the open buffer, then commit the next `after` dispatches as one buffer and hold the rest (`after` 0: hold
+    /// from the start).
+    fn hold(&self, _s: StreamId, after: usize) -> Result<()> {
+        let mut st = self.stream.lock().unwrap();
+        Self::flush_locked(&mut st);
+        st.hold_after = (after > 0).then_some(after);
+        st.holding = after == 0;
+        Ok(())
+    }
+
+    fn release(&self, _s: StreamId) -> Result<()> {
+        let mut st = self.stream.lock().unwrap();
+        st.hold_after = None;
+        st.holding = false;
+        Self::flush_locked(&mut st);
+        Ok(())
+    }
+
+    /// Drop the held, never committed command buffer (its dispatches never run).
+    fn discard(&self, _s: StreamId) -> Result<()> {
+        let mut st = self.stream.lock().unwrap();
+        let held = st.holding || st.hold_after.is_some();
+        st.hold_after = None;
+        st.holding = false;
+        if held {
+            if let Some((cb, enc)) = st.open.take() {
+                enc.endEncoding();
+                drop(cb);
+                st.dispatches = 0;
+                st.label = None;
+            }
+        }
+        Ok(())
+    }
+
+    /// Wait for the buffers of `fence` only (work committed after it keeps running), then read through shared memory.
+    /// An unknown (evicted) fence falls back to a full `download`.
+    fn read_after(&self, fence: u64, src: &Buffer, src_offset: usize, dst: &mut [u8], s: StreamId) -> Result<()> {
+        let found = {
+            let mut st = self.stream.lock().unwrap();
+            st.fences.iter().position(|f| f.0 == fence).map(|i| {
+                let cbs = st.fences[i].1.clone();
+                // older fences are covered by this one
+                st.fences.drain(..=i);
+                cbs
+            })
+        };
+        // a `synchronize` since the fence (a profiled step, the bandwidth probe) dropped it: wait for everything. Outside
+        // the stream lock, which `download` takes itself.
+        let Some(cbs) = found else {
+            return self.download(src, src_offset, dst, s);
+        };
+        // wait without the stream lock: the engine may already be encoding the next step
+        for cb in &cbs {
+            Self::wait(cb)?;
+        }
+        let (_, p) = self.host_range(src, src_offset, dst.len())?;
+        // SAFETY: bounds-checked; the work writing this range finished (fence), and the caller guarantees nothing
+        // committed after the fence writes it.
+        unsafe { std::ptr::copy_nonoverlapping(p, dst.as_mut_ptr(), dst.len()) };
+        Ok(())
+    }
+
     /// Commit the open command buffer and wait for every committed one; the first GPU error is returned. The
     /// backend has one stream, so every `StreamId` means the same thing.
     fn synchronize(&self, _s: StreamId) -> Result<()> {
         // hold the lock while waiting: a concurrent launch queues behind this synchronize, not into it
         let mut st = self.stream.lock().unwrap();
+        // a held token-feedback step is committed (a later `discard` finds nothing to drop)
+        st.hold_after = None;
+        st.holding = false;
         Self::flush_locked(&mut st);
         let pending = std::mem::take(&mut st.inflight);
+        st.fresh = true;
+        st.fences.clear();
         let mut first = st.failed.take();
         for cb in &pending {
             if let Err(e) = Self::wait(cb) {

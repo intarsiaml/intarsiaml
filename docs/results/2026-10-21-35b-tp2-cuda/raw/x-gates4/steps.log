@@ -1,0 +1,15 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2398 MHz, [N/A], 45, 10.94 W, 0 %
+self-short rc=0
+SELF-STATS mode=prefill positions=1441 mean_kl21=3.728106e-3 max_kl21=7.691715e-1 flips=16 flip_pct=1.1103 tail_abs=6.673016e-4 worst_prompt_kl21=1.554091e-2
+SELF-STATS mode=decode positions=160 mean_kl21=1.159772e-2 max_kl21=9.347190e-1 flips=2 flip_pct=1.2500 tail_abs=2.088056e-3 worst_prompt_kl21=6.135282e-2
+floor-short rc=0
+prefill floor [4bit]: top-1 (all rows) 98.13% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.575e-3 (need <= 3.0e-2) ok [all rows, n=1441: 6.229e-3, reported only] | tail mass (all rows) ours 0.0173 vs ref 0.0176, excess -0.0003 (|.| <= 0.02
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1534 ms (975.7 tok/s) | decode 3245 ms (78.57 tok/s)
+IDS cross-host tp2 5k vs one-box gen-tp1-5k.ids: first divergence at 14 (256/256)
+IDS cross-host tp2 5k vs one-box gen-tp2-5k.ids: missing
+13:40:42 == gates done, 1397 s of the work budget left
+13:40:43 restore (exit 0)

@@ -1,0 +1,34 @@
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 54.5s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 1073 tokens
+finish=length prompt=1073 (cached 0) completion=64 | prefill 756 ms (1419.5 tok/s) | decode 829 ms (75.96 tok/s)
+op table (estimated ms over all launches; total 2998.5 ms):
+op                               ms  share%    calls   timed
+moe_experts                 1104.53   36.84     2600     360
+matmul                       406.22   13.55      140     140
+matmul_fp8                   324.31   10.82     1410     290
+gdn_delta_rule               252.07    8.41     1950     270
+matmul_fp8_pair              240.55    8.02     2560     320
+matmul_nvfp4                 153.37    5.11     2744     448
+gdn_conv                      97.78    3.26     1950     270
+gated_rmsnorm_matmul_fp8      97.30    3.24     1920     240
+rmsnorm_add_matmul_pair       55.22    1.84     4416     552
+moe_topk                      39.63    1.32     2600     360
+matmul_nvfp4_glu              36.51    1.22     2560     320
+rope                          28.56    0.95     1300     180
+rmsnorm_add                   27.11    0.90      784     168
+moe_combine                   24.22    0.81     2600     360
+embedding                     16.46    0.55       65       9
+attn_decode                   16.24    0.54      640      80
+rmsnorm                       16.13    0.54       65       9
+gate_split                    15.02    0.50      650      90
+qk_norm                       14.78    0.49     1300     180
+sigmoid_mul                   10.41    0.35      650      90
+kv_append                     10.34    0.34     1300     180
+attn_prefill                   6.34    0.21       10      10
+gated_rmsnorm                  2.93    0.10       30      30
+argmax                         1.39    0.05       64       8
+matmul_pair                    0.66    0.02       64       8
+silu_glu                       0.44    0.01       40      40
+steps=65 graph replays=56 (captures 1) eager decode steps=8 (profiled 8) top ops: matmul=406ms/140 moe_experts=153ms/2600 matmul_fp8=67ms/1410 gdn_delta_rule=35ms/1950 matmul_fp8_pair=30ms/2560

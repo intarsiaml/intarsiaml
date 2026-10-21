@@ -1,0 +1,28 @@
+4k-base-1          period 30.220 busy 29.612 gap 0.498 | wake 0.179 enc 0.165 launch 0.138 | cpu 0.45 MHz 1236
+4k-base-2          period 29.066 busy 28.618 gap 0.395 | wake 0.148 enc 0.120 launch 0.123 | cpu 0.13 MHz 1300
+4k-base-3          period 28.817 busy 28.442 gap 0.391 | wake 0.143 enc 0.115 launch 0.122 | cpu 0.17 MHz 1333
+4k-fc4-1           period 29.658 busy 29.335 gap 0.321 | wake 0.165 enc 0.021 launch 0.125 | cpu 0.35 MHz 1211
+4k-fc4-2           period 28.725 busy 28.446 gap 0.295 | wake 0.147 enc 0.018 launch 0.120 | cpu 0.16 MHz 1304
+4k-fc4-3           period 28.566 busy 28.267 gap 0.295 | wake 0.144 enc 0.018 launch 0.121 | cpu 0.09 MHz 1346
+4k-fc4spin-1       period 29.098 busy 28.717 gap 0.294 | wake 0.140 enc 0.019 launch 0.122 | cpu 0.24 MHz 1292
+4k-fc4spin-2       period 28.361 busy 28.086 gap 0.266 | wake 0.131 enc 0.016 launch 0.114 | cpu 0.11 MHz 1351
+4k-fc4spin-3       period 29.364 busy 29.052 gap 0.291 | wake 0.141 enc 0.019 launch 0.122 | cpu 0.28 MHz 1269
+short-base-1       period 28.232 busy 27.787 gap 0.387 | wake 0.145 enc 0.114 launch 0.121 | cpu 0.19 MHz 1311
+short-base-2       period 27.652 busy 27.227 gap 0.372 | wake 0.135 enc 0.110 launch 0.118 | cpu 0.16 MHz 1335
+short-base-3       period 27.475 busy 27.111 gap 0.358 | wake 0.126 enc 0.115 launch 0.107 | cpu 0.08 MHz 1344
+short-fc4-1        period 27.242 busy 26.963 gap 0.272 | wake 0.134 enc 0.017 launch 0.110 | cpu 0.10 MHz 1363
+short-fc4-2        period 27.765 busy 27.479 gap 0.281 | wake 0.139 enc 0.018 launch 0.114 | cpu 0.15 MHz 1332
+short-fc4-3        period 27.548 busy 27.257 gap 0.282 | wake 0.137 enc 0.018 launch 0.118 | cpu 0.10 MHz 1333
+short-fc4spin-1    period 27.781 busy 27.488 gap 0.280 | wake 0.138 enc 0.018 launch 0.114 | cpu 0.25 MHz 1313
+short-fc4spin-2    period 27.421 busy 27.142 gap 0.274 | wake 0.132 enc 0.018 launch 0.116 | cpu 0.16 MHz 1360
+short-fc4spin-3    period 28.050 busy 27.746 gap 0.284 | wake 0.139 enc 0.019 launch 0.120 | cpu 0.16 MHz 1315
+
+medians per arm: period, busy, gap, wake, enc, launch, cpu, MHz
+('4k', 'base') 29.066 28.618 0.395 0.148 0.120 0.123 0.170 1300.000
+('4k', 'fc4') 28.725 28.446 0.295 0.147 0.018 0.121 0.163 1304.500
+('4k', 'fc4spin') 29.098 28.717 0.291 0.140 0.019 0.122 0.235 1292.500
+('short', 'base') 27.652 27.227 0.372 0.135 0.114 0.118 0.158 1335.000
+('short', 'fc4') 27.548 27.257 0.281 0.137 0.018 0.114 0.101 1333.000
+('short', 'fc4spin') 27.781 27.488 0.280 0.138 0.018 0.116 0.163 1315.000
+greedy stdout 4k: {'b104f1ea': 9}
+greedy stdout short: {'bd31858d': 9}

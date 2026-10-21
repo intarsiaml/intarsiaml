@@ -1,0 +1,6 @@
+fleetq: #2971 waiting (#2 in line): in line behind #2967 "M1 metal mxfp4 kernel test" (claude-f31ccf91) on endor
+fleetq:   #2967 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2967 set, or it will wait for #2967 to be released.
+fleetq: #2971 waiting (#1 in line): needs endor to itself; running there: #2967 "M1 metal mxfp4 kernel test" (claude-f31ccf91)
+fleetq:   #2967 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=2967 set, or it will wait for #2967 to be released.
+fleetq: #2971 running on endor: zsh /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/final.sh
+fleetq: #2971 done (exit -15)

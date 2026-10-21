@@ -1,0 +1,8 @@
+This is a highly detailed and technically rigorous architecture plan. The shift from a Python-heavy serving stack (like vLLM) to a Rust-hosted, C-kernel ABI approach with AOT-compiled CUDA kernels is a significant architectural pivot aimed at reducing latency, memory overhead, and startup time.
+
+Below is an
+Collecting data...
+Generating '/tmp/nsys-report-501e.qdstrm'
+[1/1] [0%                          ] nsys-tp1-g.nsys-rep[1/1] [0%                          ] nsys-tp1-g.nsys-rep[1/1] [==18%                       ] nsys-tp1-g.nsys-rep[1/1] [=15%                        ] nsys-tp1-g.nsys-rep[1/1] [12%                         ] nsys-tp1-g.nsys-rep[1/1] [11%                         ] nsys-tp1-g.nsys-rep[1/1] [==20%                       ] nsys-tp1-g.nsys-rep[1/1] [==18%                       ] nsys-tp1-g.nsys-rep[1/1] [=16%                        ] nsys-tp1-g.nsys-rep[1/1] [===23%                      ] nsys-tp1-g.nsys-rep[1/1] [=====30%                    ] nsys-tp1-g.nsys-rep[1/1] [=======37%                  ] nsys-tp1-g.nsys-rep[1/1] [=========45%                ] nsys-tp1-g.nsys-rep[1/1] [===========50%              ] nsys-tp1-g.nsys-rep[1/1] [============55%             ] nsys-tp1-g.nsys-rep[1/1] [==============61%           ] nsys-tp1-g.nsys-rep[1/1] [================68%         ] nsys-tp1-g.nsys-rep[1/1] [================70%         ] nsys-tp1-g.nsys-rep[1/1] [========================100%] nsys-tp1-g.nsys-rep[1/1] [========================100%] nsys-tp1-g.nsys-rep
+Generated:
+	/home/nvidia/intarsia-tp2/xout/window1/nsys-tp1-g.nsys-rep

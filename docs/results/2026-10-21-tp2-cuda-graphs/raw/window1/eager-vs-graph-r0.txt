@@ -1,0 +1,2 @@
+step wall (us): tp2e-r0 13021, tp2g-r0 10929; kernel sum: 10629, 10295
+| kernel | tp2e-r0 us/step | tp2g-r0 us/step | tp2g-r0/tp2e-r0 | launches/step tp2e-r0 / tp2g-r0 |

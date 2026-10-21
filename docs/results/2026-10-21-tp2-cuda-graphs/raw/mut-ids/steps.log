@@ -1,0 +1,32 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2398 MHz, [N/A], 50, 11.47 W, 0 %
+13:06:18 == mutant no-peer-upload
+mut-no-peer-upload-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1814 ms (825.2 tok/s) | decode 2723 ms (93.64 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-no-peer-upload-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+IDS ref-5k vs mut-no-peer-upload-5k: DIFFER (first divergence 0, 256/256)
+13:06:58 == mutant no-rekey
+mut-no-rekey-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1885 ms (794.4 tok/s) | decode 2739 ms (93.10 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-no-rekey-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+IDS ref-5k vs mut-no-rekey-5k: IDENTICAL (first divergence none, 256/256)
+13:07:11 == mutant no-reserve
+mut-no-reserve-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1578 ms (948.8 tok/s) | decode 2929 ms (87.07 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-no-reserve-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+IDS ref-5k vs mut-no-reserve-5k: IDENTICAL (first divergence none, 256/256)
+13:07:24 == mutant peer-ignores-flag
+mut-peer-ignores-flag-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1748 ms (856.5 tok/s) | decode 3042 ms (83.84 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 mut-peer-ignores-flag-5k: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+IDS ref-5k vs mut-peer-ignores-flag-5k: IDENTICAL (first divergence none, 256/256)
+13:07:39 == mutant drop-captured-allreduce
+mut-drop-captured-allreduce-5k rc=124
+IDS ref-5k vs mut-drop-captured-allreduce-5k: missing (ok/none)
+13:12:43 == mut done, 1054 s of the work budget left
+13:12:43 restore (exit 0)

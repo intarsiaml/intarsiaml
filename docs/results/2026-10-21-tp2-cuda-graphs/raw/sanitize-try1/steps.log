@@ -1,0 +1,13 @@
+16:02:14 == mut-no-reserve: intarsia 0.0.1 
+16:02:55 mut-no-reserve server up=1 after 38 s
+16:02:56 mut-no-reserve request short done (39 s)
+16:02:56 mut-no-reserve request long done (39 s)
+16:02:56 mut-no-reserve request short done (39 s)
+16:03:05 == dev: intarsia 0.0.1 
+16:03:46 dev server up=1 after 39 s
+16:03:46 dev request short done (39 s)
+16:03:46 dev request long done (39 s)
+16:03:47 dev request short done (40 s)
+16:03:53 == sanitize done
+16:03:54 SANITIZE mut-no-reserve: rank0 20 errors, rank1 20 errors (========= ERROR SUMMARY: 20 errors ========= ERROR SUMMARY: 20 errors )
+16:03:54 SANITIZE dev: rank0 20 errors, rank1 20 errors (========= ERROR SUMMARY: 20 errors ========= ERROR SUMMARY: 20 errors )

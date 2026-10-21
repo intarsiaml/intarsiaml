@@ -23,13 +23,14 @@ use crate::recipe::{LinearDims, ModelDims, Recipe};
 use crate::registry::Registry;
 use crate::state::{PeerState, SequenceState, SlotSpec, StateSlot};
 use crate::telemetry::Telemetry;
-use crate::weights::{load_tensor, Shard, ShardAxis, WeightSource};
+use crate::weights::{load_tensor, load_tensor_shard, Shard, ShardAxis, WeightSource};
 use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 mod batch;
 mod gdn_block;
+pub(crate) mod feedback;
 mod graph_step;
 use gdn_block::{ExtraWs, GdnBlock};
 use graph_step::GraphState;
@@ -61,6 +62,10 @@ pub struct LoadOptions {
     /// Replay the single-token decode step as a captured graph when the backend supports it (`--no-graphs` turns
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
+    /// Tensor parallelism: run the row-local fused decode ops on each rank's shard (`INTARSIA_TP_FUSION=1`) when the
+    /// backend can (`Backend::fusion_under_tp`). Off by default: fused kernels may round differently (measured bitwise to
+    /// unfused on the 35B tp=2 gates, docs/results/2026-10-21-tp2-cuda-graphs.md).
+    pub tp_fusion: bool,
 }
 
 impl Default for LoadOptions {
@@ -76,6 +81,7 @@ impl Default for LoadOptions {
             fp8_act: None,
             mxfp4_act: None,
             graphs: true,
+            tp_fusion: false,
         }
     }
 }
@@ -237,6 +243,10 @@ pub struct Model {
     graphs: GraphState,
     /// While a graph is being captured: the ops it records (replays count them in telemetry).
     capture_ops: Mutex<Option<Vec<Op>>>,
+    /// While a graph is being captured: the collectives it records.
+    capture_comms: std::sync::atomic::AtomicU64,
+    /// Row-local fusion under tensor parallelism is on (`LoadOptions::tp_fusion`, world > 1, backend capable).
+    tp_fusion: bool,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
     tp: TpRank,
     /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
@@ -246,6 +256,9 @@ pub struct Model {
     test_bug: Option<(usize, f32)>,
     /// Ranks 1.. of the group, each a full shard with its own backend, weights, workspace and KV (rank 0 only).
     peers: Vec<Model>,
+    /// Tensor parallelism across processes (rank 0 only): the other rank runs in another process, driven over a
+    /// connection (`crate::tp_remote`, docs/design/35b-tp2.md). Exclusive with `peers`.
+    remote: Option<Arc<crate::tp_remote::RemotePeer>>,
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
@@ -257,6 +270,11 @@ pub struct Model {
     batch_rows: usize,
     /// `i32 [BATCH_MAX_ROWS]` argmax output of a batched step; allocated by [`Model::enable_batch`].
     batch_tok: Option<Buffer>,
+    /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
+    /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
+    token_feedback: std::sync::atomic::AtomicBool,
+    /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
+    feedback_hold: usize,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -365,6 +383,19 @@ impl Model {
             Ok(q)
         };
         let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| load_qs(tmpl, layer, n, k, None);
+        // a dense weight of this rank's shape `expect` in whatever slice the rank keeps (row splits take any rank of tensor)
+        let load_sharded = |tmpl: &str, layer: usize, axis: ShardAxis, expect: &[usize]| -> Result<TensorRef> {
+            if tp.world == 1 {
+                return load(tmpl, layer, Some(expect));
+            }
+            let name = resolve(src, &Recipe::expand(tmpl, layer))?;
+            let t = load_tensor_shard(b, src, &name, Shard { axis, rank: tp.rank, world: tp.world })?;
+            if t.shape != expect {
+                return Err(Error::model(format!("tensor '{name}' shard is {:?}, expected {expect:?}", t.shape)));
+            }
+            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            Ok(t)
+        };
 
         let embed = load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?;
         let act = match opts.act_dtype {
@@ -474,11 +505,6 @@ impl Model {
                         }));
                     }
                     "gdn" => {
-                        if tp.world > 1 {
-                            return Err(Error::Unsupported(
-                                "tensor parallelism: GatedDeltaNet blocks are not sharded in this build".into(),
-                            ));
-                        }
                         let g = recipe.layer.gdn.as_ref().unwrap();
                         if g.kind != "gated_delta_net" {
                             return Err(Error::Unsupported(format!(
@@ -492,34 +518,46 @@ impl Model {
                         let (c, vdim, hv) = (lin.conv_dim(), lin.v_heads * lin.v_head_dim, lin.v_heads);
                         let slot = slot_specs.len();
                         slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin) });
-                        let conv = load(&g.conv, li, None)?;
+                        // tensor parallelism (docs/design/35b-tp2.md): by key-head group. `lin` is this rank's (heads
+                        // divided); the fused q/k/v projection and the conv channels are `[q | k | v]` of the checkpoint's
+                        // widths, each group split on its own. v head h reads k head h / (Hv / Hk), so a contiguous run of
+                        // k heads carries its own v heads.
+                        let qkv_groups = ShardAxis::RowGroups([
+                            lin.k_heads * lin.k_head_dim * tp.world,
+                            lin.k_heads * lin.k_head_dim * tp.world,
+                            vdim * tp.world,
+                        ]);
+                        let conv = if tp.world == 1 {
+                            load(&g.conv, li, None)?
+                        } else {
+                            let name = resolve(src, &Recipe::expand(&g.conv, li))?;
+                            let t = load_tensor_shard(b, src, &name, Shard { axis: qkv_groups, rank: tp.rank, world: tp.world })?;
+                            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+                            t
+                        };
                         if conv.numel() != c * lin.conv_kernel {
                             return Err(Error::model(format!(
                                 "conv taps {:?} do not match [{c}, {}]",
                                 conv.shape, lin.conv_kernel
                             )));
                         }
+                        let rows = Some(ShardAxis::Rows);
                         blocks.push(Block::Gdn(GdnBlock {
                             pre_norm: load(pre, li, Some(&[dims.hidden]))?,
-                            in_qkv: load_q(&g.in_qkv, li, c, dims.hidden)?,
-                            in_z: load_q(&g.in_z, li, vdim, dims.hidden)?,
-                            in_b: load_q(&g.in_b, li, hv, dims.hidden)?,
-                            in_a: load_q(&g.in_a, li, hv, dims.hidden)?,
+                            in_qkv: load_qs(&g.in_qkv, li, c, dims.hidden, Some(qkv_groups))?,
+                            in_z: load_qs(&g.in_z, li, vdim, dims.hidden, rows)?,
+                            in_b: load_qs(&g.in_b, li, hv, dims.hidden, rows)?,
+                            in_a: load_qs(&g.in_a, li, hv, dims.hidden, rows)?,
                             conv: conv.reshaped(&[c, lin.conv_kernel]),
-                            a_log: load(&g.a_log, li, Some(&[hv]))?,
-                            dt_bias: load(&g.dt_bias, li, Some(&[hv]))?,
+                            a_log: load_sharded(&g.a_log, li, ShardAxis::Rows, &[hv])?,
+                            dt_bias: load_sharded(&g.dt_bias, li, ShardAxis::Rows, &[hv])?,
                             norm: load(&g.norm, li, Some(&[lin.v_head_dim]))?,
-                            out: load_q(&g.out, li, dims.hidden, vdim)?,
+                            out: load_qs(&g.out, li, dims.hidden, vdim, Some(ShardAxis::Cols))?,
                             slot,
                             lin,
                         }));
                     }
                     "moe" => {
-                        if tp.world > 1 {
-                            return Err(Error::Unsupported(
-                                "tensor parallelism: MoE blocks are not sharded in this build".into(),
-                            ));
-                        }
                         let mc = dims.moe.as_ref().ok_or_else(|| {
                             Error::model("the recipe has a moe block but config.json has no MoE dimensions")
                         })?;
@@ -531,7 +569,8 @@ impl Model {
                             .get("prefix")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| Error::model("recipe [layer.moe] needs a prefix"))?;
-                        let w = MoeWeights::load(b, src, &Recipe::expand(tmpl, li), mc, &qopts)?;
+                        // tensor parallelism: inside every expert (`mc` is this rank's config, widths divided)
+                        let w = MoeWeights::load_shard(b, src, &Recipe::expand(tmpl, li), mc, &qopts, tp.rank, tp.world)?;
                         weights_bytes.set(weights_bytes.get() + w.weight_bytes() as u64);
                         blocks.push(Block::Moe(MoeBlock { pre_norm: load(pre, li, Some(&[dims.hidden]))?, w }));
                     }
@@ -568,6 +607,12 @@ impl Model {
             Some("bf16") => false,
             Some(v) => return Err(Error::invalid(format!("INTARSIA_TP_PARTIAL={v} (f32 or bf16)"))),
         };
+        if opts.tp_fusion && tp.world > 1 && !b.fusion_under_tp() {
+            return Err(Error::Unsupported(format!(
+                "fused ops under tensor parallelism (INTARSIA_TP_FUSION) on backend '{}' (Backend::fusion_under_tp)",
+                b.name()
+            )));
+        }
         let mt = opts.prefill_chunk.max(1);
         let esz = act.size_bytes();
         let mut ws_bytes = 0u64;
@@ -640,6 +685,8 @@ impl Model {
             opts.mem_budget,
         )?;
         let registry = Registry::new(b.name(), &b.info(), b.kernels());
+        let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
+        let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
         let mut model = Model {
             backend,
@@ -662,18 +709,28 @@ impl Model {
             scratch: None,
             recorder: Mutex::new(None),
             resolved: Default::default(),
-            graphs: GraphState::new(opts.graphs && tp.world == 1),
+            // at world > 1 also gated on a capture-safe communicator (`GraphState::usable`)
+            graphs: GraphState::new(opts.graphs),
             capture_ops: Mutex::new(None),
+            capture_comms: std::sync::atomic::AtomicU64::new(0),
+            tp_fusion: opts.tp_fusion && tp.world > 1,
             tp,
             no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
             test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
             peers: Vec::new(),
+            remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
             batch_tok: None,
+            token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
+            feedback_hold,
         };
+        // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
+        if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
+            c.reserve(mt * dims.hidden, 0)?;
+        }
         // resolve the kernel of every (op, shape) now: a missing kernel is a load error
         crate::plan::resolve(&mut model)?;
         Ok(model)
@@ -853,7 +910,45 @@ impl Model {
                 st: SequenceState::new(&*p.backend, &p.slot_specs, self.plan.kv_cap_tokens)?,
             });
         }
+        if let Some(r) = &self.remote {
+            st.remote = Some(r.new_state()?);
+        }
         Ok(st)
+    }
+
+    /// Make this rank-0 shard of a 2-way group drive its other rank in another process (`crate::tp_remote`): its
+    /// communicator must already connect the two processes, and the other process runs [`crate::tp_remote::serve`] on
+    /// the other end of `peer`'s connection.
+    pub fn attach_remote(&mut self, peer: Arc<crate::tp_remote::RemotePeer>) -> Result<()> {
+        if self.tp.rank != 0 || self.tp.world != 2 || !self.peers.is_empty() || self.tp.comm.is_none() {
+            return Err(Error::invalid("a remote rank attaches to rank 0 of a 2-way group with a communicator and no local peers"));
+        }
+        self.remote = Some(peer);
+        Ok(())
+    }
+
+    /// Every rank must hold the same number of tokens: clamp this shard's KV capacity to `cap` (the smallest any rank of
+    /// the group can hold, agreed in `crate::tp_remote::handshake`) and re-resolve the plan for it.
+    pub fn clamp_kv_cap(&mut self, cap: usize) -> Result<()> {
+        if self.plan.kv_cap_tokens > cap {
+            self.plan.notes.push(format!("context clamped from {} to {cap} tokens: the smallest rank decides", self.plan.kv_cap_tokens));
+            self.plan.kv_cap_tokens = cap;
+            self.plan.kv_total_bytes = cap as u64 * self.plan.kv_bytes_per_token;
+            crate::plan::resolve(self)?;
+        }
+        Ok(())
+    }
+
+    /// A non-primary rank's forward pass over `ids` (the layers, no head), for a rank that runs in its own process
+    /// (`crate::tp_remote::serve`). `graph`: rank 0 replays its decode graph in this step, so this rank does too. Same
+    /// checks and failure reset as [`Model::forward`].
+    pub fn forward_rank(&self, st: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
+        Self::check_forward(st, ids, HeadMode::None, false)?;
+        let r = self.run_peer(st, ids, graph);
+        if r.is_err() && st.has_recurrent() {
+            let _ = st.reset(&*self.backend);
+        }
+        r
     }
 
     /// Dtype of the row-parallel partial results the collective sums ("f32" or "bf16"); None without tensor parallelism.
@@ -964,7 +1059,9 @@ impl Model {
         mode: HeadMode,
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
-        let r = if self.peers.is_empty() {
+        let r = if self.remote.is_some() {
+            self.forward_remote(st, ids, mode, on_row)
+        } else if self.peers.is_empty() {
             self.forward_inner(st, ids, mode, on_row)
         } else {
             self.forward_tp(st, ids, mode, on_row)
@@ -1018,6 +1115,7 @@ impl Model {
             }
         }
         let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let graph = self.decode_graph_now(st, ids, mode);
         let mut peers = std::mem::take(&mut st.peers);
         let out = std::thread::scope(|sc| {
             let handles: Vec<_> = self
@@ -1039,7 +1137,7 @@ impl Model {
                             }
                         }
                         let mut guard = Guard(comm, false);
-                        let r = m.run_peer(&mut ps.st, ids);
+                        let r = m.run_peer(&mut ps.st, ids, graph);
                         guard.1 = r.is_ok();
                         r
                     })
@@ -1071,6 +1169,42 @@ impl Model {
         out
     }
 
+    /// Tensor-parallel forward with the other rank in another process: send it the pass, run rank 0's here, then read its
+    /// answer. A failure on either side leaves the group unusable (the communicator is aborted).
+    fn forward_remote(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        Self::check_forward(st, ids, mode, on_row.is_some())?;
+        let mut rs = st
+            .remote
+            .take()
+            .ok_or_else(|| Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"))?;
+        let r = (|| {
+            if rs.len > st.len {
+                rs.truncate(st.len)?;
+            } else if rs.len < st.len {
+                return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", rs.len, st.len)));
+            }
+            rs.start_forward(ids, self.decode_graph_now(st, ids, mode))?;
+            let r0 = self.forward_inner(st, ids, mode, on_row);
+            if r0.is_err() {
+                // the remote rank waits in a collective this rank will not join: the group is gone
+                if let Some(c) = &self.tp.comm {
+                    c.abort();
+                }
+                return r0;
+            }
+            rs.finish()?;
+            r0
+        })();
+        st.remote = Some(rs);
+        r
+    }
+
     /// `ids` cut into forward passes of at most `max_tokens` rows, by the engine's prefill rule
     /// ([`crate::scheduler::next_prefill_chunk`]): on a backend that avoids a 1-row tail (Metal) a `max_tokens + 1`
     /// remainder runs as `(max_tokens - 1, 2)`, so accuracy tooling scores the bits serving produces. Recurrent states keep
@@ -1087,8 +1221,17 @@ impl Model {
         out
     }
 
-    /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head).
-    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32]) -> Result<()> {
+    /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head). `graph`: rank 0 replays its
+    /// decode graph in this step (`Model::decode_graph_now`), so this rank replays its own.
+    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
+        if graph {
+            if ids.len() != 1 {
+                return Err(Error::invalid(format!("decode graph step with {} tokens", ids.len())));
+            }
+            self.graph_peer_step(ps, ids[0])?;
+            ps.commit(ids);
+            return Ok(());
+        }
         for chunk in self.forward_chunks(ps, ids) {
             self.run_chunk(ps, chunk, false)?;
             ps.commit(chunk);
@@ -1105,15 +1248,11 @@ impl Model {
     ) -> Result<StepOut> {
         Self::check_forward(st, ids, mode, on_row.is_some())?;
         // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
-        if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) && self.graphs.usable(self) {
-            let profile = self.profile_every > 0
-                && self.telemetry.steps_total() % (self.profile_every as u64 * graph_step::PROFILE_STRETCH) == 0;
-            if !profile {
-                if let Some(out) = self.graph_decode_step(st, ids[0], mode == HeadMode::LastLogits)? {
-                    st.commit(ids);
-                    self.telemetry.step();
-                    return Ok(out);
-                }
+        if self.decode_graph_now(st, ids, mode) {
+            if let Some(out) = self.graph_decode_step(st, ids[0], mode == HeadMode::LastLogits)? {
+                st.commit(ids);
+                self.telemetry.step();
+                return Ok(out);
             }
         }
         let chunks = self.forward_chunks(st, ids);
@@ -1250,12 +1389,13 @@ impl Model {
         dpos: Option<&TensorRef>,
         upload_ids: bool,
     ) -> Result<TensorRef> {
-        self.run_layers(Seqs::One(st), ids, profile, dpos, upload_ids)
+        self.run_layers(Seqs::One(st), ids, profile, dpos, upload_ids, None)
     }
 
     /// The layer loop behind [`Model::run_chunk_at`]: `ids` are the `t` tokens of one sequence (`Seqs::One`) or the
     /// next token of each of `t` sequences (`Seqs::Batch`, a batched decode step: attention runs per row on the row's
-    /// own cache, see `model/batch.rs`).
+    /// own cache, see `model/batch.rs`). `ids_at` (token feedback, `model/feedback.rs`) makes the embedding read the
+    /// ids from that device tensor instead of `ws.ids`; `upload_ids` must then be false.
     fn run_layers(
         &self,
         seqs: Seqs<'_>,
@@ -1263,6 +1403,7 @@ impl Model {
         profile: bool,
         dpos: Option<&TensorRef>,
         upload_ids: bool,
+        ids_at: Option<&TensorRef>,
     ) -> Result<TensorRef> {
         let t = ids.len();
         let d = &self.dims;
@@ -1291,7 +1432,7 @@ impl Model {
 
         self.exec(
             Op::Embedding,
-            vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()],
+            vec![ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t])), self.embed.clone()],
             vec![hv(cur)],
             OpAttrs::default(),
             profile,
@@ -1368,6 +1509,10 @@ impl Model {
                             norm_in(&m.pre_norm, false, &mut cur)?;
                         }
                         m.w.forward_folded(&ExecRunner { m: self, profile }, ws, f.as_ref(), &nv, &blkv)?;
+                        // tensor parallelism: the block output is this rank's partial (routed + gated shared expert, both
+                        // linear in the rank's slice of the experts' width), summed in place in the activation dtype
+                        // (the MoE kernels write it). A no-op without tensor parallelism.
+                        self.all_reduce(&blkv, &blkv, profile)?;
                     }
                 }
                 pending = true;
@@ -1382,7 +1527,8 @@ impl Model {
     /// returning `true`; return `false` without running anything when it has none (another backend, an unsupported shape such
     /// as a prefill chunk, a kernel that failed admission, `INTARSIA_HIP_DISABLE`), and the caller runs the ops the fused one
     /// replaces. The probe goes through `Registry::select`, the lookup `exec` itself makes, so a plan recording sees only
-    /// the calls that will run. Fusion is off under tensor parallelism and with `INTARSIA_NO_FUSION=1`.
+    /// the calls that will run. Fusion is off with `INTARSIA_NO_FUSION=1`, and under tensor parallelism unless row-local
+    /// fusion is on (`LoadOptions::tp_fusion`, see [`Model::fused_under_tp`]).
     fn try_fused(
         &self,
         op: Op,
@@ -1403,7 +1549,9 @@ impl Model {
     /// fused op whose replaced ops are spread over the layer, so the caller must decide before it emits any of them.
     fn fused_ok(&self, call: &OpCall) -> bool {
         static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if self.tp.world > 1 || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0")) {
+        if (self.tp.world > 1 && !self.fused_under_tp(call.op))
+            || *OFF.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0"))
+        {
             return false;
         }
         let select = |c: &OpCall| {
@@ -1434,6 +1582,15 @@ impl Model {
             }
         }
         true
+    }
+
+    /// Under tensor parallelism, may fused op `op` run on this rank's shard? Only with row-local fusion on, and never
+    /// for an op that would replace a row-parallel projection together with what precedes it: its output is a partial
+    /// that `proj_reduce` must land in the f32 partial buffer and all-reduce, and the fused kernel writes the block
+    /// output directly (`GatedRmsnormMatmulFp8`, the GatedDeltaNet out-projection). `SigmoidMulMatmulFp8` (attention
+    /// o_proj) is already tried only with bf16 partials, where the all-reduce follows it.
+    fn fused_under_tp(&self, op: Op) -> bool {
+        self.tp_fusion && !matches!(op, Op::GatedRmsnormMatmulFp8)
     }
 
     /// Inside [`Model::forward_verify`].
@@ -1889,6 +2046,23 @@ impl Model {
         }
     }
 
+    /// `out = x @ w^T` for a row-parallel projection (`w` holds this rank's input columns): into the f32 partial and
+    /// summed over the group when the partials are f32, else into `out` and summed in place. Without tensor parallelism
+    /// this is exactly [`Model::proj`] (the all-reduce is a no-op).
+    pub(crate) fn proj_reduce(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        match &self.ws.part {
+            Some(part) => {
+                let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
+                self.proj(x, w, &part, profile)?;
+                self.all_reduce(&part, out, profile)
+            }
+            None => {
+                self.proj(x, w, out, profile)?;
+                self.all_reduce(out, out, profile)
+            }
+        }
+    }
+
     /// Sum a row-parallel projection's partial results over the tensor-parallel group into `out` (in place when
     /// `partial` and `out` are the same tensor). A no-op without tensor parallelism. While the plan is recorded
     /// nothing runs: the call is counted instead (it would otherwise wait for ranks that are not running).
@@ -1922,6 +2096,9 @@ impl Model {
             let d = t0.elapsed();
             comm.note_timed(d);
             self.telemetry.record_comm(Some(d));
+        } else if self.capture_ops.lock().unwrap().is_some() {
+            // being captured: nothing ran, each replay counts it
+            self.capture_comms.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         } else {
             self.telemetry.record_comm(None);
         }
@@ -1970,11 +2147,15 @@ impl Model {
 
     /// lm_head + argmax of one row, left in `ws.logits` (`[1, V]` f32) and `ws.tok`; no host traffic.
     fn head_to_device(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<()> {
+        self.head_to_device_into(hn, row, profile, self.view(&self.ws.tok, DType::I32, &[1]))
+    }
+
+    /// [`Model::head_to_device`] with the argmax written to `tok` (`i32 [1]`).
+    fn head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
         let v = self.dims.vocab;
         let x = hn.rows(row, 1);
         let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
         self.proj(&x, self.head()?, &logits, profile)?;
-        let tok = self.view(&self.ws.tok, DType::I32, &[1]);
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
     }
 

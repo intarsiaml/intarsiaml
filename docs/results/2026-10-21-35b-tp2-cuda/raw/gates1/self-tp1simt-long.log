@@ -1,0 +1,9 @@
+prefill chunk 2048 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsia-tp2/out/gates1/S1-long.safetensors (5 prompts, 36887 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head 66037e9 code-tree e6ae2aede5b7 dirty | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 2048; longest prompt 12064; prompts spanning more than one chunk: 5/5
+this build: head 66037e9 code-tree e6ae2aede5b7 dirty
+Error: the self-golden was recorded from a modified tree (head 66037e9 code-tree e6ae2aede5b7 dirty): only a build of the pre-change commit plus the harness files ["crates/intarsia-cli/src/cmd/accuracy.rs", "crates/intarsia-cli/src/cmd/accuracy/baseline.rs", "crates/intarsia-cli/src/cmd/accuracy/envelope.rs", "crates/intarsia-cli/src/cmd/accuracy/provenance.rs", "crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs"] is a legitimate pre-change build

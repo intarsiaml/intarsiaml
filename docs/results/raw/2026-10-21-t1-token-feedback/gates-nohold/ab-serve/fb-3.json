@@ -1,0 +1,102 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "fb-3",
+  "timestamp_unix": 1792607324,
+  "url": "http://127.0.0.1:8093/v1",
+  "model": "intarsia-metal",
+  "config": {
+    "sizes": [
+      128,
+      4096
+    ],
+    "gen": 256,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 15.1368,
+    "bandwidth_gbs": 614.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 47.0,
+    "tokens_per_filler_sentence": 20.94
+  },
+  "fingerprint": {
+    "prefill_chunk": 2048
+  },
+  "graph": {
+    "available": true,
+    "replays": 0,
+    "captures": 0,
+    "eager_steps": 1530,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 106.0,
+      "gen_tokens": 256.0,
+      "ttft_s": 0.0514,
+      "prefill_tok_s": 2082.7,
+      "decode_tok_s": 36.91,
+      "decode_tok_s_reps": [
+        36.72,
+        36.91,
+        36.96
+      ],
+      "decode_tok_s_min": 36.72,
+      "decode_tok_s_max": 36.96,
+      "decode_tok_s_stdev": 0.12,
+      "bandwidth_floor_tok_s": 40.56,
+      "pct_of_floor": 91.0,
+      "reps_ok": 3,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 0,
+        "captures": 0,
+        "eager_steps": 765,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 3975.0,
+      "gen_tokens": 256.0,
+      "ttft_s": 1.1387,
+      "prefill_tok_s": 3517.1,
+      "decode_tok_s": 35.7,
+      "decode_tok_s_reps": [
+        35.7,
+        35.7,
+        35.74
+      ],
+      "decode_tok_s_min": 35.7,
+      "decode_tok_s_max": 35.74,
+      "decode_tok_s_stdev": 0.02,
+      "bandwidth_floor_tok_s": 40.56,
+      "pct_of_floor": 88.0,
+      "reps_ok": 3,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 0,
+        "captures": 0,
+        "eager_steps": 765,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": [
+    "size 128: 0 graph replays during the measured reps (decode ran eagerly)",
+    "size 4096: 0 graph replays during the measured reps (decode ran eagerly)"
+  ]
+}

@@ -1,0 +1,2 @@
+role radiance (tatooine, both R9700), fleetq #3086, coordinator-approved single window (<=15 min)
+stop 13:00:51 EDT, restart 13:01:31, answers /v1/models 13:01:41: 50 s down. Previous radiance window ended 12:47:48 (fleetq log: radiance-rank1 back after #3066), 13 min serving before it.

@@ -1,0 +1,13 @@
+This is a highly detailed, production-grade architecture plan for **IntarsiaML**. It demonstrates a mature understanding of the trade-offs between flexibility, performance, and correctness in LLM inference systems. The "wood inlay" metaphor is apt: the system is designed to be assembled from verified, interchangeable components rather than being a monolithic black box.
+
+Here is a structured review and analysis of the plan, highlighting strengths, potential risks, and specific recommendations for Phase 0 execution.
+
+### 1. Core Architectural Strengths
+
+#### A. The "Oracle" Pattern (CPU-Ref as Truth)
+*   **Concept:** Every GPU kernel must pass an admission test against a CPU reference implementation (`cpu-ref`) before it can be selected.
+*   **Why it works:** This solves the "it compiles but produces garbage" problem common in custom kernel development. It decouples *correctness* from *performance*. You can write a slow, correct CPU kernel first, then optimize the GPU kernel independently, knowing that if the GPU kernel fails the admission test, it is rejected regardless of speed.
+*   **Impact:** Drastically reduces debugging time for numerical accuracy issues.
+
+#### B. Kernel Registry with Shape Predicates
+*   **Concept

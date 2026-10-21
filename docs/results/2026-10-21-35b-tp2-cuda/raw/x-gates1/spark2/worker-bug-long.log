@@ -1,0 +1,6 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29555
+tp-worker: rank 0 connected from 10.100.152.1:36878
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor-parallel rank 1 of 2: serving rank 0 (16384 tokens of context)
+tp-worker: rank 0 disconnected after 0 forward passes
+worker exit 0 (1)

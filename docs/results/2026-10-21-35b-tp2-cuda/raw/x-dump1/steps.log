@@ -1,0 +1,13 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2431 MHz, [N/A], 67, 64.08 W, 96 %
+dump-short rc=0
+prefill floor [4bit]: top-1 (all rows) 98.13% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.575e-3 (need <= 3.0e-2) ok [all rows, n=1441: 6.229e-3, reported only] | tail mass (all rows) ours 0.0173 vs ref 0.0176, excess -0.0003 (|.| <= 0.02
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+dump-long rc=0
+chat_reuse_4k       4631  4631    88.84   2.097e-1   2.380e-1   7.593e-3    2.351e1   0.0688   0.0815    87.96   58/4631      0
+prefill floor [4bit]: top-1 (all rows) 94.26% (not gated for this class) ok | 21-way KL (scored rows, n=32349) 1.465e-2 (need <= 3.0e-2) ok [all rows, n=36887: 4.271e-2, reported only] | tail mass (all rows) ours 0.0636 vs ref 0.0611, excess +0.0025 (|.| <= 0.
+chat_reuse_4k       4631    16   100.00   6.337e-3   6.337e-3   6.337e-3   3.882e-2   0.0001   0.0001    97.50     16/16      0
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+12:09:11 == gates done, 1253 s of the work budget left
+12:09:11 restore (exit 0)

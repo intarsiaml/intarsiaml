@@ -142,7 +142,7 @@ impl CudaBackend {
         Ok(s[id as usize] as *mut c_void)
     }
 
-    fn ptr(buf: &Buffer, offset: usize, len: usize) -> Result<*mut u8> {
+    pub(crate) fn ptr(buf: &Buffer, offset: usize, len: usize) -> Result<*mut u8> {
         let b =
             buf.downcast::<CudaBuffer>().ok_or_else(|| Error::backend("buffer does not belong to the cuda backend"))?;
         if offset.checked_add(len).is_none_or(|e| e > b.bytes) {
@@ -373,6 +373,12 @@ impl Backend for CudaBackend {
     }
 
     fn supports_graphs(&self) -> bool {
+        true
+    }
+
+    /// The fused decode kernels take head counts and widths from the call (checked on the 35B tp=2 shard shapes by
+    /// admission, docs/results/2026-10-21-tp2-cuda-graphs.md).
+    fn fusion_under_tp(&self) -> bool {
         true
     }
 

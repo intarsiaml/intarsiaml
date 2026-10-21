@@ -1,0 +1,26 @@
+base accshort rc=0 14:36:14
+base acclong rc=0 14:37:06
+base gen-short rc=0 14:37:55
+base gen-4k rc=0 14:38:56
+head accshort rc=0 14:39:49
+head acclong rc=0 14:40:49
+head gen-short rc=0 14:41:47
+head gen-4k rc=0 14:42:46
+acc-short.out: identical
+acc-long.out: identical
+gen-short.out: identical
+gen-4k.out: identical
+ids short: base 36901faa head 36901faa
+ids 4k: base b91c2745 head b91c2745
+OVERALL                   1434    99.65   4.004e-4   3.679e-4   3.768e-4   2.104e-2   0.0188   0.0187    98.59     34.1%      0
+OVERALL                    160   100.00   3.332e-4   2.936e-4   2.906e-4   6.841e-3   0.0215   0.0216    98.88    100.0%      0
+golden gate: PASS
+OVERALL                    434   100.00   2.897e-4   2.276e-4   1.853e-4   1.486e-2   0.0325   0.0323    98.89    100.0%      0
+OVERALL                    128   100.00   3.238e-4   2.833e-4   2.741e-4   6.841e-3   0.0238   0.0238    99.22    100.0%      0
+golden gate: PASS
+OVERALL                   1434    99.65   4.004e-4   3.679e-4   3.768e-4   2.104e-2   0.0188   0.0187    98.59     34.1%      0
+OVERALL                    160   100.00   3.332e-4   2.936e-4   2.906e-4   6.841e-3   0.0215   0.0216    98.88    100.0%      0
+golden gate: PASS
+OVERALL                    434   100.00   2.897e-4   2.276e-4   1.853e-4   1.486e-2   0.0325   0.0323    98.89    100.0%      0
+OVERALL                    128   100.00   3.238e-4   2.833e-4   2.741e-4   6.841e-3   0.0238   0.0238    99.22    100.0%      0
+golden gate: PASS

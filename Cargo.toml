@@ -12,6 +12,7 @@ members = [
     "crates/intarsia-ui",
     "crates/intarsia-cli",
     "crates/intarsia-bench",
+    "crates/intarsia-tui",
 ]
 
 [workspace.package]
@@ -44,12 +45,16 @@ rayon = "1"
 memmap2 = "0.9"
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+# Structured output (constrained decoding): JSON schema / lark grammar -> token masks. MIT. Exact pin: grammar
+# semantics and mask output must not drift under us.
+llguidance = "=1.9.1"
 minijinja = { version = "2", features = ["json", "loop_controls", "builtins", "preserve_order"] }
 minijinja-contrib = { version = "2", features = ["pycompat"] }
 clap = { version = "4", features = ["derive"] }
 ureq = { version = "3", default-features = false }
 ratatui = "0.30"
 intarsia-bench = { path = "crates/intarsia-bench" }
+intarsia-tui = { path = "crates/intarsia-tui" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 # server agent

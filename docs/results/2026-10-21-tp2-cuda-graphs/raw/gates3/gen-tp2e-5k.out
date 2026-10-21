@@ -1,0 +1,27 @@
+Here is the continuation and completion of the IntarsiaML architecture plan (v0.2), picking up from the `flowchart` diagram and completing the system overview, followed by the detailed architectural layers, kernel strategy, and implementation phases as implied by the document structure.
+
+---
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    SCHED["Scheduler: Pre-fill/Decode batching, KV cache management"]
+    MODEL["Model Router: Dispatches to block library based on config"]
+    KV["KV Cache: Paged, unified memory, cross-attention support"]
+  end
+  subgraph Blocks["Block Library (crate: intarsia-blocks)
+NCCL version 2.30.7+cuda13.3
+
+[2026-10-21 14:46:30] spark-4e77:2558509:2558516 [0] include/alloc.h:166 (ncclCudaHostFree) NCCL WARN Cuda failure 'driver shutting down'
+
+[2026-10-21 14:46:30] spark-4e77:2558509:2559598 [0] init.cc:304 (commFree) NCCL WARN Cuda failure 'driver shutting down'
+
+[2026-10-21 14:46:30] spark-4e77:2558509:2559598 [0] init.cc:2869 (commReclaim) NCCL WARN commReclaim: cleanup comm 0xc7ce5b6007f0 rank 0 failed in destroy/abort, error 1
+
+[2026-10-21 14:46:30] spark-4e77:2558509:2559598 [0] group.cc:863 (ncclGroupEndInternal) NCCL WARN Cuda failure 'driver shutting down'

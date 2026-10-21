@@ -1,0 +1,45 @@
+ intarsia tui  http://127.0.0.1:8090  Qwen/Qwen3.5-35B-A3B  metal Apple M5 Max  live
+╭ architecture · 40 layers · exactness fast ─────────────────────────────────╮╭ metrics ───────────────────────────────────────────────────╮
+│╭ request queue / scheduler ───────────────────────────────────────────────╮││decode    20.0 tok/s   ███                                  │
+││running 1 · waiting 2                                                     │││prefill   0.0 tok/s                                         │
+││batch queue depth 2 · requests 7                                          │││waiting   2 (run 1)   ████                                  │
+│╰──────────────────────────────────────────────────────────────────────────╯││KV used   6.9%        ████                                  │
+│                                      ▼                                     ││TTFT      p50 205ms  p95 869ms  p99 974ms  (all, n=7)       │
+│╭ prefill ───────────────────────────╮╭ decode ────────────────────────────╮││ITL       p50 36ms  p95 60ms  p99 92ms  (all, n=640)        │
+││exactness fast                      ││now 20.0 tok/s · last 24.1          │││last req  TTFT 140ms · decode 24.1 tok/s · prefill 850 tok/s│
+││now 0.0 tok/s                       ││batch size 1.6 · steps 20.0/s       │││batch     avg 1.6 rows · step 31.5 ms                       │
+││last 850 tok/s · cached 128         ││                                    │││queue     running 1 · waiting 2 · depth max 3               │
+│╰────────────────────────────────────╯╰────────────────────────────────────╯││steps     20.0/s · total 1044                               │
+│                                      ▼                                     ││tokens    prompt 912 · cached 128 · generated 684           │
+│╭ [A] x30 ───────────────────────────╮╭ [B] x10 ───────────────────────────╮││memory    weights 20.0GB · free 60.0GB of 137.4GB           │
+││linear_attention > moe              ││attention > moe                     │││uptime    102s · 7 requests                                 │
+││time share n/a (per-op below)       ││time share n/a (per-op below)       ││╰────────────────────────────────────────────────────────────╯
+│╰────────────────────────────────────╯╰────────────────────────────────────╯│╭ chat · Qwen/Qwen3.5-35B-A3B · streaming 3 tok ─────────────╮
+│ AAABAAABAAABAAABAAABAAABAAABAAABAAABAAAB                                   ││you why is the sky blue                                     │
+│                                      ▼                                     ││ai  Because of Rayleigh scattering.                         │
+│ kernels (8) · share of sampled op time                                     ││                                                            │
+│ embedding     0.0% ░░░░░░░░░░         rmsnorm       1.6% █░░░░░░░░░        ││                                                            │
+│ matmul       61.5% ██████████         moe_experts  17.7% ████░░░░░░        ││                                                            │
+│ gdn_scan      9.8% ██░░░░░░░░         attn_decode   5.9% ██░░░░░░░░        ││                                                            │
+│ rope          0.0% ░░░░░░░░░░         silu_glu      0.0% ░░░░░░░░░░        ││                                                            │
+│                                      ▼                                     ││                                                            │
+│╭ KV cache ──────────────────────────╮╭ sampler ───────────────────────────╮││                                                            │
+││284 / 4096 tok (6.9%)               ││logits 3.0% · argmax 0.1%           │││                                                            │
+││41.9MB of 604.0MB                   ││                                    │││                                                            │
+││kv_append 0.4%                      ││                                    │││                                                            │
+│╰────────────────────────────────────╯╰────────────────────────────────────╯││                                                            │
+│╭ output ──────────────────────────────────────────────────────────────────╮││                                                            │
+││generated 684 tok                                                         │││                                                            │
+││finished length 1 · stop 5                                                │││                                                            │
+│╰──────────────────────────────────────────────────────────────────────────╯││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││                                                            │
+│                                                                            ││> and sunsets?▌                                             │
+╰────────────────────────────────────────────────────────────────────────────╯╰────────────────────────────────────────────────────────────╯
+ streaming...  PgUp/PgDn scroll chat  Ctrl-L clear  Esc quit

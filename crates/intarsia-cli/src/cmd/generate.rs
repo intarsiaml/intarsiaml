@@ -130,6 +130,7 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         stop_ids: vec![],
         cancel: None,
         trace_logits: None,
+        constraint: None,
     };
     let stdout = std::io::stdout();
     let mut out = stdout.lock();

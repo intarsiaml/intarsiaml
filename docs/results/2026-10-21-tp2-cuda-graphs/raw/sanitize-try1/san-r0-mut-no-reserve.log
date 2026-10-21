@@ -1,0 +1,322 @@
+========= COMPUTE-SANITIZER
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaFuncGetAttributes.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:56 [0x933b3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= Program hit cudaErrorNoKernelImageForDevice (error 209) due to "no kernel image is available for execution on the device" on CUDA API call to cudaGetLastError.
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: ncclInitKernelsForDevice(int, int, unsigned long*) in enqueue.cc:73 [0x934db] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankFunc(ncclAsyncJob*) in init.cc:1853 [0xacf4f] in libnccl.so.2
+=========         Host Frame: ncclAsyncLaunch(ncclAsyncJob*, ncclResult_t (*)(ncclAsyncJob*), void (*)(ncclAsyncJob*), void (*)(void*), ncclComm*) in group.cc:41 [0xa0c2b] in libnccl.so.2
+=========         Host Frame: ncclCommInitRankDev(ncclComm**, int, int, ncclUniqueId*, int, int, ncclConfig_v23000*, char const*) in init.cc:2544 [0xb0db3] in libnccl.so.2
+=========         Host Frame: ncclCommInitRank in init.cc:2572 [0xb10af] in libnccl.so.2
+=========         Host Frame: intarsia_backend_cuda::nccl::create::hcdb5bb18c47c9d7c [0x2f608b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::common::ModelArgs::load::h03bac5ee9367750c [0x2a2663] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia_cli::cmd::serve::run::h16f9f785ad13353a [0x2a06ef] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: intarsia::main::hb9564bdfed638e03 [0x14a17b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::hdf6f3c88b685b010 [0x14771b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: _ZN3std2rt10lang_start28_$u7b$$u7b$closure$u7d$$u7d$17hf026339c6e8e6d42E.llvm.6446539697197273499 [0x14769b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: std::rt::lang_start_internal::h56a5cede0dc54b7b [0xaff70b] in g1c-mut-no-reserve-intarsia
+=========         Host Frame: main [0x14bc9f] in g1c-mut-no-reserve-intarsia
+========= 
+========= ERROR SUMMARY: 20 errors

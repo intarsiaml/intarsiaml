@@ -222,19 +222,21 @@ fn moe_block_is_bitwise_the_unfused_chain() {
     }
 }
 
-/// TP > 1: the fold is off. Two layers of protection, both pinned here:
-/// * `Model::fused_ok` refuses every fused op when `tp.world > 1` (the routed and shared outputs are partial sums before the
-///   all-reduce, so a fused combine would be wrong under a partition);
-/// * a TP load of this model family is refused outright today (GatedDeltaNet blocks are not sharded), so no TP plan can
-///   hold `MoeBlock` at all. If that changes, this test fails and the TP2 run below must be turned into a launch count.
+/// TP > 1: the fold is off. `Model::fused_ok` refuses every fused op when `tp.world > 1`, so a TP2 run of this model
+/// (GatedDeltaNet and MoE are sharded since docs/design/35b-tp2.md) launches no `MoeBlock` on either rank and runs the
+/// unfused chain: one `MoeTopk` / `MoeExperts` / `MoeCombine` per layer per decode step.
 #[test]
 fn moe_block_is_off_under_tp2() {
     let w = moe_weights();
     let (r0, r1) = (rec(&[]), rec(&[]));
     assert!(r0.kernels().iter().any(|k| k.op == Op::MoeBlock), "the cpu backend must offer MoeBlock for this test to mean anything");
-    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        load_on(vec![r0.clone() as Arc<dyn Backend>, r1.clone() as Arc<dyn Backend>], &w, DType::F32)
-    }));
-    assert!(r.is_err(), "a TP2 load of the hybrid MoE model now succeeds: replace this with a MoeBlock launch count of 0 per rank");
-    assert!(r0.ops.lock().unwrap().iter().all(|&o| o != Op::MoeBlock) && r1.ops.lock().unwrap().iter().all(|&o| o != Op::MoeBlock));
+    let m = load_on(vec![r0.clone() as Arc<dyn Backend>, r1.clone() as Arc<dyn Backend>], &w, DType::F32);
+    let (rows, last) = run(&m, &r0);
+    assert_eq!(rows.len(), 18);
+    assert!(rows.iter().flatten().all(|x| x.is_finite()));
+    assert!(r1.ops.lock().unwrap().iter().all(|&o| o != Op::MoeBlock), "rank 1 launched MoeBlock");
+    assert_eq!(count(&last, Op::MoeBlock), 0, "rank 0 launched MoeBlock: {last:?}");
+    for op in [Op::MoeTopk, Op::MoeExperts, Op::MoeCombine] {
+        assert_eq!(count(&last, op), LAYERS, "{op} per decode step on rank 0 under TP2");
+    }
 }

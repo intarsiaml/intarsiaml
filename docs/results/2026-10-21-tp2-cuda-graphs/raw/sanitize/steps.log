@@ -1,0 +1,13 @@
+16:04:16 == mut-no-reserve: intarsia 0.0.1 
+16:04:46 mut-no-reserve server up=1 after 27 s
+16:04:52 mut-no-reserve request short done (33 s)
+16:05:05 mut-no-reserve request long done (46 s)
+16:05:06 mut-no-reserve request short done (47 s)
+16:05:11 == dev: intarsia 0.0.1 
+16:05:36 dev server up=1 after 22 s
+16:05:42 dev request short done (28 s)
+16:05:57 dev request long done (43 s)
+16:06:02 dev request short done (48 s)
+16:06:08 == sanitize done
+16:06:09 SANITIZE mut-no-reserve: rank0 30 errors, rank1 30 errors (========= ERROR SUMMARY: 512 errors ========= ERROR SUMMARY: 482 errors were not printed. Use --print-limit option to adjust the number of printed errors ========= ERROR SUMMARY: 512 errors ========= ERROR SUMMARY: 482 errors were not printed. Use --print-limit option to adjust the number of printed errors )
+16:06:09 SANITIZE dev: rank0 0 errors, rank1 0 errors (========= ERROR SUMMARY: 0 errors ========= ERROR SUMMARY: 0 errors )

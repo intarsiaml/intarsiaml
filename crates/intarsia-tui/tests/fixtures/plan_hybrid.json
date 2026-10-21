@@ -1,0 +1,436 @@
+{
+ "model": "Qwen/Qwen3.5-35B-A3B",
+ "backend": "metal",
+ "device": {
+  "name": "Apple M5 Max",
+  "mem_total": 137438953472,
+  "arch": "applegpu_g17"
+ },
+ "tp": null,
+ "exactness": "fast",
+ "layers": [
+  {
+   "index": 0,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 1,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 2,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 3,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 4,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 5,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 6,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 7,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 8,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 9,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 10,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 11,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 12,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 13,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 14,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 15,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 16,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 17,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 18,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 19,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 20,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 21,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 22,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 23,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 24,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 25,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 26,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 27,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 28,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 29,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 30,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 31,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 32,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 33,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 34,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 35,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 36,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 37,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 38,
+   "kind": "linear_attention",
+   "blocks": [
+    "linear_attention",
+    "moe"
+   ]
+  },
+  {
+   "index": 39,
+   "kind": "attention",
+   "blocks": [
+    "attention",
+    "moe"
+   ]
+  }
+ ],
+ "ops": [
+  {
+   "op": "embedding",
+   "kernel": "metal_embed_bf16",
+   "backend": "metal",
+   "exactness": "exact",
+   "admitted": true,
+   "calls_per_decode_step": 1,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "rmsnorm",
+   "kernel": "metal_rmsnorm",
+   "backend": "metal",
+   "exactness": "exact",
+   "admitted": true,
+   "calls_per_decode_step": 81,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "matmul",
+   "kernel": "metal_gemv_bf16",
+   "backend": "metal",
+   "exactness": "fast",
+   "admitted": true,
+   "calls_per_decode_step": 240,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "moe_experts",
+   "kernel": "metal_moe_grouped",
+   "backend": "metal",
+   "exactness": "fast",
+   "admitted": true,
+   "calls_per_decode_step": 40,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "gdn_scan",
+   "kernel": "metal_gdn_scan",
+   "backend": "metal",
+   "exactness": "fast",
+   "admitted": true,
+   "calls_per_decode_step": 30,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "attn_decode",
+   "kernel": "metal_attn_decode",
+   "backend": "metal",
+   "exactness": "fast",
+   "admitted": true,
+   "calls_per_decode_step": 10,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "rope",
+   "kernel": "metal_rope",
+   "backend": "metal",
+   "exactness": "exact",
+   "admitted": true,
+   "calls_per_decode_step": 10,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "silu_glu",
+   "kernel": "metal_silu_glu",
+   "backend": "metal",
+   "exactness": "fast",
+   "admitted": true,
+   "calls_per_decode_step": 40,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "kv_append",
+   "kernel": "metal_kv_append",
+   "backend": "metal",
+   "exactness": "exact",
+   "admitted": true,
+   "calls_per_decode_step": 10,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "logits",
+   "kernel": "metal_gemv_bf16",
+   "backend": "metal",
+   "exactness": "fast",
+   "admitted": true,
+   "calls_per_decode_step": 1,
+   "scratch_bytes": 0
+  },
+  {
+   "op": "argmax",
+   "kernel": "metal_argmax",
+   "backend": "metal",
+   "exactness": "exact",
+   "admitted": true,
+   "calls_per_decode_step": 1,
+   "scratch_bytes": 0
+  }
+ ],
+ "act_dtype": "bf16",
+ "kv_dtype": "bf16"
+}

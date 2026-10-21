@@ -1,0 +1,3 @@
+   Compiling intarsia-tui v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a7b46af1ef084fb4d/crates/intarsia-tui)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a7b46af1ef084fb4d/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5.11s

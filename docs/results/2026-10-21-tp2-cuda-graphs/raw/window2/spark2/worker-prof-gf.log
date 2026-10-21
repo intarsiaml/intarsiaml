@@ -1,0 +1,12 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29555
+tp-worker: rank 0 connected from 10.100.152.1:50724
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=64
+tp-worker: rank 0 disconnected after 65 forward passes
+Collecting data...
+Generating '/tmp/nsys-report-18a6.qdstrm'
+[1/1] [0%                          ] nsys-r1-gf.nsys-rep[1/1] [0%                          ] nsys-r1-gf.nsys-rep[1/1] [==21%                       ] nsys-r1-gf.nsys-rep[1/1] [=17%                        ] nsys-r1-gf.nsys-rep[1/1] [14%                         ] nsys-r1-gf.nsys-rep[1/1] [12%                         ] nsys-r1-gf.nsys-rep[1/1] [11%                         ] nsys-r1-gf.nsys-rep[1/1] [==20%                       ] nsys-r1-gf.nsys-rep[1/1] [==18%                       ] nsys-r1-gf.nsys-rep[1/1] [=16%                        ] nsys-r1-gf.nsys-rep[1/1] [14%                         ] nsys-r1-gf.nsys-rep[1/1] [13%                         ] nsys-r1-gf.nsys-rep[1/1] [==19%                       ] nsys-r1-gf.nsys-rep[1/1] [====26%                     ] nsys-r1-gf.nsys-rep[1/1] [=====32%                    ] nsys-r1-gf.nsys-rep[1/1] [=======38%                  ] nsys-r1-gf.nsys-rep[1/1] [=========45%                ] nsys-r1-gf.nsys-rep[1/1] [===========51%              ] nsys-r1-gf.nsys-rep[1/1] [============56%             ] nsys-r1-gf.nsys-rep[1/1] [=============60%            ] nsys-r1-gf.nsys-rep[1/1] [===============65%          ] nsys-r1-gf.nsys-rep[1/1] [================69%         ] nsys-r1-gf.nsys-rep[1/1] [========================100%] nsys-r1-gf.nsys-rep[1/1] [========================100%] nsys-r1-gf.nsys-rep
+Generated:
+	/home/nvidia/intarsia-tp2/xout/window2/nsys-r1-gf.nsys-rep
+worker exit 0 (1)
