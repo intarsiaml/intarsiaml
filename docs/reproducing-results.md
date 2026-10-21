@@ -138,8 +138,11 @@ hardware and needs no GPU):
   kernels without nvcc/hipcc, and their GPU tests skip when no device is present);
 * `cargo check --locked -p intarsia-backend-metal` and `-p intarsia-cli --features metal` on the macOS runner.
 
-fmt and clippy are not in CI: `cargo fmt --check` reports about 750 diffs on main today, and this PR does not mass-reformat.
-Reformat in a PR of its own, then add the two jobs. The GPU gates (KL21, greedy ids, prefix reuse, goldens, mutants,
+fmt and clippy are not in CI: `cargo fmt --check` reports about 750 diffs on main today, and `cargo clippy --workspace
+-- -D warnings` (endor, rustc 1.99) stops with 33 errors in `intarsia-core` and 3 in `intarsia-bench` before reaching the
+other crates (`docs/results/2026-10-21-m5-reproducibility/raw/local-endor-check-clippy-test.log`). This PR does not
+mass-reformat or fix lints. Clean the tree in a PR of its own, then add the two jobs (clippy needs
+`rustup component add clippy`: `rust-toolchain.toml` uses the minimal profile). The GPU gates (KL21, greedy ids, prefix reuse, goldens, mutants,
 admission) remain fleet runs under fleetq; CI does not replace them.
 
 ## Replaying a published result

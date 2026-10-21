@@ -3,8 +3,9 @@
 # runners), so CI checks that the workspace compiles and the CPU-side tests pass. GPU gates stay on the fleet, under fleetq
 # (see docs/reproducing-results.md). Dependencies are locked: a Cargo.lock that is out of date fails the build.
 #
-# fmt and clippy are not run: the tree is not clean for either yet (`cargo fmt --check` reports ~750 diffs), and CI
-# does not mass-reformat. Add them as their own PR that reformats first.
+# fmt and clippy are not run: the tree is not clean for either yet (`cargo fmt --check` reports ~750 diffs; `cargo clippy
+# --workspace -D warnings` on endor's 1.99 stops with 33 errors in intarsia-core and 3 in intarsia-bench), and CI does not
+# mass-reformat. Add them as their own PR that fixes the tree first.
 name: ci
 
 on:
