@@ -381,6 +381,18 @@ fn f16_to_f64(b: u16) -> f64 {
 /// Indices of the `k` largest values, ties to the lowest index, ordered best first.
 /// NaN entries are skipped (callers reject non-finite rows before ranking).
 fn top_k(x: impl Iterator<Item = f64>, k: usize) -> Vec<usize> {
+    if k > 256 {
+        // the insertion below is O(n * k): a whole-vocabulary dump (`--self-topk <vocab>`) needs a selection; same order
+        // (value descending, lower index first among equals), NaN skipped
+        let mut v: Vec<(f64, usize)> = x.enumerate().filter(|(_, v)| !v.is_nan()).map(|(i, v)| (v, i)).collect();
+        let cmp = |a: &(f64, usize), b: &(f64, usize)| b.0.partial_cmp(&a.0).unwrap().then(a.1.cmp(&b.1));
+        if v.len() > k {
+            v.select_nth_unstable_by(k - 1, cmp);
+            v.truncate(k);
+        }
+        v.sort_by(cmp);
+        return v.into_iter().map(|b| b.1).collect();
+    }
     let mut best: Vec<(f64, usize)> = Vec::with_capacity(k + 1);
     for (i, v) in x.enumerate() {
         if v.is_nan() {
@@ -2524,6 +2536,21 @@ mod tests {
         assert_eq!(GateClass::Fp8.min(GateClass::Fp4), GateClass::Fp4);
         assert_eq!(GateClass::parse("4bit").unwrap(), GateClass::Fp4);
         assert!(GateClass::parse("int3").is_err());
+    }
+
+    #[test]
+    fn top_k_selection_path_matches_the_insertion_path() {
+        // values with many ties and a NaN; k above the selection threshold must give the same ids in the same order
+        let x: Vec<f64> = (0..3000).map(|i| if i == 17 { f64::NAN } else { ((i * 7919) % 211) as f64 }).collect();
+        let mut want: Vec<(f64, usize)> = x.iter().copied().enumerate().filter(|(_, v)| !v.is_nan()).map(|(i, v)| (v, i)).collect();
+        want.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap().then(a.1.cmp(&b.1)));
+        for k in [257, 1000, 2999, 3000, 5000] {
+            let got = top_k(x.iter().copied(), k);
+            let w: Vec<usize> = want.iter().take(k).map(|b| b.1).collect();
+            assert_eq!(got, w, "k={k}");
+        }
+        // below the threshold the insertion path agrees with the same order
+        assert_eq!(top_k(x.iter().copied(), 20), want.iter().take(20).map(|b| b.1).collect::<Vec<_>>());
     }
 
     #[test]
