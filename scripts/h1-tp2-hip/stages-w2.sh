@@ -45,4 +45,9 @@ for r in 1 2 3; do
   for a in $arms; do bench $a $r; done
 done
 cp "$(T base)"/h1-out/bench/h1-*.json "$(T dev)"/h1-out/bench/h1-*.json "$O/" 2>/dev/null
+# tp=1 calibration, short set (window 1: chunk 128 and GEMV 4,8 are bitwise on HIP, SIMT attention moves decode only):
+# three knobs that may reorder prefill arithmetic, for the size of an equally correct reordering at tp=1
+for kv in INTARSIA_HIP_GEMM_TILE=1 INTARSIA_HIP_MOE_WMMA=0 INTARSIA_HIP_FP8_F8=0; do
+  E="$kv" acc base 0 cal-${kv#INTARSIA_HIP_}-short $M35 $SG
+done
 log "done"
