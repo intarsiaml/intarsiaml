@@ -244,6 +244,32 @@ positions where two kernels or two chunk sizes disagree.
 * **MoE / hybrid / quantised models (the 35B NVFP4): the vLLM top-20 golden** (the only reference that runs the
   checkpoint), the class floor, a baseline from the pre-change build **and a noise envelope** for the per-prompt part
   ("Noise envelope" below).
+* **A quantized format with its own reference implementation (EXL3): also the format-reference golden** of the same
+  weights ("Format-reference goldens" below), which gates the engine's error without the quantisation loss.
+
+### Format-reference goldens (`reference_kind = format`)
+
+A quantized model compared with the bf16 model's golden measures quantisation loss plus engine error, and the 4-bit floor
+must leave room for the loss. The format's own reference implementation, run on the **same quantized weights**, takes the
+loss out: KL against it is the engine's error alone. Such a golden carries `reference_kind = format`,
+`reference_format` (`exl3`) and `reference_engine` (`exllamav3 <version>`) in its `__metadata__`; for EXL3 it is made by
+`tools/golden_exl3.py` (exllamav3, the ids of an existing golden, full vocabulary, fp16 activations).
+
+* **Class.** The weight class does not apply (the weights are the same); the KL floor is the KV cache's class (bf16: 1e-3,
+  fp8 KV: 5e-3). Top-1 is reported, not gated: the reference runs other activations than the engine (exllamav3: fp16, the
+  engine bf16), so its argmax is not an fp32 truth to match at 99.5%. `--gate-class` and `--min-top1` override as usual,
+  and the line `gate class:` names the golden as the reason.
+* **Noise.** A format reference has its own spread like any reference. It goes in the golden's `ref_noise` record
+  ("Reference noise", PR #47): `tools/golden_exl3.py --second-run OUT2` writes a second run of every forward and
+  says whether the two are bitwise equal, and `intarsia ref-noise --golden OUT --other OUT2 --method run_to_run --out
+  golden/ref_noise/<OUT file>.json` turns the pair into the sidecar. Bitwise-equal runs give a zero record, and the
+  static floor binds.
+* **Qualify.** `intarsia qualify` runs it as the quick stage `acc-format` (`--format-golden FILE`, else
+  `<model>-formatref...safetensors` in a golden directory; ordinary golden discovery never picks a `-formatref` file). It
+  is skipped for unquantized weights and when there is none, and is an error when the given file lacks
+  `reference_kind = format`. The bf16-relative `acc-short` is unchanged.
+* **Measured.** Qwen3-8B EXL3 4.0 bpw on CUDA (docs/results/2026-10-21-m2-exl3.md): engine against exllamav3 KL 4.4e-4,
+  top-1 98.6%; exllamav3 against the bf16 golden 2.28e-2 (the quantisation loss).
 
 ### Gates
 
