@@ -547,7 +547,7 @@ pub fn sweep(cfg: &SweepConfig) -> Vec<Case> {
         let label = format!("M={m} N={n} K={k} bits={} cb={} x={xdt} out={odt}", bits_label(k2), cb.name());
         cases.push(Case { label, call: case(rng, m, n, k, k2, cb, xdt, odt) });
     };
-    let ms: &[usize] = if cfg.quick { &[1, 5] } else { &[1, 3, 8, 17, 40] };
+    let ms: &[usize] = if cfg.quick { &[1, 5] } else { &[1, 3, 8, 17, 40, 256, 300] };
     for (k2, cb) in widths() {
         for &m in ms {
             push(&mut rng, m, 256, 384, k2, cb, DType::Bf16, DType::Bf16);
