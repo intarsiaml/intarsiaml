@@ -10,7 +10,7 @@ WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is u
 
 == mode: prefill ==
 prompt                 n   pos  top-1 %   KL(full) KL(21-way)     max KL tail ref  tail us  top-5 %    greedy nonfin
-this build: head 1c40e6c code-tree 994a6829e98c clean
+this build: head c671046 code-tree cfd331a39bda clean
 count                 38    38   100.00   3.901e-3   1.803e-3   9.087e-2   0.0324   0.0313    94.21     38/38      0
 story                 39    39    92.31   2.405e-2   1.786e-2   2.285e-1   0.0400   0.0407    90.77      0/39      0
 code                  80    80   100.00   8.621e-3   7.015e-3   1.681e-1   0.0142   0.0138    94.00     80/80      0
