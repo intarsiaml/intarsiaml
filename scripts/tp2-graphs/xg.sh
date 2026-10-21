@@ -5,7 +5,7 @@
 #   gates (vLLM up):   MODE=gates  fleetq run --host spark1,spark2 --mem spark1=30,spark2=20 --label "..." -- scripts/tp2-graphs/xg.sh
 #   mutants (vLLM up): MODE=mut    (same slot shape; MUTANTS="name ...", binaries g1c-mut-<name>)
 #   speed (vLLM down): MODE=window fleetq run --host spark1,spark2 --exclusive --takes-down flight,guidance,capcom,retro \
-#                        --mem spark1=100,spark2=95 --each ... -- scripts/tp2-graphs/xg.sh
+#                        --mem spark1=100,spark2=95 --label "..." -- scripts/tp2-graphs/xg.sh   (no --each: one driver)
 # The window stops both vLLM containers and ALWAYS restarts them (trap on EXIT: docker start, wait for /v1/models), kills
 # every process it started, and appends one line per role to raw/downtime.log. STEPS picks steps (default all).
 # Binaries: ~/intarsia-tp2/bin/g1c-$TREE-intarsia on both boxes (TREE default dev; BASE default base). Output: raw/$OUT.
@@ -90,7 +90,16 @@ xgen() {
   r spark1 "env $NCCLENV timeout ${GEN_TIMEOUT:-600} $bin generate $GEN_FLAGS $* --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos --show-ids \
     -p \"\$(head -c $chars ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 256 > $XO/gen-$tag.out 2> $XO/gen-$tag.err; echo $tag rc=\$?; grep -aE 'finish=|graph' $XO/gen-$tag.err | head -3; grep -a '^ids:' $XO/gen-$tag.err > $XO/gen-$tag.ids" | tee -a "$L/steps.log"
   worker_stop
-  r spark2 "grep -a 'decode graph' $XO/worker-$tag.log | tail -1" | sed "s/^/  rank1 $tag: /" | tee -a "$L/steps.log"
+  rank1_check $tag "$@"
+}
+# rank 1's graph counters for run <tag>; a graphs run (no --no-graphs in <flags>) must replay: else REPLAY-CHECK FAIL
+rank1_check() { # <tag> <flags...>
+  local tag=$1; shift
+  local line; line=$(r spark2 "grep -a 'decode graph' $XO/worker-$tag.log | tail -1")
+  echo "  rank1 $tag: $line" | tee -a "$L/steps.log"
+  if [[ " $* " != *" --no-graphs "* ]]; then
+    [[ $line =~ replays=([0-9]+) ]] && (( ${BASH_REMATCH[1]} > 0 )) && log "  REPLAY-CHECK ok $tag" || log "  REPLAY-CHECK FAIL $tag: rank 1 did not replay"
+  fi
 }
 # ids compare: <a> <b> (tags)
 idcmp() {
@@ -119,9 +128,11 @@ xacc() { # <tag> <binary> <accuracy args...> (--no-graphs among them goes to bot
   WBIN=$bin worker_start $tag $AF $wf
   r spark1 "env $NCCLENV timeout ${ACC_TIMEOUT:-1500} $bin accuracy $AF --tp-remote $WIP:$WPORT $* > $XO/$tag.log 2>&1; echo $tag rc=\$?; grep -aE 'SELF-STATS|self-golden gate|floor verdict|prefix-reuse gate|verdict|^Error' $XO/$tag.log | cut -c1-260" | tee -a "$L/steps.log"
   worker_stop
-  r spark2 "grep -a 'decode graph' $XO/worker-$tag.log | tail -1" | sed "s/^/  rank1 $tag: /" | tee -a "$L/steps.log"
+  rank1_check $tag $wf
 }
 B_SHORT="--self-max-kl 1.8e-2 --self-max-pos-kl 2.3 --self-max-flip-pct 3.76 --self-max-tail 2.8e-3 --self-prompt-factor 6.5"
+# graphs vs eager on the same build: bitwise expected, so judge at the floor (any real change fails)
+B_FLOOR="--self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 1e-9 --self-prompt-factor 1"
 B_LONG="--self-max-kl 5.7e-2 --self-max-pos-kl 54.6 --self-max-flip-pct 8.7 --self-max-tail 7.1e-3 --self-prompt-factor 5.9"
 
 # ---- gates (vLLM up) ----
@@ -137,9 +148,9 @@ if [[ $MODE == gates ]]; then
   done
   # 2. logits: tp=2 eager dumps (with the vLLM floor verdict), then tp=2 graphs judged against them; prefix reuse with graphs
   xacc eager-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-short.safetensors
-  xacc graph-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code $B_SHORT
+  xacc graph-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code $B_FLOOR
   xacc eager-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-long.safetensors
-  xacc graph-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE --allow-same-code $B_LONG
+  xacc graph-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE --allow-same-code $B_FLOOR
   xacc graph-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
   xacc graph-floor-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
   xacc graph-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
@@ -179,7 +190,7 @@ if [[ $MODE == mut ]]; then
     log "== mutant $m"
     GEN_TIMEOUT=300 xgen mut-$m-5k 5000 $MB
     idcmp ref-5k mut-$m-5k
-    ACC_TIMEOUT=900 xacc mut-$m-self $MB --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code --allow-dirty $B_SHORT
+    ACC_TIMEOUT=900 xacc mut-$m-self $MB --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code --allow-dirty $B_FLOOR
   done
 fi
 
@@ -205,13 +216,14 @@ bench_arm() { # <arm> <round> <rank-0 env> <worker flags or "-" for tp=1> <serve
     log "arm $arm r$rd: server did not come up"; r spark1 "tail -5 $o/serve.log"
   fi
   r spark1 "kill \$(cat $o/serve.pid); for i in \$(seq 1 30); do kill -0 \$(cat $o/serve.pid) 2>/dev/null || break; sleep 1; done; kill -9 \$(cat $o/serve.pid) 2>/dev/null; true"
-  if [[ $wflags != - ]]; then worker_stop; r spark2 "grep -a 'decode graph' $XO/worker-$arm-r$rd.log | tail -1" | sed "s/^/  rank1 $arm r$rd: /" | tee -a "$L/steps.log"; fi
+  if [[ $wflags != - ]]; then worker_stop; rank1_check $arm-r$rd $wflags; fi
 }
 if [[ $MODE == window || " ${STEPS:-} " == *" prof "* ]]; then
   if want prof; then
     # graphs, 1k prompt, 64 tokens; both ranks under nsys with per-node graph tracing (the NCCL kernel of every all-reduce)
     PF="-m $M35 --backend cuda --tp 2 --max-seq 8192 --mem-budget 16 --profile-every 0"
     NS="nsys profile --cuda-graph-trace=node -t cuda --sample=none --cpuctxsw=none -f true"
+    r spark1 "timeout 300 $NS -o $XO/nsys-tp1-g $BIN generate -m $M35 --backend cuda --max-seq 8192 --mem-budget 29 --profile-every 0 --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 64 > $XO/prof-tp1.out 2> $XO/prof-tp1.err; echo prof-tp1 rc=\$?; grep -aE 'decode|graph' $XO/prof-tp1.err | head -2; cd ~/intarsia-tp2/xout/$OUT && nsys stats -q --report cuda_gpu_trace --format csv -o nsys-tp1-g nsys-tp1-g.nsys-rep >/dev/null 2>&1; ls nsys-tp1-g*" | tee -a "$L/steps.log"
     for v in g e; do
       wf=""; [[ $v == e ]] && wf="--no-graphs"
       WWRAP="$NS -o $XO/nsys-r1-$v" worker_start prof-$v $PF $wf
@@ -226,9 +238,10 @@ if [[ $MODE == window || " ${STEPS:-} " == *" prof "* ]]; then
 fi
 if [[ $MODE == window ]]; then
   # A/B: tp1g = tp=1 graphs (the shipped config), tp2e = tp=2 eager (PR #44), tp2g = tp=2 graphs; order reversed in even rounds
-  ARMS_FWD=${ARMS:-tp1g tp2e tp2g}
+  ARMS_FWD=${ARMS:-tp1g tp2g}
   for rd in $(seq 1 ${ROUNDS:-3}); do
     order=$ARMS_FWD; (( rd % 2 == 0 )) && order=$(echo $ARMS_FWD | tr ' ' '\n' | tail -r | tr '\n' ' ')
+    (( rd % 2 == 1 )) && order="$order ${EXTRA_ARMS:-tp2e}"
     for a in $order; do
       case $a in
         tp1g) bench_arm tp1g $rd "" - ;;
