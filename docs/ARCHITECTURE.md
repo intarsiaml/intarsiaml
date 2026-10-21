@@ -282,7 +282,7 @@ TUI: `intarsia top` (ratatui) reads the same `/events` stream: one-screen dashbo
 
 - **Prometheus** `/metrics`: requests (by status), running/waiting gauges (localeval busy check), monotonic `intarsia_engine_steps_total` (fleetq `WEDGED` detection), tokens prompt/generated/cached, TTFT/ITL/e2e histograms, KV blocks used/free, prefix hit ratio, draft proposed/accepted, per-op time (sampled with events, low overhead), comm time, device mem/power/temp.
 - **OTLP** export (optional) for traces per request.
-- Shipped: `deploy/grafana/intarsia.json` dashboard + Prometheus scrape snippet for `missioncntrl_/deploy/monitoring/prometheus.yml`.
+- Shipped: `deploy/observability/grafana/dashboards/intarsia.json` dashboard + Prometheus scrape snippet for `missioncntrl_/deploy/monitoring/prometheus.yml`.
 
 ## 11. Reproducibility and deployment
 

@@ -627,6 +627,53 @@ async fn cancel_flag_is_set_when_the_response_is_dropped() {
 }
 
 #[tokio::test]
+async fn source_label_and_token_histograms_in_metrics() {
+    let (app, _mock) = app();
+    let post = |uri: &'static str, hdr: Option<(&'static str, String)>, body: Value| {
+        let mut b = Request::builder().method("POST").uri(uri).header("content-type", "application/json");
+        if let Some((k, v)) = hdr {
+            b = b.header(k, v);
+        }
+        b.body(Body::from(body.to_string())).unwrap()
+    };
+    let chat = json!({"messages": [{"role": "user", "content": "hi"}], "max_tokens": 4});
+    for (hdr, n) in [
+        (Some(("x-intarsia-client", "Bench A!".to_string())), 2),
+        (Some(("user-agent", "curl/8.4.0".to_string())), 1),
+        (None, 1),
+    ] {
+        for _ in 0..n {
+            let r = app.clone().oneshot(post("/v1/chat/completions", hdr.clone(), chat.clone())).await.unwrap();
+            assert_eq!(r.status(), StatusCode::OK);
+            let _ = r.into_body().collect().await.unwrap();
+        }
+    }
+    // a client sending a different header every time cannot create unbounded series
+    for i in 0..30 {
+        let r = app
+            .clone()
+            .oneshot(post("/v1/chat/completions", Some(("x-intarsia-client", format!("c{i}"))), chat.clone()))
+            .await
+            .unwrap();
+        let _ = r.into_body().collect().await.unwrap();
+    }
+    let (_, _, m) = call(&app, "GET", "/metrics", None).await;
+    assert!(m.contains("intarsia_source_requests_total{source=\"bench_a_\"} 2"), "{m}");
+    assert!(m.contains("intarsia_source_requests_total{source=\"curl\"} 1"), "{m}");
+    assert!(m.contains("intarsia_source_requests_total{source=\"unknown\"} 1"), "{m}");
+    assert!(m.contains("intarsia_source_requests_total{source=\"other\"} "), "{m}");
+    let series = m.lines().filter(|l| l.starts_with("intarsia_source_requests_total{")).count();
+    assert!(series <= 17, "{series} source series\n{m}");
+    // token histograms are dense where long-context thresholds sit
+    for le in ["4096", "8192", "12288", "16384", "32768"] {
+        assert!(m.contains(&format!("intarsia_request_prompt_tokens_bucket{{le=\"{le}\"}}")), "{le}\n{m}");
+        assert!(m.contains(&format!("intarsia_request_generation_tokens_bucket{{le=\"{le}\"}}")), "{le}");
+    }
+    assert!(m.contains("intarsia_request_prompt_tokens_count 34"), "{m}");
+    assert!(m.contains("intarsia_source_tokens_total{source=\"curl\",kind=\"prompt\"}"), "{m}");
+}
+
+#[tokio::test]
 async fn engine_queue_full_is_429_with_retry_after_and_counts_as_rejected() {
     let app = app_with(Arc::new(Mock { queue_full: true, ..Default::default() }));
     for uri in ["/v1/completions", "/v1/chat/completions"] {

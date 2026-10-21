@@ -107,9 +107,10 @@ pub struct ChatReq {
 
 pub async fn chat_completions(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     body: Result<Json<ChatReq>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    match chat_inner(st, body).await {
+    match chat_inner(st.for_request(&headers), body).await {
         Ok(r) => r,
         Err(e) => e.into_response(),
     }
@@ -256,9 +257,10 @@ pub struct CompletionReq {
 
 pub async fn completions(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     body: Result<Json<CompletionReq>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    match completions_inner(st, body).await {
+    match completions_inner(st.for_request(&headers), body).await {
         Ok(r) => r,
         Err(e) => e.into_response(),
     }

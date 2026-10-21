@@ -1,0 +1,26 @@
+# Scrape example for an EXISTING Prometheus: merge the jobs below into its scrape_configs
+# (docs/observability.md). The one-command demo uses prometheus.yml instead.
+#
+#   intarsia serve --host 0.0.0.0 --port 8090      # default is loopback; /metrics has no auth, keep it on the LAN/tailnet
+#   curl -s spark-4e77:8090/metrics | head
+#   then in Prometheus: up{job="intarsia"}
+#
+# Each engine is one target. Give every target a `host` label; the dashboard filters on job and instance.
+scrape_configs:
+  - job_name: intarsia
+    metrics_path: /metrics
+    scrape_interval: 5s          # the 15s global default also works
+    static_configs:
+      - targets: ["spark-4e77:8090"]
+        labels: { host: spark1 }
+      # - targets: ["tatooine:8090"]
+      #   labels: { host: tatooine }
+      # - targets: ["localhost:8090"]
+      #   labels: { host: mac }
+
+# Optional: tag requests by client without touching the scrape config. Clients send
+#   X-Intarsia-Client: my-agent
+# and the dashboard splits request and token rates by the `source` label (max 16 values, then "other").
+
+# Alert rules: copy alerts.yml next to your prometheus.yml and add
+#   rule_files: ["alerts.yml"]

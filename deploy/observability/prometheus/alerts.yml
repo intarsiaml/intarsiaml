@@ -1,0 +1,95 @@
+# Alert rules for intarsia serve. Thresholds are examples: tune them per box.
+# Check:  promtool check rules alerts.yml
+groups:
+  - name: intarsia-availability
+    rules:
+      - alert: IntarsiaEngineDown
+        expr: up{job=~"intarsia.*"} == 0
+        for: 1m
+        labels: { severity: page }
+        annotations:
+          summary: "intarsia engine {{ $labels.instance }} is not scrapeable"
+          description: "Prometheus has failed to scrape /metrics for 1 minute. The process is down, restarting (supervisor backoff), or unreachable."
+
+      - alert: IntarsiaEngineFailed
+        expr: intarsia_engine_failed == 1
+        for: 30s
+        labels: { severity: page }
+        annotations:
+          summary: "intarsia engine {{ $labels.instance }} reports a failed worker"
+          description: "The engine worker panicked or hit a sticky device error; the server answers 503. The supervisor should restart the process."
+
+      - alert: IntarsiaWedged
+        # /metrics keeps answering when a kernel hangs, so `up == 1` is not health: work queued and no step for a minute.
+        expr: (intarsia_requests_running + intarsia_requests_waiting > 0) and (rate(intarsia_engine_steps_total[1m]) == 0)
+        for: 1m
+        labels: { severity: page }
+        annotations:
+          summary: "intarsia engine {{ $labels.instance }} has work but is not stepping"
+          description: "{{ $value }} requests are in flight and the step counter has not moved. --watchdog-s turns /health 503 and the supervisor restarts it."
+
+      - alert: IntarsiaRestarting
+        expr: resets(intarsia_uptime_seconds[15m]) >= 2
+        labels: { severity: warn }
+        annotations:
+          summary: "intarsia engine {{ $labels.instance }} restarted twice in 15 minutes"
+          description: "Look at the supervisor log (watchdog, OOM, CUDA/HIP sticky errors)."
+
+  - name: intarsia-load
+    rules:
+      - alert: IntarsiaQueueSaturated
+        # --max-queue defaults to 64, requests beyond it get 429. Alert well before that; adjust for your --max-queue.
+        expr: intarsia_requests_waiting > 32
+        for: 2m
+        labels: { severity: warn }
+        annotations:
+          summary: "intarsia queue on {{ $labels.instance }} is at {{ $value }} waiting requests"
+          description: "Requests queue faster than the engine drains them. At --max-queue the server answers HTTP 429."
+
+      - alert: IntarsiaRejectingRequests
+        expr: rate(intarsia_requests_rejected_total[5m]) > 0
+        for: 1m
+        labels: { severity: page }
+        annotations:
+          summary: "intarsia on {{ $labels.instance }} is answering 429 ({{ $value | humanize }}/s)"
+          description: "The queue is full: clients are being turned away."
+
+      - alert: IntarsiaKvCacheFull
+        expr: intarsia_kv_bytes_used / intarsia_kv_bytes_total > 0.95
+        for: 5m
+        labels: { severity: warn }
+        annotations:
+          summary: "intarsia KV cache on {{ $labels.instance }} is {{ $value | humanizePercentage }} full"
+          description: "Long contexts or too many concurrent sequences; prefix reuse evicts and admission may refuse."
+
+  - name: intarsia-latency-and-errors
+    rules:
+      - alert: IntarsiaTtftP95High
+        expr: |
+          histogram_quantile(0.95, sum by (instance, le) (rate(intarsia_ttft_seconds_bucket[5m]))) > 10
+          and on (instance) sum by (instance) (rate(intarsia_ttft_seconds_count[5m])) > 0
+        for: 5m
+        labels: { severity: warn }
+        annotations:
+          summary: "intarsia TTFT p95 on {{ $labels.instance }} is {{ $value | humanizeDuration }}"
+          description: "Time to first token over the last 5 minutes. Long prompts legitimately take long: check the prompt-length panel before paging."
+
+      - alert: IntarsiaItlP95High
+        expr: |
+          histogram_quantile(0.95, sum by (instance, le) (rate(intarsia_itl_seconds_bucket[5m]))) > 0.25
+          and on (instance) sum by (instance) (rate(intarsia_itl_seconds_count[5m])) > 0
+        for: 5m
+        labels: { severity: warn }
+        annotations:
+          summary: "intarsia inter-token latency p95 on {{ $labels.instance }} is {{ $value | humanizeDuration }}"
+          description: "Decode is slower than 4 tokens/s per stream for 5 minutes."
+
+      - alert: IntarsiaErrorRate
+        expr: |
+          sum by (instance) (rate(intarsia_requests_finished_total{reason="error"}[5m]))
+            / sum by (instance) (rate(intarsia_requests_finished_total[5m])) > 0.05
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of intarsia requests on {{ $labels.instance }} end in error"
+          description: "Share of finished requests with reason=error over 5 minutes (client cancellations do not count)."
