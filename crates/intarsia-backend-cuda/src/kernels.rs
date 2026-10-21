@@ -670,6 +670,7 @@ mod tests {
         "matmul_fp8_gemv:matmul_fp8",
         "matmul_fp8_mma:matmul_fp8",
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
+        "matmul_mxfp4_gemv:matmul_mxfp4", // M1 drill (2026-10-21): OCP MXFP4, a new op, no change to existing candidates
         "matmul_nvfp4_gemm:matmul_nvfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
         "matmul_nvfp4_glu_gemv:matmul_nvfp4_glu",
