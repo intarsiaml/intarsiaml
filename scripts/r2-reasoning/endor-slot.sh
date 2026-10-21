@@ -60,6 +60,10 @@ all_ids() {
 
 case "$MODE" in
   build) build ;;
+  anth) # head only: the Anthropic cases of e2e.py
+    build; serve head || exit 3
+    uv run --script "$R/scripts/r2-reasoning/e2e.py" --url http://127.0.0.1:$PORT --out "$O/e2e-anthropic.json" --only anthropic --concurrency 2 > "$O/e2e-anthropic.log" 2>&1
+    echo "e2e anthropic rc=$? $(tail -1 "$O/e2e-anthropic.log")"; unserve ;;
   run)
     date +%T
     build

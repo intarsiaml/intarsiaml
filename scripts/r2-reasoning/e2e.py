@@ -87,9 +87,12 @@ def anthropic_case(base, i):
     if body["stream"]:
         kinds = [e["content_block"]["type"] for n, e in out if n == "content_block_start"]
         think = "".join(e["delta"]["thinking"] for _, e in out if e.get("delta", {}).get("type") == "thinking_delta")
-        args = "".join(e["delta"]["partial_json"] for _, e in out if e.get("delta", {}).get("type") == "input_json_delta")
+        args = {}
+        for _, e in out:
+            if e.get("delta", {}).get("type") == "input_json_delta":
+                args[e["index"]] = args.get(e["index"], "") + e["delta"]["partial_json"]
         names = [e["content_block"]["name"] for n, e in out if n == "content_block_start" and e["content_block"]["type"] == "tool_use"]
-        inputs = [json.loads(args)]
+        inputs = [json.loads(args[k]) for k in sorted(args)]
     else:
         v = json.loads(out)
         kinds = [b["type"] for b in v["content"]]
@@ -100,7 +103,8 @@ def anthropic_case(base, i):
         raise RuntimeError(f"no thinking block: {kinds}")
     if "tool_use" not in kinds or len(names) < 1:
         raise RuntimeError(f"no tool_use: {kinds}")
-    j1.check(j1.TOOLS[names[0]], inputs[0])
+    for n, i in zip(names, inputs):
+        j1.check(j1.TOOLS[n], i)
     return {"kinds": kinds, "think_chars": len(think), "tool": names[0], "secs": round(dt, 1)}
 
 
@@ -109,15 +113,16 @@ def main():
     ap.add_argument("--url", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--concurrency", type=int, default=1)
+    ap.add_argument("--only", choices=["chat", "anthropic"])
     a = ap.parse_args()
     jobs = []
-    for name in j1.SCHEMAS:
+    for name in j1.SCHEMAS if a.only != "anthropic" else []:
         ps = j1.PROMPTS[name]
         ps = [ps] if isinstance(ps, str) else ps
         for k in range(5):
             jobs.append((f"chat-{name}-{k}-{'stream' if k % 2 else 'plain'}-t{0.0 if k < 3 else 0.7}", chat_case,
                          (a.url, name, ps[k % len(ps)], k % 2 == 1, 0.0 if k < 3 else 0.7, k)))
-    for i in range(5):
+    for i in range(5) if a.only != "chat" else []:
         jobs.append((f"anthropic-tool-{i}", anthropic_case, (a.url, i)))
 
     def run(j):
