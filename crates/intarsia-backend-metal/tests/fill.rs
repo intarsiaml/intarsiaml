@@ -128,7 +128,10 @@ fn copy_and_zero_are_ordered_with_launches_and_do_not_wait() {
     be.launch(ADD_BF16, &add_call(&c1, &bb, &s2, n), 0).unwrap(); // s2 = c1 + b
     be.zero(&s1, 0).unwrap(); // s1 = 0 after c1 took its value
     be.copy(&junk, 0, &s1, 0, n * 2, 0).unwrap(); // junk = zeros
-    assert_eq!(be.pending_dispatches(), 6, "zero, add, copy, add, zero, copy: all appended, none waited on");
+    // the first FIRST_COMMIT of them went out as their own (committed, not waited on) buffer
+    let fc = intarsia_backend_metal::FIRST_COMMIT;
+    let open = if fc > 0 && fc <= 6 { 6 - fc } else { 6 };
+    assert_eq!(be.pending_dispatches(), open, "zero, add, copy, add, zero, copy: all appended, none waited on");
     let (mut r1, mut r2, mut rj) = (vec![0u8; n * 2], vec![0u8; n * 2], vec![0u8; n * 2]);
     be.download(&c1, 0, &mut r1, 0).unwrap();
     assert_eq!(be.pending_dispatches(), 0, "download flushed");
@@ -176,4 +179,30 @@ fn wrapped_host_memory_is_a_source_but_never_a_target() {
         assert!(be.zero(&w, 0).is_err(), "zero of wrapped memory");
     }
     std::fs::remove_dir_all(&dir).ok();
+}
+
+/// After a `synchronize` the first command buffer is committed after `FIRST_COMMIT` dispatches (it trims the GPU idle
+/// gap between decode steps), later ones after `MAX_DISPATCHES`; the work and its order are unchanged.
+#[test]
+fn first_buffer_after_synchronize_is_committed_early() {
+    if std::env::var_os("INTARSIA_METAL_FIRST_COMMIT").is_some() || std::env::var_os("INTARSIA_METAL_COMMIT_EVERY").is_some() {
+        eprintln!("SKIP: commit cadence overridden by the environment");
+        return;
+    }
+    let n = intarsia_backend_metal::FIRST_COMMIT;
+    assert!(n > 0 && n < intarsia_backend_metal::MAX_DISPATCHES);
+    let be = backend();
+    let b = buf_with(&be, &pattern(64, 7));
+    be.synchronize(0).unwrap();
+    for i in 1..n {
+        be.zero(&b, 0).unwrap();
+        assert_eq!(be.pending_dispatches(), i);
+    }
+    be.zero(&b, 0).unwrap();
+    assert_eq!(be.pending_dispatches(), 0, "first buffer after synchronize committed after FIRST_COMMIT dispatches");
+    for i in 1..=n + 1 {
+        be.zero(&b, 0).unwrap();
+        assert_eq!(be.pending_dispatches(), i, "later buffers hold up to MAX_DISPATCHES");
+    }
+    assert_eq!(read(&be, &b), vec![0u8; 64]);
 }

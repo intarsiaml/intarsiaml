@@ -1,0 +1,31 @@
+Metal speed gate on /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/speedgate: floor 85% of context-aware bytes; admission GPU >= 1300 MHz and CPU <= 0.30; ratios >= 0.90x mlx-lm, >= 1.00x llama.cpp
+
+| arm | GPU MHz | CPU | admitted | 128: tok/s, % cf | 1024: tok/s, % cf | 4096: tok/s, % cf | 16384: tok/s, % cf |
+|---|---:|---:|---|---:|---:|---:|---:|
+| intarsia-1 | 1365 | 0.08 | yes | 36.5, 90.1 % | 36.1, 89.9 % | 35.0, 89.9 % | 31.4, 90.1 % |
+| intarsia-2 | 1374 | 0.06 | yes | 35.8, 88.3 % | 36.1, 89.8 % | 35.0, 89.9 % | 31.5, 90.4 % |
+| llamacpp | 1204 | 0.06 | no | 34.7, 85.8 % | 34.3, 85.5 % | 33.3, 85.6 % | 29.7, 85.2 % |
+| mlx-lm | 1331 | 0.08 | yes | 34.0, 83.9 % | 33.4, 83.2 % | 32.3, 82.9 % | 28.0, 80.5 % |
+
+128: intarsia-1 / mlx-lm 1.074 ok
+128: intarsia-1 / llama.cpp 1.050 ok
+128: intarsia-2 / mlx-lm 1.053 ok
+128: intarsia-2 / llama.cpp 1.030 ok
+1024: intarsia-1 / mlx-lm 1.081 ok
+1024: intarsia-1 / llama.cpp 1.051 ok
+1024: intarsia-2 / mlx-lm 1.080 ok
+1024: intarsia-2 / llama.cpp 1.050 ok
+4096: intarsia-1 / mlx-lm 1.085 ok
+4096: intarsia-1 / llama.cpp 1.051 ok
+4096: intarsia-2 / mlx-lm 1.085 ok
+4096: intarsia-2 / llama.cpp 1.051 ok
+16384: intarsia-1 / mlx-lm 1.120 ok
+16384: intarsia-1 / llama.cpp 1.058 ok
+16384: intarsia-2 / mlx-lm 1.124 ok
+16384: intarsia-2 / llama.cpp 1.061 ok
+128: floor gate: best admitted 90.1 % of the context-aware floor ok
+1024: floor gate: best admitted 89.9 % of the context-aware floor ok
+4096: floor gate: best admitted 89.9 % of the context-aware floor ok
+16384: floor gate: best admitted 90.4 % of the context-aware floor ok
+
+VERDICT: PASS

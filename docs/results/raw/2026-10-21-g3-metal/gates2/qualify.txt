@@ -1,0 +1,33 @@
+[qualify      0s] Qwen3-8B on metal, report directory /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/gates2/qualify
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.6s (Apple M5 Max (applegpu_g17s), 27 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant bf16))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     45s] plan: PASS in 44.0s (14 ops resolved, exactness deterministic, loaded in 44.0s)
+[qualify     45s] == kernels [kernels test on the model's shapes]
+[qualify     93s] kernels: PASS in 48.6s (27 kernels, 321 cases in 48.3s)
+[qualify     93s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    107s] gate: PASS in 13.7s (perplexity 1.85, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    107s] == acc-short [short accuracy against a golden]
+[qualify    115s] acc-short: PASS in 7.6s (prefill top-1 100.00% KL 2.83e-4; decode top-1 100.00% KL 3.31e-4)
+[qualify    115s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    159s] server up in 44s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    201s] bench: PASS in 86.8s (decode 34.7 tok/s at 128 tokens (86% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/gates2/qualify/quick-report.md
+[qualify    201s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    228s] acc-long: PASS in 27.0s (prefill top-1 99.72% KL 3.70e-4; decode top-1 99.80% KL 3.54e-4)
+[qualify    228s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    307s] acc-4k: PASS in 78.9s (prefill top-1 99.28% KL 2.44e-4; decode top-1 98.96% KL 2.57e-4)
+[qualify    307s] == envelope [noise envelope and baseline for regression gating]
+[qualify    322s] envelope: PASS in 14.3s (baseline and envelope (chunk) written; they gate this build: PASS)
+[qualify    322s] == bench-long [long-context bench up to 16k]
+[qualify    362s] server up in 40s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    399s] bench-long: PASS in 77.9s (decode 35.3 tok/s at 1024 tokens (87% of the byte floor))
+[qualify    399s] == ab [A/B against the reference server via localeval]
+[qualify    399s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    399s] == tp [tensor-parallel variant]
+[qualify    399s] tp: SKIP in 0.0s (--tp not given (or 1))
+FULL DONE: /opt/code/intarsiaml/.claude/worktrees/agent-a34836167f72ea687/docs/results/raw/2026-10-21-g3-metal/gates2/qualify/full-report.md
+[qualify    399s] exit code 0

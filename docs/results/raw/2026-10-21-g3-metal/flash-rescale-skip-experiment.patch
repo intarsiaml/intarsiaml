@@ -1,0 +1,65 @@
+diff --git a/crates/intarsia-backend-metal/src/flash_nax.rs b/crates/intarsia-backend-metal/src/flash_nax.rs
+index 0aed7a7a..d3b6c863 100644
+--- a/crates/intarsia-backend-metal/src/flash_nax.rs
++++ b/crates/intarsia-backend-metal/src/flash_nax.rs
+@@ -35,7 +35,11 @@ macro_rules! nv {
+ }
+ 
+ /// Every instantiation compiled into the metal4.0 library; the first with a fitting `nsg` is the default.
++/// The `_rs` kernels skip the O rescale of a key tile whose factors are all exactly 1.0 (bitwise the plain ones, G3
++/// 2026-10-21); `INTARSIA_METAL_FLASH_NAX=attn_nax_d128_s4` runs the plain kernel for A/B.
+ pub const NAX_FLASH_VARIANTS: &[NaxFlashVariant] = &[
++    nv!("attn_nax_d128_s4_rs", 128, 4, 32),
++    nv!("attn_nax_d128_s8_rs", 128, 8, 32),
+     nv!("attn_nax_d128_s4", 128, 4, 32),
+     nv!("attn_nax_d128_s8", 128, 8, 32),
+ ];
+diff --git a/kernels/metal/attention_flash_nax.metal b/kernels/metal/attention_flash_nax.metal
+index df29baa3..de4c7b9e 100644
+--- a/kernels/metal/attention_flash_nax.metal
++++ b/kernels/metal/attention_flash_nax.metal
+@@ -110,7 +110,9 @@ METAL_FUNC frag_t<bfloat> ld_frag(device const ushort* r0, bool ok0, device cons
+     return f;
+ }
+ 
+-template <int D, int BK, int NSG>
++// RS: skip the O rescale of a key tile when every lane's factor is exactly 1.0f (no row of the simdgroup raised its running
++// max). x * 1.0f == x for every float, so the result is bitwise the RS = false kernel's; only the multiplies are saved.
++template <int D, int BK, int NSG, bool RS>
+ [[kernel, max_total_threads_per_threadgroup(NSG * 32)]] void attn_nax(
+     device const ushort* q [[buffer(0)]],
+     device const ushort* kc [[buffer(1)]],
+@@ -239,10 +241,12 @@ template <int D, int BK, int NSG>
+         }
+         l0 = l0 * f0 + ls0;
+         l1 = l1 * f1 + ls1;
+-        FN_UNROLL
+-        for (int i = 0; i < TD; ++i) {
++        if (!RS || !simd_all(f0 == 1.0f && f1 == 1.0f)) {
+             FN_UNROLL
+-            for (int e = 0; e < 8; ++e) O[i][e] *= (e & 4) ? f1 : f0;
++            for (int i = 0; i < TD; ++i) {
++                FN_UNROLL
++                for (int e = 0; e < 8; ++e) O[i][e] *= (e & 4) ? f1 : f0;
++            }
+         }
+ 
+         if (full) {
+@@ -291,11 +295,13 @@ template <int D, int BK, int NSG>
+     }
+ }
+ 
+-#define NAX_FLASH_INST(NAME, D, BK, NSG)                                                                              \
+-    template [[host_name(NAME)]] kernel void attn_nax<D, BK, NSG>(                                                    \
++#define NAX_FLASH_INST(NAME, D, BK, NSG, RS)                                                                          \
++    template [[host_name(NAME)]] kernel void attn_nax<D, BK, NSG, RS>(                                                \
+         device const ushort*, device const ushort*, device const ushort*, device ushort*, constant OpP&, uint2, uint2, \
+         uint, uint);
+ 
+ // Keep in step with NAX_FLASH_VARIANTS in src/flash_nax.rs. NSG = 4 serves groups 1, 2, 4; NSG = 8 serves group 8.
+-NAX_FLASH_INST("attn_nax_d128_s4", 128, 32, 4)
+-NAX_FLASH_INST("attn_nax_d128_s8", 128, 32, 8)
++NAX_FLASH_INST("attn_nax_d128_s4_rs", 128, 32, 4, true)
++NAX_FLASH_INST("attn_nax_d128_s8_rs", 128, 32, 8, true)
++NAX_FLASH_INST("attn_nax_d128_s4", 128, 32, 4, false)
++NAX_FLASH_INST("attn_nax_d128_s8", 128, 32, 8, false)

@@ -1,0 +1,29 @@
+p1/cb-short.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 31.277 ms (31.97 tok/s)  busy 30.619  idle gap 0.573 ms (p10 0.470 p90 0.915)
+gap split (median): wake 0.201  encode-first-buffer 0.193  commit->GPU start 0.152 ms
+p1/cb-4k.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 31.569 ms (31.68 tok/s)  busy 30.863  idle gap 0.642 ms (p10 0.564 p90 2.986)
+gap split (median): wake 0.227  encode-first-buffer 0.229  commit->GPU start 0.156 ms
+p1/cb-16k.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 31.966 ms (31.28 tok/s)  busy 31.568  idle gap 0.386 ms (p10 0.355 p90 0.490)
+gap split (median): wake 0.141  encode-first-buffer 0.111  commit->GPU start 0.126 ms
+p1/ab1-old.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.417 ms (33.99 tok/s)  busy 29.054  idle gap 0.347 ms (p10 0.310 p90 0.456)
+p1/ab2-new.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.518 ms (33.88 tok/s)  busy 29.065  idle gap 0.395 ms (p10 0.350 p90 0.512)
+gap split (median): wake 0.143  encode-first-buffer 0.115  commit->GPU start 0.128 ms
+p1/ab3-new.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 30.011 ms (33.32 tok/s)  busy 29.593  idle gap 0.400 ms (p10 0.369 p90 0.520)
+gap split (median): wake 0.146  encode-first-buffer 0.119  commit->GPU start 0.128 ms
+p1/ab4-old.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.405 ms (34.01 tok/s)  busy 29.003  idle gap 0.402 ms (p10 0.356 p90 0.534)
+p1/ab5-old.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.529 ms (33.87 tok/s)  busy 29.103  idle gap 0.396 ms (p10 0.354 p90 0.493)
+p1/ab6-new.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.047 ms (34.43 tok/s)  busy 28.633  idle gap 0.393 ms (p10 0.346 p90 0.501)
+gap split (median): wake 0.145  encode-first-buffer 0.113  commit->GPU start 0.128 ms
+p1/ab7-new.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 29.322 ms (34.10 tok/s)  busy 28.905  idle gap 0.400 ms (p10 0.358 p90 0.487)
+gap split (median): wake 0.148  encode-first-buffer 0.115  commit->GPU start 0.126 ms
+p1/ab8-old.jsonl.gz: 127 step pairs, dispatches/step 364, buffers/step 3
+period 28.988 ms (34.50 tok/s)  busy 28.566  idle gap 0.384 ms (p10 0.348 p90 0.493)

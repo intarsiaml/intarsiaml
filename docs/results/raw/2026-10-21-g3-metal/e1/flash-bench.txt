@@ -1,0 +1,20 @@
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 6 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 attn_nax_d128_s4_rs              737.8     714.8     759.1    46.59
+   8192 attn_nax_d128_s4_rs             7829.5    7623.0    7913.2    39.50
+  14336 attn_nax_d128_s4_rs            13219.2   12942.2   14461.4    38.99
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 6 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 attn_nax_d128_s4                 748.8     728.1     763.5    45.91
+   8192 attn_nax_d128_s4                7439.5    7274.4    7500.2    41.57
+  14336 attn_nax_d128_s4               12490.0   12122.1   12511.6    41.27
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 6 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 attn_nax_d128_s4                 738.5     711.9     756.4    46.55
+   8192 attn_nax_d128_s4                7360.3    7218.3    7458.4    42.02
+  14336 attn_nax_d128_s4               12390.6   12061.6   12687.5    41.60
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 6 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 attn_nax_d128_s4_rs              752.8     725.5     772.9    45.67
+   8192 attn_nax_d128_s4_rs             7750.2    7665.1    7834.7    39.90
+  14336 attn_nax_d128_s4_rs            13235.4   12845.7   13569.0    38.94
