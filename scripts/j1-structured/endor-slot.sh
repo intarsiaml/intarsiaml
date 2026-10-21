@@ -91,8 +91,18 @@ run)
   if serve head e2e; then
     uv run --script "$R/scripts/j1-structured/e2e.py" --url http://127.0.0.1:$PORT --out "$O/e2e-seq.json" \
       --constrained-speed > "$O/e2e-seq.log" 2>&1; echo "e2e seq rc=$? $(tail -1 "$O/e2e-seq.log")"
+    # mixed batch: one unconstrained greedy request alone, then while 3 constrained requests decode beside it; its ids
+    # must not change (device argmax per row) and its wall time is reported
+    t0=$(python3 -I -c 'import time; print(time.time())'); http_ids head solo
+    echo "solo wall $(python3 -I -c "import time; print(round(time.time() - $t0, 2))") s"
     uv run --script "$R/scripts/j1-structured/e2e.py" --url http://127.0.0.1:$PORT --out "$O/e2e-c4.json" \
-      --concurrency 4 > "$O/e2e-c4.log" 2>&1; echo "e2e c4 rc=$? $(tail -1 "$O/e2e-c4.log")"
+      --concurrency 4 > "$O/e2e-c4.log" 2>&1 &
+    E2E=$!
+    sleep 8
+    t0=$(python3 -I -c 'import time; print(time.time())'); http_ids head mixed
+    echo "mixed wall $(python3 -I -c "import time; print(round(time.time() - $t0, 2))") s"
+    cmp -s "$O/http-ids-head-solo.txt" "$O/http-ids-head-mixed.txt" && echo "mixed-batch ids: identical" || echo "mixed-batch ids: DIFFER"
+    wait $E2E; echo "e2e c4 rc=$? $(tail -1 "$O/e2e-c4.log")"
     for mode in json_schema prompt; do
       (cd /opt/code/deepeval && uv run localeval quality --url http://127.0.0.1:$PORT/v1 --model $NAME --bench gsm8k \
         --limit 50 --thinking off --structured $mode --label "j1-intarsia-metal-$mode") > "$O/gsm8k-$mode.log" 2>&1
@@ -128,5 +138,6 @@ run)
   tail -2 base-kernels.out; tail -2 head-kernels.out
   grep "test result" head-cargo-test.log | awk '{p+=$4; f+=$6} END {print "cargo test: passed", p, "failed", f}'
   tail -1 e2e-seq.log; tail -1 e2e-c4.log
+  cmp -s http-ids-head-solo.txt http-ids-head-mixed.txt && echo "mixed-batch ids: identical" || echo "mixed-batch ids: DIFFER"
   date +%T ;;
 esac
