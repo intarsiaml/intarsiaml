@@ -12,6 +12,7 @@ members = [
     "crates/intarsia-ui",
     "crates/intarsia-cli",
     "crates/intarsia-bench",
+    "crates/intarsia-tui",
 ]
 
 [workspace.package]
@@ -50,6 +51,7 @@ clap = { version = "4", features = ["derive"] }
 ureq = { version = "3", default-features = false }
 ratatui = "0.30"
 intarsia-bench = { path = "crates/intarsia-bench" }
+intarsia-tui = { path = "crates/intarsia-tui" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 # server agent

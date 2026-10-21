@@ -11,3 +11,5 @@ pub mod qualify;
 pub mod recipe;
 pub mod serve;
 pub mod top;
+#[cfg(feature = "tui")]
+pub mod tui;
