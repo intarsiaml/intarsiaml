@@ -1,0 +1,27 @@
+fleetq: #3138 running on spark1: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/m2fg/spark.sh
+14:10:47 ref 03232786
+14:11:19 build rc=0     Finished `release` profile [optimized] target(s) in 21.92s
+14:11:36 cli tests rc=0 passed 101 failed 0 
+14:12:04 golden rc=0
+prompt 6: 58 tokens, vocab 151936, second run bitwise equal (max |d logprob| 0.000e+00)
+prompt 7: 90 tokens, vocab 151936, second run bitwise equal (max |d logprob| 0.000e+00)
+{"out": "/gold/qwen3-8b-exl3-4.0bpw-bf16plain-formatref-exllamav3.safetensors", "second_run": "/gold/run2-exllamav3.safetensors", "runs_bitwise_equal": true, "prompts": 8, "vocab": 151936}
+14:13:38 qualify exl3 rc=0
+14:13:38 qualify bf16 rc=0
+**Verdict: PASS** (8 stages: 6 pass, 0 fail, 0 error, 2 skipped)
+| # | Stage | Section | Verdict | Wall | Result |
+| 7 | `acc-format` short accuracy against the format's own reference (same quantized weights) | quick | PASS | 22s | prefill top-1 98.85% KL 4.40e-4; decode top-1 99.22% KL 1.15e-3 |
+**acc-format** against `/home/nvidia/m2-fg-gold/qwen3-8b-exl3-4.0bpw-bf16plain-formatref-exllamav3.safetensors` (found by model name; reference: exllamav3 1.6.0; gate class bf16)
+| `acc-format` | m2-fg-03232786 | spark-4e77 | 1792606396 | `/home/nvidia/intarsia-decfuse/m2-fg/target/acc/release/intarsia accuracy --model /home/nvidia/models-m2/qwen3-8b-exl3-4.0bpw-bf16plain --backend cuda --device 0 --golden /home/nvidia/m2-fg-gold/qwen3-8b-exl3-4.0bpw-bf16plain-formatref-exllamav3.safetensors --mode both --decode-positions 16 --max-seq` |
+- `logs/acc-format.out` (acc-format)
+- `baselines/acc-format.baseline.json` (acc-format)
+**Verdict: PASS** (8 stages: 3 pass, 0 fail, 0 error, 5 skipped)
+- `acc-format`: the weights are not quantized: no format reference applies
+| # | Stage | Section | Verdict | Wall | Result |
+| 7 | `acc-format` short accuracy against the format's own reference (same quantized weights) | quick | SKIP | 0s | the weights are not quantized: no format reference applies |
+| `acc-format` | m2-fg-d65dfe10 | spark-4e77 | 1792606130 | `-` |
+prefill floor [bf16]: top-1 (all rows) 98.85% strict (99.08% if the 1 fp16 reference ties counted as agreement) (not gated for this class) ok | full-vocab KL (scored rows, n=272) 3.219e-4 (need <= 1.0e-3) ok [all rows, n=434: 4.397e-4, reported only] | tail mass (all rows) ours 0.0324 vs ref 0.0324, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 99.22% strict (100.00% if the 1 fp16 reference ties counted as agreement) (not gated for this class) ok | full-vocab KL (scored rows, n=86) 6.770e-4 (need <= 1.0e-3) ok [all rows, n=128: 1.145e-3, reported only] | tail mass (all rows) ours 0.0231 vs ref 0.0231, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+golden gate: PASS
+14:13:39 done
+fleetq: #3138 done (exit 0)
