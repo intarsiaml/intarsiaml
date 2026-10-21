@@ -2,3 +2,5 @@
 2026-10-21 job=3101 role=spark2-vllm stop=13:26:47 up=13:39:50 down=783 s label="G1c tp2 graphs window1" serving=yes
 2026-10-21 job=3155 role=spark1-vllm stop=15:19:03 up=15:33:39 down=876 s label="G1c tp2 graphs window2" serving=yes
 2026-10-21 job=3155 role=spark2-vllm stop=15:19:03 up=15:33:39 down=876 s label="G1c tp2 graphs window2" serving=yes
+2026-10-21 job=3182 role=spark1-vllm stop=17:18:18 up=17:30:58 down=760 s label="G1c tp2 graphs soak-fusion" serving=yes
+2026-10-21 job=3182 role=spark2-vllm stop=17:18:18 up=17:31:03 down=765 s label="G1c tp2 graphs soak-fusion" serving=yes

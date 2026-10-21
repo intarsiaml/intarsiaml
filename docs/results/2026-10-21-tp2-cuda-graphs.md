@@ -315,3 +315,36 @@ Deviations from the brief:
 5. **Merge.** This PR touches shared core files (`model.rs`, `comm.rs`, `backend.rs`), so it needs the Metal and HIP
    no-op checks before merge. HIP keeps eager decode and unfused ops at tp=2 until its communicator says
    `capture_safe` (G2c).
+
+## 8. Follow-up: fusion on by default at tp=2 (user decision 2026-10-21 17:13)
+
+The user's decisions at 17:13: decision 1, yes, after a short soak; decision 2, no, tp=2 stays benchmark-only and
+spark2 keeps its role. The CLI now turns row-local fusion on by default for CUDA (`tp_fusion` in
+`crates/intarsia-cli/src/common.rs`).
+- `INTARSIA_TP_FUSION=0` opts out.
+- Any other value asks for fusion, which HIP still refuses at load.
+- The library default (`LoadOptions::default`) stays off.
+
+**Soak** (fleetq #3182, both vLLMs down, main `0294b778` with `INTARSIA_TP_FUSION=1` on both ranks, `raw/soak-fusion`):
+- One tp=2 `serve` ran `scripts/tp2-graphs/soak.py` for 511 s, with two client threads and greedy requests.
+- **687 requests, 0 errors.** The mix, with mean seconds per request:
+
+| kind | requests | s each |
+|---|---|---|
+| short | 211 | 0.9 |
+| prefix-reuse | 176 | 1.4 |
+| long (up to 18,274 prompt tokens) | 129 | 2.4 |
+| streaming | 119 | 1.4 |
+| two-turn | 52 | 2.2 |
+
+- Prefix reuse hit the cache (cached_tokens > 0) on 51 requests.
+- At the end:
+  - `/health` returned 200 and a final request answered;
+  - the fixed probe request gave the same text at the start and at the end;
+  - the serve and worker logs have 0 lines matching panic or error;
+  - rank 1 replayed its graph 22,886 times from one capture.
+- The soak ran 8.5 min, not the 10 min asked for, to stay inside the 15 min downtime cap: vLLM's restore alone takes
+  about 3.5 min.
+- Down: 765 s (17:18:18-17:31:03). Today's tp=2 total is now 40.5 of 60 min.
+
+FDEF_SECTION
