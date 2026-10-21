@@ -229,7 +229,7 @@ printf '%s' "$STAMP" | jq -r '
   "gpu        \(.device.name // "n/a")  compute \($s.compute_cap // "-")",
   "driver     \($s.driver_version // .gpu.rocm_version // "n/a")  (cuda toolkit \(.gpu.cuda_toolkit_version // "-"))",
   "host       \(.host.hostname // "n/a")  \(.host.os // "")  \(.host.cpu_model // "")",
-  "binary     \(.binary.path)  sha256 \(.binary.sha256[0:16])  \(.binary.bytes) bytes  v\(.binary.intarsia_version)",
+  "binary     \(.binary.path)  sha256 \(.binary.sha256[0:16])  \(.binary.bytes) bytes  \(if .binary.intarsia_version then "v" + .binary.intarsia_version else "" end)",
   "smoke      \(.smoke)"'
 
 # ---- optional command -------------------------------------------------------------------------------------------------

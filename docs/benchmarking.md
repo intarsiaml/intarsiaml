@@ -7,6 +7,9 @@ Two tools, same methodology, so numbers are comparable:
 * `localeval` (`/opt/code/deepeval`). Use it for the logged, fleet-aware runs: it takes its own
   fleetq slot, refuses busy servers, and records every run in unanimis. Quality evals live there too.
 
+To deploy a pinned commit to a box, stamp the toolchain and pack a run so another host can replay it, see
+[Reproducing results](reproducing-results.md).
+
 Both measure end to end over HTTP against an OpenAI-compatible `/v1/chat/completions` stream, so
 the same command works for IntarsiaML, vLLM, llama.cpp and oMLX.
 

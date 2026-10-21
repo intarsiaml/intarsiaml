@@ -12,8 +12,6 @@ sha() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 
 case "$step" in
   build)
     backend=$1 jobs=$2 stamp=$3
-    # remap the tree and cargo-home paths so the binary does not depend on where the tree lives (same sha -> same bytes)
-    RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$PWD=/intarsia-src --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo" \
     INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS="$jobs" \
       cargo build --release --locked --features "$backend" -p intarsia-cli 2>&1 | tail -5
     exit "${PIPESTATUS[0]}" ;;
