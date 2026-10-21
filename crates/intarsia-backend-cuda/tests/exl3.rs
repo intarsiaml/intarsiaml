@@ -20,6 +20,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 const KERNEL: &str = "matmul_exl3_gemv";
+const GEMM: &str = "matmul_exl3_gemm";
 
 fn device() -> Option<Arc<dyn Backend>> {
     let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
@@ -47,18 +48,17 @@ fn measure(got: &[f32], want: &[f32]) -> (f64, f64) {
 
 /// Every case of the op's sweep (quick and full) against `ref_matmul_exl3`, judged by the kernel's own tolerance. Prints
 /// the worst rel_l2 / max_abs per output dtype (the numbers the tolerance constants in `exl3.rs` are set from).
-#[test]
-fn matches_the_cpu_reference_over_the_sweep() {
+fn sweep_against_the_cpu_reference(kernel: &str) {
     let Some(cuda) = device() else { return };
     let cpu = CpuBackend::new();
-    let kern = cuda.kernels().into_iter().find(|k| k.name == KERNEL).unwrap();
+    let kern = cuda.kernels().into_iter().find(|k| k.name == kernel).unwrap();
     let mut worst: std::collections::BTreeMap<String, (f64, f64, String)> = Default::default();
     let mut n = 0;
     let mut failed = Vec::new();
     for quick in [true, false] {
         for case in sweep(Op::MatmulExl3, &SweepConfig { quick, ..SweepConfig::default() }) {
             let want = run_host(&cpu, "ref_matmul_exl3", &case.call).unwrap();
-            let got = run_host(&*cuda, KERNEL, &case.call).unwrap();
+            let got = run_host(&*cuda, kernel, &case.call).unwrap();
             let (ok, ma, rl) = judge(&kern, &got, &want);
             let key = format!("{}", got[0].dtype);
             let w = worst.entry(key).or_insert((0.0, 0.0, String::new()));
@@ -77,6 +77,16 @@ fn matches_the_cpu_reference_over_the_sweep() {
     }
     println!("{n} cases, {} outside the kernel's tolerance", failed.len());
     assert!(failed.is_empty(), "outside the kernel's tolerance:\n{}", failed.join("\n"));
+}
+#[test]
+fn matches_the_cpu_reference_over_the_sweep() {
+    sweep_against_the_cpu_reference(KERNEL);
+}
+
+/// The GEMM over the same sweep (every row count of it, below its registered crossover too).
+#[test]
+fn gemm_matches_the_cpu_reference_over_the_sweep() {
+    sweep_against_the_cpu_reference(GEMM);
 }
 
 /// The only gap between the kernel and the f64 reference is meant to be the fp16 rounding of the rotated input (the mma's
@@ -119,16 +129,15 @@ fn only_the_input_rounding_separates_it_from_the_reference() {
     }
 }
 
-/// A row's bits do not depend on the batch (the block's K split is a function of (K, N) only, and the launcher's 128-row
-/// slices change nothing): in a 300-row call (slices of 128, 128 and 44 rows) row 0 is bit for bit the 1-row call, rows
-/// 8..13 the 5-row call, rows 127..129 a call across the slice edge, and so on.
-#[test]
-fn rows_do_not_depend_on_the_batch() {
+/// A row's bits do not depend on the batch (the block's K split is a function of (K, N) only, and the launcher's slices
+/// change nothing): in a 600-row call (GEMV slices of 128, GEMM slices of 512 and 88 rows) row 0 is bit for bit the 1-row
+/// call, rows 8..13 the 5-row call, rows 127..129 and 511..513 calls across a slice edge, and so on.
+fn rows_do_not_depend_on_the_batch_of(kernel: &str) {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(505);
     for (k2, cb, n, k) in [(8usize, Codebook::Inst3, 512usize, 1024usize), (5, Codebook::Mul1, 256, 384), (4, Codebook::Mcg, 1024, 128)] {
-        let full = exl3::case(&mut rng, 300, n, k, k2, cb, DType::Bf16, DType::Bf16);
-        let all = run_host(&*cuda, KERNEL, &full).unwrap();
+        let full = exl3::case(&mut rng, 600, n, k, k2, cb, DType::Bf16, DType::Bf16);
+        let all = run_host(&*cuda, kernel, &full).unwrap();
         let rows = |hc: &HostCall, r0: usize, r1: usize| -> HostCall {
             let mut h = hc.clone();
             let t = &hc.inputs[0];
@@ -136,13 +145,70 @@ fn rows_do_not_depend_on_the_batch() {
             h.outputs = vec![OutSpec::new(DType::Bf16, &[r1 - r0, n])];
             h
         };
-        for (r0, r1) in [(0usize, 1usize), (8, 13), (16, 17), (0, 16), (127, 129), (128, 300), (256, 300)] {
-            let part = run_host(&*cuda, KERNEL, &rows(&full, r0, r1)).unwrap();
-            assert_eq!(part[0].data, all[0].data[r0 * n * 2..r1 * n * 2], "k2={k2} rows {r0}..{r1}");
+        for (r0, r1) in [(0usize, 1usize), (8, 13), (16, 17), (0, 16), (127, 129), (128, 300), (256, 300), (511, 513), (500, 600), (64, 192)] {
+            let part = run_host(&*cuda, kernel, &rows(&full, r0, r1)).unwrap();
+            assert_eq!(part[0].data, all[0].data[r0 * n * 2..r1 * n * 2], "{kernel} k2={k2} rows {r0}..{r1}");
         }
-        let again = run_host(&*cuda, KERNEL, &full).unwrap();
-        assert_eq!(again[0].data, all[0].data, "not repeatable");
+        let again = run_host(&*cuda, kernel, &full).unwrap();
+        assert_eq!(again[0].data, all[0].data, "{kernel}: not repeatable");
     }
+}
+
+#[test]
+fn rows_do_not_depend_on_the_batch() {
+    rows_do_not_depend_on_the_batch_of(KERNEL);
+}
+
+#[test]
+fn gemm_rows_do_not_depend_on_the_batch() {
+    rows_do_not_depend_on_the_batch_of(GEMM);
+}
+
+/// The GEMM is the GEMV bit for bit (same mma chains, same sum order, same epilogue): every width and codebook, bf16 /
+/// f16 / f32 outputs, row counts that are no multiple of a tile or a slice, K whose chain length (K / 128 k tiles) is
+/// odd, and a wide N that takes the 128-row blocks (N = 4096 with 512 rows) next to the 64-row ones.
+#[test]
+fn gemm_is_the_gemv_bit_for_bit() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(909);
+    let mut n_cases = 0;
+    for (k2, cb) in [
+        (2usize, Codebook::Inst3),
+        (3, Codebook::Mul1),
+        (4, Codebook::Mcg),
+        (5, Codebook::Mul1),
+        (6, Codebook::Mcg),
+        (7, Codebook::Mul1),
+        (8, Codebook::Inst3),
+        (8, Codebook::Mcg),
+        (8, Codebook::Mul1),
+        (10, Codebook::Inst3),
+        (12, Codebook::Mul1),
+        (14, Codebook::Mcg),
+        (16, Codebook::Inst3),
+    ] {
+        for (m, n, k, odt) in [
+            (1usize, 256usize, 640usize, DType::Bf16),
+            (37, 256, 640, DType::Bf16),
+            (65, 384, 128, DType::F32),
+            (130, 256, 384, DType::Bf16),
+            (300, 128, 1024, DType::F16),
+        ] {
+            let hc = exl3::case(&mut rng, m, n, k, k2, cb, DType::Bf16, odt);
+            let a = run_host(&*cuda, KERNEL, &hc).unwrap();
+            let b = run_host(&*cuda, GEMM, &hc).unwrap();
+            assert_eq!(a[0].data, b[0].data, "k2={k2} {} M={m} N={n} K={k} out={odt}", cb.name());
+            n_cases += 1;
+        }
+    }
+    for (m, k2, cb, xdt) in [(549usize, 8usize, Codebook::Inst3, DType::Bf16), (512, 4, Codebook::Mcg, DType::F16), (200, 5, Codebook::Mul1, DType::F32)] {
+        let hc = exl3::case(&mut rng, m, 4096, 256, k2, cb, xdt, DType::Bf16);
+        let a = run_host(&*cuda, KERNEL, &hc).unwrap();
+        let b = run_host(&*cuda, GEMM, &hc).unwrap();
+        assert_eq!(a[0].data, b[0].data, "k2={k2} {} M={m} N=4096 x={xdt}", cb.name());
+        n_cases += 1;
+    }
+    println!("{n_cases} cases bit for bit equal");
 }
 
 /// f16 activations and outputs (not in the sweep).
@@ -150,15 +216,17 @@ fn rows_do_not_depend_on_the_batch() {
 fn f16_activations_and_outputs() {
     let Some(cuda) = device() else { return };
     let cpu = CpuBackend::new();
-    let kern = cuda.kernels().into_iter().find(|k| k.name == KERNEL).unwrap();
     let mut rng = SplitMix64::new(606);
-    for (xdt, odt) in [(DType::F16, DType::F16), (DType::F16, DType::F32), (DType::Bf16, DType::F16), (DType::F32, DType::Bf16)] {
-        let hc = exl3::case(&mut rng, 5, 256, 384, 6, Codebook::Mcg, xdt, odt);
-        let want = run_host(&cpu, "ref_matmul_exl3", &hc).unwrap();
-        let got = run_host(&*cuda, KERNEL, &hc).unwrap();
-        let (ok, ma, rl) = judge(&kern, &got, &want);
-        println!("x={xdt} out={odt}: max_abs {ma:.3e} rel_l2 {rl:.3e}");
-        assert!(ok, "x={xdt} out={odt}: max_abs {ma:.3e} rel_l2 {rl:.3e}");
+    for kernel in [KERNEL, GEMM] {
+        let kern = cuda.kernels().into_iter().find(|k| k.name == kernel).unwrap();
+        for (xdt, odt) in [(DType::F16, DType::F16), (DType::F16, DType::F32), (DType::Bf16, DType::F16), (DType::F32, DType::Bf16)] {
+            let hc = exl3::case(&mut rng, 5, 256, 384, 6, Codebook::Mcg, xdt, odt);
+            let want = run_host(&cpu, "ref_matmul_exl3", &hc).unwrap();
+            let got = run_host(&*cuda, kernel, &hc).unwrap();
+            let (ok, ma, rl) = judge(&kern, &got, &want);
+            println!("{kernel} x={xdt} out={odt}: max_abs {ma:.3e} rel_l2 {rl:.3e}");
+            assert!(ok, "{kernel} x={xdt} out={odt}: max_abs {ma:.3e} rel_l2 {rl:.3e}");
+        }
     }
 }
 
@@ -171,8 +239,10 @@ fn a_bad_codebook_gives_nan() {
     for (k2, cbv) in [(8usize, 7i32), (8, -1), (5, 0), (5, 1)] {
         let mut hc = exl3::case(&mut rng, 3, 256, 256, k2, Codebook::Mul1, DType::Bf16, DType::F32);
         hc.inputs[4] = HostTensor { data: cbv.to_le_bytes().to_vec(), ..hc.inputs[4].clone() };
-        let got = run_host(&*cuda, KERNEL, &hc).unwrap();
-        assert!(got[0].to_f32().iter().all(|v| v.is_nan()), "k2={k2} codebook {cbv}");
+        for kernel in [KERNEL, GEMM] {
+            let got = run_host(&*cuda, kernel, &hc).unwrap();
+            assert!(got[0].to_f32().iter().all(|v| v.is_nan()), "{kernel} k2={k2} codebook {cbv}");
+        }
     }
 }
 
@@ -223,7 +293,12 @@ fn time_cold(b: &dyn Backend, kernel: &str, hc: &HostCall, wi: &[usize], copies:
         })
         .collect();
     t.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    t[t.len() / 2]
+    // EXL3_BENCH_STAT=min: the fastest replay instead of the median (another fleetq job on the GPU slows replays at random)
+    if std::env::var("EXL3_BENCH_STAT").is_ok_and(|v| v == "min") {
+        t[0]
+    } else {
+        t[t.len() / 2]
+    }
 }
 
 /// Copies of a weight of `bytes` so that the graph reads at least 192 MB (more than any cache), at least 3, at most 48.
@@ -284,4 +359,59 @@ fn bench_decode_shapes() {
         let us = time_cold(&*cuda, "matmul_nvfp4_gemv", &hc, &[1, 2], copies_for(bytes), 15);
         row(&format!("nvfp4 matmul_nvfp4_gemv {n}x{k}"), us, bytes);
     }
+}
+
+/// Prefill microbenchmark at the Qwen3-8B projection shapes (4-bit 3inst) for M = 8 .. 1024: the GEMV, the GEMM and the
+/// bf16 GEMM (`matmul_bf16`) on the same shapes, cold weights. Prints us per call and TFLOP/s (2 M N K / time).
+/// `INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda --test exl3 -- --ignored --nocapture bench_prefill_shapes`
+#[test]
+#[ignore]
+fn bench_prefill_shapes() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(818);
+    println!("{:<44} {:>9} {:>9}", "(cold weights, median of 15)", "us/call", "TFLOP/s");
+    for &(n, k) in &[(4096usize, 4096usize), (1024, 4096), (12288, 4096), (4096, 12288)] {
+        for &m in &[8usize, 16, 32, 48, 64, 96, 128, 256, 512, 1024] {
+            let flops = 2.0 * m as f64 * n as f64 * k as f64;
+            let row = |label: &str, secs: f64| println!("{:<44} {:>9.1} {:>9.2}", label, secs * 1e6, flops / secs / 1e12);
+            let hc = exl3::case(&mut rng, m, n, k, 8, Codebook::Inst3, DType::Bf16, DType::Bf16);
+            let bytes = hc.inputs[1].data.len();
+            for kernel in [KERNEL, GEMM] {
+                let secs = time_cold(&*cuda, kernel, &hc, &[1], copies_for(bytes), 15);
+                row(&format!("{kernel} {n}x{k} M={m}"), secs);
+            }
+            let hc = bf16_matmul_case(&mut rng, m, n, k);
+            let bytes = hc.inputs[1].data.len();
+            let secs = time_cold(&*cuda, "matmul_bf16", &hc, &[1], copies_for(bytes), 15);
+            row(&format!("matmul_bf16 {n}x{k} M={m}"), secs);
+        }
+    }
+}
+
+/// One shape of the prefill kernels for a profiler (`ncu -k regex:gemm_kernel -c 1`): EXL3_PROF_KERNEL (default the GEMM),
+/// EXL3_PROF_M / _N / _K / _K2 (default 1024 / 4096 / 4096 / 8).
+#[test]
+#[ignore]
+fn profile_one_shape() {
+    let Some(cuda) = device() else { return };
+    let env = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let kernel = std::env::var("EXL3_PROF_KERNEL").unwrap_or_else(|_| GEMM.into());
+    let (m, n, k, k2) = (env("EXL3_PROF_M", 1024), env("EXL3_PROF_N", 4096), env("EXL3_PROF_K", 4096), env("EXL3_PROF_K2", 8));
+    let hc = exl3::case(&mut SplitMix64::new(919), m, n, k, k2, Codebook::Inst3, DType::Bf16, DType::Bf16);
+    if std::env::var("EXL3_PROF_DIRECT").is_ok() {
+        // plain launches (no graph), so a printf in the kernel is flushed at the synchronise
+        let b = &*cuda;
+        let inputs: Vec<TensorRef> = hc.inputs.iter().map(|t| dev_tensor(b, t)).collect();
+        let out = dev_tensor(b, &HostTensor::zeros(hc.outputs[0].dtype, &hc.outputs[0].shape));
+        let mut call = OpCall::new(hc.op, inputs, vec![out], hc.attrs.clone());
+        let need = b.kernels().iter().find(|k| k.name == kernel).map_or(0, |k| k.scratch_bytes(&ShapeInfo::from_call(&call)));
+        call.scratch = Some(TensorRef::new(b.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need]));
+        for _ in 0..3 {
+            b.launch(&kernel, &call, 0).unwrap();
+        }
+        b.synchronize(0).unwrap();
+        return;
+    }
+    let secs = time_cold(&*cuda, &kernel, &hc, &[1], copies_for(hc.inputs[1].data.len()), 15);
+    println!("{kernel} M={m} N={n} K={k} k2={k2}: {:.1} us", secs * 1e6);
 }

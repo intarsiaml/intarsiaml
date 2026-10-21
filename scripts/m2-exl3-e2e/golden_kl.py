@@ -43,6 +43,13 @@ def main():
     ap.add_argument("ref")
     ap.add_argument("other")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument(
+        "--last",
+        type=int,
+        default=0,
+        help="score only the last N rows of each prompt (min(N, n-1)): the rows `intarsia accuracy --mode decode` "
+        "scores (teacher-forced window, --decode-positions, default 16)",
+    )
     a = ap.parse_args()
     r, rm = load(a.ref)
     o, om = load(a.other)
@@ -58,6 +65,9 @@ def main():
         lr, lo = r[f"logprobs_{i}"].double(), o[f"logprobs_{i}"].double()
         if lr.shape[0] != lo.shape[0]:
             sys.exit(f"prompt {i}: {lr.shape[0]} vs {lo.shape[0]} rows")
+        if a.last:
+            k = max(1, min(a.last, lr.shape[0] - 1))
+            lr, lo = lr[-k:], lo[-k:]
         w = min(lr.shape[1], lo.shape[1])
         if lr.shape[1] != lo.shape[1]:
             big = lr if lr.shape[1] > w else lo

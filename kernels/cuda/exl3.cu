@@ -397,6 +397,252 @@ __global__ void __launch_bounds__(WK * 32) linear_kernel(const half* __restrict_
     }
 }
 
+// ---- prefill GEMM ------------------------------------------------------------------------------------------------
+//
+// The GEMV above decodes every weight tile again for each 16-row pass. The GEMM decodes each tile once per block of
+// 16 * MT rows: a block owns 128 output columns (one n block) and 16 * MT rows; its 8 warps own one 16-column tile each
+// and walk the whole K range together. The rotated input of the block's rows is staged through shared memory
+// (cp.async, 4 k tiles = 64 values per stage, 3 stages) and so are the block's trellis words (the 8 warps' tiles of the
+// 4 k tiles of a stage are 4 runs of 8 * 16 * K2 contiguous bytes). A warp decodes its k tile from shared memory into B
+// fragments once and runs the MT row groups against them (ldmatrix A fragments, 2 mma per group).
+//
+// What made it fast (GB10, 4096 x 4096 x 1024 rows: 1410 us -> 580 us; clock64 per phase and warp): with 2 warps per
+// scheduler and a barrier every stage, the warps are in the same phase together, so the ~70 dependent integer operations
+// of a decode, the burst of cp.async requests and the mma took turns instead of overlapping (each was ~450 clocks of a
+// ~2200 clock k tile). So (1) the decode of k tile q + 1 is written ahead of the mma of k tile q, which lets the compiler
+// schedule its chain into the gaps of the tensor pipe, (2) the requests of a stage are spread over the 4 k tiles of the
+// stage before it, and (3) the A fragments are loaded one group ahead. Staging the trellis words through shared memory
+// is not what removed the stall (a one-k-tile register prefetch measured the same); it only keeps those words out of the
+// registers.
+//
+// The bits are the GEMV's: the GEMV's warp w sums the k tiles [w * K/128, (w + 1) * K/128) in one mma chain from zero
+// and the block adds the 8 chains in warp order. The GEMM keeps one chain per K/128 run of k tiles, adds a finished
+// chain to a running total in the same order, and finishes with the same H, svh and rounding on the same fp32 values.
+// So the two kernels give identical bits, and so does every tiling (MT, slices): a row depends on nothing but itself.
+
+__device__ __forceinline__ uint32_t smem_u32(const void* p) {
+    return (uint32_t)__cvta_generic_to_shared(p);
+}
+
+__device__ __forceinline__ void cp_async16(uint32_t dst, const void* src) {
+    asm volatile("cp.async.cg.shared.global [%0], [%1], 16;\n" ::"r"(dst), "l"(src) : "memory");
+}
+
+__device__ __forceinline__ void cp_commit() {
+    asm volatile("cp.async.commit_group;\n" ::: "memory");
+}
+
+template <int N>
+__device__ __forceinline__ void cp_wait() {
+    asm volatile("cp.async.wait_group %0;\n" ::"n"(N) : "memory");
+}
+
+// A fragment of mma.m16n8k16 (rows 0-15, k 0-15) from shared memory: lane l addresses row l % 16, k offset 8 * (l / 16).
+__device__ __forceinline__ void ldmatrix_a(uint32_t (&a)[4], uint32_t addr) {
+    asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];\n"
+                 : "=r"(a[0]), "=r"(a[1]), "=r"(a[2]), "=r"(a[3])
+                 : "r"(addr)
+                 : "memory");
+}
+
+constexpr int kGemmThreads = 256;  // 8 warps: one 16-column tile each
+constexpr int kGemmLda = 72;       // halfs per staged row: 64 values + 8 padding (144 bytes: ldmatrix without conflicts)
+constexpr int kGemmStages = 3;
+constexpr int kGemmPassRows = 64;  // rows the epilogue moves through shared memory at a time
+constexpr int kGemmLdr = 136;      // floats per epilogue row: 128 + 8 padding
+
+// Shared memory: the pipeline (A stages, then the trellis stages: 4 k tiles x 8 tiles x 4 K2 words each) or, after the
+// loop, the epilogue's rows (they reuse the same bytes).
+template <int K2, int MT>
+constexpr size_t gemm_smem_bytes() {
+    constexpr size_t pipe = (size_t)kGemmStages * (16 * MT * kGemmLda * 2 + 4 * 8 * tile_words<K2>() * 4);
+    constexpr size_t epi = (size_t)(16 * MT < kGemmPassRows ? 16 * MT : kGemmPassRows) * kGemmLdr * 4;
+    return pipe > epi ? pipe : epi;
+}
+
+// This lane's words of a tile held in shared memory (tile: its first word).
+template <int K2>
+__device__ __forceinline__ void lds_lane_words(const uint32_t* tile, int lane, uint32_t (&w)[lane_words<K2>()]) {
+    int word, offset;
+    lane_start<K2>(lane, word, offset);
+#pragma unroll
+    for (int i = 0; i < lane_words<K2>(); ++i) w[i] = tile[(word + i) % tile_words<K2>()];
+}
+
+template <int K2, int CB, int MT>
+__device__ __forceinline__ void gemm_body(const half* __restrict__ xh, const uint32_t* __restrict__ T,
+                                          long long stride_k, long long stride_nb, const half* __restrict__ svh,
+                                          void* __restrict__ y, int y_dtype, int M, int K, int N,
+                                          unsigned char* smem) {
+    constexpr int TW = tile_words<K2>();
+    constexpr int LW = lane_words<K2>();
+    constexpr int ROWS = 16 * MT;
+    constexpr int STAGE_HALFS = ROWS * kGemmLda;
+    constexpr int STAGE_WORDS = 4 * 8 * TW;
+    constexpr int APIECES = ROWS * 8 / kGemmThreads;  // 16-byte pieces of a stage of the rotated input, per thread
+    constexpr int BPIECES = 4 * 2 * TW;               // 16-byte pieces of a stage of trellis words, in all
+
+    const int nb = blockIdx.x, row0 = blockIdx.y * ROWS, col0 = nb * 128;
+    const int tid = threadIdx.x, warp = tid >> 5, lane = tid & 31, g = lane >> 2, t = lane & 3;
+    const int KT = K >> 4, S = KT >> 2, C = KT >> 3;  // k tiles, stages of 4 k tiles, k tiles of one chain
+    const uint32_t* tiles = T + (size_t)nb * stride_nb;  // this block's 8 tiles of k tile 0
+    half* sA = reinterpret_cast<half*>(smem);
+    uint32_t* sB = reinterpret_cast<uint32_t*>(smem + (size_t)kGemmStages * STAGE_HALFS * 2);
+
+    // The requests of stage s are spread over the 4 k tiles of the stage before it is used (step q), so that they sit
+    // between the mma of the warps instead of in a burst; the stage's group is committed after step 3.
+    auto issue_part = [&](int s, int q) {
+        if (s < S) {
+            const uint32_t dsta = smem_u32(sA + (s % kGemmStages) * STAGE_HALFS);
+#pragma unroll
+            for (int j = q; j < APIECES; j += 4) {
+                const int idx = j * kGemmThreads + tid;
+                const int r = idx >> 3, c = idx & 7;
+                const int gr = row0 + r < M ? row0 + r : M - 1;  // rows past M read inside the buffer, their outputs are dropped
+                cp_async16(dsta + (uint32_t)(r * kGemmLda + c * 8) * 2, xh + (size_t)gr * K + s * 64 + c * 8);
+            }
+            if (q == 0) {
+                const uint32_t dstb = smem_u32(sB + (s % kGemmStages) * STAGE_WORDS);
+                for (int idx = tid; idx < BPIECES; idx += kGemmThreads) {  // 2 * TW pieces per k tile
+                    const int k4 = idx / (2 * TW), c = idx % (2 * TW);
+                    cp_async16(dstb + (uint32_t)(k4 * 8 * TW + c * 4) * 4, tiles + (size_t)(s * 4 + k4) * stride_k + c * 4);
+                }
+            }
+        }
+    };
+
+    float acc[MT][2][4], tot[MT][2][4];
+#pragma unroll
+    for (int i = 0; i < MT; ++i)
+#pragma unroll
+        for (int h = 0; h < 2; ++h)
+#pragma unroll
+            for (int c = 0; c < 4; ++c) acc[i][h][c] = tot[i][h][c] = 0.f;
+
+#pragma unroll
+    for (int s = 0; s < 2; ++s) {
+#pragma unroll
+        for (int q = 0; q < 4; ++q) issue_part(s, q);
+        cp_commit();
+    }
+
+    int kt = 0, ce = C;  // ce: the k tile count at which the running chain ends
+#pragma unroll 1
+    for (int s = 0; s < S; ++s) {
+        cp_wait<1>();
+        __syncthreads();  // stage s has landed; every warp is past stage s - 1, whose buffer the requests below overwrite
+        const uint32_t abase =
+            smem_u32(sA + (s % kGemmStages) * STAGE_HALFS) + (uint32_t)((lane & 15) * kGemmLda + (lane >> 4) * 8) * 2;
+        const uint32_t* bstage = sB + (s % kGemmStages) * STAGE_WORDS + warp * TW;
+
+        // The decode of k tile q + 1 is written ahead of the mma of k tile q: its long chain of dependent integer
+        // operations then runs in the gaps of the tensor pipe instead of after it.
+        uint32_t b0[2], b1[2];
+        {
+            uint32_t w[LW];
+            lds_lane_words<K2>(bstage, lane, w);
+            decode_lane<K2, CB>(w, lane, b0, b1);
+        }
+#pragma unroll
+        for (int q = 0; q < 4; ++q) {
+            uint32_t n0[2], n1[2];
+            if (q < 3) {
+                uint32_t w[LW];
+                lds_lane_words<K2>(bstage + (q + 1) * 8 * TW, lane, w);
+                decode_lane<K2, CB>(w, lane, n0, n1);
+            }
+            uint32_t a[2][4];
+            ldmatrix_a(a[0], abase + (uint32_t)(q * 16) * 2);
+#pragma unroll
+            for (int i = 0; i < MT; ++i) {
+                if (i + 1 < MT) ldmatrix_a(a[(i + 1) & 1], abase + (uint32_t)((i + 1) * 16 * kGemmLda + q * 16) * 2);
+                mma16816(acc[i][0], a[i & 1], b0);
+                mma16816(acc[i][1], a[i & 1], b1);
+            }
+            issue_part(s + 2, q);
+            ++kt;
+            if (kt == ce) {  // a chain is done: add it to the total (the GEMV's warp-order sum), start the next
+                const bool first = ce == C;
+#pragma unroll
+                for (int i = 0; i < MT; ++i)
+#pragma unroll
+                    for (int h = 0; h < 2; ++h)
+#pragma unroll
+                        for (int c = 0; c < 4; ++c) {
+                            tot[i][h][c] = first ? acc[i][h][c] : tot[i][h][c] + acc[i][h][c];
+                            acc[i][h][c] = 0.f;
+                        }
+                ce += C;
+            }
+            if (q < 3) {
+                b0[0] = n0[0]; b0[1] = n0[1]; b1[0] = n1[0]; b1[1] = n1[1];
+            }
+        }
+        cp_commit();
+    }
+    cp_wait<0>();
+
+    // H, svh and the output rounding, kGemmPassRows rows at a time through shared memory (the pipeline buffers are reused)
+    constexpr int PR = ROWS < kGemmPassRows ? ROWS : kGemmPassRows;
+    constexpr int GP = PR / 16;
+    float* red = reinterpret_cast<float*>(smem);
+#pragma unroll
+    for (int hp = 0; hp < ROWS / PR; ++hp) {
+        __syncthreads();  // the pipeline buffers / the previous pass's rows are free
+#pragma unroll
+        for (int i = 0; i < GP; ++i)
+#pragma unroll
+            for (int h = 0; h < 2; ++h) {
+                const int col = warp * 16 + h * 8 + 2 * t;
+                *reinterpret_cast<float2*>(red + (i * 16 + g) * kGemmLdr + col) =
+                    make_float2(tot[hp * GP + i][h][0], tot[hp * GP + i][h][1]);
+                *reinterpret_cast<float2*>(red + (i * 16 + g + 8) * kGemmLdr + col) =
+                    make_float2(tot[hp * GP + i][h][2], tot[hp * GP + i][h][3]);
+            }
+        __syncthreads();
+        for (int r = warp; r < PR; r += kGemmThreads / 32) {
+            const int row = row0 + hp * PR + r;
+            if (row < M) {
+                float v[4];
+                const float4 u = *reinterpret_cast<const float4*>(red + r * kGemmLdr + 4 * lane);
+                v[0] = u.x; v[1] = u.y; v[2] = u.z; v[3] = u.w;
+                finish(v, lane, svh, col0 + 4 * lane);
+                store4(y, y_dtype, (size_t)row * N + col0 + 4 * lane, v);
+            }
+        }
+    }
+}
+
+// An unusable codebook: the block's outputs are NaN (as the GEMV's).
+template <int MT>
+__device__ __forceinline__ void gemm_poison(void* __restrict__ y, int y_dtype, int M, int N) {
+    const float nan = __int_as_float(0x7fc00000);
+    const float v[4] = {nan, nan, nan, nan};
+    const int lane = threadIdx.x & 31;
+    for (int r = threadIdx.x >> 5; r < 16 * MT; r += kGemmThreads / 32) {
+        const int row = blockIdx.y * 16 * MT + r;
+        if (row < M) store4(y, y_dtype, (size_t)row * N + blockIdx.x * 128 + 4 * lane, v);
+    }
+}
+
+template <int K2, int MT>
+__global__ void __launch_bounds__(kGemmThreads, MT >= 8 ? 1 : 2)
+    gemm_kernel(const half* __restrict__ xh, const uint32_t* __restrict__ T, long long stride_k, long long stride_nb,
+                const half* __restrict__ svh, void* __restrict__ y, int y_dtype, const int* __restrict__ cbp, int M,
+                int K, int N) {
+    extern __shared__ __align__(16) unsigned char gemm_smem[];
+    const int cb = __ldg(cbp);
+    if constexpr (K2 % 2 == 1) {
+        if (cb == CB_MUL1) gemm_body<K2, CB_MUL1, MT>(xh, T, stride_k, stride_nb, svh, y, y_dtype, M, K, N, gemm_smem);
+        else gemm_poison<MT>(y, y_dtype, M, N);
+    } else {
+        if (cb == CB_3INST) gemm_body<K2, CB_3INST, MT>(xh, T, stride_k, stride_nb, svh, y, y_dtype, M, K, N, gemm_smem);
+        else if (cb == CB_MCG) gemm_body<K2, CB_MCG, MT>(xh, T, stride_k, stride_nb, svh, y, y_dtype, M, K, N, gemm_smem);
+        else if (cb == CB_MUL1) gemm_body<K2, CB_MUL1, MT>(xh, T, stride_k, stride_nb, svh, y, y_dtype, M, K, N, gemm_smem);
+        else gemm_poison<MT>(y, y_dtype, M, N);
+    }
+}
+
 // ---- launcher ----------------------------------------------------------------------------------------------------
 
 // Warps of a block: 8 (K / 16 is a multiple of 8 because K % 128 == 0, so they always divide the k tiles). A function of
@@ -407,6 +653,9 @@ constexpr int kWarps = 8;
 // Rows of one slice: the launcher takes any M and runs it as slices of at most this many rows (the rotated input of one
 // slice is in the scratch at a time, slices follow each other on the stream).
 constexpr int64_t kSliceRows = 128;
+
+// The same for the GEMM: a longer slice keeps the grid full (N / 128 blocks per 16 * MT rows) at a larger scratch.
+constexpr int64_t kGemmSliceRows = 512;
 
 template <int K2>
 int run(const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, const half* svh, void* y,
@@ -440,14 +689,63 @@ int launch_linear(int k2, const half* xh, const uint32_t* T, long long stride_k,
 #undef IK_EXL3_RUN
 }
 
+template <int K2, int MT>
+int run_gemm_mt(const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, const half* svh, void* y,
+                int y_dtype, const int* cbp, int M, int K, int N, cudaStream_t s) {
+    constexpr size_t smem = gemm_smem_bytes<K2, MT>();
+    static const bool attr_set = [] {
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_kernel<K2, MT>),
+                             cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
+        return true;
+    }();
+    (void)attr_set;
+    gemm_kernel<K2, MT><<<dim3((unsigned)(N / 128), (unsigned)((M + 16 * MT - 1) / (16 * MT))), kGemmThreads, smem, s>>>(
+        xh, T, stride_k, stride_nb, svh, y, y_dtype, cbp, M, K, N);
+    return ik_launch_status();
+}
+
+// Rows per block: 128 rows decode each tile once per 128 rows, 64 rows fill the SMs when the grid is small. The choice
+// changes no bit of the output (see above), only the speed: 128-row blocks from two waves of blocks on (about 2 per SM).
+template <int K2>
+int run_gemm(const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, const half* svh, void* y,
+             int y_dtype, const int* cbp, int M, int K, int N, cudaStream_t s) {
+    const long long blocks8 = (long long)(N / 128) * ((M + 127) / 128);
+    const bool wide = blocks8 >= 96;
+    return wide ? run_gemm_mt<K2, 8>(xh, T, stride_k, stride_nb, svh, y, y_dtype, cbp, M, K, N, s)
+                : run_gemm_mt<K2, 4>(xh, T, stride_k, stride_nb, svh, y, y_dtype, cbp, M, K, N, s);
+}
+
+int launch_gemm(int k2, const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, const half* svh,
+                void* y, int y_dtype, const int* cbp, int M, int K, int N, cudaStream_t s) {
+#define IK_EXL3_GEMM(K2_) \
+    case K2_:             \
+        return run_gemm<K2_>(xh, T, stride_k, stride_nb, svh, y, y_dtype, cbp, M, K, N, s)
+    switch (k2) {
+        IK_EXL3_GEMM(2);
+        IK_EXL3_GEMM(3);
+        IK_EXL3_GEMM(4);
+        IK_EXL3_GEMM(5);
+        IK_EXL3_GEMM(6);
+        IK_EXL3_GEMM(7);
+        IK_EXL3_GEMM(8);
+        IK_EXL3_GEMM(10);
+        IK_EXL3_GEMM(12);
+        IK_EXL3_GEMM(14);
+        IK_EXL3_GEMM(16);
+        default:
+            return IK_ERR_SHAPE;
+    }
+#undef IK_EXL3_GEMM
+}
+
 bool is_act(int dtype) { return dtype == IK_DTYPE_BF16 || dtype == IK_DTYPE_F16 || dtype == IK_DTYPE_F32; }
 
 }  // namespace
 
-extern "C" {
-
-int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
-                        const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+// Both launchers: the GEMV runs the rows in slices of kSliceRows, the GEMM in slices of kGemmSliceRows; each slice is a
+// rot_in and a linear / gemm launch.
+static int exl3_launch(bool gemm, const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                       const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     if (!x || !out) return IK_ERR_INVALID_ARG;
     if (!is_act(x->dtype) || !is_act(out->dtype)) return IK_ERR_DTYPE;
     IK_TRY(ik_check_a(x, x->dtype, 2, 16));
@@ -467,8 +765,11 @@ int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_t
         return IK_ERR_SHAPE;
     if (M == 0 || N == 0 || K == 0) return IK_OK;
     if (K > 0x3fffffffLL || N > 0x3fffffffLL) return IK_ERR_SHAPE;
-    // the rotated input, fp16 [min(M, kSliceRows), K]
-    const int64_t need = (M < kSliceRows ? M : kSliceRows) * K * 2;
+    // the rotated input, fp16 [min(M, slice), K]
+    // the GEMM stages the trellis with 16-byte cp.async; the GEMV gives the same bits from a trellis that is only 4-aligned
+    if (gemm && !ik_aligned16(trellis->data)) gemm = false;
+    const int64_t slice = gemm ? kGemmSliceRows : kSliceRows;
+    const int64_t need = (M < slice ? M : slice) * K * 2;
     if (!scratch || !scratch->data || scratch->bytes < need || ((uintptr_t)scratch->data & 15u) != 0) return IK_ERR_INVALID_ARG;
 
     cudaStream_t s = IK_STREAM(stream);
@@ -478,15 +779,28 @@ int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_t
     const half* sv = (const half*)svh->data;
     const int* cbp = (const int*)cb->data;
     const int64_t xsize = x->dtype == IK_DTYPE_F32 ? 4 : 2, osize = out->dtype == IK_DTYPE_F32 ? 4 : 2;
-    for (int64_t r0 = 0; r0 < M; r0 += kSliceRows) {
-        const int rows = (int)(M - r0 < kSliceRows ? M - r0 : kSliceRows);
+    for (int64_t r0 = 0; r0 < M; r0 += slice) {
+        const int rows = (int)(M - r0 < slice ? M - r0 : slice);
         rot_in_kernel<<<dim3((unsigned)((K / 128 + 3) / 4), (unsigned)rows), 128, 0, s>>>(
             (const char*)x->data + r0 * K * xsize, x->dtype, (const half*)suh->data, xh, (int)K);
         IK_TRY(ik_launch_status());
-        IK_TRY(launch_linear(k2, xh, T, stride_k, stride_nb, sv, (char*)out->data + r0 * N * osize, out->dtype, cbp, rows,
-                             (int)K, (int)N, s));
+        char* yp = (char*)out->data + r0 * N * osize;
+        IK_TRY(gemm ? launch_gemm(k2, xh, T, stride_k, stride_nb, sv, yp, out->dtype, cbp, rows, (int)K, (int)N, s)
+                    : launch_linear(k2, xh, T, stride_k, stride_nb, sv, yp, out->dtype, cbp, rows, (int)K, (int)N, s));
     }
     return IK_OK;
+}
+
+extern "C" {
+
+int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                        const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return exl3_launch(false, x, trellis, suh, svh, cb, out, scratch, stream);
+}
+
+int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                        const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return exl3_launch(true, x, trellis, suh, svh, cb, out, scratch, stream);
 }
 
 }  // extern "C"
