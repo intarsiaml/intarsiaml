@@ -123,6 +123,10 @@ if [[ $MODE == gates ]]; then
   WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-short --self-golden $GD/S1-short.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_SHORT
   WENV=INTARSIA_TP_TEST_BUG=scale:1.01 xacc bug-long --self-golden $GD/S1-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE $B_LONG
   xacc reuse --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
+  # tp=2 logit dumps for the offline KL table (scripts/m3-accuracy/setkl.py, the round-7 method); not committed (19 MB)
+  if want dump-short || want dump-long; then r spark1 "mkdir -p ~/intarsia-tp2/dumps"; fi
+  xacc dump-short --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --write-self-golden '$HOME/intarsia-tp2/dumps/T2-short.safetensors'
+  xacc dump-long --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --write-self-golden '$HOME/intarsia-tp2/dumps/T2-long.safetensors'
   xgen() { # <tag> <chars>: 256 greedy ids cross-host, compared with the one-box ids in $SRC
     local tag=$1 chars=$2; want gen$tag || return 0
     local GEN_FLAGS="-m $M35 --backend cuda --tp 2 --max-seq 20480 --mem-budget 16 --profile-every 0"
