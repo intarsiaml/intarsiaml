@@ -13,7 +13,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         // the gated-delta-net ops reuse the f64 reference math (no separate fast path yet)
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => crate::gdn_ref::run(call),
         // quantised matmuls and MoE reuse the f64 reference math (parallel over rows / tokens)
-        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
+        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::MatmulPair
         | Op::MatmulFp8Pair
         | Op::MatmulNvfp4Glu

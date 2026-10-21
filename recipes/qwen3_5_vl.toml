@@ -1,0 +1,66 @@
+# Qwen3.5-family dense hybrid decoder in the vision-language wrapper (Qwen3_5ForConditionalGeneration, e.g. Qwen3.8-27B):
+# the same blocks as recipes/qwen3_5.toml (GatedDeltaNet linear attention interleaved with gated full attention per
+# config.json text_config.layer_types, zero-centred RMSNorm, partial rotary embeddings, dense SwiGLU FFN), but the text
+# weights live under model.language_model.*; the vision tower (model.visual.*) and the MTP head (mtp.*) are ignored.
+# Quantisation (bf16, or AMD Quark MXFP4 W4A4 for amd/Qwen3.8-27B-Quark-AWQ-MXFP4) is detected per tensor and checked
+# against config.json quantization_config, not named here.
+# Scaffolded by `intarsia recipe new` (0 TODOs) during the M1 onboarding drill (docs/results/2026-10-21-m1-qwen38-drill.md).
+[model]
+match.architectures = ["Qwen3_5ForConditionalGeneration"]
+family = "qwen3_5_vl"
+chat_template = "hf"
+reasoning_parser = "think-tags"
+tool_parser = "hermes"
+norm_offset = 1.0        # RMSNorm scale is 1 + weight (not the gated norm inside GatedDeltaNet)
+
+[layer]
+pattern = ["attn", "ffn"]              # used only when a layer has no type
+pattern_by_layer = "layer_types"       # config.json key
+
+[layer.by_type]
+full_attention = ["attn", "ffn"]
+linear_attention = ["gdn", "ffn"]
+
+[layer.attn]
+kind = "gqa"
+gated = true                           # q_proj = [q | output gate] per head
+q = "model.language_model.layers.{i}.self_attn.q_proj"
+k = "model.language_model.layers.{i}.self_attn.k_proj"
+v = "model.language_model.layers.{i}.self_attn.v_proj"
+o = "model.language_model.layers.{i}.self_attn.o_proj"
+q_norm = "model.language_model.layers.{i}.self_attn.q_norm"
+k_norm = "model.language_model.layers.{i}.self_attn.k_norm"
+rope = "default"                       # text-only: all three mrope axes carry the same position, i.e. plain rope
+
+[layer.gdn]
+kind = "gated_delta_net"
+in_qkv = "model.language_model.layers.{i}.linear_attn.in_proj_qkv"
+in_z = "model.language_model.layers.{i}.linear_attn.in_proj_z"
+in_b = "model.language_model.layers.{i}.linear_attn.in_proj_b"
+in_a = "model.language_model.layers.{i}.linear_attn.in_proj_a"
+conv = "model.language_model.layers.{i}.linear_attn.conv1d"
+a_log = "model.language_model.layers.{i}.linear_attn.A_log"
+dt_bias = "model.language_model.layers.{i}.linear_attn.dt_bias"
+norm = "model.language_model.layers.{i}.linear_attn.norm"
+out = "model.language_model.layers.{i}.linear_attn.out_proj"
+
+[layer.ffn]
+kind = "dense"
+act = "silu_glu"
+gate = "model.language_model.layers.{i}.mlp.gate_proj"
+up = "model.language_model.layers.{i}.mlp.up_proj"
+down = "model.language_model.layers.{i}.mlp.down_proj"
+
+[layer.norms]
+pre_attn = "model.language_model.layers.{i}.input_layernorm"
+pre_gdn = "model.language_model.layers.{i}.input_layernorm"
+pre_ffn = "model.language_model.layers.{i}.post_attention_layernorm"
+
+[top]
+embed = "model.language_model.embed_tokens"
+final_norm = "model.language_model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
+
+[defaults]
+kv_dtype = "bf16"
+max_batch = 32

@@ -105,7 +105,18 @@ pub fn eos_ids(dir: &Path, cfg: &Value) -> Vec<u32> {
 pub fn read_quant_scheme(dir: &Path) -> Result<Option<QuantScheme>> {
     let p = dir.join("hf_quant_config.json");
     if !p.exists() {
-        return Ok(None);
+        // AMD Quark declares its scheme in config.json (`quantization_config.quant_method = "quark"`, top level or
+        // under text_config); other quant_methods keep the old behaviour (tensor detection only)
+        let c = dir.join("config.json");
+        if !c.exists() {
+            return Ok(None);
+        }
+        let cfg = read_json(&c)?;
+        let qc = cfg.get("quantization_config").or_else(|| cfg.get("text_config").and_then(|t| t.get("quantization_config")));
+        return match qc {
+            Some(q) if q.get("quant_method").and_then(serde_json::Value::as_str) == Some("quark") => QuantScheme::parse_quark(q).map(Some),
+            _ => Ok(None),
+        };
     }
     QuantScheme::parse(&read_json(&p)?).map(Some)
 }
@@ -195,6 +206,11 @@ pub fn load_engine_tp(
     // deviations from the declared scheme that are not errors: logged once, at load
     if let Some(note) = weights.scheme().and_then(|s| s.kv_note(model.kv)) {
         eprintln!("quantisation scheme note: {note}");
+    }
+    if let (Some(s), Some(ours)) = (weights.scheme(), opts.load.mxfp4_act) {
+        if let Some(note) = s.mxfp4_act_note(ours) {
+            eprintln!("quantisation scheme note: {note}");
+        }
     }
     // the admission oracle is always the cpu backend (its `ref_*` kernels)
     let oracle = intarsia_backend_cpu::CpuBackend::arc();

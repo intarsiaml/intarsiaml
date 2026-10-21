@@ -55,6 +55,9 @@ pub struct LoadOptions {
     /// FP8 projections: activations quantised with the checkpoint's static scale (`static`, W8A8) or kept
     /// 16-bit (`none`, W8A16). `None` = the recipe's `[defaults] fp8_act`.
     pub fp8_act: Option<Fp8Act>,
+    /// MXFP4 projections: dynamic MXFP4 activations (`dynamic`, W4A4) or 16-bit (`none`, W4A16). `None` = what the
+    /// checkpoint declares (Quark `input_tensors`), W4A16 when it declares nothing.
+    pub mxfp4_act: Option<crate::quant::Mxfp4Act>,
     /// Replay the single-token decode step as a captured graph when the backend supports it (`--no-graphs` turns
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
@@ -71,6 +74,7 @@ impl Default for LoadOptions {
             profile_every: 1,
             mem_budget: None,
             fp8_act: None,
+            mxfp4_act: None,
             graphs: true,
         }
     }
@@ -337,7 +341,11 @@ impl Model {
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
-        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), shard: None };
+        let mxfp4_act = opts
+            .mxfp4_act
+            .or_else(|| src.quant_scheme().and_then(|s| s.mxfp4_act()))
+            .unwrap_or(crate::quant::Mxfp4Act::None);
+        let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), mxfp4_act, shard: None };
         // `n`, `k`: the shape this rank holds (for a sharded weight, its slice of the checkpoint's `[n, k]`)
         let load_qs = |tmpl: &str, layer: usize, n: usize, k: usize, axis: Option<ShardAxis>| -> Result<QTensor> {
             let prefix = Recipe::expand(tmpl, layer);

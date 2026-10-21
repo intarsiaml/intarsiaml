@@ -16,7 +16,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use intarsia_core::quant::scheme::{Algo, QuantScheme};
-use intarsia_core::quant::{BF16, FP8_E4M3, NVFP4};
+use intarsia_core::quant::{BF16, FP8_E4M3, MXFP4, NVFP4};
 use intarsia_core::recipe::{text_config, ConfigKeys, ModelDims, Recipe};
 use intarsia_core::Error as CoreError;
 use intarsia_models::recipe::all_recipes;
@@ -797,6 +797,7 @@ enum Cls {
     Float(String),
     Fp8,
     Nvfp4,
+    Mxfp4,
     Unknown(String),
 }
 
@@ -822,6 +823,8 @@ fn classify(inv: &Inventory, module: &str, cfg_float: &str) -> Option<Cls> {
         Cls::Unknown("block-wise FP8 (weight_scale_inv)".into())
     } else if inv.has(&format!("{module}.weight_scale")) {
         match dt {
+            // u8 e2m1 pairs next to u8 e8m0 group scales: OCP MXFP4 (Quark)
+            Some("U8") if inv.dtype(&format!("{module}.weight_scale")) == Some("U8") => Cls::Mxfp4,
             None | Some("F8_E4M3") => Cls::Fp8,
             Some(other) => Cls::Unknown(format!("weight_scale next to a {other} weight")),
         }
@@ -868,6 +871,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
     match (qc, method.as_deref()) {
         (None, _) => {}
         (Some(_), Some("modelopt")) => {}
+        (Some(_), Some("quark")) => {} // parsed below (QuantScheme::parse_quark)
         (Some(q), None) if q.get("quant_algo").is_some() || q.get("quantized_layers").is_some() => {}
         (Some(q), Some("fp8")) => {
             if q.get("weight_block_size").is_some_and(|v| !v.is_null()) {
@@ -878,7 +882,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             }
         }
         (Some(_), Some(other)) => problems.push(format!(
-            "quant: config quantization_config.quant_method = \"{other}\" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8)"
+            "quant: config quantization_config.quant_method = \"{other}\" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4)"
         )),
         (Some(_), None) => problems.push("quant: config quantization_config has neither quant_method nor quant_algo; the scheme is unknown".into()),
     }
@@ -888,6 +892,26 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         }
     }
     let mut scheme: Option<QuantScheme> = None;
+    if let (None, Some(q), Some("quark")) = (&doc, qc, method.as_deref()) {
+        match QuantScheme::parse_quark(q) {
+            Ok(s) => {
+                let a = s.quant_algo.clone().unwrap_or_default();
+                match Algo::parse(&a) {
+                    Algo::Mxfp4W4A4 => notes.push(
+                        "config.json quantization_config (quark) declares MXFP4 weights with dynamic MXFP4 activations (W4A4); \
+                         the engine runs that by default (--mxfp4-act none opts into W4A16)"
+                            .into(),
+                    ),
+                    Algo::Mxfp4W4A16 => {}
+                    _ => problems.push(format!(
+                        "quant: Quark scheme \"{a}\" declared in config.json is not implemented (supported: OCP MXFP4 weights, group 32, e8m0, with dynamic \"even\" fp4 or 16-bit activations)"
+                    )),
+                }
+                scheme = Some(s);
+            }
+            Err(e) => problems.push(format!("quant: config.json quantization_config (quark): {e}")),
+        }
+    }
     if let Some((d, src)) = &doc {
         match QuantScheme::parse(d) {
             Ok(s) => scheme = Some(s),
@@ -905,7 +929,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         }
         for a in &algos {
             match Algo::parse(a) {
-                Algo::Fp8W8A8 | Algo::Nvfp4W4A16 => {}
+                Algo::Fp8W8A8 | Algo::Nvfp4W4A16 | Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 => {}
                 Algo::Nvfp4W4A4 => problems.push(format!(
                     "quant: quant_algo \"{a}\" (NVFP4 weights AND 4-bit activations) declared in {src}; the engine implements only weight-only W4A16_NVFP4"
                 )),
@@ -947,6 +971,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             Cls::Float(_) => Some(BF16),
             Cls::Fp8 => Some(FP8_E4M3),
             Cls::Nvfp4 => Some(NVFP4),
+            Cls::Mxfp4 => Some(MXFP4),
             Cls::Unknown(d) => {
                 let msg = format!("quant: tensor layout of {m} not recognised: {d}");
                 if seen_msgs.insert(msg.clone()) {
@@ -970,6 +995,9 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
     let has_nvfp4 = classes.contains(&Cls::Nvfp4);
     if has_nvfp4 {
         parts.push("nvfp4".into());
+    }
+    if classes.contains(&Cls::Mxfp4) {
+        parts.push("mxfp4".into());
     }
     if classes.contains(&Cls::Fp8) {
         parts.push(if has_nvfp4 { "fp8".into() } else { "fp8_e4m3".into() });
@@ -1508,6 +1536,9 @@ pub fn analyse(model: &Path, recipe_dirs: &[PathBuf]) -> Result<Analysis> {
         family_src: &family_src,
         quant: &quant,
         closest: closest.map(|i| &cands[i]),
+        // model-level settings (parsers, norm_offset) follow the model family, not the tensor layout: a VL wrapper of a
+        // known family (tensors under model.language_model.*) is closest by templates to another family's recipe
+        family_recipe: cands.iter().find(|c| same_family(&family, &c.recipe.model.family)),
         covered: covering.is_some(),
         head: head.as_deref(),
         tie,
@@ -1527,6 +1558,8 @@ struct EmitCtx<'a> {
     family_src: &'a str,
     quant: &'a QuantInfo,
     closest: Option<&'a Cand>,
+    /// An existing recipe of the same family (may differ from `closest`).
+    family_recipe: Option<&'a Cand>,
     covered: bool,
     head: Option<&'a str>,
     tie: bool,
@@ -1579,22 +1612,28 @@ fn emit(cx: &EmitCtx) -> (String, Vec<String>, Vec<String>) {
         &s("hf"),
         "default: the model's own jinja template (chat_template.jinja or tokenizer_config.json)",
     );
-    let fam_match = cr.is_some_and(|r| same_family(family, &r.model.family));
-    if let (Some(r), true) = (cr, fam_match) {
+    let closest_same = cr.is_some_and(|r| same_family(family, &r.model.family));
+    // the recipe model-level settings come from: the closest recipe when it is of this family, else another recipe of it
+    let (fr, fsrc, fam_match) = match (closest_same, cx.family_recipe) {
+        (true, _) => (cr, format!("closest recipe {csrc}"), true),
+        (false, Some(c)) => (Some(&c.recipe), format!("recipe {}", c.src), true),
+        (false, None) => (cr, format!("closest recipe {csrc}"), false),
+    };
+    if let (Some(r), true) = (fr, fam_match) {
         for (k, v) in [("reasoning_parser", &r.model.reasoning_parser), ("tool_parser", &r.model.tool_parser)] {
             if let Some(v) = v {
-                o.field(k, &s(v), &format!("from closest recipe {csrc} (same family)"));
+                o.field(k, &s(v), &format!("from {fsrc} (same family)"));
             }
         }
     } else {
         o.comment("reasoning_parser / tool_parser: optional, not inferable from the checkpoint (see an existing recipe of the same lineage)");
     }
     let hint = ["gemma", "qwen3_5", "qwen3_next"].iter().any(|h| family.contains(h));
-    match (cr, fam_match) {
+    match (fr, fam_match) {
         (Some(r), true) if r.model.norm_offset != 0.0 => o.field(
             "norm_offset",
             &format!("{:?}", r.model.norm_offset),
-            &format!("from closest recipe {csrc} (same family): zero-centred RMSNorm, x * (1 + w)"),
+            &format!("from {fsrc} (same family): zero-centred RMSNorm, x * (1 + w)"),
         ),
         (Some(r), false) if r.model.norm_offset != 0.0 => {
             o.todo(&format!(
