@@ -167,29 +167,43 @@ when the dir is an HF cache snapshot, else the dir name).
   forward never touches.
 
 * **reuse** (`--mode reuse`, part of `all`): the prefix-reuse path of the real model through `Engine::generate`,
-  what `serve` runs (the greedy streams are compared; the logits are recorded only to judge a divergence). Per
-  prompt whose split is at least one prefill chunk: *continue*: turn 1 = `ids[..s]` + a real 16-token reply, turn 2 =
-  turn 1 + reply + the rest of the prompt (the engine must reuse what it holds, `cached >= s`); *restore*: turn 1 =
-  `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated (attention) or a recurrent snapshot taken
-  at a prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`; *aligned*: *restore* with `s` rounded
-  down to a multiple of the prefill chunk. A cold run is forced by serving an unrelated
-  prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are compared.
-  `s` is the golden's `reuse_split`, else half of the prompt. A reuse run that has nothing to run on prints SKIPPED
-  and fails. `--reuse-prompt a,b` runs only those prompts.
-  * Identical streams pass. In *aligned* the warm run prefills exactly the chunks of the cold run, so on a backend
-    whose cold run repeats itself bit for bit (checked from the recorded logits when the streams differ) the streams
-    must be identical (`--reuse-exact`, default on).
-  * A diverging pair passes if it is a rounding tie, judged on the logits (`judge_streams`), or if it agrees on
-    `--reuse-min-match` leading tokens as before: the logit criterion can only rescue, never fail what passed. Both runs are repeated with the logits row of every
-    step recorded; rows `0..d` share one context (`d` the first divergence), so any difference between them is
-    numerical. The divergence is a *rounding tie* when every shared row agrees within `--reuse-logit-tol` (0.25 nats of
-    log-probability over the top-5 tokens, raised to twice what re-chunking the cold run alone moves them) and
-    `--reuse-kl-tol` (KL(cold || warm) <= 1e-2): the two top candidates were that close and the last bit of the KV
-    rows decided. The tolerances are absolute and calibrated on bf16 Qwen3-8B (not scaled by the model class: a 4-bit or hybrid
-    model may need larger ones, which is why the leading-token rule stays as the other way through). A broken restore
-    (wrong position, stale row, off-by-one chunk) moves the logits by far more (measured in the report) and fails; the unit tests `prefix_reuse_*` in `crates/intarsia-models/tests/engine.rs` pin the
-    engine's bookkeeping bitwise. A divergence that does not reproduce when the logits are recorded is accepted with
-    that note (the run is not repeatable).
+  what `serve` runs. Per prompt, at the run's prefill chunk (the recipe's value for the backend unless
+  `--prefill-chunk` overrides it; the tool prints which, and says when it is not the default): *continue*: turn 1 =
+  `ids[..s]` + a real 16-token reply, turn 2 = turn 1 + reply + the rest of the prompt (the engine must reuse what it
+  holds, `cached >= s`); *restore*: turn 1 = `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated
+  (attention) or a recurrent snapshot taken at a prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`;
+  *aligned*: *restore* with `s` rounded down to a multiple of the prefill chunk. A cold run is forced by serving an
+  unrelated prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are
+  compared. `--reuse-prompt a,b` runs only those prompts.
+  * **The split crosses a chunk boundary, or the prompt fails.** `s` is the golden's `reuse_split` (else half of the
+    prompt) when it is above one chunk; otherwise one and a half chunks, bounded by the prompt. A prompt with no such
+    split (n <= chunk + 2) is reported as FAIL ("cannot cross a chunk boundary at the default prefill chunk"), not
+    skipped and not passed: with its restore never leaving the first chunk the case would test nothing. Name the
+    prompts that can with `--reuse-prompt`. A reuse run with no prompt at all prints SKIPPED and fails.
+  * **Hard check: the restore is bit-exact.** When the reused length is a multiple of the prefill chunk (*aligned*, and
+    *restore* on such a split) the warm run executes exactly the operations of the cold run, on any backend, so the
+    recorded logits rows of the two runs must be equal by bit pattern on all `--reuse-gen` rows, and `cached == s`
+    (a lost snapshot would still give equal rows at a shorter reuse). No tolerance applies (`--reuse-exact`, default
+    on). If they differ the cold run is repeated: a cold run that does not repeat itself bit for bit is reported as a
+    backend-nondeterminism effect, still a FAIL, never judged by a tolerance. An engine that cannot record logits is
+    held to equal token streams.
+  * **Post-restore stream comparison (continue, and restore on an unaligned split):** the warm run chunks the prompt
+    differently from a cold one (and *continue* reuses KV rows the decode kernels wrote), so bf16 rounding can flip a
+    near-tie. Identical streams pass. A diverging pair passes if it is a rounding tie, judged on the logits
+    (`judge_streams`), or if it agrees on `--reuse-min-match` leading tokens as before. Both runs are repeated with the
+    logits row of every step recorded; rows `0..d` share one context (`d` the first divergence). The divergence is a
+    *rounding tie* when every shared row agrees within `reuse_logit_tol` (nats of log-probability over the top-5
+    tokens) and `reuse_kl_tol` (KL(cold || warm)). **These are fixed per-model constants, never derived from the run**
+    (a tolerance that grows with what the run measured would widen with the bug it judges). Source, in order:
+    `--reuse-logit-tol` / `--reuse-kl-tol`, the golden's `reuse_logit_tol` / `reuse_kl_tol` metadata, the recipe's
+    `[accuracy] reuse_logit_tol` / `reuse_kl_tol`, the built-in 0.25 nats / 1e-2 (calibrated on bf16 Qwen3-8B / HIP,
+    which is also what `recipes/qwen3.toml` records). The tool prints the numbers and where they came from. The hybrid
+    Qwen3.5 / 3.6 recipes carry none yet: on the 35B, decode-written KV moves the rows by KL 8.5e-2 and 1.2 nats
+    (docs/results/2026-10-21-m3-accuracy-debt.md, 2.8), so a value must be measured once on a known-good build (a GPU
+    run) and written into the recipe. A broken restore (wrong position, stale row, off-by-one chunk) fails the hard
+    check; the unit tests `prefix_reuse_*` in `crates/intarsia-models/tests/engine.rs` pin the engine's bookkeeping
+    bitwise. A divergence that does not reproduce when the logits are recorded is accepted with that note (the run is
+    not repeatable).
   * Why not "N identical leading tokens" (`--reuse-min-match`, still the fallback for an engine that cannot record
     logits): a *continue* run reuses KV rows the decode kernels wrote (the reply), which a cold run prefills with
     the GEMM / prefill-attention kernels; the two differ in the last bf16 bit (KL about 3e-4, the size of the golden
@@ -241,7 +255,7 @@ Default thresholds follow the weaker of the weight dtype and the KV dtype (`--ga
 overrides the detection; weights are classified from `quantization_config` in `config.json` and
 `hf_quant_config.json`, none = bf16 class):
 
-| class | top-1 | mean KL(ref \|\| ours) |
+| class | top-1 (all rows) | mean KL(ref \|\| ours), scored rows |
 |---|---|---|
 | bf16 (vs HF bf16) | >= 99.5% | <= 1e-3 |
 | fp8 (weights or `--kv-dtype fp8_e4m3`) | reported, not gated | <= 5e-3 |
@@ -250,6 +264,22 @@ overrides the detection; weights are classified from `quantization_config` in `c
 ARCHITECTURE section 6 sets a top-1 threshold only for BF16, so none is invented for the other classes;
 `--min-top1` / `--max-mean-kl` override any of it. The exit status is non-zero when a gate fails. The "4-bit
 ... and benchmark deltas within noise" part of section 6 needs the task-level suites, not this tool.
+
+**Which rows each floor judges.** The KL threshold applies to the **scored rows**, the rows the model is asked to predict:
+a row whose target token lies inside a system or user turn of a chat prompt (from the turn-open token through its
+turn-close token, `<|im_end|>` included) is not scored, because serving never asks the model to predict it
+(`crates/intarsia-cli/src/cmd/accuracy/turns.rs`). Top-1, `|tail excess|` and "no non-finite row" judge **all rows**. A prompt with no
+chat template (plain text; the golden marks it `kind = raw`, or it has no turn-open token) keeps every row. The turn
+format (markers and hidden roles as text, resolved to ids with the model's own tokenizer, each marker a single token or
+the run fails) is picked by the golden's `template` metadata, then by the recipe's `[accuracy] chat_turns`; with neither,
+every row is scored and the tool says so. The output prints both numbers, `KL21 scored` next to `KL(21-way)` (all rows)
+per prompt and overall, and the floor line names the row set of each metric; baselines and `--write-baseline` JSON carry
+`mean_kl_scored`, `mean_kl21_scored` and `scored_positions` beside the all-rows `mean_kl`, `mean_kl21` and `positions`. A
+baseline written before the mask holds all-rows KL only: the scored KL is baseline-judged only against a baseline that
+has it. The self-golden budgets compare two builds' logits and stay on all rows. Why: on the 35B long golden the system
+and user rows of `chat_reuse_4k` are about 12% of the set's rows and carry 71-73% of its KL sum
+(docs/results/2026-10-21-m3-accuracy-debt.md). Re-scored on that lane's per-row dump (HIP main, chunk 4096): all rows
+n=36887, 4.356e-2; scored rows n=32349, 1.420e-2 (the `rescore_m3_dump_with_the_row_mask` test, `--ignored`).
 
 The KL threshold applies to the **gated KL**: the 21-way KL for a top-k golden, the full-vocabulary KL for a full
 golden. Next to it the floor gates `|tail excess| <= --max-tail-excess` (0.02) and "no non-finite row". These are

@@ -158,6 +158,21 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
+    fn built_in_recipes_name_their_chat_turns_and_the_reuse_tolerance_is_per_model() {
+        for arch in ["Qwen3ForCausalLM", "Qwen3_5ForCausalLM", "Qwen3_5MoeForConditionalGeneration"] {
+            let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
+            assert_eq!(r.accuracy.chat_turns.as_deref(), Some("chatml"), "{arch}");
+        }
+        // only the dense 8B has a measured tolerance; the hybrid models leave it unset until it is measured on a GPU
+        let (_, dense) = select_recipe(&serde_json::json!({"architectures": ["Qwen3ForCausalLM"]}), &[]).unwrap();
+        assert_eq!((dense.accuracy.reuse_logit_tol, dense.accuracy.reuse_kl_tol), (Some(0.25), Some(1e-2)));
+        let (_, moe) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]}), &[]).unwrap();
+        assert_eq!((moe.accuracy.reuse_logit_tol, moe.accuracy.reuse_kl_tol), (None, None));
+        // a recipe without [accuracy] still parses
+        assert!(parse_recipe(TUNED).unwrap().accuracy.chat_turns.is_none());
+    }
+
+    #[test]
     fn qwen3_5_moe_chunk_is_2048_on_cuda_and_4096_on_hip() {
         let cfg = serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]});
         let (_, r) = select_recipe(&cfg, &[]).unwrap();
