@@ -242,7 +242,7 @@ Estimates are for one engineer with Metal experience, include debugging on this 
 | Phase | Goal | Hours | Exit gate |
 |---|---|---|---|
 | A | Qwen3-8B BF16 decode and prefill working and accurate | 50 (range 40 to 70) | `qualify --backend metal` passes quick section on 8B; admission passes for the 13 dense ops |
-| B | Decode speed within 10 percent of MLX (and not below llama.cpp) on 8B BF16 | 60 (range 40 to 90) | `bench speed` decode at least 90 percent of measured mlx-lm on this Mac; at least 85 percent of byte floor |
+| B | Decode speed within 10 percent of MLX (and not below llama.cpp) on 8B BF16 | 60 (range 40 to 90) | `bench speed` decode at least 90 percent of measured mlx-lm on this Mac; at least 85 percent of byte floor (restated 2026-10-21 by the user: the floor counts KV bytes at the mean context, and only runs at GPU clock ≥ 1300 MHz and CPU load ≤ 0.30 count; see docs/benchmarking.md "Metal speed gate") |
 | C | Qwen3.6-35B-A3B NVFP4 | 70 (range 50 to 100) | 35B quick gates pass, `35b-short` is advisory per ADR-0008; decode at least llama.cpp Metal |
 | D | Graph replay and fusion | 40 (range 25 to 60) | ICB replay in `graph_capture` (or documented no-go), fused ops registered, 35B within 10 percent of MLX |
 
