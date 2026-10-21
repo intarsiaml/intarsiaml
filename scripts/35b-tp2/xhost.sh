@@ -105,7 +105,8 @@ fi
 # ---- gates (vLLM up): the accuracy gates cross-host, the real configuration ----
 # Budgets: the 35B TP budget measured in docs/results/2026-10-21-35b-tp2-cuda.md (max over the tp=1 variants x 2, per set)
 if [[ $MODE == gates ]]; then
-  r spark2 "scp -q ~/intarsia-tp2/out/${SRC:-gates2}/S1-short.safetensors ~/intarsia-tp2/out/${SRC:-gates2}/S1-long.safetensors spark1:intarsia-tp2/golden/"
+  if [[ ${SRC_HOST:-spark2} == spark1 ]]; then r spark1 "cp ~/intarsia-tp2/out/${SRC:-gates2}/S1-short.safetensors ~/intarsia-tp2/out/${SRC:-gates2}/S1-long.safetensors ~/intarsia-tp2/golden/"
+  else r spark2 "scp -q ~/intarsia-tp2/out/${SRC:-gates2}/S1-short.safetensors ~/intarsia-tp2/out/${SRC:-gates2}/S1-long.safetensors spark1:intarsia-tp2/golden/"; fi
   AF="-m $M35 --backend cuda --tp 2 --max-seq 16384 --prefill-chunk 2048 --mem-budget 18"
   B_SHORT="--self-max-kl 1.8e-2 --self-max-pos-kl 2.3 --self-max-flip-pct 3.76 --self-max-tail 2.8e-3 --self-prompt-factor 6.5"
   B_LONG="--self-max-kl 5.7e-2 --self-max-pos-kl 54.6 --self-max-flip-pct 8.7 --self-max-tail 7.1e-3 --self-prompt-factor 5.9"
@@ -134,7 +135,7 @@ if [[ $MODE == gates ]]; then
     r spark1 "env $NCCLENV timeout 900 $BIN generate $GEN_FLAGS --tp-remote $WIP:$WPORT --chat --no-think --ignore-eos --show-ids \
       -p \"\$(head -c $chars ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 256 > $XO/gen-x-$tag.out 2> $XO/gen-x-$tag.err; echo rc=\$?; grep -a finish= $XO/gen-x-$tag.err | head -1; grep -a '^ids:' $XO/gen-x-$tag.err > $XO/gen-x-$tag.ids" | tee -a "$L/steps.log"
     worker_stop
-    for f in gen-tp1-$tag.ids gen-tp2-$tag.ids; do rsync -a spark2:intarsia-tp2/out/${SRC:-gates2}/$f "$L/" 2>/dev/null; done
+    for f in gen-tp1-$tag.ids gen-tp2-$tag.ids; do rsync -a ${SRC_HOST:-spark2}:intarsia-tp2/out/${SRC:-gates2}/$f "$L/" 2>/dev/null; done
     rsync -a "spark1:intarsia-tp2/xout/$OUT/" "$L/"
     python3 - "$L" $tag <<'PY' | tee -a "$L/steps.log"
 import sys, re, os

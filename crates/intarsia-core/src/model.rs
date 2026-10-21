@@ -23,7 +23,7 @@ use crate::recipe::{LinearDims, ModelDims, Recipe};
 use crate::registry::Registry;
 use crate::state::{PeerState, SequenceState, SlotSpec, StateSlot};
 use crate::telemetry::Telemetry;
-use crate::weights::{load_tensor, Shard, ShardAxis, WeightSource};
+use crate::weights::{load_tensor, load_tensor_shard, Shard, ShardAxis, WeightSource};
 use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
