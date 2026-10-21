@@ -183,17 +183,37 @@ impl MoeWeights {
         cfg: &MoeConfig,
         opts: &QuantLoadOpts,
     ) -> Result<MoeWeights> {
-        let router = load_linear(src, &format!("{prefix}.gate"), backend, opts)?;
+        Self::load_shard(backend, src, prefix, cfg, opts, 0, 1)
+    }
+
+    /// Rank `rank` of a `world`-way tensor-parallel MoE layer (docs/design/35b-tp2.md): every expert and the shared expert
+    /// keep `1 / world` of their intermediate width (gate and up rows, down columns), the router and the shared-expert gate
+    /// are replicated, so `forward` produces this rank's partial sum of the block output. `cfg` is the rank's config
+    /// (`inter` and `shared_inter` already divided, [`crate::recipe::ModelDims::sharded`]); `world == 1` is [`MoeWeights::load`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn load_shard(
+        backend: &dyn Backend,
+        src: &dyn WeightSource,
+        prefix: &str,
+        cfg: &MoeConfig,
+        opts: &QuantLoadOpts,
+        rank: usize,
+        world: usize,
+    ) -> Result<MoeWeights> {
+        let repl = QuantLoadOpts { shard: None, ..opts.clone() };
+        let part = |axis| QuantLoadOpts { shard: (world > 1).then_some(crate::weights::Shard { axis, rank, world }), ..opts.clone() };
+        let (rows, cols) = (part(crate::weights::ShardAxis::Rows), part(crate::weights::ShardAxis::Cols));
+        let router = load_linear(src, &format!("{prefix}.gate"), backend, &repl)?;
         if (router.n, router.k) != (cfg.experts, cfg.hidden) {
             return Err(Error::model(format!("{prefix}.gate is [{}, {}], expected [{}, {}]", router.n, router.k, cfg.experts, cfg.hidden)));
         }
-        let experts = load_experts(backend, src, prefix, cfg)?;
+        let experts = load_experts(backend, src, prefix, cfg, rank, world)?;
         let shared = if cfg.shared_inter > 0 {
             let sp = format!("{prefix}.shared_expert");
-            let gate = load_linear(src, &format!("{sp}.gate_proj"), backend, opts)?;
-            let up = load_linear(src, &format!("{sp}.up_proj"), backend, opts)?;
-            let down = load_linear(src, &format!("{sp}.down_proj"), backend, opts)?;
-            let gate_logit = load_linear(src, &format!("{prefix}.shared_expert_gate"), backend, opts)?;
+            let gate = load_linear(src, &format!("{sp}.gate_proj"), backend, &rows)?;
+            let up = load_linear(src, &format!("{sp}.up_proj"), backend, &rows)?;
+            let down = load_linear(src, &format!("{sp}.down_proj"), backend, &cols)?;
+            let gate_logit = load_linear(src, &format!("{prefix}.shared_expert_gate"), backend, &repl)?;
             if (gate.n, gate.k) != (cfg.shared_inter, cfg.hidden)
                 || (up.n, up.k) != (cfg.shared_inter, cfg.hidden)
                 || (down.n, down.k) != (cfg.hidden, cfg.shared_inter)
@@ -356,33 +376,43 @@ fn expert_info(src: &dyn WeightSource, name: &str) -> Result<WeightInfo> {
 }
 
 /// Stack `cfg.experts` per-expert NVFP4 tensors into the kernel layout (one upload per tensor, no host staging).
-fn load_experts(backend: &dyn Backend, src: &dyn WeightSource, prefix: &str, cfg: &MoeConfig) -> Result<Experts> {
+fn load_experts(backend: &dyn Backend, src: &dyn WeightSource, prefix: &str, cfg: &MoeConfig, rank: usize, world: usize) -> Result<Experts> {
+    // `i`: this rank's width (the config is the rank's); `ig`: the checkpoint's (`i * world`)
     let (e, h, i) = (cfg.experts, cfg.hidden, cfg.inter);
-    if h % 16 != 0 || i % 16 != 0 {
-        return Err(Error::Unsupported(format!("nvfp4 experts need H and I multiples of 16 (H={h}, I={i})")));
+    let ig = i * world;
+    if h % 16 != 0 || i % 16 != 0 || rank >= world {
+        return Err(Error::Unsupported(format!("nvfp4 experts need H and I (per rank) multiples of 16 (H={h}, I={i}, rank {rank} of {world})")));
     }
     let gu_w = alloc(backend, DType::U8, &[e, 2 * i, h / 2])?;
     let gu_s = alloc(backend, DType::Fp8E4m3, &[e, 2 * i, h / 16])?;
     let dn_w = alloc(backend, DType::U8, &[e, h, i / 2])?;
     let dn_s = alloc(backend, DType::Fp8E4m3, &[e, h, i / 16])?;
     let mut gs = vec![0u8; e * 3 * 4];
-    let put = |dst: &TensorRef, off: usize, name: &str, shape: &[usize], dt: DType| -> Result<()> {
+    // the checkpoint tensor `name` (checked against `shape`), or this rank's `axis` slice of it, uploaded at `off`
+    let put = |dst: &TensorRef, off: usize, name: &str, shape: &[usize], dt: DType, axis: crate::weights::ShardAxis| -> Result<()> {
         let info = expert_info(src, name)?;
         if info.dtype != dt || info.shape != shape {
             return Err(Error::model(format!("tensor '{name}' is {} {:?}, expected {dt} {shape:?}", info.dtype, info.shape)));
         }
-        backend.upload(&dst.buf, dst.offset + off, src.bytes(name)?, 0)
+        if world == 1 {
+            return backend.upload(&dst.buf, dst.offset + off, src.bytes(name)?, 0);
+        }
+        let sh = crate::weights::Shard { axis, rank, world };
+        let part = crate::weights::shard_bytes(src.bytes(name)?, shape[0], shape[1], 1, sh, name)?;
+        backend.upload(&dst.buf, dst.offset + off, &part, 0)
     };
+    let (rows, cols) = (crate::weights::ShardAxis::Rows, crate::weights::ShardAxis::Cols);
     for x in 0..e {
         let p = format!("{prefix}.experts.{x}");
         let gu_row = h / 2;
         let gu_srow = h / 16;
+        // gate rows then up rows of the rank's slice: `[e, 2 * i, ..]` keeps the kernel layout at the rank's width
         for (j, proj) in ["gate_proj", "up_proj"].iter().enumerate() {
-            put(&gu_w, (x * 2 * i + j * i) * gu_row, &format!("{p}.{proj}.weight"), &[i, h / 2], DType::U8)?;
-            put(&gu_s, (x * 2 * i + j * i) * gu_srow, &format!("{p}.{proj}.weight_scale"), &[i, h / 16], DType::Fp8E4m3)?;
+            put(&gu_w, (x * 2 * i + j * i) * gu_row, &format!("{p}.{proj}.weight"), &[ig, h / 2], DType::U8, rows)?;
+            put(&gu_s, (x * 2 * i + j * i) * gu_srow, &format!("{p}.{proj}.weight_scale"), &[ig, h / 16], DType::Fp8E4m3, rows)?;
         }
-        put(&dn_w, x * h * (i / 2), &format!("{p}.down_proj.weight"), &[h, i / 2], DType::U8)?;
-        put(&dn_s, x * h * (i / 16), &format!("{p}.down_proj.weight_scale"), &[h, i / 16], DType::Fp8E4m3)?;
+        put(&dn_w, x * h * (i / 2), &format!("{p}.down_proj.weight"), &[h, ig / 2], DType::U8, cols)?;
+        put(&dn_s, x * h * (i / 16), &format!("{p}.down_proj.weight_scale"), &[h, ig / 16], DType::Fp8E4m3, cols)?;
         for (j, proj) in ["gate_proj", "up_proj", "down_proj"].iter().enumerate() {
             let name = format!("{p}.{proj}.weight_scale_2");
             let info = expert_info(src, &name)?;

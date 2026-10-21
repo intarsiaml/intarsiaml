@@ -480,14 +480,22 @@ pub fn check_supported(cfg: &serde_json::Value) -> Result<()> {
 
 impl ModelDims {
     /// The dimensions one tensor-parallel rank works with: attention heads, KV heads and the dense FFN width divided
-    /// by `world`. Hidden size, head size, vocabulary and the rest are replicated. Blocks other than dense attention
-    /// and dense FFN (GatedDeltaNet, MoE) are not sharded yet and are refused by the model loader.
+    /// by `world`; GatedDeltaNet key and value heads (the recurrent state follows them); the MoE expert and shared-expert
+    /// widths (tensor parallel inside every expert, docs/design/35b-tp2.md). Hidden size, head sizes, the expert count,
+    /// top-k, vocabulary and the rest are replicated.
     pub fn sharded(&self, world: usize) -> crate::error::Result<ModelDims> {
         use crate::error::Error;
         if world <= 1 {
             return Ok(self.clone());
         }
-        for (what, v) in [("attention heads", self.n_heads), ("KV heads", self.n_kv_heads), ("FFN width", self.intermediate)] {
+        let mut checks = vec![("attention heads", self.n_heads), ("KV heads", self.n_kv_heads), ("FFN width", self.intermediate)];
+        if let Some(l) = &self.linear {
+            checks.extend([("GatedDeltaNet key heads", l.k_heads), ("GatedDeltaNet value heads", l.v_heads)]);
+        }
+        if let Some(m) = &self.moe {
+            checks.extend([("MoE expert width", m.inter), ("MoE shared-expert width", m.shared_inter)]);
+        }
+        for (what, v) in checks {
             if v % world != 0 {
                 return Err(Error::Unsupported(format!(
                     "tensor parallelism {world}: {what} ({v}) must be divisible by {world} (n_heads {}, n_kv_heads {}, intermediate {})",
@@ -499,6 +507,8 @@ impl ModelDims {
             n_heads: self.n_heads / world,
             n_kv_heads: self.n_kv_heads / world,
             intermediate: self.intermediate / world,
+            linear: self.linear.map(|l| LinearDims { k_heads: l.k_heads / world, v_heads: l.v_heads / world, ..l }),
+            moe: self.moe.clone().map(|m| crate::quant::moe::MoeConfig { inter: m.inter / world, shared_inter: m.shared_inter / world, ..m }),
             ..self.clone()
         })
     }

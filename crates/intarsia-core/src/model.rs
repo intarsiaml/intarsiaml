@@ -361,6 +361,19 @@ impl Model {
             Ok(q)
         };
         let load_q = |tmpl: &str, layer: usize, n: usize, k: usize| load_qs(tmpl, layer, n, k, None);
+        // a dense weight of this rank's shape `expect` in whatever slice the rank keeps (row splits take any rank of tensor)
+        let load_sharded = |tmpl: &str, layer: usize, axis: ShardAxis, expect: &[usize]| -> Result<TensorRef> {
+            if tp.world == 1 {
+                return load(tmpl, layer, Some(expect));
+            }
+            let name = resolve(src, &Recipe::expand(tmpl, layer))?;
+            let t = load_tensor_shard(b, src, &name, Shard { axis, rank: tp.rank, world: tp.world })?;
+            if t.shape != expect {
+                return Err(Error::model(format!("tensor '{name}' shard is {:?}, expected {expect:?}", t.shape)));
+            }
+            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            Ok(t)
+        };
 
         let embed = load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?;
         let act = match opts.act_dtype {
@@ -470,11 +483,6 @@ impl Model {
                         }));
                     }
                     "gdn" => {
-                        if tp.world > 1 {
-                            return Err(Error::Unsupported(
-                                "tensor parallelism: GatedDeltaNet blocks are not sharded in this build".into(),
-                            ));
-                        }
                         let g = recipe.layer.gdn.as_ref().unwrap();
                         if g.kind != "gated_delta_net" {
                             return Err(Error::Unsupported(format!(
@@ -488,34 +496,46 @@ impl Model {
                         let (c, vdim, hv) = (lin.conv_dim(), lin.v_heads * lin.v_head_dim, lin.v_heads);
                         let slot = slot_specs.len();
                         slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin) });
-                        let conv = load(&g.conv, li, None)?;
+                        // tensor parallelism (docs/design/35b-tp2.md): by key-head group. `lin` is this rank's (heads
+                        // divided); the fused q/k/v projection and the conv channels are `[q | k | v]` of the checkpoint's
+                        // widths, each group split on its own. v head h reads k head h / (Hv / Hk), so a contiguous run of
+                        // k heads carries its own v heads.
+                        let qkv_groups = ShardAxis::RowGroups([
+                            lin.k_heads * lin.k_head_dim * tp.world,
+                            lin.k_heads * lin.k_head_dim * tp.world,
+                            vdim * tp.world,
+                        ]);
+                        let conv = if tp.world == 1 {
+                            load(&g.conv, li, None)?
+                        } else {
+                            let name = resolve(src, &Recipe::expand(&g.conv, li))?;
+                            let t = load_tensor_shard(b, src, &name, Shard { axis: qkv_groups, rank: tp.rank, world: tp.world })?;
+                            weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+                            t
+                        };
                         if conv.numel() != c * lin.conv_kernel {
                             return Err(Error::model(format!(
                                 "conv taps {:?} do not match [{c}, {}]",
                                 conv.shape, lin.conv_kernel
                             )));
                         }
+                        let rows = Some(ShardAxis::Rows);
                         blocks.push(Block::Gdn(GdnBlock {
                             pre_norm: load(pre, li, Some(&[dims.hidden]))?,
-                            in_qkv: load_q(&g.in_qkv, li, c, dims.hidden)?,
-                            in_z: load_q(&g.in_z, li, vdim, dims.hidden)?,
-                            in_b: load_q(&g.in_b, li, hv, dims.hidden)?,
-                            in_a: load_q(&g.in_a, li, hv, dims.hidden)?,
+                            in_qkv: load_qs(&g.in_qkv, li, c, dims.hidden, Some(qkv_groups))?,
+                            in_z: load_qs(&g.in_z, li, vdim, dims.hidden, rows)?,
+                            in_b: load_qs(&g.in_b, li, hv, dims.hidden, rows)?,
+                            in_a: load_qs(&g.in_a, li, hv, dims.hidden, rows)?,
                             conv: conv.reshaped(&[c, lin.conv_kernel]),
-                            a_log: load(&g.a_log, li, Some(&[hv]))?,
-                            dt_bias: load(&g.dt_bias, li, Some(&[hv]))?,
+                            a_log: load_sharded(&g.a_log, li, ShardAxis::Rows, &[hv])?,
+                            dt_bias: load_sharded(&g.dt_bias, li, ShardAxis::Rows, &[hv])?,
                             norm: load(&g.norm, li, Some(&[lin.v_head_dim]))?,
-                            out: load_q(&g.out, li, dims.hidden, vdim)?,
+                            out: load_qs(&g.out, li, dims.hidden, vdim, Some(ShardAxis::Cols))?,
                             slot,
                             lin,
                         }));
                     }
                     "moe" => {
-                        if tp.world > 1 {
-                            return Err(Error::Unsupported(
-                                "tensor parallelism: MoE blocks are not sharded in this build".into(),
-                            ));
-                        }
                         let mc = dims.moe.as_ref().ok_or_else(|| {
                             Error::model("the recipe has a moe block but config.json has no MoE dimensions")
                         })?;
@@ -527,7 +547,8 @@ impl Model {
                             .get("prefix")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| Error::model("recipe [layer.moe] needs a prefix"))?;
-                        let w = MoeWeights::load(b, src, &Recipe::expand(tmpl, li), mc, &qopts)?;
+                        // tensor parallelism: inside every expert (`mc` is this rank's config, widths divided)
+                        let w = MoeWeights::load_shard(b, src, &Recipe::expand(tmpl, li), mc, &qopts, tp.rank, tp.world)?;
                         weights_bytes.set(weights_bytes.get() + w.weight_bytes() as u64);
                         blocks.push(Block::Moe(MoeBlock { pre_norm: load(pre, li, Some(&[dims.hidden]))?, w }));
                     }
@@ -1364,6 +1385,10 @@ impl Model {
                             norm_in(&m.pre_norm, false, &mut cur)?;
                         }
                         m.w.forward_folded(&ExecRunner { m: self, profile }, ws, f.as_ref(), &nv, &blkv)?;
+                        // tensor parallelism: the block output is this rank's partial (routed + gated shared expert, both
+                        // linear in the rank's slice of the experts' width), summed in place in the activation dtype
+                        // (the MoE kernels write it). A no-op without tensor parallelism.
+                        self.all_reduce(&blkv, &blkv, profile)?;
                     }
                 }
                 pending = true;
@@ -1880,6 +1905,23 @@ impl Model {
             }
             None => {
                 self.proj(&a, &f.down, out, profile)?;
+                self.all_reduce(out, out, profile)
+            }
+        }
+    }
+
+    /// `out = x @ w^T` for a row-parallel projection (`w` holds this rank's input columns): into the f32 partial and
+    /// summed over the group when the partials are f32, else into `out` and summed in place. Without tensor parallelism
+    /// this is exactly [`Model::proj`] (the all-reduce is a no-op).
+    pub(crate) fn proj_reduce(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        match &self.ws.part {
+            Some(part) => {
+                let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
+                self.proj(x, w, &part, profile)?;
+                self.all_reduce(&part, out, profile)
+            }
+            None => {
+                self.proj(x, w, out, profile)?;
                 self.all_reduce(out, out, profile)
             }
         }

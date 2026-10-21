@@ -114,7 +114,6 @@ impl QuantFormat for Nvfp4 {
     }
 
     fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
-        opts.refuse_shard("NVFP4", meta.prefix)?;
         let name = |s: &str| format!("{}.{s}", meta.prefix);
         let wi = meta.info("weight").ok_or_else(|| Error::model(format!("'{}.weight' missing", meta.prefix)))?;
         if wi.shape.len() != 2 {
@@ -125,8 +124,31 @@ impl QuantFormat for Nvfp4 {
         if k % GROUP != 0 {
             return Err(Error::model(format!("nvfp4 '{}': K={k} is not a multiple of {GROUP}", meta.prefix)));
         }
-        let w = load_tensor(backend, meta.src, &name("weight"), None)?;
-        let bs = load_tensor(backend, meta.src, &name("weight_scale"), Some(&[n, k / GROUP]))?;
+        let si = meta.info("weight_scale").ok_or_else(|| Error::model(format!("'{}.weight_scale' missing", meta.prefix)))?;
+        if si.shape != [n, k / GROUP] {
+            return Err(Error::model(format!("nvfp4 '{}': weight_scale is {:?}, expected [{n}, {}]", meta.prefix, si.shape, k / GROUP)));
+        }
+        // tensor parallelism: the packed nibbles `[n, k/2]` and the block scales `[n, k/16]` are cut along the same axis; a
+        // column slice must hold whole 16-element blocks. The global scale stays.
+        let (w, bs, n, k) = match opts.shard {
+            Some(sh) => {
+                if sh.axis == crate::weights::ShardAxis::Cols && (sh.world == 0 || k % (sh.world * GROUP) != 0) {
+                    return Err(Error::model(format!(
+                        "nvfp4 '{}': K={k} does not split into {} column slices of whole {GROUP}-element blocks",
+                        meta.prefix, sh.world
+                    )));
+                }
+                let (ln, lk) = sh.local_shape(n, k);
+                let w = crate::weights::load_tensor_shard(backend, meta.src, &name("weight"), sh)?;
+                let bs = crate::weights::load_tensor_shard(backend, meta.src, &name("weight_scale"), sh)?;
+                (w, bs, ln, lk)
+            }
+            None => {
+                let w = load_tensor(backend, meta.src, &name("weight"), None)?;
+                let bs = load_tensor(backend, meta.src, &name("weight_scale"), Some(&[n, k / GROUP]))?;
+                (w, bs, n, k)
+            }
+        };
         if bs.dtype != DType::Fp8E4m3 {
             return Err(Error::model(format!("nvfp4 '{}': weight_scale must be fp8_e4m3, got {}", meta.prefix, bs.dtype)));
         }
