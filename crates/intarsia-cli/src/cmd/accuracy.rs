@@ -322,6 +322,16 @@ impl Golden {
         Ok((bytes, shape))
     }
 
+    /// A format-reference golden (`reference_kind = format`): the same quantized weights run by the format's own
+    /// reference implementation. Returns how to name it ("exl3 by exllamav3 0.0.x").
+    fn format_reference(&self) -> Option<String> {
+        (self.meta.get("reference_kind").map(String::as_str) == Some("format")).then(|| {
+            let fmt = self.meta.get("reference_format").map(String::as_str).unwrap_or("?");
+            let eng = self.meta.get("reference_engine").map(String::as_str).unwrap_or("an unrecorded engine");
+            format!("{fmt} by {eng}")
+        })
+    }
+
     fn is_topk(&self) -> bool {
         self.meta.get("format").is_some_and(|f| f == "intarsia-golden-topk-v1")
             || self.tensors.contains_key("topk_ids_0")
@@ -417,6 +427,18 @@ fn f16_to_f64(b: u16) -> f64 {
 /// Indices of the `k` largest values, ties to the lowest index, ordered best first.
 /// NaN entries are skipped (callers reject non-finite rows before ranking).
 fn top_k(x: impl Iterator<Item = f64>, k: usize) -> Vec<usize> {
+    if k > 256 {
+        // the insertion below is O(n * k): a whole-vocabulary dump (`--self-topk <vocab>`) needs a selection; same order
+        // (value descending, lower index first among equals), NaN skipped
+        let mut v: Vec<(f64, usize)> = x.enumerate().filter(|(_, v)| !v.is_nan()).map(|(i, v)| (v, i)).collect();
+        let cmp = |a: &(f64, usize), b: &(f64, usize)| b.0.partial_cmp(&a.0).unwrap().then(a.1.cmp(&b.1));
+        if v.len() > k {
+            v.select_nth_unstable_by(k - 1, cmp);
+            v.truncate(k);
+        }
+        v.sort_by(cmp);
+        return v.into_iter().map(|b| b.1).collect();
+    }
     let mut best: Vec<(f64, usize)> = Vec::with_capacity(k + 1);
     for (i, v) in x.enumerate() {
         if v.is_nan() {
@@ -752,7 +774,8 @@ fn collect_strings(v: &Value, out: &mut Vec<String>) {
                 out.push(k.to_ascii_lowercase());
                 // bit widths count only under the keys that mean "bits" (not group sizes and the like)
                 if matches!(k.as_str(), "num_bits" | "bits" | "weight_bits" | "w_bit") {
-                    if let Some(n) = x.as_u64() {
+                    // EXL3 writes `"bits": 4.0` (a float): a whole number of bits counts like the integer
+                    if let Some(n) = x.as_u64().or_else(|| x.as_f64().filter(|b| b.fract() == 0.0 && *b >= 0.0).map(|b| b as u64)) {
                         out.push(format!("bits={n}"));
                     }
                 }
@@ -831,19 +854,33 @@ struct NoiseCtx {
 /// probability outside the reference's top-k fails, quantisation noise (measured, docs/accuracy.md) does not.
 const DEFAULT_MAX_TAIL_EXCESS: f64 = 0.02;
 
-fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str) -> Result<Gates> {
+/// `format_ref`: the golden is a format-reference golden (`Golden::format_reference`). It ran the same quantized weights,
+/// so the weight class does not apply: only the KV cache's precision sets the class (its KL floor). Its top-1 default is
+/// not gated: the reference runs other activations (exllamav3: fp16) and its argmax is no fp32 truth (`--min-top1` adds one).
+fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str, format_ref: Option<&str>) -> Result<Gates> {
     let (class, why) = match &args.gate_class {
         Some(c) => (GateClass::parse(c)?, "--gate-class".to_string()),
         None => {
-            let (wc, wwhy) = weight_class(&args.model.model)?;
             let kc = match kv_dtype {
                 "fp8_e4m3" | "fp8_e5m2" => GateClass::Fp8,
                 _ => GateClass::Bf16,
             };
-            (wc.min(kc), format!("weights: {} ({}), kv cache: {kv_dtype}", wc.name(), wwhy))
+            match format_ref {
+                Some(r) => (
+                    kc,
+                    format!("golden is the format's own reference ({r}) on the same weights: KL floor of the kv cache's class ({kv_dtype}), top-1 reported, not gated"),
+                ),
+                None => {
+                    let (wc, wwhy) = weight_class(&args.model.model)?;
+                    (wc.min(kc), format!("weights: {} ({}), kv cache: {kv_dtype}", wc.name(), wwhy))
+                }
+            }
         }
     };
-    let (t1, kl) = class.defaults();
+    let (mut t1, kl) = class.defaults();
+    if format_ref.is_some() && args.gate_class.is_none() {
+        t1 = None;
+    }
     Ok(Gates {
         class,
         why,
@@ -2161,7 +2198,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         modes.push(Mode::Decode);
     }
     let info = engine.info();
-    let mut gates = resolve_gates(args, &info.kv_dtype)?;
+    let mut gates = resolve_gates(args, &info.kv_dtype, g.format_reference().as_deref())?;
     let self_meta = if self_mode { Some(g.self_meta()?) } else { None };
     if let Some(sm) = &self_meta {
         if want_reuse {
@@ -2913,6 +2950,21 @@ mod tests {
     }
 
     #[test]
+    fn top_k_selection_path_matches_the_insertion_path() {
+        // values with many ties and a NaN; k above the selection threshold must give the same ids in the same order
+        let x: Vec<f64> = (0..3000).map(|i| if i == 17 { f64::NAN } else { ((i * 7919) % 211) as f64 }).collect();
+        let mut want: Vec<(f64, usize)> = x.iter().copied().enumerate().filter(|(_, v)| !v.is_nan()).map(|(i, v)| (v, i)).collect();
+        want.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap().then(a.1.cmp(&b.1)));
+        for k in [257, 1000, 2999, 3000, 5000] {
+            let got = top_k(x.iter().copied(), k);
+            let w: Vec<usize> = want.iter().take(k).map(|b| b.1).collect();
+            assert_eq!(got, w, "k={k}");
+        }
+        // below the threshold the insertion path agrees with the same order
+        assert_eq!(top_k(x.iter().copied(), 20), want.iter().take(20).map(|b| b.1).collect::<Vec<_>>());
+    }
+
+    #[test]
     fn weight_class_from_quantization_metadata() {
         let d = std::env::temp_dir().join(format!("intarsia-acc-{}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
@@ -2951,6 +3003,14 @@ mod tests {
             w(r#"{"quantization_config":{"quant_method":"compressed-tensors","num_bits":4}}"#, None).unwrap().0,
             GateClass::Fp4
         );
+        // EXL3 writes the bit width as a float
+        assert_eq!(
+            w(r#"{"quantization_config":{"quant_method":"exl3","version":"0.0.1","bits":4.0,"head_bits":6}}"#, None)
+                .unwrap()
+                .0,
+            GateClass::Fp4
+        );
+        assert!(w(r#"{"quantization_config":{"quant_method":"exl3","bits":3.5}}"#, None).is_err(), "no whole-bit class");
         let _ = std::fs::remove_dir_all(d);
     }
 
@@ -3159,6 +3219,34 @@ mod tests {
         }
         use clap::Parser;
         Cli::parse_from(["x", "--model", "/nonexistent"].into_iter().chain(extra.iter().copied())).a
+    }
+
+    #[test]
+    fn a_format_reference_golden_drops_the_weight_class() {
+        let d = std::env::temp_dir().join(format!("acc-formatref-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("config.json"), r#"{"quantization_config":{"quant_method":"exl3","bits":4.0}}"#).unwrap();
+        let mut a = args_with(&[]);
+        a.model.model = d.clone();
+        let g = golden_with(&[("reference_kind", "format"), ("reference_format", "exl3"), ("reference_engine", "exllamav3 0.0.6")]);
+        let r = g.format_reference();
+        assert_eq!(r.as_deref(), Some("exl3 by exllamav3 0.0.6"));
+        assert_eq!(golden_with(&[("reference_kind", "hf")]).format_reference(), None);
+        // ordinary golden: the 4-bit weights set the class
+        assert_eq!(resolve_gates(&a, "bf16", None).unwrap().class, GateClass::Fp4);
+        // format reference: the KV cache's precision alone
+        let gr = resolve_gates(&a, "bf16", r.as_deref()).unwrap();
+        assert_eq!((gr.class, gr.max_kl, gr.min_top1), (GateClass::Bf16, 1e-3, None));
+        assert!(gr.why.contains("format's own reference (exl3 by exllamav3 0.0.6)"), "{}", gr.why);
+        assert_eq!(resolve_gates(&a, "fp8_e4m3", r.as_deref()).unwrap().class, GateClass::Fp8);
+        let mut at = args_with(&["--min-top1", "98"]);
+        at.model.model = d.clone();
+        assert_eq!(resolve_gates(&at, "bf16", r.as_deref()).unwrap().min_top1, Some(98.0));
+        // --gate-class still wins
+        let mut a4 = args_with(&["--gate-class", "4bit"]);
+        a4.model.model = d.clone();
+        assert_eq!(resolve_gates(&a4, "bf16", r.as_deref()).unwrap().class, GateClass::Fp4);
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]

@@ -19,8 +19,13 @@
 //! [`QuantScheme::parse_quark`] maps its `global_quant_config` onto the same model (one global algorithm plus an
 //! `exclude` list of module names). Only OCP MXFP4 weights (fp4, per_group 32, e8m0) are implemented; the activation
 //! spec decides W4A4 (dynamic fp4 `input_tensors`) or W4A16 (none).
+//!
+//! ExLlamaV3 checkpoints declare `quant_method = "exl3"` in `config.json` (or a sidecar `quantization_config.json`):
+//! [`QuantScheme::parse_exl3`] records the global algorithm `EXL3`, under which every linear layer must be stored as
+//! EXL3 or plain float (a `head_bits = 16` head, unquantised modules), never FP8/NVFP4.
 
-use super::{Mxfp4Act, QuantId, BF16, FP8_E4M3, MXFP4, NVFP4};
+use super::{Mxfp4Act, QuantId, BF16, EXL3, FP8_E4M3, MXFP4, NVFP4};
+
 use crate::dtype::DType;
 use crate::error::{Error, Result};
 use serde_json::Value;
@@ -39,6 +44,8 @@ pub enum Algo {
     Mxfp4W4A4,
     /// Quark OCP MXFP4 weights, 16-bit activations (`MXFP4_W4A16`).
     Mxfp4W4A16,
+    /// `EXL3` (ExLlamaV3 trellis weights, 16-bit activations): layers are EXL3 or plain float.
+    Exl3,
     /// Anything else (INT4_AWQ, MXFP8, per-channel FP8, ...). Not implemented.
     Other,
 }
@@ -50,6 +57,7 @@ impl Algo {
             "W4A16_NVFP4" => Algo::Nvfp4W4A16,
             "MXFP4_W4A4" => Algo::Mxfp4W4A4,
             "MXFP4_W4A16" => Algo::Mxfp4W4A16,
+            "EXL3" => Algo::Exl3,
             a if a == "NVFP4" || a.starts_with("NVFP4_") || a == "W4A4_NVFP4" || a == "W4A4_NVFP4_FP8" => Algo::Nvfp4W4A4,
             _ => Algo::Other,
         }
@@ -60,6 +68,7 @@ impl Algo {
             Algo::Fp8W8A8 => Some(FP8_E4M3),
             Algo::Nvfp4W4A16 => Some(NVFP4),
             Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 => Some(MXFP4),
+            Algo::Exl3 => Some(EXL3),
             _ => None,
         }
     }
@@ -197,6 +206,13 @@ impl QuantScheme {
         })
     }
 
+    /// The scheme of an ExLlamaV3 checkpoint from its EXL3 block (`quant::exl3::config_fields`), after
+    /// `quant::exl3::check_config` refused the codebooks and widths we do not read.
+    pub fn parse_exl3(fields: &Value) -> Result<QuantScheme> {
+        super::exl3::check_config(fields)?;
+        Ok(QuantScheme { quant_algo: Some("EXL3".into()), ..QuantScheme::default() })
+    }
+
     pub fn is_excluded(&self, module: &str) -> bool {
         self.exclude.iter().any(|p| glob(p, module))
     }
@@ -240,6 +256,8 @@ impl QuantScheme {
                 "'{module}' is declared quant_algo '{algo}' in hf_quant_config.json, which this engine does not implement \
                  (supported: FP8, W4A16_NVFP4, Quark MXFP4 with dynamic fp4 or 16-bit activations)"
             ))),
+            // EXL3 checkpoints keep some layers plain (an fp16 head with head_bits 16, unquantised modules)
+            Algo::Exl3 if format == EXL3 || format == BF16 => Ok(()),
             _ => {
                 let want = a.format().unwrap();
                 if format != want {
@@ -388,6 +406,17 @@ mod tests {
         let mut v = quark("null");
         v["layer_quant_config"] = serde_json::json!({"model.layers.0.mlp.up_proj": {}});
         assert!(QuantScheme::parse_quark(&v).is_err());
+    }
+
+    #[test]
+    fn exl3_layers_are_exl3_or_plain() {
+        let s = QuantScheme::parse_exl3(&serde_json::json!({"quant_method":"exl3","bits":4.0,"head_bits":6})).unwrap();
+        s.check_linear("model.layers.0.mlp.up_proj", EXL3).unwrap();
+        s.check_linear("lm_head", BF16).unwrap();
+        let e = s.check_linear("model.layers.0.mlp.up_proj", NVFP4).unwrap_err().to_string();
+        assert!(e.contains("EXL3"), "{e}");
+        assert!(QuantScheme::parse_exl3(&serde_json::json!({"quant_method":"exl3","codebook":"2mad"})).is_err());
+        assert!(s.kv_note(DType::Bf16).is_none());
     }
 
     #[test]

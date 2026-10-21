@@ -1,0 +1,4 @@
+stamp: head=13f2eed code-tree=e25c44f85845 dirty=yes
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/m2-exl3-e2e/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 8.57s
+-rwxrwxr-x 2 nvidia nvidia 41756904 Oct 21 11:25 /home/nvidia/intarsia-decfuse/m2-exl3-e2e/target/acc/release/intarsia
