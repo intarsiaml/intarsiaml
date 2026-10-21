@@ -9,10 +9,11 @@
 //! Exit code: 0 every gate passed, 1 a gate failed, 2 the pipeline itself failed (a tool crashed or timed out, bad
 //! arguments, an unreadable report directory, or the `--max-minutes` budget ran out before the end).
 
-mod facts;
-mod proc;
-mod report;
-mod state;
+// `pub(crate)`: `intarsia onboard` reuses the reports, the state file and the subprocess helpers.
+pub(crate) mod facts;
+pub(crate) mod proc;
+pub(crate) mod report;
+pub(crate) mod state;
 
 use anyhow::{anyhow, bail, Context, Result};
 use proc::Run;
@@ -23,7 +24,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 /// Set by `scripts/phase1b-acceptance.sh` style builds; absent for a plain `cargo build` (see accuracy/provenance.rs).
-const BUILD_STAMP: Option<&str> = option_env!("INTARSIA_BUILD_STAMP");
+pub(crate) const BUILD_STAMP: Option<&str> = option_env!("INTARSIA_BUILD_STAMP");
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct QualifyArgs {
@@ -345,6 +346,7 @@ fn default_golden_dirs(a: &QualifyArgs) -> Vec<PathBuf> {
 }
 
 fn pipeline(mut a: QualifyArgs) -> Result<i32> {
+    proc::forward_termination();
     if a.tp == 0 {
         bail!("--tp must be at least 1");
     }
@@ -450,7 +452,12 @@ fn newest_report_dir(name: &str) -> Option<PathBuf> {
 
 /// `YYYYMMDD-HHMMSS` in UTC without a time crate.
 fn chrono_stamp() -> String {
-    let t = now() as i64;
+    stamp_at(now())
+}
+
+/// [`chrono_stamp`] of a unix time.
+pub(crate) fn stamp_at(unix: u64) -> String {
+    let t = unix as i64;
     let (days, secs) = (t.div_euclid(86400), t.rem_euclid(86400));
     // civil-from-days (Howard Hinnant)
     let z = days + 719468;

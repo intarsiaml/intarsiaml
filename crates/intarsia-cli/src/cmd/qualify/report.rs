@@ -484,7 +484,7 @@ fn md_cell(s: &str) -> String {
     t.replace('|', "\\|")
 }
 
-fn esc(v: &str) -> String {
+pub(crate) fn esc(v: &str) -> String {
     v.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', " ")
 }
 
