@@ -1,0 +1,33 @@
+
+running 8 tests
+test cancel_leaves_a_consistent_state ... ok
+test lazy_constraint_keeps_the_plain_loop ... FAILED
+test batched_engine_is_unchanged_with_feedback_on ... ok
+test stop_strings_match ... ok
+test eos_mid_run_in_a_queue_of_requests ... ok
+test eos_at_every_position_rolls_the_extra_step_back ... ok
+test forced_length_matches_and_never_speculates_past_max_tokens ... ok
+test min_tokens_window_then_feedback ... ok
+
+failures:
+
+---- lazy_constraint_keeps_the_plain_loop stdout ----
+
+thread 'lazy_constraint_keeps_the_plain_loop' (146713467) panicked at crates/intarsia-models/tests/token_feedback.rs:57:40:
+engine error: structured output: token 270 not allowed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lazy_constraint_keeps_the_plain_loop
+
+test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-core)
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-metal)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cuda)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.79s
+     Running tests/token_feedback.rs (target/debug/deps/token_feedback-deee383d040e3307)
+error: test failed, to rerun pass `-p intarsia-models --test token_feedback`

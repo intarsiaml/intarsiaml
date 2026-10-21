@@ -1278,9 +1278,11 @@ impl Seq {
     /// Whether the rest of this request can decode with device-side token feedback (`model/feedback.rs`): every
     /// remaining token is an on-device argmax ([`Seq::head_mode`] is `LastArgmax` from here on: it only changes
     /// across the `min_tokens` boundary, which lies behind), no speculative decoding (drafting needs the tokens on the
-    /// host), and the model allows it for `st`.
+    /// host), no structured-output constraint (a lazy one activates on a token the loop would only see after it
+    /// speculated the next step unmasked), and the model allows it for `st`.
     pub(crate) fn feedback_ok(&self, model: &Model, st: &SequenceState) -> bool {
         !self.spec_on
+            && self.cons.is_none()
             && self.pending.is_empty()
             && self.head_mode(self.generated + 1) == HeadMode::LastArgmax
             && model.feedback_ok(st)

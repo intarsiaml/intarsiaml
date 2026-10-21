@@ -1,0 +1,51 @@
+
+running 8 tests
+test cancel_leaves_a_consistent_state ... ok
+test min_tokens_window_then_feedback ... FAILED
+test lazy_constraint_keeps_the_plain_loop ... ok
+test forced_length_matches_and_never_speculates_past_max_tokens ... FAILED
+test batched_engine_is_unchanged_with_feedback_on ... ok
+test eos_at_every_position_rolls_the_extra_step_back ... FAILED
+test stop_strings_match ... ok
+test eos_mid_run_in_a_queue_of_requests ... ok
+
+failures:
+
+---- min_tokens_window_then_feedback stdout ----
+
+thread 'min_tokens_window_then_feedback' (146701562) panicked at crates/intarsia-models/tests/token_feedback.rs:102:9:
+assertion `left == right` failed: min_tokens 3, stop id from token 1: follow-up (with_last true)
+  left: Run { ids: [247, 247, 247, 247, 247], text: "�����", reason: Length, completion: 5, cached: 18, stop_sequence: None, kv_after: 32 }
+ right: Run { ids: [247, 247, 247, 247, 247], text: "�����", reason: Length, completion: 5, cached: 6, stop_sequence: None, kv_after: 32 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- forced_length_matches_and_never_speculates_past_max_tokens stdout ----
+
+thread 'forced_length_matches_and_never_speculates_past_max_tokens' (146701560) panicked at crates/intarsia-models/tests/token_feedback.rs:102:9:
+assertion `left == right` failed: max_tokens 3: follow-up (with_last true)
+  left: Run { ids: [5, 5, 5, 5, 5], text: "\u{5}\u{5}\u{5}\u{5}\u{5}", reason: Length, completion: 5, cached: 13, stop_sequence: None, kv_after: 27 }
+ right: Run { ids: [5, 5, 5, 5, 5], text: "\u{5}\u{5}\u{5}\u{5}\u{5}", reason: Length, completion: 5, cached: 12, stop_sequence: None, kv_after: 27 }
+
+---- eos_at_every_position_rolls_the_extra_step_back stdout ----
+
+thread 'eos_at_every_position_rolls_the_extra_step_back' (146701558) panicked at crates/intarsia-models/tests/token_feedback.rs:102:9:
+assertion `left == right` failed: stop id at token 3: follow-up (with_last true)
+  left: Run { ids: [78, 78, 78, 78, 78], text: "NNNNN", reason: Length, completion: 5, cached: 6, stop_sequence: None, kv_after: 20 }
+ right: Run { ids: [78, 78, 78, 78, 78], text: "NNNNN", reason: Length, completion: 5, cached: 4, stop_sequence: None, kv_after: 20 }
+
+
+failures:
+    eos_at_every_position_rolls_the_extra_step_back
+    forced_length_matches_and_never_speculates_past_max_tokens
+    min_tokens_window_then_feedback
+
+test result: FAILED. 5 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-core)
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-metal)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cuda)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.51s
+     Running tests/token_feedback.rs (target/debug/deps/token_feedback-deee383d040e3307)
+error: test failed, to rerun pass `-p intarsia-models --test token_feedback`

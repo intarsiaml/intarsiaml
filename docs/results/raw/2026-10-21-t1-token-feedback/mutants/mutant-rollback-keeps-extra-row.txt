@@ -1,0 +1,67 @@
+
+running 8 tests
+test cancel_leaves_a_consistent_state ... FAILED
+test stop_strings_match ... FAILED
+test eos_mid_run_in_a_queue_of_requests ... FAILED
+test lazy_constraint_keeps_the_plain_loop ... ok
+test min_tokens_window_then_feedback ... FAILED
+test batched_engine_is_unchanged_with_feedback_on ... ok
+test eos_at_every_position_rolls_the_extra_step_back ... FAILED
+test forced_length_matches_and_never_speculates_past_max_tokens ... ok
+
+failures:
+
+---- cancel_leaves_a_consistent_state stdout ----
+
+thread 'cancel_leaves_a_consistent_state' (146692174) panicked at crates/intarsia-models/tests/token_feedback.rs:222:9:
+assertion `left == right` failed: cancel after 1
+  left: 11
+ right: 10
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- stop_strings_match stdout ----
+
+thread 'stop_strings_match' (146692180) panicked at crates/intarsia-models/tests/token_feedback.rs:88:5:
+assertion `left == right` failed: stop string "77"
+  left: Run { ids: [55, 55], text: "", reason: Stop, completion: 2, cached: 4, stop_sequence: Some("77"), kv_after: 6 }
+ right: Run { ids: [55, 55], text: "", reason: Stop, completion: 2, cached: 4, stop_sequence: Some("77"), kv_after: 7 }
+
+---- eos_mid_run_in_a_queue_of_requests stdout ----
+
+thread 'eos_mid_run_in_a_queue_of_requests' (146692176) panicked at crates/intarsia-models/tests/token_feedback.rs:88:5:
+assertion `left == right` failed: request 1
+  left: Run { ids: [111], text: "o", reason: Stop, completion: 2, cached: 6, stop_sequence: None, kv_after: 8 }
+ right: Run { ids: [111], text: "o", reason: Stop, completion: 2, cached: 6, stop_sequence: None, kv_after: 9 }
+
+---- min_tokens_window_then_feedback stdout ----
+
+thread 'min_tokens_window_then_feedback' (146692179) panicked at crates/intarsia-models/tests/token_feedback.rs:88:5:
+assertion `left == right` failed: min_tokens 3, stop id from token 5
+  left: Run { ids: [84, 84, 84], text: "TTT", reason: Stop, completion: 4, cached: 2, stop_sequence: None, kv_after: 6 }
+ right: Run { ids: [84, 84, 84], text: "TTT", reason: Stop, completion: 4, cached: 2, stop_sequence: None, kv_after: 7 }
+
+---- eos_at_every_position_rolls_the_extra_step_back stdout ----
+
+thread 'eos_at_every_position_rolls_the_extra_step_back' (146692175) panicked at crates/intarsia-models/tests/token_feedback.rs:88:5:
+assertion `left == right` failed: stop id at token 3
+  left: Run { ids: [259, 259, 259], text: "<259><259><259>", reason: Stop, completion: 4, cached: 2, stop_sequence: None, kv_after: 6 }
+ right: Run { ids: [259, 259, 259], text: "<259><259><259>", reason: Stop, completion: 4, cached: 2, stop_sequence: None, kv_after: 7 }
+
+
+failures:
+    cancel_leaves_a_consistent_state
+    eos_at_every_position_rolls_the_extra_step_back
+    eos_mid_run_in_a_queue_of_requests
+    min_tokens_window_then_feedback
+    stop_strings_match
+
+test result: FAILED. 3 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-core)
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-backend-metal)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.claude/worktrees/agent-a06622c5d21b6b82d/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.21s
+     Running tests/token_feedback.rs (target/debug/deps/token_feedback-deee383d040e3307)
+error: test failed, to rerun pass `-p intarsia-models --test token_feedback`

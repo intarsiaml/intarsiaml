@@ -16,6 +16,7 @@ MUTANTS = [
     ("no-token-patch", E, "                st.tokens[i] = tok;", "                let _ = (i, tok);"),
     ("speculate-at-max-tokens", E, "let next = if self.generated + 1 < self.max_new {", "let next = if self.generated < self.max_new {"),
     ("read-wrong-ring-slot", F, "p.slot * 4, &mut b, 0)", "(3 - p.slot) * 4, &mut b, 0)"),
+    ("constrained-requests-take-feedback", E, "            && self.cons.is_none()\n", ""),
     ("feed-stale-host-token", E, "Some(model.feedback_step(st, Feed::Slot(cur.slot), out, true)?)", "Some(model.feedback_step(st, Feed::Host(self.tok), out, true)?)"),
 ]
 res = []

@@ -286,3 +286,69 @@ fn batched_engine_is_unchanged_with_feedback_on() {
     }
     assert_eq!(outs[0], outs[1]);
 }
+
+/// A lazy structured-output constraint (inactive until a trigger token, like tool calls under `tool_choice: auto`)
+/// starts on the on-device argmax path. The feedback loop would speculate the step after the trigger unmasked, so a
+/// constrained request must keep the plain loop: with feedback on, the result equals feedback off and every token after
+/// the trigger obeys the mask (a disallowed one fails the request in `commit`).
+#[test]
+fn lazy_constraint_keeps_the_plain_loop() {
+    use intarsia_core::constrain::{ConstraintSpec, TokenConstraint, TokenMask};
+    #[derive(Debug)]
+    struct Lazy {
+        trigger: u32,
+        allowed: Vec<u32>,
+    }
+    struct LazyRun {
+        trigger: u32,
+        allowed: Vec<u32>,
+        on: bool,
+    }
+    impl ConstraintSpec for Lazy {
+        fn start(&self) -> intarsia_core::Result<Box<dyn TokenConstraint>> {
+            Ok(Box::new(LazyRun { trigger: self.trigger, allowed: self.allowed.clone(), on: false }))
+        }
+    }
+    impl TokenConstraint for LazyRun {
+        fn active(&self) -> bool {
+            self.on
+        }
+        fn compute_mask(&mut self) -> intarsia_core::Result<TokenMask> {
+            let mut m = TokenMask::none(300);
+            self.allowed.iter().for_each(|&t| m.allow(t));
+            Ok(m)
+        }
+        fn commit(&mut self, tok: u32) -> intarsia_core::Result<()> {
+            if !self.on {
+                self.on = tok == self.trigger;
+                Ok(())
+            } else if self.allowed.contains(&tok) {
+                Ok(())
+            } else {
+                Err(intarsia_core::Error::Other(format!("token {tok} not allowed")))
+            }
+        }
+    }
+    let (base, fb) = (engine(18, false, 96), engine(18, true, 96));
+    let allowed: Vec<u32> = b"0123456789".iter().map(|&b| u32::from(b)).collect();
+    // the trigger must first appear at generated token k >= 2, i.e. inside the feedback loop (an earlier activation is
+    // seen before the loop starts), and the free run's next token must not be a digit already, or this proves nothing
+    let found = ["lazy constraint", "hello world", "abc def", "tool call", "xyz", "one two three"].iter().find_map(|q| {
+        let p = bytes(q);
+        let free = probe(&base, &fb, req(&p, 12));
+        (2..free.ids.len() - 1)
+            .find(|&k| !free.ids[..k].contains(&free.ids[k]) && !allowed.contains(&free.ids[k + 1]))
+            .map(|k| (p, free, k))
+    });
+    let (p, free, k) = found.expect("no prompt with a usable trigger");
+    let r = || {
+        let mut r = req(&p, 12);
+        r.constraint = Some(Arc::new(Lazy { trigger: free.ids[k], allowed: allowed.clone() }));
+        r
+    };
+    let (a, _) = run(&base, r());
+    let (b, _) = run(&fb, r());
+    assert_eq!(a, b);
+    assert_eq!(&a.ids[..=k], &free.ids[..=k]);
+    assert!(a.ids.len() > k + 1 && a.ids[k + 1..].iter().all(|t| allowed.contains(t)), "k {k}: {:?}", a.ids);
+}
