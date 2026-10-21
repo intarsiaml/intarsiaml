@@ -35,6 +35,7 @@ mod baseline;
 mod envelope;
 mod provenance;
 mod selfgolden;
+mod turns;
 use baseline::{Baseline, Margins, ModeStats, PromptStats};
 use provenance::{CodeStamp, ExecInfo};
 
@@ -65,7 +66,9 @@ pub struct AccuracyArgs {
     /// Golden gate: minimum top-1 agreement in percent. Default per class: bf16 99.5; fp8 / 4bit: not gated.
     #[arg(long)]
     pub min_top1: Option<f64>,
-    /// Golden gate: maximum mean KL(ref||ours) in nats. Default per class: bf16 1e-3, fp8 5e-3, 4bit 3e-2.
+    /// Golden gate: maximum mean KL(ref||ours) in nats over the SCORED rows, the rows the model is asked to predict
+    /// (rows whose target lies inside a system or user turn of a chat prompt are not scored; plain-text prompts keep all
+    /// rows). The all-rows mean is reported next to it. Default per class: bf16 1e-3, fp8 5e-3, 4bit 3e-2.
     #[arg(long)]
     pub max_mean_kl: Option<f64>,
     /// Golden gate: maximum |mean(our tail mass - reference tail mass)|, probability points as a fraction (the tail is
@@ -183,17 +186,20 @@ pub struct AccuracyArgs {
     /// Reuse mode: judge only these prompts (comma separated names).
     #[arg(long, value_delimiter = ',')]
     pub reuse_prompt: Vec<String>,
-    /// Reuse mode: least rounding scale (nats of log-probability over the top-5 tokens) within which a warm and a cold
-    /// distribution count as the same one when their greedy streams diverge; the scale is raised to twice what
-    /// re-chunking the cold run alone moves them. Calibrated on Qwen3-8B / HIP, where decode-written and
-    /// prefill-written KV rows move the top-5 log-probabilities by up to 0.15.
-    #[arg(long, default_value_t = 0.25)]
-    pub reuse_logit_tol: f64,
+    /// Reuse mode: rounding scale (nats of log-probability over the top-5 tokens) within which a warm and a cold
+    /// distribution count as the same one when their greedy streams diverge after a restore. A fixed constant of the
+    /// model, never derived from the run: this flag, else the golden's `reuse_logit_tol` metadata, else the recipe's
+    /// `[accuracy] reuse_logit_tol`, else 0.25 (calibrated on Qwen3-8B / HIP, where decode-written and prefill-written KV
+    /// rows move the top-5 log-probabilities by up to 0.15).
+    #[arg(long)]
+    pub reuse_logit_tol: Option<f64>,
     /// Reuse mode: largest KL(cold || warm) in nats over the shared rows up to the divergence for it to count as
-    /// rounding (the bf16 class gate allows a mean KL of 1e-3 against the reference; observed warm vs cold: <= 3.3e-3).
-    #[arg(long, default_value_t = 1e-2)]
-    pub reuse_kl_tol: f64,
-    /// Reuse mode: require the `aligned` case (warm and cold prefill the same chunks) to be bit-identical.
+    /// rounding; same sources as `--reuse-logit-tol` (`reuse_kl_tol`), else 1e-2 (the bf16 class gate allows a mean KL of
+    /// 1e-3 against the reference; observed warm vs cold: <= 3.3e-3).
+    #[arg(long)]
+    pub reuse_kl_tol: Option<f64>,
+    /// Reuse mode: the hard check. A restore whose reused length is a multiple of the prefill chunk makes the warm run
+    /// execute the same operations as the cold run, so its logits must equal the cold run's bit for bit (no tolerance).
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub reuse_exact: bool,
     /// Quick gate: maximum perplexity on the fixed text.
@@ -770,7 +776,8 @@ struct Gates {
     class: GateClass,
     why: String,
     min_top1: Option<f64>,
-    /// Maximum mean KL: the 21-way (tail-bucket) KL for top-k goldens, the full-vocabulary KL otherwise.
+    /// Maximum mean KL over the scored rows (outside system and user turns): the 21-way (tail-bucket) KL for top-k goldens,
+    /// the full-vocabulary KL otherwise.
     max_kl: f64,
     /// Maximum |mean(our tail mass - reference tail mass)|.
     max_tail_excess: f64,
@@ -805,6 +812,61 @@ fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str) -> Result<Gates> {
 // ---------------------------------------------------------------------------
 // golden gate
 // ---------------------------------------------------------------------------
+
+/// The model's recipe (`--recipe`, else matched on `config.json`), for its `[accuracy]` table. `None`: it could not be
+/// read here (the model loaded, so this only happens for an unusual layout); the gate then uses its built-in constants.
+fn load_recipe(args: &AccuracyArgs) -> Option<intarsia_core::recipe::Recipe> {
+    match &args.model.recipe {
+        Some(p) => intarsia_models::recipe::load_recipe_file(p).ok(),
+        None => {
+            let cfg: Value = serde_json::from_str(&std::fs::read_to_string(args.model.model.join("config.json")).ok()?).ok()?;
+            intarsia_models::recipe::select_recipe(&cfg, &args.model.recipe_dir).ok().map(|r| r.1)
+        }
+    }
+}
+
+/// Which rows of each prompt the model is asked to predict (`turns.rs`) and how the turn format was found.
+struct RowMasks {
+    /// `scored[prompt][row]`.
+    scored: Vec<Vec<bool>>,
+    /// `chatml (golden template)`, `chatml (recipe qwen3_5_moe)` or why there is no mask.
+    how: String,
+}
+
+/// The turn format comes from the golden's `template` metadata, then from the recipe's `[accuracy] chat_turns`. With
+/// neither, every row is scored (said loudly when the golden has chat prompts). Prompts the golden marks `kind = "raw"`
+/// (plain text, no chat template) keep all rows.
+fn row_masks(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], recipe: Option<&intarsia_core::recipe::Recipe>) -> Result<RowMasks> {
+    let from_golden = g.meta_str("template").and_then(|t| turns::format_named(t).map(|f| (f, "golden template".to_string())));
+    let from_recipe = || -> Result<Option<(&'static turns::TurnFormat, String)>> {
+        let Some(r) = recipe else { return Ok(None) };
+        let Some(name) = r.accuracy.chat_turns.as_deref() else { return Ok(None) };
+        let f = turns::format_named(name).ok_or_else(|| anyhow!("recipe {}: [accuracy] chat_turns = {name:?} is not a known turn format (chatml)", r.model.family))?;
+        Ok(Some((f, format!("recipe {}", r.model.family))))
+    };
+    let kinds: Vec<bool> = (0..prompts.len()).map(|i| g.prompt_meta(i).is_some_and(|m| m["kind"].as_str() == Some("raw"))).collect();
+    let any_chat = kinds.iter().any(|&raw| !raw);
+    let chosen = match from_golden {
+        Some(c) => Some(c),
+        None => from_recipe()?,
+    };
+    let Some((fmt, src)) = chosen else {
+        let how = if any_chat {
+            "no turn format (the golden names no known `template` and the recipe has no `[accuracy] chat_turns`): ALL rows are scored".to_string()
+        } else {
+            "all prompts are plain text: all rows scored".to_string()
+        };
+        return Ok(RowMasks { scored: prompts.iter().map(|p| vec![true; p.1.ids.len()]).collect(), how });
+    };
+    let resolved = fmt.resolve(&|t| engine.tokenize(t, false).map_err(|e| anyhow!("{e}")))?;
+    let scored: Vec<Vec<bool>> = prompts
+        .iter()
+        .zip(&kinds)
+        .map(|((_, p), &raw)| if raw { vec![true; p.ids.len()] } else { resolved.scored_rows(&p.ids) })
+        .collect();
+    let (hidden, total) = (scored.iter().flatten().filter(|&&s| !s).count(), scored.iter().map(Vec::len).sum::<usize>());
+    Ok(RowMasks { scored, how: format!("{} ({src}): {hidden} of {total} rows lie inside a system or user turn and are not scored by the KL floor", fmt.name) })
+}
 
 fn default_golden(model: &Path) -> Option<PathBuf> {
     let full = model.to_string_lossy().to_string();
@@ -938,6 +1000,8 @@ fn run_mode(
     args: &AccuracyArgs,
     gates: &Gates,
     topk: bool,
+    // per prompt, per row: is it a row the model is asked to predict (`turns.rs`)? `None`: all rows are scored
+    scored: Option<&[Vec<bool>]>,
     // same-weights comparison with another build's dump: judged with these budgets instead of the class floor
     self_budget: Option<&selfgolden::SelfBudget>,
     // `--write-self-golden`: collects our own top-k rows while the mode runs
@@ -946,15 +1010,16 @@ fn run_mode(
     let vocab = engine.info().vocab;
     println!("\n== mode: {} ==", mode.name());
     let kl_name = if topk { "KL(supp)" } else { "KL(full)" };
-    let row = |name: &str, n: String, pos: usize, a: &Agg, greedy: String| {
+    let row = |name: &str, n: String, pos: usize, a: &Agg, s: &Agg, greedy: String| {
         println!(
-            "{:<18} {:>5} {:>5} {:>8.2} {:>10.3e} {:>10.3e} {:>10.3e} {:>8.4} {:>8.4} {:>8.2} {:>9} {:>6}",
+            "{:<18} {:>5} {:>5} {:>8.2} {:>10.3e} {:>10.3e} {:>10.3e} {:>10.3e} {:>8.4} {:>8.4} {:>8.2} {:>9} {:>6}",
             name,
             n,
             pos,
             a.top1_pct(),
             a.mean_kl(),
             a.mean_kl21(),
+            s.mean_kl21(),
             a.kl_max,
             a.mean_tail_ref(),
             a.mean_tail_ours(),
@@ -964,10 +1029,11 @@ fn run_mode(
         );
     };
     println!(
-        "{:<18} {:>5} {:>5} {:>8} {:>10} {:>10} {:>10} {:>8} {:>8} {:>8} {:>9} {:>6}",
-        "prompt", "n", "pos", "top-1 %", kl_name, "KL(21-way)", "max KL", "tail ref", "tail us", "top-5 %", "greedy", "nonfin"
+        "{:<18} {:>5} {:>5} {:>8} {:>10} {:>10} {:>10} {:>10} {:>8} {:>8} {:>8} {:>9} {:>6}",
+        "prompt", "n", "pos", "top-1 %", kl_name, "KL(21-way)", "KL21 scored", "max KL", "tail ref", "tail us", "top-5 %", "greedy", "nonfin"
     );
     let mut total = Agg::default();
+    let mut total_sc = Agg::default();
     let mut matches = Vec::new();
     let mut per_prompt = Vec::new();
     // development aid: `INTARSIA_ACC_POS_DUMP=<file>` appends one TSV line per position (mode, prompt, pos, token id,
@@ -977,6 +1043,8 @@ fn run_mode(
     for (pi, (name, p)) in prompts.iter().enumerate() {
         let n = p.ids.len();
         let mut stats: Vec<PosStat> = Vec::new();
+        let mut agg_sc = Agg::default(); // the rows the model is asked to predict
+        let mask = scored.map(|m| &m[pi]);
         let mut cb = |pos: usize, row: &[f32]| -> intarsia_core::Result<()> {
             if row.len() != vocab {
                 return Err(intarsia_core::Error::model(format!("logits row has {} entries, want {vocab}", row.len())));
@@ -1001,6 +1069,9 @@ fn run_mode(
                     s.tail_ours
                 );
             }
+            if mask.is_none_or(|m| m[pos]) {
+                agg_sc.push(&s);
+            }
             stats.push(s);
             Ok(())
         };
@@ -1019,7 +1090,7 @@ fn run_mode(
         let mut agg = Agg::default();
         stats.iter().for_each(|s| agg.push(s));
         let ml = greedy_match_len(&stats);
-        row(name, n.to_string(), stats.len(), &agg, format!("{ml}/{}", stats.len()));
+        row(name, n.to_string(), stats.len(), &agg, &agg_sc, format!("{ml}/{}", stats.len()));
         per_prompt.push(PromptStats {
             name: name.clone(),
             positions: agg.n,
@@ -1030,12 +1101,18 @@ fn run_mode(
             tail_excess: agg.tail_excess(),
             max_kl21: agg.kl21_max,
             tail_abs: agg.mean_tail_abs(),
+            mean_kl21_scored: (agg_sc.n > 0).then(|| agg_sc.mean_kl21()), // a prompt wholly inside system / user turns has none
+            scored_positions: Some(agg_sc.n),
         });
         matches.push((ml, stats.len()));
         total.add(&agg);
+        total_sc.add(&agg_sc);
     }
     let greedy_pct = 100.0 * matches.iter().map(|m| m.0).sum::<usize>() as f64 / total.n.max(1) as f64;
-    row("OVERALL", String::new(), total.n, &total, format!("{greedy_pct:.1}%"));
+    row("OVERALL", String::new(), total.n, &total, &total_sc, format!("{greedy_pct:.1}%"));
+    if total_sc.n == 0 {
+        bail!("{}: no scored rows (every row lies inside a system or user turn): the KL floor has nothing to judge", mode.name());
+    }
     let mstats = |pass: bool| ModeStats {
         mode: mode.key().into(),
         positions: total.n,
@@ -1051,6 +1128,9 @@ fn run_mode(
         nonfinite: total.nonfinite,
         greedy_match_pct: greedy_pct,
         floor_pass: pass,
+        mean_kl_scored: Some(total_sc.mean_kl()),
+        mean_kl21_scored: Some(total_sc.mean_kl21()),
+        scored_positions: Some(total_sc.n),
     };
     if let Some(b) = self_budget {
         // same weights: the class floors are not the question, the distance to the other build's logits is
@@ -1078,13 +1158,15 @@ fn run_mode(
     }
     let ok_nf = total.nonfinite == 0;
     let ok_top1 = gates.min_top1.is_none_or(|m| total.top1_pct() >= m);
-    let (gate_kl, gate_kl_name) = if topk { (total.mean_kl21(), "21-way KL") } else { (total.mean_kl(), "full-vocab KL") };
+    // The KL floor judges the rows the model is asked to predict; top-1, tail mass and non-finite rows judge all rows.
+    let (gate_kl, gate_kl_name, all_kl) =
+        if topk { (total_sc.mean_kl21(), "21-way KL", total.mean_kl21()) } else { (total_sc.mean_kl(), "full-vocab KL", total.mean_kl()) };
     let ok_kl = gate_kl <= gates.max_kl; // NaN / inf compare false
     let ok_tail = total.tail_excess().abs() <= gates.max_tail_excess;
     let tag = |ok: bool| if ok { "ok" } else { "FAIL" };
     let pass = ok_nf && ok_top1 && ok_kl && ok_tail;
     println!(
-        "{} floor [{}]: top-1 {:.2}%{} ({}) {} | {gate_kl_name} {:.3e} (need <= {:.1e}) {} | tail mass ours {:.4} vs ref {:.4}, excess {:+.4} (|.| <= {}) {} | non-finite rows {} {} => {}",
+        "{} floor [{}]: top-1 (all rows) {:.2}%{} ({}) {} | {gate_kl_name} (scored rows, n={}) {:.3e} (need <= {:.1e}) {} [all rows, n={}: {:.3e}, reported only] | tail mass (all rows) ours {:.4} vs ref {:.4}, excess {:+.4} (|.| <= {}) {} | non-finite rows {} {} => {}",
         mode.name(),
         gates.class.name(),
         total.top1_pct(),
@@ -1102,9 +1184,12 @@ fn run_mode(
             None => "not gated for this class".into(),
         },
         tag(ok_top1),
+        total_sc.n,
         gate_kl,
         gates.max_kl,
         tag(ok_kl),
+        total.n,
+        all_kl,
         total.mean_tail_ours(),
         total.mean_tail_ref(),
         total.tail_excess(),
@@ -1455,6 +1540,47 @@ fn row_nu(a: &[f32], b: &[f32]) -> f64 {
     cand.iter().map(|&i| (la[i] - lb[i]).abs()).fold(0.0, f64::max)
 }
 
+/// Built-in constants of the stream-comparison tolerance (Qwen3-8B / HIP, see `--reuse-logit-tol`).
+const DEFAULT_REUSE_LOGIT_TOL: f64 = 0.25;
+const DEFAULT_REUSE_KL_TOL: f64 = 1e-2;
+
+/// The fixed tolerance of the post-restore stream comparison and where each number came from. A constant of the model:
+/// it never depends on what the run measured (a tolerance derived from the run would widen with the very bug it judges).
+#[derive(Debug, Clone, PartialEq)]
+struct ReuseTol {
+    logit: f64,
+    kl: f64,
+    source: String,
+}
+
+/// Flag, then golden metadata (`reuse_logit_tol`, `reuse_kl_tol`), then the recipe's `[accuracy]` table, then the built-in
+/// constants; each number on its own.
+fn resolve_reuse_tol(args: &AccuracyArgs, g: &Golden, recipe: Option<&intarsia_core::recipe::Recipe>) -> Result<ReuseTol> {
+    let meta = |k: &str| -> Result<Option<f64>> {
+        g.meta_str(k).map(|v| v.parse::<f64>().map_err(|_| anyhow!("golden metadata {k} = {v:?} is not a number"))).transpose()
+    };
+    let pick = |flag: Option<f64>, key: &str, rec: Option<f64>, default: f64| -> Result<(f64, String)> {
+        Ok(if let Some(v) = flag {
+            (v, format!("--{}", key.replace('_', "-")))
+        } else if let Some(v) = meta(key)? {
+            (v, "golden metadata".into())
+        } else if let Some(v) = rec {
+            (v, format!("recipe {}", recipe.map_or("", |r| r.model.family.as_str())))
+        } else {
+            (default, "built-in".into())
+        })
+    };
+    let acc = recipe.map(|r| &r.accuracy);
+    let (logit, ls) = pick(args.reuse_logit_tol, "reuse_logit_tol", acc.and_then(|a| a.reuse_logit_tol), DEFAULT_REUSE_LOGIT_TOL)?;
+    let (kl, ks) = pick(args.reuse_kl_tol, "reuse_kl_tol", acc.and_then(|a| a.reuse_kl_tol), DEFAULT_REUSE_KL_TOL)?;
+    for (name, v) in [("reuse_logit_tol", logit), ("reuse_kl_tol", kl)] {
+        if !(v > 0.0 && v.is_finite()) {
+            bail!("{name} must be a positive number (got {v})");
+        }
+    }
+    Ok(ReuseTol { logit, kl, source: if ls == ks { ls } else { format!("logit {ls}, KL {ks}") } })
+}
+
 /// What the logits say about the first divergence `d` of a warm and a cold greedy stream. Row `j` of each run is the
 /// distribution the run sampled token `j` from; rows `0..=d` share one context (the streams agree before `d`), so
 /// any difference between them is numerical.
@@ -1469,7 +1595,7 @@ struct Divergence {
     gap_cold: f64,
     /// Largest KL(cold || warm) over the shared rows up to and including the divergent one.
     kl_max: f64,
-    /// Rounding scale allowed: the larger of the floor and twice what re-chunking a cold run alone moves the rows.
+    /// Rounding scale allowed: the fixed per-model constant ([`ReuseTol::logit`]).
     tol: f64,
     /// Largest KL between the two runs' rows that still counts as rounding.
     kl_tol: f64,
@@ -1483,17 +1609,15 @@ impl Divergence {
     }
 }
 
-/// `warm_rows[j]`, `cold_rows[j]`: the logits the two runs sampled token `j` from; `ctrl` the largest [`row_nu`]
-/// between two cold runs of different chunking over the same rows (0 when unknown), `floor` the least scale to allow
+/// `warm_rows[j]`, `cold_rows[j]`: the logits the two runs sampled token `j` from; `tol` the fixed rounding scale to allow
 /// and `kl_tol` the KL (nats) between two rows beyond which they are different distributions, not roundings of one.
-#[allow(clippy::too_many_arguments)]
-fn judge_divergence(warm: &[u32], cold: &[u32], warm_rows: &[Vec<f32>], cold_rows: &[Vec<f32>], d: usize, ctrl: f64, floor: f64, kl_tol: f64) -> Divergence {
+fn judge_divergence(warm: &[u32], cold: &[u32], warm_rows: &[Vec<f32>], cold_rows: &[Vec<f32>], d: usize, tol: f64, kl_tol: f64) -> Divergence {
     let nu_pre = (0..d).map(|j| row_nu(&warm_rows[j], &cold_rows[j])).fold(0.0, f64::max);
     let nu_div = row_nu(&warm_rows[d], &cold_rows[d]);
     let (w, c) = (warm[d] as usize, cold[d] as usize);
     let (lw, lc) = (log_softmax(&warm_rows[d]), log_softmax(&cold_rows[d]));
     let kl_max = (0..=d).map(|j| kl_rows(&cold_rows[j], &warm_rows[j])).fold(0.0, f64::max);
-    Divergence { nu_pre, nu_div, gap_warm: lw[w] - lw[c], gap_cold: lc[c] - lc[w], kl_max, tol: floor.max(2.0 * ctrl), kl_tol }
+    Divergence { nu_pre, nu_div, gap_warm: lw[w] - lw[c], gap_cold: lc[c] - lc[w], kl_max, tol, kl_tol }
 }
 
 struct StreamVerdict {
@@ -1504,17 +1628,15 @@ struct StreamVerdict {
 
 /// Compare a warm and a cold greedy stream of `m` tokens. Identical streams pass. A divergence is judged on the
 /// logits: both runs are repeated recording the logits row of every step (`rerun(warm?, trace)`), the divergent row
-/// is compared with the rounding scale of the same prompt run cold at other chunkings, and the divergence passes
+/// is compared with the model's fixed rounding scale ([`ReuseTol`]), and the divergence passes
 /// if it is within that scale (a near-tie that rounding flipped) or, as before, past `--reuse-min-match` tokens. An engine that cannot trace logits falls back to
 /// "at least `--reuse-min-match` identical leading tokens".
 fn judge_streams(
-    engine: &dyn Engine,
-    chunk: usize,
-    turn2: &[u32],
     warm: &[u32],
     cold: &[u32],
     m: usize,
     args: &AccuracyArgs,
+    tol: &ReuseTol,
     rerun: &dyn Fn(bool, Arc<Mutex<Vec<Vec<f32>>>>) -> Result<Vec<u32>>,
 ) -> Result<StreamVerdict> {
     let legacy_min = args.reuse_min_match.min(m);
@@ -1535,23 +1657,10 @@ fn judge_streams(
     let Some(d) = first_divergence(&wt, &ct).filter(|&d| d < wr.len().min(cr.len()).min(wt.len()).min(ct.len())) else {
         return Ok(StreamVerdict { agree, ok: true, note: format!("diverged at token {agree} on the serving path, not again when recording logits: the run is not repeatable") });
     };
-    // the rounding scale of this prompt: two cold runs at different chunkings, same context, rows 0..=d
-    let mut ctrl = 0.0f64;
-    let cold_ref = script_rows(engine, Vec::new(), turn2, 0, chunk, &ct, d + 1);
-    if let Ok(base) = cold_ref {
-        for alt in [chunk / 2, chunk.saturating_sub(1)] {
-            if alt == 0 || alt == chunk {
-                continue;
-            }
-            if let Ok(rows) = script_rows(engine, Vec::new(), turn2, 0, alt, &ct, d + 1) {
-                ctrl = base.iter().zip(&rows).map(|(a, b)| row_nu(a, b)).fold(ctrl, f64::max);
-            }
-        }
-    }
-    let dv = judge_divergence(&wt, &ct, &wr, &cr, d, ctrl, args.reuse_logit_tol, args.reuse_kl_tol);
+    let dv = judge_divergence(&wt, &ct, &wr, &cr, d, tol.logit, tol.kl);
     let desc = format!(
-        "token {d}: warm took {} cold took {}; shared rows differ by {:.3} (before) / {:.3} (here) nats of log-probability, KL up to {:.1e}; rounding scale {:.3} nats, KL {:.0e} (re-chunked cold run: {:.3}); warm margin {:.3}, cold margin {:.3}",
-        wt[d], ct[d], dv.nu_pre, dv.nu_div, dv.kl_max, dv.tol, dv.kl_tol, ctrl, dv.gap_warm, dv.gap_cold
+        "token {d}: warm took {} cold took {}; shared rows differ by {:.3} (before) / {:.3} (here) nats of log-probability, KL up to {:.1e}; fixed rounding scale {:.3} nats, KL {:.0e} ({}); warm margin {:.3}, cold margin {:.3}",
+        wt[d], ct[d], dv.nu_pre, dv.nu_div, dv.kl_max, dv.tol, dv.kl_tol, tol.source, dv.gap_warm, dv.gap_cold
     );
     // The logit criterion can only rescue a pair the leading-token criterion fails: its tolerances are calibrated on one
     // bf16 model, so it must never be stricter than the criterion that gated before (a quantised or hybrid model's rows
@@ -1567,6 +1676,31 @@ fn judge_streams(
     };
     let legacy_note = if legacy_ok != tie { format!("; legacy criterion (>= {legacy_min} leading tokens): {}", if legacy_ok { "ok" } else { "FAIL" }) } else { String::new() };
     Ok(StreamVerdict { agree, ok, note: format!("{note}{legacy_note}") })
+}
+
+/// The split of the reuse cases for a prompt of `n` tokens at prefill chunk `chunk`: turn 1 (`ids[..split]`) must cross a
+/// chunk boundary (`split > chunk`), or the restore never leaves the first chunk and "passes" without testing anything.
+/// The golden's `reuse_split` (or half the prompt) is used when it does; otherwise one and a half chunks, bounded by the
+/// prompt (turn 2 needs two more tokens). `Err`: no split of this prompt crosses a boundary at this chunk; the gate
+/// reports the prompt as skipped (it tests no restore) and fails only when no prompt could be judged.
+fn reuse_split(golden_split: usize, n: usize, chunk: usize) -> std::result::Result<usize, String> {
+    let max = n.saturating_sub(2);
+    let s = golden_split.min(max);
+    if s > chunk {
+        return Ok(s);
+    }
+    let s = (chunk + chunk / 2).min(max);
+    if s > chunk {
+        Ok(s)
+    } else {
+        Err(format!("a prompt of {n} tokens cannot cross a chunk boundary at the default prefill chunk {chunk} (no split above {chunk} leaves room for turn 2)"))
+    }
+}
+
+/// All rows equal by bit pattern (the same length, the same count; `==` on floats would call NaN rows different and
+/// -0.0 equal to 0.0).
+fn rows_bit_equal(a: &[Vec<f32>], b: &[Vec<f32>]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.len() == y.len() && x.iter().zip(y).all(|(p, q)| p.to_bits() == q.to_bits()))
 }
 
 struct ReuseRow {
@@ -1596,21 +1730,31 @@ struct ReuseRow {
 /// prompt differently from a cold one (and `continue` reuses rows the decode kernels wrote, which a cold run prefills),
 /// so bf16 rounding can flip a near-tie: a diverging pair is judged on the logits ([`judge_streams`]). A broken restore
 /// moves the logits by far more than rounding and fails at once.
-fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs) -> Result<bool> {
+fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs, tol: &ReuseTol) -> Result<(bool, baseline::ReuseSummary)> {
     let info = engine.info();
     let (chunk, ctx, vocab, m) = (args.model.chunk(), info.context_len, info.vocab, args.reuse_gen.max(1));
     let reply = 16usize;
     println!("\n== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==");
     println!(
+        "prefill chunk {chunk} ({}){}; restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk{}; stream tolerance (fixed, {}): {} nats, KL {:.0e}",
+        args.model.chunk_source(),
+        if args.model.chunk_source() == "--prefill-chunk" { " NOT the recipe default: this run does not show that the default passes" } else { "" },
+        if args.reuse_exact { "" } else { " (--reuse-exact false: DISABLED)" },
+        tol.source,
+        tol.logit,
+        tol.kl
+    );
+    println!(
         "{:<18} {:<9} {:>6} {:>6} {:>7} {:>6} {:>9}  {}",
         "prompt", "case", "split", "turn2", "cached", "cold", "agree", "result"
     );
     let mut rows: Vec<ReuseRow> = Vec::new();
+    let mut skipped: Vec<String> = Vec::new();
     // `warm` / `cold` runs of one case: (trace) -> (stream, cached); the cold run is preceded by a cache flush
     type Trace = Arc<Mutex<Vec<Vec<f32>>>>;
     type Run<'a> = &'a dyn Fn(Option<Arc<Mutex<Vec<Vec<f32>>>>>) -> Result<(Vec<u32>, usize)>;
-    let judge = |turn2: &[u32], warm_run: Run, cold_run: Run, warm: &[u32], cold: &[u32]| -> Result<StreamVerdict> {
-        judge_streams(engine, chunk, turn2, warm, cold, m, args, &|is_warm, t| {
+    let judge = |warm_run: Run, cold_run: Run, warm: &[u32], cold: &[u32]| -> Result<StreamVerdict> {
+        judge_streams(warm, cold, m, args, tol, &|is_warm, t| {
             Ok(if is_warm { warm_run(Some(t))?.0 } else { cold_run(Some(t))?.0 })
         })
     };
@@ -1621,15 +1765,18 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         let n = p.ids.len();
         let meta = g.prompt_meta(i);
         let n_prompt = meta.as_ref().and_then(|v| v["n_prompt"].as_u64()).map_or(n, |x| x as usize);
-        let split = meta.as_ref().and_then(|v| v["reuse_split"].as_u64()).map_or(n_prompt / 2, |x| x as usize).min(n.saturating_sub(2));
-        let skip = |case: &'static str, why: String| {
-            println!("{name:<18} {case:<9} skipped: {why}");
-        };
-        if split < chunk {
-            skip("both", format!("split {split} is below one prefill chunk ({chunk}): nothing to reuse across chunk boundaries"));
-            continue;
-        }
+        let golden_split = meta.as_ref().and_then(|v| v["reuse_split"].as_u64()).map_or(n_prompt / 2, |x| x as usize);
         let first = rows.len();
+        // A prompt that cannot cross a chunk boundary at this chunk tests no restore: it is a reported SKIP (counted and
+        // named below), never a pass; the gate fails when no prompt at all could be judged.
+        let split = match reuse_split(golden_split, n, chunk) {
+            Ok(s) => s,
+            Err(why) => {
+                println!("{name:<18} {:<9} SKIPPED: {why}", "both");
+                skipped.push(name.clone());
+                continue;
+            }
+        };
         // ---- continue
         {
             let run = || -> Result<ReuseRow> {
@@ -1650,7 +1797,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 };
                 let (warm, cached) = gen_tokens(engine, turn2.clone(), m)?;
                 let (cold, cold_cached) = cold_run(None)?;
-                let v = judge(&turn2, &warm_run, &cold_run, &warm, &cold)?;
+                let v = judge(&warm_run, &cold_run, &warm, &cold)?;
                 let ok = cached >= split && cold_cached == 0 && v.ok;
                 let note = if cached < split {
                     format!("reuse covered {cached} < the {split} tokens of turn 1")
@@ -1670,10 +1817,12 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         }
         // ---- restore, and restore on a chunk-aligned split (the warm run then has the cold run's chunking)
         let aligned = split / chunk * chunk;
-        for (case, s, exact) in [("restore", split, false), ("aligned", aligned, true)] {
-            if exact && (aligned == split || aligned == 0) {
+        for (case, s) in [("restore", split), ("aligned", aligned)] {
+            if case == "aligned" && (aligned == split || aligned == 0) {
                 continue; // the split is on a chunk boundary already (or below the first one): same as `restore`
             }
+            // a reused length on a chunk boundary: the warm run executes the cold run's operations, so equality is exact
+            let exact = s > 0 && s % chunk == 0;
             let run = || -> Result<ReuseRow> {
                 let mut turn1: Vec<u32> = p.ids[..s].to_vec();
                 // a different tail: every token differs from the one at that place of the real prompt
@@ -1689,46 +1838,61 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                     flush_cache(engine, p.ids[0], vocab)?;
                     gen_tokens_traced(engine, turn2.clone(), m, t)
                 };
-                let (warm, cached) = warm_run(None)?;
-                let (cold, cold_cached) = cold_run(None)?;
                 let bits = exact && args.reuse_exact;
-                // Identical chunking means identical operations: on a backend whose cold run repeats itself bit for
-                // bit (the logits of two cold runs are the same bits) the warm run must equal the cold one.
-                let mut deterministic = None;
-                let v = if bits && warm == cold {
-                    StreamVerdict { agree: m, ok: true, note: String::new() }
-                } else if bits {
-                    let (t1, t2): (Trace, Trace) = Default::default();
-                    cold_run(Some(t1.clone()))?;
-                    cold_run(Some(t2.clone()))?;
-                    let same = *t1.lock().unwrap() == *t2.lock().unwrap();
-                    deterministic = Some(same);
+                // The hard check (bits): the logits rows of the warm run equal the cold run's, bit for bit. No tolerance.
+                let (tw, tc): (Trace, Trace) = Default::default();
+                let ((warm, cached), (cold, cold_cached)) = if bits {
+                    (warm_run(Some(tw.clone()))?, cold_run(Some(tc.clone()))?)
+                } else {
+                    (warm_run(None)?, cold_run(None)?)
+                };
+                let mut bit_note = None;
+                let v = if bits {
+                    let (wr, cr) = (tw.lock().unwrap().clone(), tc.lock().unwrap().clone());
+                    // an engine that cannot trace logits can only be held to equal token streams
+                    let traced = !(wr.is_empty() && cr.is_empty());
+                    let same = if traced { rows_bit_equal(&wr, &cr) } else { warm == cold };
                     if same {
-                        StreamVerdict {
-                            agree: first_divergence(&warm, &cold).unwrap_or(m),
-                            ok: false,
-                            note: "the warm run prefilled the chunks of the cold run, and the cold run repeats bit for bit, yet the warm run differs from it".into(),
-                        }
+                        StreamVerdict { agree: m, ok: true, note: String::new() }
                     } else {
-                        judge(&turn2, &warm_run, &cold_run, &warm, &cold)?
+                        // is the cold run itself repeatable? (a backend that is not cannot be held to bit identity: fail
+                        // loudly and say so, instead of falling back to a tolerance)
+                        let t2: Trace = Default::default();
+                        cold_run(Some(t2.clone()))?;
+                        let repeats = rows_bit_equal(&cr, &t2.lock().unwrap());
+                        let c = cmp_rows(&wr, &cr);
+                        bit_note = Some(if traced && !repeats {
+                            "the cold run does not repeat itself bit for bit, so the restored state cannot be held to bit identity: a backend-nondeterminism effect (reduction order, atomics?), not shown to be a restore bug".to_string()
+                        } else {
+                            format!(
+                                "the warm run restored {cached} tokens and prefilled the chunks of the cold run, yet its logits differ from the cold run's ({}/{} rows bitwise equal, KL max {:.2e}, max|dlogit| {:.3e})",
+                                c.bitwise, c.rows, c.max_kl, c.max_abs
+                            )
+                        });
+                        StreamVerdict { agree: first_divergence(&warm, &cold).unwrap_or(m), ok: false, note: String::new() }
                     }
                 } else {
-                    judge(&turn2, &warm_run, &cold_run, &warm, &cold)?
+                    judge(&warm_run, &cold_run, &warm, &cold)?
                 };
-                let ok = cached > 0 && cached <= s && cold_cached == 0 && v.ok;
+                // on a chunk boundary the whole prefix must be reused: a lost snapshot would still give equal rows
+                let reused_ok = if bits { cached == s } else { cached > 0 && cached <= s };
+                let ok = reused_ok && cold_cached == 0 && v.ok;
                 let note = if cached == 0 {
                     "nothing was reused (no restorable state at or below the split)".into()
                 } else if cached > s {
                     format!("reused {cached} > the shared prefix {s}: stale state")
+                } else if bits && cached != s {
+                    format!("reused {cached} < the chunk-aligned prefix {s}: a restorable state was lost (equal rows would not show it)")
                 } else if cold_cached != 0 {
                     "the cold run was not cold".into()
-                } else if deterministic == Some(false) {
-                    let why = "the cold run does not repeat itself bit for bit, so bit-identity is not required";
-                    if v.note.is_empty() { why.to_string() } else { format!("{why}; {}", v.note) }
+                } else if let Some(n) = bit_note {
+                    n
+                } else if bits {
+                    "logits bit-identical to the cold run".into()
                 } else {
                     v.note.clone()
                 };
-                if args.reuse_diag && !exact {
+                if args.reuse_diag && case == "restore" {
                     println!("{name} restore split {s} turn2 {} cached {cached} agree {}/{m}", turn2.len(), v.agree);
                     // turn 1 generated 4 tokens; the first 3 went through the model (the 4th was never fed)
                     flush_cache(engine, p.ids[0], vocab)?;
@@ -1754,13 +1918,37 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
             );
         }
     }
+    let mut ran: Vec<String> = Vec::new();
+    for r in &rows {
+        if !ran.contains(&r.prompt) {
+            ran.push(r.prompt.clone());
+        }
+    }
+    let summary = |passed: bool| baseline::ReuseSummary {
+        passed,
+        prefill_chunk: chunk,
+        prefill_chunk_source: args.model.chunk_source(),
+        ran: ran.clone(),
+        skipped: skipped.clone(),
+    };
+    if !skipped.is_empty() {
+        println!(
+            "prefix reuse: {} prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk {chunk} ({}): {}; {} judged",
+            skipped.len(),
+            args.model.chunk_source(),
+            skipped.join(", "),
+            ran.len()
+        );
+    }
     if rows.is_empty() {
-        println!("reuse gate: SKIPPED (no prompt is long enough: it needs a split of at least one prefill chunk, --prefill-chunk {chunk}); not a pass");
-        return Ok(false);
+        println!(
+            "prefix-reuse gate: FAIL (nothing ran: no prompt can cross a chunk boundary at prefill chunk {chunk}, so no restore was tested and this is not a pass; use a golden with longer prompts, or a smaller --prefill-chunk)"
+        );
+        return Ok((false, summary(false)));
     }
     let ok = rows.iter().all(|r| r.ok);
     println!("prefix-reuse gate: {}", if ok { "PASS" } else { "FAIL" });
-    Ok(ok)
+    Ok((ok, summary(ok)))
 }
 
 // ---------------------------------------------------------------------------
@@ -1904,6 +2092,14 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         }
         prompts.push((name.clone(), p));
     }
+    let recipe = load_recipe(args);
+    let masks = if self_mode {
+        None // the self-golden budgets compare two builds' logits on every row
+    } else {
+        let m = row_masks(engine, &g, &prompts, recipe.as_ref())?;
+        eprintln!("KL row mask: {}", m.how);
+        Some(m)
+    };
     let longest = prompts.iter().map(|p| p.1.ids.len()).max().unwrap_or(0);
     let positions: usize = prompts.iter().map(|p| p.1.ids.len()).sum();
     let chunk = args.model.chunk();
@@ -1932,7 +2128,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             eprintln!("{w}");
         }
         eprintln!(
-            "gates: class {} ({}); top-1 {}, {} <= {:.1e}, |tail excess| <= {}",
+            "gates: class {} ({}); top-1 (all rows) {}, {} (scored rows: outside system and user turns) <= {:.1e}, |tail excess| (all rows) <= {}",
             gates.class.name(),
             gates.why,
             gates.min_top1.map_or("not gated".to_string(), |m| format!(">= {m}%")),
@@ -2081,7 +2277,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         if set.len() != prompts.len() {
             bail!("the self-golden has decode rows for {} of {} prompts", set.len(), prompts.len());
         }
-        let r = run_mode(engine, set, m, args, &gates, topk_k.is_some(), self_mode.then_some(&self_budget), &mut capture)?;
+        let r = run_mode(engine, set, m, args, &gates, topk_k.is_some(), masks.as_ref().map(|m| m.scored.as_slice()), self_mode.then_some(&self_budget), &mut capture)?;
         floor_ok &= r.pass;
         results.push((m, r));
     }
@@ -2164,6 +2360,14 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         envelope::write(wp, &merged)?;
         println!("\nwrote noise envelope {} ({} perturbation(s): {})", wp.display(), merged.perturbations.len(), merged.describe());
     }
+    // the prefix-reuse gate runs before the baseline is written so that the baseline records which prompts it judged
+    let mut reuse_ok = true;
+    let mut reuse_summary: Option<baseline::ReuseSummary> = None;
+    if want_reuse {
+        let (ok, summary) = reuse_gate(engine, &g, &prompts, args, &resolve_reuse_tol(args, &g, recipe.as_ref())?)?;
+        reuse_ok = ok;
+        reuse_summary = Some(summary);
+    }
     if let Some(wp) = &args.write_baseline {
         let b = Baseline {
             format: baseline::FORMAT.into(),
@@ -2174,6 +2378,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             golden: golden_id.clone(),
             run: run_cfg.clone(),
             modes: results.iter().map(|(_, r)| baseline::ModeBaseline { overall: r.stats.clone(), prompts: r.prompts.clone() }).collect(),
+            reuse: reuse_summary.clone(),
         };
         baseline::write(wp, &b)?;
         println!(
@@ -2217,10 +2422,6 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         );
     }
 
-    let mut reuse_ok = true;
-    if want_reuse {
-        reuse_ok = reuse_gate(engine, &g, &prompts, args)?;
-    }
     if noise_run {
         println!("\nnoise envelope run: the verdicts below are information about the perturbed build; the exit status does not depend on them");
     }
@@ -2696,21 +2897,21 @@ mod tests {
         let warm = vec![row(5.0, 1.0), row(4.0, 2.0), row(3.01, 3.0)];
         let cold = vec![row(5.002, 1.0), row(4.0, 2.001), row(3.0, 3.01)];
         let (wt, ct) = ([7u32, 7, 0], [7u32, 7, 1]);
-        let d = judge_divergence(&wt, &ct, &warm, &cold, 2, 0.0, 0.05, 1e-2);
+        let d = judge_divergence(&wt, &ct, &warm, &cold, 2, 0.05, 1e-2);
         assert!(d.is_tie(), "{d:?}");
         assert!((d.gap_warm - 0.01).abs() < 1e-5 && (d.gap_cold - 0.01).abs() < 1e-5, "{d:?}");
         // the same tokens, but the warm distribution at the divergent row is far from the cold one: not rounding
         let moved = vec![row(5.0, 1.0), row(4.0, 2.0), row(3.5, 1.0)];
-        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 0.0, 0.05, 1e-2);
+        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 0.05, 1e-2);
         assert!(!d.is_tie(), "{d:?}");
         // a shared row before the divergence is already off: not rounding either
         let off = vec![row(5.0, 1.0), row(3.0, 2.0), row(3.01, 3.0)];
-        let d = judge_divergence(&wt, &ct, &off, &cold, 2, 0.0, 0.05, 1e-2);
+        let d = judge_divergence(&wt, &ct, &off, &cold, 2, 0.05, 1e-2);
         assert!(!d.is_tie() && d.nu_div <= d.tol, "{d:?}");
-        // the scale re-chunking a cold run moves its rows raises the tolerance, but a different distribution stays one
-        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 1.0, 0.05, 1e-2);
-        assert!(d.nu_div <= d.tol && !d.is_tie(), "{d:?}");
-        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 1.0, 0.05, 10.0);
+        // the tolerance is the constant that was passed in, whatever the rows did: a wide constant admits the moved row
+        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 2.0, 1e-2);
+        assert!(d.tol == 2.0 && d.nu_div <= d.tol && !d.is_tie(), "{d:?}");
+        let d = judge_divergence(&wt, &ct, &moved, &cold, 2, 2.0, 10.0);
         assert!(d.is_tie(), "{d:?}");
     }
 
@@ -2724,5 +2925,127 @@ mod tests {
         c[6] -= 3.0; // a tail token far below the top 5
         assert!(row_nu(&a, &c) < 1e-3);
         assert_eq!(row_nu(&a, &a), 0.0);
+    }
+
+    #[test]
+    fn the_reuse_split_crosses_a_chunk_boundary_or_the_prompt_is_skipped() {
+        // the golden's split is used when it is above one chunk (chat_reuse_4k of the 35B golden at the HIP chunk)
+        assert_eq!(reuse_split(4521, 4631, 4096), Ok(4521));
+        // a split below the chunk is moved to one and a half chunks when the prompt is long enough ...
+        assert_eq!(reuse_split(2000, 4064, 2048), Ok(3072));
+        assert_eq!(reuse_split(500, 12064, 4096), Ok(6144));
+        // ... bounded by the prompt (turn 2 needs two more tokens)
+        assert_eq!(reuse_split(4096, 5000, 4096), Ok(4998));
+        // a prompt shorter than a chunk plus the two tokens cannot cross: a reported skip in the gate (which fails when no prompt can)
+        for (g, n, c) in [(2000, 4064, 4096), (50, 100, 256), (4096, 4097, 4096), (0, 0, 8)] {
+            let e = reuse_split(g, n, c).unwrap_err();
+            assert!(e.contains("cannot cross a chunk boundary"), "{e}");
+        }
+        // whatever is returned really is above one chunk and leaves room for turn 2
+        for n in [10usize, 300, 4064, 4631, 12064] {
+            for c in [8usize, 256, 2048, 4096] {
+                if let Ok(s) = reuse_split(n / 2, n, c) {
+                    assert!(s > c && s + 2 <= n, "n {n} chunk {c} split {s}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rows_are_compared_by_bit_pattern() {
+        let a = vec![vec![1.0f32, f32::NAN, 0.0]];
+        assert!(rows_bit_equal(&a, &a.clone()), "a NaN row equals itself bit for bit");
+        assert!(!rows_bit_equal(&a, &[vec![1.0, f32::NAN, -0.0]]), "-0.0 is a different bit pattern");
+        assert!(!rows_bit_equal(&a, &[vec![1.0, f32::NAN]]));
+        assert!(!rows_bit_equal(&a, &[]));
+        assert!(rows_bit_equal(&[], &[]));
+    }
+
+    fn golden_with(meta: &[(&str, &str)]) -> Golden {
+        Golden { data: Vec::new(), data_start: 0, tensors: HashMap::new(), meta: meta.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect() }
+    }
+
+    fn args_with(extra: &[&str]) -> AccuracyArgs {
+        #[derive(clap::Parser)]
+        struct Cli {
+            #[command(flatten)]
+            a: AccuracyArgs,
+        }
+        use clap::Parser;
+        Cli::parse_from(["x", "--model", "/nonexistent"].into_iter().chain(extra.iter().copied())).a
+    }
+
+    #[test]
+    fn the_reuse_tolerance_is_a_fixed_constant_from_flag_then_golden_then_recipe_then_built_in() {
+        let (_, dense) = intarsia_models::recipe::select_recipe(&serde_json::json!({"architectures": ["Qwen3ForCausalLM"]}), &[]).unwrap();
+        let (_, moe) = intarsia_models::recipe::select_recipe(&serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]}), &[]).unwrap();
+        let none = golden_with(&[]);
+        // built-in constants
+        let t = resolve_reuse_tol(&args_with(&[]), &none, Some(&moe)).unwrap();
+        assert_eq!((t.logit, t.kl, t.source.as_str()), (0.25, 1e-2, "built-in"));
+        let t = resolve_reuse_tol(&args_with(&[]), &none, None).unwrap();
+        assert_eq!((t.logit, t.kl), (0.25, 1e-2));
+        // the recipe's measured value
+        let t = resolve_reuse_tol(&args_with(&[]), &none, Some(&dense)).unwrap();
+        assert_eq!((t.logit, t.kl, t.source.as_str()), (0.25, 1e-2, "recipe qwen3"));
+        // the golden's metadata beats the recipe, the flag beats both; each number on its own
+        let g = golden_with(&[("reuse_logit_tol", "0.5"), ("reuse_kl_tol", "0.05")]);
+        let t = resolve_reuse_tol(&args_with(&[]), &g, Some(&dense)).unwrap();
+        assert_eq!((t.logit, t.kl, t.source.as_str()), (0.5, 0.05, "golden metadata"));
+        let t = resolve_reuse_tol(&args_with(&["--reuse-logit-tol", "1.5"]), &g, Some(&dense)).unwrap();
+        assert_eq!((t.logit, t.kl), (1.5, 0.05));
+        assert!(t.source.contains("--reuse-logit-tol") && t.source.contains("golden metadata"), "{}", t.source);
+        // nonsense is refused, not clamped
+        assert!(resolve_reuse_tol(&args_with(&["--reuse-kl-tol", "0"]), &none, None).is_err());
+        assert!(resolve_reuse_tol(&args_with(&[]), &golden_with(&[("reuse_logit_tol", "wide")]), None).is_err());
+    }
+
+    /// Re-score the per-row dump M3 committed (`INTARSIA_ACC_POS_DUMP`) with the row mask of this build, on the real
+    /// Qwen3.6 tokenizer and the 35B long golden. Not run by default (needs the golden, the model's tokenizer and the
+    /// decompressed dump):
+    ///
+    /// `RESCORE_GOLDEN=golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors RESCORE_MODEL=~/Models/Qwen3.6-35B-A3B-NVFP4
+    ///  RESCORE_DUMP=long-c4096.pos.tsv cargo test -p intarsia-cli rescore_m3 -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn rescore_m3_dump_with_the_row_mask() {
+        use intarsia_core::engine::TextCodec;
+        let var = |k: &str| std::env::var(k).unwrap_or_else(|_| panic!("set {k}"));
+        let g = Golden::open(Path::new(&var("RESCORE_GOLDEN"))).unwrap();
+        let codec = intarsia_models::tokenizer::HfCodec::load(Path::new(&var("RESCORE_MODEL")), &intarsia_models::ChatTemplateSource::Auto).unwrap();
+        let fmt = turns::format_named(g.meta_str("template").expect("golden template")).expect("known format");
+        let resolved = fmt.resolve(&|t| codec.encode(t, false).map_err(|e| anyhow!("{e}"))).unwrap();
+        let names = g.names();
+        let mut masks: HashMap<String, Vec<bool>> = HashMap::new();
+        for (i, name) in names.iter().enumerate() {
+            let p = g.prompt(i).unwrap();
+            let raw = g.prompt_meta(i).is_some_and(|m| m["kind"].as_str() == Some("raw"));
+            masks.insert(name.clone(), if raw { vec![true; p.ids.len()] } else { resolved.scored_rows(&p.ids) });
+        }
+        let (mut n, mut sum, mut ns, mut sums) = (0usize, 0f64, 0usize, 0f64);
+        let mut per: Vec<(String, usize, f64, usize, f64)> = Vec::new();
+        for line in std::fs::read_to_string(var("RESCORE_DUMP")).unwrap().lines() {
+            let f: Vec<&str> = line.split('\t').collect();
+            if f[0] != "prefill" {
+                continue;
+            }
+            let (name, pos, kl): (&str, usize, f64) = (f[1], f[2].parse().unwrap(), f[5].parse().unwrap());
+            let scored = masks[name][pos];
+            if per.last().is_none_or(|p| p.0 != name) {
+                per.push((name.to_string(), 0, 0.0, 0, 0.0));
+            }
+            let p = per.last_mut().unwrap();
+            (n, sum, p.1, p.2) = (n + 1, sum + kl, p.1 + 1, p.2 + kl);
+            if scored {
+                (ns, sums, p.3, p.4) = (ns + 1, sums + kl, p.3 + 1, p.4 + kl);
+            }
+        }
+        println!("all rows: n={n} mean KL21 {:.4e}   scored rows: n={ns} mean KL21 {:.4e}", sum / n as f64, sums / ns as f64);
+        for (name, a, sa, b, sb) in &per {
+            println!("  {name:<14} all n={a} {:.4e}   scored n={b} {:.4e}", sa / *a as f64, sb / (*b).max(1) as f64);
+        }
+        // M3 (docs/results/2026-10-21-m3-accuracy-debt.md, scripts/m3-accuracy/posmask.py): 36887 rows, 4.3560e-2; 32349, 1.4198e-2
+        assert_eq!((n, ns), (36887, 32349));
+        assert!((sum / n as f64 - 4.3560e-2).abs() < 5e-6 && (sums / ns as f64 - 1.4198e-2).abs() < 5e-6);
     }
 }

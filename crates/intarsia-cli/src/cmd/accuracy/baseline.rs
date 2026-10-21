@@ -35,7 +35,7 @@ use std::path::Path;
 pub const FORMAT: &str = "intarsia-accuracy-baseline-v2";
 
 /// Aggregate of one mode (prefill / decode (teacher-forced)) over all prompts.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct ModeStats {
     pub mode: String,
     pub positions: usize,
@@ -56,6 +56,15 @@ pub struct ModeStats {
     pub greedy_match_pct: f64,
     /// Did the absolute class floor pass when this baseline was recorded?
     pub floor_pass: bool,
+    /// `mean_kl` / `mean_kl21` over the rows the model is asked to predict (outside the system and user turns of chat
+    /// prompts; `accuracy/turns.rs`), and how many rows that is. `mean_kl` and `mean_kl21` above stay over ALL rows. The
+    /// KL floor gates the scored numbers. `None`: a baseline written before the row mask existed.
+    #[serde(default)]
+    pub mean_kl_scored: Option<f64>,
+    #[serde(default)]
+    pub mean_kl21_scored: Option<f64>,
+    #[serde(default)]
+    pub scored_positions: Option<usize>,
 }
 
 impl ModeStats {
@@ -64,7 +73,7 @@ impl ModeStats {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct PromptStats {
     pub name: String,
     pub positions: usize,
@@ -75,6 +84,11 @@ pub struct PromptStats {
     pub tail_excess: f64,
     pub max_kl21: f64,
     pub tail_abs: f64,
+    /// `mean_kl21` over the rows the model is asked to predict, and how many (`None`: written before the row mask).
+    #[serde(default)]
+    pub mean_kl21_scored: Option<f64>,
+    #[serde(default)]
+    pub scored_positions: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -131,6 +145,23 @@ pub struct Baseline {
     pub golden: GoldenId,
     pub run: RunConfig,
     pub modes: Vec<ModeBaseline>,
+    /// The prefix-reuse gate of the same run (`--mode reuse|all`), if it ran: which prompts it judged and which it
+    /// skipped because they cannot cross a chunk boundary at the active chunk.
+    #[serde(default)]
+    pub reuse: Option<ReuseSummary>,
+}
+
+/// What the prefix-reuse gate did in a run (`accuracy.rs`, `reuse_gate`).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct ReuseSummary {
+    pub passed: bool,
+    pub prefill_chunk: usize,
+    pub prefill_chunk_source: String,
+    /// Prompts that crossed a chunk boundary and were judged.
+    pub ran: Vec<String>,
+    /// Prompts skipped because no split of them crosses a chunk boundary at `prefill_chunk` (a reported skip, not a
+    /// failure; the gate fails only when `ran` is empty).
+    pub skipped: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -199,6 +230,12 @@ pub fn judge(base: &ModeStats, cur: &ModeStats, m: &Margins) -> Vec<Check> {
     v.push(Check { name: "mean KL", base: base.mean_kl, cur: cur.mean_kl, limit: lim, higher_is_better: false, ok: cur.mean_kl <= lim });
     let lim = kl_limit(base.mean_kl21);
     v.push(Check { name: "tail-bucket KL", base: base.mean_kl21, cur: cur.mean_kl21, limit: lim, higher_is_better: false, ok: cur.mean_kl21 <= lim });
+    // like with like: the scored-row KL only against a baseline that recorded it (an older baseline holds all-rows KL
+    // only, and judging a scored number against it would pass trivially on a chat golden)
+    if let (Some(b), Some(c)) = (base.mean_kl21_scored, cur.mean_kl21_scored) {
+        let lim = kl_limit(b);
+        v.push(Check { name: "tail-bucket KL scored", base: b, cur: c, limit: lim, higher_is_better: false, ok: c <= lim });
+    }
     let lim = base.top5_pct - m.top5_pts.max(one_position);
     v.push(Check { name: "top-5 %", base: base.top5_pct, cur: cur.top5_pct, limit: lim, higher_is_better: true, ok: cur.top5_pct >= lim - 1e-9 });
     let lim = base.tail_excess().abs() + m.tail_abs;
@@ -442,6 +479,7 @@ mod tests {
             nonfinite: 0,
             greedy_match_pct: 60.0,
             floor_pass: true,
+            ..Default::default()
         }
     }
     fn failed(v: &[Check]) -> Vec<&'static str> {
@@ -515,6 +553,49 @@ mod tests {
     }
 
     #[test]
+    fn scored_row_kl_is_judged_only_against_a_baseline_that_has_it() {
+        let mut b = stats(1000);
+        let mut c = b.clone();
+        c.mean_kl21_scored = Some(1e-2);
+        // an older baseline (all-rows KL only): the scored number is not compared with it
+        assert!(failed(&judge(&b, &c, &Margins::default())).is_empty());
+        assert!(judge(&b, &c, &Margins::default()).iter().all(|k| k.name != "tail-bucket KL scored"));
+        // a baseline with it: like with like
+        b.mean_kl21_scored = Some(5e-3);
+        assert_eq!(failed(&judge(&b, &c, &Margins::default())), ["tail-bucket KL scored"]);
+        c.mean_kl21_scored = Some(5.5e-3);
+        assert!(failed(&judge(&b, &c, &Margins::default())).is_empty());
+    }
+
+    #[test]
+    fn the_reuse_summary_is_recorded_and_an_old_baseline_without_it_reads() {
+        let mut b = baseline();
+        b.reuse = Some(ReuseSummary {
+            passed: true,
+            prefill_chunk: 4096,
+            prefill_chunk_source: "recipe qwen3_5_moe, hip".into(),
+            ran: vec!["chat_reuse_4k".into()],
+            skipped: vec!["long_docs_4k".into(), "long_code_4k".into()],
+        });
+        let json = serde_json::to_string(&b).unwrap();
+        assert_eq!(serde_json::from_str::<Baseline>(&json).unwrap(), b);
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut().unwrap().remove("reuse");
+        assert_eq!(serde_json::from_value::<Baseline>(v).unwrap().reuse, None);
+    }
+
+    #[test]
+    fn an_old_baseline_json_without_scored_fields_still_reads() {
+        let json = serde_json::to_string(&stats(10)).unwrap();
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        for k in ["mean_kl_scored", "mean_kl21_scored", "scored_positions"] {
+            v.as_object_mut().unwrap().remove(k);
+        }
+        let back: ModeStats = serde_json::from_value(v).unwrap();
+        assert_eq!(back, stats(10));
+    }
+
+    #[test]
     fn a_tiny_baseline_kl_is_not_brittle() {
         let mut b = stats(1000);
         b.mean_kl = 1e-9;
@@ -526,7 +607,7 @@ mod tests {
     }
 
     fn pstats(name: &str, n: usize, kl21: f64) -> PromptStats {
-        PromptStats { name: name.into(), positions: n, top1_pct: 95.0, mean_kl: kl21, mean_kl21: kl21, top5_pct: 90.0, tail_excess: 0.0, max_kl21: 0.1, tail_abs: 0.003 }
+        PromptStats { name: name.into(), positions: n, top1_pct: 95.0, mean_kl: kl21, mean_kl21: kl21, top5_pct: 90.0, tail_excess: 0.0, max_kl21: 0.1, tail_abs: 0.003, ..Default::default() }
     }
 
     #[test]
@@ -583,6 +664,7 @@ mod tests {
             golden: g,
             run: r,
             modes: vec![],
+            reuse: None,
         }
     }
 
@@ -615,7 +697,7 @@ mod tests {
         let mut b = baseline();
         b.modes.push(ModeBaseline {
             overall: stats(10),
-            prompts: vec![PromptStats { name: "p".into(), positions: 10, top1_pct: 100.0, mean_kl: 0.0, mean_kl21: 0.0, top5_pct: 100.0, tail_excess: 0.0, max_kl21: 0.0, tail_abs: 0.0 }],
+            prompts: vec![PromptStats { name: "p".into(), positions: 10, top1_pct: 100.0, mean_kl: 0.0, mean_kl21: 0.0, top5_pct: 100.0, tail_excess: 0.0, max_kl21: 0.0, tail_abs: 0.0, ..Default::default() }],
         });
         let p = std::env::temp_dir().join(format!("intarsia-baseline-{}.json", std::process::id()));
         write(&p, &b).unwrap();

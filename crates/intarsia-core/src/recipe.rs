@@ -21,6 +21,23 @@ pub struct Recipe {
     /// Optional overrides of the `config.json` key names (defaults are the HF names).
     #[serde(default)]
     pub config: ConfigKeys,
+    /// What `intarsia accuracy` needs to know about the model (`[accuracy]`): no effect on loading or serving.
+    #[serde(default)]
+    pub accuracy: AccuracySpec,
+}
+
+/// `[accuracy]` table of a recipe, read only by `intarsia accuracy`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct AccuracySpec {
+    /// Turn format of the model's chat template (`chatml`): which rows of a chat prompt the model is asked to predict
+    /// (the KL floor skips the system and user turns). Fallback for a golden whose metadata names no known format.
+    pub chat_turns: Option<String>,
+    /// Prefix-reuse judge: fixed rounding scale (nats of log-probability over the top-5 tokens) within which a warm and
+    /// a cold distribution count as one when their greedy streams diverge. Measured once on a known-good build of this
+    /// model, never derived per run. Unset: the tool's built-in constant.
+    pub reuse_logit_tol: Option<f64>,
+    /// Prefix-reuse judge: largest KL(cold || warm) in nats over the shared rows that still counts as rounding.
+    pub reuse_kl_tol: Option<f64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

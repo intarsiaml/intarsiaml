@@ -283,10 +283,11 @@ mod tests {
             nonfinite: 0,
             greedy_match_pct: 100.0,
             floor_pass: true,
+            ..Default::default()
         }
     }
     fn prompt(name: &str, kl: f64) -> PromptStats {
-        PromptStats { name: name.into(), positions: 16, top1_pct: 100.0, mean_kl: kl, mean_kl21: kl, top5_pct: 100.0, tail_excess: 0.0, max_kl21: kl, tail_abs: 0.0 }
+        PromptStats { name: name.into(), positions: 16, top1_pct: 100.0, mean_kl: kl, mean_kl21: kl, top5_pct: 100.0, tail_excess: 0.0, max_kl21: kl, tail_abs: 0.0, ..Default::default() }
     }
     fn failed(v: &[SelfCheck]) -> Vec<String> {
         v.iter().filter(|c| !c.ok).map(|c| c.name.clone()).collect()
