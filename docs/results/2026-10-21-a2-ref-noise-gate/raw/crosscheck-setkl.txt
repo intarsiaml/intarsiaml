@@ -1,0 +1,4 @@
+# perturbed copy of the 35B short golden (scripts/a2-ref-noise/perturb_topk_golden.py: log-probs + N(0,0.15), three ids replaced), setkl.py vs intarsia ref-noise
+pert-short.safetensors                   ALL 3.211e-02 (n=1441)  excl. system/user-turn rows 3.482e-02 (n=1279
+ref noise of qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (run_to_run): run_to_run, KL21 all rows 3.211e-2 (n=1441), scored rows 3.482e-2 (n=1279); 2026-10-21; no source cited; estimator kl21-top20-vs-
+scored rows: turn format chatml (golden template): 1279 of 1441 rows

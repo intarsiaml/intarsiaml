@@ -287,6 +287,83 @@ golden. Next to it the floor gates `|tail excess| <= --max-tail-excess` (0.02) a
 **absolute floors** and loose for what they guard against: the 4-bit class allows a quantisation error against a
 different reference, so a speed change that adds 2e-2 KL on the same weights passes it. Use a baseline for that.
 
+### Reference noise: the KL floor follows the golden's own spread (`ref_noise`)
+
+A golden is a measurement and it has noise. vLLM does not reproduce its own prompt log-probs between two runs (35B: mean 21-way
+KL 3.16e-3 on the short golden, 2.22e-2 on the long one, 8.42e-3 on the long one without the system and user-turn rows), and an
+HF reference does not reproduce itself between bf16 and f32 when the scheme rounds activations to fp4 (Qwen3.8-27B W4A4: 0.197
+against a class floor of 0.03). A floor below that spread cannot be met by any engine. Two user decisions (docs/decisions/LOG.md,
+2026-10-21 11:23 item 3 and 12:39 item 2) make the spread part of the gate.
+
+**The record.** A golden may carry a measured `ref_noise` record (format `intarsia-ref-noise-v1`):
+
+| field | meaning |
+|---|---|
+| `method` | `run_to_run` (the same reference engine run twice on the same ids) or `precision_spread` (the same model at two precisions) |
+| `kl21_mean` | mean 21-way KL(golden \|\| second reference) over all rows |
+| `kl21_mean_scored` | the same over the scored rows (outside the system and user turns of chat prompts); optional |
+| `n`, `n_scored`, `runs` | positions behind the two values; reference runs compared |
+| `date`, `how` | UTC date and how it was measured (second reference, estimator, caveats); both required |
+| `estimator`, `source` | the estimator when it is not the gate's own; the doc or log the numbers come from |
+| `golden` | binding: `file`, `fnv1a64`, `size`, `positions`. Whatever is given must match the golden, else the record is refused |
+| `factor`, `prompt_factor` | optional per-golden factors: on the noise (default 1.0), and on the per-prompt check of the change-vs-base mode (default 3.0) |
+| `prompts` | optional per-prompt noise keyed by prompt id (the golden's prompt name): `{"<id>": {"kl21_mean": .., "kl21_mean_scored": .., "n": .., "n_scored": ..}}`, usually partial; `intarsia ref-noise` fills every prompt |
+
+It is read from, in this order: `--ref-noise FILE`; the golden's own `__metadata__` key `ref_noise` (a JSON string, for goldens
+built with one); a **sidecar** `golden/ref_noise/<golden file>.json`, looked up next to the golden, in the working directory and
+in this checkout. Existing goldens use sidecars: they are git-ignored and large, and rewriting their metadata would change the
+file hash, which `--baseline` and `--self-golden` pin. `--no-ref-noise` ignores any record. The back-filled sidecars (all from
+numbers already documented, nothing re-measured): `qwen36-35b-a3b-nvfp4-vllm-top20` and `-long-top20` (docs/results/2026-10-21-cuda-round7.md
+3.1-3.2, `raw/05-kl-table.txt`) and `qwen3.8-27b-mxfp4-hfquark-top20` (docs/results/2026-10-21-m1-qwen38-drill.md 5; its hash was not
+available, so it is matched by position count only).
+
+**The rule.** `PASS when KL <= max(static floor, factor x ref_noise)`. The static floor is the class floor or `--max-mean-kl`. The
+factor is explicit and printed with its source: `--ref-noise-factor`, else the record's `factor` (per golden), else the recipe's
+`[accuracy] ref_noise_factor` (per model), else 1.0. The run prints, per mode, one line and writes the same fields with
+`--write-verdict FILE` (`intarsia-kl-verdict-v1`):
+
+```
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 8.417e-3 (scored rows) x factor 1 (default) = 8.417e-3 => effective 3.000e-2 bound by static floor; KL 1.420e-2 PASS | KL / ref noise = 1.687 on scored rows (the factor at which the noise term passes)
+```
+
+* `bound by` names the larger threshold. When the noise is below the static floor the floor binds and the noise changes nothing;
+  the line still says how many times the noise the engine is, which is the factor the noise term alone would need.
+* The noise is compared on its own rows: scored rows against `kl21_mean_scored` when the mask hides rows and the record has one,
+  otherwise all rows against `kl21_mean`. The floor keeps judging the scored rows, as before.
+* The noise is a 21-way KL. A full-vocabulary golden is gated on the full-vocabulary KL for the floor term and on the 21-way KL for the
+  noise term, so each is compared with a number of its own kind.
+* A decode mode compares only a window of each prompt; the noise is the one measured over all positions and the run says so. A
+  NaN or infinite KL never passes. A record measured on another golden (hash, size or position count) is an error, not a skip.
+
+**Change against base (`--self-golden --self-vs-ref-noise`).** The A/B of a new kernel against the default: the change's mean 21-way KL
+against the base build's logits must be at most `factor x ref_noise` of the source golden, all rows (a self-golden compares every
+row). That is the 2026-10-21 11:23 restatement, "a change must be no larger than vLLM's own run-to-run KL on the same golden". The
+noise comes from `--ref-noise`, else from the self-golden's metadata (`--write-self-golden` copies the source golden's record into
+it), else from a sidecar looked up by the source golden's name and hash. In this mode **the other self-golden budgets stop gating**:
+largest position KL, top-1 flips and tail mass are printed as "reported only"; non-finite rows still fail. They
+fail any real kernel change at their default budgets (docs/results/2026-10-21-a2-ref-noise-gate.md), so keeping them would leave the
+restated gate unreachable. **Every prompt's mean KL stays a hard check, at `prompt_factor x` that prompt's own noise**
+(`prompts.<id>.kl21_mean` of the record, all rows), and at `prompt_factor x` the golden-wide `kl21_mean` for a prompt the record has no value for.
+`prompt_factor` is 3.0 by default and set like the factor: `--ref-noise-prompt-factor`, else the record's `prompt_factor`, else the recipe's
+`[accuracy] ref_noise_prompt_factor` (user decisions 2026-10-21 13:23 and 13:58, per-prompt noise limit). The threshold line says how many prompts were
+judged on their own noise and how many on the mean, names every failing prompt with the basis that bound it (`own prompt noise` or `mean noise`) and the prompt
+factor it would need, and otherwise names the tightest prompt. A NaN prompt fails. On CUDA round 7's `lt` against the default (sidecars
+hold the per-prompt values of the vLLM re-run) every prompt of the long golden passes, with a mean-noise limit `chat_reuse_4k` would not have
+(docs/results/2026-10-21-a2-ref-noise-gate.md 2.2). The per-prompt value is one re-run's; M3's other re-runs move `chat_reuse_4k` by about 1.3x either way.
+Without `--self-vs-ref-noise` the self-golden gate is unchanged.
+
+Open follow-up: the M1 Qwen3.8-27B W4A4 decode mode (the last 16 positions of each prompt) is judged against a noise measured over all
+positions and stays FAIL at 1.39x; re-measuring the noise on the decode window needs the two W4A4 goldens and is deferred.
+
+**Measuring a record** (offline, no model, no GPU): `intarsia ref-noise --golden G --other G2 --method run_to_run|precision_spread
+[--tokenizer-dir MODEL_DIR] [--how TEXT] [--source DOC] [--factor F] [--out golden/ref_noise/<G file>.json]`. `G2` is a second
+reference run of the same prompts (for vLLM: `tools/golden_vllm.py --ids-from G` against the same server) or the same model at
+another precision. Top-k against top-k uses the rule of `scripts/m3-accuracy/split.py` (both truncated to `--trunc` 20, a reference id missing from the
+second run gets its smallest kept probability); with a full-vocabulary second run it is the gate's own estimator. `--tokenizer-dir`
+finds the chat turns and adds the scored-rows value (the golden's `template` metadata, else `--chat-turns chatml`). Checked against
+`setkl.py` on a perturbed copy of the 35B short golden (all rows 3.211e-2 and scored rows 3.482e-2 from both), and on the reranker pair (HF fp32 against
+HF bf16, full-vocabulary KL 8.86e-4 here against the 8.7e-4 documented below).
+
 ### Baseline-relative gate (`--write-baseline`, `--baseline`)
 
 ```
@@ -471,7 +548,7 @@ flags, and the output line `SELF-STATS ...` the acceptance script reads:
 
 `--self-golden` needs the same model, backend, KV and activation dtype, fp8 mode, prefill chunk and decode positions
 (`--allow-config-mismatch` to downgrade). It cannot be combined with `--golden`, `--baseline`, `--write-baseline` or
-`--mode reuse`.
+`--mode reuse`. `--self-vs-ref-noise` swaps the budgets for the reference-noise rule ("Reference noise" above).
 
 ### Choosing the self-golden budgets
 
@@ -626,6 +703,8 @@ fails.
   non-blank and no 4-gram of generated token ids may occur more than 3 times (fact prompts are exempt from the repeat check).
 
 ## Reading the numbers: the reference has its own noise
+
+Since 2026-10-21 the gate measures this noise and uses it ("Reference noise" above); the tables below are the earlier, unaided readings.
 
 HF bf16 is not ground truth. On Qwen3-Reranker-0.6B (the Mac test model, reranker-tuned, distributions unusually
 flat on chat prompts) the HF bf16 forward itself differs from the HF fp32 forward by mean KL 8.7e-4 and 97.9%
