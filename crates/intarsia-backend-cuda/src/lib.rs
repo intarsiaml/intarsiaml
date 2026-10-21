@@ -11,6 +11,7 @@
 //! returns `Error::Unsupported`.
 
 pub mod disable;
+pub mod exl3;
 pub mod kernels;
 pub mod quantmoe;
 

@@ -318,12 +318,13 @@ pub fn all() -> Vec<KernelImpl> {
         v.push(k);
     }
     v.extend(crate::quantmoe::all());
+    v.extend(crate::exl3::all());
     v
 }
 
 /// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).copied().collect()
+    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).copied().collect()
 }
 
 #[cfg(test)]
@@ -664,6 +665,7 @@ mod tests {
         "logits_bf16_gemv:logits",
         "matmul_bf16:matmul",
         "matmul_bf16_gemv:matmul",
+        "matmul_exl3_gemv:matmul_exl3",
         "matmul_fp8_gemm:matmul_fp8",
         "matmul_fp8_gemm_f8:matmul_fp8",
         "matmul_fp8_gemm_reg:matmul_fp8",
