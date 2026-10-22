@@ -12,13 +12,13 @@ case "${1:?stage}" in
 deploy)
   scripts/deploy.sh $HOST --backend cuda --ref HEAD --smoke none 2>&1 | tee $R/deploy.log ;;
 start)
-  ssh -o BatchMode=yes $HOST bash -s <<REMOTE < /dev/null 2>&1 | tee $R/start.log
+  ssh -o BatchMode=yes $HOST bash -s 2>&1 <<REMOTE | tee $R/start.log
 set -e
 T=\$(ls -dt ~/intarsia-deploy/*/ | head -1); BIN=\$(ls \$T/target/release/intarsia)
 echo "tree \$T bin \$BIN"
 ss -ltn | grep -q ":$PORT " && { echo "port $PORT busy"; exit 3; }
 setsid nohup \$BIN serve --backend cuda --model $M8 --host 0.0.0.0 --port $PORT --served-model-name Qwen3-8B \
-  --max-seq 8192 --max-batch 4 --profile-every 16 --mem-budget 24 --no-ui > ~/ob-serve.log 2>&1 < /dev/null &
+  --max-seq 8192 --profile-every 16 --mem-budget 24 --no-ui > ~/ob-serve.log 2>&1 < /dev/null &
 echo \$! > ~/ob-serve.pid
 for i in \$(seq 1 120); do curl -sf localhost:$PORT/v1/models >/dev/null && { echo up after \${i}x2s; exit 0; }; sleep 2; done
 echo "server did not come up"; tail -20 ~/ob-serve.log; exit 1
@@ -42,7 +42,7 @@ check)
   curl -s http://localhost:19099/api/v1/rules > $R/rules.json
   curl -s http://localhost:19099/api/v1/targets > $R/targets.json ;;
 tui)
-  ssh -o BatchMode=yes $HOST bash -s <<REMOTE < /dev/null 2>&1 | tee $R/tui-snapshot.txt
+  ssh -o BatchMode=yes $HOST bash -s 2>&1 <<REMOTE | tee $R/tui-snapshot.txt
 set -e
 T=\$(ls -dt ~/intarsia-deploy/*/ | head -1)
 \$T/target/release/intarsia tui --url http://127.0.0.1:$PORT --snapshot --chat "Explain KV caches in two sentences." --size 150x52 --hold 3

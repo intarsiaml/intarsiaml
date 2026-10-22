@@ -1666,7 +1666,7 @@
     {
       "id": 124,
       "type": "row",
-      "title": "Batch scheduler (--max-batch N)",
+      "title": "Batch scheduler (Metal, --max-batch N)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -1680,7 +1680,7 @@
       "id": 117,
       "type": "timeseries",
       "title": "Batch queue depth",
-      "description": "Requests accepted by the batch scheduler and not yet holding a KV slot (batch engine only, --max-batch N).",
+      "description": "Requests accepted by the batch scheduler and not yet holding a KV slot (batch engine only, --max-batch N). Empty on CUDA and HIP: those backends run one sequence at a time, so there is no batch scheduler to report.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -1721,7 +1721,8 @@
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "noValue": "Batch engine only (Metal, serve --max-batch N)"
         },
         "overrides": []
       },
@@ -1741,7 +1742,7 @@
       "id": 118,
       "type": "timeseries",
       "title": "Average decode batch size",
-      "description": "Approximation: generated tokens per second divided by batched decode passes per second (one token per row per pass; speculative decoding raises it). Counters move when requests finish, so it lags a little.",
+      "description": "Approximation: generated tokens per second divided by batched decode passes per second (one token per row per pass; speculative decoding raises it). Counters move when requests finish, so it lags a little. Empty on CUDA and HIP: those backends run one sequence at a time, so there is no batch scheduler to report.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -1773,7 +1774,8 @@
           "color": {
             "mode": "palette-classic"
           },
-          "min": 0
+          "min": 0,
+          "noValue": "Batch engine only (Metal, serve --max-batch N)"
         },
         "overrides": []
       },
@@ -1793,7 +1795,7 @@
       "id": 119,
       "type": "timeseries",
       "title": "Decode passes by batch size",
-      "description": "Batched decode passes per second, stacked by the number of rows in the pass.",
+      "description": "Batched decode passes per second, stacked by the number of rows in the pass. Empty on CUDA and HIP: those backends run one sequence at a time, so there is no batch scheduler to report.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -1828,7 +1830,8 @@
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "noValue": "Batch engine only (Metal, serve --max-batch N)"
         },
         "overrides": []
       },
@@ -1848,7 +1851,7 @@
       "id": 120,
       "type": "timeseries",
       "title": "Scheduler iteration time",
-      "description": "Wall time of a scheduler iteration that ran a decode step (histogram, batch engine).",
+      "description": "Wall time of a scheduler iteration that ran a decode step (histogram, batch engine). Empty on CUDA and HIP: those backends run one sequence at a time, so there is no batch scheduler to report.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -1889,7 +1892,8 @@
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "noValue": "Batch engine only (Metal, serve --max-batch N)"
         },
         "overrides": []
       },
@@ -1909,7 +1913,7 @@
       "id": 121,
       "type": "timeseries",
       "title": "Batch TTFT (submit to first token)",
-      "description": "Includes queue wait, unlike intarsia_ttft_seconds.",
+      "description": "Includes queue wait, unlike intarsia_ttft_seconds. Empty on CUDA and HIP: those backends run one sequence at a time, so there is no batch scheduler to report.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -1950,7 +1954,8 @@
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "noValue": "Batch engine only (Metal, serve --max-batch N)"
         },
         "overrides": []
       },
@@ -1970,7 +1975,7 @@
       "id": 122,
       "type": "timeseries",
       "title": "Prefill chunks and mixed iterations",
-      "description": "Prefill chunks per second, and iterations that ran a prefill chunk right after a decode phase (decoding requests waited behind the chunk).",
+      "description": "Prefill chunks per second, and iterations that ran a prefill chunk right after a decode phase (decoding requests waited behind the chunk). Empty on CUDA and HIP: those backends run one sequence at a time, so there is no batch scheduler to report.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2011,7 +2016,8 @@
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "noValue": "Batch engine only (Metal, serve --max-batch N)"
         },
         "overrides": []
       },
@@ -2031,7 +2037,7 @@
       "id": 123,
       "type": "timeseries",
       "title": "Scheduler request outcomes per second",
-      "description": "admitted, finished, cancelled, failed, rejected (batch engine).",
+      "description": "admitted, finished, cancelled, failed, rejected (batch engine). Empty on CUDA and HIP: those backends run one sequence at a time, so there is no batch scheduler to report.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2082,7 +2088,8 @@
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "noValue": "Batch engine only (Metal, serve --max-batch N)"
         },
         "overrides": []
       },
