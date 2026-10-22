@@ -1,0 +1,5 @@
+prefill chunk 256 (default)
+loaded Qwen2.5-7B-Instruct on Apple M5 Max in 0.4s: 28 layers, hidden 3584, act bf16, kv bf16, weights 15.23 GB, context 8192 tokens (recipe builtin:qwen2, chat template tokenizer_config.json)
+prompt: 122 tokens
+finish=length prompt=122 (cached 0) completion=192 | prefill 324 ms (376.4 tok/s) | decode 6101 ms (31.31 tok/s)
+steps=192 graph replays=0 (captures 0) eager decode steps=191 (profiled 11) top ops: matmul_pair=288ms/5376 logits=262ms/16320 matmul=233ms/10752 add_bias=141ms/16128 rmsnorm_add=105ms/10752

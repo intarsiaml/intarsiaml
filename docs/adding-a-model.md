@@ -160,8 +160,9 @@ How scaling works: the loader computes the whole frequency table once (`crates/i
 transformers formulas for `llama3` and `yarn`, including YaRN's attention factor on cos / sin), uploads it, and the
 attention block calls `rope_scaled` instead of `rope`. A model without scaling emits exactly the calls it did before, so its
 plan and numerics do not change. Scaled models also skip the fused qk-norm + rope + KV-append prologue (it computes
-plain frequencies). Biases are added by a separate `add_bias` op after each projection (one extra bf16 rounding; the HF
-bf16 reference rounds once). Still rejected, by name, at `recipe new` and at load: `linear` / `dynamic` / `longrope` rope
+plain frequencies). With a bf16 weight a biased projection runs as the f32-output matmul (`logits`) plus `add_bias`, which
+adds the bias in f32 and rounds once into the bf16 activation, as HF's fused bf16 `Linear` does; other weight formats
+project, round, then add (two roundings). A biased k / v skips the pair kernel. Still rejected, by name, at `recipe new` and at load: `linear` / `dynamic` / `longrope` rope
 types, sliding-window attention, an activation other than `silu`, an `o_proj` bias (HF Llama's `attention_bias = true`), a
 checkpoint that carries a projection bias the recipe does not map.
 
