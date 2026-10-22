@@ -1,0 +1,69 @@
+fleetq: #3737 waiting (#4 in line): in line behind #3729 "on: HIP CLI build + lib tests (CPU, tatooine) r4" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #3729 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3729 set, or it will wait for #3729 to be released.
+fleetq: #3737 running on tatooine-r9700, tatooine-r9700-2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/t-b-window.sh
+deploy: note: the working tree has uncommitted changes; they are NOT deployed (only af77bbfd256c678b56bf26014349cfd66ba553f4 is)
+deploy: tatooine (hip) <- af77bbfd256c678b56bf26014349cfd66ba553f4 (deploy-step: fall back to plain cargo build for refs without repro-build.sh)
+WARNING: scripts/deploy-step.sh failed verification -- update discarded (will try again).
+deploy: synced (0 entries changed)
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 11.50s
+repro-build: sha256 72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+
+=== reproducibility stamp (tatooine:~/intarsia-deploy/hip/DEPLOY_STAMP.json) ===
+git        af77bbfd256c678b56bf26014349cfd66ba553f4  (af77bbfd256c678b56bf26014349cfd66ba553f4; tree 33383e0a93cc)
+subject    deploy-step: fall back to plain cargo build for refs without repro-build.sh
+backend    hip
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+hipcc      HIP version: 7.2.53211-97f5574fe2
+rocm       7.2.4
+container  sha256:67e66c624a8f7114e469626532b53be4ac74c053e80fcff78d6ddd22845e62a0 base=rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     /target/release/intarsia  sha256 72688024194830b8  34086472 bytes  
+smoke      skipped
+deploy(build) rc=0
+job 3737 radiance stop 2026-10-22 00:29:49 EDT
+deploy: note: the working tree has uncommitted changes; they are NOT deployed (only af77bbfd256c678b56bf26014349cfd66ba553f4 is)
+deploy: tatooine (hip) <- af77bbfd256c678b56bf26014349cfd66ba553f4 (deploy-step: fall back to plain cargo build for refs without repro-build.sh)
+deploy: synced (0 entries changed)
+doctor rc=0
+moe_block      moe_block_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+54 kernels, 239 cases in 0.4s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'hip'
+SKIPPED: kernel attn_prefill_bf16_flash_v2 ran 0 cases on backend 'hip'
+SKIPPED: kernel gdn_delta_rule_bf16_v2 ran 0 cases on backend 'hip'
+incomplete: 3 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels-test rc=0
+
+=== reproducibility stamp (tatooine:~/intarsia-deploy/hip/DEPLOY_STAMP.json) ===
+git        af77bbfd256c678b56bf26014349cfd66ba553f4  (af77bbfd256c678b56bf26014349cfd66ba553f4; tree 33383e0a93cc)
+subject    deploy-step: fall back to plain cargo build for refs without repro-build.sh
+backend    hip
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+hipcc      HIP version: 7.2.53211-97f5574fe2
+rocm       7.2.4
+container  sha256:67e66c624a8f7114e469626532b53be4ac74c053e80fcff78d6ddd22845e62a0 base=rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
+gpu        AMD Radeon Graphics  compute -
+driver     7.2.4  (cuda toolkit -)
+host       c74bb7553001  Ubuntu 24.04.4 LTS  AMD Ryzen 9 9900X 12-Core Processor
+binary     /target/release/intarsia  sha256 72688024194830b8  34086472 bytes  v0.0.1
+smoke      pass
+deploy(smoke) rc=0
+gpu part done 2026-10-22 00:30:06 EDT
+radiance start 2026-10-22 00:30:06 EDT
+radiance answers 2026-10-22 00:30:22 EDT (after 20 s)
+fleetq: #3737 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
