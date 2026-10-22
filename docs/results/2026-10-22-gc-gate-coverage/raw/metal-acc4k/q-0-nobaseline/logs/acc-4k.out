@@ -1,0 +1,13 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.82   2.010e-2   1.767e-2   1.767e-2    3.458e0   0.0944   0.0960    90.69   32/4064      0
+long_code_4k        4064  4064    96.90   7.802e-3   7.195e-3   7.195e-3   3.690e-1   0.0368   0.0379    91.76   10/4064      0
+chat_reuse_4k       4631  4631    89.25   1.997e-1   2.286e-1   1.265e-2    2.067e1   0.0697   0.0837    88.35   64/4631      0
+OVERALL                  12759    93.14   8.139e-2   9.089e-2   1.244e-2    2.067e1   0.0671   0.0730    90.18      0.8%      0
+prefill floor [4bit]: top-1 (all rows) 93.14% (need >= 0) ok | 21-way KL (scored rows, n=8221) 1.244e-2 (need <= 3.0e-2) ok [all rows, n=12759: 9.089e-2, reported only] | tail mass (all rows) ours 0.0730 vs ref 0.0671, excess +0.0059 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.244e-2 PASS
+gate-definition: kl_floor [prefill]: old def: FAIL 9.089e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.244e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin

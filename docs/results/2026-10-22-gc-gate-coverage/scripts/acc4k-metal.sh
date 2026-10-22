@@ -17,7 +17,7 @@ Q="qualify --backend metal --golden $G --oracle-golden $OR --model-name Qwen3.6-
 qual() {
   local n=$1; shift
   local t0=$(date +%s)
-  timeout 1700 $B $Q --out $O/q-$n $SK "$@" < /dev/null > $O/q-$n.log 2>&1
+  $B $Q --out $O/q-$n $SK "$@" < /dev/null > $O/q-$n.log 2>&1
   echo "qualify $n exit $? $(( $(date +%s) - t0 )) s"
   grep -E "\] [a-z0-9-]+: (PASS|FAIL|SKIP|ERROR|WARN|MISSING-BASELINE)" $O/q-$n.log | cut -c1-400
 }
