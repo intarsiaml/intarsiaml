@@ -1,0 +1,24 @@
+Thu Oct 22 06:41:57 EDT 2026
+genA: finish=length prompt=973 (cached 0) completion=129 | prefill 1575 ms (617.6 tok/s) | decode 1031 ms (124.10 tok/s)
+serveA:
+  size   1024 rep: prompt=998 gen=128 ttft=0.72s prefill=1388 tok/s decode=120.2 tok/s
+  size   1024 rep: prompt=986 gen=128 ttft=0.72s prefill=1376 tok/s decode=122.6 tok/s
+  size   1024 rep: prompt=1005 gen=128 ttft=0.72s prefill=1388 tok/s decode=122.9 tok/s
+  size   1024 rep: prompt=986 gen=128 ttft=0.72s prefill=1378 tok/s decode=122.8 tok/s
+  size   1024 rep: prompt=1000 gen=128 ttft=0.72s prefill=1384 tok/s decode=120.1 tok/s
+genB: finish=length prompt=973 (cached 0) completion=129 | prefill 993 ms (979.7 tok/s) | decode 1032 ms (124.06 tok/s)
+servecb:
+  size   1024 rep: prompt=994 gen=128 ttft=0.72s prefill=1382 tok/s decode=122.3 tok/s
+  size   1024 rep: prompt=987 gen=128 ttft=0.72s prefill=1377 tok/s decode=122.9 tok/s
+  size   1024 rep: prompt=1007 gen=128 ttft=0.73s prefill=1388 tok/s decode=124.0 tok/s
+  size   1024 rep: prompt=983 gen=128 ttft=0.72s prefill=1371 tok/s decode=123.9 tok/s
+  size   1024 rep: prompt=981 gen=128 ttft=0.72s prefill=1367 tok/s decode=122.9 tok/s
+genC: finish=length prompt=973 (cached 0) completion=129 | prefill 1032 ms (942.8 tok/s) | decode 1038 ms (123.33 tok/s)
+serveB:
+  size   1024 rep: prompt=1014 gen=128 ttft=0.74s prefill=1377 tok/s decode=122.9 tok/s
+  size   1024 rep: prompt=983 gen=128 ttft=0.73s prefill=1339 tok/s decode=122.0 tok/s
+  size   1024 rep: prompt=996 gen=128 ttft=0.75s prefill=1330 tok/s decode=122.9 tok/s
+  size   1024 rep: prompt=999 gen=128 ttft=0.76s prefill=1310 tok/s decode=120.8 tok/s
+  size   1024 rep: prompt=1003 gen=128 ttft=0.77s prefill=1303 tok/s decode=122.7 tok/s
+genD: finish=length prompt=973 (cached 0) completion=129 | prefill 1048 ms (928.1 tok/s) | decode 1054 ms (121.46 tok/s)
+Thu Oct 22 06:43:33 EDT 2026
