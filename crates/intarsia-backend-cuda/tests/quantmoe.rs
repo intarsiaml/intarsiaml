@@ -446,7 +446,7 @@ fn bench_wq_prefill_shapes() {
     ];
     let nv = [("shared gate/up", 512usize, 2048usize, 80usize), ("shared down", 2048, 512, 40)];
     for &m in &ms {
-        for kern in kernels.iter().filter(|k| k.starts_with("matmul_fp8")) {
+        for kern in kernels.iter().filter(|k| k.starts_with("matmul_fp8") && !k.contains("pair")) {
             let mut total = 0.0;
             for (name, n, k, calls) in fp8 {
                 let hc = matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);

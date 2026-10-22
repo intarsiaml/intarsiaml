@@ -68,9 +68,10 @@ constexpr int BM = 128;
 // The schedule (all bitwise the same results, lane S1 docs/results/2026-10-22-s1-spark-prefill.md): WNW warps along N
 // (2 along M), JW n8 tiles per warp (warp tile 64 x 8 JW, block tile BM x 8 JW WNW), ST ring slots of BKT-wide k steps,
 // MINB blocks per SM (launch bounds). Cfg<4, 3> is the round-3 kernel (128 x 128, k 64, 3 slots, 86 KB).
-template <int WNW, int ST, int JW_ = 4, int BKT = 64, int MINB_ = 1>
+template <int WNW, int ST, int JW_ = 4, int BKT = 64, int MINB_ = 1, bool PIPE_ = false>
 struct Cfg {
     static constexpr int WN = WNW, JW = JW_, BK = BKT, MINB = MINB_;
+    static constexpr bool PIPE = PIPE_;  // fragment-pipelined main loop
     static constexpr int BN = 8 * JW * WNW, NT = 64 * WNW, STAGES = ST;
     static constexpr int LDA = BK + 8;   // bf16 elements per A smem row (k 64: 144 bytes, k 32: 80; ldmatrix rows hit distinct bank groups)
     static constexpr int LDW = BK + 16;  // bytes per weight smem row (80 / 48: the 8 rows a B load touches hit distinct banks)
@@ -168,6 +169,59 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
         if (st < S) issue(st);
         ik_cp_async_commit();
     }
+    if constexpr (C::PIPE) {
+        // Fragment-pipelined main loop (lane S1): the A and B fragments of k16 step kk + 1 are loaded (and B dequantised)
+        // while the mma of step kk issue, and the barrier that makes the next ring slot visible sits before the last k16
+        // step of a stage, whose fragments are already in registers. Same mma per accumulator in the same order as the
+        // loop below: bitwise the same results.
+        constexpr int KS = BK / 16;
+        static_assert(KS % 2 == 0, "fragment double buffer");
+        uint32_t fa[2][4][4], fb[2][JW][2];
+        auto load_frag = [&](int slot, int kk, uint32_t (&a)[4][4], uint32_t (&b)[JW][2]) {
+            const ik_bf16* at = a_tile(slot);
+            const unsigned char* bt = w_tile(slot) + boff + kk * 16;
+#pragma unroll
+            for (int j = 0; j < JW; ++j) {
+                const uint32_t lo = *reinterpret_cast<const uint32_t*>(bt + j * 8 * LDW);
+                const uint32_t hi = *reinterpret_cast<const uint32_t*>(bt + j * 8 * LDW + 8);
+                b[j][0] = e4m3x2_to_bf16x2(lo, sel);
+                b[j][1] = e4m3x2_to_bf16x2(hi, sel);
+            }
+#pragma unroll
+            for (int i = 0; i < 4; ++i) {
+                const int r = wm * 64 + i * 16 + (lane & 7) + ((lane >> 3) & 1) * 8;
+                ik_ldmatrix_x4(a[i][0], a[i][1], a[i][2], a[i][3], at + r * LDA + kk * 16 + (lane >> 4) * 8);
+            }
+        };
+        ik_cp_async_wait_group<STAGES - 2>();  // stage 0 has landed
+        __syncthreads();
+        if (STAGES - 1 < S) issue(STAGES - 1);
+        ik_cp_async_commit();
+        load_frag(0, 0, fa[0], fb[0]);
+        for (int s = 0; s < S; ++s) {
+#pragma unroll
+            for (int kk = 0; kk < KS; ++kk) {
+                const int cur = kk & 1, nxt = cur ^ 1;
+                if (kk < KS - 1) {
+                    load_frag(s % STAGES, kk + 1, fa[nxt], fb[nxt]);
+                } else if (s + 1 < S) {
+                    // stage s + 1 landed and visible; every warp has read its last fragments of stage s, so its slot
+                    // takes stage s + STAGES
+                    ik_cp_async_wait_group<STAGES - 2>();
+                    __syncthreads();
+                    if (s + STAGES < S) issue(s + STAGES);
+                    ik_cp_async_commit();
+                    load_frag((s + 1) % STAGES, 0, fa[nxt], fb[nxt]);
+                }
+#pragma unroll
+                for (int i = 0; i < 4; ++i)
+#pragma unroll
+                    for (int j = 0; j < JW; ++j)
+                        ik_mma_bf16_16816(acc[i][j], fa[cur][i][0], fa[cur][i][1], fa[cur][i][2], fa[cur][i][3], fb[cur][j][0],
+                                          fb[cur][j][1]);
+            }
+        }
+    } else {
     for (int s = 0; s < S; ++s) {
         ik_cp_async_wait_group<STAGES - 2>();  // stage s has landed
         __syncthreads();                       // visible to all; everyone is done with stage s-1's slot
@@ -194,6 +248,7 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
                 for (int j = 0; j < JW; ++j) ik_mma_bf16_16816(acc[i][j], a0, a1, a2, a3, b[j][0], b[j][1]);
             }
         }
+    }
     }
     ik_cp_async_wait_all();
 
@@ -312,7 +367,13 @@ using Cfg3 = Cfg<4, 4, 8, 32, 1>;    // 128 x 256, k 32, 4 slots, 90 KB
 using Cfg4 = Cfg<4, 3, 4, 32, 2>;    // 128 x 128, k 32, 3 slots, 49 KB, 2 blocks / SM
 using Cfg5 = Cfg<4, 4, 4, 32, 1>;    // 128 x 128, k 32, 4 slots, 66 KB
 using Cfg6 = Cfg<2, 3, 8, 32, 2>;    // 128 x 128 with 4 warps of 64 x 64, k 32, 3 slots, 49 KB, 2 blocks / SM
-constexpr int kNumCfg = 7;
+// the same with the fragment-pipelined main loop
+using Cfg7 = Cfg<4, 3, 4, 64, 1, true>;   // as Cfg0
+using Cfg8 = Cfg<4, 2, 8, 64, 1, true>;   // as Cfg1
+using Cfg9 = Cfg<4, 4, 4, 32, 1, true>;   // as Cfg5
+using Cfg10 = Cfg<4, 3, 8, 32, 1, true>;  // as Cfg2
+using Cfg11 = Cfg<4, 3, 4, 32, 2, true>;  // as Cfg4
+constexpr int kNumCfg = 12;
 
 int forced_cfg() {
     static const int v = [] {
@@ -342,6 +403,11 @@ void launch_cfg(int cfg, const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, 
         case 4: launch<Cfg4, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
         case 5: launch<Cfg5, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
         case 6: launch<Cfg6, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 7: launch<Cfg7, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 8: launch<Cfg8, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 9: launch<Cfg9, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 10: launch<Cfg10, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 11: launch<Cfg11, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
         default: launch<Cfg0, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
     }
 }
@@ -358,6 +424,11 @@ void launch_pair_cfg(int cfg, const ik_bf16* x, const ik_bf16* xq0, const ik_bf1
         case 4: IK_PAIR(Cfg4); break;
         case 5: IK_PAIR(Cfg5); break;
         case 6: IK_PAIR(Cfg6); break;
+        case 7: IK_PAIR(Cfg7); break;
+        case 8: IK_PAIR(Cfg8); break;
+        case 9: IK_PAIR(Cfg9); break;
+        case 10: IK_PAIR(Cfg10); break;
+        case 11: IK_PAIR(Cfg11); break;
         default: IK_PAIR(Cfg0); break;
     }
 #undef IK_PAIR
