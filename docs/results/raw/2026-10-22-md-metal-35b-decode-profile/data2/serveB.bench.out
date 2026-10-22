@@ -1,0 +1,4 @@
+serveB  model=md35  gen=128  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      999     0.749         1330       122.7      128
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)

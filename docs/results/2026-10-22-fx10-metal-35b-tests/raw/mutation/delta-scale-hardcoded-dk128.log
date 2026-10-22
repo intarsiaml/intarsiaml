@@ -1,0 +1,22 @@
+
+running 1 test
+test delta_rule_chunked_prefill_equals_one_call_and_the_reference ... FAILED
+
+failures:
+
+---- delta_rule_chunked_prefill_equals_one_call_and_the_reference stdout ----
+
+thread 'delta_rule_chunked_prefill_equals_one_call_and_the_reference' (158125805) panicked at crates/intarsia-backend-metal/tests/gdn.rs:195:5:
+hk=2 hv=4 dk=32 T=37 [1, 20, 16]: o vs reference rel_l2 4.99999999360194e-1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    delta_rule_chunked_prefill_equals_one_call_and_the_reference
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.13s
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/wt-fx10-mut/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 3.21s
+     Running tests/gdn.rs (/opt/code/target-fx10-mut/release/deps/gdn-64e441a7d62cbd52)
+error: test failed, to rerun pass `-p intarsia-backend-metal --test gdn`

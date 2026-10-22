@@ -1,0 +1,71 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "baseS",
+  "timestamp_unix": 1792666391,
+  "url": "http://127.0.0.1:8199",
+  "model": "md35",
+  "config": {
+    "sizes": [
+      1024
+    ],
+    "gen": 128,
+    "reps": 5,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": null,
+    "bandwidth_gbs": null
+  },
+  "calibration": {
+    "base_prompt_tokens": 44.0,
+    "tokens_per_filler_sentence": 21.98
+  },
+  "fingerprint": {},
+  "graph": {
+    "available": true,
+    "replays": 0,
+    "captures": 0,
+    "eager_steps": 640,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 1002.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 3.3962,
+      "prefill_tok_s": 296.5,
+      "decode_tok_s": 102.81,
+      "decode_tok_s_reps": [
+        103.05,
+        102.77,
+        102.53,
+        102.83,
+        102.81
+      ],
+      "decode_tok_s_min": 102.53,
+      "decode_tok_s_max": 103.05,
+      "decode_tok_s_stdev": 0.19,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 5,
+      "errors": 0,
+      "at_most": false,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 0,
+        "captures": 0,
+        "eager_steps": 640,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": [
+    "size 1024: 0 graph replays during the measured reps (decode ran eagerly)"
+  ]
+}
