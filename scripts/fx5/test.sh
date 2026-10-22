@@ -15,12 +15,14 @@ R='~/intarsia-decfuse/fx5-test'
 RPATH='export PATH=$HOME/.cargo/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 rsh "mkdir -p $R; test -d $R/target || { test -d ~/intarsia-decfuse/fx5/target/test && cp -a ~/intarsia-decfuse/fx5/target/test $R/target; true; }"
-rsync -a --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude "$REPO/" "$HOST:intarsia-decfuse/fx5-test/"
+rsync -a --delete --include golden/ --include "golden/ref_noise/***" --exclude "golden/*" --exclude target --exclude .git --exclude tools/.venv --exclude .claude "$REPO/" "$HOST:intarsia-decfuse/fx5-test/"
 T="cd $R && CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=$R/target cargo test"
+echo "=== cargo check --workspace"
+rsh "cd $R && CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=$R/target cargo check --workspace --tests 2>&1" | tee "$RAW/test-check-workspace.log" | grep -a -e '^error' -e 'Finished' | cut -c1-200
 echo "=== clean: hybrid.rs, recipes_doc.rs"
 rsh "$T -p intarsia-models --test hybrid --test recipes_doc 2>&1" | tee "$RAW/test-hybrid-clean.log" | grep -a -e '^test ' -e 'test result' -e '^error' | cut -c1-200
 echo "=== clean: intarsia-cli unit tests (accuracy, qualify)"
-rsh "$T -p intarsia-cli 2>&1" | tee "$RAW/test-cli-clean.log" | grep -a -e 'test result' -e 'FAILED' -e '^error' | cut -c1-200
+rsh "$T -p intarsia-cli -p intarsia-core 2>&1" | tee "$RAW/test-cli-clean.log" | grep -a -e 'test result' -e 'FAILED' -e '^error' | cut -c1-200
 F=crates/intarsia-core/src/state.rs
 rsh "cp $R/$F $R/$F.orig"
 mutant() { # name, sed expression
