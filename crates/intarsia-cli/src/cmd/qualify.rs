@@ -76,6 +76,11 @@ pub struct QualifyArgs {
     /// floor measured in docs/results/2026-10-22-fx1-oracle-gate.md, [`ORACLE_MAX_KL`]).
     #[arg(long)]
     pub oracle_max_kl: Option<f64>,
+    /// `acc-oracle`: |mean logit scale - 1| on scored prefill rows (the slope of the engine's log-probs on the oracle's
+    /// over the oracle's top-8 ids) must stay at or below this (default [`ORACLE_MAX_SCALE_DEV`]): the check that sees a
+    /// 1 % scale bug, which the KL does not.
+    #[arg(long)]
+    pub oracle_max_scale_dev: Option<f64>,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
@@ -1616,6 +1621,8 @@ fn st_acc_format(c: &mut Ctx) -> Result<Out> {
 /// not chosen: docs/results/2026-10-22-fx1-oracle-gate.md section 3 (clean builds on every backend against the f64 CPU
 /// oracle, and the 1 % row-parallel scale mutants that must fail).
 pub const ORACLE_MAX_KL: f64 = 1.0e-2;
+/// `acc-oracle`'s logit-scale limit (same doc, section 3): |mean slope - 1| over the scored prefill rows.
+pub const ORACLE_MAX_SCALE_DEV: f64 = 3.5e-3;
 
 impl Ctx {
     /// The f64 CPU-oracle golden: `--oracle-golden`, `oracle/<model>-cpu-oracle...` in the golden directories (the repo
@@ -1683,9 +1690,24 @@ impl Ctx {
 
     /// The `accuracy` flags of the oracle gate: the floor on scored rows, no top-1 floor (near-tie rows flip between
     /// any two correct implementations), no reference-noise term (the oracle is deterministic).
-    fn oracle_flags(&self) -> (Vec<String>, f64) {
+    fn oracle_flags(&self) -> (Vec<String>, f64, f64) {
         let kl = self.a.oracle_max_kl.unwrap_or(ORACLE_MAX_KL);
-        (vec!["--gate-class".into(), "bf16".into(), "--max-mean-kl".into(), format!("{kl:e}"), "--min-top1".into(), "0".into(), "--no-ref-noise".into()], kl)
+        let sc = self.a.oracle_max_scale_dev.unwrap_or(ORACLE_MAX_SCALE_DEV);
+        (
+            vec![
+                "--gate-class".into(),
+                "bf16".into(),
+                "--max-mean-kl".into(),
+                format!("{kl:e}"),
+                "--max-logit-scale-dev".into(),
+                format!("{sc:e}"),
+                "--min-top1".into(),
+                "0".into(),
+                "--no-ref-noise".into(),
+            ],
+            kl,
+            sc,
+        )
     }
 }
 
@@ -1703,10 +1725,10 @@ fn st_acc_oracle(c: &mut Ctx) -> Result<Out> {
     {
         return Ok(Out::error(format!("{}: not a CPU-oracle golden (want self_golden = 1 written by the cpu backend)", g.display())));
     }
-    let (extra, kl) = c.oracle_flags();
+    let (extra, kl, sc) = c.oracle_flags();
     let a = c.accuracy("acc-oracle", &g, "prefill", false, 1, &extra)?;
     let mut o = c.acc_out(a, &g, &how, "oracle");
-    o.notes.push(format!("floor: mean KL21(oracle || engine) on scored prefill rows <= {kl:.1e} (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated"));
+    o.notes.push(format!("floor: mean KL(oracle || engine) on scored prefill rows <= {kl:.1e} and |mean logit scale - 1| <= {sc:.1e} (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated"));
     Ok(o)
 }
 
@@ -2306,7 +2328,7 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
     // and against the f64 CPU oracle: the gate that sees a 1 % partial-scale bug on one rank (fx1)
     let oracle = match c.oracle_golden()? {
         Golden::Have(g, _) => {
-            let (extra, _) = c.oracle_flags();
+            let (extra, _, _) = c.oracle_flags();
             Some(c.accuracy(&format!("tp{tp}-oracle"), &g, "prefill", false, tp, &extra)?)
         }
         Golden::None(_) => None,
@@ -2405,6 +2427,12 @@ mod tests {
                 "prefix reuse differs from a cold run"
             ]
         );
+    }
+
+    #[test]
+    fn the_logit_scale_line_is_digested() {
+        let t = "prefill floor [bf16]: top-1 (all rows) 98.5% (need >= 0) ok | 21-way KL (scored rows, n=10) 4e-3 (need <= 1.0e-2) ok => FAIL\nprefill floor [bf16]: logit scale - 1 (scored rows, n=10, slope over the reference top-8) +6.9e-3 (|.| <= 3.5e-3) FAIL\ngolden gate: FAIL";
+        assert_eq!(acc_fail_digest(t), vec!["prefill: logit scale - 1 (scored rows, n=10, slope over the reference top-8) +6.9e-3 (|.| <= 3.5e-3)".to_string()]);
     }
 
     #[test]

@@ -13,7 +13,9 @@ named in the weight map, sorted by name, and a later file's tensor replaces an e
 (`crates/intarsia-models/src/safetensors.rs`), so the `zz-` file wins. Run `--check` afterwards: it re-reads the overlay
 and asserts every mutated value is F times the original.
 
-Usage: make_scale_mutant.py SRC_MODEL_DIR OUT_DIR FACTOR [--layers odd|all]
+Usage: make_scale_mutant.py SRC_MODEL_DIR OUT_DIR FACTOR [--layers=all]
+Env LINK_ROOT: write the symlinks against this directory instead of SRC_MODEL_DIR (a container sees the model at
+another path, e.g. LINK_ROOT=/models/Qwen3.6-35B-A3B-NVFP4 under deploy/tatooine/dev.sh).
 """
 import json
 import os
@@ -45,7 +47,8 @@ PAT = re.compile(
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    layers = "all" if "--layers=all" in sys.argv or ("--layers" in sys.argv and "all" in sys.argv) else "odd"
+    layers = "all" if "--layers=all" in sys.argv else "odd"
+    link_root = os.environ.get("LINK_ROOT")
     if len(args) < 3:
         sys.exit(__doc__)
     src, out, factor = os.path.abspath(args[0]), os.path.abspath(args[1]), float(args[2])
@@ -72,7 +75,7 @@ def main():
             continue
         dst = os.path.join(out, name)
         if not os.path.lexists(dst):
-            os.symlink(os.path.join(src, name), dst)
+            os.symlink(os.path.join(link_root or src, name), dst)
     # the mutant shard: F32 scalars, header padded to 8 bytes
     header, off, blob = {}, 0, b""
     for k in targets:
