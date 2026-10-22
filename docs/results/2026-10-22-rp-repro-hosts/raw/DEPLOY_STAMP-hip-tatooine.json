@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "tool": "scripts/deploy.sh",
+  "created": "2026-10-22T04:30:05Z",
+  "git": {
+    "sha": "af77bbfd256c678b56bf26014349cfd66ba553f4",
+    "ref": "af77bbfd256c678b56bf26014349cfd66ba553f4",
+    "subject": "deploy-step: fall back to plain cargo build for refs without repro-build.sh",
+    "tree": "33383e0a93ccbb39eab2d714243212289f680203"
+  },
+  "lock_sha256": "7723f17b4e7280cb74868c4950b030e0c82af2c8e0631e839781434db9b4b537",
+  "rust_toolchain_file_sha256_16": "3390e8ad06df7932",
+  "backend": "hip",
+  "features": "hip",
+  "deploy_host": "tatooine",
+  "tree_dir": "intarsia-deploy/hip",
+  "toolchain": {
+    "rustc": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+    "cargo": "cargo 1.90.0 (840b83a10 2025-07-30)",
+    "nvcc": null,
+    "hipcc": "HIP version: 7.2.53211-97f5574fe2",
+    "rocm": "7.2.4",
+    "container": "sha256:67e66c624a8f7114e469626532b53be4ac74c053e80fcff78d6ddd22845e62a0 base=rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054"
+  },
+  "gpu": {
+    "nvidia_smi": null,
+    "proc_driver_nvidia": null,
+    "nvcc": null,
+    "cuda_toolkit_version": null,
+    "rocm_version": "7.2.4",
+    "hipcc": "HIP version: 7.2.53211-97f5574fe2"
+  },
+  "device": {
+    "name": "AMD Radeon Graphics",
+    "backend": "hip",
+    "arch": "gfx1201",
+    "total_mem": 34208743424,
+    "free_mem": 33952890880,
+    "unified": false,
+    "bandwidth_gbs": 347.2420315071895
+  },
+  "host": {
+    "hostname": "c74bb7553001",
+    "os": "Ubuntu 24.04.4 LTS",
+    "kernel": "Linux 7.0.0-38-generic",
+    "arch": "x86_64",
+    "cpu_model": "AMD Ryzen 9 9900X 12-Core Processor",
+    "logical_cores": 24,
+    "physical_cores": 12,
+    "ram_total_bytes": 66458861568,
+    "ram_available_bytes": 57992101888,
+    "swap_total_bytes": 8589930496
+  },
+  "binary": {
+    "path": "/target/release/intarsia",
+    "sha256": "72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806",
+    "bytes": 34086472,
+    "intarsia_version": "0.0.1"
+  },
+  "env_file": null,
+  "smoke": "pass"
+}

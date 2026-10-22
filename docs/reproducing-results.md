@@ -100,12 +100,13 @@ the build and runs the command in the tree already there.
 
 Limits to know:
 
-* **The binary hash is reproducible when built with `scripts/repro-build.sh`** (opt-in: deploy.sh still uses a plain `cargo build`, so deploy builds are not yet reproducible). A plain `cargo build` in
-  two directories gave different hashes: rustc embeds the source, cargo-registry and sysroot paths, and
+* **The binary hash is reproducible** (`scripts/deploy.sh` builds through `scripts/repro-build.sh`). A plain `cargo build` in
+  two directories gave different hashes: rustc embeds the source, cargo-registry and sysroot paths,
   `env!("CARGO_MANIFEST_DIR")` baked the build directory into the CLI (golden-dir fallback; now found from the executable's
-  location). See "Reproducible binary" below. Expect `match` on the binary row for the same sha and the same toolchain; a
-  different rustc/nvcc/hipcc/Xcode, or a different CUDA/ROCm install path, legitimately gives a different hash, and the
-  toolchain rows say so.
+  location), and nvcc put the checkout path into the CUDA kernels (see "Reproducible binary" below). Expect `match` on the
+  binary row for the same sha, the same backend and the same toolchain, on any directory and, for the same toolchain
+  versions, on another host (results: `docs/results/2026-10-22-rp-repro-hosts.md`). A different rustc/nvcc/hipcc/Xcode, or
+  a different CUDA/ROCm install path, legitimately gives a different hash, and the toolchain rows say so.
 * The bundle records the **command and env knobs you give it**. It cannot know which knobs a run used unless they went
   through `--env-file`/`--env`; if a run was started by hand with extra variables, pass them to `pack --env`.
 * It does not capture the model weights or the tuning DB (there is none yet); the report should name the model path and
@@ -160,7 +161,7 @@ they only smoke-test). 3. Compare the printed table, then the numbers. Do not co
 
 ## Reproducible binary
 
-Opt-in for now; deploy.sh does not use it because CUDA and HIP were not verified (see the B1 results doc). Same git sha + same toolchain = same `target/release/intarsia` bytes, in any directory. `scripts/repro-build.sh
+`scripts/deploy.sh` builds with it (a plain `cargo build` is still fine for development). Same git sha + same toolchain = same `target/release/intarsia` bytes, in any directory. `scripts/repro-build.sh
 [--features metal|cuda|hip]` is `cargo build --release --locked -p intarsia-cli` plus:
 
 | Input | What it does |
@@ -169,6 +170,8 @@ Opt-in for now; deploy.sh does not use it because CUDA and HIP were not verified
 | `SOURCE_DATE_EPOCH` | Defaults to the commit time of HEAD (an exported tree has no `.git`: export `SOURCE_DATE_EPOCH` yourself there); `0` if unknown. Also sets `ZERO_AR_DATE=1`, `LC_ALL=C`, `TZ=UTC`. |
 | `INTARSIA_BUILD_STAMP` | The git provenance (`head=<sha7> tree=<hash> backend=...`) stays in the binary. It is an input (deploy.sh passes it), not a clock or a `git` call in `build.rs`, so the same sha gives the same bytes. |
 | `CARGO_INCREMENTAL=0` | No incremental cache in the result. |
+
+Backend build scripts: **Metal** and **HIP** need nothing more (the metallib is byte-stable; the HIP kernels build in the dev container, where the tree is always `/work` and the target dir `/target`). **CUDA** needs two things, both in `crates/intarsia-backend-cuda/build.rs`: nvcc derives the `_GLOBAL__N__<hash>` names inside every cubin from the source file's absolute path AND its mtime, `-lineinfo` records the source directory, and the host object carries nvcc's temp file name (`tmpxft_<pid>_...`) as an ELF file symbol. So `build.rs` copies `kernels/{cuda,common,abi}` to `/tmp/intarsia-cuda-kernels-<content hash>` (files stamped with a fixed mtime, checked before reuse), compiles from there, and runs `objcopy --strip-unneeded` on each object. The device code is unchanged; only symbol names and debug-line directories differ. `INTARSIA_CUDA_NO_STAGE=1` compiles in place (assert messages then show your checkout path, the binary hash depends on it). Without `objcopy` the build still works and warns.
 
 Source change: golden files are looked up in `$INTARSIA_GOLDEN_DIR`, then `./golden`, then `golden/` of the checkout the executable sits in (found from its location, so it fails when the target dir is outside the checkout or the binary is copied: set the env var). The "no golden found" error lists every path tried. Nothing else in the workspace embeds a build-time path, clock or hostname (`build.rs` of the metal, cuda and hip crates write only to `OUT_DIR` and print `cargo:` lines).
 
