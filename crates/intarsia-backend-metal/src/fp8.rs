@@ -1,8 +1,9 @@
 //! Launchers of `matmul_fp8_gemv` / `matmul_fp8_mma` (`Op::MatmulFp8`, kernels/metal/fp8.metal; the port of kernels/hip/fp8.hip).
 //!
 //! `out[M,N] = q(x)[M,K] W^T * ws * is`, W = e4m3 bytes `[N,K]`, `scales [2] f32 = (ws, is)` read on the GPU: `is > 0` is W8A8
-//! static (q(x) = e4m3(x / is)), else W8A16. The decode GEMV (M <= 8) is one dispatch that stages q(x) in threadgroup memory;
-//! the GEMM (any M) first QDQs x once into the plan-reserved scratch (bf16 `[M,K]`, exact) and then runs a tiled
+//! static (q(x) = e4m3(x / is)), else W8A16. The decode GEMV (M <= 8) is one dispatch (M = 1: split-K, each thread
+//! quantises its own activations; M >= 2: q(x) staged in threadgroup memory); the GEMM (any M) first QDQs x once into the
+//! plan-reserved scratch (bf16 `[M,K]`, exact) and then runs a tiled
 //! `simdgroup_matrix` bf16 GEMM that dequantises the weight tiles.
 
 use crate::dense::OpP;
@@ -16,19 +17,51 @@ pub const MATMUL_FP8_MMA: &str = "matmul_fp8_mma";
 
 const XPREP: &str = "fp8_xprep_bf16";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 7] = [
-    XPREP,
-    "fp8_gemv_bf16_m1",
-    "fp8_gemv_bf16_m8",
-    "fp8_gemv_f32_m1",
-    "fp8_gemv_f32_m8",
-    "fp8_mma_bf16",
-    "fp8_mma_f32",
-];
+pub const SHADERS: [&str; 5] = [XPREP, "fp8_gemv_bf16_m8", "fp8_gemv_f32_m8", "fp8_mma_bf16", "fp8_mma_f32"];
 
-/// Simdgroups per GEMV threadgroup (`FP8_SG`), output rows per simdgroup of `_m1` / `_m8` (`RS`), activation rows of `_m8`.
+/// Split-K M = 1 GEMV entry points `fp8_gv_{bf16,f32}_s<SG>r<R>`, index `(sg_i * 2 + f32) * 4 + r_i` over `GV_SG` / `GV_R`.
+pub const GV_SHADERS: [&str; 32] = [
+    "fp8_gv_bf16_s1r1",
+    "fp8_gv_bf16_s1r2",
+    "fp8_gv_bf16_s1r4",
+    "fp8_gv_bf16_s1r8",
+    "fp8_gv_f32_s1r1",
+    "fp8_gv_f32_s1r2",
+    "fp8_gv_f32_s1r4",
+    "fp8_gv_f32_s1r8",
+    "fp8_gv_bf16_s2r1",
+    "fp8_gv_bf16_s2r2",
+    "fp8_gv_bf16_s2r4",
+    "fp8_gv_bf16_s2r8",
+    "fp8_gv_f32_s2r1",
+    "fp8_gv_f32_s2r2",
+    "fp8_gv_f32_s2r4",
+    "fp8_gv_f32_s2r8",
+    "fp8_gv_bf16_s4r1",
+    "fp8_gv_bf16_s4r2",
+    "fp8_gv_bf16_s4r4",
+    "fp8_gv_bf16_s4r8",
+    "fp8_gv_f32_s4r1",
+    "fp8_gv_f32_s4r2",
+    "fp8_gv_f32_s4r4",
+    "fp8_gv_f32_s4r8",
+    "fp8_gv_bf16_s8r1",
+    "fp8_gv_bf16_s8r2",
+    "fp8_gv_bf16_s8r4",
+    "fp8_gv_bf16_s8r8",
+    "fp8_gv_f32_s8r1",
+    "fp8_gv_f32_s8r2",
+    "fp8_gv_f32_s8r4",
+    "fp8_gv_f32_s8r8",
+];
+const GV_SG: [usize; 4] = [1, 2, 4, 8];
+const GV_R: [usize; 4] = [1, 2, 4, 8];
+/// Threads the split-K GEMV launches at least (when N allows): enough to fill the GPU.
+const GV_THREADS: usize = 32768;
+
+/// `_m8` GEMV (M = 2..=8): simdgroups per threadgroup (`FP8_SG`), output rows per simdgroup (`RS`), activation rows (`MB`).
 const GEMV_SG: usize = 8;
-const GEMV_RS: [usize; 2] = [4, 2];
+const GEMV_RS: usize = 2;
 const GEMV_MB: usize = 8;
 /// Largest threadgroup memory a GEMV may stage its activations in (Metal's per-threadgroup limit).
 pub const GEMV_TG_BYTES: usize = 32768;
@@ -44,6 +77,14 @@ pub fn gemv_ok(s: &ShapeInfo) -> bool {
 /// GEMM scratch: the QDQ'd activations as bf16 `[M,K]`.
 pub fn scratch(s: &ShapeInfo) -> usize {
     s.m * s.k * 2 + 16
+}
+
+/// (simdgroups per threadgroup, rows per threadgroup) of the split-K GEMV: one 8-byte chunk of a row per thread (SG from K),
+/// and the most rows per threadgroup (each threadgroup quantises the activations once) that still launches `GV_THREADS`.
+fn gv_pick(n: usize, k: usize) -> (usize, usize) {
+    let sg = GV_SG.into_iter().rev().find(|sg| k / 8 >= 32 * sg).unwrap_or(1);
+    let r = GV_R.into_iter().rev().find(|r| n.div_ceil(*r) * sg * 32 >= GV_THREADS).unwrap_or(1);
+    (sg, r)
 }
 
 fn u32_of(v: usize, what: &str) -> Result<u32> {
@@ -90,19 +131,21 @@ impl MetalBackend {
             if m > GEMV_MB || m * k * 2 > GEMV_TG_BYTES {
                 return Err(Error::invalid(format!("metal matmul_fp8_gemv: M = {m}, K = {k} does not fit")));
             }
-            let (name, rs) = match (f32_out, m == 1) {
-                (false, true) => (SHADERS[1], GEMV_RS[0]),
-                (false, false) => (SHADERS[2], GEMV_RS[1]),
-                (true, true) => (SHADERS[3], GEMV_RS[0]),
-                (true, false) => (SHADERS[4], GEMV_RS[1]),
+            let p = OpP { dims: pdims, skips: [xb.skip, ob.skip, 0, 0, 0], ..Default::default() };
+            // split-K for M = 1; M = 2..=8 stage the quantised rows in threadgroup memory
+            let (name, grid, threads, tg_bytes) = if m == 1 {
+                let (sg, r) = gv_pick(n, k);
+                let si = GV_SG.iter().position(|&g| g == sg).unwrap_or(0);
+                let ri = GV_R.iter().position(|&g| g == r).unwrap_or(0);
+                (GV_SHADERS[(si * 2 + f32_out as usize) * 4 + ri], n.div_ceil(r), sg * 32, 0)
+            } else {
+                let name = if f32_out { SHADERS[2] } else { SHADERS[1] };
+                (name, n.div_ceil(GEMV_SG * GEMV_RS), GEMV_SG * 32, (m * k * 2).next_multiple_of(16))
             };
             let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
-            if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
-                return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+            if pso.maxTotalThreadsPerThreadgroup() < threads {
+                return Err(Error::backend(format!("metal: '{name}' cannot run {threads} threads")));
             }
-            let p = OpP { dims: pdims, skips: [xb.skip, ob.skip, 0, 0, 0], ..Default::default() };
-            let mb = if m == 1 { 1 } else { GEMV_MB };
-            let tg_bytes = (m * k * 2).next_multiple_of(16); // the staged rows: M <= MB
             return self.with_encoder(|enc| {
                 // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`).
                 unsafe {
@@ -110,12 +153,14 @@ impl MetalBackend {
                     for (i, b) in [&xb, &wb, &sb, &ob].into_iter().enumerate() {
                         enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
                     }
-                    enc.setThreadgroupMemoryLength_atIndex(tg_bytes, 0);
+                    if tg_bytes > 0 {
+                        enc.setThreadgroupMemoryLength_atIndex(tg_bytes, 0);
+                    }
                 }
                 set_bytes(enc, &p, 4);
                 enc.dispatchThreadgroups_threadsPerThreadgroup(
-                    MTLSize { width: n.div_ceil(GEMV_SG * rs), height: m.div_ceil(mb), depth: 1 },
-                    MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
+                    MTLSize { width: grid, height: 1, depth: 1 },
+                    MTLSize { width: threads, height: 1, depth: 1 },
                 );
             });
         }
@@ -137,7 +182,7 @@ impl MetalBackend {
         if xs.skip != 0 {
             return Err(Error::invalid("metal matmul_fp8_mma: the scratch must be 4-byte aligned"));
         }
-        let gemm = if f32_out { SHADERS[6] } else { SHADERS[5] };
+        let gemm = if f32_out { SHADERS[4] } else { SHADERS[3] };
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
         let pso_g = self.pso(gemm).ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemm}'")))?;
         if pso_g.maxTotalThreadsPerThreadgroup() < MMA_THREADS {

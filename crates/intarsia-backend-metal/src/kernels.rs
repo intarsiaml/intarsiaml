@@ -296,7 +296,9 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::gdn::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
+    v.extend(crate::fp8::GV_SHADERS);
     v.extend(crate::nvfp4::SHADERS);
+    v.extend(crate::nvfp4::GV_SHADERS);
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
@@ -563,8 +565,8 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(MOE_TOL)
                     .scratch(intarsia_core::quant::ops::moe_experts_scratch),
                 crate::moe::MOE_COMBINE_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(MOE_TOL),
-                // FP8 e4m3 W8A8 / W8A16 (kernels/metal/fp8.metal, fp8.rs), the hip budgets. The GEMV (M <= 8, one dispatch, q(x)
-                // staged in threadgroup memory) takes decode; the GEMM (priority 0) every other shape, QDQ'ing x into scratch.
+                // FP8 e4m3 W8A8 / W8A16 (kernels/metal/fp8.metal, fp8.rs), the hip budgets. The GEMV (M <= 8, one dispatch; M = 1
+                // split-K, M >= 2 stages q(x) in threadgroup memory) takes decode; the GEMM (priority 0) every other shape, QDQ'ing x into scratch.
                 crate::fp8::MATMUL_FP8_GEMV => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])

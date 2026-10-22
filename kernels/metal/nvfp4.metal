@@ -10,8 +10,11 @@
 // a half (<< 7: 256 times smaller than the e4m3 value); both factors, 2^22 together, are folded into the final scale. The
 // e4m3 NaN code (0x7F / 0xFF) of a block scale gives NaN.
 // Entry points:
-//   nv_gemv_{bf16,f32}_{m1,m8}  decode GEMV for M <= 1 / 8 per call, one dispatch, no scratch. A threadgroup of NV_SG
-//                               simdgroups, each owning NV_RS_* output rows; a lane takes a 16-element K block at a time (one
+//   nv_gv_{bf16,f32}_s<SG>r<R>  decode GEMV, M = 1, split-K, one dispatch, no scratch. A threadgroup of SG simdgroups owns
+//                               R output rows and streams them together; a thread takes a 16-element K block at a time (one
+//                               8-byte weight load and one scale byte per row), f32 accumulate, simd_sum, fixed-order combine.
+//   nv_gemv_{bf16,f32}_m8       decode GEMV for M <= 8 per call, one dispatch, no scratch. A threadgroup of NV_SG
+//                               simdgroups, each owning 2 output rows; a lane takes a 16-element K block at a time (one
 //                               8-byte weight load and one scale byte per row), f32 accumulate, simd_sum.
 //   nv_mma_{bf16,f32}           GEMM for any M, 64 x 64 tile, 4 simdgroups of 32 x 32, K step 32. The B tile holds
 //                               e2m1 * e4m3(block) as bf16 (exact: at most 5 significant bits), the global scale is applied
@@ -110,10 +113,93 @@ inline void nv_gemv_impl(device const ushort* x, device const uchar* w, device c
         nv_gemv_impl<MB, RS, OUT>(x, w, bs, gs, out, p, tg, sg, lane);                                              \
     }
 
-NV_GEMV(nv_gemv_bf16_m1, 1, 4, ushort)
 NV_GEMV(nv_gemv_bf16_m8, 8, 2, ushort)
-NV_GEMV(nv_gemv_f32_m1, 1, 4, float)
 NV_GEMV(nv_gemv_f32_m8, 8, 2, float)
+
+// ---- decode GEMV, M = 1: split-K (`nv_gv`) ----------------------------------------------------------------------------
+// A threadgroup of SG simdgroups owns R output rows and streams them together: thread t takes the 16-element blocks t,
+// t + 32 SG, ... of every row (one 8-byte weight load and one scale byte per row and block) and reads the 16 activations of
+// its block once for the R rows. Per-simdgroup partials are combined in a fixed order through threadgroup memory
+// (deterministic, no atomics). SG follows K (one block per thread), R follows N so that N / R covers the GPU.
+
+constant constexpr uint NV_GV_UN = 2;  // blocks per thread and row loaded before any is used
+
+template <int R, int SG, typename OutT>
+inline void nv_gv_impl(device const ushort* x, device const uchar* w, device const uchar* bs, device const float* gs,
+                       device OutT* out, constant OpP& p, threadgroup float* part, uint tg, uint tid, uint sg,
+                       uint lane) {
+    const uint N = p.b, K = p.c;
+    const uint nch = K / 16;
+    const uint r0 = tg * R;
+    device const uchar* wr[R];
+    device const uchar* br[R];
+    for (int r = 0; r < R; ++r) {
+        const uint n = min(r0 + r, N - 1);
+        wr[r] = w + (ulong)n * (K / 2);
+        br[r] = bs + p.s1 + (ulong)n * (K / 16);
+    }
+    float acc[R];
+    for (int r = 0; r < R; ++r) acc[r] = 0.0f;
+    constexpr uint lanes = 32 * SG;
+    for (uint c0 = tid; c0 < nch; c0 += lanes * NV_GV_UN) {
+        uint2 wv[NV_GV_UN][R];
+        uint sv[NV_GV_UN][R];
+        for (uint j = 0; j < NV_GV_UN; ++j) {
+            const uint c = c0 + lanes * j;
+            for (int r = 0; r < R; ++r) {
+                wv[j][r] = c < nch ? *(device const uint2*)(wr[r] + (ulong)c * 8) : uint2(0u);
+                sv[j][r] = c < nch ? (uint)br[r][c] : 0u;
+            }
+        }
+        for (uint j = 0; j < NV_GV_UN; ++j) {
+            const uint c = c0 + lanes * j;
+            if (c >= nch) break;
+            device const packed_ushort4* xp = (device const packed_ushort4*)(x + p.s0 + (ulong)c * 16);
+            float xf[16];
+            for (int q = 0; q < 4; ++q) {
+                const ushort4 v = ushort4(xp[q]);
+                xf[4 * q] = bf2f(v.x);
+                xf[4 * q + 1] = bf2f(v.y);
+                xf[4 * q + 2] = bf2f(v.z);
+                xf[4 * q + 3] = bf2f(v.w);
+            }
+            for (int r = 0; r < R; ++r) acc[r] = fma(nv_dot16(wv[j][r], xf), nv_scale(sv[j][r]), acc[r]);
+        }
+    }
+    for (int r = 0; r < R; ++r) {
+        const float s = simd_sum(acc[r]);
+        if (lane == 0) part[r * SG + sg] = s;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid < R && r0 + tid < N) {
+        float t = part[tid * SG];
+        for (int s = 1; s < SG; ++s) t += part[tid * SG + s];
+        store_out(out + p.s2, r0 + tid, t * (gs[0] * NV_FOLD));
+    }
+}
+
+#define NV_GV(NAME, R, SG, OUT)                                                                                         \
+    kernel void NAME(device const ushort* x [[buffer(0)]], device const uchar* w [[buffer(1)]],                     \
+                     device const uchar* bs [[buffer(2)]], device const float* gs [[buffer(3)]],                    \
+                     device OUT* out [[buffer(4)]], constant OpP& p [[buffer(5)]],                                  \
+                     uint tg [[threadgroup_position_in_grid]], uint tid [[thread_index_in_threadgroup]],            \
+                     uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
+        threadgroup float part[R * SG];                                                                              \
+        nv_gv_impl<R, SG, OUT>(x, w, bs, gs, out, p, part, tg, tid, sg, lane);                                       \
+    }
+
+#define NV_GV_RS(SG)                                                                                                    \
+    NV_GV(nv_gv_bf16_s##SG##r1, 1, SG, ushort)                                                                          \
+    NV_GV(nv_gv_bf16_s##SG##r2, 2, SG, ushort)                                                                          \
+    NV_GV(nv_gv_bf16_s##SG##r4, 4, SG, ushort)                                                                          \
+    NV_GV(nv_gv_f32_s##SG##r1, 1, SG, float)                                                                            \
+    NV_GV(nv_gv_f32_s##SG##r2, 2, SG, float)                                                                            \
+    NV_GV(nv_gv_f32_s##SG##r4, 4, SG, float)
+
+NV_GV_RS(1)
+NV_GV_RS(2)
+NV_GV_RS(4)
+NV_GV_RS(8)
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 

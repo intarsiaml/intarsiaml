@@ -4,16 +4,20 @@
 //   x      bf16 [M,K]
 //   w      u8   [N,K]   e4m3, bound 4-byte aligned; the launcher requires an 8-byte aligned address (rows are K % 16 == 0 bytes)
 //   scales f32  [2]     (weight_scale, input_scale), read here on the GPU. input_scale > 0: W8A8 static, q(x) = e4m3(x / is)
-//                       (round to nearest even, saturating at 448, NaN -> 0x7F, `fp8_enc`), result * ws * is; else W8A16, q(x) = x.
+//                       (round to nearest even, saturating at 448, NaN stays NaN, `fp8_qx`), result * ws * is; else W8A16, q(x) = x.
 // e4m3 -> float: the 7 magnitude bits are placed in the exponent / mantissa of a half (<< 7), which reads as value / 256
 // (subnormals included); the factor 256 is folded into the final scale. Codes 0x7F / 0xFF (NaN) are caught per word.
 // Entry points:
 //   fp8_xprep_bf16        xs[M,K] (bf16 scratch) = QDQ(x) (exact in bf16) or x; one thread per 8 elements (GEMM only)
-//   fp8_gemv_{bf16,f32}_{m1,m8}
-//                         decode GEMV, M <= 1 / 8 per call. A threadgroup of FP8_SG simdgroups stages its q(x) rows once in
-//                         threadgroup memory (bf16, launcher-sized M * K * 2 bytes), each simdgroup owns RS output
-//                         rows (4 for _m1, 2 for _m8; a lane takes 16-element chunks of K, UN of them loaded before any is
-//                         used, 2 x 8-byte loads per row and chunk), f32 accumulate, simd_sum.
+//   fp8_gv_{bf16,f32}_s<SG>r<R>
+//                         decode GEMV, M = 1, split-K: a threadgroup of SG simdgroups owns R output rows and streams them
+//                         together, one 8-byte weight load per row and chunk, the thread quantises only its 8 activations
+//                         (no staging, no barrier before the loads), f32 accumulate, simd_sum, fixed-order combine.
+//   fp8_gemv_{bf16,f32}_m8
+//                         decode GEMV, M <= 8 per call. A threadgroup of FP8_SG simdgroups stages its q(x) rows once in
+//                         threadgroup memory (bf16, launcher-sized M * K * 2 bytes), each simdgroup owns 2 output
+//                         rows (a lane takes 16-element chunks of K, UN of them loaded before any is used, 2 x 8-byte
+//                         loads per row and chunk), f32 accumulate, simd_sum.
 //   fp8_mma_{bf16,f32}    GEMM for any M, 64 x 64 tile, 4 simdgroups of 32 x 32, K step 32, bf16 operand tiles (e4m3 is
 //                         exact in bf16), simdgroup_matrix bf16 x bf16 -> f32; reads xs.
 // Kernel arguments: OpP (common.h), a = M, b = N, c = K; xprep s0 = x skip; gemv / mma s0 = x skip (0 for mma: xs),
@@ -41,26 +45,35 @@ inline float fp8_dec(uint b) {
     return fp8_x2(b).x * 256.0f;
 }
 
-// intarsia_core::dtype::f32_to_fp8_e4m3: round to nearest, ties to the even code, saturating at +-448, NaN -> 0x7F
-inline uint fp8_enc(float v) {
-    const uint s = (as_type<uint>(v) >> 24) & 0x80u;
-    const float a = fabs(v);
-    if (!(a == a)) return 0x7Fu;
-    if (a >= 448.0f) return s | 0x7Eu;
-    uint code;
-    if (a < 0.015625f) {
-        code = (uint)rint(a * 512.0f);  // subnormal grid 2^-9, rint = ties to even
-    } else {
-        uint b = as_type<uint>(a);  // 3 mantissa bits kept: round to nearest even on bit 20
-        b += 0x7FFFFu + ((b >> 20) & 1u);
-        code = (b >> 20) - 960u;  // re-bias the exponent: (127 - 7) << 3
-    }
-    return s | code;
-}
+// 1/is for the quantiser below; 0 (-> a true division per element) when is is outside the range where its correction is safe
+inline float fp8_rcp(float is) { return (is >= 8.6736174e-19f && is <= 1.1529215e18f) ? precise::divide(1.0f, is) : 0.0f; }
 
-// q(x) for one element: static W8A8 (is > 0) or the activation itself
-inline float fp8_qx(float x, float is) {
-    return is > 0.0f ? fp8_dec(fp8_enc(precise::divide(x, is))) : x;
+// q(x) for one element: static W8A8 (is > 0, r = fp8_rcp(is)) or the activation itself. The value of
+// intarsia_core::dtype::f32_to_fp8_e4m3(x / is) (round to nearest, ties to the even code, saturating at +-448, NaN stays
+// NaN), computed on the value instead of the code: the quotient is x * r corrected by one fma (the correctly rounded
+// f32 quotient; a result >= 1024 saturates whatever its last bit), then rounded to 4 significant bits (3 stored mantissa
+// bits) by an add on the bit pattern, or to the 2^-9 grid below 2^-6 by the add-and-subtract trick.
+inline float fp8_qx(float x, float is, float r) {
+    if (!(is > 0.0f)) return x;
+    float q;
+    if (r != 0.0f) {
+        const float q0 = x * r;
+        q = fabs(q0) < 1024.0f ? fma(fma(-q0, is, x), r, q0) : q0;
+    } else {
+        q = precise::divide(x, is);
+    }
+    const float a = fabs(q);
+    if (!(a == a)) return a;
+    float v;
+    if (a < 0.015625f) {
+        v = (a + 16384.0f) - 16384.0f;  // ulp(2^14) = 2^-9, ties to even
+    } else {
+        uint b = as_type<uint>(a);
+        b += 0x7FFFFu + ((b >> 20) & 1u);
+        v = as_type<float>(b & 0xFFF00000u);
+    }
+    if (a >= 448.0f) v = 448.0f;
+    return copysign(v, q);
 }
 
 // 16 e4m3 bytes (4 words) . 16 activations; the result is the dot / 256, NaN when the chunk holds a NaN code
@@ -93,10 +106,10 @@ kernel void fp8_xprep_bf16(device const ushort* x [[buffer(0)]], device const fl
     const ulong total = (ulong)p.a * p.c;
     const ulong e0 = (ulong)g * 8;
     if (e0 >= total) return;
-    const float is = sc[1];
+    const float is = sc[1], r = fp8_rcp(is);
     for (int e = 0; e < 8; ++e) {
         const ushort v = x[p.s0 + e0 + e];
-        xs[e0 + e] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
+        xs[e0 + e] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is, r)) : v;
     }
 }
 
@@ -110,11 +123,11 @@ inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device 
     const uint M = p.a, N = p.b, K = p.c;
     const uint m0 = tg.y * MB;
     const uint rows = min((uint)MB, M - m0);
-    const float ws = sc[0], is = sc[1];
+    const float ws = sc[0], is = sc[1], r = fp8_rcp(is);
     // stage q(x) of this threadgroup's activation rows
     for (uint i = tid; i < rows * K; i += FP8_SG * 32) {
         const ushort v = x[p.s0 + (ulong)m0 * K + i];
-        xs[i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
+        xs[i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is, r)) : v;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
 
@@ -174,10 +187,99 @@ inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device 
         fp8_gemv_impl<MB, RS, UN, OUT>(x, w, sc, out, p, xs, tg, tid, sg, lane);                                       \
     }
 
-FP8_GEMV(fp8_gemv_bf16_m1, 1, 4, 4, ushort)
 FP8_GEMV(fp8_gemv_bf16_m8, 8, 2, 2, ushort)
-FP8_GEMV(fp8_gemv_f32_m1, 1, 4, 4, float)
 FP8_GEMV(fp8_gemv_f32_m8, 8, 2, 2, float)
+
+// ---- decode GEMV, M = 1: split-K (`fp8_gv`) ---------------------------------------------------------------------------
+// A threadgroup of SG simdgroups owns R output rows and streams them together: thread t of the threadgroup takes the
+// 8-byte chunks t, t + 32 SG, ... of every row (one 8-byte load per row and chunk, so a row-aligned address is all it
+// needs and the K % 16 == 0 rows need no head / tail), and quantises only the 8 activations of its chunk, so there is
+// no staging and no barrier before the weight loads are in flight. Per-simdgroup partials are combined in a fixed order
+// through threadgroup memory (deterministic, no atomics). R is chosen per call so that N / R covers the GPU.
+
+// 8 e4m3 bytes (2 words) . 8 activations; the result is the dot / 256, NaN when a byte holds a NaN code
+inline float fp8_dot8(uint2 v, const thread float* x) {
+    const uint w[2] = {v.x, v.y};
+    float t = 0.0f;
+    uint nan = 0u;
+    for (int j = 0; j < 2; ++j) {
+        const float2 p = fp8_x2(w[j]), q = fp8_x2(w[j] >> 8);  // elements (0, 2) and (1, 3) of the word
+        t = fma(p.x, x[4 * j], t);
+        t = fma(q.x, x[4 * j + 1], t);
+        t = fma(p.y, x[4 * j + 2], t);
+        t = fma(q.y, x[4 * j + 3], t);
+        nan |= ((w[j] & 0x7F7F7F7Fu) + 0x01010101u) & 0x80808080u;  // bit 7 of a byte <=> its magnitude bits are 0x7F
+    }
+    return nan != 0u ? as_type<float>(0x7FC00000u) : t;
+}
+
+constant constexpr uint FP8_GV_UN = 2;  // chunks per thread and row loaded before any is used (K <= 8 * 32 * SG * UN in one step)
+
+template <int R, int SG, typename OutT>
+inline void fp8_gv_impl(device const ushort* x, device const uchar* w, device const float* sc, device OutT* out,
+                        constant OpP& p, threadgroup float* part, uint tg, uint tid, uint sg, uint lane) {
+    const uint N = p.b, K = p.c;
+    const float ws = sc[0], is = sc[1], rcp = fp8_rcp(is);
+    const uint nch = K / 8;
+    const uint r0 = tg * R;
+    device const uchar* wr[R];
+    for (int r = 0; r < R; ++r) wr[r] = w + (ulong)min(r0 + r, N - 1) * K;
+    float acc[R];
+    for (int r = 0; r < R; ++r) acc[r] = 0.0f;
+    constexpr uint lanes = 32 * SG;
+    for (uint c0 = tid; c0 < nch; c0 += lanes * FP8_GV_UN) {
+        uint2 wv[FP8_GV_UN][R];
+        for (uint j = 0; j < FP8_GV_UN; ++j) {
+            const uint c = c0 + lanes * j;
+            for (int r = 0; r < R; ++r) wv[j][r] = c < nch ? *(device const uint2*)(wr[r] + (ulong)c * 8) : uint2(0u);
+        }
+        for (uint j = 0; j < FP8_GV_UN; ++j) {
+            const uint c = c0 + lanes * j;
+            if (c >= nch) break;
+            device const packed_ushort4* xp = (device const packed_ushort4*)(x + p.s0 + (ulong)c * 8);
+            const ushort4 a = ushort4(xp[0]), b = ushort4(xp[1]);
+            float xf[8] = {bf2f(a.x), bf2f(a.y), bf2f(a.z), bf2f(a.w), bf2f(b.x), bf2f(b.y), bf2f(b.z), bf2f(b.w)};
+            if (is > 0.0f) {
+                for (int e = 0; e < 8; ++e) xf[e] = fp8_qx(xf[e], is, rcp);
+            }
+            for (int r = 0; r < R; ++r) acc[r] += fp8_dot8(wv[j][r], xf);
+        }
+    }
+    for (int r = 0; r < R; ++r) {
+        const float s = simd_sum(acc[r]);
+        if (lane == 0) part[r * SG + sg] = s;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid < R && r0 + tid < N) {
+        float t = part[tid * SG];
+        for (int s = 1; s < SG; ++s) t += part[tid * SG + s];
+        store_out(out + p.s1, r0 + tid, t * (ws * (is > 0.0f ? is : 1.0f) * 256.0f));
+    }
+}
+
+#define FP8_GV(NAME, R, SG, OUT)                                                                                        \
+    kernel void NAME(device const ushort* x [[buffer(0)]], device const uchar* w [[buffer(1)]],                     \
+                     device const float* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
+                     constant OpP& p [[buffer(4)]], uint tg [[threadgroup_position_in_grid]],                       \
+                     uint tid [[thread_index_in_threadgroup]], uint sg [[simdgroup_index_in_threadgroup]],          \
+                     uint lane [[thread_index_in_simdgroup]]) {                                                     \
+        threadgroup float part[R * SG];                                                                              \
+        fp8_gv_impl<R, SG, OUT>(x, w, sc, out, p, part, tg, tid, sg, lane);                                          \
+    }
+
+#define FP8_GV_RS(SG)                                                                                                   \
+    FP8_GV(fp8_gv_bf16_s##SG##r1, 1, SG, ushort)                                                                        \
+    FP8_GV(fp8_gv_bf16_s##SG##r2, 2, SG, ushort)                                                                        \
+    FP8_GV(fp8_gv_bf16_s##SG##r4, 4, SG, ushort)                                                                        \
+    FP8_GV(fp8_gv_bf16_s##SG##r8, 8, SG, ushort)                                                                        \
+    FP8_GV(fp8_gv_f32_s##SG##r1, 1, SG, float)                                                                          \
+    FP8_GV(fp8_gv_f32_s##SG##r2, 2, SG, float)                                                                          \
+    FP8_GV(fp8_gv_f32_s##SG##r4, 4, SG, float)                                                                          \
+    FP8_GV(fp8_gv_f32_s##SG##r8, 8, SG, float)
+FP8_GV_RS(1)
+FP8_GV_RS(2)
+FP8_GV_RS(4)
+FP8_GV_RS(8)
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 

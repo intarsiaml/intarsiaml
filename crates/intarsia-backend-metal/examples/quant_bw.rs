@@ -3,6 +3,10 @@
 //!
 //!   cargo run --release -p intarsia-backend-metal --example quant_bw
 //!
+//! Env: `QBW_OFF` byte offset of the weights (default 8, like the checkpoint tensors), `QBW_IS` input scale (0: W8A16),
+//! `QBW_ONLY` comma list of name substrings, `QBW_PROF=<n>` runs <n> launches per shape and prints `CELL` lines, to be read
+//! next to an `INTARSIA_METAL_PROFILE=kernel:<file>` trace (each launch timed on the GPU as its own command buffer).
+//!
 //! Run it inside a fleetq slot (`fleetq run --host endor --mem 8 ...`).
 
 #[cfg(not(target_os = "macos"))]
@@ -21,11 +25,17 @@ fn main() {
 
     let be = MetalBackend::new().expect("metal backend");
     println!("device: {}", be.device().name());
-    for mb in [8usize, 16, 64, 512] {
+    // QBW_PROF=<n>: run <n> launches per cell and print only the cell labels (use with INTARSIA_METAL_PROFILE=kernel:<file>,
+    // which times each launch on the GPU as its own command buffer, like a decode profile)
+    let prof: usize = std::env::var("QBW_PROF").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    for mb in if prof > 0 { vec![] } else { vec![8usize, 16, 64, 512] } {
         let g = intarsia_backend_metal::bench::measure_copy_gbs(&be, mb << 20, 5, 30).unwrap();
         println!("copy ceiling, one dispatch of {mb} MB: {g:.0} GB/s (read + write)");
     }
+    // QBW_OFF: byte offset of the weights in their buffers (default 8: real checkpoint tensors sit at 8 mod 16)
+    let woff: usize = std::env::var("QBW_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(8);
     let t = |b: &intarsia_core::backend::Buffer, dt: DType, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: dt, shape: shape.to_vec() };
+    let tw = |b: &intarsia_core::backend::Buffer, dt: DType, shape: &[usize]| TensorRef { buf: b.clone(), offset: woff, dtype: dt, shape: shape.to_vec() };
     let fill = |bytes: usize, seed: u64| -> intarsia_core::backend::Buffer {
         let mut r = Rng(seed | 1);
         let v: Vec<u8> = (0..bytes).map(|_| (r.next_u64() >> 40) as u8 & 0x77).collect();
@@ -48,25 +58,28 @@ fn main() {
         ("nvfp4 shared down", Op::MatmulNvfp4, 2048, 512, 1),
         ("nvfp4 lm_head", Op::MatmulNvfp4, 248320, 2048, 1),
     ] {
+        if std::env::var("QBW_ONLY").map_or(false, |o| !o.split(',').any(|f| what.contains(f))) {
+            continue;
+        }
         let wbytes = if op == Op::MatmulFp8 { n * k } else { n * k / 2 };
         let pool = std::env::var("QBW_POOL").ok().and_then(|v| v.parse().ok()).unwrap_or((POOL_BYTES / wbytes).clamp(2, 256));
-        let ws: Vec<_> = (0..pool).map(|i| fill(wbytes, 10 + i as u64)).collect();
-        let bs: Vec<_> = (0..pool).map(|i| fill(n * k / 16, 400 + i as u64)).collect();
+        let ws: Vec<_> = (0..pool).map(|i| fill(wbytes + 16, 10 + i as u64)).collect();
+        let bs: Vec<_> = (0..pool).map(|i| fill(n * k / 16 + 16, 400 + i as u64)).collect();
         let x = fill(m * k * 2, 7);
         let sc = be.alloc(8, MemKind::Device).unwrap();
         let mut sb = 0.02f32.to_le_bytes().to_vec();
-        sb.extend(0.5f32.to_le_bytes());
+        sb.extend(std::env::var("QBW_IS").ok().and_then(|v| v.parse::<f32>().ok()).unwrap_or(0.5).to_le_bytes());
         be.upload(&sc, 0, &sb, 0).unwrap();
         let y = be.alloc(m * n * 4, MemKind::Device).unwrap();
         let (kernel, f32_out) = if op == Op::MatmulFp8 { ("matmul_fp8_gemv", false) } else { ("matmul_nvfp4_gemv", true) };
         let calls: Vec<OpCall> = (0..pool)
             .map(|i| {
                 if op == Op::MatmulFp8 {
-                    OpCall::new(op, vec![t(&x, DType::Bf16, &[m, k]), t(&ws[i], DType::Fp8E4m3, &[n, k]), t(&sc, DType::F32, &[2])], vec![t(&y, DType::Bf16, &[m, n])], OpAttrs::default())
+                    OpCall::new(op, vec![t(&x, DType::Bf16, &[m, k]), tw(&ws[i], DType::Fp8E4m3, &[n, k]), t(&sc, DType::F32, &[2])], vec![t(&y, DType::Bf16, &[m, n])], OpAttrs::default())
                 } else {
                     OpCall::new(
                         op,
-                        vec![t(&x, DType::Bf16, &[m, k]), t(&ws[i], DType::U8, &[n, k / 2]), t(&bs[i], DType::Fp8E4m3, &[n, k / 16]), t(&sc, DType::F32, &[1])],
+                        vec![t(&x, DType::Bf16, &[m, k]), tw(&ws[i], DType::U8, &[n, k / 2]), tw(&bs[i], DType::Fp8E4m3, &[n, k / 16]), t(&sc, DType::F32, &[1])],
                         vec![t(&y, if f32_out { DType::F32 } else { DType::Bf16 }, &[m, n])],
                         OpAttrs::default(),
                     )
@@ -79,12 +92,24 @@ fn main() {
             }
             be.synchronize(0).unwrap();
         };
-        run(pool.min(20));
-        let reps = (pool * 4).max(200);
-        let t0 = Instant::now();
-        run(reps);
-        let us = t0.elapsed().as_secs_f64() / reps as f64 * 1e6;
         let bytes = wbytes + if op == Op::MatmulNvfp4 { n * k / 16 } else { 0 };
-        println!("{what:22} {kernel:18} n={n:6} k={k:5} m={m}: {us:8.1} us/call  {:6.1} GB/s weight bytes", bytes as f64 / (us * 1e-6) / 1e9);
+        if prof > 0 {
+            for r in 0..prof {
+                be.launch(kernel, &calls[r % pool], 0).unwrap();
+                be.synchronize(0).unwrap();
+            }
+            println!("CELL {what}|{kernel}|{n}|{k}|{m}|{prof}|{bytes}");
+            continue;
+        }
+        run(pool.min(20));
+        // min over trials of the per-call time of a synced batch (the box is shared: a trial may be disturbed)
+        let reps = pool.clamp(20, 200);
+        let mut best = f64::MAX;
+        for _ in 0..7 {
+            let t0 = Instant::now();
+            run(reps);
+            best = best.min(t0.elapsed().as_secs_f64() / reps as f64 * 1e6);
+        }
+        println!("{what:22} {kernel:18} n={n:6} k={k:5} m={m}: {best:8.1} us/call  {:6.1} GB/s weight bytes", bytes as f64 / (best * 1e-6) / 1e9);
     }
 }
