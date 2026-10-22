@@ -1,2 +1,3 @@
 fleetq: #4157 waiting (#7 in line): in line behind #4129 "fx4 final: Qwen3 no-op + onboard quick x2 (double-rounded, min_top1)" (claude-f31ccf91) on endor; #4129 has no estimated start (#4094 gave no --expect), so nothing can go first by ending before it
 fleetq: #4157 waiting (#7 in line): in line behind #4129 "fx4 final: Qwen3 no-op + onboard quick x2 (double-rounded, min_top1)" (claude-f31ccf91) on endor
+fleetq: #4157 waiting (#7 in line): in line behind #4129 "fx4 final: Qwen3 no-op + onboard quick x2 (double-rounded, min_top1)" (claude-f31ccf91) on endor; #4129 has no estimated start, so nothing can go first by ending before it

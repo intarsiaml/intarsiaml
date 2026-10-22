@@ -8,7 +8,7 @@ set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
 OUT=${1:?out dir}
 ROUNDS=${ROUNDS:-5}
-REPS=${REPS:-2}
+REPS=${REPS:-1}
 H=${0:A:h}
 MODEL=${MODEL:-/Users/josef/models/Qwen3-8B}
 GGUF=${GGUF:-/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf}
