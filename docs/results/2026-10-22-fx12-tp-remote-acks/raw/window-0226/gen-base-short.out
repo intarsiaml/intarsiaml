@@ -1,0 +1,15 @@
+Based on the provided architecture plan snippet, here is a structured breakdown and analysis of **IntarsiaML v0.2** (dated 2026-10-12). This version appears to be a significant pivot toward a modular, license-compliant, and low-level optimized machine learning framework.
+
+### Key Architectural Changes in v0.2
+
+#### 1. **Fable Adversarial Review Integration**
+   - **Context:** The "Fable adversarial review" likely refers to a security, robustness, or compliance audit conducted by a team or tool named "Fable."
+   - **Outcome:** The architecture has been hardened against adversarial inputs or structural vulnerabilities identified in this review.
+
+#### 2. **Torch-Free C Kernel ABI**
+   - **Significance:** This is a major decoupling from PyTorch.
+   - **Implication:**
+     - IntarsiaML now defines its own **Application Binary Interface (ABI)** for kernels in C.
+     - This enables **framework agnosticism**: Kernels can be called from Python, C++, Rust, or other languages without requiring PyTorch as a dependency.
+     - Improves portability, reduces dependency
+NCCL version 2.30.7+cuda13.3

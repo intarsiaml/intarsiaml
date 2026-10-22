@@ -1,0 +1,8 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 with tp=2 (rank 1 at 10.100.152.3:29555)
+
+Caused by:
+    invalid op call: tensor-parallel ranks were started differently:
+      this rank:  /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 | recipe builtin:qwen3_5_moe | LoadOptions { max_seq: 20480, kv_fraction: 0.5, prefill_chunk: 2048, act_dtype: None, kv_dtype: None, profile_every: 0, mem_budget: Some(17179869184), fp8_act: None, mxfp4_act: None, graphs: true, tp_fusion: false } | PlanOptions { admit: false, require_admitted: false, force_reference: false, cache_dir: None, no_cache: false } | world 2
+      other rank: tp-protocol=2;/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 | recipe builtin:qwen3_5_moe | LoadOptions { max_seq: 20480, kv_fraction: 0.5, prefill_chunk: 2048, act_dtype: None, kv_dtype: None, profile_every: 0, mem_budget: Some(17179869184), fp8_act: None, mxfp4_act: None, graphs: true, tp_fusion: false } | PlanOptions { admit: false, require_admitted: false, force_reference: false, cache_dir: None, no_cache: false } | world 2

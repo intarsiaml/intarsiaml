@@ -1196,6 +1196,7 @@ impl Model {
                 if let Some(c) = &self.tp.comm {
                     c.abort();
                 }
+                rs.mark_unusable();
                 return r0;
             }
             rs.finish()?;
