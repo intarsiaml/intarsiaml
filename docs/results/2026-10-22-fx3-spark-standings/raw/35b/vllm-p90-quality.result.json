@@ -1,0 +1,396 @@
+{
+ "run_id": "20261022-060659-adhoc-fx3-35b-vllm-p90-quality",
+ "kind": "quality",
+ "label": "fx3-35b-vllm-p90-quality",
+ "started_at": "2026-10-22T06:06:59-04:00",
+ "finished_at": "2026-10-22T06:12:10-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-4e77:8000/v1",
+  "model": "guidance",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "none",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval quality --url http://spark-4e77:8000/v1 --model guidance --thinking off --label fx3-35b-vllm-p90-quality --structured none --bench mmlu,gsm8k --limit 25",
+  "git": "1f24e53"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": null,
+ "benchmarks": [
+  {
+   "benchmark": "mmlu",
+   "error": null,
+   "overall_score": 0.84,
+   "n_predictions": 1425,
+   "task_scores": [
+    {
+     "Task": "high_school_european_history",
+     "Score": 0.8
+    },
+    {
+     "Task": "business_ethics",
+     "Score": 0.92
+    },
+    {
+     "Task": "clinical_knowledge",
+     "Score": 0.96
+    },
+    {
+     "Task": "medical_genetics",
+     "Score": 1.0
+    },
+    {
+     "Task": "high_school_us_history",
+     "Score": 0.96
+    },
+    {
+     "Task": "high_school_physics",
+     "Score": 0.76
+    },
+    {
+     "Task": "high_school_world_history",
+     "Score": 0.96
+    },
+    {
+     "Task": "virology",
+     "Score": 0.68
+    },
+    {
+     "Task": "high_school_microeconomics",
+     "Score": 0.92
+    },
+    {
+     "Task": "econometrics",
+     "Score": 0.76
+    },
+    {
+     "Task": "college_computer_science",
+     "Score": 0.72
+    },
+    {
+     "Task": "high_school_biology",
+     "Score": 0.96
+    },
+    {
+     "Task": "abstract_algebra",
+     "Score": 0.56
+    },
+    {
+     "Task": "professional_accounting",
+     "Score": 0.6
+    },
+    {
+     "Task": "philosophy",
+     "Score": 0.96
+    },
+    {
+     "Task": "professional_medicine",
+     "Score": 1.0
+    },
+    {
+     "Task": "nutrition",
+     "Score": 0.92
+    },
+    {
+     "Task": "global_facts",
+     "Score": 0.36
+    },
+    {
+     "Task": "machine_learning",
+     "Score": 0.76
+    },
+    {
+     "Task": "security_studies",
+     "Score": 0.88
+    },
+    {
+     "Task": "public_relations",
+     "Score": 0.68
+    },
+    {
+     "Task": "professional_psychology",
+     "Score": 0.96
+    },
+    {
+     "Task": "prehistory",
+     "Score": 0.88
+    },
+    {
+     "Task": "anatomy",
+     "Score": 0.8
+    },
+    {
+     "Task": "human_sexuality",
+     "Score": 0.84
+    },
+    {
+     "Task": "college_medicine",
+     "Score": 0.88
+    },
+    {
+     "Task": "high_school_government_and_politics",
+     "Score": 1.0
+    },
+    {
+     "Task": "college_chemistry",
+     "Score": 0.52
+    },
+    {
+     "Task": "logical_fallacies",
+     "Score": 0.96
+    },
+    {
+     "Task": "high_school_geography",
+     "Score": 0.92
+    },
+    {
+     "Task": "elementary_mathematics",
+     "Score": 0.88
+    },
+    {
+     "Task": "human_aging",
+     "Score": 0.76
+    },
+    {
+     "Task": "college_mathematics",
+     "Score": 0.68
+    },
+    {
+     "Task": "high_school_psychology",
+     "Score": 1.0
+    },
+    {
+     "Task": "formal_logic",
+     "Score": 0.72
+    },
+    {
+     "Task": "high_school_statistics",
+     "Score": 0.8
+    },
+    {
+     "Task": "international_law",
+     "Score": 0.92
+    },
+    {
+     "Task": "high_school_mathematics",
+     "Score": 0.48
+    },
+    {
+     "Task": "high_school_computer_science",
+     "Score": 1.0
+    },
+    {
+     "Task": "conceptual_physics",
+     "Score": 0.96
+    },
+    {
+     "Task": "miscellaneous",
+     "Score": 0.84
+    },
+    {
+     "Task": "high_school_chemistry",
+     "Score": 0.92
+    },
+    {
+     "Task": "marketing",
+     "Score": 0.92
+    },
+    {
+     "Task": "professional_law",
+     "Score": 0.8
+    },
+    {
+     "Task": "management",
+     "Score": 0.92
+    },
+    {
+     "Task": "college_physics",
+     "Score": 0.84
+    },
+    {
+     "Task": "jurisprudence",
+     "Score": 0.88
+    },
+    {
+     "Task": "world_religions",
+     "Score": 0.88
+    },
+    {
+     "Task": "sociology",
+     "Score": 0.96
+    },
+    {
+     "Task": "us_foreign_policy",
+     "Score": 0.96
+    },
+    {
+     "Task": "high_school_macroeconomics",
+     "Score": 0.88
+    },
+    {
+     "Task": "computer_security",
+     "Score": 0.88
+    },
+    {
+     "Task": "moral_scenarios",
+     "Score": 0.56
+    },
+    {
+     "Task": "moral_disputes",
+     "Score": 0.76
+    },
+    {
+     "Task": "electrical_engineering",
+     "Score": 0.92
+    },
+    {
+     "Task": "astronomy",
+     "Score": 0.92
+    },
+    {
+     "Task": "college_biology",
+     "Score": 0.96
+    }
+   ],
+   "config": {
+    "limit": 25,
+    "shots": null,
+    "tasks": null
+   },
+   "speed": {
+    "calls": 1425,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 2586,
+     "min": 2539,
+     "max": 3502,
+     "n": 1425,
+     "spread_pct": 37.2
+    },
+    "completion_tokens": {
+     "median": 2,
+     "min": 2,
+     "max": 993,
+     "n": 1425,
+     "spread_pct": 49550.0
+    },
+    "ttft_s": {
+     "median": 0.15,
+     "min": 0.138,
+     "max": 0.594,
+     "n": 1425,
+     "spread_pct": 302.9
+    },
+    "prefill_tok_s": {
+     "median": 5635.055,
+     "min": 4653.703,
+     "max": 5792.596,
+     "n": 59,
+     "spread_pct": 20.2
+    },
+    "prefill_tok_s_all": {
+     "median": 3292.598,
+     "min": 2902.873,
+     "max": 5792.596,
+     "n": 1425,
+     "spread_pct": 87.8
+    },
+    "decode_tok_s": {
+     "median": 76.247,
+     "min": 76.223,
+     "max": 76.272,
+     "n": 2,
+     "spread_pct": 0.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 1368,
+    "wall_s": 275.7
+   },
+   "wall_s": 295.8
+  },
+  {
+   "benchmark": "gsm8k",
+   "error": null,
+   "overall_score": 0.56,
+   "n_predictions": 25,
+   "task_scores": null,
+   "config": {
+    "limit": 25,
+    "shots": null,
+    "tasks": null,
+    "scorer": "localeval-flexible-v1"
+   },
+   "scores": {
+    "gsm8k_flexible": 0.56,
+    "gsm8k_strict": 0.4
+   },
+   "primary_metric": "gsm8k_flexible",
+   "speed": {
+    "calls": 25,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 488,
+     "min": 457,
+     "max": 542,
+     "n": 25,
+     "spread_pct": 17.4
+    },
+    "completion_tokens": {
+     "median": 4,
+     "min": 2,
+     "max": 466,
+     "n": 25,
+     "spread_pct": 11600.0
+    },
+    "ttft_s": {
+     "median": 0.138,
+     "min": 0.133,
+     "max": 0.145,
+     "n": 25,
+     "spread_pct": 9.3
+    },
+    "prefill_tok_s": null,
+    "prefill_tok_s_all": {
+     "median": 3537.713,
+     "min": 3425.132,
+     "max": 3779.028,
+     "n": 25,
+     "spread_pct": 10.0
+    },
+    "decode_tok_s": {
+     "median": 77.541,
+     "min": 77.219,
+     "max": 77.869,
+     "n": 4,
+     "spread_pct": 0.8
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 0,
+    "wall_s": 14.1,
+    "prefill_note": "no call had >= 1024 uncached prompt tokens; prefill_tok_s_all is overhead-dominated. Use `localeval speed` for prefill."
+   },
+   "wall_s": 14.6
+  }
+ ],
+ "datasets": [],
+ "warnings": []
+}

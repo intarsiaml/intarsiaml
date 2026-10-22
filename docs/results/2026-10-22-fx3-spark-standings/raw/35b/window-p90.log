@@ -1,0 +1,11 @@
+[05:59:27] pass p90 model=35b host=spark1 arms=[intarsia vllm llamacpp] phases=quality job=3979
+[05:59:32] == arm intarsia (MemAvailable 47 GB)
+[06:00:19]   intarsia ready after 45s
+[06:06:52]   quality exit=0
+[06:06:58] == arm vllm (MemAvailable 48 GB)
+[06:06:58]   vllm ready after 0s
+[06:12:11]   quality exit=0
+[06:12:15] == arm llamacpp (MemAvailable 47 GB)
+[06:12:47]   llamacpp ready after 30s
+[06:23:36]   quality exit=0
+[06:23:39] pass p90 done

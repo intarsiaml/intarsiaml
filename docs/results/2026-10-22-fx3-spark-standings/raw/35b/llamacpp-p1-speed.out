@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=20480
+[localeval]    128 tok rep 1/3: prompt=115 ttft=0.18s prefill=630 tok/s decode=55.0 tok/s peak=56.0 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=112 ttft=0.17s prefill=659 tok/s decode=55.4 tok/s peak=55.8 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=113 ttft=0.17s prefill=655 tok/s decode=55.5 tok/s peak=56.1 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.47s prefill=2122 tok/s decode=55.1 tok/s peak=55.7 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=993 ttft=0.48s prefill=2076 tok/s decode=55.6 tok/s peak=56.7 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=992 ttft=0.48s prefill=2076 tok/s decode=54.8 tok/s peak=55.6 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=1.71s prefill=2385 tok/s decode=53.3 tok/s peak=53.9 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4088 ttft=1.70s prefill=2401 tok/s decode=53.5 tok/s peak=54.1 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=1.72s prefill=2384 tok/s decode=53.6 tok/s peak=54.3 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16654 ttft=7.01s prefill=2377 tok/s decode=52.1 tok/s peak=52.5 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16657 ttft=7.01s prefill=2377 tok/s decode=50.7 tok/s peak=51.3 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16656 ttft=7.03s prefill=2370 tok/s decode=50.5 tok/s peak=51.1 tok/s out=128
+# localeval: adhoc — 2026-10-22T05:13
+
+- model: `llamacpp` on ? (?), url `http://spark-4e77:8400/v1`
+- thinking: off; run kind: speed; label: fx3-35b-llamacpp-p1-speed
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1f24e53
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8400/v1 --model llamacpp --thinking off --label fx3-35b-llamacpp-p1-speed --sizes 128,1024,4096,16384 --gen 128 --reps 3`
+- result file: `results/20261022-051334-adhoc-fx3-35b-llamacpp-p1-speed/result.json`
+
+## Speed sweep
+
+served `llamacpp`, fingerprint `b1-7170cad`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 113 | 0.17 | 655 (630–659) * | - | 55.4 (55.0–55.5) | 56.0 (55.8–56.1) | 715 | 55.4 | 128 |
+| 992 | 0.48 | 2076 (2076–2122) * | 2872 | 55.1 (54.8–55.6) | 55.7 (55.6–56.7) | 2147 | 55.1 | 128 |
+| 4088 | 1.71 | 2385 (2384–2401) | 2505 | 53.5 (53.3–53.6) | 54.1 (53.9–54.3) | 2419 | 53.5 | 128 |
+| 16656 | 7.01 | 2377 (2370–2377) | 2374 | 50.7 (50.5–52.1) | 51.3 (51.1–52.5) | 2392 | 50.7 | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-051334-adhoc-fx3-35b-llamacpp-p1-speed/result.json
+[localeval] logged to unanimis: a27d9480-a483-495b-9d7d-c115b8b1cd95

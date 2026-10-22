@@ -1,0 +1,26 @@
+fleetq: #3944 waiting (#2 in line): in line behind #3943 "fx3 8B standings pass p1 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3943 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3943 set, or it will wait for #3943 to be released.
+fleetq: #3944 waiting (#1 in line): spark2 is held exclusively by #3943 "fx3 8B standings pass p1 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3)
+fleetq:   #3943 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3943 set, or it will wait for #3943 to be released.
+fleetq: #3944 running on spark2: env HOST=spark2 MACHINE=spark-fa00 MODEL=8b PASS=p2 'ARMS=llamacpp16 llamacpp sglang vllm intarsia' PHASES=speed,conc MINGB=30 scripts/standings-fx3/window.sh
+[04:42:37] pass p2 model=8b host=spark2 arms=[llamacpp16 llamacpp sglang vllm intarsia] phases=speed,conc job=3944
+[04:42:42] == arm llamacpp16 (MemAvailable 54 GB)
+[04:43:04]   llamacpp16 ready after 20s
+[04:43:05]   conc exit=2
+[04:43:11] == arm llamacpp (MemAvailable 54 GB)
+cat: /home/nvidia/fx3/run/server.pid: No such file or directory
+[04:43:18]   llamacpp process/container died while starting
+[04:43:18] FAIL llamacpp did not come up
+[04:43:23] == arm sglang (MemAvailable 54 GB)
+[04:43:40]   sglang process/container died while starting
+[04:43:40] FAIL sglang did not come up
+[04:43:44] == arm vllm (MemAvailable 54 GB)
+[04:44:02]   vllm process/container died while starting
+[04:44:02] FAIL vllm did not come up
+[04:44:06] == arm intarsia (MemAvailable 54 GB)
+[04:45:28]   intarsia ready after 75s
+[04:46:53]   speed exit=0
+[04:50:06]   conc exit=0
+scripts/standings-fx3/window.sh: line 124: unexpected EOF while looking for matching `''
+scripts/standings-fx3/window.sh: line 128: syntax error: unexpected end of file
+fleetq: #3944 done (exit 2)

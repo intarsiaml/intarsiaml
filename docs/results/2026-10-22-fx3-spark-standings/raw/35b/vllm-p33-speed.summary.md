@@ -1,0 +1,29 @@
+# localeval: adhoc — 2026-10-22T06:46
+
+- model: `guidance` on ? (?), url `http://spark-4e77:8000/v1`
+- thinking: off; run kind: speed; label: fx3-35b-vllm-p33-speed
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1f24e53
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8000/v1 --model guidance --thinking off --label fx3-35b-vllm-p33-speed --sizes 128,1024,4096,16384 --gen 128 --reps 3`
+- result file: `results/20261022-064653-adhoc-fx3-35b-vllm-p33-speed/result.json`
+
+## Speed sweep
+
+served `guidance`, fingerprint `vllm-0.26.1rc1.dev602+g65b7662d3-a11d7492`, ctx 32768, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.09 | 1247 (1217–1256) * | - | 75.1 (74.9–75.1) | 75.8 (75.7–76.6) | - | - | 128 |
+| 991 | 0.19 | 5160 (5135–5163) * | 8618 | 76.6 (76.3–76.8) | 77.7 (77.4–77.9) | - | - | 128 |
+| 4090 | 0.65 | 6318 (6175–6343) | 6811 | 75.5 (75.5–75.5) | 76.0 (75.9–76.4) | - | - | 128 |
+| 16654 | 2.67 | 6240 (6236–6266) | 6217 | 72.6 (72.5–72.8) | 73.5 (73.1–74.2) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.

@@ -1,0 +1,9 @@
+fleetq: #3925 running on spark2: scripts/cuda-decode/build.sh fx3-main
+stamp: head=45dd97f code-tree=bf68c5223cb3 dirty=no
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 48.99s
+-rwxrwxr-x 2 nvidia nvidia 52575704 Oct 22 04:11 /home/nvidia/intarsia-decfuse/fx3-main/target/acc/release/intarsia
+fleetq: #3925 done (exit 0)
