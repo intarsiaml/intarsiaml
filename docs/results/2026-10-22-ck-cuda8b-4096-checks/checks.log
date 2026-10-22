@@ -1,0 +1,12 @@
+built main: intarsia 0.0.1
+built br: intarsia 0.0.1
+plan 35 diff exit 0 (0 lines)
+plan 8 diff exit 0 (0 lines)
+gen 20000 main: finish=length prompt=5686 (cached 0) completion=64 | prefill 2764 ms (2057.3 tok/s) | deco ids md5 c2e98162 prefill chunk 256 (default)
+gen 20000 br: finish=length prompt=5686 (cached 0) completion=64 | prefill 2575 ms (2208.5 tok/s) | deco ids md5 c2e98162 prefill chunk 256 (default)
+  20000: ids identical
+gen 54000 main: finish=length prompt=15652 (cached 0) completion=64 | prefill 7267 ms (2153.9 tok/s) | dec ids md5 ac7cc4a7 prefill chunk 256 (default)
+gen 54000 br: finish=length prompt=15652 (cached 0) completion=20 | prefill 7240 ms (2161.8 tok/s) | dec ids md5 a82f93f4 prefill chunk 256 (default)
+  54000: ids DIFFER
+accuracy short branch exit 1: prefill chunk 256 (default) prefill chunk 256; longest prompt 90; prompts spanning more than one chunk: 0/8 WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts 
+accuracy 4k branch exit 1: prefill chunk 256 (default) prefill chunk 256; longest prompt 4557; prompts spanning more than one chunk: 3/3 prefill chunk 256 (default); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, recipe qwen3): 0.25 nats, KL 1e-2 
