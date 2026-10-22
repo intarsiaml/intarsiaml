@@ -88,3 +88,7 @@ The built-in 0.25 nats / 1e-2 are exceeded by the numbers of every `continue` ca
 
 * Expect a textual conflict with PR #66 (F2) in `accuracy.rs` (it adds `--reuse-sweep` in the same file); not a semantic one.
 * `qualify` on the 35B now reads FAIL at the reuse run until the tolerance decision or the decode-vs-prefill deviation is resolved.
+
+## 7. Follow-up (lane fx5b)
+
+The teacher-forced rerun of the `continue` check was tried in diagnostic form: the 35B deviation survives it (KL max 8.5e-2 on the cold context), and the judge already scores only shared-context rows, so the check was not changed. See `2026-10-22-fx5b-continue-teacher-forced.md`.
