@@ -214,6 +214,27 @@ pub struct AccuracyArgs {
     /// the engine's own traced rows.
     #[arg(long)]
     pub reuse_diag: bool,
+    /// Reuse mode, with `--reuse-diag` (lane fx5c): write the `continue` diagnostic's teacher-forced logits rows (full
+    /// vocabulary, raw little-endian f32, `rows x vocab`: `cold`, `warm`, `warm_pf`, and the engine's own `cold_engine` when
+    /// its stream equals the forced one) and the token sequence (`seq.json`) to this directory, then exit. Measurement only:
+    /// the rows are scored against a CPU oracle outside the gate.
+    #[arg(long)]
+    pub reuse_dump: Option<PathBuf>,
+    /// Reuse mode, with `--reuse-diag --reuse-dump`: teacher-force the `seq.json` of another run (possibly another backend)
+    /// instead of this engine's own reply and cold stream, so that two backends and an oracle see the same tokens.
+    #[arg(long)]
+    pub reuse_seq: Option<PathBuf>,
+    /// Reuse mode, `continue` case (lane fx5c): directory of committed `continue` oracles
+    /// (`*.continue-oracle.safetensors`: a frozen token list and the CPU f64 oracle's top-64 rows for it). Searched in
+    /// order: this flag, `$INTARSIA_REUSE_ORACLE_DIR`, `oracle/` beside the golden file, `golden/oracle/`. When one matches
+    /// the golden's model, prompt, split and token ids, `continue` is judged against the oracle (mean KL(oracle || warm)
+    /// <= 1.5 x mean KL(oracle || cold) + 3e-3); otherwise by the absolute stream tolerance. `restore` and `aligned` are
+    /// always judged absolutely.
+    #[arg(long)]
+    pub reuse_oracle_dir: Option<PathBuf>,
+    /// Reuse mode: ignore committed `continue` oracles (judge `continue` by the absolute stream tolerance).
+    #[arg(long)]
+    pub no_reuse_oracle: bool,
     /// Reuse mode: judge only these prompts (comma separated names).
     #[arg(long, value_delimiter = ',')]
     pub reuse_prompt: Vec<String>,
@@ -233,6 +254,17 @@ pub struct AccuracyArgs {
     /// execute the same operations as the cold run, so its logits must equal the cold run's bit for bit (no tolerance).
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub reuse_exact: bool,
+    /// Reuse mode: a prompt skipped because it cannot cross a prefill-chunk boundary (shorter than the chunk) FAILS the gate
+    /// instead of being reported and left out. `qualify` sets it, with a chunk of at most 1024, so that a reuse gate which
+    /// tested only some of the golden's prompts is never a pass.
+    #[arg(long)]
+    pub reuse_require_all: bool,
+    /// Reuse mode: for every `continue` and unaligned `restore` case print the largest top-5 log-probability difference
+    /// (`nu`, nats) and KL(cold || warm) between the warm and the cold run over the rows that share a context (up to the
+    /// first divergence), whether or not the streams diverged. The numbers a `reuse_logit_tol` / `reuse_kl_tol` is derived
+    /// from (docs/accuracy.md). Costs two more generations per case; changes no verdict.
+    #[arg(long)]
+    pub reuse_measure: bool,
     /// Quick gate: maximum perplexity on the fixed text.
     #[arg(long, default_value_t = 40.0)]
     pub max_ppl: f64,
@@ -1613,6 +1645,17 @@ fn script_rows(engine: &dyn Engine, before: Vec<ScriptStep>, turn2: &[u32], cach
     Ok(last_rows(engine.forward_script(&steps).map_err(|e| anyhow!("{e}"))?, m))
 }
 
+/// The two teacher-forced row sets of the `continue` comparison, both on `stream`: `cold` (a full chunked prefill of
+/// `turn2`) and `warm` (turn 1 prefilled, the reply tokens `fed` decoded one at a time, then `turn2` resumed at `cached`).
+#[allow(clippy::too_many_arguments)]
+fn continue_rows(engine: &dyn Engine, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, stream: &[u32], m: usize) -> Result<(Vec<Vec<f32>>, Vec<Vec<f32>>)> {
+    let mut before = prefill_steps(turn1, 0, chunk);
+    before.extend(fed.iter().map(|&t| ScriptStep { ids: vec![t], logits: true, truncate: None }));
+    let cold = script_rows(engine, Vec::new(), turn2, 0, chunk, stream, m)?;
+    let warm = script_rows(engine, before, turn2, cached, chunk, stream, m)?;
+    Ok((cold, warm))
+}
+
 fn print_cmp(label: &str, c: &RowsCmp) {
     println!(
         "    {label:<44} rows {:>3}  bitwise {:>3}  argmax flips {:>2}  KL mean {:.2e} max {:.2e}  max|dlogit| {:.3e}",
@@ -1620,12 +1663,81 @@ fn print_cmp(label: &str, c: &RowsCmp) {
     );
 }
 
+/// Where `--reuse-diag` writes its rows (`--reuse-dump`) and reads the sequence to force (`--reuse-seq`).
+#[derive(Default)]
+struct DiagIo<'a> {
+    dump: Option<&'a Path>,
+    seq: Option<&'a Path>,
+}
+
+fn write_rows(path: &Path, rows: &[Vec<f32>]) -> Result<()> {
+    let mut buf = Vec::with_capacity(rows.iter().map(|r| r.len() * 4).sum());
+    for r in rows {
+        for x in r {
+            buf.extend_from_slice(&x.to_le_bytes());
+        }
+    }
+    std::fs::write(path, buf).with_context(|| format!("writing {}", path.display()))
+}
+
+/// `--reuse-dump`: the rows of the teacher-forced `continue` comparison, written for offline scoring against an oracle, then
+/// the process exits (nothing else of the gate is wanted). The sequence is `turn2` followed by `stream[..m-1]`; row `j` is the
+/// distribution at position `turn2.len() - 1 + j`. `seq` replaces the engine's own reply and cold stream with another run's.
+#[allow(clippy::too_many_arguments)]
+fn reuse_dump(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, m: usize, dir: &Path, seq: Option<&Path>) -> Result<()> {
+    let ids = |v: &Value| -> Result<Vec<u32>> { v.as_array().ok_or_else(|| anyhow!("seq.json: not an array"))?.iter().map(|x| x.as_u64().map(|x| x as u32).ok_or_else(|| anyhow!("seq.json: bad id"))).collect() };
+    let forced: Option<(Vec<u32>, Vec<u32>, Vec<u32>, usize, usize)> = match seq {
+        Some(p) => {
+            let v: Value = serde_json::from_slice(&std::fs::read(p).with_context(|| format!("reading {}", p.display()))?)?;
+            let n = |k: &str| v[k].as_u64().map(|x| x as usize).ok_or_else(|| anyhow!("seq.json: no {k}"));
+            Some((ids(&v["turn2"])?, ids(&v["fed"])?, ids(&v["stream"])?, n("split")?, n("cached")?))
+        }
+        None => None,
+    };
+    let (turn2, fed, split, cached) = match &forced {
+        Some((t2, f, _, sp, c)) => (&t2[..], &f[..], *sp, *c),
+        None => (turn2, fed, turn1.len(), cached),
+    };
+    let turn1 = &turn2[..split];
+    // the engine's own cold run: its stream is the one to force unless another run's is given
+    let flush = || flush_cache(engine, turn2[0], vocab);
+    flush()?;
+    let t = Arc::new(Mutex::new(Vec::<Vec<f32>>::new()));
+    let (own, _) = gen_tokens_traced(engine, turn2.to_vec(), m, Some(t.clone()))?;
+    let own_rows = t.lock().unwrap().clone();
+    let stream: Vec<u32> = forced.as_ref().map_or_else(|| own.clone(), |f| f.2.clone());
+    let (cold_s, warm_s) = continue_rows(engine, chunk, turn1, fed, turn2, cached, &stream, m)?;
+    let mut prefilled = prefill_steps(&turn2[..cached], 0, chunk);
+    prefilled.last_mut().unwrap().logits = false;
+    let warm_pf = script_rows(engine, prefilled, turn2, cached, chunk, &stream, m)?;
+    std::fs::create_dir_all(dir)?;
+    write_rows(&dir.join("cold.f32"), &cold_s)?;
+    write_rows(&dir.join("warm.f32"), &warm_s)?;
+    write_rows(&dir.join("warm_pf.f32"), &warm_pf)?;
+    let same = own == stream;
+    if same {
+        write_rows(&dir.join("cold_engine.f32"), &own_rows)?;
+    }
+    let seq_json = serde_json::json!({
+        "turn2": turn2, "fed": fed, "stream": stream, "split": split, "cached": cached, "m": m, "vocab": vocab, "chunk": chunk,
+        "row0": turn2.len() - 1, "own_cold_stream": own, "cold_engine_written": same, "forced": seq.is_some(),
+    });
+    std::fs::write(dir.join("seq.json"), serde_json::to_vec(&seq_json)?)?;
+    print_cmp("dump: warm vs cold (KL(warm||cold))", &cmp_rows(&warm_s, &cold_s));
+    print_cmp("dump: warm_pf vs cold", &cmp_rows(&warm_pf, &cold_s));
+    println!("    dump: wrote {} (rows {m}, vocab {vocab}, turn2 {}, cached {cached}, split {split}, own cold stream == forced stream: {same})", dir.display(), turn2.len());
+    std::process::exit(0);
+}
+
 /// `--reuse-diag` for one comparison. `turn1` is the first request's prompt, `fed` the tokens of its reply that went
 /// through the model (the last generated token never does), `turn2` the second request, `cached` the tokens the
 /// engine reused for it. The engine's own traced rows (generate) are compared with `forward_script` replays; all
 /// replays are teacher-forced on the cold stream so that their rows share one context.
 #[allow(clippy::too_many_arguments)]
-fn reuse_diag(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, m: usize) -> Result<()> {
+fn reuse_diag(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, m: usize, io: &DiagIo) -> Result<()> {
+    if let Some(dir) = io.dump {
+        return reuse_dump(engine, vocab, chunk, turn1, fed, turn2, cached, m, dir, io.seq);
+    }
     let flush = || flush_cache(engine, turn2[0], vocab);
     let tr = || Arc::new(Mutex::new(Vec::<Vec<f32>>::new()));
     let take = |t: &Arc<Mutex<Vec<Vec<f32>>>>| t.lock().unwrap().clone();
@@ -1689,6 +1801,240 @@ fn reuse_diag(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fe
         );
     }
     Ok(())
+}
+
+// ---- the oracle-relative `continue` rule (lane fx5c)
+
+/// `continue` passes when `mean KL(oracle || warm) <= REUSE_ORACLE_RATIO x mean KL(oracle || cold) + REUSE_ORACLE_FLOOR`, the means
+/// over the teacher-forced rows. Fixed constants of the gate, never derived from the run being judged. The ratio is the user's
+/// 1.5x. The floor is the disagreement between two runs of the oracle itself: the f64 CPU oracle made on spark1 and the one made on
+/// endor differ by KL 3.1e-3 on the 2000 rows they share (docs/results/2026-10-22-fx5c-reuse-vs-oracle.md), so a warm-vs-cold
+/// difference below that cannot be told from oracle noise. Measured: warm 0.83x (CUDA) and 1.09x (Metal) of cold.
+const REUSE_ORACLE_RATIO: f64 = 1.5;
+const REUSE_ORACLE_FLOOR: f64 = 3e-3;
+const CONTINUE_ORACLE_FORMAT: &str = "intarsia-continue-oracle-v1";
+const CONTINUE_ORACLE_SUFFIX: &str = ".continue-oracle.safetensors";
+
+/// FNV-1a over the token ids: identifies the golden prompt a committed oracle was made for.
+fn ids_fingerprint(ids: &[u32]) -> String {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for &t in ids {
+        for b in t.to_le_bytes() {
+            h = (h ^ b as u64).wrapping_mul(0x100000001b3);
+        }
+    }
+    format!("{h:016x}")
+}
+
+/// A committed `continue` oracle: the reply and the 32 generated tokens that were frozen, and the CPU oracle's top-k rows for
+/// positions `len(turn2) - 1 ..` of `turn2 + stream` (row `j` is the distribution `stream[j]` is sampled from).
+#[derive(Debug, Clone)]
+struct ContinueOracle {
+    path: PathBuf,
+    split: usize,
+    reply: Vec<u32>,
+    stream: Vec<u32>,
+    ids: Vec<i32>,
+    lps: Vec<f32>,
+    k: usize,
+}
+
+impl ContinueOracle {
+    fn open(path: &Path) -> Result<(ContinueOracle, HashMap<String, String>)> {
+        let f = Golden::open(path)?;
+        if f.meta.get("format").map(String::as_str) != Some(CONTINUE_ORACLE_FORMAT) {
+            bail!("{}: not a {CONTINUE_ORACLE_FORMAT} file", path.display());
+        }
+        let list = |k: &str| -> Result<Vec<u32>> {
+            let v: Value = serde_json::from_str(f.meta.get(k).ok_or_else(|| anyhow!("{}: no `{k}`", path.display()))?)?;
+            v.as_array().ok_or_else(|| anyhow!("{k}: not a list"))?.iter().map(|x| x.as_u64().map(|x| x as u32).ok_or_else(|| anyhow!("{k}: bad id"))).collect()
+        };
+        let split = f.meta.get("split").and_then(|s| s.parse().ok()).ok_or_else(|| anyhow!("{}: no `split`", path.display()))?;
+        let (reply, stream) = (list("reply")?, list("stream")?);
+        let (ib, ishape) = f.raw("topk_ids", "I32")?;
+        let (lb, lshape) = f.raw("topk_logprobs", "F32")?;
+        if ishape.len() != 2 || ishape != lshape || ishape[0] != stream.len() {
+            bail!("{}: topk shapes {ishape:?} / {lshape:?} for {} stream tokens", path.display(), stream.len());
+        }
+        let o = ContinueOracle {
+            path: path.to_path_buf(),
+            split,
+            reply,
+            stream,
+            ids: ib.chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap())).collect(),
+            lps: lb.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect(),
+            k: ishape[1],
+        };
+        Ok((o, f.meta))
+    }
+
+    fn rows(&self) -> usize {
+        self.stream.len()
+    }
+
+    /// Row `j` of the oracle: ids (best first, -1 padded) and log-probs.
+    fn row(&self, j: usize) -> (&[i32], &[f32]) {
+        (&self.ids[j * self.k..(j + 1) * self.k], &self.lps[j * self.k..(j + 1) * self.k])
+    }
+
+    /// The frozen second request: turn-1 prompt, the frozen reply, the rest of the prompt.
+    fn turn2(&self, prompt: &[u32]) -> Vec<u32> {
+        let mut t = prompt[..self.split].to_vec();
+        t.extend_from_slice(&self.reply);
+        t.extend_from_slice(&prompt[self.split..]);
+        t
+    }
+}
+
+/// The directories searched for committed `continue` oracles, in order.
+fn continue_oracle_dirs(flag: Option<&Path>, golden: &Path) -> Vec<PathBuf> {
+    let mut v: Vec<PathBuf> = Vec::new();
+    v.extend(flag.map(Path::to_path_buf));
+    if let Some(d) = std::env::var_os("INTARSIA_REUSE_ORACLE_DIR").filter(|d| !d.is_empty()) {
+        v.push(PathBuf::from(d));
+    }
+    if let Some(d) = golden.parent() {
+        v.push(d.join("oracle"));
+    }
+    v.push(PathBuf::from("golden/oracle"));
+    v
+}
+
+/// The committed oracle for `prompt` (name and token ids) of the golden `model`, frozen at `split`; with a note for every
+/// file of that prompt that was passed over and why.
+fn find_continue_oracle(dirs: &[PathBuf], model: Option<&str>, prompt: &str, prompt_ids: &[u32], split: usize) -> (Option<ContinueOracle>, Vec<String>) {
+    let mut notes = Vec::new();
+    let fp = ids_fingerprint(prompt_ids);
+    for d in dirs {
+        let Ok(rd) = std::fs::read_dir(d) else { continue };
+        let mut files: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.ends_with(CONTINUE_ORACLE_SUFFIX))).collect();
+        files.sort();
+        for f in files {
+            let (o, meta) = match ContinueOracle::open(&f) {
+                Ok(x) => x,
+                Err(e) => {
+                    notes.push(format!("{}: {e}", f.display()));
+                    continue;
+                }
+            };
+            let mm = |k: &str| meta.get(k).map(String::as_str);
+            if mm("prompt") != Some(prompt) {
+                continue;
+            }
+            let why = if model.is_some() && mm("model") != model {
+                Some(format!("made for model {:?}, the golden is {model:?}", mm("model")))
+            } else if o.split != split {
+                Some(format!("frozen at split {}, this run splits at {split}", o.split))
+            } else if mm("prompt_ids_fingerprint") != Some(fp.as_str()) {
+                Some("the golden's prompt token ids differ from the ones it was made for".to_string())
+            } else if o.split + o.reply.len() > prompt_ids.len() + o.reply.len() {
+                Some("split beyond the prompt".to_string())
+            } else {
+                None
+            };
+            match why {
+                None => return (Some(o), notes),
+                Some(w) => notes.push(format!("{}: not used, {w}", f.display())),
+            }
+        }
+    }
+    (None, notes)
+}
+
+/// KL(oracle || engine) in nats over the oracle's top-k ids plus one tail bucket (the quantity `accuracy` gates and FX1 scaled):
+/// the oracle's tail is `1 - sum(top-k)`, the engine's the softmax mass outside the same ids. `ids` are -1 padded.
+fn kl_oracle_row(ids: &[i32], lps: &[f32], engine: &[f32]) -> f64 {
+    let lq = log_softmax(engine);
+    let (mut kl, mut psum, mut qsum) = (0.0f64, 0.0f64, 0.0f64);
+    for (&i, &lp) in ids.iter().zip(lps) {
+        if i < 0 {
+            continue;
+        }
+        let (p, lpf) = ((lp as f64).exp(), lp as f64);
+        let lqi = lq[i as usize];
+        psum += p;
+        qsum += lqi.exp();
+        kl += p * (lpf - lqi);
+    }
+    let (ptail, qtail) = ((1.0 - psum).max(0.0), (1.0 - qsum).max(0.0));
+    if ptail > 1e-12 {
+        kl += ptail * (ptail.ln() - qtail.max(1e-300).ln());
+    }
+    kl.max(0.0)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct OracleVerdict {
+    cold: f64,
+    warm: f64,
+    limit: f64,
+    ok: bool,
+}
+
+impl OracleVerdict {
+    fn ratio(&self) -> f64 {
+        self.warm / self.cold
+    }
+    fn describe(&self) -> String {
+        format!(
+            "mean KL(oracle||cold) {:.2e}, mean KL(oracle||warm) {:.2e}, warm/cold {:.2}x; limit {REUSE_ORACLE_RATIO}x cold + {REUSE_ORACLE_FLOOR:.0e} = {:.2e}: {}",
+            self.cold,
+            self.warm,
+            self.ratio(),
+            self.limit,
+            if self.ok { "PASS" } else { "FAIL" }
+        )
+    }
+}
+
+/// Judge per-row KL(oracle || cold) and KL(oracle || warm). Non-finite or empty input fails.
+fn judge_oracle_relative(cold: &[f64], warm: &[f64]) -> OracleVerdict {
+    let mean = |v: &[f64]| if v.is_empty() { f64::NAN } else { v.iter().sum::<f64>() / v.len() as f64 };
+    let (c, w) = (mean(cold), mean(warm));
+    let limit = REUSE_ORACLE_RATIO * c + REUSE_ORACLE_FLOOR;
+    OracleVerdict { cold: c, warm: w, limit, ok: c.is_finite() && w.is_finite() && cold.len() == warm.len() && w <= limit }
+}
+
+/// How a `continue`-family case is judged: against the oracle, or by the absolute stream tolerance.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ContinueJudge {
+    Oracle,
+    Absolute,
+}
+
+/// Only `continue`, and only with a matching committed oracle, is judged against it. `restore` and `aligned` keep the strict
+/// absolute rule (a restore bug moves the logits by far more than the oracle's noise, and the exact cases are bit-checked).
+fn continue_judge(case: &str, oracle: Option<&ContinueOracle>) -> ContinueJudge {
+    if case == "continue" && oracle.is_some() {
+        ContinueJudge::Oracle
+    } else {
+        ContinueJudge::Absolute
+    }
+}
+
+/// Test-only fault injection: `INTARSIA_REUSE_TEST_BUG=scale:F` multiplies every logit of the warm rows by `F` before they are
+/// judged, standing in for a numerical error confined to the resumed path. Unset in every real run.
+fn reuse_test_bug() -> Option<f32> {
+    parse_test_bug(&std::env::var("INTARSIA_REUSE_TEST_BUG").ok()?)
+}
+
+fn parse_test_bug(spec: &str) -> Option<f32> {
+    spec.strip_prefix("scale:")?.parse().ok().filter(|f: &f32| f.is_finite() && *f > 0.0)
+}
+
+/// Judge the `continue` case against `oracle`: score the teacher-forced cold and warm rows of the frozen sequence.
+#[allow(clippy::too_many_arguments)]
+fn judge_continue_oracle(engine: &dyn Engine, chunk: usize, o: &ContinueOracle, turn1: &[u32], turn2: &[u32], m: usize) -> Result<OracleVerdict> {
+    let m = m.min(o.rows());
+    let fed = &o.reply[..o.reply.len().saturating_sub(1)];
+    let cached = o.split + fed.len();
+    let (cold, mut warm) = continue_rows(engine, chunk, turn1, fed, turn2, cached, &o.stream, m)?;
+    if let Some(f) = reuse_test_bug() {
+        eprintln!("INTARSIA_REUSE_TEST_BUG: warm logits x{f}");
+        warm.iter_mut().flatten().for_each(|x| *x *= f);
+    }
+    let kl = |rows: &[Vec<f32>]| -> Vec<f64> { rows.iter().enumerate().map(|(j, r)| { let (ids, lps) = o.row(j); kl_oracle_row(ids, lps, r) }).collect() };
+    Ok(judge_oracle_relative(&kl(&cold), &kl(&warm)))
 }
 
 // ---- the tie-aware agreement criterion
@@ -1847,6 +2193,38 @@ fn judge_streams(
     Ok(StreamVerdict { agree, ok, note: format!("{note}{legacy_note}") })
 }
 
+/// `--reuse-measure` for one case: the rounding scale the warm and cold rows differ by where they share a context.
+/// Prints `REUSE-MEASURE <label> shared_rows N nu_max X kl_max Y [diverged_at D]` (nu: largest |dlog-prob| over either
+/// row's top-5 tokens; kl: KL(cold || warm)), the two quantities the tolerance of [`judge_divergence`] bounds.
+fn reuse_measure(
+    label: &str,
+    rerun: &dyn Fn(bool, Arc<Mutex<Vec<Vec<f32>>>>) -> Result<Vec<u32>>,
+) -> Result<()> {
+    let (tw, tc) = (Arc::new(Mutex::new(Vec::new())), Arc::new(Mutex::new(Vec::new())));
+    let (wt, ct) = (rerun(true, tw.clone())?, rerun(false, tc.clone())?);
+    let (wr, cr) = (tw.lock().unwrap().clone(), tc.lock().unwrap().clone());
+    let avail = wr.len().min(cr.len()).min(wt.len()).min(ct.len());
+    if avail == 0 {
+        println!("    REUSE-MEASURE {label} no traced rows (engine cannot trace logits)");
+        return Ok(());
+    }
+    // rows 0..=d share one context (the streams agree before d); with no divergence every row does
+    let d = first_divergence(&wt, &ct);
+    let shared = d.map_or(avail, |d| (d + 1).min(avail));
+    let nu = (0..shared).map(|j| row_nu(&wr[j], &cr[j])).fold(0.0, f64::max);
+    let kl = (0..shared).map(|j| kl_rows(&cr[j], &wr[j])).fold(0.0, f64::max);
+    println!(
+        "    REUSE-MEASURE {label} shared_rows {shared} nu_max {nu:.4} kl_max {kl:.3e}{}",
+        d.map_or(String::new(), |d| format!(" diverged_at {d}"))
+    );
+    Ok(())
+}
+
+/// Why the gate fails for skipped prompts: under `--reuse-require-all` any prompt that was left out fails it.
+fn skipped_failure(skipped: &[String], require_all: bool) -> Option<String> {
+    (require_all && !skipped.is_empty()).then(|| format!("{} prompt(s) skipped, none of their splits crosses a chunk boundary: {}", skipped.len(), skipped.join(", ")))
+}
+
 /// The split of the reuse cases for a prompt of `n` tokens at prefill chunk `chunk`: turn 1 (`ids[..split]`) must cross a
 /// chunk boundary (`split > chunk`), or the restore never leaves the first chunk and "passes" without testing anything.
 /// The golden's `reuse_split` (or half the prompt) is used when it does; otherwise one and a half chunks, bounded by the
@@ -1899,7 +2277,7 @@ struct ReuseRow {
 /// prompt differently from a cold one (and `continue` reuses rows the decode kernels wrote, which a cold run prefills),
 /// so bf16 rounding can flip a near-tie: a diverging pair is judged on the logits ([`judge_streams`]). A broken restore
 /// moves the logits by far more than rounding and fails at once.
-fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], args: &AccuracyArgs, tol: &ReuseTol) -> Result<(bool, baseline::ReuseSummary)> {
+fn reuse_gate(engine: &dyn Engine, g: &Golden, golden_path: &Path, prompts: &[(String, PromptRef)], args: &AccuracyArgs, tol: &ReuseTol) -> Result<(bool, baseline::ReuseSummary)> {
     let info = engine.info();
     let (chunk, ctx, vocab, m) = (args.model.chunk(), info.context_len, info.vocab, args.reuse_gen.max(1));
     let reply = 16usize;
@@ -1922,7 +2300,10 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
     // `warm` / `cold` runs of one case: (trace) -> (stream, cached); the cold run is preceded by a cache flush
     type Trace = Arc<Mutex<Vec<Vec<f32>>>>;
     type Run<'a> = &'a dyn Fn(Option<Arc<Mutex<Vec<Vec<f32>>>>>) -> Result<(Vec<u32>, usize)>;
-    let judge = |warm_run: Run, cold_run: Run, warm: &[u32], cold: &[u32]| -> Result<StreamVerdict> {
+    let judge = |label: &str, warm_run: Run, cold_run: Run, warm: &[u32], cold: &[u32]| -> Result<StreamVerdict> {
+        if args.reuse_measure {
+            reuse_measure(label, &|is_warm, t| Ok(if is_warm { warm_run(Some(t))?.0 } else { cold_run(Some(t))?.0 }))?;
+        }
         judge_streams(warm, cold, m, args, tol, &|is_warm, t| {
             Ok(if is_warm { warm_run(Some(t))?.0 } else { cold_run(Some(t))?.0 })
         })
@@ -1948,6 +2329,23 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         };
         // ---- continue
         {
+            // a committed oracle for this prompt and split: `continue` is then judged against it, on the frozen token list
+            let (oracle, onotes) = if args.no_reuse_oracle {
+                (None, Vec::new())
+            } else {
+                find_continue_oracle(&continue_oracle_dirs(args.reuse_oracle_dir.as_deref(), golden_path), g.meta_str("model"), name, &p.ids, split)
+            };
+            let oracle = oracle.filter(|o| {
+                let fits = o.split + o.reply.len() + (p.ids.len() - o.split) + m.min(o.rows()) + 8 <= ctx;
+                if !fits {
+                    println!("{name}: committed continue oracle {} not used, the frozen sequence does not fit the {ctx}-token context", o.path.display());
+                }
+                fits
+            });
+            for n in &onotes {
+                println!("{name}: committed continue oracle {n}");
+            }
+            let judged_by = continue_judge("continue", oracle.as_ref());
             let run = || -> Result<ReuseRow> {
                 flush_cache(engine, p.ids[0], vocab)?;
                 let (reply_toks, _) = gen_tokens(engine, p.ids[..split].to_vec(), reply)?;
@@ -1966,7 +2364,19 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 };
                 let (warm, cached) = gen_tokens(engine, turn2.clone(), m)?;
                 let (cold, cold_cached) = cold_run(None)?;
-                let v = judge(&warm_run, &cold_run, &warm, &cold)?;
+                let v = match (judged_by, &oracle) {
+                    (ContinueJudge::Oracle, Some(o)) => {
+                        // the engine runs above (cached / cold_cached, the streams) keep the engine's own reply, so that the reuse check
+                        // still means "the engine reuses what it holds"; only the scored rows use the frozen reply and stream
+                        let mut frozen = o.turn2(&p.ids);
+                        frozen.truncate(ctx.saturating_sub(m + 8));
+                        let ov = judge_continue_oracle(engine, chunk, o, &p.ids[..split], &frozen, m)?;
+                        let file = o.path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                        println!("    continue judged against the committed CPU oracle {file}: {}", ov.describe());
+                        StreamVerdict { agree: first_divergence(&warm, &cold).unwrap_or(m), ok: ov.ok, note: format!("oracle-relative: {}", ov.describe()) }
+                    }
+                    _ => judge(&format!("{name} continue split {split}"), &warm_run, &cold_run, &warm, &cold)?,
+                };
                 let ok = cached >= split && cold_cached == 0 && v.ok;
                 let note = if cached < split {
                     format!("reuse covered {cached} < the {split} tokens of turn 1")
@@ -1978,7 +2388,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 if args.reuse_diag {
                     println!("{name} continue split {split} turn2 {} cached {cached} agree {}/{m}", turn2.len(), v.agree);
                     let fed = &reply_toks[..reply_toks.len().saturating_sub(1)];
-                    reuse_diag(engine, vocab, chunk, &p.ids[..split], fed, &turn2, cached, m)?;
+                    reuse_diag(engine, vocab, chunk, &p.ids[..split], fed, &turn2, cached, m, &DiagIo { dump: args.reuse_dump.as_deref(), seq: args.reuse_seq.as_deref() })?;
                 }
                 Ok(ReuseRow { prompt: name.clone(), case: "continue", split, turn2: turn2.len(), cached, cold_cached, agree: v.agree, of: m, ok, note })
             };
@@ -2041,7 +2451,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                         StreamVerdict { agree: first_divergence(&warm, &cold).unwrap_or(m), ok: false, note: String::new() }
                     }
                 } else {
-                    judge(&warm_run, &cold_run, &warm, &cold)?
+                    judge(&format!("{name} {case} split {s}"), &warm_run, &cold_run, &warm, &cold)?
                 };
                 // on a chunk boundary the whole prefix must be reused: a lost snapshot would still give equal rows
                 let reused_ok = if bits { cached == s } else { cached > 0 && cached <= s };
@@ -2061,12 +2471,12 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 } else {
                     v.note.clone()
                 };
-                if args.reuse_diag && case == "restore" {
+                if args.reuse_diag && case == "restore" && args.reuse_dump.is_none() {
                     println!("{name} restore split {s} turn2 {} cached {cached} agree {}/{m}", turn2.len(), v.agree);
                     // turn 1 generated 4 tokens; the first 3 went through the model (the 4th was never fed)
                     flush_cache(engine, p.ids[0], vocab)?;
                     let (t1, _) = gen_tokens(engine, turn1.clone(), 4)?;
-                    reuse_diag(engine, vocab, chunk, &turn1, &t1[..t1.len().saturating_sub(1)], &turn2, cached, m)?;
+                    reuse_diag(engine, vocab, chunk, &turn1, &t1[..t1.len().saturating_sub(1)], &turn2, cached, m, &DiagIo::default())?;
                 }
                 Ok(ReuseRow { prompt: name.clone(), case, split: s, turn2: turn2.len(), cached, cold_cached, agree: v.agree, of: m, ok, note })
             };
@@ -2100,6 +2510,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         ran: ran.clone(),
         skipped: skipped.clone(),
     };
+    println!("prefix reuse: {} prompt(s) judged, {} skipped", ran.len(), skipped.len());
     if !skipped.is_empty() {
         println!(
             "prefix reuse: {} prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk {chunk} ({}): {}; {} judged",
@@ -2115,7 +2526,11 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         );
         return Ok((false, summary(false)));
     }
-    let ok = rows.iter().all(|r| r.ok);
+    let mut ok = rows.iter().all(|r| r.ok);
+    if let Some(why) = skipped_failure(&skipped, args.reuse_require_all) {
+        println!("prefix-reuse gate: FAIL (--reuse-require-all: {why}; a smaller --prefill-chunk or a golden of longer prompts)");
+        ok = false;
+    }
     println!("prefix-reuse gate: {}", if ok { "PASS" } else { "FAIL" });
     Ok((ok, summary(ok)))
 }
@@ -2618,7 +3033,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
     let mut reuse_ok = true;
     let mut reuse_summary: Option<baseline::ReuseSummary> = None;
     if want_reuse {
-        let (ok, summary) = reuse_gate(engine, &g, &prompts, args, &resolve_reuse_tol(args, &g, recipe.as_ref())?)?;
+        let (ok, summary) = reuse_gate(engine, &g, &path, &prompts, args, &resolve_reuse_tol(args, &g, recipe.as_ref())?)?;
         reuse_ok = ok;
         reuse_summary = Some(summary);
     }
@@ -3237,6 +3652,15 @@ mod tests {
     }
 
     #[test]
+    fn a_skipped_prompt_fails_the_reuse_gate_only_when_all_are_required() {
+        let sk = vec!["long_docs_4k".to_string(), "chat_reuse_4k".to_string()];
+        assert_eq!(skipped_failure(&sk, false), None);
+        assert_eq!(skipped_failure(&[], true), None);
+        let why = skipped_failure(&sk, true).unwrap();
+        assert!(why.starts_with("2 prompt(s) skipped") && why.contains("long_docs_4k, chat_reuse_4k"), "{why}");
+    }
+
+    #[test]
     fn the_reuse_split_crosses_a_chunk_boundary_or_the_prompt_is_skipped() {
         // the golden's split is used when it is above one chunk (chat_reuse_4k of the 35B golden at the HIP chunk)
         assert_eq!(reuse_split(4521, 4631, 4096), Ok(4521));
@@ -3404,5 +3828,139 @@ mod tests {
         assert!((v.factor_needed.unwrap() - kl / noise).abs() < 1e-12 && v.factor_needed.unwrap() > 1.68);
         // against the noise alone (no static floor) the same run needs a factor of 1.69
         assert!(!refnoise::judge_kl("prefill", "21-way KL", kl, None, Some(term), 1.0, "default").unwrap().pass);
+    }
+
+    // ---- the oracle-relative `continue` rule (fx5c)
+
+    /// A `continue` oracle file for the tests: `rows` stream tokens, top-`k` rows from `lps`.
+    fn write_continue_oracle(dir: &std::path::Path, file: &str, model: &str, prompt: &str, split: usize, prompt_ids: &[u32], rows: usize) -> std::path::PathBuf {
+        let k = 4usize;
+        let ids: Vec<i32> = (0..rows).flat_map(|_| 0..k as i32).collect();
+        let lps: Vec<f32> = (0..rows).flat_map(|_| [0.4f32, 0.3, 0.2, 0.05].map(f32::ln)).collect();
+        let bytes = |v: Vec<[u8; 4]>| v.concat();
+        let ib = bytes(ids.iter().map(|x| x.to_le_bytes()).collect());
+        let lb = bytes(lps.iter().map(|x| x.to_le_bytes()).collect());
+        let header = serde_json::json!({
+            "__metadata__": {
+                "format": super::CONTINUE_ORACLE_FORMAT, "model": model, "prompt": prompt, "split": split.to_string(),
+                "reply": "[7, 8, 9]", "stream": serde_json::to_string(&(100..100 + rows as u32).collect::<Vec<_>>()).unwrap(),
+                "prompt_ids_fingerprint": super::ids_fingerprint(prompt_ids),
+            },
+            "topk_ids": {"dtype": "I32", "shape": [rows, k], "data_offsets": [0, ib.len()]},
+            "topk_logprobs": {"dtype": "F32", "shape": [rows, k], "data_offsets": [ib.len(), ib.len() + lb.len()]},
+        });
+        let mut h = serde_json::to_vec(&header).unwrap();
+        h.resize(h.len().div_ceil(8) * 8, b' ');
+        let mut out = (h.len() as u64).to_le_bytes().to_vec();
+        out.extend(h);
+        out.extend(ib);
+        out.extend(lb);
+        std::fs::create_dir_all(dir).unwrap();
+        let path = dir.join(file);
+        std::fs::write(&path, out).unwrap();
+        path
+    }
+
+    #[test]
+    fn oracle_relative_warm_1_4x_passes_and_1_6x_fails() {
+        // cold 5e-2: limit 1.5 x 5e-2 + 3e-3 = 7.8e-2
+        let cold = vec![0.05; 32];
+        let v14 = super::judge_oracle_relative(&cold, &vec![0.05 * 1.4; 32]);
+        assert!(v14.ok, "{}", v14.describe());
+        assert!((v14.ratio() - 1.4).abs() < 1e-12 && (v14.limit - 0.078).abs() < 1e-12);
+        let v16 = super::judge_oracle_relative(&cold, &vec![0.05 * 1.6; 32]);
+        assert!(!v16.ok, "{}", v16.describe());
+        // a mean, not a max: one bad row among good ones is averaged
+        let mut warm = vec![0.05; 32];
+        warm[3] = 0.4;
+        assert!(super::judge_oracle_relative(&cold, &warm).ok);
+        // the absolute floor: two near-exact paths are not failed on a ratio of tiny numbers
+        assert!(super::judge_oracle_relative(&vec![1e-5; 8], &vec![2.5e-3; 8]).ok);
+        assert!(!super::judge_oracle_relative(&vec![1e-5; 8], &vec![4e-3; 8]).ok);
+        // measured on 2026-10-22 (docs/results/2026-10-22-fx5c-reuse-vs-oracle.md): both backends pass
+        assert!(super::judge_oracle_relative(&[1.826e-2], &[1.524e-2]).ok);
+        assert!(super::judge_oracle_relative(&[1.456e-2], &[1.592e-2]).ok);
+        // nothing to judge, or non-finite, fails
+        assert!(!super::judge_oracle_relative(&[], &[]).ok);
+        assert!(!super::judge_oracle_relative(&[0.01], &[f64::NAN]).ok);
+        assert!(!super::judge_oracle_relative(&[0.01, 0.01], &[0.01]).ok);
+    }
+
+    #[test]
+    fn oracle_relative_mutation_scaled_warm_logits_fail() {
+        // oracle: a 12-way distribution, top-8 kept; cold = the oracle plus rounding-sized noise; warm = the same noise on a
+        // scaled logit vector. A large scale error must fail, none must pass the clean pair.
+        let base: Vec<f32> = (0..12).map(|i| 3.0 - 0.45 * i as f32).collect();
+        let lse = base.iter().map(|&x| (x as f64).exp()).sum::<f64>().ln();
+        let ids: Vec<i32> = (0..8).collect();
+        let lps: Vec<f32> = (0..8).map(|i| (base[i] as f64 - lse) as f32).collect();
+        let noise = |j: usize| -> Vec<f32> { (0..12).map(|i| base[i] + 0.12 * (((i * 7 + j * 13) % 11) as f32 / 5.0 - 1.0)).collect() };
+        let rows = |scale: f32| -> Vec<f64> { (0..32).map(|j| super::kl_oracle_row(&ids, &lps, &noise(j).iter().map(|x| x * scale).collect::<Vec<_>>())).collect() };
+        let cold = rows(1.0);
+        assert!(super::judge_oracle_relative(&cold, &rows(1.0)).ok);
+        for f in [1.5f32, 0.6] {
+            let v = super::judge_oracle_relative(&cold, &rows(f));
+            assert!(!v.ok, "x{f}: {}", v.describe());
+        }
+        assert_eq!(super::parse_test_bug("scale:1.01"), Some(1.01));
+        assert_eq!(super::parse_test_bug("scale:-1"), None);
+        assert_eq!(super::parse_test_bug("flip"), None);
+    }
+
+    #[test]
+    fn kl_oracle_row_is_top_k_plus_tail() {
+        // engine == oracle on the kept ids and on the tail: 0
+        let logits = [1.0f32, 0.5, 0.0, -1.0, -2.0];
+        let lq = super::log_softmax(&logits);
+        let lps: Vec<f32> = lq[..3].iter().map(|&x| x as f32).collect();
+        assert!(super::kl_oracle_row(&[0, 1, 2], &lps, &logits) < 1e-7);
+        // padding (-1) is skipped
+        assert!(super::kl_oracle_row(&[0, 1, 2, -1], &[lps[0], lps[1], lps[2], 0.0], &logits) < 1e-7);
+        // a different engine: equals the 4-way KL computed by hand
+        let eng = [0.0f32, 0.0, 0.0, 0.0, 0.0];
+        let p: Vec<f64> = lps.iter().map(|&x| (x as f64).exp()).collect();
+        let ptail = 1.0 - p.iter().sum::<f64>();
+        let q = 0.2f64;
+        let want: f64 = p.iter().map(|&pi| pi * (pi / q).ln()).sum::<f64>() + ptail * (ptail / (2.0 * q)).ln();
+        assert!((super::kl_oracle_row(&[0, 1, 2], &lps, &eng) - want).abs() < 1e-6);
+    }
+
+    #[test]
+    fn continue_oracle_found_only_for_its_model_prompt_split_and_ids() {
+        let d = std::env::temp_dir().join(format!("fx5c-oracle-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let ids: Vec<u32> = (0..50).collect();
+        let m = "nvidia/Qwen3.6-35B-A3B-NVFP4";
+        // no directory, no file: the absolute rule
+        let (none, _) = super::find_continue_oracle(&[d.clone()], Some(m), "long_docs_4k", &ids, 20);
+        assert!(none.is_none());
+        assert_eq!(super::continue_judge("continue", none.as_ref()), super::ContinueJudge::Absolute);
+        write_continue_oracle(&d, "a.continue-oracle.safetensors", m, "long_docs_4k", 20, &ids, 5);
+        write_continue_oracle(&d, "notes.safetensors", m, "other", 20, &ids, 5);
+        let (o, notes) = super::find_continue_oracle(&[d.clone()], Some(m), "long_docs_4k", &ids, 20);
+        let o = o.expect("matching oracle is found");
+        assert!(notes.is_empty() && o.rows() == 5 && o.split == 20);
+        assert_eq!(o.turn2(&ids).len(), 53);
+        assert_eq!(&o.turn2(&ids)[20..23], &[7, 8, 9]);
+        assert_eq!(super::continue_judge("continue", Some(&o)), super::ContinueJudge::Oracle);
+        // restore and aligned are judged absolutely even with an oracle present
+        assert_eq!(super::continue_judge("restore", Some(&o)), super::ContinueJudge::Absolute);
+        assert_eq!(super::continue_judge("aligned", Some(&o)), super::ContinueJudge::Absolute);
+        // another split, model, prompt or token list: not used, with the reason
+        let (x, n) = super::find_continue_oracle(&[d.clone()], Some(m), "long_docs_4k", &ids, 30);
+        assert!(x.is_none() && n.iter().any(|s| s.contains("split")), "{n:?}");
+        let (x, n) = super::find_continue_oracle(&[d.clone()], Some("other/model"), "long_docs_4k", &ids, 20);
+        assert!(x.is_none() && n.iter().any(|s| s.contains("model")), "{n:?}");
+        let mut ids2 = ids.clone();
+        ids2[7] = 999;
+        let (x, n) = super::find_continue_oracle(&[d.clone()], Some(m), "long_docs_4k", &ids2, 20);
+        assert!(x.is_none() && n.iter().any(|s| s.contains("token ids")), "{n:?}");
+        let (x, _) = super::find_continue_oracle(&[d.clone()], Some(m), "chat_reuse_4k", &ids, 20);
+        assert!(x.is_none());
+        // a damaged file is reported, not trusted
+        std::fs::write(d.join("bad.continue-oracle.safetensors"), b"nope").unwrap();
+        let (_, n) = super::find_continue_oracle(&[d.clone()], Some(m), "other", &ids, 20);
+        assert!(n.iter().any(|s| s.contains("bad.continue-oracle")), "{n:?}");
+        let _ = std::fs::remove_dir_all(&d);
     }
 }
