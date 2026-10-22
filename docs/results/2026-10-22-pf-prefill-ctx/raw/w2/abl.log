@@ -1,0 +1,18 @@
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1854 ms (8835.5 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 0 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 294.9}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1710 ms (9582.5 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 1 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 153.5}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1795 ms (9127.7 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 2 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 238.4}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1847 ms (8872.1 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 4 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 274.3}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1685 ms (9723.7 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 8 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 253.4}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1722 ms (9512.3 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 3 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 153.9}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1787 ms (9167.0 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 6 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 222.4}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1668 ms (9825.1 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 12 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 233.0}
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1550 ms (10573.2 tok/s) | decode 0 ms (0.00 tok/s)
+ABL 15 {'void (anonymous namespace)::flash_hpb_kernel<256, 32, 4, tru': 116.9}
