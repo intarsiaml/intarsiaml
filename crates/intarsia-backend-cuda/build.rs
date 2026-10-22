@@ -172,7 +172,7 @@ fn main() {
     println!("cargo:rustc-check-cfg=cfg(ik_cuda)");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../kernels");
-    for v in ["CUDA_PATH", "CUDA_HOME", "CUDA_ROOT", "INTARSIA_CUDA_ARCH", "INTARSIA_NO_CUDA", "INTARSIA_CUDA_NO_STAGE"] {
+    for v in ["CUDA_PATH", "CUDA_HOME", "CUDA_ROOT", "INTARSIA_CUDA_ARCH", "INTARSIA_NO_CUDA", "INTARSIA_CUDA_NO_STAGE", "INTARSIA_CUDA_CHECK_ONLY"] {
         println!("cargo:rerun-if-env-changed={v}");
     }
     let arch = std::env::var("INTARSIA_CUDA_ARCH").unwrap_or_else(|_| "sm_121".into());
@@ -188,6 +188,14 @@ fn main() {
     };
     println!("cargo:rustc-check-cfg=cfg(ik_sm120a)");
 
+    // Check-only build (CI): turn on the real-GPU cfgs so `cargo check` type-checks the whole `ik_cuda` Rust code and
+    // tests, but compile and link nothing. The result cannot link or run; never set it for a build you will run.
+    if std::env::var("INTARSIA_CUDA_CHECK_ONLY").map(|v| v == "1").unwrap_or(false) {
+        println!("cargo:warning=intarsia-backend-cuda: INTARSIA_CUDA_CHECK_ONLY=1, type-check only, no kernels built, will not link");
+        println!("cargo:rustc-cfg=ik_cuda");
+        println!("cargo:rustc-cfg=ik_sm120a");
+        return;
+    }
     if std::env::var("INTARSIA_NO_CUDA").map(|v| v == "1").unwrap_or(false) {
         println!("cargo:warning=intarsia-backend-cuda: INTARSIA_NO_CUDA=1, building the stub");
         return;
