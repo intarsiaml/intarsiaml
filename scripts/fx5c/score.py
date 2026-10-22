@@ -77,9 +77,9 @@ def main():
             top1 = np.array([lq[j].argmax() == o_top1[j] for j in range(m)])
             res[nm] = (kl64, kl21, top1)
         print(f"\n== {d}")
-        print(f"{'path':<12} {'KL64 mean':>10} {'KL64 max':>10} {'KL21 mean':>10} {'KL21 max':>10} {'top-1 vs oracle':>16}")
+        print(f"{'path':<12} {'KL64 mean':>10} {'KL64 max':>10} {'KL64 med':>10} {'trim mean':>10} {'KL21 mean':>10} {'KL21 max':>10} {'top-1 vs oracle':>16}")
         for nm, (kl64, kl21, top1) in res.items():
-            print(f"{nm:<12} {kl64.mean():10.3e} {kl64.max():10.3e} {kl21.mean():10.3e} {kl21.max():10.3e} {int(top1.sum()):>10}/{m}")
+            print(f"{nm:<12} {kl64.mean():10.3e} {kl64.max():10.3e} {np.median(kl64):10.3e} {np.sort(kl64)[:-2].mean():10.3e} {kl21.mean():10.3e} {kl21.max():10.3e} {int(top1.sum()):>10}/{m}")
         if "cold" in res and "warm" in res:
             c, w = res["cold"][0], res["warm"][0]
             print(f"warm/cold oracle-KL ratio: mean {w.mean() / c.mean():.2f}, max {w.max() / c.max():.2f}; rows with warm KL > cold KL: {int((w > c).sum())}/{m}; paired mean diff (warm-cold) {np.mean(w - c):+.2e} +- {np.std(w - c, ddof=1) / np.sqrt(m):.2e} (s.e.)")
@@ -97,6 +97,7 @@ def main():
                 print(f"{j:>3} {row0 + j:>5} {res['cold'][0][j]:10.3e} {res['warm'][0][j]:10.3e} {res['cold'][1][j]:10.3e} {res['warm'][1][j]:10.3e}   {int(o_top1[j]):>7} {int(res['cold'][2][j])} {int(res['warm'][2][j])}")
         out[d] = {nm: {"kl64": r[0].tolist(), "kl21": r[1].tolist(), "top1": r[2].tolist()} for nm, r in res.items()}
     json.dump(out, open(sys.argv[2] + ".scores.json", "w"))
+    print("\n(trim mean: mean of the rows without the two largest)")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1 @@
+rows 0..1999: top-1 agreement 98.50%, KL(endor oracle || spark1 oracle) on shared top-64 ids: mean 3.142e-03 max 2.353e-01; max |dlogprob| on the oracle's top-1: 7.162e-01
