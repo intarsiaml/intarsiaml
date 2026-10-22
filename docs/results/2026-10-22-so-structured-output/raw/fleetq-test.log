@@ -19,3 +19,38 @@ FAILED
 test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.84s
 no digests from main (3); head digest test will fail
 == head structured + microbench Thu Oct 22 10:20:11 EDT 2026
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 94 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+thread 'structured::tests::constrained_step_phases' (161610691) panicked at crates/intarsia-server/src/structured.rs:1302:76:
+FAILED
+digest nested c2f2146cc7161b78
+digest enum 29c3e9c34bcf5e37
+digest array 0489a17db0ea47d8
+thread 'structured::tests::mask_digests_are_stable' (161611355) panicked at crates/intarsia-server/src/structured.rs:1018:9:
+FAILED
+test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.88s
+== head workspace Thu Oct 22 10:20:27 EDT 2026
+workspace exit 101
+   1 assertion `left == right` failed
+   1 error: test failed, to rerun pass `-p intarsia-server --lib`
+   1 test all_gather_concatenates_in_rank_order_and_a_failed_rank_releases_the_others ... ok
+   1 test cmd::onboard::tests::a_failed_gate_is_final_but_an_error_runs_again ... ok
+   1 test engine::batch::tests::failed_request_counts_its_generated_tokens ... ok
+   1 test engine::batch::tests::queued_then_failed_request_stays_counted ... ok
+   1 test failed_forward_resets_recurrent_state ... ok
+   1 test no_graphs_flag_and_failed_capture_fall_back_to_eager ... ok
+   1 test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+  45 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   6 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+   2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+fleetq: #4189 done (exit 0)

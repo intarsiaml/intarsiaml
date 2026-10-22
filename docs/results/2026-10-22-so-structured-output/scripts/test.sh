@@ -10,10 +10,11 @@ set -u
 OUT=${1:?out dir}
 mkdir -p $OUT
 export INTARSIA_TEST_TOKENIZER=${INTARSIA_TEST_TOKENIZER:-/Users/josef/models/Qwen3-8B/tokenizer.json}
+if [[ -z "${SKIP_BASE:-}" ]]; then
 echo "== main digests + microbench $(date)"
 (cd /opt/code/wt-so-base && CARGO_TARGET_DIR=/opt/code/wt-so-base/target-test cargo test --release -p intarsia-server structured -- --nocapture --test-threads 1) > $OUT/base-structured.log 2>&1
 grep -E "^digest |phase |mean allowed|test result|FAILED|panicked" $OUT/base-structured.log | head -40
-D=("${(@f)$(grep -E '^digest ' $OUT/base-structured.log)}")
+D=("${(@f)$(grep -oE 'digest [a-z]+ [0-9a-f]{16}' $OUT/base-structured.log)}")
 if (( ${#D} == 4 )); then
   python3 - "${D[@]}" <<'PY'
 import sys,re
@@ -28,10 +29,11 @@ PY
 else
   echo "no digests from main (${#D}); head digest test will fail" >&2
 fi
+fi
 echo "== head structured + microbench $(date)"
 (cd /opt/code/wt-so && CARGO_TARGET_DIR=/opt/code/wt-so/target-test cargo test --release -p intarsia-server -p intarsia-core -- structured constrain --nocapture --test-threads 1) > $OUT/head-structured.log 2>&1
 grep -E "^digest |phase |mean allowed|test result|FAILED|panicked" $OUT/head-structured.log | head -40
 echo "== head workspace $(date)"
-(cd /opt/code/wt-so && CARGO_TARGET_DIR=/opt/code/wt-so/target-test cargo test --release --workspace) > $OUT/head-workspace.log 2>&1
+(cd /opt/code/wt-so && CARGO_TARGET_DIR=/opt/code/wt-so/target-test cargo test --release --workspace --no-fail-fast) > $OUT/head-workspace.log 2>&1
 echo "workspace exit $?"
 grep -E "test result|FAILED|failed" $OUT/head-workspace.log | sort | uniq -c | head -20
