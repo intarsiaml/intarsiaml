@@ -1,0 +1,30 @@
+[burst] job 3673; fx1 window 1; stopping radiance 2026-10-21 23:45:49
+[burst] job 3716; fx1 window 1; stopping radiance 2026-10-21 23:57:45
+[burst] job 3720; fx1 window 1; stopping radiance 2026-10-22 00:02:18
+[burst] job 3750; fx1 window 2; stopping radiance 2026-10-22 00:33:34
+[burst] job 3757; fx1 window 2; stopping radiance 2026-10-22 00:41:20
+[burst] job 3769; fx1 window 2; stopping radiance 2026-10-22 00:49:15
+[burst] radiance answers 2026-10-21 23:46:19 (after 15 s)
+[burst] radiance answers 2026-10-21 23:58:50 (after 50 s)
+[burst] radiance answers 2026-10-22 00:03:25 (after 15 s)
+[burst] radiance answers 2026-10-22 00:36:06 (after 20 s)
+[burst] radiance answers 2026-10-22 00:47:19 (after 25 s)
+[burst] radiance answers 2026-10-22 00:56:24 (after 15 s)
+[burst] radiance stopped 2026-10-21 23:45:52
+[burst] radiance stopped 2026-10-21 23:57:47
+[burst] radiance stopped 2026-10-22 00:02:20
+[burst] radiance stopped 2026-10-22 00:33:37
+[burst] radiance stopped 2026-10-22 00:41:23
+[burst] radiance stopped 2026-10-22 00:49:18
+[burst] stages done 2026-10-21 23:46:09 (exit 0)
+[burst] stages done 2026-10-21 23:58:05 (exit 143)
+[burst] stages done 2026-10-22 00:03:15 (exit 0)
+[burst] stages done 2026-10-22 00:35:51 (exit 0)
+[burst] stages done 2026-10-22 00:46:59 (exit 0)
+[burst] stages done 2026-10-22 00:56:14 (exit 0)
+[burst] starting radiance 2026-10-21 23:46:09
+[burst] starting radiance 2026-10-21 23:58:05
+[burst] starting radiance 2026-10-22 00:03:15
+[burst] starting radiance 2026-10-22 00:35:51
+[burst] starting radiance 2026-10-22 00:46:59
+[burst] starting radiance 2026-10-22 00:56:14

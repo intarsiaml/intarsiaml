@@ -1,0 +1,17 @@
+reference decode-c4493.safetensors  (prompts: 4000, 4000, 4493)
+run              prompt     L tail  rows rows!= first!= last!= flips     maxKL    lastKL
+decode-c1999          0  4000    2    16     16       0   True     0  3.02e-03  2.01e-04
+decode-c1999          1  4000    2    16     16       0   True     0  1.07e-04  1.07e-04
+decode-c1999          2  4493  495    16     16       0   True     0  4.78e-04  1.31e-14
+decode-c2000          0  4000    0    16     16       0   True     0  1.94e-03  6.82e-04
+decode-c2000          1  4000    0    16     16       0   True     0  3.13e-06  2.48e-06
+decode-c2000          2  4493  493    16     16       0   True     0  4.78e-04  1.31e-14
+decode-c3998          0  4000    2    16     16       0   True     0  3.02e-03  2.01e-04
+decode-c3998          1  4000    2    16     16       0   True     0  1.07e-04  1.07e-04
+decode-c3998          2  4493  495    16     16       0   True     0  4.78e-04  1.31e-14
+decode-c3999          0  4000    1    16     16       0   True     0  1.76e-03  3.11e-04
+decode-c3999          1  4000    1    16     16       0   True     0  6.37e-05  6.37e-05
+decode-c3999          2  4493  494    16     16       0   True     0  4.78e-04  1.31e-14
+decode-c4492          0  4000    0    16      0      -1  False     0  0.00e+00  0.00e+00
+decode-c4492          1  4000    0    16      0      -1  False     0  0.00e+00  0.00e+00
+decode-c4492          2  4493    1    16     16       0   True     0  8.17e-04  8.18e-14

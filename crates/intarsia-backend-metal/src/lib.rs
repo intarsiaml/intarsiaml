@@ -30,11 +30,15 @@ mod fill;
 pub mod flash;
 pub mod flash_nax;
 mod fused;
+mod gdn;
 pub mod gemm_nax;
 mod host;
 pub mod kernels;
 pub mod multirow;
+mod moe;
+mod fp8;
 mod mxfp4;
+mod nvfp4;
 pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
@@ -721,6 +725,21 @@ impl Backend for MetalBackend {
         if kernel == mxfp4::MATMUL_MXFP4_GEMV && call.op == Op::MatmulMxfp4 {
             return self.launch_mxfp4(call);
         }
+        if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {
+            return self.launch_moe_topk(call);
+        }
+        if kernel == moe::MOE_EXPERTS_BF16 && call.op == Op::MoeExperts {
+            return self.launch_moe_experts(call);
+        }
+        if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
+            return self.launch_moe_combine(call);
+        }
+        if (kernel == fp8::MATMUL_FP8_GEMV || kernel == fp8::MATMUL_FP8_MMA) && call.op == Op::MatmulFp8 {
+            return self.launch_fp8(kernel, call);
+        }
+        if (kernel == nvfp4::MATMUL_NVFP4_GEMV || kernel == nvfp4::MATMUL_NVFP4_MMA) && call.op == Op::MatmulNvfp4 {
+            return self.launch_nvfp4(kernel, call);
+        }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
             return self.launch_matmul_rows(call);
         }
@@ -729,6 +748,15 @@ impl Backend for MetalBackend {
         }
         if kernel == multirow::LOGITS_BF16_GEMV_ROWS && call.op == Op::Logits {
             return self.launch_logits_rows(call);
+        }
+        if matches!(
+            (kernel, call.op),
+            (kernels::GATE_SPLIT_BF16, Op::GateSplit)
+                | (kernels::SIGMOID_MUL_BF16, Op::SigmoidMul)
+                | (kernels::GDN_CONV_BF16, Op::GdnConv)
+                | (kernels::GDN_DELTA_RULE_BF16, Op::GdnDeltaRule)
+        ) {
+            return self.launch_gdn(kernel, call);
         }
         self.launch_dense(kernel, call)
     }
