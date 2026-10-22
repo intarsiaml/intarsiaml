@@ -16,6 +16,11 @@ MAXMIN=$1; LABEL=$2; SCRIPT=$3
 (( MAXMIN >= 1 && MAXMIN <= 60 )) || { echo "max-minutes must be 1..60" >&2; exit 2; }
 h=$(TZ=America/New_York date +%H)
 (( 10#$h < 7 )) || { echo "refusing: $(TZ=America/New_York date +%T) EDT is outside 00:00-07:00" >&2; exit 2; }
+# lane rules: agent-harness benchmarks against the Spark vLLMs; never take spark2's down under one
+if fleetq status 2>&1 | grep -iq "agent-harness"; then
+  echo "refusing: fleetq status shows an agent-harness job:" >&2; fleetq status 2>&1 | grep -i "agent-harness" >&2; exit 3
+fi
+echo "agent-harness check $(date +%T): none in fleetq status"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOST=${HOST:-spark2}
 VLLM_CONTAINER=${VLLM_CONTAINER:-missioncntrl-guidance}
