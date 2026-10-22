@@ -13,6 +13,9 @@ const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// Budget of `matmul_pair_bf16_gemv`, the same as the hip kernel's (`TOL` in intarsia-backend-hip/src/quantmoe.rs).
 const PAIR_TOL: Tol = Tol::new(1.5e-2, 1e-3);
 
+/// Budget of the MoE kernels, the hip ones' (`TOL` in intarsia-backend-hip/src/quantmoe.rs).
+const MOE_TOL: Tol = Tol::new(1.5e-2, 1e-3);
+
 /// `KernelImpl::name` of the batch-1 bf16 GEMV (the HIP backend calls the same thing `matmul_bf16_gemv`).
 pub const MATMUL_BF16_GEMV: &str = "matmul_bf16_gemv";
 
@@ -284,6 +287,7 @@ pub fn requires_metal4(kernel: &str) -> bool {
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(crate::mxfp4::SHADERS);
+    v.extend(crate::moe::SHADERS);
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
@@ -305,8 +309,8 @@ pub fn shader_names() -> Vec<&'static str> {
     v
 }
 
-/// (kernel name, op) for every implementation, in registration order. The quantised / MoE / GatedDeltaNet ops are not
-/// ported yet, so the registry reports `NoKernel` for them.
+/// (kernel name, op) for every implementation, in registration order. Ops without an entry (most quantised and the
+/// GatedDeltaNet ops) report `NoKernel`.
 pub const TABLE: &[(&str, Op)] = &[
     (EMBEDDING_BF16, Op::Embedding),
     (RMSNORM_BF16, Op::RmsNorm),
@@ -336,6 +340,9 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
     (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
+    (crate::moe::MOE_TOPK_BF16, Op::MoeTopk),
+    (crate::moe::MOE_EXPERTS_BF16, Op::MoeExperts),
+    (crate::moe::MOE_COMBINE_BF16, Op::MoeCombine),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -508,6 +515,21 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::scratch),
+                // MoE (kernels/metal/moe.metal, moe.rs), the hip entries' predicates and budget. top-k: bf16 or f32 logits.
+                crate::moe::MOE_TOPK_BF16 => k
+                    .acts([DType::Bf16, DType::F32])
+                    .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
+                    .exact(Exactness::Deterministic)
+                    .tol(MOE_TOL),
+                // NVFP4 experts, bf16 x (h / y scratch are bf16); decode GEMVs at T*K <= 16, else grouped by expert
+                crate::moe::MOE_EXPERTS_BF16 => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.experts <= crate::moe::MAX_EXPERTS && s.k % 16 == 0 && s.n % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(MOE_TOL)
+                    .scratch(intarsia_core::quant::ops::moe_experts_scratch),
+                crate::moe::MOE_COMBINE_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(MOE_TOL),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -558,7 +580,7 @@ mod tests {
         "35b output gate: -",
         "35b o_proj: -",
         "35b shared down: -",
-        "35b combine: -",
+        "35b combine: moe_combine_bf16",
         "35b fold P5: -",
         "35b fold P4b: -",
         "35b fold P2a: -",
@@ -632,6 +654,9 @@ mod tests {
         "matmul_pair_bf16_gemv:matmul_pair",
         "matmul_pair_bf16_gemv_rows:matmul_pair",
         "matmul_pair_bf16_nax:matmul_pair",
+        "moe_combine_bf16:moe_combine",
+        "moe_experts_bf16:moe_experts",
+        "moe_topk_bf16:moe_topk",
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
         "rmsnorm_add_bf16:rmsnorm_add",
@@ -743,23 +768,23 @@ mod tests {
     }
 
     const MOE_BLOCK_PINS: &[&str] = &[
-        "35b m=1 topk: -",
-        "35b m=1 experts: -",
+        "35b m=1 topk: moe_topk_bf16",
+        "35b m=1 experts: moe_experts_bf16",
         "35b m=1 shared glu: -",
         "35b m=1 shared gate: -",
         "35b m=1 silu glu: silu_glu_bf16",
         "35b m=1 shared down: -",
         "35b m=1 shared down combine: -",
-        "35b m=1 combine: -",
+        "35b m=1 combine: moe_combine_bf16",
         "35b m=1 fold P2': -",
-        "35b m=2 topk: -",
-        "35b m=2 experts: -",
+        "35b m=2 topk: moe_topk_bf16",
+        "35b m=2 experts: moe_experts_bf16",
         "35b m=2 shared glu: -",
         "35b m=2 shared gate: -",
         "35b m=2 silu glu: silu_glu_bf16",
         "35b m=2 shared down: -",
         "35b m=2 shared down combine: -",
-        "35b m=2 combine: -",
+        "35b m=2 combine: moe_combine_bf16",
         "35b m=2 fold P2': -",
     ];
 
