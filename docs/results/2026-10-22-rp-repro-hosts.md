@@ -9,8 +9,8 @@ Requirement 5. Follows [M5](2026-10-21-m5-reproducibility.md) (deploy.sh, bench 
 |---|---|---|---|
 | Metal (endor, rustc 1.99 Homebrew) | IDENTICAL (`070a08a6362a6229...`, deploy tree vs a third directory; also `repro-check.sh`) | smoke pass, M5 Max | done |
 | HIP (tatooine, pinned ROCm 7.2.4 container) | IDENTICAL (`72688024194830b8...`, two host directories, two cargo volumes, plus the deploy tree) | smoke pass, 54 kernels / 239 cases | done |
-| CUDA (spark1 / spark2, nvcc 13.0.88) | PENDING, see "CUDA" | PENDING | see below |
-| Cross-host replay | PENDING | | see below |
+| CUDA (spark1 and spark2, GB10, nvcc 13.0.88, rustc 1.90.0) | IDENTICAL on both hosts (`fcd8053febb15f14...`), and the same hash on spark1 and spark2 | smoke pass on both (54 kernels, 292 cases), device code identical to base (SASS, 22/22 objects) | done |
+| Cross-host replay (spark1 bundle on spark2) | M5 bundle replayed: sha, lock, rustc, nvcc, GPU, driver match, 149-case kernels output equal | new bundle (greedy 128 ids, Qwen3-8B): see "Cross-host replay" | see below |
 | CI | green on the PR (`cargo check` linux and macOS, `cargo test` linux, `reproducible build`) | | done |
 
 The HIP two-directory result is weaker than it looks: both trees are mounted at `/work` and the cargo target at `/target`
@@ -49,13 +49,18 @@ the same value, otherwise the build falls back to compiling in place with a warn
 `INTARSIA_CUDA_NO_STAGE=1` compiles in place. Runtime assert messages from the kernels now show `/tmp/intarsia-cuda-kernels-.../cuda/x.cu`
 instead of the checkout path.
 
-## CUDA results (spark2, GB10, nvcc 13.0.88, rustc 1.90.0; fleetq #3732, vLLM was down for the Flare run, non-exclusive, nothing loaded a model)
+## CUDA results (GB10, nvcc 13.0.88, rustc 1.90.0, `af77bbf`; spark2 fleetq #3732, spark1 fleetq #3797; non-exclusive, vLLM left alone, no model loaded except the replay below)
 
-| Check | Result |
-|---|---|
-| `repro-build.sh --features cuda` at `af77bbf` in `~/rp/A/one` and `~/rp/B/deeper/two` (each 36 s) | IDENTICAL, `fcd8053febb15f14...` |
-| `deploy.sh spark2 --backend cuda` (build through repro-build in `~/intarsia-deploy/cuda-rp`) | binary `fcd8053febb15f14...` = the two directory builds above; `doctor` rc 0, `kernels test --quick` 54 kernels / 292 cases, 0 failures, 10 kernels without a quick case (untested, not failed); stamp `raw/DEPLOY_STAMP-cuda-spark2.json` |
-| Device code unchanged: `cuobjdump -sass` of every kernel object, base build (origin/main merge base `f908732`, plain cargo build) vs this branch | 22 of 22 objects identical (695,820 normalised lines; only the `_GLOBAL__N__<hash>` names and the `identifier = <path>` lines were normalised) |
+| Check | spark2 | spark1 |
+|---|---|---|
+| `repro-build.sh --features cuda` in `~/rp/A/one` and `~/rp/B/deeper/two` (36 s each) | IDENTICAL, `fcd8053febb15f14...` | IDENTICAL, `fcd8053febb15f14...` |
+| `deploy.sh <host> --backend cuda` (build through repro-build in `~/intarsia-deploy/cuda[-rp]`) | binary `fcd8053febb15f14...` | binary `fcd8053febb15f14...` |
+| `doctor` / `kernels test --quick` | rc 0 / 54 kernels, 292 cases, 0 failures (10 kernels have no quick case: untested, not failed) | same |
+| stamp | `raw/DEPLOY_STAMP-cuda-spark2.json` | `raw/DEPLOY_STAMP-cuda-spark1.json` |
+
+So the same sha gives the same bytes in three directories on one host and on two different machines (aarch64, same toolchain versions).
+Device code unchanged: `cuobjdump -sass` of every kernel object, base build (origin/main merge base `f908732`, plain cargo build) vs this branch,
+on spark2: 22 of 22 objects identical (695,820 normalised lines; only the `_GLOBAL__N__<hash>` names and the `identifier = <path>` lines were normalised; `raw/sass-recheck.out`).
 
 The deploy smoke runs the kernels test on the linked, `objcopy`-stripped binary, so it launches kernels through the registered fatbins; it is a
 functional check of the build, not one of the model gates (KL21, 256 greedy ids, prefix reuse, goldens): those were not run, the
@@ -73,7 +78,7 @@ because that sha predates repro-build.sh):
 | binary sha256 | DIFFER (`823b41be...` on spark1, `90acdf46...` on spark2), expected: that sha was built with plain cargo in another directory |
 | the recorded command (`kernels test --quick --json`), 149 cases | `kernels.json` of the replay equals the original in all but 2 of 2464 lines (`free_mem` and the measured `bandwidth_gbs`) |
 
-SPARK1_PENDING
+Replay of a bundle made by this lane (`af77bbf`, spark1, greedy 128 tokens of Qwen3-8B BF16, `raw/rp-bundle.tgz`): REPLAY_NEW_PENDING
 
 ## CI: `bad_decode_row_fails_only_its_request`
 
