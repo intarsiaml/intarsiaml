@@ -41,9 +41,12 @@ constexpr int NA = LA + 1, NR = LR / 2 + 1;
 constexpr int XS = BM * LDS;
 constexpr size_t kSmem = (size_t)NA * XS * 2 + (size_t)NR * R * kRawStride;
 
+// the 8 scale bytes of a row and unit as two 4-byte copies (block-scale tensors are only required to be 4-byte aligned)
 IK_DEVI void cp_async8(void* smem_dst, const void* gmem_src) {
     const unsigned d = static_cast<unsigned>(__cvta_generic_to_shared(smem_dst));
-    asm volatile("cp.async.ca.shared.global [%0], [%1], 8;\n" ::"r"(d), "l"(gmem_src) : "memory");
+    const char* src = static_cast<const char*>(gmem_src);
+    asm volatile("cp.async.ca.shared.global [%0], [%1], 4;\n" ::"r"(d), "l"(src) : "memory");
+    asm volatile("cp.async.ca.shared.global [%0], [%1], 4;\n" ::"r"(d + 4u), "l"(src + 4) : "memory");
 }
 
 // as moe_w4a16.cu: 4 fp4 values (low 16 bits of q, nibble j = element j) -> bf16x2 {e0, e1}, {e2, e3}, unscaled
@@ -294,7 +297,7 @@ void launch(const ik_bf16* x, const uint8_t* wg, const uint8_t* bsg, const float
 
 int check_w(const ik_tensor* w, const ik_tensor* bs, const ik_tensor* gs, int64_t N, int64_t K) {
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
-    IK_TRY(ik_check_a(bs, IK_DTYPE_FP8_E4M3, 2, 8));
+    IK_TRY(ik_check_a(bs, IK_DTYPE_FP8_E4M3, 2, 4));
     IK_TRY(ik_check_a(gs, IK_DTYPE_F32, 1, 4));
     if (w->shape[0] != N || w->shape[1] != K / 2 || bs->shape[0] != N || bs->shape[1] != K / 16 || gs->shape[0] != 1)
         return IK_ERR_SHAPE;
