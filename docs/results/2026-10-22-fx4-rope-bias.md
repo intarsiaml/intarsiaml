@@ -85,7 +85,7 @@ exception, not the rule. Whether the top-1 floor should widen for models whose b
 ## Open
 
 1. **Top-1 gate / sanity heuristic** (above): needs a decision. Options: a `ref_noise`-aware top-1 floor, or a per-model `--min-top1`.
-2. **CUDA / HIP**: kernels written on branch `lane-fx4/cuda-hip-kernels` (one commit on top of this lane's second commit; `cargo check` and `test --lib` pass for both crates), nothing built with nvcc/hipcc, `kernels test` not run (spark1 never granted a slot in 66 minutes; tatooine blocked). They are kept out of this PR so an uncompiled `.cu`/`.hip` file cannot break the CUDA/HIP build. On this branch `RopeScaled` / `AddBias` stay in `NOT_ON_CUDA` / `UNIMPLEMENTED`, so a Llama/Qwen2 model on those backends fails at load with `NoKernel` and never runs the unscaled rope.
+2. **CUDA / HIP**: kernels written on branch `lane-fx4/cuda-hip-kernels` (one commit on top of this lane's second commit). Update: CUDA later built and passed `kernels test --quick` on spark1 (see Round 2); HIP was never compiled with hipcc (tatooine blocked). They are kept out of this PR so an uncompiled `.cu`/`.hip` file cannot break the CUDA/HIP build. On this branch `RopeScaled` / `AddBias` stay in `NOT_ON_CUDA` / `UNIMPLEMENTED`, so a Llama/Qwen2 model on those backends fails at load with `NoKernel` and never runs the unscaled rope.
 3. **Qwen2.5 prefill 553 tok/s at 4k** against Llama's 1533 at the same size: not investigated (28 heads / 4 KV heads, group of 7, may miss a fast attention path; unconfirmed). Llama decode at 57% of the byte floor, scaled rope bailing out of the fused prologue: not compared to a Qwen3-8B number from the same slot.
 4. **Bias rounding**: bias is added after a bf16-rounded projection (two roundings); HF rounds once. Qwen2.5's large k-bias values may make this the dominant error term. Not measured; the engine is already at HF-bf16 level, so I did not fuse the bias into the matmul epilogue.
 5. Not done: `o_proj` bias (HF Llama `attention_bias=true`), sliding window, other activations, `linear`/`dynamic`/`longrope` rope.
@@ -122,5 +122,8 @@ Tests: `flash_matches_f64_reference` (plain and NAX) gained groups 3, 5, 6, 7 at
 ### Qwen3-8B no-op for this round (Metal, main 659f770c vs branch f96942c6+, exclusive slot)
 Kernel registry grows (39 -> 42 kernels, `rope_scaled`, `add_bias` x2); everything else byte-identical: `plan show` JSON and text, the 256 greedy ids for the short and 4k prompts, both accuracy goldens (`raw/.../step23/`). The flash change touches shaders Qwen3-8B (group 4) runs, so this is the check that matters for it.
 
+### CUDA check of the side branch (fleetq #3835 and #3987, spark1 GB10, nvcc 13.0)
+`lane-fx4/cuda-hip-kernels` (035f2aea) built with `scripts/deploy.sh spark1 --backend cuda` and `intarsia kernels test --quick --backend cuda` ran: `rope_scaled_bf16` 8 cases ADMITTED (max abs 0), `add_bias_bf16` 2 cases ADMITTED, 56 kernels, 0 failed, smoke pass. So the CUDA kernels compile and pass admission on the GB10. Not covered: that branch predates the f32-input `AddBias` of round 2, so a biased model on CUDA would still stop at load with `NoKernel` for `add_bias` (f32 x -> bf16) until that variant exists (the f32-output `Logits` it follows exists on CUDA). No model was run on CUDA. HIP: nothing compiled with hipcc.
+
 ### Still open
-Top-1 floor policy; CUDA/HIP kernels unverified on a side branch (fleetq #3835); a NAX/f32-out GEMM for the biased prefill projections.
+Top-1 floor policy; an f32-input `add_bias` kernel for CUDA/HIP and the HIP compile check; a NAX/f32-out GEMM for the biased prefill projections.
