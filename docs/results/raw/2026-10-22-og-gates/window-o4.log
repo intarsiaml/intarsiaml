@@ -1,0 +1,108 @@
+[og-burst] previous window ended 55s ago; waiting 245s so radiance serves 5 min
+[og-burst] job 3635; og o4; cap 1500s; stopping radiance 2026-10-21 23:24:39
+[og-burst] radiance stopped 2026-10-21 23:24:42
+== o4-ab start 23:24:42 rounds 5 host tatooine
+--- dflt r1 serve [23:24:42]
+up after ~18 s
+  size   3968 rep: prompt=3839 gen=16 ttft=0.40s prefill=9688 tok/s decode=154.2 tok/s
+  size   3968 rep: prompt=3827 gen=16 ttft=0.39s prefill=9712 tok/s decode=154.2 tok/s
+wrote /work/og-out/o4/o4-dflt-r1.json
+o4-dflt-r1  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3989     0.411         9722       154.1       16       54.1
+    3968     3851     0.399         9688       154.2       16       54.1
+bandwidth floor: 285.0 tok/s
+--- off r1 serve [23:25:03]
+up after ~15 s
+  size   3968 rep: prompt=3898 gen=16 ttft=0.40s prefill=9705 tok/s decode=153.2 tok/s
+  size   3968 rep: prompt=3868 gen=16 ttft=0.40s prefill=9669 tok/s decode=153.2 tok/s
+wrote /work/og-out/o4/o4-off-r1.json
+o4-off-r1  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3994     0.412         9715       153.2       16       53.7
+    3968     3898     0.402         9669       153.2       16       53.8
+bandwidth floor: 285.0 tok/s
+--- off r2 serve [23:25:22]
+up after ~15 s
+  size   3968 rep: prompt=3834 gen=16 ttft=0.40s prefill=9700 tok/s decode=153.3 tok/s
+  size   3968 rep: prompt=3835 gen=16 ttft=0.40s prefill=9685 tok/s decode=153.6 tok/s
+o4-off-r2  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3965     0.409         9682       153.2       16       53.8
+    3968     3854     0.400         9647       153.3       16       53.8
+bandwidth floor: 285.0 tok/s
+wrote /work/og-out/o4/o4-off-r2.json
+--- dflt r2 serve [23:25:41]
+up after ~15 s
+  size   3968 rep: prompt=3848 gen=16 ttft=0.40s prefill=9599 tok/s decode=154.1 tok/s
+  size   3968 rep: prompt=3835 gen=16 ttft=0.40s prefill=9641 tok/s decode=154.0 tok/s
+wrote /work/og-out/o4/o4-dflt-r2.json
+o4-dflt-r2  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3999     0.414         9658       154.0       16       54.0
+    3968     3835     0.398         9622       154.1       16       54.1
+bandwidth floor: 285.0 tok/s
+--- dflt r3 serve [23:26:00]
+up after ~15 s
+  size   3968 rep: prompt=3845 gen=16 ttft=0.40s prefill=9543 tok/s decode=154.1 tok/s
+  size   3968 rep: prompt=3819 gen=16 ttft=0.40s prefill=9594 tok/s decode=154.2 tok/s
+wrote /work/og-out/o4/o4-dflt-r3.json
+o4-dflt-r3  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3989     0.414         9657       154.0       16       54.0
+    3968     3826     0.398         9599       154.2       16       54.1
+bandwidth floor: 285.0 tok/s
+--- off r3 serve [23:26:19]
+up after ~15 s
+  size   3968 rep: prompt=3890 gen=16 ttft=0.41s prefill=9560 tok/s decode=153.2 tok/s
+  size   3968 rep: prompt=3802 gen=16 ttft=0.40s prefill=9608 tok/s decode=153.2 tok/s
+wrote /work/og-out/o4/o4-off-r3.json
+o4-off-r3  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3963     0.411         9640       153.2       16       53.7
+    3968     3837     0.399         9591       153.2       16       53.8
+bandwidth floor: 285.0 tok/s
+--- off r4 serve [23:26:38]
+up after ~15 s
+  size   3968 rep: prompt=3883 gen=16 ttft=0.40s prefill=9607 tok/s decode=153.1 tok/s
+  size   3968 rep: prompt=3847 gen=16 ttft=0.40s prefill=9565 tok/s decode=153.1 tok/s
+wrote /work/og-out/o4/o4-off-r4.json
+o4-off-r4  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3999     0.416         9615       153.0       16       53.7
+    3968     3856     0.403         9583       153.1       16       53.7
+bandwidth floor: 285.0 tok/s
+--- dflt r4 serve [23:26:56]
+up after ~15 s
+  size   3968 rep: prompt=3869 gen=16 ttft=0.40s prefill=9604 tok/s decode=154.0 tok/s
+  size   3968 rep: prompt=3849 gen=16 ttft=0.40s prefill=9519 tok/s decode=153.9 tok/s
+wrote /work/og-out/o4/o4-dflt-r4.json
+o4-dflt-r4  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     4003     0.417         9607       153.8       16       54.0
+    3968     3849     0.404         9534       154.0       16       54.0
+bandwidth floor: 285.0 tok/s
+--- dflt r5 serve [23:27:15]
+up after ~15 s
+  size   3968 rep: prompt=3903 gen=16 ttft=0.41s prefill=9577 tok/s decode=154.0 tok/s
+  size   3968 rep: prompt=3856 gen=16 ttft=0.40s prefill=9526 tok/s decode=153.9 tok/s
+wrote /work/og-out/o4/o4-dflt-r5.json
+o4-dflt-r5  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     4002     0.417         9608       153.9       16       54.0
+    3968     3892     0.406         9577       153.9       16       54.0
+bandwidth floor: 285.0 tok/s
+--- off r5 serve [23:27:34]
+up after ~15 s
+  size   3968 rep: prompt=3872 gen=16 ttft=0.41s prefill=9549 tok/s decode=153.0 tok/s
+  size   3968 rep: prompt=3825 gen=16 ttft=0.40s prefill=9596 tok/s decode=153.1 tok/s
+wrote /work/og-out/o4/o4-off-r5.json
+o4-off-r5  model=og-35b  gen=16  reps=5
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    4096     3966     0.412         9611       153.1       16       53.7
+    3968     3873     0.406         9565       153.0       16       53.7
+bandwidth floor: 285.0 tok/s
+== o4-ab done 23:27:53
+[og-burst] command done 2026-10-21 23:27:53 (exit 0)
+[og-burst] starting radiance 2026-10-21 23:27:53
+[og-burst] radiance answers 2026-10-21 23:28:03 (after 15 s); window total 204 s
