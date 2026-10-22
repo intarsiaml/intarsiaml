@@ -43,12 +43,12 @@ registration, and the new cases use that unchanged.
 
 | Backend | Where | Command | Result |
 |---|---|---|---|
-| Metal | endor, fleetq #3715 queue slot of job `kq: coverage test x3 ...` | `kernels test --backend metal --quick` | 28 kernels, 121 cases (was 84), 0 FAIL, 0 NO CASES. Raw: `raw/2026-10-22-kq/metal-guard-quick.log` |
+| Metal | endor, fleetq slot | `kernels test --backend metal --quick` | 28 kernels, 121 cases (was 84), 0 FAIL, 0 NO CASES. Raw: `raw/2026-10-22-kq/metal-guard-quick.log` |
 | HIP | tatooine, build + window, ref `882aa27b` | `deploy.sh tatooine --backend hip` smoke = `kernels test --quick` | 54 kernels, 288 cases, 0 FAIL, 0 NO CASES, `doctor` rc 0. Raw: `raw/2026-10-22-kq/quick-hip.log` |
-| CUDA | spark1 | `deploy.sh spark1 --backend cuda` smoke | see the section "CUDA" below |
+| CUDA | spark1 (GB10), ref `86a89163`, fleetq #3758 | `deploy.sh spark1 --backend cuda` smoke = `kernels test --quick` | 54 kernels, 362 cases (was 51 kernels / 149 cases; 3 more kernels are now registered on main), 0 FAIL, 0 NO CASES, `doctor` rc 0, 1.3 s. All 10 former gaps ADMITTED. Raw: `raw/2026-10-22-kq/quick-cuda.log` |
 | Guard test, all 3 | endor | `cargo test -p intarsia-backend-{cuda,hip,metal} --test quick_coverage` | 3 passed. `cargo test -p intarsia-core --lib`: 97 passed |
 
-`882aa27b` is a first commit of the same crate changes that also carried a build directory by mistake; the code under
+CUDA was run on the final head. `882aa27b` is a first commit of the same crate changes that also carried a build directory by mistake; the code under
 `crates/` is identical to the final head (`461a2b83` plus a README commit). HIP was run on `882aa27b` and not repeated.
 
 Quick sweep time after the change: Metal 0.6 s, HIP 0.9 s.
@@ -68,3 +68,9 @@ Reverted with `git checkout`; the same three tests then pass. Raw: `raw/2026-10-
 ### Downtime
 
 tatooine radiance down 00:11:19 to 00:12:13 EDT (54 s), restored by the EXIT trap, `/v1/models` answered. Log: `raw/2026-10-22-kq/downtime.log`.
+
+### Note on the FP4 experts kernel
+
+`moe_experts_nvfp4_mma_bf16` is ADMITTED at max_abs 1.8e-1 / rel_l2 1.6e-1 on its one quick case. That is inside the contract the
+kernel declares (`NVFP4_ACT_TOL`, W4A4: activations are quantised to e2m1, so it differs from the bf16 reference by design) and
+nothing was loosened. It is opt-in (`INTARSIA_CUDA_MOE_NVFP4=1`); this only shows that the quick sweep now exercises it.

@@ -1,3 +1,113 @@
 fleetq: #3758 waiting (#10 in line): in line behind #3555 "Flare GLM-5.3-Flash TP2 over both Sparks (RoCE): prepare + localeval (repro of @NullBurn 2300 tok/s @32k claim)" (claude-6adc80e7) on spark1; with --expect it may go first if it ends before #3555 starts
 fleetq: #3758 waiting (#5 in line): in line behind #3579 "ob: intarsia CUDA server + Prometheus 67-query dashboard check + TUI snapshot (Qwen3-8B, vLLM up)" (claude-f31ccf91) on spark1
 fleetq:   #3579 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3579 set, or it will wait for #3579 to be released.
+fleetq: #3758 waiting (#4 in line): in line behind #3671 "S1 spark-prefill gates: build, kernel tests, kernels test, nsys 4k, greedy ids, KL21 + chat_reuse_4k (base/dev/cub), vLLM up" (claude-f31ccf91) on spark1; with --expect it may go first if it ends before #3671 starts
+fleetq:   #3671 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3671 set, or it will wait for #3671 to be released.
+fleetq: #3758 waiting (#3 in line): in line behind #3671 "S1 spark-prefill gates: build, kernel tests, kernels test, nsys 4k, greedy ids, KL21 + chat_reuse_4k (base/dev/cub), vLLM up" (claude-f31ccf91) on spark1
+fleetq:   #3671 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3671 set, or it will wait for #3671 to be released.
+fleetq: #3758 waiting (#2 in line): in line behind #3701 "og: O1 35B decode gate re-run vs same-day vLLM (localeval, vLLM up, exclusive)" (claude-f31ccf91-og) on spark1
+fleetq: #3758 waiting (#2 in line): in line behind #3701 "og: O1 35B decode gate re-run vs same-day vLLM (localeval, vLLM up, exclusive)" (claude-f31ccf91-og) on spark1; with --expect it may go first if it ends before #3701 starts
+fleetq: #3758 waiting (#1 in line): spark1 is held exclusively by #3701 "og: O1 35B decode gate re-run vs same-day vLLM (localeval, vLLM up, exclusive)" (claude-f31ccf91-og)
+fleetq: #3758 running on spark1: scripts/deploy.sh spark1 --backend cuda --ref 86a89163 --tree kq-cuda -- cat DEPLOY_SMOKE.log
+deploy: note: the working tree has uncommitted changes; they are NOT deployed (only 86a8916395c5c4016e26cc49a880622abcb987c2 is)
+deploy: spark1 (cuda) <- 86a8916395c5c4016e26cc49a880622abcb987c2 (kernels/README: adding a kernel and its test)
+deploy: synced (1457 entries changed)
+   Compiling clap v4.6.7
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-deploy/kq-cuda/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-deploy/kq-cuda/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-deploy/kq-cuda/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 47.83s
+doctor rc=0
+moe_experts    moe_experts_decode_bf16         1      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      1      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_mma_bf16            2      0    2.604e-3    7.936e-5  ADMITTED
+moe_experts    moe_experts_nvfp4_mma_bf16      1      0    1.794e-1    1.629e-1  ADMITTED
+moe_experts    moe_experts_w4a16_bf16          1      0    2.604e-3    7.936e-5  ADMITTED
+moe_combine    moe_combine_bf16                2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+54 kernels, 362 cases in 1.3s
+kernels-test rc=0
+
+=== reproducibility stamp (spark1:~/intarsia-deploy/kq-cuda/DEPLOY_STAMP.json) ===
+git        86a8916395c5c4016e26cc49a880622abcb987c2  (86a89163; tree 8b7c82be7914)
+subject    kernels/README: adding a kernel and its test
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        NVIDIA GB10  compute 12.1
+driver     580.173.02  (cuda toolkit 13.0.3)
+host       spark-4e77  Ubuntu 24.04.4 LTS  Cortex-A725
+binary     target/release/intarsia  sha256 2a9a62ed2115e3c9  52520360 bytes  v0.0.1
+smoke      pass
+deploy: running in spark1:~/intarsia-deploy/kq-cuda (INTARSIA_BIN=target/release/intarsia INTARSIA_REPLAY_OUT=replay-out/20261022T060431Z)
+doctor rc=0
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                    4      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16                4      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        2      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                    4      0    2.273e-3    2.185e-4  ADMITTED
+rope           rope_bf16                       8      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_gemv                4      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16                     2      0    2.545e-7    2.154e-7  ADMITTED
+logits         logits_bf16_gemv                2      0    1.084e-7    6.077e-8  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              12      0    3.173e-4    2.320e-5  ADMITTED
+attn_decode    attn_decode_bf16                9      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         2      0    4.630e-3    2.027e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv       9      0    5.574e-7    3.558e-8  ADMITTED
+attn_decode    attn_decode_bf16_splitkv        9      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_f8kv_flash         2      0    4.386e-3    2.043e-3  ADMITTED
+attn_prefill   attn_prefill_f8kv_splitkv       9      0    1.110e-5    1.143e-6  ADMITTED
+attn_decode    attn_decode_f8kv_splitkv        9      0     0.000e0     0.000e0  ADMITTED
+silu_glu       silu_glu_bf16                   2      0     0.000e0     0.000e0  ADMITTED
+gate_split     gate_split_bf16                 2      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                2      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                   4      0     0.000e0     0.000e0  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16             4      0    1.192e-7    1.084e-7  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_lanes       2      0    5.960e-8    8.259e-8  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_split       2      0    5.960e-8    8.264e-8  ADMITTED
+argmax         argmax_f32                      2      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     2      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                 4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_mma                 11      0    2.066e-3    5.821e-5  ADMITTED
+matmul_fp8     matmul_fp8_gemm                 3      0    2.066e-3    5.821e-5  ADMITTED
+matmul_fp8     matmul_fp8_gemm_f8              3      0    2.066e-3    5.821e-5  ADMITTED
+matmul_fp8     matmul_fp8_gemm_lt              3      0    2.066e-3    5.821e-5  ADMITTED
+matmul_fp8     matmul_fp8_gemm_reg             3      0    2.066e-3    5.821e-5  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv               5      0    5.052e-8    4.869e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma                6      0    1.625e-7    7.346e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemm               1      0    1.625e-7    6.308e-8  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv               8      0     0.000e0     0.000e0  ADMITTED
+moe_topk       moe_topk_bf16                  12      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16                4      0    2.604e-3    7.608e-5  ADMITTED
+moe_experts    moe_experts_decode_bf16         1      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      1      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_mma_bf16            2      0    2.604e-3    7.936e-5  ADMITTED
+moe_experts    moe_experts_nvfp4_mma_bf16      1      0    1.794e-1    1.629e-1  ADMITTED
+moe_experts    moe_experts_w4a16_bf16          1      0    2.604e-3    7.936e-5  ADMITTED
+moe_combine    moe_combine_bf16                2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+54 kernels, 362 cases in 1.3s
+kernels-test rc=0
+deploy: outputs in spark1:intarsia-deploy/kq-cuda/replay-out/20261022T060431Z
+fleetq: #3758 done (exit 0)
