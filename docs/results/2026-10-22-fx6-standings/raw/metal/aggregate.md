@@ -75,3 +75,18 @@ Order (~ = bands overlap, a tie): 1024: mlx-lm ~ intarsia > llama.cpp; 4096: int
 | intarsia | 1184 | 35.3 | 34.0 | 32.8 | 29.2 |
 | mlx-lm | 1180 | 31.1 | 30.4 | 29.1 | 25.6 |
 | llama.cpp | 1064 | 34.4 | 33.8 | 32.3 | 29.6 |
+
+**Ratios intarsia / engine** (medians; `tie` = the min-max bands of the visit medians overlap)
+
+| engine | basis | 128 | 1024 | 4096 | 16384 |
+|---|---|---:|---:|---:|---:|
+| mlx-lm | decode raw | 1.14x | 1.12x | 1.13x | 1.14x |
+| mlx-lm | decode clock-normalised (reference) | 1.10x tie | 1.05x tie | 1.03x | 1.10x |
+| mlx-lm | decode MHz-matched (sensitivity) | 1.13x | 1.12x | 1.13x | 1.14x |
+| mlx-lm | prefill raw | - | 1.65x | 1.20x tie | 1.18x tie |
+| mlx-lm | marginal prefill raw | - | 0.99x tie | 1.11x tie | 1.06x |
+| llama.cpp | decode raw | 1.08x | 1.06x | 1.07x tie | 1.04x |
+| llama.cpp | decode clock-normalised (reference) | 1.12x | 1.11x | 1.08x | 1.08x |
+| llama.cpp | decode MHz-matched (sensitivity) | 1.02x | 1.01x | 1.02x | 0.99x |
+| llama.cpp | prefill raw | - | 1.56x | 1.41x | 1.65x |
+| llama.cpp | marginal prefill raw | - | 1.52x | 1.38x | 1.61x |

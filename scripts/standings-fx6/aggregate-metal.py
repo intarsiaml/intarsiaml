@@ -149,6 +149,37 @@ def main():
             raw = collect(e, s, "raw")
             cells.append(f"{st.median(raw) + SLOPE * (mh['intarsia'] - mh[e]):.1f}" if raw else "-")
         out.append(f"| {e} | {mh[e]:.0f} | " + " | ".join(cells) + " |")
+    out.append("\n**Ratios intarsia / engine** (medians; `tie` = the min-max bands of the visit medians overlap)\n")
+    out.append("| engine | basis | " + " | ".join(str(s) for s in SIZES) + " |")
+    out.append("|---|---|" + "---:|" * len(SIZES))
+    for e in engines:
+        if e == "intarsia":
+            continue
+        for basis, kind in (("decode raw", "raw"), ("decode clock-normalised (reference)", "norm")):
+            cells = []
+            for s in SIZES:
+                o, t = collect("intarsia", s, kind), collect(e, s, kind)
+                if not o or not t:
+                    cells.append("-")
+                    continue
+                tie = not (min(o) > max(t) or min(t) > max(o))
+                cells.append(f"{st.median(o) / st.median(t):.2f}x" + (" tie" if tie else ""))
+            out.append(f"| {e} | {basis} | " + " | ".join(cells) + " |")
+        cells = []
+        for s in SIZES:
+            o, t = collect("intarsia", s, "raw"), collect(e, s, "raw")
+            cells.append(f"{st.median(o) / (st.median(t) + SLOPE * (mh['intarsia'] - mh[e])):.2f}x" if o and t else "-")
+        out.append(f"| {e} | decode MHz-matched (sensitivity) | " + " | ".join(cells) + " |")
+        for basis, kind in (("prefill raw", "prefill"), ("marginal prefill raw", "marginal")):
+            cells = []
+            for s in SIZES:
+                o, t = collect("intarsia", s, kind), collect(e, s, kind)
+                if not o or not t or s == 128:
+                    cells.append("-")
+                    continue
+                tie = not (min(o) > max(t) or min(t) > max(o))
+                cells.append(f"{st.median(o) / st.median(t):.2f}x" + (" tie" if tie else ""))
+            out.append(f"| {e} | {basis} | " + " | ".join(cells) + " |")
     txt = "\n".join(out)
     print(txt)
     if "--out" in sys.argv:
