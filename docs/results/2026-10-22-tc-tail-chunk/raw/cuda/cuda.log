@@ -1,0 +1,15 @@
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+2411 MHz, [N/A], 56, 12.74 W
+--- ids 16654 08:04:32
+base 16654: prompt: 16654 tokens
+base 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 4036 ms (4126.4 tok/s) | decode 3511 ms (72.63 tok/s)
+base 16654: steps=265 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/90 embedding=0ms/265 gate_split=0ms/2650
+off 16654: prompt: 16654 tokens
+off 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 3543 ms (4701.0 tok/s) | decode 3446 ms (74.00 tok/s)
+off 16654: steps=265 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/90 embedding=0ms/265 gate_split=0ms/2650
+on 16654: prompt: 16654 tokens
+on 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 3230 ms (5156.6 tok/s) | decode 3436 ms (74.21 tok/s)
+on 16654: steps=264 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/80 embedding=0ms/264 gate_split=0ms/2640
+IDS 16654: base == off
+IDS 16654: base != on
+--- ids 4408 08:06:47
