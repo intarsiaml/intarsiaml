@@ -1,0 +1,15 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on cuda, report directory /home/nvidia/intarsia-decfuse/out/fx5q/qualify
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.8s (NVIDIA GB10 (sm_121), 54 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.4s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     45s] plan: PASS in 43.6s (36 ops resolved, exactness fast, loaded in 43.6s)
+[qualify     45s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify     45s] acc-oracle: SKIP in 0.2s (no CPU-oracle golden for 'Qwen3.6-35B-A3B-NVFP4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory))
+QUICK DONE: /home/nvidia/intarsia-decfuse/out/fx5q/qualify/quick-report.md
+[qualify     45s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    333s] acc-long: FAIL in 288.0s (prefix reuse at chunk 1024: 5 judged, 0 skipped: prefix reuse differs from a cold run)
+FULL DONE: /home/nvidia/intarsia-decfuse/out/fx5q/qualify/full-report.md
+[qualify    333s] exit code 1
+exit 1

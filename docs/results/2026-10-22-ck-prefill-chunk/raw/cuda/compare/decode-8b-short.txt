@@ -1,0 +1,22 @@
+docs/results/2026-10-22-ck-prefill-chunk/raw/cuda/acc/8b-short: decode, reference chunk 2048, 8 prompts
+ chunkprompt              rows rows!= bitwise   max|dlp|     maxKL    meanKL flips
+  4096count                 16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096story                 16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096code                  16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096science               16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_short            16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_system           16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_multiturn        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_reasoning        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192count                 16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192story                 16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192code                  16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192science               16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_short            16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_system           16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_multiturn        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_reasoning        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+aggregate over all prompts (row-weighted mean KL):
+  chunk 4096: rows 128, rows differing 0, max|dlp| 0.000e+00, max KL 0.00e+00, mean KL 0.00e+00, flips 0
+  chunk 8192: rows 128, rows differing 0, max|dlp| 0.000e+00, max KL 0.00e+00, mean KL 0.00e+00, flips 0
+ALL BITWISE: yes  (chunks compared: [4096, 8192])

@@ -280,6 +280,56 @@ impl MetalBackend {
                 dim(total, "T*N*D")?;
                 self.dispatch(kernel, &[&x, &out, pos.as_ref().unwrap_or(&x)], &p, Grid::Threads(total))
             }
+            ROPE_SCALED_BF16 => {
+                let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+                let total = t * n * d;
+                if total == 0 {
+                    return Ok(());
+                }
+                let rd = if a.rotary_dim == 0 { d } else { a.rotary_dim };
+                let (x, out) = (self.bind(&i[0], bf, false, "x")?, self.bind(&o[0], bf, true, "out")?);
+                let table = self.bind(&i[1], DType::F32, false, "inv_freq")?;
+                if table.skip != 0 {
+                    return Err(Error::invalid("metal inv_freq: f32 tensors must be 4-byte aligned".to_string()));
+                }
+                let (pos, use_dev) = self.pos_bind(call)?;
+                let p = OpP {
+                    dims: [
+                        dim(t, "T")?,
+                        dim(n, "N")?,
+                        dim(d, "D")?,
+                        dim(rd, "rotary_dim")?,
+                        use_dev,
+                        dim(a.pos0, "pos0")?,
+                        0,
+                        0,
+                    ],
+                    skips: [x.skip, out.skip, 0, 0, 0],
+                    f0: 0.0,
+                    f1: a.rope_mscale,
+                    pad: 0,
+                };
+                dim(total, "T*N*D")?;
+                self.dispatch(kernel, &[&x, &out, pos.as_ref().unwrap_or(&x), &table], &p, Grid::Threads(total))
+            }
+            ADD_BIAS_BF16 => {
+                let (rows, cols) = (i[0].shape[0], i[0].shape[1]);
+                let n = rows * cols;
+                if n == 0 {
+                    return Ok(());
+                }
+                let (x, bias, out) = (
+                    self.bind(&i[0], bf, false, "x")?,
+                    self.bind(&i[1], bf, false, "bias")?,
+                    self.bind(&o[0], bf, true, "out")?,
+                );
+                let p = OpP {
+                    dims: [dim(n, "elements")?, dim(cols, "N")?, 0, 0, 0, 0, 0, 0],
+                    skips: [x.skip, bias.skip, out.skip, 0, 0],
+                    ..Default::default()
+                };
+                self.dispatch(kernel, &[&x, &bias, &out], &p, Grid::Threads(n))
+            }
             KV_APPEND_BF16 => {
                 let (t, nkv, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
                 let cap = o[0].shape[1];

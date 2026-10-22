@@ -1,0 +1,12 @@
+58036915ed1d87dccc762dcefe960f9e5a6c9275c168a0e5b12b0f6324df5f38  cuda-8b-256/acc/8b-4k/decode-c256.safetensors
+e6d1d1b3512106058f13f6741e696e7a57f3f4b06f678effdc39bc892a7a9f4e  cuda-8b-256/acc/8b-4k/decode-c4096.safetensors
+cdd4bbfb7ccc1848ac7f97ce508b5e4351dbfd810f28042bfb49230434a6f6d8  cuda-8b-256/acc/8b-4k/prefill-c256.safetensors
+d022fc264ab6eaafa46fdb4776ba245cb1bb5a9d317fa89709f348063bee1ba0  cuda-8b-256/acc/8b-4k/prefill-c4096.safetensors
+d51b1b6769dbf39d080dfd69bee630d8260d39e1eca318ed985e68dfa968afbd  cuda-8b-256/acc/8b-short/decode-c256.safetensors
+4d248e50bc853e40f5742f16fb5ae78f1dd26f60f3e7176e233447ca684821b2  cuda-8b-256/acc/8b-short/decode-c4096.safetensors
+6d329d7c74c4c0da39dfa68397ad4ce0ad2399fa9dd259f9bed5a33fd8cfd224  cuda-8b-256/acc/8b-short/prefill-c256.safetensors
+a55d6902fc9ab3616437297006043081e7ad5c900a5dfeebf36afcfadc168c77  cuda-8b-256/acc/8b-short/prefill-c4096.safetensors
+96aa23f0e9f959895affeb7073a618e21f44f81ed468dbac9ea78744b501614d  cuda-8b-tails/acc/8b-tails/decode-c256.safetensors
+0f772d9c4b5d05f5940120bdd729ace3e8ea29e68c4678122dbcbadf8269e5f7  cuda-8b-tails/acc/8b-tails/decode-c4096.safetensors
+485ecc76c4ff40faac3d441cb4ef91ead2c99e1097197efe424b41caee9bdb10  cuda-8b-tails/acc/8b-tails/prefill-c256.safetensors
+fffb2d1bf233b5f58cba0cc4488f6c99e242c74e675b4f9edf6131d32e4954eb  cuda-8b-tails/acc/8b-tails/prefill-c4096.safetensors

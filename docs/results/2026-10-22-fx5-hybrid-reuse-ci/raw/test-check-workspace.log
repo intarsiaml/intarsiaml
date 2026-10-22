@@ -1,0 +1,21 @@
+    Checking intarsia-core v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-hip v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-hip)
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+    Checking intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cpu)
+    Checking intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-server)
+    Checking intarsia-backend-metal v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-metal)
+    Checking intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-models)
+    Checking intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-cli)
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1723:13
+     |
+1723 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.07s

@@ -89,6 +89,14 @@ impl Default for LoadOptions {
     }
 }
 
+/// The finished frequency table of a scaled rotary embedding on the device ([`crate::rope::RopeScaling::freqs`]).
+struct RopeTable {
+    /// f32 `[rotary_dim / 2]`.
+    inv_freq: TensorRef,
+    /// Multiplier on cos / sin (YaRN's attention factor).
+    mscale: f32,
+}
+
 struct AttnBlock {
     pre_norm: TensorRef,
     /// `[n_heads * head_dim * (1 + gated), hidden]`: with `gated` each head's rows are `q` then its output gate.
@@ -98,6 +106,10 @@ struct AttnBlock {
     wo: QTensor,
     q_norm: Option<TensorRef>,
     k_norm: Option<TensorRef>,
+    /// Projection biases (`[n_heads * head_dim]`, `[n_kv_heads * head_dim]` x2), added right after the projection.
+    q_bias: Option<TensorRef>,
+    k_bias: Option<TensorRef>,
+    v_bias: Option<TensorRef>,
     slot: usize,
     /// `q` carries a per-head output gate (`attn_out * sigmoid(gate)` before `wo`).
     gated: bool,
@@ -252,6 +264,9 @@ pub struct Model {
     capture_ops: Mutex<Option<Vec<Op>>>,
     /// While a graph is being captured: the collectives it records.
     capture_comms: std::sync::atomic::AtomicU64,
+    /// Scaled rotary embedding (llama3 / yarn): the frequency table every attention block's rope reads. `None` = the
+    /// plain `Rope` op, which computes its own frequencies from `theta`.
+    rope_table: Option<RopeTable>,
     /// Row-local fusion under tensor parallelism is on (`LoadOptions::tp_fusion`, world > 1, backend capable).
     tp_fusion: bool,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
@@ -463,6 +478,25 @@ impl Model {
             })
         };
 
+        // scaled rotary embedding: the finished frequency table, uploaded once (rotary_dim as the attention blocks resolve it)
+        let rope_table = if dims.rope_scaling.is_scaled() {
+            let rd = if (dims.partial_rotary_factor - 1.0).abs() < 1e-6 {
+                dims.head_dim
+            } else {
+                (dims.head_dim as f64 * dims.partial_rotary_factor as f64).round() as usize
+            };
+            if rd == 0 || rd % 2 != 0 || rd > dims.head_dim {
+                return Err(Error::Unsupported(format!("rotary dim {rd} of head_dim {} (must be even)", dims.head_dim)));
+            }
+            let freqs = dims.rope_scaling.freqs(dims.rope_theta as f64, rd).expect("scaled rope has a table");
+            let bytes: Vec<u8> = freqs.inv_freq.iter().flat_map(|f| f.to_le_bytes()).collect();
+            let buf = crate::backend::upload_new(b, &bytes)?;
+            weights_bytes.set(weights_bytes.get() + bytes.len() as u64);
+            Some(RopeTable { inv_freq: TensorRef::new(buf, DType::F32, &[rd / 2]), mscale: freqs.attention_factor })
+        } else {
+            None
+        };
+
         let qdim = dims.n_heads * dims.head_dim;
         let kvdim = dims.n_kv_heads * dims.head_dim;
         let mut layers = Vec::new();
@@ -501,6 +535,18 @@ impl Model {
                             rd
                         };
                         let gate = usize::from(a.gated);
+                        if a.gated && (a.q_bias.is_some() || a.k_bias.is_some() || a.v_bias.is_some()) {
+                            return Err(Error::Unsupported("projection biases on a gated attention block".into()));
+                        }
+                        // a bias in the checkpoint that the recipe does not map would be dropped without any error
+                        for (proj, mapped) in [(&a.q, &a.q_bias), (&a.k, &a.k_bias), (&a.v, &a.v_bias)] {
+                            let name = format!("{}.bias", Recipe::expand(proj, li));
+                            if mapped.is_none() && src.info(&name).is_some() {
+                                return Err(Error::model(format!(
+                                    "the checkpoint has '{name}' but the recipe maps no bias for it ([layer.attn] q_bias / k_bias / v_bias)"
+                                )));
+                            }
+                        }
                         let slot = slot_specs.len();
                         slot_specs.push(SlotSpec::AttnKv {
                             n_kv_heads: dims.n_kv_heads,
@@ -515,6 +561,9 @@ impl Model {
                             wo: load_qs(&a.o, li, dims.hidden, qdim, Some(ShardAxis::Cols))?,
                             q_norm: a.q_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
                             k_norm: a.k_norm.as_ref().map(|n| load(n, li, Some(&[dims.head_dim]))).transpose()?,
+                            q_bias: a.q_bias.as_ref().map(|n| load_sharded(n, li, ShardAxis::Rows, &[qdim])).transpose()?,
+                            k_bias: a.k_bias.as_ref().map(|n| load_sharded(n, li, ShardAxis::Rows, &[kvdim])).transpose()?,
+                            v_bias: a.v_bias.as_ref().map(|n| load_sharded(n, li, ShardAxis::Rows, &[kvdim])).transpose()?,
                             slot,
                             gated: a.gated,
                             rotary_dim,
@@ -840,6 +889,7 @@ impl Model {
             graphs: GraphState::new(opts.graphs && dims.gemma.is_none()),
             capture_ops: Mutex::new(None),
             capture_comms: std::sync::atomic::AtomicU64::new(0),
+            rope_table,
             tp_fusion: opts.tp_fusion && tp.world > 1,
             tp,
             no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
@@ -1814,6 +1864,10 @@ impl Model {
         if (a.wk.format, a.wv.format) != (crate::quant::FP8_E4M3, crate::quant::FP8_E4M3) {
             return Ok(false);
         }
+        // the fused op projects k and v inside the norm; a bias has to land between the projection and the rope
+        if a.k_bias.is_some() || a.v_bias.is_some() {
+            return Ok(false);
+        }
         let d = &self.ldims;
         let kvw = d.n_kv_heads * d.head_dim;
         let (k_out, v_out) = (self.view(&self.ws.k[0], self.act, &[t, kvw]), self.view(&self.ws.v, self.act, &[t, kvw]));
@@ -1855,6 +1909,10 @@ impl Model {
         profile: bool,
     ) -> Result<bool> {
         let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) else { return Ok(false) };
+        // the fused prologue's rope computes plain `theta` frequencies: a scaled embedding runs the unfused ops
+        if self.rope_table.is_some() {
+            return Ok(false);
+        }
         let d = &self.ldims;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let attrs = OpAttrs {
@@ -1902,7 +1960,7 @@ impl Model {
         dpos: Option<&TensorRef>,
     ) -> Option<OpCall> {
         let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) else { return None };
-        if !a.gated {
+        if !a.gated || self.rope_table.is_some() {
             return None;
         }
         let d = &self.ldims;
@@ -1970,7 +2028,11 @@ impl Model {
             }
             Some(gate)
         } else {
-            self.proj(n, &a.wq, &self.view(&ws.q[qc], act, &[t, nh * hd]), profile)?;
+            let qv = self.view(&ws.q[qc], act, &[t, nh * hd]);
+            self.proj(n, &a.wq, &qv, profile)?;
+            if let Some(bias) = &a.q_bias {
+                self.add_bias(&qv, bias, profile)?;
+            }
             None
         };
         // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
@@ -1979,7 +2041,20 @@ impl Model {
             self.proj(n, &a.wk, &k_out, profile)?;
             self.proj(n, &a.wv, &v_out, profile)?;
         }
+        if !kv_done {
+            if let Some(bias) = &a.k_bias {
+                self.add_bias(&k_out, bias, profile)?;
+            }
+            if let Some(bias) = &a.v_bias {
+                self.add_bias(&v_out, bias, profile)?;
+            }
+        }
         Ok((qc, gate))
+    }
+
+    /// `x += bias` in place (`Op::AddBias`): a projection bias, right after the projection that produced `x`.
+    fn add_bias(&self, x: &TensorRef, bias: &TensorRef, profile: bool) -> Result<()> {
+        self.exec(Op::AddBias, vec![x.clone(), bias.clone()], vec![x.clone()], OpAttrs::default(), profile)
     }
 
     /// Views of the attention scratch for `t` rows.
@@ -2016,7 +2091,20 @@ impl Model {
         let d = &self.ldims;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
-        let rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
+        let mut rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
+        // scaled embedding: `RopeScaled` reads the frequency table (extra input) and the attention factor
+        let (rope_op, rope_in): (Op, Option<&TensorRef>) = match &self.rope_table {
+            Some(t) => {
+                rope.rope_mscale = t.mscale;
+                (Op::RopeScaled, Some(&t.inv_freq))
+            }
+            None => (Op::Rope, None),
+        };
+        let rope_inputs = |x: &TensorRef| -> Vec<TensorRef> {
+            let mut v = vec![x.clone()];
+            v.extend(rope_in.cloned());
+            v
+        };
         let cache_shape = [nkv, slot.cap, hd];
         let kcache = self.view(&slot.k, slot.dtype, &cache_shape);
         let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
@@ -2043,7 +2131,7 @@ impl Model {
                 )?;
                 qc = 1 - qc;
             }
-            self.exec_pos(Op::Rope, vec![bufs.q[qc].clone()], vec![bufs.q[1 - qc].clone()], rope.clone(), dpos, profile)?;
+            self.exec_pos(rope_op, rope_inputs(&bufs.q[qc]), vec![bufs.q[1 - qc].clone()], rope.clone(), dpos, profile)?;
             qc = 1 - qc;
 
             let mut kc = 0usize;
@@ -2057,7 +2145,7 @@ impl Model {
                 )?;
                 kc = 1 - kc;
             }
-            self.exec_pos(Op::Rope, vec![bufs.k[kc].clone()], vec![bufs.k[1 - kc].clone()], rope.clone(), dpos, profile)?;
+            self.exec_pos(rope_op, rope_inputs(&bufs.k[kc]), vec![bufs.k[1 - kc].clone()], rope.clone(), dpos, profile)?;
             kc = 1 - kc;
 
             self.exec_pos(Op::KvAppend, vec![bufs.k[kc].clone()], vec![kcache.clone()], append.clone(), dpos, profile)?;

@@ -1,0 +1,8 @@
+prefill chunk 8192 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 69.0s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 17408 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 16014 tokens
+top logits (id:value): 84:25.2581 446:15.7917 1644:15.6737 291:14.1385 1692:13.8903 70:13.8356 52954:13.4245 23825:13.1853 330:13.0909 350:12.8751 17587:12.8446 69:12.8229 1896:12.6205 7073:12.4464 1035:12.2185 6094:12.1669 34377:12.1131 29088:12.0655 1824:11.7365 13411:11.6296
+ids: [84, 34377, 8, 7561, 1510, 2829, 7561, 1510, 61005, 63, 660, 37799, 16, 21, 26, 1132, 279, 198, 23825, 369, 37799, 16, 21, 49300, 10535, 23, 49300, 12849, 16, 21, 553, 561, 5861, 36, 2424, 369, 264, 3074, 1510, 6903, 476, 44, 4493, 4561, 63, 303, 279, 3019, 318, 1719, 4560, 1503, 524, 9412, 279, 198, 10168, 26259, 26, 279, 2424, 9705, 1503, 553]
+finish=length prompt=16014 (cached 0) completion=64 | prefill 2691 ms (5951.6 tok/s) | decode 848 ms (74.32 tok/s)
+steps=68 graph replays=64 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/40 embedding=0ms/68 gate_split=0ms/680

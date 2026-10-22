@@ -1,0 +1,2 @@
+u_glu` for the dense part, `silu_glu` for the
+shared part). The `moe_experts` op is a `matmul` with `wq` and `xq` (NVFP4), `wq` is the expert's weight, `xq`

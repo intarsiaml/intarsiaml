@@ -1,0 +1,4 @@
+intarsia_kv_bytes_total 2566914048
+intarsia_weights_bytes 16381470720
+intarsia_device_memory_total_bytes 34208743424
+intarsia_device_memory_free_bytes 14447280128

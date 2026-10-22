@@ -1,0 +1,3 @@
+-rw------- 1 nvidia nvidia 6061444 Oct 13 01:39 /home/nvidia/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+NVIDIA GB10, [N/A]
+MemAvailable GB 51.9828

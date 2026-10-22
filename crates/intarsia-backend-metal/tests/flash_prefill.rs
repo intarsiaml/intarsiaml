@@ -221,6 +221,12 @@ fn flash_matches_f64_reference() {
         c(70, 8, 2, 64, 37, 120),       // head_dim 64
         c(70, 16, 2, 256, 90, 170),     // head_dim 256, group 8
         c(33, 4, 4, 256, 0, 40),        // head_dim 256, MHA
+        c(70, 12, 4, 128, 5, 90),       // group 3
+        c(205, 20, 4, 128, 3, 300),     // group 5, ragged block
+        c(64, 18, 3, 128, 0, 70),       // group 6
+        c(257, 28, 4, 128, 3839, 4200), // group 7: Qwen2.5-7B heads, one row past a block, 4k context
+        c(33, 14, 2, 64, 30, 64),       // group 7, head_dim 64
+        c(40, 21, 3, 256, 7, 60),       // group 7, head_dim 256
     ];
     for name in all_variants() {
         select_variant(Some(name));
@@ -308,7 +314,10 @@ fn flash_predicate() {
     for g in [1, 2, 4, 8] {
         assert!(accepts(f, &mk(4, 8 * g, 8, 128, DType::Bf16)), "group {g}");
     }
-    assert!(!accepts(f, &mk(4, 24, 8, 128, DType::Bf16)), "group 3");
+    for g in [3, 5, 6, 7] {
+        assert!(accepts(f, &mk(4, 8 * g, 8, 128, DType::Bf16)), "group {g}");
+    }
+    assert!(!accepts(f, &mk(4, 72, 8, 128, DType::Bf16)), "group 9");
     assert!(!accepts(f, &mk(4, 16, 1, 128, DType::Bf16)), "group 16");
     assert!(!accepts(f, &mk(4, 4, 2, 128, DType::F32)), "f32 cache");
     assert!(!accepts(f, &mk(4, 4, 2, 128, DType::Fp8E4m3)), "fp8 cache");

@@ -1,0 +1,81 @@
+{
+  "format": "intarsia-ref-noise-v1",
+  "golden": {
+    "file": "llama-3.1-8b-instruct-fp32.safetensors",
+    "fnv1a64": "d0388b834e0cdafd",
+    "size": 393248172,
+    "positions": 1533
+  },
+  "method": "precision_spread",
+  "kl21_mean": 0.0004223321154608069,
+  "kl21_mean_scored": 0.0001811723913467987,
+  "n": 1533,
+  "n_scored": 1278,
+  "runs": 2,
+  "date": "2026-10-22",
+  "how": "HF transformers 5.19 bf16 forward of the same ids vs the fp32 forward (tools/golden.py --dtype bfloat16 / float32, CPU)",
+  "estimator": "kl21 (the gate's own estimator; the second run's full row is 'ours')",
+  "source": "docs/results/2026-10-22-fx4-rope-bias.md",
+  "prompts": {
+    "chat_multiturn": {
+      "kl21_mean": 0.0011323974671963598,
+      "kl21_mean_scored": 0.00003534716005757357,
+      "n": 85,
+      "n_scored": 20
+    },
+    "chat_reasoning": {
+      "kl21_mean": 0.001010570715184195,
+      "kl21_mean_scored": 0.00007024143648706468,
+      "n": 112,
+      "n_scored": 7
+    },
+    "chat_short": {
+      "kl21_mean": 0.001903733574609452,
+      "kl21_mean_scored": 0.00005550189109830118,
+      "n": 45,
+      "n_scored": 7
+    },
+    "chat_system": {
+      "kl21_mean": 0.002273447500442078,
+      "kl21_mean_scored": 0.000055416762737257454,
+      "n": 54,
+      "n_scored": 7
+    },
+    "code": {
+      "kl21_mean": 0.00011468349675177398,
+      "kl21_mean_scored": 0.00011468349675177398,
+      "n": 81,
+      "n_scored": 81
+    },
+    "count": {
+      "kl21_mean": 0.00014039087927871579,
+      "kl21_mean_scored": 0.00014039087927871579,
+      "n": 36,
+      "n_scored": 36
+    },
+    "long_prose_300": {
+      "kl21_mean": 0.0001467093253830165,
+      "kl21_mean_scored": 0.0001467093253830165,
+      "n": 300,
+      "n_scored": 300
+    },
+    "long_prose_700": {
+      "kl21_mean": 0.00018768909532023751,
+      "kl21_mean_scored": 0.00018768909532023751,
+      "n": 700,
+      "n_scored": 700
+    },
+    "science": {
+      "kl21_mean": 0.00036522737609017753,
+      "kl21_mean_scored": 0.00036522737609017753,
+      "n": 80,
+      "n_scored": 80
+    },
+    "story": {
+      "kl21_mean": 0.0002651615747646502,
+      "kl21_mean_scored": 0.0002651615747646502,
+      "n": 40,
+      "n_scored": 40
+    }
+  }
+}

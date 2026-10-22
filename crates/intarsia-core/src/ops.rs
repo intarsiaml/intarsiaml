@@ -10,6 +10,8 @@
 //! | `Add` | a `[R,H]`, b `[R,H]` | `[R,H]` | |
 //! | `QkNorm` | x `[T,N,D]`, w `[D]` | `[T,N,D]` | eps, w_offset |
 //! | `Rope` | x `[T,N,D]` | `[T,N,D]` | pos0 (or `OpCall::pos`), theta, rotary_dim (neox / rotate-half over the first `rotary_dim` values, 0 = all `D`; the rest is copied) |
+//! | `RopeScaled` | x `[T,N,D]`, inv_freq `[rd/2]` f32 | `[T,N,D]` | as `Rope`, but pair `i` rotates by `pos * inv_freq[i]` (instead of `theta^(-2i/rd)`) and cos / sin are multiplied by `rope_mscale`; llama3 / yarn scaling, table from `rope::RopeScaling::freqs` |
+//! | `AddBias` | x `[R,N]`, bias `[N]` (x's dtype) | `[R,N]` (= x + bias, one rounding; may alias x) | |
 //! | `Matmul` | x `[M,K]`, w `[N,K]` | `[M,N]` (= x @ w^T) | |
 //! | `Logits` | x `[M,K]`, w `[V,K]` | `[M,V]` f32 | same math as `Matmul`, f32 output |
 //! | `KvAppend` | new `[T,Nkv,D]` | cache `[Nkv,cap,D]` (written in place) | pos0 |
@@ -112,12 +114,15 @@ pub enum Op {
     MatmulExl3,
     // appended (2026-10-21, P1 MXFP4 decode, after M2 EXL3): `MatmulFp8Pair` for OCP MXFP4 weights
     MatmulMxfp4Pair,
+    // appended (2026-10-22, rope scaling + attention bias), for the same reason
+    RopeScaled,
+    AddBias,
     // appended (2026-10-22, g4 Gemma-4): `SiluGlu` with the tanh-GELU activation (`gelu_pytorch_tanh`), for the same reason
     GeluGlu,
 }
 
 impl Op {
-    pub const ALL: [Op; 40] = [
+    pub const ALL: [Op; 42] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -157,6 +162,8 @@ impl Op {
         Op::MatmulMxfp4,
         Op::MatmulExl3,
         Op::MatmulMxfp4Pair,
+        Op::RopeScaled,
+        Op::AddBias,
         Op::GeluGlu,
     ];
 
@@ -202,6 +209,8 @@ impl Op {
             Op::MatmulMxfp4 => "matmul_mxfp4",
             Op::MatmulExl3 => "matmul_exl3",
             Op::MatmulMxfp4Pair => "matmul_mxfp4_pair",
+            Op::RopeScaled => "rope_scaled",
+            Op::AddBias => "add_bias",
             Op::GeluGlu => "gelu_glu",
         }
     }
@@ -250,6 +259,8 @@ impl Op {
             Op::MatmulMxfp4 => (4, 1),
             Op::MatmulExl3 => (5, 1),
             Op::MatmulMxfp4Pair => (6, 2),
+            Op::RopeScaled => (2, 1),
+            Op::AddBias => (2, 1),
             Op::GeluGlu => (2, 1),
         }
     }
@@ -279,6 +290,8 @@ pub struct OpAttrs {
     pub norm_topk: bool,
     /// `Rope`: number of leading values of each head that rotate (HF `partial_rotary_factor * head_dim`); 0 = the whole head.
     pub rotary_dim: usize,
+    /// `RopeScaled`: multiplier on cos and sin (YaRN's attention factor; 1.0 otherwise).
+    pub rope_mscale: f32,
     /// Norm ops: the scale applied is `w + w_offset` (1.0 for zero-centred norms such as Qwen3.5's), added in f32.
     pub w_offset: f32,
     /// `AttnPrefill` / `AttnDecode`: sliding window. Query at absolute position `p` attends keys `max(0, p + 1 - window)..=p`
@@ -314,6 +327,7 @@ impl Default for OpAttrs {
             top_p: 1.0,
             norm_topk: true,
             rotary_dim: 0,
+            rope_mscale: 1.0,
             w_offset: 0.0,
             window: 0,
             rope_prop: false,
@@ -414,7 +428,7 @@ impl OpCall {
         }
         if let Some(p) = &self.pos {
             p.check_bounds()?;
-            if !matches!(self.op, Op::Rope | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv) {
+            if !matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv) {
                 return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
             }
             if p.dtype != DType::I32 || p.numel() != 1 {
@@ -484,6 +498,31 @@ impl OpCall {
                 if a.rotary_dim > i[0].shape[2] || a.rotary_dim % 2 != 0 {
                     return bad(format!("rotary_dim {} must be even and <= head_dim {}", a.rotary_dim, i[0].shape[2]));
                 }
+            }
+            Op::RopeScaled => {
+                rank(&i[0], 3, "x")?;
+                rank(&i[1], 1, "inv_freq")?;
+                if o[0].shape != i[0].shape || i[0].shape[2] % 2 != 0 {
+                    return bad("shape mismatch / odd head_dim".into());
+                }
+                let rd = if a.rotary_dim == 0 { i[0].shape[2] } else { a.rotary_dim };
+                if rd > i[0].shape[2] || rd % 2 != 0 {
+                    return bad(format!("rotary_dim {} must be even and <= head_dim {}", a.rotary_dim, i[0].shape[2]));
+                }
+                if i[1].dtype != DType::F32 || i[1].shape[0] != rd / 2 {
+                    return bad(format!("inv_freq must be f32 [{}], got {} {:?}", rd / 2, i[1].dtype, i[1].shape));
+                }
+                if !(a.rope_mscale > 0.0) || !a.rope_mscale.is_finite() {
+                    return bad(format!("rope_mscale {} must be positive and finite", a.rope_mscale));
+                }
+            }
+            Op::AddBias => {
+                rank(&i[0], 2, "x")?;
+                rank(&i[1], 1, "bias")?;
+                if i[1].shape[0] != i[0].shape[1] || o[0].shape != i[0].shape || i[1].dtype != i[0].dtype {
+                    return bad(format!("x {:?} bias {:?} out {:?}", i[0].shape, i[1].shape, o[0].shape));
+                }
+                float(&i[0], "x")?;
             }
             Op::Matmul | Op::Logits => {
                 rank(&i[0], 2, "x")?;
@@ -657,11 +696,11 @@ impl ShapeInfo {
                 s.k = i[1].shape[1];
                 s.act = Some(i[1].dtype);
             }
-            Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
+            Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu | Op::AddBias => {
                 s.m = i[0].shape[0];
                 s.k = i[0].shape[1];
             }
-            Op::QkNorm | Op::Rope | Op::KvAppend => {
+            Op::QkNorm | Op::Rope | Op::RopeScaled | Op::KvAppend => {
                 s.m = i[0].shape[0];
                 s.n_heads = i[0].shape[1];
                 s.head_dim = i[0].shape[2];
@@ -932,11 +971,13 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
-        assert_eq!(Op::ALL.last(), Some(&Op::GeluGlu), "appended after MatmulMxfp4Pair");
+        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MoeBlock, "appended at the end");
+        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulMxfp4, "appended after MoeBlock");
+        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MatmulExl3, "appended after MatmulMxfp4");
+        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
+        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::RopeScaled, "appended after MatmulMxfp4Pair");
+        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::AddBias, "appended after RopeScaled");
+        assert_eq!(Op::ALL.last(), Some(&Op::GeluGlu), "appended after AddBias");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

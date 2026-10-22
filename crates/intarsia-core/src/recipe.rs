@@ -5,6 +5,7 @@
 
 use crate::dtype::DType;
 use crate::error::{Error, Result};
+use crate::rope::RopeScaling;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -46,6 +47,15 @@ pub struct AccuracySpec {
     /// `intarsia accuracy --self-golden --self-vs-ref-noise`: the worst prompt's mean KL may be this many times the
     /// reference noise. A per-golden `prompt_factor` wins; unset: 3.0.
     pub ref_noise_prompt_factor: Option<f64>,
+    /// Absolute top-1 floor in percent, for a model whose bf16 forward cannot reach the class default (99.5%) against the
+    /// fp32 golden: the gate uses `min(this, class default)`, never a higher one. Set it from a measurement (the top-1 of
+    /// the reference's own bf16 forward against the fp32 golden, minus 0.5 points) and cite it in a comment. `--min-top1`
+    /// wins. Unset: the class default. Ignored when the class default is "not gated" (format-reference goldens).
+    pub min_top1: Option<f64>,
+    /// `intarsia qualify` quick tier (`acc-short`): teacher-forced decode positions per prompt (clamped to the prompt
+    /// length - 1). Raise it for a model whose decode top-1 is noisy at the default 16 positions per prompt (160 rows on
+    /// the short golden); the gate is unchanged. Unset: 16.
+    pub decode_positions: Option<usize>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -114,6 +124,14 @@ pub struct AttnSpec {
     /// `partial_rotary_factor * head_dim` values of each head rotate).
     #[serde(default = "default_rope")]
     pub rope: String,
+    /// Projection bias tensors (Qwen2: `model.layers.{i}.self_attn.q_proj.bias`, ...), added after the matching
+    /// projection, before the norm / rope. Each independently optional; absent = no bias.
+    #[serde(default)]
+    pub q_bias: Option<String>,
+    #[serde(default)]
+    pub k_bias: Option<String>,
+    #[serde(default)]
+    pub v_bias: Option<String>,
     /// `q` projects to `[n_heads, 2 * head_dim]` per token: the query and a per-head output gate
     /// (`attn_out * sigmoid(gate)` before `o`), interleaved per head (HF `attn_output_gate`).
     #[serde(default)]
@@ -407,6 +425,10 @@ impl Recipe {
     }
 }
 
+fn is_unscaled(r: &RopeScaling) -> bool {
+    !r.is_scaled()
+}
+
 /// Model dimensions resolved from `config.json` through the recipe's key names.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ModelDims {
@@ -423,6 +445,10 @@ pub struct ModelDims {
     /// Fraction of `head_dim` that rotary embeddings rotate (HF `partial_rotary_factor`, 1.0 when absent).
     /// The generic GQA block rotates the full head and refuses other values.
     pub partial_rotary_factor: f32,
+    /// `rope_type` frequency scaling (llama3, yarn) from `rope_parameters` / `rope_scaling`; [`RopeScaling::None`]
+    /// for the plain embedding. Not serialised when unscaled, so existing models' dims JSON is unchanged.
+    #[serde(skip_serializing_if = "is_unscaled")]
+    pub rope_scaling: RopeScaling,
     pub tie_embeddings: bool,
     pub max_positions: usize,
     /// HF `layer_types` (one entry per layer: "full_attention", "linear_attention", ...); empty when absent.
@@ -550,8 +576,10 @@ pub fn check_supported(cfg: &serde_json::Value) -> Result<()> {
             return unsupported(format!("config hidden_act = \"{act}\" (only silu is implemented)"));
         }
     }
+    // q / k / v biases are loaded when the recipe maps them (`[layer.attn] q_bias / k_bias / v_bias`, Qwen2 sets them
+    // without any config key); a config `attention_bias = true` means HF Llama's layout, which also biases `o_proj`
     if tc.get("attention_bias").and_then(|v| v.as_bool()) == Some(true) {
-        return unsupported("config attention_bias = true (projection biases are not implemented)".into());
+        return unsupported("config attention_bias = true (o_proj bias is not implemented; q / k / v biases are mapped in the recipe, [layer.attn] q_bias / k_bias / v_bias)".into());
     }
     if tc.get("use_sliding_window").and_then(|v| v.as_bool()) == Some(true) {
         return unsupported("config use_sliding_window = true (sliding-window attention is not implemented)".into());
@@ -561,25 +589,12 @@ pub fn check_supported(cfg: &serde_json::Value) -> Result<()> {
             return unsupported("config layer_types contains sliding_attention (not implemented)".into());
         }
     }
-    // rope: only the plain "default" rotary embedding (rope_type absent, "default" or legacy null)
-    let check_rope = |what: &str, v: &serde_json::Value| -> Result<()> {
-        if v.is_null() {
-            return Ok(());
-        }
-        let ty = v.get("rope_type").or_else(|| v.get("type")).and_then(|t| t.as_str());
-        match ty {
-            None | Some("default") => Ok(()),
-            Some(t) => Err(Error::Unsupported(format!(
-                "config {what}.rope_type = \"{t}\" (only the default rotary embedding is implemented; \
-                 yarn / linear / dynamic / llama3 / longrope scaling would silently change every position)"
-            ))),
-        }
-    };
+    // rope: the plain embedding, llama3 and yarn scaling; every other rope_type would silently change positions
     if let Some(v) = tc.get("rope_parameters") {
-        check_rope("rope_parameters", v)?;
+        crate::rope::check_rope_type("rope_parameters", v)?;
     }
     if let Some(v) = tc.get("rope_scaling") {
-        check_rope("rope_scaling", v)?;
+        crate::rope::check_rope_type("rope_scaling", v)?;
     }
     Ok(())
 }
@@ -670,6 +685,27 @@ impl ModelDims {
         }
         let max_positions = need_u(&keys.max_positions)
             .map_err(|_| Error::model(format!("config.json missing '{}' (no default is assumed)", keys.max_positions)))?;
+        // frequency scaling: `rope_parameters` (transformers >= 5) or the older `rope_scaling` block
+        let rope_scaling = {
+            let from = |k: &str| -> Result<RopeScaling> {
+                match tc.get(k) {
+                    Some(v) => RopeScaling::from_config(v, tc, max_positions),
+                    None => Ok(RopeScaling::None),
+                }
+            };
+            match (from("rope_parameters")?, from("rope_scaling")?) {
+                (RopeScaling::None, b) => b,
+                (a, RopeScaling::None) => a,
+                (a, b) if a == b => a,
+                (a, b) => {
+                    return Err(Error::model(format!(
+                        "config.json: rope_parameters ({}) and rope_scaling ({}) disagree",
+                        a.name(),
+                        b.name()
+                    )))
+                }
+            }
+        };
         let is_moe = ["num_experts", "num_local_experts", "moe_intermediate_size"].iter().any(|k| tc.get(*k).is_some());
         let gemma_moe = || -> Result<crate::quant::moe::MoeConfig> {
             let u = |k: &str| get_u(k).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
@@ -742,6 +778,7 @@ impl ModelDims {
             rms_eps: rms_eps as f32,
             rope_theta: rope_theta as f32,
             partial_rotary_factor: partial_rotary_factor as f32,
+            rope_scaling,
             tie_embeddings,
             max_positions,
             layer_types,
@@ -823,9 +860,9 @@ mod tests {
             ("hidden_act", json!("gelu")),
             ("attention_bias", json!(true)),
             ("use_sliding_window", json!(true)),
-            ("rope_scaling", json!({"rope_type": "yarn", "factor": 4.0})),
+            ("rope_scaling", json!({"rope_type": "dynamic", "factor": 4.0})),
             ("rope_scaling", json!({"type": "linear", "factor": 2.0})),
-            ("rope_parameters", json!({"rope_type": "llama3", "rope_theta": 5e5})),
+            ("rope_parameters", json!({"rope_type": "longrope", "rope_theta": 5e5})),
             ("layer_types", json!(["full_attention", "sliding_attention"])),
         ];
         for (k, v) in cases {
@@ -837,6 +874,35 @@ mod tests {
         let mut c = base();
         c["rope_scaling"] = json!({"rope_type": "default"});
         dims(&c).unwrap();
+    }
+
+    #[test]
+    fn llama3_and_yarn_scaling_are_read_from_either_block() {
+        use crate::rope::RopeScaling;
+        let llama3 = json!({"rope_type": "llama3", "factor": 8.0, "low_freq_factor": 1.0, "high_freq_factor": 4.0, "original_max_position_embeddings": 8192});
+        let want = RopeScaling::Llama3 { factor: 8.0, low_freq_factor: 1.0, high_freq_factor: 4.0, original_max: 8192.0 };
+        // legacy `rope_scaling` next to a top-level rope_theta
+        let mut c = base();
+        c["rope_scaling"] = llama3.clone();
+        assert_eq!(dims(&c).unwrap().rope_scaling, want);
+        // `rope_parameters` carrying rope_theta (transformers >= 5)
+        let mut c = base();
+        let mut rp = llama3.clone();
+        rp["rope_theta"] = json!(1000000.0);
+        c["rope_parameters"] = rp;
+        assert_eq!(dims(&c).unwrap().rope_scaling, want);
+        // yarn with only a factor: the pre-training length falls back to max_position_embeddings
+        let mut c = base();
+        c["rope_scaling"] = json!({"rope_type": "yarn", "factor": 4.0});
+        match dims(&c).unwrap().rope_scaling {
+            RopeScaling::Yarn { factor, original_max, .. } => assert_eq!((factor, original_max), (4.0, 4096.0)),
+            other => panic!("{other:?}"),
+        }
+        // an unscaled model serialises without the field (plan / dims JSON of existing models is unchanged)
+        let plain = serde_json::to_value(dims(&base()).unwrap()).unwrap();
+        assert!(plain.get("rope_scaling").is_none(), "{plain}");
+        let scaled = serde_json::to_value(dims(&c).unwrap()).unwrap();
+        assert!(scaled.get("rope_scaling").is_some());
     }
 
     #[test]

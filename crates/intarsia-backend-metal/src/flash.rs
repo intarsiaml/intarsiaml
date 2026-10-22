@@ -42,8 +42,10 @@ pub const FLASH_VARIANTS: &[FlashVariant] = &[
     fv!("attn_flash_d256_s8", 256, 8),
 ];
 
-/// Group sizes (query heads per kv head) the kernel takes: they must divide the simdgroups of a threadgroup.
-const GROUPS: [usize; 4] = [1, 2, 4, 8];
+/// Group sizes (query heads per kv head) the kernel takes. 1, 2, 4 and 8 divide the simdgroups of a threadgroup; for 3, 5, 6
+/// and 7 (Qwen2.5: 28 heads over 4 kv heads) the kernel runs the next larger variant and the surplus simdgroups own no head
+/// (`live` in the shader): each real head runs exactly the arithmetic of the dividing group, so only the occupancy differs.
+const GROUPS: [usize; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 static FALLBACKS: AtomicU64 = AtomicU64::new(0);
 
@@ -52,7 +54,7 @@ pub fn fallbacks() -> u64 {
     FALLBACKS.load(Ordering::Relaxed)
 }
 
-/// Shapes the flash kernel takes: head_dim 64, 128 or 256, query heads a multiple of the kv heads with a group in 1, 2, 4, 8.
+/// Shapes the flash kernel takes: head_dim 64, 128 or 256, query heads a multiple of the kv heads with a group of 1 to 8.
 pub fn flash_ok(s: &ShapeInfo) -> bool {
     s.m >= 1
         && matches!(s.head_dim, 64 | 128 | 256)
@@ -86,7 +88,12 @@ fn pick(d: usize, g: usize) -> &'static FlashVariant {
     if let Some(v) = FLASH_VARIANTS.get(ix).filter(|v| v.head_dim == d && v.nsg % g == 0) {
         return v;
     }
-    FLASH_VARIANTS.iter().find(|v| v.head_dim == d && v.nsg % g == 0).expect("a flash variant for head_dim and group")
+    // a group that divides the simdgroups keeps its variant; 3, 5, 6, 7 take the smallest variant with a simdgroup per head
+    FLASH_VARIANTS
+        .iter()
+        .find(|v| v.head_dim == d && v.nsg % g == 0)
+        .or_else(|| FLASH_VARIANTS.iter().find(|v| v.head_dim == d && v.nsg >= g))
+        .expect("a flash variant for head_dim and group")
 }
 
 fn u32_of(v: usize, what: &str) -> Result<u32> {
@@ -170,10 +177,11 @@ mod tests {
     fn every_head_dim_and_group_has_a_variant() {
         for d in [64, 128, 256] {
             for g in GROUPS {
-                assert!(FLASH_VARIANTS.iter().any(|v| v.head_dim == d && v.nsg % g == 0), "d {d} group {g}");
+                assert!(FLASH_VARIANTS.iter().any(|v| v.head_dim == d && v.nsg >= g), "d {d} group {g}");
             }
         }
-        assert!(!flash_ok(&ShapeInfo { m: 4, n_heads: 12, n_kv_heads: 4, head_dim: 128, ..Default::default() }));
+        assert!(flash_ok(&ShapeInfo { m: 4, n_heads: 28, n_kv_heads: 4, head_dim: 128, ..Default::default() }));
+        assert!(!flash_ok(&ShapeInfo { m: 4, n_heads: 36, n_kv_heads: 4, head_dim: 128, ..Default::default() }), "group 9");
         assert!(flash_ok(&ShapeInfo { m: 4, n_heads: 32, n_kv_heads: 8, head_dim: 128, ..Default::default() }));
     }
 }

@@ -1,0 +1,60 @@
+== chunk-job cuda start 11:48:03 host spark-fa00 steps 'acc accdec gen speed' chunks '256 4096' job 4231
+Mem:             121          68          18           0          36          53
+2398 MHz, 47, 0 %, [N/A]
+acc 8b short prefill chunk 256 exit 0 41 s 230456 bytes
+acc 8b short prefill chunk 4096 exit 0 35 s 230464 bytes
+acc 8b 4k prefill chunk 256 exit 1 96 s 14809644 bytes
+acc 8b 4k prefill chunk 4096 exit 1 83 s 14809652 bytes
+gen 8b 20000 chars chunk 256 exit 0 42 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 103 ms (9.7 tok/s) | decode 4297 ms (14.66 tok/s) ids c2e98162 top 4b459bcc
+gen 8b 20000 chars chunk 4096 exit 0 44 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 78 ms (12.9 tok/s) | decode 4300 ms (14.65 tok/s) ids c2e98162 top 43f8f0b3
+  gen 8b 20000 chars: chunk 4096 vs 256: ids identical, first-token top-20 logits DIFFER
+gen 8b 54000 chars chunk 256 exit 0 54 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 80 ms (12.4 tok/s) | decode 4679 ms (13.46 tok/s) ids 7912d97a top 721fc5e6
+gen 8b 54000 chars chunk 4096 exit 0 47 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 82 ms (12.2 tok/s) | decode 4675 ms (13.48 tok/s) ids 7912d97a top 2e6e1341
+  gen 8b 54000 chars: chunk 4096 vs 256: ids identical, first-token top-20 logits DIFFER
+--- 8b chunk 256 serve [11:55:25]
+up after ~96 s
+calibration: 47 base tokens, 20.99 tokens per filler sentence
+  size   4096 rep: prompt=3963 gen=16 ttft=1.64s prefill=2415 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3927 gen=16 ttft=1.63s prefill=2411 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3949 gen=16 ttft=1.64s prefill=2410 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16256 gen=16 ttft=7.45s prefill=2182 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16292 gen=16 ttft=7.43s prefill=2192 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16180 gen=16 ttft=7.42s prefill=2181 tok/s decode=13.4 tok/s
+wrote /home/nvidia/ck/out/run-114802/speed/8b/ck-cuda-8b-c256.json
+ck-cuda-8b-c256  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3949     1.639         2411        14.8       16
+   16384    16256     7.431         2182        13.4       16
+--- 8b chunk 4096 serve [11:57:45]
+up after ~75 s
+calibration: 46 base tokens, 20.89 tokens per filler sentence
+  size   4096 rep: prompt=3942 gen=16 ttft=0.88s prefill=4488 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3989 gen=16 ttft=0.95s prefill=4197 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3982 gen=16 ttft=0.95s prefill=4171 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16249 gen=16 ttft=4.47s prefill=3635 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16310 gen=16 ttft=4.49s prefill=3631 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16297 gen=16 ttft=4.50s prefill=3619 tok/s decode=13.4 tok/s
+wrote /home/nvidia/ck/out/run-114802/speed/8b/ck-cuda-8b-c4096.json
+ck-cuda-8b-c4096  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3982     0.950         4197        14.8       16
+   16384    16297     4.492         3631        13.4       16
+--- 8b chunk 256 serve [11:59:28]
+up after ~78 s
+calibration: 44 base tokens, 20.98 tokens per filler sentence
+  size   4096 rep: prompt=3970 gen=16 ttft=1.64s prefill=2416 tok/s decode=14.9 tok/s
+  size   4096 rep: prompt=3969 gen=16 ttft=1.65s prefill=2406 tok/s decode=14.9 tok/s
+  size   4096 rep: prompt=3986 gen=16 ttft=1.65s prefill=2422 tok/s decode=14.9 tok/s
+  size  16384 rep: prompt=16284 gen=16 ttft=7.45s prefill=2186 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16227 gen=16 ttft=7.45s prefill=2178 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16185 gen=16 ttft=7.44s prefill=2175 tok/s decode=13.3 tok/s
+wrote /home/nvidia/ck/out/run-114802/speed/8b/ck-cuda-8b-c256.json
+ck-cuda-8b-c256  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3970     1.646         2416        14.9       16
+   16384    16227     7.450         2178        13.4       16
+accdec 8b short decode chunk 256 exit 0 48 s 298384 bytes
+accdec 8b short decode chunk 4096 exit 0 40 s 298392 bytes
+accdec 8b 4k decode chunk 256 exit 1 50 s 14843644 bytes
+accdec 8b 4k decode chunk 4096 exit 1 45 s 14843644 bytes
+== chunk-job cuda done 12:04:32

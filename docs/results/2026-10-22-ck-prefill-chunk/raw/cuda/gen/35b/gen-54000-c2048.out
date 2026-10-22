@@ -1,0 +1,3 @@
+u(up)`, `gate * up`, `down * (gate * up)`,
+`routed + shared`, `shared_gate * shared`, `sigmoid(shared_gate * shared) * shared`, `routed + sigmoid * shared`).
+`moe_topk` is `topk(softmax(logits))

@@ -315,3 +315,101 @@ fn predicates_route_m1_to_gemv() {
     let op_of = |name: &str| ks.iter().find(|k| k.name == name).unwrap().op;
     assert_eq!((op_of(LOGITS_BF16), op_of(LOGITS_BF16_GEMV)), (Op::Logits, Op::Logits));
 }
+
+/// `RopeScaled` (host and device position, partial rotary, odd offsets) against an f64 evaluation of the same formula,
+/// with the real llama3 and yarn tables and YaRN's attention factor; the unscaled head passes through.
+#[test]
+fn rope_scaled_matches_f64_reference() {
+    use intarsia_core::rope::RopeScaling;
+    let be = backend();
+    let (tt, nh, d, rd) = (3usize, 4usize, 128usize, 96usize);
+    let tables = [
+        RopeScaling::Llama3 { factor: 8.0, low_freq_factor: 1.0, high_freq_factor: 4.0, original_max: 8192.0 }
+            .freqs(500000.0, rd)
+            .unwrap(),
+        RopeScaling::Yarn {
+            factor: 4.0,
+            original_max: 32768.0,
+            beta_fast: 32.0,
+            beta_slow: 1.0,
+            truncate: true,
+            attention_factor: None,
+            mscale: None,
+            mscale_all_dim: None,
+        }
+        .freqs(1000000.0, rd)
+        .unwrap(),
+    ];
+    for (ti, freqs) in tables.iter().enumerate() {
+        for (xo, oo, pos0, dev) in [(0usize, 0usize, 0usize, false), (2, 2, 9000, false), (0, 0, 70000, true)] {
+            let x = rand_bf16(tt * nh * d, 20 + ti as u64);
+            let xb = upload_at(&be, xo, &x);
+            let out = be.alloc(oo + x.len() * 2 + 16, MemKind::Device).unwrap();
+            be.upload(&out, 0, &vec![0xEEu8; oo + x.len() * 2 + 16], 0).unwrap();
+            let tb = be.alloc(freqs.inv_freq.len() * 4, MemKind::Device).unwrap();
+            be.upload(&tb, 0, &freqs.inv_freq.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>(), 0).unwrap();
+            let posb = be.alloc(4, MemKind::Device).unwrap();
+            be.upload(&posb, 0, &(pos0 as i32).to_le_bytes(), 0).unwrap();
+            let mut call = OpCall::new(
+                Op::RopeScaled,
+                vec![t(&xb, xo, DType::Bf16, &[tt, nh, d]), t(&tb, 0, DType::F32, &[rd / 2])],
+                vec![t(&out, oo, DType::Bf16, &[tt, nh, d])],
+                OpAttrs { pos0, head_dim: d, rotary_dim: rd, rope_mscale: freqs.attention_factor, ..Default::default() },
+            );
+            if dev {
+                call.pos = Some(TensorRef { buf: posb.clone(), offset: 0, dtype: DType::I32, shape: vec![1] });
+            }
+            be.launch("rope_scaled_bf16", &call, 0).unwrap();
+            let got = read_u16(&be, &out, oo, x.len());
+            for tok in 0..tt {
+                for h in 0..nh {
+                    let base = (tok * nh + h) * d;
+                    for i in 0..d {
+                        let xf = |j: usize| bf16_to_f32(x[base + j]) as f64;
+                        let want = if i >= rd {
+                            xf(i)
+                        } else {
+                            let half = rd / 2;
+                            let k = i % half;
+                            let ang = (pos0 + tok) as f64 * freqs.inv_freq[k] as f64;
+                            let (s, c) = (ang.sin() * freqs.attention_factor as f64, ang.cos() * freqs.attention_factor as f64);
+                            if i < half { xf(k) * c - xf(k + half) * s } else { xf(k + half) * c + xf(k) * s }
+                        };
+                        let g = bf16_to_f32(got[base + i]) as f64;
+                        // f32 angle (positions up to 70000) and bf16 output: a few percent of the unit-scale input
+                        assert!((g - want).abs() <= 0.02 * want.abs() + 0.02, "table {ti} pos0 {pos0} [{tok},{h},{i}]: {g} vs {want}");
+                    }
+                }
+            }
+            let raw = read_u16(&be, &out, 0, (oo + x.len() * 2 + 16) / 2);
+            assert!(raw[..oo / 2].iter().all(|v| *v == 0xEEEE), "guard before the output was overwritten");
+        }
+    }
+}
+
+/// `AddBias`, including in place and at odd element offsets: x + bias with one bf16 rounding.
+#[test]
+fn add_bias_matches_reference_in_place_and_at_odd_offsets() {
+    let be = backend();
+    let (rows, cols) = (5usize, 301usize);
+    let x = rand_bf16(rows * cols, 31);
+    let bias = rand_bf16(cols, 32);
+    let want: Vec<u16> = x
+        .iter()
+        .enumerate()
+        .map(|(i, v)| f32_to_bf16(bf16_to_f32(*v) + bf16_to_f32(bias[i % cols])))
+        .collect();
+    for (xo, bo, oo, in_place) in [(0usize, 0usize, 0usize, false), (2, 2, 0, false), (2, 0, 2, true), (0, 2, 0, true)] {
+        let xb = upload_at(&be, xo, &x);
+        let bb = upload_at(&be, bo, &bias);
+        let (out, out_off) = if in_place { (xb.clone(), xo) } else { (be.alloc(oo + x.len() * 2 + 16, MemKind::Device).unwrap(), oo) };
+        let call = OpCall::new(
+            Op::AddBias,
+            vec![t(&xb, xo, DType::Bf16, &[rows, cols]), t(&bb, bo, DType::Bf16, &[cols])],
+            vec![t(&out, out_off, DType::Bf16, &[rows, cols])],
+            OpAttrs::default(),
+        );
+        be.launch("add_bias_bf16", &call, 0).unwrap();
+        assert_eq!(read_u16(&be, &out, out_off, x.len()), want, "offsets {xo} {bo} {oo} in_place {in_place}");
+    }
+}

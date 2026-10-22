@@ -770,9 +770,13 @@ mod tests {
         // ops are registered (quantmoe.rs) and the model still falls back to the unfused ops for an exact call without one.
         // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers. The phase-1 folds
         // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
+        // `RopeScaled` (llama3 / yarn rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs
+        // them fails at load with `NoKernel`, it never runs the unscaled rope.
         // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`), and the MXFP4 k/v-style
         // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
-        const NOT_ON_CUDA: [Op; 9] = [
+        const NOT_ON_CUDA: [Op; 11] = [
+            Op::RopeScaled,
+            Op::AddBias,
             Op::Sample,
             Op::QkNormRopeKv,
             Op::RmsNormAddMatmulFp8Pair,

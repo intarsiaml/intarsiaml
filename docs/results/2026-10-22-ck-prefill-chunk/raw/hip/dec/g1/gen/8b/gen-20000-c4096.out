@@ -1,0 +1,9 @@
+ all gates passed |
+| **publish deep results** (markdown + JSON + unanimis) | 1 min | — |
+| **publish model** (to `models/`, with recipe, weights, tuning DB, and all logs) | 1 min | — |
+
+---
+
+## 8. Tooling
+
+|
