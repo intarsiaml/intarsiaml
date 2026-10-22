@@ -10,6 +10,8 @@ H=spark1
 W=/opt/code/wt-gc
 git -C $W archive "$REV" | ssh $H "rm -rf gc/src && mkdir -p gc/src && tar -x -C gc/src"
 scp -q "$SHORT" $H:gc/src/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors
+# the long golden must be there too, else qualify takes the 4k golden for the long one and SKIPs acc-4k
+scp -q "${LONG:?}" $H:gc/src/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
 ssh -o BatchMode=yes $H "FLEETQ_JOB=$FLEETQ_JOB bash -s" <<'EOS'
 set -u
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH

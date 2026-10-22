@@ -26,7 +26,16 @@ recipe, plan still run). Per backend: q-0 had no baseline for the 4k golden, rec
 | backend | q-0 (no 4k baseline) | q-1 / q-1b against the recorded baseline | floor | baseline gate | prefix reuse |
 |---|---|---|---|---|---|
 | Metal (endor, fleetq #4196, non-exclusive 45 GB, chunk 256) | FAIL (prefix reuse) | FAIL, FAIL (identical) | PASS | PASS | FAIL |
-| CUDA (spark1, vLLM up) | CUDA_ACC4K | | | | |
+| CUDA (spark1, vLLM up, fleetq #4207) | SKIP | SKIP | n/a | n/a | n/a |
+
+CUDA: **no verdict.** Both runs read `SKIP (the 4k golden is the long golden: covered by acc-long)`: with no 35B long golden
+in the tree, qualify's long-golden lookup falls back to the `-4k` file (`find_golden`, score 60), `acc-4k` sees the same
+file twice and skips. Metal ran because its lookup found no long golden at all (or a different one); the CUDA copy of the tree
+had only the short and 4k goldens. The fix is to put the long golden next to them (`acc4k-cuda.sh` now copies it,
+`LONG=`); the rerun (#4216) aborted at its own memory guard (22 GB available on spark1, needs 34, other jobs were running) at
+11:21, too close to the 11:30 stop to wait again. This is a qualify quirk worth a fix on its own: a model with a 4k golden
+and no long golden never grades `acc-4k` (it is graded as `acc-long` instead, which is the intent, but only when the
+long-golden stage runs). Raw run 1: [raw/cuda-acc4k-run1-skipped](2026-10-22-gc-gate-coverage/raw/cuda-acc4k-run1-skipped).
 
 Metal: the only failing case is `long_docs_4k` `continue` (split 2000, 2015 tokens cached): the streams diverge at
 token 8, "warm margin 0.346, cold margin 0.132, shared rows differ by 0.252 nats, KL up to 2.9e-2; fixed rounding scale
@@ -52,6 +61,6 @@ one GPU), and the worker env for the mutant.
 ## 4. Not done / uncertain
 
 * CUDA tp=2 dump and the tp-stage clean / mutant verdicts (section 3).
-* CUDA acc-4k: see the table in section 2.
+* CUDA acc-4k verdict and baseline (no `...4k-top20.cuda.baseline.json` committed): rerun `acc4k-cuda.sh` with the long golden present and 34+ GB free on spark1.
 
 Scripts: `2026-10-22-gc-gate-coverage/scripts/` (`acc4k-cuda.sh`, `acc4k-metal.sh`, `tp2-cuda.sh`, `tpshim.py`).
