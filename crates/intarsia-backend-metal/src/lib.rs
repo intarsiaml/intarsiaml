@@ -30,6 +30,7 @@ mod fill;
 pub mod flash;
 pub mod flash_nax;
 mod fused;
+mod gdn;
 pub mod gemm_nax;
 mod host;
 pub mod kernels;
@@ -729,6 +730,15 @@ impl Backend for MetalBackend {
         }
         if kernel == multirow::LOGITS_BF16_GEMV_ROWS && call.op == Op::Logits {
             return self.launch_logits_rows(call);
+        }
+        if matches!(
+            (kernel, call.op),
+            (kernels::GATE_SPLIT_BF16, Op::GateSplit)
+                | (kernels::SIGMOID_MUL_BF16, Op::SigmoidMul)
+                | (kernels::GDN_CONV_BF16, Op::GdnConv)
+                | (kernels::GDN_DELTA_RULE_BF16, Op::GdnDeltaRule)
+        ) {
+            return self.launch_gdn(kernel, call);
         }
         self.launch_dense(kernel, call)
     }

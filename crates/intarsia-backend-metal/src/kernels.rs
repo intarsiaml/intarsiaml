@@ -146,6 +146,12 @@ pub const QK_NORM_ROPE_KV_BF16: &str = "qk_norm_rope_kv_bf16";
 /// The prefill form of the same registry entry (T > 1, head_dim = rotary_dim = 128), chosen by the launcher: bitwise the
 /// decode form, with the 64 (cos, sin) pairs of a token computed once per threadgroup instead of per head and thread.
 pub const QK_NORM_ROPE_KV_BF16_PF: &str = "qk_norm_rope_kv_bf16_pf";
+/// Gated-attention / GatedDeltaNet helper ops (gdn.metal, launchers gdn.rs); the conv and delta-rule shaders are per
+/// tap count / dk (`gdn::CONV_SHADERS`, `gdn::DELTA_SHADERS`), picked by the launcher.
+pub const GATE_SPLIT_BF16: &str = "gate_split_bf16";
+pub const SIGMOID_MUL_BF16: &str = "sigmoid_mul_bf16";
+pub const GDN_CONV_BF16: &str = "gdn_conv_bf16";
+pub const GDN_DELTA_RULE_BF16: &str = "gdn_delta_rule_bf16";
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 /// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
@@ -284,6 +290,7 @@ pub fn requires_metal4(kernel: &str) -> bool {
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(crate::mxfp4::SHADERS);
+    v.extend(crate::gdn::shader_names());
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
@@ -336,6 +343,10 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
     (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
+    (GATE_SPLIT_BF16, Op::GateSplit),
+    (SIGMOID_MUL_BF16, Op::SigmoidMul),
+    (GDN_CONV_BF16, Op::GdnConv),
+    (GDN_DELTA_RULE_BF16, Op::GdnDeltaRule),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -508,6 +519,22 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::scratch),
+                // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
+                GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
+                // depthwise causal conv + SiLU; `weights` is the tap dtype, `k` the tap count
+                GDN_CONV_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::gdn::conv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL),
+                // sequential recurrence, one simdgroup per state row: fixed reduction order; `weights` is A_log's dtype
+                GDN_DELTA_RULE_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::gdn::delta_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -555,7 +582,7 @@ mod tests {
         "35b attn input norm: rmsnorm_add_bf16",
         "35b k/v pair: -",
         "35b k proj: -",
-        "35b output gate: -",
+        "35b output gate: sigmoid_mul_bf16",
         "35b o_proj: -",
         "35b shared down: -",
         "35b combine: -",
@@ -620,6 +647,9 @@ mod tests {
         "attn_prefill_bf16_flash_nax:attn_prefill",
         "attn_prefill_bf16_splitkv_rows:attn_prefill",
         "embedding_bf16:embedding",
+        "gate_split_bf16:gate_split",
+        "gdn_conv_bf16:gdn_conv",
+        "gdn_delta_rule_bf16:gdn_delta_rule",
         "kv_append_bf16:kv_append",
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
@@ -637,6 +667,7 @@ mod tests {
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
+        "sigmoid_mul_bf16:sigmoid_mul",
         "silu_glu_bf16:silu_glu",
     ];
 
@@ -652,28 +683,28 @@ mod tests {
         assert_eq!(got, MAIN_KERNEL_LIST);
     }
 
-    // Metal has no gated-attention split and no GatedDeltaNet kernels: the 35B does not load here (the '-' rows), before or
-    // after; its fused prologue serves the dense models
+    // The gated-attention split and the GatedDeltaNet conv / delta rule are registered (lane M35 gdn); the fused ops are not
+    // (the '-' rows); the fused prologue serves the dense models
     const PHASE2_PINS: &[&str] = &[
-        "35b m=1 gate split: -",
+        "35b m=1 gate split: gate_split_bf16",
         "35b m=1 q norm: qk_norm_bf16",
         "35b m=1 k norm: qk_norm_bf16",
         "35b m=1 rope: rope_bf16",
         "35b m=1 kv append: kv_append_bf16",
         "35b m=1 prologue: qk_norm_rope_kv_bf16",
         "35b m=1 fold P4a: -",
-        "35b m=1 gdn conv: -",
-        "35b m=1 gdn delta: -",
+        "35b m=1 gdn conv: gdn_conv_bf16",
+        "35b m=1 gdn delta: gdn_delta_rule_bf16",
         "35b m=1 fold P3: -",
-        "35b m=32 gate split: -",
+        "35b m=32 gate split: gate_split_bf16",
         "35b m=32 q norm: qk_norm_bf16",
         "35b m=32 k norm: qk_norm_bf16",
         "35b m=32 rope: rope_bf16",
         "35b m=32 kv append: kv_append_bf16",
         "35b m=32 prologue: qk_norm_rope_kv_bf16",
         "35b m=32 fold P4a: -",
-        "35b m=32 gdn conv: -",
-        "35b m=32 gdn delta: -",
+        "35b m=32 gdn conv: gdn_conv_bf16",
+        "35b m=32 gdn delta: gdn_delta_rule_bf16",
         "35b m=32 fold P3: -",
     ];
 
