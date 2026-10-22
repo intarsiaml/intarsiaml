@@ -198,7 +198,8 @@ number of prompts and generated tokens, not with the model.
 | quick | `plan` | `plan show --admit`: load the model, kernel per op, admission | loads, every op admitted | 50 s (cold load) |
 | quick | `kernels` | `kernels test --model` on the model's shapes; a load error lists the missing kernels | all admitted | 41 s (skipped on cpu) |
 | quick | `gate` | `accuracy --quick`: 5 sanity prompts, perplexity, non-finite rows | all ok | 9 s |
-| quick | `acc-short` | `accuracy --golden` (prefill + teacher-forced decode) with the class thresholds | floor gate | 8 s |
+| quick | `acc-short` | `accuracy --golden` (prefill + teacher-forced decode) with the class thresholds; a MoE / hybrid / quantized model with a reference-server golden is also gated against the backend's committed baseline + envelope (`golden/baselines/`) and reads **MISSING-BASELINE** (exit 1) without one that applies | floor gate (+ baseline gate) | 8 s |
+| quick | `acc-oracle` | `accuracy --golden oracle/<name>-cpu-oracle...` (prefill): the engine against the f64 CPU oracle, for a MoE / hybrid / quantized model (no oracle: MISSING-BASELINE with the `accuracy --backend cpu ... --write-self-golden` command that makes it, to commit under `golden/oracle/`), then a drift check against the recorded same-backend dump `golden/baselines/<oracle>.<backend>[-tpN].selfgolden.safetensors` | oracle KL on scored rows <= `--oracle-max-kl` (2e-2) and drift mean KL21 <= 1e-4; **MISSING-BASELINE** without the dump. Re-record the dumps when a change is meant to move the numerics (docs/results/2026-10-22-fx1-oracle-gate.md) | ~20-80 s (35B) |
 | quick | `bench` | `serve` + `bench speed` at 128 / 1024 / 4096, byte floor | every size measured | 80 s |
 | | | **quick section** | | **3 min 8 s** |
 | full | `acc-long` | `accuracy --mode all` on the long golden: prefill, decode, prefix reuse | floor gate + reuse gate | 29 s |
@@ -206,7 +207,7 @@ number of prompts and generated tokens, not with the model.
 | full | `envelope` | noise envelope (`chunk`, plus `attn-simt` on GPUs) and the baseline; then a self-check gate | the pair gates its own build | 24 s |
 | full | `bench-long` | `serve` + `bench speed` at 1024 / 4096 / 16384 | every size measured | 83 s |
 | full | `ab` | `localeval speed` against `--reference` and against our server | both ran | skipped (no `--reference`) |
-| full | `tp` | with `--tp N`: tp plan, `bench speed`, accuracy against the short golden | accuracy gate | 71 s (tp 2) |
+| full | `tp` | with `--tp N`: tp plan, `bench speed`, accuracy against the short golden and, when there is one, the CPU oracle | accuracy gate + oracle floor | 71 s (tp 2) |
 | | | **in-depth section** | | **3 min 26 s** (6 min 34 s in total) |
 
 The numbers it produced for that run: decode 37.7 / 37.1 / 35.9 tok/s at 128 / 1024 / 4096 tokens (91 / 90 / 87 %

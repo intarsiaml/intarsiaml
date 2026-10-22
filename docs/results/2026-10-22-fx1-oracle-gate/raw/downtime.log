@@ -1,0 +1,9 @@
+# fx1 role downtime: tatooine radiance (radiance-rank0 + radiance-rank1), one fleetq exclusive slot per window, trap restores radiance
+# job   down                  radiance answers again   minutes  note
+3673    2026-10-21 23:45:49   2026-10-21 23:46:19      0.5      all runs refused the non-canonical /models/golden copy (ref_noise hash mismatch)
+3716    2026-10-21 23:57:45   2026-10-21 23:58:50      1.1      aborted by me (script variable bug), stages killed inside the slot
+3720    2026-10-22 00:02:18   2026-10-22 00:03:25      1.1      window 1: old-gate verdicts + dumps on the vLLM short golden
+3750    2026-10-22 00:33:34   2026-10-22 00:36:06      2.5      window 2: engine vs CPU oracle dumps (qualify part failed on a --skip syntax error)
+3757    2026-10-22 00:41:20   2026-10-22 00:47:19      6.0      window 3: qualify (duplicate --allow-unstamped bug found)
+3769    2026-10-22 00:49:15   2026-10-22 00:56:24      7.2      window 4: acceptance (fixed build)
+# before 00:00: 1.6 min (cap 60 min per lane); after 00:00: 16.8 min, every window under the 20-min cap

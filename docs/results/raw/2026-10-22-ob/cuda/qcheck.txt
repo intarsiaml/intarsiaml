@@ -1,0 +1,68 @@
+data : Scrape up 1 series
+data : Running 1 series
+data : Waiting 1 series
+data : Decode tok/s (last req) 1 series
+data : Prefill tok/s (last req) 1 series
+data : KV used 1 series
+data : Wedge 1 series
+data : Uptime 1 series
+data : Tokens per second (aggregate) 1 series
+data : Tokens per second (aggregate) 1 series
+data : Tokens per second (aggregate) 1 series
+data : Decode speed (tok/s per stream) 1 series
+data : Prefill speed (tok/s, uncached prompt) 1 series
+data : Engine steps per second 1 series
+data : Time to first token 1 series
+data : Time to first token 1 series
+data : Time to first token 1 series
+data : Inter-token latency 1 series
+data : Inter-token latency 1 series
+data : Inter-token latency 1 series
+data : TTFT distribution 18 series
+data : ITL distribution 11 series
+data : Prompt tokens per request (percentiles) 1 series
+data : Prompt tokens per request (percentiles) 1 series
+data : Prompt tokens per request (percentiles) 1 series
+data : Generated tokens per request (percentiles) 1 series
+data : Generated tokens per request (percentiles) 1 series
+data : Generated tokens per request (percentiles) 1 series
+data : Prompt length distribution 17 series
+data : Generation length distribution 17 series
+data : Running and waiting 1 series
+data : Running and waiting 1 series
+data : Finished requests per second by reason 2 series
+data : Finished requests per second by reason 1 series
+data : Error ratio 1 series
+data : Rejected (HTTP 429) per second 1 series
+data : Request rate by client 6 series
+data : Tokens per second by client 12 series
+empty: Batch queue depth
+empty: Batch queue depth
+empty: Batch queue depth
+empty: Average decode batch size
+empty: Decode passes by batch size
+empty: Scheduler iteration time
+empty: Scheduler iteration time
+empty: Scheduler iteration time
+empty: Batch TTFT (submit to first token)
+empty: Batch TTFT (submit to first token)
+empty: Batch TTFT (submit to first token)
+empty: Prefill chunks and mixed iterations
+empty: Prefill chunks and mixed iterations
+empty: Prefill chunks and mixed iterations
+empty: Scheduler request outcomes per second
+empty: Scheduler request outcomes per second
+empty: Scheduler request outcomes per second
+empty: Scheduler request outcomes per second
+empty: Scheduler request outcomes per second
+data : KV cache bytes 1 series
+data : KV cache bytes 1 series
+data : KV cache tokens 1 series
+data : KV cache tokens 1 series
+data : Device memory 1 series
+data : Device memory 1 series
+data : Device memory 1 series
+data : Kernel time share 13 series
+data : Op time rate 13 series
+data : Op launches per second 13 series
+ok=48 empty=19 error=0

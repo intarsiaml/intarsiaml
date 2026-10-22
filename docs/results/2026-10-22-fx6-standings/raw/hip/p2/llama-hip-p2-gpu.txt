@@ -1,0 +1,2 @@
+gpu before: card0: sclk=S: 2Mhz *  temp_mC=36000 vram_used=60030976 busy=0 | card1: sclk=1: 1432Mhz *  temp_mC=41000 vram_used=22178922496 busy=28 | 
+gpu after: card0: sclk=S: 0Mhz *  temp_mC=33000 vram_used=60071936 busy=0 | card1: sclk=S: 41Mhz *  temp_mC=59000 vram_used=22323642368 busy=3 | 

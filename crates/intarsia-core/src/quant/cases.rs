@@ -420,13 +420,16 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     }
                 }
             }
-            if !quick {
+            {
                 // a prefill-shaped batch (M and N tails, 75 tiles of 128 x 128): the CUDA matmul_fp8_gemm_reg kernel
-                // accepts M >= 256 only. Appended after the cases above, so their random data is unchanged.
+                // accepts M >= 256 only, and the gemm kernels K % 128 == 0. Appended after the cases above, so their random
+                // data is unchanged. The quick sweep takes a small one (M tail of 4 over 256, N 144 = 128 + 16, K 256) so
+                // that these kernels are not left untested.
+                let (m, n) = if quick { (260, 144) } else { (300, 3080) };
                 for (xdt, odt, aq) in [(DType::Bf16, DType::Bf16, true), (DType::Bf16, DType::Bf16, false), (DType::Bf16, DType::F32, true)] {
                     push(
-                        format!("M=300 N=3080 K=256 x={xdt} out={odt} act_quant={aq}"),
-                        matmul_fp8_case(&mut rng, 300, 3080, 256, aq, xdt, odt),
+                        format!("M={m} N={n} K=256 x={xdt} out={odt} act_quant={aq}"),
+                        matmul_fp8_case(&mut rng, m, n, 256, aq, xdt, odt),
                     );
                 }
             }
@@ -515,6 +518,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 // the real expert count (Qwen3.6-35B-A3B: 256 experts, top-8) at a prefill-sized batch
                 shapes.push((256, 256, 8, 2048, 512));
                 // a batch at the CUDA FP4 experts kernel's minimum (NVFP4_MIN_TOKENS = 1024), small H/I to keep the cpu reference cheap
+                shapes.push((1024, 16, 8, 256, 128));
+            } else {
+                // the grouped kernels' minimum batches (moe_experts_w4a16_bf16 768 tokens, the FP4 one 1024): small H / I keep
+                // the cpu reference cheap. One shape, so the cost of the quick sweep stays low.
                 shapes.push((1024, 16, 8, 256, 128));
             }
             for (t, e, k, h, i) in shapes {

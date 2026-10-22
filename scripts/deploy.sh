@@ -26,7 +26,8 @@
 #
 # What runs where: CUDA = the host toolchain on spark1 (rustc and nvcc are stamped); HIP = deploy/tatooine/dev.sh, the ROCm
 # image pinned by digest in deploy/tatooine/Dockerfile.hip-dev; Metal = the host's Xcode Metal toolchain. Every build is
-# `cargo build --release --locked`: Cargo.lock decides the dependency versions, rust-toolchain.toml the rustc.
+# `cargo build --release --locked` through scripts/repro-build.sh (paths remapped, SOURCE_DATE_EPOCH = commit time), so the
+# same sha gives the same binary bytes in any tree path: Cargo.lock decides the dependency versions, rust-toolchain.toml the rustc.
 # Output: the stamp is printed and written to <tree>/DEPLOY_STAMP.json on the host (scripts/bench-bundle.sh packs it).
 # Needs rsync, git and jq locally, bash on the host.
 set -euo pipefail
@@ -163,7 +164,7 @@ if ! docker image inspect $IMAGE >/dev/null 2>&1; then
 fi
 EOF
   fi
-  istep build "$BACKEND" "${CARGO_BUILD_JOBS:-6}" "$STAMP_TEXT"
+  istep build "$BACKEND" "${CARGO_BUILD_JOBS:-6}" "$STAMP_TEXT" "$(git -C "$REPO" log -1 --format=%ct "$SHA")"
 fi
 
 # ---- smoke ------------------------------------------------------------------------------------------------------------
