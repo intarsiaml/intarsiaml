@@ -399,6 +399,9 @@ compare the top logits of the last prompt position with transformers: `intarsia 
   uses `OpAttrs::window`, `rope_prop`, `gelu` or a non-1 `scale` on `Add` / `Embedding` is accepted only by kernels that
   registered `.ext()`, so a backend that ignores the attribute fails with `NoKernel` instead of running wrong, (3) validate the
   architecture on a tiny random-weight checkpoint against HF (`tools/gemma4_tiny.py`, `tests/gemma4_tiny.rs`) before touching the
-  real weights, because that needs neither a GPU nor a golden.
+  real weights, because that needs neither a GPU nor a golden, then (4) validate on a 2-layer slice of the REAL checkpoint
+  (`tools/gemma4_slice/`; <= 12 GB, which a fleetq backfill admits when a full-model lease does not) against an HF golden
+  of the same slice: rescale the final norm if the truncated model saturates a logit soft-cap, or the comparison is vacuous.
+  A checkpoint that declares plain `NVFP4` (W4A4) is refused until the recipe says `[defaults] w4a4_as_w4a16 = true`.
 
 `recipe new` names these cases in its TODO list; `qualify`'s `plan` stage names the ops that have no kernel.

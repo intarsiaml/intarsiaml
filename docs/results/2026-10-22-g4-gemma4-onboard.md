@@ -96,3 +96,58 @@ Silent errors in the scaffold (it exited 3 as designed, but the file it wrote is
 | 09:58 | `plan show` on a 6-layer slice of the REAL checkpoint on CUDA (spark2): loads in 5.9 s, resolves every op to a kernel on the first try (`embedding_scaled`, `rope_prop`, `attn_*_ext`, `moe_experts_decode_v2_gelu`, `gelu_glu`, `add_scaled`). |
 | 10:00 | `generate` on that slice, CUDA and CPU reference: the same 12 greedy ids on both (`raw/gemma4-6L-gen-*.txt`). The text is garbage (a 6-of-30-layer model) and the top logits sit at exactly 30.0 (the soft-cap), which is not evidence either way. |
 | 09:55-10:05 | **GPU model-size leases unobtainable.** Both Sparks were gated by another lane's chain (#4172 stale, #4174 multi-host, #4171 exclusive): `fleetq when` says 11:57 (spark1) / 13:27 (spark2) for a 20-26 GB lease. Only leases <= 12 GB are admitted (backfill). The full 26B-A4B (18.8 GB of weights) does not fit that, so the full-model onboard, the 4k goldens and the in-depth tier could not run in the lane's window. |
+
+## Where the time went, and the friction (the main deliverable)
+
+Engineering clock, 09:12 to 10:23, with the fleet queue excluded: spec reading 10 min; interface design + 3 parallel workers (CPU
+reference, CUDA kernels, HF tiny model) 10 min to launch, 25-60 min to finish each; own layer block + loader + recipe 20 min; first
+compile of everything 09:38 (clean after the CPU ops landed); first tiny-model match 09:41; real weights loading and generating on
+CUDA 09:58; HF match on the real-weight slice 10:14; `onboard` stages on it 10:23. Fleet queue: roughly 40 of those minutes were
+spent waiting for or re-arranging leases, and the full-model run never got one.
+
+Top friction points, in order of cost:
+
+1. **Fleet capacity, not the engine.** Two Sparks, ~15 lanes. A 26 GB non-exclusive lease needed an exclusive-job chain
+   (#4171 -> #4172 stale -> #4174 two-host) to clear: estimated start 11:57 / 13:27 at 09:55, still ~11:05 at 10:25. `fleetq`'s
+   backfill admits only a job that leaves the waiting job's memory free, so leases <= 12 GB went through at once and a 19 GB model
+   never did. Everything that needs the model resident (HF golden, the 4k golden, in-depth tier, the quick tier on the real model)
+   is blocked behind that. Fix for next time: reserve a model-sized slot for an onboarding lane up front (`fleetq reserve`), and
+   keep a <= 12 GB slice workflow (below) so the engineering loop never waits.
+2. **The recipe format cannot describe a new layer structure; no spec exists in the repo.** `recipe new` produced a scaffold that is
+   wrong beyond its 10 TODOs (it kept `gated = true`, pointed `ffn` at `experts.0`, assumed silu because it read `hidden_act` and
+   the key is `hidden_activation`, and silently dropped what it could not name: `layer_scalar`, the 5 extra norms, the router
+   parameters, the per-layer-type rope dict, `attention_k_eq_v`, the embedding scale, the soft-cap). Only transformers'
+   `modeling_gemma4.py` (fetched from the pinned wheel) told the truth. The fix here was a new Rust block, not recipe keys; the
+   features that were "just a number" (scale, window, rope variant, activation) were cheap, the structure was not.
+3. **No cheap reference for a big model.** An HF golden of the full 26B needs the NVFP4 experts dequantised to bf16 (~52 GB of RAM or
+   disk) and `tools/golden.py` has no such path; vLLM on the fleet serves other models. What worked: slice the real checkpoint to 2
+   layers (`tools/gemma4_slice/`, 3 GB, loads in 5 s), dequantise for HF, produce a golden in 7 s. The catch it exposed: the real
+   final-norm weight makes a truncated model saturate the soft-cap, so a "PASS" is vacuous unless the norm is rescaled (see
+   Verdict). The checkpoint's `NVFP4` W4A4 declaration was the other surprise: the engine's own policy refuses it, and nothing in the
+   docs said how to waive it (now `w4a4_as_w4a16`).
+
+Smaller: `cargo test -p intarsia-cli` overwrote the `--features cuda` binary in the same target dir (the next `accuracy` run said "built
+without the cuda feature"); tiny-model "bf16 vs f32" disagrees through router flips unless judged against HF's own spread; HF
+`inv_freq` must stay f32 when the model is cast to bf16; the Gemma tokenizer has no post-processor BOS (chat template adds it, a raw
+`generate --prompt` does not).
+
+## What would make the next model faster
+
+* A `fleetq reserve` for onboarding with a model-sized memory claim, taken before the lane starts (item 1).
+* `tools/slice_checkpoint.py` generalised (layers to keep, tensor-name regex, NVFP4 dequantise for HF) so every new model gets a
+  <= 12 GB real-weight comparison within minutes, and `intarsia onboard --golden-from <slice golden>` already works with it.
+* `recipe new` should (a) read `hidden_activation`, (b) list every per-layer tensor name it cannot place with its shape (it listed
+  1542 experts but not `layer_scalar` / the five norms individually), (c) print the transformers modeling-file path of the pinned
+  version, (d) treat a W4A4 declaration as a recipe decision, not a dead end.
+* A tiny-model generator per architecture family from the HF config (`tools/gemma4_tiny.py` is 300 lines): it caught every structural
+  bug before any GPU or big weight was touched, and doubles as a CI test.
+* Op-attribute + `.ext()` gating made the CPU, CUDA and test work parallelisable across three agents with no integration surprises;
+  keep that split (interface commit first, then CPU reference / kernels / reference data in parallel).
+
+## Not done / open
+
+* The real 26B has not run through `onboard`, the 4k and in-depth tiers, nor been compared to any reference at full depth: no lease.
+* Real sliding window (1024) vs HF; speed (SIMT D=512 attention, eager decode, Gemma layers not graph-captured); HIP and Metal.
+* `moe_intermediate_size` 704 is not a multiple of 128: the mma / w4a16 GELU MoE kernels do not apply to it, prefill with T >= 2
+  uses the slow generic `moe_experts_gelu_bf16` (correct, untuned). The 2-layer slice's quick-tier speed numbers (~7000 tok/s prefill) are
+  for 2 layers and mean nothing for the model.
