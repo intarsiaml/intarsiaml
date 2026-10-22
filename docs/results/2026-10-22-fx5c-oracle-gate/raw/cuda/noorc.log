@@ -10,7 +10,7 @@ WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run b
 gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
 prefill chunk 1024; longest prompt 12064; prompts spanning more than one chunk: 5/5
 reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
-this build: head 34fec0b code-tree fa952a1b0b2a clean
+this build: head ba7bb63 code-tree 66957ceca00e clean
 
 == mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
 prefill chunk 1024 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2

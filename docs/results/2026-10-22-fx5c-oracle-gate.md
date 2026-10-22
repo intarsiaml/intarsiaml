@@ -55,7 +55,7 @@ New: `oracle_relative_warm_1_4x_passes_and_1_6x_fails` (also the floor, a mean n
 
 The numbers equal the offline scoring of PR #96 to the digit (same rows, same oracle).
 
-**Mutation** (test-only `INTARSIA_REUSE_TEST_BUG=scale:F`: the warm rows' logits x F before judging; chunk 1024, `long_docs_4k`; `raw/cuda/mut-*.log`):
+**Mutation** (CUDA, test-only `INTARSIA_REUSE_TEST_BUG=scale:F`: the warm rows' logits x F before judging; chunk 1024, `long_docs_4k`; `raw/cuda/mut-*.log`):
 
 | F | mean KL(oracle, warm) | warm/cold | limit 3.04e-2 | gate |
 |---|---|---|---|---|
@@ -70,14 +70,29 @@ logic with no tolerance. So the requirement "x1.01 must FAIL" is not met: I repo
 
 **Fallback** (`--no-reuse-oracle`, same run): `long_docs_4k continue` FAIL by the absolute rule, as before (`raw/cuda/noorc.log`).
 
-**Metal (endor): not run.** The job (#4148: build, chunks 1024 and 2048, mutation) stayed queued behind #4129 on endor, which had no estimated start (the queue was held by the stale #4093 and the #4051 reservation
-10:10 to 11:25), so nothing could be backfilled. The Metal evidence is the offline scoring of the same teacher-forced rows (PR #96): cold 1.46e-2, warm 1.59e-2, 1.09x, which the rule passes (limit 2.48e-2);
-there is no Metal run of the Rust gate and no Metal chunk-2048 evidence (the split-3072 file was verified on CUDA only; on Metal that case would use the frozen CUDA sequence). `scripts/fx5c/metal-validate.sh` is ready.
-**Qwen3-8B reuse is unchanged**: no oracle file exists for it, so every case takes the absolute path (the fallback test covers that path).
+**Metal M5 Max (endor), `long_docs_4k` only** (fleetq #4178, #4195, non-exclusive, numerics only; `raw/metal/`; the other 14 cases run the unchanged absolute path, so only the case the rule judges was run):
+
+| chunk | verdict | `long_docs_4k continue` |
+|---|---|---|
+| 1024 | **PASS** | s2000: cold 1.46e-2, warm 1.59e-2, 1.09x, limit 2.48e-2 |
+| 2048 | **PASS** | s3072: cold 1.66e-2, warm 1.78e-2, 1.07x, limit 2.79e-2; `restore` / `aligned` ok, bit-identical |
+
+**The first Metal run found a flaw in my first version, now fixed** (`raw/metal-v1/`): the version that substituted the frozen turn 2 for the engine's own in the real `generate` runs made Metal's `cached` check read
+"reuse covered 3071 < the 3072 tokens of turn 1", because Metal's own 16-token reply differs from the frozen CUDA one and the cache then matches only the turn-1 prompt. The engine runs (reuse, cold, streams) now keep the
+engine's own reply, and only the scored `forward_script` rows use the frozen sequence, so `cached >= split` keeps meaning "the engine reuses what it holds". CUDA, where the reply is the frozen one, was unaffected and was
+rerun on the fixed build (`raw/cuda/`: chunk 1024 PASS 0.83x, chunk 2048 PASS 1.13x, x1.2 FAIL, x1.01 PASS, `--no-reuse-oracle` FAIL; `mut-x1.1.log` is from the first build, same numbers expected, not rerun).
+
+**Qwen3-8B reuse is unchanged, measured** (spark2, CUDA, fleetq #4203; `raw/extra/`): its 4k fp32 golden (which also has a prompt called `long_docs_4k`) with the 35B continue files on the lookup path: gate PASS with no oracle line, identical
+to the run with `--no-reuse-oracle`; the finder passes the files over ("made for model ..., the golden is ...", the model metadata differs).
+
+**`qualify` acc-long was not run.** I ran the gate it runs (`accuracy --mode reuse --reuse-require-all`, chunks 1024 and 2048, above), not `qualify` itself: the qualify run is ~45 min of prefill/decode KL gates around it, and the
+spark boxes were taken (exclusive jobs, then #4174 from 11:05) so it could not fit before the 11:30 stop. What that leaves untested: qualify -> accuracy subprocess -> `oracle/` beside the golden on a box -> qualify's parsing of a stage that
+prints the new line (it reads only the verdict and the `prefix reuse: J judged, S skipped` line, unchanged).
 
 ## 4. Files, jobs
 
 * `scripts/fx5c/`: `validate-cuda.sh`, `metal-validate.sh`, `test.sh`, `seq-chain.sh`, `make_continue_oracle.py`, plus the measurement scripts that PR #96 documents.
-* Fleet jobs (owner claude-f31ccf91-fx5c): #4149 (spark1, tests), #4150 (spark1, CUDA build), #4141 (spark1, split-3072 sequence + oracle), #4170 (spark2, build + validation); #4148 (endor, Metal validation): queued, not run;
-  #4167 (spark1 copy of the CUDA validation, cancelled in favour of spark2, where the box was free).
+* Fleet jobs (owner claude-f31ccf91-fx5c): #4149 (spark1, tests), #4150 (spark1, CUDA build), #4141 (spark1, split-3072 sequence + oracle), #4170 (spark2, build + first CUDA validation), #4178 (endor, Metal, first version),
+  #4195 (endor, Metal rerun), #4203 (spark2, 8B + CUDA rerun after the fix). Cancelled before running: #4148 and #4179 (full Metal run and qualify: did not fit the queue), #4167 (spark1 copy of the CUDA validation).
+  No slot is held.
 * Two `cargo check -p intarsia-cli` runs on endor ran outside a fleetq slot (cpu only, before the test job; no fleet role affected); every build, test and run after that took a slot.
