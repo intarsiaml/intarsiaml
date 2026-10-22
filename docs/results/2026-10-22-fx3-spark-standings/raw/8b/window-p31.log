@@ -1,2 +1,11 @@
 [08:25:50] pass p31 model=8b host=spark2 arms=[intarsia4k vllm intarsia] phases=speed job=3994
 [08:25:54] == arm intarsia4k (MemAvailable 54 GB)
+[08:27:09]   intarsia4k ready after 70s
+[08:28:33]   speed exit=0
+[08:28:38] == arm vllm (MemAvailable 54 GB)
+[08:31:59]   vllm ready after 185s
+[08:34:14]   speed exit=0
+[08:34:20] == arm intarsia (MemAvailable 54 GB)
+[08:35:40]   intarsia ready after 75s
+[08:37:59]   speed exit=0
+[08:38:01] pass p31 done

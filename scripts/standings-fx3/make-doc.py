@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""fx3: fill docs/results/2026-10-22-fx3-spark-standings.tmpl.md from the raw data and write the results doc.
+"""fx3: fill scripts/standings-fx3/doc.tmpl.md from the raw data and write the results doc.
 
 usage: make-doc.py   (from the repo root)
 Writes raw/aggregate-{35b,35b-window,8b}.md and docs/results/2026-10-22-fx3-spark-standings.md.
@@ -62,9 +62,9 @@ sub = {
     "@@C8S@@": conc_row(c8, "sglang"),
     "@@C8L@@": conc_row(c8, "llamacpp16"),
 }
-note = os.path.join(ROOT, "docs/results/2026-10-22-fx3-spark-standings.t8note.md")
+note = os.path.join(ROOT, "scripts/standings-fx3/doc.t8note.md")
 sub["@@T8NOTE@@"] = open(note).read().strip() if os.path.exists(note) else ""
-tmpl = open(os.path.join(ROOT, "docs/results/2026-10-22-fx3-spark-standings.tmpl.md")).read()
+tmpl = open(os.path.join(ROOT, "scripts/standings-fx3/doc.tmpl.md")).read()
 for k, v in sub.items():
     tmpl = tmpl.replace(k, v)
 open(os.path.join(ROOT, "docs/results/2026-10-22-fx3-spark-standings.md"), "w").write(tmpl)

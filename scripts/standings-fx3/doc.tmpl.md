@@ -2,7 +2,7 @@
 
 Answers finding B.1 of `docs/reviews/2026-10-22-fable-adversarial.md` ("Spark: #1 of 2 on decode at 1k/4k, #2 of 2 on prefill": n = 2
 engines, no noise band, no quality number) the way lane fx6 did for R9700 and Metal
-(`docs/results/2026-10-22-fx3-spark-standings/../2026-10-22-fx6-standings.md`): same box, interleaved visits, medians of visit medians,
+(`docs/results/2026-10-22-fx6-standings.md`): same box, interleaved visits, medians of visit medians,
 a stated noise band, withdrawn headlines in `docs/decisions/LOG.md`. Measurement only: no engine code changed. intarsia is the
 `origin/main` build 45dd97fd (PR #67 merged), default flags. Raw data, per-visit localeval output and result JSON:
 `docs/results/2026-10-22-fx3-spark-standings/raw/`; scripts `scripts/standings-fx3/`.
@@ -15,8 +15,8 @@ table states N. intarsia is always the default build; the `--prefill-chunk 4096`
 
 | model on the Spark | N engines | intarsia decode | intarsia prefill | top 3? |
 |---|---:|---|---|---|
-| Qwen3.6-35B-A3B NVFP4 (same ModelOpt checkpoint in all four; see section 1 for what each engine does with it) | **4** (intarsia, vLLM, SGLang, llama.cpp) | **#1 of 4 at 128 and 1k** (+11.8 % and +9.2 % over vLLM, bands disjoint; SGLang is 8-9 % behind intarsia inside the one vLLM-down window); **#1 at 4k** over vLLM (+7.2 %, bands disjoint); **tied with vLLM at 16k** (+1.1 %) | **#3 of 4** at 4k and 16k: behind SGLang by 19-20 % and vLLM by 7-20 % (marginal figure), ahead of llama.cpp 2.1-2.4x | yes on decode; on prefill #3 of 4 |
-| Qwen3-8B BF16 (same checkpoint in all four) | **4** (intarsia, vLLM, SGLang, llama.cpp) | **#1 of 4, tied with llama.cpp** (15.5 against 15.6 tok/s); 10 % ahead of vLLM and SGLang at every length | **#4 of 4**: llama.cpp is 1.2x faster, vLLM and SGLang 1.7-2.0x faster than intarsia's 2.3-2.4k tok/s | decode yes; **prefill no** |
+| Qwen3.6-35B-A3B NVFP4 (same ModelOpt checkpoint in all four; see section 1 for what each engine does with it) | **4** (intarsia, vLLM, SGLang, llama.cpp) | **#1 of 4 at 128 and 1k** (+11.9 % and +9.2 % over vLLM, bands disjoint; SGLang is 7-9 % behind intarsia at 128-4k inside the one vLLM-down window); **#1 at 4k** over vLLM (+7.2 %, bands disjoint); **tied with vLLM at 16k** (+1.1 %) | **#3 of 4** at 4k and 16k: behind SGLang by 19-20 % (per-request, 4k and 16k) and behind vLLM by 6 % (1k-4k marginal) to 21 % (4k-16k marginal), ahead of llama.cpp 2.1-2.4x | yes on decode; on prefill #3 of 4 |
+| Qwen3-8B BF16 (same checkpoint in all four) | **4** (intarsia, vLLM, SGLang, llama.cpp) | **#1 of 4, tied with llama.cpp** (15.5 against 15.6 tok/s); 9-11 % ahead of vLLM and SGLang at every length | **#4 of 4**: llama.cpp is 1.1-1.2x faster, SGLang 1.7-1.8x and vLLM 1.7-1.9x faster than intarsia's 2.1-2.4k tok/s; the opt-in `--prefill-chunk 4096` lifts intarsia to 3.6-4.2k (section 3.1) | decode yes; **prefill no** |
 
 What this changes against the standings of 2026-10-21 (LOG rows added):
 
@@ -28,13 +28,13 @@ What this changes against the standings of 2026-10-21 (LOG rows added):
 3. **"Top 3" on Spark is met on the 35B only because the field is 4.** It is not met on 8B prefill.
 4. **Concurrency: intarsia on CUDA serves one sequence at a time.** Aggregate decode stays at the single-stream figure at 4 and 16 streams (35B 74 tok/s,
    8B 15 tok/s) while vLLM and SGLang scale (section 4). No batching was implemented or attempted here.
-5. **Quality: a tie.** MMLU (n = 1425) 0.840 / 0.840 / 0.833 / 0.836 for intarsia / vLLM / SGLang / llama.cpp on the 35B (standard error about 0.01).
+5. **Quality: a tie.** MMLU (n = 1425) 0.840 / 0.840 / 0.833 / 0.836 for intarsia / vLLM / SGLang / llama.cpp on the 35B (standard error about 0.01); 8B MMLU 0.676 / 0.676 / 0.674 / 0.676.
 
 ## 1. Method
 
 **Box and engines.** Qwen3.6-35B-A3B on **spark1** (spark-4e77, continuity with the earlier Spark standings and with lane og); Qwen3-8B on
-**spark2** (spark-fa00): both GB10, 121 GB unified memory, clocks 2398-2411 MHz in every sampled visit (`raw/*/<arm>-<pass>-gpu.txt`). Every pass of a table ran on the same box
-under one exclusive fleetq slot with the production vLLM resident and idle (poll of its `/metrics` every 2 s: no foreign request during any
+**spark2** (spark-fa00): both GB10, 121 GB unified memory, clocks 2398-2411 MHz in every sampled visit (`raw/*/<arm>-<pass>-gpu.txt`). Every speed pass of a table ran on the same box
+under one exclusive fleetq slot with the production vLLM resident (quality passes in non-exclusive slots) and idle (poll of its `/metrics` every 2 s: no foreign request during any
 35B pass; `raw/35b/prod-poll-*.log`; spark2's retro vLLM likewise 0).
 
 | engine | build | 35B NVFP4 | 8B BF16 |
@@ -46,15 +46,19 @@ under one exclusive fleetq slot with the production vLLM resident and idle (poll
 
 **Why SGLang 35B is a separate window.** SGLang needs about 48 GB for this model (`--mem-fraction-static` below 0.4 failed at load with
 "not enough memory for the mamba state cache"); that does not fit beside the 64 GB production vLLM (the box has hung before at 64 + 38 GB). Its 35B visits
-therefore ran in **two vLLM-down windows** (section 6), together with one intarsia visit (r22) as an in-window reference. Everything else ran with vLLM up.
+therefore ran in **two vLLM-down windows** (section 6; speed in the first, quality in the second), together with one intarsia visit (r22) as an in-window reference. Everything else ran with vLLM up.
 
 **Harness.** `localeval` 0.3.0 (`/opt/code/deepeval`), `speed --sizes 128,1024,4096,16384 --gen 128 --reps 3 --thinking off`, nonce-first prompts (no
 prefix-cache hit), 1 discarded warmup per size. One **visit** = one server start + the sweep; a cell is the **median of the visit medians**, the
 band is **min-max over visits**, n = number of visits. The 1k prompt has 990 tokens, below localeval's 1024 threshold, so its per-request prefill includes request
 overhead (this is why vLLM's 1k band is 25 % wide); the **marginal** prefill column (delta tokens / delta TTFT) is the cleanest figure and is what the prefill ranks
 use. Concurrency is localeval's `--concurrency 1,4,16`: one burst of N identical-length (990-token) streams, 128 forced output tokens each, one burst per visit.
-Passes were rotated (arm order per pass in `raw/*/window-<pass>.log`). Failed starts (SGLang `--mem-fraction-static` too low on p1-p4 of the 8B, p2 and p3 of the 35B;
+Passes were rotated (arm order per pass in `raw/*/window-<pass>.log`). Failed starts (SGLang `--mem-fraction-static` too low on p1-p4 of the 8B, p1-p3 of the 35B;
 vLLM argument form in p1-p2; llama.cpp context 2560 per slot in the first concurrency attempt) are kept in `raw/*/*-startfail.txt` and are not in any table.
+
+**Measured run-to-run noise (spread of the visit medians, (max - min) / median).** Decode: 0.2-2.7 % for every engine and length except one cell (vLLM 35B at 4k, 5.0 %, one fast visit);
+intarsia 2.1-2.4 % on the 35B and 2.1-2.6 % on the 8B. Per-request prefill at 16k: 1-5 %. Per-request prefill at 1k and 4k can reach 13-25 % when one visit is slow (vLLM 35B p2, intarsia4k 8B p31), which is why prefill ranks use the marginal
+column. A difference smaller than about 5 % in decode or 8 % in prefill is called a tie in the prose even where the bands do not overlap. Across conditions (vLLM resident or stopped) one intarsia visit moved about 4 % (section 2.1).
 
 **Visit kinds.** `p*` = vLLM resident (the main tables use only these). `r*` = vLLM-down window (own table). `p9*` = quality.
 
@@ -70,7 +74,7 @@ Visits (vLLM up): intarsia 6 (p1-p3, p31-p33), vLLM 6, llama.cpp 3, opt-in intar
 
 How to read it. The in-window intarsia visit (r22, n = 1) decoded **about 4 % slower than every vLLM-up intarsia visit** (81.7 against 84.0-85.8 at 128 tokens) at identical clocks;
 the cause is not known. Intarsia therefore moved about 4 % between the two conditions, so the **SGLang-against-vLLM decode comparison (75.0 against 75.5, 1 % apart) is a cross-condition
-tie, not a rank**. SGLang against intarsia is the within-window ratio: intarsia ahead by 8 % (128), 8 % (1k), 7 % (4k), 1 % (16k), with the caveat that the reference is one visit.
+tie, not a rank**. SGLang against intarsia is the within-window ratio: intarsia ahead by 9 % (128), 9 % (1k), 7 % (4k), 1 % (16k), with the caveat that the reference is one visit.
 Prefill did not drift between the conditions (intarsia 4k: 5698 in the window, 5604-5706 with vLLM up), so SGLang's prefill lead over intarsia (+15 % at 1k per-request, +19 % at 4k, +20 % at 16k) and over vLLM
 (about +9 % at 4k, +2 % at 16k, the latter inside noise) is reported as measured.
 
@@ -80,8 +84,8 @@ Visits (vLLM up): see the n column. 8B BF16 decode is memory-bound: the 16.4 GB 
 
 @@T8@@
 
-Why intarsia's 8B prefill is last: its default prefill chunk is 256 tokens (server log, `raw/8b/vllm-p1-startfail.txt`); the opt-in `--prefill-chunk 4096` arm (`intarsia4k`) is in the table above. It does not close the gap by itself
-(section 3.1); the BF16 GEMM throughput (about 38 TFLOP/s at 2.3k tok/s against about 66 TFLOP/s for vLLM at 4.0k) is the difference. Not investigated further here.
+Why intarsia's 8B prefill is last: the default prefill chunk is 256 tokens (server log, `raw/8b/vllm-p1-startfail.txt` shows `prefill chunk 256 (default)`). The opt-in arm `intarsia4k` (`--prefill-chunk 4096`) is in the table above and
+close to vLLM and SGLang (section 3.1). At the default chunk the 8B BF16 prefill works out at about 38 TFLOP/s (2.4k tok/s x 16 GFLOP) against about 75 TFLOP/s for vLLM; a per-recipe chunk for the 8B on CUDA is the engine owner's call (defaults stay as they are here).
 
 @@T8NOTE@@
 
@@ -120,9 +124,10 @@ restarts the container (`docker start missioncntrl-guidance`) and waits for `/v1
 | #3990 | 06:24:18 | 06:37:04 | 12.7 min | SGLang 35B quality (MMLU + GSM8K) |
 
 Total 33.3 min against the 3 h cap; windows under 30 min; 25 min of serving between them. spark2's retro vLLM was never touched.
-Other fx3 slots: builds #3925 (intarsia, spark2), #3926 and #3929 (llama.cpp, GGUF, spark2), #3941 and #3942 (spark1), #3958 and the 35B GGUF (spark1, spark2 #3932),
-read-only looks #3921-#3924, #3927, #3931, #3940, #4018; speed passes: 8B #3943 #3944 #3945 #3961 #3962 #3963 and the late ones (below), 35B #3959 #3969 #3970 and the opt-in passes #3991-#3993;
-quality #3979 (35B) and #3980 (8B); the opt-in 8B passes #3994-#3996 and p7 #4004. Every slot is released.
+fleetq jobs of this lane (owner `claude-f31ccf91-fx3`). Builds and conversions, vLLM up, non-exclusive: spark2 #3925 (intarsia), #3926 and #3929 (llama.cpp, 8B GGUF), #3932 (35B GGUF, not used); spark1 #3941 (intarsia), #3942 (llama.cpp), #3958 (35B GGUF).
+Read-only looks: #3921-#3924, #3927, #3931, #3940, #4018. Speed passes (exclusive, vLLM up): 8B on spark2 #3943 (p1), #3944 (p2), #3945 (p3), #3961 (p4), #3962 (p5), #3963 (p6), #4004 (p7), opt-in #3994-#3996 (p31-p33) and #4124-#4126 (p34-p36);
+35B on spark1 #3959 (p1), #3969 (p2), #3970 (p3), opt-in #3991-#3993 (p31-p33). Quality (non-exclusive): #3979 (35B), #3980 (8B). vLLM-down windows: #3977, #3990. Cancelled or killed before they produced anything:
+#3928, #3930, #3934-#3936 (smoke tests replaced by the first real passes), #3933 (smoke), #3971 (a fourth 35B pass that was not needed). The `smoke*` raw files are debug runs and are in no table. Every slot is released.
 
 ## 7. What is not covered
 
@@ -137,5 +142,5 @@ quality #3979 (35B) and #3980 (8B); the opt-in 8B passes #3994-#3996 and p7 #400
 ## 8. Files
 
 - `scripts/standings-fx3/`: `window.sh` (one pass = one visit per arm, runs inside a fleetq slot), `window-opt.sh` (same plus the opt-in `intarsia4k` arm), `takedown-window.sh` (the vLLM-down window with watchdog and restore trap), `remote/start-sglang.sh`,
-  `build-llamacpp.sh`, `convert35.sh`, `aggregate.py`, `smoke*.sh` (smoke tests, not results).
+  `build-llamacpp.sh`, `convert35.sh`, `aggregate.py`, `make-doc.py` (fills this document from the raw data), `doc.tmpl.md`, `smoke*.sh` (smoke tests, not results).
 - `docs/results/2026-10-22-fx3-spark-standings/raw/{35b,8b}/`: per visit `<arm>-<pass>-{speed,conc,quality}.{out,result.json,summary.md}`, GPU samples, production-vLLM poll, `window-<pass>.log`, start failures; `raw/downtime.log`, `raw/aggregate-*.md`, build and conversion logs.
