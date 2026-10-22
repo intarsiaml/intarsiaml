@@ -12,7 +12,7 @@ ssh -n -o BatchMode=yes $H "mkdir -p ~/ck9/main ~/ck9/br ~/ck9/golden ~/ck9/out"
 git -C "$REPO" archive "$MAINREV" | ssh $H "tar -x -C ~/ck9/main"
 rsync -a --delete --exclude target --exclude .git --exclude golden --exclude .claude --exclude docs/results "$REPO/" $H:ck9/br/
 scp -q $G/qwen3-8b-fp32.safetensors $G/qwen3-8b-4k-fp32-top20.safetensors $H:ck9/golden/
-ssh -n -o BatchMode=yes $H "export FLEETQ_JOB=$FLEETQ_JOB; bash -s" <<'EOS' 2>&1 | tee "$OUT/checks.log"
+ssh -o BatchMode=yes $H "export FLEETQ_JOB=$FLEETQ_JOB; bash -s" <<'EOS' 2>&1 | tee "$OUT/checks.log"
 set -u
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH CUDA_PATH=/usr/local/cuda
 cd ~/ck9
