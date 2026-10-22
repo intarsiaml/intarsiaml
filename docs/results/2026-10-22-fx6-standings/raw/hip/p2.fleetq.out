@@ -1,0 +1,10 @@
+fleetq: #3820 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #3820 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 79% busy with work fleetq does not track
+fleetq: #3820 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-fx6/docs/results/2026-10-22-fx6-standings/raw/hip/p2 'ARMS=llama-hip hipfire llama-vk intarsia' PASS=p2 MMLU=0 bash scripts/standings-fx6/hip-window.sh
+[window] job 3820; pass p2; arms: llama-hip hipfire llama-vk intarsia; window cap 1140 s; stopping radiance 2026-10-22 01:34:49
+[window] radiance stopped; gpu: card0: sclk=S: 0Mhz *  temp_mC=36000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=41000 vram_used=93114368 busy=0 |  2026-10-22 01:34:53
+[window] visit llama-hip-p2: starting server (1136 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=36000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=41000 vram_used=93114368 busy=0 |  2026-10-22 01:34:53
+[window] visit llama-hip-p2: server up (1130 s left) 2026-10-22 01:34:59
+[window] visit llama-hip-p2: localeval speed exit 0 (1088 s left) 2026-10-22 01:35:41
+[window] visit hipfire-p2: starting server (1084 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=33000 vram_used=59912192 busy=0 | card1: sclk=1: 280Mhz *  temp_mC=56000 vram_used=93114368 busy=0 |  2026-10-22 01:35:45
+[window] visit hipfire-p2: server up (1073 s left) 2026-10-22 01:35:56

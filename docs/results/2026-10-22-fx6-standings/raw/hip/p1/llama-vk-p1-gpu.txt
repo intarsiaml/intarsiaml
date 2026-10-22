@@ -1,0 +1,6 @@
+gpu before: grep: /sys/class/drm/card0/device/pp_dpm_sclk: Device or resource busy
+card0: sclk= temp_mC= vram_used=59912192 busy= | cat: /sys/class/drm/card0/device/gpu_busy_percent: Device or resource busy
+card1: sclk=S: 10Mhz *  temp_mC=44000 vram_used=21846212608 busy=1 | 
+gpu after: grep: /sys/class/drm/card0/device/pp_dpm_sclk: Device or resource busy
+card0: sclk= temp_mC= vram_used=59912192 busy= | cat: /sys/class/drm/card0/device/gpu_busy_percent: Device or resource busy
+card1: sclk=S: 0Mhz *  temp_mC=57000 vram_used=21901733888 busy=0 | 
