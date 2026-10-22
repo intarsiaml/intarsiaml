@@ -896,6 +896,21 @@ fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str, format_ref: Option<&str>) 
 // golden gate
 // ---------------------------------------------------------------------------
 
+/// The recipe's `[accuracy] min_top1` (percent) lowers the class default top-1 floor for a model whose bf16 forward is
+/// measured below it: `min(recipe, default)`. `--min-top1` wins; a class with no top-1 gate (format-reference golden) stays
+/// ungated.
+fn apply_recipe_top1_floor(gates: &mut Gates, args: &AccuracyArgs, recipe: Option<&intarsia_core::recipe::Recipe>) {
+    if args.min_top1.is_some() {
+        return;
+    }
+    let (Some(r), Some(default)) = (recipe, gates.min_top1) else { return };
+    let Some(floor) = r.accuracy.min_top1 else { return };
+    if floor < default {
+        gates.min_top1 = Some(floor);
+        gates.why += &format!("; top-1 floor {floor}% from recipe {} [accuracy] min_top1 (class default {default}%)", r.model.family);
+    }
+}
+
 /// The model's recipe (`--recipe`, else matched on `config.json`), for its `[accuracy]` table. `None`: it could not be
 /// read here (the model loaded, so this only happens for an unusual layout); the gate then uses its built-in constants.
 fn load_recipe(args: &AccuracyArgs) -> Option<intarsia_core::recipe::Recipe> {
@@ -2265,6 +2280,7 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
         prompts.push((name.clone(), p));
     }
     let recipe = load_recipe(args);
+    apply_recipe_top1_floor(&mut gates, args, recipe.as_ref());
     let masks = if self_mode {
         None // the self-golden budgets compare two builds' logits on every row
     } else {
@@ -3282,6 +3298,48 @@ mod tests {
         }
         use clap::Parser;
         Cli::parse_from(["x", "--model", "/nonexistent"].into_iter().chain(extra.iter().copied())).a
+    }
+
+    #[test]
+    fn recipe_top1_floor_lowers_the_class_default_only() {
+        let d = std::env::temp_dir().join(format!("acc-top1floor-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("config.json"), "{}").unwrap();
+        let pick = |arch: &str| intarsia_models::recipe::select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap().1;
+        let (llama, qwen2, qwen3) = (pick("LlamaForCausalLM"), pick("Qwen2ForCausalLM"), pick("Qwen3ForCausalLM"));
+        let gates = |extra: &[&str]| {
+            let mut a = args_with(extra);
+            a.model.model = d.clone();
+            (resolve_gates(&a, "bf16", None).unwrap(), a)
+        };
+        // default: 99.5 for bf16; the measured recipes lower it to HF-bf16-vs-fp32 top-1 minus 0.5 points
+        let (mut g, a) = gates(&[]);
+        assert_eq!(g.min_top1, Some(99.5));
+        apply_recipe_top1_floor(&mut g, &a, Some(&qwen3));
+        assert_eq!(g.min_top1, Some(99.5), "a recipe without a measured floor keeps the class default");
+        apply_recipe_top1_floor(&mut g, &a, None);
+        assert_eq!(g.min_top1, Some(99.5));
+        let (mut g, a) = gates(&[]);
+        apply_recipe_top1_floor(&mut g, &a, Some(&llama));
+        assert!((g.min_top1.unwrap() - 98.72).abs() < 1e-9, "{:?}", g.min_top1);
+        assert!(g.why.contains("recipe llama") && g.why.contains("99.5"), "{}", g.why);
+        let (mut g, a) = gates(&[]);
+        apply_recipe_top1_floor(&mut g, &a, Some(&qwen2));
+        assert!((g.min_top1.unwrap() - 98.24).abs() < 1e-9, "{:?}", g.min_top1);
+        // --min-top1 wins, in either direction
+        let (mut g, a) = gates(&["--min-top1", "99.9"]);
+        apply_recipe_top1_floor(&mut g, &a, Some(&qwen2));
+        assert_eq!(g.min_top1, Some(99.9));
+        // never raises a lower class default (4-bit weights)
+        let (mut g, a) = gates(&[]);
+        g.min_top1 = Some(90.0);
+        apply_recipe_top1_floor(&mut g, &a, Some(&qwen2));
+        assert_eq!(g.min_top1, Some(90.0));
+        // a class with no top-1 gate stays ungated
+        let (mut g, a) = gates(&[]);
+        g.min_top1 = None;
+        apply_recipe_top1_floor(&mut g, &a, Some(&qwen2));
+        assert_eq!(g.min_top1, None);
     }
 
     #[test]

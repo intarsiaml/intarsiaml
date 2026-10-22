@@ -159,6 +159,7 @@ wrappers). Omit the table unless the family names a field differently from Huggi
 | `reuse_logit_tol` | float | built-in constant | Prefix-reuse judge: rounding scale in nats of log-probability over the top-5 tokens within which a warm and a cold distribution count as one. Measure once on a known-good build, never derive per run. |
 | `reuse_kl_tol` | float | built-in constant | Prefix-reuse judge: largest KL(cold ‖ warm) in nats that still counts as rounding. |
 | `ref_noise_factor` | float | `1.0` | Factor on the measured reference noise of the golden for the KL floor. A per-golden value wins. |
+| `min_top1` | float (percent) | the gate class default (99.5 for bf16) | Absolute top-1 floor for a model whose bf16 forward cannot reach the class default against the fp32 golden. The gate uses `min(min_top1, class default)`; `--min-top1` wins; ignored for format-reference goldens (top-1 not gated). Derive it from a measurement and cite it in a comment: top-1 of the reference's own bf16 forward vs the fp32 golden, minus 0.5 points (Llama-3.1-8B-Instruct 98.72, Qwen2.5-7B-Instruct 98.24). |
 | `ref_noise_prompt_factor` | float | `3.0` | `--self-golden --self-vs-ref-noise`: how many times the reference noise the worst prompt's mean KL may be. A per-golden value wins. |
 
 ## Worked example 1: a dense model (Qwen3-8B)

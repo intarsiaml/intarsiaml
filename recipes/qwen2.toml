@@ -45,4 +45,8 @@ max_batch = 8                                   # from closest recipe builtin:qw
 
 # `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML).
 [accuracy]
+# Top-1 floor (percent) = min(99.5, top-1 of HF transformers bf16 against its own fp32 golden - 0.5). Measured 2026-10-22 on the
+# Qwen2.5-7B-Instruct short + long golden set (tools/golden.py, CPU, same ids): 98.74% (1416/1434 rows), so 98.24%.
+# A bf16 forward cannot reach the 99.5% class default on this model; docs/results/2026-10-22-fx4-rope-bias.md, docs/decisions/LOG.md.
+min_top1 = 98.24
 chat_turns = "chatml"
