@@ -1,0 +1,54 @@
+=== frame: reply finished (t=5.7s) ===
+ intarsia tui  http://127.0.0.1:18612  Qwen/Qwen3-8B  cuda NVIDIA GB10  live
+╭ architecture · 36 layers · exactness fast ───────────────────────────────────────╮╭ metrics ───────────────────────────────────────────────────────╮
+│╭ request queue / scheduler ─────────────────────────────────────────────────────╮││decode    0.0 tok/s      ▁▅▇█▇█                                 │
+││running 0 · waiting 0                                                           │││prefill   0.0 tok/s                                             │
+││batch queue depth n/a · requests 1                                              │││waiting   0 (run 0)                                             │
+│╰────────────────────────────────────────────────────────────────────────────────╯││KV used   0.8%                 █                                │
+│                                         ▼                                        ││TTFT      n/a (no requests yet)                                 │
+│╭ prefill ──────────────────────────────╮╭ decode ───────────────────────────────╮││ITL       n/a (no requests yet)                                 │
+││exactness fast                         ││now 0.0 tok/s · last 12.6              │││last req  TTFT 103ms · decode 12.6 tok/s · prefill 195 tok/s    │
+││now 0.0 tok/s                          ││batch size n/a · steps 8.9/s           │││batch     n/a (single-sequence engine or no decode yet)         │
+││last 195 tok/s · cached 0              ││                                       │││queue     running 0 · waiting 0 · depth max n/a                 │
+│╰───────────────────────────────────────╯╰───────────────────────────────────────╯││steps     8.9/s · total 46                                      │
+│                                         ▼                                        ││tokens    prompt 20 · cached 0 · generated 46                   │
+│╭ [A] x36 ───────────────────────────────────────────────────────────────────────╮││memory    weights 16.4GB · free 6.4GB of 130.7GB                │
+││attention > dense_ffn                                                           │││uptime    115s · 1 requests                                     │
+││time share n/a (per-op below)                                                   ││╰────────────────────────────────────────────────────────────────╯
+│╰────────────────────────────────────────────────────────────────────────────────╯│╭ chat · Qwen/Qwen3-8B · last 46 tok in 3.7s (12.4 tok/s) ───────╮
+│ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA                                             ││you Explain KV caches in two sentences.                         │
+│                                         ▼                                        ││ai  KV caches, or key-value caches, store data in pairs of keys │
+│ kernels (10) · share of sampled op time                                          ││    and values to quickly retrieve information based on a unique│
+│ embedding      2.4% █░░░░░░░░░           rmsnorm        0.1% █░░░░░░░░░          ││    key. They are commonly used to improve performance by       │
+│ rmsnorm_add    2.2% █░░░░░░░░░           qk_norm        1.6% █░░░░░░░░░          ││    reducing the need to recompute or fetch data repeatedly.    │
+│ rope           2.7% █░░░░░░░░░           matmul        74.0% ██████████          ││                                                                │
+│ attn_prefill   0.1% █░░░░░░░░░           attn_decode    0.0% ░░░░░░░░░░          ││                                                                │
+│ silu_glu       1.1% █░░░░░░░░░           matmul_pair    0.0% ░░░░░░░░░░          ││                                                                │
+│                                         ▼                                        ││                                                                │
+│╭ KV cache ───────────────╮╭ sampler ─────────────────╮╭ output ─────────────────╮││                                                                │
+││65 / 8192 tok (0.8%)     ││logits 14.0% · argmax 0.0%││generated 46 tok         │││                                                                │
+││9.6MB of 1.2GB           ││                          ││finished stop 1          │││                                                                │
+││kv_append 1.9%           ││                          ││                         │││                                                                │
+│╰─────────────────────────╯╰──────────────────────────╯╰─────────────────────────╯││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││                                                                │
+│                                                                                  ││> message, Enter to send                                        │
+╰──────────────────────────────────────────────────────────────────────────────────╯╰────────────────────────────────────────────────────────────────╯
+ Enter send  /clear or Ctrl-L clear chat  PgUp/PgDn scroll chat  Esc / Ctrl-C quit
+

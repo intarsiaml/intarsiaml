@@ -1,0 +1,14 @@
+curl       prompt=    58 gen=  64    6.2s
+bench      prompt=  1623 gen=  32   10.2s
+agent-b    prompt=  3766 gen=  24   14.0s
+agent-a    prompt=   230 gen=  48   18.1s
+curl       prompt=    58 gen=  64    5.1s
+agent-a    prompt=   230 gen=  48    8.5s
+bench      prompt=  1623 gen=  32   11.4s
+agent-a    prompt=   230 gen=  48    3.4s
+bench      prompt=  1623 gen=  32    6.2s
+curl       prompt=    58 gen=  64   10.7s
+agent-b    prompt=  3766 gen=  24   14.1s
+agent-a    prompt=   230 gen=  48    3.4s
+curl       prompt=    58 gen=  64    7.9s
+bench      prompt=  1623 gen=  32   10.8s
