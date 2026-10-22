@@ -1,0 +1,22 @@
+{"case": "tool_call", "passed": true, "error": null, "seconds": 0.714, "usage": {"prompt_tokens": 331, "completion_tokens": 26, "total_tokens": 357, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "tool_receipt", "passed": false, "error": "HTTPError: HTTP Error 400: Bad Request", "seconds": 0.009, "usage": null}
+{"case": "structured_output", "passed": true, "error": null, "seconds": 0.118, "usage": {"prompt_tokens": 32, "completion_tokens": 9, "total_tokens": 41, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.753, "usage": {"prompt_tokens": 832, "completion_tokens": 256, "total_tokens": 1088, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.614, "usage": {"prompt_tokens": 832, "completion_tokens": 256, "total_tokens": 1088, "prompt_tokens_details": {"cached_tokens": 831}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.742, "usage": {"prompt_tokens": 833, "completion_tokens": 256, "total_tokens": 1089, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.615, "usage": {"prompt_tokens": 833, "completion_tokens": 256, "total_tokens": 1089, "prompt_tokens_details": {"cached_tokens": 832}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.743, "usage": {"prompt_tokens": 834, "completion_tokens": 256, "total_tokens": 1090, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.616, "usage": {"prompt_tokens": 834, "completion_tokens": 256, "total_tokens": 1090, "prompt_tokens_details": {"cached_tokens": 833}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 2.364, "usage": {"prompt_tokens": 6143, "completion_tokens": 256, "total_tokens": 6399, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.699, "usage": {"prompt_tokens": 6143, "completion_tokens": 256, "total_tokens": 6399, "prompt_tokens_details": {"cached_tokens": 6142}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 2.367, "usage": {"prompt_tokens": 6143, "completion_tokens": 256, "total_tokens": 6399, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.7, "usage": {"prompt_tokens": 6143, "completion_tokens": 256, "total_tokens": 6399, "prompt_tokens_details": {"cached_tokens": 6142}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 2.368, "usage": {"prompt_tokens": 6143, "completion_tokens": 256, "total_tokens": 6399, "prompt_tokens_details": {"cached_tokens": 0}}}
+{"case": "generation", "passed": null, "error": null, "seconds": 1.701, "usage": {"prompt_tokens": 6143, "completion_tokens": 256, "total_tokens": 6399, "prompt_tokens_details": {"cached_tokens": 6142}}}
+{"case": "generation", "passed": null, "error": "HTTPError: HTTP Error 400: Bad Request", "seconds": 0.019, "usage": null}
+Traceback (most recent call last):
+  File "/home/josef/bench-r9700/stream_bench.py", line 299, in <module>
+    run(args)
+  File "/home/josef/bench-r9700/stream_bench.py", line 197, in run
+    raise RuntimeError('Performance request failed; evidence saved to '+str(output))
+RuntimeError: Performance request failed; evidence saved to /tmp/fx6-sb-intarsia-p7.jsonl

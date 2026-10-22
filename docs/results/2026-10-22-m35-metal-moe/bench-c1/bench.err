@@ -1,0 +1,10 @@
+target http://127.0.0.1:8197/v1/chat/completions  model m35
+server context window: 8192 tokens
+calibration: 48 base tokens, 21.84 tokens per filler sentence
+  size   1024 rep: prompt=981 gen=128 ttft=3.39s prefill=290 tok/s decode=99.9 tok/s
+  size   1024 rep: prompt=1005 gen=128 ttft=3.42s prefill=294 tok/s decode=101.1 tok/s
+  size   1024 rep: prompt=987 gen=128 ttft=3.37s prefill=292 tok/s decode=101.5 tok/s
+  size   4096 rep: prompt=4079 gen=128 ttft=13.80s prefill=296 tok/s decode=90.8 tok/s
+  size   4096 rep: prompt=4074 gen=128 ttft=14.23s prefill=286 tok/s decode=95.7 tok/s
+  size   4096 rep: prompt=4101 gen=128 ttft=14.48s prefill=283 tok/s decode=98.2 tok/s
+wrote /opt/code/wt-m35/docs/results/2026-10-22-m35-metal-moe/bench-c1/m35-metal.json

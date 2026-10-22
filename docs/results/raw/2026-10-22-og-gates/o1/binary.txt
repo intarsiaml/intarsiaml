@@ -1,0 +1,3 @@
+-rwxrwxr-x 2 nvidia nvidia 52518800 Oct 21 23:25 /home/nvidia/intarsia-decfuse/og-main/target/acc/release/intarsia
+intarsia 0.0.1
+ik_matmul_fp8_gemm_lt symbol count: 1

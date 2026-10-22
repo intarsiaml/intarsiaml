@@ -1,0 +1,4 @@
+# fx6: ROCm 7.2.4 runtime math libs for the llama.cpp v0.5.0 HIP build on tatooine (built against ROCm 7.2.1; the image it was
+# built in, r9700-rocm-build, no longer exists; intarsia-hip-dev and rocm/dev-ubuntu-24.04:7.2.4 lack libhipblas.so.3 / librocblas.so.5).
+FROM rocm/dev-ubuntu-24.04:7.2.4
+RUN apt-get update && apt-get install -y --no-install-recommends rocblas hipblas && rm -rf /var/lib/apt/lists/*

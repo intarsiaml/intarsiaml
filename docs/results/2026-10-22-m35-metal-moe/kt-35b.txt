@@ -1,0 +1,45 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0    4.032e-4    7.563e-6  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0    1.736e-3    1.687e-4  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0    1.603e-3    3.003e-5  ADMITTED
+rope           rope_bf16                      36      0    8.562e-4    1.588e-5  ADMITTED
+matmul         matmul_bf16                    15      0    4.115e-3    1.377e-4  ADMITTED
+matmul         matmul_bf16_gemv                5      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16                     4      0    9.455e-7    3.928e-7  ADMITTED
+logits         logits_bf16_gemv                2      0    1.260e-7    7.880e-8  ADMITTED
+kv_append      kv_append_bf16                  4      0     0.000e0     0.000e0  ADMITTED
+silu_glu       silu_glu_bf16                   6      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              21      0    1.953e-3    1.279e-4  ADMITTED
+attn_prefill   attn_prefill_bf16_flash        14      0    5.076e-3    2.438e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_flash_nax      0      0     0.000e0     0.000e0  NO CASES (untested)
+attn_decode    attn_decode_bf16               15      0    1.221e-4    5.150e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0    4.883e-4    5.150e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           6      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16           36      0    3.165e-3    1.382e-4  ADMITTED
+matmul         matmul_bf16_nax                10      0    3.817e-3    1.377e-4  ADMITTED
+matmul_pair    matmul_pair_bf16_nax           18      0    8.633e-5    3.758e-6  ADMITTED
+matmul         matmul_bf16_gemv_rows           5      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv_rows     12      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16_gemv_rows           2      0    1.220e-7    7.929e-8  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv_rows      9      0    4.340e-4    2.374e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv              53      0    2.075e-3    8.968e-5  ADMITTED
+gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.841e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    4.729e-5  ADMITTED
+moe_topk       moe_topk_bf16                  96      0    1.953e-3    2.159e-4  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                34      0    2.252e-3    5.880e-5  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    3.030e-3    1.226e-4  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    1.776e-4    2.907e-6  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               34      0    1.488e-3    3.758e-5  ADMITTED
+39 kernels, 664 cases in 21.9s
+SKIPPED: kernel attn_prefill_bf16_flash_nax ran 0 cases on backend 'metal'
+incomplete: 1 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them)

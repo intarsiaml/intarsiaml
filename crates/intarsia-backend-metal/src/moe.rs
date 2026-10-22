@@ -1,0 +1,198 @@
+//! Launchers of the sparse-MoE ops (`Op::MoeTopk`, `Op::MoeExperts`, `Op::MoeCombine`; kernels/metal/moe.metal, the port
+//! of kernels/hip/moe.hip and the grouped structure of kernels/cuda/moe_grouped.cu).
+//!
+//! `MoeExperts` takes one of two paths per call: T*K <= `DECODE_MAX_PAIRS` (HIP's decode cut) runs per-pair GEMVs (gate +
+//! up into scratch `h`, then down + the weighted per-token sum in k order); larger calls group the pairs by expert on the
+//! GPU (`moe_group`), run each expert's rows as 32x32 simdgroup-matrix tiles (each tile's weights decoded once) and
+//! gather per token in k order. Scratch is the core `moe_experts_scratch` layout (pairs, offsets, the "active" region
+//! holding the per-expert tile prefix, h by slot, y by pair).
+
+use crate::dense::{Bind, OpP};
+use crate::{set_bytes, MetalBackend};
+use intarsia_core::{DType, Error, OpCall, Result};
+use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
+
+pub const MOE_TOPK_BF16: &str = "moe_topk_bf16";
+pub const MOE_EXPERTS_BF16: &str = "moe_experts_bf16";
+pub const MOE_COMBINE_BF16: &str = "moe_combine_bf16";
+
+const TOPK_BF16: &str = "moe_topk_bf16";
+const TOPK_F32: &str = "moe_topk_f32";
+const COMBINE: &str = "moe_combine_bf16";
+const DEC_GU: &str = "moe_dec_gu";
+const DEC_DN: [&str; 2] = ["moe_dec_dn_bf16", "moe_dec_dn_f32"];
+const GROUP: &str = "moe_group";
+const GEMM_GU: &str = "moe_gemm_gu";
+const GEMM_DN: &str = "moe_gemm_dn";
+const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
+
+/// Shader entry points (kernels/metal/moe.metal).
+pub const SHADERS: [&str; 11] = [
+    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, GEMM_GU, GEMM_DN, GATHER[0], GATHER[1],
+];
+
+/// T*K at or below which `MoeExperts` takes the per-pair decode path (the hip decode kernels' cut).
+pub const DECODE_MAX_PAIRS: usize = 16;
+/// Tokens per threadgroup of the top-k shader (`MOE_TOPK_SG`), rows per threadgroup of the decode GEMVs (`MOE_DEC_SG`),
+/// rows / columns of a grouped tile (`MOE_TM` / `MOE_TN`).
+const TOPK_SG: usize = 4;
+const DEC_SG: usize = 4;
+const TM: usize = 32;
+const TN: usize = 32;
+/// The largest expert count `moe_group` takes (its threadgroup counters).
+pub const MAX_EXPERTS: usize = 1024;
+
+fn u32_of(v: usize, what: &str) -> Result<u32> {
+    u32::try_from(v).map_err(|_| Error::invalid(format!("metal moe: {what} = {v} exceeds u32")))
+}
+
+fn at(b: &Bind, off: usize) -> Bind {
+    Bind { mtl: b.mtl.clone(), off: b.off + off, skip: 0 }
+}
+
+impl MetalBackend {
+    fn moe_dispatch(&self, name: &str, binds: &[&Bind], p: &OpP, groups: MTLSize, threads: usize) -> Result<()> {
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(pso);
+            for (i, b) in binds.iter().enumerate() {
+                // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, scratch by the launcher).
+                unsafe { enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i) };
+            }
+            set_bytes(enc, p, binds.len());
+            enc.dispatchThreadgroups_threadsPerThreadgroup(groups, MTLSize { width: threads, height: 1, depth: 1 });
+        })
+    }
+
+    pub(crate) fn launch_moe_topk(&self, call: &OpCall) -> Result<()> {
+        let (lg, w, ids) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
+            ([lg], [w, ids]) => (lg, w, ids),
+            _ => return Err(Error::invalid("metal moe_topk: expected 1 input / 2 outputs")),
+        };
+        let (t, e, k) = (lg.shape[0], lg.shape[1], call.attrs.top_k);
+        if e > 512 || k == 0 || k > 32 || k > e {
+            return Err(Error::invalid(format!("metal moe_topk: E = {e}, K = {k} (needs E <= 512, K in 1..=32)")));
+        }
+        if t == 0 {
+            return Ok(());
+        }
+        let shader = match lg.dtype {
+            DType::Bf16 => TOPK_BF16,
+            DType::F32 => TOPK_F32,
+            d => return Err(Error::invalid(format!("metal moe_topk: logits dtype {d}"))),
+        };
+        let lb = self.bind(lg, lg.dtype, false, "logits")?;
+        let wb = self.bind(w, DType::F32, true, "weights")?;
+        let ib = self.bind(ids, DType::I32, true, "ids")?;
+        let p = OpP {
+            dims: [u32_of(t, "T")?, e as u32, k as u32, call.attrs.norm_topk as u32, 0, 0, 0, 0],
+            skips: [lb.skip, 0, 0, 0, 0],
+            ..Default::default()
+        };
+        let groups = MTLSize { width: t.div_ceil(TOPK_SG), height: 1, depth: 1 };
+        self.moe_dispatch(shader, &[&lb, &wb, &ib], &p, groups, TOPK_SG * 32)
+    }
+
+    pub(crate) fn launch_moe_combine(&self, call: &OpCall) -> Result<()> {
+        let (r, s, g, out) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
+            ([r, s, g], [out]) => (r, s, g, out),
+            _ => return Err(Error::invalid("metal moe_combine: expected 3 inputs / 1 output")),
+        };
+        let (t, h) = (r.shape[0], r.shape[1]);
+        if t * h == 0 {
+            return Ok(());
+        }
+        let rb = self.bind(r, DType::Bf16, false, "routed")?;
+        let sb = self.bind(s, DType::Bf16, false, "shared")?;
+        let gb = self.bind(g, DType::Bf16, false, "gate")?;
+        let ob = self.bind(out, DType::Bf16, true, "out")?;
+        let p = OpP {
+            dims: [u32_of(t, "T")?, u32_of(h, "H")?, 0, 0, 0, 0, 0, 0],
+            skips: [rb.skip, sb.skip, gb.skip, ob.skip, 0],
+            ..Default::default()
+        };
+        u32_of(t * h, "T*H")?;
+        let groups = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
+        self.moe_dispatch(COMBINE, &[&rb, &sb, &gb, &ob], &p, groups, 256)
+    }
+
+    pub(crate) fn launch_moe_experts(&self, call: &OpCall) -> Result<()> {
+        let [x, ids, wts, guw, gus, dw, ds, gsc] = call.inputs.as_slice() else {
+            return Err(Error::invalid("metal moe_experts: expected 8 inputs"));
+        };
+        let [out] = call.outputs.as_slice() else {
+            return Err(Error::invalid("metal moe_experts: expected 1 output"));
+        };
+        let (t, h, k) = (x.shape[0], x.shape[1], ids.shape[1]);
+        let (e, i) = (guw.shape[0], guw.shape[1] / 2);
+        if e > MAX_EXPERTS || h % 16 != 0 || i % 16 != 0 {
+            return Err(Error::invalid(format!("metal moe_experts: E = {e} (<= {MAX_EXPERTS}), H = {h}, I = {i} (multiples of 16)")));
+        }
+        let pairs = t * k;
+        if pairs == 0 || h == 0 {
+            return Ok(());
+        }
+        let o32 = match out.dtype {
+            DType::Bf16 => 0,
+            DType::F32 => 1,
+            d => return Err(Error::invalid(format!("metal moe_experts: output dtype {d}"))),
+        };
+        // the shaders index weights with 64-bit math, everything else with 32-bit
+        u32_of(pairs * h.max(i), "T*K*max(H,I)")?;
+        let xb = self.bind(x, DType::Bf16, false, "x")?;
+        let ib = self.bind(ids, DType::I32, false, "ids")?;
+        let wb = self.bind(wts, DType::F32, false, "weights")?;
+        let guwb = self.bind(guw, DType::U8, false, "gate_up w")?;
+        let gusb = self.bind(gus, DType::Fp8E4m3, false, "gate_up scales")?;
+        let dwb = self.bind(dw, DType::U8, false, "down w")?;
+        let dsb = self.bind(ds, DType::Fp8E4m3, false, "down scales")?;
+        let gb = self.bind(gsc, DType::F32, false, "global scales")?;
+        let ob = self.bind(out, out.dtype, true, "out")?;
+        // packed_uint2 weight loads need 4-byte alignment (rows are multiples of 8 bytes since H, I % 16 == 0)
+        if guwb.skip != 0 || dwb.skip != 0 {
+            return Err(Error::invalid("metal moe_experts: the expert weights must be 4-byte aligned"));
+        }
+        let scratch = call
+            .scratch
+            .as_ref()
+            .ok_or_else(|| Error::invalid("metal moe_experts: the scratch workspace (OpCall::scratch) is missing"))?;
+        let r = |v: usize| (v + 255) & !255;
+        let (o_off, o_tiles, o_h) = (r(pairs * 4), r(pairs * 4) + r((e + 1) * 4), r(pairs * 4) + 2 * r((e + 1) * 4));
+        let o_y = o_h + r(pairs * i * 2);
+        let need = o_y + r(pairs * h * 2);
+        let have = scratch.numel() * scratch.dtype.size_bytes();
+        if have < need {
+            return Err(Error::invalid(format!("metal moe_experts: scratch of {have} bytes, need {need}")));
+        }
+        let sc = self.bind(scratch, scratch.dtype, true, "scratch")?;
+        if sc.skip != 0 {
+            return Err(Error::invalid("metal moe_experts: the scratch must be 4-byte aligned"));
+        }
+        let p = OpP {
+            dims: [u32_of(t, "T")?, e as u32, u32_of(k, "K")?, u32_of(h, "H")?, u32_of(i, "I")?, 0, 0, 0],
+            skips: [xb.skip, gusb.skip, dsb.skip, ob.skip, 0],
+            ..Default::default()
+        };
+        let hb = at(&sc, o_h);
+        if pairs <= DECODE_MAX_PAIRS {
+            let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: pairs, depth: 1 };
+            self.moe_dispatch(DEC_GU, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
+            let g2 = MTLSize { width: h.div_ceil(DEC_SG), height: t, depth: 1 };
+            return self.moe_dispatch(DEC_DN[o32], &[&hb, &ib, &wb, &dwb, &dsb, &gb, &ob], &p, g2, DEC_SG * 32);
+        }
+        let (pb, offb, tb, yb) = (at(&sc, 0), at(&sc, o_off), at(&sc, o_tiles), at(&sc, o_y));
+        let gt = self.pso(GROUP).map_or(256, |s| {
+            use objc2_metal::MTLComputePipelineState;
+            s.maxTotalThreadsPerThreadgroup().min(1024)
+        });
+        self.moe_dispatch(GROUP, &[&ib, &pb, &offb, &tb], &p, MTLSize { width: 1, height: 1, depth: 1 }, gt)?;
+        // tile slots: at most ceil(P / TM) full tiles plus one partial tile per non-empty expert
+        let max_tiles = pairs.div_ceil(TM) + pairs.min(e);
+        let ggu = MTLSize { width: i.div_ceil(TN), height: max_tiles, depth: 1 };
+        self.moe_dispatch(GEMM_GU, &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb], &p, ggu, 128)?;
+        let gdn = MTLSize { width: h.div_ceil(TN), height: max_tiles, depth: 1 };
+        self.moe_dispatch(GEMM_DN, &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb], &p, gdn, 128)?;
+        let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
+        self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256)
+    }
+}
