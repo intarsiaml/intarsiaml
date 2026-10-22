@@ -13,6 +13,9 @@ const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// Budget of `matmul_pair_bf16_gemv`, the same as the hip kernel's (`TOL` in intarsia-backend-hip/src/quantmoe.rs).
 const PAIR_TOL: Tol = Tol::new(1.5e-2, 1e-3);
 
+/// Budget of the MoE kernels, the hip ones' (`TOL` in intarsia-backend-hip/src/quantmoe.rs).
+const MOE_TOL: Tol = Tol::new(1.5e-2, 1e-3);
+
 /// `KernelImpl::name` of the batch-1 bf16 GEMV (the HIP backend calls the same thing `matmul_bf16_gemv`).
 pub const MATMUL_BF16_GEMV: &str = "matmul_bf16_gemv";
 
@@ -150,6 +153,12 @@ pub const QK_NORM_ROPE_KV_BF16: &str = "qk_norm_rope_kv_bf16";
 /// The prefill form of the same registry entry (T > 1, head_dim = rotary_dim = 128), chosen by the launcher: bitwise the
 /// decode form, with the 64 (cos, sin) pairs of a token computed once per threadgroup instead of per head and thread.
 pub const QK_NORM_ROPE_KV_BF16_PF: &str = "qk_norm_rope_kv_bf16_pf";
+/// Gated-attention / GatedDeltaNet helper ops (gdn.metal, launchers gdn.rs); the conv and delta-rule shaders are per
+/// tap count / dk (`gdn::CONV_SHADERS`, `gdn::DELTA_SHADERS`), picked by the launcher.
+pub const GATE_SPLIT_BF16: &str = "gate_split_bf16";
+pub const SIGMOID_MUL_BF16: &str = "sigmoid_mul_bf16";
+pub const GDN_CONV_BF16: &str = "gdn_conv_bf16";
+pub const GDN_DELTA_RULE_BF16: &str = "gdn_delta_rule_bf16";
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 /// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
@@ -288,6 +297,10 @@ pub fn requires_metal4(kernel: &str) -> bool {
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(crate::mxfp4::SHADERS);
+    v.extend(crate::gdn::shader_names());
+    v.extend(crate::moe::SHADERS);
+    v.extend(crate::fp8::SHADERS);
+    v.extend(crate::nvfp4::SHADERS);
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
@@ -310,8 +323,8 @@ pub fn shader_names() -> Vec<&'static str> {
     v
 }
 
-/// (kernel name, op) for every implementation, in registration order. The quantised / MoE / GatedDeltaNet ops are not
-/// ported yet, so the registry reports `NoKernel` for them.
+/// (kernel name, op) for every implementation, in registration order. Ops without an entry (most quantised and the
+/// GatedDeltaNet ops) report `NoKernel`.
 pub const TABLE: &[(&str, Op)] = &[
     (EMBEDDING_BF16, Op::Embedding),
     (RMSNORM_BF16, Op::RmsNorm),
@@ -343,6 +356,17 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
     (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
+    (GATE_SPLIT_BF16, Op::GateSplit),
+    (SIGMOID_MUL_BF16, Op::SigmoidMul),
+    (GDN_CONV_BF16, Op::GdnConv),
+    (GDN_DELTA_RULE_BF16, Op::GdnDeltaRule),
+    (crate::moe::MOE_TOPK_BF16, Op::MoeTopk),
+    (crate::moe::MOE_EXPERTS_BF16, Op::MoeExperts),
+    (crate::moe::MOE_COMBINE_BF16, Op::MoeCombine),
+    (crate::fp8::MATMUL_FP8_GEMV, Op::MatmulFp8),
+    (crate::fp8::MATMUL_FP8_MMA, Op::MatmulFp8),
+    (crate::nvfp4::MATMUL_NVFP4_GEMV, Op::MatmulNvfp4),
+    (crate::nvfp4::MATMUL_NVFP4_MMA, Op::MatmulNvfp4),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -518,6 +542,73 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::scratch),
+                // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
+                GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
+                // depthwise causal conv + SiLU; `weights` is the tap dtype, `k` the tap count
+                GDN_CONV_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::gdn::conv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL),
+                // sequential recurrence, one simdgroup per state row: fixed reduction order; `weights` is A_log's dtype
+                GDN_DELTA_RULE_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::gdn::delta_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL),
+                // MoE (kernels/metal/moe.metal, moe.rs), the hip entries' predicates and budget. top-k: bf16 or f32 logits.
+                crate::moe::MOE_TOPK_BF16 => k
+                    .acts([DType::Bf16, DType::F32])
+                    .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k) && s.top_k <= s.experts)
+                    .exact(Exactness::Deterministic)
+                    .tol(MOE_TOL),
+                // NVFP4 experts, bf16 x (h / y scratch are bf16); decode GEMVs at T*K <= 16, else grouped by expert
+                crate::moe::MOE_EXPERTS_BF16 => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.experts <= crate::moe::MAX_EXPERTS && s.k % 16 == 0 && s.n % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(MOE_TOL)
+                    .scratch(intarsia_core::quant::ops::moe_experts_scratch),
+                crate::moe::MOE_COMBINE_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(MOE_TOL),
+                // FP8 e4m3 W8A8 / W8A16 (kernels/metal/fp8.metal, fp8.rs), the hip budgets. The GEMV (M <= 8, one dispatch, q(x)
+                // staged in threadgroup memory) takes decode; the GEMM (priority 0) every other shape, QDQ'ing x into scratch.
+                crate::fp8::MATMUL_FP8_GEMV => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::gemv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(10),
+                crate::fp8::MATMUL_FP8_MMA => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::fp8::scratch)
+                    .priority(0),
+                // NVFP4 (kernels/metal/nvfp4.metal, nvfp4.rs): GEMV for M <= 8 (no scratch), GEMM for every other shape.
+                crate::nvfp4::MATMUL_NVFP4_GEMV => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::gemv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(10),
+                crate::nvfp4::MATMUL_NVFP4_MMA => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(0),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -564,11 +655,11 @@ mod tests {
     const PHASE1_PINS: &[&str] = &[
         "35b attn input norm: rmsnorm_add_bf16",
         "35b k/v pair: -",
-        "35b k proj: -",
-        "35b output gate: -",
-        "35b o_proj: -",
-        "35b shared down: -",
-        "35b combine: -",
+        "35b k proj: matmul_fp8_gemv",
+        "35b output gate: sigmoid_mul_bf16",
+        "35b o_proj: matmul_fp8_gemv",
+        "35b shared down: matmul_nvfp4_gemv",
+        "35b combine: moe_combine_bf16",
         "35b fold P5: -",
         "35b fold P4b: -",
         "35b fold P2a: -",
@@ -631,6 +722,9 @@ mod tests {
         "attn_prefill_bf16_flash_nax:attn_prefill",
         "attn_prefill_bf16_splitkv_rows:attn_prefill",
         "embedding_bf16:embedding",
+        "gate_split_bf16:gate_split",
+        "gdn_conv_bf16:gdn_conv",
+        "gdn_delta_rule_bf16:gdn_delta_rule",
         "kv_append_bf16:kv_append",
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
@@ -639,16 +733,24 @@ mod tests {
         "matmul_bf16_gemv:matmul",
         "matmul_bf16_gemv_rows:matmul",
         "matmul_bf16_nax:matmul",
+        "matmul_fp8_gemv:matmul_fp8",
+        "matmul_fp8_mma:matmul_fp8",
         "matmul_mxfp4_gemv:matmul_mxfp4",
+        "matmul_nvfp4_gemv:matmul_nvfp4",
+        "matmul_nvfp4_mma:matmul_nvfp4",
         "matmul_pair_bf16_gemv:matmul_pair",
         "matmul_pair_bf16_gemv_rows:matmul_pair",
         "matmul_pair_bf16_nax:matmul_pair",
+        "moe_combine_bf16:moe_combine",
+        "moe_experts_bf16:moe_experts",
+        "moe_topk_bf16:moe_topk",
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
         "rope_scaled_bf16:rope_scaled",
+        "sigmoid_mul_bf16:sigmoid_mul",
         "silu_glu_bf16:silu_glu",
     ];
 
@@ -665,28 +767,28 @@ mod tests {
         assert_eq!(got, MAIN_KERNEL_LIST);
     }
 
-    // Metal has no gated-attention split and no GatedDeltaNet kernels: the 35B does not load here (the '-' rows), before or
-    // after; its fused prologue serves the dense models
+    // The gated-attention split and the GatedDeltaNet conv / delta rule are registered (lane M35 gdn); the fused ops are not
+    // (the '-' rows); the fused prologue serves the dense models
     const PHASE2_PINS: &[&str] = &[
-        "35b m=1 gate split: -",
+        "35b m=1 gate split: gate_split_bf16",
         "35b m=1 q norm: qk_norm_bf16",
         "35b m=1 k norm: qk_norm_bf16",
         "35b m=1 rope: rope_bf16",
         "35b m=1 kv append: kv_append_bf16",
         "35b m=1 prologue: qk_norm_rope_kv_bf16",
         "35b m=1 fold P4a: -",
-        "35b m=1 gdn conv: -",
-        "35b m=1 gdn delta: -",
+        "35b m=1 gdn conv: gdn_conv_bf16",
+        "35b m=1 gdn delta: gdn_delta_rule_bf16",
         "35b m=1 fold P3: -",
-        "35b m=32 gate split: -",
+        "35b m=32 gate split: gate_split_bf16",
         "35b m=32 q norm: qk_norm_bf16",
         "35b m=32 k norm: qk_norm_bf16",
         "35b m=32 rope: rope_bf16",
         "35b m=32 kv append: kv_append_bf16",
         "35b m=32 prologue: qk_norm_rope_kv_bf16",
         "35b m=32 fold P4a: -",
-        "35b m=32 gdn conv: -",
-        "35b m=32 gdn delta: -",
+        "35b m=32 gdn conv: gdn_conv_bf16",
+        "35b m=32 gdn delta: gdn_delta_rule_bf16",
         "35b m=32 fold P3: -",
     ];
 
@@ -756,23 +858,23 @@ mod tests {
     }
 
     const MOE_BLOCK_PINS: &[&str] = &[
-        "35b m=1 topk: -",
-        "35b m=1 experts: -",
+        "35b m=1 topk: moe_topk_bf16",
+        "35b m=1 experts: moe_experts_bf16",
         "35b m=1 shared glu: -",
-        "35b m=1 shared gate: -",
+        "35b m=1 shared gate: matmul_nvfp4_gemv",
         "35b m=1 silu glu: silu_glu_bf16",
-        "35b m=1 shared down: -",
+        "35b m=1 shared down: matmul_nvfp4_gemv",
         "35b m=1 shared down combine: -",
-        "35b m=1 combine: -",
+        "35b m=1 combine: moe_combine_bf16",
         "35b m=1 fold P2': -",
-        "35b m=2 topk: -",
-        "35b m=2 experts: -",
+        "35b m=2 topk: moe_topk_bf16",
+        "35b m=2 experts: moe_experts_bf16",
         "35b m=2 shared glu: -",
-        "35b m=2 shared gate: -",
+        "35b m=2 shared gate: matmul_nvfp4_gemv",
         "35b m=2 silu glu: silu_glu_bf16",
-        "35b m=2 shared down: -",
+        "35b m=2 shared down: matmul_nvfp4_gemv",
         "35b m=2 shared down combine: -",
-        "35b m=2 combine: -",
+        "35b m=2 combine: moe_combine_bf16",
         "35b m=2 fold P2': -",
     ];
 
