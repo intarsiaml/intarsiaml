@@ -16,7 +16,7 @@ replacement owns `kernels/metal/moe.metal`, `src/moe.rs` and `tests/moe.rs`; thi
 | `GdnConv` | only C = 300 | `gdn.rs::conv_at_the_35b_channel_count`: C = 8192, K = 4, T in {300 split 1+127+172, 1, 65 split 33+32}; chunked == one call bitwise, vs f64 reference |
 | `GdnDeltaRule` | only 2 key / 4 value heads, dk 64/128 | `gdn.rs::delta_rule_at_the_35b_layer_shape`: 16 key / 32 value heads, dk = dv = 128, T = 300 (1+127+172), 1, 1024; the existing dk loops now cover 32, 64, 128, 256 |
 | `MatmulFp8` | N <= 4096, K <= 4096 at M <= 200 | `quant.rs::fp8_at_the_35b_projection_shapes`: (M, N, K) = decode 1 / 8, 33, 300 over N in {8192, 4096, 2048, 512}, K in {2048, 4096, 512}; GEMV (M <= 8) and MMA kernels, bf16 and f32 out, weights at 8 mod 16 |
-| `MatmulNvfp4` | same | `quant.rs::nvfp4_at_the_35b_projection_shapes`: same shapes, both kernels, both output dtypes |
+| `MatmulNvfp4` | same | `quant.rs::nvfp4_at_the_35b_projection_shapes`: same shapes, both output dtypes; GEMV and MMA at M = 1 and 8, MMA only at M = 33 and 300 (`run_nvfp4` returns when the GEMV predicate refuses the call) |
 
 Shapes are from `Qwen3.6-35B-A3B-NVFP4/config.json` (hidden 2048, 16 heads x head_dim 256, attn output gate, 16 linear key heads / 32 value heads,
 dk = dv = 128, conv kernel 4, conv_dim 8192). Not done: C.4 item 4 (a `moe_topk` `top_k <= experts` predicate) was already in `8e7aa554`; item 5
@@ -47,21 +47,24 @@ Several of these would also be caught by older tests; the point is that each new
 
 ## 3. Reuse-mode accuracy on the Metal 35B
 
-`intarsia accuracy --model ~/models/Qwen3.6-35B-A3B-NVFP4 --backend metal --mode reuse --mem-budget 30 --prefill-chunk {1024,2048}`, exclusive slot
-fleetq #3999 (first attempt #3985 failed in 1 s: the CLI was built without `--features metal`; fixed in `scripts/fx10/reuse.sh`). Binary: this branch
-(origin/main `06fba3a9` plus tests and scripts, no source change); built-in stream tolerance 0.25 nats / KL 1e-2; no tolerance changed. The
-`--reuse-require-all` / `--reuse-measure` flags of FX5's PR are not on main, so the counts below are read from the per-prompt table and the
-"skipped" line.
+`intarsia accuracy --model ~/models/Qwen3.6-35B-A3B-NVFP4 --backend metal --mode reuse --mem-budget 30 --prefill-chunk N`, exclusive slots. Built-in
+stream tolerance 0.25 nats / KL 1e-2; no tolerance changed. The `--reuse-require-all` / `--reuse-measure` flags of FX5's PR are not on main, so the
+counts are read from the per-prompt table and the "prefix reuse: N prompt(s) skipped" line.
 
-There is no separate 35B "4k" golden: the 35B goldens are `qwen36-35b-a3b-nvfp4-vllm-long-top20` (five prompts of 4k-12k tokens, max-seq 16384) and
-`...-vllm-top20` (ten prompts of at most 700 tokens, max-seq 4096). Both were run.
+Two runs: **pre-m35** on origin/main `06fba3a9` (fleetq #3999; `raw/reuse-*.log`; the first attempt #3985 failed in 1 s because the CLI was built without
+`--features metal`) and **post-m35** on this branch after merging origin/main with lane m35's `moe_mm_*` kernels (head `da3e5153`, fleetq #4014;
+`raw-post-m35/`). The two agree to the digit, so the table is the post-m35 run except where noted. The binary differs from main only by tests and scripts.
+
+There is no 35B "4k" golden: qualify's `acc-4k` stage looks for a `<model>-4k...` golden (`facts::find_golden_4k`), and the only 4k golden on endor is
+the 8B's. The 35B goldens are `qwen36-35b-a3b-nvfp4-vllm-long-top20` (five prompts of 4k-12k tokens, max-seq 16384; its `*_4k` prompts are the 4k
+cases) and `...-vllm-top20` (ten prompts of at most 700 tokens, max-seq 4096).
 
 | golden | chunk | judged | skipped | prefix-reuse verdict | failing case |
 |---|---|---|---|---|---|
 | long | 1024 | 5 | 0 | **FAIL** | `long_docs_4k` continue: streams diverge at token 12, shared rows differ by 2.108 nats (0.235 at the divergence), KL up to 8.1e-2 (tolerance 0.25 / 1e-2); warm margin 0.132, cold 0.079 |
 | long | 2048 | 5 | 0 | **FAIL** | `long_docs_4k` continue: diverges at token 12, 2.704 nats (0.750 here), KL up to 8.2e-2; warm margin 0.018, cold 0.231 |
-| short (max 700 tokens) | 1024 | 0 | 10 | **FAIL** (nothing ran) | no prompt crosses a chunk boundary, so no restore was tested |
-| short (max 700 tokens) | 2048 | 0 | 10 | **FAIL** (nothing ran) | same |
+| short (max 700 tokens) | 256 (Metal default) | 2 | 8 | **PASS** | none: `long_prose_300` and `long_prose_700` continue / restore / aligned all 32/32, aligned rows bit-identical |
+| short (max 700 tokens) | 1024, 2048 (pre-m35 only) | 0 | 10 | **FAIL** (nothing ran) | no prompt crosses a chunk boundary, so no restore was tested |
 
 For the long golden every other case passes: all `restore` rows are 32/32, and every `aligned` row (reused length a multiple of the chunk) has logits
 bit-identical to the cold run. `long_code_4k`, `chat_reuse_4k`, `long_docs_12k` and `long_code_12k` pass at both chunks including `continue`. So the GDN
@@ -71,9 +74,7 @@ CUDA run in `2026-10-22-fx5-hybrid-reuse-ci.md` (35B on spark1, `long_docs_4k` c
 fault: the cold-vs-warm gap appears only in the `continue` case, where reply tokens produced by decode kernels enter the cache and the cold run
 prefills them. Whether the tolerance should absorb it is the open decision in PR #89; it is untouched here.
 
-Short-golden note: with the Metal default chunk (256) the 300- and 700-token prompts of the short golden do cross a boundary; that run was not made
-(the task named 1024 and 2048). Verdict-gate consequence: a Metal reuse gate on the short golden at the defaults needs `--prefill-chunk 256` to judge anything.
+After merging origin/main the gdn and quant binaries were re-run: 7 and 6 passed (#4010, `raw/cargo-test-after-merge.log`).
 
-After merging origin/main (which brought lane m35's `moe_mm_*` kernels) the gdn and quant binaries were re-run: 7 and 6 passed (#4010, `raw/cargo-test-after-merge.log`).
-
-Fleet jobs: #3978 (first build and test), #3984 (crate tests and mutation), #3985 (failed reuse launch), #3999 (reuse runs), #4010 (re-run after merge).
+Fleet jobs: #3978 (first build and test), #3984 (crate tests and mutation), #3985 (failed reuse launch), #3999 (reuse runs, pre-m35), #4010 (tests
+after merge), #4014 (reuse runs, post-m35).
