@@ -1,0 +1,6 @@
+2026-10-22 job=4136 stage=acc start=08:58:00 end=09:00:48 wall=168 s (radiance down for the burst; see window-acc.log for stop/answers times)
+2026-10-22 job=4137 stage=acc start=09:02:05 end=09:11:13 wall=548 s (radiance down for the burst; see window-acc.log for stop/answers times)
+2026-10-22 job=4139 stage=speed35 start=09:11:47 end=09:20:34 wall=527 s (radiance down for the burst; see window-speed35.log for stop/answers times)
+2026-10-22 job=4155 stage=speed35 start=09:21:17 end=09:27:01 wall=344 s (radiance down for the burst; see window-speed35.log for stop/answers times)
+2026-10-22 job=4164 stage=speed8 start=09:27:47 end=09:36:23 wall=516 s (radiance down for the burst; see window-speed8.log for stop/answers times)
+2026-10-22 job=4191 stage=dec start=10:11:36 end=10:13:49 wall=133 s (radiance down for the burst; see window-dec.log for stop/answers times)

@@ -1,0 +1,30 @@
+prefill chunk 2048 (--prefill-chunk)
+accuracy: Qwen3-8B on AMD Radeon Graphics (vocab 151936, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 4464 of 28685 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /work/ck-data/qwen3-8b-4k-s16k.safetensors (4 prompts, 28685 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.19.0, torch 2.14.1 | model /Users/josef/Models/Qwen3-8B | revision not in the model path | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden_4k.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (--gate-class); top-1 (all rows) >= 99.5%, 21-way KL (scored rows: outside system and user turns) <= 1.0e-3, |tail excess| (all rows) <= 0.02
+prefill chunk 2048; longest prompt 16000; prompts spanning more than one chunk: 4/4
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    99.38   2.124e-4   1.925e-4   1.925e-4   3.861e-2   0.1011   0.1010    98.91  121/4064      0
+long_code_4k        4064  4064    99.63   1.745e-4   1.685e-4   1.685e-4   7.900e-2   0.0264   0.0264    99.02  171/4064      0
+chat_reuse_4k       4557  4557    99.25   3.875e-4   3.670e-4   4.921e-4   5.452e-1   0.0795   0.0795    98.83  199/4557      0
+synth_16k          16000 16000     0.01    0.000e0    2.048e1    2.048e1    0.000e0   0.0043   0.9999     0.01   0/16000      0
+OVERALL                  28685    43.97   1.164e-4    1.142e1    1.353e1   5.452e-1   0.0331   0.5884    43.75      1.7%      0
+prefill floor [bf16]: top-1 (all rows) 43.97% (need >= 99.5) FAIL | 21-way KL (scored rows, n=24221) 1.353e1 (need <= 1.0e-3) FAIL [all rows, n=28685: 1.142e1, reported only] | tail mass (all rows) ours 0.5884 vs ref 0.0331, excess +0.5553 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 1.353e1 FAIL
+gate-definition: kl_floor [prefill]: old def: FAIL 1.142e1 (21-way KL over all rows <= static floor) | current def: FAIL 1.353e1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 2.9% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /work/ck-out/acc-090205/g1/acc/8b-4k/prefill-c2048.safetensors (top-64 rows of modes prefill for 4 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED

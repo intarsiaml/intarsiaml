@@ -1,0 +1,34 @@
+prefill chunk 4096 (--prefill-chunk)
+accuracy: Qwen3-8B on Apple M5 Max (vocab 151936, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 434 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/gold/qwen3-8b-short.safetensors (8 prompts, 434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+  reference: engine hf-transformers transformers 5.15.1, torch 2.13.0+cu129 | model /hf/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 | revision b968826d9c46dd6066d109eabc6255188de91218 | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (--gate-class); top-1 (all rows) >= 99.5%, KL (scored rows: outside system and user turns) <= 1.0e-3, |tail excess| (all rows) <= 0.02
+prefill chunk 4096; longest prompt 90; prompts spanning more than one chunk: 0/8
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   9.032e-6   7.609e-6   7.609e-6   6.896e-5   0.0029   0.0029    98.75     16/16      0
+story                 39    16   100.00   2.223e-4   2.124e-4   2.124e-4   5.586e-4   0.0237   0.0240   100.00     16/16      0
+code                  80    16   100.00   2.647e-5   2.646e-5   2.646e-5   2.348e-4   0.0000   0.0000    98.75     16/16      0
+science               79    16   100.00   6.803e-5   6.454e-5   6.454e-5   1.723e-4   0.0104   0.0103    97.50     16/16      0
+chat_short            18    16   100.00   4.269e-4   3.971e-4   9.376e-4   2.629e-3   0.0621   0.0620    97.50     16/16      0
+chat_system           32    16   100.00   7.094e-4   5.292e-4   2.006e-4   7.613e-3   0.0736   0.0728    98.75     16/16      0
+chat_multiturn        58    16   100.00   3.752e-4   3.604e-4   7.019e-4   3.577e-3   0.0076   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   8.129e-4   7.883e-4   2.149e-3   8.275e-3   0.0099   0.0102    97.50     16/16      0
+OVERALL                    128   100.00   3.313e-4   2.982e-4   2.944e-4   8.275e-3   0.0238   0.0237    98.59    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 100.00% (need >= 99.5) ok | full-vocab KL (scored rows, n=86) 3.070e-4 (need <= 1.0e-3) ok [all rows, n=128: 3.313e-4, reported only] | tail mass (all rows) ours 0.0237 vs ref 0.0238, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [full-vocab KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 3.070e-4 PASS
+gate-definition: kl_floor [decode]: old def: PASS 3.313e-4 (full-vocab KL over all rows <= static floor) | current def: PASS 3.070e-4 (full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+wrote self-golden /opt/code/wt-ck/docs/results/2026-10-22-ck-prefill-chunk/raw/metal/acc/8b-short/decode-c4096.safetensors (top-64 rows of modes decode for 8 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

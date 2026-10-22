@@ -1,0 +1,40 @@
+[og-burst] job 4191; ck dec; cap 900s; stopping radiance 2026-10-22 10:11:36
+[og-burst] radiance stopped 2026-10-22 10:11:39
+gpu0 (35B) exit 0
+gpu1 (8B) exit 0
+== chunk-job hip start 10:11:39 host tatooine steps 'gen accdec' chunks '2048 4096 8192' job 4191
+gen 35b 20000 chars chunk 2048 exit 0 10 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 647 ms (8996.8 tok/s) | decode 410 ms (153.52 tok/s) ids 795a2931 top b8d24080
+gen 35b 20000 chars chunk 4096 exit 0 7 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 607 ms (9590.9 tok/s) | decode 410 ms (153.62 tok/s) ids 795a2931 top b8d24080
+gen 35b 20000 chars chunk 8192 exit 0 6 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 591 ms (9848.0 tok/s) | decode 409 ms (154.10 tok/s) ids 795a2931 top b8d24080
+  gen 35b 20000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 35b 20000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 35b 54000 chars chunk 2048 exit 0 11 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 1943 ms (8241.1 tok/s) | decode 437 ms (144.09 tok/s) ids 5d663875 top 7fdd757f
+gen 35b 54000 chars chunk 4096 exit 0 11 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 1782 ms (8986.8 tok/s) | decode 438 ms (143.96 tok/s) ids 5d663875 top 7fdd757f
+gen 35b 54000 chars chunk 8192 exit 0 12 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 1781 ms (8991.4 tok/s) | decode 438 ms (143.90 tok/s) ids 5d663875 top 7fdd757f
+  gen 35b 54000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 35b 54000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+accdec 35b all decode chunk 2048 exit 1 8 s 15719440 bytes
+accdec 35b all decode chunk 4096 exit 1 9 s 15719440 bytes
+accdec 35b all decode chunk 8192 exit 1 9 s 15719440 bytes
+== chunk-job hip done 10:13:02
+== chunk-job hip start 10:11:39 host tatooine steps 'gen accdec' chunks '2048 4096 8192' job 4191
+gen 8b 20000 chars chunk 2048 exit 0 6 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 31 ms (32.5 tok/s) | decode 1717 ms (36.69 tok/s) ids c2e98162 top 6c4a5b26
+gen 8b 20000 chars chunk 4096 exit 0 6 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 31 ms (32.5 tok/s) | decode 1716 ms (36.70 tok/s) ids c2e98162 top 6c4a5b26
+gen 8b 20000 chars chunk 8192 exit 0 7 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 32 ms (31.7 tok/s) | decode 1715 ms (36.73 tok/s) ids c2e98162 top 6c4a5b26
+  gen 8b 20000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 8b 20000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 8b 54000 chars chunk 2048 exit 0 12 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 33 ms (30.0 tok/s) | decode 1871 ms (33.67 tok/s) ids 7912d97a top 9f7c1636
+gen 8b 54000 chars chunk 4096 exit 0 12 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 33 ms (29.9 tok/s) | decode 1869 ms (33.70 tok/s) ids 7912d97a top 9f7c1636
+gen 8b 54000 chars chunk 8192 exit 0 12 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 33 ms (29.9 tok/s) | decode 1868 ms (33.72 tok/s) ids 7912d97a top 9f7c1636
+  gen 8b 54000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 8b 54000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+accdec 8b short decode chunk 2048 exit 0 6 s 298232 bytes
+accdec 8b short decode chunk 4096 exit 0 6 s 298232 bytes
+accdec 8b short decode chunk 8192 exit 0 6 s 298232 bytes
+accdec 8b 4k decode chunk 2048 exit 1 11 s 14843484 bytes
+accdec 8b 4k decode chunk 4096 exit 1 11 s 14843484 bytes
+accdec 8b 4k decode chunk 8192 exit 1 11 s 14843484 bytes
+== chunk-job hip done 10:13:25
+[og-burst] command done 2026-10-22 10:13:25 (exit 0)
+[og-burst] starting radiance 2026-10-22 10:13:25
+[og-burst] radiance answers 2026-10-22 10:13:45 (after 25 s); window total 129 s
