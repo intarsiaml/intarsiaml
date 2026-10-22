@@ -1,0 +1,106 @@
+fleetq: #3722 waiting (#2 in line): in line behind #3721 "t2 w2: 27B tp=2 gates (no-op ids, identity, kernels, HIP tests, rocprof; <=28 min)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #3721 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3721 set, or it will wait for #3721 to be released.
+fleetq: #3722 waiting (#2 in line): in line behind #3721 "t2 w2: 27B tp=2 gates (no-op ids, identity, kernels, HIP tests, rocprof; <=28 min)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2; with --expect it may go first if it ends before #3721 starts
+fleetq:   #3721 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3721 set, or it will wait for #3721 to be released.
+fleetq: #3722 waiting (#1 in line): tatooine-r9700 is held exclusively by #3721 "t2 w2: 27B tp=2 gates (no-op ids, identity, kernels, HIP tests, rocprof; <=28 min)" (claude-f31ccf91)
+fleetq:   #3721 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3721 set, or it will wait for #3721 to be released.
+fleetq: #3722 running on tatooine-r9700, tatooine-r9700-2: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/kq-hipwin-inner.sh
+deploy: warning: 882aa27bfac8f8c891b0914b1830143a4fa0bed3 is on no remote branch; another host cannot replay this stamp until it is pushed
+deploy: tatooine (hip) <- 882aa27bfac8f8c891b0914b1830143a4fa0bed3 (kernels/README: adding a kernel and its test)
+deploy: synced (0 entries changed)
+doctor rc=0
+moe_experts    moe_experts_bf16                4      0    2.604e-3    6.494e-5  ADMITTED
+moe_experts    moe_experts_bf16_v2             4      0    2.604e-3    6.494e-5  ADMITTED
+moe_experts    moe_experts_bf16_v3             4      0    2.604e-3    6.494e-5  ADMITTED
+moe_combine    moe_combine_bf16                2      0     0.000e0     0.000e0  ADMITTED
+moe_block      moe_block_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+54 kernels, 288 cases in 0.9s
+kernels-test rc=0
+
+=== reproducibility stamp (tatooine:~/intarsia-deploy/kq-hip/DEPLOY_STAMP.json) ===
+git        882aa27bfac8f8c891b0914b1830143a4fa0bed3  (882aa27b; tree e2e0d5aa12f6)
+subject    kernels/README: adding a kernel and its test
+backend    hip
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+hipcc      HIP version: 7.2.53211-97f5574fe2
+rocm       7.2.4
+container  sha256:67e66c624a8f7114e469626532b53be4ac74c053e80fcff78d6ddd22845e62a0 base=rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
+gpu        AMD Radeon Graphics  compute -
+driver     7.2.4  (cuda toolkit -)
+host       9ab1f95c7bea  Ubuntu 24.04.4 LTS  AMD Ryzen 9 9900X 12-Core Processor
+binary     /target/release/intarsia  sha256 096a3e77e0a9420b  34091720 bytes  v0.0.1
+smoke      pass
+deploy: running in tatooine:~/intarsia-deploy/kq-hip (INTARSIA_BIN=/target/release/intarsia INTARSIA_REPLAY_OUT=replay-out/20261022T041156Z)
+doctor rc=0
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                    4      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16                4      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        2      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                    4      0     0.000e0     0.000e0  ADMITTED
+rope           rope_bf16                       8      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_gemv                4      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16                     2      0    2.168e-7    9.790e-8  ADMITTED
+logits         logits_bf16_gemv                2      0    1.084e-7    6.077e-8  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16            8      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              12      0    3.173e-4    2.320e-5  ADMITTED
+attn_decode    attn_decode_bf16                9      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         2      0    4.630e-3    2.027e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_flash_v2      2      0    4.630e-3    2.027e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv       9      0    5.574e-7    3.558e-8  ADMITTED
+attn_decode    attn_decode_bf16_splitkv        9      0     0.000e0     0.000e0  ADMITTED
+silu_glu       silu_glu_bf16                   2      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                   4      0     0.000e0     0.000e0  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16             4      0    1.192e-7    9.908e-8  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_v2          2      0    5.960e-8    8.332e-8  ADMITTED
+gate_split     gate_split_bf16                 2      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                2      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_f32                      2      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     2      0     0.000e0     0.000e0  ADMITTED
+gate_split_qk_norm_rope_kv gate_split_qk_norm_rope_kv_bf16      8      0     0.000e0     0.000e0  ADMITTED
+gdn_conv_delta gdn_conv_delta_bf16             2      0    9.255e-8    1.068e-7  ADMITTED
+matmul_fp8     matmul_fp8_gemv                 4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv_v2              4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_mma                 11      0    1.033e-3    2.426e-5  ADMITTED
+matmul_fp8     matmul_fp8_mma_f8               7      0    1.033e-3    2.426e-5  ADMITTED
+matmul_fp8     matmul_fp8_mma_v2              11      0    1.033e-3    2.426e-5  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv               5      0    5.052e-8    4.869e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv_v2            5      0    5.052e-8    4.869e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma                6      0    1.625e-7    5.675e-8  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv               8      0     0.000e0     0.000e0  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma                8      0     0.000e0     0.000e0  ADMITTED
+moe_topk       moe_topk_bf16                  12      0     0.000e0     0.000e0  ADMITTED
+moe_topk       moe_topk_bf16_v2               12      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16                4      0    2.604e-3    6.494e-5  ADMITTED
+moe_experts    moe_experts_bf16_v2             4      0    2.604e-3    6.494e-5  ADMITTED
+moe_experts    moe_experts_bf16_v3             4      0    2.604e-3    6.494e-5  ADMITTED
+moe_combine    moe_combine_bf16                2      0     0.000e0     0.000e0  ADMITTED
+moe_block      moe_block_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            9      0     0.000e0     0.000e0  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           3      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+54 kernels, 288 cases in 0.9s
+kernels-test rc=0
+deploy: outputs in tatooine:intarsia-deploy/kq-hip/replay-out/20261022T041156Z
+fleetq: #3722 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
